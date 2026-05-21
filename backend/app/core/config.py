@@ -30,7 +30,10 @@ SMTP_FROM_EMAIL = _env_first("SMTP_FROM_EMAIL", "EMAIL_FROM_EMAIL", "DEFAULT_FRO
 SMTP_FROM_NAME = _env_first("SMTP_FROM_NAME", "EMAIL_FROM_NAME", Default="MathPath Team")
 SMTP_USE_TLS = _env_bool("SMTP_USE_TLS", "EMAIL_USE_TLS", Default="true")
 SMTP_USE_SSL = _env_bool("SMTP_USE_SSL", "EMAIL_USE_SSL", Default="false")
-SMTP_TIMEOUT_SECONDS = int(_env_first("SMTP_TIMEOUT_SECONDS", "EMAIL_TIMEOUT_SECONDS", Default="20") or "20")
+SMTP_TIMEOUT_SECONDS = int(_env_first("SMTP_TIMEOUT_SECONDS", "EMAIL_TIMEOUT_SECONDS", Default="15") or "15")
+# Render/Gmail can occasionally resolve smtp.gmail.com to IPv6 first on instances without IPv6 egress.
+# Force IPv4 by default for production SMTP reliability.
+SMTP_FORCE_IPV4 = _env_bool("SMTP_FORCE_IPV4", "EMAIL_FORCE_IPV4", Default="true")
 
 # Phase 8.8 final readiness gate switch. Default is live-safe strict readiness mode.
 # Set true only for broad local testing where assessment workflow needs to be tested without completing all readiness criteria.

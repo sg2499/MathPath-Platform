@@ -4240,6 +4240,8 @@ def _admin_clean_delivery_error(ErrorValue: Exception | str | None) -> str:
         return "Email delivery failed. Please check the recipient email address."
     if "timeout" in LowerValue or "timed out" in LowerValue:
         return "Email delivery timed out. Please try again."
+    if "network" in LowerValue or "unreachable" in LowerValue or "connection failed" in LowerValue:
+        return "Email delivery could not connect to the SMTP service. Please verify the SMTP host, port, and Render outbound email access."
     if "configure" in LowerValue or "smtp" in LowerValue:
         return "Email service is not configured. Please check SMTP settings."
     return TextValue[:500]

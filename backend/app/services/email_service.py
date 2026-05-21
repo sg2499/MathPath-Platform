@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import socket
 import smtplib
+import ssl
 from email.message import EmailMessage
 from email.utils import formataddr
 from typing import Iterable, TypedDict
 
 from app.core.config import (
     SMTP_FROM_EMAIL,
+    SMTP_FORCE_IPV4,
     SMTP_FROM_NAME,
     SMTP_HOST,
     SMTP_PASSWORD,
@@ -32,6 +34,38 @@ class EmailSendResult(TypedDict, total=False):
     providerMessageId: str | None
     providerResponse: str
     recipientCount: int
+
+
+
+def _CreateIpv4Socket(Host: str, Port: int, TimeoutSeconds: int, SourceAddress=None) -> socket.socket:
+    LastError: OSError | None = None
+    AddressInfo = socket.getaddrinfo(Host, Port, socket.AF_INET, socket.SOCK_STREAM)
+    for Family, SockType, Proto, _, SocketAddress in AddressInfo:
+        SocketValue = socket.socket(Family, SockType, Proto)
+        try:
+            SocketValue.settimeout(TimeoutSeconds)
+            if SourceAddress:
+                SocketValue.bind(SourceAddress)
+            SocketValue.connect(SocketAddress)
+            return SocketValue
+        except OSError as ErrorValue:
+            LastError = ErrorValue
+            SocketValue.close()
+    if LastError:
+        raise LastError
+    raise OSError(f"Could not resolve an IPv4 SMTP address for {Host}:{Port}.")
+
+
+class _IPv4SMTP(smtplib.SMTP):
+    def _get_socket(self, host, port, timeout):  # noqa: N802 - smtplib override
+        return _CreateIpv4Socket(host, int(port), int(timeout or SMTP_TIMEOUT_SECONDS or 15), self.source_address)
+
+
+class _IPv4SMTPSSL(smtplib.SMTP_SSL):
+    def _get_socket(self, host, port, timeout):  # noqa: N802 - smtplib override
+        RawSocket = _CreateIpv4Socket(host, int(port), int(timeout or SMTP_TIMEOUT_SECONDS or 15), self.source_address)
+        ContextValue = self.context or ssl.create_default_context()
+        return ContextValue.wrap_socket(RawSocket, server_hostname=host)
 
 
 
@@ -81,17 +115,20 @@ def SendEmailWithAttachment(
         filename=AttachmentFileName,
     )
 
-    TimeoutSeconds = max(5, min(int(SMTP_TIMEOUT_SECONDS or 20), 45))
+    TimeoutSeconds = max(5, min(int(SMTP_TIMEOUT_SECONDS or 15), 30))
 
     try:
         PreviousTimeout = socket.getdefaulttimeout()
         socket.setdefaulttimeout(TimeoutSeconds)
         try:
-            ServerClass = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
+            if SMTP_FORCE_IPV4:
+                ServerClass = _IPv4SMTPSSL if SMTP_USE_SSL else _IPv4SMTP
+            else:
+                ServerClass = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
             with ServerClass(_ConfiguredValue(SMTP_HOST), int(SMTP_PORT or 587), timeout=TimeoutSeconds) as Server:
                 Server.ehlo()
                 if SMTP_USE_TLS and not SMTP_USE_SSL:
-                    Server.starttls()
+                    Server.starttls(context=ssl.create_default_context())
                     Server.ehlo()
                 Server.login(_ConfiguredValue(SMTP_USERNAME), _ConfiguredValue(SMTP_PASSWORD))
                 SendResult = Server.send_message(Message)
@@ -106,5 +143,12 @@ def SendEmailWithAttachment(
             socket.setdefaulttimeout(PreviousTimeout)
     except EmailConfigurationError:
         raise
+    except OSError as Error:
+        ErrorText = str(Error)
+        if getattr(Error, "errno", None) == 101 or "network is unreachable" in ErrorText.lower():
+            raise EmailSendError(
+                "SMTP network connection failed. Please verify Render outbound SMTP access, SMTP host, port, and TLS/SSL settings."
+            ) from Error
+        raise EmailSendError(f"Report email could not be sent: {Error}") from Error
     except Exception as Error:
         raise EmailSendError(f"Report email could not be sent: {Error}") from Error

@@ -5728,3 +5728,99 @@ html.dark .math-login-welcome-chip {
     .math-login-tabs { gap: 0.25rem !important; border-radius: 20px !important; }
   }
 }
+
+
+/* Phase 10.9.2I — Admin directory table header and action-axis alignment */
+@layer components {
+  .math-admin-directory-table table {
+    table-layout: fixed;
+  }
+
+  .math-admin-directory-table thead {
+    background: rgba(248, 250, 252, 0.82) !important;
+  }
+
+  .math-admin-directory-table thead th {
+    color: #475569 !important;
+    letter-spacing: 0.13em;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .math-admin-directory-table thead th :is(button, span) {
+    color: #475569 !important;
+  }
+
+  .math-admin-directory-table th,
+  .math-admin-directory-table td {
+    text-align: left;
+  }
+
+  .math-admin-directory-table th:first-child,
+  .math-admin-directory-table td:first-child {
+    padding-left: 1.75rem;
+  }
+
+  .math-admin-directory-table th:last-child,
+  .math-admin-directory-table td:last-child {
+    width: 15rem;
+    min-width: 15rem;
+    padding-left: 0.75rem;
+    padding-right: 1.75rem;
+    text-align: center;
+  }
+
+  .math-admin-directory-table td:last-child > .flex,
+  .math-admin-directory-table td:last-child > div {
+    justify-content: center;
+  }
+
+  .math-admin-students-table th:nth-child(1),
+  .math-admin-students-table td:nth-child(1) { width: 16%; }
+  .math-admin-students-table th:nth-child(2),
+  .math-admin-students-table td:nth-child(2) { width: 12%; }
+  .math-admin-students-table th:nth-child(3),
+  .math-admin-students-table td:nth-child(3) { width: 8%; }
+  .math-admin-students-table th:nth-child(4),
+  .math-admin-students-table td:nth-child(4) { width: 13%; }
+  .math-admin-students-table th:nth-child(5),
+  .math-admin-students-table td:nth-child(5) { width: 10%; }
+  .math-admin-students-table th:nth-child(6),
+  .math-admin-students-table td:nth-child(6) { width: 12%; }
+  .math-admin-students-table th:nth-child(7),
+  .math-admin-students-table td:nth-child(7) { width: 9%; }
+
+  .math-admin-teachers-table th:nth-child(1),
+  .math-admin-teachers-table td:nth-child(1) { width: 18%; }
+  .math-admin-teachers-table th:nth-child(2),
+  .math-admin-teachers-table td:nth-child(2) { width: 10%; }
+  .math-admin-teachers-table th:nth-child(3),
+  .math-admin-teachers-table td:nth-child(3) { width: 20%; }
+  .math-admin-teachers-table th:nth-child(4),
+  .math-admin-teachers-table td:nth-child(4) { width: 16%; }
+  .math-admin-teachers-table th:nth-child(5),
+  .math-admin-teachers-table td:nth-child(5) { width: 9%; }
+  .math-admin-teachers-table th:nth-child(6),
+  .math-admin-teachers-table td:nth-child(6) { width: 9%; }
+
+  html.dark .math-admin-directory-table thead {
+    background: rgba(15, 23, 42, 0.72) !important;
+  }
+
+  html.dark .math-admin-directory-table thead th,
+  html.dark .math-admin-directory-table thead th :is(button, span) {
+    color: #cbd5e1 !important;
+  }
+
+  @media (max-width: 1180px) {
+    .math-admin-directory-table table {
+      table-layout: auto;
+    }
+
+    .math-admin-directory-table th:last-child,
+    .math-admin-directory-table td:last-child {
+      width: 13rem;
+      min-width: 13rem;
+    }
+  }
+}

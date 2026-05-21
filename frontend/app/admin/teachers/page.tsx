@@ -338,7 +338,7 @@ export default function AdminTeachersPage() {
         ) : null}
 
         {filtered.length ? (
-          <div className="math-table">
+          <div className="math-table math-admin-directory-table math-admin-teachers-table">
             <table>
               <thead>
                 <tr>
@@ -347,8 +347,8 @@ export default function AdminTeachersPage() {
                   <th>Contact</th>
                   <th>Specialization</th>
                   <th>Students</th>
-                  <th className="math-table-chip-cell">Status</th>
-                  <th className="math-table-action-header">Action</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -381,13 +381,13 @@ export default function AdminTeachersPage() {
                         <span className="font-black">{teacher.studentCount}</span>
                         <span className="ml-2 text-xs text-slate-500">({teacher.activeStudentCount} active)</span>
                       </td>
-                      <td className="math-table-chip-cell">
+                      <td>
                         <span className={`math-badge ${teacher.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
                           {teacher.isActive ? "ACTIVE" : "INACTIVE"}
                         </span>
                       </td>
-                      <td className="math-table-action-cell">
-                        <div className="math-table-actions flex-wrap justify-center">
+                      <td>
+                        <div className="math-table-actions flex-wrap justify-end">
                           <button className="math-role-action-button math-role-icon-only" onClick={() => setSelectedTeacher(teacher)} title="View Teacher">
                             <Eye size={15} />
                           </button>
