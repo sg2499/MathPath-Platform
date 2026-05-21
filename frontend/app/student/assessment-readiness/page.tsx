@@ -1,0 +1,819 @@
+"use client";
+
+import { AppShell } from "@/components/common/AppShell";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { LoadingState } from "@/components/common/LoadingState";
+import { useProtectedPage } from "@/hooks/useProtectedPage";
+import { apiErrorMessage } from "@/lib/api";
+import { formatMathPathDateTime } from "@/lib/date";
+import {
+  getStudentAssessmentEligibility,
+  type StudentAssessmentEligibility,
+} from "@/lib/api/student";
+import { useQuery } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  GraduationCap,
+  Maximize2,
+  Minimize2,
+  Search,
+  ShieldCheck,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+
+type Filter = "" | "ALL" | "READY" | "NOT_READY";
+
+function matchesFilter(row: StudentAssessmentEligibility, filter: Filter) {
+  if (!filter || filter === "ALL") return true;
+  if (filter === "READY") return row.eligible;
+  if (filter === "NOT_READY") return !row.eligible;
+  return row.status === filter;
+}
+
+function statusTone(row: StudentAssessmentEligibility) {
+  if (row.eligible) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (row.status === "NEEDS_DPS_REATTEMPT")
+    return "border-rose-200 bg-rose-50 text-rose-700";
+  return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+function progressTone(row: StudentAssessmentEligibility) {
+  if (row.eligible) return "bg-emerald-500";
+  if (row.belowBenchmarkDpsCount) return "bg-rose-500";
+  return "bg-amber-500";
+}
+
+function moduleKey(row: StudentAssessmentEligibility) {
+  return `module:${row.moduleId || row.moduleCode || "module"}`;
+}
+
+function levelKey(row: StudentAssessmentEligibility) {
+  return `level:${row.moduleId || row.moduleCode || "module"}:${row.levelId || row.levelCode || "level"}`;
+}
+
+function levelFilterValue(row: {
+  levelId?: string | number | null;
+  levelCode?: string | null;
+}) {
+  return String(row.levelCode || row.levelId || "Level");
+}
+
+function levelFilterLabel(row: {
+  levelId?: string | number | null;
+  levelCode?: string | null;
+  levelName?: string | null;
+}) {
+  const LevelCode = String(row.levelCode || row.levelId || "Level");
+  return row.levelName ? `${LevelCode} · ${row.levelName}` : LevelCode;
+}
+
+export default function StudentAssessmentReadinessPage() {
+  const ready = useProtectedPage(["STUDENT"]);
+  const [search, setSearch] = useState("");
+  const [levelFilter, setLevelFilter] = useState("");
+  const [filter, setFilter] = useState<Filter>("");
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+
+  const query = useQuery({
+    queryKey: ["student-assessment-eligibility"],
+    queryFn: getStudentAssessmentEligibility,
+    enabled: ready,
+  });
+
+  const row = query.data;
+
+  const levelOptions = useMemo(() => {
+    if (!row) return [] as Array<[string, string]>;
+    return [[levelFilterValue(row), levelFilterLabel(row)]];
+  }, [row]);
+
+  const visibleRow = useMemo(() => {
+    if (!row) return null;
+    const QueryText = search.trim().toLowerCase();
+    const SearchMatch =
+      !QueryText ||
+      [
+        row.moduleCode,
+        row.moduleName,
+        row.levelCode,
+        row.levelName,
+        row.statusLabel,
+        row.message,
+        ...(row.lessons || []).map((lesson) => lesson.lessonTitle),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(QueryText);
+    const LevelMatch =
+      !levelFilter ||
+      levelFilter === "ALL" ||
+      levelFilterValue(row) === levelFilter;
+    return SearchMatch && LevelMatch && matchesFilter(row, filter) ? row : null;
+  }, [row, search, levelFilter, filter]);
+
+  function setBranch(key: string, value: boolean) {
+    setOpen((current) => ({ ...current, [key]: value }));
+  }
+
+  function toggle(key: string) {
+    setOpen((current) => ({ ...current, [key]: !current[key] }));
+  }
+
+  function expandAll() {
+    if (!row) return;
+    setOpen({
+      [moduleKey(row)]: true,
+      [levelKey(row)]: true,
+    });
+  }
+
+  function collapseAll() {
+    setOpen({});
+  }
+
+  if (!ready) return null;
+
+  return (
+    <AppShell>
+      <section className="math-hero">
+        <div className="relative z-10">
+          <p className="math-kicker">Assessment Readiness</p>
+          <h1 className="math-title">Am I Ready for Assessment?</h1>
+          <p className="math-subtitle">
+            Track your level readiness and remaining practice work.
+          </p>
+        </div>
+      </section>
+
+      <section className="mt-6 math-card p-5 sm:p-6">
+        <div className="grid gap-3 xl:grid-cols-[1fr_180px_200px_auto_auto] xl:items-center">
+          <div className="relative">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              size={18}
+            />
+            <input
+              className="math-input pl-11"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search Assessment Readiness"
+            />
+          </div>
+          <select
+            className="math-select"
+            value={levelFilter}
+            onChange={(event) => setLevelFilter(event.target.value)}
+          >
+            <option value="" disabled>
+              Choose Level
+            </option>
+            <option value="ALL">All Levels</option>
+            {levelOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="math-select"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value as Filter)}
+          >
+            <option value="" disabled>
+              Choose Readiness Status
+            </option>
+            <option value="ALL">All Readiness Statuses</option>
+            <option value="READY">Ready</option>
+            <option value="NOT_READY">Not Ready</option>
+          </select>
+          <button
+            type="button"
+            className="math-role-action-button math-role-row-action whitespace-nowrap"
+            onClick={expandAll}
+          >
+            Expand All
+          </button>
+          <button
+            type="button"
+            className="math-role-action-button math-role-row-action whitespace-nowrap"
+            onClick={collapseAll}
+          >
+            Collapse All
+          </button>
+        </div>
+      </section>
+
+      <section className="mt-6">
+        {query.isLoading ? (
+          <LoadingState label="Checking your readiness..." />
+        ) : null}
+        {query.error ? (
+          <ErrorState
+            title="Unable to check readiness"
+            message={apiErrorMessage(query.error)}
+          />
+        ) : null}
+        {!query.isLoading && !query.error && !row ? (
+          <EmptyState
+            title="No readiness record found"
+            message="Your assigned level readiness will appear here once practice data is available."
+          />
+        ) : null}
+        {!query.isLoading && !query.error && row && !visibleRow ? (
+          <EmptyState
+            title="No readiness records found"
+            message="Adjust the filters to review your readiness details."
+          />
+        ) : null}
+
+        {visibleRow ? (
+          <div>
+            <NodeCard
+              open={!!open[moduleKey(visibleRow)]}
+              onToggle={() => toggle(moduleKey(visibleRow))}
+              onExpand={() => setBranch(moduleKey(visibleRow), true)}
+              onCollapse={() => setBranch(moduleKey(visibleRow), false)}
+              title={visibleRow.moduleName || visibleRow.moduleCode || "Module"}
+              subtitle="Module"
+              chips={
+                <>
+                  <Chip tone="blue">{visibleRow.requiredDpsCount} DPS</Chip>
+                  <Chip tone={visibleRow.eligible ? "green" : "amber"}>
+                    {visibleRow.statusLabel}
+                  </Chip>
+                  <Chip
+                    tone={visibleRow.belowBenchmarkDpsCount ? "red" : "green"}
+                  >
+                    {visibleRow.progressPercentage}% progress
+                  </Chip>
+                </>
+              }
+            >
+              <NodeCard
+                open={!!open[levelKey(visibleRow)]}
+                onToggle={() => toggle(levelKey(visibleRow))}
+                onExpand={() => setBranch(levelKey(visibleRow), true)}
+                onCollapse={() => setBranch(levelKey(visibleRow), false)}
+                title={`${visibleRow.levelCode || "Level"}${visibleRow.levelName ? ` - ${visibleRow.levelName}` : ""}`}
+                subtitle="Level"
+                chips={
+                  <>
+                    <Chip tone="blue">
+                      {visibleRow.completedDpsCount}/
+                      {visibleRow.requiredDpsCount} cleared
+                    </Chip>
+                    {visibleRow.missingDpsCount ? (
+                      <Chip tone="amber">
+                        {visibleRow.missingDpsCount} missing
+                      </Chip>
+                    ) : null}
+                    {visibleRow.belowBenchmarkDpsCount ? (
+                      <Chip tone="red">
+                        Needs Re-Attempt: {visibleRow.belowBenchmarkDpsCount}
+                      </Chip>
+                    ) : null}
+                  </>
+                }
+                compact
+              >
+                <ReadinessDetails row={visibleRow} />
+              </NodeCard>
+            </NodeCard>
+          </div>
+        ) : null}
+      </section>
+    </AppShell>
+  );
+}
+
+type SheetFilter = "ALL" | "PENDING" | "NEEDS_REATTEMPT" | "CLEARED";
+
+type SheetRow = {
+  lessonId: string;
+  lessonNumber: number;
+  lessonTitle: string;
+  dpsId: string;
+  dpsNumber: number | null;
+  dpsTitle: string | null;
+  status: string;
+  isCompleted: boolean;
+  isPassed: boolean;
+  bestAccuracy: number | null;
+  latestAccuracy: number | null;
+  latestScore: number | null;
+  latestMaxScore: number | null;
+  latestSubmittedAt: string | null;
+};
+
+function allSheets(row: {
+  lessons: Array<{
+    lessonId: string;
+    lessonNumber: number;
+    lessonTitle: string;
+    dps: Array<Record<string, any>>;
+  }>;
+}) {
+  return row.lessons.flatMap((lesson) =>
+    (lesson.dps || []).map((sheet) => ({
+      lessonId: lesson.lessonId,
+      lessonNumber: lesson.lessonNumber,
+      lessonTitle: lesson.lessonTitle,
+      dpsId: String(sheet.dpsId ?? ""),
+      dpsNumber: typeof sheet.dpsNumber === "number" ? sheet.dpsNumber : null,
+      dpsTitle: String(sheet.dpsTitle ?? "DPS"),
+      status: String(sheet.status ?? ""),
+      isCompleted: Boolean(sheet.isCompleted),
+      isPassed: Boolean(sheet.isPassed),
+      bestAccuracy:
+        typeof sheet.bestAccuracy === "number" ? sheet.bestAccuracy : null,
+      latestAccuracy:
+        typeof sheet.latestAccuracy === "number" ? sheet.latestAccuracy : null,
+      latestScore:
+        typeof sheet.latestScore === "number" ? sheet.latestScore : null,
+      latestMaxScore:
+        typeof sheet.latestMaxScore === "number" ? sheet.latestMaxScore : null,
+      latestSubmittedAt:
+        typeof sheet.latestSubmittedAt === "string"
+          ? sheet.latestSubmittedAt
+          : null,
+    })),
+  );
+}
+
+function sheetCategory(sheet: SheetRow) {
+  if (sheet.isPassed) return "CLEARED";
+  if (sheet.isCompleted && !sheet.isPassed) return "NEEDS_REATTEMPT";
+  return "PENDING";
+}
+
+function sheetStatusLabel(sheet: SheetRow) {
+  const category = sheetCategory(sheet);
+  if (category === "CLEARED") return "Cleared";
+  if (category === "NEEDS_REATTEMPT") return "Needs Re-Attempt";
+  return "Pending";
+}
+
+function sheetStatusClasses(sheet: SheetRow) {
+  const category = sheetCategory(sheet);
+  if (category === "CLEARED") return "bg-emerald-100 text-emerald-700";
+  if (category === "NEEDS_REATTEMPT") return "bg-rose-100 text-rose-700";
+  return "bg-amber-100 text-amber-700";
+}
+
+function sheetDot(sheet: SheetRow) {
+  const category = sheetCategory(sheet);
+  if (category === "CLEARED") return "bg-emerald-500";
+  if (category === "NEEDS_REATTEMPT") return "bg-rose-500";
+  return "bg-amber-500";
+}
+
+function sheetProgress(sheet: SheetRow) {
+  if (sheet.isPassed) return 100;
+  if (sheet.isCompleted && !sheet.isPassed)
+    return Math.max(
+      5,
+      Math.round(sheet.bestAccuracy ?? sheet.latestAccuracy ?? 0),
+    );
+  return 0;
+}
+
+function dpsLabel(sheet: SheetRow) {
+  return sheet.dpsNumber ? `DPS-${sheet.dpsNumber}` : "DPS";
+}
+
+function groupSheetsByLesson(sheets: SheetRow[]) {
+  const map = new Map<
+    string,
+    {
+      lessonId: string;
+      lessonNumber: number;
+      lessonTitle: string;
+      sheets: SheetRow[];
+    }
+  >();
+  sheets.forEach((sheet) => {
+    const key = sheet.lessonId || `lesson-${sheet.lessonNumber}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.sheets.push(sheet);
+    } else {
+      map.set(key, {
+        lessonId: key,
+        lessonNumber: sheet.lessonNumber,
+        lessonTitle: sheet.lessonTitle,
+        sheets: [sheet],
+      });
+    }
+  });
+  return Array.from(map.values()).sort(
+    (a, b) => a.lessonNumber - b.lessonNumber,
+  );
+}
+
+function filterSheets(sheets: SheetRow[], filter: SheetFilter) {
+  if (filter === "ALL") return sheets;
+  return sheets.filter((sheet) => sheetCategory(sheet) === filter);
+}
+
+function ReadinessDetails({ row }: { row: StudentAssessmentEligibility }) {
+  const [showSheets, setShowSheets] = useState(false);
+  const [sheetFilter, setSheetFilter] = useState<SheetFilter>("ALL");
+
+  const sheets = allSheets(row);
+  const pendingCount = sheets.filter(
+    (sheet) => sheetCategory(sheet) === "PENDING",
+  ).length;
+  const needsReattemptCount = sheets.filter(
+    (sheet) => sheetCategory(sheet) === "NEEDS_REATTEMPT",
+  ).length;
+  const clearedCount = sheets.filter(
+    (sheet) => sheetCategory(sheet) === "CLEARED",
+  ).length;
+  const visibleSheets = filterSheets(sheets, sheetFilter);
+  const grouped = groupSheetsByLesson(visibleSheets);
+
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-950/70">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wide ${statusTone(row)}`}
+            >
+              {row.statusLabel}
+            </span>
+          </div>
+          <p className="mt-3 max-w-4xl text-sm font-semibold leading-6 text-slate-600">
+            {row.message}
+          </p>
+        </div>
+        <div className="min-w-[160px] rounded-[24px] bg-slate-50 p-4 text-center dark:bg-slate-900">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+            Progress
+          </p>
+          <p className="mt-2 text-4xl font-black text-slate-950 dark:text-white">
+            {row.progressPercentage}%
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-4">
+        <Info label="Required DPS" value={row.requiredDpsCount} />
+        <Info label="Cleared" value={row.completedDpsCount} />
+        <Info label="Pending" value={pendingCount} />
+        <Info label="Needs Re-Attempt" value={needsReattemptCount} />
+      </div>
+
+      <div className="mt-5 h-3 math-role-progress-track">
+        <div
+          className="h-full rounded-full math-role-progress-fill"
+          style={{
+            width: `${Math.min(100, Math.max(0, row.progressPercentage))}%`,
+          }}
+        />
+      </div>
+
+      <section className="mt-5 rounded-[26px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="math-kicker text-[10px]">Sheet Breakdown</p>
+            <h3 className="text-lg font-black text-slate-950 dark:text-white">
+              DPS Clearance Tracker
+            </h3>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Review pending, cleared, and re-attempt sheets for this level.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="math-role-action-button math-role-row-action"
+            onClick={() => setShowSheets((current) => !current)}
+          >
+            {showSheets ? "Hide Sheet Details" : "Show Sheet Details"}
+          </button>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <SheetFilterChip
+            active={sheetFilter === "ALL"}
+            onClick={() => setSheetFilter("ALL")}
+          >
+            All Sheets{" "}
+            <span className="ml-1 opacity-70">({sheets.length})</span>
+          </SheetFilterChip>
+          <SheetFilterChip
+            active={sheetFilter === "PENDING"}
+            onClick={() => setSheetFilter("PENDING")}
+          >
+            Pending <span className="ml-1 opacity-70">({pendingCount})</span>
+          </SheetFilterChip>
+          <SheetFilterChip
+            active={sheetFilter === "NEEDS_REATTEMPT"}
+            onClick={() => setSheetFilter("NEEDS_REATTEMPT")}
+          >
+            Needs Re-Attempt{" "}
+            <span className="ml-1 opacity-70">({needsReattemptCount})</span>
+          </SheetFilterChip>
+          <SheetFilterChip
+            active={sheetFilter === "CLEARED"}
+            onClick={() => setSheetFilter("CLEARED")}
+          >
+            Cleared <span className="ml-1 opacity-70">({clearedCount})</span>
+          </SheetFilterChip>
+        </div>
+
+        {showSheets ? (
+          <div className="mt-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+            <div className="max-h-[460px] overflow-y-auto">
+              {grouped.length ? (
+                grouped.map((lesson) => (
+                  <section
+                    key={lesson.lessonId}
+                    className="border-b border-slate-100 last:border-b-0 dark:border-slate-800"
+                  >
+                    <div className="sticky top-0 z-20 grid gap-3 border-b border-slate-100 bg-slate-50/95 px-4 py-3 backdrop-blur lg:grid-cols-[1fr_96px_160px_170px] lg:items-end dark:border-slate-800 dark:bg-slate-900/95">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-600">
+                          Lesson {lesson.lessonNumber}
+                        </p>
+                        <h4 className="text-sm font-black text-slate-950 dark:text-white">
+                          {lesson.lessonTitle}
+                        </h4>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          {lesson.sheets.length} sheet
+                          {lesson.sheets.length === 1 ? "" : "s"} in this view
+                        </p>
+                      </div>
+                      <p className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
+                        Score
+                      </p>
+                      <p className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
+                        Status
+                      </p>
+                      <p className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
+                        Completion Date
+                      </p>
+                    </div>
+
+                    {lesson.sheets.map((sheet) => (
+                      <div
+                        key={
+                          sheet.dpsId || `${lesson.lessonId}-${sheet.dpsNumber}`
+                        }
+                        className="grid gap-3 border-b border-slate-100 p-4 last:border-b-0 lg:grid-cols-[1fr_96px_160px_170px] lg:items-center dark:border-slate-800"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-start gap-3">
+                            <span
+                              className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${sheetDot(sheet)}`}
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-black text-slate-950 dark:text-white">
+                                {dpsLabel(sheet)}
+                              </p>
+                              {sheet.dpsTitle ? (
+                                <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                                  {sheet.dpsTitle}
+                                </p>
+                              ) : null}
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                Best:{" "}
+                                {sheet.bestAccuracy !== null
+                                  ? `${sheet.bestAccuracy}%`
+                                  : "-"}{" "}
+                                · Latest:{" "}
+                                {sheet.latestAccuracy !== null
+                                  ? `${sheet.latestAccuracy}%`
+                                  : "-"}
+                              </p>
+                              <div className="mt-2 h-2 math-role-progress-track">
+                                <div
+                                  className="h-full rounded-full math-role-progress-fill"
+                                  style={{ width: `${sheetProgress(sheet)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-sm font-black text-slate-950 dark:text-white">
+                          {sheet.latestScore !== null &&
+                          sheet.latestMaxScore !== null
+                            ? `${sheet.latestScore} / ${sheet.latestMaxScore}`
+                            : "- / -"}
+                        </div>
+
+                        <div>
+                          <span
+                            className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 text-xs font-black ${sheetStatusClasses(sheet)}`}
+                          >
+                            {sheetStatusLabel(sheet)}
+                          </span>
+                        </div>
+
+                        <div className="text-xs font-bold text-slate-500">
+                          {sheet.latestSubmittedAt
+                            ? formatMathPathDateTime(sheet.latestSubmittedAt)
+                            : "Not submitted yet"}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                ))
+              ) : (
+                <div className="p-6 text-sm font-semibold text-slate-500">
+                  No sheets match this filter.
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            <Info label="All Sheets" value={sheets.length} />
+            <Info label="Pending" value={pendingCount} />
+            <Info label="Needs Re-Attempt" value={needsReattemptCount} />
+            <Info label="Cleared" value={clearedCount} />
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function NodeCard({
+  open,
+  onToggle,
+  onExpand,
+  onCollapse,
+  title,
+  subtitle,
+  chips,
+  compact,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onExpand: () => void;
+  onCollapse: () => void;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  chips?: React.ReactNode;
+  compact?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <article
+      className={`overflow-hidden rounded-[30px] border border-slate-200 bg-white/90 shadow-sm dark:border-slate-800 dark:bg-slate-950/80 ${compact ? "mt-4" : ""}`}
+    >
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 items-start gap-4 text-left"
+        >
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+            {open ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-black leading-6 text-slate-950 dark:text-white">
+              {title}
+            </h2>
+            {subtitle ? (
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                {subtitle}
+              </p>
+            ) : null}
+            {chips ? (
+              <div className="mt-3 flex flex-wrap gap-2">{chips}</div>
+            ) : null}
+          </div>
+        </button>
+        <BranchButtons onExpand={onExpand} onCollapse={onCollapse} />
+      </div>
+      {open ? (
+        <div className="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800">
+          {children}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function BranchButtons({
+  onExpand,
+  onCollapse,
+}: {
+  onExpand: () => void;
+  onCollapse: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        title="Expand this branch"
+        aria-label="Expand this branch"
+        className="math-readiness-branch-button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onExpand();
+        }}
+      >
+        <Maximize2 size={15} strokeWidth={2.4} />
+      </button>
+      <button
+        type="button"
+        title="Collapse this branch"
+        aria-label="Collapse this branch"
+        className="math-readiness-branch-button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onCollapse();
+        }}
+      >
+        <Minimize2 size={15} strokeWidth={2.4} />
+      </button>
+    </div>
+  );
+}
+
+function Chip({
+  tone,
+  children,
+}: {
+  tone: "blue" | "green" | "amber" | "red";
+  children: React.ReactNode;
+}) {
+  const classes = {
+    blue: "border-blue-200 bg-blue-50 text-blue-700",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+    red: "border-rose-200 bg-rose-50 text-rose-700",
+  };
+  return (
+    <span
+      className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-black ${classes[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SheetFilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={`math-readiness-sheet-filter ${active ? "is-active" : ""}`}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Metric({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-[24px] bg-slate-50 p-4 dark:bg-slate-900">
+      <div className="text-blue-600">{icon}</div>
+      <p className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+        {value}
+      </p>
+    </div>
+  );
+}

@@ -1,0 +1,733 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from app.models import (
+    Assignment,
+    AssignmentReattemptPermission,
+    Attempt,
+    DPS,
+    Lesson,
+    Level,
+    Module,
+    Student,
+    Teacher,
+    User,
+    Notification,
+)
+from app.services.notification_service import ActiveAdminUsers, CreateNotification
+
+PRACTICE_BENCHMARK_PERCENTAGE = 70.0
+
+
+def _json_loads(value: str | None) -> dict[str, Any]:
+    if not value:
+        return {}
+    try:
+        Parsed = json.loads(value)
+        return Parsed if isinstance(Parsed, dict) else {}
+    except Exception:
+        return {}
+
+
+def _json_dumps(value: dict[str, Any] | None) -> str | None:
+    if value is None:
+        return None
+    return json.dumps(value, default=str)
+
+
+def _merge_unique_values(*Groups: list[Any]) -> list[Any]:
+    Seen: set[str] = set()
+    Result: list[Any] = []
+    for Group in Groups:
+        for Value in Group or []:
+            if Value is None:
+                continue
+            Key = str(Value)
+            if not Key or Key in Seen:
+                continue
+            Seen.add(Key)
+            Result.append(Value)
+    return Result
+
+
+def _recent_assignment_notification(
+    db: Session,
+    *,
+    recipient_user_id: str,
+    student_id: str | None,
+    module_id: str | None,
+    level_id: str | None,
+    actor_user_id: str | None,
+    target_route: str | None,
+    since_minutes: int = 10,
+) -> Notification | None:
+    Since = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+    Query = db.query(Notification).filter(
+        Notification.recipient_user_id == recipient_user_id,
+        Notification.category == "PRACTICE",
+        Notification.type.in_([
+            "DPS_ASSIGNED",
+            "DPS_ASSIGNED_BULK",
+            "DPS_ASSIGNED_BY_TEACHER",
+            "DPS_ASSIGNED_BULK_BY_TEACHER",
+        ]),
+        Notification.student_id == student_id,
+        Notification.module_id == module_id,
+        Notification.level_id == level_id,
+        Notification.is_read.is_(False),
+        Notification.created_at >= Since,
+    )
+    if actor_user_id:
+        Query = Query.filter(Notification.actor_user_id == actor_user_id)
+    if target_route:
+        Query = Query.filter(Notification.target_route == target_route)
+    return Query.order_by(Notification.created_at.desc()).first()
+
+
+def _create_or_merge_assignment_notification(
+    db: Session,
+    *,
+    recipient_user_id: str,
+    recipient_role: str,
+    actor_user_id: str | None,
+    actor_role: str | None,
+    student_id: str | None,
+    teacher_id: str | None,
+    module_id: str | None,
+    level_id: str | None,
+    lesson_id: str | None,
+    dps_id: str | None,
+    type: str,
+    title: str,
+    message: str,
+    target_route: str,
+    target_tab: str,
+    metadata: dict[str, Any],
+    student_name: str | None,
+    teacher_name: str | None,
+    display_level: str | None,
+) -> Notification:
+    Existing = _recent_assignment_notification(
+        db,
+        recipient_user_id=recipient_user_id,
+        student_id=student_id,
+        module_id=module_id,
+        level_id=level_id,
+        actor_user_id=actor_user_id,
+        target_route=target_route,
+    )
+    if not Existing:
+        return CreateNotification(
+            db,
+            recipient_user_id=recipient_user_id,
+            recipient_role=recipient_role,
+            actor_user_id=actor_user_id,
+            actor_role=actor_role,
+            student_id=student_id,
+            teacher_id=teacher_id,
+            module_id=module_id,
+            level_id=level_id,
+            lesson_id=lesson_id,
+            dps_id=dps_id,
+            type=type,
+            category="PRACTICE",
+            title=title,
+            message=message,
+            target_route=target_route,
+            target_tab=target_tab,
+            metadata=metadata,
+        )
+
+    ExistingMetadata = _json_loads(Existing.metadata_json)
+    ExistingAssignmentIds = ExistingMetadata.get("assignmentIds") if isinstance(ExistingMetadata.get("assignmentIds"), list) else []
+    ExistingDpsIds = ExistingMetadata.get("dpsIds") if isinstance(ExistingMetadata.get("dpsIds"), list) else []
+    ExistingLessonIds = ExistingMetadata.get("lessonIds") if isinstance(ExistingMetadata.get("lessonIds"), list) else []
+    NewAssignmentIds = metadata.get("assignmentIds") if isinstance(metadata.get("assignmentIds"), list) else []
+    NewDpsIds = metadata.get("dpsIds") if isinstance(metadata.get("dpsIds"), list) else []
+    NewLessonIds = metadata.get("lessonIds") if isinstance(metadata.get("lessonIds"), list) else []
+
+    MergedAssignmentIds = _merge_unique_values(ExistingAssignmentIds, NewAssignmentIds, [metadata.get("assignmentId")])
+    MergedDpsIds = _merge_unique_values(ExistingDpsIds, NewDpsIds, [metadata.get("dpsId")])
+    MergedLessonIds = _merge_unique_values(ExistingLessonIds, NewLessonIds, [metadata.get("lessonId")])
+    MergedCount = max(len(MergedDpsIds), len(MergedAssignmentIds), 2)
+
+    ExistingMetadata.update(metadata)
+    ExistingMetadata.update({
+        "assignmentIds": MergedAssignmentIds,
+        "assignmentCount": MergedCount,
+        "dpsIds": MergedDpsIds,
+        "dpsCount": MergedCount,
+        "lessonIds": MergedLessonIds,
+        "notificationGroup": "PRACTICE_BULK",
+        "isGrouped": True,
+        "targetAction": "review-assigned-dps" if recipient_role.upper() == "STUDENT" else "review-student-practice",
+    })
+
+    Existing.type = "DPS_ASSIGNED_BULK" if recipient_role.upper() == "STUDENT" else "DPS_ASSIGNED_BULK_BY_TEACHER"
+    if recipient_role.upper() == "STUDENT":
+        Existing.title = f"{MergedCount} DPS Assigned"
+        Existing.message = f"{display_level or 'This level'} has {MergedCount} new DPS sheets ready."
+    else:
+        Existing.title = f"{MergedCount} DPS Assigned To {student_name or 'Student'}"
+        Existing.message = f"{teacher_name or 'Teacher'} assigned {MergedCount} DPS sheets to {student_name or 'this student'}."
+    Existing.lesson_id = lesson_id or Existing.lesson_id
+    Existing.dps_id = dps_id or Existing.dps_id
+    Existing.target_tab = target_tab or Existing.target_tab
+    Existing.target_route = target_route or Existing.target_route
+    Existing.metadata_json = _json_dumps(ExistingMetadata)
+    Existing.created_at = datetime.now(timezone.utc)
+    Existing.updated_at = datetime.now(timezone.utc)
+    db.flush()
+    return Existing
+
+
+def _student_user(db: Session, student: Student | None) -> User | None:
+    return db.get(User, student.user_id) if student and student.user_id else None
+
+
+def _teacher_user(db: Session, teacher: Teacher | None) -> User | None:
+    return db.get(User, teacher.user_id) if teacher and teacher.user_id else None
+
+
+def _teacher_for_student(db: Session, student: Student | None) -> Teacher | None:
+    if not student:
+        return None
+    teacher_id = getattr(student, "teacher_id", None)
+    if teacher_id:
+        teacher = db.get(Teacher, teacher_id)
+        if teacher:
+            return teacher
+    teacher_name = (getattr(student, "teacher", None) or "").strip()
+    if not teacher_name:
+        return None
+    teacher_users = db.query(User).filter(User.full_name == teacher_name, User.is_active.is_(True)).all()
+    teacher_user_ids = [user.id for user in teacher_users]
+    if not teacher_user_ids:
+        return None
+    return db.query(Teacher).filter(Teacher.user_id.in_(teacher_user_ids), Teacher.is_active.is_(True)).first()
+
+
+def _teacher_for_assignment_or_student(db: Session, assignment: Assignment | None, student: Student | None) -> Teacher | None:
+    if assignment and assignment.assigned_by_user_id:
+        teacher = db.query(Teacher).filter(Teacher.user_id == assignment.assigned_by_user_id, Teacher.is_active.is_(True)).first()
+        if teacher:
+            return teacher
+    return _teacher_for_student(db, student)
+
+
+def _practice_context(db: Session, *, assignment: Assignment | None = None, attempt: Attempt | None = None, permission: AssignmentReattemptPermission | None = None) -> dict[str, Any]:
+    if not assignment and attempt and attempt.assignment_id:
+        assignment = db.get(Assignment, attempt.assignment_id)
+    if not assignment and permission and permission.assignment_id:
+        assignment = db.get(Assignment, permission.assignment_id)
+
+    dps = None
+    if attempt and attempt.dps_id:
+        dps = db.get(DPS, attempt.dps_id)
+    if not dps and assignment and assignment.dps_id:
+        dps = db.get(DPS, assignment.dps_id)
+    if not dps and permission and permission.dps_id:
+        dps = db.get(DPS, permission.dps_id)
+
+    lesson = db.get(Lesson, dps.lesson_id) if dps and dps.lesson_id else None
+    level = db.get(Level, lesson.level_id) if lesson and lesson.level_id else None
+    module = db.get(Module, level.module_id) if level and level.module_id else None
+
+    student = None
+    if attempt and attempt.student_id:
+        student = db.get(Student, attempt.student_id)
+    if not student and permission and permission.student_id:
+        student = db.get(Student, permission.student_id)
+    if not student and assignment and assignment.assigned_to_type == "STUDENT" and assignment.assigned_to_id:
+        student = db.get(Student, assignment.assigned_to_id)
+
+    teacher = _teacher_for_assignment_or_student(db, assignment, student)
+    student_user = _student_user(db, student)
+    teacher_user = _teacher_user(db, teacher)
+
+    lesson_number = lesson.lesson_number if lesson else None
+    dps_number = dps.dps_number if dps else None
+    dps_label = f"DPS {dps_number}" if dps_number is not None else "DPS"
+    if dps and dps.dps_title:
+        dps_label = f"{dps_label}: {dps.dps_title}"
+
+    return {
+        "assignment": assignment,
+        "attempt": attempt,
+        "permission": permission,
+        "student": student,
+        "student_user": student_user,
+        "teacher": teacher,
+        "teacher_user": teacher_user,
+        "dps": dps,
+        "lesson": lesson,
+        "level": level,
+        "module": module,
+        "student_name": student_user.full_name if student_user else (student.student_code if student else "Student"),
+        "student_code": student.student_code if student else None,
+        "teacher_name": teacher_user.full_name if teacher_user else "Teacher",
+        "module_label": module.module_name if module else "Module",
+        "module_code": module.module_code if module else None,
+        "level_label": level.level_code if level else "Level",
+        "level_code": level.level_code if level else None,
+        "lesson_id": lesson.id if lesson else None,
+        "dps_id": dps.id if dps else None,
+        "lesson_label": f"Lesson {lesson_number}" if lesson_number is not None else "Lesson",
+        "dps_label": dps_label,
+    }
+
+
+def _admin_practice_target_route(context: dict[str, Any]) -> str:
+    student_code = str(context.get("student_code") or "").strip()
+    return f"/admin/assignments/student/{student_code}" if student_code else "/admin/assignments"
+
+
+def _teacher_practice_target_route(context: dict[str, Any]) -> str:
+    student_code = str(context.get("student_code") or "").strip()
+    return f"/teacher/assignment-tracker/student/{student_code}" if student_code else "/teacher/assignment-tracker"
+
+
+def _admin_notifications(
+    db: Session,
+    *,
+    type: str,
+    category: str,
+    title: str,
+    message: str,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
+    student_id: str | None = None,
+    teacher_id: str | None = None,
+    module_id: str | None = None,
+    level_id: str | None = None,
+    lesson_id: str | None = None,
+    dps_id: str | None = None,
+    attempt_id: str | None = None,
+    target_route: str = "/admin/assignments",
+    target_tab: str | None = None,
+    target_sub_tab: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    for admin in ActiveAdminUsers(db):
+        CreateNotification(
+            db,
+            recipient_user_id=admin.id,
+            recipient_role=admin.role,
+            actor_user_id=actor_user_id,
+            actor_role=actor_role,
+            student_id=student_id,
+            teacher_id=teacher_id,
+            module_id=module_id,
+            level_id=level_id,
+            lesson_id=lesson_id,
+            dps_id=dps_id,
+            attempt_id=attempt_id,
+            type=type,
+            category=category,
+            title=title,
+            message=message,
+            target_route=target_route,
+            target_tab=target_tab,
+            target_sub_tab=target_sub_tab,
+            metadata=metadata,
+        )
+
+
+def _unique_compact(values: list[Any]) -> list[Any]:
+    seen: set[str] = set()
+    result: list[Any] = []
+    for value in values:
+        if value is None:
+            continue
+        key = str(value)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        result.append(value)
+    return result
+
+
+def _assignment_group_metadata(
+    *,
+    contexts: list[dict[str, Any]],
+    assignments: list[Assignment],
+    first_assignment: Assignment,
+    first_context: dict[str, Any],
+    count: int,
+    target_action: str,
+) -> dict[str, Any]:
+    first_lesson = first_context.get("lesson")
+    first_dps = first_context.get("dps")
+    level_label = first_context.get("level_code") or first_context.get("level_label")
+    assignment_ids = _unique_compact([assignment.id for assignment in assignments])
+    dps_ids = _unique_compact([
+        (context.get("dps").id if context.get("dps") else None)
+        for context in contexts
+    ])
+    lesson_ids = _unique_compact([
+        (context.get("lesson").id if context.get("lesson") else None)
+        for context in contexts
+    ])
+    return {
+        "assignmentId": first_assignment.id,
+        "assignmentIds": assignment_ids,
+        "assignmentCount": count,
+        "dpsCount": count,
+        "dpsId": first_dps.id if first_dps else None,
+        "dpsIds": dps_ids,
+        "lessonId": first_lesson.id if first_lesson else None,
+        "lessonIds": lesson_ids,
+        "studentCode": first_context.get("student_code"),
+        "moduleCode": first_context.get("module_code"),
+        "levelCode": level_label,
+        "highlightId": f"assignment-{first_assignment.id}",
+        "targetAction": target_action,
+        "notificationGroup": "PRACTICE_BULK" if count > 1 else "PRACTICE",
+        "isGrouped": count > 1,
+    }
+
+
+def NotifyPracticeAssignmentsCreated(
+    db: Session,
+    *,
+    assignment_ids: list[str],
+    actor_user_id: str | None,
+) -> None:
+    PreparedGroups: dict[tuple[str, str, str], list[tuple[Assignment, dict[str, Any]]]] = {}
+
+    for assignment_id in assignment_ids:
+        assignment = db.get(Assignment, assignment_id)
+        context = _practice_context(db, assignment=assignment)
+        student = context.get("student") if context else None
+        if not assignment or not context or not student:
+            continue
+        group_key = (
+            str(student.id or context.get("student_code") or ""),
+            str(context.get("module_code") or ""),
+            str(context.get("level_code") or context.get("level_label") or ""),
+        )
+        PreparedGroups.setdefault(group_key, []).append((assignment, context))
+
+    for entries in PreparedGroups.values():
+        if not entries:
+            continue
+        assignments = [entry[0] for entry in entries]
+        contexts = [entry[1] for entry in entries]
+        first_assignment = assignments[0]
+        first_context = contexts[0]
+        count = len(entries)
+
+        student = first_context.get("student")
+        student_user = first_context.get("student_user")
+        teacher = first_context.get("teacher")
+        module = first_context.get("module")
+        level = first_context.get("level")
+        lesson = first_context.get("lesson")
+        dps = first_context.get("dps")
+        dps_label = first_context.get("dps_label")
+        level_label = first_context.get("level_label")
+        student_name = first_context.get("student_name")
+        teacher_name = first_context.get("teacher_name")
+        display_level = first_context.get("level_code") or level_label
+
+        if count == 1:
+            student_title = "New DPS Assigned"
+            student_message = f"{dps_label} is now available for {level_label}."
+            admin_title = "DPS Assigned By Teacher"
+            admin_message = f"{teacher_name} assigned {dps_label} to {student_name}."
+            student_target_action = "start"
+            admin_target_action = "view-record"
+        else:
+            student_title = f"{count} DPS Assigned"
+            student_message = f"{display_level} has {count} new DPS sheets ready."
+            admin_title = f"{count} DPS Assigned To {student_name}"
+            admin_message = f"{teacher_name} assigned {count} DPS sheets to {student_name}."
+            student_target_action = "review-assigned-dps"
+            admin_target_action = "review-student-practice"
+
+        if student_user:
+            _create_or_merge_assignment_notification(
+                db,
+                recipient_user_id=student_user.id,
+                recipient_role="STUDENT",
+                actor_user_id=actor_user_id,
+                actor_role="TEACHER" if actor_user_id else None,
+                student_id=student.id if student else None,
+                teacher_id=teacher.id if teacher else None,
+                module_id=module.id if module else None,
+                level_id=level.id if level else None,
+                lesson_id=lesson.id if lesson else None,
+                dps_id=dps.id if dps else None,
+                type="DPS_ASSIGNED_BULK" if count > 1 else "DPS_ASSIGNED",
+                title=student_title,
+                message=student_message,
+                target_route="/student/practice",
+                target_tab="practice",
+                metadata=_assignment_group_metadata(
+                    contexts=contexts,
+                    assignments=assignments,
+                    first_assignment=first_assignment,
+                    first_context=first_context,
+                    count=count,
+                    target_action=student_target_action,
+                ),
+                student_name=student_name,
+                teacher_name=teacher_name,
+                display_level=display_level,
+            )
+
+        AdminMetadata = _assignment_group_metadata(
+            contexts=contexts,
+            assignments=assignments,
+            first_assignment=first_assignment,
+            first_context=first_context,
+            count=count,
+            target_action=admin_target_action,
+        )
+        AdminTargetRoute = _admin_practice_target_route(first_context)
+        for AdminUser in ActiveAdminUsers(db):
+            _create_or_merge_assignment_notification(
+                db,
+                recipient_user_id=AdminUser.id,
+                recipient_role=AdminUser.role,
+                actor_user_id=actor_user_id,
+                actor_role="TEACHER" if actor_user_id else None,
+                student_id=student.id if student else None,
+                teacher_id=teacher.id if teacher else None,
+                module_id=module.id if module else None,
+                level_id=level.id if level else None,
+                lesson_id=lesson.id if lesson else None,
+                dps_id=dps.id if dps else None,
+                type="DPS_ASSIGNED_BULK_BY_TEACHER" if count > 1 else "DPS_ASSIGNED_BY_TEACHER",
+                title=admin_title,
+                message=admin_message,
+                target_route=AdminTargetRoute,
+                target_tab="practice-control",
+                metadata=AdminMetadata,
+                student_name=student_name,
+                teacher_name=teacher_name,
+                display_level=display_level,
+            )
+
+
+def NotifyPracticeAttemptSubmitted(
+    db: Session,
+    *,
+    attempt_id: str,
+) -> None:
+    attempt = db.get(Attempt, attempt_id)
+    if not attempt:
+        return
+
+    assignment = db.get(Assignment, attempt.assignment_id) if attempt.assignment_id else None
+    context = _practice_context(db, assignment=assignment, attempt=attempt)
+    student = context.get("student")
+    student_user = context.get("student_user")
+    teacher = context.get("teacher")
+    teacher_user = context.get("teacher_user")
+    module = context.get("module")
+    level = context.get("level")
+    lesson = context.get("lesson")
+    dps = context.get("dps")
+    dps_label = context.get("dps_label")
+    level_label = context.get("level_label")
+    student_name = context.get("student_name")
+
+    accuracy = int(round(float(attempt.accuracy_percentage or 0)))
+    cleared = accuracy >= PRACTICE_BENCHMARK_PERCENTAGE
+    title = "DPS Cleared" if cleared else "DPS Needs Re-Attempt"
+    notification_type = "DPS_CLEARED" if cleared else "DPS_NEEDS_REATTEMPT"
+    category = "PRACTICE"
+    message = f"{dps_label} result is available: {accuracy}%."
+
+    if student_user:
+        CreateNotification(
+            db,
+            recipient_user_id=student_user.id,
+            recipient_role="STUDENT",
+            student_id=student.id if student else None,
+            teacher_id=teacher.id if teacher else None,
+            module_id=module.id if module else None,
+            level_id=level.id if level else None,
+            lesson_id=lesson.id if lesson else None,
+            dps_id=dps.id if dps else None,
+            attempt_id=attempt.id,
+            type=notification_type,
+            category=category,
+            title=title,
+            message=message,
+            target_route=f"/student/result/{attempt.id}",
+            target_tab="practice-result",
+            metadata={
+                "assignmentId": assignment.id if assignment else None,
+                "attemptId": attempt.id,
+                "dpsId": dps.id if dps else None,
+                "lessonId": lesson.id if lesson else None,
+                "studentCode": context.get("student_code"),
+                "moduleCode": context.get("module_code"),
+                "levelCode": context.get("level_code") or level_label,
+                "accuracy": accuracy,
+                "highlightId": f"attempt-{attempt.id}",
+                "targetAction": "view-result",
+                "notificationGroup": "PRACTICE",
+            },
+        )
+
+    if teacher_user:
+        CreateNotification(
+            db,
+            recipient_user_id=teacher_user.id,
+            recipient_role="TEACHER",
+            student_id=student.id if student else None,
+            teacher_id=teacher.id if teacher else None,
+            module_id=module.id if module else None,
+            level_id=level.id if level else None,
+            lesson_id=lesson.id if lesson else None,
+            dps_id=dps.id if dps else None,
+            attempt_id=attempt.id,
+            type=notification_type,
+            category=category,
+            title=f"{student_name} {title}",
+            message=f"{student_name} completed {dps_label} with {accuracy}% accuracy.",
+            target_route=_teacher_practice_target_route(context),
+            target_tab="practice-tracker",
+            metadata={
+                "assignmentId": assignment.id if assignment else None,
+                "attemptId": attempt.id,
+                "dpsId": dps.id if dps else None,
+                "lessonId": lesson.id if lesson else None,
+                "studentCode": context.get("student_code"),
+                "moduleCode": context.get("module_code"),
+                "levelCode": context.get("level_code") or level_label,
+                "accuracy": accuracy,
+                "highlightId": f"attempt-{attempt.id}",
+                "targetAction": "view-record",
+                "notificationGroup": "PRACTICE",
+            },
+        )
+
+    _admin_notifications(
+        db,
+        type=notification_type,
+        category=category,
+        title=f"{student_name} {title}",
+        message=f"{student_name} completed {dps_label} with {accuracy}% accuracy.",
+        student_id=student.id if student else None,
+        teacher_id=teacher.id if teacher else None,
+        module_id=module.id if module else None,
+        level_id=level.id if level else None,
+        lesson_id=lesson.id if lesson else None,
+        dps_id=dps.id if dps else None,
+        attempt_id=attempt.id,
+        target_route=_admin_practice_target_route(context),
+        target_tab="practice-control",
+        metadata={
+                "assignmentId": assignment.id if assignment else None,
+                "attemptId": attempt.id,
+                "dpsId": dps.id if dps else None,
+                "lessonId": lesson.id if lesson else None,
+                "studentCode": context.get("student_code"),
+                "moduleCode": context.get("module_code"),
+                "levelCode": context.get("level_code") or level_label,
+                "accuracy": accuracy,
+                "highlightId": f"attempt-{attempt.id}",
+                "targetAction": "view-record",
+                "notificationGroup": "PRACTICE",
+            },
+    )
+
+
+def NotifyPracticeReattemptUnlocked(
+    db: Session,
+    *,
+    permission_id: str,
+    actor_user_id: str | None,
+) -> None:
+    permission = db.get(AssignmentReattemptPermission, permission_id)
+    if not permission:
+        return
+
+    assignment = db.get(Assignment, permission.assignment_id) if permission.assignment_id else None
+    context = _practice_context(db, assignment=assignment, permission=permission)
+    student = context.get("student")
+    student_user = context.get("student_user")
+    teacher = context.get("teacher")
+    teacher_user = context.get("teacher_user")
+    module = context.get("module")
+    level = context.get("level")
+    lesson = context.get("lesson")
+    dps = context.get("dps")
+    dps_label = context.get("dps_label")
+    level_label = context.get("level_label")
+    student_name = context.get("student_name")
+
+    if student_user:
+        CreateNotification(
+            db,
+            recipient_user_id=student_user.id,
+            recipient_role="STUDENT",
+            actor_user_id=actor_user_id,
+            actor_role="ADMIN" if actor_user_id else None,
+            student_id=student.id if student else None,
+            teacher_id=teacher.id if teacher else None,
+            module_id=module.id if module else None,
+            level_id=level.id if level else None,
+            lesson_id=lesson.id if lesson else None,
+            dps_id=dps.id if dps else None,
+            type="DPS_REATTEMPT_ASSIGNED",
+            category="REATTEMPT",
+            title="Re-Attempt DPS Assigned",
+            message=f"A re-attempt has been unlocked for {dps_label}.",
+            target_route="/student/practice",
+            target_tab="practice",
+            metadata={
+                    "assignmentId": assignment.id if assignment else None,
+                    "permissionId": permission.id,
+                    "dpsId": dps.id if dps else None,
+                    "lessonId": lesson.id if lesson else None,
+                    "studentCode": context.get("student_code"),
+                    "moduleCode": context.get("module_code"),
+                    "levelCode": context.get("level_code") or level_label,
+                    "highlightId": f"assignment-{assignment.id}" if assignment else None,
+                    "targetAction": "start-reattempt",
+                    "notificationGroup": "PRACTICE",
+                },
+        )
+
+    if teacher_user:
+        CreateNotification(
+            db,
+            recipient_user_id=teacher_user.id,
+            recipient_role="TEACHER",
+            actor_user_id=actor_user_id,
+            actor_role="ADMIN" if actor_user_id else None,
+            student_id=student.id if student else None,
+            teacher_id=teacher.id if teacher else None,
+            module_id=module.id if module else None,
+            level_id=level.id if level else None,
+            lesson_id=lesson.id if lesson else None,
+            dps_id=dps.id if dps else None,
+            type="DPS_REATTEMPT_ASSIGNED",
+            category="REATTEMPT",
+            title="DPS Re-Attempt Assigned",
+            message=f"{student_name} can now re-attempt {dps_label}.",
+            target_route=_teacher_practice_target_route(context),
+            target_tab="practice-tracker",
+            metadata={
+                "assignmentId": assignment.id if assignment else None,
+                "permissionId": permission.id,
+                "dpsId": dps.id if dps else None,
+                "lessonId": lesson.id if lesson else None,
+                "studentCode": context.get("student_code"),
+                "moduleCode": context.get("module_code"),
+                "levelCode": context.get("level_code") or level_label,
+                "highlightId": f"assignment-{assignment.id}" if assignment else None,
+                "targetAction": "view-record",
+                "notificationGroup": "PRACTICE",
+            },
+        )

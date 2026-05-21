@@ -1,0 +1,45 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+backend_venv/
+venv/
+.venv/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local databases / runtime data
+*.db
+*.sqlite
+*.sqlite3
+backend/mathpath.db
+backend/backups/
+backend/uploads/
+
+# Test and verification artifacts
+verification-report/
+test-results/
+playwright-report/
+coverage/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

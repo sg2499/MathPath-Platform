@@ -1,0 +1,1788 @@
+"use client";
+
+import { NotificationsBell } from "@/components/common/NotificationsBell";
+import { apiErrorMessage } from "@/lib/api";
+import { changePassword, uploadProfilePhoto } from "@/lib/api/auth";
+import { clearAuth, getStoredUser, updateStoredUser } from "@/lib/auth";
+import type { UserRole } from "@/types/auth";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  AlertCircle,
+  BarChart3,
+  BookOpen,
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  CheckCircle2,
+  ClipboardPlus,
+  Camera,
+  FilePenLine,
+  GraduationCap,
+  KeyRound,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  Menu,
+  Moon,
+  PanelTopClose,
+  PanelTopOpen,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Sun,
+  Target,
+  UserRound,
+  UsersRound,
+  X,
+} from "lucide-react";
+import type { ChangeEvent, ComponentType, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+type ThemeMode = "light" | "dark";
+type StoredUser = ReturnType<typeof getStoredUser>;
+type IconType = ComponentType<{ size?: string | number; className?: string }>;
+
+type NavChild = {
+  label: string;
+  shortLabel?: string;
+  href: string;
+  icon: IconType;
+  tooltip: string;
+};
+
+type NavGroup = {
+  label: string;
+  shortLabel?: string;
+  icon: IconType;
+  tooltip: string;
+  href?: string;
+  children?: NavChild[];
+};
+
+const PLATFORM_TAGLINE =
+  "Visual Abacus Mastery for Speed, Accuracy, and School-Ready Confidence.";
+const MATHPATH_WEBSITE_URL = "https://www.mathpath.in/website/index";
+
+const NAV_STORAGE_KEY = "mathpath_nav_collapsed";
+
+function displayUserRole(role?: UserRole) {
+  if (role === "SUPER_ADMIN" || role === "ADMIN") return "ADMIN";
+  if (role === "TEACHER") return "TEACHER";
+  if (role === "STUDENT") return "STUDENT";
+  return role || "";
+}
+
+function getRoleTone(role?: UserRole) {
+  if (role === "STUDENT") return "math-role-badge-student";
+  if (role === "TEACHER") return "math-role-badge-teacher";
+  return "math-role-badge-admin";
+}
+
+function applyTheme(mode: ThemeMode) {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("dark", mode === "dark");
+  localStorage.setItem("mathpath_theme", mode);
+}
+
+function assetUrl(url?: string | null) {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  const base = (
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api"
+  ).replace(/\/api\/?$/, "");
+  return `${base}${url}`;
+}
+
+export function AppShell({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title?: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [MountedUser, SetMountedUser] = useState<StoredUser>(null);
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [theme, setTheme] = useState<ThemeMode>("light");
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [AccountMenuOpen, SetAccountMenuOpen] = useState(false);
+  const [ProfileModalOpen, SetProfileModalOpen] = useState(false);
+  const [SettingsModalOpen, SetSettingsModalOpen] = useState(false);
+  const [PasswordModalOpen, SetPasswordModalOpen] = useState(false);
+  const [PhotoUploading, SetPhotoUploading] = useState(false);
+  const [AccountNotice, SetAccountNotice] = useState<string | null>(null);
+  const [AccountError, SetAccountError] = useState<string | null>(null);
+  const [CurrentPassword, SetCurrentPassword] = useState("");
+  const [NewPassword, SetNewPassword] = useState("");
+  const [ConfirmPassword, SetConfirmPassword] = useState("");
+  const [PasswordSaving, SetPasswordSaving] = useState(false);
+  const AccountMenuRef = useRef<HTMLDivElement | null>(null);
+  const PhotoInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    function RefreshMountedUser() {
+      SetMountedUser(getStoredUser());
+    }
+
+    RefreshMountedUser();
+    window.addEventListener("mathpath-auth-changed", RefreshMountedUser);
+    return () => window.removeEventListener("mathpath-auth-changed", RefreshMountedUser);
+  }, [pathname]);
+
+  const AvatarUrl = assetUrl(
+    MountedUser?.profilePhotoUrl ||
+      MountedUser?.student?.photoUrl ||
+      MountedUser?.teacher?.photoUrl,
+  );
+
+  useEffect(() => {
+    const savedTheme =
+      typeof window !== "undefined"
+        ? (localStorage.getItem("mathpath_theme") as ThemeMode | null)
+        : null;
+
+    const preferred =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+
+    const nextTheme =
+      savedTheme === "dark" || savedTheme === "light" ? savedTheme : preferred;
+    setTheme(nextTheme);
+    applyTheme(nextTheme);
+
+    const savedNavState =
+      typeof window !== "undefined"
+        ? localStorage.getItem(NAV_STORAGE_KEY)
+        : null;
+    setNavCollapsed(savedNavState === "true");
+  }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+    setOpenGroup(null);
+    SetAccountMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    function HandlePointerDown(Event: MouseEvent) {
+      if (!AccountMenuRef.current) return;
+      if (!AccountMenuRef.current.contains(Event.target as Node)) {
+        SetAccountMenuOpen(false);
+      }
+    }
+
+    function HandleKeyDown(Event: KeyboardEvent) {
+      if (Event.key === "Escape") {
+        SetAccountMenuOpen(false);
+        SetProfileModalOpen(false);
+        SetSettingsModalOpen(false);
+        SetPasswordModalOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", HandlePointerDown);
+    document.addEventListener("keydown", HandleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", HandlePointerDown);
+      document.removeEventListener("keydown", HandleKeyDown);
+    };
+  }, []);
+
+  const IsStudent = MountedUser?.role === "STUDENT";
+  const IsTeacher = MountedUser?.role === "TEACHER";
+  const IsAdmin =
+    MountedUser?.role === "ADMIN" || MountedUser?.role === "SUPER_ADMIN";
+
+  const RoleShellClass = IsStudent
+    ? "math-role-student"
+    : IsTeacher
+      ? "math-role-teacher"
+      : IsAdmin
+        ? "math-role-admin"
+        : "";
+
+  const isDetailWorkspace =
+    pathname?.includes("/admin/assignments/student/") ||
+    pathname?.includes("/admin/assessments/student/") ||
+    pathname?.includes("/teacher/assignment-tracker/student/") ||
+    pathname?.includes("/teacher/assessments/student/") ||
+    pathname?.includes("/student/results/module/") ||
+    pathname?.includes("/details");
+
+  const effectiveNavCollapsed = navCollapsed || Boolean(isDetailWorkspace);
+
+  const adminNav: NavGroup[] = [
+    {
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/admin/dashboard",
+      tooltip: "Open admin dashboard",
+    },
+    {
+      label: "Learning Path",
+      icon: BookOpen,
+      tooltip: "Manage the MathPath learning structure",
+      children: [
+        {
+          label: "Learning Path Studio",
+          shortLabel: "Path Studio",
+          href: "/admin/curriculum",
+          icon: BookOpen,
+          tooltip: "Review and publish DPS content",
+        },
+      ],
+    },
+    {
+      label: "Users",
+      icon: UsersRound,
+      tooltip: "Manage student and teacher accounts",
+      children: [
+        {
+          label: "Students",
+          href: "/admin/students",
+          icon: UsersRound,
+          tooltip: "Manage students",
+        },
+        {
+          label: "Teachers",
+          href: "/admin/teachers",
+          icon: GraduationCap,
+          tooltip: "Manage teachers",
+        },
+      ],
+    },
+    {
+      label: "Learning Operations",
+      shortLabel: "Operations",
+      icon: ClipboardPlus,
+      tooltip: "Manage learning delivery",
+      children: [
+        {
+          label: "Practice Control",
+          shortLabel: "Practice",
+          href: "/admin/assignments",
+          icon: ClipboardPlus,
+          tooltip: "Manage practice delivery",
+        },
+        {
+          label: "Assessment Readiness",
+          shortLabel: "Readiness",
+          href: "/admin/assessment-readiness",
+          icon: ShieldCheck,
+          tooltip: "Review assessment readiness",
+        },
+        {
+          label: "Assessment Studio",
+          shortLabel: "Studio",
+          href: "/admin/assessment-blueprints",
+          icon: FilePenLine,
+          tooltip: "Build and publish level assessments",
+        },
+        {
+          label: "Assessment Control",
+          shortLabel: "Assessments",
+          href: "/admin/assessments",
+          icon: GraduationCap,
+          tooltip: "Manage assessment delivery",
+        },
+      ],
+    },
+    {
+      label: "Reports",
+      icon: BarChart3,
+      tooltip: "Generate and review reports",
+      children: [
+        {
+          label: "Performance Reports",
+          href: "/admin/results",
+          icon: BarChart3,
+          tooltip: "Generate performance reports",
+        },
+      ],
+    },
+  ];
+
+  const teacherNav: NavGroup[] = [
+    {
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/teacher/dashboard",
+      tooltip: "Open teacher dashboard",
+    },
+    {
+      label: "Students",
+      icon: UsersRound,
+      tooltip: "Manage assigned students",
+      children: [
+        {
+          label: "My Students",
+          href: "/teacher/students",
+          icon: UsersRound,
+          tooltip: "View assigned students",
+        },
+      ],
+    },
+    {
+      label: "Practice",
+      icon: ClipboardPlus,
+      tooltip: "Manage practice work",
+      children: [
+        {
+          label: "Assign Practice",
+          href: "/teacher/assign-dps",
+          icon: ClipboardPlus,
+          tooltip: "Assign practice sheets",
+        },
+        {
+          label: "Practice Tracker",
+          href: "/teacher/assignment-tracker",
+          icon: Target,
+          tooltip: "Track practice submissions",
+        },
+      ],
+    },
+    {
+      label: "Assessments",
+      icon: GraduationCap,
+      tooltip: "Manage Assessments",
+      children: [
+        {
+          label: "Assessment Readiness",
+          shortLabel: "Readiness",
+          href: "/teacher/assessment-readiness",
+          icon: ShieldCheck,
+          tooltip: "Review assessment readiness",
+        },
+        {
+          label: "Assign Assessment",
+          shortLabel: "Assign",
+          href: "/teacher/assign-assessment",
+          icon: ClipboardPlus,
+          tooltip: "Assign live assessments",
+        },
+        {
+          label: "Assessment Tracker",
+          shortLabel: "Tracker",
+          href: "/teacher/assessments",
+          icon: GraduationCap,
+          tooltip: "Track assigned assessments",
+        },
+        {
+          label: "Promotion History",
+          shortLabel: "Promotions",
+          href: "/teacher/promotion-history",
+          icon: ShieldCheck,
+          tooltip: "Review student promotion history",
+        },
+      ],
+    },
+  ];
+
+  const studentNav: NavGroup[] = [
+    {
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/student/dashboard",
+      tooltip: "Open student dashboard",
+    },
+    {
+      label: "Practice",
+      icon: BookOpen,
+      href: "/student/practice",
+      tooltip: "Open assigned practice",
+    },
+    {
+      label: "Assessments",
+      icon: GraduationCap,
+      href: "/student/assessments",
+      tooltip: "Open assessments",
+    },
+    {
+      label: "Assessment Readiness",
+      shortLabel: "Readiness",
+      icon: ShieldCheck,
+      href: "/student/assessment-readiness",
+      tooltip: "Check assessment readiness",
+    },
+    {
+      label: "Progress",
+      icon: Target,
+      href: "/student/results",
+      tooltip: "View progress",
+    },
+  ];
+
+  const navGroups = IsStudent
+    ? studentNav
+    : IsTeacher
+      ? teacherNav
+      : IsAdmin
+        ? adminNav
+        : [];
+
+  function isRouteActive(href: string) {
+    if (!pathname) return false;
+    if (pathname === href) return true;
+    return href !== "/" && pathname.startsWith(href + "/");
+  }
+
+  function isGroupActive(group: NavGroup) {
+    if (group.href && isRouteActive(group.href)) return true;
+    return Boolean(group.children?.some((child) => isRouteActive(child.href)));
+  }
+
+  const activeItem = useMemo(() => {
+    for (const group of navGroups) {
+      if (group.href && isRouteActive(group.href)) return group;
+      const child = group.children?.find((item) => isRouteActive(item.href));
+      if (child) return child;
+    }
+    return navGroups[0];
+  }, [navGroups, pathname]);
+
+  const ActiveIcon = activeItem?.icon || LayoutDashboard;
+
+  function logout() {
+    clearAuth();
+    router.push("/login");
+  }
+
+  function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    applyTheme(nextTheme);
+  }
+
+  function setCollapsedState(next: boolean) {
+    setNavCollapsed(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(NAV_STORAGE_KEY, String(next));
+    }
+  }
+
+  function goHome() {
+    if (IsStudent) router.push("/student/dashboard");
+    else if (IsTeacher) router.push("/teacher/dashboard");
+    else if (IsAdmin) router.push("/admin/dashboard");
+    else router.push("/login");
+  }
+
+  function navigateTo(href?: string) {
+    if (!href) return;
+    setOpenGroup(null);
+    router.push(href);
+  }
+
+  function navigateContextHome() {
+    if (isDetailWorkspace && activeItem?.href) {
+      router.push(activeItem.href);
+      return;
+    }
+    setCollapsedState(false);
+  }
+
+  function OpenProfileModal() {
+    SetAccountMenuOpen(false);
+    SetProfileModalOpen(true);
+  }
+
+  function OpenSettingsModal() {
+    SetAccountMenuOpen(false);
+    SetSettingsModalOpen(true);
+  }
+
+  function OpenPhotoPicker() {
+    SetAccountMenuOpen(false);
+    PhotoInputRef.current?.click();
+  }
+
+  async function HandleProfilePhotoChange(
+    Event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const SelectedFile = Event.target.files?.[0];
+    if (!SelectedFile) return;
+
+    SetAccountError(null);
+    SetAccountNotice(null);
+
+    if (!SelectedFile.type.startsWith("image/")) {
+      SetAccountError("Please select a valid image file.");
+      Event.target.value = "";
+      return;
+    }
+
+    try {
+      SetPhotoUploading(true);
+      const Response = await uploadProfilePhoto(SelectedFile);
+      updateStoredUser(Response.user);
+      SetMountedUser(Response.user);
+      SetAccountNotice("Profile photo updated successfully.");
+    } catch (Error) {
+      SetAccountError(apiErrorMessage(Error));
+    } finally {
+      SetPhotoUploading(false);
+      Event.target.value = "";
+    }
+  }
+
+  async function HandlePasswordUpdate() {
+    SetAccountError(null);
+    SetAccountNotice(null);
+
+    if (!CurrentPassword.trim()) {
+      SetAccountError("Current password is required.");
+      return;
+    }
+    if (NewPassword.trim().length < 6) {
+      SetAccountError("New password must be at least 6 characters.");
+      return;
+    }
+    if (NewPassword !== ConfirmPassword) {
+      SetAccountError("New password and confirmation do not match.");
+      return;
+    }
+
+    try {
+      SetPasswordSaving(true);
+      const Response = await changePassword({
+        currentPassword: CurrentPassword,
+        newPassword: NewPassword,
+      });
+      SetAccountNotice(Response.message || "Password updated successfully.");
+      SetPasswordModalOpen(false);
+      SetCurrentPassword("");
+      SetNewPassword("");
+      SetConfirmPassword("");
+    } catch (Error) {
+      SetAccountError(apiErrorMessage(Error));
+    } finally {
+      SetPasswordSaving(false);
+    }
+  }
+
+  function HandleSignOut() {
+    SetAccountMenuOpen(false);
+    logout();
+  }
+
+  return (
+    <div className={`min-h-screen ${RoleShellClass}`}>
+      <div className="premium-backdrop" />
+
+      <header className="math-shell-header">
+        <div className="math-shell-inner w-full px-3 py-3 sm:px-5 lg:px-6 2xl:px-8">
+          {effectiveNavCollapsed ? (
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <a
+                className="math-brand-button group flex min-w-0 items-center gap-3 text-left"
+                href={MATHPATH_WEBSITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open MathPath Website"
+                aria-label="Open MathPath Website"
+              >
+                <LogoMark compact />
+                <div className="min-w-0">
+                  <p className="truncate text-xl font-black tracking-tight text-slate-950 dark:text-white">
+                    MathPath
+                  </p>
+                  <p className="hidden truncate text-xs font-semibold text-slate-500 dark:text-slate-300 sm:block">
+                    {isDetailWorkspace
+                      ? "Focused view"
+                      : "Navigation hidden for focus"}
+                  </p>
+                </div>
+              </a>
+
+              <button
+                type="button"
+                className="math-context-pill math-current-workspace-pill hidden lg:flex"
+                onClick={navigateContextHome}
+                aria-label={
+                  isDetailWorkspace
+                    ? `Back to ${activeItem?.label || "section"}`
+                    : "Expand navigation"
+                }
+                title={
+                  isDetailWorkspace
+                    ? `Back to ${activeItem?.label || "section"}`
+                    : "Expand navigation"
+                }
+              >
+                <ActiveIcon size={17} className="math-role-text shrink-0" />
+                <span className="max-w-[260px] truncate">
+                  {activeItem?.label || title || "MathPath"}
+                </span>
+                {isDetailWorkspace ? (
+                  <ChevronLeft size={17} className="shrink-0 text-slate-400" />
+                ) : (
+                  <ChevronDown size={17} className="shrink-0 text-slate-400" />
+                )}
+              </button>
+
+              <div className="hidden shrink-0 items-center justify-end gap-2 lg:flex">
+                <IconButton
+                  onClick={navigateContextHome}
+                  title={
+                    isDetailWorkspace
+                      ? `Back to ${activeItem?.label || "section"}`
+                      : "Expand navigation"
+                  }
+                  ariaLabel={
+                    isDetailWorkspace
+                      ? `Back to ${activeItem?.label || "section"}`
+                      : "Expand navigation"
+                  }
+                >
+                  {isDetailWorkspace ? (
+                    <ChevronLeft size={18} />
+                  ) : (
+                    <PanelTopOpen size={18} />
+                  )}
+                </IconButton>
+
+                <button
+                  className="math-theme-toggle"
+                  onClick={toggleTheme}
+                  aria-label={
+                    theme === "dark"
+                      ? "Switch To Light Theme"
+                      : "Switch To Dark Theme"
+                  }
+                  title={
+                    theme === "dark"
+                      ? "Switch To Light Theme"
+                      : "Switch To Dark Theme"
+                  }
+                >
+                  {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                  {theme === "dark" ? "Light" : "Dark"}
+                </button>
+
+                {MountedUser ? <NotificationsBell /> : null}
+                {MountedUser ? (
+                  <div className="relative" ref={AccountMenuRef}>
+                    <UserCard
+                      user={MountedUser}
+                      avatarUrl={AvatarUrl}
+                      compact
+                      onClick={() => SetAccountMenuOpen((Value) => !Value)}
+                      menuOpen={AccountMenuOpen}
+                    />
+                    {AccountMenuOpen ? (
+                      <AccountMenu
+                        user={MountedUser}
+                        avatarUrl={AvatarUrl}
+                        onProfile={OpenProfileModal}
+                        onSettings={OpenSettingsModal}
+                        onSignOut={HandleSignOut}
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2 lg:hidden">
+                <button
+                  className="math-theme-toggle px-3"
+                  onClick={toggleTheme}
+                  aria-label={
+                    theme === "dark"
+                      ? "Switch To Light Theme"
+                      : "Switch To Dark Theme"
+                  }
+                  title={
+                    theme === "dark"
+                      ? "Switch To Light Theme"
+                      : "Switch To Dark Theme"
+                  }
+                >
+                  {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                </button>
+                {MountedUser ? <NotificationsBell /> : null}
+                <button
+                  className="math-button-secondary px-3"
+                  onClick={() => setMobileOpen((value) => !value)}
+                  aria-label="Open navigation menu"
+                  title="Open navigation menu"
+                >
+                  {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-w-0 items-center gap-3">
+              <a
+                className="math-brand-button group flex w-[230px] shrink-0 items-center gap-3 text-left 2xl:w-[285px]"
+                href={MATHPATH_WEBSITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open MathPath Website"
+                aria-label="Open MathPath Website"
+              >
+                <LogoMark />
+                <div className="min-w-0">
+                  <p className="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                    MathPath
+                  </p>
+                  <div className="mt-0.5 flex items-start gap-2 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                    <Sparkles
+                      size={14}
+                      className="math-role-text mt-0.5 shrink-0"
+                    />
+                    <span className="hidden 2xl:block">{PLATFORM_TAGLINE}</span>
+                    <span className="hidden sm:block 2xl:hidden">
+                      Visual Abacus Mastery
+                    </span>
+                  </div>
+                </div>
+              </a>
+
+              <nav
+                className="hidden min-w-0 flex-1 justify-center lg:flex"
+                aria-label="Primary navigation"
+              >
+                <div className="premium-nav math-nav-spotlight relative z-[120] w-fit max-w-full overflow-visible px-1">
+                  {navGroups.map((group) => {
+                    const Icon = group.icon;
+                    const active = isGroupActive(group);
+                    const hasChildren = Boolean(group.children?.length);
+                    const dropdownOpen = openGroup === group.label;
+
+                    if (!hasChildren) {
+                      return (
+                        <button
+                          key={group.label}
+                          type="button"
+                          onClick={() => navigateTo(group.href)}
+                          className={`premium-nav-item shrink-0 px-3 text-sm ${
+                            active ? "premium-nav-item-active" : ""
+                          }`}
+                          title={group.tooltip}
+                          aria-label={group.tooltip}
+                        >
+                          <Icon size={16} />
+                          <span className="whitespace-nowrap">
+                            {group.shortLabel || group.label}
+                          </span>
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={group.label}
+                        className="relative"
+                        onMouseEnter={() => setOpenGroup(group.label)}
+                        onMouseLeave={() => setOpenGroup(null)}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenGroup((current) =>
+                              current === group.label ? null : group.label,
+                            )
+                          }
+                          className={`premium-nav-item shrink-0 px-3 text-sm ${
+                            active ? "premium-nav-item-active" : ""
+                          }`}
+                          title={group.tooltip}
+                          aria-label={group.tooltip}
+                          aria-expanded={dropdownOpen}
+                        >
+                          <Icon size={16} />
+                          <span className="whitespace-nowrap">
+                            {group.shortLabel || group.label}
+                          </span>
+                          <ChevronDown
+                            size={14}
+                            className={`transition ${dropdownOpen ? "rotate-180" : ""}`}
+                          />
+                        </button>
+
+                        {dropdownOpen ? (
+                          <div className="absolute left-1/2 top-full z-[140] w-[340px] -translate-x-1/2 pt-4">
+                            <div className="math-dropdown-arrow" />
+                            <div className="math-dropdown-panel">
+                              <div className="math-dropdown-header">
+                                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-600 dark:text-blue-300">
+                                  {group.label}
+                                </p>
+                                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                  {group.tooltip}
+                                </p>
+                              </div>
+
+                              <div className="math-dropdown-body">
+                                {group.children?.map((child) => {
+                                  const ChildIcon = child.icon;
+                                  const childActive = isRouteActive(child.href);
+
+                                  return (
+                                    <button
+                                      key={child.href}
+                                      type="button"
+                                      onClick={() => navigateTo(child.href)}
+                                      className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
+                                        childActive
+                                          ? "bg-slate-950 text-white shadow-lg dark:bg-white dark:text-slate-950"
+                                          : "text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-900"
+                                      }`}
+                                      title={child.tooltip}
+                                      aria-label={child.tooltip}
+                                    >
+                                      <span
+                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                                          childActive
+                                            ? "bg-white/15 dark:bg-slate-950/10"
+                                            : "bg-slate-50 text-blue-600 dark:bg-slate-900"
+                                        }`}
+                                      >
+                                        <ChildIcon size={17} />
+                                      </span>
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block truncate">
+                                          {child.label}
+                                        </span>
+                                        <span
+                                          className={`mt-0.5 block truncate text-xs font-semibold ${
+                                            childActive
+                                              ? "text-white/70 dark:text-slate-500"
+                                              : "text-slate-400"
+                                          }`}
+                                        >
+                                          {child.tooltip}
+                                        </span>
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </nav>
+
+              <div className="hidden shrink-0 items-center justify-end gap-2 lg:flex">
+                <IconButton
+                  onClick={() => setCollapsedState(true)}
+                  title="Collapse navigation"
+                  ariaLabel="Collapse navigation"
+                >
+                  <PanelTopClose size={18} />
+                </IconButton>
+
+                <button
+                  className="math-theme-toggle"
+                  onClick={toggleTheme}
+                  aria-label={
+                    theme === "dark"
+                      ? "Switch To Light Theme"
+                      : "Switch To Dark Theme"
+                  }
+                  title={
+                    theme === "dark"
+                      ? "Switch To Light Theme"
+                      : "Switch To Dark Theme"
+                  }
+                >
+                  {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                  <span className="hidden xl:inline">
+                    {theme === "dark" ? "Light" : "Dark"}
+                  </span>
+                </button>
+
+                {MountedUser ? <NotificationsBell /> : null}
+                {MountedUser ? (
+                  <div className="relative" ref={AccountMenuRef}>
+                    <UserCard
+                      user={MountedUser}
+                      avatarUrl={AvatarUrl}
+                      onClick={() => SetAccountMenuOpen((Value) => !Value)}
+                      menuOpen={AccountMenuOpen}
+                    />
+                    {AccountMenuOpen ? (
+                      <AccountMenu
+                        user={MountedUser}
+                        avatarUrl={AvatarUrl}
+                        onProfile={OpenProfileModal}
+                        onSettings={OpenSettingsModal}
+                        onSignOut={HandleSignOut}
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="ml-auto flex shrink-0 items-center gap-2 lg:hidden">
+                <button
+                  className="math-theme-toggle px-3"
+                  onClick={toggleTheme}
+                  aria-label={
+                    theme === "dark"
+                      ? "Switch To Light Theme"
+                      : "Switch To Dark Theme"
+                  }
+                  title={
+                    theme === "dark"
+                      ? "Switch To Light Theme"
+                      : "Switch To Dark Theme"
+                  }
+                >
+                  {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                </button>
+                {MountedUser ? <NotificationsBell /> : null}
+                <button
+                  className="math-button-secondary px-3"
+                  onClick={() => setMobileOpen((value) => !value)}
+                  aria-label="Open navigation menu"
+                  title="Open navigation menu"
+                >
+                  {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mobileOpen ? (
+            <div className="math-mobile-drawer math-mobile-drawer-elevated math-pop-in lg:hidden">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    Navigation
+                  </p>
+                  <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">
+                    {displayUserRole(MountedUser?.role)} View
+                  </p>
+                </div>
+                <button
+                  className="math-button-secondary px-3"
+                  onClick={() => setCollapsedState(!navCollapsed)}
+                  aria-label={
+                    navCollapsed ? "Expand navigation" : "Collapse navigation"
+                  }
+                  title={
+                    navCollapsed ? "Expand navigation" : "Collapse navigation"
+                  }
+                >
+                  {navCollapsed ? (
+                    <ChevronDown size={16} />
+                  ) : (
+                    <ChevronUp size={16} />
+                  )}
+                  {navCollapsed ? "Show" : "Hide"}
+                </button>
+              </div>
+
+              <div className="grid gap-2">
+                {navGroups.map((group) => {
+                  const Icon = group.icon;
+                  const active = isGroupActive(group);
+                  const hasChildren = Boolean(group.children?.length);
+                  const mobileGroupOpen = openGroup === group.label;
+
+                  if (!hasChildren) {
+                    return (
+                      <button
+                        key={group.label}
+                        type="button"
+                        onClick={() => navigateTo(group.href)}
+                        title={group.tooltip}
+                        aria-label={group.tooltip}
+                        className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition ${
+                          active
+                            ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
+                            : "bg-slate-50 text-slate-700 hover:bg-blue-50 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        <Icon size={17} />
+                        {group.label}
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <div key={group.label} className="math-mobile-group">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenGroup((current) =>
+                            current === group.label ? null : group.label,
+                          )
+                        }
+                        title={group.tooltip}
+                        aria-label={group.tooltip}
+                        className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm font-black transition ${
+                          active
+                            ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
+                            : "text-slate-700 dark:text-slate-200"
+                        }`}
+                      >
+                        <span className="flex items-center gap-3">
+                          <Icon size={17} />
+                          {group.label}
+                        </span>
+                        <ChevronDown
+                          size={15}
+                          className={`transition ${mobileGroupOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
+
+                      {mobileGroupOpen ? (
+                        <div className="mt-2 grid gap-1">
+                          {group.children?.map((child) => {
+                            const ChildIcon = child.icon;
+                            const childActive = isRouteActive(child.href);
+
+                            return (
+                              <button
+                                key={child.href}
+                                type="button"
+                                onClick={() => navigateTo(child.href)}
+                                title={child.tooltip}
+                                aria-label={child.tooltip}
+                                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-black transition ${
+                                  childActive
+                                    ? "bg-blue-50 text-blue-700 dark:bg-slate-800 dark:text-white"
+                                    : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800"
+                                }`}
+                              >
+                                <ChildIcon size={16} />
+                                {child.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="my-4 h-px bg-slate-200 dark:bg-slate-700" />
+
+              {MountedUser ? (
+                <div className="math-mobile-user">
+                  <Avatar user={MountedUser} avatarUrl={AvatarUrl} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-black text-slate-900 dark:text-white">
+                      {MountedUser.fullName}
+                    </p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {displayUserRole(MountedUser.role)}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {MountedUser ? (
+                <div className="mb-3 grid gap-2">
+                  <button
+                    className="math-account-menu-item"
+                    onClick={OpenProfileModal}
+                  >
+                    <UserRound size={16} />
+                    My Profile
+                  </button>
+                  <button
+                    className="math-account-menu-item"
+                    onClick={OpenSettingsModal}
+                  >
+                    <Settings size={16} />
+                    Account Settings
+                  </button>
+                </div>
+              ) : null}
+
+              <button
+                className="math-button-secondary w-full"
+                onClick={HandleSignOut}
+                title="Sign out securely"
+                aria-label="Sign out securely"
+              >
+                <LogOut size={16} />
+                Sign Out
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </header>
+
+      <input
+        ref={PhotoInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        className="hidden"
+        onChange={HandleProfilePhotoChange}
+      />
+
+      {MountedUser && ProfileModalOpen ? (
+        <ProfileModal
+          user={MountedUser}
+          avatarUrl={AvatarUrl}
+          onClose={() => SetProfileModalOpen(false)}
+        />
+      ) : null}
+
+      {MountedUser && SettingsModalOpen ? (
+        <SettingsModal
+          user={MountedUser}
+          avatarUrl={AvatarUrl}
+          theme={theme}
+          photoUploading={PhotoUploading}
+          onClose={() => SetSettingsModalOpen(false)}
+          onToggleTheme={toggleTheme}
+          onUpdatePhoto={OpenPhotoPicker}
+          onChangePassword={() => {
+            SetSettingsModalOpen(false);
+            SetPasswordModalOpen(true);
+          }}
+        />
+      ) : null}
+
+      {PasswordModalOpen ? (
+        <PasswordModal
+          currentPassword={CurrentPassword}
+          newPassword={NewPassword}
+          confirmPassword={ConfirmPassword}
+          saving={PasswordSaving}
+          onCurrentPasswordChange={SetCurrentPassword}
+          onNewPasswordChange={SetNewPassword}
+          onConfirmPasswordChange={SetConfirmPassword}
+          onSubmit={HandlePasswordUpdate}
+          onClose={() => SetPasswordModalOpen(false)}
+        />
+      ) : null}
+
+      <AccountToast
+        message={AccountNotice}
+        error={AccountError}
+        onClear={() => {
+          SetAccountNotice(null);
+          SetAccountError(null);
+        }}
+      />
+
+      <main className="math-page math-fade-in">{children}</main>
+    </div>
+  );
+}
+
+function IconButton({
+  children,
+  onClick,
+  title,
+  ariaLabel,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  title: string;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="math-icon-button"
+      onClick={onClick}
+      title={title}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </button>
+  );
+}
+
+function LogoMark({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`math-logo-shell ${compact ? "h-11 w-11" : "h-12 w-12"}`}>
+      <Image
+        src="/mathpath-logo.png"
+        alt="MathPath logo"
+        width={compact ? 54 : 58}
+        height={compact ? 54 : 58}
+        className={`${compact ? "h-9" : "h-10"} w-auto object-contain`}
+        priority
+      />
+    </div>
+  );
+}
+
+function Avatar({
+  user,
+  avatarUrl,
+  compact = false,
+}: {
+  user: StoredUser;
+  avatarUrl: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-sm font-black text-white ${
+        compact ? "h-9 w-9" : "h-10 w-10"
+      }`}
+    >
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={user?.fullName || "User"}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        user?.fullName?.charAt(0) || "M"
+      )}
+    </div>
+  );
+}
+
+function UserCard({
+  user,
+  avatarUrl,
+  compact = false,
+  onClick,
+  menuOpen = false,
+}: {
+  user: StoredUser;
+  avatarUrl: string;
+  compact?: boolean;
+  onClick: () => void;
+  menuOpen?: boolean;
+}) {
+  if (!user) return null;
+
+  const RoleLabel = displayUserRole(user.role);
+
+  return (
+    <button
+      type="button"
+      className={`math-user-pill text-left ${menuOpen ? "math-user-pill-active" : ""} ${
+        compact
+          ? "min-h-12 min-w-[210px] px-3 py-2"
+          : "min-h-14 min-w-[220px] px-3 py-2"
+      }`}
+      title="Open account menu"
+      aria-label="Open account menu"
+      aria-expanded={menuOpen}
+      onClick={onClick}
+    >
+      <Avatar user={user} avatarUrl={avatarUrl} compact={compact} />
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="max-w-[150px] truncate text-sm font-black text-slate-900 dark:text-white">
+          {user.fullName}
+        </p>
+        <span
+          className={`mt-1 inline-flex max-w-full items-center rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] ${getRoleTone(user.role)}`}
+        >
+          {RoleLabel}
+        </span>
+      </div>
+      <ChevronDown
+        size={15}
+        className={`shrink-0 text-slate-400 transition ${menuOpen ? "rotate-180" : ""}`}
+      />
+    </button>
+  );
+}
+
+function AccountMenu({
+  user,
+  avatarUrl,
+  onProfile,
+  onSettings,
+  onSignOut,
+}: {
+  user: NonNullable<StoredUser>;
+  avatarUrl: string;
+  onProfile: () => void;
+  onSettings: () => void;
+  onSignOut: () => void;
+}) {
+  const RoleLabel = displayUserRole(user.role);
+  const UserCode = accountCode(user);
+
+  return (
+    <div className="math-account-menu math-pop-in" role="menu">
+      <div className="math-account-header">
+        <Avatar user={user} avatarUrl={avatarUrl} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-black text-slate-950 dark:text-white">
+            {user.fullName}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] ${getRoleTone(user.role)}`}
+            >
+              {RoleLabel}
+            </span>
+            {UserCode ? (
+              <span className="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+                {UserCode}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="math-account-menu-body">
+        <button
+          className="math-account-menu-item"
+          onClick={onProfile}
+          role="menuitem"
+        >
+          <UserRound size={16} />
+          <span>My Profile</span>
+        </button>
+        <button
+          className="math-account-menu-item"
+          onClick={onSettings}
+          role="menuitem"
+        >
+          <Settings size={16} />
+          <span>Account Settings</span>
+        </button>
+      </div>
+
+      <div className="math-account-divider" />
+
+      <button
+        className="math-account-menu-item math-account-signout"
+        onClick={onSignOut}
+        role="menuitem"
+      >
+        <LogOut size={16} />
+        <span>Sign Out</span>
+      </button>
+    </div>
+  );
+}
+
+function ProfileModal({
+  user,
+  avatarUrl,
+  onClose,
+}: {
+  user: NonNullable<StoredUser>;
+  avatarUrl: string;
+  onClose: () => void;
+}) {
+  const RoleLabel = displayUserRole(user.role);
+  const Details = accountDetails(user);
+
+  return (
+    <ModalFrame
+      title={`${RoleLabel.charAt(0)}${RoleLabel.slice(1).toLowerCase()} Profile`}
+      onClose={onClose}
+    >
+      <div
+        className="flex items-center gap-4 rounded-[24px] border p-4"
+        style={{
+          borderColor: "var(--theme-border)",
+          background: "var(--theme-elevated-soft)",
+        }}
+      >
+        <Avatar user={user} avatarUrl={avatarUrl} compact={false} />
+        <div className="min-w-0">
+          <p className="truncate text-lg font-black text-slate-950 dark:text-white">
+            {user.fullName}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {RoleLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3">
+        {Details.map((Item) => (
+          <ProfileInfoRow
+            key={Item.label}
+            label={Item.label}
+            value={Item.value}
+          />
+        ))}
+      </div>
+    </ModalFrame>
+  );
+}
+
+function SettingsModal({
+  user,
+  avatarUrl,
+  theme,
+  photoUploading,
+  onClose,
+  onToggleTheme,
+  onUpdatePhoto,
+  onChangePassword,
+}: {
+  user: NonNullable<StoredUser>;
+  avatarUrl: string;
+  theme: ThemeMode;
+  photoUploading: boolean;
+  onClose: () => void;
+  onToggleTheme: () => void;
+  onUpdatePhoto: () => void;
+  onChangePassword: () => void;
+}) {
+  return (
+    <ModalFrame title="Account Settings" onClose={onClose}>
+      <SettingsSection icon={<Camera size={17} />} title="Update Photo">
+        <div
+          className="flex items-center justify-between gap-4 rounded-2xl border p-3"
+          style={{
+            borderColor: "var(--theme-border)",
+            background: "var(--theme-elevated-soft)",
+          }}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar user={user} avatarUrl={avatarUrl} />
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-950 dark:text-white">
+                Profile Photo
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Update the image shown on your MathPath account.
+              </p>
+            </div>
+          </div>
+          <button
+            className="math-button-secondary px-3 py-2 text-sm"
+            onClick={onUpdatePhoto}
+            disabled={photoUploading}
+          >
+            {photoUploading ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Camera size={15} />
+            )}
+            {photoUploading ? "Updating" : "Update"}
+          </button>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={theme === "dark" ? <Moon size={17} /> : <Sun size={17} />}
+        title="Appearance"
+      >
+        <div
+          className="flex items-center justify-between gap-4 rounded-2xl border p-3"
+          style={{
+            borderColor: "var(--theme-border)",
+            background: "var(--theme-elevated-soft)",
+          }}
+        >
+          <div>
+            <p className="text-sm font-black text-slate-950 dark:text-white">
+              Theme Preference
+            </p>
+            <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Current workspace theme: {theme === "dark" ? "Dark" : "Light"}
+            </p>
+          </div>
+          <button
+            className="math-button-secondary px-3 py-2 text-sm"
+            onClick={onToggleTheme}
+          >
+            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            {theme === "dark" ? "Light" : "Dark"}
+          </button>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection icon={<KeyRound size={17} />} title="Security">
+        <div
+          className="flex items-center justify-between gap-4 rounded-2xl border p-3"
+          style={{
+            borderColor: "var(--theme-border)",
+            background: "var(--theme-elevated-soft)",
+          }}
+        >
+          <div>
+            <p className="text-sm font-black text-slate-950 dark:text-white">
+              Password
+            </p>
+            <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Update the password used for this MathPath account.
+            </p>
+          </div>
+          <button
+            className="math-button-secondary px-3 py-2 text-sm"
+            onClick={onChangePassword}
+          >
+            <KeyRound size={15} />
+            Change Password
+          </button>
+        </div>
+      </SettingsSection>
+    </ModalFrame>
+  );
+}
+
+function PasswordModal({
+  currentPassword,
+  newPassword,
+  confirmPassword,
+  saving,
+  onCurrentPasswordChange,
+  onNewPasswordChange,
+  onConfirmPasswordChange,
+  onSubmit,
+  onClose,
+}: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+  saving: boolean;
+  onCurrentPasswordChange: (value: string) => void;
+  onNewPasswordChange: (value: string) => void;
+  onConfirmPasswordChange: (value: string) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <ModalFrame title="Change Password" onClose={onClose} compact>
+      <div className="grid gap-4">
+        <label className="grid gap-2">
+          <span className="math-label">Current Password</span>
+          <input
+            className="math-input"
+            type="password"
+            value={currentPassword}
+            onChange={(Event) => onCurrentPasswordChange(Event.target.value)}
+            autoComplete="current-password"
+          />
+        </label>
+        <label className="grid gap-2">
+          <span className="math-label">New Password</span>
+          <input
+            className="math-input"
+            type="password"
+            value={newPassword}
+            onChange={(Event) => onNewPasswordChange(Event.target.value)}
+            autoComplete="new-password"
+          />
+        </label>
+        <label className="grid gap-2">
+          <span className="math-label">Confirm New Password</span>
+          <input
+            className="math-input"
+            type="password"
+            value={confirmPassword}
+            onChange={(Event) => onConfirmPasswordChange(Event.target.value)}
+            autoComplete="new-password"
+          />
+        </label>
+      </div>
+
+      <div className="mt-6 flex justify-end gap-3">
+        <button
+          className="math-button-secondary px-4 py-3"
+          onClick={onClose}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+        <button
+          className="math-button-primary px-4 py-3"
+          onClick={onSubmit}
+          disabled={saving}
+        >
+          {saving ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <KeyRound size={16} />
+          )}
+          Update Password
+        </button>
+      </div>
+    </ModalFrame>
+  );
+}
+
+function ModalFrame({
+  title,
+  children,
+  onClose,
+  compact = false,
+}: {
+  title: string;
+  children: ReactNode;
+  onClose: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className="math-dialog-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div
+        className={`math-account-modal math-pop-in ${compact ? "max-w-[520px]" : "max-w-[620px]"}`}
+      >
+        <div
+          className="flex items-start justify-between gap-4 border-b px-6 py-5"
+          style={{ borderColor: "var(--theme-border)" }}
+        >
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-cyan-300">
+              MathPath Account
+            </p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+              {title}
+            </h2>
+          </div>
+          <button
+            className="math-icon-button h-10 w-10 rounded-2xl"
+            onClick={onClose}
+            title="Close"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="px-6 py-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsSection({
+  icon,
+  title,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="mb-5 last:mb-0">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="math-icon-shell-blue h-9 w-9">{icon}</span>
+        <h3 className="text-base font-black text-slate-950 dark:text-white">
+          {title}
+        </h3>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ProfileInfoRow({
+  label,
+  value,
+  compact = false,
+}: {
+  label: string;
+  value: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-4 rounded-2xl border ${compact ? "px-3 py-2.5" : "px-4 py-3"}`}
+      style={{
+        borderColor: "var(--theme-border)",
+        background: "var(--theme-elevated-soft)",
+      }}
+    >
+      <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+        {label}
+      </span>
+      <span className="min-w-0 truncate text-right text-sm font-black text-slate-950 dark:text-white">
+        {value || "Not Available"}
+      </span>
+    </div>
+  );
+}
+
+function AccountToast({
+  message,
+  error,
+  onClear,
+}: {
+  message: string | null;
+  error: string | null;
+  onClear: () => void;
+}) {
+  const VisibleMessage = error || message;
+  if (!VisibleMessage) return null;
+
+  return (
+    <div className="fixed right-5 top-24 z-[220] max-w-sm math-pop-in">
+      <div
+        className={`flex items-start gap-3 rounded-3xl border p-4 shadow-2xl backdrop-blur-2xl ${error ? "math-tone-danger" : "math-tone-success"}`}
+      >
+        {error ? (
+          <AlertCircle size={18} className="mt-0.5 shrink-0" />
+        ) : (
+          <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+        )}
+        <p className="flex-1 text-sm font-bold leading-6">{VisibleMessage}</p>
+        <button
+          className="text-xs font-black uppercase tracking-[0.16em] opacity-70 hover:opacity-100"
+          onClick={onClear}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function accountCode(user: NonNullable<StoredUser>): string {
+  if (user.student?.studentCode) return user.student.studentCode;
+  if (user.teacher?.teacherCode) return user.teacher.teacherCode;
+  return "";
+}
+
+function accountLoginId(user: NonNullable<StoredUser>): string {
+  return (
+    user.loginId ||
+    user.email ||
+    user.phone ||
+    accountCode(user) ||
+    "Not Available"
+  );
+}
+
+function accountDetails(
+  user: NonNullable<StoredUser>,
+): { label: string; value: string }[] {
+  const Details = [
+    { label: "Name", value: user.fullName || "Not Available" },
+    { label: "Role", value: displayUserRole(user.role) || "Not Available" },
+    { label: "Login ID", value: accountLoginId(user) },
+  ];
+
+  if (
+    user.role === "STUDENT" &&
+    user.student?.studentCode &&
+    user.student.studentCode !== accountLoginId(user)
+  ) {
+    Details.push({ label: "Student Code", value: user.student.studentCode });
+  }
+
+  if (
+    user.role === "TEACHER" &&
+    user.teacher?.teacherCode &&
+    user.teacher.teacherCode !== accountLoginId(user)
+  ) {
+    Details.push({ label: "Teacher Code", value: user.teacher.teacherCode });
+  }
+
+  Details.push({
+    label: "Account Status",
+    value: user.isActive === false ? "Inactive" : "Active",
+  });
+  return Details;
+}

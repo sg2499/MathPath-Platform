@@ -1,0 +1,668 @@
+"use client";
+
+import {
+  GetNotifications,
+  MarkAllNotificationsRead,
+  MarkNotificationRead,
+  type NotificationRecord,
+} from "@/lib/api/notifications";
+import { getStoredUser } from "@/lib/auth";
+import { formatMathPathDateTime } from "@/lib/date";
+import {
+  Bell,
+  BellRing,
+  CheckCheck,
+  CheckCircle2,
+  ClipboardList,
+  ClipboardPlus,
+  FileText,
+  GraduationCap,
+  MailCheck,
+  RotateCcw,
+  Sparkles,
+  TriangleAlert,
+  X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+type NotificationTone =
+  | "blue"
+  | "purple"
+  | "green"
+  | "amber"
+  | "indigo"
+  | "teal"
+  | "red"
+  | "gray";
+
+function NormalizeTone(Notification: NotificationRecord): NotificationTone {
+  const Color = String(Notification.colorVariant || "").toUpperCase();
+  const Category = String(Notification.category || "").toUpperCase();
+
+  if (Color === "RED" || Category === "FAILURE") return "red";
+  if (Color === "GREEN" || Category === "RESULT") return "green";
+  if (Color === "AMBER" || Category === "REATTEMPT") return "amber";
+  if (Color === "PURPLE" || Category === "ASSESSMENT") return "purple";
+  if (Color === "INDIGO" || Category === "PROMOTION") return "indigo";
+  if (Color === "TEAL" || Category === "PARENT_REPORT") return "teal";
+  if (Color === "BLUE" || Category === "PRACTICE") return "blue";
+  return "gray";
+}
+
+function ToneClasses(Tone: NotificationTone, IsRead: boolean) {
+  const Base = IsRead ? "opacity-80" : "shadow-sm";
+  const Classes: Record<NotificationTone, string> = {
+    blue: "border-blue-200 bg-blue-50 text-blue-950 hover:border-blue-300 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-50",
+    purple:
+      "border-violet-200 bg-violet-50 text-violet-950 hover:border-violet-300 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-50",
+    green:
+      "border-emerald-200 bg-emerald-50 text-emerald-950 hover:border-emerald-300 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-50",
+    amber:
+      "border-amber-200 bg-amber-50 text-amber-950 hover:border-amber-300 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-50",
+    indigo:
+      "border-indigo-200 bg-indigo-50 text-indigo-950 hover:border-indigo-300 dark:border-indigo-400/20 dark:bg-indigo-400/10 dark:text-indigo-50",
+    teal: "border-teal-200 bg-teal-50 text-teal-950 hover:border-teal-300 dark:border-teal-400/20 dark:bg-teal-400/10 dark:text-teal-50",
+    red: "border-rose-200 bg-rose-50 text-rose-950 hover:border-rose-300 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-50",
+    gray: "border-slate-200 bg-slate-50 text-slate-950 hover:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-white",
+  };
+  return `${Base} ${Classes[Tone]}`;
+}
+
+function IconFor(Notification: NotificationRecord) {
+  const Category = String(Notification.category || "").toUpperCase();
+  const Type = String(Notification.type || "").toUpperCase();
+
+  if (Category === "FAILURE") return <TriangleAlert size={16} />;
+  if (Category === "RESULT") return <CheckCircle2 size={16} />;
+  if (Category === "REATTEMPT" || Type.includes("REATTEMPT"))
+    return <RotateCcw size={16} />;
+  if (Category === "PROMOTION" || Type.includes("PROMOTION"))
+    return <GraduationCap size={16} />;
+  if (Category === "PARENT_REPORT" || Type.includes("REPORT"))
+    return <FileText size={16} />;
+  if (Category === "ASSESSMENT" || Type.includes("ASSESSMENT"))
+    return <ClipboardList size={16} />;
+  if (Category === "PRACTICE" || Type.includes("DPS"))
+    return <ClipboardPlus size={16} />;
+  return <Sparkles size={16} />;
+}
+
+function NotificationText(Notification: NotificationRecord) {
+  return {
+    Category: String(Notification.category || "").toUpperCase(),
+    Type: String(Notification.type || "").toUpperCase(),
+    Title: String(Notification.title || "").toUpperCase(),
+    Route: String(Notification.targetRoute || "").toLowerCase(),
+  };
+}
+
+function IsPromotionNotification(Notification: NotificationRecord) {
+  const { Category, Type, Title } = NotificationText(Notification);
+
+  // Important: do not classify a notification as promotion only because an
+  // older stored route points to promotion-history. Some legacy assessment
+  // notifications were saved with that wrong route. Purpose/type/category must
+  // win over stored route so teacher assessment notifications go to Assessment
+  // Tracker and not Promotion History.
+  return (
+    Category === "PROMOTION" ||
+    Type.includes("PROMOTION") ||
+    Type.includes("PROMOTED") ||
+    Title.includes("PROMOTED")
+  );
+}
+
+function IsParentReportNotification(Notification: NotificationRecord) {
+  const { Category, Type, Title, Route } = NotificationText(Notification);
+  return (
+    Category === "PARENT_REPORT" ||
+    Type.includes("PARENT_REPORT") ||
+    Type.includes("REPORT") ||
+    Title.includes("PARENT REPORT") ||
+    Route.includes("parent-reports")
+  );
+}
+
+
+function IsParentReportGeneratedNotification(Notification: NotificationRecord) {
+  const { Type, Title } = NotificationText(Notification);
+  const Event = String(Notification.metadata?.event || "").toUpperCase();
+
+  // Generated means the report is available/prepared in Generate Reports.
+  // It must never be treated as a delivery-history event just because an
+  // older stored route or targetAction points to delivery history.
+  const Source = [Type, Title, Event].join(" ");
+  return (
+    Source.includes("PARENT_REPORT_GENERATED") ||
+    Source.includes("PARENT REPORT GENERATED") ||
+    (Source.includes("REPORT") && Source.includes("GENERATED"))
+  );
+}
+
+function IsParentReportDeliveryNotification(Notification: NotificationRecord) {
+  const { Type, Title } = NotificationText(Notification);
+  const Event = String(Notification.metadata?.event || "").toUpperCase();
+  const TargetAction = String(Notification.metadata?.targetAction || "").toUpperCase();
+  const Source = [Type, Title, Event, TargetAction].join(" ");
+
+  if (IsParentReportGeneratedNotification(Notification)) return false;
+
+  return (
+    Source.includes("PARENT_REPORT_SENT") ||
+    Source.includes("PARENT_REPORT_RESENT") ||
+    Source.includes("PARENT_REPORT_FAILED") ||
+    Source.includes("PARENT_REPORT_DELETED") ||
+    Source.includes("PARENT_REPORT_DELIVERY") ||
+    Source.includes("PARENT REPORT SENT") ||
+    Source.includes("PARENT REPORT RESENT") ||
+    Source.includes("PARENT REPORT FAILED") ||
+    Source.includes("PARENT REPORT DELIVERY") ||
+    Source.includes("DELIVERY FAILED") ||
+    Source.includes("DELIVERY RECORD DELETED") ||
+    TargetAction.includes("PARENTREPORTDELIVERYHISTORY")
+  );
+}
+
+function IsPracticeNotification(Notification: NotificationRecord) {
+  const { Category, Type, Title, Route } = NotificationText(Notification);
+  return (
+    Category === "PRACTICE" ||
+    Type.includes("DPS") ||
+    Type.includes("PRACTICE") ||
+    Title.includes("DPS") ||
+    Title.includes("PRACTICE") ||
+    Route.includes("assignment-tracker") ||
+    Route.includes("/admin/assignments") ||
+    Route.includes("/student/practice") ||
+    Route.includes("/student/result/")
+  );
+}
+
+function IsAssessmentNotification(Notification: NotificationRecord) {
+  const { Category, Type, Title, Route } = NotificationText(Notification);
+
+  if (
+    IsPromotionNotification(Notification) ||
+    IsPracticeNotification(Notification) ||
+    IsParentReportNotification(Notification)
+  )
+    return false;
+
+  return (
+    Category === "ASSESSMENT" ||
+    Category === "RESULT" ||
+    Category === "REATTEMPT" ||
+    Type.includes("ASSESSMENT") ||
+    Type.includes("REATTEMPT") ||
+    Title.includes("ASSESSMENT") ||
+    Title.includes("RE-ATTEMPT") ||
+    Route.includes("/teacher/assessments") ||
+    Route.includes("/admin/assessments") ||
+    Route.includes("/student/assessments") ||
+    Route.includes("/student/assessment-result/")
+  );
+}
+
+function IsTeacherReattemptApprovalNotification(
+  Notification: NotificationRecord,
+) {
+  const { Type, Title } = NotificationText(Notification);
+  return (
+    Type.includes("ASSESSMENT_REATTEMPT_APPROVED") ||
+    Title.includes("RE-ATTEMPT APPROVED")
+  );
+}
+
+function NormalizeUserRole(User: ReturnType<typeof getStoredUser>) {
+  const RawRole = String(
+    (User as { role?: string; activeRole?: string; userRole?: string } | null)
+      ?.activeRole ||
+      (User as { role?: string; activeRole?: string; userRole?: string } | null)
+        ?.role ||
+      (User as { role?: string; activeRole?: string; userRole?: string } | null)
+        ?.userRole ||
+      "",
+  );
+  return RawRole.toLowerCase();
+}
+
+function MetadataString(Notification: NotificationRecord, Key: string) {
+  const Metadata = Notification.metadata || {};
+  const SnakeKey = Key.replace(/[A-Z]/g, (Letter) => `_${Letter.toLowerCase()}`);
+  const PascalKey = Key.charAt(0).toUpperCase() + Key.slice(1);
+  const DirectRecord = Notification as unknown as Record<string, unknown>;
+  const Value =
+    Metadata[Key] ??
+    Metadata[SnakeKey] ??
+    Metadata[PascalKey] ??
+    DirectRecord[Key] ??
+    DirectRecord[SnakeKey];
+  return Value === undefined || Value === null ? "" : String(Value);
+}
+
+function NotificationIdentityParam(
+  Notification: NotificationRecord,
+  Key: string,
+  DirectValue?: string | null,
+) {
+  const Value = DirectValue || MetadataString(Notification, Key);
+  return Value ? String(Value) : "";
+}
+
+function AppendDeepLinkParams(
+  BaseRoute: string,
+  Notification: NotificationRecord,
+  ExistingParams?: Record<string, string>,
+) {
+  const Params = new URLSearchParams();
+
+  Object.entries(ExistingParams || {}).forEach(([Key, Value]) => {
+    if (Value) Params.set(Key, Value);
+  });
+
+  const StudentCode = NotificationIdentityParam(Notification, "studentCode");
+  const ModuleCode = NotificationIdentityParam(Notification, "moduleCode");
+  const LevelCode = NotificationIdentityParam(Notification, "levelCode");
+  const LessonId = NotificationIdentityParam(
+    Notification,
+    "lessonId",
+    Notification.lessonId,
+  );
+  const DpsId = NotificationIdentityParam(
+    Notification,
+    "dpsId",
+    Notification.dpsId,
+  );
+  const AssignmentId = NotificationIdentityParam(Notification, "assignmentId");
+  const AssignmentCount = NotificationIdentityParam(Notification, "assignmentCount");
+  const DpsCount = NotificationIdentityParam(Notification, "dpsCount");
+  const IsGrouped = NotificationIdentityParam(Notification, "isGrouped");
+  const ReportDeliveryId = NotificationIdentityParam(
+    Notification,
+    "reportDeliveryId",
+    Notification.reportDeliveryId,
+  );
+  const AttemptId = NotificationIdentityParam(
+    Notification,
+    "attemptId",
+    Notification.attemptId,
+  );
+  const HighlightId =
+    NotificationIdentityParam(Notification, "highlightId") ||
+    ReportDeliveryId ||
+    AttemptId ||
+    AssignmentId ||
+    DpsId;
+  const TargetAction = IsParentReportGeneratedNotification(Notification)
+    ? "parentReportGenerateReports"
+    : IsParentReportDeliveryNotification(Notification)
+      ? "parentReportDeliveryHistory"
+      : NotificationIdentityParam(Notification, "targetAction");
+
+  if (StudentCode) Params.set("studentCode", StudentCode);
+  if (ModuleCode) Params.set("moduleCode", ModuleCode);
+  if (LevelCode) Params.set("levelCode", LevelCode);
+  if (LessonId) Params.set("lessonId", LessonId);
+  if (DpsId) Params.set("dpsId", DpsId);
+  if (AssignmentId) Params.set("assignmentId", AssignmentId);
+  if (AssignmentCount) Params.set("assignmentCount", AssignmentCount);
+  if (DpsCount) Params.set("dpsCount", DpsCount);
+  if (IsGrouped) Params.set("isGrouped", IsGrouped);
+  if (ReportDeliveryId) Params.set("reportDeliveryId", ReportDeliveryId);
+  if (AttemptId) Params.set("attemptId", AttemptId);
+  if (HighlightId) Params.set("highlightId", HighlightId);
+  if (TargetAction) Params.set("targetAction", TargetAction);
+
+  const Query = Params.toString();
+  return Query
+    ? `${BaseRoute}${BaseRoute.includes("?") ? "&" : "?"}${Query}`
+    : BaseRoute;
+}
+
+function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
+  if (Role === "teacher") {
+    if (IsPracticeNotification(Notification)) {
+      const StudentCode = MetadataString(Notification, "studentCode");
+      const Route = StudentCode
+        ? `/teacher/assignment-tracker/student/${encodeURIComponent(StudentCode)}`
+        : "/teacher/assignment-tracker";
+      return { Route, TargetTab: "", TargetSubTab: "" };
+    }
+    if (IsPromotionNotification(Notification))
+      return {
+        Route: "/teacher/promotion-history",
+        TargetTab: "",
+        TargetSubTab: "",
+      };
+    if (IsTeacherReattemptApprovalNotification(Notification))
+      return {
+        Route: "/teacher/assign-assessment",
+        TargetTab: "",
+        TargetSubTab: "",
+      };
+    if (IsAssessmentNotification(Notification))
+      return { Route: "/teacher/assessments", TargetTab: "", TargetSubTab: "" };
+  }
+
+  if (Role === "admin") {
+    if (IsPracticeNotification(Notification)) {
+      const StudentCode = MetadataString(Notification, "studentCode");
+      const Route = StudentCode
+        ? `/admin/assignments/student/${encodeURIComponent(StudentCode)}`
+        : "/admin/assignments";
+      return { Route, TargetTab: "", TargetSubTab: "" };
+    }
+    if (IsPromotionNotification(Notification))
+      return {
+        Route: "/admin/assessments",
+        TargetTab: "promotion-history",
+        TargetSubTab: "",
+      };
+    if (IsParentReportNotification(Notification)) {
+      const TargetSubTab = IsParentReportGeneratedNotification(Notification)
+        ? "generate-reports"
+        : IsParentReportDeliveryNotification(Notification)
+          ? "delivery-history"
+          : "generate-reports";
+      return {
+        Route: "/admin/assessments",
+        TargetTab: "parent-reports",
+        TargetSubTab,
+      };
+    }
+    if (
+      IsTeacherReattemptApprovalNotification(Notification) ||
+      NotificationText(Notification).Type.includes(
+        "ASSESSMENT_REATTEMPT_REQUEST",
+      )
+    ) {
+      return {
+        Route: "/admin/assessments",
+        TargetTab: "reattempt-approvals",
+        TargetSubTab: "",
+      };
+    }
+    if (IsAssessmentNotification(Notification))
+      return { Route: "/admin/assessments", TargetTab: "", TargetSubTab: "" };
+  }
+
+  if (Role === "student") {
+    if (IsPromotionNotification(Notification))
+      return { Route: "/student/results", TargetTab: "", TargetSubTab: "" };
+    if (IsPracticeNotification(Notification)) {
+      const StoredRoute = Notification.targetRoute || "";
+      return {
+        Route: StoredRoute.startsWith("/student/result/")
+          ? StoredRoute
+          : "/student/practice",
+        TargetTab: "",
+        TargetSubTab: "",
+      };
+    }
+    if (IsAssessmentNotification(Notification)) {
+      const StoredRoute = Notification.targetRoute || "";
+      return {
+        Route: StoredRoute.startsWith("/student/assessment-result/")
+          ? StoredRoute
+          : "/student/assessments",
+        TargetTab: "",
+        TargetSubTab: "",
+      };
+    }
+  }
+
+  return {
+    Route: Notification.targetRoute || "/",
+    TargetTab: Notification.targetTab || "",
+    TargetSubTab: Notification.targetSubTab || "",
+  };
+}
+
+function BuildTargetUrl(
+  Notification: NotificationRecord,
+  User: ReturnType<typeof getStoredUser>,
+) {
+  const Role = NormalizeUserRole(User);
+  const { Route, TargetTab, TargetSubTab } = BuildRoleAwareRoute(
+    Notification,
+    Role,
+  );
+
+  const BaseParams: Record<string, string> = {};
+  if (TargetTab) BaseParams.tab = TargetTab;
+  if (TargetSubTab) BaseParams.subTab = TargetSubTab;
+  return AppendDeepLinkParams(Route, Notification, BaseParams);
+}
+
+function CategoryLabel(Notification: NotificationRecord) {
+  const Category = String(Notification.category || "SYSTEM")
+    .replace(/_/g, " ")
+    .toLowerCase();
+  return Category.replace(/\b\w/g, (Letter) => Letter.toUpperCase());
+}
+
+export function NotificationsBell() {
+  const Router = useRouter();
+  const User = getStoredUser();
+  const [Open, SetOpen] = useState(false);
+  const [Items, SetItems] = useState<NotificationRecord[]>([]);
+  const [UnreadCount, SetUnreadCount] = useState(0);
+  const [Loading, SetLoading] = useState(false);
+  const [ActionLoading, SetActionLoading] = useState(false);
+  const PanelRef = useRef<HTMLDivElement | null>(null);
+
+  const VisibleItems = useMemo(() => Items.slice(0, 20), [Items]);
+
+  const FetchNotifications = useCallback(async () => {
+    if (!User?.id) return;
+    try {
+      SetLoading(true);
+      const Response = await GetNotifications({ limit: 20, offset: 0 });
+      SetItems(Response.items || []);
+      SetUnreadCount(Response.unreadCount || 0);
+    } catch {
+      SetItems([]);
+      SetUnreadCount(0);
+    } finally {
+      SetLoading(false);
+    }
+  }, [User?.id]);
+
+  useEffect(() => {
+    FetchNotifications();
+    const Interval = window.setInterval(FetchNotifications, 15000);
+
+    function HandleFocus() {
+      if (document.visibilityState === "hidden") return;
+      FetchNotifications();
+    }
+
+    window.addEventListener("focus", HandleFocus);
+    document.addEventListener("visibilitychange", HandleFocus);
+    return () => {
+      window.clearInterval(Interval);
+      window.removeEventListener("focus", HandleFocus);
+      document.removeEventListener("visibilitychange", HandleFocus);
+    };
+  }, [FetchNotifications]);
+
+  useEffect(() => {
+    function HandleClick(Event: MouseEvent) {
+      if (!PanelRef.current) return;
+      if (!PanelRef.current.contains(Event.target as Node)) SetOpen(false);
+    }
+
+    function HandleKey(Event: KeyboardEvent) {
+      if (Event.key === "Escape") SetOpen(false);
+    }
+
+    document.addEventListener("mousedown", HandleClick);
+    document.addEventListener("keydown", HandleKey);
+    return () => {
+      document.removeEventListener("mousedown", HandleClick);
+      document.removeEventListener("keydown", HandleKey);
+    };
+  }, []);
+
+  async function HandleNotificationClick(Notification: NotificationRecord) {
+    try {
+      if (!Notification.isRead) {
+        await MarkNotificationRead(Notification.id);
+      }
+    } catch {
+      // Navigation should still happen even if read-state update fails.
+    } finally {
+      SetOpen(false);
+      SetUnreadCount((Count) =>
+        Math.max(0, Count - (Notification.isRead ? 0 : 1)),
+      );
+      SetItems((Current) =>
+        Current.map((Item) =>
+          Item.id === Notification.id ? { ...Item, isRead: true } : Item,
+        ),
+      );
+      Router.push(BuildTargetUrl(Notification, User));
+    }
+  }
+
+  async function HandleMarkAllRead() {
+    try {
+      SetActionLoading(true);
+      const Response = await MarkAllNotificationsRead();
+      SetUnreadCount(Math.max(0, Number(Response.unreadCount || 0)));
+      SetItems((Current) => Current.map((Item) => ({ ...Item, isRead: true })));
+      await FetchNotifications();
+    } finally {
+      SetActionLoading(false);
+    }
+  }
+
+  const BadgeCount = Math.min(UnreadCount, 99);
+
+  return (
+    <div className="relative" ref={PanelRef}>
+      <button
+        className="math-button-secondary math-focus-ring relative h-12 px-4"
+        title="Open Notifications"
+        onClick={() => {
+          SetOpen((Value) => !Value);
+          if (!Open) FetchNotifications();
+        }}
+        aria-label="Notifications"
+      >
+        {UnreadCount ? <BellRing size={17} /> : <Bell size={17} />}
+        {UnreadCount ? (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-black text-white shadow-lg">
+            {BadgeCount}
+          </span>
+        ) : null}
+      </button>
+
+      {Open ? (
+        <div className="math-panel absolute right-0 top-14 z-[80] w-[min(460px,calc(100vw-24px))] overflow-hidden p-0 shadow-2xl">
+          <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-4 dark:border-white/10 dark:bg-slate-950/95">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600">
+                Notifications
+              </p>
+              <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                MathPath Updates
+              </h3>
+              <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                {UnreadCount
+                  ? `${UnreadCount} Unread Update${UnreadCount === 1 ? "" : "s"}`
+                  : "All Caught Up"}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {UnreadCount ? (
+                <button
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                  onClick={HandleMarkAllRead}
+                  disabled={ActionLoading}
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <CheckCheck size={14} /> Mark All Read
+                  </span>
+                </button>
+              ) : null}
+              <button
+                className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                onClick={() => SetOpen(false)}
+                title="Close Notifications"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-[min(520px,calc(100vh-180px))] space-y-2 overflow-y-auto p-3">
+            {Loading && !Items.length ? (
+              <div className="math-panel-muted text-center text-sm font-bold">
+                Loading notifications...
+              </div>
+            ) : VisibleItems.length ? (
+              VisibleItems.map((Notification) => {
+                const Tone = NormalizeTone(Notification);
+                return (
+                  <button
+                    key={Notification.id}
+                    className={`w-full rounded-[22px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 dark:focus-visible:ring-cyan-300/15 ${ToneClasses(Tone, Notification.isRead)}`}
+                    onClick={() => HandleNotificationClick(Notification)}
+                  >
+                    <div className="flex gap-3">
+                      <div className="mt-0.5 shrink-0 rounded-2xl border border-current/10 bg-white/70 p-2 shadow-sm dark:bg-white/10">
+                        {IconFor(Notification)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-black leading-5">
+                            {Notification.title}
+                          </p>
+                          {!Notification.isRead ? (
+                            <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-white">
+                              New
+                            </span>
+                          ) : null}
+                        </div>
+                        {Notification.message ? (
+                          <p className="mt-1 text-sm font-semibold leading-6 opacity-85">
+                            {Notification.message}
+                          </p>
+                        ) : null}
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold opacity-70">
+                          <span className="rounded-full border border-current/10 bg-white/50 px-2.5 py-1 dark:bg-white/10">
+                            {CategoryLabel(Notification)}
+                          </span>
+                          {Notification.createdAt ? (
+                            <span>
+                              {formatMathPathDateTime(Notification.createdAt)}
+                            </span>
+                          ) : null}
+                          {Notification.targetRoute ? null : null}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="math-panel-muted flex flex-col items-center justify-center gap-3 py-10 text-center">
+                <MailCheck size={28} className="text-slate-400" />
+                <div>
+                  <p className="font-black text-slate-900 dark:text-white">
+                    No Notifications Yet
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                    Platform updates will appear here when actions are recorded.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
