@@ -25,7 +25,7 @@ from app.core.config import (
 from app.core.security import hash_password
 from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
-from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog
+from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog
 from app.services.assignment_service import create_assignment
 from app.services.attempt_service import result_payload
 from app.services.curriculum_service import dps_config_payload, get_dps_or_404
@@ -1165,36 +1165,154 @@ def delete_student_route(
     photo_url = student.photo_url
     signature_url = student.signature_url
 
-    attempts = db.query(Attempt).filter(Attempt.student_id == student.id).all()
-    question_set_ids = [attempt.question_set_id for attempt in attempts if attempt.question_set_id]
-    attempt_ids = [attempt.id for attempt in attempts]
-
-    question_ids = []
-    if question_set_ids:
-        question_ids = [
+    try:
+        # Assessment-side cleanup. These records are shown in tracker/report views and
+        # can block permanent student deletion on PostgreSQL when FK constraints are strict.
+        assessment_assignment_ids = [
             row[0]
-            for row in db.query(GeneratedQuestion.id)
-            .filter(GeneratedQuestion.question_set_id.in_(question_set_ids))
+            for row in db.query(AssessmentAssignment.id)
+            .filter(AssessmentAssignment.student_id == student.id)
             .all()
         ]
+        assessment_attempt_ids = [
+            row[0]
+            for row in db.query(AssessmentAttempt.id)
+            .filter(AssessmentAttempt.student_id == student.id)
+            .all()
+        ]
+        assessment_result_ids = []
+        if assessment_attempt_ids:
+            assessment_result_ids = [
+                row[0]
+                for row in db.query(AssessmentResult.id)
+                .filter(AssessmentResult.assessment_attempt_id.in_(assessment_attempt_ids))
+                .all()
+            ]
+            db.query(AssessmentAttemptAnswer).filter(
+                AssessmentAttemptAnswer.assessment_attempt_id.in_(assessment_attempt_ids)
+            ).delete(synchronize_session=False)
+            db.query(AssessmentReattemptApproval).filter(
+                AssessmentReattemptApproval.assessment_attempt_id.in_(assessment_attempt_ids)
+            ).delete(synchronize_session=False)
+            db.query(StudentLevelPromotion).filter(
+                StudentLevelPromotion.assessment_attempt_id.in_(assessment_attempt_ids)
+            ).delete(synchronize_session=False)
+            db.query(AssessmentResult).filter(
+                AssessmentResult.assessment_attempt_id.in_(assessment_attempt_ids)
+            ).delete(synchronize_session=False)
+            db.query(AssessmentAttempt).filter(
+                AssessmentAttempt.id.in_(assessment_attempt_ids)
+            ).delete(synchronize_session=False)
 
-    if attempt_ids:
-        db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id.in_(attempt_ids)).delete(synchronize_session=False)
-        db.query(Attempt).filter(Attempt.id.in_(attempt_ids)).delete(synchronize_session=False)
+        if assessment_result_ids:
+            db.query(StudentLevelPromotion).filter(
+                StudentLevelPromotion.assessment_result_id.in_(assessment_result_ids)
+            ).delete(synchronize_session=False)
 
-    if question_ids:
-        db.query(QuestionOption).filter(QuestionOption.question_id.in_(question_ids)).delete(synchronize_session=False)
-        db.query(GeneratedQuestion).filter(GeneratedQuestion.id.in_(question_ids)).delete(synchronize_session=False)
+        if assessment_assignment_ids:
+            db.query(StudentLevelPromotion).filter(
+                StudentLevelPromotion.assessment_assignment_id.in_(assessment_assignment_ids)
+            ).delete(synchronize_session=False)
+            db.query(AssessmentReattemptApproval).filter(
+                AssessmentReattemptApproval.assessment_assignment_id.in_(assessment_assignment_ids)
+            ).delete(synchronize_session=False)
+            db.query(AssessmentAssignment).filter(
+                AssessmentAssignment.id.in_(assessment_assignment_ids)
+            ).delete(synchronize_session=False)
 
-    if question_set_ids:
-        db.query(GeneratedQuestionSet).filter(GeneratedQuestionSet.id.in_(question_set_ids)).delete(synchronize_session=False)
+        # Practice-side cleanup. Remove answers first, break generated-set references,
+        # then remove generated questions/options/sets and assignment records.
+        practice_attempts = db.query(Attempt).filter(Attempt.student_id == student.id).all()
+        practice_attempt_ids = [attempt.id for attempt in practice_attempts]
+        question_set_ids = [attempt.question_set_id for attempt in practice_attempts if attempt.question_set_id]
 
-    db.delete(student)
+        if practice_attempt_ids:
+            db.query(AuditLog).filter(AuditLog.attempt_id.in_(practice_attempt_ids)).update(
+                {AuditLog.attempt_id: None},
+                synchronize_session=False,
+            )
+            db.query(AttemptAnswer).filter(
+                AttemptAnswer.attempt_id.in_(practice_attempt_ids)
+            ).delete(synchronize_session=False)
+            db.query(Attempt).filter(Attempt.id.in_(practice_attempt_ids)).update(
+                {Attempt.question_set_id: None},
+                synchronize_session=False,
+            )
+            db.query(Attempt).filter(
+                Attempt.id.in_(practice_attempt_ids)
+            ).delete(synchronize_session=False)
 
-    if student_user:
-        db.delete(student_user)
+        if question_set_ids:
+            question_ids = [
+                row[0]
+                for row in db.query(GeneratedQuestion.id)
+                .filter(GeneratedQuestion.question_set_id.in_(question_set_ids))
+                .all()
+            ]
+            if question_ids:
+                db.query(QuestionOption).filter(
+                    QuestionOption.question_id.in_(question_ids)
+                ).delete(synchronize_session=False)
+                db.query(GeneratedQuestion).filter(
+                    GeneratedQuestion.id.in_(question_ids)
+                ).delete(synchronize_session=False)
+            db.query(GeneratedQuestionSet).filter(
+                GeneratedQuestionSet.id.in_(question_set_ids)
+            ).delete(synchronize_session=False)
 
-    db.commit()
+        # Assignment and readiness governance records linked to the student.
+        db.query(AssignmentReattemptPermission).filter(
+            AssignmentReattemptPermission.student_id == student.id
+        ).delete(synchronize_session=False)
+        db.query(Assignment).filter(
+            Assignment.assigned_to_type == "STUDENT",
+            Assignment.assigned_to_id == student.id,
+        ).delete(synchronize_session=False)
+        db.query(Assignment).filter(
+            Assignment.assigned_to_type == "STUDENT",
+            Assignment.assigned_to_id == student.student_code,
+        ).delete(synchronize_session=False)
+        db.query(GeneratedQuestionSet).filter(
+            GeneratedQuestionSet.student_id == student.id
+        ).delete(synchronize_session=False)
+        db.query(AssessmentReadinessTestingOverride).filter(
+            AssessmentReadinessTestingOverride.student_id == student.id
+        ).delete(synchronize_session=False)
+        db.query(StudentBatch).filter(StudentBatch.student_id == student.id).delete(synchronize_session=False)
+
+        # Preserve operational audit/delivery rows without letting nullable references
+        # block permanent deletion.
+        db.query(AuditLog).filter(AuditLog.student_id == student.id).update(
+            {AuditLog.student_id: None},
+            synchronize_session=False,
+        )
+        if student_user:
+            db.query(AuditLog).filter(AuditLog.user_id == student_user.id).update(
+                {AuditLog.user_id: None},
+                synchronize_session=False,
+            )
+        db.query(Notification).filter(Notification.student_id == student.id).update(
+            {Notification.student_id: None},
+            synchronize_session=False,
+        )
+        db.query(ParentReportEmailLog).filter(ParentReportEmailLog.student_id == student.id).update(
+            {ParentReportEmailLog.student_id: None},
+            synchronize_session=False,
+        )
+
+        db.delete(student)
+        if student_user:
+            db.delete(student_user)
+
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        api_error(
+            500,
+            "STUDENT_DELETE_FAILED",
+            "Student could not be deleted because linked production records could not be cleaned safely.",
+            {"reason": str(exc)},
+        )
 
     for stored_url in [photo_url, signature_url]:
         if stored_url and stored_url.startswith("/uploads/students/"):
@@ -1207,7 +1325,7 @@ def delete_student_route(
 
     return {
         "deleted": True,
-        "message": "Student deleted successfully.",
+        "message": "Student and linked operational records deleted successfully.",
         "studentId": student_id,
         "studentName": student_name,
         "studentCode": student_code,
