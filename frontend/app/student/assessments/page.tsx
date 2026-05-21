@@ -151,7 +151,7 @@ function statusTone(status: unknown) {
   const text = normalizeStatus(status);
   if (text === "COMPLETED" || text === "CLEARED" || text === "AUTO_SUBMITTED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (text === "REATTEMPT_AVAILABLE" || text === "NEEDS_RE_ATTEMPT" || text === "NEEDS_REATTEMPT") return "border-rose-200 bg-rose-50 text-rose-700";
-  if (text === "IN_PROGRESS") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (text === "PENDING" || text === "NOT_STARTED" || text === "ASSIGNED" || text === "IN_PROGRESS" || !text) return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
@@ -664,7 +664,7 @@ function StudentAssessmentsPageContent() {
                           </button>
                           {isLevelOpen ? (
                             <div className="overflow-hidden rounded-[22px] border border-slate-200 dark:border-slate-800">
-                              <div className="grid grid-cols-[1.12fr_.58fr_.7fr_.54fr_.54fr_.82fr_.82fr_124px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
+                              <div className="grid grid-cols-[1.08fr_.54fr_.68fr_.5fr_.5fr_.78fr_.78fr_164px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
                                 <div>Assessment</div>
                                 <div>Attempt</div>
                                 <div>Status</div>
@@ -672,7 +672,7 @@ function StudentAssessmentsPageContent() {
                                 <div>Accuracy</div>
                                 <div>Assigned Date</div>
                                 <div>Completion Date</div>
-                                <div>Action</div>
+                                <div className="text-right pr-2">Action</div>
                               </div>
                               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {levelGroup.rows.map((row, index) => <StudentAssessmentRecordRow key={String(value(row, ["assignmentId", "assessmentAssignmentId", "assessmentId", "id"], String(index)))} row={row} FocusTarget={DeepLinkTarget} />)}
@@ -732,7 +732,7 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
   const IsFocused = FocusTarget ? studentAssessmentMatchesTarget(row, FocusTarget) : false;
 
   return (
-    <div id={FocusId ? `student-assessment-record-${FocusId}` : undefined} className={`grid grid-cols-[1.12fr_.58fr_.7fr_.54fr_.54fr_.82fr_.82fr_124px] items-center gap-3 px-4 py-4 text-sm ${IsFocused ? "ring-2 ring-cyan-400 bg-cyan-50/70 dark:bg-cyan-950/20" : ""}`}>
+    <div id={FocusId ? `student-assessment-record-${FocusId}` : undefined} className={`grid grid-cols-[1.08fr_.54fr_.68fr_.5fr_.5fr_.78fr_.78fr_164px] items-center gap-3 px-4 py-4 text-sm ${IsFocused ? "ring-2 ring-cyan-400 bg-cyan-50/70 dark:bg-cyan-950/20" : ""}`}>
       <div className="min-w-0">
         <p className="font-black text-slate-950 dark:text-white">{title}</p>
         <p className="mt-1 text-xs font-semibold text-slate-500">{scopeText(row) || "Level Assessment"}</p>
@@ -743,8 +743,8 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
       <div><PerformanceValueChip Value={recordAccuracy(row)} Tone={AccuracyTone(row)} /></div>
       <div className="text-xs font-bold text-slate-500">{assignedDate(row)}</div>
       <div className="text-xs font-bold text-slate-500">{completionDate(row)}</div>
-      <div className="flex justify-start">
-        <Link className={`${isPrimaryAssessmentAction ? "math-button-primary" : "math-role-action-button"} px-3 py-2 text-xs`} href={href}>
+      <div className="flex min-w-[156px] justify-end pr-1">
+        <Link className={`${isPrimaryAssessmentAction ? "math-button-primary" : "math-role-action-button"} whitespace-nowrap px-3.5 py-2 text-xs`} href={href}>
           <PlayCircle size={15} /> {actionLabel}
         </Link>
       </div>

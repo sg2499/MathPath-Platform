@@ -31,7 +31,7 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type StatusFilter = "" | "ALL" | "PENDING" | "CLEARED" | "NEEDS_REATTEMPT";
@@ -942,17 +942,7 @@ function AssessmentRecordTable({
   );
 }
 
-
-
 export default function TeacherAssessmentAssignmentsPage() {
-  return (
-    <Suspense fallback={null}>
-      <TeacherAssessmentAssignmentsPageContent />
-    </Suspense>
-  );
-}
-
-function TeacherAssessmentAssignmentsPageContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
   const SearchParams = useSearchParams();
@@ -1010,14 +1000,20 @@ function TeacherAssessmentAssignmentsPageContent() {
     const Query = SearchText.trim().toLowerCase();
     return Rows.filter((Row) => {
       const MatchesSearch = !Query || SearchBlob(Row).includes(Query);
+      const NormalizedModuleFilter = NormalizeDeepLinkText(ModuleFilter);
+      const NormalizedLevelFilter = NormalizeDeepLinkText(LevelFilter);
       const MatchesModule =
         !ModuleFilter ||
         ModuleFilter === "ALL" ||
-        RowModuleKey(Row) === ModuleFilter;
+        [RowModuleKey(Row), Row.moduleCode, Row.moduleName, RowModuleLabel(Row)].some(
+          (Value) => NormalizeDeepLinkText(Value) === NormalizedModuleFilter,
+        );
       const MatchesLevel =
         !LevelFilter ||
         LevelFilter === "ALL" ||
-        RowLevelKey(Row) === LevelFilter;
+        [RowLevelKey(Row), Row.levelCode, Row.levelName, RowLevelLabel(Row)].some(
+          (Value) => NormalizeDeepLinkText(Value) === NormalizedLevelFilter,
+        );
       const MatchesStatus =
         !StatusFilterValue ||
         StatusFilterValue === "ALL" ||
@@ -1028,8 +1024,8 @@ function TeacherAssessmentAssignmentsPageContent() {
 
   const AllStudents = useMemo(() => BuildStudents(Rows), [Rows]);
   const CurrentMetricRows = useMemo(
-    () => CurrentAssessmentRows(FilteredRows),
-    [FilteredRows],
+    () => CurrentAssessmentRows(VisibleRows),
+    [VisibleRows],
   );
 
   const ClearedCount = CurrentMetricRows.filter(
@@ -1053,6 +1049,12 @@ function TeacherAssessmentAssignmentsPageContent() {
     () => Rows.find((Row) => RowMatchesDeepLink(Row, DeepLinkTarget)),
     [Rows, DeepLinkTarget],
   );
+
+  const VisibleRows = useMemo(() => {
+    if (FilteredRows.length > 0) return FilteredRows;
+    if (DeepLinkTarget.HasTarget && NotificationTargetRow) return [NotificationTargetRow];
+    return FilteredRows;
+  }, [FilteredRows, DeepLinkTarget.HasTarget, NotificationTargetRow]);
 
   if (!Ready || AssessmentsQuery.isLoading)
     return <LoadingState label="Loading assessment tracker..." />;
@@ -1079,7 +1081,7 @@ function TeacherAssessmentAssignmentsPageContent() {
             />
             <Metric
               Label="Assigned Assessments"
-              Value={FilteredRows.length}
+              Value={VisibleRows.length}
               Icon={<BookOpenCheck size={17} />}
             />
             <Metric
@@ -1219,7 +1221,7 @@ function TeacherAssessmentAssignmentsPageContent() {
         ) : null}
 
         <AssessmentRecordTable
-          Rows={FilteredRows}
+          Rows={VisibleRows}
           FocusTarget={DeepLinkTarget}
           OnOpenAttempt={(Row) => {
             const AttemptId = AssessmentAttemptId(Row);

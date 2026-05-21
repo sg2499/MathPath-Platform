@@ -13,6 +13,7 @@ from app.core.config import (
     SMTP_PORT,
     SMTP_USERNAME,
     SMTP_USE_TLS,
+    SMTP_USE_SSL,
 )
 
 
@@ -79,8 +80,9 @@ def SendEmailWithAttachment(
     )
 
     try:
-        with smtplib.SMTP(_ConfiguredValue(SMTP_HOST), int(SMTP_PORT or 587), timeout=30) as Server:
-            if SMTP_USE_TLS:
+        ServerClass = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
+        with ServerClass(_ConfiguredValue(SMTP_HOST), int(SMTP_PORT or 587), timeout=30) as Server:
+            if SMTP_USE_TLS and not SMTP_USE_SSL:
                 Server.starttls()
             Server.login(_ConfiguredValue(SMTP_USERNAME), _ConfiguredValue(SMTP_PASSWORD))
             SendResult = Server.send_message(Message)
