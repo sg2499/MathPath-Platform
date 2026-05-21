@@ -160,10 +160,13 @@ const RoleContent: Record<
   },
 };
 
-function ApplyTheme(Mode: ThemeMode) {
+function ApplyTheme(Mode: ThemeMode, PersistPreference = false) {
   if (typeof document === "undefined") return;
   document.documentElement.classList.toggle("dark", Mode === "dark");
   localStorage.setItem("mathpath_theme", Mode);
+  if (PersistPreference) {
+    localStorage.setItem("mathpath_theme_user_selected", "true");
+  }
 }
 
 function RoleLabel(Role: UserRole | LoginTab) {
@@ -200,14 +203,15 @@ export default function LoginPage() {
       typeof window !== "undefined"
         ? (localStorage.getItem("mathpath_theme") as ThemeMode | null)
         : null;
+    const HasExplicitPreference =
+      typeof window !== "undefined"
+        ? localStorage.getItem("mathpath_theme_user_selected") === "true"
+        : false;
 
-    const Preferred =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-color-scheme: dark)").matches
-        ? "dark"
+    const NextTheme =
+      HasExplicitPreference && (Saved === "dark" || Saved === "light")
+        ? Saved
         : "light";
-
-    const NextTheme = Saved === "dark" || Saved === "light" ? Saved : Preferred;
     SetTheme(NextTheme);
     ApplyTheme(NextTheme);
   }, []);
@@ -215,7 +219,7 @@ export default function LoginPage() {
   function ToggleTheme() {
     const NextTheme = Theme === "dark" ? "light" : "dark";
     SetTheme(NextTheme);
-    ApplyTheme(NextTheme);
+    ApplyTheme(NextTheme, true);
   }
 
   function ChangeTab(Tab: LoginTab) {
@@ -248,7 +252,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative h-screen overflow-hidden px-2 py-2 text-slate-950 sm:px-3 sm:py-3 xl:px-4 xl:py-4`}>
+    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative min-h-screen overflow-y-auto overflow-x-hidden px-2 py-2 text-slate-950 sm:px-3 sm:py-3 xl:px-4 xl:py-4`}>
       <div className="absolute inset-0 math-grid-dots opacity-55 dark:opacity-35" />
       <div className="math-login-aura math-login-aura-one" />
       <div className="math-login-aura math-login-aura-two" />
@@ -256,7 +260,7 @@ export default function LoginPage() {
       <div className="math-login-orbit left-[6%] top-[14%] hidden lg:block" />
       <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
 
-      <div className="math-login-frame relative z-10 mx-auto grid h-[calc(100vh-1rem)] w-full max-w-[1820px] overflow-hidden sm:h-[calc(100vh-1.5rem)] xl:h-[calc(100vh-2rem)] lg:grid-cols-[1.04fr_0.96fr]">
+      <div className="math-login-frame relative z-10 mx-auto grid min-h-[calc(100vh-1rem)] w-full max-w-[1820px] overflow-hidden sm:min-h-[calc(100vh-1.5rem)] xl:min-h-[calc(100vh-2rem)] lg:grid-cols-[1.04fr_0.96fr]">
         <section
           className={`math-login-story relative hidden min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
         >
@@ -321,10 +325,10 @@ export default function LoginPage() {
           </div>
         </section>
 
-        <section className="math-login-form-zone relative flex h-full min-h-0 items-center overflow-hidden px-5 py-5 sm:px-8 lg:px-10 xl:px-14 2xl:px-16">
+        <section className="math-login-form-zone relative flex min-h-0 items-start overflow-hidden px-5 py-5 sm:px-8 lg:px-10 lg:py-7 xl:px-14 2xl:px-16">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.10),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.45),rgba(255,255,255,0.15))] dark:bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.12),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(124,58,237,0.10),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.28),rgba(2,6,23,0.58))]" />
 
-          <div className="relative z-10 mx-auto w-full max-w-[37rem]">
+          <div className="relative z-10 mx-auto w-full max-w-[37rem] self-start lg:my-auto">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="math-login-mobile-brand flex items-center gap-3 lg:hidden">
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md dark:bg-slate-900">

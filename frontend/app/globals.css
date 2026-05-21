@@ -5699,3 +5699,101 @@ html.dark .math-login-welcome-chip {
     text-shadow: 0 2px 14px rgba(0,0,0,0.22);
   }
 }
+
+/* Phase 10.9.2A — Production frontend visual parity for Vercel login screens.
+   Keeps auth screens light by default, prevents vertical clipping, and restores
+   the visible theme control across Admin / Teacher / Student login tabs. */
+@layer components {
+  .math-login-shell {
+    min-height: 100svh;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    color-scheme: light;
+  }
+
+  html.dark .math-login-shell {
+    color-scheme: dark;
+  }
+
+  .math-login-frame {
+    min-height: calc(100svh - 1rem);
+    height: auto;
+  }
+
+  .math-login-story,
+  .math-login-form-zone {
+    min-height: calc(100svh - 1rem);
+  }
+
+  .math-login-form-zone {
+    align-items: stretch;
+  }
+
+  .math-login-form-zone > .relative.z-10 {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: calc(100svh - 2rem);
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .math-login-theme-toggle {
+    position: relative;
+    z-index: 20;
+    flex-shrink: 0;
+    color: #0f172a;
+  }
+
+  html.dark .math-login-theme-toggle {
+    color: #f8fafc;
+  }
+
+  @media (min-width: 1024px) and (max-height: 860px) {
+    .math-login-story > .relative.z-10 {
+      gap: 1rem;
+      padding-top: 1.25rem;
+      padding-bottom: 1.25rem;
+    }
+
+    .math-login-story h1 {
+      margin-top: 1rem;
+      font-size: clamp(2.25rem, 4.2vw, 3.35rem) !important;
+      line-height: 1.02 !important;
+    }
+
+    .math-login-story p {
+      line-height: 1.55;
+    }
+
+    .math-login-feature {
+      padding: 0.875rem;
+    }
+
+    .math-login-card {
+      padding: 0.9rem;
+    }
+
+    .math-login-card .math-input {
+      min-height: 2.85rem;
+    }
+
+    .math-login-form-zone h2 {
+      font-size: clamp(2.15rem, 3.8vw, 3rem) !important;
+      line-height: 1.03 !important;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .math-login-frame,
+    .math-login-form-zone {
+      min-height: calc(100svh - 1rem);
+    }
+
+    .math-login-form-zone > .relative.z-10 {
+      min-height: calc(100svh - 2rem);
+      justify-content: center;
+    }
+  }
+}
