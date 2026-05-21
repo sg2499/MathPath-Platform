@@ -256,7 +256,7 @@ export default function AdminAssessmentReadinessPage() {
     mutationFn: ({ overrideId, reason }: { overrideId: string; reason?: string }) =>
       deactivateAdminAssessmentTestingOverride(overrideId, { reason }),
     onSuccess: async (response) => {
-      setOverrideMessage({ type: "success", text: response.message || "Testing override disabled." });
+      setOverrideMessage({ type: "success", text: response.message || "Controlled assessment access disabled." });
       setOverrideModal(null);
       setOverrideReason("");
       await Promise.all([
@@ -425,7 +425,7 @@ export default function AdminAssessmentReadinessPage() {
                   </span>
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                      Phase 8.8 Readiness Gate Audit
+                      Assessment Readiness Status
                     </p>
                     <h2 className="mt-1 text-base font-black text-slate-950">
                       {readinessGate.label}
@@ -440,7 +440,7 @@ export default function AdminAssessmentReadinessPage() {
                 </div>
                 <div className="rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 text-center shadow-sm">
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                    Impacted Not Ready
+                    Not Ready
                   </p>
                   <p className="mt-1 text-2xl font-black text-slate-950">
                     {readinessGate.notReadyStudentsImpacted}
@@ -610,7 +610,7 @@ export default function AdminAssessmentReadinessPage() {
                       {row.progressPercentage}% progress
                     </Chip>
                     {activeOverride ? (
-                      <Chip tone="purple">Testing Override</Chip>
+                      <Chip tone="purple">Controlled Access</Chip>
                     ) : null}
                   </>
                 }
@@ -647,7 +647,7 @@ export default function AdminAssessmentReadinessPage() {
                           </Chip>
                         ) : null}
                         {activeOverride ? (
-                          <Chip tone="purple">Testing Override Enabled</Chip>
+                          <Chip tone="purple">Controlled Access Enabled</Chip>
                         ) : null}
                       </>
                     }
@@ -1236,17 +1236,17 @@ function TestingOverridePanel({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">
-              Admin Testing Override
+              Controlled Assessment Access
             </p>
             <h3 className="mt-1 text-base font-black text-slate-950">
-              Testing Override Enabled
+              Controlled Access Enabled
             </h3>
             <p className="mt-1 max-w-4xl text-xs font-bold leading-5 text-slate-600">
-              This student-level readiness gate can be bypassed for controlled assessment workflow testing. Do not use this for live assessment operations.
+              This learner currently has controlled access for assessment workflow verification.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Chip tone="purple">
-                Enabled By: {activeOverride.enabledBy || "Admin"}
+                Approved By: {activeOverride.enabledBy || "Admin"}
               </Chip>
               {activeOverride.enabledAt ? (
                 <Chip tone="blue">
@@ -1280,13 +1280,13 @@ function TestingOverridePanel({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">
-            Controlled Testing Tool
+            Controlled Access
           </p>
           <h3 className="mt-1 text-base font-black text-slate-950">
-            Testing Override Available
+            Controlled Access Available
           </h3>
           <p className="mt-1 max-w-4xl text-xs font-bold leading-5 text-slate-600">
-            Admin can enable a testing override for this student, module, and level to test the assessment cycle without completing all readiness requirements.
+            Admin can grant controlled assessment access for this student, module, and level during workflow verification.
           </p>
         </div>
         <button
@@ -1298,7 +1298,7 @@ function TestingOverridePanel({
             onEnableOverride();
           }}
         >
-          Enable Testing Override
+          Enable Controlled Access
         </button>
       </div>
     </section>
@@ -1331,15 +1331,15 @@ function TestingOverrideModal({
         <div className="flex shrink-0 flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="math-kicker text-[10px]">
-              Assessment Readiness Testing
+              Assessment Readiness Access
             </p>
             <h2 className="text-2xl font-black text-slate-950">
-              {isEnable ? "Enable Testing Override?" : "Disable Testing Override?"}
+              {isEnable ? "Enable Controlled Access?" : "Disable Controlled Access?"}
             </h2>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
               {isEnable
-                ? "This will allow assessment assignment for this student even though normal readiness criteria are not fully met. Use only for testing/demo work."
-                : "This will remove the controlled testing bypass for this student, module, and level."}
+                ? "This will allow assessment assignment for this student during workflow verification."
+                : "This will remove controlled assessment access for this student, module, and level."}
             </p>
           </div>
           <button type="button" className="math-button-secondary" onClick={onClose}>

@@ -3,10 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-RawDatabaseUrl = os.getenv("DATABASE_URL", "sqlite:///./mathpath.db").strip()
-# Render and some PostgreSQL providers expose postgres:// URLs.
-# SQLAlchemy expects postgresql://, so normalize once at startup.
-DATABASE_URL = RawDatabaseUrl.replace("postgres://", "postgresql://", 1) if RawDatabaseUrl.startswith("postgres://") else RawDatabaseUrl
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mathpath.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
@@ -21,21 +18,23 @@ SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USERNAME).strip()
 SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "MathPath Team").strip()
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 
-# Phase 8.8 final readiness gate switch. Default is live-safe strict readiness mode.
-# Set true only for broad local testing where assessment workflow needs to be tested without completing all readiness criteria.
-TEMPORARY_ASSESSMENT_READINESS_BYPASS = os.getenv("TEMPORARY_ASSESSMENT_READINESS_BYPASS", "false").lower() == "true"
+# Assessment readiness demo switch. Default remains enabled for the current deployment verification phase so the full assessment workflow can be tested end to end.
+# Set TEMPORARY_ASSESSMENT_READINESS_BYPASS=false before switching the deployed environment to strict live operations.
+TEMPORARY_ASSESSMENT_READINESS_BYPASS = os.getenv("TEMPORARY_ASSESSMENT_READINESS_BYPASS", "true").lower() == "true"
 
-# Phase 8.8 audit metadata. This does not change behavior; it makes the active gate mode explicit to backend/frontend callers.
+# Readiness status metadata exposed to frontend callers. Keep this client-facing; no internal phase labels.
 ASSESSMENT_READINESS_GATE_MODE = (
-    "TEMPORARY_BYPASS" if TEMPORARY_ASSESSMENT_READINESS_BYPASS else "STRICT_READINESS"
+    "DEMO_VERIFICATION" if TEMPORARY_ASSESSMENT_READINESS_BYPASS else "READINESS_GOVERNANCE"
 )
 ASSESSMENT_READINESS_GATE_LABEL = (
-    "Testing Bypass Active" if TEMPORARY_ASSESSMENT_READINESS_BYPASS else "Strict Readiness Gate Active"
+    "Assessment Workflow Verification Enabled"
+    if TEMPORARY_ASSESSMENT_READINESS_BYPASS
+    else "Assessment Readiness Checks Active"
 )
 
 # Controlled Admin-only assessment readiness testing override.
 # Default is disabled for live safety. Enable for controlled QA/demo only.
-ASSESSMENT_TESTING_OVERRIDE_ENABLED = os.getenv("ASSESSMENT_TESTING_OVERRIDE_ENABLED", "false").lower() == "true"
+ASSESSMENT_TESTING_OVERRIDE_ENABLED = os.getenv("ASSESSMENT_TESTING_OVERRIDE_ENABLED", "true").lower() == "true"
 ASSESSMENT_TESTING_OVERRIDE_LABEL = (
-    "Admin Testing Override Available" if ASSESSMENT_TESTING_OVERRIDE_ENABLED else "Admin Testing Override Disabled"
+    "Controlled Assessment Access Available" if ASSESSMENT_TESTING_OVERRIDE_ENABLED else "Controlled Assessment Access Unavailable"
 )

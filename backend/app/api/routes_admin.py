@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
@@ -25,7 +26,7 @@ from app.core.config import (
 from app.core.security import hash_password
 from app.database import get_db
 from app.dependencies import require_roles
-from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride
+from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride
 from app.services.assignment_service import create_assignment
 from app.services.attempt_service import result_payload
 from app.services.curriculum_service import dps_config_payload, get_dps_or_404
@@ -95,17 +96,17 @@ def AssessmentReadinessGateAuditPayload(rows: list[dict[str, Any]]) -> dict[str,
         "testingOverrideLabel": ASSESSMENT_TESTING_OVERRIDE_LABEL,
         "notReadyStudentsImpacted": len(NotReadyRows),
         "assignmentImpactLabel": (
-            "Testing bypass currently allows assessment assignment before readiness is complete."
+            "Assessment assignment is currently open for full workflow verification."
             if TEMPORARY_ASSESSMENT_READINESS_BYPASS
-            else "Strict readiness gate currently blocks assessment assignment until eligibility is complete."
+            else "Assessment assignment follows readiness eligibility checks before access is granted."
         ),
         "nextPhaseNote": (
-            "Global testing bypass is active. Use only for broad local testing; set TEMPORARY_ASSESSMENT_READINESS_BYPASS=false before live deployment."
+            "Use this mode to complete demo verification across assignment, attempt, review, and reporting workflows."
             if TEMPORARY_ASSESSMENT_READINESS_BYPASS
             else (
-                "Strict readiness gate is active with Admin Testing Override available for controlled QA/demo use."
+                "Controlled assessment access can be granted for individual learners when required."
                 if ASSESSMENT_TESTING_OVERRIDE_ENABLED
-                else "Strict readiness gate is active and Admin Testing Override is disabled. This is the recommended live-ready configuration."
+                else "Readiness governance is active for standard assessment operations."
             )
         ),
     }
@@ -947,16 +948,53 @@ def delete_teacher_route(teacher_id: str, db: Session = Depends(get_db), user: U
     teacher = db.get(Teacher, teacher_id)
     if not teacher:
         api_error(404, "NOT_FOUND", "Teacher not found.")
-    teacher_user = db.get(User, teacher.user_id)
 
-    if hasattr(Student, "teacher_id"):
-        db.query(Student).filter(Student.teacher_id == teacher.id).update({"teacher_id": None})
+    LinkedStudents = db.query(Student).filter(Student.teacher_id == teacher.id).count() if hasattr(Student, "teacher_id") else 0
+    LinkedBatches = db.query(Batch).filter(Batch.teacher_id == teacher.id).count()
+    LinkedAssessments = db.query(AssessmentAssignment).filter(AssessmentAssignment.teacher_id == teacher.id).count()
+
+    if LinkedStudents or LinkedBatches or LinkedAssessments:
+        teacher.is_active = False
+        teacher_user = db.get(User, teacher.user_id)
+        if teacher_user:
+            teacher_user.is_active = False
+        db.commit()
+        return {
+            "deleted": False,
+            "deactivated": True,
+            "teacherId": teacher_id,
+            "message": "Teacher has linked academic records, so the profile was safely deactivated instead of permanently deleted.",
+            "linkedRecords": {
+                "students": LinkedStudents,
+                "batches": LinkedBatches,
+                "assessmentAssignments": LinkedAssessments,
+            },
+        }
+
+    teacher_user = db.get(User, teacher.user_id)
     photo_url = teacher.photo_url
     signature_url = teacher.signature_url
-    db.delete(teacher)
-    if teacher_user:
-        db.delete(teacher_user)
-    db.commit()
+
+    try:
+        db.query(Notification).filter(Notification.teacher_id == teacher.id).update({"teacher_id": None})
+        db.delete(teacher)
+        if teacher_user:
+            db.delete(teacher_user)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        teacher = db.get(Teacher, teacher_id)
+        if teacher:
+            teacher.is_active = False
+        if teacher_user:
+            teacher_user.is_active = False
+        db.commit()
+        return {
+            "deleted": False,
+            "deactivated": True,
+            "teacherId": teacher_id,
+            "message": "Teacher profile was safely deactivated because linked records exist.",
+        }
 
     for stored_url in [photo_url, signature_url]:
         if stored_url and stored_url.startswith("/uploads/teachers/"):

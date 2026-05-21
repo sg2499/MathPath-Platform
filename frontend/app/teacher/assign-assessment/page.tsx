@@ -36,10 +36,10 @@ function StudentStatusPill({ Student }: { Student: TeacherAssignableAssessmentSt
     return <span className="rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700">Re-Attempt Approved</span>;
   }
   if (Student.testingOverrideApplied) {
-    return <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Testing Override</span>;
+    return <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Controlled Access</span>;
   }
   if (Student.readinessBypassApplied) {
-    return <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">Testing Bypass</span>;
+    return <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">Workflow Verification</span>;
   }
   if (Student.canAssign) {
     return <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Ready</span>;
@@ -57,8 +57,8 @@ function ReadinessGateBanner({ Summary }: { Summary: NonNullable<Awaited<ReturnT
         <div className="flex gap-3">
           <AlertTriangle size={18} className="mt-0.5 shrink-0" />
           <div>
-            <p className="font-black">Testing Mode: Readiness Gate Temporarily Bypassed</p>
-            <p className="mt-1 text-xs font-bold">{Summary.temporaryBypassAssignableStudents || 0} student(s) may be assignable through the temporary bypass. Strict readiness behavior can be tested by setting the bypass to false.</p>
+            <p className="font-black">Assessment Workflow Verification Enabled</p>
+            <p className="mt-1 text-xs font-bold">Assessment assignment is open for demo verification across the selected learner group.</p>
           </div>
         </div>
       </div>
@@ -71,8 +71,8 @@ function ReadinessGateBanner({ Summary }: { Summary: NonNullable<Awaited<ReturnT
         <div className="flex gap-3">
           <ShieldCheck size={18} className="mt-0.5 shrink-0" />
           <div>
-            <p className="font-black">Strict Readiness Gate Active</p>
-            <p className="mt-1 text-xs font-bold">Ready students and Admin-approved Testing Override students can be assigned. {Summary.strictBlockedStudents || 0} not-ready student(s) are blocked in the current scope.</p>
+            <p className="font-black">Assessment Readiness Checks Active</p>
+            <p className="mt-1 text-xs font-bold">Ready students and learners with controlled access can be assigned. {Summary.strictBlockedStudents || 0} learner(s) are awaiting readiness in the current scope.</p>
           </div>
         </div>
       </div>
@@ -83,7 +83,7 @@ function ReadinessGateBanner({ Summary }: { Summary: NonNullable<Awaited<ReturnT
     <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/90 p-4 text-sm font-extrabold text-emerald-900 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100">
       <div className="flex gap-3">
         <ShieldCheck size={18} className="mt-0.5 shrink-0" />
-        <p>Strict readiness gate is active. Only students who meet readiness criteria can be assigned.</p>
+        <p>Assessment readiness checks are active. Students become assignable after meeting the required readiness criteria.</p>
       </div>
     </div>
   );
@@ -341,7 +341,7 @@ export default function TeacherAssignAssessmentPage() {
                 <div>
                   <p className="math-kicker">Eligible Students</p>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Assignment Queue</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">{Data?.summary.readinessBypassEnabled ? "Testing mode allows matching students from the selected assessment level to be assigned." : Data?.summary.testingOverrideEnabled ? "Ready students and Admin-approved Testing Override students from the selected assessment level can be assigned." : "Only ready students from the selected assessment level can be assigned."}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">{Data?.summary.readinessBypassEnabled ? "Workflow verification allows matching students from the selected assessment level to be assigned." : Data?.summary.testingOverrideEnabled ? "Ready students and learners with controlled access from the selected assessment level can be assigned." : "Only ready students from the selected assessment level can be assigned."}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" className="math-role-action-button px-4 py-2" onClick={SelectAllAssignable} disabled={!SelectedAssessment || !AssignableStudents.length}>
@@ -382,7 +382,7 @@ export default function TeacherAssignAssessmentPage() {
                             <StudentStatusPill Student={Student} />
                           </div>
                           <p className="mt-1 text-xs font-bold text-slate-500">{Student.studentCode} · {Student.moduleCode || "Module"} · {Student.levelCode || "Level"}</p>
-                          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Student.canAssign ? (Student.approvedReattemptAccess ? "Admin-approved re-attempt access is available." : Student.testingOverrideApplied ? "Eligible By Admin Testing Override. Use only for testing or demo assignment." : Student.readinessBypassApplied ? "Testing mode allows assessment assignment before readiness is complete." : "Ready for original assessment assignment.") : BlockReason}</p>
+                          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Student.canAssign ? (Student.approvedReattemptAccess ? "Admin-approved re-attempt access is available." : Student.testingOverrideApplied ? "Eligible through controlled assessment access." : Student.readinessBypassApplied ? "Assessment workflow verification is currently enabled." : "Ready for original assessment assignment.") : BlockReason}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center text-xs font-black text-slate-600 dark:text-slate-300">
