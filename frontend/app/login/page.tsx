@@ -207,7 +207,7 @@ export default function LoginPage() {
         ? "dark"
         : "light";
 
-    const NextTheme = Saved === "dark" || Saved === "light" ? Saved : "light";
+    const NextTheme = Saved === "dark" || Saved === "light" ? Saved : Preferred;
     SetTheme(NextTheme);
     ApplyTheme(NextTheme);
   }, []);
@@ -248,7 +248,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative h-[100dvh] overflow-hidden px-2 py-2 text-slate-950`}>
+    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative h-screen overflow-hidden px-2 py-2 text-slate-950 sm:px-3 sm:py-3 xl:px-4 xl:py-4`}>
       <div className="absolute inset-0 math-grid-dots opacity-55 dark:opacity-35" />
       <div className="math-login-aura math-login-aura-one" />
       <div className="math-login-aura math-login-aura-two" />
@@ -256,7 +256,7 @@ export default function LoginPage() {
       <div className="math-login-orbit left-[6%] top-[14%] hidden lg:block" />
       <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
 
-      <div className="math-login-frame relative z-10 mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-[1780px] overflow-hidden lg:grid-cols-[1.04fr_0.96fr]">
+      <div className="math-login-frame relative z-10 mx-auto grid h-[calc(100vh-1rem)] w-full max-w-[1820px] overflow-hidden sm:h-[calc(100vh-1.5rem)] xl:h-[calc(100vh-2rem)] lg:grid-cols-[1.04fr_0.96fr]">
         <section
           className={`math-login-story relative hidden min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
         >
@@ -265,36 +265,36 @@ export default function LoginPage() {
           <div className={`absolute -right-24 top-24 h-72 w-72 rounded-full ${Active.AccentGlow} blur-3xl`} />
           <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-white/14 blur-3xl" />
 
-          <div className="relative z-10 flex h-full w-full min-h-0 flex-col justify-center gap-4 px-7 py-5 xl:px-10 2xl:px-12">
+          <div className="relative z-10 flex h-full w-full min-h-0 flex-col gap-6 px-8 py-7 xl:px-12 xl:py-8 2xl:px-16 2xl:py-9">
             <div>
-              <div className="math-login-logo-card flex w-fit max-w-xl items-center gap-3 rounded-[22px] px-3 py-2.5">
+              <div className="math-login-logo-card flex w-fit max-w-xl items-center gap-3 rounded-[24px] px-3.5 py-3">
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md">
                   <Image
                     src="/mathpath-logo.png"
                     alt="MathPath logo"
                     width={118}
                     height={54}
-                    className="h-9 w-auto object-contain"
+                    className="h-10 w-auto object-contain"
                     priority
                   />
                 </div>
                 <div>
-                  <p className="text-lg font-black sm:text-xl">MathPath</p>
-                  <p className="max-w-sm text-xs leading-5 text-white/88">
+                  <p className="text-xl font-black sm:text-2xl">MathPath</p>
+                  <p className="max-w-sm text-xs leading-5 text-white/88 sm:text-sm">
                     {PlatformTagline}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 flex">
-                <div className="math-login-eyebrow inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-white/94">
+              <div className="mt-5 flex">
+                <div className="math-login-eyebrow inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.18em] text-white/94">
                   {Active.Icon}
                   {Active.Eyebrow}
                 </div>
               </div>
 
               <h1
-                className="mt-4 max-w-3xl text-[2.35rem] font-extrabold leading-[1.02] tracking-[-0.035em] xl:text-[3.05rem] 2xl:text-[3.35rem]"
+                className="mt-5 max-w-3xl text-[2.55rem] font-extrabold leading-[1.03] tracking-[-0.035em] xl:text-[3.5rem] 2xl:text-[4rem]"
                 style={{
                   fontFamily:
                     '"Inter", "Manrope", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -303,12 +303,12 @@ export default function LoginPage() {
                 {Active.Headline}
               </h1>
 
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-white/91">
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-white/91 xl:text-base xl:leading-7">
                 {Active.Description}
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:mt-1 xl:gap-4">
               {Active.Features.map((FeatureItem) => (
                 <Feature
                   key={FeatureItem.Title}
@@ -321,11 +321,11 @@ export default function LoginPage() {
           </div>
         </section>
 
-        <section className="math-login-form-zone relative flex h-full min-h-0 items-center overflow-hidden px-5 py-4 sm:px-7 lg:px-9 xl:px-12">
+        <section className="math-login-form-zone relative flex h-full min-h-0 items-center overflow-hidden px-5 py-5 sm:px-8 lg:px-10 xl:px-14 2xl:px-16">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.10),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.45),rgba(255,255,255,0.15))] dark:bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.12),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(124,58,237,0.10),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.28),rgba(2,6,23,0.58))]" />
 
-          <div className="relative z-10 mx-auto w-full max-w-[36rem]">
-            <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="relative z-10 mx-auto w-full max-w-[37rem]">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <div className="math-login-mobile-brand flex items-center gap-3 lg:hidden">
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md dark:bg-slate-900">
                   <Image
@@ -343,7 +343,7 @@ export default function LoginPage() {
                 </div>
               </div>
               <button
-                className="math-login-theme-toggle inline-flex min-h-9 items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-black uppercase tracking-[0.12em]"
+                className="math-login-theme-toggle inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.12em]"
                 onClick={ToggleTheme}
                 aria-label={ThemeTooltip}
                 title={ThemeTooltip}
@@ -354,7 +354,7 @@ export default function LoginPage() {
               </button>
             </div>
 
-            <div className="math-login-tabs mb-4 grid grid-cols-3 gap-2 rounded-[22px] p-1.5">
+            <div className="math-login-tabs mb-5 grid grid-cols-3 gap-2 rounded-[24px] p-1.5">
               {OrderedTabs.map((Tab) => {
                 const TabData = RoleContent[Tab];
                 const ActiveState = ActiveTab === Tab;
@@ -363,7 +363,7 @@ export default function LoginPage() {
                     key={Tab}
                     type="button"
                     onClick={() => ChangeTab(Tab)}
-                    className={`flex min-h-10 items-center justify-center gap-2 rounded-[16px] px-3 py-2 text-sm font-black transition duration-200 ${
+                    className={`flex min-h-11 items-center justify-center gap-2 rounded-[18px] px-3 py-2.5 text-sm font-black transition duration-200 ${
                       ActiveState
                         ? "math-login-tab-active text-white shadow-xl shadow-slate-900/20 dark:text-slate-950"
                         : "text-slate-600 hover:bg-white/82 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
@@ -382,19 +382,19 @@ export default function LoginPage() {
               Welcome Back
             </div>
 
-            <h2 className="mt-3 text-[2.15rem] font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.45rem] 2xl:text-[2.65rem]">
+            <h2 className="mt-4 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl">
               {RoleLabel(ActiveTab)} Login
             </h2>
 
-            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
               {Active.Promise}
             </p>
 
-            <form className="math-login-card mt-4 space-y-3" onSubmit={HandleSubmit}>
+            <form className="math-login-card mt-5 space-y-4" onSubmit={HandleSubmit}>
               <div>
                 <label className="math-label">{Active.IdentifierLabel}</label>
                 <input
-                  className="math-input mt-1.5 min-h-11"
+                  className="math-input mt-2 min-h-12"
                   value={Identifier}
                   onChange={(Event) => SetIdentifier(Event.target.value)}
                   placeholder={Active.IdentifierPlaceholder}
@@ -406,7 +406,7 @@ export default function LoginPage() {
               <div>
                 <label className="math-label">Password</label>
                 <input
-                  className="math-input mt-1.5 min-h-11"
+                  className="math-input mt-2 min-h-12"
                   type="password"
                   value={Password}
                   onChange={(Event) => SetPassword(Event.target.value)}
@@ -417,24 +417,24 @@ export default function LoginPage() {
               </div>
 
               {Error ? (
-                <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
+                <div className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
                   {Error}
                 </div>
               ) : null}
 
-              <button className="math-button-primary min-h-11 w-full" disabled={Loading}>
+              <button className="math-button-primary min-h-12 w-full" disabled={Loading}>
                 {Loading ? "Logging in..." : Active.ButtonText}
               </button>
             </form>
 
-            <div className="math-login-promise mt-3 rounded-[20px] p-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            <div className="math-login-promise mt-5 rounded-[22px] p-3.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
               <span className="font-black text-slate-950 dark:text-white">
                 MathPath Promise:
               </span>{" "}
               Speed, Accuracy, Confidence, and Joyful Mathematical Thinking.
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <MiniCard Icon={<LayoutDashboard size={16} />} Label="Role-Based" />
               <MiniCard Icon={<ShieldCheck size={16} />} Label="Secure Access" />
               <MiniCard Icon={<Sparkles size={16} />} Label="Premium Flow" />
@@ -456,17 +456,17 @@ function Feature({
   Desc: string;
 }) {
   return (
-    <div className="math-login-feature rounded-[22px] p-3.5 transition duration-200 hover:-translate-y-0.5">
+    <div className="math-login-feature rounded-[24px] p-4 transition duration-200 hover:-translate-y-0.5">
       <div className="inline-flex rounded-2xl bg-white/13 p-2">{Icon}</div>
-      <p className="mt-2 text-sm font-black leading-5 xl:text-base">{Title}</p>
-      <p className="mt-1 text-xs leading-5 text-white/84">{Desc}</p>
+      <p className="mt-2.5 text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
+      <p className="mt-1.5 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
     </div>
   );
 }
 
 function MiniCard({ Icon, Label }: { Icon: ReactNode; Label: string }) {
   return (
-    <div className="math-login-mini-card flex min-h-10 items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-[11px] font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">
+    <div className="math-login-mini-card flex min-h-12 items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-[11px] font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">
       {Icon}
       {Label}
     </div>

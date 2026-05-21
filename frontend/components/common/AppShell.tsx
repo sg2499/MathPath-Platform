@@ -79,13 +79,10 @@ function getRoleTone(role?: UserRole) {
   return "math-role-badge-admin";
 }
 
-function applyTheme(mode: ThemeMode, persistPreference = false) {
+function applyTheme(mode: ThemeMode) {
   if (typeof document === "undefined") return;
   document.documentElement.classList.toggle("dark", mode === "dark");
   localStorage.setItem("mathpath_theme", mode);
-  if (persistPreference) {
-    localStorage.setItem("mathpath_theme_user_selected", "true");
-  }
 }
 
 function assetUrl(url?: string | null) {
@@ -148,15 +145,14 @@ export function AppShell({
         ? (localStorage.getItem("mathpath_theme") as ThemeMode | null)
         : null;
 
-    const hasExplicitPreference =
-      typeof window !== "undefined"
-        ? localStorage.getItem("mathpath_theme_user_selected") === "true"
-        : false;
+    const preferred =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
 
     const nextTheme =
-      hasExplicitPreference && (savedTheme === "dark" || savedTheme === "light")
-        ? savedTheme
-        : "light";
+      savedTheme === "dark" || savedTheme === "light" ? savedTheme : preferred;
     setTheme(nextTheme);
     applyTheme(nextTheme);
 
@@ -460,7 +456,7 @@ export function AppShell({
   function toggleTheme() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
-    applyTheme(nextTheme, true);
+    applyTheme(nextTheme);
   }
 
   function setCollapsedState(next: boolean) {
