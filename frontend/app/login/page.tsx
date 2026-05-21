@@ -160,10 +160,13 @@ const RoleContent: Record<
   },
 };
 
-function ApplyTheme(Mode: ThemeMode) {
+function ApplyTheme(Mode: ThemeMode, MarkUserChoice = false) {
   if (typeof document === "undefined") return;
   document.documentElement.classList.toggle("dark", Mode === "dark");
   localStorage.setItem("mathpath_theme", Mode);
+  if (MarkUserChoice) {
+    localStorage.setItem("mathpath_theme_user_set", "true");
+  }
 }
 
 function RoleLabel(Role: UserRole | LoginTab) {
@@ -200,14 +203,13 @@ export default function LoginPage() {
       typeof window !== "undefined"
         ? (localStorage.getItem("mathpath_theme") as ThemeMode | null)
         : null;
+    const UserSelectedTheme =
+      typeof window !== "undefined"
+        ? localStorage.getItem("mathpath_theme_user_set") === "true"
+        : false;
 
-    const Preferred =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-
-    const NextTheme = Saved === "dark" || Saved === "light" ? Saved : Preferred;
+    const NextTheme =
+      UserSelectedTheme && (Saved === "dark" || Saved === "light") ? Saved : "light";
     SetTheme(NextTheme);
     ApplyTheme(NextTheme);
   }, []);
@@ -215,7 +217,7 @@ export default function LoginPage() {
   function ToggleTheme() {
     const NextTheme = Theme === "dark" ? "light" : "dark";
     SetTheme(NextTheme);
-    ApplyTheme(NextTheme);
+    ApplyTheme(NextTheme, true);
   }
 
   function ChangeTab(Tab: LoginTab) {
@@ -248,7 +250,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative h-screen overflow-hidden px-2 py-2 text-slate-950 sm:px-3 sm:py-3 xl:px-4 xl:py-4`}>
+    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative min-h-[100svh] overflow-x-hidden px-2 py-2 text-slate-950 sm:px-3 sm:py-3 xl:px-4 xl:py-4`}>
       <div className="absolute inset-0 math-grid-dots opacity-55 dark:opacity-35" />
       <div className="math-login-aura math-login-aura-one" />
       <div className="math-login-aura math-login-aura-two" />
@@ -256,7 +258,7 @@ export default function LoginPage() {
       <div className="math-login-orbit left-[6%] top-[14%] hidden lg:block" />
       <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
 
-      <div className="math-login-frame relative z-10 mx-auto grid h-[calc(100vh-1rem)] w-full max-w-[1820px] overflow-hidden sm:h-[calc(100vh-1.5rem)] xl:h-[calc(100vh-2rem)] lg:grid-cols-[1.04fr_0.96fr]">
+      <div className="math-login-frame relative z-10 mx-auto grid min-h-[calc(100svh-1rem)] w-full max-w-[1820px] overflow-hidden sm:min-h-[calc(100svh-1.5rem)] xl:min-h-[calc(100svh-2rem)] lg:grid-cols-[1.04fr_0.96fr]">
         <section
           className={`math-login-story relative hidden min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
         >

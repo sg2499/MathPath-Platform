@@ -79,10 +79,13 @@ function getRoleTone(role?: UserRole) {
   return "math-role-badge-admin";
 }
 
-function applyTheme(mode: ThemeMode) {
+function applyTheme(mode: ThemeMode, markUserChoice = false) {
   if (typeof document === "undefined") return;
   document.documentElement.classList.toggle("dark", mode === "dark");
   localStorage.setItem("mathpath_theme", mode);
+  if (markUserChoice) {
+    localStorage.setItem("mathpath_theme_user_set", "true");
+  }
 }
 
 function assetUrl(url?: string | null) {
@@ -144,15 +147,13 @@ export function AppShell({
       typeof window !== "undefined"
         ? (localStorage.getItem("mathpath_theme") as ThemeMode | null)
         : null;
-
-    const preferred =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
+    const userSelectedTheme =
+      typeof window !== "undefined"
+        ? localStorage.getItem("mathpath_theme_user_set") === "true"
+        : false;
 
     const nextTheme =
-      savedTheme === "dark" || savedTheme === "light" ? savedTheme : preferred;
+      userSelectedTheme && (savedTheme === "dark" || savedTheme === "light") ? savedTheme : "light";
     setTheme(nextTheme);
     applyTheme(nextTheme);
 
@@ -456,7 +457,7 @@ export function AppShell({
   function toggleTheme() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
-    applyTheme(nextTheme);
+    applyTheme(nextTheme, true);
   }
 
   function setCollapsedState(next: boolean) {
@@ -1217,6 +1218,21 @@ function LogoMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
+function UserInitials(Name?: string | null) {
+  const Parts = String(Name || "MathPath")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (Parts.length >= 2) return `${Parts[0][0]}${Parts[1][0]}`.toUpperCase();
+  return (Parts[0] || "MP").slice(0, 2).toUpperCase();
+}
+
+function AvatarToneClass(Role?: UserRole) {
+  if (Role === "STUDENT") return "from-orange-500 via-rose-500 to-amber-400";
+  if (Role === "TEACHER") return "from-[#6D2E5F] via-[#B76E79] to-[#E6B8A2]";
+  return "from-blue-700 via-indigo-600 to-fuchsia-500";
+}
+
 function Avatar({
   user,
   avatarUrl,
@@ -1226,20 +1242,31 @@ function Avatar({
   avatarUrl: string;
   compact?: boolean;
 }) {
+  const [ImageFailed, SetImageFailed] = useState(false);
+
+  useEffect(() => {
+    SetImageFailed(false);
+  }, [avatarUrl]);
+
+  const Initials = UserInitials(user?.fullName);
+  const ShowImage = Boolean(avatarUrl && !ImageFailed);
+
   return (
     <div
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-sm font-black text-white ${
-        compact ? "h-9 w-9" : "h-10 w-10"
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br ${AvatarToneClass(user?.role)} font-black uppercase tracking-[-0.03em] text-white shadow-sm ring-1 ring-white/70 ${
+        compact ? "h-9 w-9 text-[0.68rem]" : "h-10 w-10 text-xs"
       }`}
+      title={user?.fullName || "MathPath User"}
     >
-      {avatarUrl ? (
+      {ShowImage ? (
         <img
           src={avatarUrl}
           alt={user?.fullName || "User"}
           className="h-full w-full object-cover"
+          onError={() => SetImageFailed(true)}
         />
       ) : (
-        user?.fullName?.charAt(0) || "M"
+        <span className="leading-none">{Initials}</span>
       )}
     </div>
   );

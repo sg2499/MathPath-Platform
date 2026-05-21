@@ -8,11 +8,10 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
@@ -24,7 +23,7 @@ from app.core.config import (
     ASSESSMENT_TESTING_OVERRIDE_LABEL,
 )
 from app.core.security import hash_password
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
 from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride
 from app.services.assignment_service import create_assignment
@@ -96,17 +95,17 @@ def AssessmentReadinessGateAuditPayload(rows: list[dict[str, Any]]) -> dict[str,
         "testingOverrideLabel": ASSESSMENT_TESTING_OVERRIDE_LABEL,
         "notReadyStudentsImpacted": len(NotReadyRows),
         "assignmentImpactLabel": (
-            "Assessment assignment is currently open for full workflow verification."
+            "Testing bypass currently allows assessment assignment before readiness is complete."
             if TEMPORARY_ASSESSMENT_READINESS_BYPASS
-            else "Assessment assignment follows readiness eligibility checks before access is granted."
+            else "Strict readiness gate currently blocks assessment assignment until eligibility is complete."
         ),
         "nextPhaseNote": (
-            "Use this mode to complete demo verification across assignment, attempt, review, and reporting workflows."
+            "Global testing bypass is active. Use only for broad local testing; set TEMPORARY_ASSESSMENT_READINESS_BYPASS=false before live deployment."
             if TEMPORARY_ASSESSMENT_READINESS_BYPASS
             else (
-                "Controlled assessment access can be granted for individual learners when required."
+                "Strict readiness gate is active with Admin Testing Override available for controlled QA/demo use."
                 if ASSESSMENT_TESTING_OVERRIDE_ENABLED
-                else "Readiness governance is active for standard assessment operations."
+                else "Strict readiness gate is active and Admin Testing Override is disabled. This is the recommended live-ready configuration."
             )
         ),
     }
@@ -948,53 +947,30 @@ def delete_teacher_route(teacher_id: str, db: Session = Depends(get_db), user: U
     teacher = db.get(Teacher, teacher_id)
     if not teacher:
         api_error(404, "NOT_FOUND", "Teacher not found.")
-
-    LinkedStudents = db.query(Student).filter(Student.teacher_id == teacher.id).count() if hasattr(Student, "teacher_id") else 0
-    LinkedBatches = db.query(Batch).filter(Batch.teacher_id == teacher.id).count()
-    LinkedAssessments = db.query(AssessmentAssignment).filter(AssessmentAssignment.teacher_id == teacher.id).count()
-
-    if LinkedStudents or LinkedBatches or LinkedAssessments:
-        teacher.is_active = False
-        teacher_user = db.get(User, teacher.user_id)
-        if teacher_user:
-            teacher_user.is_active = False
-        db.commit()
-        return {
-            "deleted": False,
-            "deactivated": True,
-            "teacherId": teacher_id,
-            "message": "Teacher has linked academic records, so the profile was safely deactivated instead of permanently deleted.",
-            "linkedRecords": {
-                "students": LinkedStudents,
-                "batches": LinkedBatches,
-                "assessmentAssignments": LinkedAssessments,
-            },
-        }
-
     teacher_user = db.get(User, teacher.user_id)
+    teacher_name = teacher_user.full_name if teacher_user else None
+
+    # Permanent delete means removing the teacher account and safely clearing all optional references.
+    # Student records are preserved and unassigned instead of being deleted.
+    if hasattr(Student, "teacher_id"):
+        db.query(Student).filter(Student.teacher_id == teacher.id).update({"teacher_id": None}, synchronize_session=False)
+    if teacher_name:
+        db.query(Student).filter(Student.teacher == teacher_name).update({"teacher": None}, synchronize_session=False)
+    if hasattr(Batch, "teacher_id"):
+        db.query(Batch).filter(Batch.teacher_id == teacher.id).update({"teacher_id": None}, synchronize_session=False)
+    if hasattr(Assignment, "teacher_id"):
+        db.query(Assignment).filter(Assignment.teacher_id == teacher.id).update({"teacher_id": None}, synchronize_session=False)
+    if hasattr(AssessmentAssignment, "teacher_id"):
+        db.query(AssessmentAssignment).filter(AssessmentAssignment.teacher_id == teacher.id).update({"teacher_id": None}, synchronize_session=False)
+    if hasattr(Notification, "teacher_id"):
+        db.query(Notification).filter(Notification.teacher_id == teacher.id).update({"teacher_id": None}, synchronize_session=False)
+
     photo_url = teacher.photo_url
     signature_url = teacher.signature_url
-
-    try:
-        db.query(Notification).filter(Notification.teacher_id == teacher.id).update({"teacher_id": None})
-        db.delete(teacher)
-        if teacher_user:
-            db.delete(teacher_user)
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        teacher = db.get(Teacher, teacher_id)
-        if teacher:
-            teacher.is_active = False
-        if teacher_user:
-            teacher_user.is_active = False
-        db.commit()
-        return {
-            "deleted": False,
-            "deactivated": True,
-            "teacherId": teacher_id,
-            "message": "Teacher profile was safely deactivated because linked records exist.",
-        }
+    db.delete(teacher)
+    if teacher_user:
+        db.delete(teacher_user)
+    db.commit()
 
     for stored_url in [photo_url, signature_url]:
         if stored_url and stored_url.startswith("/uploads/teachers/"):
@@ -1005,7 +981,7 @@ def delete_teacher_route(teacher_id: str, db: Session = Depends(get_db), user: U
             except OSError:
                 pass
 
-    return {"deleted": True, "message": "Teacher deleted successfully.", "teacherId": teacher_id}
+    return {"deleted": True, "message": "Teacher deleted permanently.", "teacherId": teacher_id}
 
 
 @router.get("/students")
@@ -1390,16 +1366,11 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
             db.add(StudentUser)
             db.flush()
 
-            ResolvedTeacherName = TeacherName
-            if TeacherRecord:
-                TeacherUserRecord = db.get(User, TeacherRecord.user_id)
-                if TeacherUserRecord and TeacherUserRecord.full_name:
-                    ResolvedTeacherName = TeacherUserRecord.full_name
-
             StudentRecord = Student(
                 user_id=StudentUser.id,
                 custom_id=CustomId,
-                teacher=ResolvedTeacherName,
+                teacher=TeacherName,
+                teacher_id=TeacherRecord.id if TeacherRecord else None,
                 admission_date=clean_text(Row.get("admission_date")),
                 dob=clean_text(Row.get("dob")),
                 gender=clean_text(Row.get("gender")),
@@ -4350,6 +4321,59 @@ def _admin_update_parent_report_email_logs(db: Session, Logs: list[ParentReportE
     db.commit()
 
 
+def _admin_send_parent_report_email_background(
+    *,
+    LogIds: list[str],
+    RecipientEmails: list[str],
+    Subject: str,
+    Body: str,
+    AttachmentBytes: bytes,
+    AttachmentFileName: str,
+    ActorUserId: str | None,
+):
+    BackgroundDb = SessionLocal()
+    try:
+        Logs = (
+            BackgroundDb.query(ParentReportEmailLog)
+            .filter(ParentReportEmailLog.id.in_(LogIds))
+            .all()
+        )
+        try:
+            SendEmailWithAttachment(
+                Recipients=RecipientEmails,
+                Subject=Subject,
+                Body=Body,
+                AttachmentBytes=AttachmentBytes,
+                AttachmentFileName=AttachmentFileName,
+            )
+        except (EmailConfigurationError, EmailSendError) as ErrorValue:
+            MessageValue = _admin_clean_delivery_error(ErrorValue)
+            _admin_update_parent_report_email_logs(BackgroundDb, Logs, Status="FAILED", ErrorMessage=MessageValue)
+            NotifyParentReportDeliveryLogs(
+                BackgroundDb,
+                actor_user_id=ActorUserId,
+                logs=Logs,
+                event="PARENT_REPORT_FAILED",
+                status="FAILED",
+                file_name=AttachmentFileName,
+                error_message=MessageValue,
+            )
+            BackgroundDb.commit()
+            return
+
+        _admin_update_parent_report_email_logs(BackgroundDb, Logs, Status="SENT")
+        NotifyParentReportDeliveryLogs(
+            BackgroundDb,
+            actor_user_id=ActorUserId,
+            logs=Logs,
+            event="PARENT_REPORT_SENT",
+            status="SENT",
+            file_name=AttachmentFileName,
+        )
+        BackgroundDb.commit()
+    finally:
+        BackgroundDb.close()
+
 
 
 def _admin_parent_report_module_label(db: Session, ModuleCode: str | None) -> tuple[str, str]:
@@ -4434,7 +4458,12 @@ def list_parent_report_deliveries(
 
 
 @router.post("/results/send-parent-summary")
-def send_parent_progress_summary_email(RequestValue: ParentReportEmailRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+def send_parent_progress_summary_email(
+    RequestValue: ParentReportEmailRequest,
+    BackgroundTasksValue: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
     StudentValue, ModuleValue, LevelValue = _admin_validate_parent_report_scope(
         db,
         StudentId=RequestValue.studentId,
@@ -4454,65 +4483,38 @@ def send_parent_progress_summary_email(RequestValue: ParentReportEmailRequest, d
     PdfBytes = BuildParentProgressPdfBytes(FileName, ReportData)
     Subject = f"MathPath Progress Report - {StudentName} - {ReportLevel}"
     Body = _admin_parent_report_email_body(StudentName, ReportLevel)
-    Logs = _admin_create_parent_report_email_logs(db, StudentValue=StudentValue, ReportMeta=ReportMeta, Recipients=Recipients, FileName=FileName, UserValue=user)
-
-    try:
-        SendEmailWithAttachment(
-            Recipients=[Item["email"] for Item in Recipients],
-            Subject=Subject,
-            Body=Body,
-            AttachmentBytes=PdfBytes,
-            AttachmentFileName=FileName,
-        )
-    except EmailConfigurationError as ErrorValue:
-        MessageValue = _admin_clean_delivery_error(ErrorValue)
-        _admin_update_parent_report_email_logs(db, Logs, Status="FAILED", ErrorMessage=MessageValue)
-        NotifyParentReportDeliveryLogs(
-            db,
-            actor_user_id=user.id,
-            logs=Logs,
-            event="PARENT_REPORT_FAILED",
-            status="FAILED",
-            file_name=FileName,
-            error_message=MessageValue,
-        )
-        db.commit()
-        api_error(500, "EMAIL_SERVICE_NOT_CONFIGURED", MessageValue)
-    except EmailSendError as ErrorValue:
-        MessageValue = _admin_clean_delivery_error(ErrorValue)
-        _admin_update_parent_report_email_logs(db, Logs, Status="FAILED", ErrorMessage=MessageValue)
-        NotifyParentReportDeliveryLogs(
-            db,
-            actor_user_id=user.id,
-            logs=Logs,
-            event="PARENT_REPORT_FAILED",
-            status="FAILED",
-            file_name=FileName,
-            error_message=MessageValue,
-        )
-        db.commit()
-        api_error(500, "PARENT_REPORT_EMAIL_FAILED", MessageValue)
-
-    _admin_update_parent_report_email_logs(db, Logs, Status="SENT")
-    NotifyParentReportDeliveryLogs(
+    Logs = _admin_create_parent_report_email_logs(
         db,
-        actor_user_id=user.id,
-        logs=Logs,
-        event="PARENT_REPORT_SENT",
-        status="SENT",
-        file_name=FileName,
+        StudentValue=StudentValue,
+        ReportMeta=ReportMeta,
+        Recipients=Recipients,
+        FileName=FileName,
+        UserValue=user,
+        Status="PENDING",
     )
-    db.commit()
+
+    BackgroundTasksValue.add_task(
+        _admin_send_parent_report_email_background,
+        LogIds=[LogValue.id for LogValue in Logs],
+        RecipientEmails=[Item["email"] for Item in Recipients],
+        Subject=Subject,
+        Body=Body,
+        AttachmentBytes=PdfBytes,
+        AttachmentFileName=FileName,
+        ActorUserId=user.id,
+    )
+
     return {
         "sent": True,
-        "message": "Parent progress report sent successfully." if len(Recipients) == 1 else f"Parent progress report sent to {len(Recipients)} recipients successfully.",
+        "queued": True,
+        "message": "Parent progress report has been submitted for delivery.",
         "recipients": [Item["email"] for Item in Recipients],
         "fileName": FileName,
     }
 
 
 @router.post("/results/parent-report-deliveries/{delivery_id}/resend")
-def resend_parent_report_delivery(delivery_id: str, RequestValue: ParentReportResendRequest | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+def resend_parent_report_delivery(delivery_id: str, BackgroundTasksValue: BackgroundTasks, RequestValue: ParentReportResendRequest | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     ExistingLog = db.get(ParentReportEmailLog, delivery_id)
     if not ExistingLog:
         api_error(404, "DELIVERY_LOG_NOT_FOUND", "Parent report delivery record not found.")
@@ -4579,56 +4581,21 @@ def resend_parent_report_delivery(delivery_id: str, RequestValue: ParentReportRe
         UserValue=user,
     )
 
-    try:
-        SendEmailWithAttachment(
-            Recipients=[Item["email"] for Item in Recipients],
-            Subject=Subject,
-            Body=Body,
-            AttachmentBytes=PdfBytes,
-            AttachmentFileName=FileName,
-        )
-    except EmailConfigurationError as ErrorValue:
-        MessageValue = _admin_clean_delivery_error(ErrorValue)
-        _admin_update_parent_report_email_logs(db, Logs, Status="FAILED", ErrorMessage=MessageValue)
-        NotifyParentReportDeliveryLogs(
-            db,
-            actor_user_id=user.id,
-            logs=Logs,
-            event="PARENT_REPORT_FAILED",
-            status="FAILED",
-            file_name=FileName,
-            error_message=MessageValue,
-        )
-        db.commit()
-        api_error(500, "EMAIL_SERVICE_NOT_CONFIGURED", MessageValue)
-    except EmailSendError as ErrorValue:
-        MessageValue = _admin_clean_delivery_error(ErrorValue)
-        _admin_update_parent_report_email_logs(db, Logs, Status="FAILED", ErrorMessage=MessageValue)
-        NotifyParentReportDeliveryLogs(
-            db,
-            actor_user_id=user.id,
-            logs=Logs,
-            event="PARENT_REPORT_FAILED",
-            status="FAILED",
-            file_name=FileName,
-            error_message=MessageValue,
-        )
-        db.commit()
-        api_error(500, "PARENT_REPORT_EMAIL_FAILED", MessageValue)
-
-    _admin_update_parent_report_email_logs(db, Logs, Status="SENT")
-    NotifyParentReportDeliveryLogs(
-        db,
-        actor_user_id=user.id,
-        logs=Logs,
-        event="PARENT_REPORT_RESENT",
-        status="SENT",
-        file_name=FileName,
+    BackgroundTasksValue.add_task(
+        _admin_send_parent_report_email_background,
+        LogIds=[LogValue.id for LogValue in Logs],
+        RecipientEmails=[Item["email"] for Item in Recipients],
+        Subject=Subject,
+        Body=Body,
+        AttachmentBytes=PdfBytes,
+        AttachmentFileName=FileName,
+        ActorUserId=user.id,
     )
-    db.commit()
+
     return {
         "sent": True,
-        "message": "Parent progress report resent successfully." if len(Recipients) == 1 else f"Parent progress report resent to {len(Recipients)} recipients successfully.",
+        "queued": True,
+        "message": "Parent progress report resend has been submitted for delivery.",
         "recipients": [Item["email"] for Item in Recipients],
         "fileName": FileName,
     }

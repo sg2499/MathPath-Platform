@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr
@@ -11,9 +12,10 @@ from app.core.config import (
     SMTP_HOST,
     SMTP_PASSWORD,
     SMTP_PORT,
+    SMTP_TIMEOUT_SECONDS,
     SMTP_USERNAME,
-    SMTP_USE_TLS,
     SMTP_USE_SSL,
+    SMTP_USE_TLS,
 )
 
 
@@ -79,20 +81,29 @@ def SendEmailWithAttachment(
         filename=AttachmentFileName,
     )
 
+    TimeoutSeconds = max(5, min(int(SMTP_TIMEOUT_SECONDS or 20), 45))
+
     try:
-        ServerClass = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
-        with ServerClass(_ConfiguredValue(SMTP_HOST), int(SMTP_PORT or 587), timeout=30) as Server:
-            if SMTP_USE_TLS and not SMTP_USE_SSL:
-                Server.starttls()
-            Server.login(_ConfiguredValue(SMTP_USERNAME), _ConfiguredValue(SMTP_PASSWORD))
-            SendResult = Server.send_message(Message)
-            ProviderResponse = "SMTP accepted message" if not SendResult else f"SMTP accepted with recipient notes: {SendResult}"
-            return {
-                "provider": "SMTP",
-                "providerMessageId": Message.get("Message-ID"),
-                "providerResponse": ProviderResponse,
-                "recipientCount": len(CleanRecipients),
-            }
+        PreviousTimeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(TimeoutSeconds)
+        try:
+            ServerClass = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
+            with ServerClass(_ConfiguredValue(SMTP_HOST), int(SMTP_PORT or 587), timeout=TimeoutSeconds) as Server:
+                Server.ehlo()
+                if SMTP_USE_TLS and not SMTP_USE_SSL:
+                    Server.starttls()
+                    Server.ehlo()
+                Server.login(_ConfiguredValue(SMTP_USERNAME), _ConfiguredValue(SMTP_PASSWORD))
+                SendResult = Server.send_message(Message)
+                ProviderResponse = "SMTP accepted message" if not SendResult else f"SMTP accepted with recipient notes: {SendResult}"
+                return {
+                    "provider": "SMTP",
+                    "providerMessageId": Message.get("Message-ID"),
+                    "providerResponse": ProviderResponse,
+                    "recipientCount": len(CleanRecipients),
+                }
+        finally:
+            socket.setdefaulttimeout(PreviousTimeout)
     except EmailConfigurationError:
         raise
     except Exception as Error:

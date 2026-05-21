@@ -10,43 +10,27 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440
 SEED_ON_STARTUP = os.getenv("SEED_ON_STARTUP", "true").lower() == "true"
 
 # SMTP / email delivery configuration for parent progress reports.
-# Render is the source of truth for these values in production.
-SMTP_HOST = (
-    os.getenv("SMTP_HOST")
-    or os.getenv("EMAIL_HOST")
-    or os.getenv("MAIL_HOST")
-    or ""
-).strip()
-SMTP_PORT = int((os.getenv("SMTP_PORT") or os.getenv("EMAIL_PORT") or os.getenv("MAIL_PORT") or "587") or "587")
-SMTP_USERNAME = (
-    os.getenv("SMTP_USERNAME")
-    or os.getenv("EMAIL_USERNAME")
-    or os.getenv("MAIL_USERNAME")
-    or os.getenv("SMTP_USER")
-    or ""
-).strip()
-SMTP_PASSWORD = (
-    os.getenv("SMTP_PASSWORD")
-    or os.getenv("EMAIL_PASSWORD")
-    or os.getenv("MAIL_PASSWORD")
-    or os.getenv("SMTP_PASS")
-    or ""
-).replace(" ", "")
-SMTP_FROM_EMAIL = (
-    os.getenv("SMTP_FROM_EMAIL")
-    or os.getenv("EMAIL_FROM")
-    or os.getenv("MAIL_FROM")
-    or os.getenv("FROM_EMAIL")
-    or SMTP_USERNAME
-).strip()
-SMTP_FROM_NAME = (
-    os.getenv("SMTP_FROM_NAME")
-    or os.getenv("EMAIL_FROM_NAME")
-    or os.getenv("MAIL_FROM_NAME")
-    or "MathPath Team"
-).strip()
-SMTP_USE_TLS = (os.getenv("SMTP_USE_TLS") or os.getenv("EMAIL_USE_TLS") or os.getenv("MAIL_USE_TLS") or "true").lower() == "true"
-SMTP_USE_SSL = (os.getenv("SMTP_USE_SSL") or os.getenv("EMAIL_USE_SSL") or os.getenv("MAIL_USE_SSL") or "false").lower() == "true"
+# Supports both MathPath SMTP_* variables and common EMAIL_* aliases used by deployment dashboards.
+def _env_first(*Names: str, Default: str = "") -> str:
+    for Name in Names:
+        Value = os.getenv(Name)
+        if Value is not None and str(Value).strip():
+            return str(Value).strip()
+    return Default
+
+def _env_bool(*Names: str, Default: str = "false") -> bool:
+    Value = _env_first(*Names, Default=Default).lower()
+    return Value in {"1", "true", "yes", "on"}
+
+SMTP_HOST = _env_first("SMTP_HOST", "EMAIL_HOST")
+SMTP_PORT = int(_env_first("SMTP_PORT", "EMAIL_PORT", Default="587") or "587")
+SMTP_USERNAME = _env_first("SMTP_USERNAME", "EMAIL_USERNAME", "EMAIL_HOST_USER")
+SMTP_PASSWORD = _env_first("SMTP_PASSWORD", "EMAIL_PASSWORD", "EMAIL_HOST_PASSWORD").replace(" ", "")
+SMTP_FROM_EMAIL = _env_first("SMTP_FROM_EMAIL", "EMAIL_FROM_EMAIL", "DEFAULT_FROM_EMAIL", Default=SMTP_USERNAME)
+SMTP_FROM_NAME = _env_first("SMTP_FROM_NAME", "EMAIL_FROM_NAME", Default="MathPath Team")
+SMTP_USE_TLS = _env_bool("SMTP_USE_TLS", "EMAIL_USE_TLS", Default="true")
+SMTP_USE_SSL = _env_bool("SMTP_USE_SSL", "EMAIL_USE_SSL", Default="false")
+SMTP_TIMEOUT_SECONDS = int(_env_first("SMTP_TIMEOUT_SECONDS", "EMAIL_TIMEOUT_SECONDS", Default="20") or "20")
 
 # Phase 8.8 final readiness gate switch. Default is live-safe strict readiness mode.
 # Set true only for broad local testing where assessment workflow needs to be tested without completing all readiness criteria.

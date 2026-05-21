@@ -1103,6 +1103,7 @@ export async function sendAdminParentProgressReport(
   const { data } = await api.post<SendParentProgressReportResponse>(
     "/admin/results/send-parent-summary",
     payload,
+    { timeout: 45000 },
   );
   return data;
 }
