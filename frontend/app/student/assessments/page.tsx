@@ -13,7 +13,7 @@ import {
 import { AlertTriangle, BarChart3, ChevronDown, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Sparkles, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 type AssessmentRow = Record<string, any>;
 
@@ -431,7 +431,17 @@ function studentAssessmentMatchesTarget(row: AssessmentRow, Target: { Module: st
   return ModuleMatches && LevelMatches && AssignmentMatches && AttemptMatches;
 }
 
+
+
 export default function StudentAssessmentsPage() {
+  return (
+    <Suspense fallback={null}>
+      <StudentAssessmentsPageContent />
+    </Suspense>
+  );
+}
+
+function StudentAssessmentsPageContent() {
   const ready = useProtectedPage(["STUDENT"]);
   const SearchParams = useSearchParams();
   const DeepLinkTarget = useMemo(() => ({

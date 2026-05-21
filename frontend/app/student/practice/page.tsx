@@ -17,7 +17,7 @@ import {
   ClipboardList,
   Target,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function CleanPercent(Value: unknown) {
@@ -72,7 +72,17 @@ function AverageAccuracyDisplay(
   return `${Math.round(Average)}%`;
 }
 
+
+
 export default function StudentPracticePage() {
+  return (
+    <Suspense fallback={null}>
+      <StudentPracticePageContent />
+    </Suspense>
+  );
+}
+
+function StudentPracticePageContent() {
   const Ready = useProtectedPage(["STUDENT"]);
   const Router = useRouter();
   const SearchParams = useSearchParams();

@@ -9,9 +9,19 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Brain, ClipboardList, Clock3, PlayCircle, ShieldCheck } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+
+
 
 export default function DpsInstructionPage() {
+  return (
+    <Suspense fallback={null}>
+      <DpsInstructionPageContent />
+    </Suspense>
+  );
+}
+
+function DpsInstructionPageContent() {
   const Ready = useProtectedPage(["STUDENT"]);
   const Params = useParams<{ dpsId: string }>();
   const SearchParams = useSearchParams();

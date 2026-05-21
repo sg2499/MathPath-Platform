@@ -31,7 +31,7 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type StatusFilter = "" | "ALL" | "PENDING" | "CLEARED" | "NEEDS_REATTEMPT";
@@ -942,7 +942,17 @@ function AssessmentRecordTable({
   );
 }
 
+
+
 export default function TeacherAssessmentAssignmentsPage() {
+  return (
+    <Suspense fallback={null}>
+      <TeacherAssessmentAssignmentsPageContent />
+    </Suspense>
+  );
+}
+
+function TeacherAssessmentAssignmentsPageContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
   const SearchParams = useSearchParams();

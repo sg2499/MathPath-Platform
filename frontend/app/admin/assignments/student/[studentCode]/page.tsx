@@ -21,10 +21,20 @@ import {
 } from "@/lib/api/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 
+
+
 export default function AdminStudentAssignmentsWorkspacePage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminStudentAssignmentsWorkspacePageContent />
+    </Suspense>
+  );
+}
+
+function AdminStudentAssignmentsWorkspacePageContent() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const router = useRouter();
   const params = useParams();

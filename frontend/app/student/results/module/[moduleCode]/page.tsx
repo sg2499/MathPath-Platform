@@ -15,10 +15,20 @@ import { apiErrorMessage } from "@/lib/api";
 import { getStudentResults } from "@/lib/api/student";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
+
+
 export default function StudentModuleProgressWorkspacePage() {
+  return (
+    <Suspense fallback={null}>
+      <StudentModuleProgressWorkspacePageContent />
+    </Suspense>
+  );
+}
+
+function StudentModuleProgressWorkspacePageContent() {
   const Ready = useProtectedPage(["STUDENT"]);
   const Router = useRouter();
   const Params = useParams();

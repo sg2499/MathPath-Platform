@@ -49,7 +49,7 @@ import {
   UsersRound,
   XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AnyRow,
@@ -787,7 +787,17 @@ function ResolveParentReportTab(
   return null;
 }
 
+
+
 export default function AdminAssessmentControlPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminAssessmentControlPageContent />
+    </Suspense>
+  );
+}
+
+function AdminAssessmentControlPageContent() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const Router = useRouter();
   const SearchParams = useSearchParams();

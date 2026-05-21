@@ -52,7 +52,7 @@ import {
   mathPathTimestampValue,
 } from "@/lib/date";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 
 type WorkspaceTab = "OVERVIEW" | "LESSON_INSIGHTS";
 type LessonFilter = string;
@@ -353,7 +353,17 @@ function TabButton({
   );
 }
 
+
+
 export default function TeacherStudentTrackerWorkspacePage() {
+  return (
+    <Suspense fallback={null}>
+      <TeacherStudentTrackerWorkspacePageContent />
+    </Suspense>
+  );
+}
+
+function TeacherStudentTrackerWorkspacePageContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
   const Params = useParams();

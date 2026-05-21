@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target } from "lucide-react";
 import { PremiumResultFeedbackCard } from "@/components/common/PerformanceFeedback";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 
 type AssessmentResultQuestion = {
   questionId: string;
@@ -146,7 +146,17 @@ function AssessmentFeedbackCard({ Result }: { Result: any }) {
   );
 }
 
+
+
 export default function StudentAssessmentResultPage() {
+  return (
+    <Suspense fallback={null}>
+      <StudentAssessmentResultPageContent />
+    </Suspense>
+  );
+}
+
+function StudentAssessmentResultPageContent() {
   const Params = useParams<{ attemptId: string }>();
   const Router = useRouter();
   const SearchParams = useSearchParams();
