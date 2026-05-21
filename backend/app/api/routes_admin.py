@@ -1352,11 +1352,16 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
             db.add(StudentUser)
             db.flush()
 
+            ResolvedTeacherName = TeacherName
+            if TeacherRecord:
+                TeacherUserRecord = db.get(User, TeacherRecord.user_id)
+                if TeacherUserRecord and TeacherUserRecord.full_name:
+                    ResolvedTeacherName = TeacherUserRecord.full_name
+
             StudentRecord = Student(
                 user_id=StudentUser.id,
                 custom_id=CustomId,
-                teacher=TeacherName,
-                teacher_id=TeacherRecord.id if TeacherRecord else None,
+                teacher=ResolvedTeacherName,
                 admission_date=clean_text(Row.get("admission_date")),
                 dob=clean_text(Row.get("dob")),
                 gender=clean_text(Row.get("gender")),
