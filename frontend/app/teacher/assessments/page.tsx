@@ -1023,6 +1023,18 @@ export default function TeacherAssessmentAssignmentsPage() {
   }, [Rows, SearchText, ModuleFilter, LevelFilter, StatusFilterValue]);
 
   const AllStudents = useMemo(() => BuildStudents(Rows), [Rows]);
+
+  const NotificationTargetRow = useMemo(
+    () => Rows.find((Row) => RowMatchesDeepLink(Row, DeepLinkTarget)),
+    [Rows, DeepLinkTarget],
+  );
+
+  const VisibleRows = useMemo(() => {
+    if (FilteredRows.length > 0) return FilteredRows;
+    if (DeepLinkTarget.HasTarget && NotificationTargetRow) return [NotificationTargetRow];
+    return FilteredRows;
+  }, [FilteredRows, DeepLinkTarget.HasTarget, NotificationTargetRow]);
+
   const CurrentMetricRows = useMemo(
     () => CurrentAssessmentRows(VisibleRows),
     [VisibleRows],
@@ -1044,17 +1056,6 @@ export default function TeacherAssessmentAssignmentsPage() {
       return LatestRow ? ReadyForNextLevel(LatestRow) : false;
     },
   ).length;
-
-  const NotificationTargetRow = useMemo(
-    () => Rows.find((Row) => RowMatchesDeepLink(Row, DeepLinkTarget)),
-    [Rows, DeepLinkTarget],
-  );
-
-  const VisibleRows = useMemo(() => {
-    if (FilteredRows.length > 0) return FilteredRows;
-    if (DeepLinkTarget.HasTarget && NotificationTargetRow) return [NotificationTargetRow];
-    return FilteredRows;
-  }, [FilteredRows, DeepLinkTarget.HasTarget, NotificationTargetRow]);
 
   if (!Ready || AssessmentsQuery.isLoading)
     return <LoadingState label="Loading assessment tracker..." />;
