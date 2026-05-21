@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: mathpath-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mathpath-postgres
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: SEED_ON_STARTUP
+        value: "true"
+      - key: TEMPORARY_ASSESSMENT_READINESS_BYPASS
+        value: "false"
+      - key: ASSESSMENT_TESTING_OVERRIDE_ENABLED
+        value: "false"
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_FROM_NAME
+        value: "MathPath Team"
+      - key: SMTP_USE_TLS
+        value: "true"
+
+databases:
+  - name: mathpath-postgres
+    databaseName: mathpath
+    user: mathpath_user

@@ -3,7 +3,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mathpath.db")
+RawDatabaseUrl = os.getenv("DATABASE_URL", "sqlite:///./mathpath.db").strip()
+# Render and some PostgreSQL providers expose postgres:// URLs.
+# SQLAlchemy expects postgresql://, so normalize once at startup.
+DATABASE_URL = RawDatabaseUrl.replace("postgres://", "postgresql://", 1) if RawDatabaseUrl.startswith("postgres://") else RawDatabaseUrl
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
