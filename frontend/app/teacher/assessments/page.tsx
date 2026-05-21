@@ -31,7 +31,7 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type StatusFilter = "" | "ALL" | "PENDING" | "CLEARED" | "NEEDS_REATTEMPT";
@@ -942,7 +942,7 @@ function AssessmentRecordTable({
   );
 }
 
-export default function TeacherAssessmentAssignmentsPage() {
+function TeacherAssessmentAssignmentsContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
   const SearchParams = useSearchParams();
@@ -1237,5 +1237,13 @@ export default function TeacherAssessmentAssignmentsPage() {
         />
       </section>
     </AppShell>
+  );
+}
+
+export default function TeacherAssessmentAssignmentsPage() {
+  return (
+    <Suspense fallback={<LoadingState label="Loading assessment tracker..." />}>
+      <TeacherAssessmentAssignmentsContent />
+    </Suspense>
   );
 }
