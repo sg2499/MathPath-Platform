@@ -837,8 +837,8 @@ export default function AdminStudentsPage() {
                   <th><SortableHeader active={sortKey === "teacher"} direction={sortDirection} onClick={() => toggleSort("teacher")}>Teacher</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "level"} direction={sortDirection} onClick={() => toggleSort("level")}>Level</SortableHeader></th>
                   <th>Father Mobile</th>
-                  <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => toggleSort("status")}>Status</SortableHeader></th>
-                  <th>Action</th>
+                  <th className="math-table-chip-cell"><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => toggleSort("status")} align="center">Status</SortableHeader></th>
+                  <th className="math-table-action-header">Action</th>
                 </tr>
               </thead>
 
@@ -882,7 +882,7 @@ export default function AdminStudentsPage() {
                       <td>{s.teacher || "-"}</td>
                       <td>{s.currentLevelCode || "-"}</td>
                       <td>{s.fatherMobile || "-"}</td>
-                      <td>
+                      <td className="math-table-chip-cell">
                         <span
                           className={`math-badge ${
                             s.isActive
@@ -894,8 +894,8 @@ export default function AdminStudentsPage() {
                         </span>
                       </td>
 
-                      <td>
-                        <div className="flex flex-wrap gap-2">
+                      <td className="math-table-action-cell">
+                        <div className="math-table-actions flex-wrap justify-center">
                           <button
                             className="math-role-action-button math-role-icon-only"
                             onClick={() => setSelectedStudent(s)}

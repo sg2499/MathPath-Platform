@@ -24,7 +24,9 @@ type LoadState = {
 };
 
 function apiBaseUrl() {
-  return (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api").replace(/\/$/, "");
+  const RawBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").trim();
+  const CleanBaseUrl = RawBaseUrl.replace(/\/+$/, "");
+  return CleanBaseUrl.endsWith("/api") ? CleanBaseUrl : `${CleanBaseUrl}/api`;
 }
 
 function authToken() {

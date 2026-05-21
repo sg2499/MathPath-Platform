@@ -5699,3 +5699,50 @@ html.dark .math-login-welcome-chip {
     text-shadow: 0 2px 14px rgba(0,0,0,0.22);
   }
 }
+
+
+/* Phase 10.9.2F — Production table header and action-axis polish */
+@layer components {
+  .math-role-admin .math-table thead th,
+  .math-role-teacher .math-table thead th,
+  .math-role-student .math-table thead th {
+    color: #475569 !important;
+    vertical-align: middle;
+  }
+
+  html.dark .math-role-admin .math-table thead th,
+  html.dark .math-role-teacher .math-table thead th,
+  html.dark .math-role-student .math-table thead th {
+    color: #cbd5e1 !important;
+  }
+
+  .math-table .math-sortable-header {
+    color: inherit !important;
+  }
+
+  .math-table .math-table-action-header {
+    width: 17.5rem;
+    min-width: 17.5rem;
+    text-align: center;
+  }
+
+  .math-table .math-table-action-cell {
+    width: 17.5rem;
+    min-width: 17.5rem;
+    text-align: center;
+  }
+
+  .math-table .math-table-action-cell > .math-table-actions {
+    align-items: center;
+    justify-content: center;
+  }
+
+  .math-table .math-table-chip-cell {
+    text-align: center;
+  }
+
+  .math-table .math-table-chip-cell > .math-sortable-header {
+    justify-content: center;
+    text-align: center;
+  }
+}
