@@ -25,7 +25,7 @@ from app.core.config import (
 from app.core.security import hash_password
 from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
-from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride
+from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog
 from app.services.assignment_service import create_assignment
 from app.services.attempt_service import result_payload
 from app.services.curriculum_service import dps_config_payload, get_dps_or_404
@@ -2366,15 +2366,30 @@ def delete_assignment_route(assignment_id: str, force: bool = False, db: Session
     attempt_ids = [attempt.id for attempt in attempts]
 
     if attempt_ids:
+        # Audit rows preserve the operational trail but must not block permanent removal
+        # of a practice assignment/attempt during controlled admin cleanup.
+        db.query(AuditLog).filter(AuditLog.attempt_id.in_(attempt_ids)).update(
+            {AuditLog.attempt_id: None},
+            synchronize_session=False,
+        )
         db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id.in_(attempt_ids)).delete(synchronize_session=False)
+        # Break the Attempt -> GeneratedQuestionSet reference before deleting generated sets.
+        db.query(Attempt).filter(Attempt.id.in_(attempt_ids)).update(
+            {Attempt.question_set_id: None},
+            synchronize_session=False,
+        )
+        db.query(Attempt).filter(Attempt.id.in_(attempt_ids)).delete(synchronize_session=False)
+
     if question_set_ids:
+        db.query(GeneratedQuestionSet).filter(GeneratedQuestionSet.id.in_(question_set_ids)).update(
+            {GeneratedQuestionSet.assignment_id: None},
+            synchronize_session=False,
+        )
         question_ids = [q.id for q in db.query(GeneratedQuestion).filter(GeneratedQuestion.question_set_id.in_(question_set_ids)).all()]
         if question_ids:
             db.query(QuestionOption).filter(QuestionOption.question_id.in_(question_ids)).delete(synchronize_session=False)
             db.query(GeneratedQuestion).filter(GeneratedQuestion.id.in_(question_ids)).delete(synchronize_session=False)
         db.query(GeneratedQuestionSet).filter(GeneratedQuestionSet.id.in_(question_set_ids)).delete(synchronize_session=False)
-    if attempt_ids:
-        db.query(Attempt).filter(Attempt.id.in_(attempt_ids)).delete(synchronize_session=False)
 
     db.query(AssignmentReattemptPermission).filter(AssignmentReattemptPermission.assignment_id == assignment.id).delete(synchronize_session=False)
     db.delete(assignment)

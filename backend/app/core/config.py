@@ -7,7 +7,10 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mathpath.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
-SEED_ON_STARTUP = os.getenv("SEED_ON_STARTUP", "true").lower() == "true"
+# Production/demo deployments must not create demo students, demo teachers,
+# demo assignments, or demo attempts automatically on every redeploy.
+# Enable only for intentional local curriculum seeding.
+SEED_ON_STARTUP = os.getenv("SEED_ON_STARTUP", "false").lower() == "true"
 
 # SMTP / email delivery configuration for parent progress reports.
 # Supports both MathPath SMTP_* variables and common EMAIL_* aliases used by deployment dashboards.
