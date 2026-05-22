@@ -844,7 +844,7 @@ function CompactPracticeList({
             <button
               type="button"
               onClick={OnViewAll}
-              className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800"
+              className="math-mini-action rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800"
             >
               View All
             </button>
@@ -947,7 +947,7 @@ function ExcellenceHighlightsList({
             <button
               type="button"
               onClick={OnViewAll}
-              className="rounded-full bg-white px-4 py-2 text-xs font-black text-emerald-700 shadow-sm ring-1 ring-emerald-100 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-950 dark:text-emerald-200 dark:ring-emerald-900/70"
+              className="math-mini-action rounded-full bg-white px-4 py-2 text-xs font-black text-emerald-700 shadow-sm ring-1 ring-emerald-100 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-950 dark:text-emerald-200 dark:ring-emerald-900/70"
             >
               View All
             </button>

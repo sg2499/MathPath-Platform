@@ -1762,9 +1762,9 @@ function StudentProgressOverview({
               Level Status: {Summary.currentStatus}
             </Chip>
           </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-white dark:bg-slate-950">
+          <div className="math-progress-track mt-4 h-3 overflow-hidden rounded-full">
             <div
-              className="h-full rounded-full bg-slate-950 dark:bg-white"
+              className="math-progress-fill h-full rounded-full"
               style={{ width: `${CompletionPercent}%` }}
             />
           </div>

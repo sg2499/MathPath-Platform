@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
-import { api, apiErrorMessage } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
 import { getTeacherAssignmentTracker, getTeacherStudents, type TeacherStudent } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
@@ -42,13 +42,6 @@ function compareSortValues(a: unknown, b: unknown) {
   return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" });
 }
 
-
-function assetUrl(url?: string | null) {
-  if (!url) return "";
-  if (url.startsWith("http") || url.startsWith("data:")) return url;
-  const base = (api.defaults.baseURL || "http://localhost:8000/api").replace(/\/api\/?$/, "");
-  return `${base}${url}`;
-}
 
 
 function recordInitials(Name?: string | null) {
@@ -388,7 +381,6 @@ export default function TeacherStudentsPage() {
 }
 
 function StudentRow({ student, attention }: { student: TeacherStudent; attention: string }) {
-  const image = assetUrl(student.photoUrl);
   const pending = (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0);
 
   return (
@@ -397,16 +389,6 @@ function StudentRow({ student, attention }: { student: TeacherStudent; attention
         <div className="flex items-center gap-3">
           <div className="math-record-avatar math-record-avatar-student h-14 w-14 rounded-2xl text-sm">
             <span>{recordInitials(student.studentName)}</span>
-            {image ? (
-              <img
-                src={image}
-                alt={student.studentName}
-                className="h-full w-full object-cover"
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
-              />
-            ) : null}
           </div>
           <div>
             <p className="font-black text-slate-950 dark:text-white">{student.studentName}</p>

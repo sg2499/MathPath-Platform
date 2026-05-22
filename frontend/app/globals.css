@@ -6648,3 +6648,149 @@ html.dark .math-login-welcome-chip {
     color: #dbeafe !important;
   }
 }
+
+/* Phase 10.9.3E — unified inactive tabs, visibility pills, progress bars, and stable avatars */
+@layer components {
+  .math-avatar {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .math-avatar > span {
+    position: relative;
+    z-index: 1;
+  }
+
+  .math-avatar > img {
+    z-index: 2;
+  }
+
+  .math-progress-track {
+    position: relative;
+    overflow: hidden;
+    border-radius: 9999px;
+    border: 1px solid rgba(148, 163, 184, 0.36);
+    background: rgba(226, 232, 240, 0.92);
+    box-shadow: inset 0 1px 5px rgba(15, 23, 42, 0.18);
+  }
+
+  .math-progress-fill {
+    min-width: 8px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #06b6d4 0%, #2563eb 52%, #a855f7 100%);
+    box-shadow: 0 0 14px rgba(37, 99, 235, 0.34);
+  }
+
+  html.dark .math-progress-track,
+  html.dark [class*="LevelCoverage"] .h-2,
+  html.dark [class*="level-coverage"] .h-2 {
+    border-color: rgba(125, 211, 252, 0.42) !important;
+    background: rgba(2, 6, 23, 0.88) !important;
+    box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(34, 211, 238, 0.08) !important;
+  }
+
+  html.dark .math-progress-fill {
+    background: linear-gradient(90deg, #22d3ee 0%, #60a5fa 50%, #f472b6 100%) !important;
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.5), 0 0 26px rgba(168, 85, 247, 0.28) !important;
+  }
+
+  html.dark .math-role-tab:not(.math-role-tab-active),
+  html.dark .math-role-tab-card:not(.math-role-tab-card-active),
+  html.dark .math-tab-strip button:not(.math-role-tab-active):not([aria-selected="true"]),
+  html.dark .math-workspace-tabs button:not(.math-role-tab-active):not([aria-selected="true"]),
+  html.dark button[role="tab"]:not([aria-selected="true"]) {
+    border-color: rgba(148, 163, 184, 0.42) !important;
+    background: rgba(15, 23, 42, 0.9) !important;
+    color: #f8fbff !important;
+    opacity: 1 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px rgba(0,0,0,0.16) !important;
+  }
+
+  html.dark .math-role-tab:not(.math-role-tab-active) *,
+  html.dark .math-role-tab-card:not(.math-role-tab-card-active) *,
+  html.dark .math-tab-strip button:not(.math-role-tab-active):not([aria-selected="true"]) *,
+  html.dark .math-workspace-tabs button:not(.math-role-tab-active):not([aria-selected="true"]) *,
+  html.dark button[role="tab"]:not([aria-selected="true"]) * {
+    color: inherit !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-tab-card:not(.math-role-tab-card-active) p,
+  html.dark .math-role-tab-card:not(.math-role-tab-card-active) span,
+  html.dark .math-role-tab-card:not(.math-role-tab-card-active) .math-badge {
+    color: #dbeafe !important;
+  }
+
+  html.dark .math-role-tab-active,
+  html.dark .math-role-tab-card-active,
+  html.dark .math-tab-strip button[aria-selected="true"],
+  html.dark .math-workspace-tabs button[aria-selected="true"],
+  html.dark button[role="tab"][aria-selected="true"] {
+    color: #ffffff !important;
+    background: var(--mp-role-action-bg, linear-gradient(135deg, #2563eb, #9333ea)) !important;
+    border-color: rgba(125, 211, 252, 0.62) !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-tab-active *,
+  html.dark .math-role-tab-card-active *,
+  html.dark .math-tab-strip button[aria-selected="true"] *,
+  html.dark .math-workspace-tabs button[aria-selected="true"] *,
+  html.dark button[role="tab"][aria-selected="true"] * {
+    color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-dashboard-primary-action,
+  html.dark .math-dashboard-page .math-dashboard-primary-action,
+  html.dark .math-hero button[class*="bg-white"],
+  html.dark .math-hero a[class*="bg-white"],
+  html.dark .math-soft-section button[class*="bg-white"],
+  html.dark .math-card button[class*="bg-white"],
+  html.dark button[class*="from-sky-50"],
+  html.dark button[class*="from-cyan-50"],
+  html.dark button[class*="from-blue-50"],
+  html.dark button[class*="from-indigo-50"],
+  html.dark button[class*="to-indigo-50"],
+  html.dark button[class*="to-purple-50"] {
+    color: #07111f !important;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 52%, #e0e7ff 100%) !important;
+    border-color: rgba(224, 242, 254, 0.9) !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-dashboard-primary-action *,
+  html.dark .math-dashboard-page .math-dashboard-primary-action *,
+  html.dark .math-hero button[class*="bg-white"] *,
+  html.dark .math-hero a[class*="bg-white"] *,
+  html.dark .math-soft-section button[class*="bg-white"] *,
+  html.dark .math-card button[class*="bg-white"] *,
+  html.dark button[class*="from-sky-50"] *,
+  html.dark button[class*="from-cyan-50"] *,
+  html.dark button[class*="from-blue-50"] *,
+  html.dark button[class*="from-indigo-50"] *,
+  html.dark button[class*="to-indigo-50"] *,
+  html.dark button[class*="to-purple-50"] * {
+    color: #07111f !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-mini-action,
+  html.dark button.math-mini-action,
+  html.dark .math-card button[class*="rounded-full"][class*="bg-white"],
+  html.dark .math-panel button[class*="rounded-full"][class*="bg-white"] {
+    color: #eaf6ff !important;
+    background: rgba(15, 23, 42, 0.94) !important;
+    border: 1px solid rgba(125, 211, 252, 0.42) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 22px rgba(0,0,0,0.24) !important;
+  }
+
+  html.dark .math-mini-action *,
+  html.dark button.math-mini-action *,
+  html.dark .math-card button[class*="rounded-full"][class*="bg-white"] *,
+  html.dark .math-panel button[class*="rounded-full"][class*="bg-white"] * {
+    color: inherit !important;
+    opacity: 1 !important;
+  }
+}

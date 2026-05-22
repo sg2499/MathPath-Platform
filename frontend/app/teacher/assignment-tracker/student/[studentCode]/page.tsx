@@ -901,9 +901,9 @@ function LevelCoverageCard({ Rows }: { Rows: AnyRow[] }) {
                   {Item.Cleared}/{Item.Required}
                 </span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white dark:bg-slate-950">
+              <div className="math-progress-track mt-2 h-2 overflow-hidden rounded-full">
                 <div
-                  className="h-full rounded-full bg-slate-950 dark:bg-white"
+                  className="math-progress-fill h-full rounded-full"
                   style={{ width: `${Item.Percent}%` }}
                 />
               </div>

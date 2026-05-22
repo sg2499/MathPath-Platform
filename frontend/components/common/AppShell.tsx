@@ -1243,9 +1243,11 @@ function Avatar({
   compact?: boolean;
 }) {
   const [ImageFailed, SetImageFailed] = useState(false);
+  const [ImageLoaded, SetImageLoaded] = useState(false);
 
   useEffect(() => {
     SetImageFailed(false);
+    SetImageLoaded(false);
   }, [avatarUrl]);
 
   const Initials = UserInitials(user?.fullName);
@@ -1258,16 +1260,18 @@ function Avatar({
       }`}
       title={user?.fullName || "MathPath User"}
     >
+      <span className={`leading-none transition-opacity ${ShowImage && ImageLoaded ? "opacity-0" : "opacity-100"}`}>
+        {Initials}
+      </span>
       {ShowImage ? (
         <img
           src={avatarUrl}
           alt={user?.fullName || "User"}
-          className="h-full w-full object-cover"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity ${ImageLoaded ? "opacity-100" : "opacity-0"}`}
+          onLoad={() => SetImageLoaded(true)}
           onError={() => SetImageFailed(true)}
         />
-      ) : (
-        <span className="leading-none">{Initials}</span>
-      )}
+      ) : null}
     </div>
   );
 }
