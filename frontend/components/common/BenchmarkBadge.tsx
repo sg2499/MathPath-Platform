@@ -11,9 +11,11 @@ export function BenchmarkBadge({
   requiresAttention?: boolean | null;
   percentage?: number | null;
 }) {
-  const IsBelow = Boolean(requiresAttention) || status === "BELOW_BENCHMARK";
-  const Label = IsBelow ? "Benchmark Not Met" : status === "PENDING" ? "Pending" : "Benchmark Met";
-  const ToneClass = IsBelow ? "math-tone-danger" : status === "PENDING" ? "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200" : "math-tone-success";
+  const NormalizedStatus = String(status || "").toUpperCase().replace(/[^A-Z]/g, "");
+  const IsPending = !NormalizedStatus || NormalizedStatus.includes("PENDING");
+  const IsBelow = Boolean(requiresAttention) || NormalizedStatus.includes("BELOW") || NormalizedStatus.includes("NOTMET") || NormalizedStatus.includes("NEEDSREATTEMPT") || NormalizedStatus.includes("MANUALINTERVENTION");
+  const Label = IsPending ? "Pending" : IsBelow ? "Benchmark Not Met" : "Benchmark Met";
+  const ToneClass = IsPending ? "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200" : IsBelow ? "math-tone-danger" : "math-tone-success";
 
   return <span className={`math-badge ${ToneClass}`}>{Label}</span>;
 }

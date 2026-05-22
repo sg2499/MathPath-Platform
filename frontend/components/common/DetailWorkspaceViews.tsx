@@ -424,15 +424,13 @@ export function workUnitKey(row: AnyRow) {
     CompactDpsLabel(row);
 
   return String(
-    row.attemptGroupId ||
-      row.attempt_group_id ||
-      [
-        studentCodeOf(row),
-        moduleCodeOf(row),
-        levelCodeOf(row),
-        row.lessonId || row.lessonNumber || row.lessonTitle || CompactLessonLabel(row) || "lesson",
-        StableDpsConcept || "dps",
-      ].join("::"),
+    [
+      studentCodeOf(row),
+      moduleCodeOf(row),
+      levelCodeOf(row),
+      row.lessonId || row.lessonNumber || row.lessonTitle || CompactLessonLabel(row) || "lesson",
+      StableDpsConcept || "dps",
+    ].join("::"),
   );
 }
 

@@ -315,7 +315,7 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
                 Attempt.id != attempt.id,
                 Attempt.attempt_number < attempt_number,
             )
-            .order_by(Attempt.attempt_number.desc(), Attempt.submitted_at.desc().nullslast(), Attempt.created_at.desc())
+            .order_by(Attempt.attempt_number.desc(), Attempt.submitted_at.desc().nullslast(), Attempt.started_at.desc())
             .first()
         )
     if previous_attempt:
