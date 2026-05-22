@@ -830,9 +830,9 @@ export function AppShell({
                                       key={child.href}
                                       type="button"
                                       onClick={() => navigateTo(child.href)}
-                                      className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
+                                      className={`math-dropdown-option flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
                                         childActive
-                                          ? "bg-slate-950 text-white shadow-lg dark:bg-white dark:text-slate-950"
+                                          ? "math-dropdown-option-active bg-slate-950 text-white shadow-lg dark:bg-white dark:text-slate-950"
                                           : "text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-900"
                                       }`}
                                       title={child.tooltip}
@@ -852,7 +852,7 @@ export function AppShell({
                                           {child.label}
                                         </span>
                                         <span
-                                          className={`mt-0.5 block truncate text-xs font-semibold ${
+                                          className={`math-dropdown-option-subtitle mt-0.5 block truncate text-xs font-semibold ${
                                             childActive
                                               ? "text-white/80 dark:text-slate-800"
                                               : "text-slate-400 dark:text-slate-300"

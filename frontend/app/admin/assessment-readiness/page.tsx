@@ -408,8 +408,8 @@ export default function AdminAssessmentReadinessPage() {
             <div
               className={`mt-5 rounded-[28px] border p-4 shadow-sm ${
                 readinessGate.temporaryBypassEnabled
-                  ? "border-amber-200 bg-amber-50/90"
-                  : "border-emerald-200 bg-emerald-50/90"
+                  ? "math-tone-warning border-amber-200 bg-amber-50/90"
+                  : "math-tone-success border-emerald-200 bg-emerald-50/90"
               }`}
             >
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -424,25 +424,29 @@ export default function AdminAssessmentReadinessPage() {
                     <ShieldCheck size={18} />
                   </span>
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
                       Assessment Readiness Status
                     </p>
-                    <h2 className="mt-1 text-base font-black text-slate-950">
-                      {readinessGate.label}
+                    <h2 className="mt-1 text-base font-black text-slate-950 dark:text-white">
+                      {readinessGate.temporaryBypassEnabled ? "Readiness Bypass Active" : readinessGate.label}
                     </h2>
-                    <p className="mt-1 max-w-4xl text-sm font-semibold leading-6 text-slate-600">
-                      {readinessGate.assignmentImpactLabel}
+                    <p className="mt-1 max-w-4xl text-sm font-semibold leading-6 text-slate-600 dark:text-slate-200">
+                      {readinessGate.temporaryBypassEnabled
+                        ? "Assessment assignment is currently allowed for QA across eligible level matches until the owner explicitly restores strict readiness."
+                        : readinessGate.assignmentImpactLabel}
                     </p>
-                    <p className="mt-1 max-w-4xl text-xs font-bold leading-5 text-slate-500">
-                      {readinessGate.nextPhaseNote}
+                    <p className="mt-1 max-w-4xl text-xs font-bold leading-5 text-slate-500 dark:text-slate-300">
+                      {readinessGate.temporaryBypassEnabled
+                        ? "Working convention: keep the assessment readiness bypass ON until explicitly disabled."
+                        : readinessGate.nextPhaseNote}
                     </p>
                   </div>
                 </div>
-                <div className="rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 text-center shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                <div className="rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 text-center shadow-sm dark:border-slate-700 dark:bg-slate-950/70">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
                     Not Ready
                   </p>
-                  <p className="mt-1 text-2xl font-black text-slate-950">
+                  <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
                     {readinessGate.notReadyStudentsImpacted}
                   </p>
                 </div>

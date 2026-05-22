@@ -324,7 +324,7 @@ export default function TeacherAssignAssessmentPage() {
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-[22px] border border-white/70 bg-white/85 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/75">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">Readiness Gate</p>
-                <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.assignmentGateLabel || "Readiness Gate"}</p>
+                <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.readinessBypassEnabled ? "Readiness Bypass Active" : Data?.summary.assignmentGateLabel || "Readiness Gate"}</p>
               </div>
               <div className="rounded-[22px] border border-white/70 bg-white/85 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/75">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">Ready Students</p>
@@ -341,7 +341,7 @@ export default function TeacherAssignAssessmentPage() {
                 <div>
                   <p className="math-kicker">Eligible Students</p>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Assignment Queue</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">{Data?.summary.readinessBypassEnabled ? "Workflow verification allows matching students from the selected assessment level to be assigned." : Data?.summary.testingOverrideEnabled ? "Ready students and learners with controlled access from the selected assessment level can be assigned." : "Only ready students from the selected assessment level can be assigned."}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-300">{Data?.summary.readinessBypassEnabled ? "Readiness bypass is active until the owner explicitly restores strict readiness. Matching students can be assigned for QA." : Data?.summary.testingOverrideEnabled ? "Ready students and learners with controlled access from the selected assessment level can be assigned." : "Only ready students from the selected assessment level can be assigned."}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" className="math-role-action-button px-4 py-2" onClick={SelectAllAssignable} disabled={!SelectedAssessment || !AssignableStudents.length}>

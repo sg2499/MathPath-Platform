@@ -49,7 +49,7 @@ ASSESSMENT_READINESS_GATE_MODE = (
     "TEMPORARY_BYPASS" if TEMPORARY_ASSESSMENT_READINESS_BYPASS else "STRICT_READINESS"
 )
 ASSESSMENT_READINESS_GATE_LABEL = (
-    "Testing Bypass Active" if TEMPORARY_ASSESSMENT_READINESS_BYPASS else "Strict Readiness Gate Active"
+    "Readiness Bypass Active" if TEMPORARY_ASSESSMENT_READINESS_BYPASS else "Strict Readiness Gate Active"
 )
 
 # Controlled Admin-only assessment readiness testing override.
