@@ -285,6 +285,26 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
     retry_assignment = latest_retry_assignment_for_attempt(db, attempt)
     retry_workflow = BuildRetryWorkflowPayload(attempt, retry_assignment)
 
+    previous_attempt = None
+    attempt_group_id = getattr(attempt, "attempt_group_id", None)
+    attempt_number = int(getattr(attempt, "attempt_number", 0) or 0)
+    if attempt_group_id and getattr(attempt, "student_id", None) and attempt_number > 0:
+        previous_attempt = (
+            db.query(Attempt)
+            .filter(
+                Attempt.attempt_group_id == attempt_group_id,
+                Attempt.student_id == attempt.student_id,
+                Attempt.id != attempt.id,
+                Attempt.attempt_number < attempt_number,
+            )
+            .order_by(Attempt.attempt_number.desc(), Attempt.submitted_at.desc().nullslast(), Attempt.created_at.desc())
+            .first()
+        )
+    if previous_attempt:
+        retry_workflow["previousAccuracyPercentage"] = previous_attempt.accuracy_percentage
+        retry_workflow["previousScore"] = previous_attempt.total_score
+        retry_workflow["accuracyDelta"] = round(float(attempt.accuracy_percentage or 0) - float(previous_attempt.accuracy_percentage or 0), 2)
+
     return {
         "attemptId": attempt.id,
         "attemptGroupId": getattr(attempt, "attempt_group_id", None),

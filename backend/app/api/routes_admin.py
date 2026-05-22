@@ -2065,7 +2065,7 @@ def assignment_payload(db: Session, assignment: Assignment) -> dict:
         "attemptGroupId": assignment.attempt_group_id,
         "assignmentSource": assignment.assignment_source,
         "retryAttemptNumber": assignment.retry_attempt_number,
-        "attemptNumber": (assignment.retry_attempt_number + 1) if int(assignment.retry_attempt_number or 0) > 0 else 1,
+        "attemptNumber": int(assignment.retry_attempt_number or 0),
         "attemptLabel": "Re-Attempt %s" % assignment.retry_attempt_number if int(assignment.retry_attempt_number or 0) > 0 else "Original",
         "isReattempt": int(assignment.retry_attempt_number or 0) > 0,
         "createdAt": assignment.created_at.isoformat() if assignment.created_at else None,

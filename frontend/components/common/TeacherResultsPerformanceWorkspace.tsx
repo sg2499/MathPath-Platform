@@ -29,6 +29,8 @@ import {
   averageAccuracy as AverageAccuracy,
   StandardViewButton,
   SortRowsByCurriculum,
+  uniqueNeedsReattemptCount,
+  uniqueCompletedConceptCount,
   moduleCodeOf as ModuleCodeOf,
   levelCodeOf as LevelCodeOf,
   DpsSequenceValue,
@@ -54,10 +56,10 @@ function LowestAccuracy(Rows: AnyRow[]) {
 }
 
 function BenchmarkLabel(Row: AnyRow) {
-  if (IsBelowBenchmark(Row)) return "Needs Re-Attempt";
+  if (IsBelowBenchmark(Row)) return "Benchmark Not Met";
   if (Accuracy(Row) >= 90) return "Excellence Zone";
   if (Accuracy(Row) >= 70) return "Benchmark Met";
-  return "Needs Re-Attempt";
+  return "Benchmark Not Met";
 }
 
 function BenchmarkTone(Row: AnyRow): Tone {
@@ -95,7 +97,7 @@ function PerformanceBand(Rows: AnyRow[]) {
 
 function LessonInsight(Rows: AnyRow[]) {
   const Avg = AverageAccuracy(Rows);
-  const Below = Rows.filter(IsBelowBenchmark).length;
+  const Below = uniqueNeedsReattemptCount(Rows);
   if (Below > 0 || Avg < 70) {
     return {
       Label: "Suggested Focus",
@@ -292,7 +294,7 @@ export function TeacherResultsPerformanceWorkspace({
     () => BuildLessonGroups(FilteredRows),
     [FilteredRows],
   );
-  const BelowBenchmarkCount = FilteredRows.filter(IsBelowBenchmark).length;
+  const BelowBenchmarkCount = uniqueNeedsReattemptCount(FilteredRows);
   const Band = PerformanceBand(
     FilteredRows.length ? FilteredRows : OrderedRows,
   );
@@ -585,7 +587,7 @@ function LessonDrilldownCard({
   OnView?: (Row: AnyRow) => void;
 }) {
   const Insight = LessonInsight(Lesson.Rows);
-  const BelowCount = Lesson.Rows.filter(IsBelowBenchmark).length;
+  const BelowCount = uniqueNeedsReattemptCount(Lesson.Rows);
 
   return (
     <div className="rounded-[22px] border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">

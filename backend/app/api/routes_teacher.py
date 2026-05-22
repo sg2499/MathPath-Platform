@@ -884,7 +884,7 @@ def teacher_assignment_tracker(db: Session = Depends(get_db), teacher: Teacher =
                 "attemptGroupId": assignment.attempt_group_id,
                 "assignmentSource": assignment.assignment_source,
                 "retryAttemptNumber": assignment.retry_attempt_number,
-                "attemptNumber": (assignment.retry_attempt_number + 1) if int(assignment.retry_attempt_number or 0) > 0 else 1,
+                "attemptNumber": int(assignment.retry_attempt_number or 0),
                 "attemptLabel": f"Re-Attempt {assignment.retry_attempt_number}" if int(assignment.retry_attempt_number or 0) > 0 else "Original",
                 "isReattempt": int(assignment.retry_attempt_number or 0) > 0,
                 "attemptId": attempt.id if attempt else None,

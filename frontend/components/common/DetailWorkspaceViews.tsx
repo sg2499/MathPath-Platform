@@ -162,7 +162,7 @@ export function levelProgressSummary(rows: AnyRow[]) {
       levelRows.length ? levelRows : SourceRows,
       levelCode,
     );
-    const below = levelRows.filter(isBelowBenchmark).length;
+    const below = uniqueNeedsReattemptCount(levelRows);
     const pending = levelRows.filter((row) => !isCompleted(row)).length;
     const status =
       below > 0
@@ -401,15 +401,27 @@ export function needsReattempt(row: AnyRow) {
 }
 
 export function workUnitKey(row: AnyRow) {
-  return String(
-    row.assignmentId ||
+  const IsAssessment = Boolean(row.assessmentId || row.assessmentCode || row.assessmentTitle) && !row.dpsId && !row.dpsNumber && !row.dpsTitle;
+  if (IsAssessment) {
+    return String(
       row.assessmentAssignmentId ||
-      row.assignedAssessmentId ||
+        row.assignedAssessmentId ||
+        row.assignmentId ||
+        row.id ||
+        [studentCodeOf(row), moduleCodeOf(row), levelCodeOf(row), row.assessmentId || row.assessmentTitle || "assessment"].join("::"),
+    );
+  }
+
+  return String(
+    row.attemptGroupId ||
+      row.attempt_group_id ||
+      row.dpsConceptKey ||
       [
+        studentCodeOf(row),
         moduleCodeOf(row),
         levelCodeOf(row),
         row.lessonId || row.lessonNumber || row.lessonTitle || "lesson",
-        row.dpsId || row.dpsNumber || row.dpsTitle || row.assessmentId || row.assessmentTitle || row.title || row.id || "work",
+        row.dpsId || row.dpsNumber || row.dpsTitle || row.title || "dps",
       ].join("::"),
   );
 }
@@ -419,18 +431,38 @@ function rowsWithAttemptHistory(rows: AnyRow[]) {
     const History = Array.isArray(Row.attemptHistory) ? Row.attemptHistory : [];
     if (!History.length) return [Row];
 
-    return History.map((AttemptRow: AnyRow, Index: number) => ({
-      ...Row,
-      ...AttemptRow,
-      attemptNumber:
-        AttemptRow.attemptNumber ??
-        AttemptRow.reattemptNumber ??
-        AttemptRow.retryNumber ??
-        Index + 1,
-      attemptSequence: AttemptRow.attemptSequence ?? Index + 1,
-      isReattempt: Boolean(AttemptRow.isReattempt ?? Index > 0),
-      parentAssignmentId: Row.assignmentId ?? Row.id,
-    }));
+    return History.map((AttemptRow: AnyRow, Index: number) => {
+      const MergedRow = {
+        ...Row,
+        ...AttemptRow,
+        attemptGroupId: AttemptRow.attemptGroupId ?? Row.attemptGroupId ?? Row.attempt_group_id,
+        attemptNumber:
+          AttemptRow.attemptNumber ??
+          AttemptRow.reattemptNumber ??
+          AttemptRow.retryNumber ??
+          Index + 1,
+        attemptSequence: AttemptRow.attemptSequence ?? Index + 1,
+        isReattempt: Boolean(AttemptRow.isReattempt ?? Index > 0),
+        parentAssignmentId: Row.assignmentId ?? Row.id,
+      };
+      const Status = String(MergedRow.status ?? MergedRow.attemptStatus ?? "").toUpperCase();
+      const IsPendingRetry = Status.includes("PENDING") || Status.includes("IN_PROGRESS") || !AttemptRow.completedAt && !AttemptRow.submittedAt && !AttemptRow.latestCompletedAt && AttemptRow.score == null && AttemptRow.accuracy == null && AttemptRow.accuracyPercentage == null;
+      if (IsPendingRetry) {
+        return {
+          ...MergedRow,
+          status: MergedRow.status || "PENDING",
+          score: AttemptRow.score ?? null,
+          totalMarks: AttemptRow.totalMarks ?? AttemptRow.maxScore ?? null,
+          accuracy: AttemptRow.accuracy ?? null,
+          accuracyPercentage: AttemptRow.accuracyPercentage ?? null,
+          completedAt: AttemptRow.completedAt ?? null,
+          submittedAt: AttemptRow.submittedAt ?? null,
+          latestCompletedAt: AttemptRow.latestCompletedAt ?? null,
+          benchmarkStatus: AttemptRow.benchmarkStatus ?? "PENDING",
+        };
+      }
+      return MergedRow;
+    });
   });
 }
 
@@ -456,6 +488,23 @@ export function currentWorkRows(rows: AnyRow[]) {
     }
   });
   return Array.from(CurrentRows.values());
+}
+
+
+export function uniqueNeedsReattemptCount(rows: AnyRow[]) {
+  const Keys = new Set<string>();
+  rows.forEach((Row) => {
+    if (needsReattempt(Row)) Keys.add(workUnitKey(Row));
+  });
+  return Keys.size;
+}
+
+export function uniqueCompletedConceptCount(rows: AnyRow[]) {
+  const Keys = new Set<string>();
+  rows.forEach((Row) => {
+    if (isCompleted(Row) && !isBelowBenchmark(Row)) Keys.add(workUnitKey(Row));
+  });
+  return Keys.size;
 }
 
 export function statusLabel(row: AnyRow) {
@@ -566,7 +615,7 @@ export function studentStats(rows: AnyRow[]) {
     (row) => isCompleted(row) && !isBelowBenchmark(row),
   ).length;
   const pending = CurrentRows.filter((row) => !isCompleted(row)).length;
-  const below = CurrentRows.filter(needsReattempt).length;
+  const below = uniqueNeedsReattemptCount(CurrentRows);
   const reattempt = below;
   return {
     total: CurrentRows.length,
@@ -2310,7 +2359,7 @@ function buildLessonFocusItems(rows: AnyRow[]) {
         key,
         title: CompactLessonLabel(sample),
         avg: averageAccuracy(SortedRows),
-        below: SortedRows.filter(isBelowBenchmark).length,
+        below: uniqueNeedsReattemptCount(SortedRows),
         total: SortedRows.length,
         sample,
       };
@@ -2325,14 +2374,34 @@ function ExpandAttemptHistoryRows(Rows: AnyRow[]) {
   return Rows.flatMap((Row) => {
     const History = Array.isArray(Row.attemptHistory) ? Row.attemptHistory : [];
     if (!History.length) return [Row];
-    return History.map((AttemptRow: AnyRow, Index: number) => ({
-      ...Row,
-      ...AttemptRow,
-      attemptNumber: AttemptRow.attemptNumber ?? Index + 1,
-      attemptSequence: AttemptRow.attemptSequence ?? Index + 1,
-      isReattempt: Boolean(AttemptRow.isReattempt ?? Index > 0),
-      parentAssignmentId: Row.assignmentId ?? Row.id,
-    }));
+    return History.map((AttemptRow: AnyRow, Index: number) => {
+      const MergedRow = {
+        ...Row,
+        ...AttemptRow,
+        attemptGroupId: AttemptRow.attemptGroupId ?? Row.attemptGroupId ?? Row.attempt_group_id,
+        attemptNumber: AttemptRow.attemptNumber ?? Index + 1,
+        attemptSequence: AttemptRow.attemptSequence ?? Index + 1,
+        isReattempt: Boolean(AttemptRow.isReattempt ?? Index > 0),
+        parentAssignmentId: Row.assignmentId ?? Row.id,
+      };
+      const Status = String(MergedRow.status ?? MergedRow.attemptStatus ?? "").toUpperCase();
+      const IsPendingRetry = Status.includes("PENDING") || Status.includes("IN_PROGRESS") || !AttemptRow.completedAt && !AttemptRow.submittedAt && !AttemptRow.latestCompletedAt && AttemptRow.score == null && AttemptRow.accuracy == null && AttemptRow.accuracyPercentage == null;
+      if (IsPendingRetry) {
+        return {
+          ...MergedRow,
+          status: MergedRow.status || "PENDING",
+          score: AttemptRow.score ?? null,
+          totalMarks: AttemptRow.totalMarks ?? AttemptRow.maxScore ?? null,
+          accuracy: AttemptRow.accuracy ?? null,
+          accuracyPercentage: AttemptRow.accuracyPercentage ?? null,
+          completedAt: AttemptRow.completedAt ?? null,
+          submittedAt: AttemptRow.submittedAt ?? null,
+          latestCompletedAt: AttemptRow.latestCompletedAt ?? null,
+          benchmarkStatus: AttemptRow.benchmarkStatus ?? "PENDING",
+        };
+      }
+      return MergedRow;
+    });
   });
 }
 

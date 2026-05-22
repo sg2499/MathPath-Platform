@@ -9,6 +9,9 @@ export type RetryWorkflow = {
   message: string;
   guidance: string;
   showTeacherGuidance?: boolean | null;
+  previousAccuracyPercentage?: number | null;
+  previousScore?: number | null;
+  accuracyDelta?: number | null;
 };
 
 export type AttemptResult = {

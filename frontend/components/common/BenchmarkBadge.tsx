@@ -12,7 +12,7 @@ export function BenchmarkBadge({
   percentage?: number | null;
 }) {
   const IsBelow = Boolean(requiresAttention) || status === "BELOW_BENCHMARK";
-  const Label = IsBelow ? "Needs Re-Attempt" : status === "PENDING" ? "Pending" : "Benchmark Met";
+  const Label = IsBelow ? "Benchmark Not Met" : status === "PENDING" ? "Pending" : "Benchmark Met";
   const ToneClass = IsBelow ? "math-tone-danger" : status === "PENDING" ? "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200" : "math-tone-success";
 
   return <span className={`math-badge ${ToneClass}`}>{Label}</span>;

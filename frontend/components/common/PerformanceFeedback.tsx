@@ -56,11 +56,29 @@ export function performanceBand(accuracy?: number | null): PerformanceBand {
 export function dynamicPerformanceMessage({
   accuracy,
   seed,
+  previousAccuracy,
+  attemptNumber = 0,
 }: {
   accuracy?: number | null;
   seed: string;
+  previousAccuracy?: number | null;
+  attemptNumber?: number | null;
 }) {
   const Band = performanceBand(accuracy);
+  const CurrentAccuracy = Number(accuracy ?? 0);
+  const PriorAccuracy = previousAccuracy === null || previousAccuracy === undefined ? null : Number(previousAccuracy);
+  const IsRetry = Number(attemptNumber || 0) > 0;
+
+  if (Band === "NEEDS_PRACTICE" && IsRetry && PriorAccuracy !== null && !Number.isNaN(PriorAccuracy)) {
+    if (CurrentAccuracy > PriorAccuracy) {
+      return `Your accuracy has improved from ${PriorAccuracy}% to ${CurrentAccuracy}%. The benchmark is still ahead, but this is progress. Review the remaining mistakes carefully and continue with calm focus.`;
+    }
+    if (CurrentAccuracy < PriorAccuracy) {
+      return `This attempt is lower than your previous score of ${PriorAccuracy}%. Pause, revisit the concept steps, and focus on accuracy before speed in the next practice.`;
+    }
+    return `Your accuracy is steady at ${CurrentAccuracy}%. The benchmark has not been reached yet, so review the repeated mistake pattern before continuing.`;
+  }
+
   if (Band === "NEEDS_PRACTICE") return BELOW_MESSAGES[stableIndex(seed, BELOW_MESSAGES.length)];
   if (Band === "GOOD_PROGRESS") return GOOD_MESSAGES[stableIndex(seed, GOOD_MESSAGES.length)];
   if (Band === "EXCELLENT") return EXCELLENT_MESSAGES[stableIndex(seed, EXCELLENT_MESSAGES.length)];
@@ -144,10 +162,14 @@ export function PremiumResultFeedbackCard({
 export function StudentPerformanceFeedback({
   accuracy,
   seed,
+  previousAccuracy,
+  attemptNumber = 0,
   showNeedsPracticeNextStep = true,
 }: {
   accuracy?: number | null;
   seed: string;
+  previousAccuracy?: number | null;
+  attemptNumber?: number | null;
   showNeedsPracticeNextStep?: boolean;
 }) {
   const Band = performanceBand(accuracy);
@@ -180,7 +202,7 @@ export function StudentPerformanceFeedback({
     <PremiumResultFeedbackCard
       Kicker={Kicker}
       Title={Title}
-      Message={dynamicPerformanceMessage({ accuracy, seed })}
+      Message={dynamicPerformanceMessage({ accuracy, seed, previousAccuracy, attemptNumber })}
       NextStep={NEXT_STEPS[Band]}
       Icon={Icon}
       Tone={Tone}

@@ -138,8 +138,13 @@ export function AppShell({
 
   const AvatarUrl = assetUrl(
     MountedUser?.profilePhotoUrl ||
+      (MountedUser as any)?.profile_photo_url ||
+      (MountedUser as any)?.photoUrl ||
+      (MountedUser as any)?.photo_url ||
       MountedUser?.student?.photoUrl ||
-      MountedUser?.teacher?.photoUrl,
+      (MountedUser?.student as any)?.photo_url ||
+      MountedUser?.teacher?.photoUrl ||
+      (MountedUser?.teacher as any)?.photo_url,
   );
 
   useEffect(() => {
@@ -1255,7 +1260,7 @@ function Avatar({
 
   return (
     <div
-      className={`math-avatar flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br ${AvatarToneClass(user?.role)} font-black uppercase tracking-[-0.03em] text-white shadow-sm ring-1 ring-white/70 ${
+      className={`math-avatar relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br ${AvatarToneClass(user?.role)} font-black uppercase tracking-[-0.03em] text-white shadow-sm ring-1 ring-white/70 ${
         compact ? "h-9 w-9 text-[0.68rem]" : "h-10 w-10 text-xs"
       }`}
       title={user?.fullName || "MathPath User"}
@@ -1265,6 +1270,7 @@ function Avatar({
       </span>
       {ShowImage ? (
         <img
+          key={avatarUrl}
           src={avatarUrl}
           alt={user?.fullName || "User"}
           className={`absolute inset-0 h-full w-full object-cover transition-opacity ${ImageLoaded ? "opacity-100" : "opacity-0"}`}
