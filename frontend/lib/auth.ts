@@ -45,6 +45,37 @@ function userKey(role: UserRole) {
   return `mathpath_${role.toLowerCase()}_user`;
 }
 
+function stripLargeInlinePhotos(user: CurrentUser): CurrentUser {
+  const IsDataUrl = (Value?: string | null) => Boolean(Value && Value.startsWith("data:"));
+  return {
+    ...user,
+    profilePhotoUrl: IsDataUrl(user.profilePhotoUrl) ? null : user.profilePhotoUrl,
+    student: user.student
+      ? {
+          ...user.student,
+          photoUrl: IsDataUrl(user.student.photoUrl) ? null : user.student.photoUrl,
+          signatureUrl: IsDataUrl(user.student.signatureUrl) ? null : user.student.signatureUrl,
+        }
+      : user.student,
+    teacher: user.teacher
+      ? {
+          ...user.teacher,
+          photoUrl: IsDataUrl(user.teacher.photoUrl) ? null : user.teacher.photoUrl,
+          signatureUrl: IsDataUrl(user.teacher.signatureUrl) ? null : user.teacher.signatureUrl,
+        }
+      : user.teacher,
+  };
+}
+
+function safeSetJson(StorageKey: string, Value: CurrentUser): void {
+  try {
+    localStorage.setItem(StorageKey, JSON.stringify(stripLargeInlinePhotos(Value)));
+  } catch {
+    localStorage.removeItem(StorageKey);
+    localStorage.setItem(StorageKey, JSON.stringify(stripLargeInlinePhotos({ ...Value, profilePhotoUrl: null })));
+  }
+}
+
 export function getTokenForRole(role: UserRole): string | null {
   if (typeof window === "undefined") return null;
   const normalizedRole = normalizeRole(role);
@@ -78,12 +109,12 @@ export function getToken(): string | null {
 export function setAuth(token: string, user: CurrentUser): void {
   const role = normalizeRole(user.role) || "STUDENT";
   localStorage.setItem(tokenKey(role), token);
-  localStorage.setItem(userKey(role), JSON.stringify(user));
+  safeSetJson(userKey(role), user);
   localStorage.setItem(ACTIVE_ROLE_KEY, role);
 
   // Keep legacy keys for login page compatibility only.
   localStorage.setItem(LEGACY_TOKEN_KEY, token);
-  localStorage.setItem(LEGACY_USER_KEY, JSON.stringify(user));
+  safeSetJson(LEGACY_USER_KEY, user);
 }
 
 export function clearAuth(): void {
@@ -101,9 +132,9 @@ export function clearAuth(): void {
 export function updateStoredUser(user: CurrentUser): void {
   if (typeof window === "undefined") return;
   const role = normalizeRole(user.role) || activeRole() || "STUDENT";
-  localStorage.setItem(userKey(role), JSON.stringify(user));
+  safeSetJson(userKey(role), user);
   localStorage.setItem(ACTIVE_ROLE_KEY, role);
-  localStorage.setItem(LEGACY_USER_KEY, JSON.stringify(user));
+  safeSetJson(LEGACY_USER_KEY, user);
 }
 
 export function getStoredUser(): CurrentUser | null {
@@ -114,7 +145,14 @@ export function getStoredUser(): CurrentUser | null {
   const value = raw || fallback;
   if (!value) return null;
   try {
-    return JSON.parse(value) as CurrentUser;
+    const ParsedUser = JSON.parse(value) as CurrentUser;
+    const SanitizedUser = stripLargeInlinePhotos(ParsedUser);
+    if (JSON.stringify(ParsedUser) !== JSON.stringify(SanitizedUser)) {
+      const normalizedRole = normalizeRole(SanitizedUser.role) || role || "STUDENT";
+      safeSetJson(userKey(normalizedRole), SanitizedUser);
+      safeSetJson(LEGACY_USER_KEY, SanitizedUser);
+    }
+    return SanitizedUser;
   } catch {
     return null;
   }

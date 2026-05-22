@@ -4,6 +4,14 @@ from app.core.security import verify_password, create_access_token
 from app.core.errors import api_error
 
 
+def public_profile_photo_url(user: User, stored_photo: str | None) -> str | None:
+    if not stored_photo:
+        return None
+    if isinstance(stored_photo, str) and stored_photo.startswith("data:"):
+        return f"/api/auth/profile-photo/{user.id}"
+    return stored_photo
+
+
 def user_login_id(user: User, student: Student | None = None, teacher: Teacher | None = None) -> str | None:
     if user.email:
         return user.email
@@ -34,18 +42,18 @@ def user_payload(db: Session, user: User) -> dict:
         "phone": user.phone,
         "loginId": user_login_id(user, student, teacher),
         "isActive": user.is_active,
-        "profilePhotoUrl": user.photo_url,
+        "profilePhotoUrl": public_profile_photo_url(user, user.photo_url),
     }
 
     if student:
-        data["profilePhotoUrl"] = student.photo_url or user.photo_url
+        data["profilePhotoUrl"] = public_profile_photo_url(user, student.photo_url or user.photo_url)
         data["student"] = {
             "id": student.id,
             "studentCode": student.student_code,
             "customId": student.custom_id,
             "currentModuleId": student.current_module_id,
             "currentLevelId": student.current_level_id,
-            "photoUrl": student.photo_url,
+            "photoUrl": public_profile_photo_url(user, student.photo_url),
             "signatureUrl": student.signature_url,
             "className": student.class_name,
             "section": student.section,
@@ -53,11 +61,11 @@ def user_payload(db: Session, user: User) -> dict:
         }
 
     if teacher:
-        data["profilePhotoUrl"] = teacher.photo_url or user.photo_url
+        data["profilePhotoUrl"] = public_profile_photo_url(user, teacher.photo_url or user.photo_url)
         data["teacher"] = {
             "id": teacher.id,
             "teacherCode": teacher.teacher_code,
-            "photoUrl": teacher.photo_url,
+            "photoUrl": public_profile_photo_url(user, teacher.photo_url),
             "signatureUrl": teacher.signature_url,
             "designation": teacher.designation,
             "subjectSpecialization": teacher.subject_specialization,

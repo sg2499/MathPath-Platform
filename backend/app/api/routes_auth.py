@@ -1,10 +1,10 @@
 import base64
 import re
-import shutil
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -54,16 +54,60 @@ def safe_profile_photo_name(filename: str, prefix: str) -> str:
 
 
 def save_profile_photo(upload: UploadFile, folder: Path, prefix: str, public_root: str) -> str:
-    # Store profile photos as database-safe data URLs so user-selected images survive
-    # Vercel/Render redeploys and ephemeral runtime filesystems.
+    """Persist the profile image in the database, but never expose the data URL to localStorage.
+
+    Render/Vercel runtime filesystems are ephemeral, so the raw image is stored as a data URL in
+    the existing DB text column. The API returns a lightweight public image endpoint URL to the
+    frontend, preventing browser localStorage quota failures.
+    """
     FileName = safe_profile_photo_name(upload.filename or "profile.png", prefix)
     Suffix = Path(FileName).suffix.lower().lstrip(".")
     MimeType = "image/jpeg" if Suffix in {"jpg", "jpeg"} else f"image/{Suffix or 'png'}"
     Content = upload.file.read()
-    if len(Content) > 2_000_000:
-        api_error(400, "FILE_TOO_LARGE", "Profile photo must be under 2 MB.")
+    if len(Content) > 1_500_000:
+        api_error(400, "FILE_TOO_LARGE", "Profile photo must be under 1.5 MB.")
     Encoded = base64.b64encode(Content).decode("ascii")
     return f"data:{MimeType};base64,{Encoded}"
+
+
+def _stored_photo_for_user(db: Session, TargetUser: User) -> str | None:
+    if TargetUser.role == "STUDENT":
+        StudentProfile = db.query(Student).filter(Student.user_id == TargetUser.id).first()
+        return (StudentProfile.photo_url if StudentProfile else None) or TargetUser.photo_url
+    if TargetUser.role == "TEACHER":
+        TeacherProfile = db.query(Teacher).filter(Teacher.user_id == TargetUser.id).first()
+        return (TeacherProfile.photo_url if TeacherProfile else None) or TargetUser.photo_url
+    return TargetUser.photo_url
+
+
+def _decode_data_url(PhotoValue: str) -> tuple[bytes, str]:
+    if not PhotoValue or not PhotoValue.startswith("data:") or ";base64," not in PhotoValue:
+        api_error(404, "PHOTO_NOT_FOUND", "Profile photo not found.")
+    Header, Encoded = PhotoValue.split(",", 1)
+    MimeType = Header.replace("data:", "").replace(";base64", "") or "image/png"
+    try:
+        return base64.b64decode(Encoded), MimeType
+    except Exception:
+        api_error(404, "PHOTO_NOT_FOUND", "Profile photo not found.")
+
+
+@router.get("/profile-photo/{user_id}")
+def get_profile_photo(user_id: str, db: Session = Depends(get_db)):
+    TargetUser = db.query(User).filter(User.id == user_id).first()
+    if not TargetUser:
+        api_error(404, "PHOTO_NOT_FOUND", "Profile photo not found.")
+    PhotoValue = _stored_photo_for_user(db, TargetUser)
+    if not PhotoValue:
+        api_error(404, "PHOTO_NOT_FOUND", "Profile photo not found.")
+    ImageBytes, MimeType = _decode_data_url(PhotoValue)
+    return Response(
+        content=ImageBytes,
+        media_type=MimeType,
+        headers={
+            "Cache-Control": "private, max-age=3600",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.post("/profile-photo")
@@ -107,7 +151,10 @@ def upload_profile_photo(
 
     db.commit()
     db.refresh(user)
-    return {"updated": True, "photoUrl": PhotoUrl, "user": user_payload(db, user)}
+    PublicPhotoUrl = f"/api/auth/profile-photo/{user.id}?v={datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}"
+    UpdatedUser = user_payload(db, user)
+    UpdatedUser["profilePhotoUrl"] = PublicPhotoUrl
+    return {"updated": True, "photoUrl": PublicPhotoUrl, "user": UpdatedUser}
 
 
 @router.post("/change-password")
