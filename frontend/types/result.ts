@@ -8,6 +8,7 @@ export type RetryWorkflow = {
   title: string;
   message: string;
   guidance: string;
+  showTeacherGuidance?: boolean | null;
 };
 
 export type AttemptResult = {
