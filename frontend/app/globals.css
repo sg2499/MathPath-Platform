@@ -5889,3 +5889,241 @@ html.dark .math-login-welcome-chip {
     color: #cbd5e1 !important;
   }
 }
+
+/* Phase 10.9.3B — platform-wide dark-mode readability and avatar hardening */
+@layer components {
+  .math-avatar,
+  .math-record-avatar {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 1rem;
+    color: #ffffff;
+    font-weight: 950;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #2563eb, #7c3aed, #06b6d4);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+  }
+
+  .math-record-avatar-student { background: linear-gradient(135deg, #f97316, #e11d48, #facc15); }
+  .math-record-avatar-teacher { background: linear-gradient(135deg, #6d2e5f, #b76e79, #e6b8a2); }
+  .math-record-avatar span,
+  .math-avatar span { display: inline-flex; align-items: center; justify-content: center; text-shadow: 0 1px 1px rgba(0,0,0,0.18); }
+  .math-record-avatar img,
+  .math-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; }
+
+  html.dark .math-record-avatar,
+  html.dark .math-avatar {
+    border-color: rgba(255, 255, 255, 0.20);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255,255,255,0.16);
+  }
+
+  html.dark .math-kicker,
+  html.dark .math-label,
+  html.dark .math-helper,
+  html.dark .math-table th,
+  html.dark .math-dropdown-header p,
+  html.dark [class*="tracking-[0.16em]"],
+  html.dark [class*="tracking-[0.14em]"],
+  html.dark [class*="tracking-[0.18em]"],
+  html.dark [class*="tracking-[0.24em]"] {
+    color: #c7d2fe !important;
+  }
+
+  html.dark .math-card,
+  html.dark .math-panel,
+  html.dark .math-soft-section,
+  html.dark .math-workspace-tabs,
+  html.dark .math-table,
+  html.dark .math-modal-shell,
+  html.dark .math-role-subtle-panel {
+    color: #f8fbff;
+    background-color: rgba(15, 23, 42, 0.86) !important;
+    border-color: rgba(148, 163, 184, 0.24) !important;
+  }
+
+  html.dark .math-input,
+  html.dark .math-select,
+  html.dark .math-textarea,
+  html.dark select,
+  html.dark input,
+  html.dark textarea {
+    color: #f8fbff !important;
+    background-color: rgba(15, 23, 42, 0.94) !important;
+    border-color: rgba(148, 163, 184, 0.34) !important;
+  }
+
+  html.dark option {
+    color: #f8fbff;
+    background-color: #0f172a;
+  }
+
+  html.dark .premium-nav-item-active,
+  html.dark .math-theme-toggle,
+  html.dark .math-context-pill,
+  html.dark .math-icon-button {
+    color: #06152f !important;
+    background: #e0f2fe !important;
+    border-color: rgba(191, 219, 254, 0.85) !important;
+  }
+
+  html.dark .premium-nav-item:not(.premium-nav-item-active) {
+    color: #e2e8f0 !important;
+  }
+
+  html.dark .premium-nav-item:not(.premium-nav-item-active):hover {
+    color: #ffffff !important;
+    background: rgba(30, 41, 59, 0.94) !important;
+  }
+
+  html.dark .math-dropdown-panel,
+  html.dark .math-dropdown-body,
+  html.dark .math-dropdown-header,
+  html.dark .math-account-menu,
+  html.dark .math-account-header,
+  html.dark .math-account-menu-body {
+    color: #f8fbff !important;
+    background: rgba(15, 23, 42, 0.98) !important;
+    border-color: rgba(148, 163, 184, 0.26) !important;
+  }
+
+  html.dark .math-dropdown-body button.bg-slate-950,
+  html.dark .math-dropdown-body button.dark\:bg-white {
+    color: #06152f !important;
+    background: #e0f2fe !important;
+  }
+
+  html.dark .math-dropdown-body button.bg-slate-950 span,
+  html.dark .math-dropdown-body button.dark\:bg-white span,
+  html.dark .math-dropdown-body button.bg-slate-950 svg,
+  html.dark .math-dropdown-body button.dark\:bg-white svg {
+    color: #06152f !important;
+  }
+
+  html.dark .math-role-action-button,
+  html.dark .math-role-row-action,
+  html.dark .math-button-secondary,
+  html.dark button[class*="border"] {
+    border-color: rgba(148, 163, 184, 0.34);
+  }
+
+  html.dark .math-role-action-button:not(.math-button-danger),
+  html.dark .math-role-row-action:not(.math-button-danger) {
+    color: #dff7ff;
+    background-color: rgba(15, 23, 42, 0.86);
+  }
+
+  html.dark .math-role-action-button:hover,
+  html.dark .math-role-row-action:hover {
+    color: #06152f !important;
+    background: linear-gradient(135deg, #e0f2fe, #c7d2fe) !important;
+  }
+
+  html.dark .math-badge,
+  html.dark .rounded-full {
+    border-color: rgba(148, 163, 184, 0.28);
+  }
+
+  html.dark .math-tone-info,
+  html.dark .bg-blue-50,
+  html.dark .bg-blue-50\/90,
+  html.dark .bg-sky-50,
+  html.dark .bg-sky-50\/90 {
+    background-color: rgba(30, 64, 175, 0.28) !important;
+    color: #dbeafe !important;
+    border-color: rgba(96, 165, 250, 0.34) !important;
+  }
+
+  html.dark .math-tone-success,
+  html.dark .bg-emerald-50,
+  html.dark .bg-emerald-50\/90,
+  html.dark .bg-green-50,
+  html.dark .bg-green-50\/90 {
+    background-color: rgba(6, 78, 59, 0.36) !important;
+    color: #d1fae5 !important;
+    border-color: rgba(52, 211, 153, 0.34) !important;
+  }
+
+  html.dark .math-tone-warning,
+  html.dark .bg-amber-50,
+  html.dark .bg-amber-50\/90,
+  html.dark .bg-yellow-50,
+  html.dark .bg-yellow-50\/90 {
+    background-color: rgba(120, 53, 15, 0.38) !important;
+    color: #fef3c7 !important;
+    border-color: rgba(251, 191, 36, 0.34) !important;
+  }
+
+  html.dark .math-tone-danger,
+  html.dark .bg-rose-50,
+  html.dark .bg-rose-50\/90,
+  html.dark .bg-red-50,
+  html.dark .bg-red-50\/90 {
+    background-color: rgba(127, 29, 29, 0.38) !important;
+    color: #ffe4e6 !important;
+    border-color: rgba(251, 113, 133, 0.38) !important;
+  }
+
+  html.dark .math-tone-purple,
+  html.dark .bg-violet-50,
+  html.dark .bg-violet-50\/90,
+  html.dark .bg-purple-50,
+  html.dark .bg-purple-50\/90 {
+    background-color: rgba(76, 29, 149, 0.34) !important;
+    color: #ede9fe !important;
+    border-color: rgba(167, 139, 250, 0.34) !important;
+  }
+
+  html.dark .math-role-progress-track,
+  html.dark [class*="progress-track"] {
+    background: rgba(30, 41, 59, 0.98) !important;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.42);
+  }
+
+  html.dark .math-role-progress-fill,
+  html.dark [class*="progress-fill"] {
+    background: linear-gradient(90deg, #06b6d4, #6366f1, #d946ef) !important;
+    box-shadow: 0 0 18px rgba(6, 182, 212, 0.34);
+  }
+
+  html.dark .bg-white\/80,
+  html.dark .bg-white\/90,
+  html.dark .bg-slate-50\/70,
+  html.dark .bg-slate-50\/80,
+  html.dark .bg-slate-100,
+  html.dark .bg-slate-100\/80 {
+    background-color: rgba(15, 23, 42, 0.88) !important;
+  }
+
+  html.dark .text-blue-600,
+  html.dark .text-blue-700,
+  html.dark .text-cyan-600,
+  html.dark .text-sky-600 {
+    color: #93c5fd !important;
+  }
+
+  html.dark .text-emerald-700,
+  html.dark .text-green-700 { color: #a7f3d0 !important; }
+  html.dark .text-amber-700,
+  html.dark .text-yellow-700 { color: #fde68a !important; }
+  html.dark .text-rose-700,
+  html.dark .text-red-700 { color: #fecdd3 !important; }
+
+  html.dark [class*="bg-gradient-to-r"],
+  html.dark [class*="bg-gradient-to-br"] {
+    color: inherit;
+  }
+
+  html.dark .answer-option,
+  html.dark [class*="correct"],
+  html.dark [class*="Correct"] {
+    color: #06152f;
+  }
+}

@@ -57,6 +57,12 @@ function emptyForm(): TeacherPayload {
   };
 }
 
+function recordInitials(Name?: string | null) {
+  const Parts = String(Name || "Teacher").trim().split(/\s+/).filter(Boolean);
+  if (Parts.length >= 2) return `${Parts[0][0]}${Parts[1][0]}`.toUpperCase();
+  return (Parts[0] || "TE").slice(0, 2).toUpperCase();
+}
+
 function optional(value: string | null | undefined) {
   const cleaned = String(value ?? "").trim();
   return cleaned || null;
@@ -64,7 +70,7 @@ function optional(value: string | null | undefined) {
 
 function assetUrl(url?: string | null) {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
   const base = (api.defaults.baseURL || "http://localhost:8000/api").replace(/\/api\/?$/, "");
   return `${base}${url}`;
 }
@@ -358,11 +364,11 @@ export default function AdminTeachersPage() {
                     <tr key={teacher.teacherId}>
                       <td>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-blue-50 font-black text-blue-700 dark:bg-cyan-950/50 dark:text-cyan-300">
+                          <div className="math-record-avatar math-record-avatar-teacher h-11 w-11">
                             {teacher.photoUrl ? (
                               <img src={assetUrl(teacher.photoUrl)} alt={teacher.teacherName} className="h-full w-full object-cover" />
                             ) : (
-                              teacher.teacherName.charAt(0)
+                              <span>{recordInitials(teacher.teacherName)}</span>
                             )}
                           </div>
                           <div>
@@ -493,8 +499,8 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
             {Photo ? (
               <img src={Photo} alt={teacher.teacherName} className="h-16 w-16 rounded-3xl object-cover ring-2 ring-white shadow-md" />
             ) : (
-              <div className="math-icon-shell h-16 w-16 rounded-3xl text-xl font-black">
-                {teacher.teacherName?.charAt(0) || "T"}
+              <div className="math-record-avatar math-record-avatar-teacher h-16 w-16 rounded-3xl text-xl">
+                <span>{recordInitials(teacher.teacherName)}</span>
               </div>
             )}
             <div className="min-w-0">

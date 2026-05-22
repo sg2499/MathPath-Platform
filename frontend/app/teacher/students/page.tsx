@@ -45,7 +45,7 @@ function compareSortValues(a: unknown, b: unknown) {
 
 function assetUrl(url?: string | null) {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
   const base = (api.defaults.baseURL || "http://localhost:8000/api").replace(/\/api\/?$/, "");
   return `${base}${url}`;
 }

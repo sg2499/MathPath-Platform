@@ -40,7 +40,9 @@ SMTP_FORCE_IPV4 = _env_bool("SMTP_FORCE_IPV4", "EMAIL_FORCE_IPV4", Default="true
 
 # Phase 8.8 final readiness gate switch. Default is live-safe strict readiness mode.
 # Set true only for broad local testing where assessment workflow needs to be tested without completing all readiness criteria.
-TEMPORARY_ASSESSMENT_READINESS_BYPASS = os.getenv("TEMPORARY_ASSESSMENT_READINESS_BYPASS", "false").lower() == "true"
+# MathPath active-build convention: readiness bypass remains ON until the owner explicitly asks to restore strict readiness.
+# Use MATHPATH_STRICT_READINESS_ENABLED=true only after that explicit approval.
+TEMPORARY_ASSESSMENT_READINESS_BYPASS = os.getenv("MATHPATH_STRICT_READINESS_ENABLED", "false").lower() != "true"
 
 # Phase 8.8 audit metadata. This does not change behavior; it makes the active gate mode explicit to backend/frontend callers.
 ASSESSMENT_READINESS_GATE_MODE = (

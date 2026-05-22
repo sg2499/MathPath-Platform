@@ -90,7 +90,7 @@ function applyTheme(mode: ThemeMode, markUserChoice = false) {
 
 function assetUrl(url?: string | null) {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
   const base = (
     process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api"
   ).replace(/\/api\/?$/, "");
@@ -854,8 +854,8 @@ export function AppShell({
                                         <span
                                           className={`mt-0.5 block truncate text-xs font-semibold ${
                                             childActive
-                                              ? "text-white/70 dark:text-slate-500"
-                                              : "text-slate-400"
+                                              ? "text-white/80 dark:text-slate-800"
+                                              : "text-slate-400 dark:text-slate-300"
                                           }`}
                                         >
                                           {child.tooltip}
@@ -1253,7 +1253,7 @@ function Avatar({
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br ${AvatarToneClass(user?.role)} font-black uppercase tracking-[-0.03em] text-white shadow-sm ring-1 ring-white/70 ${
+      className={`math-avatar flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br ${AvatarToneClass(user?.role)} font-black uppercase tracking-[-0.03em] text-white shadow-sm ring-1 ring-white/70 ${
         compact ? "h-9 w-9 text-[0.68rem]" : "h-10 w-10 text-xs"
       }`}
       title={user?.fullName || "MathPath User"}

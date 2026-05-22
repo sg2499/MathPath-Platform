@@ -1,3 +1,4 @@
+import base64
 import re
 import shutil
 from datetime import datetime
@@ -53,11 +54,16 @@ def safe_profile_photo_name(filename: str, prefix: str) -> str:
 
 
 def save_profile_photo(upload: UploadFile, folder: Path, prefix: str, public_root: str) -> str:
+    # Store profile photos as database-safe data URLs so user-selected images survive
+    # Vercel/Render redeploys and ephemeral runtime filesystems.
     FileName = safe_profile_photo_name(upload.filename or "profile.png", prefix)
-    TargetPath = folder / FileName
-    with TargetPath.open("wb") as Buffer:
-        shutil.copyfileobj(upload.file, Buffer)
-    return f"{public_root}/{FileName}"
+    Suffix = Path(FileName).suffix.lower().lstrip(".")
+    MimeType = "image/jpeg" if Suffix in {"jpg", "jpeg"} else f"image/{Suffix or 'png'}"
+    Content = upload.file.read()
+    if len(Content) > 2_000_000:
+        api_error(400, "FILE_TOO_LARGE", "Profile photo must be under 2 MB.")
+    Encoded = base64.b64encode(Content).decode("ascii")
+    return f"data:{MimeType};base64,{Encoded}"
 
 
 @router.post("/profile-photo")

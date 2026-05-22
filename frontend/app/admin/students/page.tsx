@@ -116,6 +116,12 @@ function emptyForm(): FormState {
   };
 }
 
+function recordInitials(Name?: string | null) {
+  const Parts = String(Name || "Student").trim().split(/\s+/).filter(Boolean);
+  if (Parts.length >= 2) return `${Parts[0][0]}${Parts[1][0]}`.toUpperCase();
+  return (Parts[0] || "ST").slice(0, 2).toUpperCase();
+}
+
 function optional(value: string | null | undefined) {
   const cleaned = String(value ?? "").trim();
   return cleaned || null;
@@ -123,7 +129,7 @@ function optional(value: string | null | undefined) {
 
 function assetUrl(url?: string | null) {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
   const base = (api.defaults.baseURL || "http://localhost:8000/api").replace(
     /\/api\/?$/,
     ""
@@ -850,7 +856,7 @@ export default function AdminStudentsPage() {
                     <tr key={s.studentId}>
                       <td>
                         <div className="flex items-center gap-3">
-                          <div className="h-11 w-11 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
+                          <div className="math-record-avatar math-record-avatar-student h-11 w-11">
                             {s.photoUrl ? (
                               <img
                                 src={assetUrl(s.photoUrl)}
@@ -858,9 +864,7 @@ export default function AdminStudentsPage() {
                                 className="h-full w-full object-cover"
                               />
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center font-black text-blue-600">
-                                {s.studentName?.charAt(0) || "S"}
-                              </div>
+                              <span>{recordInitials(s.studentName)}</span>
                             )}
                           </div>
 
@@ -1762,9 +1766,9 @@ function StudentProfileModal({
                     alt="Student"
                   />
                 ) : (
-                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                    No photo uploaded
-                  </p>
+                  <div className="math-record-avatar math-record-avatar-student mt-3 h-44 w-44 rounded-3xl text-4xl">
+                    <span>{recordInitials(student.studentName)}</span>
+                  </div>
                 )}
               </div>
 

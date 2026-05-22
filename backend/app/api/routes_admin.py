@@ -1,3 +1,4 @@
+import base64
 import json
 import re
 import shutil
@@ -734,12 +735,21 @@ def safe_filename(filename: str, prefix: str) -> str:
     return f"{safe_prefix}-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}{suffix}"
 
 
+
+
+def upload_image_to_data_url(upload: UploadFile, prefix: str = "image") -> str:
+    safe_filename(upload.filename or "image.png", prefix)
+    suffix = Path(upload.filename or "image.png").suffix.lower().lstrip(".")
+    mime_type = "image/jpeg" if suffix in {"jpg", "jpeg"} else f"image/{suffix or 'png'}"
+    content = upload.file.read()
+    if len(content) > 2_000_000:
+        api_error(400, "FILE_TOO_LARGE", "Image must be under 2 MB.")
+    encoded = base64.b64encode(content).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
 def save_image(upload: UploadFile, folder: Path, prefix: str) -> str:
-    filename = safe_filename(upload.filename or "image.png", prefix)
-    path = folder / filename
-    with path.open("wb") as buffer:
-        shutil.copyfileobj(upload.file, buffer)
-    return f"/uploads/students/{folder.name}/{filename}"
+    # Persist images in the database as data URLs so photos/signatures survive redeploys.
+    return upload_image_to_data_url(upload, prefix)
 
 
 
@@ -905,11 +915,7 @@ def upload_teacher_photo_route(
     if extension not in [".png", ".jpg", ".jpeg", ".webp"]:
         api_error(400, "VALIDATION_ERROR", "Only PNG, JPG, JPEG, and WEBP images are allowed.")
 
-    target = TEACHER_PHOTO_DIR / f"{teacher.id}{extension}"
-    with target.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    teacher.photo_url = f"/uploads/teachers/photos/{target.name}"
+    teacher.photo_url = upload_image_to_data_url(file, teacher.teacher_code or teacher.id)
     db.commit()
     db.refresh(teacher)
 
