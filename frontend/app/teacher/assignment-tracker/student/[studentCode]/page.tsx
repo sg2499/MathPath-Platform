@@ -29,6 +29,7 @@ import {
   scoreText,
   studentCodeOf,
   studentNameOf,
+  uniqueNeedsReattemptCount,
 } from "@/components/common/DetailWorkspaceViews";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
@@ -498,12 +499,8 @@ function TeacherStudentTrackerWorkspacePageContent() {
   const PendingCount = FilteredRows.filter(
     (Row) => StatusKey(Row) === "PENDING",
   ).length;
-  const ReattemptCount = FilteredRows.filter(
-    (Row) => StatusKey(Row) === "NEEDS_REATTEMPT",
-  ).length;
-  const NeedsReattemptCount = FilteredRows.filter(
-    (Row) => StatusKey(Row) === "NEEDS_REATTEMPT",
-  ).length;
+  const ReattemptCount = uniqueNeedsReattemptCount(FilteredRows);
+  const NeedsReattemptCount = uniqueNeedsReattemptCount(FilteredRows);
   const ActionRows = useMemo(
     () => FilteredRows.filter(IsActionNeeded),
     [FilteredRows],
@@ -1257,7 +1254,7 @@ function LessonInsightBlock({
   const PendingCount = Group.Rows.filter(
     (Row) => StatusKey(Row) === "PENDING",
   ).length;
-  const NeedsReattemptCount = Group.Rows.filter(RowNeedsReattempt).length;
+  const NeedsReattemptCount = uniqueNeedsReattemptCount(Group.Rows);
   return (
     <div className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
       <button
@@ -1390,7 +1387,7 @@ function PracticeRowsTable({
         const RowAccuracy = accuracy(Row);
         const BenchmarkText = isCompleted(Row)
           ? RowNeedsReattempt(Row)
-            ? "Needs Re-Attempt"
+            ? "Benchmark Not Met"
             : "Benchmark Met"
           : "Pending";
         const DpsKey = CompactDpsLabel(Row);

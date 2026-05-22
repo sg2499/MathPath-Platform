@@ -136,16 +136,7 @@ export function AppShell({
     return () => window.removeEventListener("mathpath-auth-changed", RefreshMountedUser);
   }, [pathname]);
 
-  const AvatarUrl = assetUrl(
-    MountedUser?.profilePhotoUrl ||
-      (MountedUser as any)?.profile_photo_url ||
-      (MountedUser as any)?.photoUrl ||
-      (MountedUser as any)?.photo_url ||
-      MountedUser?.student?.photoUrl ||
-      (MountedUser?.student as any)?.photo_url ||
-      MountedUser?.teacher?.photoUrl ||
-      (MountedUser?.teacher as any)?.photo_url,
-  );
+  const AvatarUrl = assetUrl(resolveProfilePhotoUrl(MountedUser));
 
   useEffect(() => {
     const savedTheme =
@@ -1223,6 +1214,24 @@ function LogoMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
+
+function resolveProfilePhotoUrl(user: StoredUser): string {
+  if (!user) return "";
+  const Candidate =
+    user.profilePhotoUrl ||
+    (user as any).profile_photo_url ||
+    (user as any).photoUrl ||
+    (user as any).photo_url ||
+    user.student?.photoUrl ||
+    (user.student as any)?.photo_url ||
+    user.teacher?.photoUrl ||
+    (user.teacher as any)?.photo_url ||
+    "";
+  if (!Candidate || typeof Candidate !== "string") return "";
+  if (Candidate.startsWith("data:")) return "";
+  return Candidate;
+}
+
 function UserInitials(Name?: string | null) {
   const Parts = String(Name || "MathPath")
     .trim()
@@ -1255,7 +1264,8 @@ function Avatar({
     SetImageLoaded(false);
   }, [avatarUrl]);
 
-  const Initials = UserInitials(user?.fullName);
+  const DisplayName = user?.fullName || (user as any)?.full_name || "MathPath User";
+  const Initials = UserInitials(DisplayName);
   const ShowImage = Boolean(avatarUrl && !ImageFailed);
 
   return (
@@ -1263,17 +1273,15 @@ function Avatar({
       className={`math-avatar relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br ${AvatarToneClass(user?.role)} font-black uppercase tracking-[-0.03em] text-white shadow-sm ring-1 ring-white/70 ${
         compact ? "h-9 w-9 text-[0.68rem]" : "h-10 w-10 text-xs"
       }`}
-      title={user?.fullName || "MathPath User"}
+      title={DisplayName}
     >
-      <span className={`leading-none transition-opacity ${ShowImage && ImageLoaded ? "opacity-0" : "opacity-100"}`}>
-        {Initials}
-      </span>
+      {!ShowImage ? <span className="leading-none">{Initials}</span> : null}
       {ShowImage ? (
         <img
           key={avatarUrl}
           src={avatarUrl}
-          alt={user?.fullName || "User"}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity ${ImageLoaded ? "opacity-100" : "opacity-0"}`}
+          alt={DisplayName}
+          className="absolute inset-0 z-10 h-full w-full object-cover opacity-100"
           onLoad={() => SetImageLoaded(true)}
           onError={() => SetImageFailed(true)}
         />

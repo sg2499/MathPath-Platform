@@ -262,6 +262,24 @@ def latest_retry_assignment_for_attempt(db: Session, attempt: Attempt):
     )
 
 
+def _safe_float(value, fallback: float = 0.0) -> float:
+    try:
+        if value is None:
+            return fallback
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _safe_int(value, fallback: int = 0) -> int:
+    try:
+        if value is None:
+            return fallback
+        return int(float(value))
+    except (TypeError, ValueError):
+        return fallback
+
+
 def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -> dict:
     questions_review = []
     if include_review:
@@ -305,29 +323,34 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
         retry_workflow["previousScore"] = previous_attempt.total_score
         retry_workflow["accuracyDelta"] = round(float(attempt.accuracy_percentage or 0) - float(previous_attempt.accuracy_percentage or 0), 2)
 
+    SummaryAccuracy = _safe_float(getattr(attempt, "accuracy_percentage", None), 0.0)
+    SummaryScore = _safe_float(getattr(attempt, "total_score", None), 0.0)
+    SummaryMaxScore = _safe_float(getattr(attempt, "max_score", None), 0.0)
+    BenchmarkPayload = benchmark_payload_for_attempt(attempt)
+
     return {
         "attemptId": attempt.id,
         "attemptGroupId": getattr(attempt, "attempt_group_id", None),
-        "attemptNumber": getattr(attempt, "attempt_number", 0),
+        "attemptNumber": _safe_int(getattr(attempt, "attempt_number", 0), 0),
         "attemptLabel": BuildAttemptLabel(getattr(attempt, "attempt_number", 0)),
         "attemptSource": getattr(attempt, "attempt_source", None),
         "requiresManualIntervention": bool(getattr(attempt, "requires_manual_intervention", False)),
         "benchmarkState": getattr(attempt, "benchmark_status", None),
         "status": attempt.status,
         "summary": {
-            "totalQuestions": attempt.total_questions,
-            "attempted": attempt.attempted_count,
-            "correct": attempt.correct_count,
-            "wrong": attempt.wrong_count,
-            "unanswered": attempt.unanswered_count,
-            "score": attempt.total_score,
-            "maxScore": attempt.max_score,
-            "accuracyPercentage": attempt.accuracy_percentage,
-            "timeTakenSeconds": attempt.time_taken_seconds,
-            **benchmark_payload_for_attempt(attempt),
+            "totalQuestions": _safe_int(getattr(attempt, "total_questions", 0), 0),
+            "attempted": _safe_int(getattr(attempt, "attempted_count", 0), 0),
+            "correct": _safe_int(getattr(attempt, "correct_count", 0), 0),
+            "wrong": _safe_int(getattr(attempt, "wrong_count", 0), 0),
+            "unanswered": _safe_int(getattr(attempt, "unanswered_count", 0), 0),
+            "score": SummaryScore,
+            "maxScore": SummaryMaxScore,
+            "accuracyPercentage": SummaryAccuracy,
+            "timeTakenSeconds": _safe_int(getattr(attempt, "time_taken_seconds", 0), 0),
+            **BenchmarkPayload,
         },
-        **benchmark_payload_for_attempt(attempt),
+        **BenchmarkPayload,
         "questionReview": questions_review,
         "retryWorkflow": retry_workflow,
-        "message": retry_workflow.get("message") or ("Excellent work!" if attempt.accuracy_percentage >= 90 else "Good effort. Keep practicing!"),
+        "message": retry_workflow.get("message") or ("Excellent work!" if SummaryAccuracy >= 90 else "Good effort. Keep practicing!"),
     }

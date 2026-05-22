@@ -48,6 +48,7 @@ import {
   searchText,
   studentCodeOf,
   studentNameOf,
+  uniqueNeedsReattemptCount,
 } from "@/components/common/DetailWorkspaceViews";
 
 type ModuleFilter = string;
@@ -219,8 +220,8 @@ function StudentOperationalStats(Rows: AnyRow[]) {
   const Cleared = Rows.filter(IsCleared).length;
   const Completed = Rows.filter(isCompleted).length;
   const Pending = Assigned - Completed;
-  const Reattempt = Rows.filter(needsReattempt).length;
-  const NeedsReattempt = Rows.filter(RowNeedsReattempt).length;
+  const Reattempt = uniqueNeedsReattemptCount(Rows);
+  const NeedsReattempt = uniqueNeedsReattemptCount(Rows);
   const ActionNeeded = Rows.filter(IsActionNeeded).length;
   return {
     Assigned,
@@ -524,7 +525,7 @@ export default function TeacherPracticeTrackerPage() {
           />
           <InsightCard
             Title="Needs Re-Attempt"
-            Value={CurrentFilteredRows.filter(RowNeedsReattempt).length}
+            Value={uniqueNeedsReattemptCount(CurrentFilteredRows)}
             Subtitle="DPS attempts requiring focused re-attempt."
             Tone="red"
             Icon={<Target size={20} />}

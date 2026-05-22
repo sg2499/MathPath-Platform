@@ -412,16 +412,26 @@ export function workUnitKey(row: AnyRow) {
     );
   }
 
+  const StableDpsConcept =
+    row.dpsConceptKey ||
+    row.dpsId ||
+    row.dps_id ||
+    row.dpsCode ||
+    row.dpsNumber ||
+    row.dpsNo ||
+    row.sheetNumber ||
+    row.sheetNo ||
+    CompactDpsLabel(row);
+
   return String(
     row.attemptGroupId ||
       row.attempt_group_id ||
-      row.dpsConceptKey ||
       [
         studentCodeOf(row),
         moduleCodeOf(row),
         levelCodeOf(row),
-        row.lessonId || row.lessonNumber || row.lessonTitle || "lesson",
-        row.dpsId || row.dpsNumber || row.dpsTitle || row.title || "dps",
+        row.lessonId || row.lessonNumber || row.lessonTitle || CompactLessonLabel(row) || "lesson",
+        StableDpsConcept || "dps",
       ].join("::"),
   );
 }
@@ -493,9 +503,18 @@ export function currentWorkRows(rows: AnyRow[]) {
 
 export function uniqueNeedsReattemptCount(rows: AnyRow[]) {
   const Keys = new Set<string>();
-  rows.forEach((Row) => {
-    if (needsReattempt(Row)) Keys.add(workUnitKey(Row));
+  const ClearedKeys = new Set<string>();
+
+  rowsWithAttemptHistory(rows).forEach((Row) => {
+    const Key = workUnitKey(Row);
+    if (isCompleted(Row) && !isBelowBenchmark(Row)) {
+      ClearedKeys.add(Key);
+      Keys.delete(Key);
+      return;
+    }
+    if (needsReattempt(Row) && !ClearedKeys.has(Key)) Keys.add(Key);
   });
+
   return Keys.size;
 }
 
