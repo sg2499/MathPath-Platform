@@ -8,10 +8,10 @@ export type PerformanceBand = "NEEDS_PRACTICE" | "GOOD_PROGRESS" | "EXCELLENT" |
 type FeedbackTone = "success" | "warning" | "danger";
 
 const BELOW_MESSAGES = [
-  "This attempt shows exactly where more practice will help. Take it calmly, review your mistakes, and your teacher will guide your next re-attempt.",
+  "This attempt shows exactly where more practice will help. Take it calmly, review your mistakes, and focus on the next practice sheet.",
   "You completed the work, and that matters. Now review the tricky sums calmly, strengthen the weak areas, and try again with confidence.",
   "This score is below the benchmark, but every mistake gives useful direction. Practice calmly, review carefully, and come back stronger.",
-  "You are still building this skill. Review the incorrect answers patiently and use your teacher’s guidance before the next attempt.",
+  "You are still building this skill. Review the incorrect answers patiently and strengthen the concept before the next attempt.",
   "More practice will help improve accuracy. Focus on the questions that went wrong and keep progressing one step at a time.",
 ];
 
@@ -107,6 +107,7 @@ export function PremiumResultFeedbackCard({
   NextStep,
   Icon,
   Tone,
+  ShowNextStep = true,
 }: {
   Kicker: string;
   Title: string;
@@ -114,6 +115,7 @@ export function PremiumResultFeedbackCard({
   NextStep: string;
   Icon: ReactNode;
   Tone: FeedbackTone;
+  ShowNextStep?: boolean;
 }) {
   const Classes = feedbackToneClasses(Tone);
 
@@ -127,9 +129,11 @@ export function PremiumResultFeedbackCard({
           <h2 className={`mt-0.5 text-xl font-black leading-tight sm:text-2xl ${Classes.Title}`}>{Title}</h2>
           <div className="mt-2 space-y-1.5 text-sm font-bold leading-6 sm:text-[15px]">
             <p className={`${Classes.Message}`}>{Message}</p>
-            <p className={`${Classes.Step}`}>
-              <span className="font-black">Next Step:</span> {NextStep}
-            </p>
+            {ShowNextStep ? (
+              <p className={`${Classes.Step}`}>
+                <span className="font-black">Next Step:</span> {NextStep}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -140,9 +144,11 @@ export function PremiumResultFeedbackCard({
 export function StudentPerformanceFeedback({
   accuracy,
   seed,
+  showNeedsPracticeNextStep = true,
 }: {
   accuracy?: number | null;
   seed: string;
+  showNeedsPracticeNextStep?: boolean;
 }) {
   const Band = performanceBand(accuracy);
   if (Band === "PENDING") return null;
@@ -178,6 +184,7 @@ export function StudentPerformanceFeedback({
       NextStep={NEXT_STEPS[Band]}
       Icon={Icon}
       Tone={Tone}
+      ShowNextStep={Band !== "NEEDS_PRACTICE" || showNeedsPracticeNextStep}
     />
   );
 }

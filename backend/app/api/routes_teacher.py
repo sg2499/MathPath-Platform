@@ -717,7 +717,7 @@ def all_attempts_for_assignment_student(db: Session, assignment_id: str, student
     return (
         db.query(Attempt)
         .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
-        .order_by(Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
+        .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
         .all()
     )
 
@@ -727,6 +727,7 @@ def attempt_history_for_assignment_student(db: Session, assignment: Assignment, 
     Attempts = all_attempts_for_assignment_student(db, assignment.id, student.id)
     History = []
     for Index, AttemptRow in enumerate(Attempts, start=1):
+        SequenceNumber = tracker_attempt_sequence_number(AttemptRow, Index)
         History.append({
             "assignmentId": assignment.id,
             "assignmentTitle": assignment.title,
@@ -738,9 +739,10 @@ def attempt_history_for_assignment_student(db: Session, assignment: Assignment, 
             "attemptId": AttemptRow.id,
             "attemptStatus": AttemptRow.status,
             "status": tracker_attempt_status(AttemptRow, None),
-            "attemptNumber": Index,
-            "attemptSequence": Index,
-            "isReattempt": Index > 1,
+            "attemptNumber": SequenceNumber,
+            "attemptSequence": SequenceNumber,
+            "attemptLabel": f"Re-Attempt {SequenceNumber - 1}" if SequenceNumber > 1 else "Original",
+            "isReattempt": SequenceNumber > 1,
             "score": attempt_score(AttemptRow),
             "totalMarks": attempt_total_marks(AttemptRow),
             "accuracy": attempt_accuracy(AttemptRow),
@@ -781,6 +783,19 @@ def tracker_date_payload(attempt: Attempt | None) -> dict:
         "attemptDate": attempt.started_at.isoformat() if attempt.started_at else None,
         "completedDate": attempt.submitted_at.isoformat() if attempt.submitted_at else None,
     }
+
+
+def tracker_attempt_sequence_number(attempt: Attempt | None, fallback_index: int = 1) -> int:
+    """Return display sequence: 1=Original, 2=Re-Attempt 1, 3=Re-Attempt 2."""
+    if not attempt:
+        return fallback_index
+    StoredAttemptNumber = getattr(attempt, "attempt_number", None)
+    if StoredAttemptNumber is not None:
+        try:
+            return int(StoredAttemptNumber or 0) + 1
+        except (TypeError, ValueError):
+            return fallback_index
+    return fallback_index
 
 
 @router.get("/assignment-tracker")
@@ -866,6 +881,12 @@ def teacher_assignment_tracker(db: Session = Depends(get_db), teacher: Teacher =
                 "className": student.class_name,
                 "section": student.section,
                 "status": status,
+                "attemptGroupId": assignment.attempt_group_id,
+                "assignmentSource": assignment.assignment_source,
+                "retryAttemptNumber": assignment.retry_attempt_number,
+                "attemptNumber": (assignment.retry_attempt_number + 1) if int(assignment.retry_attempt_number or 0) > 0 else 1,
+                "attemptLabel": f"Re-Attempt {assignment.retry_attempt_number}" if int(assignment.retry_attempt_number or 0) > 0 else "Original",
+                "isReattempt": int(assignment.retry_attempt_number or 0) > 0,
                 "attemptId": attempt.id if attempt else None,
                 "attemptStatus": attempt.status if attempt else None,
                 "score": attempt_score(attempt) if attempt else None,

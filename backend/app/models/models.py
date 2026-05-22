@@ -476,7 +476,7 @@ class Assignment(Base):
     source_assignment_id = Column(String, ForeignKey("assignments.id", ondelete="SET NULL"), nullable=True)
     retry_attempt_number = Column(Integer, default=0, nullable=False)
     assignment_source = Column(String(30), default="ORIGINAL", nullable=False)
-    auto_retry_limit = Column(Integer, default=3, nullable=False)
+    auto_retry_limit = Column(Integer, default=2, nullable=False)
     requires_manual_intervention = Column(Boolean, default=False, nullable=False)
     manual_intervention_reason = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)

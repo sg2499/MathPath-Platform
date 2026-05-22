@@ -901,9 +901,9 @@ function LevelCoverageCard({ Rows }: { Rows: AnyRow[] }) {
                   {Item.Cleared}/{Item.Required}
                 </span>
               </div>
-              <div className="math-progress-track mt-2 h-2 overflow-hidden rounded-full">
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white dark:bg-slate-950">
                 <div
-                  className="math-progress-fill h-full rounded-full"
+                  className="h-full rounded-full bg-slate-950 dark:bg-white"
                   style={{ width: `${Item.Percent}%` }}
                 />
               </div>
@@ -1317,12 +1317,16 @@ function ExpandAttemptHistoryRows(Rows: AnyRow[]) {
 
 function AttemptTypeLabel(Row: AnyRow, DpsAttemptIndex: number) {
   const Record = Row as any;
+  const ExplicitLabel = String(Record.attemptLabel ?? Record.attempt ?? "").trim();
+  if (ExplicitLabel) return ExplicitLabel;
+
+  const RetryNumber = Number(Record.retryAttemptNumber ?? Record.reattemptNumber ?? Record.retryNumber ?? 0);
+  if (Number.isFinite(RetryNumber) && RetryNumber > 0) return `Re-Attempt ${RetryNumber}`;
+
   const RawAttemptNumber = Number(
     Record.attemptNumber ??
       Record.attemptNo ??
       Record.attemptIndex ??
-      Record.reattemptNumber ??
-      Record.retryNumber ??
       0,
   );
   const ExplicitReattempt = Boolean(

@@ -144,7 +144,7 @@ def BuildManualRetryAssignment(
         source_assignment_id=(SourceAssignment.id if SourceAssignment else None),
         retry_attempt_number=NextAttemptNumber,
         assignment_source=ATTEMPT_SOURCE_MANUAL_RETRY,
-        auto_retry_limit=3,
+        auto_retry_limit=2,
         requires_manual_intervention=False,
         manual_intervention_reason=None,
         is_active=True,

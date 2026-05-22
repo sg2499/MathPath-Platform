@@ -2,7 +2,7 @@
 
 Phase 10.9.4D centralises the business rule that Needs Re-Attempt cards count
 unique DPS concept chains, not raw failed attempts. A student can fail Original,
-Re-Attempt 1, Re-Attempt 2, and Re-Attempt 3 for the same DPS, but operational
+Re-Attempt 1 and Re-Attempt 2 for the same DPS, but operational
 cards must still count that as one uncleared DPS concept until the concept is
 cleared.
 """
@@ -158,6 +158,6 @@ def CountManualInterventionRequiredConcepts(
         RequiresManualIntervention = bool(getattr(AttemptItem, "requires_manual_intervention", False))
         AttemptNumber = AttemptSequenceValue(AttemptItem)
         BenchmarkStatus = str(getattr(AttemptItem, "benchmark_status", "") or "").upper()
-        if RequiresManualIntervention or AttemptNumber >= 3 or BenchmarkStatus == "MANUAL_INTERVENTION_REQUIRED":
+        if RequiresManualIntervention or AttemptNumber >= 2 or BenchmarkStatus == "MANUAL_INTERVENTION_REQUIRED":
             CountValue += 1
     return CountValue

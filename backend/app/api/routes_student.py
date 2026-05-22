@@ -286,17 +286,28 @@ def student_assessments(db: Session = Depends(get_db), student: Student = Depend
 
 
 def attempt_sequence_number(db: Session, attempt: Attempt | None) -> int:
+    """Return display sequence: 1=Original, 2=Re-Attempt 1, 3=Re-Attempt 2."""
     if not attempt:
         return 1
+    stored_attempt_number = getattr(attempt, "attempt_number", None)
+    if stored_attempt_number is not None:
+        try:
+            return int(stored_attempt_number or 0) + 1
+        except (TypeError, ValueError):
+            pass
     query = db.query(Attempt).filter(
         Attempt.student_id == attempt.student_id,
         Attempt.dps_id == attempt.dps_id,
     )
-    if attempt.assignment_id:
+    attempt_group_id = getattr(attempt, "attempt_group_id", None)
+    if attempt_group_id:
+        query = query.filter(Attempt.attempt_group_id == attempt_group_id)
+    elif attempt.assignment_id:
         query = query.filter(Attempt.assignment_id == attempt.assignment_id)
     else:
         query = query.filter(Attempt.assignment_id.is_(None))
     attempts = query.order_by(
+        Attempt.attempt_number.asc().nullslast(),
         Attempt.started_at.asc().nullslast(),
         Attempt.submitted_at.asc().nullslast(),
         Attempt.id.asc(),

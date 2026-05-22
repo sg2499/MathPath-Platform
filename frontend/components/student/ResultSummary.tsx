@@ -103,6 +103,7 @@ export function ResultSummary({ result }: { result: AttemptResult }) {
       <StudentPerformanceFeedback
         accuracy={s.accuracyPercentage}
         seed={`${(result as any).attemptId || ""}-${s.score}-${s.accuracyPercentage}`}
+        showNeedsPracticeNextStep={Boolean(result.retryWorkflow?.showTeacherGuidance || result.requiresManualIntervention)}
       />
     </div>
     </>

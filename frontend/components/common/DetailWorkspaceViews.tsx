@@ -102,6 +102,7 @@ export function CompareRowsByCurriculum(FirstRow: AnyRow, SecondRow: AnyRow) {
     WorkTypeWeight(FirstRow) - WorkTypeWeight(SecondRow) ||
     DpsSequenceValue(FirstRow) - DpsSequenceValue(SecondRow) ||
     NaturalCompare(dpsLabel(FirstRow), dpsLabel(SecondRow)) ||
+    attemptNumber(FirstRow) - attemptNumber(SecondRow) ||
     rowTime(FirstRow) - rowTime(SecondRow)
   );
 }
@@ -1762,9 +1763,9 @@ function StudentProgressOverview({
               Level Status: {Summary.currentStatus}
             </Chip>
           </div>
-          <div className="math-progress-track mt-4 h-3 overflow-hidden rounded-full">
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-white dark:bg-slate-950">
             <div
-              className="math-progress-fill h-full rounded-full"
+              className="h-full rounded-full bg-slate-950 dark:bg-white"
               style={{ width: `${CompletionPercent}%` }}
             />
           </div>
@@ -2336,18 +2337,22 @@ function ExpandAttemptHistoryRows(Rows: AnyRow[]) {
 }
 
 function attemptNumber(row: AnyRow) {
+  const RetryAttemptNumber = Number(row.retryAttemptNumber ?? row.reattemptNumber ?? row.retryNumber ?? 0);
+  if (Number.isFinite(RetryAttemptNumber) && RetryAttemptNumber > 0) return RetryAttemptNumber + 1;
   const Value =
-    row.reattemptNumber ??
     row.reAttemptNumber ??
     row.attemptNumber ??
     row.attemptSequence ??
-    row.attemptNo ??
-    row.retryNumber;
+    row.attemptNo;
   const NumericValue = Number(Value);
   return Number.isNaN(NumericValue) ? 1 : Math.max(1, NumericValue);
 }
 
 function attemptLabel(row: AnyRow) {
+  const ExplicitLabel = String(row.attemptLabel ?? row.attempt ?? "").trim();
+  if (ExplicitLabel) return ExplicitLabel;
+  const RetryAttemptNumber = Number(row.retryAttemptNumber ?? row.reattemptNumber ?? row.retryNumber ?? 0);
+  if (Number.isFinite(RetryAttemptNumber) && RetryAttemptNumber > 0) return `Re-Attempt ${RetryAttemptNumber}`;
   const StatusText = String(
     row.status ?? row.attemptStatus ?? "",
   ).toUpperCase();

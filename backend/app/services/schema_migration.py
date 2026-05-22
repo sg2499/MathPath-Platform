@@ -224,7 +224,7 @@ ASSIGNMENT_ATTEMPT_CHAIN_COLUMNS = {
     "source_assignment_id": "VARCHAR",
     "retry_attempt_number": "INTEGER DEFAULT 0",
     "assignment_source": "VARCHAR(30) DEFAULT 'ORIGINAL'",
-    "auto_retry_limit": "INTEGER DEFAULT 3",
+    "auto_retry_limit": "INTEGER DEFAULT 2",
     "requires_manual_intervention": "BOOLEAN DEFAULT false",
     "manual_intervention_reason": "TEXT",
 }
@@ -254,7 +254,7 @@ def ensure_assignment_attempt_chain_columns() -> None:
             connection.execute(text("UPDATE assignments SET attempt_group_id = id WHERE attempt_group_id IS NULL"))
             connection.execute(text("UPDATE assignments SET retry_attempt_number = 0 WHERE retry_attempt_number IS NULL"))
             connection.execute(text("UPDATE assignments SET assignment_source = 'ORIGINAL' WHERE assignment_source IS NULL"))
-            connection.execute(text("UPDATE assignments SET auto_retry_limit = 3 WHERE auto_retry_limit IS NULL"))
+            connection.execute(text("UPDATE assignments SET auto_retry_limit = 2 WHERE auto_retry_limit IS NULL OR auto_retry_limit > 2"))
             connection.execute(text("UPDATE assignments SET requires_manual_intervention = false WHERE requires_manual_intervention IS NULL"))
 
         if "attempts" in tables:

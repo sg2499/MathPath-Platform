@@ -1911,17 +1911,28 @@ def benchmark_payload_for_attempt(attempt: Attempt | None) -> dict:
 
 
 def _admin_attempt_sequence_number(db: Session, attempt: Attempt | None) -> int:
+    """Return display sequence: 1=Original, 2=Re-Attempt 1, 3=Re-Attempt 2."""
     if not attempt:
         return 1
+    StoredAttemptNumber = getattr(attempt, "attempt_number", None)
+    if StoredAttemptNumber is not None:
+        try:
+            return int(StoredAttemptNumber or 0) + 1
+        except (TypeError, ValueError):
+            pass
+
     Query = db.query(Attempt).filter(
         Attempt.student_id == attempt.student_id,
         Attempt.dps_id == attempt.dps_id,
     )
-    if attempt.assignment_id:
+    AttemptGroupId = getattr(attempt, "attempt_group_id", None)
+    if AttemptGroupId:
+        Query = Query.filter(Attempt.attempt_group_id == AttemptGroupId)
+    elif attempt.assignment_id:
         Query = Query.filter(Attempt.assignment_id == attempt.assignment_id)
     else:
         Query = Query.filter(Attempt.assignment_id.is_(None))
-    Attempts = Query.order_by(Attempt.started_at.asc(), Attempt.id.asc()).all()
+    Attempts = Query.order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc()).all()
     for Index, AttemptValue in enumerate(Attempts, start=1):
         if AttemptValue.id == attempt.id:
             return Index
@@ -1959,7 +1970,7 @@ def all_attempts_for_student_assignment(db: Session, assignment_id: str, student
     return (
         db.query(Attempt)
         .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
-        .order_by(Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
+        .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
         .all()
     )
 
@@ -1971,6 +1982,7 @@ def admin_attempt_history_for_assignment_student(db: Session, assignment: Assign
     module = db.get(Module, level.module_id) if level else None
     History = []
     for Index, AttemptRow in enumerate(all_attempts_for_student_assignment(db, assignment.id, student.id), start=1):
+        SequenceNumber = _admin_attempt_sequence_number(db, AttemptRow)
         History.append({
             "assignmentId": assignment.id,
             "assignmentTitle": assignment.title,
@@ -1982,9 +1994,10 @@ def admin_attempt_history_for_assignment_student(db: Session, assignment: Assign
             "attemptId": AttemptRow.id,
             "attemptStatus": AttemptRow.status,
             "status": AttemptRow.status,
-            "attemptNumber": Index,
-            "attemptSequence": Index,
-            "isReattempt": Index > 1,
+            "attemptNumber": SequenceNumber,
+            "attemptSequence": SequenceNumber,
+            "attemptLabel": "Re-Attempt %s" % (SequenceNumber - 1) if SequenceNumber > 1 else "Original",
+            "isReattempt": SequenceNumber > 1,
             "score": AttemptRow.total_score,
             "totalMarks": AttemptRow.max_score,
             "maxScore": AttemptRow.max_score,
@@ -2049,6 +2062,12 @@ def assignment_payload(db: Session, assignment: Assignment) -> dict:
         "isActive": assignment.is_active,
         "status": "ACTIVE" if assignment.is_active else "INACTIVE",
         "allowReattempt": assignment.allow_reattempt,
+        "attemptGroupId": assignment.attempt_group_id,
+        "assignmentSource": assignment.assignment_source,
+        "retryAttemptNumber": assignment.retry_attempt_number,
+        "attemptNumber": (assignment.retry_attempt_number + 1) if int(assignment.retry_attempt_number or 0) > 0 else 1,
+        "attemptLabel": "Re-Attempt %s" % assignment.retry_attempt_number if int(assignment.retry_attempt_number or 0) > 0 else "Original",
+        "isReattempt": int(assignment.retry_attempt_number or 0) > 0,
         "createdAt": assignment.created_at.isoformat() if assignment.created_at else None,
         "assignedByUserId": assignment.assigned_by_user_id,
         "assignedByName": assigned_by.full_name if assigned_by else "System",

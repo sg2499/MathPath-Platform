@@ -20,7 +20,7 @@ BENCHMARK_STATUS_CLEARED = "CLEARED"
 BENCHMARK_STATUS_NEEDS_REATTEMPT = "NEEDS_REATTEMPT"
 BENCHMARK_STATUS_MANUAL_INTERVENTION_REQUIRED = "MANUAL_INTERVENTION_REQUIRED"
 
-DEFAULT_AUTO_RETRY_LIMIT = 3
+DEFAULT_AUTO_RETRY_LIMIT = 2
 
 
 def ResolveAttemptGroupId(AssignmentItem: Assignment, StudentId: str | None = None) -> str:
@@ -103,7 +103,7 @@ def ApplyAttemptChainMetadata(
 def UpdateSubmittedAttemptBenchmarkState(AttemptItem: Attempt, BenchmarkPercentage: float) -> Attempt:
     """Persist the submitted attempt benchmark state for future retry engines."""
     Accuracy = float(getattr(AttemptItem, "accuracy_percentage", 0) or 0)
-    AutoRetryLimit = DEFAULT_AUTO_RETRY_LIMIT
+    AutoRetryLimit = int(getattr(AttemptItem, "auto_retry_limit", DEFAULT_AUTO_RETRY_LIMIT) or DEFAULT_AUTO_RETRY_LIMIT)
 
     if Accuracy >= BenchmarkPercentage:
         AttemptItem.benchmark_status = BENCHMARK_STATUS_CLEARED
@@ -137,7 +137,7 @@ def ShouldAutoCreateRetryAssignment(AttemptItem: Attempt) -> bool:
     RequiresManualIntervention = bool(getattr(AttemptItem, "requires_manual_intervention", False))
     return (
         BenchmarkState == BENCHMARK_STATUS_NEEDS_REATTEMPT
-        and AttemptNumber < DEFAULT_AUTO_RETRY_LIMIT
+        and AttemptNumber < int(getattr(AttemptItem, "auto_retry_limit", DEFAULT_AUTO_RETRY_LIMIT) or DEFAULT_AUTO_RETRY_LIMIT)
         and not RequiresManualIntervention
     )
 
@@ -198,6 +198,7 @@ def BuildRetryWorkflowPayload(AttemptItem: Attempt, RetryAssignment: Assignment 
             "title": "Benchmark Achieved",
             "message": "Excellent work! You have successfully achieved the benchmark for this practice sheet.",
             "guidance": "You may now continue your learning journey with the next assigned practice.",
+            "showTeacherGuidance": False,
         }
 
     if RequiresManualIntervention or BenchmarkState == BENCHMARK_STATUS_MANUAL_INTERVENTION_REQUIRED:
@@ -209,6 +210,7 @@ def BuildRetryWorkflowPayload(AttemptItem: Attempt, RetryAssignment: Assignment 
             "title": "Additional Review Required",
             "message": "This practice requires additional review before the next attempt can be unlocked.",
             "guidance": "Your teacher will guide you through the next step to help strengthen this concept.",
+            "showTeacherGuidance": True,
         }
 
     return {
@@ -219,4 +221,5 @@ def BuildRetryWorkflowPayload(AttemptItem: Attempt, RetryAssignment: Assignment 
         "title": "More Practice Recommended",
         "message": "You are improving, but the required benchmark has not been achieved yet.",
         "guidance": "A new practice sheet has been prepared to help you strengthen this concept before moving ahead.",
+        "showTeacherGuidance": False,
     }
