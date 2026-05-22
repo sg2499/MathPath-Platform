@@ -64,8 +64,10 @@ def save_profile_photo(upload: UploadFile, folder: Path, prefix: str, public_roo
     Suffix = Path(FileName).suffix.lower().lstrip(".")
     MimeType = "image/jpeg" if Suffix in {"jpg", "jpeg"} else f"image/{Suffix or 'png'}"
     Content = upload.file.read()
-    if len(Content) > 1_500_000:
-        api_error(400, "FILE_TOO_LARGE", "Profile photo must be under 1.5 MB.")
+    if not Content:
+        api_error(400, "INVALID_FILE", "Profile photo file is empty.")
+    if len(Content) > 350_000:
+        api_error(400, "FILE_TOO_LARGE", "Profile photo must be under 350 KB after compression.")
     Encoded = base64.b64encode(Content).decode("ascii")
     return f"data:{MimeType};base64,{Encoded}"
 

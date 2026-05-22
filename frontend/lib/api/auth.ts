@@ -1,6 +1,10 @@
 import { api } from "@/lib/api";
 import type { LoginResponse, CurrentUser } from "@/types/auth";
 
+const PROFILE_PHOTO_MAX_DIMENSION = 360;
+const PROFILE_PHOTO_MAX_UPLOAD_BYTES = 260_000;
+const PROFILE_PHOTO_UPLOAD_TIMEOUT_MS = 60_000;
+
 export async function login(identifier: string, password: string): Promise<LoginResponse> {
   const { data } = await api.post<LoginResponse>("/auth/login", { identifier, password });
   return data;
@@ -11,12 +15,86 @@ export async function getMe(): Promise<CurrentUser> {
   return data;
 }
 
+function LoadImageFromFile(FileValue: File): Promise<HTMLImageElement> {
+  return new Promise((Resolve, Reject) => {
+    const Reader = new FileReader();
+    Reader.onerror = () => Reject(new Error("Could not read the selected image."));
+    Reader.onload = () => {
+      const ImageElement = new Image();
+      ImageElement.onload = () => Resolve(ImageElement);
+      ImageElement.onerror = () => Reject(new Error("Could not process the selected image."));
+      ImageElement.src = String(Reader.result || "");
+    };
+    Reader.readAsDataURL(FileValue);
+  });
+}
+
+function CanvasToBlob(CanvasElement: HTMLCanvasElement, Quality: number): Promise<Blob> {
+  return new Promise((Resolve, Reject) => {
+    CanvasElement.toBlob(
+      (BlobValue) => {
+        if (!BlobValue) {
+          Reject(new Error("Could not compress the selected image."));
+          return;
+        }
+        Resolve(BlobValue);
+      },
+      "image/jpeg",
+      Quality,
+    );
+  });
+}
+
+async function CompressProfilePhoto(FileValue: File): Promise<File> {
+  if (typeof window === "undefined") return FileValue;
+
+  const ImageElement = await LoadImageFromFile(FileValue);
+  const Scale = Math.min(
+    1,
+    PROFILE_PHOTO_MAX_DIMENSION / Math.max(ImageElement.width, ImageElement.height),
+  );
+  const TargetWidth = Math.max(1, Math.round(ImageElement.width * Scale));
+  const TargetHeight = Math.max(1, Math.round(ImageElement.height * Scale));
+
+  const CanvasElement = document.createElement("canvas");
+  CanvasElement.width = TargetWidth;
+  CanvasElement.height = TargetHeight;
+
+  const Context = CanvasElement.getContext("2d");
+  if (!Context) return FileValue;
+
+  Context.fillStyle = "#ffffff";
+  Context.fillRect(0, 0, TargetWidth, TargetHeight);
+  Context.drawImage(ImageElement, 0, 0, TargetWidth, TargetHeight);
+
+  const QualitySteps = [0.78, 0.68, 0.58, 0.48];
+  let BestBlob = await CanvasToBlob(CanvasElement, QualitySteps[0]);
+
+  for (const Quality of QualitySteps.slice(1)) {
+    if (BestBlob.size <= PROFILE_PHOTO_MAX_UPLOAD_BYTES) break;
+    BestBlob = await CanvasToBlob(CanvasElement, Quality);
+  }
+
+  if (BestBlob.size > PROFILE_PHOTO_MAX_UPLOAD_BYTES && FileValue.size <= PROFILE_PHOTO_MAX_UPLOAD_BYTES) {
+    return FileValue;
+  }
+
+  const CleanName = (FileValue.name || "profile-photo").replace(/\.[^.]+$/, "");
+  return new File([BestBlob], `${CleanName}.jpg`, { type: "image/jpeg" });
+}
 
 export async function uploadProfilePhoto(file: File): Promise<{ updated: boolean; photoUrl: string; user: CurrentUser }> {
+  const PreparedFile = await CompressProfilePhoto(file);
+
+  if (PreparedFile.size > PROFILE_PHOTO_MAX_UPLOAD_BYTES) {
+    throw new Error("Profile photo is still too large after compression. Please choose a smaller image.");
+  }
+
   const FormPayload = new FormData();
-  FormPayload.append("file", file);
+  FormPayload.append("file", PreparedFile);
   const { data } = await api.post<{ updated: boolean; photoUrl: string; user: CurrentUser }>("/auth/profile-photo", FormPayload, {
     headers: { "Content-Type": "multipart/form-data" },
+    timeout: PROFILE_PHOTO_UPLOAD_TIMEOUT_MS,
   });
   return data;
 }
