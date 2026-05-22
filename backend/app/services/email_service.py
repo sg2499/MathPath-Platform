@@ -6,6 +6,7 @@ import ssl
 from email.message import EmailMessage
 from email.utils import formataddr
 from typing import Iterable, TypedDict
+from time import sleep
 
 from app.core.config import (
     SMTP_FROM_EMAIL,
@@ -115,40 +116,69 @@ def SendEmailWithAttachment(
         filename=AttachmentFileName,
     )
 
-    TimeoutSeconds = max(5, min(int(SMTP_TIMEOUT_SECONDS or 15), 30))
+    # Parent report PDFs can take longer to hand off through Gmail SMTP from Render.
+    # Keep the timeout bounded but production-safe, and retry transient network timeouts once.
+    TimeoutSeconds = max(20, min(int(SMTP_TIMEOUT_SECONDS or 60), 90))
+    LastError: Exception | None = None
 
-    try:
-        PreviousTimeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(TimeoutSeconds)
+    for AttemptIndex in range(2):
         try:
-            if SMTP_FORCE_IPV4:
-                ServerClass = _IPv4SMTPSSL if SMTP_USE_SSL else _IPv4SMTP
-            else:
-                ServerClass = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
-            with ServerClass(_ConfiguredValue(SMTP_HOST), int(SMTP_PORT or 587), timeout=TimeoutSeconds) as Server:
-                Server.ehlo()
-                if SMTP_USE_TLS and not SMTP_USE_SSL:
-                    Server.starttls(context=ssl.create_default_context())
+            PreviousTimeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(TimeoutSeconds)
+            try:
+                if SMTP_FORCE_IPV4:
+                    ServerClass = _IPv4SMTPSSL if SMTP_USE_SSL else _IPv4SMTP
+                else:
+                    ServerClass = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
+                with ServerClass(_ConfiguredValue(SMTP_HOST), int(SMTP_PORT or 587), timeout=TimeoutSeconds) as Server:
                     Server.ehlo()
-                Server.login(_ConfiguredValue(SMTP_USERNAME), _ConfiguredValue(SMTP_PASSWORD))
-                SendResult = Server.send_message(Message)
-                ProviderResponse = "SMTP accepted message" if not SendResult else f"SMTP accepted with recipient notes: {SendResult}"
-                return {
-                    "provider": "SMTP",
-                    "providerMessageId": Message.get("Message-ID"),
-                    "providerResponse": ProviderResponse,
-                    "recipientCount": len(CleanRecipients),
-                }
-        finally:
-            socket.setdefaulttimeout(PreviousTimeout)
-    except EmailConfigurationError:
-        raise
-    except OSError as Error:
-        ErrorText = str(Error)
-        if getattr(Error, "errno", None) == 101 or "network is unreachable" in ErrorText.lower():
+                    if SMTP_USE_TLS and not SMTP_USE_SSL:
+                        Server.starttls(context=ssl.create_default_context())
+                        Server.ehlo()
+                    Server.login(_ConfiguredValue(SMTP_USERNAME), _ConfiguredValue(SMTP_PASSWORD))
+                    SendResult = Server.send_message(Message)
+                    ProviderResponse = "SMTP accepted message" if not SendResult else f"SMTP accepted with recipient notes: {SendResult}"
+                    return {
+                        "provider": "SMTP",
+                        "providerMessageId": Message.get("Message-ID"),
+                        "providerResponse": ProviderResponse,
+                        "recipientCount": len(CleanRecipients),
+                    }
+            finally:
+                socket.setdefaulttimeout(PreviousTimeout)
+        except EmailConfigurationError:
+            raise
+        except (TimeoutError, socket.timeout, smtplib.SMTPServerDisconnected, smtplib.SMTPConnectError) as Error:
+            LastError = Error
+            if AttemptIndex == 0:
+                sleep(1.2)
+                continue
             raise EmailSendError(
-                "SMTP network connection failed. Please verify Render outbound SMTP access, SMTP host, port, and TLS/SSL settings."
+                "SMTP delivery timed out while handing the parent report to the email provider. Please retry once; if it repeats, verify Gmail App Password, SMTP_TIMEOUT_SECONDS, and Render outbound SMTP access."
             ) from Error
-        raise EmailSendError(f"Report email could not be sent: {Error}") from Error
-    except Exception as Error:
-        raise EmailSendError(f"Report email could not be sent: {Error}") from Error
+        except OSError as Error:
+            LastError = Error
+            ErrorText = str(Error)
+            if getattr(Error, "errno", None) == 101 or "network is unreachable" in ErrorText.lower():
+                raise EmailSendError(
+                    "SMTP network connection failed. Please verify Render outbound SMTP access, SMTP host, port, and TLS/SSL settings."
+                ) from Error
+            if AttemptIndex == 0 and any(Token in ErrorText.lower() for Token in ["timed out", "timeout", "temporarily", "try again"]):
+                sleep(1.2)
+                continue
+            raise EmailSendError(f"Report email could not be sent: {Error}") from Error
+        except smtplib.SMTPAuthenticationError as Error:
+            raise EmailSendError("SMTP authentication failed. Please check the sender email and Gmail App Password.") from Error
+        except smtplib.SMTPRecipientsRefused as Error:
+            raise EmailSendError("The email provider rejected the recipient address. Please check the parent/recipient email and retry.") from Error
+        except smtplib.SMTPException as Error:
+            LastError = Error
+            if AttemptIndex == 0:
+                sleep(1.2)
+                continue
+            raise EmailSendError(f"SMTP provider rejected the parent report delivery: {Error}") from Error
+        except Exception as Error:
+            LastError = Error
+            raise EmailSendError(f"Report email could not be sent: {Error}") from Error
+
+    raise EmailSendError(f"Report email could not be sent: {LastError}")
