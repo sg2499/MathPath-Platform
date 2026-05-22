@@ -432,7 +432,7 @@ function rowsWithAttemptHistory(rows: AnyRow[]) {
     if (!History.length) return [Row];
 
     return History.map((AttemptRow: AnyRow, Index: number) => {
-      const MergedRow = {
+      const MergedRow: AnyRow = {
         ...Row,
         ...AttemptRow,
         attemptGroupId: AttemptRow.attemptGroupId ?? Row.attemptGroupId ?? Row.attempt_group_id,
@@ -2375,7 +2375,7 @@ function ExpandAttemptHistoryRows(Rows: AnyRow[]) {
     const History = Array.isArray(Row.attemptHistory) ? Row.attemptHistory : [];
     if (!History.length) return [Row];
     return History.map((AttemptRow: AnyRow, Index: number) => {
-      const MergedRow = {
+      const MergedRow: AnyRow = {
         ...Row,
         ...AttemptRow,
         attemptGroupId: AttemptRow.attemptGroupId ?? Row.attemptGroupId ?? Row.attempt_group_id,
