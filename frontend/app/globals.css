@@ -5824,3 +5824,68 @@ html.dark .math-login-welcome-chip {
     }
   }
 }
+
+/* Phase 10.9.3A — Permanent dark-mode contrast, tab visibility, and neutral variable-label hardening.
+   This keeps role palettes for workflow controls while preventing washed-out active tabs and blue variable labels. */
+@layer utilities {
+  html.dark .dark\:text-slate-950,
+  html.dark .dark\:text-slate-950 * {
+    color: #0f172a !important;
+  }
+
+  html.dark .dark\:text-slate-900,
+  html.dark .dark\:text-slate-900 * {
+    color: #111827 !important;
+  }
+
+  html.dark .dark\:bg-white,
+  html.dark .dark\:bg-white\/90,
+  html.dark .dark\:bg-white\/95 {
+    background-color: rgba(248, 250, 252, 0.96) !important;
+  }
+
+  html.dark .math-login-tab-active,
+  html.dark .math-login-tab-active * {
+    color: #0f172a !important;
+  }
+
+  html.dark .math-login-tabs button:not(.math-login-tab-active) {
+    color: #dbeafe !important;
+  }
+
+  html.dark .math-login-tabs button:not(.math-login-tab-active):hover,
+  html.dark .math-login-tabs button:not(.math-login-tab-active):hover * {
+    color: #ffffff !important;
+  }
+
+  html.dark .math-workspace-tabs .dark\:bg-white,
+  html.dark .math-workspace-tabs .dark\:bg-white *,
+  html.dark .math-panel .dark\:bg-white,
+  html.dark .math-panel .dark\:bg-white *,
+  html.dark .math-card .dark\:bg-white,
+  html.dark .math-card .dark\:bg-white * {
+    color: #0f172a !important;
+  }
+
+  .math-role-admin :where([class*="text-blue-"], [class*="text-cyan-"], [class*="text-sky-"], [class*="text-indigo-"], [class*="text-violet-"], [class*="text-purple-"])[class*="uppercase"][class*="tracking-"],
+  .math-role-teacher :where([class*="text-blue-"], [class*="text-cyan-"], [class*="text-sky-"], [class*="text-indigo-"], [class*="text-violet-"], [class*="text-purple-"])[class*="uppercase"][class*="tracking-"],
+  .math-role-student :where([class*="text-blue-"], [class*="text-cyan-"], [class*="text-sky-"], [class*="text-indigo-"], [class*="text-violet-"], [class*="text-purple-"])[class*="uppercase"][class*="tracking-"] {
+    color: #334155 !important;
+  }
+
+  html.dark .math-role-admin :where([class*="text-blue-"], [class*="text-cyan-"], [class*="text-sky-"], [class*="text-indigo-"], [class*="text-violet-"], [class*="text-purple-"])[class*="uppercase"][class*="tracking-"],
+  html.dark .math-role-teacher :where([class*="text-blue-"], [class*="text-cyan-"], [class*="text-sky-"], [class*="text-indigo-"], [class*="text-violet-"], [class*="text-purple-"])[class*="uppercase"][class*="tracking-"],
+  html.dark .math-role-student :where([class*="text-blue-"], [class*="text-cyan-"], [class*="text-sky-"], [class*="text-indigo-"], [class*="text-violet-"], [class*="text-purple-"])[class*="uppercase"][class*="tracking-"] {
+    color: #cbd5e1 !important;
+  }
+
+  .math-hero .math-kicker,
+  .math-kicker {
+    color: #334155 !important;
+  }
+
+  html.dark .math-hero .math-kicker,
+  html.dark .math-kicker {
+    color: #cbd5e1 !important;
+  }
+}

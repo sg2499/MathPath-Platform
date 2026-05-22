@@ -35,6 +35,7 @@ class Student(Base):
     # Student profile information
     custom_id = Column(String(80), unique=True, nullable=True)
     teacher = Column(String(150), nullable=True)
+    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=True)
     admission_date = Column(String(30), nullable=True)
     dob = Column(String(30), nullable=True)
     gender = Column(String(30), nullable=True)
