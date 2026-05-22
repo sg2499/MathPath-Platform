@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+import base64
+import json
 import socket
 import smtplib
 import ssl
+import urllib.error
+import urllib.request
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 from time import monotonic, sleep
 from typing import Iterable, TypedDict
 
 from app.core.config import (
+    BREVO_API_KEY,
+    BREVO_FROM_EMAIL,
+    EMAIL_PROVIDER,
+    RESEND_API_KEY,
+    RESEND_FROM_EMAIL,
     SMTP_FROM_EMAIL,
     SMTP_FORCE_IPV4,
     SMTP_FROM_NAME,
@@ -163,6 +172,97 @@ def _CleanSendException(Error: Exception, *, Stage: str, TransportLabel: str) ->
     return EmailSendError(f"{Prefix} {ErrorText}")
 
 
+
+def _EmailProviderMode() -> str:
+    Mode = str(EMAIL_PROVIDER or "SMTP").strip().upper()
+    if Mode in {"RESEND", "BREVO", "SMTP"}:
+        return Mode
+    if _ConfiguredValue(RESEND_API_KEY):
+        return "RESEND"
+    if _ConfiguredValue(BREVO_API_KEY):
+        return "BREVO"
+    return "SMTP"
+
+
+def _AttachmentPayload(AttachmentBytes: bytes, AttachmentFileName: str) -> dict[str, str]:
+    Encoded = base64.b64encode(AttachmentBytes).decode("ascii")
+    return {"filename": AttachmentFileName, "content": Encoded}
+
+
+def _PostJson(Url: str, Payload: dict, Headers: dict[str, str], TimeoutSeconds: int) -> dict:
+    Data = json.dumps(Payload).encode("utf-8")
+    Request = urllib.request.Request(Url, data=Data, headers=Headers, method="POST")
+    try:
+        with urllib.request.urlopen(Request, timeout=TimeoutSeconds) as Response:
+            Body = Response.read().decode("utf-8", errors="replace")
+            if Response.status >= 400:
+                raise EmailSendError(f"Email API returned HTTP {Response.status}: {Body[:500]}")
+            return json.loads(Body or "{}") if Body else {}
+    except urllib.error.HTTPError as Error:
+        Body = Error.read().decode("utf-8", errors="replace")
+        raise EmailSendError(f"Email API returned HTTP {Error.code}: {Body[:700]}") from Error
+    except TimeoutError as Error:
+        raise EmailSendError("Email API request timed out. Check provider API connectivity from Render.") from Error
+    except urllib.error.URLError as Error:
+        raise EmailSendError(f"Email API network error: {Error.reason}") from Error
+
+
+def _SendViaResend(*, CleanRecipients: list[str], Subject: str, Body: str, AttachmentBytes: bytes, AttachmentFileName: str, TimeoutSeconds: int) -> EmailSendResult:
+    ApiKey = _ConfiguredValue(RESEND_API_KEY)
+    if not ApiKey:
+        raise EmailConfigurationError("RESEND_API_KEY is missing. Set it in Render or use SMTP provider.")
+    FromEmail = _ConfiguredValue(RESEND_FROM_EMAIL) or _ConfiguredValue(SMTP_FROM_EMAIL)
+    if not FromEmail:
+        raise EmailConfigurationError("RESEND_FROM_EMAIL or SMTP_FROM_EMAIL is required for Resend delivery.")
+    Payload = {
+        "from": formataddr((_ConfiguredValue(SMTP_FROM_NAME) or "MathPath Team", FromEmail)),
+        "to": CleanRecipients,
+        "subject": Subject,
+        "text": Body,
+        "attachments": [_AttachmentPayload(AttachmentBytes, AttachmentFileName)],
+    }
+    Response = _PostJson(
+        "https://api.resend.com/emails",
+        Payload,
+        {"Authorization": f"Bearer {ApiKey}", "Content-Type": "application/json"},
+        TimeoutSeconds,
+    )
+    return {
+        "provider": "RESEND_HTTP",
+        "providerMessageId": Response.get("id"),
+        "providerResponse": "Resend accepted message",
+        "recipientCount": len(CleanRecipients),
+    }
+
+
+def _SendViaBrevo(*, CleanRecipients: list[str], Subject: str, Body: str, AttachmentBytes: bytes, AttachmentFileName: str, TimeoutSeconds: int) -> EmailSendResult:
+    ApiKey = _ConfiguredValue(BREVO_API_KEY)
+    if not ApiKey:
+        raise EmailConfigurationError("BREVO_API_KEY is missing. Set it in Render or use SMTP provider.")
+    FromEmail = _ConfiguredValue(BREVO_FROM_EMAIL) or _ConfiguredValue(SMTP_FROM_EMAIL)
+    if not FromEmail:
+        raise EmailConfigurationError("BREVO_FROM_EMAIL or SMTP_FROM_EMAIL is required for Brevo delivery.")
+    Payload = {
+        "sender": {"name": _ConfiguredValue(SMTP_FROM_NAME) or "MathPath Team", "email": FromEmail},
+        "to": [{"email": Recipient} for Recipient in CleanRecipients],
+        "subject": Subject,
+        "textContent": Body,
+        "attachment": [{"name": AttachmentFileName, "content": base64.b64encode(AttachmentBytes).decode("ascii")}],
+    }
+    Response = _PostJson(
+        "https://api.brevo.com/v3/smtp/email",
+        Payload,
+        {"api-key": ApiKey, "Content-Type": "application/json", "accept": "application/json"},
+        TimeoutSeconds,
+    )
+    return {
+        "provider": "BREVO_HTTP",
+        "providerMessageId": Response.get("messageId"),
+        "providerResponse": "Brevo accepted message",
+        "recipientCount": len(CleanRecipients),
+    }
+
+
 def SendEmailWithAttachment(
     *,
     Recipients: Iterable[str],
@@ -177,6 +277,27 @@ def SendEmailWithAttachment(
     if not CleanRecipients:
         raise EmailSendError("No recipient email address was provided.")
 
+    TimeoutSeconds = _TimeoutSeconds()
+    ProviderMode = _EmailProviderMode()
+    if ProviderMode == "RESEND":
+        return _SendViaResend(
+            CleanRecipients=CleanRecipients,
+            Subject=Subject,
+            Body=Body,
+            AttachmentBytes=AttachmentBytes,
+            AttachmentFileName=AttachmentFileName,
+            TimeoutSeconds=TimeoutSeconds,
+        )
+    if ProviderMode == "BREVO":
+        return _SendViaBrevo(
+            CleanRecipients=CleanRecipients,
+            Subject=Subject,
+            Body=Body,
+            AttachmentBytes=AttachmentBytes,
+            AttachmentFileName=AttachmentFileName,
+            TimeoutSeconds=TimeoutSeconds,
+        )
+
     Message = EmailMessage()
     Message["Subject"] = Subject
     Message["From"] = formataddr((_ConfiguredValue(SMTP_FROM_NAME) or "MathPath Team", _ConfiguredValue(SMTP_FROM_EMAIL)))
@@ -190,7 +311,6 @@ def SendEmailWithAttachment(
         filename=AttachmentFileName,
     )
 
-    TimeoutSeconds = _TimeoutSeconds()
     LastError: EmailSendError | None = None
 
     for Transport in _CandidateTransports():
@@ -242,6 +362,9 @@ def DiagnoseSmtpConfiguration() -> EmailDiagnosticResult:
         "attempts": [],
         "message": "SMTP diagnostic has not run.",
     }
+    Result["emailProvider"] = _EmailProviderMode()
+    Result["resendConfigured"] = bool(_ConfiguredValue(RESEND_API_KEY))
+    Result["brevoConfigured"] = bool(_ConfiguredValue(BREVO_API_KEY))
     try:
         EnsureEmailConfigured()
     except EmailConfigurationError as Error:

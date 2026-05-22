@@ -38,6 +38,14 @@ SMTP_TIMEOUT_SECONDS = int(_env_first("SMTP_TIMEOUT_SECONDS", "EMAIL_TIMEOUT_SEC
 # Force IPv4 by default for production SMTP reliability.
 SMTP_FORCE_IPV4 = _env_bool("SMTP_FORCE_IPV4", "EMAIL_FORCE_IPV4", Default="true")
 
+# Optional production email API provider fallback.
+# Use this when hosting provider SMTP egress is unreliable.
+EMAIL_PROVIDER = _env_first("EMAIL_PROVIDER", "MAIL_PROVIDER", Default="SMTP").upper()
+RESEND_API_KEY = _env_first("RESEND_API_KEY")
+RESEND_FROM_EMAIL = _env_first("RESEND_FROM_EMAIL", Default=SMTP_FROM_EMAIL)
+BREVO_API_KEY = _env_first("BREVO_API_KEY", "SENDINBLUE_API_KEY")
+BREVO_FROM_EMAIL = _env_first("BREVO_FROM_EMAIL", Default=SMTP_FROM_EMAIL)
+
 # Phase 8.8 final readiness gate switch. Default is live-safe strict readiness mode.
 # Set true only for broad local testing where assessment workflow needs to be tested without completing all readiness criteria.
 TEMPORARY_ASSESSMENT_READINESS_BYPASS = os.getenv("TEMPORARY_ASSESSMENT_READINESS_BYPASS", "false").lower() == "true"

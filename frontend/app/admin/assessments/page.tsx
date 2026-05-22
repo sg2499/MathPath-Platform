@@ -4422,7 +4422,7 @@ function ParentReportDeliveryHistoryTable({
               </div>
               <button
                 type="button"
-                className="math-action-button math-modal-close-button"
+                className="math-action-button math-modal-close-button math-delivery-audit-close-button !text-blue-700 hover:!text-white active:!text-white focus-visible:!text-white"
                 onClick={() => SetDetailItem(null)}
               >
                 Close
@@ -4567,7 +4567,7 @@ function ParentReportDeliveryHistoryTable({
             <div className="math-modal-footer">
               <button
                 type="button"
-                className="math-action-button math-modal-close-button"
+                className="math-action-button math-modal-close-button math-delivery-audit-close-button !text-blue-700 hover:!text-white active:!text-white focus-visible:!text-white"
                 onClick={() => SetDetailItem(null)}
               >
                 Close

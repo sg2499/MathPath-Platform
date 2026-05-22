@@ -5901,3 +5901,26 @@ html.dark .math-modal-close-button:focus-visible {
   color: #ffffff !important;
   background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 48%, #b42adf 100%) !important;
 }
+
+/* Phase 10.9.5D — exact delivery audit modal close-button fix */
+.math-modal-shell .math-delivery-audit-close-button,
+.math-modal-shell button.math-delivery-audit-close-button {
+  color: #1d4ed8 !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(37, 99, 235, 0.28) !important;
+  text-shadow: none !important;
+}
+
+.math-modal-shell .math-delivery-audit-close-button:is(:hover, :focus-visible, :active),
+.math-modal-shell button.math-delivery-audit-close-button:is(:hover, :focus-visible, :active) {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #0b2f78 0%, #2563eb 48%, #b42adf 100%) !important;
+  border-color: rgba(255, 255, 255, 0.52) !important;
+  box-shadow: 0 18px 34px rgba(37, 99, 235, 0.28) !important;
+}
+
+.math-modal-shell .math-delivery-audit-close-button:is(:hover, :focus-visible, :active) *,
+.math-modal-shell button.math-delivery-audit-close-button:is(:hover, :focus-visible, :active) * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
