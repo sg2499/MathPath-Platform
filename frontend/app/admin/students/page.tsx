@@ -856,16 +856,18 @@ export default function AdminStudentsPage() {
                     <tr key={s.studentId}>
                       <td>
                         <div className="flex items-center gap-3">
-                          <div className="math-record-avatar math-record-avatar-student h-11 w-11">
+                          <div className="math-record-avatar math-record-avatar-student h-11 w-11 text-xs">
+                            <span>{recordInitials(s.studentName)}</span>
                             {s.photoUrl ? (
                               <img
                                 src={assetUrl(s.photoUrl)}
                                 alt={s.studentName}
                                 className="h-full w-full object-cover"
+                                onError={(event) => {
+                                  event.currentTarget.style.display = "none";
+                                }}
                               />
-                            ) : (
-                              <span>{recordInitials(s.studentName)}</span>
-                            )}
+                            ) : null}
                           </div>
 
                           <div>

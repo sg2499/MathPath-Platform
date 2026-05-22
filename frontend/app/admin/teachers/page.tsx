@@ -364,12 +364,18 @@ export default function AdminTeachersPage() {
                     <tr key={teacher.teacherId}>
                       <td>
                         <div className="flex items-center gap-3">
-                          <div className="math-record-avatar math-record-avatar-teacher h-11 w-11">
+                          <div className="math-record-avatar math-record-avatar-teacher h-11 w-11 text-xs">
+                            <span>{recordInitials(teacher.teacherName)}</span>
                             {teacher.photoUrl ? (
-                              <img src={assetUrl(teacher.photoUrl)} alt={teacher.teacherName} className="h-full w-full object-cover" />
-                            ) : (
-                              <span>{recordInitials(teacher.teacherName)}</span>
-                            )}
+                              <img
+                                src={assetUrl(teacher.photoUrl)}
+                                alt={teacher.teacherName}
+                                className="h-full w-full object-cover"
+                                onError={(event) => {
+                                  event.currentTarget.style.display = "none";
+                                }}
+                              />
+                            ) : null}
                           </div>
                           <div>
                             <p className="font-black text-slate-950 dark:text-white">{teacher.teacherName}</p>

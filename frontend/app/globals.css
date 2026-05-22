@@ -6446,3 +6446,205 @@ html.dark .math-login-welcome-chip {
     color: #e2e8f0;
   }
 }
+
+
+/* Phase 10.9.3D — Dark Mode Interactive State + Avatar Consistency Fix
+   Foundation-level hardening for inactive tabs, pale CTA buttons, progress bars, and record avatars. */
+@layer components {
+  .math-record-avatar {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    background: linear-gradient(135deg, #ef4444 0%, #f97316 48%, #facc15 100%);
+    color: #ffffff;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    text-align: center;
+    text-transform: uppercase;
+    box-shadow: 0 12px 34px rgba(15, 23, 42, 0.16);
+  }
+
+  .math-record-avatar-student {
+    background: linear-gradient(135deg, #ef4444 0%, #f97316 50%, #f59e0b 100%);
+  }
+
+  .math-record-avatar-teacher {
+    background: linear-gradient(135deg, #7c2d5f 0%, #be6f86 52%, #f0b58f 100%);
+  }
+
+  .math-record-avatar-admin {
+    background: linear-gradient(135deg, #1d4ed8 0%, #4f46e5 52%, #9333ea 100%);
+  }
+
+  .math-record-avatar img {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+  }
+
+  .math-record-avatar span {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff !important;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.28);
+  }
+
+  html.dark .math-record-avatar {
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255,255,255,0.16);
+  }
+
+  .math-subtab-readable,
+  .math-workspace-tab,
+  .math-filter-tab,
+  .math-segment-tab,
+  .math-tab-button {
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: rgba(255, 255, 255, 0.88);
+    color: #0f172a;
+  }
+
+  html.dark .math-subtab-readable,
+  html.dark .math-workspace-tab,
+  html.dark .math-filter-tab,
+  html.dark .math-segment-tab,
+  html.dark .math-tab-button,
+  html.dark [role="tab"],
+  html.dark button[aria-selected="false"] {
+    border-color: rgba(148, 163, 184, 0.26) !important;
+    background: rgba(15, 23, 42, 0.86) !important;
+    color: #e5edf8 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  html.dark [role="tab"][aria-selected="true"],
+  html.dark button[aria-selected="true"],
+  html.dark .math-subtab-readable.is-active,
+  html.dark .math-workspace-tab.is-active,
+  html.dark .math-filter-tab.is-active,
+  html.dark .math-segment-tab.is-active,
+  html.dark .math-tab-button.is-active {
+    border-color: rgba(34, 211, 238, 0.48) !important;
+    background: linear-gradient(135deg, rgba(37,99,235,0.96), rgba(147,51,234,0.92)) !important;
+    color: #ffffff !important;
+    box-shadow: 0 16px 38px rgba(37, 99, 235, 0.28);
+  }
+
+  html.dark [role="tab"] *,
+  html.dark button[aria-selected] *,
+  html.dark .math-subtab-readable *,
+  html.dark .math-workspace-tab *,
+  html.dark .math-filter-tab *,
+  html.dark .math-segment-tab *,
+  html.dark .math-tab-button * {
+    color: inherit !important;
+  }
+
+  html.dark .math-workspace-tabs > button:not([class*="from-"]):not([class*="bg-gradient"]),
+  html.dark .math-workspace-tabs > div > button:not([class*="from-"]):not([class*="bg-gradient"]),
+  html.dark .math-panel > button:not([class*="from-"]):not([class*="bg-gradient"]),
+  html.dark .math-soft-section > button:not([class*="from-"]):not([class*="bg-gradient"]) {
+    color: #e5edf8 !important;
+  }
+
+  html.dark button[class*="bg-white"],
+  html.dark a[class*="bg-white"],
+  html.dark button[class*="from-sky-50"],
+  html.dark button[class*="from-cyan-50"],
+  html.dark button[class*="from-blue-50"],
+  html.dark button[class*="to-indigo-50"],
+  html.dark button[class*="to-purple-50"],
+  html.dark a[class*="from-sky-50"],
+  html.dark a[class*="from-cyan-50"],
+  html.dark a[class*="from-blue-50"],
+  html.dark a[class*="to-indigo-50"],
+  html.dark a[class*="to-purple-50"] {
+    color: #0f172a !important;
+  }
+
+  html.dark button[class*="bg-white"] *,
+  html.dark a[class*="bg-white"] *,
+  html.dark button[class*="from-sky-50"] *,
+  html.dark button[class*="from-cyan-50"] *,
+  html.dark button[class*="from-blue-50"] *,
+  html.dark button[class*="to-indigo-50"] *,
+  html.dark button[class*="to-purple-50"] *,
+  html.dark a[class*="from-sky-50"] *,
+  html.dark a[class*="from-cyan-50"] *,
+  html.dark a[class*="from-blue-50"] *,
+  html.dark a[class*="to-indigo-50"] *,
+  html.dark a[class*="to-purple-50"] * {
+    color: inherit !important;
+  }
+
+  html.dark .math-dashboard-primary-action,
+  html.dark .math-dashboard-page .math-dashboard-primary-action,
+  html.dark .math-dashboard-page a.math-dashboard-primary-action,
+  html.dark .math-dashboard-page button.math-dashboard-primary-action {
+    color: #0f172a !important;
+    background: linear-gradient(135deg, #ecfeff, #e0e7ff) !important;
+    border-color: rgba(224, 242, 254, 0.86) !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-dashboard-primary-action *,
+  html.dark .math-dashboard-page .math-dashboard-primary-action * {
+    color: #0f172a !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-dashboard-secondary-action,
+  html.dark .math-dashboard-page .math-dashboard-secondary-action {
+    color: #f8fbff !important;
+    background: rgba(15, 23, 42, 0.78) !important;
+    border-color: rgba(125, 211, 252, 0.42) !important;
+  }
+
+  html.dark .math-dashboard-secondary-action *,
+  html.dark .math-dashboard-page .math-dashboard-secondary-action * {
+    color: #f8fbff !important;
+  }
+
+  html.dark .math-role-progress-track,
+  html.dark .math-progress-track,
+  html.dark [class*="progress-track"],
+  html.dark [class*="ProgressTrack"] {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.28) !important;
+    background: rgba(2, 6, 23, 0.76) !important;
+    box-shadow: inset 0 1px 6px rgba(0,0,0,0.52), 0 0 0 1px rgba(255,255,255,0.03);
+  }
+
+  html.dark .math-role-progress-fill,
+  html.dark .math-progress-fill,
+  html.dark [class*="progress-fill"],
+  html.dark [class*="ProgressFill"] {
+    min-width: 8px;
+    background: linear-gradient(90deg, #22d3ee 0%, #3b82f6 46%, #a855f7 100%) !important;
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.42);
+  }
+
+  html.dark div[class*="bg-slate-950"] > div[class*="bg-gradient-to-r"],
+  html.dark div[class*="bg-slate-900"] > div[class*="bg-gradient-to-r"] {
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.42);
+  }
+
+  html.dark .math-table thead,
+  html.dark .math-table th {
+    background-color: rgba(30, 41, 59, 0.98) !important;
+    color: #dbeafe !important;
+  }
+}

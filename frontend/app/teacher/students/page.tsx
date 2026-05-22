@@ -50,6 +50,13 @@ function assetUrl(url?: string | null) {
   return `${base}${url}`;
 }
 
+
+function recordInitials(Name?: string | null) {
+  const Parts = String(Name || "Student").trim().split(/\s+/).filter(Boolean);
+  if (Parts.length >= 2) return `${Parts[0][0]}${Parts[1][0]}`.toUpperCase();
+  return (Parts[0] || "ST").slice(0, 2).toUpperCase();
+}
+
 function attentionTone(attention?: string | null) {
   if (attention === "ON_TRACK") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (attention === "BELOW_BENCHMARK") return "border-rose-200 bg-rose-50 text-rose-700";
@@ -388,22 +395,28 @@ function StudentRow({ student, attention }: { student: TeacherStudent; attention
     <tr>
       <td>
         <div className="flex items-center gap-3">
-          {image ? (
-            <img src={image} alt={student.studentName} className="h-14 w-14 rounded-2xl object-cover shadow-sm" />
-          ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 font-black text-blue-700">
-              {student.studentName.slice(0, 1)}
-            </div>
-          )}
+          <div className="math-record-avatar math-record-avatar-student h-14 w-14 rounded-2xl text-sm">
+            <span>{recordInitials(student.studentName)}</span>
+            {image ? (
+              <img
+                src={image}
+                alt={student.studentName}
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
+            ) : null}
+          </div>
           <div>
-            <p className="font-black text-slate-950">{student.studentName}</p>
-            <p className="text-sm text-slate-500">{student.studentCode}</p>
+            <p className="font-black text-slate-950 dark:text-white">{student.studentName}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{student.studentCode}</p>
           </div>
         </div>
       </td>
       <td>
-        <p className="font-black text-slate-900">{student.currentLevelCode || "-"}</p>
-        <p className="text-xs text-slate-500">
+        <p className="font-black text-slate-900 dark:text-white">{student.currentLevelCode || "-"}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Class {student.className || "-"} {student.section || ""}
         </p>
       </td>
