@@ -85,6 +85,7 @@ export default function TeacherAssignDpsPage() {
   const [dpsId, setDpsId] = useState("");
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
+  const [assignMode, setAssignMode] = useState<"selected" | "all">("selected");
 
   const studentsQuery = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
   const dpsQuery = useQuery({ queryKey: ["teacher-available-dps"], queryFn: getTeacherAvailableDps, enabled: ready });
@@ -109,17 +110,19 @@ export default function TeacherAssignDpsPage() {
   );
   const selectedDps = visibleDps.find((dps) => dps.dpsId === dpsId);
   const eligibleStudents = students.filter((student) => selectedDps && student.currentLevelId === selectedDps.levelId && student.isActive);
+  const eligibleStudentIds = useMemo(() => eligibleStudents.map((student) => student.studentId), [eligibleStudents]);
 
   const mutation = useMutation({
-    mutationFn: () => teacherAssignDps({
+    mutationFn: (payload: { studentIds: string[]; mode: "selected" | "all" }) => teacherAssignDps({
       dpsId,
-      studentIds: selectedStudentIds,
+      studentIds: payload.studentIds,
       title: selectedDps ? `${selectedDps.levelCode} Lesson ${selectedDps.lessonNumber} - DPS ${selectedDps.dpsNumber} Practice` : undefined,
       instructions: "Complete this practice within the given time.",
     }),
     onSuccess: (data) => {
       setMessage(data.message);
       setSelectedStudentIds([]);
+      setAssignMode("selected");
     },
   });
 
@@ -130,6 +133,21 @@ export default function TeacherAssignDpsPage() {
 
   function toggleStudent(studentId: string) {
     setSelectedStudentIds((prev) => prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]);
+  }
+
+  function assignSelectedStudents() {
+    setAssignMode("selected");
+    mutation.mutate({ studentIds: selectedStudentIds, mode: "selected" });
+  }
+
+  function assignAllEligibleStudents() {
+    if (!eligibleStudentIds.length || !selectedDps) return;
+    const confirmed = window.confirm(
+      `Assign ${selectedDps.dpsTitle} to all ${eligibleStudentIds.length} eligible student(s) in ${selectedDps.levelCode}?`
+    );
+    if (!confirmed) return;
+    setAssignMode("all");
+    mutation.mutate({ studentIds: eligibleStudentIds, mode: "all" });
   }
 
   return (
@@ -187,9 +205,25 @@ export default function TeacherAssignDpsPage() {
                 <h2 className="text-2xl font-black text-slate-950">{selectedDps.dpsTitle}</h2>
                 <p className="mt-1 text-sm text-slate-600">Only students in {selectedDps.levelCode} can be selected.</p>
               </div>
-              <button className="math-button-primary" disabled={!selectedStudentIds.length || mutation.isPending} onClick={() => mutation.mutate()}>
-                <Send size={18} /> {mutation.isPending ? "Assigning..." : `Assign to ${selectedStudentIds.length} Student(s)`}
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                <button
+                  type="button"
+                  className="math-button-secondary"
+                  disabled={!eligibleStudentIds.length || mutation.isPending}
+                  onClick={assignAllEligibleStudents}
+                >
+                  <ClipboardPlus size={18} />
+                  {mutation.isPending && assignMode === "all" ? "Assigning All..." : "Assign All Eligible"}
+                </button>
+                <button
+                  type="button"
+                  className="math-button-primary"
+                  disabled={!selectedStudentIds.length || mutation.isPending}
+                  onClick={assignSelectedStudents}
+                >
+                  <Send size={18} /> {mutation.isPending && assignMode === "selected" ? "Assigning..." : `Assign to ${selectedStudentIds.length} Student(s)`}
+                </button>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
