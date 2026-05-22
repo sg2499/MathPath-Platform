@@ -34,6 +34,7 @@ from app.services.generation_service import build_preview_seed, generate_preview
 from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
 from app.services.report_export_service import BuildWorkbookResponse, BuildParentProgressPdfResponse, BuildParentProgressPdfBytes, ReportGeneratedOn
 from app.services.email_service import (
+    DiagnoseSmtpConfiguration,
     EmailConfigurationError,
     EmailSendError,
     SendEmailWithAttachment,
@@ -4486,67 +4487,89 @@ def _admin_create_parent_report_email_logs(db: Session, *, StudentValue: Student
 
 
 def _admin_update_parent_report_email_logs(db: Session, Logs: list[ParentReportEmailLog], *, Status: str, ErrorMessage: str | None = None):
-    NowValue = datetime.now(datetime_timezone.utc) if Status == "SENT" else None
+    NowValue = datetime.now(datetime_timezone.utc)
     for LogValue in Logs:
         LogValue.status = Status
         LogValue.error_message = ErrorMessage
-        if NowValue:
+        LogValue.delivery_status = Status
+        LogValue.last_attempt_at = NowValue
+        LogValue.attempt_count = int(LogValue.attempt_count or 0) + (1 if Status in {"SENT", "FAILED"} else 0)
+        if Status == "SENT":
             LogValue.sent_at = NowValue
+            LogValue.error_message = None
+        elif Status == "FAILED":
+            LogValue.sent_at = None
     db.commit()
 
 
-def _admin_send_parent_report_email_background(
+def _admin_deliver_parent_report_email_now(
+    db: Session,
     *,
-    LogIds: list[str],
+    Logs: list[ParentReportEmailLog],
     RecipientEmails: list[str],
     Subject: str,
     Body: str,
     AttachmentBytes: bytes,
     AttachmentFileName: str,
     ActorUserId: str | None,
-):
-    BackgroundDb = SessionLocal()
-    try:
-        Logs = (
-            BackgroundDb.query(ParentReportEmailLog)
-            .filter(ParentReportEmailLog.id.in_(LogIds))
-            .all()
-        )
-        try:
-            SendEmailWithAttachment(
-                Recipients=RecipientEmails,
-                Subject=Subject,
-                Body=Body,
-                AttachmentBytes=AttachmentBytes,
-                AttachmentFileName=AttachmentFileName,
-            )
-        except (EmailConfigurationError, EmailSendError) as ErrorValue:
-            MessageValue = _admin_clean_delivery_error(ErrorValue)
-            _admin_update_parent_report_email_logs(BackgroundDb, Logs, Status="FAILED", ErrorMessage=MessageValue)
-            NotifyParentReportDeliveryLogs(
-                BackgroundDb,
-                actor_user_id=ActorUserId,
-                logs=Logs,
-                event="PARENT_REPORT_FAILED",
-                status="FAILED",
-                file_name=AttachmentFileName,
-                error_message=MessageValue,
-            )
-            BackgroundDb.commit()
-            return
+) -> dict:
+    """Deliver a parent report through SMTP and persist a final audit state.
 
-        _admin_update_parent_report_email_logs(BackgroundDb, Logs, Status="SENT")
+    This intentionally avoids leaving rows stuck in PENDING. The UI receives a
+    final SENT/FAILED result and the delivery-history table remains trustworthy.
+    """
+    try:
+        SendResult = SendEmailWithAttachment(
+            Recipients=RecipientEmails,
+            Subject=Subject,
+            Body=Body,
+            AttachmentBytes=AttachmentBytes,
+            AttachmentFileName=AttachmentFileName,
+        )
+    except (EmailConfigurationError, EmailSendError, Exception) as ErrorValue:
+        MessageValue = _admin_clean_delivery_error(ErrorValue)
+        _admin_update_parent_report_email_logs(db, Logs, Status="FAILED", ErrorMessage=MessageValue)
         NotifyParentReportDeliveryLogs(
-            BackgroundDb,
+            db,
             actor_user_id=ActorUserId,
             logs=Logs,
-            event="PARENT_REPORT_SENT",
-            status="SENT",
+            event="PARENT_REPORT_FAILED",
+            status="FAILED",
             file_name=AttachmentFileName,
+            error_message=MessageValue,
         )
-        BackgroundDb.commit()
-    finally:
-        BackgroundDb.close()
+        db.commit()
+        return {
+            "sent": False,
+            "queued": False,
+            "status": "FAILED",
+            "message": MessageValue,
+            "errorMessage": MessageValue,
+            "provider": "SMTP",
+        }
+
+    for LogValue in Logs:
+        LogValue.delivery_provider = str(SendResult.get("provider") or "SMTP")
+        LogValue.provider_message_id = SendResult.get("providerMessageId")
+        LogValue.provider_response = str(SendResult.get("providerResponse") or "SMTP accepted message")
+    _admin_update_parent_report_email_logs(db, Logs, Status="SENT")
+    NotifyParentReportDeliveryLogs(
+        db,
+        actor_user_id=ActorUserId,
+        logs=Logs,
+        event="PARENT_REPORT_SENT",
+        status="SENT",
+        file_name=AttachmentFileName,
+    )
+    db.commit()
+    return {
+        "sent": True,
+        "queued": False,
+        "status": "SENT",
+        "message": "Parent progress report email was sent successfully.",
+        "provider": str(SendResult.get("provider") or "SMTP"),
+        "providerResponse": str(SendResult.get("providerResponse") or "SMTP accepted message"),
+    }
 
 
 
@@ -4571,6 +4594,11 @@ def _admin_parent_report_level_label(db: Session, ModuleCode: str | None, LevelC
     LevelName = LevelValue.level_name if LevelValue else SafeCode
     LevelLabel = f"{SafeCode} · {LevelName}" if LevelName and LevelName != SafeCode else SafeCode
     return LevelName, LevelLabel
+
+
+@router.get("/system/smtp-diagnostic")
+def admin_smtp_diagnostic(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return DiagnoseSmtpConfiguration()
 
 
 @router.get("/results/parent-report-deliveries")
@@ -4667,9 +4695,9 @@ def send_parent_progress_summary_email(
         Status="PENDING",
     )
 
-    BackgroundTasksValue.add_task(
-        _admin_send_parent_report_email_background,
-        LogIds=[LogValue.id for LogValue in Logs],
+    DeliveryResult = _admin_deliver_parent_report_email_now(
+        db,
+        Logs=Logs,
         RecipientEmails=[Item["email"] for Item in Recipients],
         Subject=Subject,
         Body=Body,
@@ -4679,11 +4707,10 @@ def send_parent_progress_summary_email(
     )
 
     return {
-        "sent": True,
-        "queued": True,
-        "message": "Parent progress report has been submitted for delivery.",
+        **DeliveryResult,
         "recipients": [Item["email"] for Item in Recipients],
         "fileName": FileName,
+        "deliveryIds": [LogValue.id for LogValue in Logs],
     }
 
 
@@ -4755,9 +4782,9 @@ def resend_parent_report_delivery(delivery_id: str, BackgroundTasksValue: Backgr
         UserValue=user,
     )
 
-    BackgroundTasksValue.add_task(
-        _admin_send_parent_report_email_background,
-        LogIds=[LogValue.id for LogValue in Logs],
+    DeliveryResult = _admin_deliver_parent_report_email_now(
+        db,
+        Logs=Logs,
         RecipientEmails=[Item["email"] for Item in Recipients],
         Subject=Subject,
         Body=Body,
@@ -4767,11 +4794,10 @@ def resend_parent_report_delivery(delivery_id: str, BackgroundTasksValue: Backgr
     )
 
     return {
-        "sent": True,
-        "queued": True,
-        "message": "Parent progress report resend has been submitted for delivery.",
+        **DeliveryResult,
         "recipients": [Item["email"] for Item in Recipients],
         "fileName": FileName,
+        "deliveryIds": [LogValue.id for LogValue in Logs],
     }
 
 
