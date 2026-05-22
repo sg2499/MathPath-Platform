@@ -1493,51 +1493,17 @@ function ModeButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`rounded-3xl border p-4 text-left transition duration-200 ${
-        active
-          ? "border-blue-300 bg-blue-50 text-slate-950 shadow-sm dark:border-blue-300/70 dark:bg-gradient-to-br dark:from-blue-600 dark:via-indigo-600 dark:to-fuchsia-600 dark:text-white dark:shadow-blue-950/30"
-          : "border-slate-200 bg-white/80 text-slate-950 hover:border-blue-300 hover:bg-blue-50/60 dark:border-slate-500/70 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:border-blue-300/80 dark:hover:bg-slate-800/95"
-      }`}
+      aria-pressed={active}
+      className={`math-report-scope-tab ${active ? "math-report-scope-tab-active" : "math-report-scope-tab-inactive"}`}
     >
       <div className="flex items-start gap-3">
-        <span
-          className={`rounded-2xl p-3 ${
-            active
-              ? "bg-blue-600 text-white dark:bg-white/15 dark:text-white"
-              : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          }`}
-        >
-          {icon}
-        </span>
-        <span>
-          <span
-            className={`math-kicker ${
-              active
-                ? "dark:text-white/90"
-                : "dark:text-slate-200"
-            }`}
-          >
-            {kicker}
-          </span>
-          <span
-            className={`mt-1 block text-lg font-black ${
-              active
-                ? "text-slate-950 dark:text-white"
-                : "text-slate-950 dark:text-slate-50"
-            }`}
-          >
-            {title}
-          </span>
-          <span
-            className={`mt-1 block text-sm ${
-              active
-                ? "text-slate-700 dark:text-white/90"
-                : "text-slate-600 dark:text-slate-300"
-            }`}
-          >
-            {text}
-          </span>
+        <span className="math-report-scope-tab-icon">{icon}</span>
+        <span className="min-w-0">
+          <span className="math-report-scope-tab-kicker">{kicker}</span>
+          <span className="math-report-scope-tab-title">{title}</span>
+          <span className="math-report-scope-tab-text">{text}</span>
         </span>
       </div>
     </button>

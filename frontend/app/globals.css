@@ -6793,4 +6793,125 @@ html.dark .math-login-welcome-chip {
     color: inherit !important;
     opacity: 1 !important;
   }
+
+  /* Phase 10.9.3F rebuild: Admin Reports top scope tabs must match the stable inactive-tab convention. */
+  .math-report-scope-tab {
+    width: 100%;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(203, 213, 225, 0.92);
+    padding: 1rem;
+    text-align: left;
+    transition: border-color 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .math-report-scope-tab:hover {
+    transform: translateY(-1px);
+  }
+
+  .math-report-scope-tab-active {
+    border-color: rgba(37, 99, 235, 0.5);
+    background: linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(238, 242, 255, 0.98));
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.12);
+  }
+
+  .math-report-scope-tab-inactive {
+    border-color: rgba(203, 213, 225, 0.92);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  }
+
+  .math-report-scope-tab-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1rem;
+    padding: 0.75rem;
+    background: rgb(241, 245, 249);
+    color: rgb(71, 85, 105);
+  }
+
+  .math-report-scope-tab-active .math-report-scope-tab-icon {
+    background: linear-gradient(135deg, rgb(37, 99, 235), rgb(147, 51, 234));
+    color: #ffffff;
+  }
+
+  .math-report-scope-tab-kicker {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgb(37, 99, 235);
+  }
+
+  .math-report-scope-tab-title {
+    margin-top: 0.25rem;
+    display: block;
+    font-size: 1.125rem;
+    font-weight: 900;
+    color: rgb(15, 23, 42);
+  }
+
+  .math-report-scope-tab-text {
+    margin-top: 0.25rem;
+    display: block;
+    font-size: 0.875rem;
+    color: rgb(71, 85, 105);
+  }
+
+  html.dark .math-report-scope-tab,
+  html.dark .math-report-scope-tab-inactive {
+    border-color: rgba(125, 211, 252, 0.42) !important;
+    background: rgba(15, 23, 42, 0.94) !important;
+    color: #f8fbff !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 14px 34px rgba(0,0,0,0.24) !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-report-scope-tab-active {
+    border-color: rgba(34, 211, 238, 0.72) !important;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(124, 58, 237, 0.95)) !important;
+    color: #ffffff !important;
+    box-shadow: 0 18px 42px rgba(37, 99, 235, 0.34), inset 0 1px 0 rgba(255,255,255,0.16) !important;
+  }
+
+  html.dark .math-report-scope-tab-icon {
+    border: 1px solid rgba(148, 163, 184, 0.28) !important;
+    background: rgba(30, 41, 59, 0.98) !important;
+    color: #dbeafe !important;
+  }
+
+  html.dark .math-report-scope-tab-active .math-report-scope-tab-icon {
+    border-color: rgba(255, 255, 255, 0.24) !important;
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+  }
+
+  html.dark .math-report-scope-tab-kicker,
+  html.dark .math-report-scope-tab-title,
+  html.dark .math-report-scope-tab-text,
+  html.dark .math-report-scope-tab * {
+    color: inherit !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-report-scope-tab-inactive .math-report-scope-tab-kicker {
+    color: #93c5fd !important;
+  }
+
+  html.dark .math-report-scope-tab-inactive .math-report-scope-tab-title {
+    color: #f8fbff !important;
+  }
+
+  html.dark .math-report-scope-tab-inactive .math-report-scope-tab-text {
+    color: #cbd5e1 !important;
+  }
+
+  html.dark .math-report-scope-tab-active .math-report-scope-tab-kicker,
+  html.dark .math-report-scope-tab-active .math-report-scope-tab-title,
+  html.dark .math-report-scope-tab-active .math-report-scope-tab-text {
+    color: #ffffff !important;
+  }
+
 }
