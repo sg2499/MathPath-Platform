@@ -1,8 +1,66 @@
 import type { AttemptResult } from "@/types/result";
 import { formatSeconds, resultMessage } from "@/lib/utils";
-import { Award, CheckCircle2, Clock3, Target, XCircle } from "lucide-react";
+import { Award, BookOpenCheck, CheckCircle2, Clock3, Target, XCircle, AlertTriangle } from "lucide-react";
 import { StudentPerformanceFeedback } from "@/components/common/PerformanceFeedback";
 import type { ReactNode } from "react";
+
+function RetryWorkflowCard({ result }: { result: AttemptResult }) {
+  const Workflow = result.retryWorkflow;
+  const Summary = result.summary;
+  const FallbackCleared = Number(Summary.accuracyPercentage || 0) >= Number(Summary.benchmarkPercentage || 70);
+
+  const State = Workflow?.state || (FallbackCleared ? "CLEARED" : "RETRY_REQUIRED");
+  const IsCleared = State === "CLEARED";
+  const IsManualReview = State === "MANUAL_REVIEW_REQUIRED" || Boolean(Workflow?.requiresManualIntervention || result.requiresManualIntervention);
+
+  const Title = Workflow?.title || (IsCleared ? "Benchmark Achieved" : IsManualReview ? "Additional Review Required" : "More Practice Recommended");
+  const Message = Workflow?.message || (IsCleared
+    ? "Excellent work! You have successfully achieved the benchmark for this practice sheet."
+    : IsManualReview
+      ? "This practice requires additional review before the next attempt can be unlocked."
+      : "You are improving, but the required benchmark has not been achieved yet.");
+  const Guidance = Workflow?.guidance || (IsCleared
+    ? "You may now continue your learning journey with the next assigned practice."
+    : IsManualReview
+      ? "Your teacher will guide you through the next step to help strengthen this concept."
+      : "A new practice sheet has been prepared to help you strengthen this concept before moving ahead.");
+
+  const ToneClass = IsCleared
+    ? "border-emerald-200/80 bg-emerald-50/90 text-emerald-950 dark:border-emerald-400/35 dark:bg-emerald-950/35 dark:text-emerald-50"
+    : IsManualReview
+      ? "border-rose-200/80 bg-rose-50/90 text-rose-950 dark:border-rose-400/35 dark:bg-rose-950/35 dark:text-rose-50"
+      : "border-amber-200/80 bg-amber-50/90 text-amber-950 dark:border-amber-400/35 dark:bg-amber-950/35 dark:text-amber-50";
+
+  const IconClass = IsCleared
+    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200"
+    : IsManualReview
+      ? "bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-200"
+      : "bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-200";
+
+  const Icon = IsCleared ? <CheckCircle2 size={22} /> : IsManualReview ? <AlertTriangle size={22} /> : <BookOpenCheck size={22} />;
+
+  return (
+    <div className={`mt-5 rounded-[28px] border p-5 shadow-sm ${ToneClass}`}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${IconClass}`}>
+          {Icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-black tracking-tight">{Title}</h2>
+            {typeof Workflow?.attemptNumber === "number" ? (
+              <span className="w-fit rounded-full border border-current/20 bg-white/50 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] dark:bg-white/10">
+                {Workflow.attemptNumber <= 0 ? "Original" : `Re-Attempt ${Workflow.attemptNumber}`}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-2 text-sm font-bold leading-6 opacity-95">{Message}</p>
+          <p className="mt-1 text-sm font-semibold leading-6 opacity-85">{Guidance}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function ResultSummary({ result }: { result: AttemptResult }) {
   const s = result.summary;
@@ -13,8 +71,8 @@ export function ResultSummary({ result }: { result: AttemptResult }) {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="math-kicker">Result Overview</p>
-          <h1 className="mt-3 text-4xl font-black text-slate-950">Score: {s.score} / {s.maxScore}</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
+          <h1 className="mt-3 text-4xl font-black text-slate-950 dark:text-white">Score: {s.score} / {s.maxScore}</h1>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
             {result.message || resultMessage(s.accuracyPercentage)}
           </p>
         </div>
@@ -29,6 +87,8 @@ export function ResultSummary({ result }: { result: AttemptResult }) {
           </div>
         </div>
       </div>
+
+      <RetryWorkflowCard result={result} />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Metric icon={<Target size={18} />} label="Accuracy" value={`${s.accuracyPercentage}%`} />

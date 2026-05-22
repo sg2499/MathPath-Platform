@@ -10,7 +10,10 @@ from app.database import get_db
 from app.dependencies import get_current_teacher
 from app.models import Assignment, Attempt, DPS, Lesson, Level, Module, Student, Teacher, User, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentReattemptApproval, StudentLevelPromotion, AssessmentReadinessTestingOverride
 from app.services.assignment_service import create_assignment
+from app.services.attempt_chain_service import ATTEMPT_SOURCE_MANUAL_RETRY
+from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.attempt_service import result_payload
+from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, NeedsReattemptAttempts
 from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
 from app.services.assessment_blueprint_service import blueprint_payload, teacher_visible_blueprints
 from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload
@@ -208,7 +211,7 @@ def student_payload(db: Session, student: Student) -> dict:
 
     accuracy_values = [attempt_accuracy(a) for a in completed_attempts]
     average_accuracy = round(sum(accuracy_values) / len(accuracy_values), 2) if accuracy_values else None
-    below_benchmark_attempts = [a for a in completed_attempts if attempt_accuracy(a) < BENCHMARK_PERCENTAGE]
+    below_benchmark_attempts = NeedsReattemptAttempts(completed_attempts, BENCHMARK_PERCENTAGE)
 
     latest_activity_at = None
     if latest:
@@ -248,7 +251,7 @@ def student_payload(db: Session, student: Student) -> dict:
         "pendingAssignments": pending_assignment_count,
         "inProgressAssignments": in_progress_assignment_count,
         "completedAttempts": len(completed_attempts),
-        "belowBenchmarkAttempts": len(below_benchmark_attempts),
+        "belowBenchmarkAttempts": CountNeedsReattemptConcepts(completed_attempts, BENCHMARK_PERCENTAGE),
         "requiresAttention": bool(below_benchmark_attempts),
         "benchmarkPercentage": BENCHMARK_PERCENTAGE,
         "latestScore": attempt_score(latest) if latest else None,
@@ -575,9 +578,38 @@ def assign_dps_to_students(
             .first()
         )
 
+        reattempt_permission = active_reattempt_permission_for_teacher(db, student.id, dps.id)
         if existing_assignment or student_has_completed_dps(db, student.id, dps.id):
-            user = db.get(User, student.user_id)
-            blocked_students.append(user.full_name if user else student.student_code)
+            if not reattempt_permission:
+                user = db.get(User, student.user_id)
+                blocked_students.append(user.full_name if user else student.student_code)
+                continue
+
+            source_attempt = db.get(Attempt, reattempt_permission.attempt_id) if hasattr(reattempt_permission, "attempt_id") else None
+            if not source_attempt:
+                source_attempt = (
+                    db.query(Attempt)
+                    .filter(Attempt.student_id == student.id, Attempt.dps_id == dps.id, Attempt.status.in_(["SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"]))
+                    .order_by(Attempt.attempt_number.desc(), Attempt.started_at.desc())
+                    .first()
+                )
+            if not source_attempt:
+                user = db.get(User, student.user_id)
+                blocked_students.append(user.full_name if user else student.student_code)
+                continue
+
+            assignment = BuildManualRetryAssignment(
+                db,
+                StudentItem=student,
+                SourceAttempt=source_attempt,
+                AssignedByUserId=teacher.user_id,
+                Title=title,
+                Instructions=payload.instructions,
+            )
+            reattempt_permission.status = "USED"
+            reattempt_permission.used_at = datetime.now(timezone.utc)
+            reattempt_permission.used_assignment_id = assignment.id
+            created.append(assignment)
             continue
 
         assignment = create_assignment(
@@ -725,6 +757,8 @@ def attempt_history_for_assignment_student(db: Session, assignment: Assignment, 
 def tracker_attempt_status(attempt: Attempt | None, reattempt_permission: AssignmentReattemptPermission | None = None) -> str:
     if not attempt:
         return "PENDING"
+    if bool(getattr(attempt, "requires_manual_intervention", False)) or str(getattr(attempt, "benchmark_status", "") or "").upper() == "MANUAL_INTERVENTION_REQUIRED":
+        return MANUAL_INTERVENTION_STATUS
     if attempt.status in ["SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"]:
         if reattempt_permission:
             return "REATTEMPT_AVAILABLE"
@@ -869,6 +903,7 @@ def teacher_assignment_tracker(db: Session = Depends(get_db), teacher: Teacher =
             "pendingRows": len([row for row in rows if row["status"] == "PENDING"]),
             "inProgressRows": len([row for row in rows if row["status"] == "IN_PROGRESS"]),
             "reattemptAvailableRows": len([row for row in rows if row["status"] == "REATTEMPT_AVAILABLE"]),
+            "manualInterventionRows": len([row for row in rows if row["status"] == MANUAL_INTERVENTION_STATUS]),
             "uniqueAssignments": len(seen_assignment_ids),
         },
         "rows": rows,
@@ -1495,3 +1530,18 @@ def teacher_get_published_assessment_blueprint(
     if not blueprint:
         api_error(404, "ASSESSMENT_BLUEPRINT_NOT_FOUND", "Published assessment not found for your assigned students.")
     return blueprint_payload(db, blueprint)
+
+
+@router.get("/assignment-tracker/manual-intervention-queue")
+def teacher_manual_intervention_queue(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    own_students = own_students_query(db, teacher).order_by(Student.student_code.asc()).all()
+    student_ids = [student.id for student in own_students]
+    rows = BuildManualInterventionQueue(db, StudentIds=student_ids, BenchmarkPercentage=BENCHMARK_PERCENTAGE)
+    return {
+        "summary": {
+            "manualInterventionRows": len(rows),
+            "uniqueStudents": len({row.get("studentId") for row in rows if row.get("studentId")}),
+            "uniqueDps": len({row.get("dpsId") for row in rows if row.get("dpsId")}),
+        },
+        "rows": rows,
+    }

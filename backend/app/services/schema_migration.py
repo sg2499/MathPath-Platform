@@ -218,6 +218,58 @@ def ensure_student_level_promotions_table() -> None:
         """))
 
 
+
+ASSIGNMENT_ATTEMPT_CHAIN_COLUMNS = {
+    "attempt_group_id": "VARCHAR",
+    "source_assignment_id": "VARCHAR",
+    "retry_attempt_number": "INTEGER DEFAULT 0",
+    "assignment_source": "VARCHAR(30) DEFAULT 'ORIGINAL'",
+    "auto_retry_limit": "INTEGER DEFAULT 3",
+    "requires_manual_intervention": "BOOLEAN DEFAULT false",
+    "manual_intervention_reason": "TEXT",
+}
+
+ATTEMPT_CHAIN_COLUMNS = {
+    "attempt_group_id": "VARCHAR",
+    "attempt_number": "INTEGER DEFAULT 0",
+    "attempt_source": "VARCHAR(30) DEFAULT 'ORIGINAL'",
+    "requires_manual_intervention": "BOOLEAN DEFAULT false",
+    "cleared_at_attempt": "BOOLEAN DEFAULT false",
+    "benchmark_status": "VARCHAR(30) DEFAULT 'PENDING'",
+}
+
+
+def ensure_assignment_attempt_chain_columns() -> None:
+    """Add Phase 10.9.4A DPS attempt-chain fields to live databases safely."""
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+
+    with engine.begin() as connection:
+        if "assignments" in tables:
+            existing = {column["name"] for column in inspector.get_columns("assignments")}
+            for name, ddl in ASSIGNMENT_ATTEMPT_CHAIN_COLUMNS.items():
+                if name not in existing:
+                    connection.execute(text(f"ALTER TABLE assignments ADD COLUMN {name} {ddl}"))
+
+            connection.execute(text("UPDATE assignments SET attempt_group_id = id WHERE attempt_group_id IS NULL"))
+            connection.execute(text("UPDATE assignments SET retry_attempt_number = 0 WHERE retry_attempt_number IS NULL"))
+            connection.execute(text("UPDATE assignments SET assignment_source = 'ORIGINAL' WHERE assignment_source IS NULL"))
+            connection.execute(text("UPDATE assignments SET auto_retry_limit = 3 WHERE auto_retry_limit IS NULL"))
+            connection.execute(text("UPDATE assignments SET requires_manual_intervention = false WHERE requires_manual_intervention IS NULL"))
+
+        if "attempts" in tables:
+            existing = {column["name"] for column in inspector.get_columns("attempts")}
+            for name, ddl in ATTEMPT_CHAIN_COLUMNS.items():
+                if name not in existing:
+                    connection.execute(text(f"ALTER TABLE attempts ADD COLUMN {name} {ddl}"))
+
+            connection.execute(text("UPDATE attempts SET attempt_group_id = assignment_id WHERE attempt_group_id IS NULL AND assignment_id IS NOT NULL"))
+            connection.execute(text("UPDATE attempts SET attempt_number = 0 WHERE attempt_number IS NULL"))
+            connection.execute(text("UPDATE attempts SET attempt_source = 'ORIGINAL' WHERE attempt_source IS NULL"))
+            connection.execute(text("UPDATE attempts SET requires_manual_intervention = false WHERE requires_manual_intervention IS NULL"))
+            connection.execute(text("UPDATE attempts SET cleared_at_attempt = false WHERE cleared_at_attempt IS NULL"))
+            connection.execute(text("UPDATE attempts SET benchmark_status = 'PENDING' WHERE benchmark_status IS NULL"))
+
 PARENT_REPORT_EMAIL_LOG_COLUMNS = {
     "delivery_status": "VARCHAR(30) DEFAULT 'QUEUED' NOT NULL",
     "delivery_provider": "VARCHAR(50)",
@@ -350,7 +402,7 @@ def ensure_notifications_table() -> None:
                 target_tab VARCHAR(80),
                 target_sub_tab VARCHAR(80),
                 color_variant VARCHAR(40) DEFAULT 'INFO' NOT NULL,
-                is_read BOOLEAN DEFAULT 0 NOT NULL,
+                is_read BOOLEAN DEFAULT false NOT NULL,
                 read_at TIMESTAMP,
                 metadata_json TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

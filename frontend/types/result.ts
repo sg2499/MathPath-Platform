@@ -1,5 +1,23 @@
+export type RetryWorkflowState = "CLEARED" | "RETRY_PREPARED" | "RETRY_REQUIRED" | "MANUAL_REVIEW_REQUIRED";
+
+export type RetryWorkflow = {
+  state: RetryWorkflowState;
+  attemptNumber: number;
+  nextAssignmentId?: string | null;
+  requiresManualIntervention: boolean;
+  title: string;
+  message: string;
+  guidance: string;
+};
+
 export type AttemptResult = {
   attemptId: string;
+  attemptGroupId?: string | null;
+  attemptNumber?: number | null;
+  attemptLabel?: string | null;
+  attemptSource?: string | null;
+  requiresManualIntervention?: boolean | null;
+  benchmarkState?: string | null;
   status: string;
   student?: {
     studentId?: string | null;
@@ -27,6 +45,10 @@ export type AttemptResult = {
     maxScore: number;
     accuracyPercentage: number;
     timeTakenSeconds: number | null;
+    benchmarkPercentage?: number | null;
+    benchmarkStatus?: string | null;
+    requiresAttention?: boolean | null;
+    benchmarkMessage?: string | null;
   };
   questionReview?: Array<{
     questionNumber: number;
@@ -38,5 +60,6 @@ export type AttemptResult = {
     correctOption?: { optionId?: string; label: string; value: string } | null;
     isCorrect?: boolean;
   }>;
+  retryWorkflow?: RetryWorkflow | null;
   message?: string;
 };

@@ -32,9 +32,15 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.core.errors import api_error
 from app.models import Attempt, AttemptAnswer, GeneratedQuestion, QuestionOption, DPS, Assignment, AssignmentReattemptPermission
-from app.services.assignment_service import validate_assignment_access
-from app.services.generation_service import persist_question_set
+from app.services.assignment_service import validate_assignment_access, create_auto_retry_assignment_for_attempt
+from app.services.generation_service import build_attempt_question_seed, persist_question_set
 from app.services.audit_service import log_event
+from app.services.attempt_chain_service import (
+    ApplyAttemptChainMetadata,
+    BuildAttemptLabel,
+    BuildRetryWorkflowPayload,
+    UpdateSubmittedAttemptBenchmarkState,
+)
 
 
 def now_utc():
@@ -125,10 +131,10 @@ def start_attempt(db: Session, student, assignment_id: str, dps_id: str, mode: s
         total_questions=dps.default_question_count,
         max_score=dps.default_question_count * dps.marks_per_question,
     )
+    ApplyAttemptChainMetadata(db, attempt, assignment, student.id)
     db.add(attempt)
     db.flush()
-    published_seed = getattr(dps, "published_seed", None)
-    seed = published_seed or f"YLM-{dps.id}-{student.id}-{attempt.id}-{int(started.timestamp())}"
+    seed = build_attempt_question_seed(dps, assignment, student.id, attempt, started)
     qset = persist_question_set(db, dps, assignment.id, student.id, mode, seed)
     attempt.question_set_id = qset.id
 
@@ -208,10 +214,53 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     attempt.max_score = float(len(questions))
     attempt.accuracy_percentage = round((correct / len(questions)) * 100, 2) if questions else 0
     attempt.time_taken_seconds = attempt.duration_seconds if auto else min(attempt.duration_seconds, int((submitted - _aware(attempt.started_at)).total_seconds()))
+    UpdateSubmittedAttemptBenchmarkState(attempt, BENCHMARK_PERCENTAGE)
+
+    source_assignment = db.get(Assignment, attempt.assignment_id) if attempt.assignment_id else None
+    retry_assignment = None
+    if source_assignment is not None:
+        retry_assignment = create_auto_retry_assignment_for_attempt(
+            db,
+            submitted_attempt=attempt,
+            source_assignment=source_assignment,
+        )
+        if retry_assignment is not None:
+            log_event(
+                db,
+                "AUTO_RETRY_ASSIGNMENT_CREATED",
+                student_id=attempt.student_id,
+                attempt_id=attempt.id,
+                data={
+                    "assignmentId": retry_assignment.id,
+                    "attemptGroupId": retry_assignment.attempt_group_id,
+                    "retryAttemptNumber": retry_assignment.retry_attempt_number,
+                },
+            )
+
     log_event(db, "AUTO_SUBMITTED" if auto else "ATTEMPT_SUBMITTED", student_id=attempt.student_id, attempt_id=attempt.id)
     db.commit()
     db.refresh(attempt)
     return attempt
+
+def latest_retry_assignment_for_attempt(db: Session, attempt: Attempt):
+    attempt_group_id = getattr(attempt, "attempt_group_id", None)
+    student_id = getattr(attempt, "student_id", None)
+    next_retry_number = int(getattr(attempt, "attempt_number", 0) or 0) + 1
+    if not attempt_group_id or not student_id:
+        return None
+    return (
+        db.query(Assignment)
+        .filter(
+            Assignment.attempt_group_id == attempt_group_id,
+            Assignment.assigned_to_type == "STUDENT",
+            Assignment.assigned_to_id == student_id,
+            Assignment.retry_attempt_number == next_retry_number,
+            Assignment.is_active == True,
+        )
+        .order_by(Assignment.created_at.desc())
+        .first()
+    )
+
 
 def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -> dict:
     questions_review = []
@@ -233,8 +282,17 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
                 "correctOption": {"label": correct_option.option_label, "value": correct_option.option_value} if correct_option else None,
                 "isCorrect": bool(selected.is_correct) if selected else False,
             })
+    retry_assignment = latest_retry_assignment_for_attempt(db, attempt)
+    retry_workflow = BuildRetryWorkflowPayload(attempt, retry_assignment)
+
     return {
         "attemptId": attempt.id,
+        "attemptGroupId": getattr(attempt, "attempt_group_id", None),
+        "attemptNumber": getattr(attempt, "attempt_number", 0),
+        "attemptLabel": BuildAttemptLabel(getattr(attempt, "attempt_number", 0)),
+        "attemptSource": getattr(attempt, "attempt_source", None),
+        "requiresManualIntervention": bool(getattr(attempt, "requires_manual_intervention", False)),
+        "benchmarkState": getattr(attempt, "benchmark_status", None),
         "status": attempt.status,
         "summary": {
             "totalQuestions": attempt.total_questions,
@@ -250,5 +308,6 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
         },
         **benchmark_payload_for_attempt(attempt),
         "questionReview": questions_review,
-        "message": "Excellent work!" if attempt.accuracy_percentage >= 90 else "Good effort. Keep practicing!" if attempt.accuracy_percentage >= 70 else "Caution: This attempt is below the minimum benchmark of 70%. Please review mistakes with your teacher and practice again.",
+        "retryWorkflow": retry_workflow,
+        "message": retry_workflow.get("message") or ("Excellent work!" if attempt.accuracy_percentage >= 90 else "Good effort. Keep practicing!"),
     }

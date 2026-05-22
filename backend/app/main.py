@@ -38,7 +38,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-    from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_assessment_reattempt_columns, ensure_student_level_promotions_table, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table
+    from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_assessment_reattempt_columns, ensure_student_level_promotions_table, ensure_assignment_attempt_chain_columns, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table
     ensure_user_columns()
     ensure_student_profile_columns()
     ensure_teacher_columns()
@@ -46,6 +46,7 @@ def on_startup():
     ensure_dps_publication_columns()
     ensure_assessment_reattempt_columns()
     ensure_student_level_promotions_table()
+    ensure_assignment_attempt_chain_columns()
     ensure_parent_report_email_logs_table()
     ensure_assessment_readiness_testing_overrides_table()
     ensure_notifications_table()

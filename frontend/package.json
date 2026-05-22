@@ -42,7 +42,10 @@
     "verify:governance-workflow-e2e": "node scripts/run-governance-workflow-regression.mjs",
     "verify:production-readiness-e2e": "node scripts/run-production-readiness-regression.mjs",
     "verify:demo-qa-sweep": "node scripts/run-final-demo-qa-sweep.mjs",
-    "verify:demo-qa-sweep:full": "node scripts/run-final-demo-qa-sweep.mjs --full"
+    "verify:demo-qa-sweep:full": "node scripts/run-final-demo-qa-sweep.mjs --full",
+    "verify:dps-auto-reattempt-e2e": "node scripts/run-dps-auto-reattempt-regression.mjs",
+    "verify:dps-auto-reattempt-e2e:headed": "node scripts/run-dps-auto-reattempt-regression.mjs --headed",
+    "verify:dps-auto-reattempt-e2e:ui": "node scripts/run-dps-auto-reattempt-regression.mjs --ui"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.16",

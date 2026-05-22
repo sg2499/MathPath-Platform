@@ -35,7 +35,6 @@ class Student(Base):
     # Student profile information
     custom_id = Column(String(80), unique=True, nullable=True)
     teacher = Column(String(150), nullable=True)
-    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=True)
     admission_date = Column(String(30), nullable=True)
     dob = Column(String(30), nullable=True)
     gender = Column(String(30), nullable=True)
@@ -473,9 +472,17 @@ class Assignment(Base):
     allow_reattempt = Column(Boolean, default=False, nullable=False)
     show_result_immediately = Column(Boolean, default=True, nullable=False)
     show_correct_answers_after_submit = Column(Boolean, default=True, nullable=False)
+    attempt_group_id = Column(String, nullable=True, index=True)
+    source_assignment_id = Column(String, ForeignKey("assignments.id", ondelete="SET NULL"), nullable=True)
+    retry_attempt_number = Column(Integer, default=0, nullable=False)
+    assignment_source = Column(String(30), default="ORIGINAL", nullable=False)
+    auto_retry_limit = Column(Integer, default=3, nullable=False)
+    requires_manual_intervention = Column(Boolean, default=False, nullable=False)
+    manual_intervention_reason = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     dps = relationship("DPS")
+    source_assignment = relationship("Assignment", remote_side=[id], foreign_keys=[source_assignment_id])
 
 
 class AssignmentReattemptPermission(Base):
@@ -536,6 +543,12 @@ class Attempt(Base):
     student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     mode = Column(String(30), nullable=False)
     status = Column(String(30), default="IN_PROGRESS", nullable=False)
+    attempt_group_id = Column(String, nullable=True, index=True)
+    attempt_number = Column(Integer, default=0, nullable=False)
+    attempt_source = Column(String(30), default="ORIGINAL", nullable=False)
+    requires_manual_intervention = Column(Boolean, default=False, nullable=False)
+    cleared_at_attempt = Column(Boolean, default=False, nullable=False)
+    benchmark_status = Column(String(30), default="PENDING", nullable=False)
     started_at = Column(DateTime(timezone=True), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     submitted_at = Column(DateTime(timezone=True), nullable=True)

@@ -1,4 +1,3 @@
-import base64
 import json
 import re
 import shutil
@@ -29,6 +28,7 @@ from app.dependencies import require_roles
 from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog
 from app.services.assignment_service import create_assignment
 from app.services.attempt_service import result_payload
+from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, ClearedConceptAttempts, CurrentOperationalAttempts, NeedsReattemptAttempts
 from app.services.curriculum_service import dps_config_payload, get_dps_or_404
 from app.services.generation_service import build_preview_seed, generate_preview
 from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
@@ -68,6 +68,7 @@ from app.services.assessment_engine_service import (
 
 from app.services.assessment_notification_service import NotifyAssessmentReattemptDecision, NotifyStudentPromoted
 from app.services.practice_notification_service import NotifyPracticeReattemptUnlocked
+from app.services.manual_intervention_service import BuildManualInterventionQueue, MANUAL_INTERVENTION_STATUS
 from app.services.parent_report_notification_service import (
     NotifyParentReportGenerated,
     NotifyParentReportDeliveryLogs,
@@ -735,21 +736,12 @@ def safe_filename(filename: str, prefix: str) -> str:
     return f"{safe_prefix}-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}{suffix}"
 
 
-
-
-def upload_image_to_data_url(upload: UploadFile, prefix: str = "image") -> str:
-    safe_filename(upload.filename or "image.png", prefix)
-    suffix = Path(upload.filename or "image.png").suffix.lower().lstrip(".")
-    mime_type = "image/jpeg" if suffix in {"jpg", "jpeg"} else f"image/{suffix or 'png'}"
-    content = upload.file.read()
-    if len(content) > 2_000_000:
-        api_error(400, "FILE_TOO_LARGE", "Image must be under 2 MB.")
-    encoded = base64.b64encode(content).decode("ascii")
-    return f"data:{mime_type};base64,{encoded}"
-
 def save_image(upload: UploadFile, folder: Path, prefix: str) -> str:
-    # Persist images in the database as data URLs so photos/signatures survive redeploys.
-    return upload_image_to_data_url(upload, prefix)
+    filename = safe_filename(upload.filename or "image.png", prefix)
+    path = folder / filename
+    with path.open("wb") as buffer:
+        shutil.copyfileobj(upload.file, buffer)
+    return f"/uploads/students/{folder.name}/{filename}"
 
 
 
@@ -915,7 +907,11 @@ def upload_teacher_photo_route(
     if extension not in [".png", ".jpg", ".jpeg", ".webp"]:
         api_error(400, "VALIDATION_ERROR", "Only PNG, JPG, JPEG, and WEBP images are allowed.")
 
-    teacher.photo_url = upload_image_to_data_url(file, teacher.teacher_code or teacher.id)
+    target = TEACHER_PHOTO_DIR / f"{teacher.id}{extension}"
+    with target.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    teacher.photo_url = f"/uploads/teachers/photos/{target.name}"
     db.commit()
     db.refresh(teacher)
 
@@ -1490,15 +1486,10 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
             db.add(StudentUser)
             db.flush()
 
-            ResolvedTeacherName = TeacherName
-            if TeacherRecord:
-                ResolvedTeacherUser = db.get(User, TeacherRecord.user_id)
-                ResolvedTeacherName = ResolvedTeacherUser.full_name if ResolvedTeacherUser else TeacherName
-
             StudentRecord = Student(
                 user_id=StudentUser.id,
                 custom_id=CustomId,
-                teacher=ResolvedTeacherName,
+                teacher=TeacherName,
                 teacher_id=TeacherRecord.id if TeacherRecord else None,
                 admission_date=clean_text(Row.get("admission_date")),
                 dob=clean_text(Row.get("dob")),
@@ -1940,6 +1931,8 @@ def _admin_attempt_sequence_number(db: Session, attempt: Attempt | None) -> int:
 def _admin_attempt_display_status(db: Session, attempt: Attempt | None) -> str:
     if not attempt:
         return "Pending"
+    if bool(getattr(attempt, "requires_manual_intervention", False)) or str(getattr(attempt, "benchmark_status", "") or "").upper() == "MANUAL_INTERVENTION_REQUIRED":
+        return "Manual Review Required"
     SequenceNumber = _admin_attempt_sequence_number(db, attempt)
     IsReattempt = SequenceNumber > 1
     StatusValue = (attempt.status or "").upper()
@@ -2289,6 +2282,19 @@ def list_assignments_route(db: Session = Depends(get_db), user: User = Depends(a
     return {"assignments": [assignment_payload(db, assignment) for assignment in rows]}
 
 
+@router.get("/assignments/manual-intervention-queue")
+def admin_manual_intervention_queue(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    rows = BuildManualInterventionQueue(db, BenchmarkPercentage=BENCHMARK_PERCENTAGE)
+    return {
+        "summary": {
+            "manualInterventionRows": len(rows),
+            "uniqueStudents": len({row.get("studentId") for row in rows if row.get("studentId")}),
+            "uniqueDps": len({row.get("dpsId") for row in rows if row.get("dpsId")}),
+        },
+        "rows": rows,
+    }
+
+
 @router.get("/assignments/{assignment_id}")
 def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     assignment = db.get(Assignment, assignment_id)
@@ -2425,11 +2431,14 @@ def allow_assignment_reattempt_route(
     if not latest_attempt or latest_attempt.status not in ["SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"]:
         api_error(400, "VALIDATION_ERROR", "Reattempt can be allowed only after a submitted attempt.")
 
+    if not (bool(getattr(latest_attempt, "requires_manual_intervention", False)) or str(getattr(latest_attempt, "benchmark_status", "") or "").upper() == "MANUAL_INTERVENTION_REQUIRED"):
+        api_error(400, "MANUAL_REATTEMPT_NOT_READY", "Manual re-attempt approval is available only after the automatic retry cycle requires teacher review.")
+
     existing = active_reattempt_permission(db, assignment.id, student.id)
     if existing:
         return {
             "created": False,
-            "message": "Reattempt is already approved and waiting to be used.",
+            "message": "Reattempt is already approved and waiting for teacher assignment.",
             "permission": reattempt_permission_payload(existing),
         }
 
@@ -2438,7 +2447,7 @@ def allow_assignment_reattempt_route(
         dps_id=assignment.dps_id,
         student_id=student.id,
         allowed_by_user_id=user.id,
-        reason=payload.reason,
+        reason=payload.reason or "Manual review approved after repeated below-benchmark attempts.",
         status="APPROVED",
     )
     db.add(permission)
@@ -2449,10 +2458,9 @@ def allow_assignment_reattempt_route(
 
     return {
         "created": True,
-        "message": "Reattempt approved. The same assignment/assessment is now unlocked for the student.",
+        "message": "Re-attempt approved. The teacher can now assign the next guided practice attempt.",
         "permission": reattempt_permission_payload(permission),
     }
-
 
 
 @router.patch("/assignments/{assignment_id}/status")
@@ -2668,7 +2676,7 @@ def level_results(levelId: str, moduleId: str | None = None, teacherId: str | No
         student_attempts = [attempt for (student_id, _), attempt in latest_attempt_by_student_dps.items() if student_id == student.id]
         completed_attempts = [attempt for attempt in student_attempts if (attempt.status or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}]
         passed_attempts = [attempt for attempt in completed_attempts if float(attempt.accuracy_percentage or 0) >= 70]
-        needs_reattempt = [attempt for attempt in completed_attempts if float(attempt.accuracy_percentage or 0) < 70]
+        needs_reattempt = NeedsReattemptAttempts(completed_attempts, BENCHMARK_PERCENTAGE)
         assigned_dps = len({attempt.dps_id for attempt in student_attempts})
         completed_dps = len({attempt.dps_id for attempt in completed_attempts})
         pending_dps = max(required_dps - completed_dps, 0)
@@ -2698,7 +2706,7 @@ def level_results(levelId: str, moduleId: str | None = None, teacherId: str | No
             "completedDps": completed_dps,
             "passedDps": len(passed_attempts),
             "pendingDps": pending_dps,
-            "needsReattempt": len(needs_reattempt),
+            "needsReattempt": CountNeedsReattemptConcepts(completed_attempts, BENCHMARK_PERCENTAGE),
             "averageScore": avg_score,
             "averageAccuracy": avg_accuracy,
             "performanceZone": performance_zone,
@@ -3229,8 +3237,8 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
             if not current or (attempt_date and (not current_date or attempt_date > current_date)):
                 latest_by_dps[attempt.dps_id] = attempt
         completed = [attempt for attempt in latest_by_dps.values() if (attempt.status or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}]
-        passed = [attempt for attempt in completed if float(attempt.accuracy_percentage or 0) >= BENCHMARK_PERCENTAGE]
-        needs_reattempt = [attempt for attempt in completed if float(attempt.accuracy_percentage or 0) < BENCHMARK_PERCENTAGE]
+        passed = ClearedConceptAttempts(completed, BENCHMARK_PERCENTAGE)
+        needs_reattempt = NeedsReattemptAttempts(completed, BENCHMARK_PERCENTAGE)
         avg_accuracy = round(sum(float(attempt.accuracy_percentage or 0) for attempt in completed) / len(completed), 2) if completed else 0
         avg_score = round(sum(float(attempt.total_score or 0) for attempt in completed) / len(completed), 2) if completed else 0
         performance_zone = "Excellence Zone" if avg_accuracy >= 90 else "Growth Zone" if avg_accuracy >= 70 else "Needs Improvement" if completed else "Not Started"
@@ -3399,6 +3407,7 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
             "dpsAttempts": len(dps_rows),
             "dpsCleared": len(dps_cleared_rows),
             "dpsCompleted": len(dps_cleared_rows),
+            "needsReattempt": CountNeedsReattemptConcepts(completed_attempts, BENCHMARK_PERCENTAGE),
             "assessmentAttempts": len(assessment_rows),
             "assessmentsCleared": len(assessment_cleared_rows),
             "promotedLevels": len(promotion_records),

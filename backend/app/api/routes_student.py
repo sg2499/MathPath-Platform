@@ -20,6 +20,7 @@ from app.services.assessment_engine_service import (
 )
 from app.services.assessment_notification_service import NotifyAssessmentAttemptSubmitted
 from app.services.practice_notification_service import NotifyPracticeAttemptSubmitted
+from app.services.reattempt_operational_service import AttemptConceptKey, AttemptSequenceValue
 
 router = APIRouter(prefix="/api/student", tags=["student"])
 
@@ -335,13 +336,13 @@ def attempt_metadata(db: Session, attempt: Attempt | None) -> dict:
 def current_attempts_by_work_unit(db: Session, attempts: list[Attempt]) -> list[Attempt]:
     current: dict[str, Attempt] = {}
     for attempt in attempts:
-        key = attempt.assignment_id or f"DPS::{attempt.dps_id}"
+        key = AttemptConceptKey(attempt)
         existing = current.get(key)
         if not existing:
             current[key] = attempt
             continue
-        existing_sequence = attempt_sequence_number(db, existing)
-        attempt_sequence = attempt_sequence_number(db, attempt)
+        existing_sequence = AttemptSequenceValue(existing) or attempt_sequence_number(db, existing)
+        attempt_sequence = AttemptSequenceValue(attempt) or attempt_sequence_number(db, attempt)
         existing_time = existing.submitted_at or existing.started_at
         attempt_time = attempt.submitted_at or attempt.started_at
         if (

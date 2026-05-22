@@ -1,5 +1,6 @@
 import json
 from uuid import uuid4
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Module, Level, Lesson
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
@@ -25,6 +26,33 @@ def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
         allow_negative_operands=section.allow_negative_operands,
         allow_negative_answer=section.allow_negative_answer,
         seed=seed,
+    )
+
+
+def build_attempt_question_seed(dps: DPS, assignment, student_id: str, attempt, started_at) -> str:
+    """Build the question seed for a student attempt.
+
+    Original published DPS attempts may continue to use the published seed so existing
+    live behavior stays stable. Retry attempts intentionally receive a fresh seed tied
+    to the attempt chain/attempt number so the student receives a different question
+    set for the same DPS concept.
+    """
+    AssignmentSource = getattr(assignment, "assignment_source", "ORIGINAL") if assignment else "ORIGINAL"
+    RetryAttemptNumber = int(getattr(assignment, "retry_attempt_number", 0) or 0) if assignment else 0
+    AttemptNumber = int(getattr(attempt, "attempt_number", RetryAttemptNumber) or 0) if attempt else RetryAttemptNumber
+    PublishedSeed = getattr(dps, "published_seed", None)
+
+    if AssignmentSource == "ORIGINAL" and RetryAttemptNumber <= 0 and AttemptNumber <= 0 and PublishedSeed:
+        return PublishedSeed
+
+    Timestamp = int((started_at or datetime.now(timezone.utc)).timestamp())
+    AttemptId = getattr(attempt, "id", None) or uuid4().hex
+    AssignmentId = getattr(assignment, "id", None) or "NO-ASSIGNMENT"
+    AttemptGroupId = getattr(attempt, "attempt_group_id", None) or getattr(assignment, "attempt_group_id", None) or AssignmentId
+    return (
+        f"YLM-RETRY-{dps.id}-{student_id}-{AttemptGroupId}-"
+        f"ASSIGNMENT-{AssignmentId}-ATTEMPT-{AttemptNumber}-"
+        f"SOURCE-{AssignmentSource}-{AttemptId}-{Timestamp}"
     )
 
 def build_preview_seed(dps: DPS) -> str:
