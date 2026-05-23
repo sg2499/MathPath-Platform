@@ -6,7 +6,7 @@ from app.dependencies import get_current_student
 from app.models import Student, DPS, Lesson, Level, Module, Attempt, Assignment, AssignmentReattemptPermission, AssessmentAssignment, StudentLevelPromotion
 from app.services.assignment_service import get_student_assignments
 from app.services.curriculum_service import dps_config_payload
-from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds
+from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds, latest_retry_assignment_for_attempt
 from app.services.assessment_eligibility_service import assessment_eligibility_payload
 from app.services.assessment_engine_service import (
     AssessmentAssignmentPayload,
@@ -19,7 +19,7 @@ from app.services.assessment_engine_service import (
     AssessmentResultPayload,
 )
 from app.services.assessment_notification_service import NotifyAssessmentAttemptSubmitted
-from app.services.practice_notification_service import NotifyPracticeAttemptSubmitted
+from app.services.practice_notification_service import NotifyPracticeAttemptSubmitted, NotifyPracticeAssignmentsCreated
 from app.services.reattempt_operational_service import AttemptConceptKey, AttemptSequenceValue
 
 router = APIRouter(prefix="/api/student", tags=["student"])
@@ -605,6 +605,13 @@ def submit(attempt_id: str, payload: SubmitRequest, db: Session = Depends(get_db
     attempt = get_attempt_for_student(db, student, attempt_id)
     attempt = submit_attempt(db, attempt, auto=False)
     NotifyPracticeAttemptSubmitted(db, attempt_id=attempt.id)
+    RetryAssignment = latest_retry_assignment_for_attempt(db, attempt)
+    if RetryAssignment is not None:
+        NotifyPracticeAssignmentsCreated(
+            db,
+            assignment_ids=[RetryAssignment.id],
+            actor_user_id=RetryAssignment.assigned_by_user_id,
+        )
     db.commit()
     return result_payload(db, attempt, include_review=True)
 
@@ -613,6 +620,13 @@ def auto_submit(attempt_id: str, db: Session = Depends(get_db), student: Student
     attempt = get_attempt_for_student(db, student, attempt_id)
     attempt = submit_attempt(db, attempt, auto=True)
     NotifyPracticeAttemptSubmitted(db, attempt_id=attempt.id)
+    RetryAssignment = latest_retry_assignment_for_attempt(db, attempt)
+    if RetryAssignment is not None:
+        NotifyPracticeAssignmentsCreated(
+            db,
+            assignment_ids=[RetryAssignment.id],
+            actor_user_id=RetryAssignment.assigned_by_user_id,
+        )
     db.commit()
     return result_payload(db, attempt, include_review=True)
 

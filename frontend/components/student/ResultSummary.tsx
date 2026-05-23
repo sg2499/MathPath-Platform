@@ -17,13 +17,13 @@ function RetryWorkflowCard({ result }: { result: AttemptResult }) {
   const Message = Workflow?.message || (IsCleared
     ? "Excellent work! You have successfully achieved the benchmark for this practice sheet."
     : IsManualReview
-      ? "This practice requires additional review before the next attempt can be unlocked."
+      ? "This practice now needs teacher review before another re-attempt can be opened."
       : "You are improving, but the required benchmark has not been achieved yet.");
   const Guidance = Workflow?.guidance || (IsCleared
     ? "You may now continue your learning journey with the next assigned practice."
     : IsManualReview
-      ? "Your teacher will guide you through the next step to help strengthen this concept."
-      : "A re-attempt practice sheet has been assigned in your Practice tab. Open Practice and complete the highlighted sheet before moving ahead.");
+      ? "Your teacher will review the attempt and guide the next step before more practice is opened."
+      : "Your next re-attempt practice sheet has already been assigned in the Practice tab. Open Practice, complete the highlighted sheet, and continue only after finishing that focused practice.");
 
   const ToneClass = IsCleared
     ? "border-emerald-200/80 bg-emerald-50/90 text-emerald-950 dark:border-emerald-400/35 dark:bg-emerald-950/35 dark:text-emerald-50"

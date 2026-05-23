@@ -114,15 +114,18 @@ def _create_or_merge_assignment_notification(
     teacher_name: str | None,
     display_level: str | None,
 ) -> Notification:
-    Existing = _recent_assignment_notification(
-        db,
-        recipient_user_id=recipient_user_id,
-        student_id=student_id,
-        module_id=module_id,
-        level_id=level_id,
-        actor_user_id=actor_user_id,
-        target_route=target_route,
-    )
+    ShouldMerge = "REATTEMPT" not in str(type or "").upper() and "APPROVAL" not in str(type or "").upper()
+    Existing = None
+    if ShouldMerge:
+        Existing = _recent_assignment_notification(
+            db,
+            recipient_user_id=recipient_user_id,
+            student_id=student_id,
+            module_id=module_id,
+            level_id=level_id,
+            actor_user_id=actor_user_id,
+            target_route=target_route,
+        )
     if not Existing:
         return CreateNotification(
             db,
@@ -392,6 +395,108 @@ def _assignment_group_metadata(
         "notificationGroup": "PRACTICE_BULK" if count > 1 else "PRACTICE",
         "isGrouped": count > 1,
     }
+
+
+def _practice_focus_metadata(context: dict[str, Any], *, assignment: Assignment | None = None, attempt: Attempt | None = None, target_action: str) -> dict[str, Any]:
+    lesson = context.get("lesson")
+    dps = context.get("dps")
+    return {
+        "assignmentId": assignment.id if assignment else None,
+        "attemptId": attempt.id if attempt else None,
+        "dpsId": dps.id if dps else None,
+        "lessonId": lesson.id if lesson else None,
+        "studentCode": context.get("student_code"),
+        "moduleCode": context.get("module_code"),
+        "levelCode": context.get("level_code") or context.get("level_label"),
+        "highlightId": f"assignment-{assignment.id}" if assignment else (f"attempt-{attempt.id}" if attempt else None),
+        "targetAction": target_action,
+        "notificationGroup": "PRACTICE",
+    }
+
+
+def NotifyPracticeReattemptApprovalNeeded(
+    db: Session,
+    *,
+    attempt_id: str,
+) -> None:
+    """Notify all roles when automatic re-attempt capacity is exhausted."""
+    attempt = db.get(Attempt, attempt_id)
+    if not attempt:
+        return
+
+    assignment = db.get(Assignment, attempt.assignment_id) if attempt.assignment_id else None
+    context = _practice_context(db, assignment=assignment, attempt=attempt)
+    student = context.get("student")
+    student_user = context.get("student_user")
+    teacher = context.get("teacher")
+    teacher_user = context.get("teacher_user")
+    module = context.get("module")
+    level = context.get("level")
+    lesson = context.get("lesson")
+    dps = context.get("dps")
+    dps_label = context.get("dps_label")
+    student_name = context.get("student_name")
+    attempt_number = int(getattr(attempt, "attempt_number", 0) or 0)
+
+    if student_user:
+        CreateNotification(
+            db,
+            recipient_user_id=student_user.id,
+            recipient_role="STUDENT",
+            student_id=student.id if student else None,
+            teacher_id=teacher.id if teacher else None,
+            module_id=module.id if module else None,
+            level_id=level.id if level else None,
+            lesson_id=lesson.id if lesson else None,
+            dps_id=dps.id if dps else None,
+            attempt_id=attempt.id,
+            type="DPS_REATTEMPT_APPROVAL_NEEDED",
+            category="PRACTICE",
+            title="Teacher Review Needed",
+            message=f"{dps_label} needs teacher review before another re-attempt can be opened.",
+            target_route=f"/student/result/{attempt.id}",
+            target_tab="practice-result",
+            metadata=_practice_focus_metadata(context, assignment=assignment, attempt=attempt, target_action="teacher-review-needed"),
+        )
+
+    if teacher_user:
+        CreateNotification(
+            db,
+            recipient_user_id=teacher_user.id,
+            recipient_role="TEACHER",
+            student_id=student.id if student else None,
+            teacher_id=teacher.id if teacher else None,
+            module_id=module.id if module else None,
+            level_id=level.id if level else None,
+            lesson_id=lesson.id if lesson else None,
+            dps_id=dps.id if dps else None,
+            attempt_id=attempt.id,
+            type="DPS_REATTEMPT_APPROVAL_NEEDED",
+            category="PRACTICE",
+            title=f"Re-Attempt Approval Needed For {student_name}",
+            message=f"{student_name} has exhausted Re-Attempt {attempt_number} for {dps_label}. Review the record and coordinate approval with Admin before another attempt is opened.",
+            target_route=_teacher_practice_target_route(context),
+            target_tab="practice-tracker",
+            metadata=_practice_focus_metadata(context, assignment=assignment, attempt=attempt, target_action="lesson-insights-approval-needed"),
+        )
+
+    _admin_notifications(
+        db,
+        type="DPS_REATTEMPT_APPROVAL_NEEDED",
+        category="PRACTICE",
+        title=f"Re-Attempt Approval Needed For {student_name}",
+        message=f"{student_name} has exhausted Re-Attempt {attempt_number} for {dps_label}. Admin review is required before another attempt is opened.",
+        student_id=student.id if student else None,
+        teacher_id=teacher.id if teacher else None,
+        module_id=module.id if module else None,
+        level_id=level.id if level else None,
+        lesson_id=lesson.id if lesson else None,
+        dps_id=dps.id if dps else None,
+        attempt_id=attempt.id,
+        target_route=_admin_practice_target_route(context),
+        target_tab="practice-control",
+        metadata=_practice_focus_metadata(context, assignment=assignment, attempt=attempt, target_action="lesson-insights-approval-needed"),
+    )
 
 
 def NotifyPracticeAssignmentsCreated(
@@ -694,6 +799,9 @@ def NotifyPracticeAttemptSubmitted(
                 "notificationGroup": "PRACTICE",
             },
     )
+
+    if not cleared and bool(getattr(attempt, "requires_manual_intervention", False)):
+        NotifyPracticeReattemptApprovalNeeded(db, attempt_id=attempt.id)
 
 
 def NotifyPracticeReattemptUnlocked(

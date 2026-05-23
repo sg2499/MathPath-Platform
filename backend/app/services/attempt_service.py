@@ -236,12 +236,6 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
                     "retryAttemptNumber": retry_assignment.retry_attempt_number,
                 },
             )
-            from app.services.practice_notification_service import NotifyPracticeAssignmentsCreated
-            NotifyPracticeAssignmentsCreated(
-                db,
-                assignment_ids=[retry_assignment.id],
-                actor_user_id=source_assignment.assigned_by_user_id,
-            )
 
     log_event(db, "AUTO_SUBMITTED" if auto else "ATTEMPT_SUBMITTED", student_id=attempt.student_id, attempt_id=attempt.id)
     db.commit()
