@@ -4,8 +4,9 @@ import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { ProfileAvatar, ResolveAssetUrl } from "@/components/common/ProfileAvatar";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
-import { api, apiErrorMessage } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api";
 import {
   createTeacher,
   deleteTeacher,
@@ -57,23 +58,12 @@ function emptyForm(): TeacherPayload {
   };
 }
 
-function recordInitials(Name?: string | null) {
-  const Parts = String(Name || "Teacher").trim().split(/\s+/).filter(Boolean);
-  if (Parts.length >= 2) return `${Parts[0][0]}${Parts[1][0]}`.toUpperCase();
-  return (Parts[0] || "TE").slice(0, 2).toUpperCase();
-}
 
 function optional(value: string | null | undefined) {
   const cleaned = String(value ?? "").trim();
   return cleaned || null;
 }
 
-function assetUrl(url?: string | null) {
-  if (!url) return "";
-  if (url.startsWith("http") || url.startsWith("data:")) return url;
-  const base = (api.defaults.baseURL || "http://localhost:8000/api").replace(/\/api\/?$/, "");
-  return `${base}${url}`;
-}
 
 function makeTeacherCode(name: string) {
   const compact = name
@@ -364,9 +354,12 @@ export default function AdminTeachersPage() {
                     <tr key={teacher.teacherId}>
                       <td>
                         <div className="flex items-center gap-3">
-                          <div className="math-record-avatar math-record-avatar-teacher h-11 w-11 text-xs">
-                            <span>{recordInitials(teacher.teacherName)}</span>
-                          </div>
+                          <ProfileAvatar
+                            name={teacher.teacherName}
+                            imageUrl={teacher.photoUrl}
+                            role="TEACHER"
+                            className="math-record-avatar-teacher h-11 w-11 text-xs"
+                          />
                           <div>
                             <p className="font-black text-slate-950 dark:text-white">{teacher.teacherName}</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">{teacher.designation || "Teacher"}</p>
@@ -474,7 +467,7 @@ export default function AdminTeachersPage() {
 
 
 function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClose: () => void }) {
-  const Photo = assetUrl(teacher.photoUrl);
+  const Photo = ResolveAssetUrl(teacher.photoUrl);
   const DetailRows = [
     ["Teacher Code", teacher.teacherCode],
     ["Designation", teacher.designation || "Not Added"],
@@ -495,9 +488,12 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
             {Photo ? (
               <img src={Photo} alt={teacher.teacherName} className="h-16 w-16 rounded-3xl object-cover ring-2 ring-white shadow-md" />
             ) : (
-              <div className="math-record-avatar math-record-avatar-teacher h-16 w-16 rounded-3xl text-xl">
-                <span>{recordInitials(teacher.teacherName)}</span>
-              </div>
+              <ProfileAvatar
+                name={teacher.teacherName}
+                imageUrl={teacher.photoUrl}
+                role="TEACHER"
+                className="math-record-avatar-teacher h-16 w-16 rounded-3xl text-xl"
+              />
             )}
             <div className="min-w-0">
               <p className="math-kicker">Teacher Profile</p>
@@ -657,7 +653,7 @@ function ImageInput({
   existingUrl?: string | null;
   onChange: (file: File | null) => void;
 }) {
-  const previewUrl = file ? URL.createObjectURL(file) : assetUrl(existingUrl);
+  const previewUrl = file ? URL.createObjectURL(file) : ResolveAssetUrl(existingUrl);
 
   return (
     <div>

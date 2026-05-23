@@ -5,8 +5,8 @@ import { SortableHeader } from "@/components/common/SortableHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { ProfileAvatar, ResolveAssetUrl } from "@/components/common/ProfileAvatar";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
-import { api } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api";
 import {
   bulkUploadStudents,
@@ -116,26 +116,12 @@ function emptyForm(): FormState {
   };
 }
 
-function recordInitials(Name?: string | null) {
-  const Parts = String(Name || "Student").trim().split(/\s+/).filter(Boolean);
-  if (Parts.length >= 2) return `${Parts[0][0]}${Parts[1][0]}`.toUpperCase();
-  return (Parts[0] || "ST").slice(0, 2).toUpperCase();
-}
 
 function optional(value: string | null | undefined) {
   const cleaned = String(value ?? "").trim();
   return cleaned || null;
 }
 
-function assetUrl(url?: string | null) {
-  if (!url) return "";
-  if (url.startsWith("http") || url.startsWith("data:")) return url;
-  const base = (api.defaults.baseURL || "http://localhost:8000/api").replace(
-    /\/api\/?$/,
-    ""
-  );
-  return `${base}${url}`;
-}
 
 function createCodeFromName(name: string) {
   const compact = name
@@ -856,9 +842,12 @@ export default function AdminStudentsPage() {
                     <tr key={s.studentId}>
                       <td>
                         <div className="flex items-center gap-3">
-                          <div className="math-record-avatar math-record-avatar-student h-11 w-11 text-xs">
-                            <span>{recordInitials(s.studentName)}</span>
-                          </div>
+                          <ProfileAvatar
+                            name={s.studentName}
+                            imageUrl={s.photoUrl}
+                            role="STUDENT"
+                            className="math-record-avatar-student h-11 w-11 text-xs"
+                          />
 
                           <div>
                             <p className="font-black text-slate-950 dark:text-white">
@@ -1596,7 +1585,7 @@ function ImageInput({
   existingUrl?: string | null;
   onChange: (file: File | null) => void;
 }) {
-  const previewUrl = file ? URL.createObjectURL(file) : assetUrl(existingUrl);
+  const previewUrl = file ? URL.createObjectURL(file) : ResolveAssetUrl(existingUrl);
 
   return (
     <div>
@@ -1753,14 +1742,17 @@ function StudentProfileModal({
                 <p className="font-black text-slate-950 dark:text-white">Photo</p>
                 {student.photoUrl ? (
                   <img
-                    src={assetUrl(student.photoUrl)}
+                    src={ResolveAssetUrl(student.photoUrl)}
                     className="mt-3 h-44 w-44 rounded-3xl object-cover ring-1 ring-slate-200 dark:ring-slate-700"
                     alt="Student"
                   />
                 ) : (
-                  <div className="math-record-avatar math-record-avatar-student mt-3 h-44 w-44 rounded-3xl text-4xl">
-                    <span>{recordInitials(student.studentName)}</span>
-                  </div>
+                  <ProfileAvatar
+                    name={student.studentName}
+                    imageUrl={student.photoUrl}
+                    role="STUDENT"
+                    className="math-record-avatar-student mt-3 h-44 w-44 rounded-3xl text-4xl"
+                  />
                 )}
               </div>
 
@@ -1768,7 +1760,7 @@ function StudentProfileModal({
                 <p className="font-black text-slate-950 dark:text-white">Signature</p>
                 {student.signatureUrl ? (
                   <img
-                    src={assetUrl(student.signatureUrl)}
+                    src={ResolveAssetUrl(student.signatureUrl)}
                     className="mt-3 h-24 w-44 rounded-2xl bg-white object-contain p-2 ring-1 ring-slate-200 dark:ring-slate-700"
                     alt="Signature"
                   />
