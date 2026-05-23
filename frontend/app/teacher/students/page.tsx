@@ -215,8 +215,8 @@ function studentMetricValue(
   Metrics: Map<string, StudentPracticeMetric>,
   Student: TeacherStudent,
   Field: keyof StudentPracticeMetric,
-  Fallback: number | null = 0,
-) {
+  Fallback: number = 0,
+): number {
   const Metric = Metrics.get(Student.studentCode);
   const Value = Metric?.[Field];
   return typeof Value === "number" && Number.isFinite(Value) ? Value : Fallback;
