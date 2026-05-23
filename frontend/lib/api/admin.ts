@@ -556,6 +556,8 @@ export async function allowAdminAssignmentReattempt(
     reattemptReason: string | null;
     usedAssignmentId: string | null;
   };
+  freshAssignmentId?: string | null;
+  freshAssignmentTitle?: string | null;
 }> {
   const { data } = await api.post(`/admin/assignments/${assignmentId}/students/${studentId}/allow-reattempt`, {
     reason: reason || null,

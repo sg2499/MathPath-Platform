@@ -700,6 +700,117 @@ def NotifyPracticeAssignmentsCreated(
             )
 
 
+
+def NotifyPracticeFreshPracticeAssigned(
+    db: Session,
+    *,
+    assignment_id: str,
+    actor_user_id: str | None,
+    source_attempt_id: str | None = None,
+) -> None:
+    """Notify all roles when Admin approval creates a fresh same-concept practice sheet.
+
+    This is intentionally separate from the old permission-unlock notification.
+    The approval action now creates a new assignment shell immediately; the
+    student receives a different question set when starting that assignment
+    because manual retry assignments use fresh retry seeds.
+    """
+    assignment = db.get(Assignment, assignment_id)
+    if not assignment:
+        return
+
+    source_attempt = db.get(Attempt, source_attempt_id) if source_attempt_id else None
+    context = _practice_context(db, assignment=assignment, attempt=source_attempt)
+    student = context.get("student")
+    student_user = context.get("student_user")
+    teacher = context.get("teacher")
+    teacher_user = context.get("teacher_user")
+    module = context.get("module")
+    level = context.get("level")
+    lesson = context.get("lesson")
+    dps = context.get("dps")
+    dps_identity = _practice_notification_identity(context)
+    student_name = context.get("student_name")
+
+    metadata = _practice_focus_metadata(
+        context,
+        assignment=assignment,
+        attempt=source_attempt,
+        target_action="lesson-insights-fresh-practice-assigned",
+    )
+    metadata.update({
+        "freshAssignmentId": assignment.id,
+        "sourceAttemptId": source_attempt.id if source_attempt else None,
+        "assignmentSource": getattr(assignment, "assignment_source", None),
+        "retryAttemptNumber": getattr(assignment, "retry_attempt_number", None),
+    })
+
+    if student_user:
+        CreateNotification(
+            db,
+            recipient_user_id=student_user.id,
+            recipient_role="STUDENT",
+            actor_user_id=actor_user_id,
+            actor_role="TEACHER" if actor_user_id else None,
+            student_id=student.id if student else None,
+            teacher_id=teacher.id if teacher else None,
+            module_id=module.id if module else None,
+            level_id=level.id if level else None,
+            lesson_id=lesson.id if lesson else None,
+            dps_id=dps.id if dps else None,
+            type="DPS_FRESH_PRACTICE_ASSIGNED",
+            category="REATTEMPT",
+            title="Fresh Practice Assigned",
+            message=f"Your teacher has opened fresh practice for {dps_identity}. Open the Practice tab to complete the new sheet.",
+            target_route="/student/practice",
+            target_tab="practice",
+            metadata=metadata,
+        )
+
+    if teacher_user:
+        CreateNotification(
+            db,
+            recipient_user_id=teacher_user.id,
+            recipient_role="TEACHER",
+            actor_user_id=actor_user_id,
+            actor_role="ADMIN" if actor_user_id else None,
+            student_id=student.id if student else None,
+            teacher_id=teacher.id if teacher else None,
+            module_id=module.id if module else None,
+            level_id=level.id if level else None,
+            lesson_id=lesson.id if lesson else None,
+            dps_id=dps.id if dps else None,
+            type="DPS_FRESH_PRACTICE_ASSIGNED",
+            category="REATTEMPT",
+            title="Fresh Practice Assigned After Admin Approval",
+            message=f"Admin approval has opened fresh practice for {student_name} in {dps_identity}. The latest record is now pending in the tracker.",
+            target_route=_teacher_practice_target_route(context),
+            target_tab="practice-tracker",
+            metadata=metadata,
+        )
+
+    for AdminUser in ActiveAdminUsers(db):
+        CreateNotification(
+            db,
+            recipient_user_id=AdminUser.id,
+            recipient_role=AdminUser.role,
+            actor_user_id=actor_user_id,
+            actor_role="ADMIN" if actor_user_id else None,
+            student_id=student.id if student else None,
+            teacher_id=teacher.id if teacher else None,
+            module_id=module.id if module else None,
+            level_id=level.id if level else None,
+            lesson_id=lesson.id if lesson else None,
+            dps_id=dps.id if dps else None,
+            type="DPS_FRESH_PRACTICE_ASSIGNED",
+            category="REATTEMPT",
+            title="Fresh Practice Assigned After Approval",
+            message=f"Fresh practice has been assigned to {student_name} for {dps_identity}. The previous exhausted attempts remain preserved in history.",
+            target_route=_admin_practice_target_route(context),
+            target_tab="practice-control",
+            metadata=metadata,
+        )
+
 def NotifyPracticeAttemptSubmitted(
     db: Session,
     *,

@@ -27,8 +27,8 @@ from app.services.reattempt_operational_service import (
 
 MANUAL_INTERVENTION_STATUS = "MANUAL_INTERVENTION_REQUIRED"
 MANUAL_RETRY_INSTRUCTIONS = (
-    "This guided practice has been unlocked after teacher review. Complete it carefully "
-    "to strengthen the concept before moving ahead."
+    "Fresh practice has been assigned for the same concept with a new question set. "
+    "Complete it carefully to strengthen the concept before moving ahead."
 )
 
 
@@ -73,7 +73,7 @@ def BuildManualRetryTitle(SourceAssignment: Assignment | None, Dps: DPS | None, 
         BaseTitle = f"DPS {Dps.dps_number} Practice"
     else:
         BaseTitle = "Practice Sheet"
-    return f"{BaseTitle} - Re-Attempt {NextAttemptNumber}"
+    return f"{BaseTitle} - Fresh Practice {NextAttemptNumber}"
 
 
 def AssignmentLineageRoot(Db: Session, AssignmentItem: Assignment | None) -> Assignment | None:
@@ -97,11 +97,12 @@ def BuildManualRetryAssignment(
     Title: str | None = None,
     Instructions: str | None = None,
 ) -> Assignment:
-    """Create the teacher-assigned retry after Admin approval.
+    """Create the approval-based fresh practice assignment after max attempts.
 
-    This does not bypass history. The assignment remains linked to the same
-    attempt_group_id so Admin, Teacher, and Student histories continue to show
-    Original, Re-Attempt 1, Re-Attempt 2, Re-Attempt 3, then manual retries.
+    This does not reopen the exhausted assignment. It creates a new assignment
+    for the same DPS concept and keeps it linked to the same attempt_group_id so
+    histories remain intact while the student receives a fresh question set when
+    the new assignment is started.
     """
     SourceAssignment = Db.get(Assignment, SourceAttempt.assignment_id) if SourceAttempt.assignment_id else None
     RootAssignment = AssignmentLineageRoot(Db, SourceAssignment)

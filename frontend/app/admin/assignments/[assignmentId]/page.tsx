@@ -22,6 +22,7 @@ import {
   RotateCcw,
   XCircle,
 } from "lucide-react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 function formatDate(value?: string | null) {
@@ -33,11 +34,13 @@ export default function AdminAssignmentDetailPage() {
   const params = useParams<{ assignmentId: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [FreshPracticeRequest, SetFreshPracticeRequest] = useState<any | null>(null);
 
   const reattemptMutation = useMutation({
     mutationFn: ({ assignmentId, studentId }: { assignmentId: string; studentId: string }) =>
       allowAdminAssignmentReattempt(assignmentId, studentId, "Teacher requested corrective re-attempt."),
     onSuccess: () => {
+      SetFreshPracticeRequest(null);
       queryClient.invalidateQueries({ queryKey: ["admin-assignment-detail", params.assignmentId] });
     },
   });
@@ -156,20 +159,20 @@ export default function AdminAssignmentDetailPage() {
                           )}
                         </td>
                         <td>
-                          {(row.status === "COMPLETED" || row.status === "REATTEMPT_AVAILABLE") && row.reattemptStatus !== "APPROVED" ? (
+                          {row.reattemptStatus === "USED" ? (
+                            <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">Fresh Practice Assigned</span>
+                          ) : row.requiresManualIntervention ? (
                             <button
                               className="math-role-action-button px-3 py-2"
-                              onClick={() => reattemptMutation.mutate({ assignmentId: assignment.assignmentId, studentId: row.studentId })}
+                              onClick={() => SetFreshPracticeRequest(row)}
                               disabled={reattemptMutation.isPending}
-                              title="Unlock this assignment for a corrective student re-attempt"
+                              title="Assign a fresh same-concept practice sheet with a new question set"
                             >
                               <RotateCcw size={15} />
-                              Allow
+                              Allow Fresh Practice
                             </button>
                           ) : row.reattemptStatus === "APPROVED" ? (
-                            <span className="math-badge border-amber-200 bg-amber-50 text-amber-700">Re-Attempt Available</span>
-                          ) : row.reattemptStatus === "USED" ? (
-                            <span className="math-badge border-blue-200 bg-blue-50 text-blue-700">Re-Attempt Used</span>
+                            <span className="math-badge border-amber-200 bg-amber-50 text-amber-700">Approval Pending Assignment</span>
                           ) : (
                             <span className="text-xs font-bold text-slate-400">-</span>
                           )}
@@ -238,6 +241,40 @@ export default function AdminAssignmentDetailPage() {
               <EmptyState message="No attempts have been made for this assignment yet." />
             )}
           </section>
+        </div>
+      ) : null}
+      {FreshPracticeRequest ? (
+        <div className="fixed inset-x-0 bottom-0 top-20 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-[2rem] border border-white/70 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-start gap-4">
+              <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                <RotateCcw size={24} />
+              </div>
+              <div>
+                <p className="math-kicker">Approval required</p>
+                <h2 className="text-2xl font-black text-slate-950">Assign Fresh Practice</h2>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                  {FreshPracticeRequest.studentName} has used all 3 available attempts. This action will assign a fresh practice sheet for the same concept with a new question set. Previous attempts will remain preserved in history.
+                </p>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-700">
+              {assignment.levelCode || "Level"} · Lesson {assignment.lessonNumber ?? "-"} · DPS {assignment.dpsNumber ?? "-"} — {assignment.dpsTitle || assignment.title}
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button className="math-button-secondary" onClick={() => SetFreshPracticeRequest(null)} disabled={reattemptMutation.isPending}>
+                Cancel
+              </button>
+              <button
+                className="math-role-action-button px-5 py-3"
+                disabled={reattemptMutation.isPending}
+                onClick={() => reattemptMutation.mutate({ assignmentId: assignment.assignmentId, studentId: FreshPracticeRequest.studentId })}
+              >
+                <RotateCcw size={17} />
+                Confirm Fresh Practice
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </AppShell>

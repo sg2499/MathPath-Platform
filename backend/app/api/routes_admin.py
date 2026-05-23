@@ -69,8 +69,8 @@ from app.services.assessment_engine_service import (
 )
 
 from app.services.assessment_notification_service import NotifyAssessmentReattemptDecision, NotifyStudentPromoted
-from app.services.practice_notification_service import NotifyPracticeReattemptUnlocked
-from app.services.manual_intervention_service import BuildManualInterventionQueue, MANUAL_INTERVENTION_STATUS
+from app.services.practice_notification_service import NotifyPracticeFreshPracticeAssigned
+from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.parent_report_notification_service import (
     NotifyParentReportGenerated,
     NotifyParentReportDeliveryLogs,
@@ -1925,6 +1925,19 @@ def active_reattempt_permission(db: Session, assignment_id: str, student_id: str
     )
 
 
+def latest_reattempt_permission(db: Session, assignment_id: str, student_id: str):
+    return (
+        db.query(AssignmentReattemptPermission)
+        .filter(
+            AssignmentReattemptPermission.assignment_id == assignment_id,
+            AssignmentReattemptPermission.student_id == student_id,
+            AssignmentReattemptPermission.status == "APPROVED",
+        )
+        .order_by(AssignmentReattemptPermission.allowed_at.desc())
+        .first()
+    )
+
+
 def reattempt_permission_payload(permission: AssignmentReattemptPermission | None) -> dict:
     if not permission:
         return {
@@ -2445,9 +2458,9 @@ def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user
         attempt = latest_attempt_by_student.get(student.id)
         completed = bool(attempt and attempt.status in completed_statuses)
 
-        reattempt_permission = active_reattempt_permission(db, assignment.id, student.id)
+        reattempt_permission = latest_reattempt_permission(db, assignment.id, student.id)
         row_status = "COMPLETED" if completed else "PENDING"
-        if reattempt_permission and completed:
+        if reattempt_permission and completed and not reattempt_permission.used_at:
             row_status = "REATTEMPT_AVAILABLE"
 
         student_rows.append({
@@ -2467,6 +2480,8 @@ def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user
             "unanswered": attempt.unanswered_count if attempt else None,
             "timeTakenSeconds": attempt.time_taken_seconds if attempt else None,
             "attemptHistory": admin_attempt_history_for_assignment_student(db, assignment, student),
+            "attemptNumber": getattr(attempt, "attempt_number", None) if attempt else None,
+            "requiresManualIntervention": bool(getattr(attempt, "requires_manual_intervention", False)) if attempt else False,
             **benchmark_payload_for_attempt(attempt),
             **attempt_date_payload(attempt),
             **reattempt_permission_payload(reattempt_permission),
@@ -2516,32 +2531,52 @@ def allow_assignment_reattempt_route(
     if not (bool(getattr(latest_attempt, "requires_manual_intervention", False)) or str(getattr(latest_attempt, "benchmark_status", "") or "").upper() == "MANUAL_INTERVENTION_REQUIRED"):
         api_error(400, "MANUAL_REATTEMPT_NOT_READY", "Manual re-attempt approval is available only after the automatic retry cycle requires teacher review.")
 
-    existing = active_reattempt_permission(db, assignment.id, student.id)
-    if existing:
+    existing = latest_reattempt_permission(db, assignment.id, student.id)
+    if existing and existing.used_assignment_id:
+        used_assignment = db.get(Assignment, existing.used_assignment_id)
         return {
             "created": False,
-            "message": "Reattempt is already approved and waiting for teacher assignment.",
+            "message": "Fresh practice has already been assigned for this exhausted attempt cycle.",
             "permission": reattempt_permission_payload(existing),
+            "freshAssignmentId": used_assignment.id if used_assignment else existing.used_assignment_id,
+            "freshAssignmentTitle": used_assignment.title if used_assignment else None,
         }
 
-    permission = AssignmentReattemptPermission(
-        assignment_id=assignment.id,
-        dps_id=assignment.dps_id,
-        student_id=student.id,
-        allowed_by_user_id=user.id,
-        reason=payload.reason or "Manual review approved after repeated below-benchmark attempts.",
-        status="APPROVED",
+    if existing and not existing.used_at:
+        permission = existing
+    else:
+        permission = AssignmentReattemptPermission(
+            assignment_id=assignment.id,
+            dps_id=assignment.dps_id,
+            student_id=student.id,
+            allowed_by_user_id=user.id,
+            reason=payload.reason or "Fresh practice approved after all available attempts were used.",
+            status="APPROVED",
+        )
+        db.add(permission)
+        db.flush()
+
+    fresh_assignment = BuildManualRetryAssignment(
+        db,
+        StudentItem=student,
+        SourceAttempt=latest_attempt,
+        AssignedByUserId=user.id,
+        Instructions="Fresh practice has been assigned for the same concept with a new question set.",
     )
-    db.add(permission)
-    db.flush()
-    NotifyPracticeReattemptUnlocked(db, permission_id=permission.id, actor_user_id=user.id)
+    permission.status = "APPROVED"
+    permission.used_at = datetime.now(datetime_timezone.utc)
+    permission.used_assignment_id = fresh_assignment.id
+    NotifyPracticeFreshPracticeAssigned(db, assignment_id=fresh_assignment.id, actor_user_id=user.id, source_attempt_id=latest_attempt.id)
     db.commit()
     db.refresh(permission)
+    db.refresh(fresh_assignment)
 
     return {
         "created": True,
-        "message": "Re-attempt approved. The teacher can now assign the next guided practice attempt.",
+        "message": "Fresh practice assigned. The student will find the new sheet in the Practice tab.",
         "permission": reattempt_permission_payload(permission),
+        "freshAssignmentId": fresh_assignment.id,
+        "freshAssignmentTitle": fresh_assignment.title,
     }
 
 
