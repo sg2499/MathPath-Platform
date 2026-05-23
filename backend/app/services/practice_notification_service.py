@@ -462,6 +462,17 @@ def NotifyPracticeReattemptApprovalNeeded(
     dps_identity = _practice_notification_identity(context)
     student_name = context.get("student_name")
     attempt_number = int(getattr(attempt, "attempt_number", 0) or 0)
+    next_attempt_number = max(attempt_number + 1, 1)
+    if attempt_number <= 3:
+        student_review_message = f"You have used all 3 available attempts for {dps_identity}. Your teacher will review your work and guide the next step before another attempt is opened."
+        teacher_review_message = f"{student_name} has used all 3 available attempts for {dps_identity}. Review the record and coordinate Admin approval before another attempt is opened."
+        admin_review_message = f"{student_name} has used all 3 available attempts for {dps_identity}. Admin approval is required before another attempt is opened."
+    else:
+        current_label = f"Re-Attempt {max(attempt_number - 1, 1)}"
+        next_label = f"Re-Attempt {max(next_attempt_number - 1, 1)}"
+        student_review_message = f"{current_label} for {dps_identity} needs teacher review. Your teacher will guide the next step before {next_label} is opened."
+        teacher_review_message = f"{student_name}'s {current_label} for {dps_identity} needs review. Coordinate Admin approval before {next_label} is opened."
+        admin_review_message = f"{student_name}'s {current_label} for {dps_identity} needs review. Admin approval is required before {next_label} is opened."
 
     if student_user:
         CreateNotification(
@@ -478,7 +489,7 @@ def NotifyPracticeReattemptApprovalNeeded(
             type="DPS_REATTEMPT_APPROVAL_NEEDED",
             category="PRACTICE",
             title="Teacher Review Needed",
-            message=f"You have used all 3 available attempts for {dps_identity}. Your teacher will review your work and guide the next step before another attempt is opened.",
+            message=student_review_message,
             target_route=f"/student/result/{attempt.id}",
             target_tab="practice-result",
             metadata=_practice_focus_metadata(context, assignment=assignment, attempt=attempt, target_action="teacher-review-needed"),
@@ -499,7 +510,7 @@ def NotifyPracticeReattemptApprovalNeeded(
             type="DPS_REATTEMPT_APPROVAL_NEEDED",
             category="PRACTICE",
             title=f"Re-Attempt Approval Needed For {student_name}",
-            message=f"{student_name} has used all 3 available attempts for {dps_identity}. Review the record and coordinate Admin approval before another attempt is opened.",
+            message=teacher_review_message,
             target_route=_teacher_practice_target_route(context),
             target_tab="practice-tracker",
             metadata=_practice_focus_metadata(context, assignment=assignment, attempt=attempt, target_action="lesson-insights-approval-needed"),
@@ -510,7 +521,7 @@ def NotifyPracticeReattemptApprovalNeeded(
         type="DPS_REATTEMPT_APPROVAL_NEEDED",
         category="PRACTICE",
         title=f"Re-Attempt Approval Needed For {student_name}",
-        message=f"{student_name} has used all 3 available attempts for {dps_identity}. Admin approval is required before another attempt is opened.",
+        message=admin_review_message,
         student_id=student.id if student else None,
         teacher_id=teacher.id if teacher else None,
         module_id=module.id if module else None,

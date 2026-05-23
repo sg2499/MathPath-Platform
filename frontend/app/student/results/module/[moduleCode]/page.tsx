@@ -34,7 +34,16 @@ function StudentModuleProgressWorkspacePageContent() {
   const Params = useParams();
   const SearchParams = useSearchParams();
   const ModuleCode = decodeURIComponent(String(Params.moduleCode || ""));
-  const SelectedLevel = SearchParams.get("level") || "";
+  const SelectedLevel = SearchParams.get("level") || SearchParams.get("levelCode") || "";
+  const FocusTarget = {
+    assignmentId: SearchParams.get("assignmentId") || undefined,
+    attemptId: SearchParams.get("attemptId") || undefined,
+    dpsId: SearchParams.get("dpsId") || undefined,
+    lessonId: SearchParams.get("lessonId") || undefined,
+    moduleCode: SearchParams.get("moduleCode") || ModuleCode || undefined,
+    levelCode: SearchParams.get("levelCode") || SelectedLevel || undefined,
+    targetAction: SearchParams.get("targetAction") || "lesson-insights",
+  };
 
   const Query = useQuery({ queryKey: ["student-results"], queryFn: getStudentResults, enabled: Ready, retry: 1 });
   const Rows: AnyRow[] = Query.data ?? [];
@@ -95,6 +104,8 @@ function StudentModuleProgressWorkspacePageContent() {
           onBack={() => Router.push("/student/results")}
           rows={VisibleRows}
           role="student"
+          initialTab={(SearchParams.get("tab") === "lesson-insights" || SearchParams.get("tab") === "lessons") ? "lessons" : "overview"}
+          focusTarget={FocusTarget}
           onView={(Row) => Row.attemptId && Router.push(`/student/result/${Row.attemptId}`)}
         />
       ) : (

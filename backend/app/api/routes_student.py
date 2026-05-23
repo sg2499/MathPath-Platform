@@ -503,6 +503,8 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
             level_dps_totals[level_id] = level_total_dps_count(db, level_id)
         return level_dps_totals[level_id]
 
+    submitted_assignment_ids = {attempt.assignment_id for attempt in attempts if attempt.assignment_id}
+
     for attempt in attempts:
         assignment = db.get(Assignment, attempt.assignment_id) if attempt.assignment_id else None
         dps = db.get(DPS, attempt.dps_id)
@@ -542,6 +544,73 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
             "levelDpsCount": total_dps,
             **attempt_date_payload(attempt),
         })
+
+    pending_assignments = (
+        db.query(Assignment)
+        .filter(
+            Assignment.assignment_type == "PRACTICE",
+            Assignment.assigned_to_type == "STUDENT",
+            Assignment.assigned_to_id == student.id,
+            Assignment.is_active.is_(True),
+        )
+        .order_by(Assignment.created_at.desc())
+        .all()
+    )
+    for assignment in pending_assignments:
+        if assignment.id in submitted_assignment_ids:
+            continue
+        dps = db.get(DPS, assignment.dps_id) if assignment.dps_id else None
+        lesson = db.get(Lesson, dps.lesson_id) if dps else None
+        level = db.get(Level, lesson.level_id) if lesson else None
+        module = db.get(Module, level.module_id) if level else None
+        total_dps = total_dps_for_level(level.id if level else None)
+        retry_number = int(getattr(assignment, "retry_attempt_number", 0) or 0)
+        rows.append({
+            "attemptId": None,
+            "assignmentId": assignment.id,
+            "assignmentTitle": assignment.title,
+            "assignmentType": assignment.assignment_type,
+            "recordKind": "PENDING_ASSIGNMENT",
+            "status": "PENDING",
+            "score": None,
+            "maxScore": None,
+            "accuracyPercentage": None,
+            "correct": 0,
+            "wrong": 0,
+            "unanswered": 0,
+            "timeTakenSeconds": None,
+            "benchmarkPercentage": 70,
+            "benchmarkStatus": "PENDING",
+            "requiresAttention": retry_number > 0,
+            "benchmarkMessage": "Pending practice assignment",
+            "attemptNumber": retry_number + 1 if retry_number > 0 else 1,
+            "retryAttemptNumber": retry_number,
+            "attemptLabel": f"Re-Attempt {retry_number}" if retry_number > 0 else "Original",
+            "isReattempt": retry_number > 0,
+            "attemptSource": getattr(assignment, "assignment_source", None),
+            "attemptGroupId": getattr(assignment, "attempt_group_id", None),
+            "moduleId": module.id if module else None,
+            "moduleCode": module.module_code if module else None,
+            "moduleName": module.module_name if module else None,
+            "levelId": level.id if level else None,
+            "levelCode": level.level_code if level else None,
+            "levelName": level.level_name if level else None,
+            "lessonId": lesson.id if lesson else None,
+            "lessonNumber": lesson.lesson_number if lesson else None,
+            "lessonTitle": lesson.lesson_title if lesson else None,
+            "dpsId": dps.id if dps else None,
+            "dpsNumber": dps.dps_number if dps else None,
+            "dpsTitle": dps.dps_title if dps else None,
+            "requiredDpsCount": total_dps,
+            "totalDpsCount": total_dps,
+            "levelDpsCount": total_dps,
+            "startedAt": None,
+            "submittedAt": None,
+            "attemptDate": None,
+            "completedDate": None,
+            "createdAt": assignment.created_at.isoformat() if assignment.created_at else None,
+        })
+
     rows.extend(student_level_progress_rows(db, student))
     return {"results": rows}
 
