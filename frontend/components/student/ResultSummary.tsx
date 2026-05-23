@@ -7,21 +7,25 @@ import type { ReactNode } from "react";
 function RetryWorkflowCard({ result }: { result: AttemptResult }) {
   const Workflow = result.retryWorkflow;
   const Summary = result.summary;
-  const FallbackCleared = Number(Summary.accuracyPercentage || 0) >= Number(Summary.benchmarkPercentage || 70);
+  const BenchmarkPercentage = Number(Summary.benchmarkPercentage || 70);
+  const AccuracyPercentage = Number(Summary.accuracyPercentage || 0);
+  const BenchmarkStatus = String(Summary.benchmarkStatus || result.benchmarkState || "").toUpperCase();
+  const ExplicitCleared = BenchmarkStatus.includes("MET") || BenchmarkStatus.includes("CLEAR") || Summary.requiresAttention === false;
+  const FallbackCleared = AccuracyPercentage >= BenchmarkPercentage;
+  const IsCleared = ExplicitCleared || FallbackCleared || Workflow?.state === "CLEARED";
 
-  const State = Workflow?.state || (FallbackCleared ? "CLEARED" : "RETRY_REQUIRED");
-  const IsCleared = State === "CLEARED";
-  const IsManualReview = State === "MANUAL_REVIEW_REQUIRED" || Boolean(Workflow?.requiresManualIntervention || result.requiresManualIntervention);
+  const State = IsCleared ? "CLEARED" : Workflow?.state || "RETRY_REQUIRED";
+  const IsManualReview = !IsCleared && (State === "MANUAL_REVIEW_REQUIRED" || Boolean(Workflow?.requiresManualIntervention || result.requiresManualIntervention));
 
-  const Title = Workflow?.title || (IsCleared ? "Benchmark Achieved" : IsManualReview ? "Additional Review Required" : "More Practice Recommended");
-  const Message = Workflow?.message || (IsCleared
+  const Title = IsCleared ? "Benchmark Achieved" : Workflow?.title || (IsManualReview ? "Additional Review Required" : "More Practice Recommended");
+  const Message = IsCleared
     ? "Excellent work! You have successfully achieved the benchmark for this practice sheet."
-    : IsManualReview
+    : Workflow?.message || (IsManualReview
       ? "This practice now needs teacher review before another re-attempt can be opened."
       : "You are improving, but the required benchmark has not been achieved yet.");
-  const Guidance = Workflow?.guidance || (IsCleared
+  const Guidance = IsCleared
     ? "You may now continue your learning journey with the next assigned practice."
-    : IsManualReview
+    : Workflow?.guidance || (IsManualReview
       ? "Your teacher will review the attempt and guide the next step before more practice is opened."
       : "Your next re-attempt practice sheet has already been assigned in the Practice tab. Open Practice, complete the highlighted sheet, and continue only after finishing that focused practice.");
 

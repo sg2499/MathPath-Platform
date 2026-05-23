@@ -5954,3 +5954,55 @@ html.dark .math-modal-close-button:focus-visible {
     color: #cbd5e1 !important;
   }
 }
+
+/* Phase 10.9.8 — Final table-header neutrality and dark detail readability convention */
+@layer components {
+  .math-role-admin .math-admin-directory-table thead,
+  .math-role-admin .math-admin-directory-table thead tr,
+  .math-role-admin .math-admin-directory-table thead th,
+  .math-role-admin .math-admin-directory-table thead th *,
+  .math-role-admin .math-admin-directory-table .math-sortable-header,
+  .math-role-admin .math-admin-directory-table .math-sortable-header *,
+  .math-role-admin .math-admin-directory-table .math-sortable-header:hover,
+  .math-role-admin .math-admin-directory-table .math-sortable-header:hover *,
+  .math-role-admin .math-admin-directory-table .math-sortable-header:focus-visible,
+  .math-role-admin .math-admin-directory-table .math-sortable-header:focus-visible * {
+    color: #64748b !important;
+    -webkit-text-fill-color: #64748b !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-role-admin .math-admin-directory-table thead,
+  html.dark .math-role-admin .math-admin-directory-table thead tr,
+  html.dark .math-role-admin .math-admin-directory-table thead th,
+  html.dark .math-role-admin .math-admin-directory-table thead th *,
+  html.dark .math-role-admin .math-admin-directory-table .math-sortable-header,
+  html.dark .math-role-admin .math-admin-directory-table .math-sortable-header *,
+  html.dark .math-role-admin .math-admin-directory-table .math-sortable-header:hover,
+  html.dark .math-role-admin .math-admin-directory-table .math-sortable-header:hover *,
+  html.dark .math-role-admin .math-admin-directory-table .math-sortable-header:focus-visible,
+  html.dark .math-role-admin .math-admin-directory-table .math-sortable-header:focus-visible * {
+    color: #cbd5e1 !important;
+    -webkit-text-fill-color: #cbd5e1 !important;
+  }
+
+  html.dark .math-role-admin .math-card :is(.text-slate-950, .text-slate-900, .text-slate-800),
+  html.dark .math-role-admin .math-operation-panel :is(.text-slate-950, .text-slate-900, .text-slate-800),
+  html.dark .math-role-admin .math-soft-section :is(.text-slate-950, .text-slate-900, .text-slate-800) {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+  }
+
+  html.dark .math-role-admin .math-card :is(.text-slate-600, .text-slate-500, .text-slate-400),
+  html.dark .math-role-admin .math-operation-panel :is(.text-slate-600, .text-slate-500, .text-slate-400),
+  html.dark .math-role-admin .math-soft-section :is(.text-slate-600, .text-slate-500, .text-slate-400) {
+    color: #cbd5e1 !important;
+    -webkit-text-fill-color: #cbd5e1 !important;
+  }
+
+  html.dark .math-role-admin .math-card :is(.bg-blue-50, .bg-slate-50, .bg-white),
+  html.dark .math-role-admin .math-operation-panel :is(.bg-blue-50, .bg-slate-50, .bg-white),
+  html.dark .math-role-admin .math-soft-section :is(.bg-blue-50, .bg-slate-50, .bg-white) {
+    background-color: rgba(15, 23, 42, 0.74) !important;
+  }
+}

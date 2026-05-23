@@ -46,6 +46,7 @@ import {
   moduleCodeOf,
   needsReattempt,
   searchText,
+  uniqueAssignedConceptCount,
   uniqueClearedConceptCount,
   uniquePendingConceptCount,
   studentCodeOf,
@@ -486,7 +487,7 @@ export default function TeacherPracticeTrackerPage() {
             />
             <Metric
               label="Assigned DPS"
-              value={CurrentFilteredRows.length}
+              value={uniqueAssignedConceptCount(CurrentFilteredRows)}
               icon={<ClipboardList size={15} />}
             />
             <Metric
