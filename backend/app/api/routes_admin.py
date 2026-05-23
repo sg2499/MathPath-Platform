@@ -32,6 +32,7 @@ from app.services.reattempt_operational_service import CountNeedsReattemptConcep
 from app.services.curriculum_service import dps_config_payload, get_dps_or_404
 from app.services.generation_service import build_preview_seed, generate_preview
 from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
+from app.services.auth_service import public_profile_photo_url
 from app.services.report_export_service import BuildWorkbookResponse, BuildParentProgressPdfResponse, BuildParentProgressPdfBytes, ReportGeneratedOn
 from app.services.email_service import (
     DiagnoseSmtpConfiguration,
@@ -567,7 +568,8 @@ def teacher_payload(db: Session, teacher: Teacher) -> dict:
         "joiningDate": teacher.joining_date,
         "address": teacher.address,
         "notes": teacher.notes,
-        "photoUrl": teacher.photo_url,
+        "photoUrl": public_profile_photo_url(teacher_user, teacher.photo_url or (teacher_user.photo_url if teacher_user else None)) if teacher_user else teacher.photo_url,
+        "profilePhotoUrl": public_profile_photo_url(teacher_user, teacher.photo_url or (teacher_user.photo_url if teacher_user else None)) if teacher_user else teacher.photo_url,
         "signatureUrl": teacher.signature_url,
         "status": "ACTIVE" if teacher.is_active and (teacher_user.is_active if teacher_user else True) else "INACTIVE",
         "isActive": bool(teacher.is_active and teacher_user.is_active) if teacher_user else bool(teacher.is_active),
@@ -646,7 +648,8 @@ def student_payload(db: Session, student: Student) -> dict:
         "gender": student.gender,
         "bloodGroup": student.blood_group,
         "interest": student.interest,
-        "photoUrl": student.photo_url,
+        "photoUrl": public_profile_photo_url(student_user, student.photo_url or (student_user.photo_url if student_user else None)) if student_user else student.photo_url,
+        "profilePhotoUrl": public_profile_photo_url(student_user, student.photo_url or (student_user.photo_url if student_user else None)) if student_user else student.photo_url,
         "signatureUrl": student.signature_url,
         "presentAddress": student.present_address,
         "permanentAddress": student.permanent_address,

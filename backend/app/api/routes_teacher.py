@@ -20,6 +20,7 @@ from app.services.assessment_engine_service import AvailablePublishedVersions, A
 from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated
 from app.services.practice_notification_service import NotifyPracticeAssignmentsCreated
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
+from app.services.auth_service import public_profile_photo_url
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 
@@ -239,7 +240,8 @@ def student_payload(db: Session, student: Student) -> dict:
         "className": student.class_name,
         "section": student.section,
         "schoolName": student.school_name,
-        "photoUrl": student.photo_url,
+        "photoUrl": public_profile_photo_url(user, student.photo_url or (user.photo_url if user else None)) if user else student.photo_url,
+        "profilePhotoUrl": public_profile_photo_url(user, student.photo_url or (user.photo_url if user else None)) if user else student.photo_url,
         "currentModuleId": student.current_module_id,
         "currentLevelId": student.current_level_id,
         "currentModuleCode": module.module_code if module else None,
