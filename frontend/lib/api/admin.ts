@@ -189,6 +189,7 @@ export async function bulkUploadStudents(file: File): Promise<BulkUploadResult> 
   formData.append("file", file);
   const { data } = await api.post("/admin/students/bulk-upload", formData, {
     headers: { "Content-Type": "multipart/form-data" },
+    timeout: 120000,
   });
   return data;
 }

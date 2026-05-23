@@ -7,9 +7,11 @@ function ResolveApiBaseUrl(): string {
   return CleanBaseUrl.endsWith("/api") ? CleanBaseUrl : `${CleanBaseUrl}/api`;
 }
 
+const DEFAULT_API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || "60000");
+
 export const api = axios.create({
   baseURL: ResolveApiBaseUrl(),
-  timeout: 15000
+  timeout: DEFAULT_API_TIMEOUT_MS
 });
 
 api.interceptors.request.use((config) => {
@@ -38,6 +40,12 @@ export function apiErrorMessage(error: unknown): string {
     const DetailCode = typeof Detail === "object" ? Detail?.code : undefined;
     const ErrorMessage = Data?.error?.message || Data?.message || DetailMessage;
     if (ErrorMessage && DetailCode) return `${ErrorMessage} (${DetailCode})`;
+    if (error.code === "ECONNABORTED") {
+      return "The server is taking longer than expected. Please wait for the latest deployment to finish, then refresh and try again.";
+    }
+    if (!error.response && error.message === "Network Error") {
+      return "The server is temporarily unreachable. Please check the backend deployment status and try again.";
+    }
     return ErrorMessage || error.message;
   }
   if (error instanceof Error) return error.message;

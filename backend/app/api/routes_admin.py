@@ -1400,9 +1400,11 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
     if not Rows:
         api_error(400, "EMPTY_FILE", "Uploaded Excel file is empty.")
 
-    RawHeaders = [clean_text(Value) for Value in Rows[0]]
-    Headers = [(Header or "").strip().lower() for Header in RawHeaders]
-    HeaderSet = set(Headers)
+    def NormalizeHeader(Value) -> str:
+        return re.sub(r"\s+", "_", str(Value or "").strip().lower())
+
+    Headers = [NormalizeHeader(Value) for Value in Rows[0]]
+    HeaderSet = {Header for Header in Headers if Header}
     MissingColumns = [Field for Field in MANDATORY_BULK_FIELDS if Field not in HeaderSet]
     UnknownColumns = [Header for Header in Headers if Header and Header not in set(TEMPLATE_FIELDS)]
     if MissingColumns:
@@ -1415,6 +1417,73 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
     SeenCustomIds = set()
     SeenStudentCodes = set()
     SeenIdentifiers = set()
+
+    ModuleByCode = {ModuleValue.module_code: ModuleValue for ModuleValue in db.query(Module).all()}
+    LevelsByModuleAndCode = {
+        (LevelValue.module_id, LevelValue.level_code): LevelValue
+        for LevelValue in db.query(Level).all()
+    }
+    TeachersByCode = {
+        TeacherValue.teacher_code: TeacherValue
+        for TeacherValue in db.query(Teacher).filter(Teacher.teacher_code.isnot(None)).all()
+    }
+    TeacherUsers = (
+        db.query(Teacher, User)
+        .join(User, Teacher.user_id == User.id)
+        .filter(User.role == "TEACHER")
+        .all()
+    )
+    TeachersByName: dict[str, list[Teacher]] = {}
+    TeacherNamesById: dict[str, str] = {}
+    for TeacherValue, TeacherUser in TeacherUsers:
+        CleanName = clean_text(TeacherUser.full_name)
+        if not CleanName:
+            continue
+        TeacherNamesById[TeacherValue.id] = CleanName
+        TeachersByName.setdefault(CleanName.lower(), []).append(TeacherValue)
+
+    ExistingCustomIds = {
+        Value[0]
+        for Value in db.query(Student.custom_id).filter(Student.custom_id.isnot(None)).all()
+        if Value[0]
+    }
+    ExistingStudentCodes = {
+        Value[0]
+        for Value in db.query(Student.student_code).filter(Student.student_code.isnot(None)).all()
+        if Value[0]
+    }
+    ExistingLoginIdentifiers = {
+        Value[0]
+        for Value in db.query(User.phone).filter(User.phone.isnot(None)).all()
+        if Value[0]
+    }
+
+    def ResolveTeacher(Row: dict) -> tuple[Teacher | None, str | None]:
+        TeacherName = clean_text(Row.get("teacher"))
+        TeacherCode = clean_text(Row.get("teacher_code"))
+        if TeacherCode:
+            TeacherRecord = TeachersByCode.get(TeacherCode)
+            if TeacherRecord:
+                if TeacherName:
+                    ExistingName = TeacherNamesById.get(TeacherRecord.id)
+                    if ExistingName and ExistingName.lower() != TeacherName.lower():
+                        raise ValueError(f"Teacher code {TeacherCode} belongs to {ExistingName}, not {TeacherName}.")
+                return TeacherRecord, TeacherNamesById.get(TeacherRecord.id) or TeacherName
+            if TeacherName:
+                NameMatches = TeachersByName.get(TeacherName.lower(), [])
+                if len(NameMatches) == 1:
+                    return NameMatches[0], TeacherName
+                if len(NameMatches) > 1:
+                    raise ValueError(f"Teacher code {TeacherCode} was not found and multiple teachers matched {TeacherName}.")
+            raise ValueError(f"Teacher code not found: {TeacherCode}.")
+        if TeacherName:
+            NameMatches = TeachersByName.get(TeacherName.lower(), [])
+            if len(NameMatches) == 1:
+                return NameMatches[0], TeacherName
+            if len(NameMatches) > 1:
+                raise ValueError("Multiple teachers matched this teacher name. Use teacher_code in the template.")
+            raise ValueError(f"Teacher not found: {TeacherName}.")
+        return None, None
 
     for RowNumber, RowValues in enumerate(Rows[1:], start=2):
         Row = {Headers[Index]: RowValues[Index] if Index < len(RowValues) else None for Index in range(len(Headers)) if Headers[Index]}
@@ -1429,8 +1498,6 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
 
             CustomId = clean_text(Row.get("custom_id"))
             StudentCode = clean_text(Row.get("student_code"))
-            TeacherName = clean_text(Row.get("teacher"))
-            TeacherCode = clean_text(Row.get("teacher_code"))
             ModuleCode = clean_text(Row.get("module_code"))
             LevelCode = clean_text(Row.get("level_code"))
 
@@ -1438,99 +1505,89 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
                 raise ValueError("Duplicate custom_id inside uploaded file.")
             if StudentCode in SeenStudentCodes:
                 raise ValueError("Duplicate student_code inside uploaded file.")
-            SeenCustomIds.add(CustomId)
-            SeenStudentCodes.add(StudentCode)
-
             if StudentCode in SeenIdentifiers:
                 raise ValueError("Duplicate login identifier inside uploaded file.")
-            SeenIdentifiers.add(StudentCode)
-
-            if db.query(Student).filter(Student.custom_id == CustomId).first():
+            if CustomId in ExistingCustomIds:
                 raise ValueError("Custom ID already exists in system.")
-            if db.query(Student).filter(Student.student_code == StudentCode).first():
+            if StudentCode in ExistingStudentCodes:
                 raise ValueError("Student code already exists in system.")
-            if db.query(User).filter(User.phone == StudentCode).first():
+            if StudentCode in ExistingLoginIdentifiers:
                 raise ValueError("Student login identifier already exists in system.")
 
-            ModuleRecord = db.query(Module).filter(Module.module_code == ModuleCode).first()
+            ModuleRecord = ModuleByCode.get(ModuleCode)
             if not ModuleRecord:
                 raise ValueError(f"Module code not found: {ModuleCode}.")
-            LevelRecord = db.query(Level).filter(Level.module_id == ModuleRecord.id, Level.level_code == LevelCode).first()
+            LevelRecord = LevelsByModuleAndCode.get((ModuleRecord.id, LevelCode))
             if not LevelRecord:
                 raise ValueError(f"Level code {LevelCode} not found for module {ModuleCode}.")
 
-            TeacherRecord = None
-            if TeacherCode:
-                TeacherRecord = db.query(Teacher).filter(Teacher.teacher_code == TeacherCode).first()
-                if not TeacherRecord:
-                    raise ValueError(f"Teacher code not found: {TeacherCode}.")
-            elif TeacherName:
-                TeacherUserMatches = db.query(User).filter(User.role == "TEACHER", User.full_name == TeacherName).all()
-                if len(TeacherUserMatches) == 1:
-                    TeacherRecord = db.query(Teacher).filter(Teacher.user_id == TeacherUserMatches[0].id).first()
-                elif len(TeacherUserMatches) > 1:
-                    raise ValueError("Multiple teachers matched this teacher name. Use teacher_code in the template.")
-
+            TeacherRecord, TeacherDisplayName = ResolveTeacher(Row)
             Active = status_to_active(Row.get("status"))
             Password = clean_password(Row.get("password"))
             if not Password or len(Password) < 6:
                 raise ValueError("Password must be at least 6 characters.")
 
-            StudentUser = User(
-                full_name=clean_text(Row.get("student_name")),
-                email=None,
-                phone=StudentCode,
-                password_hash=hash_password(Password),
-                role="STUDENT",
-                is_active=Active,
-            )
-            db.add(StudentUser)
-            db.flush()
+            with db.begin_nested():
+                StudentUser = User(
+                    full_name=clean_text(Row.get("student_name")),
+                    email=None,
+                    phone=StudentCode,
+                    password_hash=hash_password(Password),
+                    role="STUDENT",
+                    is_active=Active,
+                )
+                db.add(StudentUser)
+                db.flush()
 
-            StudentPayload = {
-                "user_id": StudentUser.id,
-                "custom_id": CustomId,
-                "teacher": TeacherRecord.user.full_name if TeacherRecord and TeacherRecord.user else TeacherName,
-                "admission_date": clean_text(Row.get("admission_date")),
-                "dob": clean_text(Row.get("dob")),
-                "gender": clean_text(Row.get("gender")),
-                "blood_group": clean_text(Row.get("blood_group")),
-                "interest": clean_text(Row.get("interest")),
-                "present_address": clean_text(Row.get("present_address")),
-                "permanent_address": clean_text(Row.get("permanent_address")),
-                "school_name": clean_text(Row.get("school_name")),
-                "school_area": clean_text(Row.get("school_area")),
-                "class_name": clean_text(Row.get("class")),
-                "section": clean_text(Row.get("section")),
-                "father_name": clean_text(Row.get("father_name")),
-                "father_occupation": clean_text(Row.get("father_occupation")),
-                "father_mobile": clean_text(Row.get("father_mobile")),
-                "father_email": clean_text(Row.get("father_email")),
-                "father_whatsapp": clean_text(Row.get("father_whatsapp")),
-                "mother_name": clean_text(Row.get("mother_name")),
-                "mother_occupation": clean_text(Row.get("mother_occupation")),
-                "mother_mobile": clean_text(Row.get("mother_mobile")),
-                "mother_email": clean_text(Row.get("mother_email")),
-                "mother_whatsapp": clean_text(Row.get("mother_whatsapp")),
-                "student_code": StudentCode,
-                "current_module_id": ModuleRecord.id,
-                "current_level_id": LevelRecord.id,
-                "is_active": Active,
-            }
-            if hasattr(Student, "teacher_id"):
-                StudentPayload["teacher_id"] = TeacherRecord.id if TeacherRecord else None
+                StudentRecord = Student(
+                    user_id=StudentUser.id,
+                    custom_id=CustomId,
+                    teacher=TeacherDisplayName,
+                    teacher_id=TeacherRecord.id if TeacherRecord else None,
+                    admission_date=clean_text(Row.get("admission_date")),
+                    dob=clean_text(Row.get("dob")),
+                    gender=clean_text(Row.get("gender")),
+                    blood_group=clean_text(Row.get("blood_group")),
+                    interest=clean_text(Row.get("interest")),
+                    present_address=clean_text(Row.get("present_address")),
+                    permanent_address=clean_text(Row.get("permanent_address")),
+                    school_name=clean_text(Row.get("school_name")),
+                    school_area=clean_text(Row.get("school_area")),
+                    class_name=clean_text(Row.get("class")),
+                    section=clean_text(Row.get("section")),
+                    father_name=clean_text(Row.get("father_name")),
+                    father_occupation=clean_text(Row.get("father_occupation")),
+                    father_mobile=clean_text(Row.get("father_mobile")),
+                    father_email=clean_text(Row.get("father_email")),
+                    father_whatsapp=clean_text(Row.get("father_whatsapp")),
+                    mother_name=clean_text(Row.get("mother_name")),
+                    mother_occupation=clean_text(Row.get("mother_occupation")),
+                    mother_mobile=clean_text(Row.get("mother_mobile")),
+                    mother_email=clean_text(Row.get("mother_email")),
+                    mother_whatsapp=clean_text(Row.get("mother_whatsapp")),
+                    student_code=StudentCode,
+                    current_module_id=ModuleRecord.id,
+                    current_level_id=LevelRecord.id,
+                    is_active=Active,
+                )
+                db.add(StudentRecord)
+                db.flush()
 
-            StudentRecord = Student(**StudentPayload)
-            db.add(StudentRecord)
-            db.flush()
             db.commit()
+            ExistingCustomIds.add(CustomId)
+            ExistingStudentCodes.add(StudentCode)
+            ExistingLoginIdentifiers.add(StudentCode)
+            SeenCustomIds.add(CustomId)
+            SeenStudentCodes.add(StudentCode)
+            SeenIdentifiers.add(StudentCode)
             Created += 1
             Results.append({
                 "row": RowNumber,
                 "status": "CREATED",
                 "studentCode": StudentCode,
                 "studentName": StudentUser.full_name,
-                "teacherCode": TeacherRecord.teacher_code if TeacherRecord else TeacherCode,
+                "teacherCode": TeacherRecord.teacher_code if TeacherRecord else clean_text(Row.get("teacher_code")),
+                "teacherName": TeacherDisplayName,
                 "levelCode": LevelCode,
             })
         except Exception as Exc:
@@ -1539,7 +1596,6 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
             Results.append({"row": RowNumber, "status": "FAILED", "error": str(Exc)})
             continue
 
-    db.commit()
     return {
         "created": Created,
         "failed": Failed,

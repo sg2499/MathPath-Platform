@@ -68,6 +68,7 @@ class Student(Base):
     parent_contact = Column(String(20), nullable=True)
 
     user = relationship("User")
+    assigned_teacher = relationship("Teacher", foreign_keys=[teacher_id])
 
 class Teacher(Base):
     __tablename__ = "teachers"
