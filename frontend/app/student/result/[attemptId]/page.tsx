@@ -73,7 +73,7 @@ export default function ResultPage() {
                     <div className="rounded-[22px] bg-slate-50 p-4">
                       <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-500">Your answer</p>
                       <p className="mt-2 text-lg font-black text-slate-900">
-                        {q.selectedOption ? `${q.selectedOption.label}. ${q.selectedOption.value}` : "Not answered"}
+                        {q.selectedOption ? `${q.selectedOption.label}. ${q.selectedOption.value}` : "Not Answered"}
                       </p>
                     </div>
                     <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">

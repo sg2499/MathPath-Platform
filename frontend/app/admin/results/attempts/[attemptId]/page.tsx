@@ -22,7 +22,7 @@ export default function AdminAttemptReviewPage() {
       {query.data ? (
         <div className="space-y-5">
           <div className="math-card p-6"><h1 className="text-3xl font-black">{query.data.student?.studentName}</h1><p className="mt-2 text-slate-600">Score: {query.data.summary?.score} / {query.data.summary?.maxScore} · Accuracy: {query.data.summary?.accuracyPercentage}%</p></div>
-          {query.data.questions?.map((q: any) => <div className="math-card p-5" key={q.questionNumber}><h3 className="font-bold">Question {q.questionNumber}</h3><div className="mt-4"><VerticalQuestion operands={q.operands} operators={q.operators} /></div><p className="mt-3">Selected: <strong>{q.selectedOption ? `${q.selectedOption.label}. ${q.selectedOption.value}` : "Not answered"}</strong></p><p>Correct: <strong>{q.correctOption ? `${q.correctOption.label}. ${q.correctOption.value}` : q.correctAnswer}</strong></p></div>)}
+          {query.data.questions?.map((q: any) => <div className="math-card p-5" key={q.questionNumber}><h3 className="font-bold">Question {q.questionNumber}</h3><div className="mt-4"><VerticalQuestion operands={q.operands} operators={q.operators} /></div><p className="mt-3">Selected: <strong>{q.selectedOption ? `${q.selectedOption.label}. ${q.selectedOption.value}` : "Not Answered"}</strong></p><p>Correct: <strong>{q.correctOption ? `${q.correctOption.label}. ${q.correctOption.value}` : q.correctAnswer}</strong></p></div>)}
         </div>
       ) : null}
     </AppShell>

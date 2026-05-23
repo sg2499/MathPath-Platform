@@ -478,7 +478,7 @@ export default function TeacherPracticeTrackerPage() {
               student practice performance from one workspace.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
             <Metric
               label="Students"
               value={Students.length}
@@ -498,11 +498,6 @@ export default function TeacherPracticeTrackerPage() {
               label="Pending DPS"
               value={uniquePendingConceptCount(CurrentFilteredRows)}
               icon={<ClipboardList size={15} />}
-            />
-            <Metric
-              label="Needs Re-Attempt"
-              value={uniqueNeedsReattemptCount(CurrentFilteredRows)}
-              icon={<Target size={15} />}
             />
             <Metric
               label="Average Accuracy"

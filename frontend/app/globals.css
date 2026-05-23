@@ -5924,3 +5924,33 @@ html.dark .math-modal-close-button:focus-visible {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+
+/* Phase 10.9.2J — Neutral table-header convention for admin directory records */
+@layer components {
+  .math-admin-directory-table thead,
+  .math-admin-directory-table thead tr,
+  .math-admin-directory-table thead th,
+  .math-admin-directory-table thead th *,
+  .math-admin-directory-table .math-sortable-header,
+  .math-admin-directory-table .math-sortable-header *,
+  .math-admin-directory-table .math-sortable-header:hover,
+  .math-admin-directory-table .math-sortable-header:hover *,
+  .math-admin-directory-table .math-sortable-header:focus-visible,
+  .math-admin-directory-table .math-sortable-header:focus-visible * {
+    color: #475569 !important;
+  }
+
+  html.dark .math-admin-directory-table thead,
+  html.dark .math-admin-directory-table thead tr,
+  html.dark .math-admin-directory-table thead th,
+  html.dark .math-admin-directory-table thead th *,
+  html.dark .math-admin-directory-table .math-sortable-header,
+  html.dark .math-admin-directory-table .math-sortable-header *,
+  html.dark .math-admin-directory-table .math-sortable-header:hover,
+  html.dark .math-admin-directory-table .math-sortable-header:hover *,
+  html.dark .math-admin-directory-table .math-sortable-header:focus-visible,
+  html.dark .math-admin-directory-table .math-sortable-header:focus-visible * {
+    color: #cbd5e1 !important;
+  }
+}

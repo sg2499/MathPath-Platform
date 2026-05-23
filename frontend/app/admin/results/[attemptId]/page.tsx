@@ -101,7 +101,7 @@ export default function AdminAttemptDetailPage() {
                       <div className={`rounded-[22px] p-4 ${q.isCorrect ? "bg-emerald-50 text-emerald-900" : q.selectedOption ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
                         <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Student answer</p>
                         <p className="mt-2 text-lg font-black">
-                          {q.selectedOption ? `${q.selectedOption.label}. ${q.selectedOption.value}` : "Not answered"}
+                          {q.selectedOption ? `${q.selectedOption.label}. ${q.selectedOption.value}` : "Not Answered"}
                         </p>
                       </div>
 

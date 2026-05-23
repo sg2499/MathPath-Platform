@@ -114,7 +114,14 @@ function trackerAttemptRows(row: Record<string, any>) {
 }
 
 function trackerWorkKey(row: Record<string, any>) {
-  return String(row.assignmentId || row.dpsId || row.dpsTitle || row.title || row.id || "work");
+  return String(
+    [
+      row.moduleCode || row.moduleId || "module",
+      row.levelCode || row.levelId || "level",
+      row.lessonId || row.lessonNumber || row.lessonTitle || "lesson",
+      row.dpsId || row.dpsNumber || row.dpsTitle || row.title || "work",
+    ].join("::"),
+  );
 }
 
 function buildCurrentNeedsReattemptStudents(rows: Record<string, any>[]) {
@@ -141,6 +148,80 @@ function buildCurrentNeedsReattemptStudents(rows: Record<string, any>[]) {
   return studentCodes;
 }
 
+
+type StudentPracticeMetric = {
+  assigned: number;
+  cleared: number;
+  pending: number;
+  needsReattempt: number;
+  averageAccuracy: number | null;
+};
+
+function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
+  const ConceptMap = new Map<string, Record<string, any>[]>();
+
+  rows.forEach((Row) => {
+    const StudentCode = String(Row.studentCode || "");
+    if (!StudentCode) return;
+    const Key = `${StudentCode}::${trackerWorkKey(Row)}`;
+    if (!ConceptMap.has(Key)) ConceptMap.set(Key, []);
+    ConceptMap.get(Key)!.push(...trackerAttemptRows(Row));
+  });
+
+  const Metrics = new Map<string, StudentPracticeMetric>();
+  const AccuracyBuckets = new Map<string, number[]>();
+
+  ConceptMap.forEach((AttemptRows) => {
+    const StudentCode = String(AttemptRows[0]?.studentCode || "");
+    if (!StudentCode) return;
+    const Metric = Metrics.get(StudentCode) || {
+      assigned: 0,
+      cleared: 0,
+      pending: 0,
+      needsReattempt: 0,
+      averageAccuracy: null,
+    };
+
+    const Cleared = AttemptRows.some(trackerCleared);
+    const Pending = AttemptRows.some((AttemptRow) => !trackerCompleted(AttemptRow));
+    const NeedsReattempt = !Cleared && AttemptRows.some(trackerNeedsReattempt);
+    const CompletedAccuracies = AttemptRows
+      .filter(trackerCompleted)
+      .map(trackerAccuracy)
+      .filter((Value) => Number.isFinite(Value));
+
+    Metric.assigned += 1;
+    if (Cleared) Metric.cleared += 1;
+    if (Pending) Metric.pending += 1;
+    if (NeedsReattempt) Metric.needsReattempt += 1;
+
+    const Bucket = AccuracyBuckets.get(StudentCode) || [];
+    Bucket.push(...CompletedAccuracies);
+    AccuracyBuckets.set(StudentCode, Bucket);
+    Metrics.set(StudentCode, Metric);
+  });
+
+  Metrics.forEach((Metric, StudentCode) => {
+    const Values = AccuracyBuckets.get(StudentCode) || [];
+    Metric.averageAccuracy = Values.length
+      ? Math.round((Values.reduce((Sum, Value) => Sum + Value, 0) / Values.length) * 100) / 100
+      : null;
+  });
+
+  return Metrics;
+}
+
+function studentMetricValue(
+  Metrics: Map<string, StudentPracticeMetric>,
+  Student: TeacherStudent,
+  Field: keyof StudentPracticeMetric,
+  Fallback: number | null = 0,
+) {
+  const Metric = Metrics.get(Student.studentCode);
+  const Value = Metric?.[Field];
+  return typeof Value === "number" && Number.isFinite(Value) ? Value : Fallback;
+}
+
 function effectiveAttention(student: TeacherStudent, currentNeedsReattemptStudentCodes: Set<string>) {
   const pending = (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0);
   if (currentNeedsReattemptStudentCodes.has(student.studentCode)) return "BELOW_BENCHMARK";
@@ -162,17 +243,25 @@ export default function TeacherStudentsPage() {
   const trackerQuery = useQuery({ queryKey: ["teacher-assignment-tracker-current-state"], queryFn: getTeacherAssignmentTracker, enabled: ready });
 
   const students = query.data ?? [];
-  const currentNeedsReattemptStudentCodes = useMemo(
-    () => buildCurrentNeedsReattemptStudents((trackerQuery.data?.rows ?? []) as Record<string, any>[]),
+  const trackerRows = useMemo(
+    () => (trackerQuery.data?.rows ?? []) as Record<string, any>[],
     [trackerQuery.data],
+  );
+  const currentNeedsReattemptStudentCodes = useMemo(
+    () => buildCurrentNeedsReattemptStudents(trackerRows),
+    [trackerRows],
+  );
+  const studentPracticeMetrics = useMemo(
+    () => buildStudentPracticeMetrics(trackerRows),
+    [trackerRows],
   );
 
   const summary = useMemo(() => {
-    const assigned = students.reduce((sum, s) => sum + (s.assignedAssignments ?? 0), 0);
-    const completed = students.reduce((sum, s) => sum + (s.completedAssignments ?? 0), 0);
-    const pending = students.reduce((sum, s) => sum + (s.pendingAssignments ?? 0) + (s.inProgressAssignments ?? 0), 0);
+    const assigned = students.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "assigned", s.assignedAssignments ?? 0), 0);
+    const completed = students.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "cleared", s.completedAssignments ?? 0), 0);
+    const pending = students.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "pending", (s.pendingAssignments ?? 0) + (s.inProgressAssignments ?? 0)), 0);
     const accuracyValues = students
-      .map((s) => s.averageAccuracy)
+      .map((s) => studentPracticeMetrics.get(s.studentCode)?.averageAccuracy ?? s.averageAccuracy)
       .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
     const avgAccuracy = accuracyValues.length
       ? Math.round((accuracyValues.reduce((a, b) => a + b, 0) / accuracyValues.length) * 100) / 100
@@ -185,7 +274,7 @@ export default function TeacherStudentsPage() {
       pending,
       avgAccuracy,
     };
-  }, [students]);
+  }, [students, studentPracticeMetrics]);
 
   const moduleOptions = useMemo(() => {
     const Options = new Map<string, string>();
@@ -243,17 +332,17 @@ export default function TeacherStudentsPage() {
         if (sortKey === "className") return `${student.className || ""} ${student.section || ""}`;
         if (sortKey === "level") return student.currentLevelCode;
         if (sortKey === "status") return student.status;
-        if (sortKey === "assigned") return student.assignedAssignments ?? 0;
-        if (sortKey === "completed") return student.completedAssignments ?? student.completedAttempts ?? 0;
-        if (sortKey === "pending") return (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0);
+        if (sortKey === "assigned") return studentMetricValue(studentPracticeMetrics, student, "assigned", student.assignedAssignments ?? 0);
+        if (sortKey === "completed") return studentMetricValue(studentPracticeMetrics, student, "cleared", student.completedAssignments ?? student.completedAttempts ?? 0);
+        if (sortKey === "pending") return studentMetricValue(studentPracticeMetrics, student, "pending", (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0));
         if (sortKey === "latest") return student.latestActivityAt || "";
-        if (sortKey === "accuracy") return student.averageAccuracy ?? student.latestAccuracy ?? 0;
+        if (sortKey === "accuracy") return studentPracticeMetrics.get(student.studentCode)?.averageAccuracy ?? student.averageAccuracy ?? student.latestAccuracy ?? 0;
         return attentionLabel(effectiveAttention(student, currentNeedsReattemptStudentCodes));
       };
       const result = compareSortValues(valueFor(a), valueFor(b));
       return sortDirection === "asc" ? result : -result;
     });
-  }, [students, search, moduleFilter, levelFilter, sortKey, sortDirection, currentNeedsReattemptStudentCodes]);
+  }, [students, search, moduleFilter, levelFilter, sortKey, sortDirection, currentNeedsReattemptStudentCodes, studentPracticeMetrics]);
 
   function toggleSort(key: TeacherStudentSortKey) {
     if (sortKey === key) {
@@ -367,7 +456,7 @@ export default function TeacherStudentsPage() {
               </thead>
               <tbody>
                 {filtered.map((student) => (
-                  <StudentRow key={student.studentId} student={student} attention={effectiveAttention(student, currentNeedsReattemptStudentCodes)} onOpen={() => router.push(`/teacher/assignment-tracker/student/${student.studentCode}?targetAction=lesson-insights-student-review`)} />
+                  <StudentRow key={student.studentId} student={student} metric={studentPracticeMetrics.get(student.studentCode)} attention={effectiveAttention(student, currentNeedsReattemptStudentCodes)} onOpen={() => router.push(`/teacher/assignment-tracker/student/${student.studentCode}?targetAction=lesson-insights-student-review`)} />
                 ))}
               </tbody>
             </table>
@@ -378,8 +467,11 @@ export default function TeacherStudentsPage() {
   );
 }
 
-function StudentRow({ student, attention, onOpen }: { student: TeacherStudent; attention: string; onOpen: () => void }) {
-  const pending = (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0);
+function StudentRow({ student, metric, attention, onOpen }: { student: TeacherStudent; metric?: StudentPracticeMetric; attention: string; onOpen: () => void }) {
+  const assigned = metric?.assigned ?? student.assignedAssignments ?? 0;
+  const cleared = metric?.cleared ?? student.completedAssignments ?? 0;
+  const pending = metric?.pending ?? (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0);
+  const averageAccuracy = metric?.averageAccuracy ?? student.averageAccuracy;
 
   return (
     <tr
@@ -417,13 +509,13 @@ function StudentRow({ student, attention, onOpen }: { student: TeacherStudent; a
       </td>
       <td>
         <span className="math-badge border-blue-200 bg-blue-50 text-blue-700">
-          {student.assignedAssignments ?? 0}
+          {assigned}
         </span>
       </td>
       <td>
         <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">
           <CheckCircle2 size={14} />
-          {student.completedAssignments ?? 0}
+          {cleared}
         </span>
       </td>
       <td>
@@ -432,8 +524,8 @@ function StudentRow({ student, attention, onOpen }: { student: TeacherStudent; a
         </span>
       </td>
       <td>
-        <span className={`math-badge ${typeof student.averageAccuracy === "number" ? student.averageAccuracy >= 70 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
-          {typeof student.averageAccuracy === "number" ? `${Math.round(student.averageAccuracy)}%` : "—"}
+        <span className={`math-badge ${typeof averageAccuracy === "number" ? averageAccuracy >= 70 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+          {typeof averageAccuracy === "number" ? `${Math.round(averageAccuracy)}%` : "—"}
         </span>
         <p className="mt-1 text-xs text-slate-500">Across completed attempts</p>
       </td>

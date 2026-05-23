@@ -125,18 +125,13 @@ function rowTimeValue(row: AnyRow) {
 
 function workUnitMetricKey(row: AnyRow) {
   return String(
-    row.assignmentId ||
-      [
-        row.moduleCode || row.moduleId || "module",
-        row.levelCode || row.levelId || "level",
-        row.lessonId || row.lessonNumber || row.lessonTitle || "lesson",
-        row.dpsId ||
-          row.dpsNumber ||
-          row.dpsTitle ||
-          row.title ||
-          row.id ||
-          "work",
-      ].join("::"),
+    [
+      row.studentCode || row.studentId || row.targetStudentCode || row.targetStudentId || "student",
+      row.moduleCode || row.moduleId || "module",
+      row.levelCode || row.levelId || "level",
+      row.lessonId || row.lessonNumber || row.lessonTitle || "lesson",
+      row.dpsId || row.dpsNumber || row.dpsTitle || row.title || "work",
+    ].join("::"),
   );
 }
 
