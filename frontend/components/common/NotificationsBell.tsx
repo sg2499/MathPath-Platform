@@ -391,14 +391,11 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
     if (IsPromotionNotification(Notification))
       return { Route: "/student/results", TargetTab: "", TargetSubTab: "" };
     if (IsPracticeNotification(Notification)) {
-      const StoredRoute = Notification.targetRoute || "";
-      return {
-        Route: StoredRoute.startsWith("/student/result/")
-          ? StoredRoute
-          : "/student/practice",
-        TargetTab: "",
-        TargetSubTab: "",
-      };
+      const ModuleCode = MetadataString(Notification, "moduleCode");
+      const Route = ModuleCode
+        ? `/student/results/module/${encodeURIComponent(ModuleCode)}`
+        : "/student/results";
+      return { Route, TargetTab: "lesson-insights", TargetSubTab: "" };
     }
     if (IsAssessmentNotification(Notification)) {
       const StoredRoute = Notification.targetRoute || "";
@@ -450,6 +447,7 @@ function NotificationDisplayPriority(Notification: NotificationRecord) {
   const Source = [Type, Title, Category, Event, Purpose, TargetAction].join(" ");
 
   if (Source.includes("APPROVAL") && Source.includes("REATTEMPT")) return 400;
+  if (Source.includes("RE-ATTEMPT") && Source.includes("ASSIGNED")) return 350;
   if (
     Source.includes("REATTEMPT_ASSIGNED") ||
     Source.includes("RE-ATTEMPT ASSIGNED") ||

@@ -27,7 +27,7 @@ from app.services.reattempt_operational_service import (
 
 MANUAL_INTERVENTION_STATUS = "MANUAL_INTERVENTION_REQUIRED"
 MANUAL_RETRY_INSTRUCTIONS = (
-    "Fresh practice has been assigned for the same concept with a new question set. "
+    "A new re-attempt has been assigned for the same concept with a different question set. "
     "Complete it carefully to strengthen the concept before moving ahead."
 )
 
@@ -68,12 +68,12 @@ def NextManualAttemptNumber(Db: Session, AttemptItem: Attempt) -> int:
 
 def BuildManualRetryTitle(SourceAssignment: Assignment | None, Dps: DPS | None, NextAttemptNumber: int) -> str:
     if SourceAssignment and getattr(SourceAssignment, "title", None):
-        BaseTitle = str(SourceAssignment.title).split(" - Re-Attempt ")[0].strip()
+        BaseTitle = str(SourceAssignment.title).split(" - Re-Attempt ")[0].split(" - Fresh Practice ")[0].strip()
     elif Dps:
         BaseTitle = f"DPS {Dps.dps_number} Practice"
     else:
         BaseTitle = "Practice Sheet"
-    return f"{BaseTitle} - Fresh Practice {NextAttemptNumber}"
+    return f"{BaseTitle} - Re-Attempt {NextAttemptNumber}"
 
 
 def AssignmentLineageRoot(Db: Session, AssignmentItem: Assignment | None) -> Assignment | None:

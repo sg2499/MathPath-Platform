@@ -33,12 +33,18 @@ function defaultRouteForRole(Role: UserRole): string {
   return "/admin/dashboard";
 }
 
+function currentFullRoute(Pathname?: string | null) {
+  if (typeof window === "undefined") return Pathname || "";
+  return `${Pathname || window.location.pathname}${window.location.search || ""}`;
+}
+
 function persistCurrentRoute(Role: UserRole, Pathname: string) {
   if (typeof window === "undefined") return;
-  if (!Pathname || Pathname === "/login") return;
+  const FullRoute = currentFullRoute(Pathname);
+  if (!FullRoute || FullRoute === "/login") return;
   const NormalizedRole = normalizeRole(Role);
   if (!NormalizedRole) return;
-  localStorage.setItem(`${LAST_ROUTE_PREFIX}${NormalizedRole.toLowerCase()}`, Pathname);
+  localStorage.setItem(`${LAST_ROUTE_PREFIX}${NormalizedRole.toLowerCase()}`, FullRoute);
 }
 
 export function useProtectedPage(allowedRoles: UserRole[]) {
@@ -72,8 +78,8 @@ export function useProtectedPage(allowedRoles: UserRole[]) {
       const User = getStoredUserForRole(NormalizedAllowedRole);
       if (Token && User && rolesMatch(User.role, allowedRoles)) {
         setActiveRole(NormalizedAllowedRole);
-        const TargetRoute = PathRole && rolesMatch(PathRole, allowedRoles) ? pathname || defaultRouteForRole(NormalizedAllowedRole) : defaultRouteForRole(NormalizedAllowedRole);
-        if (TargetRoute !== pathname) router.replace(TargetRoute);
+        const TargetRoute = PathRole && rolesMatch(PathRole, allowedRoles) ? currentFullRoute(pathname) || defaultRouteForRole(NormalizedAllowedRole) : defaultRouteForRole(NormalizedAllowedRole);
+        if (TargetRoute.split("?")[0] !== pathname || (typeof window !== "undefined" && TargetRoute !== currentFullRoute(pathname))) router.replace(TargetRoute);
         else setReady(true);
         return;
       }

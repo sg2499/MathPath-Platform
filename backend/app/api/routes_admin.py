@@ -2482,6 +2482,8 @@ def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user
             "attemptHistory": admin_attempt_history_for_assignment_student(db, assignment, student),
             "attemptNumber": getattr(attempt, "attempt_number", None) if attempt else None,
             "requiresManualIntervention": bool(getattr(attempt, "requires_manual_intervention", False)) if attempt else False,
+            "nextAttemptNumber": (int(getattr(attempt, "attempt_number", 0) or 0) + 1) if attempt else None,
+            "retryAttemptNumber": (int(getattr(attempt, "attempt_number", 0) or 0) + 1) if reattempt_permission and getattr(reattempt_permission, "used_assignment_id", None) else None,
             **benchmark_payload_for_attempt(attempt),
             **attempt_date_payload(attempt),
             **reattempt_permission_payload(reattempt_permission),
@@ -2536,7 +2538,7 @@ def allow_assignment_reattempt_route(
         used_assignment = db.get(Assignment, existing.used_assignment_id)
         return {
             "created": False,
-            "message": "Fresh practice has already been assigned for this exhausted attempt cycle.",
+            "message": f"Re-Attempt {getattr(used_assignment, 'retry_attempt_number', None) or 'next'} has already been assigned for this exhausted attempt cycle.",
             "permission": reattempt_permission_payload(existing),
             "freshAssignmentId": used_assignment.id if used_assignment else existing.used_assignment_id,
             "freshAssignmentTitle": used_assignment.title if used_assignment else None,
@@ -2550,7 +2552,7 @@ def allow_assignment_reattempt_route(
             dps_id=assignment.dps_id,
             student_id=student.id,
             allowed_by_user_id=user.id,
-            reason=payload.reason or "Fresh practice approved after all available attempts were used.",
+            reason=payload.reason or "Additional re-attempt approved after all available attempts were used.",
             status="APPROVED",
         )
         db.add(permission)
@@ -2561,7 +2563,7 @@ def allow_assignment_reattempt_route(
         StudentItem=student,
         SourceAttempt=latest_attempt,
         AssignedByUserId=user.id,
-        Instructions="Fresh practice has been assigned for the same concept with a new question set.",
+        Instructions="A new re-attempt has been assigned for the same concept with a different question set.",
     )
     permission.status = "APPROVED"
     permission.used_at = datetime.now(datetime_timezone.utc)
@@ -2573,7 +2575,7 @@ def allow_assignment_reattempt_route(
 
     return {
         "created": True,
-        "message": "Fresh practice assigned. The student will find the new sheet in the Practice tab.",
+        "message": f"Re-Attempt {fresh_assignment.retry_attempt_number} assigned. The student will find the new sheet in the Practice tab.",
         "permission": reattempt_permission_payload(permission),
         "freshAssignmentId": fresh_assignment.id,
         "freshAssignmentTitle": fresh_assignment.title,

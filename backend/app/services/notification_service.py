@@ -193,6 +193,8 @@ def ListNotifications(
         (Notification.title.ilike("%Approval%"), 400),
         (Notification.type.ilike("%FRESH_PRACTICE_ASSIGNED%"), 350),
         (Notification.title.ilike("%Fresh Practice Assigned%"), 350),
+        (Notification.title.ilike("%Re-Attempt%Assigned%Approval%"), 350),
+        (Notification.title.ilike("%Re-Attempt%Assigned%"), 330),
         (Notification.type.ilike("%REATTEMPT_ASSIGNED%"), 300),
         (Notification.title.ilike("%Re-Attempt Assigned%"), 300),
         (Notification.title.ilike("%Reattempt Assigned%"), 300),

@@ -433,6 +433,8 @@ export type AdminAssignmentStudentRow = {
   reattemptUsedAt?: string | null;
   reattemptReason?: string | null;
   usedAssignmentId?: string | null;
+  nextAttemptNumber?: number | null;
+  retryAttemptNumber?: number | null;
 };
 
 export type AdminAssignmentAttemptRow = {

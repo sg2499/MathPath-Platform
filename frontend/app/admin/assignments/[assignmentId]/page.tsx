@@ -55,6 +55,8 @@ export default function AdminAssignmentDetailPage() {
 
   const data = query.data;
   const assignment = data?.assignment;
+  const NextAttemptNumber = Number(FreshPracticeRequest?.nextAttemptNumber || FreshPracticeRequest?.retryAttemptNumber || 0) || 3;
+  const UsedAttemptNumber = Number(FreshPracticeRequest?.retryAttemptNumber || FreshPracticeRequest?.nextAttemptNumber || 0) || NextAttemptNumber;
 
   return (
     <AppShell title="Assignment Detail">
@@ -160,16 +162,16 @@ export default function AdminAssignmentDetailPage() {
                         </td>
                         <td>
                           {row.reattemptStatus === "USED" ? (
-                            <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">Fresh Practice Assigned</span>
+                            <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">Re-Attempt Assigned</span>
                           ) : row.requiresManualIntervention ? (
                             <button
                               className="math-role-action-button px-3 py-2"
                               onClick={() => SetFreshPracticeRequest(row)}
                               disabled={reattemptMutation.isPending}
-                              title="Assign a fresh same-concept practice sheet with a new question set"
+                              title="Allow the next re-attempt with a different question set from the same DPS concept"
                             >
                               <RotateCcw size={15} />
-                              Allow Fresh Practice
+                              {`Allow Re-Attempt ${Number(row.nextAttemptNumber || row.retryAttemptNumber || 0) || 3}`}
                             </button>
                           ) : row.reattemptStatus === "APPROVED" ? (
                             <span className="math-badge border-amber-200 bg-amber-50 text-amber-700">Approval Pending Assignment</span>
@@ -252,9 +254,9 @@ export default function AdminAssignmentDetailPage() {
               </div>
               <div>
                 <p className="math-kicker">Approval required</p>
-                <h2 className="text-2xl font-black text-slate-950">Assign Fresh Practice</h2>
+                <h2 className="text-2xl font-black text-slate-950">Allow Re-Attempt</h2>
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                  {FreshPracticeRequest.studentName} has used all 3 available attempts. This action will assign a fresh practice sheet for the same concept with a new question set. Previous attempts will remain preserved in history.
+                  {FreshPracticeRequest.studentName} has used all 3 available attempts. This action will assign Re-Attempt {NextAttemptNumber} for the same DPS concept with a different question set. Previous attempts will remain preserved in history.
                 </p>
               </div>
             </div>
@@ -271,7 +273,7 @@ export default function AdminAssignmentDetailPage() {
                 onClick={() => reattemptMutation.mutate({ assignmentId: assignment.assignmentId, studentId: FreshPracticeRequest.studentId })}
               >
                 <RotateCcw size={17} />
-                Confirm Fresh Practice
+                {`Confirm Re-Attempt ${NextAttemptNumber}`}
               </button>
             </div>
           </div>
