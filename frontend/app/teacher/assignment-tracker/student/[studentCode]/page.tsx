@@ -17,6 +17,7 @@ import {
   accuracy,
   averageAccuracy,
   completedText,
+  currentWorkRows,
   dpsLabel,
   isBelowBenchmark,
   isCompleted,
@@ -29,7 +30,10 @@ import {
   scoreText,
   studentCodeOf,
   studentNameOf,
+  uniqueAssignedConceptCount,
+  uniqueClearedConceptCount,
   uniqueNeedsReattemptCount,
+  uniquePendingConceptCount,
 } from "@/components/common/DetailWorkspaceViews";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
@@ -485,6 +489,11 @@ function TeacherStudentTrackerWorkspacePageContent() {
     PerformanceFilterValue,
   ]);
 
+  const CurrentFilteredRows = useMemo(
+    () => currentWorkRows(FilteredRows),
+    [FilteredRows],
+  );
+
   const LessonGroups = useMemo(
     () => BuildLessonGroups(FilteredRows),
     [FilteredRows],
@@ -535,13 +544,12 @@ function TeacherStudentTrackerWorkspacePageContent() {
     SetExpandedLessonKeys((Current) => new Set([...Array.from(Current), LessonGroupKey]));
   }, [SearchParams, StudentRows, TargetAction]);
   const Band = PerformanceBand(FilteredRows);
-  const ClearedCount = FilteredRows.filter(IsCleared).length;
-  const CompletedCount = FilteredRows.filter(isCompleted).length;
-  const PendingCount = FilteredRows.filter(
-    (Row) => StatusKey(Row) === "PENDING",
-  ).length;
-  const ReattemptCount = uniqueNeedsReattemptCount(FilteredRows);
-  const NeedsReattemptCount = uniqueNeedsReattemptCount(FilteredRows);
+  const AssignedCount = uniqueAssignedConceptCount(CurrentFilteredRows);
+  const ClearedCount = uniqueClearedConceptCount(CurrentFilteredRows);
+  const CompletedCount = CurrentFilteredRows.filter(isCompleted).length;
+  const PendingCount = uniquePendingConceptCount(CurrentFilteredRows);
+  const ReattemptCount = uniqueNeedsReattemptCount(CurrentFilteredRows);
+  const NeedsReattemptCount = uniqueNeedsReattemptCount(CurrentFilteredRows);
   const ActionRows = useMemo(
     () => FilteredRows.filter(IsActionNeeded),
     [FilteredRows],
@@ -603,10 +611,10 @@ function TeacherStudentTrackerWorkspacePageContent() {
                 Student Code: {StudentCode}
               </p>
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Metric
                 label="Assigned DPS"
-                value={FilteredRows.length}
+                value={AssignedCount}
                 icon={<ClipboardList size={15} />}
               />
               <Metric
@@ -618,6 +626,11 @@ function TeacherStudentTrackerWorkspacePageContent() {
                 label="Pending DPS"
                 value={PendingCount}
                 icon={<AlertTriangle size={15} />}
+              />
+              <Metric
+                label="Needs Re-Attempt"
+                value={NeedsReattemptCount}
+                icon={<Target size={15} />}
               />
               <Metric
                 label="Average Accuracy"
@@ -767,7 +780,7 @@ function TeacherStudentTrackerWorkspacePageContent() {
             {ActiveTab === "OVERVIEW" ? (
               <OverviewTab
                 Rows={FilteredRows}
-                AssignedCount={FilteredRows.length}
+                AssignedCount={AssignedCount}
                 PendingCount={PendingCount}
                 ReattemptCount={ReattemptCount}
                 ClearedCount={ClearedCount}
@@ -1164,7 +1177,7 @@ function ModulePracticeBlock({
   OnView: (Row: AnyRow) => void;
 }) {
   const IsExpanded = ExpandedModuleKeys.has(Group.GroupKey);
-  const ClearedCount = Group.Rows.filter(IsCleared).length;
+  const ClearedCount = uniqueClearedConceptCount(Group.Rows);
   const ReviewedRows = AttemptedRows(Group.Rows);
   const Average = ReviewedRows.length ? averageAccuracy(ReviewedRows) : null;
   return (
@@ -1186,7 +1199,7 @@ function ModulePracticeBlock({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Chip tone="blue">{Group.Levels.length} Level(s)</Chip>
-          <Chip tone="blue">{Group.Rows.length} DPS</Chip>
+          <Chip tone="blue">{uniqueAssignedConceptCount(Group.Rows)} DPS</Chip>
           <Chip tone="green">{ClearedCount} Cleared</Chip>
           {Average === null ? null : (
             <Chip tone={Average >= 70 ? "green" : "red"}>{Average}% Avg</Chip>
@@ -1234,7 +1247,7 @@ function LevelPracticeBlock({
 }) {
   const ReviewedRows = AttemptedRows(Group.Rows);
   const Average = ReviewedRows.length ? averageAccuracy(ReviewedRows) : null;
-  const ClearedCount = Group.Rows.filter(IsCleared).length;
+  const ClearedCount = uniqueClearedConceptCount(Group.Rows);
   return (
     <div className="rounded-[24px] border border-cyan-100 bg-cyan-50/35 p-4 dark:border-cyan-900/40 dark:bg-cyan-950/10">
       <button
@@ -1291,10 +1304,8 @@ function LessonInsightBlock({
 }) {
   const ReviewedRows = AttemptedRows(Group.Rows);
   const Average = ReviewedRows.length ? averageAccuracy(ReviewedRows) : null;
-  const ClearedCount = Group.Rows.filter(IsCleared).length;
-  const PendingCount = Group.Rows.filter(
-    (Row) => StatusKey(Row) === "PENDING",
-  ).length;
+  const ClearedCount = uniqueClearedConceptCount(Group.Rows);
+  const PendingCount = uniquePendingConceptCount(Group.Rows);
   const NeedsReattemptCount = uniqueNeedsReattemptCount(Group.Rows);
   return (
     <div className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
@@ -1313,7 +1324,7 @@ function LessonInsightBlock({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Chip tone="blue">{Group.Rows.length} DPS</Chip>
+          <Chip tone="blue">{uniqueAssignedConceptCount(Group.Rows)} DPS</Chip>
           {Average === null ? null : (
             <Chip tone={Average >= 70 ? "green" : "red"}>{Average}% Avg</Chip>
           )}

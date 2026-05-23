@@ -498,6 +498,19 @@ export function currentWorkRows(rows: AnyRow[]) {
   return Array.from(CurrentRows.values());
 }
 
+export function uniqueAssignedConceptCount(rows: AnyRow[]) {
+  return currentWorkRows(rows).length;
+}
+
+export function uniqueClearedConceptCount(rows: AnyRow[]) {
+  return currentWorkRows(rows).filter(
+    (Row) => isCompleted(Row) && !isBelowBenchmark(Row),
+  ).length;
+}
+
+export function uniquePendingConceptCount(rows: AnyRow[]) {
+  return currentWorkRows(rows).filter((Row) => !isCompleted(Row)).length;
+}
 
 export function uniqueNeedsReattemptCount(rows: AnyRow[]) {
   const Keys = new Set<string>();
@@ -517,11 +530,7 @@ export function uniqueNeedsReattemptCount(rows: AnyRow[]) {
 }
 
 export function uniqueCompletedConceptCount(rows: AnyRow[]) {
-  const Keys = new Set<string>();
-  rows.forEach((Row) => {
-    if (isCompleted(Row) && !isBelowBenchmark(Row)) Keys.add(workUnitKey(Row));
-  });
-  return Keys.size;
+  return uniqueClearedConceptCount(rows);
 }
 
 export function statusLabel(row: AnyRow) {
@@ -628,10 +637,8 @@ export function searchText(row: AnyRow) {
 
 export function studentStats(rows: AnyRow[]) {
   const CurrentRows = currentWorkRows(rows);
-  const completed = CurrentRows.filter(
-    (row) => isCompleted(row) && !isBelowBenchmark(row),
-  ).length;
-  const pending = CurrentRows.filter((row) => !isCompleted(row)).length;
+  const completed = uniqueClearedConceptCount(CurrentRows);
+  const pending = uniquePendingConceptCount(CurrentRows);
   const below = uniqueNeedsReattemptCount(CurrentRows);
   const reattempt = below;
   return {
@@ -1087,7 +1094,7 @@ export function RecordWorkspace({
             <p className="mt-2 text-sm font-bold text-slate-500">{subtitle}</p>
           ) : null}
         </div>
-        <div className={`grid gap-3 ${role === "teacher" ? "grid-cols-4" : "grid-cols-5"}`}>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <Metric
             label={role === "student" ? "Required DPS" : "Assigned DPS"}
             value={stats.total}
@@ -1103,13 +1110,11 @@ export function RecordWorkspace({
             value={stats.pending}
             icon={<Clock3 size={15} />}
           />
-          {role !== "teacher" ? (
-            <Metric
-              label="Needs Re-Attempt"
-              value={stats.below}
-              icon={<AlertTriangle size={15} />}
-            />
-          ) : null}
+          <Metric
+            label="Needs Re-Attempt"
+            value={stats.below}
+            icon={<AlertTriangle size={15} />}
+          />
           <Metric
             label="Average Accuracy"
             value={`${stats.avg}%`}
@@ -1222,9 +1227,9 @@ export function RecordWorkspace({
                         </h3>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Chip tone="blue">{lesson.rows.length} DPS</Chip>
+                        <Chip tone="blue">{uniqueAssignedConceptCount(lesson.rows)} DPS</Chip>
                         <Chip tone="green">
-                          {lesson.rows.filter((Row) => isCompleted(Row) && !isBelowBenchmark(Row)).length} Cleared
+                          {uniqueClearedConceptCount(lesson.rows)} Cleared
                         </Chip>
                         <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
                           {averageAccuracy(lesson.rows)}% Avg
@@ -1276,9 +1281,9 @@ export function RecordWorkspace({
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Chip tone="blue">{ModuleGroup.Levels.length} Level(s)</Chip>
-                        <Chip tone="blue">{ModuleRows.length} DPS</Chip>
+                        <Chip tone="blue">{uniqueAssignedConceptCount(ModuleRows)} DPS</Chip>
                         <Chip tone="green">
-                          {ModuleRows.filter((Row) => isCompleted(Row) && !isBelowBenchmark(Row)).length} Cleared
+                          {uniqueClearedConceptCount(ModuleRows)} Cleared
                         </Chip>
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                           <ChevronDown className={IsModuleOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1311,7 +1316,7 @@ export function RecordWorkspace({
                                 <div className="flex flex-wrap items-center gap-2">
                                   <Chip tone="blue">{LevelGroup.Lessons.length} Lesson(s)</Chip>
                                   <Chip tone="green">
-                                    {LevelRows.filter((Row) => isCompleted(Row) && !isBelowBenchmark(Row)).length} Cleared
+                                    {uniqueClearedConceptCount(LevelRows)} Cleared
                                   </Chip>
                                   <Chip tone={averageAccuracy(LevelRows) >= 70 ? "green" : "red"}>
                                     {averageAccuracy(LevelRows)}% Avg
@@ -1346,9 +1351,9 @@ export function RecordWorkspace({
                                             </h4>
                                           </div>
                                           <div className="flex flex-wrap items-center gap-2">
-                                            <Chip tone="blue">{lesson.rows.length} DPS</Chip>
+                                            <Chip tone="blue">{uniqueAssignedConceptCount(lesson.rows)} DPS</Chip>
                                             <Chip tone="green">
-                                              {lesson.rows.filter((Row) => isCompleted(Row) && !isBelowBenchmark(Row)).length} Cleared
+                                              {uniqueClearedConceptCount(lesson.rows)} Cleared
                                             </Chip>
                                             <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
                                               {averageAccuracy(lesson.rows)}% Avg
@@ -1423,9 +1428,9 @@ export function RecordWorkspace({
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Chip tone="blue">{ModuleGroup.Levels.length} Level(s)</Chip>
-                        <Chip tone="blue">{ModuleRows.length} DPS</Chip>
+                        <Chip tone="blue">{uniqueAssignedConceptCount(ModuleRows)} DPS</Chip>
                         <Chip tone="green">
-                          {ModuleRows.filter((Row) => isCompleted(Row) && !isBelowBenchmark(Row)).length} Cleared
+                          {uniqueClearedConceptCount(ModuleRows)} Cleared
                         </Chip>
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                           <ChevronDown className={IsModuleOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1457,9 +1462,9 @@ export function RecordWorkspace({
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
                                   <Chip tone="blue">{LevelGroup.Lessons.length} Lesson(s)</Chip>
-                                  <Chip tone="blue">{LevelRows.length} DPS</Chip>
+                                  <Chip tone="blue">{uniqueAssignedConceptCount(LevelRows)} DPS</Chip>
                                   <Chip tone="green">
-                                    {LevelRows.filter((Row) => isCompleted(Row) && !isBelowBenchmark(Row)).length} Cleared
+                                    {uniqueClearedConceptCount(LevelRows)} Cleared
                                   </Chip>
                                   <span className="rounded-2xl bg-white p-2 text-slate-600 shadow-sm dark:bg-slate-950 dark:text-slate-300">
                                     <ChevronDown className={IsLevelOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1492,9 +1497,9 @@ export function RecordWorkspace({
                                             </h4>
                                           </div>
                                           <div className="flex flex-wrap items-center gap-2">
-                                            <Chip tone="blue">{lesson.rows.length} DPS</Chip>
+                                            <Chip tone="blue">{uniqueAssignedConceptCount(lesson.rows)} DPS</Chip>
                                             <Chip tone="green">
-                                              {lesson.rows.filter((Row) => isCompleted(Row) && !isBelowBenchmark(Row)).length} Cleared
+                                              {uniqueClearedConceptCount(lesson.rows)} Cleared
                                             </Chip>
                                             <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
                                               {averageAccuracy(lesson.rows)}% Avg

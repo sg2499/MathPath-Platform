@@ -46,6 +46,8 @@ import {
   moduleCodeOf,
   needsReattempt,
   searchText,
+  uniqueClearedConceptCount,
+  uniquePendingConceptCount,
   studentCodeOf,
   studentNameOf,
   uniqueNeedsReattemptCount,
@@ -216,13 +218,14 @@ function StudentPrimaryLevel(Student: StudentNode) {
 }
 
 function StudentOperationalStats(Rows: AnyRow[]) {
-  const Assigned = Rows.length;
-  const Cleared = Rows.filter(IsCleared).length;
-  const Completed = Rows.filter(isCompleted).length;
-  const Pending = Assigned - Completed;
-  const Reattempt = uniqueNeedsReattemptCount(Rows);
-  const NeedsReattempt = uniqueNeedsReattemptCount(Rows);
-  const ActionNeeded = Rows.filter(IsActionNeeded).length;
+  const CurrentRows = currentWorkRows(Rows);
+  const Assigned = CurrentRows.length;
+  const Cleared = uniqueClearedConceptCount(CurrentRows);
+  const Completed = CurrentRows.filter(isCompleted).length;
+  const Pending = uniquePendingConceptCount(CurrentRows);
+  const Reattempt = uniqueNeedsReattemptCount(CurrentRows);
+  const NeedsReattempt = uniqueNeedsReattemptCount(CurrentRows);
+  const ActionNeeded = CurrentRows.filter(IsActionNeeded).length;
   return {
     Assigned,
     Cleared,
@@ -475,7 +478,7 @@ export default function TeacherPracticeTrackerPage() {
               student practice performance from one workspace.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
             <Metric
               label="Students"
               value={Students.length}
@@ -488,17 +491,18 @@ export default function TeacherPracticeTrackerPage() {
             />
             <Metric
               label="Cleared DPS"
-              value={CurrentFilteredRows.filter(IsCleared).length}
+              value={uniqueClearedConceptCount(CurrentFilteredRows)}
               icon={<ShieldCheck size={15} />}
             />
             <Metric
               label="Pending DPS"
-              value={
-                CurrentFilteredRows.filter(
-                  (Row) => StatusKey(Row) === "PENDING",
-                ).length
-              }
+              value={uniquePendingConceptCount(CurrentFilteredRows)}
               icon={<ClipboardList size={15} />}
+            />
+            <Metric
+              label="Needs Re-Attempt"
+              value={uniqueNeedsReattemptCount(CurrentFilteredRows)}
+              icon={<Target size={15} />}
             />
             <Metric
               label="Average Accuracy"
