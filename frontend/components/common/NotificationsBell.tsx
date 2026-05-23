@@ -435,6 +435,64 @@ function BuildTargetUrl(
   return AppendDeepLinkParams(Route, Notification, BaseParams);
 }
 
+function NotificationDisplayPriority(Notification: NotificationRecord) {
+  const Type = String(Notification.type || "").toUpperCase();
+  const Title = String(Notification.title || "").toUpperCase();
+  const Category = String(Notification.category || "").toUpperCase();
+  const Metadata = Notification.metadata || {};
+  const Event = String(Metadata.event || "").toUpperCase();
+  const Purpose = String(Metadata.notificationPurpose || "").toUpperCase();
+  const TargetAction = String(Metadata.targetAction || "").toUpperCase();
+  const ExplicitPriority = Number((Notification as unknown as { displayPriority?: number }).displayPriority || 0);
+
+  if (ExplicitPriority) return ExplicitPriority;
+
+  const Source = [Type, Title, Category, Event, Purpose, TargetAction].join(" ");
+
+  if (Source.includes("APPROVAL") && Source.includes("REATTEMPT")) return 400;
+  if (
+    Source.includes("REATTEMPT_ASSIGNED") ||
+    Source.includes("RE-ATTEMPT ASSIGNED") ||
+    Source.includes("REATTEMPT ASSIGNED") ||
+    (Source.includes("ASSIGNED") && Source.includes("RE-ATTEMPT"))
+  ) {
+    return 300;
+  }
+  if (
+    Source.includes("NEEDS_REATTEMPT") ||
+    Source.includes("NEEDS RE-ATTEMPT") ||
+    Source.includes("NEEDS REATTEMPT")
+  ) {
+    return 200;
+  }
+  if (
+    Source.includes("DPS_ASSIGNED") ||
+    Source.includes("DPS ASSIGNED") ||
+    Source.includes("PRACTICE ASSIGNED")
+  ) {
+    return 100;
+  }
+  return 0;
+}
+
+function NotificationTimestampValue(Notification: NotificationRecord) {
+  const Value = Notification.createdAt ? Date.parse(Notification.createdAt) : 0;
+  return Number.isFinite(Value) ? Value : 0;
+}
+
+function SortNotificationsForWorkflow(Items: NotificationRecord[]) {
+  return [...Items].sort((Left, Right) => {
+    const TimeDifference = NotificationTimestampValue(Right) - NotificationTimestampValue(Left);
+    if (TimeDifference !== 0) return TimeDifference;
+
+    const PriorityDifference =
+      NotificationDisplayPriority(Right) - NotificationDisplayPriority(Left);
+    if (PriorityDifference !== 0) return PriorityDifference;
+
+    return String(Right.id || "").localeCompare(String(Left.id || ""));
+  });
+}
+
 function CategoryLabel(Notification: NotificationRecord) {
   const Category = String(Notification.category || "SYSTEM")
     .replace(/_/g, " ")
@@ -452,14 +510,14 @@ export function NotificationsBell() {
   const [ActionLoading, SetActionLoading] = useState(false);
   const PanelRef = useRef<HTMLDivElement | null>(null);
 
-  const VisibleItems = useMemo(() => Items.slice(0, 20), [Items]);
+  const VisibleItems = useMemo(() => SortNotificationsForWorkflow(Items).slice(0, 20), [Items]);
 
   const FetchNotifications = useCallback(async () => {
     if (!User?.id) return;
     try {
       SetLoading(true);
       const Response = await GetNotifications({ limit: 20, offset: 0 });
-      SetItems(Response.items || []);
+      SetItems(SortNotificationsForWorkflow(Response.items || []));
       SetUnreadCount(Response.unreadCount || 0);
     } catch {
       SetItems([]);

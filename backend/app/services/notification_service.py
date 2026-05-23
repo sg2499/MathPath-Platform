@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import case, desc
 from sqlalchemy.orm import Session
 
 from app.models import Notification, User
@@ -34,6 +35,53 @@ def _json_loads(value: str | None) -> dict[str, Any]:
         return {}
 
 
+
+def NotificationWorkflowPriorityValue(
+    notification_type: str | None,
+    title: str | None = None,
+    category: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> int:
+    """Stable display priority for same-moment workflow notifications.
+
+    Notification drawers are newest-first, but DPS failure workflows create
+    paired records inside the same transaction. SQLite/Postgres can then return
+    same-second rows in insertion/id order, which makes the visible sequence
+    unstable. This priority preserves the product workflow order across roles:
+    approval/assignment first, outcome context directly below it.
+    """
+    source = " ".join(
+        [
+            str(notification_type or ""),
+            str(title or ""),
+            str(category or ""),
+            str((metadata or {}).get("event") or ""),
+            str((metadata or {}).get("notificationPurpose") or ""),
+            str((metadata or {}).get("targetAction") or ""),
+        ]
+    ).upper()
+
+    if "APPROVAL" in source and "REATTEMPT" in source:
+        return 400
+    if "REATTEMPT_ASSIGNED" in source or "RE-ATTEMPT ASSIGNED" in source or "REATTEMPT ASSIGNED" in source:
+        return 300
+    if "ASSIGNED" in source and "RE-ATTEMPT" in source:
+        return 300
+    if "NEEDS_REATTEMPT" in source or "NEEDS RE-ATTEMPT" in source or "NEEDS REATTEMPT" in source:
+        return 200
+    if "DPS_ASSIGNED" in source or "DPS ASSIGNED" in source or "PRACTICE ASSIGNED" in source:
+        return 100
+    return 0
+
+
+def NotificationWorkflowPriority(notification: Notification) -> int:
+    return NotificationWorkflowPriorityValue(
+        notification.type,
+        notification.title,
+        notification.category,
+        _json_loads(notification.metadata_json),
+    )
+
 def NotificationPayload(notification: Notification) -> dict[str, Any]:
     return {
         "id": notification.id,
@@ -62,6 +110,7 @@ def NotificationPayload(notification: Notification) -> dict[str, Any]:
         "readAt": notification.read_at.isoformat() if notification.read_at else None,
         "createdAt": notification.created_at.isoformat() if notification.created_at else None,
         "metadata": _json_loads(notification.metadata_json),
+        "displayPriority": NotificationWorkflowPriority(notification),
     }
 
 
@@ -139,7 +188,28 @@ def ListNotifications(
         Notification.recipient_user_id == recipient_user_id,
         Notification.is_read.is_(False),
     ).count()
-    rows = query.order_by(Notification.created_at.desc()).offset(safe_offset).limit(safe_limit).all()
+    PriorityExpression = case(
+        (Notification.type.ilike("%APPROVAL%"), 400),
+        (Notification.title.ilike("%Approval%"), 400),
+        (Notification.type.ilike("%REATTEMPT_ASSIGNED%"), 300),
+        (Notification.title.ilike("%Re-Attempt Assigned%"), 300),
+        (Notification.title.ilike("%Reattempt Assigned%"), 300),
+        (Notification.type.ilike("%NEEDS_REATTEMPT%"), 200),
+        (Notification.title.ilike("%Needs Re-Attempt%"), 200),
+        (Notification.title.ilike("%Needs Reattempt%"), 200),
+        else_=0,
+    )
+    rows = (
+        query.order_by(
+            Notification.created_at.desc(),
+            desc(PriorityExpression),
+            Notification.updated_at.desc(),
+            Notification.id.desc(),
+        )
+        .offset(safe_offset)
+        .limit(safe_limit)
+        .all()
+    )
     return {
         "items": [NotificationPayload(row) for row in rows],
         "total": total,
