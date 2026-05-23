@@ -75,6 +75,8 @@ def _recent_assignment_notification(
             "DPS_ASSIGNED_BULK",
             "DPS_ASSIGNED_BY_TEACHER",
             "DPS_ASSIGNED_BULK_BY_TEACHER",
+            "DPS_REATTEMPT_ASSIGNED",
+            "DPS_REATTEMPT_ASSIGNED_BY_TEACHER",
         ]),
         Notification.student_id == student_id,
         Notification.module_id == module_id,
@@ -435,20 +437,39 @@ def NotifyPracticeAssignmentsCreated(
         teacher_name = first_context.get("teacher_name")
         display_level = first_context.get("level_code") or level_label
 
+        IsReattemptAssignment = any(int(getattr(AssignmentItem, "retry_attempt_number", 0) or 0) > 0 for AssignmentItem in assignments)
+
         if count == 1:
-            student_title = "New DPS Assigned"
-            student_message = f"{dps_label} is now available for {level_label}."
-            admin_title = "DPS Assigned By Teacher"
-            admin_message = f"{teacher_name} assigned {dps_label} to {student_name}."
-            student_target_action = "start"
-            admin_target_action = "view-record"
+            ReattemptNumber = int(getattr(first_assignment, "retry_attempt_number", 0) or 0)
+            if IsReattemptAssignment:
+                student_title = "Re-Attempt Practice Assigned"
+                student_message = f"{dps_label} has been assigned again in your Practice tab for focused improvement."
+                admin_title = f"Re-Attempt Assigned To {student_name}"
+                admin_message = f"{student_name} now has {dps_label} pending as Re-Attempt {ReattemptNumber}."
+                student_target_action = "start-reattempt"
+                admin_target_action = "review-pending-reattempt"
+            else:
+                student_title = "New DPS Assigned"
+                student_message = f"{dps_label} is now available for {level_label}."
+                admin_title = "DPS Assigned By Teacher"
+                admin_message = f"{teacher_name} assigned {dps_label} to {student_name}."
+                student_target_action = "start"
+                admin_target_action = "view-record"
         else:
-            student_title = f"{count} DPS Assigned"
-            student_message = f"{display_level} has {count} new DPS sheets ready."
-            admin_title = f"{count} DPS Assigned To {student_name}"
-            admin_message = f"{teacher_name} assigned {count} DPS sheets to {student_name}."
-            student_target_action = "review-assigned-dps"
-            admin_target_action = "review-student-practice"
+            if IsReattemptAssignment:
+                student_title = f"{count} Re-Attempt Sheets Assigned"
+                student_message = f"{display_level} has {count} focused re-attempt sheets ready in your Practice tab."
+                admin_title = f"{count} Re-Attempt Sheets Assigned To {student_name}"
+                admin_message = f"{student_name} has {count} pending re-attempt sheets ready for review."
+                student_target_action = "review-reattempts"
+                admin_target_action = "review-pending-reattempt"
+            else:
+                student_title = f"{count} DPS Assigned"
+                student_message = f"{display_level} has {count} new DPS sheets ready."
+                admin_title = f"{count} DPS Assigned To {student_name}"
+                admin_message = f"{teacher_name} assigned {count} DPS sheets to {student_name}."
+                student_target_action = "review-assigned-dps"
+                admin_target_action = "review-student-practice"
 
         if student_user:
             _create_or_merge_assignment_notification(
@@ -463,7 +484,7 @@ def NotifyPracticeAssignmentsCreated(
                 level_id=level.id if level else None,
                 lesson_id=lesson.id if lesson else None,
                 dps_id=dps.id if dps else None,
-                type="DPS_ASSIGNED_BULK" if count > 1 else "DPS_ASSIGNED",
+                type="DPS_REATTEMPT_ASSIGNED" if IsReattemptAssignment else ("DPS_ASSIGNED_BULK" if count > 1 else "DPS_ASSIGNED"),
                 title=student_title,
                 message=student_message,
                 target_route="/student/practice",
@@ -503,7 +524,7 @@ def NotifyPracticeAssignmentsCreated(
                 level_id=level.id if level else None,
                 lesson_id=lesson.id if lesson else None,
                 dps_id=dps.id if dps else None,
-                type="DPS_ASSIGNED_BULK_BY_TEACHER" if count > 1 else "DPS_ASSIGNED_BY_TEACHER",
+                type="DPS_REATTEMPT_ASSIGNED_BY_TEACHER" if IsReattemptAssignment else ("DPS_ASSIGNED_BULK_BY_TEACHER" if count > 1 else "DPS_ASSIGNED_BY_TEACHER"),
                 title=admin_title,
                 message=admin_message,
                 target_route=AdminTargetRoute,

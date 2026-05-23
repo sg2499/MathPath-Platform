@@ -7,7 +7,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherAvailableDps, getTeacherStudents, teacherAssignDps } from "@/lib/api/teacher";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ClipboardPlus, Send } from "lucide-react";
+import { AlertTriangle, ClipboardPlus, Send, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 
@@ -86,6 +86,7 @@ export default function TeacherAssignDpsPage() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [assignMode, setAssignMode] = useState<"selected" | "all">("selected");
+  const [showAssignAllConfirm, setShowAssignAllConfirm] = useState(false);
 
   const studentsQuery = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
   const dpsQuery = useQuery({ queryKey: ["teacher-available-dps"], queryFn: getTeacherAvailableDps, enabled: ready });
@@ -123,6 +124,7 @@ export default function TeacherAssignDpsPage() {
       setMessage(data.message);
       setSelectedStudentIds([]);
       setAssignMode("selected");
+      setShowAssignAllConfirm(false);
     },
   });
 
@@ -140,12 +142,13 @@ export default function TeacherAssignDpsPage() {
     mutation.mutate({ studentIds: selectedStudentIds, mode: "selected" });
   }
 
-  function assignAllEligibleStudents() {
+  function openAssignAllConfirmation() {
+    if (!eligibleStudentIds.length || !selectedDps || mutation.isPending) return;
+    setShowAssignAllConfirm(true);
+  }
+
+  function confirmAssignAllEligibleStudents() {
     if (!eligibleStudentIds.length || !selectedDps) return;
-    const confirmed = window.confirm(
-      `Assign ${selectedDps.dpsTitle} to all ${eligibleStudentIds.length} eligible student(s) in ${selectedDps.levelCode}?`
-    );
-    if (!confirmed) return;
     setAssignMode("all");
     mutation.mutate({ studentIds: eligibleStudentIds, mode: "all" });
   }
@@ -210,7 +213,7 @@ export default function TeacherAssignDpsPage() {
                   type="button"
                   className="math-button-secondary"
                   disabled={!eligibleStudentIds.length || mutation.isPending}
-                  onClick={assignAllEligibleStudents}
+                  onClick={openAssignAllConfirmation}
                 >
                   <ClipboardPlus size={18} />
                   {mutation.isPending && assignMode === "all" ? "Assigning All..." : "Assign All Eligible"}
@@ -242,6 +245,76 @@ export default function TeacherAssignDpsPage() {
           </section>
         ) : null}
       </div>
+
+      {showAssignAllConfirm && selectedDps ? (
+        <div className="fixed inset-x-0 bottom-0 top-[92px] z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 py-8 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-xl rounded-[32px] border border-[color:var(--mp-role-border)] bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.28)] dark:bg-slate-950">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--mp-role-soft)] text-[color:var(--mp-role-readable)]">
+                  <ClipboardPlus size={22} />
+                </div>
+                <div>
+                  <p className="math-kicker">Confirm Assignment</p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Assign DPS to eligible students?</h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="math-role-action-button h-11 w-11 justify-center rounded-2xl p-0"
+                onClick={() => setShowAssignAllConfirm(false)}
+                aria-label="Close confirmation"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/70">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">DPS Sheet</p>
+                <p className="mt-1 text-base font-black text-slate-950 dark:text-white">{selectedDps.dpsTitle}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Level</p>
+                  <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{selectedDps.levelCode}</p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Eligible Students</p>
+                  <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{eligibleStudentIds.length}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+              <p className="text-sm font-bold leading-6">
+                This will assign the selected DPS to every eligible active student in this level. Students will see the sheet in their Practice tab immediately.
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="math-button-secondary"
+                onClick={() => setShowAssignAllConfirm(false)}
+                disabled={mutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="math-button-primary"
+                onClick={confirmAssignAllEligibleStudents}
+                disabled={mutation.isPending}
+              >
+                <ClipboardPlus size={18} />
+                {mutation.isPending && assignMode === "all" ? "Assigning..." : "Confirm Assignment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AppShell>
   );
 }

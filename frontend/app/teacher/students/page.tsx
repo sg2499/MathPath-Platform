@@ -22,6 +22,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type TeacherStudentSortKey = "studentCode" | "studentName" | "className" | "level" | "status" | "assigned" | "completed" | "pending" | "accuracy" | "latest" | "attention";
 
@@ -154,6 +155,7 @@ export default function TeacherStudentsPage() {
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
+  const router = useRouter();
   const [sortKey, setSortKey] = useState<TeacherStudentSortKey>("studentCode");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const query = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
@@ -365,7 +367,7 @@ export default function TeacherStudentsPage() {
               </thead>
               <tbody>
                 {filtered.map((student) => (
-                  <StudentRow key={student.studentId} student={student} attention={effectiveAttention(student, currentNeedsReattemptStudentCodes)} />
+                  <StudentRow key={student.studentId} student={student} attention={effectiveAttention(student, currentNeedsReattemptStudentCodes)} onOpen={() => router.push(`/teacher/assignment-tracker/student/${student.studentCode}?focus=pending`)} />
                 ))}
               </tbody>
             </table>
@@ -376,11 +378,23 @@ export default function TeacherStudentsPage() {
   );
 }
 
-function StudentRow({ student, attention }: { student: TeacherStudent; attention: string }) {
+function StudentRow({ student, attention, onOpen }: { student: TeacherStudent; attention: string; onOpen: () => void }) {
   const pending = (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0);
 
   return (
-    <tr>
+    <tr
+      className="cursor-pointer transition hover:bg-[color:var(--mp-role-soft)] focus-within:bg-[color:var(--mp-role-soft)]"
+      tabIndex={0}
+      role="button"
+      aria-label={`Open practice review for ${student.studentName}`}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+    >
       <td>
         <div className="flex items-center gap-3">
           <ProfileAvatar
@@ -413,7 +427,7 @@ function StudentRow({ student, attention }: { student: TeacherStudent; attention
         </span>
       </td>
       <td>
-        <span className={`math-badge ${pending > 0 ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+        <span className={`math-badge ${pending > 0 ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
           {pending}
         </span>
       </td>
