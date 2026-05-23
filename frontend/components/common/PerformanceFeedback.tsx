@@ -32,7 +32,7 @@ const EXCELLENT_MESSAGES = [
 ];
 
 const NEXT_STEPS: Record<Exclude<PerformanceBand, "PENDING">, string> = {
-  NEEDS_PRACTICE: "Revise calmly and wait for your teacher/admin to guide the re-attempt plan.",
+  NEEDS_PRACTICE: "Review your mistakes calmly and wait for your teacher to guide the next practice step.",
   GOOD_PROGRESS: "Review the missed questions and keep your practice rhythm steady.",
   EXCELLENT: "Celebrate the progress, then revise the tricky questions once more.",
 };

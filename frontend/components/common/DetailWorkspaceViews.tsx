@@ -2511,7 +2511,8 @@ function attemptLabel(row: AnyRow) {
 function attemptTone(
   row: AnyRow,
 ): "slate" | "green" | "red" | "amber" | "blue" | "cyan" {
-  return attemptLabel(row) === "Original" ? "blue" : "amber";
+  void row;
+  return "blue";
 }
 
 export function CompactRecordTable({

@@ -208,8 +208,8 @@ def BuildRetryWorkflowPayload(AttemptItem: Attempt, RetryAssignment: Assignment 
             "nextAssignmentId": None,
             "requiresManualIntervention": True,
             "title": "Additional Review Required",
-            "message": "This practice requires additional review before the next attempt can be unlocked.",
-            "guidance": "Your teacher will guide you through the next step to help strengthen this concept.",
+            "message": "This practice needs teacher review before another attempt can be opened.",
+            "guidance": "Your teacher will review your work and guide the next practice step.",
             "showTeacherGuidance": True,
         }
 

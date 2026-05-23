@@ -2521,15 +2521,8 @@ function AttemptLabel(Row: AnyRecord) {
 }
 
 function AttemptChip({ Label }: { Label: string }) {
-  const UpperLabel = Label.toUpperCase();
-  const ClassName =
-    UpperLabel.includes("RE-ATTEMPT") ||
-    UpperLabel.includes("REATTEMPT") ||
-    UpperLabel.includes("RE ATTEMPT")
-      ? "border-violet-200 bg-violet-50 text-violet-700"
-      : "border-blue-200 bg-blue-50 text-blue-700";
   return (
-    <span className={`math-badge math-attempt-chip whitespace-nowrap ${ClassName}`}>
+    <span className="math-badge math-attempt-chip whitespace-nowrap border-blue-200 bg-blue-50 text-blue-700">
       {Label}
     </span>
   );

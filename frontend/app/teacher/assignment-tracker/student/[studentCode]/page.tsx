@@ -1456,7 +1456,7 @@ function PracticeRowsTable({
               </p>
             </div>
             <div>
-              <Chip tone={AttemptType === "Original" ? "blue" : "amber"}>
+              <Chip tone="blue">
                 {AttemptType}
               </Chip>
             </div>
