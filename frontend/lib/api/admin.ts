@@ -422,6 +422,7 @@ export type AdminAssignmentStudentRow = {
   benchmarkStatus?: string | null;
   requiresAttention?: boolean | null;
   benchmarkMessage?: string | null;
+  requiresManualIntervention?: boolean | null;
   startedAt: string | null;
   submittedAt: string | null;
   attemptDate: string | null;
