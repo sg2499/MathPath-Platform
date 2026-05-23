@@ -88,33 +88,33 @@ export function dynamicPerformanceMessage({
 function feedbackToneClasses(Tone: FeedbackTone) {
   if (Tone === "danger") {
     return {
-      Card: "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 text-amber-950 shadow-amber-100/70",
-      Icon: "bg-amber-100 text-amber-700",
-      Kicker: "text-amber-700/80",
-      Title: "text-amber-950",
-      Message: "text-slate-800",
-      Step: "text-amber-950",
+      Card: "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 text-amber-950 shadow-amber-100/70 dark:border-amber-300/30 dark:from-amber-950/45 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-50 dark:shadow-black/20",
+      Icon: "bg-amber-100 text-amber-700 dark:bg-amber-300/15 dark:text-amber-100",
+      Kicker: "text-amber-700/80 dark:text-amber-200",
+      Title: "text-amber-950 dark:text-amber-50",
+      Message: "text-slate-800 dark:text-amber-50",
+      Step: "text-amber-950 dark:text-amber-100",
     };
   }
 
   if (Tone === "warning") {
     return {
-      Card: "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-blue-950 shadow-blue-100/70",
-      Icon: "bg-blue-100 text-blue-700",
-      Kicker: "text-blue-700/80",
-      Title: "text-blue-950",
-      Message: "text-slate-800",
-      Step: "text-blue-950",
+      Card: "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-blue-950 shadow-blue-100/70 dark:border-blue-300/30 dark:from-blue-950/45 dark:via-slate-950 dark:to-indigo-950/40 dark:text-blue-50 dark:shadow-black/20",
+      Icon: "bg-blue-100 text-blue-700 dark:bg-blue-300/15 dark:text-blue-100",
+      Kicker: "text-blue-700/80 dark:text-blue-200",
+      Title: "text-blue-950 dark:text-blue-50",
+      Message: "text-slate-800 dark:text-blue-50",
+      Step: "text-blue-950 dark:text-blue-100",
     };
   }
 
   return {
-    Card: "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 text-emerald-950 shadow-emerald-100/70",
-    Icon: "bg-emerald-100 text-emerald-700",
-    Kicker: "text-emerald-700/80",
-    Title: "text-emerald-950",
-    Message: "text-slate-800",
-    Step: "text-emerald-950",
+    Card: "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 text-emerald-950 shadow-emerald-100/70 dark:border-emerald-300/30 dark:from-emerald-950/45 dark:via-slate-950 dark:to-cyan-950/40 dark:text-emerald-50 dark:shadow-black/20",
+    Icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-300/15 dark:text-emerald-100",
+    Kicker: "text-emerald-700/80 dark:text-emerald-200",
+    Title: "text-emerald-950 dark:text-emerald-50",
+    Message: "text-slate-800 dark:text-emerald-50",
+    Step: "text-emerald-950 dark:text-emerald-100",
   };
 }
 
