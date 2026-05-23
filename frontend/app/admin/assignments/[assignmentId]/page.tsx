@@ -243,7 +243,7 @@ export default function AdminAssignmentDetailPage() {
           </section>
         </div>
       ) : null}
-      {FreshPracticeRequest ? (
+      {FreshPracticeRequest && assignment ? (
         <div className="fixed inset-x-0 bottom-0 top-20 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
           <div className="w-full max-w-xl rounded-[2rem] border border-white/70 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-start gap-4">
