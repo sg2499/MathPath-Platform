@@ -427,6 +427,7 @@ def NotifyPracticeAssignmentsCreated(
         student = first_context.get("student")
         student_user = first_context.get("student_user")
         teacher = first_context.get("teacher")
+        teacher_user = first_context.get("teacher_user")
         module = first_context.get("module")
         level = first_context.get("level")
         lesson = first_context.get("lesson")
@@ -447,7 +448,7 @@ def NotifyPracticeAssignmentsCreated(
                 admin_title = f"Re-Attempt Assigned To {student_name}"
                 admin_message = f"{student_name} now has {dps_label} pending as Re-Attempt {ReattemptNumber}."
                 student_target_action = "start-reattempt"
-                admin_target_action = "review-pending-reattempt"
+                admin_target_action = "lesson-insights-pending-reattempt"
             else:
                 student_title = "New DPS Assigned"
                 student_message = f"{dps_label} is now available for {level_label}."
@@ -462,7 +463,7 @@ def NotifyPracticeAssignmentsCreated(
                 admin_title = f"{count} Re-Attempt Sheets Assigned To {student_name}"
                 admin_message = f"{student_name} has {count} pending re-attempt sheets ready for review."
                 student_target_action = "review-reattempts"
-                admin_target_action = "review-pending-reattempt"
+                admin_target_action = "lesson-insights-pending-reattempt"
             else:
                 student_title = f"{count} DPS Assigned"
                 student_message = f"{display_level} has {count} new DPS sheets ready."
@@ -497,6 +498,38 @@ def NotifyPracticeAssignmentsCreated(
                     count=count,
                     target_action=student_target_action,
                 ),
+                student_name=student_name,
+                teacher_name=teacher_name,
+                display_level=display_level,
+            )
+
+        if teacher_user:
+            TeacherMetadata = _assignment_group_metadata(
+                contexts=contexts,
+                assignments=assignments,
+                first_assignment=first_assignment,
+                first_context=first_context,
+                count=count,
+                target_action=admin_target_action,
+            )
+            _create_or_merge_assignment_notification(
+                db,
+                recipient_user_id=teacher_user.id,
+                recipient_role="TEACHER",
+                actor_user_id=actor_user_id,
+                actor_role="TEACHER" if actor_user_id else None,
+                student_id=student.id if student else None,
+                teacher_id=teacher.id if teacher else None,
+                module_id=module.id if module else None,
+                level_id=level.id if level else None,
+                lesson_id=lesson.id if lesson else None,
+                dps_id=dps.id if dps else None,
+                type="DPS_REATTEMPT_ASSIGNED_BY_TEACHER" if IsReattemptAssignment else ("DPS_ASSIGNED_BULK_BY_TEACHER" if count > 1 else "DPS_ASSIGNED_BY_TEACHER"),
+                title=admin_title,
+                message=admin_message,
+                target_route=_teacher_practice_target_route(first_context),
+                target_tab="practice-tracker",
+                metadata=TeacherMetadata,
                 student_name=student_name,
                 teacher_name=teacher_name,
                 display_level=display_level,
@@ -627,7 +660,7 @@ def NotifyPracticeAttemptSubmitted(
                 "levelCode": context.get("level_code") or level_label,
                 "accuracy": accuracy,
                 "highlightId": f"attempt-{attempt.id}",
-                "targetAction": "view-record",
+                "targetAction": "lesson-insights-attempt",
                 "notificationGroup": "PRACTICE",
             },
         )
@@ -657,7 +690,7 @@ def NotifyPracticeAttemptSubmitted(
                 "levelCode": context.get("level_code") or level_label,
                 "accuracy": accuracy,
                 "highlightId": f"attempt-{attempt.id}",
-                "targetAction": "view-record",
+                "targetAction": "lesson-insights-attempt",
                 "notificationGroup": "PRACTICE",
             },
     )

@@ -53,7 +53,7 @@ import {
   mathPathTimestampValue,
 } from "@/lib/date";
 import type { ReactNode } from "react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 type WorkspaceTab = "OVERVIEW" | "LESSON_INSIGHTS";
 type LessonFilter = string;
@@ -493,6 +493,47 @@ function TeacherStudentTrackerWorkspacePageContent() {
     () => BuildModulePracticeGroups(LessonGroups),
     [LessonGroups],
   );
+  const TargetAction = SearchParams.get("targetAction") || SearchParams.get("focus") || "";
+
+  useEffect(() => {
+    if (!StudentRows.length) return;
+    const ShouldOpenLessonInsights =
+      TargetAction.toLowerCase().includes("lesson-insights") ||
+      TargetAction.toLowerCase().includes("pending") ||
+      SearchParams.has("lessonId") ||
+      SearchParams.has("dpsId") ||
+      SearchParams.has("assignmentId") ||
+      SearchParams.has("attemptId");
+    if (!ShouldOpenLessonInsights) return;
+
+    SetActiveTab("LESSON_INSIGHTS");
+
+    const AssignmentId = SearchParams.get("assignmentId") || "";
+    const AttemptId = SearchParams.get("attemptId") || "";
+    const DpsId = SearchParams.get("dpsId") || "";
+    const LessonId = SearchParams.get("lessonId") || "";
+    const ModuleCode = SearchParams.get("moduleCode") || "";
+    const LevelCode = SearchParams.get("levelCode") || "";
+
+    const TargetRow =
+      StudentRows.find((Row) => {
+        const AssignmentMatch = AssignmentId && String(Row.assignmentId || Row.id || "") === AssignmentId;
+        const AttemptMatch = AttemptId && String(Row.attemptId || Row.latestAttemptId || "") === AttemptId;
+        const DpsMatch = DpsId && String(Row.dpsId || Row.dps_id || "") === DpsId;
+        const LessonMatch = LessonId && String(Row.lessonId || Row.lesson_id || "") === LessonId;
+        const ModuleMatch = !ModuleCode || moduleCodeOf(Row) === ModuleCode;
+        const LevelMatch = !LevelCode || levelCodeOf(Row) === LevelCode;
+        return (AssignmentMatch || AttemptMatch || DpsMatch || LessonMatch || (!AssignmentId && !AttemptId && !DpsId && !LessonId)) && ModuleMatch && LevelMatch;
+      }) || StudentRows[0];
+
+    const ModuleKey = moduleCodeOf(TargetRow);
+    const LevelKey = `${moduleCodeOf(TargetRow)}|${levelCodeOf(TargetRow)}`;
+    const LessonGroupKey = LessonKey(TargetRow);
+
+    SetExpandedModuleKeys((Current) => new Set([...Array.from(Current), ModuleKey]));
+    SetExpandedLevelKeys((Current) => new Set([...Array.from(Current), LevelKey]));
+    SetExpandedLessonKeys((Current) => new Set([...Array.from(Current), LessonGroupKey]));
+  }, [SearchParams, StudentRows, TargetAction]);
   const Band = PerformanceBand(FilteredRows);
   const ClearedCount = FilteredRows.filter(IsCleared).length;
   const CompletedCount = FilteredRows.filter(isCompleted).length;

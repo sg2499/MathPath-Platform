@@ -220,6 +220,6 @@ def BuildRetryWorkflowPayload(AttemptItem: Attempt, RetryAssignment: Assignment 
         "requiresManualIntervention": False,
         "title": "More Practice Recommended",
         "message": "You are improving, but the required benchmark has not been achieved yet.",
-        "guidance": "A new practice sheet has been prepared to help you strengthen this concept before moving ahead.",
+        "guidance": "A re-attempt practice sheet has been assigned in your Practice tab. Open Practice and complete the highlighted sheet before moving ahead.",
         "showTeacherGuidance": False,
     }

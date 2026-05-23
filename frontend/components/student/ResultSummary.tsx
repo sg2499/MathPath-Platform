@@ -23,7 +23,7 @@ function RetryWorkflowCard({ result }: { result: AttemptResult }) {
     ? "You may now continue your learning journey with the next assigned practice."
     : IsManualReview
       ? "Your teacher will guide you through the next step to help strengthen this concept."
-      : "A new practice sheet has been prepared to help you strengthen this concept before moving ahead.");
+      : "A re-attempt practice sheet has been assigned in your Practice tab. Open Practice and complete the highlighted sheet before moving ahead.");
 
   const ToneClass = IsCleared
     ? "border-emerald-200/80 bg-emerald-50/90 text-emerald-950 dark:border-emerald-400/35 dark:bg-emerald-950/35 dark:text-emerald-50"

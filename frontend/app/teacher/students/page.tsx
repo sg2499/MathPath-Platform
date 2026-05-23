@@ -367,7 +367,7 @@ export default function TeacherStudentsPage() {
               </thead>
               <tbody>
                 {filtered.map((student) => (
-                  <StudentRow key={student.studentId} student={student} attention={effectiveAttention(student, currentNeedsReattemptStudentCodes)} onOpen={() => router.push(`/teacher/assignment-tracker/student/${student.studentCode}?focus=pending`)} />
+                  <StudentRow key={student.studentId} student={student} attention={effectiveAttention(student, currentNeedsReattemptStudentCodes)} onOpen={() => router.push(`/teacher/assignment-tracker/student/${student.studentCode}?targetAction=lesson-insights-student-review`)} />
                 ))}
               </tbody>
             </table>
@@ -427,7 +427,7 @@ function StudentRow({ student, attention, onOpen }: { student: TeacherStudent; a
         </span>
       </td>
       <td>
-        <span className={`math-badge ${pending > 0 ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+        <span className={`math-badge ${pending > 0 ? "border-amber-200 bg-amber-50 text-amber-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
           {pending}
         </span>
       </td>

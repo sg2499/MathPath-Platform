@@ -179,6 +179,16 @@ function AdminStudentAssignmentsWorkspacePageContent() {
               })
             }
             onDelete={(row) => setDeleteTarget(row as AdminAssignment)}
+            initialTab={(SearchParams.get("targetAction") || "").includes("lesson-insights") || SearchParams.has("assignmentId") || SearchParams.has("attemptId") || SearchParams.has("dpsId") || SearchParams.has("lessonId") ? "lessons" : "overview"}
+            focusTarget={{
+              assignmentId: SearchParams.get("assignmentId") || "",
+              attemptId: SearchParams.get("attemptId") || "",
+              dpsId: SearchParams.get("dpsId") || "",
+              lessonId: SearchParams.get("lessonId") || "",
+              moduleCode: SearchParams.get("moduleCode") || "",
+              levelCode: SearchParams.get("levelCode") || "",
+              targetAction: SearchParams.get("targetAction") || "",
+            }}
           />
         </>
       ) : (

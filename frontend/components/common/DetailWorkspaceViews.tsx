@@ -28,7 +28,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export type AnyRow = Record<string, any>;
 
@@ -830,6 +830,8 @@ export function RecordWorkspace({
   onArchive,
   onRestore,
   onDelete,
+  initialTab = "overview",
+  focusTarget,
 }: {
   title: string;
   subtitle: string;
@@ -841,12 +843,22 @@ export function RecordWorkspace({
   onArchive?: (row: AnyRow) => void;
   onRestore?: (row: AnyRow) => void;
   onDelete?: (row: AnyRow) => void;
+  initialTab?: "overview" | "lessons" | "records" | "actions";
+  focusTarget?: {
+    assignmentId?: string;
+    attemptId?: string;
+    dpsId?: string;
+    lessonId?: string;
+    moduleCode?: string;
+    levelCode?: string;
+    targetAction?: string;
+  };
 }) {
   void backLabel;
   void onBack;
   const [tab, setTab] = useState<
     "overview" | "lessons" | "records" | "actions"
-  >("overview");
+  >(initialTab);
   const [lessonFilter, setLessonFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -1003,6 +1015,46 @@ export function RecordWorkspace({
         CompareRowsByCurriculum(FirstGroup.Sample, SecondGroup.Sample),
       );
   }, [ModuleLevelGroups]);
+
+  useEffect(() => {
+    const Action = String(focusTarget?.targetAction || "").toLowerCase();
+    const ShouldOpenLessons =
+      initialTab === "lessons" ||
+      Action.includes("lesson-insights") ||
+      Boolean(focusTarget?.assignmentId || focusTarget?.attemptId || focusTarget?.dpsId || focusTarget?.lessonId);
+    if (!ShouldOpenLessons || !rows.length) return;
+
+    setTab("lessons");
+
+    const TargetRow =
+      rows.find((Row) => {
+        const AssignmentMatch = focusTarget?.assignmentId && String(Row.assignmentId || Row.id || "") === focusTarget.assignmentId;
+        const AttemptMatch = focusTarget?.attemptId && String(Row.attemptId || Row.latestAttemptId || "") === focusTarget.attemptId;
+        const DpsMatch = focusTarget?.dpsId && String(Row.dpsId || Row.dps_id || "") === focusTarget.dpsId;
+        const LessonMatch = focusTarget?.lessonId && String(Row.lessonId || Row.lesson_id || "") === focusTarget.lessonId;
+        const ModuleMatch = !focusTarget?.moduleCode || moduleCodeOf(Row) === focusTarget.moduleCode;
+        const LevelMatch = !focusTarget?.levelCode || levelCodeOf(Row) === focusTarget.levelCode;
+        return (AssignmentMatch || AttemptMatch || DpsMatch || LessonMatch || (!focusTarget?.assignmentId && !focusTarget?.attemptId && !focusTarget?.dpsId && !focusTarget?.lessonId)) && ModuleMatch && LevelMatch;
+      }) || rows[0];
+
+    const ModuleKey = moduleCodeOf(TargetRow);
+    const LevelKey = `${moduleCodeOf(TargetRow)}|${levelCodeOf(TargetRow)}`;
+    const LessonGroupKey = `${TargetRow.moduleCode || "Module"}|${TargetRow.levelCode || "Level"}|${TargetRow.lessonNumber || "-"}|${TargetRow.lessonTitle || "Lesson"}`;
+
+    SetOpenModuleGroups((Current) => ({ ...Current, [ModuleKey]: true }));
+    SetOpenLevelGroups((Current) => ({ ...Current, [LevelKey]: true }));
+    SetOpenLessonGroups((Current) => ({ ...Current, [LessonGroupKey]: true }));
+  }, [
+    focusTarget?.assignmentId,
+    focusTarget?.attemptId,
+    focusTarget?.dpsId,
+    focusTarget?.lessonId,
+    focusTarget?.moduleCode,
+    focusTarget?.levelCode,
+    focusTarget?.targetAction,
+    initialTab,
+    rows,
+  ]);
 
   const viewLabel = role === "student" ? "View Result" : "View Details";
   const viewTip =
