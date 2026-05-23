@@ -1487,37 +1487,40 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
             db.add(StudentUser)
             db.flush()
 
-            StudentRecord = Student(
-                user_id=StudentUser.id,
-                custom_id=CustomId,
-                teacher=TeacherName,
-                teacher_id=TeacherRecord.id if TeacherRecord else None,
-                admission_date=clean_text(Row.get("admission_date")),
-                dob=clean_text(Row.get("dob")),
-                gender=clean_text(Row.get("gender")),
-                blood_group=clean_text(Row.get("blood_group")),
-                interest=clean_text(Row.get("interest")),
-                present_address=clean_text(Row.get("present_address")),
-                permanent_address=clean_text(Row.get("permanent_address")),
-                school_name=clean_text(Row.get("school_name")),
-                school_area=clean_text(Row.get("school_area")),
-                class_name=clean_text(Row.get("class")),
-                section=clean_text(Row.get("section")),
-                father_name=clean_text(Row.get("father_name")),
-                father_occupation=clean_text(Row.get("father_occupation")),
-                father_mobile=clean_text(Row.get("father_mobile")),
-                father_email=clean_text(Row.get("father_email")),
-                father_whatsapp=clean_text(Row.get("father_whatsapp")),
-                mother_name=clean_text(Row.get("mother_name")),
-                mother_occupation=clean_text(Row.get("mother_occupation")),
-                mother_mobile=clean_text(Row.get("mother_mobile")),
-                mother_email=clean_text(Row.get("mother_email")),
-                mother_whatsapp=clean_text(Row.get("mother_whatsapp")),
-                student_code=StudentCode,
-                current_module_id=ModuleRecord.id,
-                current_level_id=LevelRecord.id,
-                is_active=Active,
-            )
+            StudentPayload = {
+                "user_id": StudentUser.id,
+                "custom_id": CustomId,
+                "teacher": TeacherRecord.user.full_name if TeacherRecord and TeacherRecord.user else TeacherName,
+                "admission_date": clean_text(Row.get("admission_date")),
+                "dob": clean_text(Row.get("dob")),
+                "gender": clean_text(Row.get("gender")),
+                "blood_group": clean_text(Row.get("blood_group")),
+                "interest": clean_text(Row.get("interest")),
+                "present_address": clean_text(Row.get("present_address")),
+                "permanent_address": clean_text(Row.get("permanent_address")),
+                "school_name": clean_text(Row.get("school_name")),
+                "school_area": clean_text(Row.get("school_area")),
+                "class_name": clean_text(Row.get("class")),
+                "section": clean_text(Row.get("section")),
+                "father_name": clean_text(Row.get("father_name")),
+                "father_occupation": clean_text(Row.get("father_occupation")),
+                "father_mobile": clean_text(Row.get("father_mobile")),
+                "father_email": clean_text(Row.get("father_email")),
+                "father_whatsapp": clean_text(Row.get("father_whatsapp")),
+                "mother_name": clean_text(Row.get("mother_name")),
+                "mother_occupation": clean_text(Row.get("mother_occupation")),
+                "mother_mobile": clean_text(Row.get("mother_mobile")),
+                "mother_email": clean_text(Row.get("mother_email")),
+                "mother_whatsapp": clean_text(Row.get("mother_whatsapp")),
+                "student_code": StudentCode,
+                "current_module_id": ModuleRecord.id,
+                "current_level_id": LevelRecord.id,
+                "is_active": Active,
+            }
+            if hasattr(Student, "teacher_id"):
+                StudentPayload["teacher_id"] = TeacherRecord.id if TeacherRecord else None
+
+            StudentRecord = Student(**StudentPayload)
             db.add(StudentRecord)
             db.flush()
             db.commit()
