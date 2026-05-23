@@ -287,6 +287,28 @@ def _practice_context(db: Session, *, assignment: Assignment | None = None, atte
     }
 
 
+def _practice_notification_identity(context: dict[str, Any]) -> str:
+    """Stable human-readable DPS identity for every practice notification.
+
+    DPS numbers repeat across levels and lessons. Notifications therefore need
+    the full learning-path identity so students, teachers, and admins can
+    identify the exact work item without opening the page first.
+    """
+    level_label = str(context.get("level_code") or context.get("level_label") or "Level").strip()
+    lesson_label = str(context.get("lesson_label") or "Lesson").strip()
+    dps_label = str(context.get("dps_label") or "DPS").strip()
+    return " • ".join([Part for Part in [level_label, lesson_label, dps_label] if Part])
+
+
+def _practice_identity_metadata(context: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "displayContext": _practice_notification_identity(context),
+        "levelLabel": context.get("level_code") or context.get("level_label"),
+        "lessonLabel": context.get("lesson_label"),
+        "dpsLabel": context.get("dps_label"),
+    }
+
+
 def _admin_practice_target_route(context: dict[str, Any]) -> str:
     student_code = str(context.get("student_code") or "").strip()
     return f"/admin/assignments/student/{student_code}" if student_code else "/admin/assignments"
@@ -394,6 +416,7 @@ def _assignment_group_metadata(
         "targetAction": target_action,
         "notificationGroup": "PRACTICE_BULK" if count > 1 else "PRACTICE",
         "isGrouped": count > 1,
+        **_practice_identity_metadata(first_context),
     }
 
 
@@ -411,6 +434,7 @@ def _practice_focus_metadata(context: dict[str, Any], *, assignment: Assignment 
         "highlightId": f"assignment-{assignment.id}" if assignment else (f"attempt-{attempt.id}" if attempt else None),
         "targetAction": target_action,
         "notificationGroup": "PRACTICE",
+        **_practice_identity_metadata(context),
     }
 
 
@@ -435,6 +459,7 @@ def NotifyPracticeReattemptApprovalNeeded(
     lesson = context.get("lesson")
     dps = context.get("dps")
     dps_label = context.get("dps_label")
+    dps_identity = _practice_notification_identity(context)
     student_name = context.get("student_name")
     attempt_number = int(getattr(attempt, "attempt_number", 0) or 0)
 
@@ -453,7 +478,7 @@ def NotifyPracticeReattemptApprovalNeeded(
             type="DPS_REATTEMPT_APPROVAL_NEEDED",
             category="PRACTICE",
             title="Teacher Review Needed",
-            message=f"You have used all 3 available attempts for {dps_label}. Your teacher will review your work and guide the next step before another attempt is opened.",
+            message=f"You have used all 3 available attempts for {dps_identity}. Your teacher will review your work and guide the next step before another attempt is opened.",
             target_route=f"/student/result/{attempt.id}",
             target_tab="practice-result",
             metadata=_practice_focus_metadata(context, assignment=assignment, attempt=attempt, target_action="teacher-review-needed"),
@@ -474,7 +499,7 @@ def NotifyPracticeReattemptApprovalNeeded(
             type="DPS_REATTEMPT_APPROVAL_NEEDED",
             category="PRACTICE",
             title=f"Re-Attempt Approval Needed For {student_name}",
-            message=f"{student_name} has used all 3 available attempts for {dps_label}. Review the record and coordinate Admin approval before another attempt is opened.",
+            message=f"{student_name} has used all 3 available attempts for {dps_identity}. Review the record and coordinate Admin approval before another attempt is opened.",
             target_route=_teacher_practice_target_route(context),
             target_tab="practice-tracker",
             metadata=_practice_focus_metadata(context, assignment=assignment, attempt=attempt, target_action="lesson-insights-approval-needed"),
@@ -485,7 +510,7 @@ def NotifyPracticeReattemptApprovalNeeded(
         type="DPS_REATTEMPT_APPROVAL_NEEDED",
         category="PRACTICE",
         title=f"Re-Attempt Approval Needed For {student_name}",
-        message=f"{student_name} has used all 3 available attempts for {dps_label}. Admin approval is required before another attempt is opened.",
+        message=f"{student_name} has used all 3 available attempts for {dps_identity}. Admin approval is required before another attempt is opened.",
         student_id=student.id if student else None,
         teacher_id=teacher.id if teacher else None,
         module_id=module.id if module else None,
@@ -538,6 +563,7 @@ def NotifyPracticeAssignmentsCreated(
         lesson = first_context.get("lesson")
         dps = first_context.get("dps")
         dps_label = first_context.get("dps_label")
+        dps_identity = _practice_notification_identity(first_context)
         level_label = first_context.get("level_label")
         student_name = first_context.get("student_name")
         teacher_name = first_context.get("teacher_name")
@@ -549,16 +575,16 @@ def NotifyPracticeAssignmentsCreated(
             ReattemptNumber = int(getattr(first_assignment, "retry_attempt_number", 0) or 0)
             if IsReattemptAssignment:
                 student_title = "Re-Attempt Practice Assigned"
-                student_message = f"{dps_label} has been assigned again in your Practice tab for focused improvement."
+                student_message = f"{dps_identity} has been assigned again in your Practice tab for focused improvement."
                 admin_title = f"Re-Attempt Assigned To {student_name}"
-                admin_message = f"{student_name} now has {dps_label} pending as Re-Attempt {ReattemptNumber}."
+                admin_message = f"{student_name} now has {dps_identity} pending as Re-Attempt {ReattemptNumber}."
                 student_target_action = "start-reattempt"
                 admin_target_action = "lesson-insights-pending-reattempt"
             else:
                 student_title = "New DPS Assigned"
-                student_message = f"{dps_label} is now available for {level_label}."
+                student_message = f"{dps_identity} is now available in your Practice tab."
                 admin_title = "DPS Assigned By Teacher"
-                admin_message = f"{teacher_name} assigned {dps_label} to {student_name}."
+                admin_message = f"{teacher_name} assigned {dps_identity} to {student_name}."
                 student_target_action = "start"
                 admin_target_action = "view-record"
         else:
@@ -694,6 +720,7 @@ def NotifyPracticeAttemptSubmitted(
     lesson = context.get("lesson")
     dps = context.get("dps")
     dps_label = context.get("dps_label")
+    dps_identity = _practice_notification_identity(context)
     level_label = context.get("level_label")
     student_name = context.get("student_name")
 
@@ -702,7 +729,7 @@ def NotifyPracticeAttemptSubmitted(
     title = "DPS Cleared" if cleared else "DPS Needs Re-Attempt"
     notification_type = "DPS_CLEARED" if cleared else "DPS_NEEDS_REATTEMPT"
     category = "PRACTICE"
-    message = f"{dps_label} result is available: {accuracy}%."
+    message = f"{dps_identity} result is available: {accuracy}%."
 
     if student_user:
         CreateNotification(
@@ -734,6 +761,7 @@ def NotifyPracticeAttemptSubmitted(
                 "highlightId": f"attempt-{attempt.id}",
                 "targetAction": "view-result",
                 "notificationGroup": "PRACTICE",
+                **_practice_identity_metadata(context),
             },
         )
 
@@ -752,7 +780,7 @@ def NotifyPracticeAttemptSubmitted(
             type=notification_type,
             category=category,
             title=f"{student_name} {title}",
-            message=f"{student_name} completed {dps_label} with {accuracy}% accuracy.",
+            message=f"{student_name} completed {dps_identity} with {accuracy}% accuracy.",
             target_route=_teacher_practice_target_route(context),
             target_tab="practice-tracker",
             metadata={
@@ -767,6 +795,7 @@ def NotifyPracticeAttemptSubmitted(
                 "highlightId": f"attempt-{attempt.id}",
                 "targetAction": "lesson-insights-attempt",
                 "notificationGroup": "PRACTICE",
+                **_practice_identity_metadata(context),
             },
         )
 
@@ -775,7 +804,7 @@ def NotifyPracticeAttemptSubmitted(
         type=notification_type,
         category=category,
         title=f"{student_name} {title}",
-        message=f"{student_name} completed {dps_label} with {accuracy}% accuracy.",
+        message=f"{student_name} completed {dps_identity} with {accuracy}% accuracy.",
         student_id=student.id if student else None,
         teacher_id=teacher.id if teacher else None,
         module_id=module.id if module else None,
@@ -797,6 +826,7 @@ def NotifyPracticeAttemptSubmitted(
                 "highlightId": f"attempt-{attempt.id}",
                 "targetAction": "lesson-insights-attempt",
                 "notificationGroup": "PRACTICE",
+                **_practice_identity_metadata(context),
             },
     )
 
@@ -825,6 +855,7 @@ def NotifyPracticeReattemptUnlocked(
     lesson = context.get("lesson")
     dps = context.get("dps")
     dps_label = context.get("dps_label")
+    dps_identity = _practice_notification_identity(context)
     level_label = context.get("level_label")
     student_name = context.get("student_name")
 
@@ -844,7 +875,7 @@ def NotifyPracticeReattemptUnlocked(
             type="DPS_REATTEMPT_ASSIGNED",
             category="REATTEMPT",
             title="Re-Attempt DPS Assigned",
-            message=f"A re-attempt has been unlocked for {dps_label}.",
+            message=f"A re-attempt has been unlocked for {dps_identity}.",
             target_route="/student/practice",
             target_tab="practice",
             metadata={
@@ -858,6 +889,7 @@ def NotifyPracticeReattemptUnlocked(
                     "highlightId": f"assignment-{assignment.id}" if assignment else None,
                     "targetAction": "start-reattempt",
                     "notificationGroup": "PRACTICE",
+                    **_practice_identity_metadata(context),
                 },
         )
 
@@ -877,7 +909,7 @@ def NotifyPracticeReattemptUnlocked(
             type="DPS_REATTEMPT_ASSIGNED",
             category="REATTEMPT",
             title="DPS Re-Attempt Assigned",
-            message=f"{student_name} can now re-attempt {dps_label}.",
+            message=f"{student_name} can now re-attempt {dps_identity}.",
             target_route=_teacher_practice_target_route(context),
             target_tab="practice-tracker",
             metadata={
@@ -891,5 +923,6 @@ def NotifyPracticeReattemptUnlocked(
                 "highlightId": f"assignment-{assignment.id}" if assignment else None,
                 "targetAction": "view-record",
                 "notificationGroup": "PRACTICE",
+                **_practice_identity_metadata(context),
             },
         )

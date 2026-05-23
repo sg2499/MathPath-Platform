@@ -56,6 +56,27 @@ def _assignment_context(db: Session, assignment: AssessmentAssignment | None) ->
     }
 
 
+def _assessment_notification_identity(context: dict[str, Any]) -> str:
+    """Stable human-readable assessment identity for notifications.
+
+    Assessment names can repeat across modules and levels, so every assessment
+    notification carries Module → Level → Assessment for clear identification.
+    """
+    module_label = str(context.get("module_code") or context.get("module_label") or "Module").strip()
+    level_label = str(context.get("level_code") or context.get("level_label") or "Level").strip()
+    assessment_title = str(context.get("assessment_title") or "Assessment").strip()
+    return " • ".join([Part for Part in [module_label, level_label, assessment_title] if Part])
+
+
+def _assessment_identity_metadata(context: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "displayContext": _assessment_notification_identity(context),
+        "moduleLabel": context.get("module_code") or context.get("module_label"),
+        "levelLabel": context.get("level_code") or context.get("level_label"),
+        "assessmentLabel": context.get("assessment_title"),
+    }
+
+
 def _admin_notifications(
     db: Session,
     *,
@@ -117,6 +138,7 @@ def NotifyAssessmentAssignmentsCreated(
         module = context.get("module")
         level = context.get("level")
         assessment_title = context.get("assessment_title")
+        assessment_identity = _assessment_notification_identity(context)
         module_code = context.get("module_code")
         level_label = context.get("level_label")
         level_code = context.get("level_code")
@@ -124,7 +146,7 @@ def NotifyAssessmentAssignmentsCreated(
         is_reattempt = assignment_type == "RE_ATTEMPT"
 
         student_title = "Re-Attempt Assessment Assigned" if is_reattempt else "Assessment Assigned"
-        student_message = f"{assessment_title} is now available for {level_label}."
+        student_message = f"{assessment_identity} is now available in your Assessments tab."
         if student_user:
             CreateNotification(
                 db,
@@ -143,7 +165,7 @@ def NotifyAssessmentAssignmentsCreated(
                 message=student_message,
                 target_route="/student/assessments",
                 target_tab="assessments",
-                metadata={"assignmentId": assignment.id, "assessmentTitle": assessment_title, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": assignment.id, "targetAction": "start"},
+                metadata={"assignmentId": assignment.id, "assessmentTitle": assessment_title, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": assignment.id, "targetAction": "start", **_assessment_identity_metadata(context)},
             )
 
         _admin_notifications(
@@ -151,7 +173,7 @@ def NotifyAssessmentAssignmentsCreated(
             type="ASSESSMENT_REATTEMPT_ASSIGNED" if is_reattempt else "ASSESSMENT_ASSIGNED",
             category="REATTEMPT" if is_reattempt else "ASSESSMENT",
             title="Assessment Re-Attempt Assigned" if is_reattempt else "Assessment Assigned By Teacher",
-            message=f"{context.get('student_name')} was assigned {assessment_title} for {level_label}.",
+            message=f"{context.get('student_name')} was assigned {assessment_identity}.",
             actor_user_id=actor_user_id,
             student_id=student.id if student else None,
             teacher_id=teacher.id if teacher else None,
@@ -160,7 +182,7 @@ def NotifyAssessmentAssignmentsCreated(
             assessment_id=assignment.id,
             target_route="/admin/assessments",
             target_tab="student-records",
-            metadata={"assignmentId": assignment.id, "assignmentType": assignment_type, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": assignment.id, "targetAction": "view"},
+            metadata={"assignmentId": assignment.id, "assignmentType": assignment_type, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": assignment.id, "targetAction": "view", **_assessment_identity_metadata(context)},
         )
 
 
@@ -184,6 +206,7 @@ def NotifyAssessmentAttemptSubmitted(
     module = context.get("module")
     level = context.get("level")
     assessment_title = context.get("assessment_title")
+    assessment_identity = _assessment_notification_identity(context)
     module_code = context.get("module_code")
     level_label = context.get("level_label")
     level_code = context.get("level_code")
@@ -192,7 +215,7 @@ def NotifyAssessmentAttemptSubmitted(
     cleared = (attempt.status or "").upper() == "CLEARED"
     title = "Assessment Cleared" if cleared else "Assessment Needs Re-Attempt"
     category = "RESULT" if cleared else "REATTEMPT"
-    message = f"{assessment_title} result is available: {score} / 100 ({percentage}%)."
+    message = f"{assessment_identity} result is available: {score} / 100 ({percentage}%)."
 
     if student_user:
         CreateNotification(
@@ -211,7 +234,7 @@ def NotifyAssessmentAttemptSubmitted(
             message=message,
             target_route=f"/student/assessment-result/{attempt.id}",
             target_tab="result",
-            metadata={"assignmentId": assignment.id, "attemptId": attempt.id, "score": score, "percentage": percentage, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": attempt.id, "targetAction": "view-result"},
+            metadata={"assignmentId": assignment.id, "attemptId": attempt.id, "score": score, "percentage": percentage, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": attempt.id, "targetAction": "view-result", **_assessment_identity_metadata(context)},
         )
 
     if teacher_user:
@@ -228,10 +251,10 @@ def NotifyAssessmentAttemptSubmitted(
             type="STUDENT_ASSESSMENT_CLEARED" if cleared else "STUDENT_ASSESSMENT_NEEDS_REATTEMPT",
             category=category,
             title=f"{context.get('student_name')} {('Cleared Assessment' if cleared else 'Needs Re-Attempt')}",
-            message=f"{context.get('student_name')} completed {assessment_title} with {score} / 100.",
+            message=f"{context.get('student_name')} completed {assessment_identity} with {score} / 100.",
             target_route="/teacher/assessments",
             target_tab="assessment-tracker",
-            metadata={"assignmentId": assignment.id, "attemptId": attempt.id, "score": score, "percentage": percentage, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": attempt.id, "targetAction": "view"},
+            metadata={"assignmentId": assignment.id, "attemptId": attempt.id, "score": score, "percentage": percentage, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": attempt.id, "targetAction": "view", **_assessment_identity_metadata(context)},
         )
 
     _admin_notifications(
@@ -239,7 +262,7 @@ def NotifyAssessmentAttemptSubmitted(
         type="STUDENT_ASSESSMENT_CLEARED" if cleared else "STUDENT_ASSESSMENT_NEEDS_REATTEMPT",
         category=category,
         title=f"{context.get('student_name')} {('Cleared Assessment' if cleared else 'Needs Re-Attempt')}",
-        message=f"{context.get('student_name')} completed {assessment_title} with {score} / 100.",
+        message=f"{context.get('student_name')} completed {assessment_identity} with {score} / 100.",
         student_id=student.id if student else None,
         teacher_id=teacher.id if teacher else None,
         module_id=module.id if module else None,
@@ -248,7 +271,7 @@ def NotifyAssessmentAttemptSubmitted(
         attempt_id=attempt.id,
         target_route="/admin/assessments",
         target_tab="student-records" if cleared else "reattempt-approvals",
-        metadata={"assignmentId": assignment.id, "attemptId": attempt.id, "score": score, "percentage": percentage, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": attempt.id, "targetAction": "view"},
+        metadata={"assignmentId": assignment.id, "attemptId": attempt.id, "score": score, "percentage": percentage, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": attempt.id, "targetAction": "view", **_assessment_identity_metadata(context)},
     )
 
     if not cleared:
@@ -257,7 +280,7 @@ def NotifyAssessmentAttemptSubmitted(
             type="ASSESSMENT_REATTEMPT_REQUEST_CREATED",
             category="REATTEMPT",
             title="Re-Attempt Approval Needed",
-            message=f"{context.get('student_name')} needs approval for an assessment re-attempt.",
+            message=f"{context.get('student_name')} needs approval for a re-attempt in {assessment_identity}.",
             student_id=student.id if student else None,
             teacher_id=teacher.id if teacher else None,
             module_id=module.id if module else None,
@@ -266,7 +289,7 @@ def NotifyAssessmentAttemptSubmitted(
             attempt_id=attempt.id,
             target_route="/admin/assessments",
             target_tab="reattempt-approvals",
-            metadata={"assignmentId": assignment.id, "attemptId": attempt.id},
+            metadata={"assignmentId": assignment.id, "attemptId": attempt.id, **_assessment_identity_metadata(context)},
         )
 
 
@@ -290,6 +313,7 @@ def NotifyAssessmentReattemptDecision(
     module = context.get("module")
     level = context.get("level")
     approved = decision.upper() == "APPROVED"
+    assessment_identity = _assessment_notification_identity(context)
     if teacher_user:
         CreateNotification(
             db,
@@ -307,13 +331,13 @@ def NotifyAssessmentReattemptDecision(
             category="REATTEMPT",
             title="Re-Attempt Approved" if approved else "Re-Attempt Rejected",
             message=(
-                f"Admin approved re-attempt assignment for {context.get('student_name')}."
+                f"Admin approved re-attempt assignment for {context.get('student_name')} in {assessment_identity}."
                 if approved
-                else f"Admin rejected the re-attempt request for {context.get('student_name')}."
+                else f"Admin rejected the re-attempt request for {context.get('student_name')} in {assessment_identity}."
             ),
             target_route="/teacher/assign-assessment" if approved else "/teacher/assessments",
             target_tab="assign-assessment" if approved else "assessment-tracker",
-            metadata={"approvalId": approval.id, "assignmentId": assignment.id, "decision": decision.upper()},
+            metadata={"approvalId": approval.id, "assignmentId": assignment.id, "decision": decision.upper(), **_assessment_identity_metadata(context)},
         )
 
 
