@@ -15,6 +15,12 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  const RequestConfig = config as typeof config & { skipAuth?: boolean };
+  if (RequestConfig.skipAuth) {
+    delete config.headers.Authorization;
+    return config;
+  }
+
   const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

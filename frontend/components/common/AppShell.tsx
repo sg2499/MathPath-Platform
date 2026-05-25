@@ -446,8 +446,13 @@ export function AppShell({
   const ActiveIcon = activeItem?.icon || LayoutDashboard;
 
   function logout() {
+    const LogoutRole = IsAdmin ? "admin" : IsTeacher ? "teacher" : "student";
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mathpath_login_role", LogoutRole.toUpperCase());
+      localStorage.setItem("mathpath_active_role", LogoutRole.toUpperCase());
+    }
     clearAuth();
-    router.push("/login");
+    router.push(`/login?role=${LogoutRole}`);
   }
 
   function toggleTheme() {

@@ -1,13 +1,47 @@
+import axios from "axios";
 import { api } from "@/lib/api";
 import type { LoginResponse, CurrentUser } from "@/types/auth";
 
 const PROFILE_PHOTO_MAX_DIMENSION = 360;
 const PROFILE_PHOTO_MAX_UPLOAD_BYTES = 260_000;
 const PROFILE_PHOTO_UPLOAD_TIMEOUT_MS = 60_000;
+const LOGIN_REQUEST_TIMEOUT_MS = 90_000;
+
+function shouldRetryLogin(ErrorValue: unknown): boolean {
+  if (!axios.isAxiosError(ErrorValue)) return false;
+  if (ErrorValue.response) return false;
+  return ErrorValue.code === "ECONNABORTED" || ErrorValue.message === "Network Error";
+}
+
+export async function warmupAuthApi(): Promise<void> {
+  try {
+    await api.get("/health", { timeout: 20_000 });
+  } catch {
+    // The login form must remain usable even while Render wakes the backend.
+  }
+}
 
 export async function login(identifier: string, password: string): Promise<LoginResponse> {
-  const { data } = await api.post<LoginResponse>("/auth/login", { identifier, password });
-  return data;
+  const Payload = { identifier, password };
+
+  try {
+    const { data } = await api.post<LoginResponse>("/auth/login", Payload, {
+      timeout: LOGIN_REQUEST_TIMEOUT_MS,
+      skipAuth: true,
+    } as any);
+    return data;
+  } catch (ErrorValue) {
+    if (!shouldRetryLogin(ErrorValue)) {
+      throw ErrorValue;
+    }
+
+    await warmupAuthApi();
+    const { data } = await api.post<LoginResponse>("/auth/login", Payload, {
+      timeout: LOGIN_REQUEST_TIMEOUT_MS,
+      skipAuth: true,
+    } as any);
+    return data;
+  }
 }
 
 export async function getMe(): Promise<CurrentUser> {

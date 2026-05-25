@@ -1,8 +1,8 @@
 "use client";
 
-import { login } from "@/lib/api/auth";
+import { login, warmupAuthApi } from "@/lib/api/auth";
 import { apiErrorMessage } from "@/lib/api";
-import { defaultRouteForRole, setAuth } from "@/lib/auth";
+import { defaultRouteForRole, setActiveRole, setAuth } from "@/lib/auth";
 import type { CurrentUser, UserRole } from "@/types/auth";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -26,6 +26,9 @@ import {
 
 type ThemeMode = "light" | "dark";
 type LoginTab = "ADMIN" | "TEACHER" | "STUDENT";
+
+const LOGIN_ROLE_STORAGE_KEY = "mathpath_login_role";
+const ValidLoginTabs: LoginTab[] = ["ADMIN", "TEACHER", "STUDENT"];
 
 const PlatformTagline =
   "Visual Abacus Mastery for Speed, Accuracy, and School-Ready Confidence.";
@@ -169,6 +172,40 @@ function ApplyTheme(Mode: ThemeMode, MarkUserChoice = false) {
   }
 }
 
+function NormalizeLoginTab(Value?: string | null): LoginTab | null {
+  const NormalizedValue = String(Value || "").trim().toUpperCase();
+  if (ValidLoginTabs.includes(NormalizedValue as LoginTab)) {
+    return NormalizedValue as LoginTab;
+  }
+  return null;
+}
+
+function ResolveInitialLoginTab(): LoginTab {
+  if (typeof window === "undefined") return "STUDENT";
+
+  const UrlRole = NormalizeLoginTab(new URLSearchParams(window.location.search).get("role"));
+  if (UrlRole) return UrlRole;
+
+  const SavedLoginRole = NormalizeLoginTab(localStorage.getItem(LOGIN_ROLE_STORAGE_KEY));
+  if (SavedLoginRole) return SavedLoginRole;
+
+  const ActiveRole = NormalizeLoginTab(localStorage.getItem("mathpath_active_role"));
+  return ActiveRole || "STUDENT";
+}
+
+function PersistLoginTab(Tab: LoginTab, ReplaceUrl = true) {
+  if (typeof window === "undefined") return;
+
+  localStorage.setItem(LOGIN_ROLE_STORAGE_KEY, Tab);
+  setActiveRole(Tab);
+
+  if (!ReplaceUrl) return;
+
+  const UrlValue = new URL(window.location.href);
+  UrlValue.searchParams.set("role", Tab.toLowerCase());
+  window.history.replaceState(null, "", `${UrlValue.pathname}${UrlValue.search}${UrlValue.hash}`);
+}
+
 function RoleLabel(Role: UserRole | LoginTab) {
   if (Role === "SUPER_ADMIN") return "Admin";
   if (Role === "ADMIN") return "Admin";
@@ -186,6 +223,7 @@ function RoleMismatchMessage(User: CurrentUser) {
 export default function LoginPage() {
   const Router = useRouter();
   const [ActiveTab, SetActiveTab] = useState<LoginTab>("STUDENT");
+  const [LoginReady, SetLoginReady] = useState(false);
   const [Identifier, SetIdentifier] = useState("");
   const [Password, SetPassword] = useState("");
   const [Error, SetError] = useState("");
@@ -197,6 +235,14 @@ export default function LoginPage() {
   const ThemeLabel = Theme === "dark" ? "Light" : "Dark";
   const ThemeTooltip =
     Theme === "dark" ? "Switch To Light Theme" : "Switch To Dark Theme";
+
+  useEffect(() => {
+    const InitialTab = ResolveInitialLoginTab();
+    SetActiveTab(InitialTab);
+    PersistLoginTab(InitialTab);
+    SetLoginReady(true);
+    void warmupAuthApi();
+  }, []);
 
   useEffect(() => {
     const Saved =
@@ -222,6 +268,7 @@ export default function LoginPage() {
 
   function ChangeTab(Tab: LoginTab) {
     SetActiveTab(Tab);
+    PersistLoginTab(Tab);
     SetError("");
     SetIdentifier("");
     SetPassword("");
@@ -229,11 +276,22 @@ export default function LoginPage() {
 
   async function HandleSubmit(Event: React.FormEvent) {
     Event.preventDefault();
+    if (!LoginReady || Loading) return;
+
+    const CleanIdentifier = Identifier.trim();
+    const CleanPassword = Password.trim();
+
+    if (!CleanIdentifier || !CleanPassword) {
+      SetError("Please enter your login credentials.");
+      return;
+    }
+
     SetError("");
     SetLoading(true);
+    PersistLoginTab(ActiveTab);
 
     try {
-      const Response = await login(Identifier, Password);
+      const Response = await login(CleanIdentifier, CleanPassword);
 
       if (!Active.AcceptedRoles.includes(Response.user.role)) {
         SetError(RoleMismatchMessage(Response.user));
@@ -250,7 +308,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative min-h-[100svh] overflow-x-hidden px-2 py-2 text-slate-950 sm:px-3 sm:py-3 xl:px-4 xl:py-4`}>
+    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative min-h-[100svh] overflow-hidden px-2 py-2 text-slate-950 sm:px-3 sm:py-3 xl:px-4 xl:py-4`}>
       <div className="absolute inset-0 math-grid-dots opacity-55 dark:opacity-35" />
       <div className="math-login-aura math-login-aura-one" />
       <div className="math-login-aura math-login-aura-two" />
@@ -258,7 +316,7 @@ export default function LoginPage() {
       <div className="math-login-orbit left-[6%] top-[14%] hidden lg:block" />
       <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
 
-      <div className="math-login-frame relative z-10 mx-auto grid min-h-[calc(100svh-1rem)] w-full max-w-[1820px] overflow-hidden sm:min-h-[calc(100svh-1.5rem)] xl:min-h-[calc(100svh-2rem)] lg:grid-cols-[1.04fr_0.96fr]">
+      <div className="math-login-frame relative z-10 mx-auto grid h-[calc(100svh-1rem)] w-full max-w-[1820px] overflow-hidden sm:h-[calc(100svh-1.5rem)] xl:h-[calc(100svh-2rem)] lg:grid-cols-[1.04fr_0.96fr]">
         <section
           className={`math-login-story relative hidden min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
         >
@@ -267,7 +325,7 @@ export default function LoginPage() {
           <div className={`absolute -right-24 top-24 h-72 w-72 rounded-full ${Active.AccentGlow} blur-3xl`} />
           <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-white/14 blur-3xl" />
 
-          <div className="relative z-10 flex h-full w-full min-h-0 flex-col gap-6 px-8 py-7 xl:px-12 xl:py-8 2xl:px-16 2xl:py-9">
+          <div className="relative z-10 flex h-full w-full min-h-0 flex-col gap-4 px-8 py-6 xl:px-11 xl:py-7 2xl:px-14 2xl:py-8">
             <div>
               <div className="math-login-logo-card flex w-fit max-w-xl items-center gap-3 rounded-[24px] px-3.5 py-3">
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md">
@@ -288,7 +346,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="mt-5 flex">
+              <div className="mt-4 flex">
                 <div className="math-login-eyebrow inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.18em] text-white/94">
                   {Active.Icon}
                   {Active.Eyebrow}
@@ -296,7 +354,7 @@ export default function LoginPage() {
               </div>
 
               <h1
-                className="mt-5 max-w-3xl text-[2.55rem] font-extrabold leading-[1.03] tracking-[-0.035em] xl:text-[3.5rem] 2xl:text-[4rem]"
+                className="mt-4 max-w-3xl text-[2.35rem] font-extrabold leading-[1.03] tracking-[-0.035em] xl:text-[3.1rem] 2xl:text-[3.55rem]"
                 style={{
                   fontFamily:
                     '"Inter", "Manrope", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -305,7 +363,7 @@ export default function LoginPage() {
                 {Active.Headline}
               </h1>
 
-              <p className="mt-4 max-w-3xl text-sm leading-6 text-white/91 xl:text-base xl:leading-7">
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-white/91 xl:text-base xl:leading-7">
                 {Active.Description}
               </p>
             </div>
@@ -323,11 +381,11 @@ export default function LoginPage() {
           </div>
         </section>
 
-        <section className="math-login-form-zone relative flex h-full min-h-0 items-center overflow-hidden px-5 py-5 sm:px-8 lg:px-10 xl:px-14 2xl:px-16">
+        <section className="math-login-form-zone relative flex h-full min-h-0 items-center overflow-hidden px-5 py-4 sm:px-8 lg:px-10 xl:px-12 2xl:px-14">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.10),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.45),rgba(255,255,255,0.15))] dark:bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.12),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(124,58,237,0.10),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.28),rgba(2,6,23,0.58))]" />
 
           <div className="relative z-10 mx-auto w-full max-w-[37rem]">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div className="math-login-mobile-brand flex items-center gap-3 lg:hidden">
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md dark:bg-slate-900">
                   <Image
@@ -356,7 +414,7 @@ export default function LoginPage() {
               </button>
             </div>
 
-            <div className="math-login-tabs mb-5 grid grid-cols-3 gap-2 rounded-[24px] p-1.5">
+            <div className="math-login-tabs mb-4 grid grid-cols-3 gap-2 rounded-[24px] p-1.5">
               {OrderedTabs.map((Tab) => {
                 const TabData = RoleContent[Tab];
                 const ActiveState = ActiveTab === Tab;
@@ -384,15 +442,15 @@ export default function LoginPage() {
               Welcome Back
             </div>
 
-            <h2 className="mt-4 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl">
+            <h2 className="mt-3 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl">
               {RoleLabel(ActiveTab)} Login
             </h2>
 
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
               {Active.Promise}
             </p>
 
-            <form className="math-login-card mt-5 space-y-4" onSubmit={HandleSubmit}>
+            <form className="math-login-card mt-4 space-y-3" onSubmit={HandleSubmit}>
               <div>
                 <label className="math-label">{Active.IdentifierLabel}</label>
                 <input
@@ -424,19 +482,19 @@ export default function LoginPage() {
                 </div>
               ) : null}
 
-              <button className="math-button-primary min-h-12 w-full" disabled={Loading}>
-                {Loading ? "Logging in..." : Active.ButtonText}
+              <button className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
+                {Loading ? "Signing in securely..." : Active.ButtonText}
               </button>
             </form>
 
-            <div className="math-login-promise mt-5 rounded-[22px] p-3.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            <div className="math-login-promise mt-4 rounded-[22px] p-3.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
               <span className="font-black text-slate-950 dark:text-white">
                 MathPath Promise:
               </span>{" "}
               Speed, Accuracy, Confidence, and Joyful Mathematical Thinking.
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <MiniCard Icon={<LayoutDashboard size={16} />} Label="Role-Based" />
               <MiniCard Icon={<ShieldCheck size={16} />} Label="Secure Access" />
               <MiniCard Icon={<Sparkles size={16} />} Label="Premium Flow" />
