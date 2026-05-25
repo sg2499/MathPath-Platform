@@ -662,7 +662,7 @@ export function Metric({
   icon?: ReactNode;
 }) {
   return (
-    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/75">
+    <div className="math-detail-metric-card rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/75">
       <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
         {icon ? (
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
@@ -1084,7 +1084,7 @@ export function RecordWorkspace({
         : "Review assigned practice, completion date, and administrative actions for this student.";
 
   return (
-    <div className="w-full space-y-6">
+    <div className={`math-role-${role} w-full space-y-6`}>
       <div className="math-hero">
         <div>
           <p className="math-kicker">{heroKicker}</p>
