@@ -327,7 +327,11 @@ function TabButton({
     <button
       type="button"
       onClick={OnClick}
-      className={`math-role-tab-button ${Active ? "is-active" : ""}`}
+      className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${
+        Active ? "is-active" : ""
+      }`}
+      aria-selected={Active}
+      data-active={Active ? "true" : "false"}
     >
       {children}
     </button>
@@ -1056,7 +1060,7 @@ function ExpandedViewHeader({
           <button
             type="button"
             onClick={OnBack}
-            className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-white dark:text-slate-950"
+            className="math-role-action-button px-4 py-3 text-sm"
           >
             Overview
           </button>

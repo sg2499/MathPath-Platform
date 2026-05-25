@@ -311,14 +311,18 @@ export default function AdminAssessmentBlueprintBuilderPage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className={`rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "CREATE" ? "math-admin-studio-tab-active" : "math-admin-studio-tab-idle"}`}
+            className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "CREATE" ? "is-active" : ""}`}
+            aria-selected={activeTab === "CREATE"}
+            data-active={activeTab === "CREATE" ? "true" : "false"}
             onClick={() => setActiveTab("CREATE")}
           >
             Create Assessment
           </button>
           <button
             type="button"
-            className={`rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "MANAGE" ? "math-admin-studio-tab-active" : "math-admin-studio-tab-idle"}`}
+            className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "MANAGE" ? "is-active" : ""}`}
+            aria-selected={activeTab === "MANAGE"}
+            data-active={activeTab === "MANAGE" ? "true" : "false"}
             onClick={() => setActiveTab("MANAGE")}
           >
             Manage Assessments
