@@ -327,11 +327,7 @@ function TabButton({
     <button
       type="button"
       onClick={OnClick}
-      className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-        Active
-          ? "bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950"
-          : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-      }`}
+      className={`math-role-tab-button ${Active ? "is-active" : ""}`}
     >
       {children}
     </button>

@@ -7020,3 +7020,135 @@ html.dark .math-modal-close-button:focus-visible {
   html.dark .math-overview-stat-red { border-color: rgba(251, 113, 133, 0.32) !important; }
   html.dark .math-overview-stat-amber { border-color: rgba(251, 191, 36, 0.32) !important; }
 }
+
+/* Phase 10.10.3 — Final cross-role dark-mode tab/chip/icon behavior standard.
+   Dark mode only. Establishes one permanent interaction model for all role tab surfaces. */
+@layer components {
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) {
+    --mp-tab-dark-surface: rgba(15, 23, 42, 0.84);
+    --mp-tab-dark-surface-hover: color-mix(in srgb, var(--mp-role-primary) 18%, rgba(30, 41, 59, 0.88));
+    --mp-tab-dark-border: rgba(148, 163, 184, 0.24);
+    --mp-tab-dark-border-hover: color-mix(in srgb, var(--mp-role-border-strong) 76%, rgba(148, 163, 184, 0.18));
+    --mp-tab-dark-text: #f8fbff;
+    --mp-tab-dark-muted: #d7e2f2;
+    --mp-tab-dark-gradient: linear-gradient(135deg, var(--mp-role-dark) 0%, var(--mp-role-primary) 54%, var(--mp-role-accent) 100%);
+  }
+
+  /* Any tab strip/workspace tab/button using either shared role classes or old local rounded tab classes. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-tab-strip, .math-workspace-tabs, .math-filter-bar, .math-operation-panel, .math-operation-panel-compact) button:not(.math-button-danger):not(.math-action-button-danger),
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-role-tab, .math-role-tab-button, .math-role-tab-card) {
+    border-color: var(--mp-tab-dark-border) !important;
+    background: var(--mp-tab-dark-surface) !important;
+    color: var(--mp-tab-dark-muted) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+
+  /* Selected tab/sub-tab/card — role palette gradient + white text/icons. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-role-tab-active,
+    .math-role-tab-card-active,
+    .math-role-tab-button.is-active,
+    .math-role-tab.is-active,
+    .math-role-tab-card.is-active,
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab[aria-selected="true"],
+    .math-role-tab-card[aria-selected="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab[data-active="true"],
+    .math-role-tab-card[data-active="true"]
+  ),
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-tab-strip, .math-workspace-tabs, .math-filter-bar, .math-operation-panel, .math-operation-panel-compact) button:is(.math-button-primary, .is-active, [aria-selected="true"], [data-active="true"]) {
+    background: var(--mp-tab-dark-gradient) !important;
+    border-color: var(--mp-tab-dark-border-hover) !important;
+    color: #ffffff !important;
+    box-shadow: 0 18px 44px color-mix(in srgb, var(--mp-role-shadow) 56%, transparent), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-role-tab-active,
+    .math-role-tab-card-active,
+    .math-role-tab-button.is-active,
+    .math-role-tab.is-active,
+    .math-role-tab-card.is-active,
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab[aria-selected="true"],
+    .math-role-tab-card[aria-selected="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab[data-active="true"],
+    .math-role-tab-card[data-active="true"]
+  ) :is(*, svg, .lucide),
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-tab-strip, .math-workspace-tabs, .math-filter-bar, .math-operation-panel, .math-operation-panel-compact) button:is(.math-button-primary, .is-active, [aria-selected="true"], [data-active="true"]) :is(*, svg, .lucide) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+  }
+
+  /* Inactive tab hover — role-aware hover, readable text, no white halo. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-role-tab, .math-role-tab-button, .math-role-tab-card):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):hover,
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-tab-strip, .math-workspace-tabs, .math-filter-bar, .math-operation-panel, .math-operation-panel-compact) button:not(.math-button-primary):not(.math-button-danger):not(.math-action-button-danger):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):hover {
+    background: linear-gradient(135deg, var(--mp-tab-dark-surface-hover), rgba(15, 23, 42, 0.82)) !important;
+    border-color: var(--mp-tab-dark-border-hover) !important;
+    color: #ffffff !important;
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--mp-role-shadow) 30%, transparent), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+    transform: translateY(-1px);
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-role-tab, .math-role-tab-button, .math-role-tab-card):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):hover :is(*, svg, .lucide),
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-tab-strip, .math-workspace-tabs, .math-filter-bar, .math-operation-panel, .math-operation-panel-compact) button:not(.math-button-primary):not(.math-button-danger):not(.math-action-button-danger):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):hover :is(*, svg, .lucide) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+  }
+
+  /* Remove accidental white icon/button borders while preserving real active role outlines. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-icon-button,
+    .math-role-icon-button,
+    .math-context-pill,
+    .math-theme-toggle,
+    .math-user-pill,
+    .math-history-review-button,
+    .math-hierarchy-toggle,
+    .math-notification-button,
+    button[class*="border-white"],
+    a[class*="border-white"]
+  ):not(.is-active):not([aria-selected="true"]):not([data-active="true"]) {
+    border-color: var(--mp-tab-dark-border) !important;
+    outline: none !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-history-date-cell, .math-history-date-cell *, td[class*="date"], td[class*="Date"]) {
+    color: #dbeafe !important;
+    opacity: 1 !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-student-history-table, .math-learning-performance-table) td {
+    color: #e7eefb;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-student-history-table, .math-learning-performance-table) td :is(.text-slate-400, .text-slate-500, .text-slate-600) {
+    color: #c7d2e5 !important;
+  }
+
+  /* Chips inside dense report/history tables: readable and never cropped. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-student-history-table, .math-learning-performance-table) :is(.math-badge, .math-attempt-chip, .math-status-chip, .math-chip, span[class*="rounded-full"]) {
+    min-width: max-content;
+    max-width: none;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    color: #dbeafe;
+    border-color: rgba(96, 165, 250, 0.30);
+    background: rgba(37, 99, 235, 0.16);
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-table-chip-cell, .math-student-history-table td, .math-learning-performance-table td) {
+    overflow: visible !important;
+  }
+
+  /* Parent report cards and old local cards should use role dark surfaces when not active. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-role-tab-card:not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]) :is(h3, p, span) {
+    color: inherit;
+  }
+}

@@ -394,7 +394,7 @@ export function AssessmentInsightWorkspace({
 
         <div className="mt-5 flex flex-wrap gap-2">
           {Tabs.map(([Key, Label]) => (
-            <button key={Key} className={`rounded-2xl px-4 py-2 text-sm font-black transition ${Tab === Key ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950" : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300"}`} onClick={() => SetTab(Key)} title={`Open ${Label}`} aria-label={`Open ${Label}`}>
+            <button key={Key} className={`math-role-tab-button ${Tab === Key ? "is-active" : ""}`} onClick={() => SetTab(Key)} title={`Open ${Label}`} aria-label={`Open ${Label}`}>
               {Label}
             </button>
           ))}
