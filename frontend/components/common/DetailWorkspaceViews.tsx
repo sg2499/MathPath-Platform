@@ -2044,7 +2044,7 @@ function OverviewStat({
     blue: "border-blue-200 bg-blue-50 text-blue-800",
   };
   return (
-    <div className={`rounded-[22px] border p-4 ${tones[tone]}`}>
+    <div className={`math-overview-stat math-overview-stat-${tone} rounded-[22px] border p-4 ${tones[tone]}`}>
       <div className="flex items-center gap-2 opacity-80">
         {icon}
         <p className="text-[10px] font-black uppercase tracking-[0.14em]">
@@ -2267,9 +2267,9 @@ function LevelSnapshot({ rows }: { rows: AnyRow[] }) {
                   {level.completed}/{level.required}
                 </span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div className="math-level-progress-track mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                 <div
-                  className="h-full rounded-full bg-slate-950 dark:bg-white"
+                  className="math-level-progress-fill h-full rounded-full bg-slate-950 dark:bg-white"
                   style={{ width: `${percent}%` }}
                 />
               </div>
