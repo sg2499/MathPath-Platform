@@ -7712,3 +7712,110 @@ html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.mat
   stroke: #ffffff !important;
   opacity: 1 !important;
 }
+
+/* Phase 10.10.8 — dark-mode hover icon visibility hardening.
+   Keeps light mode untouched. Forces icons inside role-palette hovered dashboard/action controls
+   to remain high-contrast and prevents pale icon capsules from hiding white SVGs. */
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+  .math-dashboard-primary-action,
+  .math-dashboard-secondary-action,
+  .math-dashboard-quick-card,
+  .math-dashboard-link-card,
+  .math-dashboard-focus-card,
+  .math-role-action-button,
+  .math-role-row-action,
+  .math-role-icon-only,
+  .math-button-secondary,
+  .math-onboarding-action-button,
+  .math-history-review-button,
+  .math-readiness-control-button,
+  .math-readiness-branch-button,
+  .math-report-scope-tab,
+  .math-role-tab,
+  .math-role-tab-button,
+  .math-role-tab-card
+):not(.math-button-danger):not(.math-action-button-danger):not([class*="red"]):not([class*="rose"]):hover :is(
+  svg,
+  svg *,
+  .lucide,
+  .lucide *,
+  [class*="Icon"],
+  [class*="icon"]
+) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+  .math-dashboard-primary-action,
+  .math-dashboard-secondary-action,
+  .math-dashboard-quick-card,
+  .math-dashboard-link-card,
+  .math-dashboard-focus-card,
+  .math-role-action-button,
+  .math-role-row-action,
+  .math-role-icon-only,
+  .math-button-secondary,
+  .math-onboarding-action-button,
+  .math-history-review-button,
+  .math-readiness-control-button,
+  .math-readiness-branch-button,
+  .math-report-scope-tab,
+  .math-role-tab,
+  .math-role-tab-button,
+  .math-role-tab-card
+):not(.math-button-danger):not(.math-action-button-danger):not([class*="red"]):not([class*="rose"]):hover :is(
+  .math-dashboard-quick-icon,
+  .math-dashboard-icon,
+  .math-icon-shell,
+  .math-action-icon,
+  .math-button-icon
+) {
+  background: rgba(15, 23, 42, 0.34) !important;
+  border-color: rgba(255, 255, 255, 0.34) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 8px 20px rgba(2,6,23,0.22) !important;
+  opacity: 1 !important;
+}
+
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+  .math-dashboard-primary-action,
+  .math-dashboard-secondary-action,
+  .math-dashboard-quick-card,
+  .math-dashboard-link-card,
+  .math-dashboard-focus-card,
+  .math-role-action-button,
+  .math-role-row-action,
+  .math-role-icon-only,
+  .math-button-secondary,
+  .math-onboarding-action-button,
+  .math-history-review-button,
+  .math-readiness-control-button,
+  .math-readiness-branch-button
+):not(.math-button-danger):not(.math-action-button-danger):not([class*="red"]):not([class*="rose"]):hover :is(
+  .math-dashboard-quick-icon,
+  .math-dashboard-icon,
+  .math-icon-shell,
+  .math-action-icon,
+  .math-button-icon
+) :is(svg, svg *, .lucide, .lucide *) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+  .math-dashboard-primary-action,
+  .math-dashboard-secondary-action,
+  .math-role-action-button,
+  .math-role-row-action,
+  .math-role-icon-only,
+  .math-button-secondary,
+  .math-onboarding-action-button,
+  .math-history-review-button,
+  .math-readiness-control-button,
+  .math-readiness-branch-button
+):not(.math-button-danger):not(.math-action-button-danger):not([class*="red"]):not([class*="rose"]):hover {
+  text-shadow: 0 1px 10px rgba(2, 6, 23, 0.22) !important;
+}
