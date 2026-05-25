@@ -2239,7 +2239,7 @@ function StudentHistoryView({
         {CurrentLevelRow ? (
           <CurrentLevelProgressBlock Row={CurrentLevelRow} />
         ) : null}
-        <div className="mt-4 rounded-[26px] border border-slate-200 bg-white/75 p-4">
+        <div className="math-completed-level-panel mt-4 rounded-[26px] border border-slate-200 bg-white/75 p-4">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <p className="math-kicker">Completed Level Journey</p>
