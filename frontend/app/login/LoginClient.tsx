@@ -332,8 +332,8 @@ export default function LoginClient({
           <div className={`absolute -right-24 top-24 h-72 w-72 rounded-full ${Active.AccentGlow} blur-3xl`} />
           <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-white/14 blur-3xl" />
 
-          <div className="math-login-story-content relative z-10 flex h-full w-full min-h-0 flex-col justify-between gap-7 px-8 py-7 xl:px-11 xl:py-8 2xl:px-14 2xl:py-10">
-            <div className="math-login-story-copy shrink-0">
+          <div className="math-login-story-content relative z-10 h-full w-full min-h-0 px-8 py-7 xl:px-11 xl:py-8 2xl:px-14 2xl:py-10">
+            <div className="math-login-brand-zone shrink-0">
               <div className="math-login-logo-card flex w-fit max-w-xl items-center gap-3 rounded-[24px] px-3.5 py-3">
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md">
                   <Image
@@ -352,8 +352,10 @@ export default function LoginClient({
                   </p>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-5 flex">
+            <div className="math-login-story-copy shrink-0">
+              <div className="flex">
                 <div className="math-login-eyebrow inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.18em] text-white/94">
                   {Active.Icon}
                   {Active.Eyebrow}
