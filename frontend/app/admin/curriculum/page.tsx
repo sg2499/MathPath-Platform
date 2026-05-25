@@ -420,11 +420,11 @@ function PreviewQuestionCard({
           {options.map((option) => {
             const isCorrect = Boolean(option.is_correct);
             const optionStateClass = showCorrectAnswers && isCorrect
-              ? "border-emerald-300 bg-emerald-50 text-emerald-900 shadow-[0_10px_24px_rgba(16,185,129,0.12)] dark:border-emerald-400/50 dark:bg-emerald-500/12 dark:text-emerald-100"
+              ? "math-mcq-correct-option border-emerald-300 bg-emerald-50 text-emerald-900 shadow-[0_10px_24px_rgba(16,185,129,0.12)] dark:border-emerald-400/70 dark:bg-emerald-700/70 dark:text-emerald-50"
               : "border-slate-200 bg-white text-slate-800 shadow-sm hover:border-blue-300 hover:bg-blue-50/70 dark:border-slate-700/70 dark:bg-slate-800/88 dark:text-slate-100 dark:hover:border-cyan-400/50 dark:hover:bg-slate-700/88";
 
             const pillClass = showCorrectAnswers && isCorrect
-              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/20 dark:text-emerald-100"
+              ? "math-mcq-option-pill bg-emerald-100 text-emerald-800 dark:bg-emerald-100/20 dark:text-emerald-50"
               : "bg-slate-100 text-slate-700 dark:bg-slate-700/80 dark:text-slate-100";
 
             return (
@@ -439,7 +439,7 @@ function PreviewQuestionCard({
                 <span className="flex-1 leading-6">{option.value}</span>
 
                 {showCorrectAnswers && isCorrect ? (
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-100">
+                  <span className="math-mcq-correct-pill rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-100/20 dark:text-emerald-50">
                     Correct
                   </span>
                 ) : null}
@@ -450,7 +450,7 @@ function PreviewQuestionCard({
       </div>
 
       {showCorrectAnswers ? (
-        <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-cyan-400/30 dark:bg-cyan-400/10 dark:text-cyan-100">
+        <div className="math-correct-answer-strip mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-cyan-400/30 dark:bg-cyan-400/10 dark:text-cyan-100">
           Correct answer:{" "}
           <span className="font-black">{question.correct_answer}</span>
         </div>

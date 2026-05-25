@@ -117,6 +117,11 @@ function LevelToneClass(Tone: string) {
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
+function ProgressPercent(Completed: number, Required: number) {
+  if (!Required || Required <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((Completed / Required) * 100)));
+}
+
 type ModuleProgress = {
   moduleCode: string;
   moduleTitle: string;
@@ -307,6 +312,7 @@ export default function StudentResultsPage() {
             const ModuleRequired = SelectedLevel === "ALL"
               ? requiredDpsForLevel(ModuleMetricRows, ActiveLevel)
               : ModuleItem.levelCodes.reduce((Total, LevelCode) => Total + requiredDpsForLevel(LevelRowsFor(ModuleItem.rows, LevelCode), LevelCode), 0);
+            const ModuleProgressPercent = ProgressPercent(ModuleCompleted, ModuleRequired);
             const ActiveLevelStatus = LevelStatusFor(ModuleMetricRows, ActiveLevel).Status;
             const ModuleStatus = ["Active Level", "Not Started"].includes(ActiveLevelStatus) ? "In Progress" : ActiveLevelStatus;
 
@@ -348,6 +354,19 @@ export default function StudentResultsPage() {
                   <CompactProgressMetric label="DPS Cleared" value={`${ModuleCompleted}/${ModuleRequired}`} icon={<FileText size={14} />} />
                   <CompactProgressMetric label="Average Accuracy" value={`${averageAccuracy(ModulePracticeRows)}%`} icon={<BarChart3 size={14} />} />
                   <CompactProgressMetric label="Last Activity" value={latestActivity(ModuleMetricRows)} icon={<Clock3 size={14} />} />
+                </div>
+
+                <div className="math-module-progress-strip border-t border-slate-100 px-4 pb-4 dark:border-slate-800">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Current Level Completion</p>
+                    <span className="math-progress-percent-badge">{ModuleProgressPercent}%</span>
+                  </div>
+                  <div className="math-visible-progress-track">
+                    <div
+                      className="math-visible-progress-fill"
+                      style={{ width: `${ModuleProgressPercent}%` }}
+                    />
+                  </div>
                 </div>
 
                 {IsExpanded ? (

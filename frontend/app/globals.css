@@ -7819,3 +7819,92 @@ html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
 ):not(.math-button-danger):not(.math-action-button-danger):not([class*="red"]):not([class*="rose"]):hover {
   text-shadow: 0 1px 10px rgba(2, 6, 23, 0.22) !important;
 }
+
+/* Phase 10.10.9 — dark-mode preview, modal, and progress visibility hardening. */
+html.dark .math-mcq-correct-option {
+  background: linear-gradient(135deg, rgba(6, 95, 70, 0.98), rgba(16, 185, 129, 0.72)) !important;
+  border-color: rgba(110, 231, 183, 0.78) !important;
+  color: #ecfdf5 !important;
+  box-shadow: 0 14px 34px rgba(16, 185, 129, 0.22), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+}
+html.dark .math-mcq-correct-option :is(span, p, div) {
+  color: #ecfdf5 !important;
+}
+html.dark .math-mcq-correct-option .math-mcq-option-pill,
+html.dark .math-mcq-correct-option .math-mcq-correct-pill {
+  background: rgba(236, 253, 245, 0.18) !important;
+  border: 1px solid rgba(236, 253, 245, 0.42) !important;
+  color: #ffffff !important;
+}
+html.dark .math-correct-answer-strip {
+  border-color: rgba(45, 212, 191, 0.42) !important;
+  background: rgba(8, 47, 73, 0.72) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark .math-teacher-profile-modal {
+  background: rgba(15, 23, 42, 0.97) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  box-shadow: 0 28px 80px rgba(2, 6, 23, 0.72) !important;
+}
+html.dark .math-teacher-profile-modal .math-teacher-profile-field {
+  background: rgba(30, 41, 59, 0.86) !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
+}
+html.dark .math-teacher-profile-modal .math-teacher-profile-field-label {
+  color: #bfdbfe !important;
+}
+html.dark .math-teacher-profile-modal .math-teacher-profile-field-value {
+  color: #ffffff !important;
+}
+html.dark .math-teacher-profile-modal .math-teacher-profile-code {
+  color: #93c5fd !important;
+}
+
+.math-current-level-progress-card .math-visible-progress-track,
+.math-module-progress-strip .math-visible-progress-track {
+  position: relative;
+  height: 0.7rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(226, 232, 240, 0.88);
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+.math-current-level-progress-card .math-visible-progress-fill,
+.math-module-progress-strip .math-visible-progress-fill {
+  height: 100%;
+  min-width: 0.45rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #ea580c, #fb923c, #facc15);
+  box-shadow: 0 0 14px rgba(249, 115, 22, 0.28);
+  transition: width 240ms ease;
+}
+html.dark .math-current-level-progress-card .math-visible-progress-track,
+html.dark .math-module-progress-strip .math-visible-progress-track {
+  background: rgba(15, 23, 42, 0.98) !important;
+  border: 1px solid rgba(251, 146, 60, 0.22) !important;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.62), 0 0 0 1px rgba(255,255,255,0.03) !important;
+}
+html.dark .math-current-level-progress-card .math-visible-progress-fill,
+html.dark .math-module-progress-strip .math-visible-progress-fill {
+  background: linear-gradient(90deg, #c2410c, #f97316, #facc15) !important;
+  box-shadow: 0 0 18px rgba(251, 146, 60, 0.42), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+}
+.math-progress-percent-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(251, 146, 60, 0.32);
+  background: rgba(255, 247, 237, 0.9);
+  color: #c2410c;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.28rem 0.58rem;
+  white-space: nowrap;
+}
+html.dark .math-progress-percent-badge {
+  border-color: rgba(251, 146, 60, 0.36) !important;
+  background: rgba(67, 20, 7, 0.72) !important;
+  color: #fed7aa !important;
+}
