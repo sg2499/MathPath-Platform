@@ -6820,126 +6820,76 @@ html.dark .math-modal-close-button:focus-visible {
   }
 }
 
-/* Phase 10.10.1 — Dark-mode tab and card contrast completion.
-   Scope: dark mode only. Light mode remains unchanged. */
+/* Phase 10.10.2 — Cross-role dark-mode tabs, chips, icons and contrast standardization.
+   Dark mode only: selected tabs use role palette + white text, inactive tabs stay readable,
+   chips avoid crop/washed states, icon borders avoid accidental white outlines. */
 @layer components {
-  /* Active tabs across Admin / Teacher / Student must use the active role palette and white text. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) {
+    --mp-dark-control-surface: rgba(15, 23, 42, 0.80);
+    --mp-dark-control-surface-hover: rgba(30, 41, 59, 0.88);
+    --mp-dark-control-border: rgba(148, 163, 184, 0.24);
+    --mp-dark-control-border-hover: var(--mp-dark-section-accent-line, rgba(148, 163, 184, 0.36));
+    --mp-dark-muted-text: #c7d2e5;
+    --mp-dark-strong-text: #f8fbff;
+  }
+
+  /* Selected tabs/sub-tabs: role palette with white text across all three roles. */
   html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
-    .math-tab-strip button.math-button-primary,
-    .math-tab-strip button[aria-selected="true"],
-    .math-tab-strip button[data-active="true"],
-    .math-tab-strip button.is-active,
-    .math-workspace-tabs button.math-button-primary,
-    .math-workspace-tabs button[aria-selected="true"],
-    .math-workspace-tabs button[data-active="true"],
-    .math-workspace-tabs button.is-active,
     .math-role-tab-active,
-    .math-role-tab-card-active
+    .math-role-tab-card-active,
+    .math-role-tab.is-active,
+    .math-role-tab-card.is-active,
+    .math-role-tab[aria-selected="true"],
+    .math-role-tab-card[aria-selected="true"],
+    .math-role-tab[data-active="true"],
+    .math-role-tab-card[data-active="true"]
   ) {
     color: #ffffff !important;
-    background: var(--mp-role-action-bg) !important;
-    border-color: color-mix(in srgb, var(--mp-role-border-strong) 72%, rgba(255,255,255,0.28)) !important;
-    box-shadow: 0 16px 42px color-mix(in srgb, var(--mp-role-shadow) 54%, transparent), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+    background: linear-gradient(135deg, var(--mp-role-dark) 0%, var(--mp-role-primary) 54%, var(--mp-role-accent) 100%) !important;
+    border-color: color-mix(in srgb, var(--mp-role-border-strong) 72%, rgba(255, 255, 255, 0.28)) !important;
+    box-shadow: 0 18px 44px color-mix(in srgb, var(--mp-role-shadow) 54%, transparent), inset 0 1px 0 rgba(255,255,255,0.18) !important;
   }
 
   html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
-    .math-tab-strip button.math-button-primary,
-    .math-tab-strip button[aria-selected="true"],
-    .math-tab-strip button[data-active="true"],
-    .math-tab-strip button.is-active,
-    .math-workspace-tabs button.math-button-primary,
-    .math-workspace-tabs button[aria-selected="true"],
-    .math-workspace-tabs button[data-active="true"],
-    .math-workspace-tabs button.is-active,
     .math-role-tab-active,
-    .math-role-tab-card-active
-  ) :is(span, p, small, strong, svg, .lucide) {
+    .math-role-tab-card-active,
+    .math-role-tab.is-active,
+    .math-role-tab-card.is-active,
+    .math-role-tab[aria-selected="true"],
+    .math-role-tab-card[aria-selected="true"],
+    .math-role-tab[data-active="true"],
+    .math-role-tab-card[data-active="true"]
+  ) :is(*, svg, .lucide) {
     color: #ffffff !important;
     stroke: #ffffff !important;
     opacity: 1 !important;
   }
 
-  /* Inactive role tab cards in reports: readable but clearly inactive. */
-  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-role-tab-card:not(.math-role-tab-card-active) {
-    color: #d7e2f3 !important;
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.62)) !important;
-    border-color: rgba(148, 163, 184, 0.24) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.045) !important;
+  /* Inactive tabs/sub-tabs: visible neutral surface with role-aware hover. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-role-tab, .math-role-tab-card):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]) {
+    color: var(--mp-dark-muted-text) !important;
+    background: var(--mp-dark-control-surface) !important;
+    border-color: var(--mp-dark-control-border) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04) !important;
   }
 
-  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-role-tab-card:not(.math-role-tab-card-active) :is(p, span, small, strong) {
-    color: #d7e2f3 !important;
-    opacity: 1 !important;
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-role-tab, .math-role-tab-card):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):hover {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, var(--mp-dark-section-accent-soft, rgba(37,99,235,0.14)), rgba(30, 41, 59, 0.84)) !important;
+    border-color: var(--mp-dark-control-border-hover) !important;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--mp-role-shadow) 26%, transparent), inset 0 1px 0 rgba(255,255,255,0.06) !important;
   }
 
-  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-role-tab-card:not(.math-role-tab-card-active) .math-badge {
-    color: var(--mp-dark-section-accent, #93c5fd) !important;
-    background: rgba(15, 23, 42, 0.74) !important;
-    border-color: var(--mp-dark-section-accent-line, rgba(96,165,250,0.28)) !important;
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-role-tab, .math-role-tab-card):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):hover :is(*, svg, .lucide) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
   }
 
-  /* Performance Reports current/completed level panels: remove washed grey in dark mode. */
-  html.dark .math-completed-level-panel,
-  html.dark .math-history-hierarchy-row,
-  html.dark .math-history-depth-0,
-  html.dark .math-history-depth-1,
-  html.dark .math-history-depth-2 {
-    color: #f8fbff !important;
-    border-color: rgba(148, 163, 184, 0.24) !important;
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.68)) !important;
-    box-shadow: 0 16px 42px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.045) !important;
-  }
-
-  html.dark .math-completed-level-panel :is(h3, h4, p, span),
-  html.dark .math-history-hierarchy-row :is(h3, h4, p, span) {
-    color: inherit;
-  }
-
-  html.dark .math-completed-level-panel :is(.text-slate-500, .text-slate-600),
-  html.dark .math-history-hierarchy-row :is(.text-slate-500, .text-slate-600) {
-    color: #b8c7dc !important;
-  }
-
-  /* Admin/Teacher/Student overview metric cards: keep semantic hints but make them dark readable. */
-  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card {
-    color: #f8fbff !important;
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.66)) !important;
-    border-color: rgba(148, 163, 184, 0.24) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.045) !important;
-  }
-
-  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card:is(.math-overview-stat-blue) {
-    border-color: rgba(96, 165, 250, 0.30) !important;
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.20), rgba(15, 23, 42, 0.82)) !important;
-  }
-
-  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card:is(.math-overview-stat-green) {
-    border-color: rgba(52, 211, 153, 0.28) !important;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(15, 23, 42, 0.82)) !important;
-  }
-
-  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card:is(.math-overview-stat-amber) {
-    border-color: rgba(251, 191, 36, 0.30) !important;
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.17), rgba(15, 23, 42, 0.82)) !important;
-  }
-
-  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card:is(.math-overview-stat-red) {
-    border-color: rgba(251, 113, 133, 0.30) !important;
-    background: linear-gradient(135deg, rgba(244, 63, 94, 0.16), rgba(15, 23, 42, 0.82)) !important;
-  }
-
-  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card :is(p, svg, .lucide) {
-    color: inherit !important;
-    stroke: currentColor !important;
-    opacity: 1 !important;
-  }
-
-  /* Login page active role selector: dark mode uses role palette, never pale active tabs. */
+  /* Login role selector: active tab text/icons readable, inactive/hover clean. */
   html.dark .math-login-shell .math-login-tab-active {
     color: #ffffff !important;
     background: linear-gradient(135deg, var(--mp-role-dark) 0%, var(--mp-role-primary) 54%, var(--mp-role-accent) 100%) !important;
-    border-color: color-mix(in srgb, var(--mp-role-border-strong, var(--mp-role-primary)) 72%, rgba(255,255,255,0.24)) !important;
-    box-shadow: 0 16px 40px color-mix(in srgb, var(--mp-role-shadow) 56%, transparent), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+    border-color: color-mix(in srgb, var(--mp-role-border-strong) 72%, rgba(255,255,255,0.30)) !important;
   }
 
   html.dark .math-login-shell .math-login-tab-active :is(span, svg, .lucide) {
@@ -6947,4 +6897,126 @@ html.dark .math-modal-close-button:focus-visible {
     stroke: #ffffff !important;
     opacity: 1 !important;
   }
+
+  html.dark .math-login-shell .math-login-tabs button:not(.math-login-tab-active) {
+    color: #d7e2f2 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+  }
+
+  html.dark .math-login-shell .math-login-tabs button:not(.math-login-tab-active):hover {
+    color: #ffffff !important;
+    background: rgba(30, 41, 59, 0.82) !important;
+  }
+
+  /* Remove accidental white borders/halos from dark-mode icons and utility buttons. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-icon-button,
+    .math-role-icon-button,
+    .math-context-pill,
+    .math-theme-toggle,
+    .math-user-pill,
+    .math-action-button,
+    .math-row-actions button,
+    .math-table-actions button,
+    .math-notification-button,
+    button[class*="border-white"],
+    a[class*="border-white"]
+  ) {
+    border-color: rgba(148, 163, 184, 0.24) !important;
+    outline-color: transparent !important;
+    box-shadow: 0 12px 28px rgba(2,6,23,0.18), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+
+  /* Chips in reports/history tables: readable, compact, no crop. */
+  html.dark :is(.math-learning-performance-table, .math-student-history-table) .math-table-chip-cell {
+    overflow: visible !important;
+    white-space: normal !important;
+  }
+
+  html.dark :is(.math-learning-performance-table, .math-student-history-table) .math-table-chip-cell :is(.math-badge, span) {
+    display: inline-flex !important;
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    border-color: rgba(148, 163, 184, 0.24) !important;
+  }
+
+  html.dark .math-learning-performance-table .math-lp-col-benchmark {
+    width: 176px !important;
+  }
+
+  html.dark .math-learning-performance-table th:nth-child(8),
+  html.dark .math-learning-performance-table td:nth-child(8) {
+    width: 176px !important;
+    min-width: 176px !important;
+    overflow: visible !important;
+  }
+
+  html.dark .math-learning-performance-table td:nth-child(8) .math-badge {
+    min-width: 8.6rem !important;
+    padding-left: 0.7rem !important;
+    padding-right: 0.7rem !important;
+    font-size: 0.68rem !important;
+  }
+
+  html.dark :is(.math-student-history-table, .math-learning-performance-table) .math-tone-danger {
+    color: #fecdd3 !important;
+    border-color: rgba(251, 113, 133, 0.34) !important;
+    background: rgba(127, 29, 29, 0.30) !important;
+  }
+
+  html.dark :is(.math-student-history-table, .math-learning-performance-table) .math-tone-success {
+    color: #bbf7d0 !important;
+    border-color: rgba(52, 211, 153, 0.30) !important;
+    background: rgba(6, 78, 59, 0.28) !important;
+  }
+
+  html.dark :is(.math-student-history-table, .math-learning-performance-table) .math-attempt-chip,
+  html.dark :is(.math-student-history-table, .math-learning-performance-table) .math-badge:not(.math-tone-success):not(.math-tone-warning):not(.math-tone-danger):not(.math-tone-purple) {
+    color: var(--mp-dark-section-accent, #93c5fd) !important;
+    border-color: var(--mp-dark-section-accent-line, rgba(96,165,250,0.32)) !important;
+    background: var(--mp-dark-section-accent-soft, rgba(37,99,235,0.14)) !important;
+  }
+
+  /* Dark hierarchy cards: no grey blocks in current/completed level history. */
+  html.dark :is(.math-completed-level-module-block, .math-completed-level-summary-block, .math-history-hierarchy-row, .math-current-level-progress-block) {
+    color: #f8fbff !important;
+    border-color: rgba(148, 163, 184, 0.24) !important;
+    background:
+      linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.68)),
+      radial-gradient(circle at 0% 0%, var(--mp-dark-section-accent-soft, rgba(37,99,235,0.14)), transparent 42%) !important;
+    box-shadow: 0 16px 42px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+
+  html.dark :is(.math-completed-level-module-block, .math-completed-level-summary-block, .math-history-hierarchy-row, .math-current-level-progress-block) :is(h4, h5, p, span):not(.math-kicker):not(.math-badge) {
+    color: #f8fbff !important;
+  }
+
+  html.dark :is(.math-completed-level-module-block, .math-completed-level-summary-block, .math-history-hierarchy-row, .math-current-level-progress-block) p:not(.math-kicker):not(.font-black) {
+    color: #c7d2e5 !important;
+  }
+
+  /* Assignment/student detail stat cards should not merge into dark background. */
+  html.dark .math-overview-stat {
+    border-color: rgba(148, 163, 184, 0.24) !important;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.70)) !important;
+    color: #f8fbff !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+
+  html.dark .math-overview-stat :is(p, svg, .lucide) {
+    color: #f8fbff !important;
+    stroke: currentColor !important;
+  }
+
+  html.dark .math-overview-stat-blue { border-color: rgba(96, 165, 250, 0.32) !important; }
+  html.dark .math-overview-stat-green { border-color: rgba(52, 211, 153, 0.32) !important; }
+  html.dark .math-overview-stat-red { border-color: rgba(251, 113, 133, 0.32) !important; }
+  html.dark .math-overview-stat-amber { border-color: rgba(251, 191, 36, 0.32) !important; }
 }
