@@ -308,7 +308,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative min-h-[100svh] overflow-hidden px-2 py-2 text-slate-950 sm:px-3 sm:py-3 xl:px-4 xl:py-4`}>
+    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative flex min-h-[100svh] items-center justify-center overflow-hidden px-4 py-4 text-slate-950 sm:px-5 sm:py-5 xl:px-6 xl:py-6`}>
       <div className="absolute inset-0 math-grid-dots opacity-55 dark:opacity-35" />
       <div className="math-login-aura math-login-aura-one" />
       <div className="math-login-aura math-login-aura-two" />
@@ -316,7 +316,7 @@ export default function LoginPage() {
       <div className="math-login-orbit left-[6%] top-[14%] hidden lg:block" />
       <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
 
-      <div className="math-login-frame relative z-10 mx-auto grid h-[calc(100svh-1rem)] w-full max-w-[1820px] overflow-hidden sm:h-[calc(100svh-1.5rem)] xl:h-[calc(100svh-2rem)] lg:grid-cols-[1.04fr_0.96fr]">
+      <div className="math-login-frame relative z-10 mx-auto grid h-[calc(100svh-2rem)] max-h-[890px] min-h-[720px] w-full max-w-[1820px] overflow-hidden sm:h-[calc(100svh-2.5rem)] xl:h-[calc(100svh-3rem)] lg:grid-cols-[1.04fr_0.96fr]">
         <section
           className={`math-login-story relative hidden min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
         >
@@ -325,7 +325,7 @@ export default function LoginPage() {
           <div className={`absolute -right-24 top-24 h-72 w-72 rounded-full ${Active.AccentGlow} blur-3xl`} />
           <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-white/14 blur-3xl" />
 
-          <div className="relative z-10 flex h-full w-full min-h-0 flex-col gap-4 px-8 py-6 xl:px-11 xl:py-7 2xl:px-14 2xl:py-8">
+          <div className="relative z-10 flex h-full w-full min-h-0 flex-col justify-center gap-5 px-8 py-7 xl:px-11 xl:py-8 2xl:px-14 2xl:py-10">
             <div>
               <div className="math-login-logo-card flex w-fit max-w-xl items-center gap-3 rounded-[24px] px-3.5 py-3">
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md">
@@ -346,7 +346,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="mt-4 flex">
+              <div className="mt-5 flex">
                 <div className="math-login-eyebrow inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.18em] text-white/94">
                   {Active.Icon}
                   {Active.Eyebrow}
@@ -354,7 +354,7 @@ export default function LoginPage() {
               </div>
 
               <h1
-                className="mt-4 max-w-3xl text-[2.35rem] font-extrabold leading-[1.03] tracking-[-0.035em] xl:text-[3.1rem] 2xl:text-[3.55rem]"
+                className="mt-5 max-w-3xl text-[2.35rem] font-extrabold leading-[1.03] tracking-[-0.035em] xl:text-[3.1rem] 2xl:text-[3.55rem]"
                 style={{
                   fontFamily:
                     '"Inter", "Manrope", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -368,7 +368,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:mt-1 xl:gap-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:gap-5">
               {Active.Features.map((FeatureItem) => (
                 <Feature
                   key={FeatureItem.Title}
@@ -381,10 +381,10 @@ export default function LoginPage() {
           </div>
         </section>
 
-        <section className="math-login-form-zone relative flex h-full min-h-0 items-center overflow-hidden px-5 py-4 sm:px-8 lg:px-10 xl:px-12 2xl:px-14">
+        <section className="math-login-form-zone relative flex h-full min-h-0 items-center overflow-hidden px-5 py-6 sm:px-8 lg:px-10 xl:px-12 2xl:px-14">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.10),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.45),rgba(255,255,255,0.15))] dark:bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.12),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(124,58,237,0.10),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.28),rgba(2,6,23,0.58))]" />
 
-          <div className="relative z-10 mx-auto w-full max-w-[37rem]">
+          <div className="relative z-10 mx-auto w-full max-w-[34.5rem]">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="math-login-mobile-brand flex items-center gap-3 lg:hidden">
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md dark:bg-slate-900">
@@ -414,7 +414,7 @@ export default function LoginPage() {
               </button>
             </div>
 
-            <div className="math-login-tabs mb-4 grid grid-cols-3 gap-2 rounded-[24px] p-1.5">
+            <div className="math-login-tabs mb-3 grid grid-cols-3 gap-2 rounded-[24px] p-1.5">
               {OrderedTabs.map((Tab) => {
                 const TabData = RoleContent[Tab];
                 const ActiveState = ActiveTab === Tab;
@@ -442,15 +442,15 @@ export default function LoginPage() {
               Welcome Back
             </div>
 
-            <h2 className="mt-3 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl">
+            <h2 className="mt-2.5 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl">
               {RoleLabel(ActiveTab)} Login
             </h2>
 
-            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
+            <p className="mt-1.5 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
               {Active.Promise}
             </p>
 
-            <form className="math-login-card mt-4 space-y-3" onSubmit={HandleSubmit}>
+            <form className="math-login-card mt-3.5 space-y-3" onSubmit={HandleSubmit}>
               <div>
                 <label className="math-label">{Active.IdentifierLabel}</label>
                 <input
@@ -487,14 +487,14 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="math-login-promise mt-4 rounded-[22px] p-3.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            <div className="math-login-promise mt-3 rounded-[22px] p-3.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
               <span className="font-black text-slate-950 dark:text-white">
                 MathPath Promise:
               </span>{" "}
               Speed, Accuracy, Confidence, and Joyful Mathematical Thinking.
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-2.5 grid gap-3 sm:grid-cols-3">
               <MiniCard Icon={<LayoutDashboard size={16} />} Label="Role-Based" />
               <MiniCard Icon={<ShieldCheck size={16} />} Label="Secure Access" />
               <MiniCard Icon={<Sparkles size={16} />} Label="Premium Flow" />
