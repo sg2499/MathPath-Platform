@@ -6569,3 +6569,253 @@ html.dark .math-modal-close-button:focus-visible {
     padding: clamp(0.9rem, 1.8vh, 1.15rem) !important;
   }
 }
+
+/* Phase 10.10 — Cross-role dark mode visual token audit fix.
+   Purpose: keep Admin/Teacher/Student dark mode premium and readable without
+   heavy role-colour header bars, washed cards, or low-contrast inactive tabs. */
+@layer components {
+  html.dark .math-role-admin,
+  html.dark .math-login-role-admin {
+    --mp-dark-section-accent: rgba(96, 165, 250, 0.90);
+    --mp-dark-section-accent-soft: rgba(37, 99, 235, 0.12);
+    --mp-dark-section-accent-line: rgba(96, 165, 250, 0.34);
+  }
+
+  html.dark .math-role-teacher,
+  html.dark .math-login-role-teacher {
+    --mp-dark-section-accent: rgba(240, 184, 193, 0.94);
+    --mp-dark-section-accent-soft: rgba(183, 110, 121, 0.13);
+    --mp-dark-section-accent-line: rgba(230, 184, 162, 0.32);
+  }
+
+  html.dark .math-role-student,
+  html.dark .math-login-role-student {
+    --mp-dark-section-accent: rgba(253, 186, 116, 0.96);
+    --mp-dark-section-accent-soft: rgba(249, 115, 22, 0.13);
+    --mp-dark-section-accent-line: rgba(251, 146, 60, 0.34);
+  }
+
+  /* Section kickers / block headers: role-aware accent, no thick filled bars. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-kicker {
+    display: inline-flex !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    padding: 0.34rem 0.72rem !important;
+    border-radius: 999px !important;
+    color: var(--mp-dark-section-accent, var(--mp-role-readable)) !important;
+    background:
+      linear-gradient(135deg, var(--mp-dark-section-accent-soft, rgba(37,99,235,0.12)), rgba(15, 23, 42, 0.22)) !important;
+    border: 1px solid var(--mp-dark-section-accent-line, var(--mp-role-border)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.055) !important;
+    line-height: 1.05rem !important;
+    text-decoration: none !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-kicker::before,
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-kicker::after {
+    display: none !important;
+  }
+
+  /* Neutral readable variable/table labels in dark mode. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-label,
+    .math-table th,
+    .math-table thead,
+    .math-table-header-label,
+    .math-table-header-label-wrap,
+    .math-table-header-label-nowrap,
+    label,
+    th
+  ) {
+    color: #b8c7dc !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-table thead {
+    background:
+      linear-gradient(180deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.84)) !important;
+    border-color: rgba(148, 163, 184, 0.18) !important;
+  }
+
+  /* Workspace tabs and sub-tabs: inactive remains visible, active keeps role palette. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-workspace-tabs, .math-tab-strip) {
+    background: rgba(15, 23, 42, 0.72) !important;
+    border-color: rgba(148, 163, 184, 0.20) !important;
+    box-shadow: 0 18px 46px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-workspace-tabs, .math-tab-strip) button:not(.math-button-primary):not(.math-button-danger):not([aria-selected="true"]):not([data-active="true"]):not(.is-active) {
+    color: #c7d2e5 !important;
+    background: rgba(15, 23, 42, 0.72) !important;
+    border-color: rgba(148, 163, 184, 0.22) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.035) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-workspace-tabs, .math-tab-strip) button:not(.math-button-primary):not(.math-button-danger):not([aria-selected="true"]):not([data-active="true"]):not(.is-active):hover {
+    color: #f8fbff !important;
+    background: linear-gradient(135deg, var(--mp-dark-section-accent-soft, rgba(37,99,235,0.12)), rgba(30, 41, 59, 0.72)) !important;
+    border-color: var(--mp-dark-section-accent-line, rgba(148,163,184,0.30)) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-workspace-tabs, .math-tab-strip) button:is(.math-button-primary, [aria-selected="true"], [data-active="true"], .is-active),
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-role-tab-button:is(.is-active, [aria-selected="true"], [data-active="true"]) {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, var(--mp-role-dark) 0%, var(--mp-role-primary) 54%, var(--mp-role-accent) 100%) !important;
+    border-color: var(--mp-role-border-strong) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-workspace-tabs, .math-tab-strip) button:is(.math-button-primary, [aria-selected="true"], [data-active="true"], .is-active) *,
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-role-tab-button:is(.is-active, [aria-selected="true"], [data-active="true"]) * {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+    stroke: #ffffff !important;
+  }
+
+  /* Performance Reports top mode selector cards. */
+  .math-report-scope-tab {
+    display: block;
+    width: 100%;
+    border-radius: 1.35rem;
+    border: 1px solid var(--line);
+    padding: 1rem;
+    text-align: left;
+    transition: 180ms ease;
+  }
+
+  .math-report-scope-tab-icon {
+    display: inline-flex;
+    height: 2.35rem;
+    width: 2.35rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.95rem;
+    color: var(--mp-role-readable);
+    background: var(--mp-role-softer);
+  }
+
+  .math-report-scope-tab-kicker,
+  .math-report-scope-tab-title,
+  .math-report-scope-tab-text {
+    display: block;
+  }
+
+  .math-report-scope-tab-kicker {
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--mp-role-readable);
+  }
+
+  .math-report-scope-tab-title {
+    margin-top: 0.15rem;
+    font-weight: 900;
+    color: var(--ink);
+  }
+
+  .math-report-scope-tab-text {
+    margin-top: 0.2rem;
+    font-size: 0.8rem;
+    line-height: 1.25rem;
+    color: var(--muted);
+  }
+
+  .math-report-scope-tab-inactive {
+    background: var(--surface-strong);
+  }
+
+  .math-report-scope-tab-active {
+    color: #ffffff;
+    border-color: var(--mp-role-border-strong);
+    background: linear-gradient(135deg, var(--mp-role-dark) 0%, var(--mp-role-primary) 54%, var(--mp-role-accent) 100%);
+    box-shadow: 0 16px 36px color-mix(in srgb, var(--mp-role-shadow) 40%, transparent);
+  }
+
+  .math-report-scope-tab-active :is(.math-report-scope-tab-icon, .math-report-scope-tab-kicker, .math-report-scope-tab-title, .math-report-scope-tab-text, svg) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+  }
+
+  html.dark .math-report-scope-tab-inactive {
+    color: #dbeafe !important;
+    border-color: rgba(148, 163, 184, 0.24) !important;
+    background: rgba(15, 23, 42, 0.72) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.035) !important;
+  }
+
+  html.dark .math-report-scope-tab-inactive .math-report-scope-tab-title {
+    color: #f8fbff !important;
+  }
+
+  html.dark .math-report-scope-tab-inactive .math-report-scope-tab-text {
+    color: #b8c7dc !important;
+  }
+
+  /* Remove white-outline bugs on unselected tabs and utility icons. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(button, a).border-white,
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(button, a).border-white\/70,
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(button, a).border-slate-200 {
+    border-color: rgba(148, 163, 184, 0.24) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-icon-button, .math-context-pill, .math-theme-toggle, .math-user-pill) {
+    border-color: rgba(148, 163, 184, 0.24) !important;
+  }
+
+  /* Report detail panels: no washed-out grey cards in dark mode. */
+  html.dark .math-current-level-progress-block,
+  html.dark .math-history-hierarchy-row {
+    color: #f8fbff !important;
+    border-color: rgba(148, 163, 184, 0.24) !important;
+    background:
+      linear-gradient(135deg, rgba(15, 23, 42, 0.84), rgba(30, 41, 59, 0.66)),
+      radial-gradient(circle at 0% 0%, var(--mp-dark-section-accent-soft, rgba(37,99,235,0.12)), transparent 42%) !important;
+    box-shadow: 0 16px 42px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+
+  html.dark .math-current-level-progress-block :is(h4, p),
+  html.dark .math-history-hierarchy-row :is(h4, p) {
+    color: inherit;
+  }
+
+  html.dark .math-current-level-progress-block p:not(.math-kicker),
+  html.dark .math-history-hierarchy-row p:not(.math-kicker) {
+    color: #c7d2e5 !important;
+  }
+
+  html.dark .math-current-level-progress-block :is(h4, .text-2xl),
+  html.dark .math-history-hierarchy-row h4 {
+    color: #ffffff !important;
+  }
+
+  html.dark .math-progress-track {
+    background: rgba(2, 6, 23, 0.58) !important;
+    border: 1px solid rgba(148, 163, 184, 0.16) !important;
+  }
+
+  html.dark .math-hierarchy-toggle,
+  html.dark .math-history-count-badge {
+    color: var(--mp-dark-section-accent, var(--mp-role-readable)) !important;
+    border-color: var(--mp-dark-section-accent-line, var(--mp-role-border)) !important;
+    background: var(--mp-dark-section-accent-soft, var(--mp-role-softer)) !important;
+  }
+
+  /* Login role selector: active tab text/icons must stay readable in dark mode. */
+  html.dark .math-login-shell .math-login-tab-active,
+  html.dark .math-login-shell .math-login-tab-active :is(span, svg) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+  }
+
+  html.dark .math-login-shell .math-login-tabs button:not(.math-login-tab-active) {
+    color: #c7d2e5 !important;
+  }
+
+  html.dark .math-login-shell .math-login-tabs button:not(.math-login-tab-active):hover {
+    color: #ffffff !important;
+    background: rgba(30, 41, 59, 0.82) !important;
+  }
+}
