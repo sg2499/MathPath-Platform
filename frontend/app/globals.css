@@ -6197,3 +6197,72 @@ html.dark .math-modal-close-button:focus-visible {
     }
   }
 }
+
+
+/* Phase 10.9.3 — login left-panel balance + zero-flicker role hydration polish */
+@layer utilities {
+  @media (min-width: 1024px) {
+    .math-login-story-content {
+      justify-content: center;
+      gap: clamp(1.65rem, 4.1vh, 3.35rem);
+      padding-top: clamp(1.5rem, 3.7vh, 3rem) !important;
+      padding-bottom: clamp(1.8rem, 4.4vh, 3.35rem) !important;
+    }
+
+    .math-login-story-copy {
+      max-width: 54rem;
+    }
+
+    .math-login-story-copy .math-login-logo-card {
+      margin-bottom: clamp(0.95rem, 1.9vh, 1.45rem);
+    }
+
+    .math-login-story-copy .math-login-eyebrow {
+      margin-top: 0 !important;
+    }
+
+    .math-login-story-copy h1 {
+      margin-top: clamp(0.95rem, 1.9vh, 1.45rem) !important;
+    }
+
+    .math-login-story-copy h1 + p {
+      margin-top: clamp(0.55rem, 1.2vh, 0.95rem) !important;
+    }
+
+    .math-login-feature-grid {
+      margin-top: 0 !important;
+      align-content: center;
+    }
+  }
+
+  @media (min-width: 1280px) and (min-height: 821px) {
+    .math-login-story-content {
+      gap: clamp(2.15rem, 5vh, 4.2rem);
+      padding-top: clamp(2rem, 4.6vh, 3.75rem) !important;
+      padding-bottom: clamp(2.2rem, 5vh, 4rem) !important;
+    }
+
+    .math-login-feature {
+      min-height: clamp(8.1rem, 15.2vh, 10.1rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+  }
+
+  @media (min-width: 1024px) and (max-height: 820px) {
+    .math-login-story-content {
+      gap: clamp(1.05rem, 2.5vh, 1.85rem) !important;
+      padding-top: clamp(1rem, 2.4vh, 1.75rem) !important;
+      padding-bottom: clamp(1.1rem, 2.8vh, 2rem) !important;
+    }
+
+    .math-login-story-copy .math-login-logo-card {
+      margin-bottom: clamp(0.6rem, 1.4vh, 1rem) !important;
+    }
+
+    .math-login-story-copy h1 {
+      margin-top: clamp(0.65rem, 1.45vh, 1rem) !important;
+    }
+  }
+}

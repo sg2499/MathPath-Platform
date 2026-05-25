@@ -222,8 +222,8 @@ function RoleMismatchMessage(User: CurrentUser) {
 
 export default function LoginPage() {
   const Router = useRouter();
-  const [ActiveTab, SetActiveTab] = useState<LoginTab>("STUDENT");
-  const [LoginReady, SetLoginReady] = useState(false);
+  const [ActiveTab, SetActiveTab] = useState<LoginTab>(() => ResolveInitialLoginTab());
+  const [LoginReady, SetLoginReady] = useState(true);
   const [Identifier, SetIdentifier] = useState("");
   const [Password, SetPassword] = useState("");
   const [Error, SetError] = useState("");
@@ -237,11 +237,11 @@ export default function LoginPage() {
     Theme === "dark" ? "Switch To Light Theme" : "Switch To Dark Theme";
 
   useEffect(() => {
-    const InitialTab = ResolveInitialLoginTab();
-    SetActiveTab(InitialTab);
-    PersistLoginTab(InitialTab);
+    PersistLoginTab(ActiveTab);
     SetLoginReady(true);
     void warmupAuthApi();
+    // Runs once after the synchronous initial role has already been resolved, so refresh does not visibly fall back to Student.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -325,8 +325,8 @@ export default function LoginPage() {
           <div className={`absolute -right-24 top-24 h-72 w-72 rounded-full ${Active.AccentGlow} blur-3xl`} />
           <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-white/14 blur-3xl" />
 
-          <div className="relative z-10 flex h-full w-full min-h-0 flex-col justify-center gap-5 px-8 py-7 xl:px-11 xl:py-8 2xl:px-14 2xl:py-10">
-            <div>
+          <div className="math-login-story-content relative z-10 flex h-full w-full min-h-0 flex-col px-8 py-7 xl:px-11 xl:py-8 2xl:px-14 2xl:py-10">
+            <div className="math-login-story-copy">
               <div className="math-login-logo-card flex w-fit max-w-xl items-center gap-3 rounded-[24px] px-3.5 py-3">
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md">
                   <Image
@@ -368,7 +368,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:gap-5">
+            <div className="math-login-feature-grid grid gap-4 sm:grid-cols-2 xl:gap-5">
               {Active.Features.map((FeatureItem) => (
                 <Feature
                   key={FeatureItem.Title}
