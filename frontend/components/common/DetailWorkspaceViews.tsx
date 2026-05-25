@@ -662,7 +662,7 @@ export function Metric({
   icon?: ReactNode;
 }) {
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-white/80 p-4 shadow-sm dark:border-slate-700/80 dark:bg-slate-950/85 dark:shadow-[0_18px_48px_rgba(2,6,23,0.32)]">
+    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/75">
       <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
         {icon ? (
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
@@ -1176,8 +1176,6 @@ export function RecordWorkspace({
             <button
               key={key}
               className={`math-role-tab ${tab === key ? "math-role-tab-active" : ""}`}
-              data-active={tab === key ? "true" : "false"}
-              aria-selected={tab === key}
               onClick={() => setTab(key as any)}
               title={`Open ${label}`}
               aria-label={`Open ${label}`}
@@ -1715,7 +1713,7 @@ function AdminAssignmentOverview({
           />
         </div>
         <div className="mt-5">
-          <LevelSnapshot rows={rows} role="admin" />
+          <LevelSnapshot rows={rows} />
         </div>
       </section>
 
@@ -1772,10 +1770,10 @@ function TeacherPracticeOverview({
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <OverviewStat
-            icon={<ClipboardList size={18} />}
+            icon={<Layers3 size={18} />}
             label="Assigned DPS"
             value={currentRows.length}
-            tone="plum"
+            tone="blue"
           />
           <OverviewStat
             icon={<CheckCircle2 size={18} />}
@@ -1848,7 +1846,6 @@ function StudentProgressOverview({
   const CompletionPercent = Required
     ? Math.min(100, Math.round((Completed / Required) * 100))
     : 0;
-  const ProgressFillClass = "bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-300";
   const RecentRows = recentWorkRows(SourceRows).slice(0, 3);
   const CurrentLevelRows = SourceRows.filter(
     (Row) => levelCodeOf(Row) === Summary.currentLevel,
@@ -1892,13 +1889,13 @@ function StudentProgressOverview({
             </Chip>
           </div>
           <div className="mt-4 flex items-center gap-3">
-            <div className="math-role-progress-track h-3 flex-1 border border-orange-200/70 bg-orange-50/70 dark:border-orange-400/35 dark:bg-slate-950/95">
+            <div className="math-role-progress-track h-3 flex-1">
               <div
-                className={`h-full rounded-full ${ProgressFillClass} shadow-[0_0_14px_rgba(251,146,60,0.42)]`}
-                style={{ width: `${CompletionPercent}%`, minWidth: CompletionPercent > 0 ? "0.45rem" : "0" }}
+                className="math-role-progress-fill"
+                style={{ width: `${CompletionPercent}%` }}
               />
             </div>
-            <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-black text-orange-700 dark:border-orange-400/40 dark:bg-orange-950/35 dark:text-orange-100">
+            <span className="shrink-0 text-xs font-black text-slate-700 dark:text-slate-100">
               {CompletionPercent}%
             </span>
           </div>
@@ -2043,25 +2040,24 @@ function OverviewStat({
   icon: ReactNode;
   label: string;
   value: string | number;
-  tone: "slate" | "green" | "red" | "amber" | "blue" | "plum";
+  tone: "slate" | "green" | "red" | "amber" | "blue";
 }) {
   const tones = {
-    slate: "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/45 dark:bg-emerald-950/45 dark:text-emerald-100",
-    red: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/45 dark:bg-rose-950/45 dark:text-rose-100",
-    amber: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/45 dark:bg-amber-950/45 dark:text-amber-100",
-    blue: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-500/45 dark:bg-blue-950/45 dark:text-blue-100",
-    plum: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800 dark:border-fuchsia-400/45 dark:bg-fuchsia-950/35 dark:text-fuchsia-100",
+    slate: "border-slate-200 bg-slate-50 text-slate-800",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    red: "border-rose-200 bg-rose-50 text-rose-800",
+    amber: "border-amber-200 bg-amber-50 text-amber-800",
+    blue: "border-blue-200 bg-blue-50 text-blue-800",
   };
   return (
-    <div className={`rounded-[22px] border p-4 ${tones[tone]}`}>
-      <div className="flex items-center gap-2 opacity-80">
+    <div className={`math-overview-stat math-overview-stat-${tone} rounded-[22px] border p-4 ${tones[tone]}`}>
+      <div className="flex items-center gap-2 opacity-90">
         {icon}
-        <p className="text-[10px] font-black uppercase tracking-[0.14em]">
+        <p className="text-[0.72rem] font-black uppercase leading-5 tracking-[0.14em]">
           {label}
         </p>
       </div>
-      <p className="mt-2 text-2xl font-black">{value}</p>
+      <p className="mt-2 text-[1.55rem] font-black leading-none">{value}</p>
     </div>
   );
 }
@@ -2251,7 +2247,7 @@ function RecentActivityCard({
   );
 }
 
-function LevelSnapshot({ rows, role = "admin" }: { rows: AnyRow[]; role?: "admin" | "teacher" | "student" }) {
+function LevelSnapshot({ rows }: { rows: AnyRow[] }) {
   const levels = levelProgressSummary(rows).levels;
   return (
     <div className="rounded-[22px] border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
@@ -2277,11 +2273,14 @@ function LevelSnapshot({ rows, role = "admin" }: { rows: AnyRow[]; role?: "admin
                   {level.completed}/{level.required}
                 </span>
               </div>
-              <div className="math-role-progress-track mt-2 h-2.5 border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-950/90">
-                <div
-                  className="math-role-progress-fill"
-                  style={{ width: `${percent}%`, minWidth: percent > 0 ? "0.4rem" : "0" }}
-                />
+              <div className="mt-2 flex items-center gap-2">
+                <div className="math-role-progress-track h-2 flex-1">
+                  <div
+                    className="math-role-progress-fill"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+                <span className="shrink-0 text-[10px] font-black text-slate-700 dark:text-slate-100">{percent}%</span>
               </div>
             </div>
           );
