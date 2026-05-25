@@ -1899,7 +1899,7 @@ function AdminAssessmentControlPageContent() {
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <button
-                  className={`rounded-[22px] border p-4 text-left transition ${ParentReportTabValue === "GENERATE" ? "border-blue-300 bg-blue-50/80 shadow-sm" : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-950"}`}
+                  className={`math-role-tab-card p-4 text-left ${ParentReportTabValue === "GENERATE" ? "math-role-tab-card-active" : ""}`}
                   onClick={() => SetParentReportTabValue("GENERATE")}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -1924,7 +1924,7 @@ function AdminAssessmentControlPageContent() {
                   </p>
                 </button>
                 <button
-                  className={`rounded-[22px] border p-4 text-left transition ${ParentReportTabValue === "DELIVERY_HISTORY" ? "border-blue-300 bg-blue-50/80 shadow-sm" : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-950"}`}
+                  className={`math-role-tab-card p-4 text-left ${ParentReportTabValue === "DELIVERY_HISTORY" ? "math-role-tab-card-active" : ""}`}
                   onClick={() => SetParentReportTabValue("DELIVERY_HISTORY")}
                 >
                   <div className="flex items-center justify-between gap-3">

@@ -1175,11 +1175,7 @@ export function RecordWorkspace({
           {tabItems.map(([key, label]) => (
             <button
               key={key}
-              className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-                tab === key
-                  ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
-                  : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300"
-              }`}
+              className={`math-role-tab-button ${tab === key ? "is-active" : ""}`}
               onClick={() => setTab(key as any)}
               title={`Open ${label}`}
               aria-label={`Open ${label}`}
