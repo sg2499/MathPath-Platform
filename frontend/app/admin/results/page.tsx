@@ -1969,7 +1969,7 @@ function BuildCompletedLevelHierarchy(Rows: AnyRecord[]) {
 
 function HierarchyToggle({ Expanded }: { Expanded: boolean }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-700 transition">
+    <span className="math-hierarchy-toggle flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-700 transition">
       <ChevronDown
         size={16}
         className={`transition-transform ${Expanded ? "rotate-0" : "-rotate-90"}`}
@@ -2001,7 +2001,7 @@ function HistoryHierarchyRow({
   const Kicker = Depth === 0 ? "Module" : Depth === 1 ? "Level" : "Lesson";
 
   return (
-    <div className={`rounded-[24px] border ${Tone} p-3 shadow-sm`}>
+    <div className={`math-history-hierarchy-row math-history-depth-${Depth} rounded-[24px] border ${Tone} p-3 shadow-sm`}>
       <button
         type="button"
         className="flex w-full items-center justify-between gap-4 text-left"
@@ -2021,7 +2021,7 @@ function HistoryHierarchyRow({
             ) : null}
           </div>
         </div>
-        <span className="math-badge whitespace-nowrap border-blue-200 bg-blue-50 text-blue-700">
+        <span className="math-badge math-history-count-badge whitespace-nowrap border-blue-200 bg-blue-50 text-blue-700">
           {Group.Count} Record{Group.Count === 1 ? "" : "s"}
         </span>
       </button>
@@ -2231,7 +2231,7 @@ function StudentHistoryView({
               Current Level Progress
             </h3>
           </div>
-          <span className="math-badge whitespace-nowrap border-blue-200 bg-blue-50 text-blue-700">
+          <span className="math-badge math-history-count-badge whitespace-nowrap border-blue-200 bg-blue-50 text-blue-700">
             {CompletedLevelRows.length} Completed Level
             {CompletedLevelRows.length === 1 ? "" : "s"}
           </span>
@@ -2978,7 +2978,7 @@ function CurrentLevelProgressBlock({ Row }: { Row: AnyRecord }) {
     Math.round((CompletedDps / RequiredDps) * 100),
   );
   return (
-    <div className="rounded-3xl border border-blue-100 bg-blue-50/60 p-4">
+    <div className="math-current-level-progress-block rounded-3xl border border-blue-100 bg-blue-50/60 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
@@ -2998,7 +2998,7 @@ function CurrentLevelProgressBlock({ Row }: { Row: AnyRecord }) {
           <p className="text-xs font-bold text-slate-500">Level Progress</p>
         </div>
       </div>
-      <div className="mt-4 h-3 overflow-hidden rounded-full bg-white">
+      <div className="math-progress-track mt-4 h-3 overflow-hidden rounded-full bg-white">
         <div
           className="h-full rounded-full bg-blue-600 transition-all"
           style={{ width: `${ProgressValue}%` }}
