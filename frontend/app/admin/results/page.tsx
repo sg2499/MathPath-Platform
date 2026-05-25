@@ -2239,7 +2239,7 @@ function StudentHistoryView({
         {CurrentLevelRow ? (
           <CurrentLevelProgressBlock Row={CurrentLevelRow} />
         ) : null}
-        <div className="math-completed-level-panel mt-4 rounded-[26px] border border-slate-200 bg-white/75 p-4">
+        <div className="mt-4 rounded-[26px] border border-slate-200 bg-white/75 p-4">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <p className="math-kicker">Completed Level Journey</p>
@@ -2879,7 +2879,7 @@ function CompletedLevelModuleBlock({
 }) {
   const Expanded = ExpandedKeys[ModuleGroup.Key] === true;
   return (
-    <div className="rounded-[24px] border border-blue-100 bg-blue-50/35 p-3 shadow-sm">
+    <div className="math-completed-level-module-block rounded-[24px] border border-blue-100 bg-blue-50/35 p-3 shadow-sm">
       <button
         type="button"
         className="flex w-full items-center justify-between gap-4 text-left"
@@ -2940,7 +2940,7 @@ function CompletedLevelSummaryBlock({
     PickFirstNumber(Row, ["averageAccuracy", "accuracyPercentage"], 0),
   );
   return (
-    <div className="rounded-[22px] border border-cyan-100 bg-white/90 p-3">
+    <div className="math-completed-level-summary-block rounded-[22px] border border-cyan-100 bg-white/90 p-3">
       <button
         type="button"
         className="flex w-full flex-col gap-3 text-left lg:flex-row lg:items-center lg:justify-between"
