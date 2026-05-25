@@ -7152,3 +7152,166 @@ html.dark .math-modal-close-button:focus-visible {
     color: inherit;
   }
 }
+
+
+/* Phase 10.10.4 — Final dark-mode role tab enforcement and readiness visibility.
+   Dark mode only. Mirrors the Student Progress tab behavior across Admin, Teacher, and Student. */
+@layer components {
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) {
+    --mp-final-tab-gradient: linear-gradient(135deg, var(--mp-role-dark) 0%, var(--mp-role-primary) 52%, var(--mp-role-accent) 100%);
+    --mp-final-tab-idle-bg: rgba(15, 23, 42, 0.86);
+    --mp-final-tab-hover-bg: linear-gradient(135deg, color-mix(in srgb, var(--mp-role-primary) 30%, rgba(30,41,59,0.88)), color-mix(in srgb, var(--mp-role-accent) 18%, rgba(15,23,42,0.86)));
+    --mp-final-tab-border: rgba(148, 163, 184, 0.24);
+    --mp-final-tab-border-hover: color-mix(in srgb, var(--mp-role-border-strong) 80%, rgba(148,163,184,0.20));
+  }
+
+  /* Default dark tab state: readable, neutral, no white halo. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-role-tab,
+    .math-role-tab-button,
+    .math-role-tab-card,
+    .math-tab-strip button,
+    .math-workspace-tabs button
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]) {
+    color: #e6edf8 !important;
+    background: var(--mp-final-tab-idle-bg) !important;
+    border-color: var(--mp-final-tab-border) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.045) !important;
+    opacity: 1 !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-role-tab,
+    .math-role-tab-button,
+    .math-role-tab-card,
+    .math-tab-strip button,
+    .math-workspace-tabs button
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]) :is(*, svg, .lucide) {
+    color: #e6edf8 !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+  }
+
+  /* Hover: exact role-aware behavior like Student Progress tabs. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-role-tab,
+    .math-role-tab-button,
+    .math-role-tab-card,
+    .math-tab-strip button,
+    .math-workspace-tabs button
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):hover {
+    color: #ffffff !important;
+    background: var(--mp-final-tab-hover-bg) !important;
+    border-color: var(--mp-final-tab-border-hover) !important;
+    box-shadow: 0 14px 34px color-mix(in srgb, var(--mp-role-shadow) 38%, transparent), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+    transform: translateY(-1px);
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-role-tab,
+    .math-role-tab-button,
+    .math-role-tab-card,
+    .math-tab-strip button,
+    .math-workspace-tabs button
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):hover :is(*, svg, .lucide) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+  }
+
+  /* Active/selected: role palette + white text, across every tab implementation. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-role-tab-active,
+    .math-role-tab-card-active,
+    .math-role-tab.is-active,
+    .math-role-tab-button.is-active,
+    .math-role-tab-card.is-active,
+    .math-role-tab[aria-selected="true"],
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab-card[aria-selected="true"],
+    .math-role-tab[data-active="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab-card[data-active="true"],
+    .math-tab-strip button.math-role-tab-active,
+    .math-tab-strip button.math-role-tab-card-active,
+    .math-tab-strip button.is-active,
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"],
+    .math-workspace-tabs button.is-active,
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"]
+  ) {
+    color: #ffffff !important;
+    background: var(--mp-final-tab-gradient) !important;
+    border-color: var(--mp-final-tab-border-hover) !important;
+    box-shadow: 0 18px 44px color-mix(in srgb, var(--mp-role-shadow) 56%, transparent), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+    opacity: 1 !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-role-tab-active,
+    .math-role-tab-card-active,
+    .math-role-tab.is-active,
+    .math-role-tab-button.is-active,
+    .math-role-tab-card.is-active,
+    .math-role-tab[aria-selected="true"],
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab-card[aria-selected="true"],
+    .math-role-tab[data-active="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab-card[data-active="true"],
+    .math-tab-strip button.math-role-tab-active,
+    .math-tab-strip button.math-role-tab-card-active,
+    .math-tab-strip button.is-active,
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"],
+    .math-workspace-tabs button.is-active,
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"]
+  ) :is(*, svg, .lucide) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+  }
+
+  /* Readiness expand/collapse controls: visible before hover across all roles. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-readiness-control-button {
+    color: #e6edf8 !important;
+    border-color: var(--mp-final-tab-border-hover) !important;
+    background: linear-gradient(135deg, rgba(15,23,42,0.90), color-mix(in srgb, var(--mp-role-primary) 12%, rgba(30,41,59,0.84))) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05) !important;
+    opacity: 1 !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-readiness-control-button:hover {
+    color: #ffffff !important;
+    background: var(--mp-final-tab-hover-bg) !important;
+    border-color: var(--mp-final-tab-border-hover) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-readiness-control-button :is(*, svg, .lucide) {
+    color: currentColor !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+  }
+
+  /* History/detail table text values, including Promoted By and completion dates. */
+  html.dark .math-student-history-table td,
+  html.dark .math-student-history-table td *,
+  html.dark .math-promotion-history-table td,
+  html.dark .math-promotion-history-table td *,
+  html.dark .math-history-date-cell,
+  html.dark .math-history-date-cell *,
+  html.dark .math-promoted-by-cell,
+  html.dark .math-promoted-by-cell * {
+    color: #e6edf8 !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-student-history-table td :is(.math-badge, .math-status-chip, .math-attempt-chip, .math-chip, span[class*="rounded-full"]),
+  html.dark .math-promotion-history-table td :is(.math-badge, .math-status-chip, .math-attempt-chip, .math-chip, span[class*="rounded-full"]) {
+    color: #dbeafe !important;
+  }
+}
