@@ -7579,3 +7579,136 @@ html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.mat
   stroke: #ffffff !important;
   opacity: 1 !important;
 }
+
+
+/* Phase 10.10.7 — final dark-mode clickable/tabs enforcement.
+   Applies role-palette interaction to every tab-like and dashboard/action control.
+   Dark mode only. Destructive/delete/red controls are intentionally excluded. */
+html.dark .math-role-admin {
+  --mp-role-force-gradient: linear-gradient(135deg, #061a44 0%, #2563eb 56%, #c026d3 100%);
+  --mp-role-force-hover: linear-gradient(135deg, rgba(37, 99, 235, 0.42), rgba(192, 38, 211, 0.26));
+  --mp-role-force-border: rgba(96, 165, 250, 0.56);
+  --mp-role-force-shadow: rgba(37, 99, 235, 0.38);
+}
+
+html.dark .math-role-teacher {
+  --mp-role-force-gradient: linear-gradient(135deg, #3a1232 0%, #7c2d6f 56%, #e6b8a2 100%);
+  --mp-role-force-hover: linear-gradient(135deg, rgba(124, 45, 111, 0.44), rgba(230, 184, 162, 0.28));
+  --mp-role-force-border: rgba(230, 184, 162, 0.56);
+  --mp-role-force-shadow: rgba(124, 45, 111, 0.38);
+}
+
+html.dark .math-role-student {
+  --mp-role-force-gradient: linear-gradient(135deg, #8a1f13 0%, #f97316 56%, #facc15 100%);
+  --mp-role-force-hover: linear-gradient(135deg, rgba(249, 115, 22, 0.44), rgba(250, 204, 21, 0.28));
+  --mp-role-force-border: rgba(251, 146, 60, 0.56);
+  --mp-role-force-shadow: rgba(249, 115, 22, 0.38);
+}
+
+html.dark :is(.math-admin-tab-force, .math-teacher-tab-force, .math-student-tab-force) {
+  background: rgba(15, 23, 42, 0.92) !important;
+  border: 1px solid rgba(148, 163, 184, 0.26) !important;
+  color: #f8fbff !important;
+  opacity: 1 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045) !important;
+}
+
+html.dark :is(.math-admin-tab-force, .math-teacher-tab-force, .math-student-tab-force):hover {
+  background: var(--mp-role-force-hover) !important;
+  border-color: var(--mp-role-force-border) !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 34px var(--mp-role-force-shadow), inset 0 1px 0 rgba(255,255,255,0.12) !important;
+  transform: translateY(-1px) !important;
+}
+
+html.dark :is(.math-admin-tab-force-selected, .math-teacher-tab-force-selected, .math-student-tab-force-selected),
+html.dark :is(.math-admin-tab-force, .math-teacher-tab-force, .math-student-tab-force):is(.is-active, [aria-selected="true"], [data-active="true"], [aria-pressed="true"]) {
+  background: var(--mp-role-force-gradient) !important;
+  border-color: var(--mp-role-force-border) !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+  box-shadow: 0 18px 44px var(--mp-role-force-shadow), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+}
+
+html.dark :is(.math-admin-tab-force, .math-teacher-tab-force, .math-student-tab-force):is(:hover, .math-admin-tab-force-selected, .math-teacher-tab-force-selected, .math-student-tab-force-selected, .is-active, [aria-selected="true"], [data-active="true"], [aria-pressed="true"]) :is(*, svg, .lucide) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+  .math-dashboard-primary-action,
+  .math-dashboard-secondary-action,
+  .math-dashboard-quick-card,
+  .math-role-action-button,
+  .math-role-row-action,
+  .math-role-icon-only,
+  .math-button-secondary,
+  .math-onboarding-action-button,
+  .math-history-review-button,
+  .math-readiness-control-button,
+  .math-readiness-branch-button,
+  .math-report-scope-tab,
+  .math-role-tab,
+  .math-role-tab-button,
+  .math-role-tab-card
+):not(.math-button-danger):not(.math-action-button-danger):not([class*="red"]):not([class*="rose"]) {
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease !important;
+}
+
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+  .math-dashboard-primary-action,
+  .math-dashboard-secondary-action,
+  .math-dashboard-quick-card,
+  .math-role-action-button,
+  .math-role-row-action,
+  .math-role-icon-only,
+  .math-button-secondary,
+  .math-onboarding-action-button,
+  .math-history-review-button,
+  .math-readiness-control-button,
+  .math-readiness-branch-button
+):not(.math-button-danger):not(.math-action-button-danger):not([class*="red"]):hover {
+  background: var(--mp-role-force-hover) !important;
+  border-color: var(--mp-role-force-border) !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 34px var(--mp-role-force-shadow), inset 0 1px 0 rgba(255,255,255,0.12) !important;
+  transform: translateY(-1px) !important;
+}
+
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+  .math-dashboard-primary-action,
+  .math-dashboard-secondary-action,
+  .math-dashboard-quick-card,
+  .math-role-action-button,
+  .math-role-row-action,
+  .math-role-icon-only,
+  .math-button-secondary,
+  .math-onboarding-action-button,
+  .math-history-review-button,
+  .math-readiness-control-button,
+  .math-readiness-branch-button
+):not(.math-button-danger):not(.math-action-button-danger):not([class*="red"]):hover :is(*, svg, .lucide) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-dashboard-quick-card, .math-dashboard-secondary-action):not(:hover) {
+  background: rgba(15, 23, 42, 0.90) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #f8fbff !important;
+}
+
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-dashboard-quick-card, .math-dashboard-primary-action, .math-dashboard-secondary-action):hover .math-dashboard-icon,
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-dashboard-quick-card, .math-dashboard-primary-action, .math-dashboard-secondary-action):hover :is(svg, .lucide) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-dashboard-quick-card, .math-dashboard-primary-action, .math-dashboard-secondary-action):hover .math-dashboard-quick-icon,
+html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(.math-dashboard-quick-card, .math-dashboard-primary-action, .math-dashboard-secondary-action):hover .math-dashboard-quick-icon :is(*, svg, .lucide) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}

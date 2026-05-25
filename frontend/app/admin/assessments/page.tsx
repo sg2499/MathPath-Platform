@@ -1351,7 +1351,7 @@ function AdminAssessmentControlPageContent() {
 
         <div className="math-tab-strip">
           <button
-            className={`math-role-tab ${ActiveTab === "RECORDS" ? "math-role-tab-active" : ""}`}
+            className={`math-role-tab math-admin-tab-force ${ActiveTab === "RECORDS" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "RECORDS"}
             data-active={ActiveTab === "RECORDS" ? "true" : "false"}
             onClick={() => SetActiveTab("RECORDS")}
@@ -1359,7 +1359,7 @@ function AdminAssessmentControlPageContent() {
             Student Records
           </button>
           <button
-            className={`math-role-tab ${ActiveTab === "APPROVALS" ? "math-role-tab-active" : ""}`}
+            className={`math-role-tab math-admin-tab-force ${ActiveTab === "APPROVALS" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "APPROVALS"}
             data-active={ActiveTab === "APPROVALS" ? "true" : "false"}
             onClick={() => SetActiveTab("APPROVALS")}
@@ -1367,7 +1367,7 @@ function AdminAssessmentControlPageContent() {
             Re-Attempt Approvals
           </button>
           <button
-            className={`math-role-tab ${ActiveTab === "MANAGE" ? "math-role-tab-active" : ""}`}
+            className={`math-role-tab math-admin-tab-force ${ActiveTab === "MANAGE" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "MANAGE"}
             data-active={ActiveTab === "MANAGE" ? "true" : "false"}
             onClick={() => SetActiveTab("MANAGE")}
@@ -1375,7 +1375,7 @@ function AdminAssessmentControlPageContent() {
             Manage
           </button>
           <button
-            className={`math-role-tab ${ActiveTab === "PROMOTION_HISTORY" ? "math-role-tab-active" : ""}`}
+            className={`math-role-tab math-admin-tab-force ${ActiveTab === "PROMOTION_HISTORY" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "PROMOTION_HISTORY"}
             data-active={ActiveTab === "PROMOTION_HISTORY" ? "true" : "false"}
             onClick={() => SetActiveTab("PROMOTION_HISTORY")}
@@ -1383,7 +1383,7 @@ function AdminAssessmentControlPageContent() {
             Promotion History
           </button>
           <button
-            className={`math-role-tab ${ActiveTab === "PARENT_REPORTS" ? "math-role-tab-active" : ""}`}
+            className={`math-role-tab math-admin-tab-force ${ActiveTab === "PARENT_REPORTS" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "PARENT_REPORTS"}
             data-active={ActiveTab === "PARENT_REPORTS" ? "true" : "false"}
             onClick={() => SetActiveTab("PARENT_REPORTS")}
@@ -1909,7 +1909,7 @@ function AdminAssessmentControlPageContent() {
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <button
-                  className={`math-role-tab-card p-4 text-left ${ParentReportTabValue === "GENERATE" ? "math-role-tab-card-active" : ""}`}
+                  className={`math-role-tab-card math-admin-tab-force p-4 text-left ${ParentReportTabValue === "GENERATE" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
                   aria-selected={ParentReportTabValue === "GENERATE"}
                   data-active={ParentReportTabValue === "GENERATE" ? "true" : "false"}
                   onClick={() => SetParentReportTabValue("GENERATE")}
@@ -1936,7 +1936,7 @@ function AdminAssessmentControlPageContent() {
                   </p>
                 </button>
                 <button
-                  className={`math-role-tab-card p-4 text-left ${ParentReportTabValue === "DELIVERY_HISTORY" ? "math-role-tab-card-active" : ""}`}
+                  className={`math-role-tab-card math-admin-tab-force p-4 text-left ${ParentReportTabValue === "DELIVERY_HISTORY" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
                   aria-selected={ParentReportTabValue === "DELIVERY_HISTORY"}
                   data-active={ParentReportTabValue === "DELIVERY_HISTORY" ? "true" : "false"}
                   onClick={() => SetParentReportTabValue("DELIVERY_HISTORY")}
