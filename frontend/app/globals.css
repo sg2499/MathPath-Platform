@@ -6819,3 +6819,132 @@ html.dark .math-modal-close-button:focus-visible {
     background: rgba(30, 41, 59, 0.82) !important;
   }
 }
+
+/* Phase 10.10.1 — Dark-mode tab and card contrast completion.
+   Scope: dark mode only. Light mode remains unchanged. */
+@layer components {
+  /* Active tabs across Admin / Teacher / Student must use the active role palette and white text. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-tab-strip button.math-button-primary,
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"],
+    .math-tab-strip button.is-active,
+    .math-workspace-tabs button.math-button-primary,
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"],
+    .math-workspace-tabs button.is-active,
+    .math-role-tab-active,
+    .math-role-tab-card-active
+  ) {
+    color: #ffffff !important;
+    background: var(--mp-role-action-bg) !important;
+    border-color: color-mix(in srgb, var(--mp-role-border-strong) 72%, rgba(255,255,255,0.28)) !important;
+    box-shadow: 0 16px 42px color-mix(in srgb, var(--mp-role-shadow) 54%, transparent), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) :is(
+    .math-tab-strip button.math-button-primary,
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"],
+    .math-tab-strip button.is-active,
+    .math-workspace-tabs button.math-button-primary,
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"],
+    .math-workspace-tabs button.is-active,
+    .math-role-tab-active,
+    .math-role-tab-card-active
+  ) :is(span, p, small, strong, svg, .lucide) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  /* Inactive role tab cards in reports: readable but clearly inactive. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-role-tab-card:not(.math-role-tab-card-active) {
+    color: #d7e2f3 !important;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.62)) !important;
+    border-color: rgba(148, 163, 184, 0.24) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.045) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-role-tab-card:not(.math-role-tab-card-active) :is(p, span, small, strong) {
+    color: #d7e2f3 !important;
+    opacity: 1 !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-role-tab-card:not(.math-role-tab-card-active) .math-badge {
+    color: var(--mp-dark-section-accent, #93c5fd) !important;
+    background: rgba(15, 23, 42, 0.74) !important;
+    border-color: var(--mp-dark-section-accent-line, rgba(96,165,250,0.28)) !important;
+  }
+
+  /* Performance Reports current/completed level panels: remove washed grey in dark mode. */
+  html.dark .math-completed-level-panel,
+  html.dark .math-history-hierarchy-row,
+  html.dark .math-history-depth-0,
+  html.dark .math-history-depth-1,
+  html.dark .math-history-depth-2 {
+    color: #f8fbff !important;
+    border-color: rgba(148, 163, 184, 0.24) !important;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.68)) !important;
+    box-shadow: 0 16px 42px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.045) !important;
+  }
+
+  html.dark .math-completed-level-panel :is(h3, h4, p, span),
+  html.dark .math-history-hierarchy-row :is(h3, h4, p, span) {
+    color: inherit;
+  }
+
+  html.dark .math-completed-level-panel :is(.text-slate-500, .text-slate-600),
+  html.dark .math-history-hierarchy-row :is(.text-slate-500, .text-slate-600) {
+    color: #b8c7dc !important;
+  }
+
+  /* Admin/Teacher/Student overview metric cards: keep semantic hints but make them dark readable. */
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card {
+    color: #f8fbff !important;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.66)) !important;
+    border-color: rgba(148, 163, 184, 0.24) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.045) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card:is(.math-overview-stat-blue) {
+    border-color: rgba(96, 165, 250, 0.30) !important;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.20), rgba(15, 23, 42, 0.82)) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card:is(.math-overview-stat-green) {
+    border-color: rgba(52, 211, 153, 0.28) !important;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(15, 23, 42, 0.82)) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card:is(.math-overview-stat-amber) {
+    border-color: rgba(251, 191, 36, 0.30) !important;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.17), rgba(15, 23, 42, 0.82)) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card:is(.math-overview-stat-red) {
+    border-color: rgba(251, 113, 133, 0.30) !important;
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.16), rgba(15, 23, 42, 0.82)) !important;
+  }
+
+  html.dark :is(.math-role-admin, .math-role-teacher, .math-role-student) .math-overview-stat-card :is(p, svg, .lucide) {
+    color: inherit !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+  }
+
+  /* Login page active role selector: dark mode uses role palette, never pale active tabs. */
+  html.dark .math-login-shell .math-login-tab-active {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, var(--mp-role-dark) 0%, var(--mp-role-primary) 54%, var(--mp-role-accent) 100%) !important;
+    border-color: color-mix(in srgb, var(--mp-role-border-strong, var(--mp-role-primary)) 72%, rgba(255,255,255,0.24)) !important;
+    box-shadow: 0 16px 40px color-mix(in srgb, var(--mp-role-shadow) 56%, transparent), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  }
+
+  html.dark .math-login-shell .math-login-tab-active :is(span, svg, .lucide) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    opacity: 1 !important;
+  }
+}

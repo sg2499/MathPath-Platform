@@ -434,7 +434,7 @@ export default function LoginClient({
                     onClick={() => ChangeTab(Tab)}
                     className={`flex min-h-11 items-center justify-center gap-2 rounded-[18px] px-3 py-2.5 text-sm font-black transition duration-200 ${
                       ActiveState
-                        ? "math-login-tab-active text-white shadow-xl shadow-slate-900/20 dark:text-slate-950"
+                        ? "math-login-tab-active text-white shadow-xl shadow-slate-900/20 dark:text-white"
                         : "text-slate-600 hover:bg-white/82 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
                     }`}
                   >
