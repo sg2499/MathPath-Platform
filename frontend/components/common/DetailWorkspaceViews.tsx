@@ -1175,11 +1175,9 @@ export function RecordWorkspace({
           {tabItems.map(([key, label]) => (
             <button
               key={key}
-              className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-                tab === key
-                  ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
-                  : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300"
-              }`}
+              className={`math-role-tab ${tab === key ? "math-role-tab-active" : ""}`}
+              data-active={tab === key ? "true" : "false"}
+              aria-selected={tab === key}
               onClick={() => setTab(key as any)}
               title={`Open ${label}`}
               aria-label={`Open ${label}`}
@@ -1893,11 +1891,16 @@ function StudentProgressOverview({
               Level Status: {Summary.currentStatus}
             </Chip>
           </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-white dark:bg-slate-950">
-            <div
-              className={`h-full rounded-full ${ProgressFillClass} shadow-[0_0_14px_rgba(56,189,248,0.45)]`}
-              style={{ width: `${CompletionPercent}%` }}
-            />
+          <div className="mt-4 flex items-center gap-3">
+            <div className="math-role-progress-track h-3 flex-1 border border-orange-200/70 bg-orange-50/70 dark:border-orange-400/35 dark:bg-slate-950/95">
+              <div
+                className={`h-full rounded-full ${ProgressFillClass} shadow-[0_0_14px_rgba(251,146,60,0.42)]`}
+                style={{ width: `${CompletionPercent}%`, minWidth: CompletionPercent > 0 ? "0.45rem" : "0" }}
+              />
+            </div>
+            <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-black text-orange-700 dark:border-orange-400/40 dark:bg-orange-950/35 dark:text-orange-100">
+              {CompletionPercent}%
+            </span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Chip tone="blue">
@@ -2250,12 +2253,6 @@ function RecentActivityCard({
 
 function LevelSnapshot({ rows, role = "admin" }: { rows: AnyRow[]; role?: "admin" | "teacher" | "student" }) {
   const levels = levelProgressSummary(rows).levels;
-  const ProgressFillClass =
-    role === "teacher"
-      ? "bg-gradient-to-r from-fuchsia-500 via-rose-400 to-orange-300"
-      : role === "student"
-        ? "bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-300"
-        : "bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500";
   return (
     <div className="rounded-[22px] border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-center gap-2">
@@ -2280,10 +2277,10 @@ function LevelSnapshot({ rows, role = "admin" }: { rows: AnyRow[]; role?: "admin
                   {level.completed}/{level.required}
                 </span>
               </div>
-              <div className="mt-2 h-2.5 overflow-hidden rounded-full border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-950/90">
+              <div className="math-role-progress-track mt-2 h-2.5 border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-950/90">
                 <div
-                  className={`h-full rounded-full ${ProgressFillClass} shadow-[0_0_14px_rgba(56,189,248,0.45)]`}
-                  style={{ width: `${percent}%` }}
+                  className="math-role-progress-fill"
+                  style={{ width: `${percent}%`, minWidth: percent > 0 ? "0.4rem" : "0" }}
                 />
               </div>
             </div>
