@@ -12,13 +12,9 @@ function GetRoleParam(SearchParams?: LoginSearchParams | null) {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: Promise<LoginSearchParams> | LoginSearchParams;
+  searchParams?: Promise<LoginSearchParams>;
 }) {
-  const ResolvedSearchParams = searchParams
-    ? typeof (searchParams as Promise<LoginSearchParams>).then === "function"
-      ? await (searchParams as Promise<LoginSearchParams>)
-      : (searchParams as LoginSearchParams)
-    : null;
+  const ResolvedSearchParams = searchParams ? await searchParams : null;
 
   return <LoginClient InitialRole={GetRoleParam(ResolvedSearchParams)} />;
 }
