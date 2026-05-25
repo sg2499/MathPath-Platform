@@ -117,11 +117,6 @@ function LevelToneClass(Tone: string) {
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
-function ProgressPercent(Completed: number, Required: number) {
-  if (!Required || Required <= 0) return 0;
-  return Math.min(100, Math.max(0, Math.round((Completed / Required) * 100)));
-}
-
 type ModuleProgress = {
   moduleCode: string;
   moduleTitle: string;
@@ -312,9 +307,9 @@ export default function StudentResultsPage() {
             const ModuleRequired = SelectedLevel === "ALL"
               ? requiredDpsForLevel(ModuleMetricRows, ActiveLevel)
               : ModuleItem.levelCodes.reduce((Total, LevelCode) => Total + requiredDpsForLevel(LevelRowsFor(ModuleItem.rows, LevelCode), LevelCode), 0);
-            const ModuleProgressPercent = ProgressPercent(ModuleCompleted, ModuleRequired);
             const ActiveLevelStatus = LevelStatusFor(ModuleMetricRows, ActiveLevel).Status;
             const ModuleStatus = ["Active Level", "Not Started"].includes(ActiveLevelStatus) ? "In Progress" : ActiveLevelStatus;
+            const ModulePercent = ModuleRequired > 0 ? Math.min(100, Math.round((ModuleCompleted / ModuleRequired) * 100)) : 0;
 
             return (
               <section key={ModuleItem.moduleCode} className="math-hierarchy-panel rounded-[30px]">
@@ -354,18 +349,14 @@ export default function StudentResultsPage() {
                   <CompactProgressMetric label="DPS Cleared" value={`${ModuleCompleted}/${ModuleRequired}`} icon={<FileText size={14} />} />
                   <CompactProgressMetric label="Average Accuracy" value={`${averageAccuracy(ModulePracticeRows)}%`} icon={<BarChart3 size={14} />} />
                   <CompactProgressMetric label="Last Activity" value={latestActivity(ModuleMetricRows)} icon={<Clock3 size={14} />} />
-                </div>
-
-                <div className="math-module-progress-strip border-t border-slate-100 px-4 pb-4 dark:border-slate-800">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Current Level Completion</p>
-                    <span className="math-progress-percent-badge">{ModuleProgressPercent}%</span>
-                  </div>
-                  <div className="math-visible-progress-track">
-                    <div
-                      className="math-visible-progress-fill"
-                      style={{ width: `${ModuleProgressPercent}%` }}
-                    />
+                  <div className="md:col-span-2 xl:col-span-5 rounded-[20px] border border-slate-100 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/70">
+                    <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">
+                      <span>Current Level Progress</span>
+                      <span className="text-slate-900 dark:text-white">{ModulePercent}%</span>
+                    </div>
+                    <div className="math-role-progress-track mt-3 h-3">
+                      <div className="math-role-progress-fill" style={{ width: `${ModulePercent}%` }} />
+                    </div>
                   </div>
                 </div>
 
@@ -374,6 +365,7 @@ export default function StudentResultsPage() {
                     {ModuleItem.levelCodes.map((LevelCode) => {
                       const LevelRows = LevelRowsFor(ModuleItem.rows, LevelCode);
                       const LevelStatus = LevelStatusFor(LevelRows, LevelCode);
+                      const LevelPercent = LevelStatus.Required > 0 ? Math.min(100, Math.round((LevelStatus.Completed / LevelStatus.Required) * 100)) : 0;
                       const IsCurrentLevel = LevelCode === ActiveLevel;
                       return (
                         <button
@@ -394,6 +386,12 @@ export default function StudentResultsPage() {
                               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">{LevelStatus.Average}% Avg</span>
                               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-600">{LevelRows.filter(IsPracticeResultRow).length} Record(s)</span>
                             </div>
+                          </div>
+                          <div className="mt-4 flex items-center gap-3">
+                            <div className="math-role-progress-track h-2.5 flex-1">
+                              <div className="math-role-progress-fill" style={{ width: `${LevelPercent}%` }} />
+                            </div>
+                            <span className="shrink-0 text-xs font-black text-slate-700 dark:text-slate-100">{LevelPercent}%</span>
                           </div>
                         </button>
                       );
