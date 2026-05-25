@@ -662,7 +662,7 @@ export function Metric({
   icon?: ReactNode;
 }) {
   return (
-    <div className="math-detail-metric-card rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/75">
+    <div className="rounded-[24px] border border-slate-200 bg-white/80 p-4 shadow-sm dark:border-slate-700/80 dark:bg-slate-950/85 dark:shadow-[0_18px_48px_rgba(2,6,23,0.32)]">
       <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
         {icon ? (
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
@@ -1084,7 +1084,7 @@ export function RecordWorkspace({
         : "Review assigned practice, completion date, and administrative actions for this student.";
 
   return (
-    <div className={`math-role-${role} w-full space-y-6`}>
+    <div className="w-full space-y-6">
       <div className="math-hero">
         <div>
           <p className="math-kicker">{heroKicker}</p>
@@ -1175,9 +1175,11 @@ export function RecordWorkspace({
           {tabItems.map(([key, label]) => (
             <button
               key={key}
-              className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${tab === key ? "is-active" : ""}`}
-              aria-selected={tab === key}
-              data-active={tab === key ? "true" : "false"}
+              className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
+                tab === key
+                  ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
+                  : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300"
+              }`}
               onClick={() => setTab(key as any)}
               title={`Open ${label}`}
               aria-label={`Open ${label}`}
@@ -1715,7 +1717,7 @@ function AdminAssignmentOverview({
           />
         </div>
         <div className="mt-5">
-          <LevelSnapshot rows={rows} />
+          <LevelSnapshot rows={rows} role="admin" />
         </div>
       </section>
 
@@ -1772,8 +1774,20 @@ function TeacherPracticeOverview({
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <OverviewStat
+            icon={<ClipboardList size={18} />}
+            label="Assigned DPS"
+            value={currentRows.length}
+            tone="plum"
+          />
+          <OverviewStat
+            icon={<CheckCircle2 size={18} />}
+            label="Cleared DPS"
+            value={completedRows.length}
+            tone="green"
+          />
+          <OverviewStat
             icon={<Clock3 size={18} />}
-            label="Pending Work"
+            label="Pending DPS"
             value={pendingRows.length}
             tone={pendingRows.length ? "amber" : "green"}
           />
@@ -1782,12 +1796,6 @@ function TeacherPracticeOverview({
             label="Re-Attempt Needed"
             value={reattemptRows.length}
             tone="red"
-          />
-          <OverviewStat
-            icon={<CheckCircle2 size={18} />}
-            label="Cleared Work"
-            value={completedRows.length}
-            tone="green"
           />
         </div>
         <div className="mt-5">
@@ -1842,6 +1850,7 @@ function StudentProgressOverview({
   const CompletionPercent = Required
     ? Math.min(100, Math.round((Completed / Required) * 100))
     : 0;
+  const ProgressFillClass = "bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-300";
   const RecentRows = recentWorkRows(SourceRows).slice(0, 3);
   const CurrentLevelRows = SourceRows.filter(
     (Row) => levelCodeOf(Row) === Summary.currentLevel,
@@ -1870,7 +1879,7 @@ function StudentProgressOverview({
           Overview shows milestone progress. Lesson Insights keeps lesson-wise
           practice and attempt history.
         </p>
-        <div className="math-current-level-progress-card mt-5 rounded-[24px] border border-slate-100 bg-slate-50/75 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="mt-5 rounded-[24px] border border-slate-100 bg-slate-50/75 p-4 dark:border-slate-800 dark:bg-slate-900/70">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
@@ -1884,14 +1893,11 @@ function StudentProgressOverview({
               Level Status: {Summary.currentStatus}
             </Chip>
           </div>
-          <div className="mt-4 flex items-center gap-3">
-            <div className="math-visible-progress-track flex-1">
-              <div
-                className="math-visible-progress-fill"
-                style={{ width: `${CompletionPercent}%` }}
-              />
-            </div>
-            <span className="math-progress-percent-badge">{CompletionPercent}%</span>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-white dark:bg-slate-950">
+            <div
+              className={`h-full rounded-full ${ProgressFillClass} shadow-[0_0_14px_rgba(56,189,248,0.45)]`}
+              style={{ width: `${CompletionPercent}%` }}
+            />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Chip tone="blue">
@@ -2034,17 +2040,18 @@ function OverviewStat({
   icon: ReactNode;
   label: string;
   value: string | number;
-  tone: "slate" | "green" | "red" | "amber" | "blue";
+  tone: "slate" | "green" | "red" | "amber" | "blue" | "plum";
 }) {
   const tones = {
-    slate: "border-slate-200 bg-slate-50 text-slate-800",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    red: "border-rose-200 bg-rose-50 text-rose-800",
-    amber: "border-amber-200 bg-amber-50 text-amber-800",
-    blue: "border-blue-200 bg-blue-50 text-blue-800",
+    slate: "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/45 dark:bg-emerald-950/45 dark:text-emerald-100",
+    red: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/45 dark:bg-rose-950/45 dark:text-rose-100",
+    amber: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/45 dark:bg-amber-950/45 dark:text-amber-100",
+    blue: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-500/45 dark:bg-blue-950/45 dark:text-blue-100",
+    plum: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800 dark:border-fuchsia-400/45 dark:bg-fuchsia-950/35 dark:text-fuchsia-100",
   };
   return (
-    <div className={`math-overview-stat math-overview-stat-${tone} rounded-[22px] border p-4 ${tones[tone]}`}>
+    <div className={`rounded-[22px] border p-4 ${tones[tone]}`}>
       <div className="flex items-center gap-2 opacity-80">
         {icon}
         <p className="text-[10px] font-black uppercase tracking-[0.14em]">
@@ -2241,8 +2248,14 @@ function RecentActivityCard({
   );
 }
 
-function LevelSnapshot({ rows }: { rows: AnyRow[] }) {
+function LevelSnapshot({ rows, role = "admin" }: { rows: AnyRow[]; role?: "admin" | "teacher" | "student" }) {
   const levels = levelProgressSummary(rows).levels;
+  const ProgressFillClass =
+    role === "teacher"
+      ? "bg-gradient-to-r from-fuchsia-500 via-rose-400 to-orange-300"
+      : role === "student"
+        ? "bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-300"
+        : "bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500";
   return (
     <div className="rounded-[22px] border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-center gap-2">
@@ -2267,9 +2280,9 @@ function LevelSnapshot({ rows }: { rows: AnyRow[] }) {
                   {level.completed}/{level.required}
                 </span>
               </div>
-              <div className="math-level-progress-track mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div className="mt-2 h-2.5 overflow-hidden rounded-full border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-950/90">
                 <div
-                  className="math-level-progress-fill h-full rounded-full bg-slate-950 dark:bg-white"
+                  className={`h-full rounded-full ${ProgressFillClass} shadow-[0_0_14px_rgba(56,189,248,0.45)]`}
                   style={{ width: `${percent}%` }}
                 />
               </div>
