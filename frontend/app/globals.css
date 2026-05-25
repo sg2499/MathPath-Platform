@@ -6382,3 +6382,77 @@ html.dark .math-modal-close-button:focus-visible {
     }
   }
 }
+
+/* Phase 10.9.6 — true full-height login story distribution */
+@layer utilities {
+  @media (min-width: 1024px) {
+    .math-login-story-content {
+      display: grid !important;
+      grid-template-rows: auto auto 1fr !important;
+      align-content: stretch !important;
+      justify-content: stretch !important;
+      gap: clamp(1.15rem, 2.35vh, 2rem) !important;
+      padding-top: clamp(1.2rem, 2.45vh, 2.15rem) !important;
+      padding-bottom: clamp(1.3rem, 2.8vh, 2.4rem) !important;
+    }
+
+    .math-login-brand-zone {
+      align-self: start !important;
+    }
+
+    .math-login-story-copy {
+      align-self: start !important;
+      max-width: 56rem !important;
+    }
+
+    .math-login-story-copy h1 {
+      margin-top: clamp(0.85rem, 1.65vh, 1.25rem) !important;
+    }
+
+    .math-login-story-copy h1 + p {
+      margin-top: clamp(0.45rem, 1vh, 0.85rem) !important;
+    }
+
+    .math-login-feature-grid {
+      align-self: end !important;
+      width: 100% !important;
+      margin-top: 0 !important;
+      transform: none !important;
+      gap: clamp(1rem, 2.25vh, 1.55rem) !important;
+    }
+
+    .math-login-feature {
+      min-height: clamp(9rem, 16.5vh, 11.25rem) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+    }
+  }
+
+  @media (min-width: 1024px) and (max-height: 820px) {
+    .math-login-story-content {
+      gap: clamp(0.8rem, 1.9vh, 1.35rem) !important;
+      padding-top: clamp(0.95rem, 2.1vh, 1.55rem) !important;
+      padding-bottom: clamp(1rem, 2.2vh, 1.7rem) !important;
+    }
+
+    .math-login-story-copy h1 {
+      margin-top: clamp(0.65rem, 1.35vh, 0.95rem) !important;
+    }
+
+    .math-login-feature {
+      min-height: clamp(8rem, 15.4vh, 9.35rem) !important;
+    }
+  }
+
+  @media (min-width: 1536px) and (min-height: 850px) {
+    .math-login-story-content {
+      padding-top: clamp(1.45rem, 2.8vh, 2.45rem) !important;
+      padding-bottom: clamp(1.65rem, 3.2vh, 2.75rem) !important;
+    }
+
+    .math-login-feature {
+      min-height: clamp(9.6rem, 17.2vh, 11.8rem) !important;
+    }
+  }
+}
