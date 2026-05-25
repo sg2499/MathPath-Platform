@@ -311,7 +311,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "CREATE" ? "is-active" : ""}`}
+            className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "CREATE" ? "is-active math-admin-tab-force-selected" : ""}`}
             aria-selected={activeTab === "CREATE"}
             data-active={activeTab === "CREATE" ? "true" : "false"}
             onClick={() => setActiveTab("CREATE")}
@@ -320,7 +320,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
           </button>
           <button
             type="button"
-            className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "MANAGE" ? "is-active" : ""}`}
+            className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "MANAGE" ? "is-active math-admin-tab-force-selected" : ""}`}
             aria-selected={activeTab === "MANAGE"}
             data-active={activeTab === "MANAGE" ? "true" : "false"}
             onClick={() => setActiveTab("MANAGE")}
@@ -527,7 +527,7 @@ function AssessmentDetailsWorkspace({ item, onBack, onRefreshBlueprints }: { ite
             <button
               key={Tab.Key}
               type="button"
-              className={`math-role-tab-button ${ActiveDetailTab === Tab.Key ? "is-active" : ""}`}
+              className={`math-role-tab-button math-admin-tab-force ${ActiveDetailTab === Tab.Key ? "is-active math-admin-tab-force-selected" : ""}`}
               onClick={() => SetActiveDetailTab(Tab.Key)}
             >
               {Tab.Label}
