@@ -1870,7 +1870,7 @@ function StudentProgressOverview({
           Overview shows milestone progress. Lesson Insights keeps lesson-wise
           practice and attempt history.
         </p>
-        <div className="mt-5 rounded-[24px] border border-slate-100 bg-slate-50/75 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="math-current-level-progress-card mt-5 rounded-[24px] border border-slate-100 bg-slate-50/75 p-4 dark:border-slate-800 dark:bg-slate-900/70">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
@@ -1884,11 +1884,14 @@ function StudentProgressOverview({
               Level Status: {Summary.currentStatus}
             </Chip>
           </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-white dark:bg-slate-950">
-            <div
-              className="h-full rounded-full bg-slate-950 dark:bg-white"
-              style={{ width: `${CompletionPercent}%` }}
-            />
+          <div className="mt-4 flex items-center gap-3">
+            <div className="math-visible-progress-track flex-1">
+              <div
+                className="math-visible-progress-fill"
+                style={{ width: `${CompletionPercent}%` }}
+              />
+            </div>
+            <span className="math-progress-percent-badge">{CompletionPercent}%</span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Chip tone="blue">

@@ -482,7 +482,7 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
 
   return (
     <div className="math-navbar-safe-modal-backdrop">
-      <div className="math-modal-shell math-navbar-safe-modal-panel math-role-subtle-panel w-full max-w-3xl rounded-[28px] border bg-white p-5 shadow-2xl dark:bg-slate-950">
+      <div className="math-modal-shell math-navbar-safe-modal-panel math-role-subtle-panel math-teacher-profile-modal w-full max-w-3xl rounded-[28px] border bg-white p-5 shadow-2xl dark:bg-slate-950">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4 dark:border-slate-800">
           <div className="flex min-w-0 items-center gap-4">
             {Photo ? (
@@ -498,7 +498,7 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
             <div className="min-w-0">
               <p className="math-kicker">Teacher Profile</p>
               <h2 className="mt-2 truncate text-2xl font-black text-slate-950 dark:text-white">{teacher.teacherName}</h2>
-              <p className="mt-1 text-sm font-semibold text-slate-500">{teacher.teacherCode}</p>
+              <p className="math-teacher-profile-code mt-1 text-sm font-semibold text-slate-500">{teacher.teacherCode}</p>
             </div>
           </div>
           <button className="math-role-action-button math-role-icon-only" onClick={onClose} type="button" aria-label="Close teacher profile">
@@ -507,15 +507,15 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
         </div>
         <div className="math-modal-body mt-5 grid gap-3 sm:grid-cols-2">
           {DetailRows.map(([Label, Value]) => (
-            <div key={Label} className="rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-              <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">{Label}</p>
-              <p className="mt-2 break-words text-sm font-black text-slate-950 dark:text-white">{Value}</p>
+            <div key={Label} className="math-teacher-profile-field rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+              <p className="math-teacher-profile-field-label text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">{Label}</p>
+              <p className="math-teacher-profile-field-value mt-2 break-words text-sm font-black text-slate-950 dark:text-white">{Value}</p>
             </div>
           ))}
         </div>
         {teacher.notes ? (
-          <div className="mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-            <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">Notes</p>
+          <div className="math-teacher-profile-field mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+            <p className="math-teacher-profile-field-label text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">Notes</p>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">{teacher.notes}</p>
           </div>
         ) : null}
