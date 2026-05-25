@@ -6456,3 +6456,116 @@ html.dark .math-modal-close-button:focus-visible {
     }
   }
 }
+
+/* Phase 10.9.7 — Login left panel final vertical rhythm correction */
+@media (min-width: 1024px) {
+  .math-login-story-content {
+    display: grid !important;
+    grid-template-rows: auto auto auto auto !important;
+    align-content: stretch !important;
+    justify-content: initial !important;
+    row-gap: 0 !important;
+    min-height: 100% !important;
+    padding-top: clamp(1.05rem, 2.35vh, 1.9rem) !important;
+    padding-bottom: clamp(1.05rem, 2.35vh, 1.9rem) !important;
+  }
+
+  .math-login-brand-zone {
+    align-self: start !important;
+    margin-bottom: clamp(1.05rem, 2.25vh, 1.75rem) !important;
+  }
+
+  .math-login-logo-card {
+    min-height: clamp(5.8rem, 10.2vh, 6.6rem) !important;
+  }
+
+  .math-login-logo-card img {
+    height: clamp(3rem, 5.4vh, 3.65rem) !important;
+  }
+
+  .math-login-story-copy {
+    display: flex !important;
+    flex-direction: column !important;
+    max-width: 58rem !important;
+    margin-bottom: clamp(2.35rem, 5.35vh, 4.35rem) !important;
+  }
+
+  .math-login-eyebrow {
+    width: fit-content !important;
+    margin-bottom: clamp(0.95rem, 2.05vh, 1.45rem) !important;
+  }
+
+  .math-login-story-copy h1 {
+    margin-top: 0 !important;
+    margin-bottom: clamp(0.65rem, 1.35vh, 1rem) !important;
+  }
+
+  .math-login-story-copy p {
+    margin-top: 0 !important;
+  }
+
+  .math-login-feature-grid {
+    align-self: end !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: clamp(1.05rem, 2.3vh, 1.55rem) clamp(1.05rem, 2.2vw, 1.55rem) !important;
+    margin-top: 0 !important;
+    transform: none !important;
+  }
+
+  .math-login-feature {
+    min-height: clamp(8.65rem, 15.6vh, 10.2rem) !important;
+    padding: clamp(1.05rem, 2.2vh, 1.45rem) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 820px) {
+  .math-login-story-content {
+    padding-top: clamp(0.85rem, 1.8vh, 1.35rem) !important;
+    padding-bottom: clamp(0.85rem, 1.8vh, 1.35rem) !important;
+  }
+
+  .math-login-brand-zone {
+    margin-bottom: clamp(0.8rem, 1.55vh, 1.1rem) !important;
+  }
+
+  .math-login-logo-card {
+    min-height: clamp(4.9rem, 9.5vh, 5.55rem) !important;
+    padding: 0.72rem 0.95rem !important;
+  }
+
+  .math-login-logo-card img {
+    height: clamp(2.5rem, 5vh, 3rem) !important;
+  }
+
+  .math-login-story-copy {
+    margin-bottom: clamp(1.65rem, 3.8vh, 2.65rem) !important;
+  }
+
+  .math-login-eyebrow {
+    margin-bottom: clamp(0.65rem, 1.35vh, 0.95rem) !important;
+    padding: 0.55rem 0.95rem !important;
+  }
+
+  .math-login-story h1 {
+    font-size: clamp(2.3rem, 5.15vh, 3.05rem) !important;
+    line-height: 1.02 !important;
+  }
+
+  .math-login-story p {
+    font-size: clamp(0.88rem, 1.55vh, 1rem) !important;
+    line-height: 1.45 !important;
+  }
+
+  .math-login-feature-grid {
+    gap: clamp(0.85rem, 1.85vh, 1.15rem) clamp(0.95rem, 1.8vw, 1.25rem) !important;
+  }
+
+  .math-login-feature {
+    min-height: clamp(7.45rem, 14.5vh, 8.55rem) !important;
+    padding: clamp(0.9rem, 1.8vh, 1.15rem) !important;
+  }
+}
