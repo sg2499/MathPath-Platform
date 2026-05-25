@@ -1496,7 +1496,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`math-report-scope-tab ${active ? "math-report-scope-tab-active" : "math-report-scope-tab-inactive"}`}
+      className={`math-report-scope-tab math-role-tab-card ${active ? "math-report-scope-tab-active math-role-tab-card-active" : "math-report-scope-tab-inactive"}`}
     >
       <div className="flex items-start gap-3">
         <span className="math-report-scope-tab-icon">{icon}</span>
@@ -2487,7 +2487,7 @@ function PromotionHistoryRecordsTable({ Rows }: { Rows: AnyRecord[] }) {
                 <td className="math-history-date-cell">
                   {FormatDate(PickFirstString(Row, ["promotedAt"], "-"))}
                 </td>
-                <td className="math-history-owner-cell">{PickFirstString(Row, ["promotedByName"], "Admin")}</td>
+                <td className="math-history-owner-cell math-promoted-by-cell">{PickFirstString(Row, ["promotedByName"], "Admin")}</td>
               </tr>
             );
           })}
