@@ -304,14 +304,14 @@ export default function TeacherAssessmentReadinessPage() {
           </select>
           <button
             type="button"
-            className="math-role-action-button math-role-row-action whitespace-nowrap"
+            className="math-role-action-button math-role-row-action math-readiness-control-button whitespace-nowrap"
             onClick={expandAll}
           >
             Expand All
           </button>
           <button
             type="button"
-            className="math-role-action-button math-role-row-action whitespace-nowrap"
+            className="math-role-action-button math-role-row-action math-readiness-control-button whitespace-nowrap"
             onClick={collapseAll}
           >
             Collapse All

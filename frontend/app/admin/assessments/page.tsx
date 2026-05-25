@@ -1352,30 +1352,40 @@ function AdminAssessmentControlPageContent() {
         <div className="math-tab-strip">
           <button
             className={`math-role-tab ${ActiveTab === "RECORDS" ? "math-role-tab-active" : ""}`}
+            aria-selected={ActiveTab === "RECORDS"}
+            data-active={ActiveTab === "RECORDS" ? "true" : "false"}
             onClick={() => SetActiveTab("RECORDS")}
           >
             Student Records
           </button>
           <button
             className={`math-role-tab ${ActiveTab === "APPROVALS" ? "math-role-tab-active" : ""}`}
+            aria-selected={ActiveTab === "APPROVALS"}
+            data-active={ActiveTab === "APPROVALS" ? "true" : "false"}
             onClick={() => SetActiveTab("APPROVALS")}
           >
             Re-Attempt Approvals
           </button>
           <button
             className={`math-role-tab ${ActiveTab === "MANAGE" ? "math-role-tab-active" : ""}`}
+            aria-selected={ActiveTab === "MANAGE"}
+            data-active={ActiveTab === "MANAGE" ? "true" : "false"}
             onClick={() => SetActiveTab("MANAGE")}
           >
             Manage
           </button>
           <button
             className={`math-role-tab ${ActiveTab === "PROMOTION_HISTORY" ? "math-role-tab-active" : ""}`}
+            aria-selected={ActiveTab === "PROMOTION_HISTORY"}
+            data-active={ActiveTab === "PROMOTION_HISTORY" ? "true" : "false"}
             onClick={() => SetActiveTab("PROMOTION_HISTORY")}
           >
             Promotion History
           </button>
           <button
             className={`math-role-tab ${ActiveTab === "PARENT_REPORTS" ? "math-role-tab-active" : ""}`}
+            aria-selected={ActiveTab === "PARENT_REPORTS"}
+            data-active={ActiveTab === "PARENT_REPORTS" ? "true" : "false"}
             onClick={() => SetActiveTab("PARENT_REPORTS")}
           >
             Parent Reports
@@ -1900,6 +1910,8 @@ function AdminAssessmentControlPageContent() {
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <button
                   className={`math-role-tab-card p-4 text-left ${ParentReportTabValue === "GENERATE" ? "math-role-tab-card-active" : ""}`}
+                  aria-selected={ParentReportTabValue === "GENERATE"}
+                  data-active={ParentReportTabValue === "GENERATE" ? "true" : "false"}
                   onClick={() => SetParentReportTabValue("GENERATE")}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -1925,6 +1937,8 @@ function AdminAssessmentControlPageContent() {
                 </button>
                 <button
                   className={`math-role-tab-card p-4 text-left ${ParentReportTabValue === "DELIVERY_HISTORY" ? "math-role-tab-card-active" : ""}`}
+                  aria-selected={ParentReportTabValue === "DELIVERY_HISTORY"}
+                  data-active={ParentReportTabValue === "DELIVERY_HISTORY" ? "true" : "false"}
                   onClick={() => SetParentReportTabValue("DELIVERY_HISTORY")}
                 >
                   <div className="flex items-center justify-between gap-3">
