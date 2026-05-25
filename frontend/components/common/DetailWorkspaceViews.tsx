@@ -1175,7 +1175,9 @@ export function RecordWorkspace({
           {tabItems.map(([key, label]) => (
             <button
               key={key}
-              className={`math-role-tab-button ${tab === key ? "is-active" : ""}`}
+              className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${tab === key ? "is-active" : ""}`}
+              aria-selected={tab === key}
+              data-active={tab === key ? "true" : "false"}
               onClick={() => setTab(key as any)}
               title={`Open ${label}`}
               aria-label={`Open ${label}`}
@@ -2039,7 +2041,7 @@ function OverviewStat({
     blue: "border-blue-200 bg-blue-50 text-blue-800",
   };
   return (
-    <div className={`math-overview-stat math-overview-stat-${tone} rounded-[22px] border p-4 ${tones[tone]}`}>
+    <div className={`rounded-[22px] border p-4 ${tones[tone]}`}>
       <div className="flex items-center gap-2 opacity-80">
         {icon}
         <p className="text-[10px] font-black uppercase tracking-[0.14em]">

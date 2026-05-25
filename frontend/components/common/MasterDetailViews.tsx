@@ -361,7 +361,9 @@ function StudentDetailDrawer({
           ].map(([key, label]) => (
             <button
               key={key}
-              className={`math-role-tab-button ${tab === key ? "is-active" : ""}`}
+              className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
+                tab === key ? "math-role-tab-button is-active" : "math-role-tab-button"
+              }`}
               onClick={() => setTab(key as any)}
               title={`Open ${label}`}
               aria-label={`Open ${label}`}
@@ -598,7 +600,9 @@ export function StudentProgressMasterDetail({
               ].map(([key, label]) => (
                 <button
                   key={key}
-                  className={`math-role-tab-button ${tab === key ? "is-active" : ""}`}
+                  className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
+                    tab === key ? "math-role-tab-button is-active" : "math-role-tab-button"
+                  }`}
                   onClick={() => setTab(key as any)}
                   title={`Open ${label}`}
                   aria-label={`Open ${label}`}

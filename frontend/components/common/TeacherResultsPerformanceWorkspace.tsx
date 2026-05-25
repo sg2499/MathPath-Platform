@@ -442,7 +442,9 @@ export function TeacherResultsPerformanceWorkspace({
           ].map(([Key, Label]) => (
             <button
               key={Key}
-              className={`math-role-tab-button ${Tab === Key ? "is-active" : ""}`}
+              className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${Tab === Key ? "is-active" : ""}`}
+              aria-selected={Tab === Key}
+              data-active={Tab === Key ? "true" : "false"}
               onClick={() => SetTab(Key as "overview" | "lessons" | "attempts")}
               title={`Open ${Label}`}
               aria-label={`Open ${Label}`}
