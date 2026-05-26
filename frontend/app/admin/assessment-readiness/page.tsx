@@ -1195,16 +1195,14 @@ function SheetFilterChip({
   onClick: () => void;
   children: React.ReactNode;
 }) {
-  const ActiveClass = active
-    ? "is-active border-blue-300 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 text-white shadow-[0_14px_34px_rgba(37,99,235,0.28)]"
-    : "border-slate-300 bg-white/75 text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-blue-400 dark:hover:bg-blue-950/55 dark:hover:text-white";
-
   return (
     <button
       type="button"
-      className={`math-readiness-sheet-filter ${ActiveClass}`}
+      className={`math-readiness-sheet-filter ${active ? "is-active border-blue-300 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-400 text-white shadow-[0_14px_30px_rgba(37,99,235,0.28)]" : ""}`}
       aria-pressed={active}
+      aria-selected={active}
       data-active={active ? "true" : "false"}
+      data-role-selected={active ? "true" : "false"}
       onClick={onClick}
     >
       {children}
