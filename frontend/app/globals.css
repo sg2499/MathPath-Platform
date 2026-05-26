@@ -7128,3 +7128,144 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     box-shadow: none !important;
   }
 }
+
+/* 26 May 2026 — Admin Dark Mode Convention Surface Fixes
+   Scoped to Admin dark mode only. Keeps light mode untouched and excludes destructive/delete actions. */
+@layer components {
+  html.dark .math-role-admin {
+    --mp-admin-blue-selected: linear-gradient(135deg, #082f6f 0%, #2563eb 54%, #22d3ee 100%);
+    --mp-admin-blue-hover: linear-gradient(135deg, rgba(8, 47, 111, 0.96) 0%, rgba(37, 99, 235, 0.94) 58%, rgba(34, 211, 238, 0.88) 100%);
+    --mp-admin-blue-shadow: 0 18px 44px rgba(37, 99, 235, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    --mp-admin-neutral-control: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.78));
+  }
+
+  html.dark .math-role-admin :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-action-button-primary,
+    .math-role-row-primary-action,
+    .math-readiness-control-button,
+    .math-readiness-sheet-filter,
+    .math-readiness-branch-button
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]) {
+    color: #dbeafe !important;
+    -webkit-text-fill-color: #dbeafe !important;
+    border-color: rgba(96, 165, 250, 0.38) !important;
+    background: var(--mp-admin-neutral-control) !important;
+    box-shadow: 0 12px 32px rgba(2, 6, 23, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.065) !important;
+  }
+
+  html.dark .math-role-admin :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-action-button-primary,
+    .math-role-row-primary-action,
+    .math-readiness-control-button,
+    .math-readiness-sheet-filter,
+    .math-readiness-branch-button
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):hover,
+  html.dark .math-role-admin :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-action-button-primary,
+    .math-role-row-primary-action,
+    .math-readiness-control-button,
+    .math-readiness-sheet-filter,
+    .math-readiness-branch-button
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):focus-visible,
+  html.dark .math-role-admin .math-readiness-sheet-filter.is-active {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: rgba(191, 219, 254, 0.68) !important;
+    background: var(--mp-admin-blue-hover) !important;
+    box-shadow: var(--mp-admin-blue-shadow) !important;
+    transform: translateY(-1px);
+  }
+
+  html.dark .math-role-admin :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-action-button-primary,
+    .math-role-row-primary-action,
+    .math-readiness-control-button,
+    .math-readiness-sheet-filter,
+    .math-readiness-branch-button
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):is(:hover, :focus-visible) *,
+  html.dark .math-role-admin .math-readiness-sheet-filter.is-active *,
+  html.dark .math-role-admin :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-action-button-primary,
+    .math-role-row-primary-action,
+    .math-readiness-control-button,
+    .math-readiness-sheet-filter,
+    .math-readiness-branch-button
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):is(:hover, :focus-visible) :is(svg, .lucide),
+  html.dark .math-role-admin .math-readiness-sheet-filter.is-active :is(svg, .lucide) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    stroke: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-admin .math-dashboard-quick-card:hover .math-dashboard-quick-icon,
+  html.dark .math-role-admin .math-dashboard-quick-card:focus-visible .math-dashboard-quick-icon {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.16) !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+  }
+
+  html.dark .math-role-admin .math-readiness-branch-button,
+  html.dark .math-role-admin .math-readiness-branch-button svg,
+  html.dark .math-role-admin .math-readiness-branch-button svg * {
+    color: #bfdbfe !important;
+    stroke: #bfdbfe !important;
+    fill: none !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-admin .math-readiness-sheet-filter:not(.is-active):not(:hover):not(:focus-visible) {
+    color: #cbd5e1 !important;
+    -webkit-text-fill-color: #cbd5e1 !important;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.72)) !important;
+    border-color: rgba(96, 165, 250, 0.32) !important;
+  }
+
+  html.dark .math-role-admin .math-table thead th,
+  html.dark .math-role-admin .math-table thead th *,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table) thead th:nth-last-child(-n+2),
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table) thead th:nth-last-child(-n+2) * {
+    color: #bfdbfe !important;
+    -webkit-text-fill-color: #bfdbfe !important;
+    text-shadow: 0 0 18px rgba(96, 165, 250, 0.22);
+  }
+
+  html.dark .math-role-admin .math-table tbody td,
+  html.dark .math-role-admin .math-table tbody td p,
+  html.dark .math-role-admin .math-table tbody td span:not(.math-badge):not(.math-status-chip):not(.math-attempt-chip) {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+  }
+
+  html.dark .math-role-admin .math-table tbody td :is(.text-slate-400, .text-slate-500, .text-slate-600, .text-blue-400, .text-blue-500, .text-blue-600) {
+    color: #cbd5e1 !important;
+    -webkit-text-fill-color: #cbd5e1 !important;
+  }
+
+  html.dark .math-role-admin .math-role-row-primary-action:not(:disabled),
+  html.dark .math-role-admin .math-action-button-primary:not(:disabled) {
+    border-color: rgba(96, 165, 250, 0.58) !important;
+  }
+
+  html.dark .math-role-admin .math-role-row-primary-action:not(:disabled):hover,
+  html.dark .math-role-admin .math-action-button-primary:not(:disabled):hover {
+    background: var(--mp-admin-blue-selected) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+}
