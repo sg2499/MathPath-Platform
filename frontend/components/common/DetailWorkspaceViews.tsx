@@ -401,35 +401,60 @@ export function needsReattempt(row: AnyRow) {
 }
 
 export function workUnitKey(row: AnyRow) {
-  const IsAssessment = Boolean(row.assessmentId || row.assessmentCode || row.assessmentTitle) && !row.dpsId && !row.dpsNumber && !row.dpsTitle;
+  const IsAssessment =
+    Boolean(row.assessmentId || row.assessmentCode || row.assessmentTitle) &&
+    !row.dpsNumber &&
+    !row.dpsNo &&
+    !row.sheetNumber &&
+    !row.sheetNo &&
+    !row.dpsTitle;
+
   if (IsAssessment) {
     return String(
       row.assessmentAssignmentId ||
         row.assignedAssessmentId ||
         row.assignmentId ||
         row.id ||
-        [studentCodeOf(row), moduleCodeOf(row), levelCodeOf(row), row.assessmentId || row.assessmentTitle || "assessment"].join("::"),
+        [
+          studentCodeOf(row),
+          moduleCodeOf(row),
+          levelCodeOf(row),
+          row.assessmentId || row.assessmentTitle || "assessment",
+        ].join("::"),
     );
   }
 
-  const StableDpsConcept =
-    row.dpsConceptKey ||
-    row.dpsId ||
-    row.dps_id ||
-    row.dpsCode ||
+  const StableLessonConcept = String(
+    row.lessonNumber ||
+      row.lessonNo ||
+      row.lessonSequence ||
+      row.lessonTitle ||
+      CompactLessonLabel(row) ||
+      "lesson",
+  )
+    .trim()
+    .toLowerCase();
+
+  const StableDpsConcept = String(
     row.dpsNumber ||
-    row.dpsNo ||
-    row.sheetNumber ||
-    row.sheetNo ||
-    CompactDpsLabel(row);
+      row.dpsNo ||
+      row.sheetNumber ||
+      row.sheetNo ||
+      row.dpsConceptKey ||
+      row.dpsTitle ||
+      CompactDpsLabel(row) ||
+      "dps",
+  )
+    .trim()
+    .toLowerCase();
 
   return String(
     [
       studentCodeOf(row),
       moduleCodeOf(row),
       levelCodeOf(row),
-      row.lessonId || row.lessonNumber || row.lessonTitle || CompactLessonLabel(row) || "lesson",
-      StableDpsConcept || "dps",
+      `lesson:${StableLessonConcept}`,
+      `dps:${StableDpsConcept}`,
     ].join("::"),
   );
 }
