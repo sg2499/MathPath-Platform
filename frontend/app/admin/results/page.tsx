@@ -1121,8 +1121,8 @@ export default function AdminResultsPage() {
         </div>
       </section>
 
-      <section className="mt-5 math-card p-2">
-        <div className="grid gap-2 md:grid-cols-2">
+      <section className="math-report-mode-tabs-section mt-5 math-card p-3">
+        <div className="grid gap-3 md:grid-cols-2">
           <ModeButton
             active={Mode === "LEARNING"}
             icon={<ClipboardCheck size={16} />}
