@@ -335,13 +335,13 @@ export default function LoginClient({
           <div className="math-login-story-content relative z-10 flex h-full w-full min-h-0 flex-col justify-start px-8 py-6 xl:px-11 xl:py-7 2xl:px-14 2xl:py-8">
             <div className="math-login-brand-zone shrink-0">
               <div className="math-login-logo-card flex w-fit max-w-2xl items-center gap-5 rounded-[26px] px-4.5 py-3.5">
-                <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md">
+                <div className="math-login-logo-mark rounded-2xl bg-white px-4 py-3 shadow-md">
                   <Image
                     src="/mathpath-logo.png"
                     alt="MathPath logo"
-                    width={118}
-                    height={54}
-                    className="h-14 w-auto object-contain"
+                    width={144}
+                    height={66}
+                    className="h-[4.2rem] w-auto object-contain"
                     priority
                   />
                 </div>
