@@ -52,7 +52,7 @@ export default function AdminStudentAssessmentsWorkspacePage() {
           subtitle={`Student Code: ${StudentCode}`}
           rows={StudentRows}
           role="admin"
-          onView={(Row) => Row.attemptId ? Router.push(`/student/assessment-result/${Row.attemptId}`) : undefined}
+          onView={(Row) => Row.attemptId ? Router.push(`/assessment-result/${encodeURIComponent(Row.attemptId)}?viewer=admin`) : undefined}
           onArchive={(Row) => StatusMutation.mutate({ assignmentId: Row.assignmentId || Row.assessmentAssignmentId, isActive: false })}
           onRestore={(Row) => StatusMutation.mutate({ assignmentId: Row.assignmentId || Row.assessmentAssignmentId, isActive: true })}
           onDelete={(Row) => SetDeleteTarget(Row)}
