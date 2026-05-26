@@ -34,7 +34,7 @@ export default function TeacherStudentAssessmentsWorkspacePage() {
           subtitle={`Student Code: ${StudentCode}`}
           rows={StudentRows}
           role="teacher"
-          onView={(Row) => Row.attemptId ? Router.push(`/assessment-result/${encodeURIComponent(Row.attemptId)}?viewer=teacher`) : undefined}
+          onView={(Row) => Row.attemptId ? Router.push(`/assessment-result/${Row.attemptId}?viewer=teacher`) : undefined}
         />
       ) : (
         <section className="mx-auto max-w-[1200px] px-6 py-8">
