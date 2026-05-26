@@ -37,7 +37,7 @@ export default function AdminAttemptDetailPage() {
       {query.error ? <ErrorState message={apiErrorMessage(query.error)} /> : null}
 
       {query.data ? (
-        <div className="space-y-6">
+        <div className="math-admin-attempt-detail-page space-y-6">
           <section className="math-hero">
             <div className="relative z-10">
               <p className="math-kicker">Admin diagnostic review</p>
@@ -123,7 +123,7 @@ export default function AdminAttemptDetailPage() {
 
 function InfoCard({ icon, label, value, subValue }: { icon: React.ReactNode; label: string; value: string; subValue: string }) {
   return (
-    <div className="math-card p-5">
+    <div className="math-card math-admin-attempt-info-card p-5">
       <div className="inline-flex rounded-2xl bg-blue-50 p-3 text-blue-700">{icon}</div>
       <p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <p className="mt-2 text-xl font-black text-slate-950">{value}</p>
