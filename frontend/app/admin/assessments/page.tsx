@@ -49,8 +49,8 @@ import {
   UsersRound,
   XCircle,
 } from "lucide-react";
-import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AnyRow,
   Chip,
@@ -800,15 +800,16 @@ export default function AdminAssessmentControlPage() {
 function AdminAssessmentControlPageContent() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const Router = useRouter();
+  const Pathname = usePathname();
   const SearchParams = useSearchParams();
   const AssessmentDeepLinkTarget = useMemo(
     () => buildAssessmentDeepLinkTarget(SearchParams),
     [SearchParams],
   );
   const QueryClient = useQueryClient();
-  const [ActiveTab, SetActiveTab] = useState<ActiveTab>("RECORDS");
+  const [ActiveTab, SetActiveTab] = useState<ActiveTab>(() => ResolveAssessmentControlTab(SearchParams.get("tab")) || "RECORDS");
   const [ParentReportTabValue, SetParentReportTabValue] =
-    useState<ParentReportTab>("GENERATE");
+    useState<ParentReportTab>(() => ResolveParentReportTab(SearchParams.get("subTab")) || "GENERATE");
   const [SearchValue, SetSearchValue] = useState("");
   const [StatusFilterValue, SetStatusFilterValue] = useState<StatusFilter>("");
   const [TeacherFilter, SetTeacherFilter] = useState("");
@@ -833,6 +834,25 @@ function AdminAssessmentControlPageContent() {
   const [PromoteTarget, SetPromoteTarget] = useState<AnyRow | null>(null);
   const [PromotionHistorySearchValue, SetPromotionHistorySearchValue] =
     useState("");
+
+
+  const UpdateAssessmentRouteState = useCallback((NextTab: ActiveTab, NextSubTab?: ParentReportTab) => {
+    SetActiveTab(NextTab);
+    if (NextSubTab) SetParentReportTabValue(NextSubTab);
+
+    const NextParams = new URLSearchParams(SearchParams.toString());
+    if (NextTab === "RECORDS") NextParams.delete("tab");
+    else NextParams.set("tab", NextTab.toLowerCase().replace(/_/g, "-"));
+
+    if (NextTab === "PARENT_REPORTS") {
+      NextParams.set("subTab", (NextSubTab || ParentReportTabValue).toLowerCase().replace(/_/g, "-"));
+    } else {
+      NextParams.delete("subTab");
+    }
+
+    const NextQuery = NextParams.toString();
+    Router.replace(`${Pathname}${NextQuery ? `?${NextQuery}` : ""}`, { scroll: false });
+  }, [ParentReportTabValue, Pathname, Router, SearchParams]);
 
   useEffect(() => {
     const RoutedTab = ResolveAssessmentControlTab(SearchParams.get("tab"));
@@ -1354,7 +1374,7 @@ function AdminAssessmentControlPageContent() {
             className={`math-role-tab math-admin-tab-force ${ActiveTab === "RECORDS" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "RECORDS"}
             data-active={ActiveTab === "RECORDS" ? "true" : "false"}
-            onClick={() => SetActiveTab("RECORDS")}
+            onClick={() => UpdateAssessmentRouteState("RECORDS")}
           >
             Student Records
           </button>
@@ -1362,7 +1382,7 @@ function AdminAssessmentControlPageContent() {
             className={`math-role-tab math-admin-tab-force ${ActiveTab === "APPROVALS" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "APPROVALS"}
             data-active={ActiveTab === "APPROVALS" ? "true" : "false"}
-            onClick={() => SetActiveTab("APPROVALS")}
+            onClick={() => UpdateAssessmentRouteState("APPROVALS")}
           >
             Re-Attempt Approvals
           </button>
@@ -1370,7 +1390,7 @@ function AdminAssessmentControlPageContent() {
             className={`math-role-tab math-admin-tab-force ${ActiveTab === "MANAGE" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "MANAGE"}
             data-active={ActiveTab === "MANAGE" ? "true" : "false"}
-            onClick={() => SetActiveTab("MANAGE")}
+            onClick={() => UpdateAssessmentRouteState("MANAGE")}
           >
             Manage
           </button>
@@ -1378,7 +1398,7 @@ function AdminAssessmentControlPageContent() {
             className={`math-role-tab math-admin-tab-force ${ActiveTab === "PROMOTION_HISTORY" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "PROMOTION_HISTORY"}
             data-active={ActiveTab === "PROMOTION_HISTORY" ? "true" : "false"}
-            onClick={() => SetActiveTab("PROMOTION_HISTORY")}
+            onClick={() => UpdateAssessmentRouteState("PROMOTION_HISTORY")}
           >
             Promotion History
           </button>
@@ -1386,7 +1406,7 @@ function AdminAssessmentControlPageContent() {
             className={`math-role-tab math-admin-tab-force ${ActiveTab === "PARENT_REPORTS" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
             aria-selected={ActiveTab === "PARENT_REPORTS"}
             data-active={ActiveTab === "PARENT_REPORTS" ? "true" : "false"}
-            onClick={() => SetActiveTab("PARENT_REPORTS")}
+            onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", ParentReportTabValue)}
           >
             Parent Reports
           </button>
@@ -1912,7 +1932,7 @@ function AdminAssessmentControlPageContent() {
                   className={`math-role-tab-card math-admin-tab-force p-4 text-left ${ParentReportTabValue === "GENERATE" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
                   aria-selected={ParentReportTabValue === "GENERATE"}
                   data-active={ParentReportTabValue === "GENERATE" ? "true" : "false"}
-                  onClick={() => SetParentReportTabValue("GENERATE")}
+                  onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "GENERATE")}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -1939,7 +1959,7 @@ function AdminAssessmentControlPageContent() {
                   className={`math-role-tab-card math-admin-tab-force p-4 text-left ${ParentReportTabValue === "DELIVERY_HISTORY" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
                   aria-selected={ParentReportTabValue === "DELIVERY_HISTORY"}
                   data-active={ParentReportTabValue === "DELIVERY_HISTORY" ? "true" : "false"}
-                  onClick={() => SetParentReportTabValue("DELIVERY_HISTORY")}
+                  onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "DELIVERY_HISTORY")}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">

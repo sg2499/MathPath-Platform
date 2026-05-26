@@ -6,7 +6,7 @@ import { defaultRouteForRole, setActiveRole, setAuth } from "@/lib/auth";
 import type { CurrentUser, UserRole } from "@/types/auth";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import {
   BarChart3,
@@ -235,6 +235,7 @@ export default function LoginClient({
   const [Password, SetPassword] = useState("");
   const [Error, SetError] = useState("");
   const [Loading, SetLoading] = useState(false);
+  const [IsRedirectPending, StartRedirectTransition] = useTransition();
   const [Theme, SetTheme] = useState<ThemeMode>("light");
 
   const Active = RoleContent[ActiveTab];
@@ -247,6 +248,9 @@ export default function LoginClient({
     PersistLoginTab(ActiveTab);
     SetLoginReady(true);
     void warmupAuthApi();
+    Router.prefetch("/admin/dashboard");
+    Router.prefetch("/teacher/dashboard");
+    Router.prefetch("/student/dashboard");
     // Runs once after the server-provided URL role has already been resolved, so refresh does not visibly fall back to Student.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -283,7 +287,7 @@ export default function LoginClient({
 
   async function HandleSubmit(Event: React.FormEvent) {
     Event.preventDefault();
-    if (!LoginReady || Loading) return;
+    if (!LoginReady || Loading || IsRedirectPending) return;
 
     const CleanIdentifier = Identifier.trim();
     const CleanPassword = Password.trim();
@@ -297,6 +301,8 @@ export default function LoginClient({
     SetLoading(true);
     PersistLoginTab(ActiveTab);
 
+    let ShouldStopLoading = true;
+
     try {
       const Response = await login(CleanIdentifier, CleanPassword);
 
@@ -306,11 +312,15 @@ export default function LoginClient({
       }
 
       setAuth(Response.accessToken, Response.user);
-      Router.push(defaultRouteForRole(Response.user.role));
+      const TargetRoute = defaultRouteForRole(Response.user.role);
+      ShouldStopLoading = false;
+      StartRedirectTransition(() => {
+        Router.replace(TargetRoute);
+      });
     } catch (Err) {
       SetError(apiErrorMessage(Err));
     } finally {
-      SetLoading(false);
+      if (ShouldStopLoading) SetLoading(false);
     }
   }
 
@@ -491,8 +501,8 @@ export default function LoginClient({
                 </div>
               ) : null}
 
-              <button className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
-                {Loading ? "Signing in securely..." : Active.ButtonText}
+              <button className="math-button-primary min-h-12 w-full" disabled={Loading || IsRedirectPending || !LoginReady}>
+                {Loading || IsRedirectPending ? "Opening Workspace..." : Active.ButtonText}
               </button>
             </form>
 
