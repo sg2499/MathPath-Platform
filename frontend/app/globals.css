@@ -7474,3 +7474,78 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     -webkit-text-fill-color: #e2e8f0 !important;
   }
 }
+
+/* 26 May 2026 — Admin Performance Reports targeted final repair
+   Scope: Admin > Performance Reports only.
+   - Dark-mode-only header label normalization for Learning Performance and Student History subtabs.
+   - Score/Accuracy chip visibility in Learning Performance records for both themes.
+   - First-column inset remains limited to Student History subtabs in both themes. */
+@layer components {
+  .math-role-admin :is(.math-dps-history-table, .math-assessment-history-table, .math-promotion-history-table) :is(thead th:first-child, tbody td:first-child) {
+    padding-left: 1.35rem !important;
+  }
+
+  .math-role-admin .math-learning-performance-table :is(.math-lp-score-value-cell, .math-lp-accuracy-value-cell) {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  .math-role-admin .math-learning-performance-table :is(.math-lp-score-value-cell, .math-lp-accuracy-value-cell) .math-badge {
+    display: inline-flex !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: max-content !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 999px !important;
+    padding: 0.34rem 0.72rem !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.05 !important;
+  }
+
+  .math-role-admin .math-learning-performance-table .math-lp-score-value-cell .math-badge {
+    background: #eff6ff !important;
+    border-color: #bfdbfe !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+  }
+
+  .math-role-admin .math-learning-performance-table .math-lp-accuracy-value-cell .math-badge {
+    background: #d1fae5 !important;
+    border-color: #a7f3d0 !important;
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+  }
+
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-dps-history-table, .math-assessment-history-table, .math-promotion-history-table) thead th,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-dps-history-table, .math-assessment-history-table, .math-promotion-history-table) thead th *,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-dps-history-table, .math-assessment-history-table, .math-promotion-history-table) :is(.math-sortable-header, .math-sortable-header *, .math-sortable-header-label, .math-table-header-label, .math-table-header-label *) {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-dps-history-table, .math-assessment-history-table, .math-promotion-history-table) :is(.math-sortable-header-indicator, .math-sortable-header-icon) {
+    color: #e2e8f0 !important;
+    -webkit-text-fill-color: #e2e8f0 !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-lp-score-value-cell .math-badge {
+    background: rgba(30, 64, 175, 0.34) !important;
+    border-color: rgba(96, 165, 250, 0.52) !important;
+    color: #bfdbfe !important;
+    -webkit-text-fill-color: #bfdbfe !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-lp-accuracy-value-cell .math-badge {
+    background: #d1fae5 !important;
+    border-color: #a7f3d0 !important;
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+  }
+}
