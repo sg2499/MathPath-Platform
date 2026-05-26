@@ -230,7 +230,7 @@ export default function AdminAssignmentDetailPage() {
                               : "math-assignment-semantic-blue border-blue-200 bg-blue-50 text-blue-700"
                         }`}>{attempt.status}</span></td>
                         <td>{attempt.score ?? "-"} / {attempt.maxScore ?? "-"}</td>
-                        <td>{attempt.correct ?? "-"} correct</td>
+                        <td>{attempt.correct ?? "-"}</td>
                         <td><BenchmarkBadge status={attempt.benchmarkStatus} requiresAttention={attempt.requiresAttention} percentage={attempt.benchmarkPercentage} /></td>
                         <td>{formatDate(attempt.attemptDate || attempt.startedAt)}</td>
                         <td>{formatDate(attempt.completedDate || attempt.submittedAt)}</td>
