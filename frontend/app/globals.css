@@ -6407,3 +6407,199 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
   box-shadow: 0 14px 34px rgba(249, 115, 22, 0.24), inset 0 1px 0 rgba(255,255,255,0.18);
 }
 
+
+/* Phase 10.10.17 — Admin Performance Reports tab + dark report block stabilization */
+@layer components {
+  .math-role-admin .math-report-mode-tabs-section {
+    border-color: color-mix(in srgb, var(--mp-role-border) 42%, rgba(203,213,225,0.82)) !important;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.88)),
+      radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--mp-role-softer) 50%, transparent), transparent 42%) !important;
+  }
+
+  .math-role-admin .math-report-scope-tab {
+    min-height: 5.75rem !important;
+    width: 100% !important;
+    padding: 1rem 1.15rem !important;
+    text-align: left !important;
+    border-radius: 1.35rem !important;
+    border-width: 1px !important;
+  }
+
+  .math-role-admin .math-report-scope-tab:not(.math-report-scope-tab-active) {
+    color: #1e293b !important;
+    background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.88)) !important;
+    border-color: color-mix(in srgb, var(--mp-role-border) 34%, rgba(203,213,225,0.86)) !important;
+    box-shadow: 0 14px 34px rgba(15,23,42,0.07), inset 0 1px 0 rgba(255,255,255,0.82) !important;
+  }
+
+  .math-role-admin .math-report-scope-tab:hover,
+  .math-role-admin .math-report-scope-tab:focus-visible,
+  .math-role-admin .math-report-scope-tab-active {
+    color: #ffffff !important;
+    background: var(--mp-role-action-bg) !important;
+    border-color: color-mix(in srgb, var(--mp-role-border-strong) 74%, rgba(255,255,255,0.32)) !important;
+    box-shadow: 0 20px 44px color-mix(in srgb, var(--mp-role-shadow) 42%, transparent), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+  }
+
+  .math-role-admin .math-report-scope-tab :is(.math-report-scope-tab-icon, .math-report-scope-tab-kicker, .math-report-scope-tab-title, .math-report-scope-tab-text) {
+    display: block;
+  }
+
+  .math-role-admin .math-report-scope-tab-icon {
+    color: currentColor !important;
+    margin-top: 0.1rem !important;
+  }
+
+  .math-role-admin .math-report-scope-tab-kicker {
+    font-size: 0.68rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.18em !important;
+    text-transform: uppercase !important;
+    color: color-mix(in srgb, var(--mp-role-primary) 82%, #334155) !important;
+  }
+
+  .math-role-admin .math-report-scope-tab-title {
+    margin-top: 0.35rem !important;
+    font-size: 1rem !important;
+    font-weight: 950 !important;
+    line-height: 1.15 !important;
+    color: #0f172a !important;
+  }
+
+  .math-role-admin .math-report-scope-tab-text {
+    margin-top: 0.35rem !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    line-height: 1.35 !important;
+    color: #475569 !important;
+  }
+
+  .math-role-admin .math-report-scope-tab:hover *,
+  .math-role-admin .math-report-scope-tab:focus-visible *,
+  .math-role-admin .math-report-scope-tab-active * {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+  }
+
+  .math-learning-performance-table td:nth-child(8),
+  .math-learning-performance-table .math-table-chip-cell,
+  .math-student-history-table .math-table-chip-cell {
+    overflow: visible !important;
+  }
+
+  .math-learning-performance-table td:nth-child(8) .math-badge,
+  .math-student-history-table .math-table-chip-cell .math-badge {
+    max-width: none !important;
+    min-width: max-content !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    padding-left: 0.68rem !important;
+    padding-right: 0.68rem !important;
+  }
+
+  .math-learning-performance-table .math-lp-col-benchmark { width: 172px !important; }
+
+  html.dark .math-role-admin .math-report-mode-tabs-section {
+    border-color: rgba(148,163,184,0.30) !important;
+    background:
+      linear-gradient(135deg, rgba(15,23,42,0.88), rgba(15,23,42,0.72)),
+      radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--mp-role-softer) 36%, transparent), transparent 42%) !important;
+  }
+
+  html.dark .math-role-admin .math-report-scope-tab:not(.math-report-scope-tab-active) {
+    color: rgba(226,232,240,0.96) !important;
+    background: linear-gradient(135deg, rgba(15,23,42,0.94), rgba(30,41,59,0.78)) !important;
+    border-color: rgba(148,163,184,0.28) !important;
+    box-shadow: 0 14px 34px rgba(2,6,23,0.24), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+
+  html.dark .math-role-admin .math-report-scope-tab:not(.math-report-scope-tab-active) .math-report-scope-tab-kicker {
+    color: #93c5fd !important;
+  }
+
+  html.dark .math-role-admin .math-report-scope-tab:not(.math-report-scope-tab-active) .math-report-scope-tab-title {
+    color: #f8fafc !important;
+  }
+
+  html.dark .math-role-admin .math-report-scope-tab:not(.math-report-scope-tab-active) .math-report-scope-tab-text {
+    color: #cbd5e1 !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table tbody td,
+  html.dark .math-role-admin .math-student-history-table tbody td,
+  html.dark .math-role-admin .math-learning-performance-table tbody td p,
+  html.dark .math-role-admin .math-student-history-table tbody td p {
+    color: #e5e7eb !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table tbody td .text-slate-500,
+  html.dark .math-role-admin .math-student-history-table tbody td .text-slate-500,
+  html.dark .math-role-admin .math-history-date-cell,
+  html.dark .math-role-admin .math-history-owner-cell {
+    color: #cbd5e1 !important;
+  }
+
+  html.dark .math-role-admin .math-kicker,
+  html.dark .math-role-admin .math-card .math-kicker,
+  html.dark .math-role-admin .math-completed-level-module-block .math-kicker,
+  html.dark .math-role-admin .math-completed-level-summary-block .math-kicker {
+    color: #93c5fd !important;
+    -webkit-text-fill-color: #93c5fd !important;
+  }
+
+  html.dark .math-role-admin .math-card :is(h1,h2,h3,h4,h5,.text-slate-950),
+  html.dark .math-role-admin .math-current-level-progress-block :is(h4,.text-slate-950),
+  html.dark .math-role-admin .math-completed-level-module-block :is(h4,.text-slate-950),
+  html.dark .math-role-admin .math-completed-level-summary-block :is(h5,.text-slate-950) {
+    color: #f8fafc !important;
+  }
+
+  html.dark .math-role-admin .math-card :is(.text-slate-600,.text-slate-500),
+  html.dark .math-role-admin .math-current-level-progress-block :is(.text-slate-600,.text-slate-500),
+  html.dark .math-role-admin .math-completed-level-module-block :is(.text-slate-600,.text-slate-500),
+  html.dark .math-role-admin .math-completed-level-summary-block :is(.text-slate-600,.text-slate-500) {
+    color: #cbd5e1 !important;
+  }
+
+  html.dark .math-role-admin .math-current-level-progress-block,
+  html.dark .math-role-admin .math-completed-level-module-block,
+  html.dark .math-role-admin .math-completed-level-summary-block,
+  html.dark .math-role-admin .math-card .rounded-\[26px\],
+  html.dark .math-role-admin .math-card .rounded-\[24px\],
+  html.dark .math-role-admin .math-card .rounded-\[22px\],
+  html.dark .math-role-admin .math-card .rounded-3xl,
+  html.dark .math-role-admin .math-card .bg-blue-50\/60,
+  html.dark .math-role-admin .math-card .bg-blue-50\/35,
+  html.dark .math-role-admin .math-card .bg-white\/90,
+  html.dark .math-role-admin .math-card .bg-white\/75,
+  html.dark .math-role-admin .math-card .bg-slate-50 {
+    background: linear-gradient(135deg, rgba(15,23,42,0.94), rgba(30,41,59,0.82)) !important;
+    border-color: rgba(148,163,184,0.28) !important;
+    color: #e5e7eb !important;
+  }
+
+  html.dark .math-role-admin .math-current-level-progress-block .math-progress-track,
+  html.dark .math-role-admin .math-progress-track {
+    background: rgba(30,41,59,0.96) !important;
+    border-color: rgba(148,163,184,0.28) !important;
+  }
+
+  html.dark .math-role-admin .math-current-level-progress-block .math-progress-track > div {
+    background: linear-gradient(90deg, #2563eb, #06b6d4) !important;
+  }
+
+  html.dark .math-role-admin .overflow-hidden.rounded-\[30px\].border.border-violet-100 {
+    background: linear-gradient(135deg, rgba(15,23,42,0.94), rgba(30,41,59,0.82)) !important;
+    border-color: rgba(167,139,250,0.30) !important;
+    color: #e5e7eb !important;
+  }
+
+  html.dark .math-role-admin .overflow-hidden.rounded-\[30px\].border.border-violet-100 .bg-white,
+  html.dark .math-role-admin .overflow-hidden.rounded-\[30px\].border.border-violet-100 .bg-slate-50 {
+    background: rgba(15,23,42,0.84) !important;
+    border-color: rgba(148,163,184,0.28) !important;
+  }
+}
