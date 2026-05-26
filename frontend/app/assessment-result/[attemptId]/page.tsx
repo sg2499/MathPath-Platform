@@ -248,8 +248,8 @@ function StudentAssessmentResultPageContent() {
                       <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-500">Your Answer</p>
                       <p className="mt-2 text-lg font-black text-slate-900">{Question.selectedOption ? `${Question.selectedOption.label}. ${Question.selectedOption.value}` : "Not Answered"}</p>
                     </div>
-                    <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct Answer</p>
+                    <div className={`rounded-[22px] bg-emerald-50 p-4 text-emerald-900 ${ViewerRole === "ADMIN" ? "dark:!bg-emerald-50 dark:!text-emerald-900 dark:!ring-1 dark:!ring-emerald-200" : ""}`}>
+                      <p className={`text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700 ${ViewerRole === "ADMIN" ? "dark:!text-emerald-700" : ""}`}>Correct Answer</p>
                       <p className="mt-2 text-lg font-black">{Question.correctOption ? `${Question.correctOption.label}. ${Question.correctOption.value}` : "Hidden"}</p>
                     </div>
                   </div>
