@@ -33,6 +33,8 @@ const ValidLoginTabs: LoginTab[] = ["ADMIN", "TEACHER", "STUDENT"];
 const PlatformTagline =
   "Visual Abacus Mastery for Speed, Accuracy, and School-Ready Confidence.";
 
+const MATHPATH_WEBSITE_URL = "https://www.mathpath.in/website/index";
+
 const RoleContent: Record<
   LoginTab,
   {
@@ -344,7 +346,13 @@ export default function LoginClient({
 
           <div className="math-login-story-content relative z-10 flex h-full w-full min-h-0 flex-col justify-start px-8 py-6 xl:px-11 xl:py-7 2xl:px-14 2xl:py-8">
             <div className="math-login-brand-zone shrink-0">
-              <div className="math-login-logo-card flex w-fit max-w-2xl items-center gap-5 rounded-[26px] px-4.5 py-3.5">
+              <a
+                href={MATHPATH_WEBSITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="math-login-logo-card flex w-fit max-w-2xl items-center gap-5 rounded-[26px] px-4.5 py-3.5 transition duration-200 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                aria-label="Open MathPath website"
+              >
                 <div className="math-login-logo-mark rounded-2xl bg-white px-4 py-3 shadow-md">
                   <Image
                     src="/mathpath-logo.png"
@@ -361,7 +369,7 @@ export default function LoginClient({
                     {PlatformTagline}
                   </p>
                 </div>
-              </div>
+              </a>
             </div>
 
             <div className="math-login-story-copy shrink-0">
@@ -405,7 +413,13 @@ export default function LoginClient({
 
           <div className="relative z-10 mx-auto w-full max-w-[34.5rem]">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="math-login-mobile-brand flex items-center gap-3 lg:hidden">
+              <a
+                href={MATHPATH_WEBSITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="math-login-mobile-brand flex items-center gap-3 rounded-2xl transition duration-200 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-white/70 lg:hidden"
+                aria-label="Open MathPath website"
+              >
                 <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md dark:bg-slate-900">
                   <Image
                     src="/mathpath-logo.png"
@@ -420,7 +434,7 @@ export default function LoginClient({
                   <p className="text-lg font-black text-slate-950 dark:text-white">MathPath</p>
                   <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">Ace With Abacus</p>
                 </div>
-              </div>
+              </a>
               <button
                 className="math-login-theme-toggle inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.12em]"
                 onClick={ToggleTheme}
