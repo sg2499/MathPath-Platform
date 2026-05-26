@@ -6718,3 +6718,100 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     border-color: rgba(96, 165, 250, 0.42) !important;
   }
 }
+
+/* Phase 10.9.3B — Admin Learning Performance table regression-safe chip + label repair */
+@layer utilities {
+  html.dark .math-role-admin .math-learning-performance-table tbody td,
+  html.dark .math-role-admin .math-learning-performance-table tbody td p,
+  html.dark .math-role-admin .math-learning-performance-table tbody td strong,
+  html.dark .math-role-admin .math-learning-performance-table tbody td .font-black {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table tbody td .text-xs,
+  html.dark .math-role-admin .math-learning-performance-table tbody td .text-sm,
+  html.dark .math-role-admin .math-learning-performance-table tbody td .text-slate-500,
+  html.dark .math-role-admin .math-learning-performance-table tbody td .text-slate-600,
+  html.dark .math-role-admin .math-learning-performance-table tbody td p.text-xs {
+    color: #cbd5e1 !important;
+    -webkit-text-fill-color: #cbd5e1 !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-table-chip-cell {
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-table-chip-cell .math-badge,
+  html.dark .math-role-admin .math-learning-performance-table .math-table-chip-cell .math-status-chip,
+  html.dark .math-role-admin .math-learning-performance-table .math-table-chip-cell .math-attempt-chip {
+    display: inline-flex !important;
+    max-width: none !important;
+    min-width: max-content !important;
+    width: auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+    padding: 0.34rem 0.72rem !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.05 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.45) !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-status-chip.text-rose-700,
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.math-tone-danger,
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.text-rose-700 {
+    color: #9f1239 !important;
+    -webkit-text-fill-color: #9f1239 !important;
+    background: #ffe4e6 !important;
+    border-color: #fecdd3 !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-status-chip.text-emerald-700,
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.math-tone-success,
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.text-emerald-700 {
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+    background: #d1fae5 !important;
+    border-color: #a7f3d0 !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-status-chip.text-amber-700,
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.math-tone-warning,
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.text-amber-700 {
+    color: #92400e !important;
+    -webkit-text-fill-color: #92400e !important;
+    background: #fef3c7 !important;
+    border-color: #fde68a !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-attempt-chip,
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.text-blue-700 {
+    color: #bfdbfe !important;
+    -webkit-text-fill-color: #bfdbfe !important;
+    background: rgba(30,64,175,0.34) !important;
+    border-color: rgba(96,165,250,0.46) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.text-slate-600,
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.text-slate-700,
+  html.dark .math-role-admin .math-learning-performance-table .math-badge.dark\:text-slate-200 {
+    color: #e2e8f0 !important;
+    -webkit-text-fill-color: #e2e8f0 !important;
+    background: rgba(30,41,59,0.90) !important;
+    border-color: rgba(148,163,184,0.42) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table .math-table-chip-cell:nth-child(5),
+  html.dark .math-role-admin .math-learning-performance-table .math-table-chip-cell:nth-child(8),
+  html.dark .math-role-admin .math-learning-performance-table .math-lp-col-status,
+  html.dark .math-role-admin .math-learning-performance-table .math-lp-col-benchmark {
+    min-width: 148px !important;
+  }
+}
