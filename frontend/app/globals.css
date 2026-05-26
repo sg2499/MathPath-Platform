@@ -5706,9 +5706,11 @@ html.dark .math-login-welcome-chip {
     .math-login-story { padding: clamp(1.25rem, 2vh, 2rem) !important; }
     .math-login-story h1 { font-size: clamp(2.7rem, 5.8vh, 4.6rem) !important; line-height: 0.98 !important; }
     .math-login-story p { font-size: clamp(0.92rem, 1.6vh, 1.05rem) !important; line-height: 1.45 !important; }
-    .math-login-logo-card { padding: 0.7rem 0.9rem !important; }
+    .math-login-story-content { gap: clamp(1rem, 2.4vh, 1.75rem) !important; }
+    .math-login-logo-card { padding: 0.85rem 1rem !important; }
+    .math-login-logo-card img { height: clamp(3.25rem, 7.2vh, 4rem) !important; }
     .math-login-eyebrow { padding: 0.55rem 0.9rem !important; }
-    .math-login-feature { padding: 0.9rem !important; }
+    .math-login-feature { padding: 0.95rem !important; }
     .math-login-form-zone { padding-top: clamp(1rem, 2vh, 1.6rem) !important; padding-bottom: clamp(1rem, 2vh, 1.6rem) !important; }
     .math-login-tabs { margin-bottom: 0.8rem !important; }
     .math-login-card { margin-top: 0.85rem !important; padding: 0.95rem !important; }
