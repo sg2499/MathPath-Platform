@@ -6348,3 +6348,62 @@ html.dark .math-modal-close-button:focus-visible {
     }
   }
 }
+
+/* Phase 10.9 — Login role selector palette consistency */
+.math-login-tabs .math-login-tab {
+  position: relative;
+  isolation: isolate;
+  color: #475569;
+}
+
+html.dark .math-login-tabs .math-login-tab {
+  color: #cbd5e1;
+}
+
+.math-login-tabs .math-login-tab-active,
+html.dark .math-login-tabs .math-login-tab-active {
+  color: #ffffff !important;
+}
+
+.math-login-tabs .math-login-tab-active.math-login-tab-admin,
+html.dark .math-login-tabs .math-login-tab-active.math-login-tab-admin {
+  background: linear-gradient(135deg, #020617, #2563eb 54%, #c026d3) !important;
+  box-shadow: 0 18px 42px rgba(37, 99, 235, 0.26), inset 0 1px 0 rgba(255,255,255,0.20);
+}
+
+.math-login-tabs .math-login-tab-active.math-login-tab-teacher,
+html.dark .math-login-tabs .math-login-tab-active.math-login-tab-teacher {
+  background: linear-gradient(135deg, #2B102D, #6D2E5F 54%, #E6B8A2) !important;
+  box-shadow: 0 18px 42px rgba(109, 46, 95, 0.30), inset 0 1px 0 rgba(255,255,255,0.20);
+}
+
+.math-login-tabs .math-login-tab-active.math-login-tab-student,
+html.dark .math-login-tabs .math-login-tab-active.math-login-tab-student {
+  background: linear-gradient(135deg, #7f1d1d, #f97316 58%, #facc15) !important;
+  box-shadow: 0 18px 42px rgba(249, 115, 22, 0.25), inset 0 1px 0 rgba(255,255,255,0.20);
+}
+
+.math-login-tabs .math-login-tab:not(.math-login-tab-active):hover,
+html.dark .math-login-tabs .math-login-tab:not(.math-login-tab-active):hover {
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.math-login-tabs .math-login-tab-admin:not(.math-login-tab-active):hover,
+html.dark .math-login-tabs .math-login-tab-admin:not(.math-login-tab-active):hover {
+  background: linear-gradient(135deg, #020617, #2563eb 54%, #c026d3);
+  box-shadow: 0 14px 34px rgba(37, 99, 235, 0.24), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
+.math-login-tabs .math-login-tab-teacher:not(.math-login-tab-active):hover,
+html.dark .math-login-tabs .math-login-tab-teacher:not(.math-login-tab-active):hover {
+  background: linear-gradient(135deg, #2B102D, #6D2E5F 54%, #E6B8A2);
+  box-shadow: 0 14px 34px rgba(109, 46, 95, 0.28), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
+.math-login-tabs .math-login-tab-student:not(.math-login-tab-active):hover,
+html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):hover {
+  background: linear-gradient(135deg, #7f1d1d, #f97316 58%, #facc15);
+  box-shadow: 0 14px 34px rgba(249, 115, 22, 0.24), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
