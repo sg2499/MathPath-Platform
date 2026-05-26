@@ -45,6 +45,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ClipboardList,
+  Clock3,
   Lightbulb,
   Search,
   Target,
@@ -894,22 +895,22 @@ function OverviewTab({
         </h2>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <MiniMetric
-            Title="Assigned Work"
+            Title="Assigned DPS"
             Value={AssignedCount}
             Tone="blue"
             Icon={<ClipboardList className="h-5 w-5" />}
           />
           <MiniMetric
-            Title="Cleared Work"
+            Title="Cleared DPS"
             Value={ClearedCount}
             Tone="green"
             Icon={<CheckCircle2 className="h-5 w-5" />}
           />
           <MiniMetric
-            Title="Pending Work"
+            Title="Pending DPS"
             Value={PendingCount}
             Tone="amber"
-            Icon={<Target className="h-5 w-5" />}
+            Icon={<Clock3 className="h-5 w-5" />}
           />
           <MiniMetric
             Title="Needs Re-Attempt"
@@ -965,7 +966,7 @@ function LevelCoverageCard({ Rows }: { Rows: AnyRow[] }) {
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-white dark:bg-slate-950">
                 <div
-                  className="h-full rounded-full bg-slate-950 dark:bg-white"
+                  className="h-full rounded-full bg-gradient-to-r from-[#6d1b4c] via-[#a43b70] to-[#d8a7bb] shadow-[0_0_14px_rgba(164,59,112,0.35)]"
                   style={{ width: `${Item.Percent}%` }}
                 />
               </div>
@@ -997,7 +998,7 @@ function MiniMetric({
 }) {
   const Tones = {
     blue:
-      "border-blue-200 bg-blue-50 text-blue-800 shadow-[0_14px_34px_rgba(37,99,235,0.10)] dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100",
+      "border-blue-200 bg-blue-50 text-blue-800 shadow-[0_14px_34px_rgba(37,99,235,0.10)] dark:border-[#8a4b67] dark:bg-gradient-to-br dark:from-[#2a1020] dark:via-[#25101d] dark:to-[#35182a] dark:text-[#ffd8e8]",
     green:
       "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100",
     amber:
@@ -1006,7 +1007,7 @@ function MiniMetric({
   };
   const IconTones = {
     blue:
-      "bg-white/80 text-blue-700 shadow-sm ring-1 ring-blue-200 dark:bg-slate-950/40 dark:text-blue-200 dark:ring-blue-900",
+      "bg-white/80 text-blue-700 shadow-sm ring-1 ring-blue-200 dark:bg-[#3a1730] dark:text-[#ffd8e8] dark:ring-[#8a4b67]",
     green:
       "bg-white/80 text-emerald-700 shadow-sm ring-1 ring-emerald-200 dark:bg-slate-950/40 dark:text-emerald-200 dark:ring-emerald-900",
     amber:
