@@ -7461,13 +7461,11 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     opacity: 1 !important;
   }
 
-  .math-role-admin .math-assignment-detail-table thead th,
   html.dark .math-role-admin .math-assignment-detail-table thead th {
     text-align: center !important;
     vertical-align: middle !important;
   }
 
-  .math-role-admin .math-assignment-detail-table .math-assignment-detail-header-label,
   html.dark .math-role-admin .math-assignment-detail-table .math-assignment-detail-header-label {
     display: inline-flex !important;
     align-items: center !important;
@@ -7491,11 +7489,24 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     text-shadow: none !important;
   }
 
-  .math-role-admin .math-assignment-detail-table thead th *,
   html.dark .math-role-admin .math-assignment-detail-table thead th * {
     color: #f8fafc !important;
     -webkit-text-fill-color: #f8fafc !important;
     opacity: 1 !important;
+  }
+
+  html.dark .math-role-admin .math-assignment-detail-table tbody td {
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+
+  html.dark .math-role-admin .math-assignment-detail-table tbody td:first-child {
+    text-align: left !important;
+  }
+
+  html.dark .math-role-admin .math-assignment-detail-table tbody td :is(.math-badge, .math-role-action-button) {
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
 }
 
