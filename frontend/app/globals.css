@@ -7916,3 +7916,79 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     opacity: 1 !important;
   }
 }
+
+/* 26 May 2026 — Teacher/Student Dashboard Hover Outline Polish Lock
+   Dark-mode-only. Keeps dashboard hover controls clean with one premium role-aware border/glow.
+   Excludes Admin, light mode, destructive actions, semantic chips, tables, and layouts. */
+@layer components {
+  html.dark :is(.math-role-teacher, .math-role-student) :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-dashboard-link-card
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):is(:hover, :focus-visible) {
+    outline: none !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    background: var(--mp-role-hover-control-bg) !important;
+    border: 1px solid color-mix(in srgb, var(--mp-role-border-strong) 72%, rgba(255, 255, 255, 0.18)) !important;
+    box-shadow:
+      0 18px 38px color-mix(in srgb, var(--mp-role-shadow) 34%, transparent),
+      0 0 0 1px rgba(255, 255, 255, 0.055) inset !important;
+  }
+
+  html.dark :is(.math-role-teacher, .math-role-student) :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):is(:hover, :focus-visible) {
+    border-radius: 999px !important;
+  }
+
+  html.dark :is(.math-role-teacher, .math-role-student) .math-dashboard-quick-card:not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):is(:hover, :focus-visible) {
+    border-radius: 1.5rem !important;
+  }
+
+  html.dark :is(.math-role-teacher, .math-role-student) :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-dashboard-link-card
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):is(:hover, :focus-visible)::before,
+  html.dark :is(.math-role-teacher, .math-role-student) :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-dashboard-link-card
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):is(:hover, :focus-visible)::after {
+    box-shadow: none !important;
+    border-color: transparent !important;
+  }
+
+  html.dark :is(.math-role-teacher, .math-role-student) :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-dashboard-link-card
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):is(:hover, :focus-visible) :is(svg, .lucide),
+  html.dark :is(.math-role-teacher, .math-role-student) :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-dashboard-link-card
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):is(:hover, :focus-visible) :is(svg, .lucide) * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+  }
+
+  html.dark :is(.math-role-teacher, .math-role-student) .math-dashboard-quick-card:is(:hover, :focus-visible) .math-dashboard-quick-icon {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.16) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+    outline: none !important;
+  }
+}
