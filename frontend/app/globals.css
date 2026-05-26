@@ -6916,3 +6916,215 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     border-color: rgba(148, 163, 184, 0.42) !important;
   }
 }
+
+/* 26 May 2026 — Admin Dark Mode Palette Enforcement
+   Scope: Admin shell only. Keeps light mode untouched and excludes destructive/delete actions. */
+@layer components {
+  html.dark .math-role-admin {
+    --mp-admin-selected-bg: linear-gradient(135deg, var(--mp-role-dark) 0%, var(--mp-role-primary) 54%, var(--mp-role-accent) 100%);
+    --mp-admin-neutral-bg: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.78));
+    --mp-admin-neutral-border: color-mix(in srgb, var(--mp-role-border) 46%, rgba(71, 85, 105, 0.78));
+    --mp-admin-hover-shadow: 0 18px 44px color-mix(in srgb, var(--mp-role-shadow) 54%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  html.dark .math-role-admin :is(
+    .premium-nav-item,
+    .math-dropdown-option,
+    .math-role-tab,
+    .math-role-tab-button,
+    .math-role-tab-card,
+    .math-report-scope-tab,
+    .math-admin-tab-force,
+    .math-workspace-tabs button,
+    .math-tab-strip button,
+    .math-button-secondary,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger),
+    .math-role-action-button,
+    .math-role-icon-button,
+    .math-icon-button,
+    .math-theme-toggle,
+    .math-context-pill
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):not([aria-selected="true"]):not([data-active="true"]):not(.is-active):not(.premium-nav-item-active):not(.math-dropdown-option-active):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.math-report-scope-tab-active):not(.math-admin-tab-force-selected) {
+    color: #cbd5e1 !important;
+    border-color: var(--mp-admin-neutral-border) !important;
+    background: var(--mp-admin-neutral-bg) !important;
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--mp-role-shadow) 18%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+  }
+
+  html.dark .math-role-admin :is(
+    .premium-nav-item,
+    .math-dropdown-option,
+    .math-role-tab,
+    .math-role-tab-button,
+    .math-role-tab-card,
+    .math-report-scope-tab,
+    .math-admin-tab-force,
+    .math-workspace-tabs button,
+    .math-tab-strip button,
+    .math-button-secondary,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger),
+    .math-role-action-button,
+    .math-role-icon-button,
+    .math-icon-button,
+    .math-theme-toggle,
+    .math-context-pill
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):not([aria-selected="true"]):not([data-active="true"]):not(.is-active):not(.premium-nav-item-active):not(.math-dropdown-option-active):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.math-report-scope-tab-active):not(.math-admin-tab-force-selected):hover,
+  html.dark .math-role-admin :is(
+    .premium-nav-item,
+    .math-dropdown-option,
+    .math-role-tab,
+    .math-role-tab-button,
+    .math-role-tab-card,
+    .math-report-scope-tab,
+    .math-admin-tab-force,
+    .math-workspace-tabs button,
+    .math-tab-strip button,
+    .math-button-secondary,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger),
+    .math-role-action-button,
+    .math-role-icon-button,
+    .math-icon-button,
+    .math-theme-toggle,
+    .math-context-pill
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):not([aria-selected="true"]):not([data-active="true"]):not(.is-active):not(.premium-nav-item-active):not(.math-dropdown-option-active):not(.math-role-tab-active):not(.math-role-tab-card-active):not(.math-report-scope-tab-active):not(.math-admin-tab-force-selected):focus-visible {
+    color: #ffffff !important;
+    border-color: color-mix(in srgb, var(--mp-role-border-strong) 76%, rgba(255, 255, 255, 0.24)) !important;
+    background: var(--mp-admin-selected-bg) !important;
+    box-shadow: var(--mp-admin-hover-shadow) !important;
+    transform: translateY(-1px);
+  }
+
+  html.dark .math-role-admin :is(
+    .premium-nav-item-active,
+    .math-dropdown-option-active,
+    .math-role-tab-active,
+    .math-role-tab-card-active,
+    .math-report-scope-tab-active,
+    .math-admin-tab-force-selected,
+    .math-role-tab-button.is-active,
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab[aria-selected="true"],
+    .math-role-tab[data-active="true"],
+    .math-role-tab-card[aria-selected="true"],
+    .math-role-tab-card[data-active="true"],
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"],
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"]
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]) {
+    color: #ffffff !important;
+    border-color: color-mix(in srgb, var(--mp-role-border-strong) 76%, rgba(255, 255, 255, 0.26)) !important;
+    background: var(--mp-admin-selected-bg) !important;
+    box-shadow: var(--mp-admin-hover-shadow) !important;
+  }
+
+  html.dark .math-role-admin :is(
+    .premium-nav-item:hover,
+    .premium-nav-item:focus-visible,
+    .premium-nav-item-active,
+    .math-dropdown-option:hover,
+    .math-dropdown-option:focus-visible,
+    .math-dropdown-option-active,
+    .math-role-tab:hover,
+    .math-role-tab:focus-visible,
+    .math-role-tab-active,
+    .math-role-tab-button:hover,
+    .math-role-tab-button:focus-visible,
+    .math-role-tab-button.is-active,
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab-card:hover,
+    .math-role-tab-card:focus-visible,
+    .math-role-tab-card-active,
+    .math-report-scope-tab:hover,
+    .math-report-scope-tab:focus-visible,
+    .math-report-scope-tab-active,
+    .math-admin-tab-force:hover,
+    .math-admin-tab-force:focus-visible,
+    .math-admin-tab-force-selected,
+    .math-workspace-tabs button:hover,
+    .math-workspace-tabs button:focus-visible,
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"],
+    .math-tab-strip button:hover,
+    .math-tab-strip button:focus-visible,
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"],
+    .math-button-secondary:hover,
+    .math-button-secondary:focus-visible,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):hover,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):focus-visible,
+    .math-role-action-button:hover,
+    .math-role-action-button:focus-visible,
+    .math-role-icon-button:hover,
+    .math-role-icon-button:focus-visible,
+    .math-icon-button:hover,
+    .math-icon-button:focus-visible,
+    .math-theme-toggle:hover,
+    .math-theme-toggle:focus-visible,
+    .math-context-pill:hover,
+    .math-context-pill:focus-visible
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]) *,
+  html.dark .math-role-admin :is(
+    .premium-nav-item:hover,
+    .premium-nav-item:focus-visible,
+    .premium-nav-item-active,
+    .math-dropdown-option:hover,
+    .math-dropdown-option:focus-visible,
+    .math-dropdown-option-active,
+    .math-role-tab:hover,
+    .math-role-tab:focus-visible,
+    .math-role-tab-active,
+    .math-role-tab-button:hover,
+    .math-role-tab-button:focus-visible,
+    .math-role-tab-button.is-active,
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab-card:hover,
+    .math-role-tab-card:focus-visible,
+    .math-role-tab-card-active,
+    .math-report-scope-tab:hover,
+    .math-report-scope-tab:focus-visible,
+    .math-report-scope-tab-active,
+    .math-admin-tab-force:hover,
+    .math-admin-tab-force:focus-visible,
+    .math-admin-tab-force-selected,
+    .math-workspace-tabs button:hover,
+    .math-workspace-tabs button:focus-visible,
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"],
+    .math-tab-strip button:hover,
+    .math-tab-strip button:focus-visible,
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"],
+    .math-button-secondary:hover,
+    .math-button-secondary:focus-visible,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):hover,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):focus-visible,
+    .math-role-action-button:hover,
+    .math-role-action-button:focus-visible,
+    .math-role-icon-button:hover,
+    .math-role-icon-button:focus-visible,
+    .math-icon-button:hover,
+    .math-icon-button:focus-visible,
+    .math-theme-toggle:hover,
+    .math-theme-toggle:focus-visible,
+    .math-context-pill:hover,
+    .math-context-pill:focus-visible
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]) :is(svg, .lucide) {
+    color: #ffffff !important;
+    fill: none !important;
+    stroke: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-admin :is(.math-button-danger, .math-action-button-danger, .math-destructive-button, [data-danger="true"]),
+  html.dark .math-role-admin :is(.math-button-danger, .math-action-button-danger, .math-destructive-button, [data-danger="true"]):hover,
+  html.dark .math-role-admin :is(.math-button-danger, .math-action-button-danger, .math-destructive-button, [data-danger="true"]):focus-visible {
+    color: #fecdd3 !important;
+    background: rgba(127, 29, 29, 0.42) !important;
+    border-color: rgba(248, 113, 113, 0.42) !important;
+    box-shadow: none !important;
+  }
+}
