@@ -332,22 +332,22 @@ export default function LoginClient({
           <div className={`absolute -right-24 top-24 h-72 w-72 rounded-full ${Active.AccentGlow} blur-3xl`} />
           <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-white/14 blur-3xl" />
 
-          <div className="math-login-story-content relative z-10 flex h-full w-full min-h-0 flex-col justify-between gap-8 px-8 py-7 xl:gap-10 xl:px-11 xl:py-9 2xl:gap-12 2xl:px-14 2xl:py-11">
+          <div className="math-login-story-content relative z-10 flex h-full w-full min-h-0 flex-col justify-start px-8 py-6 xl:px-11 xl:py-7 2xl:px-14 2xl:py-8">
             <div className="math-login-brand-zone shrink-0">
-              <div className="math-login-logo-card flex w-full max-w-3xl items-center gap-5 rounded-[30px] px-5 py-[1.125rem] xl:gap-6 xl:px-6 xl:py-5">
-                <div className="rounded-[22px] bg-white px-3.5 py-3 shadow-md xl:px-4 xl:py-3.5">
+              <div className="math-login-logo-card flex w-fit max-w-2xl items-center gap-5 rounded-[26px] px-4.5 py-3.5">
+                <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md">
                   <Image
                     src="/mathpath-logo.png"
                     alt="MathPath logo"
-                    width={164}
-                    height={76}
-                    className="h-16 w-auto object-contain xl:h-[4.5rem]"
+                    width={118}
+                    height={54}
+                    className="h-14 w-auto object-contain"
                     priority
                   />
                 </div>
                 <div>
-                  <p className="text-3xl font-black leading-tight sm:text-[2.05rem] xl:text-[2.25rem]">MathPath</p>
-                  <p className="max-w-xl text-sm font-semibold leading-5 text-white/90 sm:text-base xl:text-[1.05rem] xl:leading-6">
+                  <p className="text-2xl font-black sm:text-[1.7rem]">MathPath</p>
+                  <p className="max-w-md text-sm font-semibold leading-5 text-white/90 sm:text-[0.95rem]">
                     {PlatformTagline}
                   </p>
                 </div>
@@ -363,7 +363,7 @@ export default function LoginClient({
               </div>
 
               <h1
-                className="mt-6 max-w-3xl text-[2.35rem] font-extrabold leading-[1.03] tracking-[-0.035em] xl:mt-7 xl:text-[3.1rem] 2xl:text-[3.55rem]"
+                className="math-login-story-headline mt-4 max-w-3xl text-[2.25rem] font-extrabold leading-[1.02] tracking-[-0.035em] xl:text-[2.95rem] 2xl:text-[3.35rem]"
                 style={{
                   fontFamily:
                     '"Inter", "Manrope", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -372,12 +372,12 @@ export default function LoginClient({
                 {Active.Headline}
               </h1>
 
-              <p className="mt-4 max-w-3xl text-sm leading-6 text-white/91 xl:text-base xl:leading-7">
+              <p className="math-login-story-description mt-2.5 max-w-3xl text-sm leading-6 text-white/91 xl:text-[0.98rem] xl:leading-7">
                 {Active.Description}
               </p>
             </div>
 
-            <div className="math-login-feature-grid grid shrink-0 gap-5 sm:grid-cols-2 xl:gap-6">
+            <div className="math-login-feature-grid grid shrink-0 gap-4 sm:grid-cols-2">
               {Active.Features.map((FeatureItem) => (
                 <Feature
                   key={FeatureItem.Title}
@@ -525,10 +525,10 @@ function Feature({
   Desc: string;
 }) {
   return (
-    <div className="math-login-feature rounded-[26px] p-5 transition duration-200 hover:-translate-y-0.5 xl:p-6">
+    <div className="math-login-feature rounded-[24px] p-4 transition duration-200 hover:-translate-y-0.5">
       <div className="inline-flex rounded-2xl bg-white/13 p-2">{Icon}</div>
-      <p className="mt-3 text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
-      <p className="mt-2 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
+      <p className="mt-2.5 text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
+      <p className="mt-1.5 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
     </div>
   );
 }

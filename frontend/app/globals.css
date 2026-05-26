@@ -5706,11 +5706,9 @@ html.dark .math-login-welcome-chip {
     .math-login-story { padding: clamp(1.25rem, 2vh, 2rem) !important; }
     .math-login-story h1 { font-size: clamp(2.7rem, 5.8vh, 4.6rem) !important; line-height: 0.98 !important; }
     .math-login-story p { font-size: clamp(0.92rem, 1.6vh, 1.05rem) !important; line-height: 1.45 !important; }
-    .math-login-story-content { gap: clamp(1rem, 2.4vh, 1.75rem) !important; }
-    .math-login-logo-card { padding: 0.85rem 1rem !important; }
-    .math-login-logo-card img { height: clamp(3.25rem, 7.2vh, 4rem) !important; }
+    .math-login-logo-card { padding: 0.7rem 0.9rem !important; }
     .math-login-eyebrow { padding: 0.55rem 0.9rem !important; }
-    .math-login-feature { padding: 0.95rem !important; }
+    .math-login-feature { padding: 0.9rem !important; }
     .math-login-form-zone { padding-top: clamp(1rem, 2vh, 1.6rem) !important; padding-bottom: clamp(1rem, 2vh, 1.6rem) !important; }
     .math-login-tabs { margin-bottom: 0.8rem !important; }
     .math-login-card { margin-top: 0.85rem !important; padding: 0.95rem !important; }
@@ -6138,5 +6136,142 @@ html.dark .math-modal-close-button:focus-visible {
     color: #dbeafe !important;
     background: rgba(30,41,59,0.82) !important;
     border-color: rgba(96,165,250,0.22) !important;
+  }
+}
+
+/* Phase 10.9.2I — Login left-panel vertical rhythm correction */
+@layer utilities {
+  @media (min-width: 1024px) {
+    .math-login-story-content {
+      gap: clamp(1.35rem, 3vh, 2.45rem) !important;
+    }
+
+    .math-login-brand-zone {
+      transform: translateY(-0.2rem);
+    }
+
+    .math-login-story-copy {
+      transform: translateY(-0.12rem);
+    }
+
+    .math-login-feature-grid {
+      transform: translateY(-0.15rem);
+      align-content: start;
+    }
+  }
+
+  @media (min-width: 1024px) and (max-height: 860px) {
+    .math-login-frame {
+      min-height: min(720px, calc(100svh - 2rem)) !important;
+      max-height: calc(100svh - 2rem) !important;
+    }
+
+    .math-login-story-content {
+      gap: clamp(1rem, 2.15vh, 1.55rem) !important;
+      padding-top: clamp(1.35rem, 2.6vh, 1.85rem) !important;
+      padding-bottom: clamp(1.05rem, 2vh, 1.45rem) !important;
+    }
+
+    .math-login-logo-card {
+      padding: 0.78rem 1rem !important;
+      border-radius: 24px !important;
+    }
+
+    .math-login-logo-card img {
+      height: clamp(3.15rem, 6.8vh, 3.8rem) !important;
+    }
+
+    .math-login-logo-card p:first-child {
+      font-size: clamp(1.65rem, 3.5vh, 2.1rem) !important;
+      line-height: 1.05 !important;
+    }
+
+    .math-login-logo-card p:last-child {
+      font-size: clamp(0.8rem, 1.7vh, 0.94rem) !important;
+      line-height: 1.35 !important;
+    }
+
+    .math-login-eyebrow {
+      padding: 0.52rem 0.9rem !important;
+      font-size: 0.68rem !important;
+    }
+
+    .math-login-story-headline {
+      margin-top: 0.85rem !important;
+      font-size: clamp(2.45rem, 5.35vh, 3.15rem) !important;
+      line-height: 0.99 !important;
+    }
+
+    .math-login-story-description {
+      margin-top: 0.7rem !important;
+      font-size: clamp(0.88rem, 1.75vh, 0.98rem) !important;
+      line-height: 1.46 !important;
+    }
+
+    .math-login-feature-grid {
+      gap: clamp(0.75rem, 1.8vh, 1rem) !important;
+    }
+
+    .math-login-feature {
+      min-height: 0 !important;
+      padding: clamp(0.8rem, 1.8vh, 1rem) !important;
+      border-radius: 22px !important;
+    }
+
+    .math-login-feature > div {
+      padding: 0.38rem !important;
+      border-radius: 0.85rem !important;
+    }
+
+    .math-login-feature p:nth-of-type(1) {
+      margin-top: 0.55rem !important;
+      font-size: clamp(0.98rem, 2vh, 1.12rem) !important;
+      line-height: 1.18 !important;
+    }
+
+    .math-login-feature p:nth-of-type(2) {
+      margin-top: 0.42rem !important;
+      font-size: clamp(0.76rem, 1.55vh, 0.86rem) !important;
+      line-height: 1.42 !important;
+    }
+  }
+
+  @media (min-width: 1024px) and (max-height: 760px) {
+    .math-login-shell {
+      padding-top: 0.75rem !important;
+      padding-bottom: 0.75rem !important;
+    }
+
+    .math-login-frame {
+      height: calc(100svh - 1.5rem) !important;
+      max-height: calc(100svh - 1.5rem) !important;
+      min-height: calc(100svh - 1.5rem) !important;
+    }
+
+    .math-login-story-content {
+      gap: clamp(0.75rem, 1.65vh, 1.15rem) !important;
+      padding-top: clamp(1rem, 2vh, 1.35rem) !important;
+      padding-bottom: clamp(0.75rem, 1.5vh, 1rem) !important;
+    }
+
+    .math-login-story-headline {
+      font-size: clamp(2.1rem, 5vh, 2.85rem) !important;
+    }
+
+    .math-login-story-description {
+      line-height: 1.38 !important;
+    }
+
+    .math-login-feature-grid {
+      gap: 0.7rem !important;
+    }
+
+    .math-login-feature {
+      padding: 0.72rem !important;
+    }
+
+    .math-login-feature p:nth-of-type(2) {
+      line-height: 1.35 !important;
+    }
   }
 }
