@@ -18,14 +18,14 @@ import {
   Trophy,
   UsersRound,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   MATHPATH_ACTIVITY_TIMESTAMP_KEYS,
   getFirstMathPathTimestamp,
   mathPathTimestampValue,
 } from "@/lib/date";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   AnyRow,
   Chip,
@@ -77,6 +77,25 @@ type TrackerTab =
   | "EXCELLENCE_HIGHLIGHTS"
   | "RECENT_PRACTICE";
 type Tone = "green" | "blue" | "amber" | "red" | "slate";
+
+const TrackerTabValues: TrackerTab[] = [
+  "OVERVIEW",
+  "ACTION_QUEUE",
+  "STUDENT_REVIEW",
+  "EXCELLENCE_HIGHLIGHTS",
+  "RECENT_PRACTICE",
+];
+
+function NormalizeTrackerTab(Value?: string | null): TrackerTab {
+  const NormalizedValue = String(Value || "").trim().toUpperCase().replace(/-/g, "_");
+  return TrackerTabValues.includes(NormalizedValue as TrackerTab)
+    ? (NormalizedValue as TrackerTab)
+    : "OVERVIEW";
+}
+
+function TabUrlValue(Tab: TrackerTab) {
+  return Tab.toLowerCase().replace(/_/g, "-");
+}
 
 type ExcellenceHighlightGroup = {
   GroupKey: string;
@@ -341,6 +360,8 @@ function TabButton({
 export default function TeacherPracticeTrackerPage() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
+  const Pathname = usePathname();
+  const SearchParams = useSearchParams();
   const [SearchValue, SetSearchValue] = useState("");
   const [StudentFilterValue, SetStudentFilterValue] =
     useState<StudentFilter>("");
@@ -349,9 +370,25 @@ export default function TeacherPracticeTrackerPage() {
   const [LevelFilterValue, SetLevelFilterValue] = useState<LevelFilter>("");
   const [PerformanceFilterValue, SetPerformanceFilterValue] =
     useState<PerformanceFilter>("");
-  const [ActiveTab, SetActiveTab] = useState<TrackerTab>("OVERVIEW");
+  const [ActiveTab, SetActiveTab] = useState<TrackerTab>(() =>
+    NormalizeTrackerTab(SearchParams.get("tab")),
+  );
   const [ExpandedViewLessonFilterValue, SetExpandedViewLessonFilterValue] =
     useState<string>("");
+
+  const ChangeActiveTab = useCallback((NextTab: TrackerTab) => {
+    SetActiveTab(NextTab);
+
+    const NextParams = new URLSearchParams(SearchParams.toString());
+    if (NextTab === "OVERVIEW") {
+      NextParams.delete("tab");
+    } else {
+      NextParams.set("tab", TabUrlValue(NextTab));
+    }
+
+    const NextQuery = NextParams.toString();
+    Router.replace(`${Pathname}${NextQuery ? `?${NextQuery}` : ""}`, { scroll: false });
+  }, [Pathname, Router, SearchParams]);
 
   const Query = useQuery({
     queryKey: ["teacher-tracker"],
@@ -638,19 +675,19 @@ export default function TeacherPracticeTrackerPage() {
           <div className="mt-5 flex flex-wrap gap-2">
             <TabButton
               Active={ActiveTab === "OVERVIEW"}
-              OnClick={() => SetActiveTab("OVERVIEW")}
+              OnClick={() => ChangeActiveTab("OVERVIEW")}
             >
               Overview
             </TabButton>
             <TabButton
               Active={ActiveTab === "ACTION_QUEUE"}
-              OnClick={() => SetActiveTab("ACTION_QUEUE")}
+              OnClick={() => ChangeActiveTab("ACTION_QUEUE")}
             >
               Action Queue
             </TabButton>
             <TabButton
               Active={ActiveTab === "STUDENT_REVIEW"}
-              OnClick={() => SetActiveTab("STUDENT_REVIEW")}
+              OnClick={() => ChangeActiveTab("STUDENT_REVIEW")}
             >
               Student Review
             </TabButton>
@@ -665,11 +702,11 @@ export default function TeacherPracticeTrackerPage() {
                 ExcellenceGroups={ExcellenceGroups}
                 Rows={FilteredRows}
                 OnOpenStudent={OpenStudent}
-                OnOpenActionQueue={() => SetActiveTab("ACTION_QUEUE")}
+                OnOpenActionQueue={() => ChangeActiveTab("ACTION_QUEUE")}
                 OnOpenExcellenceHighlights={() =>
-                  SetActiveTab("EXCELLENCE_HIGHLIGHTS")
+                  ChangeActiveTab("EXCELLENCE_HIGHLIGHTS")
                 }
-                OnOpenRecentPractice={() => SetActiveTab("RECENT_PRACTICE")}
+                OnOpenRecentPractice={() => ChangeActiveTab("RECENT_PRACTICE")}
               />
             ) : ActiveTab === "ACTION_QUEUE" ? (
               <ActionQueueTab Rows={ActionRows} OnOpenStudent={OpenStudent} />
@@ -684,7 +721,7 @@ export default function TeacherPracticeTrackerPage() {
                 LessonOptions={ExpandedViewLessonOptions}
                 LessonFilterValue={ExpandedViewLessonFilterValue}
                 OnLessonFilterChange={SetExpandedViewLessonFilterValue}
-                OnBack={() => SetActiveTab("OVERVIEW")}
+                OnBack={() => ChangeActiveTab("OVERVIEW")}
                 OnOpenStudent={OpenStudent}
               />
             ) : (
@@ -693,7 +730,7 @@ export default function TeacherPracticeTrackerPage() {
                 LessonOptions={ExpandedViewLessonOptions}
                 LessonFilterValue={ExpandedViewLessonFilterValue}
                 OnLessonFilterChange={SetExpandedViewLessonFilterValue}
-                OnBack={() => SetActiveTab("OVERVIEW")}
+                OnBack={() => ChangeActiveTab("OVERVIEW")}
                 OnOpenStudent={OpenStudent}
               />
             )
