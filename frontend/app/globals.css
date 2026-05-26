@@ -7441,116 +7441,119 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
   }
 }
 
-/* Phase 10.10.1 — Admin report/readiness dark-mode regression guard
-   Narrow scoped fix only: restores Admin report table variable/header readability,
-   Admin attempt detail variable labels, assignment detail table headers, and
-   Assessment Readiness active sheet-tab palette without changing shared layout behavior. */
+/* 26 May 2026 — Final surgical admin report/readiness regression lock
+   Scope: Admin readiness sheet filters, Admin report history table variable labels,
+   and Admin assignment/attempt detail semantic chips only. */
 @layer components {
-  html.dark .math-role-admin .math-learning-performance-table thead th,
-  html.dark .math-role-admin .math-learning-performance-table thead th *,
-  html.dark .math-role-admin .math-learning-performance-table thead button,
-  html.dark .math-role-admin .math-learning-performance-table thead button *,
-  html.dark .math-role-admin .math-learning-performance-table .math-sortable-header,
-  html.dark .math-role-admin .math-learning-performance-table .math-sortable-header *,
-  html.dark .math-role-admin .math-learning-performance-table .math-table-header-label,
-  html.dark .math-role-admin .math-student-history-table thead th,
-  html.dark .math-role-admin .math-student-history-table thead th *,
-  html.dark .math-role-admin .math-student-history-table thead button,
-  html.dark .math-role-admin .math-student-history-table thead button *,
-  html.dark .math-role-admin .math-student-history-table .math-table-header-label,
-  html.dark .math-role-admin .math-assignment-detail-table thead th,
-  html.dark .math-role-admin .math-assignment-detail-table thead th *,
-  html.dark .math-role-admin .math-assignment-detail-table .math-table-header-label {
-    color: #dbeafe !important;
-    opacity: 1 !important;
-    text-shadow: 0 1px 10px rgba(15, 23, 42, 0.38);
-  }
-
-  html.dark .math-role-admin .math-learning-performance-table thead,
-  html.dark .math-role-admin .math-student-history-table thead,
-  html.dark .math-role-admin .math-assignment-detail-table thead {
-    background: linear-gradient(180deg, rgba(148, 163, 184, 0.74), rgba(100, 116, 139, 0.66)) !important;
-  }
-
-  html.dark .math-role-admin .math-learning-performance-table tbody td,
-  html.dark .math-role-admin .math-student-history-table tbody td,
-  html.dark .math-role-admin .math-assignment-detail-table tbody td {
-    color: #f8fafc !important;
-  }
-
-  html.dark .math-role-admin .math-learning-performance-table tbody td p,
-  html.dark .math-role-admin .math-student-history-table tbody td p,
-  html.dark .math-role-admin .math-assignment-detail-table tbody td p {
-    color: #f8fafc !important;
-  }
-
-  html.dark .math-role-admin .math-learning-performance-table tbody td p.text-xs,
-  html.dark .math-role-admin .math-learning-performance-table tbody td .text-slate-500,
-  html.dark .math-role-admin .math-student-history-table tbody td p.text-xs,
-  html.dark .math-role-admin .math-student-history-table tbody td .text-slate-500,
-  html.dark .math-role-admin .math-assignment-detail-table tbody td p.text-xs,
-  html.dark .math-role-admin .math-assignment-detail-table tbody td .text-slate-500 {
-    color: #cbd5e1 !important;
-  }
-
-  html.dark .math-role-admin .math-student-history-table .math-history-date-cell,
-  html.dark .math-role-admin .math-student-history-table .math-history-owner-cell,
-  html.dark .math-role-admin .math-learning-performance-table .math-lp-date-cell {
-    color: #e2e8f0 !important;
-  }
-
-  html.dark .math-role-admin .math-history-review-button,
-  html.dark .math-role-admin .math-learning-performance-table .math-history-review-button,
-  html.dark .math-role-admin .math-assignment-detail-table .math-role-action-button {
-    color: #bfdbfe !important;
-    border-color: rgba(96, 165, 250, 0.42) !important;
-    background: rgba(15, 23, 42, 0.84) !important;
-  }
-
-  html.dark .math-role-admin .math-history-review-button:is(:hover, :focus-visible, :active),
-  html.dark .math-role-admin .math-learning-performance-table .math-history-review-button:is(:hover, :focus-visible, :active),
-  html.dark .math-role-admin .math-assignment-detail-table .math-role-action-button:is(:hover, :focus-visible, :active) {
-    color: #ffffff !important;
-    background: var(--mp-role-action-bg) !important;
-    border-color: color-mix(in srgb, var(--mp-role-border-strong) 72%, rgba(255,255,255,0.28)) !important;
-  }
-
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-admin-attempt-info-card,
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-card {
-    color: #f8fafc !important;
-  }
-
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-admin-attempt-info-card p,
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-card h2,
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-card h3,
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-card p {
-    color: #f8fafc !important;
-  }
-
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-admin-attempt-info-card p:first-of-type,
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-card p.text-xs,
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-card .text-slate-500,
-  html.dark .math-role-admin .math-admin-attempt-detail-page .math-card .text-slate-600 {
-    color: #cbd5e1 !important;
-  }
-
-  html.dark .math-role-admin .math-readiness-sheet-filter.is-active,
-  html.dark .math-role-admin .math-readiness-sheet-filter[data-active="true"] {
-    color: #ffffff !important;
-    border-color: color-mix(in srgb, var(--mp-role-border-strong) 76%, rgba(255,255,255,0.26)) !important;
-    background: var(--mp-role-action-bg) !important;
-    box-shadow: 0 16px 36px color-mix(in srgb, var(--mp-role-shadow) 46%, transparent), inset 0 1px 0 rgba(255,255,255,0.2) !important;
-  }
-
-  html.dark .math-role-admin .math-readiness-sheet-filter.is-active *,
-  html.dark .math-role-admin .math-readiness-sheet-filter[data-active="true"] * {
-    color: #ffffff !important;
+  .math-role-admin .math-readiness-sheet-filter {
+    display: inline-flex !important;
+    min-height: 2rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+    border-width: 1px !important;
+    border-radius: 999px !important;
+    padding: 0.48rem 0.9rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.01em !important;
+    white-space: nowrap !important;
     opacity: 1 !important;
   }
 
-  html.dark .math-role-admin .math-readiness-sheet-filter:not(.is-active):not([data-active="true"]) {
-    color: #bfdbfe !important;
-    border-color: rgba(96, 165, 250, 0.28) !important;
-    background: rgba(15, 23, 42, 0.76) !important;
+  .math-role-admin .math-readiness-sheet-filter.is-active,
+  .math-role-admin .math-readiness-sheet-filter[aria-pressed="true"],
+  .math-role-admin .math-readiness-sheet-filter[data-active="true"] {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: rgba(147,197,253,0.88) !important;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 54%, #06b6d4 100%) !important;
+    box-shadow: 0 14px 34px rgba(37,99,235,0.28), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+  }
+
+  .math-role-admin .math-readiness-sheet-filter.is-active *,
+  .math-role-admin .math-readiness-sheet-filter[aria-pressed="true"] *,
+  .math-role-admin .math-readiness-sheet-filter[data-active="true"] * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead th,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead th:nth-last-child(-n+2),
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead th *,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead th:nth-last-child(-n+2) *,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) .math-table-header-label,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) .math-table-header-label * {
+    color: #f8fbff !important;
+    -webkit-text-fill-color: #f8fbff !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) .math-table-header-label {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: max-content !important;
+    max-width: 100% !important;
+    min-height: 1.35rem !important;
+    padding: 0.16rem 0.3rem !important;
+    border-radius: 0.35rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+  }
+
+  .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) th:nth-last-child(-n+2) .math-table-header-label {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    background: transparent !important;
+    text-shadow: none !important;
+  }
+
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.border-emerald-200,
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.bg-emerald-50,
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.text-emerald-700 {
+    border-color: #a7f3d0 !important;
+    background: #d1fae5 !important;
+    color: #065f46 !important;
+    -webkit-text-fill-color: #065f46 !important;
+  }
+
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.border-rose-200,
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.bg-rose-50,
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.text-rose-700 {
+    border-color: #fecdd3 !important;
+    background: #ffe4e6 !important;
+    color: #9f1239 !important;
+    -webkit-text-fill-color: #9f1239 !important;
+  }
+
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.border-amber-200,
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.bg-amber-50,
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.text-amber-700 {
+    border-color: #fde68a !important;
+    background: #fef3c7 !important;
+    color: #92400e !important;
+    -webkit-text-fill-color: #92400e !important;
+  }
+
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.border-blue-200,
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.bg-blue-50,
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge.text-blue-700 {
+    border-color: #bfdbfe !important;
+    background: #dbeafe !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+  }
+
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge,
+  .math-role-admin :is(.math-assignment-detail-table, .math-learning-performance-table, .math-student-history-table) .math-badge * {
+    opacity: 1 !important;
+    text-shadow: none !important;
   }
 }
