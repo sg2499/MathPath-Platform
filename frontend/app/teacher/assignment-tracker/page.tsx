@@ -25,7 +25,7 @@ import {
   mathPathTimestampValue,
 } from "@/lib/date";
 import type { ReactNode } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import {
   AnyRow,
   Chip,
@@ -358,6 +358,14 @@ function TabButton({
 }
 
 export default function TeacherPracticeTrackerPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <TeacherPracticeTrackerContent />
+    </Suspense>
+  );
+}
+
+function TeacherPracticeTrackerContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
   const Pathname = usePathname();
