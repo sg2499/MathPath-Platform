@@ -116,16 +116,16 @@ export default function AdminAssignmentDetailPage() {
                 <table>
                   <thead>
                     <tr>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Student</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Accuracy</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Benchmark</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Attempt Date</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Completion Date</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Time</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Re-Attempt</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Student</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Status</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Score</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Accuracy</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Benchmark</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Attempt Date</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Completion Date</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Time</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Review</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Re-Attempt</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -205,14 +205,14 @@ export default function AdminAssignmentDetailPage() {
                 <table>
                   <thead>
                     <tr>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Student</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Correct</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Benchmark</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Attempt Date</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Completion Date</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Student</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Status</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Score</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Correct</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Benchmark</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Attempt Date</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Completion Date</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Review</span></th>
                     </tr>
                   </thead>
                   <tbody>
