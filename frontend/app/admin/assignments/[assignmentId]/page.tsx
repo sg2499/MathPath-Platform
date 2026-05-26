@@ -136,10 +136,10 @@ export default function AdminAssignmentDetailPage() {
                           <p className="text-xs text-slate-500">{row.studentCode}</p>
                         </td>
                         <td>
-                          <span className={`math-badge ${
+                          <span className={`math-badge math-assignment-semantic-chip ${
                             row.status === "COMPLETED"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
+                              ? "math-assignment-semantic-success border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "math-assignment-semantic-warning border-amber-200 bg-amber-50 text-amber-700"
                           }`}>
                             {row.status}
                           </span>
@@ -222,7 +222,13 @@ export default function AdminAssignmentDetailPage() {
                           <p className="font-black text-slate-950">{attempt.studentName}</p>
                           <p className="text-xs text-slate-500">{attempt.studentCode}</p>
                         </td>
-                        <td><span className="math-badge border-blue-200 bg-blue-50 text-blue-700">{attempt.status}</span></td>
+                        <td><span className={`math-badge math-assignment-semantic-chip ${
+                          attempt.status === "CLEARED" || attempt.status === "COMPLETED"
+                            ? "math-assignment-semantic-success border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : attempt.requiresAttention
+                              ? "math-assignment-semantic-danger border-rose-200 bg-rose-50 text-rose-700"
+                              : "math-assignment-semantic-blue border-blue-200 bg-blue-50 text-blue-700"
+                        }`}>{attempt.status}</span></td>
                         <td>{attempt.score ?? "-"} / {attempt.maxScore ?? "-"}</td>
                         <td>{attempt.correct ?? "-"} correct</td>
                         <td><BenchmarkBadge status={attempt.benchmarkStatus} requiresAttention={attempt.requiresAttention} percentage={attempt.benchmarkPercentage} /></td>
@@ -309,7 +315,7 @@ function PerformanceChip({ Value, Tone = "blue" }: { Value: string; Tone?: "blue
     red: "border-rose-200 bg-rose-50 text-rose-700",
     slate: "border-slate-200 bg-slate-50 text-slate-600",
   };
-  return <span className={`math-badge whitespace-nowrap ${ToneClasses[Tone]}`}>{Value}</span>;
+  return <span className={`math-badge math-assignment-semantic-chip math-assignment-semantic-${Tone} whitespace-nowrap ${ToneClasses[Tone]}`}>{Value}</span>;
 }
 
 function RoundedDisplay(Value: unknown) {
