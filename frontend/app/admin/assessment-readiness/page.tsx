@@ -1199,6 +1199,8 @@ function SheetFilterChip({
     <button
       type="button"
       className={`math-readiness-sheet-filter ${active ? "is-active" : ""}`}
+      aria-pressed={active}
+      data-active={active ? "true" : "false"}
       onClick={onClick}
     >
       {children}
