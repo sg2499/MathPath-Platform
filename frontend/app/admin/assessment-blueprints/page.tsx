@@ -125,7 +125,20 @@ export default function AdminAssessmentBlueprintBuilderPage() {
   const [selectedBlueprint, setSelectedBlueprint] = useState<AssessmentBlueprint | null>(null);
   const [editingBlueprint, setEditingBlueprint] = useState<AssessmentBlueprint | null>(null);
   const [pendingDeleteBlueprint, setPendingDeleteBlueprint] = useState<AssessmentBlueprint | null>(null);
-  const [activeTab, setActiveTab] = useState<"CREATE" | "MANAGE">("CREATE");
+  const [activeTab, setActiveTab] = useState<"CREATE" | "MANAGE">(() => {
+    if (typeof window === "undefined") return "CREATE";
+    return new URLSearchParams(window.location.search).get("tab") === "manage" ? "MANAGE" : "CREATE";
+  });
+
+
+  function ChangeBlueprintTab(NextTab: "CREATE" | "MANAGE") {
+    setActiveTab(NextTab);
+    if (typeof window === "undefined") return;
+    const NextUrl = new URL(window.location.href);
+    if (NextTab === "CREATE") NextUrl.searchParams.delete("tab");
+    else NextUrl.searchParams.set("tab", "manage");
+    window.history.replaceState(null, "", `${NextUrl.pathname}${NextUrl.search}${NextUrl.hash}`);
+  }
 
   const [title, setTitle] = useState("");
   const [moduleId, setModuleId] = useState("");
@@ -244,7 +257,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
   function beginEditBlueprint(item: AssessmentBlueprint) {
     if (item.status !== "DRAFT") return;
     setEditingBlueprint(item);
-    setActiveTab("CREATE");
+    ChangeBlueprintTab("CREATE");
     setTitle(item.title || "");
     setModuleId(item.moduleId || "");
     setLevelId(item.levelId || "");
@@ -314,7 +327,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
             className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "CREATE" ? "is-active math-admin-tab-force-selected" : ""}`}
             aria-selected={activeTab === "CREATE"}
             data-active={activeTab === "CREATE" ? "true" : "false"}
-            onClick={() => setActiveTab("CREATE")}
+            onClick={() => ChangeBlueprintTab("CREATE")}
           >
             Create Assessment
           </button>
@@ -323,7 +336,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
             className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === "MANAGE" ? "is-active math-admin-tab-force-selected" : ""}`}
             aria-selected={activeTab === "MANAGE"}
             data-active={activeTab === "MANAGE" ? "true" : "false"}
-            onClick={() => setActiveTab("MANAGE")}
+            onClick={() => ChangeBlueprintTab("MANAGE")}
           >
             Manage Assessments
           </button>

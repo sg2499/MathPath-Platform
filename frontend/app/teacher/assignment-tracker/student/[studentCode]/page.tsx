@@ -50,14 +50,14 @@ import {
   Target,
   Trophy,
 } from "lucide-react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   MATHPATH_ACTIVITY_TIMESTAMP_KEYS,
   getFirstMathPathTimestamp,
   mathPathTimestampValue,
 } from "@/lib/date";
 import type { ReactNode } from "react";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 type WorkspaceTab = "OVERVIEW" | "LESSON_INSIGHTS";
 type LessonFilter = string;
@@ -371,10 +371,11 @@ export default function TeacherStudentTrackerWorkspacePage() {
 function TeacherStudentTrackerWorkspacePageContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
+  const Pathname = usePathname();
   const Params = useParams();
   const SearchParams = useSearchParams();
   const StudentCode = decodeURIComponent(String(Params.studentCode || ""));
-  const [ActiveTab, SetActiveTab] = useState<WorkspaceTab>("OVERVIEW");
+  const [ActiveTab, SetActiveTab] = useState<WorkspaceTab>(() => SearchParams.get("tab") === "lesson-insights" ? "LESSON_INSIGHTS" : "OVERVIEW");
   const [SearchValue, SetSearchValue] = useState("");
   const [LessonFilterValue, SetLessonFilterValue] = useState<LessonFilter>("");
   const [StatusFilterValue, SetStatusFilterValue] = useState<StatusFilter>("");
@@ -389,6 +390,16 @@ function TeacherStudentTrackerWorkspacePageContent() {
   const [ExpandedLessonKeys, SetExpandedLessonKeys] = useState<Set<string>>(
     new Set(),
   );
+
+
+  const ChangeWorkspaceTab = useCallback((NextTab: WorkspaceTab) => {
+    SetActiveTab(NextTab);
+    const NextParams = new URLSearchParams(SearchParams.toString());
+    if (NextTab === "OVERVIEW") NextParams.delete("tab");
+    else NextParams.set("tab", "lesson-insights");
+    const NextQuery = NextParams.toString();
+    Router.replace(`${Pathname}${NextQuery ? `?${NextQuery}` : ""}`, { scroll: false });
+  }, [Pathname, Router, SearchParams]);
 
   const Query = useQuery({
     queryKey: ["teacher-tracker"],
@@ -515,7 +526,7 @@ function TeacherStudentTrackerWorkspacePageContent() {
       SearchParams.has("attemptId");
     if (!ShouldOpenLessonInsights) return;
 
-    SetActiveTab("LESSON_INSIGHTS");
+    ChangeWorkspaceTab("LESSON_INSIGHTS");
 
     const AssignmentId = SearchParams.get("assignmentId") || "";
     const AttemptId = SearchParams.get("attemptId") || "";
@@ -763,13 +774,13 @@ function TeacherStudentTrackerWorkspacePageContent() {
             <div className="mt-5 flex flex-wrap gap-2">
               <TabButton
                 Active={ActiveTab === "OVERVIEW"}
-                OnClick={() => SetActiveTab("OVERVIEW")}
+                OnClick={() => ChangeWorkspaceTab("OVERVIEW")}
               >
                 Overview
               </TabButton>
               <TabButton
                 Active={ActiveTab === "LESSON_INSIGHTS"}
-                OnClick={() => SetActiveTab("LESSON_INSIGHTS")}
+                OnClick={() => ChangeWorkspaceTab("LESSON_INSIGHTS")}
               >
                 Lesson Insights
               </TabButton>

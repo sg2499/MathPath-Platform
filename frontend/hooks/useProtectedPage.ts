@@ -35,7 +35,7 @@ function defaultRouteForRole(Role: UserRole): string {
 
 function currentFullRoute(Pathname?: string | null) {
   if (typeof window === "undefined") return Pathname || "";
-  return `${Pathname || window.location.pathname}${window.location.search || ""}`;
+  return `${Pathname || window.location.pathname}${window.location.search || ""}${window.location.hash || ""}`;
 }
 
 function persistCurrentRoute(Role: UserRole, Pathname: string) {
