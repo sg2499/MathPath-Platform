@@ -168,9 +168,10 @@ function StudentAssessmentResultPageContent() {
     }
   }, [ViewerRole]);
 
-  const Ready = useProtectedPage(ViewerRole === "STUDENT" ? ["STUDENT"] : ["ADMIN", "SUPER_ADMIN", "TEACHER"]);
+  const AllowedRoles = ViewerRole ? [ViewerRole] : ["STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN"] as const;
+  const Ready = useProtectedPage([...AllowedRoles]);
   const Query = useQuery({
-    queryKey: ["assessment-result", Params.attemptId, ViewerRole || "review"],
+    queryKey: ["assessment-result", Params.attemptId, ViewerRole],
     queryFn: () => getAssessmentAttemptResultForCurrentRole(Params.attemptId, ViewerRole),
     enabled: Ready && Boolean(Params.attemptId),
   });
