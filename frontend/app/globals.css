@@ -7577,3 +7577,26 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     border-color: #cbd5e1 !important;
   }
 }
+
+/* 26 May 2026 — Admin directory dark-mode status chip readability lock */
+@layer components {
+  html.dark .math-role-admin .math-admin-directory-status-chip.border-emerald-200,
+  html.dark .math-role-admin .math-admin-directory-status-chip.bg-emerald-50,
+  html.dark .math-role-admin .math-admin-directory-status-chip.text-emerald-700 {
+    color: #064e3b !important;
+    -webkit-text-fill-color: #064e3b !important;
+    background: #d1fae5 !important;
+    border-color: #6ee7b7 !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-role-admin .math-admin-directory-status-chip.border-rose-200,
+  html.dark .math-role-admin .math-admin-directory-status-chip.bg-rose-50,
+  html.dark .math-role-admin .math-admin-directory-status-chip.text-rose-700 {
+    color: #9f1239 !important;
+    -webkit-text-fill-color: #9f1239 !important;
+    background: #ffe4e6 !important;
+    border-color: #fda4af !important;
+    text-shadow: none !important;
+  }
+}

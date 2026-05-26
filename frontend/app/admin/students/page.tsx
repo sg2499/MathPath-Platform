@@ -869,7 +869,7 @@ export default function AdminStudentsPage() {
                       <td>{s.fatherMobile || "-"}</td>
                       <td>
                         <span
-                          className={`math-badge ${
+                          className={`math-badge math-admin-directory-status-chip ${
                             s.isActive
                               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                               : "border-rose-200 bg-rose-50 text-rose-700"

@@ -377,7 +377,7 @@ export default function AdminTeachersPage() {
                         <span className="ml-2 text-xs text-slate-500">({teacher.activeStudentCount} active)</span>
                       </td>
                       <td>
-                        <span className={`math-badge ${teacher.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                        <span className={`math-badge math-admin-directory-status-chip ${teacher.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
                           {teacher.isActive ? "ACTIVE" : "INACTIVE"}
                         </span>
                       </td>
@@ -481,45 +481,85 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
   ];
 
   return (
-    <div className="math-navbar-safe-modal-backdrop">
-      <div className="math-modal-shell math-navbar-safe-modal-panel math-role-subtle-panel math-teacher-profile-modal w-full max-w-3xl rounded-[28px] border bg-white p-5 shadow-2xl dark:bg-slate-950">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4 dark:border-slate-800">
-          <div className="flex min-w-0 items-center gap-4">
+    <div
+      className="fixed inset-x-0 bottom-0 top-[96px] z-[9999] flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 pb-6 pt-4 backdrop-blur-sm sm:top-[104px] sm:px-6 sm:pb-8"
+      onClick={onClose}
+    >
+      <div
+        className="relative flex max-h-[calc(100vh-128px)] w-full max-w-5xl flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white shadow-2xl dark:border-slate-700/70 dark:bg-slate-950 sm:max-h-[calc(100vh-144px)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
+          <div className="flex min-w-0 items-start gap-4">
             {Photo ? (
-              <img src={Photo} alt={teacher.teacherName} className="h-16 w-16 rounded-3xl object-cover ring-2 ring-white shadow-md" />
+              <img
+                src={Photo}
+                alt={teacher.teacherName}
+                className="h-20 w-20 rounded-3xl object-cover ring-1 ring-slate-200 dark:ring-slate-700"
+              />
             ) : (
               <ProfileAvatar
                 name={teacher.teacherName}
                 imageUrl={teacher.photoUrl}
                 role="TEACHER"
-                className="math-record-avatar-teacher h-16 w-16 rounded-3xl text-xl"
+                className="math-record-avatar-teacher h-20 w-20 rounded-3xl text-2xl"
               />
             )}
             <div className="min-w-0">
               <p className="math-kicker">Teacher Profile</p>
-              <h2 className="mt-2 truncate text-2xl font-black text-slate-950 dark:text-white">{teacher.teacherName}</h2>
-              <p className="math-teacher-profile-code mt-1 text-sm font-semibold text-slate-500">{teacher.teacherCode}</p>
+              <h2 className="text-3xl font-black text-slate-950 dark:text-white">
+                {teacher.teacherName}
+              </h2>
+              <p className="mt-1 text-slate-600 dark:text-slate-300">
+                {teacher.teacherCode}
+              </p>
             </div>
           </div>
-          <button className="math-role-action-button math-role-icon-only" onClick={onClose} type="button" aria-label="Close teacher profile">
-            <X size={17} />
+
+          <button
+            className="math-button-secondary shrink-0 px-4"
+            onClick={onClose}
+            type="button"
+          >
+            <X size={18} />
+            Close
           </button>
         </div>
-        <div className="math-modal-body mt-5 grid gap-3 sm:grid-cols-2">
-          {DetailRows.map(([Label, Value]) => (
-            <div key={Label} className="math-teacher-profile-field rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-              <p className="math-teacher-profile-field-label text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">{Label}</p>
-              <p className="math-teacher-profile-field-value mt-2 break-words text-sm font-black text-slate-950 dark:text-white">{Value}</p>
-            </div>
-          ))}
-        </div>
-        {teacher.notes ? (
-          <div className="math-teacher-profile-field mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-            <p className="math-teacher-profile-field-label text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">Notes</p>
-            <p className="mt-2 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">{teacher.notes}</p>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {DetailRows.map(([Label, Value]) => (
+              <TeacherProfileInfo key={Label} label={Label} value={Value} />
+            ))}
           </div>
-        ) : null}
+
+          {teacher.notes ? (
+            <div className="mt-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/70">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Notes</p>
+              <p className="mt-1 font-bold leading-6 text-slate-900 dark:text-white">{teacher.notes}</p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
+          <button className="math-button-primary w-full" onClick={onClose} type="button">
+            Back to Teacher Directory
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function TeacherProfileInfo({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/70">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+        {label}
+      </p>
+      <p className="mt-1 break-words font-bold text-slate-900 dark:text-white">
+        {value || "-"}
+      </p>
     </div>
   );
 }
