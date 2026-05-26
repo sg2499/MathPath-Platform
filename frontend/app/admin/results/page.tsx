@@ -1681,11 +1681,12 @@ function LearningPerformanceTable({
                 <td className="math-table-chip-cell">
                   <StatusChip Label={AttemptDisplayStatus(Row)} />
                 </td>
-                <td>
-                  {Number.isFinite(Score) ? Score : "-"} /{" "}
-                  {Number.isFinite(MaxScore) ? MaxScore : "-"}
+                <td className="math-table-chip-cell math-lp-score-value-cell">
+                  <ScoreValueChip Score={Score} MaxScore={MaxScore} />
                 </td>
-                <td>{Number.isFinite(Accuracy) ? `${Accuracy}%` : "-"}</td>
+                <td className="math-table-chip-cell math-lp-accuracy-value-cell">
+                  <AccuracyValueChip Accuracy={Accuracy} />
+                </td>
                 <td className="math-table-chip-cell">
                   <BenchmarkBadge
                     status={PickFirstString(
