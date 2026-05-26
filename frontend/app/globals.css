@@ -6815,3 +6815,104 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     min-width: 148px !important;
   }
 }
+
+/* Phase 10.9.3C — Admin reports final table header + semantic chip correction */
+@layer utilities {
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table) thead th,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table) thead th *,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table) .math-table-header-label,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table) .math-sortable-header-label {
+    color: #eaf2ff !important;
+    -webkit-text-fill-color: #eaf2ff !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table th:nth-child(10),
+  html.dark .math-role-admin .math-learning-performance-table th:nth-child(11) {
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+
+  html.dark .math-role-admin .math-learning-performance-table th:nth-child(10) .math-table-header-label,
+  html.dark .math-role-admin .math-learning-performance-table th:nth-child(11) .math-table-header-label {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-height: 1.35rem !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0.11em !important;
+    text-align: center !important;
+  }
+
+  html.dark .math-role-admin .math-student-history-table .math-table-chip-cell {
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  html.dark .math-role-admin .math-student-history-table .math-table-chip-cell .math-badge,
+  html.dark .math-role-admin .math-student-history-table .math-table-chip-cell .math-status-chip,
+  html.dark .math-role-admin .math-student-history-table .math-table-chip-cell .math-attempt-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: max-content !important;
+    padding: 0.34rem 0.72rem !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.05 !important;
+  }
+
+  html.dark .math-role-admin .math-student-history-table .math-status-chip.text-rose-700,
+  html.dark .math-role-admin .math-student-history-table .math-badge.text-rose-700,
+  html.dark .math-role-admin .math-student-history-table .math-badge.math-tone-danger {
+    color: #9f1239 !important;
+    -webkit-text-fill-color: #9f1239 !important;
+    background: #ffe4e6 !important;
+    border-color: #fecdd3 !important;
+  }
+
+  html.dark .math-role-admin .math-student-history-table .math-status-chip.text-emerald-700,
+  html.dark .math-role-admin .math-student-history-table .math-badge.text-emerald-700,
+  html.dark .math-role-admin .math-student-history-table .math-badge.math-tone-success {
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+    background: #d1fae5 !important;
+    border-color: #a7f3d0 !important;
+  }
+
+  html.dark .math-role-admin .math-student-history-table .math-status-chip.text-amber-700,
+  html.dark .math-role-admin .math-student-history-table .math-badge.text-amber-700,
+  html.dark .math-role-admin .math-student-history-table .math-badge.math-tone-warning {
+    color: #92400e !important;
+    -webkit-text-fill-color: #92400e !important;
+    background: #fef3c7 !important;
+    border-color: #fde68a !important;
+  }
+
+  html.dark .math-role-admin .math-student-history-table .math-attempt-chip,
+  html.dark .math-role-admin .math-student-history-table .math-badge.text-blue-700,
+  html.dark .math-role-admin .math-student-history-table .math-history-count-badge {
+    color: #bfdbfe !important;
+    -webkit-text-fill-color: #bfdbfe !important;
+    background: rgba(30, 64, 175, 0.34) !important;
+    border-color: rgba(96, 165, 250, 0.46) !important;
+  }
+
+  html.dark .math-role-admin .math-student-history-table .math-badge.text-slate-600,
+  html.dark .math-role-admin .math-student-history-table .math-badge.text-slate-700,
+  html.dark .math-role-admin .math-student-history-table .math-badge.dark\:text-slate-200 {
+    color: #e2e8f0 !important;
+    -webkit-text-fill-color: #e2e8f0 !important;
+    background: rgba(30, 41, 59, 0.92) !important;
+    border-color: rgba(148, 163, 184, 0.42) !important;
+  }
+}
