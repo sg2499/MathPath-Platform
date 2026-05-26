@@ -6275,3 +6275,71 @@ html.dark .math-modal-close-button:focus-visible {
     }
   }
 }
+
+/* Phase 10.9.2I — Login brand mark breathing space + role-consistent story layout */
+@layer components {
+  .math-login-logo-card {
+    gap: clamp(1.05rem, 1.6vw, 1.45rem) !important;
+    max-width: min(100%, 47rem) !important;
+  }
+
+  .math-login-logo-mark {
+    min-width: clamp(10.8rem, 12.6vw, 12.6rem) !important;
+    min-height: clamp(5.7rem, 6.2vw, 6.6rem) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .math-login-logo-mark img {
+    max-width: 100% !important;
+    max-height: clamp(4.2rem, 4.9vw, 5.05rem) !important;
+    object-fit: contain !important;
+  }
+
+  .math-login-story-copy {
+    display: flex !important;
+    min-height: clamp(13.9rem, 22vh, 16.2rem) !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+  }
+
+  .math-login-story-headline {
+    max-width: 44rem !important;
+  }
+
+  .math-login-role-student .math-login-story-headline {
+    max-width: 38.5rem !important;
+  }
+
+  .math-login-feature-grid {
+    margin-top: clamp(0.4rem, 1.1vh, 0.9rem) !important;
+  }
+}
+
+@layer utilities {
+  @media (min-width: 1024px) and (max-height: 820px) {
+    .math-login-logo-card {
+      padding: 0.7rem 1rem !important;
+      gap: 0.95rem !important;
+    }
+
+    .math-login-logo-mark {
+      min-width: clamp(9.2rem, 11.5vw, 10.7rem) !important;
+      min-height: clamp(4.8rem, 5.8vw, 5.6rem) !important;
+      padding: 0.7rem 0.95rem !important;
+    }
+
+    .math-login-logo-mark img {
+      max-height: clamp(3.75rem, 4.8vw, 4.35rem) !important;
+    }
+
+    .math-login-story-copy {
+      min-height: clamp(12.1rem, 21vh, 14.4rem) !important;
+    }
+
+    .math-login-role-student .math-login-story-headline {
+      max-width: 34rem !important;
+    }
+  }
+}
