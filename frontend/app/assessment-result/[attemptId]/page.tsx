@@ -64,6 +64,28 @@ function NormalizeViewerRole(Value?: string | null) {
 }
 
 
+
+function ResolveViewerRole(ParamRole?: "ADMIN" | "TEACHER" | "STUDENT" | null) {
+  if (ParamRole) return ParamRole;
+  if (typeof window !== "undefined" && document.referrer) {
+    try {
+      const ReferrerPath = new URL(document.referrer).pathname;
+      if (ReferrerPath.startsWith("/admin")) return "ADMIN" as const;
+      if (ReferrerPath.startsWith("/teacher")) return "TEACHER" as const;
+      if (ReferrerPath.startsWith("/student")) return "STUDENT" as const;
+    } catch {
+      // Keep role inference resilient when referrer is unavailable or malformed.
+    }
+  }
+  const StoredUser = getStoredUser();
+  const StoredRole = NormalizeViewerRole(StoredUser?.role);
+  if (StoredRole) return StoredRole;
+  if (getTokenForRole("ADMIN")) return "ADMIN" as const;
+  if (getTokenForRole("TEACHER")) return "TEACHER" as const;
+  if (getTokenForRole("STUDENT")) return "STUDENT" as const;
+  return null;
+}
+
 function MessageIndex(Seed: string, Count: number) {
   if (Count <= 1) return 0;
   const Total = Array.from(Seed || "MathPath").reduce((Sum, Character) => Sum + Character.charCodeAt(0), 0);
@@ -160,7 +182,7 @@ function StudentAssessmentResultPageContent() {
   const Params = useParams<{ attemptId: string }>();
   const Router = useRouter();
   const SearchParams = useSearchParams();
-  const ViewerRole = NormalizeViewerRole(SearchParams.get("viewer"));
+  const ViewerRole = ResolveViewerRole(NormalizeViewerRole(SearchParams.get("viewer")));
 
   useEffect(() => {
     if (ViewerRole) {
