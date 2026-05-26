@@ -7368,3 +7368,75 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     -webkit-text-fill-color: #dbeafe !important;
   }
 }
+
+/* 26 May 2026 — Surgical Admin dark-mode variable/header + readiness tab repair
+   Scope: exact broken Admin surfaces only. Does not alter semantic chips, light mode, or non-admin roles. */
+@layer components {
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead th {
+    color: #eaf2ff !important;
+    -webkit-text-fill-color: #eaf2ff !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead th *,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) .math-table-header-label,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) .math-table-header-label * {
+    color: #eaf2ff !important;
+    -webkit-text-fill-color: #eaf2ff !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead button,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead button * {
+    color: #eaf2ff !important;
+    -webkit-text-fill-color: #eaf2ff !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead th:hover,
+  html.dark .math-role-admin :is(.math-learning-performance-table, .math-student-history-table, .math-assignment-detail-table) thead th:hover * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  html.dark .math-role-admin .math-readiness-sheet-filter.is-active,
+  html.dark .math-role-admin .math-readiness-sheet-filter[aria-pressed="true"],
+  html.dark .math-role-admin .math-readiness-sheet-filter[data-active="true"],
+  html.dark .math-role-admin button.math-readiness-sheet-filter.is-active,
+  html.dark .math-role-admin button.math-readiness-sheet-filter[aria-pressed="true"],
+  html.dark .math-role-admin button.math-readiness-sheet-filter[data-active="true"] {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: rgba(191, 219, 254, 0.78) !important;
+    background: linear-gradient(135deg, #082f6f 0%, #2563eb 55%, #22d3ee 100%) !important;
+    box-shadow: 0 16px 36px rgba(37, 99, 235, 0.26), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  }
+
+  html.dark .math-role-admin .math-readiness-sheet-filter.is-active *,
+  html.dark .math-role-admin .math-readiness-sheet-filter[aria-pressed="true"] *,
+  html.dark .math-role-admin .math-readiness-sheet-filter[data-active="true"] * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-admin .math-readiness-sheet-filter:not(.is-active):not([aria-pressed="true"]):not([data-active="true"]) {
+    color: #dbeafe !important;
+    -webkit-text-fill-color: #dbeafe !important;
+    background: rgba(15, 23, 42, 0.76) !important;
+    border-color: rgba(96, 165, 250, 0.36) !important;
+  }
+
+  html.dark .math-role-admin .math-readiness-sheet-filter:not(.is-active):not([aria-pressed="true"]):not([data-active="true"]):hover,
+  html.dark .math-role-admin .math-readiness-sheet-filter:not(.is-active):not([aria-pressed="true"]):not([data-active="true"]):focus-visible {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: rgba(191, 219, 254, 0.72) !important;
+    background: linear-gradient(135deg, rgba(8, 47, 111, 0.96) 0%, rgba(37, 99, 235, 0.94) 58%, rgba(34, 211, 238, 0.88) 100%) !important;
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.22), inset 0 1px 0 rgba(255,255,255,0.16) !important;
+  }
+}

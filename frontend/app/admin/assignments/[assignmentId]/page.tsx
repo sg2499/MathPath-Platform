@@ -112,20 +112,20 @@ export default function AdminAssignmentDetailPage() {
             </div>
 
             {data?.students?.length ? (
-              <div className="math-table">
+              <div className="math-table math-assignment-detail-table">
                 <table>
                   <thead>
                     <tr>
-                      <th>Student</th>
-                      <th>Status</th>
-                      <th>Score</th>
-                      <th>Accuracy</th>
-                      <th>Benchmark</th>
-                      <th>Attempt Date</th>
-                      <th>Completion Date</th>
-                      <th>Time</th>
-                      <th>Review</th>
-                      <th>Re-Attempt</th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Student</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Accuracy</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Benchmark</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Attempt Date</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Completion Date</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Time</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Re-Attempt</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -201,18 +201,18 @@ export default function AdminAssignmentDetailPage() {
             </div>
 
             {data?.attempts?.length ? (
-              <div className="math-table">
+              <div className="math-table math-assignment-detail-table">
                 <table>
                   <thead>
                     <tr>
-                      <th>Student</th>
-                      <th>Status</th>
-                      <th>Score</th>
-                      <th>Correct</th>
-                      <th>Benchmark</th>
-                      <th>Attempt Date</th>
-                      <th>Completion Date</th>
-                      <th>Review</th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Student</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Correct</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Benchmark</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Attempt Date</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Completion Date</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
                     </tr>
                   </thead>
                   <tbody>

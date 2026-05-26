@@ -2429,14 +2429,14 @@ function PromotionHistoryRecordsTable({ Rows }: { Rows: AnyRecord[] }) {
       <table>
         <thead>
           <tr>
-            <th>From Level</th>
-            <th>To Level</th>
-            <th>Assessment</th>
-            <th>Score</th>
-            <th>Percentage</th>
-            <th>Status</th>
-            <th>Promotion Date</th>
-            <th>Promoted By</th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">From Level</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">To Level</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Assessment</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Percentage</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Promotion Date</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Promoted By</span></th>
           </tr>
         </thead>
         <tbody>
@@ -2584,16 +2584,16 @@ function DpsAttemptRecordsTable({
       <table>
         <thead>
           <tr>
-            <th>DPS</th>
-            <th>Teacher</th>
-            <th>Attempt</th>
-            <th>Status</th>
-            <th>Score</th>
-            <th>Accuracy</th>
-            <th>Benchmark</th>
-            <th>Completion Date</th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">DPS</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Teacher</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Attempt</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Accuracy</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Benchmark</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Completion Date</span></th>
             <th><span className="math-table-header-label math-table-header-label-wrap">Time<br />Taken</span></th>
-            <th>Review</th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
           </tr>
         </thead>
         <tbody>
@@ -2704,14 +2704,14 @@ function AssessmentAttemptRecordsTable({
       <table>
         <thead>
           <tr>
-            <th>Assessment</th>
-            <th>Attempt</th>
-            <th>Status</th>
-            <th>Score</th>
-            <th>Accuracy</th>
-            <th>Completion Date</th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Assessment</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Attempt</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Accuracy</span></th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Completion Date</span></th>
             <th><span className="math-table-header-label math-table-header-label-wrap">Time<br />Taken</span></th>
-            <th>Review</th>
+            <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
           </tr>
         </thead>
         <tbody>
