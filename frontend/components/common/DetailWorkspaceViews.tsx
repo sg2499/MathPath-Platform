@@ -2594,9 +2594,9 @@ export function CompactRecordTable({
       : "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]";
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <div className="math-admin-practice-lesson-insights-table overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div
-        className={`grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
+        className={`math-admin-practice-lesson-insights-table-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
       >
         {hideLessonColumn ? null : <div>Lesson</div>}
         <div>DPS</div>
