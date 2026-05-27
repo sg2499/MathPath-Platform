@@ -8709,30 +8709,61 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
   }
 }
 
-/* 27 May 2026 — Teacher Practice Tracker record table header convention
-   Scope: Teacher > Practice Tracker > Action Queue and Student Review only.
-   Dark mode only. Header labels only; row values, chips, buttons, and logic remain untouched. */
+/* 27 May 2026 — Teacher Students directory dark table header convention
+   Teacher login only. Dark-mode-only. Matches the Admin Students directory header treatment without touching row values/chips/buttons. */
 @layer components {
-  html.dark .math-role-teacher .math-teacher-practice-record-table-header {
-    background: linear-gradient(180deg, rgba(51, 65, 85, 0.96), rgba(30, 41, 59, 0.96)) !important;
-    border-color: rgba(148, 163, 184, 0.46) !important;
+  html.dark .math-role-teacher .math-teacher-students-directory-table thead {
+    background:
+      linear-gradient(180deg, rgba(71, 85, 105, 0.62), rgba(51, 65, 85, 0.72)) !important;
     color: #f8fafc !important;
-    -webkit-text-fill-color: #f8fafc !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.13),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.22) !important;
   }
 
-  html.dark .math-role-teacher .math-teacher-practice-record-table-header > div,
-  html.dark .math-role-teacher .math-teacher-practice-record-table-header :is(div, span, p) {
+  html.dark .math-role-teacher .math-teacher-students-directory-table th {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    border-bottom-color: rgba(148, 163, 184, 0.28) !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-students-directory-table th:not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, 0.16) !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-students-directory-table th :is(button, span, svg, .lucide) {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-students-directory-table th button:hover,
+  html.dark .math-role-teacher .math-teacher-students-directory-table th button:focus-visible {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+}
+
+/* 27 May 2026 — Teacher Practice Tracker student detail lesson-insights dark table header convention
+   Teacher login only. Dark-mode-only. Column headers only; all row values, chips, hierarchy, metrics, and light mode remain untouched. */
+@layer components {
+  html.dark .math-role-teacher .math-teacher-practice-lesson-insights-table .math-teacher-practice-lesson-insights-table-header {
+    background:
+      linear-gradient(180deg, rgba(71, 85, 105, 0.62), rgba(51, 65, 85, 0.72)) !important;
+    color: #f8fafc !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.13),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.22) !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-practice-lesson-insights-table .math-teacher-practice-lesson-insights-table-header > div {
     color: #f8fafc !important;
     -webkit-text-fill-color: #f8fafc !important;
     opacity: 1 !important;
-    font-weight: 900 !important;
-    letter-spacing: 0.12em !important;
-    text-transform: uppercase !important;
-    text-shadow: none !important;
   }
 
-  html.dark .math-role-teacher .math-teacher-practice-record-table-header > div:not(:last-child) {
-    border-right: 1px solid rgba(148, 163, 184, 0.22) !important;
+  html.dark .math-role-teacher .math-teacher-practice-lesson-insights-table .math-teacher-practice-lesson-insights-table-header > div:not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, 0.16) !important;
   }
 }
