@@ -830,12 +830,12 @@ export function StudentSummaryTable({
                 <Chip tone="green">{stats.completed}</Chip>
               </div>
               <div>
-                <Chip tone={stats.pending ? "amber" : "green"}>
+                <Chip tone="amber">
                   {stats.pending}
                 </Chip>
               </div>
               <div>
-                <Chip tone={stats.below ? "red" : "green"}>
+                <Chip tone="red">
                   {stats.below}
                 </Chip>
               </div>
