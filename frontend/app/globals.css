@@ -8179,3 +8179,145 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     opacity: 1 !important;
   }
 }
+
+/* 27 May 2026 — Admin-wide dark record-table column-header readability sweep
+   Scope: Admin login only, dark mode only, table header/column-name cells only.
+   Purpose: keep all remaining Admin record table column headers clearly visible without
+   changing table body values, role pages outside Admin, or light mode. */
+@layer components {
+  html.dark .math-role-admin :is(
+    table,
+    .math-record-table,
+    .math-data-table,
+    .math-directory-table,
+    .math-results-table,
+    .math-assessment-table,
+    .math-delivery-table,
+    .math-history-table,
+    .math-detail-table,
+    .math-report-table,
+    .performance-report-table
+  ) thead,
+  html.dark .math-role-admin :is(
+    table,
+    .math-record-table,
+    .math-data-table,
+    .math-directory-table,
+    .math-results-table,
+    .math-assessment-table,
+    .math-delivery-table,
+    .math-history-table,
+    .math-detail-table,
+    .math-report-table,
+    .performance-report-table
+  ) thead tr {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 64, 175, 0.44)) !important;
+  }
+
+  html.dark .math-role-admin :is(
+    table,
+    .math-record-table,
+    .math-data-table,
+    .math-directory-table,
+    .math-results-table,
+    .math-assessment-table,
+    .math-delivery-table,
+    .math-history-table,
+    .math-detail-table,
+    .math-report-table,
+    .performance-report-table
+  ) thead th {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(51, 65, 85, 0.90)) !important;
+    border-color: rgba(147, 197, 253, 0.30) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    text-shadow: 0 1px 0 rgba(2, 6, 23, 0.72) !important;
+  }
+
+  html.dark .math-role-admin :is(
+    table,
+    .math-record-table,
+    .math-data-table,
+    .math-directory-table,
+    .math-results-table,
+    .math-assessment-table,
+    .math-delivery-table,
+    .math-history-table,
+    .math-detail-table,
+    .math-report-table,
+    .performance-report-table
+  ) thead th *,
+  html.dark .math-role-admin :is(
+    table,
+    .math-record-table,
+    .math-data-table,
+    .math-directory-table,
+    .math-results-table,
+    .math-assessment-table,
+    .math-delivery-table,
+    .math-history-table,
+    .math-detail-table,
+    .math-report-table,
+    .performance-report-table
+  ) thead :is(
+    .math-sortable-header,
+    .math-sortable-header *,
+    .math-sortable-header-label,
+    .math-table-header-label,
+    .math-table-header-label *,
+    span,
+    button,
+    svg,
+    .lucide
+  ) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    text-shadow: 0 1px 0 rgba(2, 6, 23, 0.72) !important;
+  }
+
+  html.dark .math-role-admin :is(
+    table,
+    .math-record-table,
+    .math-data-table,
+    .math-directory-table,
+    .math-results-table,
+    .math-assessment-table,
+    .math-delivery-table,
+    .math-history-table,
+    .math-detail-table,
+    .math-report-table,
+    .performance-report-table
+  ) thead :is(
+    .math-sortable-header-label,
+    .math-table-header-label,
+    th > span
+  ) {
+    font-weight: 950 !important;
+    letter-spacing: 0.135em !important;
+    line-height: 1.12 !important;
+    text-transform: uppercase !important;
+  }
+
+  html.dark .math-role-admin :is(
+    table,
+    .math-record-table,
+    .math-data-table,
+    .math-directory-table,
+    .math-results-table,
+    .math-assessment-table,
+    .math-delivery-table,
+    .math-history-table,
+    .math-detail-table,
+    .math-report-table,
+    .performance-report-table
+  ) thead :is(
+    .math-sortable-header-indicator,
+    .math-sortable-header-icon
+  ) {
+    color: #dbeafe !important;
+    -webkit-text-fill-color: #dbeafe !important;
+    opacity: 1 !important;
+  }
+}
