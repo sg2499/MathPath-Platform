@@ -1198,12 +1198,11 @@ function SheetFilterChip({
   return (
     <button
       type="button"
-      className={`math-readiness-sheet-filter math-admin-readiness-sheet-filter ${active ? "is-active border-blue-300 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-400 text-white shadow-[0_14px_30px_rgba(37,99,235,0.28)]" : ""}`}
+      className={`math-readiness-sheet-filter math-admin-readiness-sheet-filter ${active ? "is-active math-admin-readiness-sheet-filter-selected border-blue-300 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-400 text-white shadow-[0_14px_30px_rgba(37,99,235,0.28)]" : ""}`}
       aria-pressed={active}
       aria-selected={active}
       data-active={active ? "true" : "false"}
       data-role-selected={active ? "true" : "false"}
-      data-admin-readiness-selected={active ? "true" : "false"}
       onClick={onClick}
     >
       {children}
