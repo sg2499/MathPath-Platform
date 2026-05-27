@@ -440,7 +440,7 @@ export default function TeacherStudentsPage() {
         ) : null}
 
         {filtered.length ? (
-          <div className="math-table">
+          <div className="math-table math-teacher-students-directory-table">
             <table>
               <thead>
                 <tr>
