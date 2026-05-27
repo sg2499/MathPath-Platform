@@ -44,7 +44,7 @@ import {
   X,
 } from "lucide-react";
 import type { ChangeEvent, ComponentType, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type ThemeMode = "light" | "dark";
 type StoredUser = ReturnType<typeof getStoredUser>;
@@ -493,14 +493,14 @@ export function AppShell({
     return Boolean(group.children?.some((child) => isRouteActive(child.href)));
   }
 
-  const activeItem = useMemo(() => {
+  const activeItem = (() => {
     for (const group of navGroups) {
       if (group.href && isRouteActive(group.href)) return group;
       const child = group.children?.find((item) => isRouteActive(item.href));
       if (child) return child;
     }
     return navGroups[0];
-  }, [navGroups, pathname]);
+  })();
 
   const ActiveIcon = activeItem?.icon || LayoutDashboard;
 
