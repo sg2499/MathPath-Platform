@@ -1208,7 +1208,7 @@ function ActionQueueTab({
     );
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="grid grid-cols-[1.1fr_.55fr_.55fr_.5fr_.5fr_.55fr_.7fr_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="math-teacher-practice-record-table-header grid grid-cols-[1.1fr_.55fr_.55fr_.5fr_.5fr_.55fr_.7fr_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <div>Student</div>
         <div>Module</div>
         <div>Level</div>
@@ -1307,7 +1307,7 @@ function StudentReviewTab({
     );
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="grid grid-cols-[minmax(160px,1fr)_minmax(72px,.42fr)_minmax(90px,.46fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(128px,.58fr)_minmax(104px,.5fr)_minmax(150px,.7fr)_minmax(150px,.68fr)_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="math-teacher-practice-record-table-header grid grid-cols-[minmax(160px,1fr)_minmax(72px,.42fr)_minmax(90px,.46fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(128px,.58fr)_minmax(104px,.5fr)_minmax(150px,.7fr)_minmax(150px,.68fr)_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <div>Student</div>
         <div>Module</div>
         <div>Level</div>
