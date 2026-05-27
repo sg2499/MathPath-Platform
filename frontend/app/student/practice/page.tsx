@@ -4,6 +4,17 @@ import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
+import {
+  AnyRow,
+  averageAccuracy,
+  currentWorkRows,
+  isBelowBenchmark,
+  isCompleted,
+  levelCodeOf,
+  NaturalCompare,
+  requiredDpsForLevel,
+  uniqueNeedsReattemptCount,
+} from "@/components/common/DetailWorkspaceViews";
 import { NotificationTargetBanner } from "@/components/common/NotificationTargetBanner";
 import { AssignmentCard } from "@/components/student/AssignmentCard";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
@@ -72,6 +83,89 @@ function AverageAccuracyDisplay(
   return `${Math.round(Average)}%`;
 }
 
+
+
+function IsLevelProgressRow(Row: AnyRow) {
+  return String(Row.recordKind || Row.assignmentType || "").toUpperCase() === "LEVEL_PROGRESS";
+}
+
+function IsPracticeResultRow(Row: AnyRow) {
+  return !IsLevelProgressRow(Row);
+}
+
+function SortLevelCodes(LevelCodes: string[]) {
+  return [...LevelCodes].sort(NaturalCompare);
+}
+
+function ActivePracticeLevelCode(Rows: AnyRow[]) {
+  const ActiveProgressRow = Rows.find(
+    (Row) =>
+      IsLevelProgressRow(Row) &&
+      String(Row.progressionRole || "").toUpperCase() === "ACTIVE_LEVEL",
+  );
+  if (ActiveProgressRow) return levelCodeOf(ActiveProgressRow);
+
+  const LevelCodes = SortLevelCodes(
+    Array.from(new Set(Rows.map(levelCodeOf).filter(Boolean))),
+  );
+
+  const FirstOpenLevel = LevelCodes.find((LevelCode) => {
+    const LevelRows = Rows.filter((Row) => levelCodeOf(Row) === LevelCode);
+    const PracticeRows = currentWorkRows(LevelRows.filter(IsPracticeResultRow));
+    const Required = requiredDpsForLevel(LevelRows.length ? LevelRows : PracticeRows, LevelCode);
+    const Cleared = PracticeRows.filter(
+      (Row) => isCompleted(Row) && !isBelowBenchmark(Row),
+    ).length;
+    return Cleared < Required;
+  });
+
+  return FirstOpenLevel || LevelCodes[LevelCodes.length - 1] || "";
+}
+
+function BuildPracticeHeroMetrics(Results: AnyRow[], Assignments: AnyRow[]) {
+  if (Results.length) {
+    const LevelCode = ActivePracticeLevelCode(Results);
+    const ScopedRows = LevelCode
+      ? Results.filter((Row) => levelCodeOf(Row) === LevelCode)
+      : Results;
+    const CurrentRows = currentWorkRows(ScopedRows.filter(IsPracticeResultRow));
+    const Required = requiredDpsForLevel(
+      ScopedRows.length ? ScopedRows : CurrentRows,
+      LevelCode || undefined,
+    );
+    const Cleared = CurrentRows.filter(
+      (Row) => isCompleted(Row) && !isBelowBenchmark(Row),
+    ).length;
+    const NeedsReattempt = uniqueNeedsReattemptCount(CurrentRows);
+    const Pending = Math.max(Required - Cleared - NeedsReattempt, 0);
+    const AverageAccuracy = averageAccuracy(CurrentRows);
+
+    return {
+      Total: Required,
+      Cleared,
+      Pending,
+      NeedsReattempt,
+      AverageAccuracy: `${AverageAccuracy}%`,
+    };
+  }
+
+  const CurrentAssignments = currentWorkRows(Assignments);
+  const Cleared = CurrentAssignments.filter(
+    (Assignment) => isCompleted(Assignment) && !isBelowBenchmark(Assignment),
+  ).length;
+  const NeedsReattempt = uniqueNeedsReattemptCount(CurrentAssignments);
+  const Pending = CurrentAssignments.filter(
+    (Assignment) => !isCompleted(Assignment),
+  ).length;
+
+  return {
+    Total: CurrentAssignments.length,
+    Cleared,
+    Pending,
+    NeedsReattempt,
+    AverageAccuracy: AverageAccuracyDisplay(CurrentAssignments),
+  };
+}
 
 
 export default function StudentPracticePage() {
@@ -158,15 +252,10 @@ function StudentPracticePageContent() {
     },
   );
 
-  const AverageAccuracyValue = CompletedPracticeResults.length
-    ? AverageAccuracyDisplay(
-        CompletedPracticeResults.map((Result) => ({
-          accuracyPercentage: Result.accuracyPercentage,
-          score: Result.score,
-          totalMarks: Result.maxScore,
-        })),
-      )
-    : AverageAccuracyDisplay(CompletedAssignments);
+  const PracticeHeroMetrics = BuildPracticeHeroMetrics(
+    ResultsQuery.data ?? [],
+    Assignments,
+  );
 
   const HasLoaded = !AssignmentQuery.isLoading && !AssignmentQuery.error;
 
@@ -190,27 +279,27 @@ function StudentPracticePageContent() {
             <MetricCard
               Icon={<ClipboardList size={18} />}
               Label="Total DPS"
-              Value={Assignments.length}
+              Value={PracticeHeroMetrics.Total}
             />
             <MetricCard
               Icon={<CheckCircle2 size={18} />}
               Label="Cleared DPS"
-              Value={CompletedAssignments.length}
+              Value={PracticeHeroMetrics.Cleared}
             />
             <MetricCard
               Icon={<Target size={18} />}
               Label="Pending DPS"
-              Value={PendingAssignments.length}
+              Value={PracticeHeroMetrics.Pending}
             />
             <MetricCard
               Icon={<AlertTriangle size={18} />}
               Label="Needs Re-Attempt"
-              Value={NeedsReattemptAssignments.length}
+              Value={PracticeHeroMetrics.NeedsReattempt}
             />
             <MetricCard
               Icon={<BarChart3 size={18} />}
               Label="Average Accuracy"
-              Value={AverageAccuracyValue}
+              Value={PracticeHeroMetrics.AverageAccuracy}
             />
           </div>
         </section>
