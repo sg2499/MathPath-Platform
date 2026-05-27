@@ -602,7 +602,7 @@ function ReadinessDetails({ row }: { row: TeacherAssessmentEligibilityRow }) {
         />
       </div>
 
-      <section className="mt-5 rounded-[26px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+      <section className="math-teacher-readiness-sheet-breakdown mt-5 rounded-[26px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="math-kicker text-[10px]">Sheet Breakdown</p>
@@ -660,7 +660,7 @@ function ReadinessDetails({ row }: { row: TeacherAssessmentEligibilityRow }) {
                     key={lesson.lessonId}
                     className="border-b border-slate-100 last:border-b-0 dark:border-slate-800"
                   >
-                    <div className="sticky top-0 z-20 grid gap-3 border-b border-slate-100 bg-slate-50/95 px-4 py-3 backdrop-blur lg:grid-cols-[1fr_96px_160px_170px] lg:items-end dark:border-slate-800 dark:bg-slate-900/95">
+                    <div className="math-teacher-readiness-sheet-table-header sticky top-0 z-20 grid gap-3 border-b border-slate-100 bg-slate-50/95 px-4 py-3 backdrop-blur lg:grid-cols-[1fr_96px_160px_170px] lg:items-end dark:border-slate-800 dark:bg-slate-900/95">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-600">
                           Lesson {lesson.lessonNumber}
@@ -673,13 +673,13 @@ function ReadinessDetails({ row }: { row: TeacherAssessmentEligibilityRow }) {
                           {lesson.sheets.length === 1 ? "" : "s"} in this view
                         </p>
                       </div>
-                      <p className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
+                      <p className="math-teacher-readiness-sheet-column-label hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
                         Score
                       </p>
-                      <p className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
+                      <p className="math-teacher-readiness-sheet-column-label hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
                         Status
                       </p>
-                      <p className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
+                      <p className="math-teacher-readiness-sheet-column-label hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
                         Completion Date
                       </p>
                     </div>
