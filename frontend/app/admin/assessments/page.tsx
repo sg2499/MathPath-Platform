@@ -1884,7 +1884,7 @@ function AdminAssessmentControlPageContent() {
 
         {ActiveTab === "PARENT_REPORTS" ? (
           <div className="space-y-5">
-            <div className="math-operation-panel">
+            <div className="math-operation-panel math-admin-parent-report-panel">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="math-kicker">Parent Report Center</p>
@@ -1929,7 +1929,7 @@ function AdminAssessmentControlPageContent() {
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <button
-                  className={`math-role-tab-card math-admin-tab-force p-4 text-left ${ParentReportTabValue === "GENERATE" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
+                  className={`math-role-tab-card math-admin-tab-force math-admin-parent-report-tab p-4 text-left ${ParentReportTabValue === "GENERATE" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
                   aria-selected={ParentReportTabValue === "GENERATE"}
                   data-active={ParentReportTabValue === "GENERATE" ? "true" : "false"}
                   onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "GENERATE")}
@@ -1956,7 +1956,7 @@ function AdminAssessmentControlPageContent() {
                   </p>
                 </button>
                 <button
-                  className={`math-role-tab-card math-admin-tab-force p-4 text-left ${ParentReportTabValue === "DELIVERY_HISTORY" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
+                  className={`math-role-tab-card math-admin-tab-force math-admin-parent-report-tab p-4 text-left ${ParentReportTabValue === "DELIVERY_HISTORY" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
                   aria-selected={ParentReportTabValue === "DELIVERY_HISTORY"}
                   data-active={ParentReportTabValue === "DELIVERY_HISTORY" ? "true" : "false"}
                   onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "DELIVERY_HISTORY")}
@@ -2843,7 +2843,7 @@ function PromotionHistoryTable({
         return (
           <div
             key={Group.StudentKey}
-            className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
+            className="math-admin-parent-report-student-group overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
           >
             <button
               type="button"
@@ -3386,11 +3386,11 @@ function ParentReportGenerateTable({
             return (
               <div
                 key={StudentGroup.StudentKey}
-                className={`overflow-hidden rounded-[28px] border bg-white shadow-sm dark:bg-slate-950 ${IsTargetStudent ? "border-cyan-300 ring-4 ring-cyan-100/70 dark:border-cyan-500/50 dark:ring-cyan-500/15" : "border-slate-200 dark:border-slate-800"}`}
+                className={`math-admin-parent-report-student-group overflow-hidden rounded-[28px] border bg-white shadow-sm dark:bg-slate-950 ${IsTargetStudent ? "border-cyan-300 ring-4 ring-cyan-100/70 dark:border-cyan-500/50 dark:ring-cyan-500/15" : "border-slate-200 dark:border-slate-800"}`}
               >
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
+                  className="math-admin-parent-report-student-toggle flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
                   onClick={() => ToggleStudent(StudentGroup.StudentKey)}
                 >
                   <div className="flex min-w-0 items-center gap-4">
@@ -3441,7 +3441,7 @@ function ParentReportGenerateTable({
                         >
                           <button
                             type="button"
-                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-cyan-50/50 dark:hover:bg-slate-900/80"
+                            className="math-admin-parent-report-module-toggle flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-cyan-50/50 dark:hover:bg-slate-900/80"
                             onClick={() => ToggleModule(ModuleExpandKey)}
                           >
                             <div className="flex min-w-0 items-center gap-3">
@@ -3466,7 +3466,7 @@ function ParentReportGenerateTable({
 
                           {IsModuleExpanded ? (
                             <div className="border-t border-slate-100 p-4 dark:border-slate-800">
-                              <div className="math-grid-table-header grid grid-cols-[.72fr_1fr_.42fr_.7fr_.54fr_240px] gap-2">
+                              <div className="math-grid-table-header math-admin-parent-report-grid-header grid grid-cols-[.72fr_1fr_.42fr_.7fr_.54fr_240px] gap-2">
                                 <div>Completed Level</div>
                                 <div>Assessment</div>
                                 <div>Score</div>
@@ -3495,7 +3495,7 @@ function ParentReportGenerateTable({
                                             ? "parent-report-generate"
                                             : undefined
                                         }
-                                        className={`math-grid-table-row grid grid-cols-[.72fr_1fr_.42fr_.7fr_.54fr_240px] items-center gap-2 ${IsTargetRow ? "bg-cyan-50/90 ring-1 ring-inset ring-cyan-200 dark:bg-cyan-500/10 dark:ring-cyan-500/25" : ""}`}
+                                        className={`math-grid-table-row math-admin-parent-report-grid-row grid grid-cols-[.72fr_1fr_.42fr_.7fr_.54fr_240px] items-center gap-2 ${IsTargetRow ? "bg-cyan-50/90 ring-1 ring-inset ring-cyan-200 dark:bg-cyan-500/10 dark:ring-cyan-500/25" : ""}`}
                                       >
                                         <div>
                                           <Chip tone="blue">
@@ -4237,11 +4237,11 @@ function ParentReportDeliveryHistoryTable({
             return (
               <div
                 key={StudentGroup.StudentKey}
-                className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                className="math-admin-parent-report-student-group overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
               >
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
+                  className="math-admin-parent-report-student-toggle flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
                   onClick={() => ToggleStudent(StudentGroup.StudentKey)}
                 >
                   <div className="flex min-w-0 items-center gap-4">
@@ -4288,7 +4288,7 @@ function ParentReportDeliveryHistoryTable({
                         >
                           <button
                             type="button"
-                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-cyan-50/50 dark:hover:bg-slate-900/80"
+                            className="math-admin-parent-report-module-toggle flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-cyan-50/50 dark:hover:bg-slate-900/80"
                             onClick={() => ToggleModule(ModuleExpandKey)}
                           >
                             <div className="flex min-w-0 items-center gap-3">
@@ -4315,7 +4315,7 @@ function ParentReportDeliveryHistoryTable({
                           {IsModuleExpanded ? (
                             <div className="border-t border-slate-100 p-4 dark:border-slate-800">
                               <div
-                                className="math-grid-table-header grid gap-2"
+                                className="math-grid-table-header math-admin-parent-report-grid-header grid gap-2"
                                 style={{
                                   gridTemplateColumns:
                                     "0.48fr 0.52fr minmax(220px, 1fr) 0.38fr 0.56fr 0.46fr 280px",
@@ -4346,7 +4346,7 @@ function ParentReportDeliveryHistoryTable({
                                           ? "parent-report-delivery"
                                           : undefined
                                       }
-                                      className={`math-grid-table-row grid items-center gap-2 ${IsHighlighted ? "bg-teal-50 ring-2 ring-teal-300 ring-inset dark:bg-teal-950/30 dark:ring-teal-500/50" : ""}`}
+                                      className={`math-grid-table-row math-admin-parent-report-grid-row grid items-center gap-2 ${IsHighlighted ? "bg-teal-50 ring-2 ring-teal-300 ring-inset dark:bg-teal-950/30 dark:ring-teal-500/50" : ""}`}
                                       style={{
                                         gridTemplateColumns:
                                           "0.48fr 0.52fr minmax(220px, 1fr) 0.38fr 0.56fr 0.46fr 280px",
@@ -4895,7 +4895,7 @@ function ApprovalQueueTable({
         return (
           <div
             key={Group.StudentKey}
-            className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
+            className="math-admin-parent-report-student-group overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
           >
             <div
               role="button"
