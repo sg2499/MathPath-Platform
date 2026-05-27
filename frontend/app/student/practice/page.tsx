@@ -14,6 +14,7 @@ import {
   NaturalCompare,
   requiredDpsForLevel,
   uniqueNeedsReattemptCount,
+  uniquePendingConceptCount,
 } from "@/components/common/DetailWorkspaceViews";
 import { NotificationTargetBanner } from "@/components/common/NotificationTargetBanner";
 import { AssignmentCard } from "@/components/student/AssignmentCard";
@@ -26,6 +27,7 @@ import {
   BarChart3,
   CheckCircle2,
   ClipboardList,
+  FileText,
   Target,
 } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
@@ -133,15 +135,17 @@ function BuildPracticeHeroMetrics(Results: AnyRow[], Assignments: AnyRow[]) {
       ScopedRows.length ? ScopedRows : CurrentRows,
       LevelCode || undefined,
     );
+    const Assigned = CurrentRows.length;
     const Cleared = CurrentRows.filter(
       (Row) => isCompleted(Row) && !isBelowBenchmark(Row),
     ).length;
     const NeedsReattempt = uniqueNeedsReattemptCount(CurrentRows);
-    const Pending = Math.max(Required - Cleared - NeedsReattempt, 0);
+    const Pending = uniquePendingConceptCount(CurrentRows);
     const AverageAccuracy = averageAccuracy(CurrentRows);
 
     return {
       Total: Required,
+      Assigned,
       Cleared,
       Pending,
       NeedsReattempt,
@@ -150,16 +154,21 @@ function BuildPracticeHeroMetrics(Results: AnyRow[], Assignments: AnyRow[]) {
   }
 
   const CurrentAssignments = currentWorkRows(Assignments);
+  const Assigned = CurrentAssignments.length;
+  const ActiveLevelCode = ActivePracticeLevelCode(CurrentAssignments);
+  const Required = requiredDpsForLevel(
+    CurrentAssignments,
+    ActiveLevelCode || undefined,
+  );
   const Cleared = CurrentAssignments.filter(
     (Assignment) => isCompleted(Assignment) && !isBelowBenchmark(Assignment),
   ).length;
   const NeedsReattempt = uniqueNeedsReattemptCount(CurrentAssignments);
-  const Pending = CurrentAssignments.filter(
-    (Assignment) => !isCompleted(Assignment),
-  ).length;
+  const Pending = uniquePendingConceptCount(CurrentAssignments);
 
   return {
-    Total: CurrentAssignments.length,
+    Total: Required,
+    Assigned,
     Cleared,
     Pending,
     NeedsReattempt,
@@ -275,11 +284,16 @@ function StudentPracticePageContent() {
             practice assigned by your teacher.
           </p>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
             <MetricCard
               Icon={<ClipboardList size={18} />}
               Label="Total DPS"
               Value={PracticeHeroMetrics.Total}
+            />
+            <MetricCard
+              Icon={<FileText size={18} />}
+              Label="Assigned DPS"
+              Value={PracticeHeroMetrics.Assigned}
             />
             <MetricCard
               Icon={<CheckCircle2 size={18} />}

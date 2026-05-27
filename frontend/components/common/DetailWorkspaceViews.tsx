@@ -155,11 +155,15 @@ export function levelProgressSummary(rows: AnyRow[]) {
 
   const levelSummaries = safeLevels.map((levelCode) => {
     const levelRows = SourceRows.filter((row) => levelCodeOf(row) === levelCode);
-    const MetricRows = levelRows.length ? levelRows : SourceRows;
-    const completed = uniqueClearedConceptCount(MetricRows);
-    const required = requiredDpsForLevel(MetricRows, levelCode);
-    const below = uniqueNeedsReattemptCount(MetricRows);
-    const pending = Math.max(required - completed - below, 0);
+    const completed = levelRows.filter(
+      (row) => isCompleted(row) && !isBelowBenchmark(row),
+    ).length;
+    const required = requiredDpsForLevel(
+      levelRows.length ? levelRows : SourceRows,
+      levelCode,
+    );
+    const below = uniqueNeedsReattemptCount(levelRows);
+    const pending = levelRows.filter((row) => !isCompleted(row)).length;
     const status =
       below > 0
         ? "Needs Re-Attempt"
@@ -431,28 +435,18 @@ export function workUnitKey(row: AnyRow) {
     .trim()
     .toLowerCase();
 
-  const DpsTextForConcept = [
-    row.dpsConceptKey,
-    row.dpsNumber,
-    row.dpsNo,
-    row.dpsTitle,
-    row.assignmentTitle,
-    row.title,
-  ]
-    .filter(Boolean)
-    .map((Value) => String(Value))
-    .find((Value) => /dps\s*[-#:]*\s*\d+/i.test(Value));
-  const ParsedDpsConcept = DpsTextForConcept?.match(/dps\s*[-#:]*\s*(\d+)/i)?.[1];
   const StableDpsConcept = String(
-    row.dpsConceptKey ||
+    row.dpsId ||
+      row.dpsCode ||
+      row.dps_id ||
       row.dpsNumber ||
       row.dpsNo ||
-      (ParsedDpsConcept ? `DPS-${ParsedDpsConcept}` : undefined) ||
-      row.dpsTitle ||
-      row.assignmentTitle ||
-      row.title ||
+      row.sheetId ||
+      row.sheetCode ||
       row.sheetNumber ||
       row.sheetNo ||
+      row.dpsConceptKey ||
+      row.dpsTitle ||
       CompactDpsLabel(row) ||
       "dps",
   )
@@ -545,7 +539,9 @@ export function uniqueClearedConceptCount(rows: AnyRow[]) {
 }
 
 export function uniquePendingConceptCount(rows: AnyRow[]) {
-  return currentWorkRows(rows).filter((Row) => !isCompleted(Row)).length;
+  return currentWorkRows(rows).filter(
+    (Row) => !isCompleted(Row) && !needsReattempt(Row),
+  ).length;
 }
 
 export function uniqueNeedsReattemptCount(rows: AnyRow[]) {
@@ -673,12 +669,21 @@ export function searchText(row: AnyRow) {
 
 export function studentStats(rows: AnyRow[]) {
   const CurrentRows = currentWorkRows(rows);
+  const Assigned = CurrentRows.length;
+  const LevelCodes = Array.from(new Set((rows.length ? rows : CurrentRows).map(levelCodeOf).filter(Boolean)));
+  const Required = LevelCodes.length
+    ? LevelCodes.reduce((Total, LevelCode) => {
+        const LevelRows = rows.filter((Row) => levelCodeOf(Row) === LevelCode);
+        return Total + requiredDpsForLevel(LevelRows.length ? LevelRows : rows, LevelCode);
+      }, 0)
+    : requiredDpsForLevel(rows.length ? rows : CurrentRows);
   const completed = uniqueClearedConceptCount(CurrentRows);
   const pending = uniquePendingConceptCount(CurrentRows);
   const below = uniqueNeedsReattemptCount(CurrentRows);
   const reattempt = below;
   return {
-    total: CurrentRows.length,
+    total: Required,
+    assigned: Assigned,
     completed,
     pending,
     below,
@@ -963,9 +968,7 @@ export function RecordWorkspace({
         total: progressSummary.currentRequired,
         completed: progressSummary.currentCompleted,
         pending: Math.max(
-          progressSummary.currentRequired -
-            progressSummary.currentCompleted -
-            progressSummary.currentBelow,
+          progressSummary.currentRequired - progressSummary.currentCompleted,
           0,
         ),
         below: progressSummary.currentBelow,
@@ -1132,12 +1135,19 @@ export function RecordWorkspace({
             <p className="mt-2 text-sm font-bold text-slate-500">{subtitle}</p>
           ) : null}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className={`grid gap-3 sm:grid-cols-2 ${role === "student" ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
           <Metric
-            label={role === "student" ? "Required DPS" : "Assigned DPS"}
+            label={role === "student" ? "Total DPS" : "Assigned DPS"}
             value={stats.total}
             icon={<Layers3 size={15} />}
           />
+          {role === "student" ? (
+            <Metric
+              label="Assigned DPS"
+              value={stats.assigned}
+              icon={<ClipboardList size={15} />}
+            />
+          ) : null}
           <Metric
             label="Cleared DPS"
             value={stats.completed}
@@ -1880,7 +1890,7 @@ function StudentProgressOverview({
   const Required =
     Summary.currentRequired ||
     requiredDpsForLevel(SourceRows, Summary.currentLevel);
-  const Pending = Math.max(Required - Completed - Summary.currentBelow, 0);
+  const Pending = Math.max(Required - Completed, 0);
   const CompletionPercent = Required
     ? Math.min(100, Math.round((Completed / Required) * 100))
     : 0;
