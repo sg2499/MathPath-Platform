@@ -7993,28 +7993,46 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
   }
 }
 
-/* 27 May 2026 — Admin Assessment Readiness dark-mode sheet tab palette lock
-   Scope: Admin readiness sheet breakdown filters only. Preserves light mode and other roles. */
+/* 27 May 2026 — Permanent Admin Assessment Readiness dark-mode sheet tab palette lock
+   Scope: Admin Assessment Readiness sheet-breakdown filter chips only.
+   This intentionally uses page-specific classes and final-file placement so later generic
+   control audits cannot override the selected Admin blue state. Light mode and other roles stay untouched. */
 @layer components {
-  html.dark .math-admin-readiness-sheet-filter.is-active,
-  html.dark .math-admin-readiness-sheet-filter[aria-pressed="true"],
-  html.dark .math-admin-readiness-sheet-filter[aria-selected="true"],
-  html.dark .math-admin-readiness-sheet-filter[data-active="true"],
-  html.dark .math-admin-readiness-sheet-filter[data-role-selected="true"],
-  html.dark .math-admin-readiness-sheet-filter[data-admin-readiness-selected="true"] {
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter {
+    color: #dbeafe !important;
+    -webkit-text-fill-color: #dbeafe !important;
+    border-color: rgba(96, 165, 250, 0.42) !important;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.78)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 10px 28px rgba(2,6,23,0.22) !important;
+  }
+
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter:hover,
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter:focus-visible {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: rgba(191, 219, 254, 0.78) !important;
+    background: linear-gradient(135deg, rgba(8, 47, 111, 0.98) 0%, rgba(37, 99, 235, 0.96) 56%, rgba(34, 211, 238, 0.90) 100%) !important;
+    box-shadow: 0 16px 36px rgba(37, 99, 235, 0.28), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  }
+
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter-selected,
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter.is-active,
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter[aria-pressed="true"],
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter[aria-selected="true"],
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter[data-active="true"] {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
     border-color: rgba(191, 219, 254, 0.82) !important;
-    background: linear-gradient(135deg, #082f6f 0%, #2563eb 56%, #22d3ee 100%) !important;
-    box-shadow: 0 16px 38px rgba(37, 99, 235, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+    background: linear-gradient(135deg, #082f6f 0%, #2563eb 55%, #22d3ee 100%) !important;
+    box-shadow: 0 18px 44px rgba(37, 99, 235, 0.34), inset 0 1px 0 rgba(255,255,255,0.20) !important;
+    transform: translateY(-1px) !important;
   }
 
-  html.dark .math-admin-readiness-sheet-filter.is-active *,
-  html.dark .math-admin-readiness-sheet-filter[aria-pressed="true"] *,
-  html.dark .math-admin-readiness-sheet-filter[aria-selected="true"] *,
-  html.dark .math-admin-readiness-sheet-filter[data-active="true"] *,
-  html.dark .math-admin-readiness-sheet-filter[data-role-selected="true"] *,
-  html.dark .math-admin-readiness-sheet-filter[data-admin-readiness-selected="true"] * {
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter-selected *,
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter.is-active *,
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter[aria-pressed="true"] *,
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter[aria-selected="true"] *,
+  html.dark .math-role-admin button.math-admin-readiness-sheet-filter[data-active="true"] * {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
     opacity: 1 !important;
