@@ -113,6 +113,7 @@ export function SortRowsByCurriculum(Rows: AnyRow[]) {
 
 const LEVEL_DPS_REQUIREMENTS: Record<string, number> = {
   "YLM-L1": 40,
+  "YLM-L2": 6,
 };
 
 export function levelCodeOf(row: AnyRow) {
@@ -157,7 +158,7 @@ export function levelProgressSummary(rows: AnyRow[]) {
     const levelRows = SourceRows.filter((row) => levelCodeOf(row) === levelCode);
     const MetricRows = levelRows.length ? levelRows : SourceRows;
     const completed = uniqueClearedConceptCount(MetricRows);
-    const required = uniqueAssignedConceptCount(MetricRows);
+    const required = requiredDpsForLevel(MetricRows, levelCode);
     const below = uniqueNeedsReattemptCount(MetricRows);
     const pending = Math.max(required - completed, 0);
     const status =
