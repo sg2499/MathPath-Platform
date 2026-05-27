@@ -3,7 +3,14 @@
 import { NotificationsBell } from "@/components/common/NotificationsBell";
 import { apiErrorMessage } from "@/lib/api";
 import { changePassword, uploadProfilePhoto } from "@/lib/api/auth";
-import { clearAuth, getStoredUser, updateStoredUser } from "@/lib/auth";
+import {
+  clearAuth,
+  getStoredUser,
+  getStoredUserForRole,
+  getTokenForRole,
+  setActiveRole,
+  updateStoredUser,
+} from "@/lib/auth";
 import type { UserRole } from "@/types/auth";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -66,6 +73,26 @@ const MATHPATH_WEBSITE_URL = "https://www.mathpath.in/website/index";
 
 const NAV_STORAGE_KEY = "mathpath_nav_collapsed";
 
+
+function normalizeShellRole(role?: UserRole | null): "ADMIN" | "TEACHER" | "STUDENT" | null {
+  if (role === "SUPER_ADMIN" || role === "ADMIN") return "ADMIN";
+  if (role === "TEACHER") return "TEACHER";
+  if (role === "STUDENT") return "STUDENT";
+  return null;
+}
+
+function expectedRoleFromPath(pathname?: string | null): "ADMIN" | "TEACHER" | "STUDENT" | null {
+  if (!pathname) return null;
+  if (pathname.startsWith("/admin")) return "ADMIN";
+  if (pathname.startsWith("/teacher")) return "TEACHER";
+  if (pathname.startsWith("/student")) return "STUDENT";
+  return null;
+}
+
+function loginRouteForRole(role: "ADMIN" | "TEACHER" | "STUDENT") {
+  return `/login?role=${role.toLowerCase()}`;
+}
+
 function displayUserRole(role?: UserRole) {
   if (role === "SUPER_ADMIN" || role === "ADMIN") return "ADMIN";
   if (role === "TEACHER") return "TEACHER";
@@ -107,6 +134,7 @@ export function AppShell({
   const router = useRouter();
   const pathname = usePathname();
   const [MountedUser, SetMountedUser] = useState<StoredUser>(null);
+  const [AuthReady, SetAuthReady] = useState(false);
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -128,13 +156,36 @@ export function AppShell({
 
   useEffect(() => {
     function RefreshMountedUser() {
+      const ExpectedRole = expectedRoleFromPath(pathname);
+
+      if (ExpectedRole) {
+        const RoleToken = getTokenForRole(ExpectedRole);
+        const RoleUser = getStoredUserForRole(ExpectedRole);
+        const StoredRole = normalizeShellRole(RoleUser?.role);
+
+        if (!RoleToken || !RoleUser || StoredRole !== ExpectedRole) {
+          clearAuth();
+          localStorage.setItem("mathpath_login_role", ExpectedRole);
+          SetMountedUser(null);
+          SetAuthReady(false);
+          router.replace(loginRouteForRole(ExpectedRole));
+          return;
+        }
+
+        setActiveRole(ExpectedRole);
+        SetMountedUser(RoleUser);
+        SetAuthReady(true);
+        return;
+      }
+
       SetMountedUser(getStoredUser());
+      SetAuthReady(true);
     }
 
     RefreshMountedUser();
     window.addEventListener("mathpath-auth-changed", RefreshMountedUser);
     return () => window.removeEventListener("mathpath-auth-changed", RefreshMountedUser);
-  }, [pathname]);
+  }, [pathname, router]);
 
   const AvatarUrl = assetUrl(resolveProfilePhotoUrl(MountedUser));
 
@@ -195,6 +246,14 @@ export function AppShell({
   const IsTeacher = MountedUser?.role === "TEACHER";
   const IsAdmin =
     MountedUser?.role === "ADMIN" || MountedUser?.role === "SUPER_ADMIN";
+
+  if (!AuthReady && expectedRoleFromPath(pathname)) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-center text-sm font-black uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+        Securing MathPath Workspace...
+      </main>
+    );
+  }
 
   const RoleShellClass = IsStudent
     ? "math-role-student"
