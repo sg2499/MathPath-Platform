@@ -8884,3 +8884,51 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     -webkit-text-fill-color: #fecdd3 !important;
   }
 }
+
+/* 27 May 2026 — Teacher dark-mode section header complete cleanup
+   Scope: Teacher login only, dark mode only. This broader final guard removes
+   residual rectangular/kicker background strips from teacher section labels across
+   nested detail, assessment, readiness, and result surfaces while preserving table
+   header classes, chips, row values, and light mode. */
+@layer components {
+  html.dark .math-role-teacher .math-kicker:not(.math-hero .math-kicker):not(.math-table-header-label):not(.math-sortable-header-label):not(.math-admin-readiness-sheet-column-label) {
+    display: inline-flex !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: max-content !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    color: #fecdd3 !important;
+    -webkit-text-fill-color: #fecdd3 !important;
+  }
+
+  html.dark .math-role-teacher :is(.math-section-kicker, .math-block-kicker, .math-hierarchy-kicker, .math-detail-kicker):not(.math-table-header-label):not(.math-sortable-header-label) {
+    display: inline-flex !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: max-content !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    color: #fecdd3 !important;
+    -webkit-text-fill-color: #fecdd3 !important;
+  }
+
+  html.dark .math-role-teacher :is(.math-card, .math-panel, .math-soft-section, .math-selected-scope-card, .math-history-hierarchy-row, .math-current-level-progress-block, .math-completed-level-module-block, .math-completed-level-summary-block, .math-teacher-students-page, .math-teacher-practice-tracker-page, .math-teacher-assessment-tracker-page, .math-teacher-promotion-history-page) :is(.math-kicker, .math-section-kicker, .math-block-kicker, .math-hierarchy-kicker, .math-detail-kicker)::before,
+  html.dark .math-role-teacher :is(.math-card, .math-panel, .math-soft-section, .math-selected-scope-card, .math-history-hierarchy-row, .math-current-level-progress-block, .math-completed-level-module-block, .math-completed-level-summary-block, .math-teacher-students-page, .math-teacher-practice-tracker-page, .math-teacher-assessment-tracker-page, .math-teacher-promotion-history-page) :is(.math-kicker, .math-section-kicker, .math-block-kicker, .math-hierarchy-kicker, .math-detail-kicker)::after {
+    display: none !important;
+    content: none !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+}
