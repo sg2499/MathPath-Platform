@@ -8833,3 +8833,35 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     border-right: 1px solid rgba(148, 163, 184, 0.16) !important;
   }
 }
+
+/* 27 May 2026 — Teacher Assessment Tracker + Promotion History dark table header convention
+   Scope: Teacher > Assessment Tracker and Teacher > Promotion History only. Dark mode only.
+   Adds the existing column-header convention without touching Teacher Students, Practice Tracker,
+   student-detail Lesson Insights, Assessment Readiness, row values, chips, buttons, or light mode. */
+@layer components {
+  html.dark .math-role-teacher :is(.math-teacher-assessment-tracker-table-header, .math-teacher-promotion-history-table-header) {
+    background:
+      linear-gradient(180deg, rgba(71, 85, 105, 0.62), rgba(51, 65, 85, 0.72)) !important;
+    border-color: rgba(148, 163, 184, 0.28) !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.13),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.22) !important;
+  }
+
+  html.dark .math-role-teacher :is(.math-teacher-assessment-tracker-table-header, .math-teacher-promotion-history-table-header) > div,
+  html.dark .math-role-teacher :is(.math-teacher-assessment-tracker-table-header, .math-teacher-promotion-history-table-header) :is(div, span, p) {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-role-teacher :is(.math-teacher-assessment-tracker-table-header, .math-teacher-promotion-history-table-header) > div:not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, 0.16) !important;
+  }
+}

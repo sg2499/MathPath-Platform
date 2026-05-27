@@ -722,7 +722,7 @@ function TeacherAssessmentHierarchyRecords({
                       </button>
                       {LevelExpanded ? (
                         <div className="overflow-hidden border-t border-slate-200 dark:border-slate-800">
-                          <div className="grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_.88fr_.88fr_104px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
+                          <div className="math-teacher-assessment-tracker-table-header grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_.88fr_.88fr_104px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
                             <div>Assessment</div>
                             <div>Attempt</div>
                             <div>Status</div>
