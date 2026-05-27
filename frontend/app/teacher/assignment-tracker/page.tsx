@@ -1354,12 +1354,12 @@ function StudentReviewTab({
                 <Chip tone="green">{Stats.Cleared}</Chip>
               </div>
               <div>
-                <Chip tone={Stats.Pending ? "amber" : "green"}>
+                <Chip tone="amber">
                   {Stats.Pending}
                 </Chip>
               </div>
               <div>
-                <Chip tone={Stats.NeedsReattempt ? "red" : "green"}>
+                <Chip tone="red">
                   {Stats.NeedsReattempt}
                 </Chip>
               </div>
