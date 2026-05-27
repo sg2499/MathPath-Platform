@@ -8455,3 +8455,31 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     border-right: 1px solid rgba(148, 163, 184, 0.22) !important;
   }
 }
+
+
+/* 27 May 2026 — Admin Practice Control student detail Lesson Insights table header convention
+   Scope: Admin > Practice Control > View Details > Lesson Insights tables only. Dark mode only.
+   Applies at component level so every existing and future student detail record inherits the same header style. */
+@layer components {
+  html.dark .math-role-admin .math-admin-practice-lesson-insights-table .math-admin-practice-lesson-insights-table-header {
+    background: linear-gradient(180deg, rgba(51, 65, 85, 0.96), rgba(30, 41, 59, 0.96)) !important;
+    border-color: rgba(148, 163, 184, 0.46) !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+  }
+
+  html.dark .math-role-admin .math-admin-practice-lesson-insights-table .math-admin-practice-lesson-insights-table-header > div,
+  html.dark .math-role-admin .math-admin-practice-lesson-insights-table .math-admin-practice-lesson-insights-table-header * {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.12em !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-role-admin .math-admin-practice-lesson-insights-table .math-admin-practice-lesson-insights-table-header > div:not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, 0.22) !important;
+  }
+}
