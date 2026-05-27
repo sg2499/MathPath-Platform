@@ -2383,7 +2383,7 @@ function AssessmentHierarchyRecords({
                       </button>
                       {LevelExpanded ? (
                         <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
-                          <div className="grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_.88fr_.88fr_104px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
+                          <div className="math-admin-assessment-control-table-header math-admin-assessment-student-records-header grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_.88fr_.88fr_104px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
                             <div>Assessment</div>
                             <div>Attempt</div>
                             <div>Status</div>
@@ -2607,7 +2607,7 @@ function AssessmentManageHierarchy({
                       </button>
                       {LevelExpanded ? (
                         <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
-                          <div className="grid w-full min-w-[1120px] grid-cols-[minmax(320px,1.55fr)_minmax(140px,.62fr)_minmax(210px,.82fr)_minmax(130px,.52fr)_minmax(220px,.78fr)] items-center gap-5 bg-slate-50 px-5 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
+                          <div className="math-admin-assessment-control-table-header math-admin-assessment-manage-header grid w-full min-w-[1120px] grid-cols-[minmax(320px,1.55fr)_minmax(140px,.62fr)_minmax(210px,.82fr)_minmax(130px,.52fr)_minmax(220px,.78fr)] items-center gap-5 bg-slate-50 px-5 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
                             <div>Assessment Detail</div>
                             <div>Attempt</div>
                             <div>Status</div>
@@ -2756,7 +2756,7 @@ function PromotionHistoryRecordTable({
 }) {
   return (
     <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="math-admin-assessment-control-table-header math-admin-assessment-promotion-history-header grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <div>From Level</div>
         <div>To Level</div>
         <div>Assessment</div>
@@ -4936,7 +4936,7 @@ function ApprovalQueueTable({
             {IsExpanded ? (
               <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
                 <div className="min-w-[1180px]">
-                  <div className="grid grid-cols-[.68fr_.58fr_1fr_.56fr_.62fr_.82fr_.78fr_232px] gap-2 bg-slate-50 px-4 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
+                  <div className="math-admin-assessment-control-table-header math-admin-assessment-reattempt-approvals-header grid grid-cols-[.68fr_.58fr_1fr_.56fr_.62fr_.82fr_.78fr_232px] gap-2 bg-slate-50 px-4 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
                     <div>Teacher</div>
                     <div>Level</div>
                     <div>Failed Assessment</div>
