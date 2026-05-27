@@ -1927,64 +1927,27 @@ function AdminAssessmentControlPageContent() {
                   </div>
                 </div>
               </div>
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                <button
-                  className={`math-role-tab-card math-admin-tab-force math-admin-parent-report-tab p-4 text-left ${ParentReportTabValue === "GENERATE" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
-                  aria-selected={ParentReportTabValue === "GENERATE"}
-                  data-active={ParentReportTabValue === "GENERATE" ? "true" : "false"}
-                  onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "GENERATE")}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                        <FileText size={18} />
-                      </span>
-                      <div>
-                        <p className="math-kicker">Generate Reports</p>
-                        <h3 className="text-base font-black text-slate-950 dark:text-white">
-                          Completed-Level Reports
-                        </h3>
-                      </div>
-                    </div>
-                    <Chip tone="blue">
-                      {ParentReportEligibleRows.length} Eligible
-                    </Chip>
-                  </div>
-                  <p className="mt-2 text-sm font-semibold text-slate-500">
-                    Review assessment-cleared students eligible for parent
-                    progress reports.
-                  </p>
-                </button>
-                <button
-                  className={`math-role-tab-card math-admin-tab-force math-admin-parent-report-tab p-4 text-left ${ParentReportTabValue === "DELIVERY_HISTORY" ? "math-role-tab-card-active math-admin-tab-force-selected" : ""}`}
-                  aria-selected={ParentReportTabValue === "DELIVERY_HISTORY"}
-                  data-active={ParentReportTabValue === "DELIVERY_HISTORY" ? "true" : "false"}
-                  onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "DELIVERY_HISTORY")}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-purple-50 text-purple-700">
-                        <History size={18} />
-                      </span>
-                      <div>
-                        <p className="math-kicker">Delivery History</p>
-                        <h3 className="text-base font-black text-slate-950 dark:text-white">
-                          Report Audit
-                        </h3>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 gap-2">
-                      <Chip tone="purple">{ParentReportSentCount} Sent</Chip>
-                      {ParentReportFailedCount ? (
-                        <Chip tone="red">{ParentReportFailedCount} Failed</Chip>
-                      ) : null}
-                    </div>
-                  </div>
-                  <p className="mt-2 text-sm font-semibold text-slate-500">
-                    Track sent and failed parent report emails with complete
-                    delivery audit details.
-                  </p>
-                </button>
+              <div className="math-report-mode-tabs-section mt-5 math-card p-3">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <ParentReportModeButton
+                    active={ParentReportTabValue === "GENERATE"}
+                    icon={<FileText size={16} />}
+                    kicker="Generate Reports"
+                    title="Completed-Level Reports"
+                    text="Review assessment-cleared students eligible for parent progress reports."
+                    countLabel={`${ParentReportEligibleRows.length} Eligible`}
+                    onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "GENERATE")}
+                  />
+                  <ParentReportModeButton
+                    active={ParentReportTabValue === "DELIVERY_HISTORY"}
+                    icon={<History size={16} />}
+                    kicker="Delivery History"
+                    title="Report Audit"
+                    text="Track sent and failed parent report emails with complete delivery audit details."
+                    countLabel={`${ParentReportSentCount} Sent${ParentReportFailedCount ? ` · ${ParentReportFailedCount} Failed` : ""}`}
+                    onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "DELIVERY_HISTORY")}
+                  />
+                </div>
               </div>
             </div>
 
@@ -3713,6 +3676,57 @@ function ParentReportGenerateTable({
   );
 }
 
+function ParentReportModeButton({
+  active,
+  icon,
+  kicker,
+  title,
+  text,
+  countLabel,
+  onClick,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  kicker: string;
+  title: string;
+  text: string;
+  countLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      aria-selected={active}
+      data-active={active ? "true" : "false"}
+      className={`math-report-scope-tab math-role-tab-card ${active ? "math-report-scope-tab-active math-role-tab-card-active" : "math-report-scope-tab-inactive"}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex min-w-0 items-start gap-3">
+          <span className="math-report-scope-tab-icon">{icon}</span>
+          <span className="min-w-0">
+            <span className="math-report-scope-tab-kicker">{kicker}</span>
+            <span className="math-report-scope-tab-title">{title}</span>
+            <span className="math-report-scope-tab-text">{text}</span>
+          </span>
+        </span>
+        <span className="math-parent-report-tab-count-chip">{countLabel}</span>
+      </div>
+    </button>
+  );
+}
+
+function ParentReportDeliveryStatusChip({ Status }: { Status: string }) {
+  const Tone = ParentReportDeliveryStatusTone(Status);
+  const Label = String(Status || "-").replace(/_/g, " ");
+  return (
+    <span className={`math-parent-report-delivery-status-chip math-parent-report-delivery-status-chip-${Tone}`}>
+      {Label}
+    </span>
+  );
+}
+
 function ParentReportDeliveryStatusTone(
   Status: string,
 ): "green" | "red" | "amber" | "slate" {
@@ -4373,16 +4387,9 @@ function ParentReportDeliveryHistoryTable({
                                         {Item.recipientEmail}
                                       </div>
                                       <div>
-                                        <Chip
-                                          tone={ParentReportDeliveryStatusTone(
-                                            Item.status,
-                                          )}
-                                        >
-                                          {String(Item.status || "-").replace(
-                                            /_/g,
-                                            " ",
-                                          )}
-                                        </Chip>
+                                        <ParentReportDeliveryStatusChip
+                                          Status={Item.status}
+                                        />
                                       </div>
                                       <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
                                         {ParentReportDeliveryDateLabel(Item)}

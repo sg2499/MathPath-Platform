@@ -8570,3 +8570,141 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     border-right: 1px solid rgba(148, 163, 184, 0.22) !important;
   }
 }
+
+/* 27 May 2026 — Admin Parent Reports tab parity + delivery status chips
+   Scope: Admin > Assessment Control > Parent Reports only. Applies in light and dark mode.
+   Makes Generate Reports / Delivery History match the Admin Performance Reports tab system. */
+@layer components {
+  .math-role-admin .math-admin-parent-report-panel .math-report-mode-tabs-section {
+    border-color: color-mix(in srgb, var(--mp-role-border) 42%, rgba(203,213,225,0.82)) !important;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.88)),
+      radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--mp-role-softer) 50%, transparent), transparent 42%) !important;
+  }
+
+  .math-role-admin .math-parent-report-tab-count-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    border-radius: 999px !important;
+    border: 1px solid color-mix(in srgb, var(--mp-role-border) 44%, rgba(203,213,225,0.82)) !important;
+    background: rgba(255,255,255,0.82) !important;
+    color: color-mix(in srgb, var(--mp-role-primary) 72%, #0f172a) !important;
+    padding: 0.32rem 0.68rem !important;
+    font-size: 0.72rem !important;
+    font-weight: 950 !important;
+    letter-spacing: 0 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.78) !important;
+  }
+
+  .math-role-admin .math-report-scope-tab-active .math-parent-report-tab-count-chip,
+  .math-role-admin .math-report-scope-tab:hover .math-parent-report-tab-count-chip,
+  .math-role-admin .math-report-scope-tab:focus-visible .math-parent-report-tab-count-chip {
+    border-color: rgba(255,255,255,0.38) !important;
+    background: rgba(255,255,255,0.18) !important;
+    color: #ffffff !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  }
+
+  html.dark .math-role-admin .math-admin-parent-report-panel .math-report-mode-tabs-section {
+    border-color: rgba(148,163,184,0.30) !important;
+    background:
+      linear-gradient(135deg, rgba(15,23,42,0.88), rgba(15,23,42,0.72)),
+      radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--mp-role-softer) 36%, transparent), transparent 42%) !important;
+  }
+
+  html.dark .math-role-admin .math-admin-parent-report-panel .math-report-scope-tab:not(.math-report-scope-tab-active) {
+    color: rgba(226,232,240,0.96) !important;
+    background: linear-gradient(135deg, rgba(15,23,42,0.94), rgba(30,41,59,0.78)) !important;
+    border-color: rgba(148,163,184,0.28) !important;
+    box-shadow: 0 14px 34px rgba(2,6,23,0.24), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+
+  html.dark .math-role-admin .math-admin-parent-report-panel .math-report-scope-tab:not(.math-report-scope-tab-active) .math-report-scope-tab-kicker {
+    color: #93c5fd !important;
+  }
+
+  html.dark .math-role-admin .math-admin-parent-report-panel .math-report-scope-tab:not(.math-report-scope-tab-active) .math-report-scope-tab-title {
+    color: #f8fafc !important;
+  }
+
+  html.dark .math-role-admin .math-admin-parent-report-panel .math-report-scope-tab:not(.math-report-scope-tab-active) .math-report-scope-tab-text {
+    color: #cbd5e1 !important;
+  }
+
+  html.dark .math-role-admin .math-admin-parent-report-panel .math-parent-report-tab-count-chip {
+    border-color: rgba(96,165,250,0.32) !important;
+    background: rgba(15,23,42,0.72) !important;
+    color: #dbeafe !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05) !important;
+  }
+
+  .math-parent-report-delivery-status-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: fit-content !important;
+    white-space: nowrap !important;
+    border-radius: 999px !important;
+    border: 1px solid transparent !important;
+    padding: 0.34rem 0.78rem !important;
+    font-size: 0.72rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    text-transform: capitalize !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.78) !important;
+  }
+
+  .math-parent-report-delivery-status-chip-green {
+    border-color: rgba(16,185,129,0.34) !important;
+    background: #d1fae5 !important;
+    color: #047857 !important;
+  }
+
+  .math-parent-report-delivery-status-chip-red {
+    border-color: rgba(244,63,94,0.34) !important;
+    background: #ffe4e6 !important;
+    color: #be123c !important;
+  }
+
+  .math-parent-report-delivery-status-chip-amber {
+    border-color: rgba(245,158,11,0.42) !important;
+    background: #fef3c7 !important;
+    color: #92400e !important;
+  }
+
+  .math-parent-report-delivery-status-chip-slate {
+    border-color: rgba(100,116,139,0.34) !important;
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+  }
+
+  html.dark .math-role-admin .math-parent-report-delivery-status-chip {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(2,6,23,0.22) !important;
+  }
+
+  html.dark .math-role-admin .math-parent-report-delivery-status-chip-green {
+    border-color: rgba(52,211,153,0.54) !important;
+    background: rgba(6,95,70,0.42) !important;
+    color: #bbf7d0 !important;
+  }
+
+  html.dark .math-role-admin .math-parent-report-delivery-status-chip-red {
+    border-color: rgba(251,113,133,0.58) !important;
+    background: rgba(136,19,55,0.44) !important;
+    color: #ffe4e6 !important;
+  }
+
+  html.dark .math-role-admin .math-parent-report-delivery-status-chip-amber {
+    border-color: rgba(251,191,36,0.58) !important;
+    background: rgba(146,64,14,0.42) !important;
+    color: #fef3c7 !important;
+  }
+
+  html.dark .math-role-admin .math-parent-report-delivery-status-chip-slate {
+    border-color: rgba(148,163,184,0.38) !important;
+    background: rgba(51,65,85,0.62) !important;
+    color: #e2e8f0 !important;
+  }
+}
