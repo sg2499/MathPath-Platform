@@ -8865,3 +8865,22 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     border-right: 1px solid rgba(148, 163, 184, 0.16) !important;
   }
 }
+
+/* 27 May 2026 — Teacher dark-mode section header cleanup
+   Scope: Teacher login only. Removes the broad role-tinted background strip from
+   non-hero block kickers so section labels render as clean text without affecting
+   table header conventions, chips, row values, or light mode. */
+@layer components {
+  html.dark .math-role-teacher :where(.math-card, .math-panel, .math-soft-section, .math-selected-scope-card, .math-history-hierarchy-row, .math-current-level-progress-block, .math-completed-level-module-block, .math-completed-level-summary-block, .math-teacher-students-page, .math-teacher-practice-tracker-page, .math-teacher-assessment-tracker-page, .math-teacher-promotion-history-page) .math-kicker:not(.math-hero .math-kicker) {
+    display: inline-flex !important;
+    width: auto !important;
+    max-width: max-content !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #fecdd3 !important;
+    -webkit-text-fill-color: #fecdd3 !important;
+  }
+}
