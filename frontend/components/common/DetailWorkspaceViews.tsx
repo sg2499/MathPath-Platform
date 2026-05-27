@@ -155,15 +155,11 @@ export function levelProgressSummary(rows: AnyRow[]) {
 
   const levelSummaries = safeLevels.map((levelCode) => {
     const levelRows = SourceRows.filter((row) => levelCodeOf(row) === levelCode);
-    const completed = levelRows.filter(
-      (row) => isCompleted(row) && !isBelowBenchmark(row),
-    ).length;
-    const required = requiredDpsForLevel(
-      levelRows.length ? levelRows : SourceRows,
-      levelCode,
-    );
-    const below = uniqueNeedsReattemptCount(levelRows);
-    const pending = levelRows.filter((row) => !isCompleted(row)).length;
+    const MetricRows = levelRows.length ? levelRows : SourceRows;
+    const completed = uniqueClearedConceptCount(MetricRows);
+    const required = uniqueAssignedConceptCount(MetricRows);
+    const below = uniqueNeedsReattemptCount(MetricRows);
+    const pending = Math.max(required - completed, 0);
     const status =
       below > 0
         ? "Needs Re-Attempt"
@@ -435,13 +431,28 @@ export function workUnitKey(row: AnyRow) {
     .trim()
     .toLowerCase();
 
+  const DpsTextForConcept = [
+    row.dpsConceptKey,
+    row.dpsNumber,
+    row.dpsNo,
+    row.dpsTitle,
+    row.assignmentTitle,
+    row.title,
+  ]
+    .filter(Boolean)
+    .map((Value) => String(Value))
+    .find((Value) => /dps\s*[-#:]*\s*\d+/i.test(Value));
+  const ParsedDpsConcept = DpsTextForConcept?.match(/dps\s*[-#:]*\s*(\d+)/i)?.[1];
   const StableDpsConcept = String(
-    row.dpsNumber ||
+    row.dpsConceptKey ||
+      row.dpsNumber ||
       row.dpsNo ||
+      (ParsedDpsConcept ? `DPS-${ParsedDpsConcept}` : undefined) ||
+      row.dpsTitle ||
+      row.assignmentTitle ||
+      row.title ||
       row.sheetNumber ||
       row.sheetNo ||
-      row.dpsConceptKey ||
-      row.dpsTitle ||
       CompactDpsLabel(row) ||
       "dps",
   )
