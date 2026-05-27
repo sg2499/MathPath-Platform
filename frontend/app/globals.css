@@ -8798,3 +8798,38 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     border-right: 1px solid rgba(148, 163, 184, 0.16) !important;
   }
 }
+
+/* 27 May 2026 — Teacher Assessment Readiness Sheet Breakdown table header convention
+   Scope: Teacher > Assessment Readiness > Sheet Breakdown block only. Dark mode only.
+   Applies to All Sheets, Pending, Needs Re-Attempt, and Cleared filters for every current/future student.
+   Kept separate from Teacher Students and Practice Tracker selectors to avoid regressions. */
+@layer components {
+  html.dark .math-role-teacher .math-teacher-readiness-sheet-breakdown .math-teacher-readiness-sheet-table-header {
+    background:
+      linear-gradient(180deg, rgba(71, 85, 105, 0.62), rgba(51, 65, 85, 0.72)) !important;
+    border-color: rgba(148, 163, 184, 0.28) !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.13),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.22) !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-readiness-sheet-breakdown .math-teacher-readiness-sheet-table-header :is(p, h4, span, div),
+  html.dark .math-role-teacher .math-teacher-readiness-sheet-breakdown .math-teacher-readiness-sheet-column-label {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-readiness-sheet-breakdown .math-teacher-readiness-sheet-column-label {
+    font-weight: 900 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-readiness-sheet-breakdown .math-teacher-readiness-sheet-table-header > :not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, 0.16) !important;
+  }
+}
