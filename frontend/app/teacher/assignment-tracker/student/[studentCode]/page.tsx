@@ -1434,9 +1434,9 @@ function PracticeRowsTable({
     : "grid-cols-[minmax(150px,1.08fr)_minmax(108px,.56fr)_minmax(128px,.66fr)_minmax(88px,.44fr)_minmax(96px,.48fr)_minmax(150px,.76fr)_150px]";
 
   return (
-    <div className="mt-4 overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-800">
+    <div className="math-teacher-practice-lesson-insights-table mt-4 overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-800">
       <div
-        className={`grid ${GridColumns} gap-3 bg-slate-50 px-5 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70`}
+        className={`math-teacher-practice-lesson-insights-table-header grid ${GridColumns} gap-3 bg-slate-50 px-5 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70`}
       >
         <div>DPS</div>
         <div>Attempt</div>
