@@ -664,7 +664,7 @@ function StudentAssessmentsPageContent() {
                           </button>
                           {isLevelOpen ? (
                             <div className="overflow-hidden rounded-[22px] border border-slate-200 dark:border-slate-800">
-                              <div className="grid grid-cols-[1.08fr_.54fr_.68fr_.5fr_.5fr_.78fr_.78fr_164px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
+                              <div className="math-student-assessments-table-header grid grid-cols-[1.08fr_.54fr_.68fr_.5fr_.5fr_.78fr_.78fr_164px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
                                 <div>Assessment</div>
                                 <div>Attempt</div>
                                 <div>Status</div>

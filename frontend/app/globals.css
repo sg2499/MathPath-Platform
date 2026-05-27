@@ -8912,3 +8912,31 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     border-right: 1px solid rgba(148, 163, 184, 0.22) !important;
   }
 }
+
+/* 27 May 2026 — Student Assessments dark table header convention
+   Scope: Student > Assessments page only. Dark mode only.
+   Applies the established record-table column header styling without touching Admin/Teacher,
+   row values, chips, buttons, assessment logic, or light mode. */
+@layer components {
+  html.dark .math-role-student .math-student-assessments-table-header {
+    background: linear-gradient(180deg, rgba(51, 65, 85, 0.96), rgba(30, 41, 59, 0.96)) !important;
+    border-color: rgba(148, 163, 184, 0.46) !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  }
+
+  html.dark .math-role-student .math-student-assessments-table-header > div,
+  html.dark .math-role-student .math-student-assessments-table-header * {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.12em !important;
+    text-shadow: none !important;
+  }
+
+  html.dark .math-role-student .math-student-assessments-table-header > div:not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, 0.22) !important;
+  }
+}
