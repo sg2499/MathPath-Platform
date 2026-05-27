@@ -8708,3 +8708,39 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     color: #e2e8f0 !important;
   }
 }
+
+/* 27 May 2026 — Teacher Students directory dark table header convention
+   Teacher login only. Dark-mode-only. Matches the Admin Students directory header treatment without touching row values/chips/buttons. */
+@layer components {
+  html.dark .math-role-teacher .math-teacher-students-directory-table thead {
+    background:
+      linear-gradient(180deg, rgba(71, 85, 105, 0.62), rgba(51, 65, 85, 0.72)) !important;
+    color: #f8fafc !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.13),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.22) !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-students-directory-table th {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    border-bottom-color: rgba(148, 163, 184, 0.28) !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-students-directory-table th:not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, 0.16) !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-students-directory-table th :is(button, span, svg, .lucide) {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+  }
+
+  html.dark .math-role-teacher .math-teacher-students-directory-table th button:hover,
+  html.dark .math-role-teacher .math-teacher-students-directory-table th button:focus-visible {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+}
