@@ -8094,3 +8094,88 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     opacity: 1 !important;
   }
 }
+
+/* 27 May 2026 — Admin Reports Student History dark table column-header hard lock
+   Scope: Admin > Reports > Student History only.
+   Applies only to DPS History, Assessment History, and Promotion Journey tables.
+   Dark mode only. Header/column-name visibility only; table body values and other tabs are untouched. */
+@layer components {
+  html.dark .math-role-admin :is(
+    .math-student-history-table.math-dps-history-table,
+    .math-student-history-table.math-assessment-history-table,
+    .math-student-history-table.math-promotion-history-table
+  ) thead,
+  html.dark .math-role-admin :is(
+    .math-student-history-table.math-dps-history-table,
+    .math-student-history-table.math-assessment-history-table,
+    .math-student-history-table.math-promotion-history-table
+  ) thead tr {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 64, 175, 0.44)) !important;
+  }
+
+  html.dark .math-role-admin :is(
+    .math-student-history-table.math-dps-history-table,
+    .math-student-history-table.math-assessment-history-table,
+    .math-student-history-table.math-promotion-history-table
+  ) thead th {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(51, 65, 85, 0.90)) !important;
+    border-color: rgba(147, 197, 253, 0.30) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    text-shadow: 0 1px 0 rgba(2, 6, 23, 0.72) !important;
+  }
+
+  html.dark .math-role-admin :is(
+    .math-student-history-table.math-dps-history-table,
+    .math-student-history-table.math-assessment-history-table,
+    .math-student-history-table.math-promotion-history-table
+  ) thead th *,
+  html.dark .math-role-admin :is(
+    .math-student-history-table.math-dps-history-table,
+    .math-student-history-table.math-assessment-history-table,
+    .math-student-history-table.math-promotion-history-table
+  ) thead :is(
+    .math-sortable-header,
+    .math-sortable-header *,
+    .math-sortable-header-label,
+    .math-table-header-label,
+    .math-table-header-label *
+  ) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    text-shadow: 0 1px 0 rgba(2, 6, 23, 0.72) !important;
+  }
+
+  html.dark .math-role-admin :is(
+    .math-student-history-table.math-dps-history-table,
+    .math-student-history-table.math-assessment-history-table,
+    .math-student-history-table.math-promotion-history-table
+  ) thead :is(
+    .math-sortable-header-label,
+    .math-table-header-label
+  ) {
+    display: inline-flex !important;
+    align-items: center !important;
+    min-height: 1.35rem !important;
+    font-size: 0.70rem !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.145em !important;
+    line-height: 1.08 !important;
+    text-transform: uppercase !important;
+  }
+
+  html.dark .math-role-admin :is(
+    .math-student-history-table.math-dps-history-table,
+    .math-student-history-table.math-assessment-history-table,
+    .math-student-history-table.math-promotion-history-table
+  ) thead :is(
+    .math-sortable-header-indicator,
+    .math-sortable-header-icon
+  ) {
+    color: #dbeafe !important;
+    -webkit-text-fill-color: #dbeafe !important;
+    opacity: 1 !important;
+  }
+}
