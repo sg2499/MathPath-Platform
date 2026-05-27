@@ -229,7 +229,10 @@ export default function StudentResultsPage() {
     [Rows, SelectedModule, SelectedLevel, SearchTerm],
   );
   const VisibleModules = useMemo(() => BuildModuleProgress(VisibleRows), [VisibleRows]);
-  const AccuracyScopePracticeRows = useMemo(() => VisibleRows.filter(IsPracticeResultRow), [VisibleRows]);
+  const AccuracyScopePracticeRows = useMemo(
+    () => currentWorkRows(VisibleRows.filter(IsPracticeResultRow)),
+    [VisibleRows],
+  );
   const TotalModules = ModuleOptions.length;
   const TotalLevels = TotalVisibleLevels(Rows);
   const ActiveLevelLabel = PrimaryActiveLevel(Rows);
