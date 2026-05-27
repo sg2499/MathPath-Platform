@@ -113,7 +113,6 @@ export function SortRowsByCurriculum(Rows: AnyRow[]) {
 
 const LEVEL_DPS_REQUIREMENTS: Record<string, number> = {
   "YLM-L1": 40,
-  "YLM-L2": 6,
 };
 
 export function levelCodeOf(row: AnyRow) {
@@ -160,7 +159,7 @@ export function levelProgressSummary(rows: AnyRow[]) {
     const completed = uniqueClearedConceptCount(MetricRows);
     const required = requiredDpsForLevel(MetricRows, levelCode);
     const below = uniqueNeedsReattemptCount(MetricRows);
-    const pending = Math.max(required - completed, 0);
+    const pending = Math.max(required - completed - below, 0);
     const status =
       below > 0
         ? "Needs Re-Attempt"
@@ -781,8 +780,8 @@ export function StudentSummaryTable({
   viewTooltip?: string;
 }) {
   return (
-    <div className="math-practice-overview-table overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-practice-overview-table-header grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <div>Student</div>
         <div>Assigned DPS</div>
         <div>Cleared DPS</div>
@@ -830,12 +829,12 @@ export function StudentSummaryTable({
                 <Chip tone="green">{stats.completed}</Chip>
               </div>
               <div>
-                <Chip tone="amber">
+                <Chip tone={stats.pending ? "amber" : "green"}>
                   {stats.pending}
                 </Chip>
               </div>
               <div>
-                <Chip tone="red">
+                <Chip tone={stats.below ? "red" : "green"}>
                   {stats.below}
                 </Chip>
               </div>
@@ -964,7 +963,9 @@ export function RecordWorkspace({
         total: progressSummary.currentRequired,
         completed: progressSummary.currentCompleted,
         pending: Math.max(
-          progressSummary.currentRequired - progressSummary.currentCompleted,
+          progressSummary.currentRequired -
+            progressSummary.currentCompleted -
+            progressSummary.currentBelow,
           0,
         ),
         below: progressSummary.currentBelow,
@@ -1879,7 +1880,7 @@ function StudentProgressOverview({
   const Required =
     Summary.currentRequired ||
     requiredDpsForLevel(SourceRows, Summary.currentLevel);
-  const Pending = Math.max(Required - Completed, 0);
+  const Pending = Math.max(Required - Completed - Summary.currentBelow, 0);
   const CompletionPercent = Required
     ? Math.min(100, Math.round((Completed / Required) * 100))
     : 0;
@@ -2595,9 +2596,9 @@ export function CompactRecordTable({
       : "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]";
 
   return (
-    <div className="math-admin-practice-lesson-insights-table overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div
-        className={`math-admin-practice-lesson-insights-table-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
+        className={`grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
       >
         {hideLessonColumn ? null : <div>Lesson</div>}
         <div>DPS</div>
