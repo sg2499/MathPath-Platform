@@ -1139,7 +1139,7 @@ export function RecordWorkspace({
     role === "admin"
       ? "dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
       : role === "student"
-        ? "dark:border dark:border-orange-300/22 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
+        ? "dark:border dark:border-orange-200/35 dark:bg-[#081326]/88 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_16px_38px_rgba(2,6,23,0.38)] dark:ring-1 dark:ring-orange-100/10 dark:backdrop-blur-sm"
         : "";
   const overviewDescription =
     role === "student"
