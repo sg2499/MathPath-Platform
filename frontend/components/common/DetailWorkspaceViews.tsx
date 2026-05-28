@@ -350,14 +350,45 @@ export function hasRecordedAccuracy(row: AnyRow) {
   return !Number.isNaN(Number(RawAccuracy));
 }
 
-export function averageAccuracy(rows: AnyRow[]) {
-  const values = rowsWithAttemptHistory(rows)
-    .filter((row) => isCompleted(row) && hasRecordedAccuracy(row))
-    .map(accuracy);
+function averageValues(values: number[]) {
   if (!values.length) return 0;
   return Math.round(
     values.reduce((sum, value) => sum + value, 0) / values.length,
   );
+}
+
+function completedAccuracyRows(rows: AnyRow[]) {
+  return rowsWithAttemptHistory(rows).filter(
+    (row) => isCompleted(row) && hasRecordedAccuracy(row),
+  );
+}
+
+function attemptAverageAccuracy(rows: AnyRow[]) {
+  return averageValues(completedAccuracyRows(rows).map(accuracy));
+}
+
+function hierarchyAverageAccuracy(rows: AnyRow[]) {
+  const AccuracyRows = completedAccuracyRows(rows);
+  if (!AccuracyRows.length) return 0;
+
+  const LevelCodes = Array.from(
+    new Set(AccuracyRows.map(levelCodeOf).filter(Boolean)),
+  ).sort(NaturalCompare);
+  if (!LevelCodes.length) return attemptAverageAccuracy(AccuracyRows);
+
+  const LevelAverages = LevelCodes
+    .map((LevelCode) =>
+      attemptAverageAccuracy(
+        AccuracyRows.filter((Row) => levelCodeOf(Row) === LevelCode),
+      ),
+    )
+    .filter((Value) => Value > 0);
+
+  return averageValues(LevelAverages);
+}
+
+export function averageAccuracy(rows: AnyRow[]) {
+  return attemptAverageAccuracy(rows);
 }
 
 export function isCompleted(row: AnyRow) {
@@ -992,7 +1023,7 @@ export function RecordWorkspace({
       }
     : {
         ...baseStats,
-        avg: role === "admin" ? overallStats.avg : baseStats.avg,
+        avg: role === "admin" ? hierarchyAverageAccuracy(rows) : baseStats.avg,
       };
   const [OpenModuleGroups, SetOpenModuleGroups] = useState<
     Record<string, boolean>
@@ -1337,6 +1368,7 @@ export function RecordWorkspace({
               {ModuleGroups.map((ModuleGroup) => {
                 const IsModuleOpen = Boolean(OpenModuleGroups[ModuleGroup.ModuleKey]);
                 const ModuleRows = ModuleGroup.Rows;
+                const ModuleAverageAccuracy = hierarchyAverageAccuracy(ModuleRows);
                 return (
                   <section
                     key={ModuleGroup.ModuleKey}
@@ -1361,8 +1393,8 @@ export function RecordWorkspace({
                         <Chip tone="green">
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
                         </Chip>
-                        <Chip tone={averageAccuracy(ModuleRows) >= 70 ? "green" : "red"}>
-                          {averageAccuracy(ModuleRows)}% Avg
+                        <Chip tone={ModuleAverageAccuracy >= 70 ? "green" : "red"}>
+                          {ModuleAverageAccuracy}% Avg
                         </Chip>
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                           <ChevronDown className={IsModuleOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1374,6 +1406,7 @@ export function RecordWorkspace({
                         {ModuleGroup.Levels.map((LevelGroup) => {
                           const IsLevelOpen = Boolean(OpenLevelGroups[LevelGroup.GroupKey]);
                           const LevelRows = LevelGroup.Rows;
+                          const LevelAverageAccuracy = attemptAverageAccuracy(LevelRows);
                           return (
                             <div
                               key={LevelGroup.GroupKey}
@@ -1397,8 +1430,8 @@ export function RecordWorkspace({
                                   <Chip tone="green">
                                     {uniqueClearedConceptCount(LevelRows)} Cleared
                                   </Chip>
-                                  <Chip tone={averageAccuracy(LevelRows) >= 70 ? "green" : "red"}>
-                                    {averageAccuracy(LevelRows)}% Avg
+                                  <Chip tone={LevelAverageAccuracy >= 70 ? "green" : "red"}>
+                                    {LevelAverageAccuracy}% Avg
                                   </Chip>
                                   <span className="rounded-2xl bg-white p-2 text-slate-600 shadow-sm dark:bg-slate-950 dark:text-slate-300">
                                     <ChevronDown className={IsLevelOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1487,6 +1520,7 @@ export function RecordWorkspace({
               ModuleGroups.map((ModuleGroup) => {
                 const IsModuleOpen = Boolean(OpenModuleGroups[ModuleGroup.ModuleKey]);
                 const ModuleRows = ModuleGroup.Rows;
+                const ModuleAverageAccuracy = hierarchyAverageAccuracy(ModuleRows);
                 return (
                   <section
                     key={`manage-${ModuleGroup.ModuleKey}`}

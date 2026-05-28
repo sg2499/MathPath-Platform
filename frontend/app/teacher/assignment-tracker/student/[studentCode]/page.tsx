@@ -180,8 +180,31 @@ function ScopedCompletedAttemptRows(Rows: AnyRow[]) {
   );
 }
 
+function AverageValues(Values: number[]) {
+  if (!Values.length) return 0;
+  return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
+}
+
+function AttemptAverageAccuracy(Rows: AnyRow[]) {
+  return AverageValues(ScopedCompletedAttemptRows(Rows).map(accuracy));
+}
+
+function HierarchyAverageAccuracy(Rows: AnyRow[]) {
+  const AccuracyRows = ScopedCompletedAttemptRows(Rows);
+  if (!AccuracyRows.length) return 0;
+
+  const LevelCodes = Array.from(new Set(AccuracyRows.map(levelCodeOf).filter(Boolean))).sort(NaturalCompare);
+  if (!LevelCodes.length) return AttemptAverageAccuracy(AccuracyRows);
+
+  const LevelAverages = LevelCodes
+    .map((LevelCode) => AttemptAverageAccuracy(AccuracyRows.filter((Row) => levelCodeOf(Row) === LevelCode)))
+    .filter((Value) => Value > 0);
+
+  return AverageValues(LevelAverages);
+}
+
 function ScopedAverageAccuracy(Rows: AnyRow[]) {
-  return averageAccuracy(Rows);
+  return HierarchyAverageAccuracy(Rows);
 }
 
 function AverageAccuracyDisplay(Rows: AnyRow[]) {
@@ -1231,7 +1254,7 @@ function ModulePracticeBlock({
   const IsExpanded = ExpandedModuleKeys.has(Group.GroupKey);
   const ClearedCount = uniqueClearedConceptCount(Group.Rows);
   const ReviewedRows = ScopedCompletedAttemptRows(Group.Rows);
-  const Average = ReviewedRows.length ? ScopedAverageAccuracy(Group.Rows) : null;
+  const Average = ReviewedRows.length ? HierarchyAverageAccuracy(Group.Rows) : null;
   return (
     <section className="math-operation-panel-compact">
       <button
@@ -1298,7 +1321,7 @@ function LevelPracticeBlock({
   OnView: (Row: AnyRow) => void;
 }) {
   const ReviewedRows = ScopedCompletedAttemptRows(Group.Rows);
-  const Average = ReviewedRows.length ? ScopedAverageAccuracy(Group.Rows) : null;
+  const Average = ReviewedRows.length ? AttemptAverageAccuracy(Group.Rows) : null;
   const ClearedCount = uniqueClearedConceptCount(Group.Rows);
   return (
     <div className="rounded-[24px] border border-cyan-100 bg-cyan-50/35 p-4 dark:border-cyan-900/40 dark:bg-cyan-950/10">
@@ -1355,7 +1378,7 @@ function LessonInsightBlock({
   OnView: (Row: AnyRow) => void;
 }) {
   const ReviewedRows = ScopedCompletedAttemptRows(Group.Rows);
-  const Average = ReviewedRows.length ? ScopedAverageAccuracy(Group.Rows) : null;
+  const Average = ReviewedRows.length ? AttemptAverageAccuracy(Group.Rows) : null;
   const ClearedCount = uniqueClearedConceptCount(Group.Rows);
   const PendingCount = uniquePendingConceptCount(Group.Rows);
   const NeedsReattemptCount = uniqueNeedsReattemptCount(Group.Rows);
