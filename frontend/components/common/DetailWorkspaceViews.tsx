@@ -373,9 +373,28 @@ function attemptHistoryAverageAccuracy(rows: AnyRow[]) {
   return averageAccuracyIncludingZero(rowsWithAttemptHistory(rows));
 }
 
+export function hierarchyAverageAccuracy(rows: AnyRow[]) {
+  const LevelCodes = sortLevelCodes(
+    Array.from(new Set(rows.map(levelCodeOf).filter(Boolean))),
+  );
+  const LevelAverages = LevelCodes
+    .map((LevelCode) => {
+      const LevelRows = rows.filter((Row) => levelCodeOf(Row) === LevelCode);
+      const HasReviewedRows = rowsWithAttemptHistory(LevelRows).some(
+        (Row) => isCompleted(Row) && hasAccuracyValue(Row),
+      );
+      return HasReviewedRows ? averageAccuracyIncludingZero(rowsWithAttemptHistory(LevelRows)) : null;
+    })
+    .filter((Value): Value is number => Value !== null);
+
+  if (!LevelAverages.length) return 0;
+  return Math.round(
+    LevelAverages.reduce((Total, Value) => Total + Value, 0) / LevelAverages.length,
+  );
+}
+
 export function studentOverallAverageAccuracy(rows: AnyRow[]) {
-  const ReviewedRows = rowsWithAttemptHistory(rows).filter(isCompleted);
-  return averageAccuracy(ReviewedRows);
+  return hierarchyAverageAccuracy(rows);
 }
 
 export function isCompleted(row: AnyRow) {
@@ -873,7 +892,7 @@ export function StudentSummaryTable({
               </div>
               <div>
                 {(() => {
-                  const OverallAverage = currentUniqueAverageAccuracy(student.rows);
+                  const OverallAverage = hierarchyAverageAccuracy(student.rows);
                   return (
                     <Chip tone={OverallAverage >= 70 ? "green" : "red"}>
                       {OverallAverage}%
@@ -998,7 +1017,7 @@ export function RecordWorkspace({
       ? levelProgressSummary(filteredRows.length ? filteredRows : rows)
       : null;
   const baseStats = studentStats(filteredRows);
-  const AdminOverallAverage = role === "admin" ? currentUniqueAverageAccuracy(filteredRows) : baseStats.avg;
+  const AdminOverallAverage = role === "admin" ? hierarchyAverageAccuracy(filteredRows) : baseStats.avg;
   const stats = progressSummary
     ? {
         ...baseStats,
@@ -1370,8 +1389,8 @@ export function RecordWorkspace({
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
                         </Chip>
                         {role === "admin" ? (
-                          <Chip tone={currentUniqueAverageAccuracy(ModuleRows) >= 70 ? "green" : "red"}>
-                            {currentUniqueAverageAccuracy(ModuleRows)}% Avg
+                          <Chip tone={hierarchyAverageAccuracy(ModuleRows) >= 70 ? "green" : "red"}>
+                            {hierarchyAverageAccuracy(ModuleRows)}% Avg
                           </Chip>
                         ) : null}
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
@@ -1408,7 +1427,7 @@ export function RecordWorkspace({
                                     {uniqueClearedConceptCount(LevelRows)} Cleared
                                   </Chip>
                                   {(() => {
-                                    const LevelAverage = role === "admin" ? attemptHistoryAverageAccuracy(LevelRows) : averageAccuracy(LevelRows);
+                                    const LevelAverage = role === "admin" ? hierarchyAverageAccuracy(LevelRows) : averageAccuracy(LevelRows);
                                     return (
                                       <Chip tone={LevelAverage >= 70 ? "green" : "red"}>
                                         {LevelAverage}% Avg
