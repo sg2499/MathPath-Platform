@@ -51,7 +51,6 @@ import {
   uniquePendingConceptCount,
   studentCodeOf,
   studentNameOf,
-  studentOverallAverageAccuracy,
   uniqueNeedsReattemptCount,
 } from "@/components/common/DetailWorkspaceViews";
 
@@ -191,6 +190,19 @@ function AverageAccuracyDisplay(Rows: AnyRow[]) {
   return ReviewedRows.length ? `${averageAccuracy(ReviewedRows)}%` : "—";
 }
 
+function HasAccuracyValue(Row: AnyRow) {
+  const RawAccuracy = Row.accuracy ?? Row.accuracyPercentage ?? Row.averageAccuracy;
+  return RawAccuracy !== null && RawAccuracy !== undefined && RawAccuracy !== "" && !Number.isNaN(Number(RawAccuracy));
+}
+
+function CurrentUniqueAverageAccuracy(Rows: AnyRow[]) {
+  const Values = currentWorkRows(Rows)
+    .filter((Row) => isCompleted(Row) && HasAccuracyValue(Row))
+    .map(accuracy);
+  if (!Values.length) return 0;
+  return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
+}
+
 function MatchesPerformanceFilter(Row: AnyRow, FilterValue: PerformanceFilter) {
   if (!FilterValue || FilterValue === "ALL") return true;
   if (!isCompleted(Row)) return false;
@@ -255,7 +267,7 @@ function StudentOperationalStats(Rows: AnyRow[]) {
     Reattempt,
     NeedsReattempt,
     ActionNeeded,
-    Average: studentOverallAverageAccuracy(Rows),
+    Average: CurrentUniqueAverageAccuracy(Rows),
     Best: BestAccuracy(Rows),
     Last: latestActivity(Rows),
   };
