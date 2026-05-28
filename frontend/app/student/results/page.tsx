@@ -306,6 +306,7 @@ export default function StudentResultsPage() {
             const ActiveLevel = ActiveLevelForModule(ModuleItem.rows);
             const ModuleMetricRows = SelectedLevel === "ALL" ? RowsForLevelScope(ModuleItem.rows, ActiveLevel) : ModuleItem.rows;
             const ModulePracticeRows = CurrentPracticeRows(ModuleMetricRows);
+            const ModuleAverageRows = CurrentPracticeRows(ModuleItem.rows.filter(IsPracticeResultRow));
             const ModuleCompleted = CompletedRows(ModulePracticeRows).length;
             const ModuleRequired = SelectedLevel === "ALL"
               ? requiredDpsForLevel(ModuleMetricRows, ActiveLevel)
@@ -313,7 +314,7 @@ export default function StudentResultsPage() {
             const ActiveLevelStatus = LevelStatusFor(ModuleMetricRows, ActiveLevel).Status;
             const ModuleStatus = ["Active Level", "Not Started"].includes(ActiveLevelStatus) ? "In Progress" : ActiveLevelStatus;
             const ModulePercent = ModuleRequired > 0 ? Math.min(100, Math.round((ModuleCompleted / ModuleRequired) * 100)) : 0;
-            const ModuleAverage = averageAccuracy(ModuleItem.rows.filter(IsPracticeResultRow));
+            const ModuleAverage = averageAccuracy(ModuleAverageRows);
 
             return (
               <section key={ModuleItem.moduleCode} className="math-hierarchy-panel rounded-[30px]">
@@ -354,7 +355,7 @@ export default function StudentResultsPage() {
                   <CompactProgressMetric label="Module Status" value={ModuleStatus} icon={<Trophy size={14} />} />
                   <CompactProgressMetric label="Current Level" value={ActiveLevel} icon={<Route size={14} />} />
                   <CompactProgressMetric label="DPS Cleared" value={`${ModuleCompleted}/${ModuleRequired}`} icon={<FileText size={14} />} />
-                  <CompactProgressMetric label="Average Accuracy" value={`${ModuleAverage}%`} icon={<BarChart3 size={14} />} />
+                  <CompactProgressMetric label="Average Accuracy" value={`${averageAccuracy(ModulePracticeRows)}%`} icon={<BarChart3 size={14} />} />
                   <CompactProgressMetric label="Last Activity" value={latestActivity(ModuleMetricRows)} icon={<Clock3 size={14} />} />
                   <div className="md:col-span-2 xl:col-span-5 rounded-[20px] border border-slate-100 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/70">
                     <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">
