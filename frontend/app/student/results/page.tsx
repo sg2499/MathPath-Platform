@@ -6,7 +6,6 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
   AnyRow,
-  averageAccuracy,
   currentWorkRows,
   isBelowBenchmark,
   isCompleted,
@@ -75,6 +74,43 @@ function CompletedRows(Rows: AnyRow[]) {
   return Rows.filter((Row) => IsPracticeResultRow(Row) && isCompleted(Row) && !isBelowBenchmark(Row));
 }
 
+function HasAccuracyValue(Row: AnyRow) {
+  const RawAccuracy = Row.accuracy ?? Row.accuracyPercentage ?? Row.averageAccuracy;
+  return RawAccuracy !== null && RawAccuracy !== undefined && RawAccuracy !== "" && !Number.isNaN(Number(RawAccuracy));
+}
+
+function AccuracyValue(Row: AnyRow) {
+  const RawAccuracy = Row.accuracy ?? Row.accuracyPercentage ?? Row.averageAccuracy;
+  const NumericAccuracy = Number(RawAccuracy);
+  return Number.isNaN(NumericAccuracy) ? 0 : NumericAccuracy;
+}
+
+function AverageValues(Values: number[]) {
+  if (!Values.length) return 0;
+  return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
+}
+
+function AttemptAverageForRows(Rows: AnyRow[]) {
+  const Values = Rows
+    .filter((Row) => IsPracticeResultRow(Row) && isCompleted(Row) && HasAccuracyValue(Row))
+    .map(AccuracyValue);
+  return AverageValues(Values);
+}
+
+function HierarchyAverageForRows(Rows: AnyRow[]) {
+  const AccuracyRows = Rows.filter((Row) => IsPracticeResultRow(Row) && isCompleted(Row) && HasAccuracyValue(Row));
+  if (!AccuracyRows.length) return 0;
+
+  const LevelCodes = SortLevelCodes(Array.from(new Set(AccuracyRows.map(levelCodeOf).filter(Boolean))));
+  if (!LevelCodes.length) return AttemptAverageForRows(AccuracyRows);
+
+  const LevelAverages = LevelCodes
+    .map((LevelCode) => AttemptAverageForRows(AccuracyRows.filter((Row) => levelCodeOf(Row) === LevelCode)))
+    .filter((Value) => Value > 0);
+
+  return AverageValues(LevelAverages);
+}
+
 function CurrentPracticeRows(Rows: AnyRow[]) {
   return currentWorkRows(Rows.filter(IsPracticeResultRow));
 }
@@ -84,10 +120,9 @@ function LevelStatusFor(LevelRows: AnyRow[], LevelCode: string) {
   const Role = String(ProgressRow?.progressionRole || "").toUpperCase();
   const PracticeRows = LevelRows.filter(IsPracticeResultRow);
   const CurrentRows = CurrentPracticeRows(LevelRows);
-  const AccuracyRows = PracticeRows;
   const Completed = CompletedRows(CurrentRows).length;
   const Required = requiredDpsForLevel(LevelRows.length ? LevelRows : PracticeRows, LevelCode);
-  const Average = averageAccuracy(AccuracyRows);
+  const Average = HierarchyAverageForRows(PracticeRows);
   const BelowBenchmark = CurrentRows.filter(isBelowBenchmark).length;
 
   if (Role === "PROMOTED_FROM") {
@@ -230,8 +265,8 @@ export default function StudentResultsPage() {
     [Rows, SelectedModule, SelectedLevel, SearchTerm],
   );
   const VisibleModules = useMemo(() => BuildModuleProgress(VisibleRows), [VisibleRows]);
-  const AccuracyScopePracticeRows = useMemo(
-    () => Rows.filter(IsPracticeResultRow),
+  const OverallStudentAverage = useMemo(
+    () => HierarchyAverageForRows(Rows),
     [Rows],
   );
   const TotalModules = ModuleOptions.length;
@@ -258,7 +293,7 @@ export default function StudentResultsPage() {
             <CompactProgressMetric label="Modules" value={TotalModules} icon={<Layers3 size={14} />} />
             <CompactProgressMetric label="Total Levels" value={TotalLevels} icon={<Route size={14} />} />
             <CompactProgressMetric label="Active Level" value={ActiveLevelLabel} icon={<Trophy size={14} />} />
-            <CompactProgressMetric label="Average Accuracy" value={`${averageAccuracy(AccuracyScopePracticeRows)}%`} icon={<BarChart3 size={14} />} />
+            <CompactProgressMetric label="Average Accuracy" value={`${OverallStudentAverage}%`} icon={<BarChart3 size={14} />} />
           </div>
         </div>
 
@@ -307,7 +342,6 @@ export default function StudentResultsPage() {
             const ActiveLevel = ActiveLevelForModule(ModuleItem.rows);
             const ModuleMetricRows = SelectedLevel === "ALL" ? RowsForLevelScope(ModuleItem.rows, ActiveLevel) : ModuleItem.rows;
             const ModulePracticeRows = CurrentPracticeRows(ModuleMetricRows);
-            const ModuleAverageRows = ModuleItem.rows.filter(IsPracticeResultRow);
             const ModuleCompleted = CompletedRows(ModulePracticeRows).length;
             const ModuleRequired = SelectedLevel === "ALL"
               ? requiredDpsForLevel(ModuleMetricRows, ActiveLevel)
@@ -315,7 +349,7 @@ export default function StudentResultsPage() {
             const ActiveLevelStatus = LevelStatusFor(ModuleMetricRows, ActiveLevel).Status;
             const ModuleStatus = ["Active Level", "Not Started"].includes(ActiveLevelStatus) ? "In Progress" : ActiveLevelStatus;
             const ModulePercent = ModuleRequired > 0 ? Math.min(100, Math.round((ModuleCompleted / ModuleRequired) * 100)) : 0;
-            const ModuleAverage = averageAccuracy(ModuleAverageRows);
+            const ModuleAverage = HierarchyAverageForRows(ModuleItem.rows);
 
             return (
               <section key={ModuleItem.moduleCode} className="math-hierarchy-panel rounded-[30px]">
