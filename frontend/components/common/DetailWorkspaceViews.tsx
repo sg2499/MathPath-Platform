@@ -344,51 +344,17 @@ export function accuracy(row: AnyRow) {
   );
 }
 
-export function hasRecordedAccuracy(row: AnyRow) {
-  const RawAccuracy = row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy;
-  if (RawAccuracy === null || RawAccuracy === undefined || RawAccuracy === "") return false;
-  return !Number.isNaN(Number(RawAccuracy));
-}
-
-function averageValues(values: number[]) {
+export function averageAccuracy(rows: AnyRow[]) {
+  const values = rows.map(accuracy).filter((value) => value > 0);
   if (!values.length) return 0;
   return Math.round(
     values.reduce((sum, value) => sum + value, 0) / values.length,
   );
 }
 
-function completedAccuracyRows(rows: AnyRow[]) {
-  return rowsWithAttemptHistory(rows).filter(
-    (row) => isCompleted(row) && hasRecordedAccuracy(row),
-  );
-}
-
-function attemptAverageAccuracy(rows: AnyRow[]) {
-  return averageValues(completedAccuracyRows(rows).map(accuracy));
-}
-
-function hierarchyAverageAccuracy(rows: AnyRow[]) {
-  const AccuracyRows = completedAccuracyRows(rows);
-  if (!AccuracyRows.length) return 0;
-
-  const LevelCodes = Array.from(
-    new Set(AccuracyRows.map(levelCodeOf).filter(Boolean)),
-  ).sort(NaturalCompare);
-  if (!LevelCodes.length) return attemptAverageAccuracy(AccuracyRows);
-
-  const LevelAverages = LevelCodes
-    .map((LevelCode) =>
-      attemptAverageAccuracy(
-        AccuracyRows.filter((Row) => levelCodeOf(Row) === LevelCode),
-      ),
-    )
-    .filter((Value) => Value > 0);
-
-  return averageValues(LevelAverages);
-}
-
-export function averageAccuracy(rows: AnyRow[]) {
-  return attemptAverageAccuracy(rows);
+export function studentOverallAverageAccuracy(rows: AnyRow[]) {
+  const ReviewedRows = rowsWithAttemptHistory(rows).filter(isCompleted);
+  return averageAccuracy(ReviewedRows);
 }
 
 export function isCompleted(row: AnyRow) {
@@ -727,7 +693,7 @@ export function studentStats(rows: AnyRow[]) {
     pending,
     below,
     reattempt,
-    avg: averageAccuracy(rows.length ? rows : CurrentRows),
+    avg: studentOverallAverageAccuracy(rows),
     last: latestActivity(CurrentRows.length ? CurrentRows : rows),
   };
 }
@@ -736,17 +702,13 @@ export function Metric({
   label,
   value,
   icon,
-  className = "",
 }: {
   label: string;
   value: string | number;
   icon?: ReactNode;
-  className?: string;
 }) {
   return (
-    <div
-      className={`rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/75 ${className}`}
-    >
+    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/75">
       <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
         {icon ? (
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
@@ -828,8 +790,8 @@ export function StudentSummaryTable({
   viewTooltip?: string;
 }) {
   return (
-    <div className="math-practice-overview-table overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-practice-overview-table-header math-admin-assessment-control-table-header grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <div>Student</div>
         <div>Assigned DPS</div>
         <div>Cleared DPS</div>
@@ -871,7 +833,7 @@ export function StudentSummaryTable({
                 </div>
               </div>
               <div>
-                <Chip tone="blue">{stats.assigned}</Chip>
+                <Chip tone="blue">{stats.total}</Chip>
               </div>
               <div>
                 <Chip tone="green">{stats.completed}</Chip>
@@ -923,7 +885,6 @@ export function RecordWorkspace({
   onDelete,
   initialTab = "overview",
   focusTarget,
-  accuracyRows,
 }: {
   title: string;
   subtitle: string;
@@ -945,7 +906,6 @@ export function RecordWorkspace({
     levelCode?: string;
     targetAction?: string;
   };
-  accuracyRows?: AnyRow[];
 }) {
   void backLabel;
   void onBack;
@@ -1007,8 +967,6 @@ export function RecordWorkspace({
       ? levelProgressSummary(filteredRows.length ? filteredRows : rows)
       : null;
   const baseStats = studentStats(filteredRows);
-  const overallAccuracyStats = studentStats(accuracyRows?.length ? accuracyRows : rows);
-  const overallStats = studentStats(rows);
   const stats = progressSummary
     ? {
         ...baseStats,
@@ -1019,12 +977,8 @@ export function RecordWorkspace({
           0,
         ),
         below: progressSummary.currentBelow,
-        avg: overallAccuracyStats.avg,
       }
-    : {
-        ...baseStats,
-        avg: role === "admin" ? hierarchyAverageAccuracy(rows) : baseStats.avg,
-      };
+    : baseStats;
   const [OpenModuleGroups, SetOpenModuleGroups] = useState<
     Record<string, boolean>
   >({});
@@ -1168,12 +1122,6 @@ export function RecordWorkspace({
       : role === "teacher"
         ? "Student Progress Review"
         : "Student Assignment Profile";
-  const heroMetricCardClass =
-    role === "admin"
-      ? "dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
-      : role === "student"
-        ? "dark:border dark:border-orange-200/35 dark:bg-[#081326]/88 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_16px_38px_rgba(2,6,23,0.38)] dark:ring-1 dark:ring-orange-100/10 dark:backdrop-blur-sm"
-        : "";
   const overviewDescription =
     role === "student"
       ? "Review completed work, pending practice, scores, lesson progress, and result history for this module."
@@ -1195,41 +1143,35 @@ export function RecordWorkspace({
         <div className={`grid gap-3 sm:grid-cols-2 ${role === "student" ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
           <Metric
             label={role === "student" ? "Total DPS" : "Assigned DPS"}
-            value={role === "student" ? stats.total : stats.assigned}
+            value={stats.total}
             icon={<Layers3 size={15} />}
-            className={heroMetricCardClass}
           />
           {role === "student" ? (
             <Metric
               label="Assigned DPS"
               value={stats.assigned}
               icon={<ClipboardList size={15} />}
-              className={heroMetricCardClass}
             />
           ) : null}
           <Metric
             label="Cleared DPS"
             value={stats.completed}
             icon={<CheckCircle2 size={15} />}
-            className={heroMetricCardClass}
           />
           <Metric
             label="Pending DPS"
             value={stats.pending}
             icon={<Clock3 size={15} />}
-            className={heroMetricCardClass}
           />
           <Metric
             label="Needs Re-Attempt"
             value={stats.below}
             icon={<AlertTriangle size={15} />}
-            className={heroMetricCardClass}
           />
           <Metric
             label="Average Accuracy"
             value={`${stats.avg}%`}
             icon={<TrendingUp size={15} />}
-            className={heroMetricCardClass}
           />
         </div>
       </div>
@@ -1368,7 +1310,6 @@ export function RecordWorkspace({
               {ModuleGroups.map((ModuleGroup) => {
                 const IsModuleOpen = Boolean(OpenModuleGroups[ModuleGroup.ModuleKey]);
                 const ModuleRows = ModuleGroup.Rows;
-                const ModuleAverageAccuracy = hierarchyAverageAccuracy(ModuleRows);
                 return (
                   <section
                     key={ModuleGroup.ModuleKey}
@@ -1393,9 +1334,6 @@ export function RecordWorkspace({
                         <Chip tone="green">
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
                         </Chip>
-                        <Chip tone={ModuleAverageAccuracy >= 70 ? "green" : "red"}>
-                          {ModuleAverageAccuracy}% Avg
-                        </Chip>
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                           <ChevronDown className={IsModuleOpen ? "rotate-180 transition" : "transition"} size={18} />
                         </span>
@@ -1406,7 +1344,6 @@ export function RecordWorkspace({
                         {ModuleGroup.Levels.map((LevelGroup) => {
                           const IsLevelOpen = Boolean(OpenLevelGroups[LevelGroup.GroupKey]);
                           const LevelRows = LevelGroup.Rows;
-                          const LevelAverageAccuracy = attemptAverageAccuracy(LevelRows);
                           return (
                             <div
                               key={LevelGroup.GroupKey}
@@ -1430,8 +1367,8 @@ export function RecordWorkspace({
                                   <Chip tone="green">
                                     {uniqueClearedConceptCount(LevelRows)} Cleared
                                   </Chip>
-                                  <Chip tone={LevelAverageAccuracy >= 70 ? "green" : "red"}>
-                                    {LevelAverageAccuracy}% Avg
+                                  <Chip tone={averageAccuracy(LevelRows) >= 70 ? "green" : "red"}>
+                                    {averageAccuracy(LevelRows)}% Avg
                                   </Chip>
                                   <span className="rounded-2xl bg-white p-2 text-slate-600 shadow-sm dark:bg-slate-950 dark:text-slate-300">
                                     <ChevronDown className={IsLevelOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1520,7 +1457,6 @@ export function RecordWorkspace({
               ModuleGroups.map((ModuleGroup) => {
                 const IsModuleOpen = Boolean(OpenModuleGroups[ModuleGroup.ModuleKey]);
                 const ModuleRows = ModuleGroup.Rows;
-                const ModuleAverageAccuracy = hierarchyAverageAccuracy(ModuleRows);
                 return (
                   <section
                     key={`manage-${ModuleGroup.ModuleKey}`}
@@ -1807,7 +1743,7 @@ function AdminAssignmentOverview({
           <OverviewStat
             icon={<ClipboardList size={18} />}
             label="Assigned DPS"
-            value={stats.assigned}
+            value={stats.total}
             tone="blue"
           />
           <OverviewStat
@@ -2675,9 +2611,9 @@ export function CompactRecordTable({
       : "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]";
 
   return (
-    <div className="math-admin-practice-lesson-insights-table overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div
-        className={`math-admin-practice-lesson-insights-table-header math-admin-assessment-control-table-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
+        className={`grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
       >
         {hideLessonColumn ? null : <div>Lesson</div>}
         <div>DPS</div>
