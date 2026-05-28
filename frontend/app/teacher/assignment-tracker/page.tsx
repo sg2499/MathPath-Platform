@@ -52,6 +52,7 @@ import {
   studentCodeOf,
   studentNameOf,
   uniqueNeedsReattemptCount,
+  hierarchyAverageAccuracy,
 } from "@/components/common/DetailWorkspaceViews";
 
 type ModuleFilter = string;
@@ -267,7 +268,7 @@ function StudentOperationalStats(Rows: AnyRow[]) {
     Reattempt,
     NeedsReattempt,
     ActionNeeded,
-    Average: CurrentUniqueAverageAccuracy(Rows),
+    Average: hierarchyAverageAccuracy(Rows),
     Best: BestAccuracy(Rows),
     Last: latestActivity(Rows),
   };
