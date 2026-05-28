@@ -84,9 +84,10 @@ function LevelStatusFor(LevelRows: AnyRow[], LevelCode: string) {
   const Role = String(ProgressRow?.progressionRole || "").toUpperCase();
   const PracticeRows = LevelRows.filter(IsPracticeResultRow);
   const CurrentRows = CurrentPracticeRows(LevelRows);
+  const AccuracyRows = PracticeRows;
   const Completed = CompletedRows(CurrentRows).length;
   const Required = requiredDpsForLevel(LevelRows.length ? LevelRows : PracticeRows, LevelCode);
-  const Average = averageAccuracy(CurrentRows);
+  const Average = averageAccuracy(AccuracyRows);
   const BelowBenchmark = CurrentRows.filter(isBelowBenchmark).length;
 
   if (Role === "PROMOTED_FROM") {
@@ -230,7 +231,7 @@ export default function StudentResultsPage() {
   );
   const VisibleModules = useMemo(() => BuildModuleProgress(VisibleRows), [VisibleRows]);
   const AccuracyScopePracticeRows = useMemo(
-    () => currentWorkRows(Rows.filter(IsPracticeResultRow)),
+    () => Rows.filter(IsPracticeResultRow),
     [Rows],
   );
   const TotalModules = ModuleOptions.length;
@@ -306,7 +307,7 @@ export default function StudentResultsPage() {
             const ActiveLevel = ActiveLevelForModule(ModuleItem.rows);
             const ModuleMetricRows = SelectedLevel === "ALL" ? RowsForLevelScope(ModuleItem.rows, ActiveLevel) : ModuleItem.rows;
             const ModulePracticeRows = CurrentPracticeRows(ModuleMetricRows);
-            const ModuleAverageRows = CurrentPracticeRows(ModuleItem.rows.filter(IsPracticeResultRow));
+            const ModuleAverageRows = ModuleItem.rows.filter(IsPracticeResultRow);
             const ModuleCompleted = CompletedRows(ModulePracticeRows).length;
             const ModuleRequired = SelectedLevel === "ALL"
               ? requiredDpsForLevel(ModuleMetricRows, ActiveLevel)
@@ -355,7 +356,7 @@ export default function StudentResultsPage() {
                   <CompactProgressMetric label="Module Status" value={ModuleStatus} icon={<Trophy size={14} />} />
                   <CompactProgressMetric label="Current Level" value={ActiveLevel} icon={<Route size={14} />} />
                   <CompactProgressMetric label="DPS Cleared" value={`${ModuleCompleted}/${ModuleRequired}`} icon={<FileText size={14} />} />
-                  <CompactProgressMetric label="Average Accuracy" value={`${averageAccuracy(ModulePracticeRows)}%`} icon={<BarChart3 size={14} />} />
+                  <CompactProgressMetric label="Average Accuracy" value={`${ModuleAverage}%`} icon={<BarChart3 size={14} />} />
                   <CompactProgressMetric label="Last Activity" value={latestActivity(ModuleMetricRows)} icon={<Clock3 size={14} />} />
                   <div className="md:col-span-2 xl:col-span-5 rounded-[20px] border border-slate-100 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/70">
                     <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">
