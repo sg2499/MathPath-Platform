@@ -33,7 +33,6 @@ import {
   uniqueClearedConceptCount,
   uniqueNeedsReattemptCount,
   uniquePendingConceptCount,
-  workUnitKey,
 } from "@/components/common/DetailWorkspaceViews";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
@@ -174,62 +173,20 @@ function Metric({
 }
 
 
-function NumberFieldValue(Row: AnyRow, Keys: string[], Fallback = 0) {
-  for (const Key of Keys) {
-    const Value = Number((Row as any)[Key]);
-    if (Number.isFinite(Value) && Value > 0) return Value;
-  }
-  return Fallback;
-}
 
-function AttemptOrderValue(Row: AnyRow, Index: number) {
-  const AttemptValue = NumberFieldValue(
-    Row,
-    [
-      "attemptSequence",
-      "attemptNumber",
-      "attemptNo",
-      "attemptIndex",
-      "reattemptNumber",
-      "retryAttemptNumber",
-      "retryNumber",
-    ],
-    0,
+function ScopedCompletedAttemptRows(Rows: AnyRow[]) {
+  return ExpandAttemptHistoryRows(Rows).filter(
+    (Row) => isCompleted(Row) && Number.isFinite(accuracy(Row)),
   );
-  const TimeValue = RowActivityTime(Row);
-  return AttemptValue * 1_000_000_000_000 + TimeValue + Index;
 }
 
-function LatestValidAttemptRows(Rows: AnyRow[]) {
-  const LatestRows = new Map<string, { Row: AnyRow; Order: number }>();
-
-  ExpandAttemptHistoryRows(Rows)
-    .filter((Row) => isCompleted(Row) && accuracy(Row) >= 0)
-    .forEach((Row, Index) => {
-      const Key = workUnitKey(Row);
-      const Order = AttemptOrderValue(Row, Index);
-      const Existing = LatestRows.get(Key);
-      if (!Existing || Order >= Existing.Order) {
-        LatestRows.set(Key, { Row, Order });
-      }
-    });
-
-  return Array.from(LatestRows.values()).map((Item) => Item.Row);
-}
-
-function LatestValidAverageAccuracy(Rows: AnyRow[]) {
-  const Values = LatestValidAttemptRows(Rows)
-    .map(accuracy)
-    .filter((Value) => Value >= 0);
-  if (!Values.length) return 0;
-  return Math.round(
-    Values.reduce((Sum, Value) => Sum + Value, 0) / Values.length,
-  );
+function ScopedAverageAccuracy(Rows: AnyRow[]) {
+  return averageAccuracy(Rows);
 }
 
 function AverageAccuracyDisplay(Rows: AnyRow[]) {
-  const ReviewedRows = LatestValidAttemptRows(Rows);
-  return ReviewedRows.length ? `${LatestValidAverageAccuracy(Rows)}%` : "—";
+  const ReviewedRows = ScopedCompletedAttemptRows(Rows);
+  return ReviewedRows.length ? `${ScopedAverageAccuracy(Rows)}%` : "—";
 }
 
 function MatchesPerformanceFilter(Row: AnyRow, FilterValue: PerformanceFilter) {
@@ -244,7 +201,7 @@ function MatchesPerformanceFilter(Row: AnyRow, FilterValue: PerformanceFilter) {
 }
 
 function PerformanceBand(Rows: AnyRow[]) {
-  const ReviewedRows = LatestValidAttemptRows(Rows);
+  const ReviewedRows = ScopedCompletedAttemptRows(Rows);
   if (!ReviewedRows.length) {
     return {
       Label: "Pending",
@@ -254,7 +211,7 @@ function PerformanceBand(Rows: AnyRow[]) {
     };
   }
 
-  const Average = LatestValidAverageAccuracy(Rows);
+  const Average = ScopedAverageAccuracy(Rows);
   if (Average < 70) {
     return {
       Label: "Needs Re-Attempt",
@@ -1273,8 +1230,8 @@ function ModulePracticeBlock({
 }) {
   const IsExpanded = ExpandedModuleKeys.has(Group.GroupKey);
   const ClearedCount = uniqueClearedConceptCount(Group.Rows);
-  const ReviewedRows = LatestValidAttemptRows(Group.Rows);
-  const Average = ReviewedRows.length ? LatestValidAverageAccuracy(Group.Rows) : null;
+  const ReviewedRows = ScopedCompletedAttemptRows(Group.Rows);
+  const Average = ReviewedRows.length ? ScopedAverageAccuracy(Group.Rows) : null;
   return (
     <section className="math-operation-panel-compact">
       <button
@@ -1340,8 +1297,8 @@ function LevelPracticeBlock({
   OnToggleLesson: (GroupKey: string) => void;
   OnView: (Row: AnyRow) => void;
 }) {
-  const ReviewedRows = LatestValidAttemptRows(Group.Rows);
-  const Average = ReviewedRows.length ? LatestValidAverageAccuracy(Group.Rows) : null;
+  const ReviewedRows = ScopedCompletedAttemptRows(Group.Rows);
+  const Average = ReviewedRows.length ? ScopedAverageAccuracy(Group.Rows) : null;
   const ClearedCount = uniqueClearedConceptCount(Group.Rows);
   return (
     <div className="rounded-[24px] border border-cyan-100 bg-cyan-50/35 p-4 dark:border-cyan-900/40 dark:bg-cyan-950/10">
@@ -1397,8 +1354,8 @@ function LessonInsightBlock({
   OnToggle: () => void;
   OnView: (Row: AnyRow) => void;
 }) {
-  const ReviewedRows = LatestValidAttemptRows(Group.Rows);
-  const Average = ReviewedRows.length ? LatestValidAverageAccuracy(Group.Rows) : null;
+  const ReviewedRows = ScopedCompletedAttemptRows(Group.Rows);
+  const Average = ReviewedRows.length ? ScopedAverageAccuracy(Group.Rows) : null;
   const ClearedCount = uniqueClearedConceptCount(Group.Rows);
   const PendingCount = uniquePendingConceptCount(Group.Rows);
   const NeedsReattemptCount = uniqueNeedsReattemptCount(Group.Rows);
