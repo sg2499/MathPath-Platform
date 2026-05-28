@@ -62,6 +62,8 @@ import {
   StudentNode,
 } from "@/components/common/DetailWorkspaceViews";
 
+const AdminDarkMetricCardClass = "dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]";
+
 type StatusFilter = "" | "ALL" | "ACTIVE" | "INACTIVE";
 type ApprovalStatusFilter = "" | "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 type ActiveTab =
@@ -1323,11 +1325,13 @@ function AdminAssessmentControlPageContent() {
               label="Students"
               value={Students.length}
               icon={<UsersRound size={15} />}
+              className={AdminDarkMetricCardClass}
             />
             <Metric
               label="Assigned Assessments"
               value={FilteredRows.length}
               icon={<ClipboardList size={15} />}
+              className={AdminDarkMetricCardClass}
             />
             <Metric
               label="Cleared Assessments"
@@ -1337,6 +1341,7 @@ function AdminAssessmentControlPageContent() {
                 ).length
               }
               icon={<CheckCircle2 size={15} />}
+              className={AdminDarkMetricCardClass}
             />
             <Metric
               label="Pending Assessments"
@@ -1346,6 +1351,7 @@ function AdminAssessmentControlPageContent() {
                 ).length
               }
               icon={<ClipboardCheck size={15} />}
+              className={AdminDarkMetricCardClass}
             />
             <Metric
               label="Re-Attempt Needed"
@@ -1355,16 +1361,19 @@ function AdminAssessmentControlPageContent() {
                 ).length
               }
               icon={<AlertTriangle size={15} />}
+              className={AdminDarkMetricCardClass}
             />
             <Metric
               label="Promotion Ready"
               value={PromotionReadyCount}
               icon={<ShieldCheck size={15} />}
+              className={AdminDarkMetricCardClass}
             />
             <Metric
               label="Average Accuracy"
               value={cleanPercent(AssessmentAverageAccuracy)}
               icon={<Sparkles size={15} />}
+              className={AdminDarkMetricCardClass}
             />
           </div>
         </div>
