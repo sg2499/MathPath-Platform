@@ -8940,3 +8940,36 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     border-right: 1px solid rgba(148, 163, 184, 0.22) !important;
   }
 }
+
+/* Phase 10.8.5 — Teacher dark-mode block header cleanup
+   Scoped regression-safe fix: removes full-width role-tinted strips from Teacher
+   non-hero section kickers while preserving hero pills and all existing workflows. */
+@layer components {
+  html.dark .math-role-teacher :not(.math-hero) .math-kicker {
+    display: inline-flex !important;
+    width: fit-content !important;
+    max-width: max-content !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    border-radius: 0 !important;
+    color: #f0b7c9 !important;
+    -webkit-text-fill-color: #f0b7c9 !important;
+  }
+
+  html.dark .math-role-teacher .math-hero .math-kicker {
+    display: inline-flex !important;
+    width: fit-content !important;
+    max-width: max-content !important;
+    background: color-mix(in srgb, var(--mp-role-soft) 60%, rgba(15,23,42,0.60)) !important;
+    border-color: var(--mp-role-border) !important;
+    border-radius: 9999px !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    box-shadow: none !important;
+    color: var(--mp-role-readable) !important;
+    -webkit-text-fill-color: var(--mp-role-readable) !important;
+  }
+}
