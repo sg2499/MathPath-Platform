@@ -429,6 +429,52 @@ function CurrentAverageAccuracy(Rows: AnyRecord[]) {
   );
 }
 
+
+function NormalizeScopeValue(Value: unknown) {
+  return String(Value ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+function ScopeValueMatches(FirstValue: unknown, SecondValue: unknown) {
+  const First = NormalizeScopeValue(FirstValue);
+  const Second = NormalizeScopeValue(SecondValue);
+  return Boolean(First && Second && First === Second);
+}
+
+function RowMatchesLevelScope(Row: AnyRecord, LevelRow: AnyRecord) {
+  const LevelId = PickFirstString(LevelRow, ["levelId"], "");
+  const LevelCode = PickFirstString(LevelRow, ["levelCode"], "");
+  return (
+    ScopeValueMatches(PickFirstString(Row, ["levelId"], ""), LevelId) ||
+    ScopeValueMatches(PickFirstString(Row, ["levelCode"], ""), LevelCode)
+  );
+}
+
+function CurrentClearedDpsCountForLevel(
+  AttemptRows: AnyRecord[],
+  LevelRow: AnyRecord,
+) {
+  const LevelAttemptRows = AttemptRows.filter((Row) =>
+    RowMatchesLevelScope(Row, LevelRow),
+  );
+  return BuildCurrentAttemptGroups(LevelAttemptRows).filter((Group) =>
+    IsBenchmarkMetAttempt(Group.CurrentRow),
+  ).length;
+}
+
+function BuildCurrentLevelTrackerRow(
+  LevelRow: AnyRecord,
+  AttemptRows: AnyRecord[],
+) {
+  const CompletedDps = CurrentClearedDpsCountForLevel(AttemptRows, LevelRow);
+  return {
+    ...LevelRow,
+    completedDps: CompletedDps,
+    passedDps: CompletedDps,
+  };
+}
+
 function RowPromotionStatus(Row: AnyRecord) {
   const Explicit = PickFirstString(
     Row,
@@ -994,7 +1040,7 @@ export default function AdminResultsPage() {
   const CurrentLevelSourceRows = StudentJourneyLevelRows.length
     ? StudentJourneyLevelRows
     : StudentLevelRows;
-  const CurrentLevelRow =
+  const RawCurrentLevelRow =
     CurrentLevelSourceRows.find(
       (Row) => PickFirstString(Row, ["levelId"], "") === StudentCurrentLevelId,
     ) ??
@@ -1014,6 +1060,9 @@ export default function AdminResultsPage() {
       );
     }) ??
     CurrentLevelSourceRows[0];
+  const CurrentLevelRow = RawCurrentLevelRow
+    ? BuildCurrentLevelTrackerRow(RawCurrentLevelRow, StudentDpsAttempts)
+    : undefined;
   const CurrentLevelProgress = CurrentLevelRow
     ? Math.round(
         (PickFirstNumber(CurrentLevelRow, ["completedDps"], 0) /
