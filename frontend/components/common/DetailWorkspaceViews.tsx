@@ -352,6 +352,27 @@ export function averageAccuracy(rows: AnyRow[]) {
   );
 }
 
+function hasAccuracyValue(row: AnyRow) {
+  const RawAccuracy = row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy;
+  return RawAccuracy !== null && RawAccuracy !== undefined && RawAccuracy !== "" && !Number.isNaN(Number(RawAccuracy));
+}
+
+function averageAccuracyIncludingZero(rows: AnyRow[]) {
+  const Values = rows
+    .filter((Row) => isCompleted(Row) && hasAccuracyValue(Row))
+    .map(accuracy);
+  if (!Values.length) return 0;
+  return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
+}
+
+function currentUniqueAverageAccuracy(rows: AnyRow[]) {
+  return averageAccuracyIncludingZero(currentWorkRows(rows));
+}
+
+function attemptHistoryAverageAccuracy(rows: AnyRow[]) {
+  return averageAccuracyIncludingZero(rowsWithAttemptHistory(rows));
+}
+
 export function studentOverallAverageAccuracy(rows: AnyRow[]) {
   const ReviewedRows = rowsWithAttemptHistory(rows).filter(isCompleted);
   return averageAccuracy(ReviewedRows);
@@ -835,7 +856,7 @@ export function StudentSummaryTable({
                 </div>
               </div>
               <div>
-                <Chip tone="blue">{stats.total}</Chip>
+                <Chip tone="blue">{stats.assigned}</Chip>
               </div>
               <div>
                 <Chip tone="green">{stats.completed}</Chip>
@@ -851,9 +872,14 @@ export function StudentSummaryTable({
                 </Chip>
               </div>
               <div>
-                <Chip tone={stats.avg >= 70 ? "green" : "red"}>
-                  {stats.avg}%
-                </Chip>
+                {(() => {
+                  const OverallAverage = currentUniqueAverageAccuracy(student.rows);
+                  return (
+                    <Chip tone={OverallAverage >= 70 ? "green" : "red"}>
+                      {OverallAverage}%
+                    </Chip>
+                  );
+                })()}
               </div>
               <div className="text-sm font-bold text-slate-600">
                 {stats.last}
@@ -972,6 +998,7 @@ export function RecordWorkspace({
       ? levelProgressSummary(filteredRows.length ? filteredRows : rows)
       : null;
   const baseStats = studentStats(filteredRows);
+  const AdminOverallAverage = role === "admin" ? currentUniqueAverageAccuracy(filteredRows) : baseStats.avg;
   const stats = progressSummary
     ? {
         ...baseStats,
@@ -983,7 +1010,10 @@ export function RecordWorkspace({
         ),
         below: progressSummary.currentBelow,
       }
-    : baseStats;
+    : {
+        ...baseStats,
+        avg: AdminOverallAverage,
+      };
   const [OpenModuleGroups, SetOpenModuleGroups] = useState<
     Record<string, boolean>
   >({});
@@ -1148,7 +1178,7 @@ export function RecordWorkspace({
         <div className={`grid gap-3 sm:grid-cols-2 ${role === "student" ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
           <Metric
             label={role === "student" ? "Total DPS" : "Assigned DPS"}
-            value={stats.total}
+            value={role === "admin" ? stats.assigned : stats.total}
             icon={<Layers3 size={15} />}
           />
           {role === "student" ? (
@@ -1339,6 +1369,11 @@ export function RecordWorkspace({
                         <Chip tone="green">
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
                         </Chip>
+                        {role === "admin" ? (
+                          <Chip tone={currentUniqueAverageAccuracy(ModuleRows) >= 70 ? "green" : "red"}>
+                            {currentUniqueAverageAccuracy(ModuleRows)}% Avg
+                          </Chip>
+                        ) : null}
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                           <ChevronDown className={IsModuleOpen ? "rotate-180 transition" : "transition"} size={18} />
                         </span>
@@ -1372,9 +1407,14 @@ export function RecordWorkspace({
                                   <Chip tone="green">
                                     {uniqueClearedConceptCount(LevelRows)} Cleared
                                   </Chip>
-                                  <Chip tone={averageAccuracy(LevelRows) >= 70 ? "green" : "red"}>
-                                    {averageAccuracy(LevelRows)}% Avg
-                                  </Chip>
+                                  {(() => {
+                                    const LevelAverage = role === "admin" ? attemptHistoryAverageAccuracy(LevelRows) : averageAccuracy(LevelRows);
+                                    return (
+                                      <Chip tone={LevelAverage >= 70 ? "green" : "red"}>
+                                        {LevelAverage}% Avg
+                                      </Chip>
+                                    );
+                                  })()}
                                   <span className="rounded-2xl bg-white p-2 text-slate-600 shadow-sm dark:bg-slate-950 dark:text-slate-300">
                                     <ChevronDown className={IsLevelOpen ? "rotate-180 transition" : "transition"} size={18} />
                                   </span>
