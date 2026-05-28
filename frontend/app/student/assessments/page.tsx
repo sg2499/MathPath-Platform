@@ -754,7 +754,7 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
 
 function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/60">
+    <div className="math-student-metric-card rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/60">
       <div className="inline-flex rounded-2xl bg-blue-50 p-2 text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300">{icon}</div>
       <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-800 dark:text-slate-100">{label}</p>
       <p className="mt-2 text-3xl font-black text-slate-950 dark:text-white">{value}</p>

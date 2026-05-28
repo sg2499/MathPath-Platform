@@ -464,8 +464,8 @@ function ReadinessDetails({ row }: { row: StudentAssessmentEligibility }) {
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
         <Info label="Required DPS" value={row.requiredDpsCount} />
-        <Info label="Cleared" value={row.completedDpsCount} />
-        <Info label="Pending" value={pendingCount} />
+        <Info label="Cleared DPS" value={row.completedDpsCount} />
+        <Info label="Pending DPS" value={pendingCount} />
         <Info label="Needs Re-Attempt" value={needsReattemptCount} />
       </div>
 
@@ -635,9 +635,9 @@ function ReadinessDetails({ row }: { row: StudentAssessmentEligibility }) {
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-4">
             <Info label="All Sheets" value={sheets.length} />
-            <Info label="Pending" value={pendingCount} />
+            <Info label="Pending DPS" value={pendingCount} />
             <Info label="Needs Re-Attempt" value={needsReattemptCount} />
-            <Info label="Cleared" value={clearedCount} />
+            <Info label="Cleared DPS" value={clearedCount} />
           </div>
         )}
       </section>
@@ -785,7 +785,7 @@ function SheetFilterChip({
 
 function Info({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
+    <div className="math-student-inner-metric-card rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
         {label}
       </p>
