@@ -917,9 +917,11 @@ function Metric({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/60">
-      <div className="text-blue-600">{icon}</div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm ring-1 ring-transparent dark:border dark:border-white/15 dark:bg-slate-950/70 dark:shadow-[0_18px_45px_rgba(2,6,23,0.36)] dark:ring-1 dark:ring-rose-200/10">
+      <div className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 dark:border dark:border-rose-200/15 dark:bg-rose-400/10 dark:text-rose-100">
+        {icon}
+      </div>
+      <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-200">
         {label}
       </p>
       <p className="mt-2 text-3xl font-black text-slate-950 dark:text-white">

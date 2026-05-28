@@ -31,7 +31,6 @@ import {
   Chip,
   CompactDpsLabel,
   CompactLessonLabel,
-  Metric,
   NaturalCompare,
   StandardViewButton,
   StudentNode,
@@ -183,6 +182,35 @@ function MatchesStatusFilter(Row: AnyRow, FilterValue: StatusFilter) {
 
 function AttemptedRows(Rows: AnyRow[]) {
   return Rows.filter(isCompleted);
+}
+
+
+function Metric({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string | number;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm ring-1 ring-transparent dark:border dark:border-white/15 dark:bg-slate-950/70 dark:shadow-[0_18px_45px_rgba(2,6,23,0.36)] dark:ring-1 dark:ring-rose-200/10">
+      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-100">
+        {icon ? (
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 dark:border dark:border-rose-200/15 dark:bg-rose-400/10 dark:text-rose-100">
+            {icon}
+          </span>
+        ) : null}
+        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 dark:text-slate-200">
+          {label}
+        </p>
+      </div>
+      <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+        {value}
+      </p>
+    </div>
+  );
 }
 
 function AverageAccuracyDisplay(Rows: AnyRow[]) {
