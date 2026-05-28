@@ -880,6 +880,7 @@ export function RecordWorkspace({
   backLabel = "Back",
   onBack,
   rows,
+  accuracyRows,
   role,
   onView,
   onArchive,
@@ -893,6 +894,7 @@ export function RecordWorkspace({
   backLabel?: string;
   onBack: () => void;
   rows: AnyRow[];
+  accuracyRows?: AnyRow[];
   role: "admin" | "teacher" | "student";
   onView?: (row: AnyRow) => void;
   onArchive?: (row: AnyRow) => void;
@@ -911,6 +913,7 @@ export function RecordWorkspace({
 }) {
   void backLabel;
   void onBack;
+  void accuracyRows;
   const [tab, setTab] = useState<
     "overview" | "lessons" | "records" | "actions"
   >(initialTab);
