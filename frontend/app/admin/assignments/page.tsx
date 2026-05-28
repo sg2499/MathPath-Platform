@@ -257,15 +257,41 @@ export default function AdminPracticeAssignmentsPage() {
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <Metric label="Students" value={students.length} icon={<UsersRound size={15} />} />
-            <Metric label="Assigned DPS" value={assignedDps} icon={<ClipboardList size={15} />} />
-            <Metric label="Cleared DPS" value={clearedDps} icon={<CheckCircle2 size={15} />} />
-            <Metric label="Pending DPS" value={pendingDps} icon={<Clock3 size={15} />} />
-            <Metric label="Re-Attempt Needed" value={reattemptNeeded} icon={<AlertTriangle size={15} />} />
+            <Metric
+              label="Students"
+              value={students.length}
+              icon={<UsersRound size={15} />}
+              className="dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
+            />
+            <Metric
+              label="Assigned DPS"
+              value={assignedDps}
+              icon={<ClipboardList size={15} />}
+              className="dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
+            />
+            <Metric
+              label="Cleared DPS"
+              value={clearedDps}
+              icon={<CheckCircle2 size={15} />}
+              className="dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
+            />
+            <Metric
+              label="Pending DPS"
+              value={pendingDps}
+              icon={<Clock3 size={15} />}
+              className="dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
+            />
+            <Metric
+              label="Re-Attempt Needed"
+              value={reattemptNeeded}
+              icon={<AlertTriangle size={15} />}
+              className="dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
+            />
             <Metric
               label="Average Accuracy"
               value={`${averageAccuracyValue}%`}
               icon={<BarChart3 size={15} />}
+              className="dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
             />
           </div>
         </div>
