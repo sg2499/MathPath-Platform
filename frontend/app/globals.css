@@ -8973,3 +8973,37 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     -webkit-text-fill-color: var(--mp-role-readable) !important;
   }
 }
+
+/* 28 May 2026 — Student dark-mode block header cleanup
+   Scoped regression-safe fix: removes full-width/tinted background strips from Student
+   non-hero section kickers so block labels render cleanly across every student login.
+   Preserves hero pills, table headers, chips, buttons, metrics, workflows, and light mode. */
+@layer components {
+  html.dark .math-role-student :not(.math-hero) .math-kicker {
+    display: inline-flex !important;
+    width: fit-content !important;
+    max-width: max-content !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    border-radius: 0 !important;
+    color: var(--mp-role-readable) !important;
+    -webkit-text-fill-color: var(--mp-role-readable) !important;
+  }
+
+  html.dark .math-role-student .math-hero .math-kicker {
+    display: inline-flex !important;
+    width: fit-content !important;
+    max-width: max-content !important;
+    background: color-mix(in srgb, var(--mp-role-soft) 60%, rgba(15,23,42,0.60)) !important;
+    border-color: var(--mp-role-border) !important;
+    border-radius: 9999px !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    box-shadow: none !important;
+    color: var(--mp-role-readable) !important;
+    -webkit-text-fill-color: var(--mp-role-readable) !important;
+  }
+}
