@@ -828,7 +828,7 @@ export function StudentSummaryTable({
                 </div>
               </div>
               <div>
-                <Chip tone="blue">{stats.total}</Chip>
+                <Chip tone="blue">{stats.assigned}</Chip>
               </div>
               <div>
                 <Chip tone="green">{stats.completed}</Chip>
@@ -1138,7 +1138,7 @@ export function RecordWorkspace({
         <div className={`grid gap-3 sm:grid-cols-2 ${role === "student" ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
           <Metric
             label={role === "student" ? "Total DPS" : "Assigned DPS"}
-            value={stats.total}
+            value={role === "student" ? stats.total : stats.assigned}
             icon={<Layers3 size={15} />}
           />
           {role === "student" ? (
@@ -1738,7 +1738,7 @@ function AdminAssignmentOverview({
           <OverviewStat
             icon={<ClipboardList size={18} />}
             label="Assigned DPS"
-            value={stats.total}
+            value={stats.assigned}
             tone="blue"
           />
           <OverviewStat
