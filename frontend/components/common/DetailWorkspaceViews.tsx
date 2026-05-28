@@ -785,8 +785,8 @@ export function StudentSummaryTable({
   viewTooltip?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+    <div className="math-practice-overview-table overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="math-practice-overview-table-header math-admin-assessment-control-table-header grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <div>Student</div>
         <div>Assigned DPS</div>
         <div>Cleared DPS</div>
@@ -2606,9 +2606,9 @@ export function CompactRecordTable({
       : "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]";
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <div className="math-admin-practice-lesson-insights-table overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div
-        className={`grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
+        className={`math-admin-practice-lesson-insights-table-header math-admin-assessment-control-table-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
       >
         {hideLessonColumn ? null : <div>Lesson</div>}
         <div>DPS</div>
