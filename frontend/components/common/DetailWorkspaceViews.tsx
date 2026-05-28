@@ -351,9 +351,7 @@ export function hasRecordedAccuracy(row: AnyRow) {
 }
 
 export function averageAccuracy(rows: AnyRow[]) {
-  const CurrentRows = currentWorkRows(rows);
-  const SourceRows = CurrentRows.length ? CurrentRows : rows;
-  const values = SourceRows
+  const values = rowsWithAttemptHistory(rows)
     .filter((row) => isCompleted(row) && hasRecordedAccuracy(row))
     .map(accuracy);
   if (!values.length) return 0;
@@ -698,7 +696,7 @@ export function studentStats(rows: AnyRow[]) {
     pending,
     below,
     reattempt,
-    avg: averageAccuracy(CurrentRows),
+    avg: averageAccuracy(rows.length ? rows : CurrentRows),
     last: latestActivity(CurrentRows.length ? CurrentRows : rows),
   };
 }
@@ -894,6 +892,7 @@ export function RecordWorkspace({
   onDelete,
   initialTab = "overview",
   focusTarget,
+  accuracyRows,
 }: {
   title: string;
   subtitle: string;
@@ -915,6 +914,7 @@ export function RecordWorkspace({
     levelCode?: string;
     targetAction?: string;
   };
+  accuracyRows?: AnyRow[];
 }) {
   void backLabel;
   void onBack;
@@ -976,6 +976,7 @@ export function RecordWorkspace({
       ? levelProgressSummary(filteredRows.length ? filteredRows : rows)
       : null;
   const baseStats = studentStats(filteredRows);
+  const overallAccuracyStats = studentStats(accuracyRows?.length ? accuracyRows : rows);
   const overallStats = studentStats(rows);
   const stats = progressSummary
     ? {
@@ -987,6 +988,7 @@ export function RecordWorkspace({
           0,
         ),
         below: progressSummary.currentBelow,
+        avg: overallAccuracyStats.avg,
       }
     : {
         ...baseStats,
