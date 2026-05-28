@@ -230,8 +230,8 @@ export default function StudentResultsPage() {
   );
   const VisibleModules = useMemo(() => BuildModuleProgress(VisibleRows), [VisibleRows]);
   const AccuracyScopePracticeRows = useMemo(
-    () => currentWorkRows(VisibleRows.filter(IsPracticeResultRow)),
-    [VisibleRows],
+    () => currentWorkRows(Rows.filter(IsPracticeResultRow)),
+    [Rows],
   );
   const TotalModules = ModuleOptions.length;
   const TotalLevels = TotalVisibleLevels(Rows);
@@ -313,6 +313,7 @@ export default function StudentResultsPage() {
             const ActiveLevelStatus = LevelStatusFor(ModuleMetricRows, ActiveLevel).Status;
             const ModuleStatus = ["Active Level", "Not Started"].includes(ActiveLevelStatus) ? "In Progress" : ActiveLevelStatus;
             const ModulePercent = ModuleRequired > 0 ? Math.min(100, Math.round((ModuleCompleted / ModuleRequired) * 100)) : 0;
+            const ModuleAverage = averageAccuracy(ModuleItem.rows.filter(IsPracticeResultRow));
 
             return (
               <section key={ModuleItem.moduleCode} className="math-hierarchy-panel rounded-[30px]">
@@ -338,6 +339,9 @@ export default function StudentResultsPage() {
                   <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
                     <span className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700">
                       <Trophy size={14} /> {ActiveLevel} · {ModuleStatus}
+                    </span>
+                    <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${ModuleAverage >= 70 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                      {ModuleAverage}% Avg
                     </span>
                     <span className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                       <ChevronDown className={IsExpanded ? "rotate-180 transition" : "transition"} size={15} />

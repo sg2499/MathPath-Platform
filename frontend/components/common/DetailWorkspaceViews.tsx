@@ -344,8 +344,18 @@ export function accuracy(row: AnyRow) {
   );
 }
 
+export function hasRecordedAccuracy(row: AnyRow) {
+  const RawAccuracy = row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy;
+  if (RawAccuracy === null || RawAccuracy === undefined || RawAccuracy === "") return false;
+  return !Number.isNaN(Number(RawAccuracy));
+}
+
 export function averageAccuracy(rows: AnyRow[]) {
-  const values = rows.map(accuracy).filter((value) => value > 0);
+  const CurrentRows = currentWorkRows(rows);
+  const SourceRows = CurrentRows.length ? CurrentRows : rows;
+  const values = SourceRows
+    .filter((row) => isCompleted(row) && hasRecordedAccuracy(row))
+    .map(accuracy);
   if (!values.length) return 0;
   return Math.round(
     values.reduce((sum, value) => sum + value, 0) / values.length,
@@ -966,6 +976,7 @@ export function RecordWorkspace({
       ? levelProgressSummary(filteredRows.length ? filteredRows : rows)
       : null;
   const baseStats = studentStats(filteredRows);
+  const overallStats = studentStats(rows);
   const stats = progressSummary
     ? {
         ...baseStats,
@@ -977,7 +988,10 @@ export function RecordWorkspace({
         ),
         below: progressSummary.currentBelow,
       }
-    : baseStats;
+    : {
+        ...baseStats,
+        avg: role === "admin" ? overallStats.avg : baseStats.avg,
+      };
   const [OpenModuleGroups, SetOpenModuleGroups] = useState<
     Record<string, boolean>
   >({});
@@ -1342,6 +1356,9 @@ export function RecordWorkspace({
                         <Chip tone="blue">{uniqueAssignedConceptCount(ModuleRows)} DPS</Chip>
                         <Chip tone="green">
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
+                        </Chip>
+                        <Chip tone={averageAccuracy(ModuleRows) >= 70 ? "green" : "red"}>
+                          {averageAccuracy(ModuleRows)}% Avg
                         </Chip>
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                           <ChevronDown className={IsModuleOpen ? "rotate-180 transition" : "transition"} size={18} />
