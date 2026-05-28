@@ -878,8 +878,8 @@ function ReadinessDetails({
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
         <Info label="Required DPS" value={row.requiredDpsCount} />
-        <Info label="Cleared" value={row.completedDpsCount} />
-        <Info label="Pending" value={pendingCount} />
+        <Info label="Cleared DPS" value={row.completedDpsCount} />
+        <Info label="Pending DPS" value={pendingCount} />
         <Info label="Needs Re-Attempt" value={needsReattemptCount} />
       </div>
 
@@ -1426,8 +1426,8 @@ function Metric({
 
 function Info({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm transition dark:border-white/10 dark:bg-slate-900/80 dark:shadow-[0_18px_45px_rgba(2,6,23,0.28)]">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
         {label}
       </p>
       <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
