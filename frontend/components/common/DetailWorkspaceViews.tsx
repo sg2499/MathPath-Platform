@@ -1135,10 +1135,12 @@ export function RecordWorkspace({
       : role === "teacher"
         ? "Student Progress Review"
         : "Student Assignment Profile";
-  const adminPracticeHeroMetricClass =
+  const heroMetricCardClass =
     role === "admin"
       ? "dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
-      : "";
+      : role === "student"
+        ? "dark:border dark:border-orange-300/22 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
+        : "";
   const overviewDescription =
     role === "student"
       ? "Review completed work, pending practice, scores, lesson progress, and result history for this module."
@@ -1162,39 +1164,39 @@ export function RecordWorkspace({
             label={role === "student" ? "Total DPS" : "Assigned DPS"}
             value={role === "student" ? stats.total : stats.assigned}
             icon={<Layers3 size={15} />}
-            className={adminPracticeHeroMetricClass}
+            className={heroMetricCardClass}
           />
           {role === "student" ? (
             <Metric
               label="Assigned DPS"
               value={stats.assigned}
               icon={<ClipboardList size={15} />}
-              className={adminPracticeHeroMetricClass}
+              className={heroMetricCardClass}
             />
           ) : null}
           <Metric
             label="Cleared DPS"
             value={stats.completed}
             icon={<CheckCircle2 size={15} />}
-            className={adminPracticeHeroMetricClass}
+            className={heroMetricCardClass}
           />
           <Metric
             label="Pending DPS"
             value={stats.pending}
             icon={<Clock3 size={15} />}
-            className={adminPracticeHeroMetricClass}
+            className={heroMetricCardClass}
           />
           <Metric
             label="Needs Re-Attempt"
             value={stats.below}
             icon={<AlertTriangle size={15} />}
-            className={adminPracticeHeroMetricClass}
+            className={heroMetricCardClass}
           />
           <Metric
             label="Average Accuracy"
             value={`${stats.avg}%`}
             icon={<TrendingUp size={15} />}
-            className={adminPracticeHeroMetricClass}
+            className={heroMetricCardClass}
           />
         </div>
       </div>
