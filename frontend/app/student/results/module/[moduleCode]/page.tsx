@@ -103,6 +103,7 @@ function StudentModuleProgressWorkspacePageContent() {
           backLabel="Back to Progress"
           onBack={() => Router.push("/student/results")}
           rows={VisibleRows}
+          accuracyRows={ResultRows}
           role="student"
           initialTab={(SearchParams.get("tab") === "lesson-insights" || SearchParams.get("tab") === "lessons") ? "lessons" : "overview"}
           focusTarget={FocusTarget}
