@@ -484,14 +484,14 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 top-[96px] z-[9999] flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 pb-6 pt-4 backdrop-blur-sm sm:top-[104px] sm:px-6 sm:pb-8"
+      className="math-admin-light-profile-modal-overlay fixed inset-x-0 bottom-0 top-[96px] z-[9999] flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 pb-6 pt-4 backdrop-blur-sm sm:top-[104px] sm:px-6 sm:pb-8"
       onClick={onClose}
     >
       <div
-        className="relative flex max-h-[calc(100vh-128px)] w-full max-w-5xl flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white shadow-2xl dark:border-slate-700/70 dark:bg-slate-950 sm:max-h-[calc(100vh-144px)]"
+        className="math-admin-light-profile-modal-card relative flex max-h-[calc(100vh-128px)] w-full max-w-5xl flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white shadow-2xl dark:border-slate-700/70 dark:bg-slate-950 sm:max-h-[calc(100vh-144px)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
+        <div className="math-admin-light-profile-modal-header sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
           <div className="flex min-w-0 items-start gap-4">
             {Photo ? (
               <img
@@ -536,14 +536,14 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
           </div>
 
           {teacher.notes ? (
-            <div className="mt-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/70">
+            <div className="math-admin-light-profile-modal-field mt-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/70">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Notes</p>
               <p className="mt-1 font-bold leading-6 text-slate-900 dark:text-white">{teacher.notes}</p>
             </div>
           ) : null}
         </div>
 
-        <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
+        <div className="math-admin-light-profile-modal-footer sticky bottom-0 z-10 border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
           <button className="math-button-primary w-full" onClick={onClose} type="button">
             Back to Teacher Directory
           </button>
@@ -555,7 +555,7 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
 
 function TeacherProfileInfo({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/70">
+    <div className="math-admin-light-profile-modal-field rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/70">
       <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
         {label}
       </p>
