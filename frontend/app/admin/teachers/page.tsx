@@ -7,6 +7,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { ProfileAvatar, ResolveAssetUrl } from "@/components/common/ProfileAvatar";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import {
   createTeacher,
   deleteTeacher,
@@ -83,8 +84,9 @@ export default function AdminTeachersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminTeacher | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<AdminTeacher | null>(null);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const TeacherDirectoryStateKey = CreatePersistedUiStateKey("admin", "teachers");
+  const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(TeacherDirectoryStateKey, "search"), "");
+  const [page, setPage] = usePersistentUiState(CreatePersistedUiStateKey(TeacherDirectoryStateKey, "page"), 1);
   const [lastLogin, setLastLogin] = useState<{ identifier: string; password: string } | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);

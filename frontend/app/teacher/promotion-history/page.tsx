@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { apiErrorMessage } from "@/lib/api";
 import {
   getTeacherStudentLevelPromotions,
@@ -199,9 +200,10 @@ function PromotionHistoryTable({
 }: {
   Items: TeacherStudentLevelPromotion[];
 }) {
-  const [ExpandedStudents, SetExpandedStudents] = useState<
+  const PromotionHistoryStateKey = CreatePersistedUiStateKey("teacher", "promotion-history");
+  const [ExpandedStudents, SetExpandedStudents] = usePersistentUiState<
     Record<string, boolean>
-  >({});
+  >(CreatePersistedUiStateKey(PromotionHistoryStateKey, "expanded-students"), {});
   const StudentGroups = BuildPromotionHistoryStudentGroups(Items);
 
   const ToggleStudent = (StudentKey: string) => {
@@ -271,9 +273,9 @@ function PromotionHistoryTable({
 
 export default function TeacherPromotionHistoryPage() {
   const Ready = useProtectedPage(["TEACHER"]);
-  const [SearchValue, SetSearchValue] = useState("");
-  const [ModuleFilter, SetModuleFilter] = useState("");
-  const [LevelFilter, SetLevelFilter] = useState("");
+  const [SearchValue, SetSearchValue] = usePersistentUiState(CreatePersistedUiStateKey(PromotionHistoryStateKey, "search"), "");
+  const [ModuleFilter, SetModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(PromotionHistoryStateKey, "module-filter"), "");
+  const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(PromotionHistoryStateKey, "level-filter"), "");
 
   const PromotionHistoryQuery = useQuery({
     queryKey: ["teacher-student-level-promotions"],
