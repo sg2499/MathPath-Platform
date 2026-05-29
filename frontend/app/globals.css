@@ -9283,3 +9283,80 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.18));
   }
 }
+
+/* 29 May 2026 — Admin light-mode block header cleanup
+   Scope: Admin light mode only. Removes the unintended blue strip behind non-hero
+   section/block kicker labels while preserving role-palette text, selected tabs,
+   buttons, dashboard actions, semantic chips, and dark mode behavior. */
+@layer components {
+  html:not(.dark) .math-role-admin :is(
+    .math-card:not(.math-hero),
+    .math-panel:not(.math-hero),
+    .math-soft-section:not(.math-hero),
+    .math-selected-scope-card,
+    .math-history-hierarchy-row,
+    .math-current-level-progress-block,
+    .math-completed-level-module-block,
+    .math-completed-level-summary-block,
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-admin-parent-report-panel,
+    .math-hierarchy-block,
+    .math-table-shell,
+    .math-table-wrap
+  ) :is(.math-kicker, .math-section-label, .math-section-kicker):not(.math-status-chip):not(.math-chip):not(.math-badge) {
+    display: inline-flex !important;
+    width: auto !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: #2563eb !important;
+    -webkit-text-fill-color: #2563eb !important;
+    text-shadow: none !important;
+    line-height: 1.18 !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-card:not(.math-hero),
+    .math-panel:not(.math-hero),
+    .math-soft-section:not(.math-hero),
+    .math-selected-scope-card,
+    .math-history-hierarchy-row,
+    .math-current-level-progress-block,
+    .math-completed-level-module-block,
+    .math-completed-level-summary-block,
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-admin-parent-report-panel,
+    .math-hierarchy-block,
+    .math-table-shell,
+    .math-table-wrap
+  ) :is(.math-kicker, .math-section-label, .math-section-kicker):not(.math-status-chip):not(.math-chip):not(.math-badge)::before,
+  html:not(.dark) .math-role-admin :is(
+    .math-card:not(.math-hero),
+    .math-panel:not(.math-hero),
+    .math-soft-section:not(.math-hero),
+    .math-selected-scope-card,
+    .math-history-hierarchy-row,
+    .math-current-level-progress-block,
+    .math-completed-level-module-block,
+    .math-completed-level-summary-block,
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-admin-parent-report-panel,
+    .math-hierarchy-block,
+    .math-table-shell,
+    .math-table-wrap
+  ) :is(.math-kicker, .math-section-label, .math-section-kicker):not(.math-status-chip):not(.math-chip):not(.math-badge)::after {
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+}
