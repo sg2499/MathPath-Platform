@@ -976,12 +976,28 @@ export function RecordWorkspace({
   void backLabel;
   void onBack;
   void accuracyRows;
-  const [tab, setTab] = useState<
+  const DetailStateKey = CreatePersistedUiStateKey(
+    role,
+    "student-detail",
+    title,
+    subtitle,
+    focusTarget?.assignmentId || focusTarget?.attemptId || focusTarget?.dpsId || "default",
+  );
+  const [tab, setTab] = usePersistentUiState<
     "overview" | "lessons" | "records" | "actions"
-  >(initialTab);
-  const [lessonFilter, setLessonFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [search, setSearch] = useState("");
+  >(CreatePersistedUiStateKey(DetailStateKey, "tab"), initialTab);
+  const [lessonFilter, setLessonFilter] = usePersistentUiState(
+    CreatePersistedUiStateKey(DetailStateKey, "lesson-filter"),
+    "",
+  );
+  const [statusFilter, setStatusFilter] = usePersistentUiState(
+    CreatePersistedUiStateKey(DetailStateKey, "status-filter"),
+    "",
+  );
+  const [search, setSearch] = usePersistentUiState(
+    CreatePersistedUiStateKey(DetailStateKey, "search"),
+    "",
+  );
 
   const lessons = useMemo(() => {
     return Array.from(
@@ -1050,15 +1066,15 @@ export function RecordWorkspace({
         ...baseStats,
         avg: AdminOverallAverage,
       };
-  const [OpenModuleGroups, SetOpenModuleGroups] = useState<
+  const [OpenModuleGroups, SetOpenModuleGroups] = usePersistentUiState<
     Record<string, boolean>
-  >({});
-  const [OpenLevelGroups, SetOpenLevelGroups] = useState<
+  >(CreatePersistedUiStateKey(DetailStateKey, "open-modules"), {});
+  const [OpenLevelGroups, SetOpenLevelGroups] = usePersistentUiState<
     Record<string, boolean>
-  >({});
-  const [OpenLessonGroups, SetOpenLessonGroups] = useState<
+  >(CreatePersistedUiStateKey(DetailStateKey, "open-levels"), {});
+  const [OpenLessonGroups, SetOpenLessonGroups] = usePersistentUiState<
     Record<string, boolean>
-  >({});
+  >(CreatePersistedUiStateKey(DetailStateKey, "open-lessons"), {});
 
   function ToggleModuleGroup(ModuleKey: string) {
     SetOpenModuleGroups((Current) => ({
@@ -1988,7 +2004,11 @@ function StudentProgressOverview({
     ? CurrentLevelRows
     : SourceRows;
   const LessonInsights = buildLessonFocusItems(VisibleLevelRows);
-  const [OpenLessons, SetOpenLessons] = useState<Record<string, boolean>>({});
+  const CurrentLevelJourneyStateKey = CreatePersistedUiStateKey("student", "current-level-journey", Summary.currentLevel);
+  const [OpenLessons, SetOpenLessons] = usePersistentUiState<Record<string, boolean>>(
+    CreatePersistedUiStateKey(CurrentLevelJourneyStateKey, "open-lessons"),
+    {},
+  );
 
   function ToggleLesson(LessonKey: string) {
     SetOpenLessons((Current) => ({

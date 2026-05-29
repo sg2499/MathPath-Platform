@@ -7,6 +7,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { CompareStudentCodes } from "@/lib/studentSort";
 import { apiErrorMessage } from "@/lib/api";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { formatMathPathDateTime } from "@/lib/date";
 import {
   createAdminAssessmentTestingOverride,
@@ -134,12 +135,13 @@ function teacherOptionLabel(Teacher: {
 
 export default function AdminAssessmentReadinessPage() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("");
-  const [moduleFilter, setModuleFilter] = useState<ModuleFilter>("");
-  const [levelFilter, setLevelFilter] = useState<LevelFilter>("");
-  const [teacherFilter, setTeacherFilter] = useState<TeacherFilter>("");
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const ReadinessStateKey = CreatePersistedUiStateKey("admin", "assessment-readiness");
+  const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(ReadinessStateKey, "search"), "");
+  const [filter, setFilter] = usePersistentUiState<Filter>(CreatePersistedUiStateKey(ReadinessStateKey, "status-filter"), "");
+  const [moduleFilter, setModuleFilter] = usePersistentUiState<ModuleFilter>(CreatePersistedUiStateKey(ReadinessStateKey, "module-filter"), "");
+  const [levelFilter, setLevelFilter] = usePersistentUiState<LevelFilter>(CreatePersistedUiStateKey(ReadinessStateKey, "level-filter"), "");
+  const [teacherFilter, setTeacherFilter] = usePersistentUiState<TeacherFilter>(CreatePersistedUiStateKey(ReadinessStateKey, "teacher-filter"), "");
+  const [open, setOpen] = usePersistentUiState<Record<string, boolean>>(CreatePersistedUiStateKey(ReadinessStateKey, "open-rows"), {});
   const [overrideModal, setOverrideModal] = useState<
     | { mode: "ENABLE"; row: AssessmentEligibilityRow; override?: null }
     | { mode: "DISABLE"; row: AssessmentEligibilityRow; override: AssessmentTestingOverride }
@@ -659,6 +661,7 @@ export default function AdminAssessmentReadinessPage() {
                   >
                     <ReadinessDetails
                       row={row}
+                      persistenceKey={CreatePersistedUiStateKey(ReadinessStateKey, levelKey(row), "sheet-breakdown")}
                       testingOverrideEnabled={testingOverrideEnabled}
                       activeOverride={activeOverride}
                       onEnableOverride={() => openEnableOverride(row)}
@@ -824,19 +827,27 @@ function filterSheets(sheets: SheetRow[], filter: SheetFilter) {
 
 function ReadinessDetails({
   row,
+  persistenceKey,
   testingOverrideEnabled,
   activeOverride,
   onEnableOverride,
   onDisableOverride,
 }: {
   row: AssessmentEligibilityRow;
+  persistenceKey: string;
   testingOverrideEnabled: boolean;
   activeOverride?: AssessmentTestingOverride;
   onEnableOverride: () => void;
   onDisableOverride: () => void;
 }) {
-  const [showSheets, setShowSheets] = useState(false);
-  const [sheetFilter, setSheetFilter] = useState<SheetFilter>("ALL");
+  const [showSheets, setShowSheets] = usePersistentUiState(
+    CreatePersistedUiStateKey(persistenceKey, "show-sheets"),
+    false,
+  );
+  const [sheetFilter, setSheetFilter] = usePersistentUiState<SheetFilter>(
+    CreatePersistedUiStateKey(persistenceKey, "sheet-filter"),
+    "ALL",
+  );
 
   const sheets = allSheets(row);
   const pendingCount = sheets.filter(
@@ -1218,12 +1229,14 @@ function testingOverrideKey({
 
 function TestingOverridePanel({
   row,
+  persistenceKey,
   testingOverrideEnabled,
   activeOverride,
   onEnableOverride,
   onDisableOverride,
 }: {
   row: AssessmentEligibilityRow;
+  persistenceKey: string;
   testingOverrideEnabled: boolean;
   activeOverride?: AssessmentTestingOverride;
   onEnableOverride: () => void;
