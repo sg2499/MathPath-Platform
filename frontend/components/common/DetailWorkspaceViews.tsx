@@ -365,6 +365,23 @@ function averageAccuracyIncludingZero(rows: AnyRow[]) {
   return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
 }
 
+export function scopedAverageAccuracy(rows: AnyRow[]) {
+  return averageAccuracyIncludingZero(rowsWithAttemptHistory(rows));
+}
+
+export function accuracyTone(Value: number): "green" | "amber" | "red" {
+  if (Value > 70) return "green";
+  if (Value >= 60) return "amber";
+  return "red";
+}
+
+export function accuracyToneClass(Value: number) {
+  const Tone = accuracyTone(Value);
+  if (Tone === "green") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (Tone === "amber") return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-rose-200 bg-rose-50 text-rose-700";
+}
+
 function currentUniqueAverageAccuracy(rows: AnyRow[]) {
   return averageAccuracyIncludingZero(currentWorkRows(rows));
 }
@@ -894,7 +911,7 @@ export function StudentSummaryTable({
                 {(() => {
                   const OverallAverage = hierarchyAverageAccuracy(student.rows);
                   return (
-                    <Chip tone={OverallAverage >= 70 ? "green" : "red"}>
+                    <Chip tone={accuracyTone(OverallAverage)}>
                       {OverallAverage}%
                     </Chip>
                   );
@@ -1334,8 +1351,8 @@ export function RecordWorkspace({
                         <Chip tone="green">
                           {uniqueClearedConceptCount(lesson.rows)} Cleared
                         </Chip>
-                        <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
-                          {averageAccuracy(lesson.rows)}% Avg
+                        <Chip tone={accuracyTone(scopedAverageAccuracy(lesson.rows))}>
+                          {scopedAverageAccuracy(lesson.rows)}% Avg
                         </Chip>
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                           <ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1389,7 +1406,7 @@ export function RecordWorkspace({
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
                         </Chip>
                         {role === "admin" ? (
-                          <Chip tone={hierarchyAverageAccuracy(ModuleRows) >= 70 ? "green" : "red"}>
+                          <Chip tone={accuracyTone(hierarchyAverageAccuracy(ModuleRows))}>
                             {hierarchyAverageAccuracy(ModuleRows)}% Avg
                           </Chip>
                         ) : null}
@@ -1429,7 +1446,7 @@ export function RecordWorkspace({
                                   {(() => {
                                     const LevelAverage = role === "admin" ? hierarchyAverageAccuracy(LevelRows) : averageAccuracy(LevelRows);
                                     return (
-                                      <Chip tone={LevelAverage >= 70 ? "green" : "red"}>
+                                      <Chip tone={accuracyTone(LevelAverage)}>
                                         {LevelAverage}% Avg
                                       </Chip>
                                     );
@@ -1468,8 +1485,8 @@ export function RecordWorkspace({
                                             <Chip tone="green">
                                               {uniqueClearedConceptCount(lesson.rows)} Cleared
                                             </Chip>
-                                            <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
-                                              {averageAccuracy(lesson.rows)}% Avg
+                                            <Chip tone={accuracyTone(scopedAverageAccuracy(lesson.rows))}>
+                                              {scopedAverageAccuracy(lesson.rows)}% Avg
                                             </Chip>
                                             <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                                               <ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1614,8 +1631,8 @@ export function RecordWorkspace({
                                             <Chip tone="green">
                                               {uniqueClearedConceptCount(lesson.rows)} Cleared
                                             </Chip>
-                                            <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
-                                              {averageAccuracy(lesson.rows)}% Avg
+                                            <Chip tone={accuracyTone(scopedAverageAccuracy(lesson.rows))}>
+                                              {scopedAverageAccuracy(lesson.rows)}% Avg
                                             </Chip>
                                             <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                                               <ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -2021,8 +2038,8 @@ function StudentProgressOverview({
               {Completed}/{Required} DPS Cleared
             </Chip>
             <Chip tone={Pending ? "amber" : "green"}>{Pending} Pending</Chip>
-            <Chip tone={averageAccuracy(SourceRows) >= 70 ? "green" : "red"}>
-              Average Accuracy: {averageAccuracy(SourceRows)}%
+            <Chip tone={accuracyTone(scopedAverageAccuracy(SourceRows))}>
+              Average Accuracy: {scopedAverageAccuracy(SourceRows)}%
             </Chip>
           </div>
         </div>
@@ -2300,7 +2317,7 @@ function WorkSignalRow({
       <div className="flex shrink-0 items-center gap-2">
         <Chip
           tone={
-            accuracy(row) >= 70 ? "green" : isCompleted(row) ? "red" : "amber"
+            isCompleted(row) ? accuracyTone(accuracy(row)) : "amber"
           }
         >
           {isCompleted(row) ? `${accuracy(row)}%` : statusLabel(row)}
@@ -2729,7 +2746,7 @@ export function CompactRecordTable({
               </div>
               <div>
                 {isCompleted(row) ? (
-                  <Chip tone={accuracy(row) >= 70 ? "green" : "red"}>
+                  <Chip tone={accuracyTone(accuracy(row))}>
                     {accuracy(row)}%
                   </Chip>
                 ) : (

@@ -28,6 +28,12 @@ type TeacherStudentSortKey = "studentCode" | "studentName" | "className" | "leve
 
 type SortDirection = "asc" | "desc";
 
+function AccuracyToneClass(Value: number) {
+  if (Value > 70) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (Value >= 60) return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-rose-200 bg-rose-50 text-rose-700";
+}
+
 function normalizeSortValue(value: unknown): string | number {
   if (value === null || value === undefined) return "";
   if (typeof value === "number") return value;
@@ -524,7 +530,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
         </span>
       </td>
       <td>
-        <span className={`math-badge ${typeof averageAccuracy === "number" ? averageAccuracy >= 70 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+        <span className={`math-badge ${typeof averageAccuracy === "number" ? AccuracyToneClass(averageAccuracy) : "border-slate-200 bg-slate-50 text-slate-600"}`}>
           {typeof averageAccuracy === "number" ? `${Math.round(averageAccuracy)}%` : "—"}
         </span>
         <p className="mt-1 text-xs text-slate-500">Across completed attempts</p>

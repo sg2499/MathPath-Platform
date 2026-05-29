@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
   AnyRow,
+  accuracyToneClass,
   currentWorkRows,
   isBelowBenchmark,
   isCompleted,
@@ -376,7 +377,7 @@ export default function StudentResultsPage() {
                     <span className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700">
                       <Trophy size={14} /> {ActiveLevel} · {ModuleStatus}
                     </span>
-                    <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${ModuleAverage >= 70 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                    <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${accuracyToneClass(ModuleAverage)}`}>
                       {ModuleAverage}% Avg
                     </span>
                     <span className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
@@ -426,7 +427,7 @@ export default function StudentResultsPage() {
                             <div className="flex flex-wrap gap-2">
                               <span className={`rounded-full border px-3 py-1 text-xs font-black ${LevelToneClass(LevelStatus.Tone)}`}>{LevelStatus.Status}</span>
                               <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{LevelStatus.Completed}/{LevelStatus.Required} DPS</span>
-                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">{LevelStatus.Average}% Avg</span>
+                              <span className={`rounded-full border px-3 py-1 text-xs font-black ${accuracyToneClass(LevelStatus.Average)}`}>{LevelStatus.Average}% Avg</span>
                               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-600">{LevelRows.filter(IsPracticeResultRow).length} Record(s)</span>
                             </div>
                           </div>

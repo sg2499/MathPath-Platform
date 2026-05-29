@@ -32,6 +32,12 @@ type WorkspaceRole = "admin" | "teacher" | "student";
 
 type Tone = "slate" | "green" | "red" | "amber" | "blue" | "cyan";
 
+function AccuracyTone(Value: number): "green" | "amber" | "red" {
+  if (Value > 70) return "green";
+  if (Value >= 60) return "amber";
+  return "red";
+}
+
 function NaturalCompare(FirstValue: unknown, SecondValue: unknown) {
   return String(FirstValue ?? "").localeCompare(String(SecondValue ?? ""), undefined, {
     numeric: true,
@@ -530,7 +536,7 @@ function AssessmentInsights({ Groups, OpenModules, OpenLevels, ToggleModule, Tog
                       <Chip tone="blue">{LevelGroup.Rows.length} Assessment(s)</Chip>
                       <Chip tone="green">{GroupStats.Cleared} Cleared</Chip>
                       <Chip tone={GroupStats.Reattempt ? "red" : "green"}>{GroupStats.Reattempt} Needs Re-Attempt</Chip>
-                      <Chip tone={GroupStats.Average >= 70 ? "green" : "amber"}>{GroupStats.Average}% Avg</Chip>
+                      <Chip tone={AccuracyTone(GroupStats.Average)}>{GroupStats.Average}% Avg</Chip>
                       <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300"><ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} /></span>
                     </div>
                   </button>
