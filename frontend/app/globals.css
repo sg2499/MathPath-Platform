@@ -9409,3 +9409,53 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     -webkit-text-fill-color: var(--mp-role-readable) !important;
   }
 }
+
+/* 29 May 2026 — Admin light-mode metric card surface visibility
+   Scope: Admin light mode only. Strengthens metric/card outlines and surfaces so
+   dashboard, practice, assessment, readiness, studio, reports, and detail metric
+   values no longer appear like floating text. Dark mode and non-admin roles are untouched. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-metric,
+  html:not(.dark) .math-role-admin [class*="rounded-[20px]"][class*="bg-white/88"],
+  html:not(.dark) .math-role-admin [class*="rounded-[22px]"][class*="bg-white/88"],
+  html:not(.dark) .math-role-admin [class*="rounded-[24px]"][class*="bg-white/75"],
+  html:not(.dark) .math-role-admin [class*="rounded-[28px]"][class*="bg-white/85"],
+  html:not(.dark) .math-role-admin [class*="rounded-2xl"][class*="bg-slate-50"],
+  html:not(.dark) .math-role-admin [class*="rounded-[22px]"][class*="bg-slate-50"] {
+    background-color: rgba(255, 255, 255, 0.94) !important;
+    border: 1px solid rgba(147, 197, 253, 0.62) !important;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.88) inset,
+      0 10px 26px rgba(37, 99, 235, 0.08),
+      0 2px 8px rgba(15, 23, 42, 0.04) !important;
+    backdrop-filter: blur(18px) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-hero .math-metric,
+  html:not(.dark) .math-role-admin .math-hero [class*="rounded-[24px]"][class*="bg-white/75"],
+  html:not(.dark) .math-role-admin .math-hero [class*="rounded-[20px]"][class*="bg-white/88"],
+  html:not(.dark) .math-role-admin .math-hero [class*="rounded-[22px]"][class*="bg-white/88"] {
+    background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,251,255,0.9)) !important;
+    border-color: rgba(96, 165, 250, 0.66) !important;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 14px 34px rgba(37, 99, 235, 0.10),
+      0 2px 10px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-metric:hover,
+  html:not(.dark) .math-role-admin [class*="rounded-[20px]"][class*="bg-white/88"]:hover,
+  html:not(.dark) .math-role-admin [class*="rounded-[22px]"][class*="bg-white/88"]:hover,
+  html:not(.dark) .math-role-admin [class*="rounded-[24px]"][class*="bg-white/75"]:hover,
+  html:not(.dark) .math-role-admin [class*="rounded-[28px]"][class*="bg-white/85"]:hover {
+    border-color: rgba(37, 99, 235, 0.76) !important;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 16px 38px rgba(37, 99, 235, 0.13),
+      0 3px 12px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-metric::after {
+    opacity: 0.85 !important;
+  }
+}
