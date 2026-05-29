@@ -905,6 +905,7 @@ function ReadinessDetails({
 
       <TestingOverridePanel
         row={row}
+        persistenceKey={CreatePersistedUiStateKey(persistenceKey, "testing-override")}
         testingOverrideEnabled={testingOverrideEnabled}
         activeOverride={activeOverride}
         onEnableOverride={onEnableOverride}
