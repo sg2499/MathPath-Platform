@@ -6,7 +6,7 @@ import { defaultRouteForRole, setActiveRole, setAuth } from "@/lib/auth";
 import type { CurrentUser, UserRole } from "@/types/auth";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   BarChart3,
@@ -237,7 +237,6 @@ export default function LoginClient({
   const [Password, SetPassword] = useState("");
   const [Error, SetError] = useState("");
   const [Loading, SetLoading] = useState(false);
-  const [IsRedirectPending, StartRedirectTransition] = useTransition();
   const [Theme, SetTheme] = useState<ThemeMode>("light");
 
   const Active = RoleContent[ActiveTab];
@@ -289,7 +288,7 @@ export default function LoginClient({
 
   async function HandleSubmit(Event: React.FormEvent) {
     Event.preventDefault();
-    if (!LoginReady || Loading || IsRedirectPending) return;
+    if (!LoginReady || Loading) return;
 
     const CleanIdentifier = Identifier.trim();
     const CleanPassword = Password.trim();
@@ -303,8 +302,6 @@ export default function LoginClient({
     SetLoading(true);
     PersistLoginTab(ActiveTab);
 
-    let ShouldStopLoading = true;
-
     try {
       const Response = await login(CleanIdentifier, CleanPassword);
 
@@ -315,14 +312,18 @@ export default function LoginClient({
 
       setAuth(Response.accessToken, Response.user);
       const TargetRoute = defaultRouteForRole(Response.user.role);
-      ShouldStopLoading = false;
-      StartRedirectTransition(() => {
-        Router.replace(TargetRoute);
-      });
+      Router.prefetch(TargetRoute);
+
+      if (typeof window !== "undefined") {
+        window.location.assign(TargetRoute);
+        return;
+      }
+
+      Router.replace(TargetRoute);
     } catch (Err) {
       SetError(apiErrorMessage(Err));
     } finally {
-      if (ShouldStopLoading) SetLoading(false);
+      SetLoading(false);
     }
   }
 
@@ -515,8 +516,8 @@ export default function LoginClient({
                 </div>
               ) : null}
 
-              <button className="math-button-primary min-h-12 w-full" disabled={Loading || IsRedirectPending || !LoginReady}>
-                {Loading || IsRedirectPending ? "Opening Workspace..." : Active.ButtonText}
+              <button className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
+                {Loading ? "Opening Workspace..." : Active.ButtonText}
               </button>
             </form>
 
