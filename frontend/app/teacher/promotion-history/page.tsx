@@ -273,6 +273,7 @@ function PromotionHistoryTable({
 
 export default function TeacherPromotionHistoryPage() {
   const Ready = useProtectedPage(["TEACHER"]);
+  const PromotionHistoryStateKey = CreatePersistedUiStateKey("teacher", "promotion-history");
   const [SearchValue, SetSearchValue] = usePersistentUiState(CreatePersistedUiStateKey(PromotionHistoryStateKey, "search"), "");
   const [ModuleFilter, SetModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(PromotionHistoryStateKey, "module-filter"), "");
   const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(PromotionHistoryStateKey, "level-filter"), "");
