@@ -2703,11 +2703,29 @@ function scoreTone(row: AnyRow): "slate" | "green" | "red" {
   return (ScoreValue / MaxValue) * 100 >= 70 ? "green" : "red";
 }
 
-function accuracyTone(row: AnyRow): "slate" | "green" | "red" {
+export function accuracyTone(row: AnyRow): "slate" | "green" | "red" {
   if (!isCompleted(row)) return "slate";
   const AccuracyValue = accuracy(row);
   if (!Number.isFinite(AccuracyValue)) return "slate";
   return AccuracyValue >= 70 ? "green" : "red";
+}
+
+
+export function accuracyToneClass(Value: AnyRow | number | string | null | undefined) {
+  const AccuracyValue =
+    typeof Value === "object" && Value !== null
+      ? accuracy(Value)
+      : numberValue(Value, 0);
+
+  if (!Number.isFinite(AccuracyValue)) {
+    return "border-slate-300 bg-slate-100 text-slate-700 shadow-sm dark:border-slate-300/80 dark:bg-slate-500/35 dark:text-white dark:shadow-slate-950/30";
+  }
+
+  if (AccuracyValue >= 70) {
+    return "border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm dark:border-emerald-300/90 dark:bg-emerald-500/40 dark:text-white dark:shadow-emerald-950/30";
+  }
+
+  return "border-rose-300 bg-rose-100 text-rose-800 shadow-sm dark:border-rose-300/90 dark:bg-rose-500/45 dark:text-white dark:shadow-rose-950/30";
 }
 
 export function CompactRecordTable({
