@@ -9,6 +9,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import {
   archiveAdminAssessmentBlueprint,
   createAdminAssessmentBlueprint,
@@ -118,17 +119,18 @@ export default function AdminAssessmentBlueprintBuilderPage() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const queryClient = useQueryClient();
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<BlueprintStatusFilter>("");
-  const [manageModuleFilter, setManageModuleFilter] = useState("");
-  const [manageLevelFilter, setManageLevelFilter] = useState("");
+  const AssessmentStudioStateKey = CreatePersistedUiStateKey("admin", "assessment-studio");
+  const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentStudioStateKey, "search"), "");
+  const [statusFilter, setStatusFilter] = usePersistentUiState<BlueprintStatusFilter>(CreatePersistedUiStateKey(AssessmentStudioStateKey, "status-filter"), "");
+  const [manageModuleFilter, setManageModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentStudioStateKey, "module-filter"), "");
+  const [manageLevelFilter, setManageLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentStudioStateKey, "level-filter"), "");
   const [selectedBlueprint, setSelectedBlueprint] = useState<AssessmentBlueprint | null>(null);
   const [editingBlueprint, setEditingBlueprint] = useState<AssessmentBlueprint | null>(null);
   const [pendingDeleteBlueprint, setPendingDeleteBlueprint] = useState<AssessmentBlueprint | null>(null);
-  const [activeTab, setActiveTab] = useState<"CREATE" | "MANAGE">(() => {
+  const [activeTab, setActiveTab] = usePersistentUiState<"CREATE" | "MANAGE">(CreatePersistedUiStateKey(AssessmentStudioStateKey, "active-tab"), (() => {
     if (typeof window === "undefined") return "CREATE";
     return new URLSearchParams(window.location.search).get("tab") === "manage" ? "MANAGE" : "CREATE";
-  });
+  })());
 
 
   function ChangeBlueprintTab(NextTab: "CREATE" | "MANAGE") {
@@ -452,8 +454,9 @@ function AssessmentCard({ item, onView, onEdit, onPublish, onToggleLive, onArchi
 
 function AssessmentDetailsWorkspace({ item, onBack, onRefreshBlueprints }: { item: AssessmentBlueprint; onBack: () => void; onRefreshBlueprints: () => void }) {
   const queryClient = useQueryClient();
-  const [showAnswers, setShowAnswers] = useState(true);
-  const [ActiveDetailTab, SetActiveDetailTab] = useState<"OVERVIEW" | "PREVIEW" | "COVERAGE">("OVERVIEW");
+  const PreviewStateKey = CreatePersistedUiStateKey("admin", "assessment-studio", "blueprint-preview", item.id || item.title);
+  const [showAnswers, setShowAnswers] = usePersistentUiState(CreatePersistedUiStateKey(PreviewStateKey, "show-answers"), true);
+  const [ActiveDetailTab, SetActiveDetailTab] = usePersistentUiState<"OVERVIEW" | "PREVIEW" | "COVERAGE">(CreatePersistedUiStateKey(PreviewStateKey, "active-detail-tab"), "OVERVIEW");
 
   const generatedQuery = useQuery({
     queryKey: ["admin-generated-assessment", item.id, showAnswers],

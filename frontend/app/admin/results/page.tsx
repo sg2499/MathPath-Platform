@@ -21,6 +21,7 @@ import {
   getStudentReport,
 } from "@/lib/api/admin";
 import { formatMathPathDateTime } from "@/lib/date";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import type {
   DpsItem,
   LessonItem,
@@ -566,20 +567,21 @@ export default function AdminResultsPage() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const Router = useRouter();
 
-  const [Mode, SetMode] = useState<ResultsMode>("LEARNING");
-  const [SelectedTeacherId, SetSelectedTeacherId] = useState("");
-  const [SelectedStudentId, SetSelectedStudentId] = useState("");
-  const [SelectedModuleId, SetSelectedModuleId] = useState("");
-  const [SelectedLevelId, SetSelectedLevelId] = useState("");
-  const [SelectedLessonId, SetSelectedLessonId] = useState("");
-  const [SelectedDpsId, SetSelectedDpsId] = useState("");
-  const [SearchText, SetSearchText] = useState("");
+  const ResultsStateKey = CreatePersistedUiStateKey("admin", "performance-reports");
+  const [Mode, SetMode] = usePersistentUiState<ResultsMode>(CreatePersistedUiStateKey(ResultsStateKey, "mode"), "LEARNING");
+  const [SelectedTeacherId, SetSelectedTeacherId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "teacher-filter"), "");
+  const [SelectedStudentId, SetSelectedStudentId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "student-filter"), "");
+  const [SelectedModuleId, SetSelectedModuleId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "module-filter"), "");
+  const [SelectedLevelId, SetSelectedLevelId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "level-filter"), "");
+  const [SelectedLessonId, SetSelectedLessonId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "lesson-filter"), "");
+  const [SelectedDpsId, SetSelectedDpsId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "dps-filter"), "");
+  const [SearchText, SetSearchText] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "search"), "");
   const [LearningSortKeyValue, SetLearningSortKeyValue] =
-    useState<LearningSortKey>("completedDate");
+    usePersistentUiState<LearningSortKey>(CreatePersistedUiStateKey(ResultsStateKey, "learning-sort-key"), "completedDate");
   const [StudentSortKeyValue, SetStudentSortKeyValue] =
-    useState<StudentAttemptSortKey>("completedDate");
+    usePersistentUiState<StudentAttemptSortKey>(CreatePersistedUiStateKey(ResultsStateKey, "student-sort-key"), "completedDate");
   const [SortDirectionValue, SetSortDirectionValue] =
-    useState<SortDirection>("desc");
+    usePersistentUiState<SortDirection>(CreatePersistedUiStateKey(ResultsStateKey, "sort-direction"), "desc");
   const [ExportingMode, SetExportingMode] = useState<ResultsMode | null>(null);
 
   const TeachersQuery = useQuery({
@@ -2105,20 +2107,21 @@ function StudentHistoryView({
   ToggleSort: (Key: StudentAttemptSortKey) => void;
   Router: ReturnType<typeof useRouter>;
 }) {
-  const [DpsExpandedKeys, SetDpsExpandedKeys] = useState<
+  const StudentHistoryStateKey = CreatePersistedUiStateKey("admin", "student-history", StudentCode);
+  const [DpsExpandedKeys, SetDpsExpandedKeys] = usePersistentUiState<
     Record<string, boolean>
-  >({});
-  const [AssessmentExpandedKeys, SetAssessmentExpandedKeys] = useState<
+  >(CreatePersistedUiStateKey(StudentHistoryStateKey, "dps-expanded"), {});
+  const [AssessmentExpandedKeys, SetAssessmentExpandedKeys] = usePersistentUiState<
     Record<string, boolean>
-  >({});
-  const [CompletedLevelExpandedKeys, SetCompletedLevelExpandedKeys] = useState<
+  >(CreatePersistedUiStateKey(StudentHistoryStateKey, "assessment-expanded"), {});
+  const [CompletedLevelExpandedKeys, SetCompletedLevelExpandedKeys] = usePersistentUiState<
     Record<string, boolean>
-  >({});
-  const [PromotionExpandedKeys, SetPromotionExpandedKeys] = useState<
+  >(CreatePersistedUiStateKey(StudentHistoryStateKey, "completed-level-expanded"), {});
+  const [PromotionExpandedKeys, SetPromotionExpandedKeys] = usePersistentUiState<
     Record<string, boolean>
-  >({});
+  >(CreatePersistedUiStateKey(StudentHistoryStateKey, "promotion-expanded"), {});
   const [ActiveStudentHistoryTab, SetActiveStudentHistoryTab] =
-    useState<StudentHistoryDetailTab>("CURRENT");
+    usePersistentUiState<StudentHistoryDetailTab>(CreatePersistedUiStateKey(StudentHistoryStateKey, "active-tab"), "CURRENT");
   const DisplayAttemptRows = BuildDisplayAttemptRows(AttemptRows);
   const DisplayAssessmentRows = BuildDisplayAttemptRows(AssessmentRows);
   const DpsHierarchy = useMemo(
