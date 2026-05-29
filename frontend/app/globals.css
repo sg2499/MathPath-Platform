@@ -9459,3 +9459,48 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     opacity: 0.85 !important;
   }
 }
+
+
+/* 29 May 2026 — Admin light-mode student/teacher profile modal glass surface
+   Scope: Admin light mode profile popups only. Adds a premium frosted/glass modal
+   surface for View Student and View Teacher without touching dark mode or other roles. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-admin-light-profile-modal-overlay {
+    background:
+      radial-gradient(circle at 50% 8%, rgba(37, 99, 235, 0.18), transparent 34%),
+      radial-gradient(circle at 82% 28%, rgba(168, 85, 247, 0.16), transparent 30%),
+      rgba(15, 23, 42, 0.62) !important;
+    backdrop-filter: blur(18px) saturate(1.18) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-light-profile-modal-card {
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(248, 251, 255, 0.72)),
+      radial-gradient(circle at 6% 0%, rgba(37, 99, 235, 0.13), transparent 28%),
+      radial-gradient(circle at 96% 10%, rgba(168, 85, 247, 0.16), transparent 32%) !important;
+    border: 1px solid rgba(147, 197, 253, 0.82) !important;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 28px 80px rgba(15, 23, 42, 0.34),
+      0 12px 36px rgba(37, 99, 235, 0.15) !important;
+    backdrop-filter: blur(28px) saturate(1.2) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-light-profile-modal-header,
+  html:not(.dark) .math-role-admin .math-admin-light-profile-modal-footer {
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(239, 246, 255, 0.72)) !important;
+    border-color: rgba(147, 197, 253, 0.54) !important;
+    backdrop-filter: blur(24px) saturate(1.16) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-light-profile-modal-panel,
+  html:not(.dark) .math-role-admin .math-admin-light-profile-modal-field {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(248, 251, 255, 0.66)) !important;
+    border: 1px solid rgba(147, 197, 253, 0.62) !important;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.78) inset,
+      0 10px 24px rgba(37, 99, 235, 0.07) !important;
+    backdrop-filter: blur(18px) !important;
+  }
+}
