@@ -296,13 +296,13 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function SemanticChip({ Value, Tone = "blue" }: { Value: string; Tone?: "blue" | "green" | "red" | "amber" | "slate" }) {
   const ToneClasses = {
-    blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-300/80 dark:bg-blue-400/20 dark:text-blue-50",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-300/80 dark:bg-emerald-400/25 dark:text-emerald-50",
-    red: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-300/80 dark:bg-rose-400/25 dark:text-rose-50",
-    amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-300/80 dark:bg-amber-400/25 dark:text-amber-50",
-    slate: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-300/70 dark:bg-slate-400/20 dark:text-slate-50",
+    blue: "border-blue-300 bg-blue-100 text-blue-800 shadow-sm dark:border-blue-300/90 dark:bg-blue-500/40 dark:text-white dark:shadow-blue-950/30",
+    green: "border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm dark:border-emerald-300/90 dark:bg-emerald-500/40 dark:text-white dark:shadow-emerald-950/30",
+    red: "border-rose-300 bg-rose-100 text-rose-800 shadow-sm dark:border-rose-300/90 dark:bg-rose-500/45 dark:text-white dark:shadow-rose-950/30",
+    amber: "border-amber-300 bg-amber-100 text-amber-800 shadow-sm dark:border-amber-300/90 dark:bg-amber-500/45 dark:text-white dark:shadow-amber-950/30",
+    slate: "border-slate-300 bg-slate-100 text-slate-700 shadow-sm dark:border-slate-300/80 dark:bg-slate-500/35 dark:text-white dark:shadow-slate-950/30",
   };
-  return <span className={`math-badge math-assignment-semantic-chip math-assignment-semantic-${Tone} whitespace-nowrap ${ToneClasses[Tone]}`}>{Value}</span>;
+  return <span className={`math-badge math-assignment-semantic-chip math-assignment-semantic-${Tone} whitespace-nowrap px-3 py-1 leading-none ${ToneClasses[Tone]}`}>{Value}</span>;
 }
 
 function PerformanceChip({ Value, Tone = "blue" }: { Value: string; Tone?: "blue" | "green" | "red" | "slate" }) {

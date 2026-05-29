@@ -9,7 +9,6 @@ import {
   mathPathTimestampValue,
 } from "@/lib/date";
 import { CompareStudentCodes } from "@/lib/studentSort";
-import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import {
   AlertTriangle,
   Archive,
@@ -364,23 +363,6 @@ function averageAccuracyIncludingZero(rows: AnyRow[]) {
     .map(accuracy);
   if (!Values.length) return 0;
   return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
-}
-
-export function scopedAverageAccuracy(rows: AnyRow[]) {
-  return averageAccuracyIncludingZero(rowsWithAttemptHistory(rows));
-}
-
-export function accuracyTone(Value: number): "green" | "amber" | "red" {
-  if (Value > 70) return "green";
-  if (Value >= 60) return "amber";
-  return "red";
-}
-
-export function accuracyToneClass(Value: number) {
-  const Tone = accuracyTone(Value);
-  if (Tone === "green") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (Tone === "amber") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-rose-200 bg-rose-50 text-rose-700";
 }
 
 function currentUniqueAverageAccuracy(rows: AnyRow[]) {
@@ -811,6 +793,38 @@ export function Chip({
   );
 }
 
+function StrongSemanticChip({
+  children,
+  tone = "slate",
+}: {
+  children: ReactNode;
+  tone?: "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple";
+}) {
+  const tones = {
+    slate:
+      "border-slate-300 bg-slate-100 text-slate-700 shadow-sm dark:border-slate-300/80 dark:bg-slate-500/35 dark:text-white dark:shadow-slate-950/30",
+    green:
+      "border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm dark:border-emerald-300/90 dark:bg-emerald-500/40 dark:text-white dark:shadow-emerald-950/30",
+    red:
+      "border-rose-300 bg-rose-100 text-rose-800 shadow-sm dark:border-rose-300/90 dark:bg-rose-500/45 dark:text-white dark:shadow-rose-950/30",
+    amber:
+      "border-amber-300 bg-amber-100 text-amber-800 shadow-sm dark:border-amber-300/90 dark:bg-amber-500/45 dark:text-white dark:shadow-amber-950/30",
+    blue:
+      "border-blue-300 bg-blue-100 text-blue-800 shadow-sm dark:border-blue-300/90 dark:bg-blue-500/40 dark:text-white dark:shadow-blue-950/30",
+    cyan:
+      "border-cyan-300 bg-cyan-100 text-cyan-800 shadow-sm dark:border-cyan-300/90 dark:bg-cyan-500/40 dark:text-white dark:shadow-cyan-950/30",
+    purple:
+      "border-violet-300 bg-violet-100 text-violet-800 shadow-sm dark:border-violet-300/90 dark:bg-violet-500/40 dark:text-white dark:shadow-violet-950/30",
+  };
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black leading-none ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function StandardViewButton({
   label,
   tooltip,
@@ -912,7 +926,7 @@ export function StudentSummaryTable({
                 {(() => {
                   const OverallAverage = hierarchyAverageAccuracy(student.rows);
                   return (
-                    <Chip tone={accuracyTone(OverallAverage)}>
+                    <Chip tone={OverallAverage >= 70 ? "green" : "red"}>
                       {OverallAverage}%
                     </Chip>
                   );
@@ -977,28 +991,12 @@ export function RecordWorkspace({
   void backLabel;
   void onBack;
   void accuracyRows;
-  const DetailStateKey = CreatePersistedUiStateKey(
-    role,
-    "student-detail",
-    title,
-    subtitle,
-    focusTarget?.assignmentId || focusTarget?.attemptId || focusTarget?.dpsId || "default",
-  );
-  const [tab, setTab] = usePersistentUiState<
+  const [tab, setTab] = useState<
     "overview" | "lessons" | "records" | "actions"
-  >(CreatePersistedUiStateKey(DetailStateKey, "tab"), initialTab);
-  const [lessonFilter, setLessonFilter] = usePersistentUiState(
-    CreatePersistedUiStateKey(DetailStateKey, "lesson-filter"),
-    "",
-  );
-  const [statusFilter, setStatusFilter] = usePersistentUiState(
-    CreatePersistedUiStateKey(DetailStateKey, "status-filter"),
-    "",
-  );
-  const [search, setSearch] = usePersistentUiState(
-    CreatePersistedUiStateKey(DetailStateKey, "search"),
-    "",
-  );
+  >(initialTab);
+  const [lessonFilter, setLessonFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
 
   const lessons = useMemo(() => {
     return Array.from(
@@ -1067,15 +1065,15 @@ export function RecordWorkspace({
         ...baseStats,
         avg: AdminOverallAverage,
       };
-  const [OpenModuleGroups, SetOpenModuleGroups] = usePersistentUiState<
+  const [OpenModuleGroups, SetOpenModuleGroups] = useState<
     Record<string, boolean>
-  >(CreatePersistedUiStateKey(DetailStateKey, "open-modules"), {});
-  const [OpenLevelGroups, SetOpenLevelGroups] = usePersistentUiState<
+  >({});
+  const [OpenLevelGroups, SetOpenLevelGroups] = useState<
     Record<string, boolean>
-  >(CreatePersistedUiStateKey(DetailStateKey, "open-levels"), {});
-  const [OpenLessonGroups, SetOpenLessonGroups] = usePersistentUiState<
+  >({});
+  const [OpenLessonGroups, SetOpenLessonGroups] = useState<
     Record<string, boolean>
-  >(CreatePersistedUiStateKey(DetailStateKey, "open-lessons"), {});
+  >({});
 
   function ToggleModuleGroup(ModuleKey: string) {
     SetOpenModuleGroups((Current) => ({
@@ -1368,8 +1366,8 @@ export function RecordWorkspace({
                         <Chip tone="green">
                           {uniqueClearedConceptCount(lesson.rows)} Cleared
                         </Chip>
-                        <Chip tone={accuracyTone(scopedAverageAccuracy(lesson.rows))}>
-                          {scopedAverageAccuracy(lesson.rows)}% Avg
+                        <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
+                          {averageAccuracy(lesson.rows)}% Avg
                         </Chip>
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                           <ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1386,6 +1384,7 @@ export function RecordWorkspace({
                           dense
                           hideLessonColumn
                           showAttemptColumn
+                          useStrongSemanticChips={role === "admin"}
                         />
                       </div>
                     ) : null}
@@ -1423,7 +1422,7 @@ export function RecordWorkspace({
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
                         </Chip>
                         {role === "admin" ? (
-                          <Chip tone={accuracyTone(hierarchyAverageAccuracy(ModuleRows))}>
+                          <Chip tone={hierarchyAverageAccuracy(ModuleRows) >= 70 ? "green" : "red"}>
                             {hierarchyAverageAccuracy(ModuleRows)}% Avg
                           </Chip>
                         ) : null}
@@ -1463,7 +1462,7 @@ export function RecordWorkspace({
                                   {(() => {
                                     const LevelAverage = role === "admin" ? hierarchyAverageAccuracy(LevelRows) : averageAccuracy(LevelRows);
                                     return (
-                                      <Chip tone={accuracyTone(LevelAverage)}>
+                                      <Chip tone={LevelAverage >= 70 ? "green" : "red"}>
                                         {LevelAverage}% Avg
                                       </Chip>
                                     );
@@ -1502,8 +1501,8 @@ export function RecordWorkspace({
                                             <Chip tone="green">
                                               {uniqueClearedConceptCount(lesson.rows)} Cleared
                                             </Chip>
-                                            <Chip tone={accuracyTone(scopedAverageAccuracy(lesson.rows))}>
-                                              {scopedAverageAccuracy(lesson.rows)}% Avg
+                                            <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
+                                              {averageAccuracy(lesson.rows)}% Avg
                                             </Chip>
                                             <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                                               <ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1520,6 +1519,7 @@ export function RecordWorkspace({
                                               dense
                                               hideLessonColumn
                                               showAttemptColumn
+                                              useStrongSemanticChips={role === "admin"}
                                             />
                                           </div>
                                         ) : null}
@@ -1546,6 +1546,7 @@ export function RecordWorkspace({
             onView={onView}
             viewLabel={viewLabel}
             viewTip={viewTip}
+            useStrongSemanticChips={role === "admin"}
           />
         ) : null}
 
@@ -1648,8 +1649,8 @@ export function RecordWorkspace({
                                             <Chip tone="green">
                                               {uniqueClearedConceptCount(lesson.rows)} Cleared
                                             </Chip>
-                                            <Chip tone={accuracyTone(scopedAverageAccuracy(lesson.rows))}>
-                                              {scopedAverageAccuracy(lesson.rows)}% Avg
+                                            <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
+                                              {averageAccuracy(lesson.rows)}% Avg
                                             </Chip>
                                             <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                                               <ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} />
@@ -1841,7 +1842,7 @@ function AdminAssignmentOverview({
           <OverviewStat
             icon={<ClipboardList size={18} />}
             label="Assigned DPS"
-            value={stats.assigned}
+            value={stats.total}
             tone="blue"
           />
           <OverviewStat
@@ -2005,11 +2006,7 @@ function StudentProgressOverview({
     ? CurrentLevelRows
     : SourceRows;
   const LessonInsights = buildLessonFocusItems(VisibleLevelRows);
-  const CurrentLevelJourneyStateKey = CreatePersistedUiStateKey("student", "current-level-journey", Summary.currentLevel);
-  const [OpenLessons, SetOpenLessons] = usePersistentUiState<Record<string, boolean>>(
-    CreatePersistedUiStateKey(CurrentLevelJourneyStateKey, "open-lessons"),
-    {},
-  );
+  const [OpenLessons, SetOpenLessons] = useState<Record<string, boolean>>({});
 
   function ToggleLesson(LessonKey: string) {
     SetOpenLessons((Current) => ({
@@ -2059,8 +2056,8 @@ function StudentProgressOverview({
               {Completed}/{Required} DPS Cleared
             </Chip>
             <Chip tone={Pending ? "amber" : "green"}>{Pending} Pending</Chip>
-            <Chip tone={accuracyTone(scopedAverageAccuracy(SourceRows))}>
-              Average Accuracy: {scopedAverageAccuracy(SourceRows)}%
+            <Chip tone={averageAccuracy(SourceRows) >= 70 ? "green" : "red"}>
+              Average Accuracy: {averageAccuracy(SourceRows)}%
             </Chip>
           </div>
         </div>
@@ -2338,7 +2335,7 @@ function WorkSignalRow({
       <div className="flex shrink-0 items-center gap-2">
         <Chip
           tone={
-            isCompleted(row) ? accuracyTone(accuracy(row)) : "amber"
+            accuracy(row) >= 70 ? "green" : isCompleted(row) ? "red" : "amber"
           }
         >
           {isCompleted(row) ? `${accuracy(row)}%` : statusLabel(row)}
@@ -2685,6 +2682,34 @@ function attemptTone(
   return "blue";
 }
 
+function scoreTone(row: AnyRow): "slate" | "green" | "red" {
+  const MaxValue = Number(
+    row.totalMarks ??
+      row.maxScore ??
+      row.maximumMarks ??
+      row.totalScore ??
+      row.totalQuestions ??
+      row.maxMarks,
+  );
+  const ScoreValue = Number(
+    row.score ??
+      row.marksScored ??
+      row.attemptScore ??
+      row.latestAttemptScore ??
+      row.latestScore ??
+      row.bestScore,
+  );
+  if (!Number.isFinite(ScoreValue) || !Number.isFinite(MaxValue) || MaxValue <= 0) return "slate";
+  return (ScoreValue / MaxValue) * 100 >= 70 ? "green" : "red";
+}
+
+function accuracyTone(row: AnyRow): "slate" | "green" | "red" {
+  if (!isCompleted(row)) return "slate";
+  const AccuracyValue = accuracy(row);
+  if (!Number.isFinite(AccuracyValue)) return "slate";
+  return AccuracyValue >= 70 ? "green" : "red";
+}
+
 export function CompactRecordTable({
   rows,
   onView,
@@ -2693,6 +2718,7 @@ export function CompactRecordTable({
   dense = false,
   hideLessonColumn = false,
   showAttemptColumn = false,
+  useStrongSemanticChips = false,
 }: {
   rows: AnyRow[];
   onView?: (row: AnyRow) => void;
@@ -2701,9 +2727,11 @@ export function CompactRecordTable({
   dense?: boolean;
   hideLessonColumn?: boolean;
   showAttemptColumn?: boolean;
+  useStrongSemanticChips?: boolean;
 }) {
   const SourceRows = showAttemptColumn ? ExpandAttemptHistoryRows(rows) : rows;
   const DisplayRows = SortRowsByCurriculum(SourceRows);
+  const SemanticChipComponent = useStrongSemanticChips ? StrongSemanticChip : Chip;
   const GridColumns = hideLessonColumn
     ? showAttemptColumn
       ? "grid-cols-[minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
@@ -2758,20 +2786,20 @@ export function CompactRecordTable({
                 </div>
               ) : null}
               <div>
-                <Chip tone={Issue.tone}>{Issue.label}</Chip>
+                <SemanticChipComponent tone={Issue.tone}>{Issue.label}</SemanticChipComponent>
               </div>
               <div>
-                <Chip tone={scoreText(row) === "—" ? "slate" : "blue"}>
+                <SemanticChipComponent tone={scoreText(row) === "—" ? "slate" : scoreTone(row)}>
                   {scoreText(row)}
-                </Chip>
+                </SemanticChipComponent>
               </div>
               <div>
                 {isCompleted(row) ? (
-                  <Chip tone={accuracyTone(accuracy(row))}>
+                  <SemanticChipComponent tone={accuracyTone(row)}>
                     {accuracy(row)}%
-                  </Chip>
+                  </SemanticChipComponent>
                 ) : (
-                  <Chip tone="slate">—</Chip>
+                  <SemanticChipComponent tone="slate">—</SemanticChipComponent>
                 )}
               </div>
               <div className="text-sm font-semibold text-slate-600">
