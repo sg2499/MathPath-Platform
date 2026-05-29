@@ -138,8 +138,8 @@ export default function AdminAssignmentDetailPage() {
                         <td>
                           <span className={`math-badge math-assignment-semantic-chip ${
                             row.status === "COMPLETED"
-                              ? "math-assignment-semantic-success border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "math-assignment-semantic-warning border-amber-200 bg-amber-50 text-amber-700"
+                              ? "math-assignment-semantic-success border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-300/70 dark:bg-emerald-400/20 dark:text-emerald-50"
+                              : "math-assignment-semantic-warning border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-300/70 dark:bg-amber-400/20 dark:text-amber-50"
                           }`}>
                             {row.status}
                           </span>
@@ -224,13 +224,13 @@ export default function AdminAssignmentDetailPage() {
                         </td>
                         <td><span className={`math-badge math-assignment-semantic-chip ${
                           attempt.status === "CLEARED" || attempt.status === "COMPLETED"
-                            ? "math-assignment-semantic-success border-emerald-200 bg-emerald-50 text-emerald-700"
+                            ? "math-assignment-semantic-success border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-300/70 dark:bg-emerald-400/20 dark:text-emerald-50"
                             : attempt.requiresAttention
-                              ? "math-assignment-semantic-danger border-rose-200 bg-rose-50 text-rose-700"
-                              : "math-assignment-semantic-blue border-blue-200 bg-blue-50 text-blue-700"
+                              ? "math-assignment-semantic-danger border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-300/70 dark:bg-rose-400/20 dark:text-rose-50"
+                              : "math-assignment-semantic-blue border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-300/70 dark:bg-blue-400/20 dark:text-blue-50"
                         }`}>{attempt.status}</span></td>
-                        <td>{attempt.score ?? "-"} / {attempt.maxScore ?? "-"}</td>
-                        <td>{attempt.correct ?? "-"}</td>
+                        <td><PerformanceChip Value={`${RoundedDisplay(attempt.score)} / ${RoundedDisplay(attempt.maxScore)}`} Tone={Number.isFinite(Number(attempt.score)) ? "blue" : "slate"} /></td>
+                        <td><PerformanceChip Value={RoundedDisplay(attempt.correct)} Tone={Number.isFinite(Number(attempt.correct)) ? "blue" : "slate"} /></td>
                         <td><BenchmarkBadge status={attempt.benchmarkStatus} requiresAttention={attempt.requiresAttention} percentage={attempt.benchmarkPercentage} /></td>
                         <td>{formatDate(attempt.attemptDate || attempt.startedAt)}</td>
                         <td>{formatDate(attempt.completedDate || attempt.submittedAt)}</td>
@@ -310,10 +310,10 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function PerformanceChip({ Value, Tone = "blue" }: { Value: string; Tone?: "blue" | "green" | "red" | "slate" }) {
   const ToneClasses = {
-    blue: "border-blue-200 bg-blue-50 text-blue-700",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    red: "border-rose-200 bg-rose-50 text-rose-700",
-    slate: "border-slate-200 bg-slate-50 text-slate-600",
+    blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-300/70 dark:bg-blue-400/20 dark:text-blue-50",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-300/70 dark:bg-emerald-400/20 dark:text-emerald-50",
+    red: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-300/70 dark:bg-rose-400/20 dark:text-rose-50",
+    slate: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-300/60 dark:bg-slate-400/15 dark:text-slate-50",
   };
   return <span className={`math-badge math-assignment-semantic-chip math-assignment-semantic-${Tone} whitespace-nowrap ${ToneClasses[Tone]}`}>{Value}</span>;
 }
