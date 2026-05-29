@@ -1824,7 +1824,7 @@ function AdminAssignmentOverview({
           <OverviewStat
             icon={<ClipboardList size={18} />}
             label="Assigned DPS"
-            value={stats.total}
+            value={stats.assigned}
             tone="blue"
           />
           <OverviewStat
