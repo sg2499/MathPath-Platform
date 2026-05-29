@@ -9360,3 +9360,52 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     box-shadow: none !important;
   }
 }
+
+/* 29 May 2026 — Admin light-mode nested kicker strip final cleanup
+   Scope: Admin light mode only. This final broad non-hero guard removes residual
+   blue/gradient strips from nested block labels across Practice Control,
+   Assessment Readiness, Assessment Studio/preview, Assessment Control, Reports,
+   and future Admin surfaces that reuse .math-kicker outside hero banners. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-kicker:not(.math-hero .math-kicker) {
+    display: inline-flex !important;
+    width: auto !important;
+    max-width: max-content !important;
+    min-height: 0 !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: #2563eb !important;
+    -webkit-text-fill-color: #2563eb !important;
+    text-shadow: none !important;
+    line-height: 1.18 !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-kicker:not(.math-hero .math-kicker)::before,
+  html:not(.dark) .math-role-admin .math-kicker:not(.math-hero .math-kicker)::after {
+    display: none !important;
+    content: none !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-hero .math-kicker {
+    display: inline-flex !important;
+    width: fit-content !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    padding: 0.375rem 0.75rem !important;
+    border: 1px solid color-mix(in srgb, var(--mp-role-border) 78%, rgba(191, 219, 254, 0.72)) !important;
+    border-radius: 9999px !important;
+    background: linear-gradient(135deg, var(--mp-role-softer), rgba(255,255,255,0.78)) !important;
+    box-shadow: none !important;
+    color: var(--mp-role-readable) !important;
+    -webkit-text-fill-color: var(--mp-role-readable) !important;
+  }
+}
