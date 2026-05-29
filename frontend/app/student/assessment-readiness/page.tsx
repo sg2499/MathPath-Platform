@@ -632,14 +632,7 @@ function ReadinessDetails({ row }: { row: StudentAssessmentEligibility }) {
               )}
             </div>
           </div>
-        ) : (
-          <div className="mt-4 grid gap-3 sm:grid-cols-4">
-            <Info label="All Sheets" value={sheets.length} />
-            <Info label="Pending DPS" value={pendingCount} />
-            <Info label="Needs Re-Attempt" value={needsReattemptCount} />
-            <Info label="Cleared DPS" value={clearedCount} />
-          </div>
-        )}
+        ) : null}
       </section>
     </div>
   );
