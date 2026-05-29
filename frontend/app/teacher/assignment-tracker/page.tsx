@@ -29,6 +29,7 @@ import { Suspense, useCallback, useMemo, useState } from "react";
 import {
   AnyRow,
   Chip,
+  accuracyTone,
   CompactDpsLabel,
   CompactLessonLabel,
   Metric,
@@ -1378,7 +1379,7 @@ function StudentReviewTab({
                 </Chip>
               </div>
               <div>
-                <Chip tone={Stats.Average >= 70 ? "green" : "red"}>
+                <Chip tone={accuracyTone(Stats.Average)}>
                   {Stats.Average}%
                 </Chip>
               </div>

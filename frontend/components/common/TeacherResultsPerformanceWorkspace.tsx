@@ -26,6 +26,7 @@ import {
   scoreText as ScoreText,
   searchText as SearchText,
   accuracy as Accuracy,
+  accuracyTone,
   averageAccuracy as AverageAccuracy,
   StandardViewButton,
   SortRowsByCurriculum,
@@ -612,7 +613,7 @@ function LessonDrilldownCard({
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Chip tone="blue">Practice Reviewed: {Lesson.Rows.length}</Chip>
-            <Chip tone={AverageAccuracy(Lesson.Rows) >= 70 ? "green" : "red"}>
+            <Chip tone={accuracyTone(AverageAccuracy(Lesson.Rows))}>
               Average Accuracy: {AverageAccuracy(Lesson.Rows)}%
             </Chip>
             {BelowCount ? (

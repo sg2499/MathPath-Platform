@@ -14,6 +14,7 @@ import {
   SortRowsByCurriculum,
   StandardViewButton,
   accuracy,
+  accuracyTone,
   averageAccuracy,
   completedText,
   currentWorkRows,
@@ -1277,7 +1278,7 @@ function ModulePracticeBlock({
           <Chip tone="blue">{uniqueAssignedConceptCount(Group.Rows)} DPS</Chip>
           <Chip tone="green">{ClearedCount} Cleared</Chip>
           {Average === null ? null : (
-            <Chip tone={Average >= 70 ? "green" : "red"}>{Average}% Avg</Chip>
+            <Chip tone={accuracyTone(Average)}>{Average}% Avg</Chip>
           )}
           <span
             className={`rounded-full border border-slate-200 bg-white p-2 shadow-sm transition dark:border-slate-800 dark:bg-slate-950 ${IsExpanded ? "rotate-180" : ""}`}
@@ -1340,7 +1341,7 @@ function LevelPracticeBlock({
           <Chip tone="blue">{Group.Lessons.length} Lesson(s)</Chip>
           <Chip tone="green">{ClearedCount} Cleared</Chip>
           {Average === null ? null : (
-            <Chip tone={Average >= 70 ? "green" : "red"}>{Average}% Avg</Chip>
+            <Chip tone={accuracyTone(Average)}>{Average}% Avg</Chip>
           )}
           <span
             className={`rounded-full border border-slate-200 bg-white p-2 shadow-sm transition dark:border-slate-800 dark:bg-slate-950 ${IsExpanded ? "rotate-180" : ""}`}
@@ -1401,7 +1402,7 @@ function LessonInsightBlock({
         <div className="flex flex-wrap items-center gap-2">
           <Chip tone="blue">{uniqueAssignedConceptCount(Group.Rows)} DPS</Chip>
           {Average === null ? null : (
-            <Chip tone={Average >= 70 ? "green" : "red"}>{Average}% Avg</Chip>
+            <Chip tone={accuracyTone(Average)}>{Average}% Avg</Chip>
           )}
           <Chip tone="green">Cleared: {ClearedCount}</Chip>
           {PendingCount ? (

@@ -16,6 +16,12 @@ import {
 import { useMemo, useState } from "react";
 
 type AnyRow = Record<string, any>;
+
+function AccuracyTone(Value: number): "green" | "amber" | "red" {
+  if (Value > 70) return "green";
+  if (Value >= 60) return "amber";
+  return "red";
+}
 type StudentNode = {
   key: string;
   studentName: string;
@@ -250,7 +256,7 @@ export function MasterDetailStudentLayout({
                 <div className="text-lg font-black">{stats.total}</div>
                 <div><Chip tone="green">{stats.completed}</Chip></div>
                 <div><Chip tone={stats.pending ? "amber" : "green"}>{stats.pending}</Chip></div>
-                <div><Chip tone={stats.avg >= 70 ? "green" : "red"}>{stats.avg}%</Chip></div>
+                <div><Chip tone={AccuracyTone(stats.avg)}>{stats.avg}%</Chip></div>
                 <div className="text-sm font-bold text-slate-600">{stats.last}</div>
                 <div className="flex justify-start">
                   <StandardViewButton
@@ -335,7 +341,7 @@ function StudentDetailDrawer({
             <div className="mt-2 flex flex-wrap gap-2">
               <Chip tone="blue">{student.studentCode}</Chip>
               <Chip>{student.classLabel || "Class -"}</Chip>
-              <Chip tone={stats.avg >= 70 ? "green" : "red"}>{stats.avg}% average</Chip>
+              <Chip tone={AccuracyTone(stats.avg)}>{stats.avg}% average</Chip>
             </div>
           </div>
 
@@ -402,7 +408,7 @@ function StudentDetailDrawer({
                       <div className="flex gap-2">
                         <Chip tone="blue">{lesson.rows.length} sheets</Chip>
                         <Chip tone="green">{lessonCompleted} completed</Chip>
-                        <Chip tone={lessonAvg >= 70 ? "green" : "red"}>{lessonAvg}% avg</Chip>
+                        <Chip tone={AccuracyTone(lessonAvg)}>{lessonAvg}% avg</Chip>
                       </div>
                     </div>
                     <div className="mt-4">
@@ -654,7 +660,7 @@ function StudentLessonList({ module }: { module: any }) {
             <div className="flex gap-2">
               <Chip tone="blue">{rows.length} sheet(s)</Chip>
               <Chip tone="green">{rows.filter(isCompleted).length} completed</Chip>
-              <Chip tone={averageAccuracy(rows) >= 70 ? "green" : "red"}>{averageAccuracy(rows)}% avg</Chip>
+              <Chip tone={AccuracyTone(averageAccuracy(rows))}>{averageAccuracy(rows)}% avg</Chip>
             </div>
           </div>
         </div>
