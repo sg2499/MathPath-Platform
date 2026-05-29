@@ -7,6 +7,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { CompareStudentCodes } from "@/lib/studentSort";
 import { apiErrorMessage } from "@/lib/api";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { formatMathPathDateTime } from "@/lib/date";
 import {
   getTeacherAssessmentEligibility,
@@ -24,7 +25,7 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 type Filter = "" | "ALL" | "READY" | "NOT_READY";
 type ModuleFilter = "" | "ALL" | string;
@@ -96,11 +97,12 @@ function levelFilterLabel(row: {
 
 export default function TeacherAssessmentReadinessPage() {
   const ready = useProtectedPage(["TEACHER"]);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("");
-  const [moduleFilter, setModuleFilter] = useState<ModuleFilter>("");
-  const [levelFilter, setLevelFilter] = useState<LevelFilter>("");
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const ReadinessStateKey = CreatePersistedUiStateKey("teacher", "assessment-readiness");
+  const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(ReadinessStateKey, "search"), "");
+  const [filter, setFilter] = usePersistentUiState<Filter>(CreatePersistedUiStateKey(ReadinessStateKey, "status-filter"), "");
+  const [moduleFilter, setModuleFilter] = usePersistentUiState<ModuleFilter>(CreatePersistedUiStateKey(ReadinessStateKey, "module-filter"), "");
+  const [levelFilter, setLevelFilter] = usePersistentUiState<LevelFilter>(CreatePersistedUiStateKey(ReadinessStateKey, "level-filter"), "");
+  const [open, setOpen] = usePersistentUiState<Record<string, boolean>>(CreatePersistedUiStateKey(ReadinessStateKey, "open-rows"), {});
 
   const query = useQuery({
     queryKey: ["teacher-assessment-eligibility"],
@@ -403,7 +405,7 @@ export default function TeacherAssessmentReadinessPage() {
                     }
                     compact
                   >
-                    <ReadinessDetails row={row} />
+                    <ReadinessDetails row={row} persistenceKey={CreatePersistedUiStateKey(ReadinessStateKey, levelKey(row), "sheet-breakdown")} />
                   </NodeCard>
                 </NodeCard>
               </NodeCard>
@@ -544,9 +546,15 @@ function filterSheets(sheets: SheetRow[], filter: SheetFilter) {
   return sheets.filter((sheet) => sheetCategory(sheet) === filter);
 }
 
-function ReadinessDetails({ row }: { row: TeacherAssessmentEligibilityRow }) {
-  const [showSheets, setShowSheets] = useState(false);
-  const [sheetFilter, setSheetFilter] = useState<SheetFilter>("ALL");
+function ReadinessDetails({ row, persistenceKey }: { row: TeacherAssessmentEligibilityRow; persistenceKey: string }) {
+  const [showSheets, setShowSheets] = usePersistentUiState(
+    CreatePersistedUiStateKey(persistenceKey, "show-sheets"),
+    false,
+  );
+  const [sheetFilter, setSheetFilter] = usePersistentUiState<SheetFilter>(
+    CreatePersistedUiStateKey(persistenceKey, "sheet-filter"),
+    "ALL",
+  );
 
   const sheets = allSheets(row);
   const pendingCount = sheets.filter(

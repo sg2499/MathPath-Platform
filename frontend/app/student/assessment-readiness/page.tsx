@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { formatMathPathDateTime } from "@/lib/date";
 import {
   getStudentAssessmentEligibility,
@@ -23,7 +24,7 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 type Filter = "" | "ALL" | "READY" | "NOT_READY";
 
@@ -73,10 +74,11 @@ function levelFilterLabel(row: {
 
 export default function StudentAssessmentReadinessPage() {
   const ready = useProtectedPage(["STUDENT"]);
-  const [search, setSearch] = useState("");
-  const [levelFilter, setLevelFilter] = useState("");
-  const [filter, setFilter] = useState<Filter>("");
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const ReadinessStateKey = CreatePersistedUiStateKey("student", "assessment-readiness");
+  const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(ReadinessStateKey, "search"), "");
+  const [levelFilter, setLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(ReadinessStateKey, "level-filter"), "");
+  const [filter, setFilter] = usePersistentUiState<Filter>(CreatePersistedUiStateKey(ReadinessStateKey, "status-filter"), "");
+  const [open, setOpen] = usePersistentUiState<Record<string, boolean>>(CreatePersistedUiStateKey(ReadinessStateKey, "open-rows"), {});
 
   const query = useQuery({
     queryKey: ["student-assessment-eligibility"],
@@ -281,7 +283,7 @@ export default function StudentAssessmentReadinessPage() {
                 }
                 compact
               >
-                <ReadinessDetails row={visibleRow} />
+                <ReadinessDetails row={visibleRow} persistenceKey={CreatePersistedUiStateKey(ReadinessStateKey, levelKey(visibleRow), "sheet-breakdown")} />
               </NodeCard>
             </NodeCard>
           </div>
@@ -420,9 +422,15 @@ function filterSheets(sheets: SheetRow[], filter: SheetFilter) {
   return sheets.filter((sheet) => sheetCategory(sheet) === filter);
 }
 
-function ReadinessDetails({ row }: { row: StudentAssessmentEligibility }) {
-  const [showSheets, setShowSheets] = useState(false);
-  const [sheetFilter, setSheetFilter] = useState<SheetFilter>("ALL");
+function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligibility; persistenceKey: string }) {
+  const [showSheets, setShowSheets] = usePersistentUiState(
+    CreatePersistedUiStateKey(persistenceKey, "show-sheets"),
+    false,
+  );
+  const [sheetFilter, setSheetFilter] = usePersistentUiState<SheetFilter>(
+    CreatePersistedUiStateKey(persistenceKey, "sheet-filter"),
+    "ALL",
+  );
 
   const sheets = allSheets(row);
   const pendingCount = sheets.filter(

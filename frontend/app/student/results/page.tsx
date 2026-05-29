@@ -16,10 +16,11 @@ import {
   requiredDpsForLevel,
 } from "@/components/common/DetailWorkspaceViews";
 import { apiErrorMessage } from "@/lib/api";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { getStudentResults } from "@/lib/api/student";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useQuery } from "@tanstack/react-query";
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -251,10 +252,23 @@ export default function StudentResultsPage() {
   const Router = useRouter();
   const Query = useQuery({ queryKey: ["student-results"], queryFn: getStudentResults, enabled: Ready, retry: 1 });
   const Rows: AnyRow[] = Query.data ?? [];
-  const [ExpandedModules, SetExpandedModules] = useState<Record<string, boolean>>({});
-  const [SelectedModule, SetSelectedModule] = useState("ALL");
-  const [SelectedLevel, SetSelectedLevel] = useState("ALL");
-  const [SearchTerm, SetSearchTerm] = useState("");
+  const StudentProgressStateKey = CreatePersistedUiStateKey("student", "progress-tracker", "overview");
+  const [ExpandedModules, SetExpandedModules] = usePersistentUiState<Record<string, boolean>>(
+    CreatePersistedUiStateKey(StudentProgressStateKey, "expanded-modules"),
+    {},
+  );
+  const [SelectedModule, SetSelectedModule] = usePersistentUiState(
+    CreatePersistedUiStateKey(StudentProgressStateKey, "selected-module"),
+    "ALL",
+  );
+  const [SelectedLevel, SetSelectedLevel] = usePersistentUiState(
+    CreatePersistedUiStateKey(StudentProgressStateKey, "selected-level"),
+    "ALL",
+  );
+  const [SearchTerm, SetSearchTerm] = usePersistentUiState(
+    CreatePersistedUiStateKey(StudentProgressStateKey, "search"),
+    "",
+  );
 
   const ModuleOptions = useMemo(() => BuildModuleProgress(Rows), [Rows]);
   const LevelOptions = useMemo(() => {
