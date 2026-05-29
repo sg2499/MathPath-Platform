@@ -28,6 +28,7 @@ import {
   type ParentReportResendRecipientMode,
 } from "@/lib/api/admin";
 import { formatMathPathDateTime } from "@/lib/date";
+import { CreatePersistedUiStateKey, usePersistentStringSet, usePersistentUiState } from "@/lib/persistedUiState";
 import { CompareStudentCodes } from "@/lib/studentSort";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -809,33 +810,34 @@ function AdminAssessmentControlPageContent() {
     [SearchParams],
   );
   const QueryClient = useQueryClient();
-  const [ActiveTab, SetActiveTab] = useState<ActiveTab>(() => ResolveAssessmentControlTab(SearchParams.get("tab")) || "RECORDS");
+  const AssessmentControlStateKey = CreatePersistedUiStateKey("admin", "assessment-control");
+  const [ActiveTab, SetActiveTab] = usePersistentUiState<ActiveTab>(CreatePersistedUiStateKey(AssessmentControlStateKey, "active-tab"), ResolveAssessmentControlTab(SearchParams.get("tab")) || "RECORDS");
   const [ParentReportTabValue, SetParentReportTabValue] =
-    useState<ParentReportTab>(() => ResolveParentReportTab(SearchParams.get("subTab")) || "GENERATE");
-  const [SearchValue, SetSearchValue] = useState("");
-  const [StatusFilterValue, SetStatusFilterValue] = useState<StatusFilter>("");
-  const [TeacherFilter, SetTeacherFilter] = useState("");
-  const [ModuleFilter, SetModuleFilter] = useState("");
-  const [LevelFilter, SetLevelFilter] = useState("");
+    usePersistentUiState<ParentReportTab>(CreatePersistedUiStateKey(AssessmentControlStateKey, "parent-report-tab"), ResolveParentReportTab(SearchParams.get("subTab")) || "GENERATE");
+  const [SearchValue, SetSearchValue] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "records-search"), "");
+  const [StatusFilterValue, SetStatusFilterValue] = usePersistentUiState<StatusFilter>(CreatePersistedUiStateKey(AssessmentControlStateKey, "records-status-filter"), "");
+  const [TeacherFilter, SetTeacherFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "records-teacher-filter"), "");
+  const [ModuleFilter, SetModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "records-module-filter"), "");
+  const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "records-level-filter"), "");
   const [ApprovalStatusFilterValue, SetApprovalStatusFilterValue] =
-    useState<ApprovalStatusFilter>("ALL");
-  const [ApprovalSearchValue, SetApprovalSearchValue] = useState("");
-  const [ApprovalModuleFilter, SetApprovalModuleFilter] = useState("");
-  const [ApprovalLevelFilter, SetApprovalLevelFilter] = useState("");
+    usePersistentUiState<ApprovalStatusFilter>(CreatePersistedUiStateKey(AssessmentControlStateKey, "approval-status-filter"), "ALL");
+  const [ApprovalSearchValue, SetApprovalSearchValue] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "approval-search"), "");
+  const [ApprovalModuleFilter, SetApprovalModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "approval-module-filter"), "");
+  const [ApprovalLevelFilter, SetApprovalLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "approval-level-filter"), "");
   const [DecisionTarget, SetDecisionTarget] = useState<{
     Mode: DecisionMode;
     Item: AdminAssessmentReattemptApproval;
   } | null>(null);
   const [DecisionNote, SetDecisionNote] = useState("");
-  const [ManageSearchValue, SetManageSearchValue] = useState("");
-  const [ManageModuleFilter, SetManageModuleFilter] = useState("");
-  const [ManageLevelFilter, SetManageLevelFilter] = useState("");
+  const [ManageSearchValue, SetManageSearchValue] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "manage-search"), "");
+  const [ManageModuleFilter, SetManageModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "manage-module-filter"), "");
+  const [ManageLevelFilter, SetManageLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "manage-level-filter"), "");
   const [ManageStatusFilter, SetManageStatusFilter] =
-    useState<ManageStatusFilter>("ALL");
+    usePersistentUiState<ManageStatusFilter>(CreatePersistedUiStateKey(AssessmentControlStateKey, "manage-status-filter"), "ALL");
   const [DeleteTarget, SetDeleteTarget] = useState<AnyRow | null>(null);
   const [PromoteTarget, SetPromoteTarget] = useState<AnyRow | null>(null);
   const [PromotionHistorySearchValue, SetPromotionHistorySearchValue] =
-    useState("");
+    usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "promotion-history-search"), "");
 
 
   const UpdateAssessmentRouteState = useCallback((NextTab: ActiveTab, NextSubTab?: ParentReportTab) => {
@@ -887,9 +889,9 @@ function AdminAssessmentControlPageContent() {
       SetLevelFilter(AssessmentDeepLinkTarget.Level);
   }, [AssessmentDeepLinkTarget, SearchParams]);
   const [PromotionHistoryModuleFilter, SetPromotionHistoryModuleFilter] =
-    useState("");
+    usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "promotion-history-module-filter"), "");
   const [PromotionHistoryLevelFilter, SetPromotionHistoryLevelFilter] =
-    useState("");
+    usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "promotion-history-level-filter"), "");
 
   const AssessmentQuery = useQuery({
     queryKey: ["admin-assessments"],
@@ -2119,9 +2121,10 @@ function AdminAssessmentStudentTable({
   OnOpenAttempt: (Row: AnyRow) => void;
   FocusTarget?: AssessmentDeepLinkTarget;
 }) {
-  const [ExpandedStudents, SetExpandedStudents] = useState<
+  const AssessmentStudentTableStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "student-records");
+  const [ExpandedStudents, SetExpandedStudents] = usePersistentUiState<
     Record<string, boolean>
-  >({});
+  >(CreatePersistedUiStateKey(AssessmentStudentTableStateKey, "open-students"), {});
 
   const ToggleStudent = (StudentKey: string) => {
     SetExpandedStudents((Current) => ({
@@ -2232,10 +2235,12 @@ function AssessmentHierarchyRecords({
   FocusTarget?: AssessmentDeepLinkTarget;
 }) {
   const Groups = groupAssessmentRowsByModuleLevel(Rows);
-  const [ExpandedModules, SetExpandedModules] = useState<
+  const AssessmentRecordsHierarchyStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "student-records", "hierarchy");
+  const [ExpandedModules, SetExpandedModules] = usePersistentUiState<
     Record<string, boolean>
-  >({});
-  const [ExpandedLevels, SetExpandedLevels] = useState<Record<string, boolean>>(
+  >(CreatePersistedUiStateKey(AssessmentRecordsHierarchyStateKey, "open-modules"), {});
+  const [ExpandedLevels, SetExpandedLevels] = usePersistentUiState<Record<string, boolean>>(
+    CreatePersistedUiStateKey(AssessmentRecordsHierarchyStateKey, "open-levels"),
     {},
   );
 
@@ -2475,10 +2480,12 @@ function AssessmentManageHierarchy({
   OnDelete: (Item: AnyRow) => void;
 }) {
   const Groups = groupAssessmentRowsByModuleLevel(Rows);
-  const [ExpandedModules, SetExpandedModules] = useState<
+  const AssessmentManageHierarchyStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "manage", "hierarchy");
+  const [ExpandedModules, SetExpandedModules] = usePersistentUiState<
     Record<string, boolean>
-  >({});
-  const [ExpandedLevels, SetExpandedLevels] = useState<Record<string, boolean>>(
+  >(CreatePersistedUiStateKey(AssessmentManageHierarchyStateKey, "open-modules"), {});
+  const [ExpandedLevels, SetExpandedLevels] = usePersistentUiState<Record<string, boolean>>(
+    CreatePersistedUiStateKey(AssessmentManageHierarchyStateKey, "open-levels"),
     {},
   );
 
@@ -2796,9 +2803,10 @@ function PromotionHistoryTable({
 }: {
   Items: AdminStudentLevelPromotion[];
 }) {
-  const [ExpandedStudents, SetExpandedStudents] = useState<
+  const PromotionHistoryTableStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "promotion-history");
+  const [ExpandedStudents, SetExpandedStudents] = usePersistentUiState<
     Record<string, boolean>
-  >({});
+  >(CreatePersistedUiStateKey(PromotionHistoryTableStateKey, "open-students"), {});
   const StudentGroups = BuildPromotionHistoryStudentGroups(Items);
 
   const ToggleStudent = (StudentKey: string) => {
@@ -3061,14 +3069,15 @@ function ParentReportGenerateTable({
   Items: AnyRow[];
   DeliveryLogs: ParentReportDeliveryLog[];
 }) {
-  const [SearchValue, SetSearchValue] = useState("");
-  const [ModuleFilter, SetModuleFilter] = useState("");
-  const [LevelFilter, SetLevelFilter] = useState("");
-  const [ExpandedStudents, SetExpandedStudents] = useState<Set<string>>(
-    () => new Set(),
+  const ParentReportGenerateStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "parent-report-generate");
+  const [SearchValue, SetSearchValue] = usePersistentUiState(CreatePersistedUiStateKey(ParentReportGenerateStateKey, "search"), "");
+  const [ModuleFilter, SetModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(ParentReportGenerateStateKey, "module-filter"), "");
+  const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(ParentReportGenerateStateKey, "level-filter"), "");
+  const [ExpandedStudents, SetExpandedStudents] = usePersistentStringSet(
+    CreatePersistedUiStateKey(ParentReportGenerateStateKey, "open-students"),
   );
-  const [ExpandedModules, SetExpandedModules] = useState<Set<string>>(
-    () => new Set(),
+  const [ExpandedModules, SetExpandedModules] = usePersistentStringSet(
+    CreatePersistedUiStateKey(ParentReportGenerateStateKey, "open-modules"),
   );
   const [SendItem, SetSendItem] = useState<AnyRow | null>(null);
   const [RecipientMode, SetRecipientMode] =
@@ -3857,11 +3866,12 @@ function ParentReportDeliveryHistoryTable({
       window.alert(apiErrorMessage(Error));
     },
   });
-  const [ExpandedStudents, SetExpandedStudents] = useState<Set<string>>(
-    () => new Set(),
+  const ParentReportDeliveryStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "parent-report-delivery");
+  const [ExpandedStudents, SetExpandedStudents] = usePersistentStringSet(
+    CreatePersistedUiStateKey(ParentReportDeliveryStateKey, "open-students"),
   );
-  const [ExpandedModules, SetExpandedModules] = useState<Set<string>>(
-    () => new Set(),
+  const [ExpandedModules, SetExpandedModules] = usePersistentStringSet(
+    CreatePersistedUiStateKey(ParentReportDeliveryStateKey, "open-modules"),
   );
 
   useEffect(() => {
@@ -4890,7 +4900,8 @@ function ApprovalQueueTable({
     Item: AdminAssessmentReattemptApproval,
   ) => void;
 }) {
-  const [ExpandedStudents, SetExpandedStudents] = useState<Record<string, boolean>>({});
+  const ApprovalTableStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "reattempt-approvals");
+  const [ExpandedStudents, SetExpandedStudents] = usePersistentUiState<Record<string, boolean>>(CreatePersistedUiStateKey(ApprovalTableStateKey, "open-students"), {});
   const Groups = useMemo(() => buildApprovalStudentGroups(Items), [Items]);
 
   const ToggleStudent = (StudentKey: string) => {
@@ -5195,9 +5206,10 @@ function AssessmentManageTable({
   OnArchive: (Item: AnyRow) => void;
   OnDelete: (Item: AnyRow) => void;
 }) {
-  const [ExpandedStudents, SetExpandedStudents] = useState<
+  const AssessmentManageTableStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "manage", "students");
+  const [ExpandedStudents, SetExpandedStudents] = usePersistentUiState<
     Record<string, boolean>
-  >({});
+  >(CreatePersistedUiStateKey(AssessmentManageTableStateKey, "open-students"), {});
   const Students = useMemo(() => buildStudents(Items), [Items]);
 
   const ToggleStudent = (StudentKey: string) => {

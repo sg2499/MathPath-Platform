@@ -10,6 +10,7 @@ import {
   formatMathPathDateTime,
   getFirstMathPathTimestamp,
 } from "@/lib/date";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { AlertTriangle, BarChart3, ChevronDown, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Sparkles, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -454,12 +455,13 @@ function StudentAssessmentsPageContent() {
     AttemptId: deepParam(SearchParams, ["attemptId"]),
     Highlight: deepParam(SearchParams, ["highlight", "recordId"]),
   }), [SearchParams]);
-  const [search, setSearch] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("");
-  const [levelFilter, setLevelFilter] = useState("");
+  const StudentAssessmentsStateKey = CreatePersistedUiStateKey("student", "assessments");
+  const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "search"), "");
+  const [moduleFilter, setModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "module-filter"), "");
+  const [levelFilter, setLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "level-filter"), "");
   const [state, setState] = useState<LoadState>({ loading: true, error: null, rows: [] });
-  const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
-  const [openLevels, setOpenLevels] = useState<Record<string, boolean>>({});
+  const [openModules, setOpenModules] = usePersistentUiState<Record<string, boolean>>(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "open-modules"), {});
+  const [openLevels, setOpenLevels] = usePersistentUiState<Record<string, boolean>>(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "open-levels"), {});
 
   useEffect(() => {
     if (!ready) return;

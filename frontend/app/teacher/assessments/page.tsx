@@ -17,6 +17,7 @@ import {
   getFirstMathPathTimestamp,
 } from "@/lib/date";
 import { CompareStudentCodes } from "@/lib/studentSort";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -603,10 +604,12 @@ function TeacherAssessmentHierarchyRecords({
   FocusTarget?: AssessmentDeepLinkTarget;
 }) {
   const Groups = GroupTeacherAssessmentRowsByModuleLevel(Rows);
-  const [ExpandedModules, SetExpandedModules] = useState<
+  const TeacherAssessmentHierarchyStateKey = CreatePersistedUiStateKey("teacher", "assessment-tracker", "hierarchy-records");
+  const [ExpandedModules, SetExpandedModules] = usePersistentUiState<
     Record<string, boolean>
-  >({});
-  const [ExpandedLevels, SetExpandedLevels] = useState<Record<string, boolean>>(
+  >(CreatePersistedUiStateKey(TeacherAssessmentHierarchyStateKey, "open-modules"), {});
+  const [ExpandedLevels, SetExpandedLevels] = usePersistentUiState<Record<string, boolean>>(
+    CreatePersistedUiStateKey(TeacherAssessmentHierarchyStateKey, "open-levels"),
     {},
   );
 
@@ -840,9 +843,10 @@ function AssessmentRecordTable({
   OnOpenAttempt: (Row: TeacherAssessmentRow) => void;
   FocusTarget?: AssessmentDeepLinkTarget;
 }) {
-  const [ExpandedStudents, SetExpandedStudents] = useState<
+  const TeacherAssessmentStudentStateKey = CreatePersistedUiStateKey("teacher", "assessment-tracker", "students");
+  const [ExpandedStudents, SetExpandedStudents] = usePersistentUiState<
     Record<string, boolean>
-  >({});
+  >(CreatePersistedUiStateKey(TeacherAssessmentStudentStateKey, "open-students"), {});
   const Students = useMemo(() => BuildStudents(Rows), [Rows]);
 
   const ToggleStudent = (StudentKey: string) => {
@@ -947,10 +951,11 @@ function TeacherAssessmentAssignmentsContent() {
   const Router = useRouter();
   const SearchParams = useSearchParams();
   const DeepLinkTarget = useMemo(() => BuildAssessmentDeepLinkTarget(SearchParams), [SearchParams]);
-  const [SearchText, SetSearchText] = useState("");
-  const [ModuleFilter, SetModuleFilter] = useState("");
-  const [LevelFilter, SetLevelFilter] = useState("");
-  const [StatusFilterValue, SetStatusFilterValue] = useState<StatusFilter>("");
+  const TeacherAssessmentStateKey = CreatePersistedUiStateKey("teacher", "assessment-tracker");
+  const [SearchText, SetSearchText] = usePersistentUiState(CreatePersistedUiStateKey(TeacherAssessmentStateKey, "search"), "");
+  const [ModuleFilter, SetModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(TeacherAssessmentStateKey, "module-filter"), "");
+  const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(TeacherAssessmentStateKey, "level-filter"), "");
+  const [StatusFilterValue, SetStatusFilterValue] = usePersistentUiState<StatusFilter>(CreatePersistedUiStateKey(TeacherAssessmentStateKey, "status-filter"), "");
 
   useEffect(() => {
     if (!DeepLinkTarget.HasTarget) return;
