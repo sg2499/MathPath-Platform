@@ -8,6 +8,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { ProfileAvatar, ResolveAssetUrl } from "@/components/common/ProfileAvatar";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import {
   bulkUploadStudents,
   createStudentProfile,
@@ -141,12 +142,13 @@ export default function AdminStudentsPage() {
   const [form, setForm] = useState<FormState>(emptyForm());
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [teacherFilter, setTeacherFilter] = useState("");
-  const [LevelFilter, SetLevelFilter] = useState("");
-  const [page, setPage] = useState(1);
-  const [sortKey, setSortKey] = useState<StudentSortKey>("studentCode");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const StudentDirectoryStateKey = CreatePersistedUiStateKey("admin", "students");
+  const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "search"), "");
+  const [teacherFilter, setTeacherFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "teacher-filter"), "");
+  const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "level-filter"), "");
+  const [page, setPage] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "page"), 1);
+  const [sortKey, setSortKey] = usePersistentUiState<StudentSortKey>(CreatePersistedUiStateKey(StudentDirectoryStateKey, "sort-key"), "studentCode");
+  const [sortDirection, setSortDirection] = usePersistentUiState<SortDirection>(CreatePersistedUiStateKey(StudentDirectoryStateKey, "sort-direction"), "asc");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [lastLogin, setLastLogin] = useState<{

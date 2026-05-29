@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import {
   getTeacherAssignAssessmentOptions,
   teacherAssignAssessment,
@@ -134,12 +135,13 @@ function AssessmentOptionCard({ Assessment, Selected, OnSelect }: { Assessment: 
 export default function TeacherAssignAssessmentPage() {
   const Ready = useProtectedPage(["TEACHER"]);
   const QueryClient = useQueryClient();
-  const [SearchText, SetSearchText] = useState("");
-  const [ModuleFilter, SetModuleFilter] = useState("");
-  const [LevelFilter, SetLevelFilter] = useState("");
-  const [SelectedAssessmentVersionId, SetSelectedAssessmentVersionId] = useState("");
-  const [SelectedStudentIds, SetSelectedStudentIds] = useState<string[]>([]);
-  const [Instructions, SetInstructions] = useState("Complete the assessment carefully before submitting.");
+  const AssignAssessmentStateKey = CreatePersistedUiStateKey("teacher", "assign-assessment");
+  const [SearchText, SetSearchText] = usePersistentUiState(CreatePersistedUiStateKey(AssignAssessmentStateKey, "search"), "");
+  const [ModuleFilter, SetModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssignAssessmentStateKey, "module-filter"), "");
+  const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(AssignAssessmentStateKey, "level-filter"), "");
+  const [SelectedAssessmentVersionId, SetSelectedAssessmentVersionId] = usePersistentUiState(CreatePersistedUiStateKey(AssignAssessmentStateKey, "selected-assessment"), "");
+  const [SelectedStudentIds, SetSelectedStudentIds] = usePersistentUiState<string[]>(CreatePersistedUiStateKey(AssignAssessmentStateKey, "selected-students"), []);
+  const [Instructions, SetInstructions] = usePersistentUiState(CreatePersistedUiStateKey(AssignAssessmentStateKey, "instructions"), "Complete the assessment carefully before submitting.");
 
   const OptionsQuery = useQuery({
     queryKey: ["teacher-assign-assessment-options"],

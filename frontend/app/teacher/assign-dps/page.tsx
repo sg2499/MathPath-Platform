@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { getTeacherAvailableDps, getTeacherStudents, teacherAssignDps } from "@/lib/api/teacher";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ClipboardPlus, Send, X } from "lucide-react";
@@ -81,11 +82,12 @@ function TeacherAssignError({ error }: { error: unknown }) {
 
 export default function TeacherAssignDpsPage() {
   const ready = useProtectedPage(["TEACHER"]);
-  const [levelId, setLevelId] = useState("");
-  const [dpsId, setDpsId] = useState("");
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const AssignDpsStateKey = CreatePersistedUiStateKey("teacher", "assign-dps");
+  const [levelId, setLevelId] = usePersistentUiState(CreatePersistedUiStateKey(AssignDpsStateKey, "level-id"), "");
+  const [dpsId, setDpsId] = usePersistentUiState(CreatePersistedUiStateKey(AssignDpsStateKey, "dps-id"), "");
+  const [selectedStudentIds, setSelectedStudentIds] = usePersistentUiState<string[]>(CreatePersistedUiStateKey(AssignDpsStateKey, "selected-students"), []);
   const [message, setMessage] = useState("");
-  const [assignMode, setAssignMode] = useState<"selected" | "all">("selected");
+  const [assignMode, setAssignMode] = usePersistentUiState<"selected" | "all">(CreatePersistedUiStateKey(AssignDpsStateKey, "assign-mode"), "selected");
   const [showAssignAllConfirm, setShowAssignAllConfirm] = useState(false);
 
   const studentsQuery = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });

@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
+import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
 import { getTeacherAssignmentTracker, getTeacherStudents, type TeacherStudent } from "@/lib/api/teacher";
@@ -239,12 +240,13 @@ function effectiveAttention(student: TeacherStudent, currentNeedsReattemptStuden
 
 export default function TeacherStudentsPage() {
   const ready = useProtectedPage(["TEACHER"]);
-  const [search, setSearch] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("");
-  const [levelFilter, setLevelFilter] = useState("");
+  const TeacherStudentsStateKey = CreatePersistedUiStateKey("teacher", "students");
+  const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(TeacherStudentsStateKey, "search"), "");
+  const [moduleFilter, setModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(TeacherStudentsStateKey, "module-filter"), "");
+  const [levelFilter, setLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(TeacherStudentsStateKey, "level-filter"), "");
   const router = useRouter();
-  const [sortKey, setSortKey] = useState<TeacherStudentSortKey>("studentCode");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [sortKey, setSortKey] = usePersistentUiState<TeacherStudentSortKey>(CreatePersistedUiStateKey(TeacherStudentsStateKey, "sort-key"), "studentCode");
+  const [sortDirection, setSortDirection] = usePersistentUiState<SortDirection>(CreatePersistedUiStateKey(TeacherStudentsStateKey, "sort-direction"), "asc");
   const query = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
   const trackerQuery = useQuery({ queryKey: ["teacher-assignment-tracker-current-state"], queryFn: getTeacherAssignmentTracker, enabled: ready });
 
