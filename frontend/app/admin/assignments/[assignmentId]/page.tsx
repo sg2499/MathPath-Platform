@@ -1,7 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
-import { BenchmarkBadge, BenchmarkAlert } from "@/components/common/BenchmarkBadge";
+import { BenchmarkAlert } from "@/components/common/BenchmarkBadge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -135,18 +135,10 @@ export default function AdminAssignmentDetailPage() {
                           <p className="font-black text-slate-950">{row.studentName}</p>
                           <p className="text-xs text-slate-500">{row.studentCode}</p>
                         </td>
-                        <td>
-                          <span className={`math-badge math-assignment-semantic-chip ${
-                            row.status === "COMPLETED"
-                              ? "math-assignment-semantic-success border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-300/70 dark:bg-emerald-400/20 dark:text-emerald-50"
-                              : "math-assignment-semantic-warning border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-300/70 dark:bg-amber-400/20 dark:text-amber-50"
-                          }`}>
-                            {row.status}
-                          </span>
-                        </td>
-                        <td><PerformanceChip Value={`${RoundedDisplay(row.score)} / ${RoundedDisplay(row.maxScore)}`} Tone={Number.isFinite(Number(row.score)) ? "blue" : "slate"} /></td>
+                        <td><SemanticChip Value={row.status} Tone={StatusTone(row.status, row.requiresAttention)} /></td>
+                        <td><PerformanceChip Value={`${RoundedDisplay(row.score)} / ${RoundedDisplay(row.maxScore)}`} Tone={ScoreTone(row.score, row.maxScore)} /></td>
                         <td><PerformanceChip Value={`${RoundedDisplay(row.accuracyPercentage)}%`} Tone={AccuracyTone(row.accuracyPercentage)} /></td>
-                        <td><BenchmarkBadge status={row.benchmarkStatus} requiresAttention={row.requiresAttention} percentage={row.benchmarkPercentage} /></td>
+                        <td><BenchmarkChip Status={row.benchmarkStatus} RequiresAttention={row.requiresAttention} /></td>
                         <td>{formatDate(row.attemptDate || row.startedAt)}</td>
                         <td>{formatDate(row.completedDate || row.submittedAt)}</td>
                         <td>{row.timeTakenSeconds ? `${row.timeTakenSeconds}s` : "-"}</td>
@@ -222,16 +214,10 @@ export default function AdminAssignmentDetailPage() {
                           <p className="font-black text-slate-950">{attempt.studentName}</p>
                           <p className="text-xs text-slate-500">{attempt.studentCode}</p>
                         </td>
-                        <td><span className={`math-badge math-assignment-semantic-chip ${
-                          attempt.status === "CLEARED" || attempt.status === "COMPLETED"
-                            ? "math-assignment-semantic-success border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-300/70 dark:bg-emerald-400/20 dark:text-emerald-50"
-                            : attempt.requiresAttention
-                              ? "math-assignment-semantic-danger border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-300/70 dark:bg-rose-400/20 dark:text-rose-50"
-                              : "math-assignment-semantic-blue border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-300/70 dark:bg-blue-400/20 dark:text-blue-50"
-                        }`}>{attempt.status}</span></td>
-                        <td><PerformanceChip Value={`${RoundedDisplay(attempt.score)} / ${RoundedDisplay(attempt.maxScore)}`} Tone={Number.isFinite(Number(attempt.score)) ? "blue" : "slate"} /></td>
+                        <td><SemanticChip Value={attempt.status} Tone={StatusTone(attempt.status, attempt.requiresAttention)} /></td>
+                        <td><PerformanceChip Value={`${RoundedDisplay(attempt.score)} / ${RoundedDisplay(attempt.maxScore)}`} Tone={ScoreTone(attempt.score, attempt.maxScore)} /></td>
                         <td><PerformanceChip Value={RoundedDisplay(attempt.correct)} Tone={Number.isFinite(Number(attempt.correct)) ? "blue" : "slate"} /></td>
-                        <td><BenchmarkBadge status={attempt.benchmarkStatus} requiresAttention={attempt.requiresAttention} percentage={attempt.benchmarkPercentage} /></td>
+                        <td><BenchmarkChip Status={attempt.benchmarkStatus} RequiresAttention={attempt.requiresAttention} /></td>
                         <td>{formatDate(attempt.attemptDate || attempt.startedAt)}</td>
                         <td>{formatDate(attempt.completedDate || attempt.submittedAt)}</td>
                         <td>
@@ -308,14 +294,27 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PerformanceChip({ Value, Tone = "blue" }: { Value: string; Tone?: "blue" | "green" | "red" | "slate" }) {
+function SemanticChip({ Value, Tone = "blue" }: { Value: string; Tone?: "blue" | "green" | "red" | "amber" | "slate" }) {
   const ToneClasses = {
-    blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-300/70 dark:bg-blue-400/20 dark:text-blue-50",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-300/70 dark:bg-emerald-400/20 dark:text-emerald-50",
-    red: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-300/70 dark:bg-rose-400/20 dark:text-rose-50",
-    slate: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-300/60 dark:bg-slate-400/15 dark:text-slate-50",
+    blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-300/80 dark:bg-blue-400/20 dark:text-blue-50",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-300/80 dark:bg-emerald-400/25 dark:text-emerald-50",
+    red: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-300/80 dark:bg-rose-400/25 dark:text-rose-50",
+    amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-300/80 dark:bg-amber-400/25 dark:text-amber-50",
+    slate: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-300/70 dark:bg-slate-400/20 dark:text-slate-50",
   };
   return <span className={`math-badge math-assignment-semantic-chip math-assignment-semantic-${Tone} whitespace-nowrap ${ToneClasses[Tone]}`}>{Value}</span>;
+}
+
+function PerformanceChip({ Value, Tone = "blue" }: { Value: string; Tone?: "blue" | "green" | "red" | "slate" }) {
+  return <SemanticChip Value={Value} Tone={Tone} />;
+}
+
+function BenchmarkChip({ Status, RequiresAttention }: { Status?: string | null; RequiresAttention?: boolean | null }) {
+  const NormalizedStatus = String(Status || "").toUpperCase().replace(/[^A-Z]/g, "");
+  const IsPending = !NormalizedStatus || NormalizedStatus.includes("PENDING");
+  const IsNotMet = Boolean(RequiresAttention) || NormalizedStatus.includes("BELOW") || NormalizedStatus.includes("NOTMET") || NormalizedStatus.includes("NEEDSREATTEMPT") || NormalizedStatus.includes("MANUALINTERVENTION");
+  const Label = IsPending ? "Pending" : IsNotMet ? "Benchmark Not Met" : "Benchmark Met";
+  return <SemanticChip Value={Label} Tone={IsPending ? "amber" : IsNotMet ? "red" : "green"} />;
 }
 
 function RoundedDisplay(Value: unknown) {
@@ -327,5 +326,21 @@ function AccuracyTone(Value: unknown): "green" | "red" | "slate" {
   const NumberValue = Number(Value);
   if (!Number.isFinite(NumberValue)) return "slate";
   return NumberValue >= 70 ? "green" : "red";
+}
+
+function ScoreTone(Score: unknown, MaxScore: unknown): "green" | "red" | "slate" {
+  const ScoreValue = Number(Score);
+  const MaxScoreValue = Number(MaxScore);
+  if (!Number.isFinite(ScoreValue) || !Number.isFinite(MaxScoreValue) || MaxScoreValue <= 0) return "slate";
+  return (ScoreValue / MaxScoreValue) * 100 >= 70 ? "green" : "red";
+}
+
+function StatusTone(Status: unknown, RequiresAttention?: boolean | null): "green" | "red" | "amber" | "blue" | "slate" {
+  const NormalizedStatus = String(Status || "").toUpperCase().replace(/[^A-Z]/g, "");
+  if (!NormalizedStatus) return "slate";
+  if (Boolean(RequiresAttention) || NormalizedStatus.includes("NEEDSREATTEMPT") || NormalizedStatus.includes("FAILED") || NormalizedStatus.includes("NOTCLEARED") || NormalizedStatus.includes("REJECTED")) return "red";
+  if (NormalizedStatus.includes("PENDING") || NormalizedStatus.includes("INPROGRESS") || NormalizedStatus.includes("ASSIGNED")) return "amber";
+  if (NormalizedStatus.includes("COMPLETED") || NormalizedStatus.includes("CLEARED") || NormalizedStatus.includes("PASSED") || NormalizedStatus.includes("BENCHMARKMET")) return "green";
+  return "blue";
 }
 
