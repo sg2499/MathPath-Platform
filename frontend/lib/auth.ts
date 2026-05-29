@@ -115,6 +115,8 @@ export function setAuth(token: string, user: CurrentUser): void {
   // Keep legacy keys for login page compatibility only.
   localStorage.setItem(LEGACY_TOKEN_KEY, token);
   safeSetJson(LEGACY_USER_KEY, user);
+
+  window.dispatchEvent(new Event("mathpath-auth-changed"));
 }
 
 export function clearAuth(): void {
