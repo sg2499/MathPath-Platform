@@ -10605,3 +10605,88 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Teacher main nav icon visibility hard fix
+   Scope: Teacher main navbar only, light mode only.
+   Uses direct AppShell hooks plus data attributes. This is intentionally stronger
+   than earlier generic selectors so Students / Practice / Assessments icons and
+   chevrons stay pure white on hover, active, and dropdown-open states. */
+@layer components {
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-active="true"],
+    [data-teacher-nav-open="true"]
+  ) {
+    background: linear-gradient(135deg, #3a1538 0%, #7a356a 54%, #c57a85 100%) !important;
+    border-color: rgba(109, 46, 95, 0.52) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-active="true"],
+    [data-teacher-nav-open="true"]
+  ) .math-teacher-main-nav-icon,
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-active="true"],
+    [data-teacher-nav-open="true"]
+  ) .math-teacher-main-nav-chevron,
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-active="true"],
+    [data-teacher-nav-open="true"]
+  ) > svg {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    stroke-width: 2.35 !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-active="true"],
+    [data-teacher-nav-open="true"]
+  ) span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-active="true"],
+    [data-teacher-nav-open="true"]
+  ) * {
+    opacity: 1 !important;
+  }
+}
+
