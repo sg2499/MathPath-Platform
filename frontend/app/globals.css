@@ -9504,3 +9504,46 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     backdrop-filter: blur(18px) !important;
   }
 }
+
+/* 30 May 2026 — Admin assignment detail dark-mode semantic chip contrast repair
+   Scope: Admin assignment detail page only. Keeps light mode, Teacher, Student, layout, and data logic untouched. */
+html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semantic-chip {
+  text-shadow: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 10px 24px rgba(2, 6, 23, 0.18) !important;
+}
+
+html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semantic-green {
+  background: rgba(16, 185, 129, 0.18) !important;
+  border-color: rgba(52, 211, 153, 0.58) !important;
+  color: #bbf7d0 !important;
+  -webkit-text-fill-color: #bbf7d0 !important;
+}
+
+html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semantic-red {
+  background: rgba(244, 63, 94, 0.18) !important;
+  border-color: rgba(251, 113, 133, 0.58) !important;
+  color: #fecdd3 !important;
+  -webkit-text-fill-color: #fecdd3 !important;
+}
+
+html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semantic-amber {
+  background: rgba(245, 158, 11, 0.18) !important;
+  border-color: rgba(251, 191, 36, 0.58) !important;
+  color: #fde68a !important;
+  -webkit-text-fill-color: #fde68a !important;
+}
+
+html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semantic-blue {
+  background: rgba(59, 130, 246, 0.18) !important;
+  border-color: rgba(96, 165, 250, 0.58) !important;
+  color: #bfdbfe !important;
+  -webkit-text-fill-color: #bfdbfe !important;
+}
+
+html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semantic-slate {
+  background: rgba(100, 116, 139, 0.18) !important;
+  border-color: rgba(148, 163, 184, 0.46) !important;
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+}
