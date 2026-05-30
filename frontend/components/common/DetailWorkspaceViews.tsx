@@ -1384,7 +1384,7 @@ export function RecordWorkspace({
                           dense
                           hideLessonColumn
                           showAttemptColumn
-                          useStrongSemanticChips={role === "admin"}
+                          useStrongSemanticChips={false}
                         />
                       </div>
                     ) : null}
