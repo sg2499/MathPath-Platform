@@ -827,10 +827,11 @@ export function AppShell({
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
                           aria-label={group.tooltip}
+                          data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
                           data-teacher-nav-active={IsTeacher && theme === "light" && active ? "true" : undefined}
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
                         >
-                          <Icon size={16} className="math-teacher-main-nav-icon shrink-0 transition-colors group-hover:!text-white group-hover:!opacity-100" />
+                          <Icon size={16} className={`${IsTeacher && theme === "light" && (active || dropdownOpen) ? "!text-white !stroke-white opacity-100" : ""} math-teacher-main-nav-icon shrink-0 transition-colors group-hover:!text-white group-hover:!stroke-white group-hover:opacity-100`} />
                           <span className="whitespace-nowrap">
                             {group.shortLabel || group.label}
                           </span>
@@ -857,11 +858,12 @@ export function AppShell({
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
                           aria-label={group.tooltip}
+                          data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
                           data-teacher-nav-active={IsTeacher && theme === "light" && active ? "true" : undefined}
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
                           aria-expanded={dropdownOpen}
                         >
-                          <Icon size={16} className="math-teacher-main-nav-icon shrink-0 transition-colors group-hover:!text-white group-hover:!opacity-100" />
+                          <Icon size={16} className={`${IsTeacher && theme === "light" && (active || dropdownOpen) ? "!text-white !stroke-white opacity-100" : ""} math-teacher-main-nav-icon shrink-0 transition-colors group-hover:!text-white group-hover:!stroke-white group-hover:opacity-100`} />
                           <span className="whitespace-nowrap">
                             {group.shortLabel || group.label}
                           </span>
@@ -1064,6 +1066,7 @@ export function AppShell({
                         onClick={() => navigateTo(group.href)}
                         title={group.tooltip}
                         aria-label={group.tooltip}
+                          data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
                         className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition ${
                           active
                             ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
@@ -1087,6 +1090,7 @@ export function AppShell({
                         }
                         title={group.tooltip}
                         aria-label={group.tooltip}
+                          data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
                         className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm font-black transition ${
                           active
                             ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
