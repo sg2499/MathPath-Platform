@@ -162,17 +162,56 @@ type StudentPracticeMetric = {
   pending: number;
   needsReattempt: number;
   averageAccuracy: number | null;
+  studentWideAverageAccuracy: number | null;
 };
+
+function trackerLevelCode(row: Record<string, any>) {
+  return String(row.levelCode || row.levelId || row.level || "");
+}
+
+function averageMetricValues(values: number[]) {
+  if (!values.length) return null;
+  return Math.round((values.reduce((Sum, Value) => Sum + Value, 0) / values.length) * 100) / 100;
+}
+
+function buildStudentWideHierarchyAccuracy(attemptRows: Record<string, any>[]) {
+  const CompletedRows = attemptRows
+    .filter(trackerCompleted)
+    .filter((Row) => {
+      const AccuracyValue = trackerAccuracy(Row);
+      return Number.isFinite(AccuracyValue);
+    });
+
+  if (!CompletedRows.length) return null;
+
+  const LevelMap = new Map<string, number[]>();
+  CompletedRows.forEach((Row) => {
+    const LevelCode = trackerLevelCode(Row) || "level";
+    const Values = LevelMap.get(LevelCode) || [];
+    Values.push(trackerAccuracy(Row));
+    LevelMap.set(LevelCode, Values);
+  });
+
+  const LevelAverages = Array.from(LevelMap.values())
+    .map((Values) => averageMetricValues(Values))
+    .filter((Value): Value is number => typeof Value === "number" && Value > 0);
+
+  return averageMetricValues(LevelAverages);
+}
 
 function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
   const ConceptMap = new Map<string, Record<string, any>[]>();
+  const StudentAttemptMap = new Map<string, Record<string, any>[]>();
 
   rows.forEach((Row) => {
     const StudentCode = String(Row.studentCode || "");
     if (!StudentCode) return;
+    const AttemptRows = trackerAttemptRows(Row);
     const Key = `${StudentCode}::${trackerWorkKey(Row)}`;
     if (!ConceptMap.has(Key)) ConceptMap.set(Key, []);
-    ConceptMap.get(Key)!.push(...trackerAttemptRows(Row));
+    ConceptMap.get(Key)!.push(...AttemptRows);
+    if (!StudentAttemptMap.has(StudentCode)) StudentAttemptMap.set(StudentCode, []);
+    StudentAttemptMap.get(StudentCode)!.push(...AttemptRows);
   });
 
   const Metrics = new Map<string, StudentPracticeMetric>();
@@ -187,6 +226,7 @@ function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
       pending: 0,
       needsReattempt: 0,
       averageAccuracy: null,
+      studentWideAverageAccuracy: null,
     };
 
     const Cleared = AttemptRows.some(trackerCleared);
@@ -210,9 +250,8 @@ function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
 
   Metrics.forEach((Metric, StudentCode) => {
     const Values = AccuracyBuckets.get(StudentCode) || [];
-    Metric.averageAccuracy = Values.length
-      ? Math.round((Values.reduce((Sum, Value) => Sum + Value, 0) / Values.length) * 100) / 100
-      : null;
+    Metric.averageAccuracy = averageMetricValues(Values);
+    Metric.studentWideAverageAccuracy = buildStudentWideHierarchyAccuracy(StudentAttemptMap.get(StudentCode) || []);
   });
 
   return Metrics;
@@ -344,7 +383,7 @@ export default function TeacherStudentsPage() {
         if (sortKey === "completed") return studentMetricValue(studentPracticeMetrics, student, "cleared", student.completedAssignments ?? student.completedAttempts ?? 0);
         if (sortKey === "pending") return studentMetricValue(studentPracticeMetrics, student, "pending", (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0));
         if (sortKey === "latest") return student.latestActivityAt || "";
-        if (sortKey === "accuracy") return studentPracticeMetrics.get(student.studentCode)?.averageAccuracy ?? student.averageAccuracy ?? student.latestAccuracy ?? 0;
+        if (sortKey === "accuracy") return studentPracticeMetrics.get(student.studentCode)?.studentWideAverageAccuracy ?? student.averageAccuracy ?? student.latestAccuracy ?? 0;
         return attentionLabel(effectiveAttention(student, currentNeedsReattemptStudentCodes));
       };
       const result = compareSortValues(valueFor(a), valueFor(b));
@@ -479,7 +518,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
   const assigned = metric?.assigned ?? student.assignedAssignments ?? 0;
   const cleared = metric?.cleared ?? student.completedAssignments ?? 0;
   const pending = metric?.pending ?? (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0);
-  const averageAccuracy = metric?.averageAccuracy ?? student.averageAccuracy;
+  const averageAccuracy = metric?.studentWideAverageAccuracy ?? student.averageAccuracy;
 
   return (
     <tr
@@ -554,7 +593,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
 
 function Metric({ label, value, icon }: { label: string; value: number | string; icon: React.ReactNode }) {
   return (
-    <div className="math-teacher-light-metric-card rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 backdrop-blur-md">
+    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm ring-1 ring-white/70 backdrop-blur-md">
       <div className="inline-flex rounded-2xl bg-blue-50 p-2 text-blue-700">{icon}</div>
       <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <p className="mt-1 text-3xl font-black text-slate-950">{value}</p>
