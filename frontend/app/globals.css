@@ -10535,3 +10535,41 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Teacher light-mode dropdown-open main nav icon visibility
+   Scope: Teacher main navbar only, light mode only.
+   Keeps dropdown trigger icons/text/chevrons white when the dropdown is open,
+   because the button is no longer in CSS :hover while the pointer is inside the dropdown.
+   Admin, Student, dark mode, delete buttons, rows, chips, metrics, and business logic are untouched. */
+@layer components {
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item-open {
+    background: var(--mp-teacher-light-selected-bg, linear-gradient(135deg, #2b102d 0%, #6d2e5f 56%, #b76e79 100%)) !important;
+    border-color: var(--mp-teacher-light-selected-border, rgba(109, 46, 95, 0.46)) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    box-shadow: var(--mp-teacher-light-selected-shadow, 0 16px 34px rgba(109, 46, 95, 0.24), inset 0 1px 0 rgba(255,255,255,0.22)) !important;
+    opacity: 1 !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item-open :is(svg, .lucide, [data-lucide]),
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item-open > svg {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item-open :is(span, p, div, strong, small) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    filter: none !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item-open * {
+    opacity: 1 !important;
+  }
+}
+
