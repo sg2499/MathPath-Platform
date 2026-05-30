@@ -10690,3 +10690,88 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Teacher main nav icon visibility admin-parity fix
+   Scope: Teacher main navbar only, light mode only.
+   Mirrors the working Admin hover/open icon visibility behavior using Teacher palette.
+   Forces icon wrapper, SVG path/polyline/circle/line, chevron, and label to white
+   on hover, active, and dropdown-open states. */
+@layer components {
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-hover-scope="true"]:hover,
+    [data-teacher-nav-hover-scope="true"][aria-expanded="true"]
+  ) {
+    background: linear-gradient(135deg, #4b1748 0%, #8b3d78 56%, #c27783 100%) !important;
+    border-color: rgba(139, 61, 120, 0.55) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-hover-scope="true"]:hover,
+    [data-teacher-nav-hover-scope="true"][aria-expanded="true"]
+  ) :is(svg, svg *, .lucide, [data-lucide], path, polyline, line, circle, rect),
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-hover-scope="true"]:hover,
+    [data-teacher-nav-hover-scope="true"][aria-expanded="true"]
+  ) .math-teacher-main-nav-icon,
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-hover-scope="true"]:hover,
+    [data-teacher-nav-hover-scope="true"][aria-expanded="true"]
+  ) .math-teacher-main-nav-chevron {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-hover-scope="true"]:hover,
+    [data-teacher-nav-hover-scope="true"][aria-expanded="true"]
+  ) :is(span, div, p, strong, small) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(
+    :hover,
+    :focus-visible,
+    .premium-nav-item-active,
+    .premium-nav-item-open,
+    [aria-expanded="true"],
+    [data-teacher-nav-hover-scope="true"]:hover,
+    [data-teacher-nav-hover-scope="true"][aria-expanded="true"]
+  ) * {
+    opacity: 1 !important;
+  }
+}
+
