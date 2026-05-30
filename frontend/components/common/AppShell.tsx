@@ -43,12 +43,17 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import type { ChangeEvent, ComponentType, ReactNode } from "react";
+import type { ChangeEvent, ComponentType, CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 type ThemeMode = "light" | "dark";
 type StoredUser = ReturnType<typeof getStoredUser>;
-type IconType = ComponentType<{ size?: string | number; className?: string }>;
+type IconType = ComponentType<{
+  size?: string | number;
+  className?: string;
+  strokeWidth?: string | number;
+  style?: CSSProperties;
+}>;
 
 type NavChild = {
   label: string;
