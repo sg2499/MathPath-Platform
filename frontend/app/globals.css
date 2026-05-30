@@ -10797,133 +10797,60 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
 }
 
 
-/* 30 May 2026 — Teacher light-mode block/kicker header cleanup
-   Scope: Teacher login only, light mode only.
-   Removes unintended plum filled patches from non-hero block headers/kicker labels
-   across Teacher Students, Practice Tracker, Assign Practice, Attempt Review,
-   Lesson Insights, and shared Teacher detail surfaces. Admin, Student, Teacher
-   dark mode, role tabs, chips, buttons, metrics, tables, and business logic are untouched. */
+/* 30 May 2026 — Teacher light-mode table header role-palette convention
+   Scope: Teacher login only, light mode only. Applies the Teacher plum header
+   treatment to table column headers without touching rows, chips, metrics,
+   business logic, Admin, Student, or Teacher dark mode. */
 @layer components {
-  html:not(.dark) .math-role-teacher :is(
-    .math-card:not(.math-hero),
-    .math-panel:not(.math-hero),
-    .math-soft-section:not(.math-hero),
-    .math-selected-scope-card,
-    .math-history-hierarchy-row,
-    .math-current-level-progress-block,
-    .math-completed-level-module-block,
-    .math-completed-level-summary-block,
-    .math-hierarchy-block,
-    .math-table-shell,
-    .math-table-wrap,
-    .math-teacher-students-page,
-    .math-teacher-practice-tracker-page,
-    .math-teacher-assessment-tracker-page,
-    .math-teacher-promotion-history-page
-  ) :is(.math-kicker, .math-section-label, .math-section-kicker):not(.math-status-chip):not(.math-chip):not(.math-badge) {
-    display: inline-flex !important;
-    width: auto !important;
-    max-width: max-content !important;
-    min-height: 0 !important;
-    align-items: center !important;
-    gap: 0.35rem !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    color: #8a2f5f !important;
-    -webkit-text-fill-color: #8a2f5f !important;
-    text-shadow: none !important;
-    filter: none !important;
-    line-height: 1.18 !important;
+  html:not(.dark) .math-role-teacher .math-teacher-students-directory-table thead,
+  html:not(.dark) .math-role-teacher .math-teacher-practice-record-table-header,
+  html:not(.dark) .math-role-teacher .math-teacher-practice-lesson-insights-table .math-teacher-practice-lesson-insights-table-header,
+  html:not(.dark) .math-role-teacher .math-teacher-readiness-sheet-breakdown .math-teacher-readiness-sheet-table-header,
+  html:not(.dark) .math-role-teacher :is(.math-teacher-assessment-tracker-table-header, .math-teacher-promotion-history-table-header) {
+    background:
+      linear-gradient(180deg, rgba(109, 46, 95, 0.105), rgba(255, 255, 255, 0.90)) !important;
+    border-color: rgba(109, 46, 95, 0.22) !important;
+    color: #6d2e5f !important;
+    -webkit-text-fill-color: #6d2e5f !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      inset 0 -1px 0 rgba(109, 46, 95, 0.16) !important;
   }
 
-  html:not(.dark) .math-role-teacher .math-kicker:not(.math-hero .math-kicker):not(.math-status-chip):not(.math-chip):not(.math-badge) {
-    display: inline-flex !important;
-    width: auto !important;
-    max-width: max-content !important;
-    min-height: 0 !important;
-    align-items: center !important;
-    gap: 0.35rem !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    color: #8a2f5f !important;
-    -webkit-text-fill-color: #8a2f5f !important;
-    text-shadow: none !important;
-    filter: none !important;
-    line-height: 1.18 !important;
-  }
-
-  html:not(.dark) .math-role-teacher :is(
-    .math-card:not(.math-hero),
-    .math-panel:not(.math-hero),
-    .math-soft-section:not(.math-hero),
-    .math-selected-scope-card,
-    .math-history-hierarchy-row,
-    .math-current-level-progress-block,
-    .math-completed-level-module-block,
-    .math-completed-level-summary-block,
-    .math-hierarchy-block,
-    .math-table-shell,
-    .math-table-wrap,
-    .math-teacher-students-page,
-    .math-teacher-practice-tracker-page,
-    .math-teacher-assessment-tracker-page,
-    .math-teacher-promotion-history-page
-  ) :is(.math-kicker, .math-section-label, .math-section-kicker):not(.math-status-chip):not(.math-chip):not(.math-badge)::before,
-  html:not(.dark) .math-role-teacher :is(
-    .math-card:not(.math-hero),
-    .math-panel:not(.math-hero),
-    .math-soft-section:not(.math-hero),
-    .math-selected-scope-card,
-    .math-history-hierarchy-row,
-    .math-current-level-progress-block,
-    .math-completed-level-module-block,
-    .math-completed-level-summary-block,
-    .math-hierarchy-block,
-    .math-table-shell,
-    .math-table-wrap,
-    .math-teacher-students-page,
-    .math-teacher-practice-tracker-page,
-    .math-teacher-assessment-tracker-page,
-    .math-teacher-promotion-history-page
-  ) :is(.math-kicker, .math-section-label, .math-section-kicker):not(.math-status-chip):not(.math-chip):not(.math-badge)::after,
-  html:not(.dark) .math-role-teacher .math-kicker:not(.math-hero .math-kicker):not(.math-status-chip):not(.math-chip):not(.math-badge)::before,
-  html:not(.dark) .math-role-teacher .math-kicker:not(.math-hero .math-kicker):not(.math-status-chip):not(.math-chip):not(.math-badge)::after {
-    display: none !important;
-    content: none !important;
-    background: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-  }
-}
-
-
-/* 30 May 2026 — Teacher block title role-palette color fix
-   Scope: Teacher login only, both light and dark mode.
-   Keeps block/card section titles such as Priority Queue, Recent Practice,
-   Excellence Highlights, Practice Control, and Level Coverage aligned to the
-   Teacher plum palette without restoring filled header patches. */
-@layer components {
-  .math-role-teacher .math-teacher-block-title {
-    color: #7a1f52 !important;
-    -webkit-text-fill-color: #7a1f52 !important;
-    background: transparent !important;
-    background-image: none !important;
+  html:not(.dark) .math-role-teacher .math-teacher-students-directory-table th,
+  html:not(.dark) .math-role-teacher .math-teacher-students-directory-table th :is(button, span, svg, .lucide),
+  html:not(.dark) .math-role-teacher .math-teacher-practice-record-table-header > div,
+  html:not(.dark) .math-role-teacher .math-teacher-practice-record-table-header :is(div, span, p, svg, .lucide),
+  html:not(.dark) .math-role-teacher .math-teacher-practice-lesson-insights-table .math-teacher-practice-lesson-insights-table-header > div,
+  html:not(.dark) .math-role-teacher .math-teacher-practice-lesson-insights-table .math-teacher-practice-lesson-insights-table-header :is(div, span, p, svg, .lucide),
+  html:not(.dark) .math-role-teacher .math-teacher-readiness-sheet-breakdown .math-teacher-readiness-sheet-table-header :is(p, h4, span, div, svg, .lucide),
+  html:not(.dark) .math-role-teacher .math-teacher-readiness-sheet-breakdown .math-teacher-readiness-sheet-column-label,
+  html:not(.dark) .math-role-teacher :is(.math-teacher-assessment-tracker-table-header, .math-teacher-promotion-history-table-header) > div,
+  html:not(.dark) .math-role-teacher :is(.math-teacher-assessment-tracker-table-header, .math-teacher-promotion-history-table-header) :is(div, span, p, svg, .lucide) {
+    color: #6d2e5f !important;
+    -webkit-text-fill-color: #6d2e5f !important;
+    opacity: 1 !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
     text-shadow: none !important;
   }
 
-  .dark .math-role-teacher .math-teacher-block-title {
-    color: #f3a7c9 !important;
-    -webkit-text-fill-color: #f3a7c9 !important;
-    background: transparent !important;
-    background-image: none !important;
-    text-shadow: none !important;
+  html:not(.dark) .math-role-teacher .math-teacher-students-directory-table th {
+    border-bottom-color: rgba(109, 46, 95, 0.20) !important;
+  }
+
+  html:not(.dark) .math-role-teacher .math-teacher-students-directory-table th:not(:last-child),
+  html:not(.dark) .math-role-teacher .math-teacher-practice-record-table-header > div:not(:last-child),
+  html:not(.dark) .math-role-teacher .math-teacher-practice-lesson-insights-table .math-teacher-practice-lesson-insights-table-header > div:not(:last-child),
+  html:not(.dark) .math-role-teacher .math-teacher-readiness-sheet-breakdown .math-teacher-readiness-sheet-table-header > :not(:last-child),
+  html:not(.dark) .math-role-teacher :is(.math-teacher-assessment-tracker-table-header, .math-teacher-promotion-history-table-header) > div:not(:last-child) {
+    border-right: 1px solid rgba(109, 46, 95, 0.12) !important;
+  }
+
+  html:not(.dark) .math-role-teacher .math-teacher-students-directory-table th button:hover,
+  html:not(.dark) .math-role-teacher .math-teacher-students-directory-table th button:focus-visible {
+    color: #4b1748 !important;
+    -webkit-text-fill-color: #4b1748 !important;
   }
 }
