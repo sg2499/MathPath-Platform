@@ -824,7 +824,7 @@ export function AppShell({
                           onClick={() => navigateTo(group.href)}
                           className={`premium-nav-item shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
-                          }`}
+                          } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
                           aria-label={group.tooltip}
                         >
