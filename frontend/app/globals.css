@@ -9617,3 +9617,32 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Admin light-mode role-palette table headers for Assessment Control
+   Scope: Admin Assessment Control light mode only. Covers Student Records, Manage,
+   Promotion History, Parent Reports ready/delivery tables, and similar nested tables.
+   Dark mode, Teacher, Student, rows, chips, buttons, and business logic are untouched. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-admin-assessments-page .math-admin-assessment-light-table-header {
+    background:
+      linear-gradient(135deg, rgba(219, 234, 254, 0.98), rgba(239, 246, 255, 0.94)) !important;
+    border-color: rgba(59, 130, 246, 0.28) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.86),
+      0 1px 0 rgba(37, 99, 235, 0.08) !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-assessments-page .math-admin-assessment-light-table-header > *,
+  html:not(.dark) .math-role-admin .math-admin-assessments-page .math-admin-assessment-light-table-header * {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-assessments-page .math-admin-assessment-light-table-header > *:not(:last-child) {
+    border-right-color: rgba(59, 130, 246, 0.12) !important;
+  }
+}
+
