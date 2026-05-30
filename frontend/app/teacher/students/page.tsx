@@ -554,7 +554,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
 
 function Metric({ label, value, icon }: { label: string; value: number | string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm ring-1 ring-white/70 backdrop-blur-md">
+    <div className="math-teacher-light-metric-card rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 backdrop-blur-md">
       <div className="inline-flex rounded-2xl bg-blue-50 p-2 text-blue-700">{icon}</div>
       <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <p className="mt-1 text-3xl font-black text-slate-950">{value}</p>
