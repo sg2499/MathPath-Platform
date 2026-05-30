@@ -162,56 +162,17 @@ type StudentPracticeMetric = {
   pending: number;
   needsReattempt: number;
   averageAccuracy: number | null;
-  studentWideAverageAccuracy: number | null;
 };
-
-function trackerLevelCode(row: Record<string, any>) {
-  return String(row.levelCode || row.levelId || row.level || "");
-}
-
-function averageMetricValues(values: number[]) {
-  if (!values.length) return null;
-  return Math.round((values.reduce((Sum, Value) => Sum + Value, 0) / values.length) * 100) / 100;
-}
-
-function buildStudentWideHierarchyAccuracy(attemptRows: Record<string, any>[]) {
-  const CompletedRows = attemptRows
-    .filter(trackerCompleted)
-    .filter((Row) => {
-      const AccuracyValue = trackerAccuracy(Row);
-      return Number.isFinite(AccuracyValue);
-    });
-
-  if (!CompletedRows.length) return null;
-
-  const LevelMap = new Map<string, number[]>();
-  CompletedRows.forEach((Row) => {
-    const LevelCode = trackerLevelCode(Row) || "level";
-    const Values = LevelMap.get(LevelCode) || [];
-    Values.push(trackerAccuracy(Row));
-    LevelMap.set(LevelCode, Values);
-  });
-
-  const LevelAverages = Array.from(LevelMap.values())
-    .map((Values) => averageMetricValues(Values))
-    .filter((Value): Value is number => typeof Value === "number" && Value > 0);
-
-  return averageMetricValues(LevelAverages);
-}
 
 function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
   const ConceptMap = new Map<string, Record<string, any>[]>();
-  const StudentAttemptMap = new Map<string, Record<string, any>[]>();
 
   rows.forEach((Row) => {
     const StudentCode = String(Row.studentCode || "");
     if (!StudentCode) return;
-    const AttemptRows = trackerAttemptRows(Row);
     const Key = `${StudentCode}::${trackerWorkKey(Row)}`;
     if (!ConceptMap.has(Key)) ConceptMap.set(Key, []);
-    ConceptMap.get(Key)!.push(...AttemptRows);
-    if (!StudentAttemptMap.has(StudentCode)) StudentAttemptMap.set(StudentCode, []);
-    StudentAttemptMap.get(StudentCode)!.push(...AttemptRows);
+    ConceptMap.get(Key)!.push(...trackerAttemptRows(Row));
   });
 
   const Metrics = new Map<string, StudentPracticeMetric>();
@@ -226,7 +187,6 @@ function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
       pending: 0,
       needsReattempt: 0,
       averageAccuracy: null,
-      studentWideAverageAccuracy: null,
     };
 
     const Cleared = AttemptRows.some(trackerCleared);
@@ -250,8 +210,9 @@ function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
 
   Metrics.forEach((Metric, StudentCode) => {
     const Values = AccuracyBuckets.get(StudentCode) || [];
-    Metric.averageAccuracy = averageMetricValues(Values);
-    Metric.studentWideAverageAccuracy = buildStudentWideHierarchyAccuracy(StudentAttemptMap.get(StudentCode) || []);
+    Metric.averageAccuracy = Values.length
+      ? Math.round((Values.reduce((Sum, Value) => Sum + Value, 0) / Values.length) * 100) / 100
+      : null;
   });
 
   return Metrics;
@@ -302,26 +263,6 @@ export default function TeacherStudentsPage() {
     () => buildStudentPracticeMetrics(trackerRows),
     [trackerRows],
   );
-
-  const summary = useMemo(() => {
-    const assigned = students.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "assigned", s.assignedAssignments ?? 0), 0);
-    const completed = students.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "cleared", s.completedAssignments ?? 0), 0);
-    const pending = students.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "pending", (s.pendingAssignments ?? 0) + (s.inProgressAssignments ?? 0)), 0);
-    const accuracyValues = students
-      .map((s) => studentPracticeMetrics.get(s.studentCode)?.averageAccuracy ?? s.averageAccuracy)
-      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
-    const avgAccuracy = accuracyValues.length
-      ? Math.round((accuracyValues.reduce((a, b) => a + b, 0) / accuracyValues.length) * 100) / 100
-      : null;
-
-    return {
-      students: students.length,
-      assigned,
-      completed,
-      pending,
-      avgAccuracy,
-    };
-  }, [students, studentPracticeMetrics]);
 
   const moduleOptions = useMemo(() => {
     const Options = new Map<string, string>();
@@ -383,13 +324,35 @@ export default function TeacherStudentsPage() {
         if (sortKey === "completed") return studentMetricValue(studentPracticeMetrics, student, "cleared", student.completedAssignments ?? student.completedAttempts ?? 0);
         if (sortKey === "pending") return studentMetricValue(studentPracticeMetrics, student, "pending", (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0));
         if (sortKey === "latest") return student.latestActivityAt || "";
-        if (sortKey === "accuracy") return studentPracticeMetrics.get(student.studentCode)?.studentWideAverageAccuracy ?? student.averageAccuracy ?? student.latestAccuracy ?? 0;
+        if (sortKey === "accuracy") return studentPracticeMetrics.get(student.studentCode)?.averageAccuracy ?? student.averageAccuracy ?? student.latestAccuracy ?? 0;
         return attentionLabel(effectiveAttention(student, currentNeedsReattemptStudentCodes));
       };
       const result = compareSortValues(valueFor(a), valueFor(b));
       return sortDirection === "asc" ? result : -result;
     });
   }, [students, search, moduleFilter, levelFilter, sortKey, sortDirection, currentNeedsReattemptStudentCodes, studentPracticeMetrics]);
+
+
+  const summary = useMemo(() => {
+    const VisibleStudents = filtered;
+    const assigned = VisibleStudents.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "assigned", s.assignedAssignments ?? 0), 0);
+    const completed = VisibleStudents.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "cleared", s.completedAssignments ?? 0), 0);
+    const pending = VisibleStudents.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "pending", (s.pendingAssignments ?? 0) + (s.inProgressAssignments ?? 0)), 0);
+    const accuracyValues = VisibleStudents
+      .map((s) => studentPracticeMetrics.get(s.studentCode)?.averageAccuracy ?? s.averageAccuracy)
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    const avgAccuracy = accuracyValues.length
+      ? Math.round((accuracyValues.reduce((a, b) => a + b, 0) / accuracyValues.length) * 100) / 100
+      : null;
+
+    return {
+      students: VisibleStudents.length,
+      assigned,
+      completed,
+      pending,
+      avgAccuracy,
+    };
+  }, [filtered, studentPracticeMetrics]);
 
   function toggleSort(key: TeacherStudentSortKey) {
     if (sortKey === key) {
@@ -518,7 +481,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
   const assigned = metric?.assigned ?? student.assignedAssignments ?? 0;
   const cleared = metric?.cleared ?? student.completedAssignments ?? 0;
   const pending = metric?.pending ?? (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0);
-  const averageAccuracy = metric?.studentWideAverageAccuracy ?? student.averageAccuracy;
+  const averageAccuracy = metric?.averageAccuracy ?? student.averageAccuracy;
 
   return (
     <tr
