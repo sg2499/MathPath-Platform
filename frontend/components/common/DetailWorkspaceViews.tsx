@@ -2703,9 +2703,15 @@ function scoreTone(row: AnyRow): "slate" | "green" | "red" {
   return (ScoreValue / MaxValue) * 100 >= 70 ? "green" : "red";
 }
 
-export function accuracyTone(row: AnyRow): "slate" | "green" | "red" {
-  if (!isCompleted(row)) return "slate";
-  const AccuracyValue = accuracy(row);
+export function accuracyTone(Value: AnyRow | number | string | null | undefined): "slate" | "green" | "red" {
+  if (Value && typeof Value === "object") {
+    if (!isCompleted(Value)) return "slate";
+    const AccuracyValue = accuracy(Value);
+    if (!Number.isFinite(AccuracyValue)) return "slate";
+    return AccuracyValue >= 70 ? "green" : "red";
+  }
+
+  const AccuracyValue = numberValue(Value, Number.NaN);
   if (!Number.isFinite(AccuracyValue)) return "slate";
   return AccuracyValue >= 70 ? "green" : "red";
 }
