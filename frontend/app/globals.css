@@ -10203,3 +10203,247 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Teacher light-mode role-palette controls
+   Scope: Teacher login only, light mode only.
+   Applies Teacher palette selected/hover behavior to main nav tabs, page tabs,
+   sub-tabs, nested tabs, dashboard navigation/action cards, and non-destructive
+   workflow buttons. Admin, Student, dark mode, and delete/destructive buttons are untouched. */
+@layer components {
+  html:not(.dark) .math-role-teacher {
+    --mp-teacher-light-selected-bg: linear-gradient(135deg, #2b102d 0%, #6d2e5f 56%, #b76e79 100%);
+    --mp-teacher-light-hover-bg: linear-gradient(135deg, #3a1538 0%, #7a356a 56%, #c57a85 100%);
+    --mp-teacher-light-selected-shadow:
+      0 16px 34px rgba(109, 46, 95, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    --mp-teacher-light-selected-border: rgba(109, 46, 95, 0.46);
+  }
+
+  html:not(.dark) .math-role-teacher :is(
+    .premium-nav-item-active,
+    .math-dropdown-option-active,
+    .math-role-tab-active,
+    .math-role-tab-card-active,
+    .math-report-scope-tab-active,
+    .math-teacher-tab-force-selected,
+    .math-role-tab-button.is-active,
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab[aria-selected="true"],
+    .math-role-tab[data-active="true"],
+    .math-role-tab-card[aria-selected="true"],
+    .math-role-tab-card[data-active="true"],
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"],
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"],
+    .math-readiness-sheet-filter.is-active,
+    .math-readiness-sheet-filter[aria-selected="true"],
+    .math-dashboard-primary-action,
+    .math-button-primary
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]) {
+    background: var(--mp-teacher-light-selected-bg) !important;
+    border-color: var(--mp-teacher-light-selected-border) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    box-shadow: var(--mp-teacher-light-selected-shadow) !important;
+  }
+
+  html:not(.dark) .math-role-teacher :is(
+    .premium-nav-item:hover,
+    .premium-nav-item:focus-visible,
+    .math-dropdown-option:hover,
+    .math-dropdown-option:focus-visible,
+    .math-role-tab:hover,
+    .math-role-tab:focus-visible,
+    .math-role-tab-button:hover,
+    .math-role-tab-button:focus-visible,
+    .math-role-tab-card:hover,
+    .math-role-tab-card:focus-visible,
+    .math-report-scope-tab:hover,
+    .math-report-scope-tab:focus-visible,
+    .math-teacher-tab-force:hover,
+    .math-teacher-tab-force:focus-visible,
+    .math-workspace-tabs button:hover,
+    .math-workspace-tabs button:focus-visible,
+    .math-tab-strip button:hover,
+    .math-tab-strip button:focus-visible,
+    .math-readiness-sheet-filter:hover,
+    .math-readiness-sheet-filter:focus-visible,
+    .math-readiness-control-button:hover,
+    .math-readiness-control-button:focus-visible,
+    .math-readiness-branch-button:hover,
+    .math-readiness-branch-button:focus-visible,
+    .math-dashboard-primary-action:hover,
+    .math-dashboard-primary-action:focus-visible,
+    .math-dashboard-secondary-action:hover,
+    .math-dashboard-secondary-action:focus-visible,
+    .math-dashboard-quick-card:hover,
+    .math-dashboard-quick-card:focus-visible,
+    .math-dashboard-link-card:hover,
+    .math-dashboard-link-card:focus-visible,
+    .math-button-primary:hover,
+    .math-button-primary:focus-visible,
+    .math-button-secondary:hover,
+    .math-button-secondary:focus-visible,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):hover,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):focus-visible,
+    .math-role-action-button:hover,
+    .math-role-action-button:focus-visible,
+    .math-role-row-primary-action:hover,
+    .math-role-row-primary-action:focus-visible,
+    .math-role-row-action:hover,
+    .math-role-row-action:focus-visible,
+    .math-role-icon-button:hover,
+    .math-role-icon-button:focus-visible
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]) {
+    background: var(--mp-teacher-light-hover-bg) !important;
+    border-color: var(--mp-teacher-light-selected-border) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    box-shadow: var(--mp-teacher-light-selected-shadow) !important;
+    transform: translateY(-1px);
+  }
+
+  html:not(.dark) .math-role-teacher :is(
+    .premium-nav-item:hover,
+    .premium-nav-item:focus-visible,
+    .premium-nav-item-active,
+    .math-dropdown-option:hover,
+    .math-dropdown-option:focus-visible,
+    .math-dropdown-option-active,
+    .math-role-tab:hover,
+    .math-role-tab:focus-visible,
+    .math-role-tab-active,
+    .math-role-tab-button:hover,
+    .math-role-tab-button:focus-visible,
+    .math-role-tab-button.is-active,
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab-card:hover,
+    .math-role-tab-card:focus-visible,
+    .math-role-tab-card-active,
+    .math-report-scope-tab:hover,
+    .math-report-scope-tab:focus-visible,
+    .math-report-scope-tab-active,
+    .math-teacher-tab-force:hover,
+    .math-teacher-tab-force:focus-visible,
+    .math-teacher-tab-force-selected,
+    .math-workspace-tabs button:hover,
+    .math-workspace-tabs button:focus-visible,
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"],
+    .math-tab-strip button:hover,
+    .math-tab-strip button:focus-visible,
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"],
+    .math-readiness-sheet-filter:hover,
+    .math-readiness-sheet-filter:focus-visible,
+    .math-readiness-sheet-filter.is-active,
+    .math-readiness-control-button:hover,
+    .math-readiness-control-button:focus-visible,
+    .math-readiness-branch-button:hover,
+    .math-readiness-branch-button:focus-visible,
+    .math-dashboard-primary-action,
+    .math-dashboard-primary-action:hover,
+    .math-dashboard-primary-action:focus-visible,
+    .math-dashboard-secondary-action:hover,
+    .math-dashboard-secondary-action:focus-visible,
+    .math-dashboard-quick-card:hover,
+    .math-dashboard-quick-card:focus-visible,
+    .math-dashboard-link-card:hover,
+    .math-dashboard-link-card:focus-visible,
+    .math-button-primary,
+    .math-button-primary:hover,
+    .math-button-primary:focus-visible,
+    .math-button-secondary:hover,
+    .math-button-secondary:focus-visible,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):hover,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):focus-visible,
+    .math-role-action-button:hover,
+    .math-role-action-button:focus-visible,
+    .math-role-row-primary-action:hover,
+    .math-role-row-primary-action:focus-visible,
+    .math-role-row-action:hover,
+    .math-role-row-action:focus-visible,
+    .math-role-icon-button:hover,
+    .math-role-icon-button:focus-visible
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]) :is(span, p, div, strong, small, .math-button-label) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-teacher :is(
+    .premium-nav-item:hover,
+    .premium-nav-item:focus-visible,
+    .premium-nav-item-active,
+    .math-dropdown-option:hover,
+    .math-dropdown-option:focus-visible,
+    .math-dropdown-option-active,
+    .math-role-tab:hover,
+    .math-role-tab:focus-visible,
+    .math-role-tab-active,
+    .math-role-tab-button:hover,
+    .math-role-tab-button:focus-visible,
+    .math-role-tab-button.is-active,
+    .math-role-tab-button[aria-selected="true"],
+    .math-role-tab-button[data-active="true"],
+    .math-role-tab-card:hover,
+    .math-role-tab-card:focus-visible,
+    .math-role-tab-card-active,
+    .math-report-scope-tab:hover,
+    .math-report-scope-tab:focus-visible,
+    .math-report-scope-tab-active,
+    .math-teacher-tab-force:hover,
+    .math-teacher-tab-force:focus-visible,
+    .math-teacher-tab-force-selected,
+    .math-workspace-tabs button:hover,
+    .math-workspace-tabs button:focus-visible,
+    .math-workspace-tabs button[aria-selected="true"],
+    .math-workspace-tabs button[data-active="true"],
+    .math-tab-strip button:hover,
+    .math-tab-strip button:focus-visible,
+    .math-tab-strip button[aria-selected="true"],
+    .math-tab-strip button[data-active="true"],
+    .math-readiness-sheet-filter:hover,
+    .math-readiness-sheet-filter:focus-visible,
+    .math-readiness-sheet-filter.is-active,
+    .math-readiness-control-button:hover,
+    .math-readiness-control-button:focus-visible,
+    .math-readiness-branch-button:hover,
+    .math-readiness-branch-button:focus-visible,
+    .math-dashboard-primary-action,
+    .math-dashboard-primary-action:hover,
+    .math-dashboard-primary-action:focus-visible,
+    .math-dashboard-secondary-action:hover,
+    .math-dashboard-secondary-action:focus-visible,
+    .math-dashboard-quick-card:hover,
+    .math-dashboard-quick-card:focus-visible,
+    .math-dashboard-link-card:hover,
+    .math-dashboard-link-card:focus-visible,
+    .math-button-primary,
+    .math-button-primary:hover,
+    .math-button-primary:focus-visible,
+    .math-button-secondary:hover,
+    .math-button-secondary:focus-visible,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):hover,
+    .math-action-button:not(.math-action-button-danger):not(.math-button-danger):focus-visible,
+    .math-role-action-button:hover,
+    .math-role-action-button:focus-visible,
+    .math-role-row-primary-action:hover,
+    .math-role-row-primary-action:focus-visible,
+    .math-role-row-action:hover,
+    .math-role-row-action:focus-visible,
+    .math-role-icon-button:hover,
+    .math-role-icon-button:focus-visible
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]) :is(svg, .lucide) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    fill: none !important;
+    stroke: #ffffff !important;
+    opacity: 1 !important;
+  }
+}
+
