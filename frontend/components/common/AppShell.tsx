@@ -828,7 +828,7 @@ export function AppShell({
                           title={group.tooltip}
                           aria-label={group.tooltip}
                         >
-                          <Icon size={16} />
+                          <Icon size={16} className="math-teacher-main-nav-icon" />
                           <span className="whitespace-nowrap">
                             {group.shortLabel || group.label}
                           </span>
@@ -852,18 +852,18 @@ export function AppShell({
                           }
                           className={`premium-nav-item shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
-                          }`}
+                          } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
                           aria-label={group.tooltip}
                           aria-expanded={dropdownOpen}
                         >
-                          <Icon size={16} />
+                          <Icon size={16} className="math-teacher-main-nav-icon" />
                           <span className="whitespace-nowrap">
                             {group.shortLabel || group.label}
                           </span>
                           <ChevronDown
                             size={14}
-                            className={`transition ${dropdownOpen ? "rotate-180" : ""}`}
+                            className={`math-teacher-main-nav-icon transition ${dropdownOpen ? "rotate-180" : ""}`}
                           />
                         </button>
 
