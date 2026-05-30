@@ -302,7 +302,7 @@ function SemanticChip({ Value, Tone = "blue" }: { Value: string; Tone?: "blue" |
     amber: "border-amber-200 bg-amber-50 text-amber-700 shadow-sm",
     slate: "border-slate-200 bg-slate-50 text-slate-700 shadow-sm",
   };
-  return <span className={`math-badge whitespace-nowrap ${ToneClasses[Tone]}`}>{Value}</span>;
+  return <span className={`math-badge math-assignment-semantic-chip math-assignment-semantic-${Tone} whitespace-nowrap px-2.5 py-1 leading-none ${ToneClasses[Tone]}`}>{Value}</span>;
 }
 
 function PerformanceChip({ Value, Tone = "blue" }: { Value: string; Tone?: "blue" | "green" | "red" | "slate" }) {
