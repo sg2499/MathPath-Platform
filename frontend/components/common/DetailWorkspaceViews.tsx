@@ -801,24 +801,17 @@ function StrongSemanticChip({
   tone?: "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple";
 }) {
   const tones = {
-    slate:
-      "border-slate-300 bg-slate-100 text-slate-700 shadow-sm dark:border-slate-300/80 dark:bg-slate-500/35 dark:text-white dark:shadow-slate-950/30",
-    green:
-      "border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm dark:border-emerald-300/90 dark:bg-emerald-500/40 dark:text-white dark:shadow-emerald-950/30",
-    red:
-      "border-rose-300 bg-rose-100 text-rose-800 shadow-sm dark:border-rose-300/90 dark:bg-rose-500/45 dark:text-white dark:shadow-rose-950/30",
-    amber:
-      "border-amber-300 bg-amber-100 text-amber-800 shadow-sm dark:border-amber-300/90 dark:bg-amber-500/45 dark:text-white dark:shadow-amber-950/30",
-    blue:
-      "border-blue-300 bg-blue-100 text-blue-800 shadow-sm dark:border-blue-300/90 dark:bg-blue-500/40 dark:text-white dark:shadow-blue-950/30",
-    cyan:
-      "border-cyan-300 bg-cyan-100 text-cyan-800 shadow-sm dark:border-cyan-300/90 dark:bg-cyan-500/40 dark:text-white dark:shadow-cyan-950/30",
-    purple:
-      "border-violet-300 bg-violet-100 text-violet-800 shadow-sm dark:border-violet-300/90 dark:bg-violet-500/40 dark:text-white dark:shadow-violet-950/30",
+    slate: "border-slate-200 bg-slate-50 text-slate-700 shadow-sm",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm",
+    red: "border-rose-200 bg-rose-50 text-rose-700 shadow-sm",
+    amber: "border-amber-200 bg-amber-50 text-amber-700 shadow-sm",
+    blue: "border-blue-200 bg-blue-50 text-blue-700 shadow-sm",
+    cyan: "border-cyan-200 bg-cyan-50 text-cyan-700 shadow-sm",
+    purple: "border-violet-200 bg-violet-50 text-violet-700 shadow-sm",
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black leading-none ${tones[tone]}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black leading-none ${tones[tone]}`}
     >
       {children}
     </span>
@@ -2570,6 +2563,24 @@ function issueLabel(row: AnyRow): {
   return { label: "Cleared", tone: "green" };
 }
 
+function benchmarkLabel(row: AnyRow): {
+  label: string;
+  tone: "slate" | "green" | "red" | "amber" | "blue" | "cyan";
+} {
+  const BenchmarkText = String(row.benchmarkStatus ?? row.benchmark ?? row.benchmarkLabel ?? "").trim();
+  const NormalizedBenchmark = BenchmarkText.toUpperCase().replace(/[^A-Z]/g, "");
+  if (!isCompleted(row)) return { label: "Pending", tone: "amber" };
+  if (
+    isBelowBenchmark(row) ||
+    NormalizedBenchmark.includes("NOTMET") ||
+    NormalizedBenchmark.includes("BELOW") ||
+    NormalizedBenchmark.includes("NEEDSREATTEMPT")
+  ) {
+    return { label: "Benchmark Not Met", tone: "red" };
+  }
+  return { label: "Benchmark Met", tone: "green" };
+}
+
 function rowTime(row: AnyRow) {
   const value = getFirstMathPathTimestamp(row, MATHPATH_ACTIVITY_TIMESTAMP_KEYS);
   return value ? mathPathTimestampValue(value) : 0;
@@ -2758,11 +2769,11 @@ export function CompactRecordTable({
   const SemanticChipComponent = useStrongSemanticChips ? StrongSemanticChip : Chip;
   const GridColumns = hideLessonColumn
     ? showAttemptColumn
-      ? "grid-cols-[minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
-      : "grid-cols-[minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
+      ? "grid-cols-[minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
+      : "grid-cols-[minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
     : showAttemptColumn
-      ? "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
-      : "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]";
+      ? "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
+      : "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]";
 
   return (
     <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
@@ -2775,6 +2786,7 @@ export function CompactRecordTable({
         <div>Status</div>
         <div>Score</div>
         <div>Accuracy</div>
+        <div>Benchmark</div>
         <div>Completion Date</div>
         <div>Review</div>
       </div>
@@ -2825,6 +2837,12 @@ export function CompactRecordTable({
                 ) : (
                   <SemanticChipComponent tone="slate">—</SemanticChipComponent>
                 )}
+              </div>
+              <div>
+                {(() => {
+                  const Benchmark = benchmarkLabel(row);
+                  return <SemanticChipComponent tone={Benchmark.tone}>{Benchmark.label}</SemanticChipComponent>;
+                })()}
               </div>
               <div className="text-sm font-semibold text-slate-600">
                 {completedText(row)}
