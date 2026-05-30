@@ -10447,3 +10447,91 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Teacher light-mode main navbar icon visibility fix
+   Scope: Teacher login main navbar only, light mode only.
+   Ensures nav icons/chevrons/text remain pure white and fully visible on Teacher
+   selected and hover states. Admin, Student, dark mode, delete buttons, cards,
+   tables, chips, and business logic are untouched. */
+@layer components {
+  html:not(.dark) .math-role-teacher :is(
+    nav .premium-nav-item-active,
+    nav .premium-nav-item:hover,
+    nav .premium-nav-item:focus-visible,
+    header .premium-nav-item-active,
+    header .premium-nav-item:hover,
+    header .premium-nav-item:focus-visible,
+    .math-main-nav .premium-nav-item-active,
+    .math-main-nav .premium-nav-item:hover,
+    .math-main-nav .premium-nav-item:focus-visible,
+    .math-role-main-nav .premium-nav-item-active,
+    .math-role-main-nav .premium-nav-item:hover,
+    .math-role-main-nav .premium-nav-item:focus-visible
+  ) {
+    background: var(--mp-teacher-light-hover-bg, linear-gradient(135deg, #3a1538 0%, #7a356a 56%, #c57a85 100%)) !important;
+    border-color: var(--mp-teacher-light-selected-border, rgba(109, 46, 95, 0.46)) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html:not(.dark) .math-role-teacher :is(
+    nav .premium-nav-item-active,
+    nav .premium-nav-item:hover,
+    nav .premium-nav-item:focus-visible,
+    header .premium-nav-item-active,
+    header .premium-nav-item:hover,
+    header .premium-nav-item:focus-visible,
+    .math-main-nav .premium-nav-item-active,
+    .math-main-nav .premium-nav-item:hover,
+    .math-main-nav .premium-nav-item:focus-visible,
+    .math-role-main-nav .premium-nav-item-active,
+    .math-role-main-nav .premium-nav-item:hover,
+    .math-role-main-nav .premium-nav-item:focus-visible
+  ) :is(svg, .lucide, [data-lucide], .nav-icon, .premium-nav-icon) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+  }
+
+  html:not(.dark) .math-role-teacher :is(
+    nav .premium-nav-item-active,
+    nav .premium-nav-item:hover,
+    nav .premium-nav-item:focus-visible,
+    header .premium-nav-item-active,
+    header .premium-nav-item:hover,
+    header .premium-nav-item:focus-visible,
+    .math-main-nav .premium-nav-item-active,
+    .math-main-nav .premium-nav-item:hover,
+    .math-main-nav .premium-nav-item:focus-visible,
+    .math-role-main-nav .premium-nav-item-active,
+    .math-role-main-nav .premium-nav-item:hover,
+    .math-role-main-nav .premium-nav-item:focus-visible
+  ) :is(span, p, div, strong, small, .premium-nav-label, .math-button-label) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    filter: none !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-teacher :is(
+    nav .premium-nav-item-active,
+    nav .premium-nav-item:hover,
+    nav .premium-nav-item:focus-visible,
+    header .premium-nav-item-active,
+    header .premium-nav-item:hover,
+    header .premium-nav-item:focus-visible,
+    .math-main-nav .premium-nav-item-active,
+    .math-main-nav .premium-nav-item:hover,
+    .math-main-nav .premium-nav-item:focus-visible,
+    .math-role-main-nav .premium-nav-item-active,
+    .math-role-main-nav .premium-nav-item:hover,
+    .math-role-main-nav .premium-nav-item:focus-visible
+  ) * {
+    opacity: 1 !important;
+  }
+}
+
