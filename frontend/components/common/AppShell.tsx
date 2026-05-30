@@ -815,6 +815,8 @@ export function AppShell({
                     const active = isGroupActive(group);
                     const hasChildren = Boolean(group.children?.length);
                     const dropdownOpen = openGroup === group.label;
+                    const TeacherNavHighlighted =
+                      IsTeacher && theme === "light" && (active || dropdownOpen);
 
                     if (!hasChildren) {
                       return (
@@ -831,8 +833,30 @@ export function AppShell({
                           data-teacher-nav-active={IsTeacher && theme === "light" && active ? "true" : undefined}
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
                         >
-                          <Icon size={16} className={`${IsTeacher && theme === "light" && (active || dropdownOpen) ? "!text-white !stroke-white opacity-100" : ""} math-teacher-main-nav-icon shrink-0 transition-colors group-hover:!text-white group-hover:!stroke-white group-hover:opacity-100`} />
-                          <span className="whitespace-nowrap">
+                          <Icon
+                            size={17}
+                            strokeWidth={TeacherNavHighlighted ? 2.9 : 2.15}
+                            style={
+                              TeacherNavHighlighted
+                                ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
+                                : undefined
+                            }
+                            className={`math-teacher-main-nav-icon shrink-0 transition-colors ${
+                              TeacherNavHighlighted
+                                ? "!text-white !stroke-white opacity-100"
+                                : ""
+                            }`}
+                          />
+                          <span
+                            style={
+                              TeacherNavHighlighted
+                                ? { color: "#ffffff", opacity: 1 }
+                                : undefined
+                            }
+                            className={`whitespace-nowrap ${
+                              TeacherNavHighlighted ? "!text-white opacity-100" : ""
+                            }`}
+                          >
                             {group.shortLabel || group.label}
                           </span>
                         </button>
@@ -863,13 +887,43 @@ export function AppShell({
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
                           aria-expanded={dropdownOpen}
                         >
-                          <Icon size={16} className={`${IsTeacher && theme === "light" && (active || dropdownOpen) ? "!text-white !stroke-white opacity-100" : ""} math-teacher-main-nav-icon shrink-0 transition-colors group-hover:!text-white group-hover:!stroke-white group-hover:opacity-100`} />
-                          <span className="whitespace-nowrap">
+                          <Icon
+                            size={17}
+                            strokeWidth={TeacherNavHighlighted ? 2.9 : 2.15}
+                            style={
+                              TeacherNavHighlighted
+                                ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
+                                : undefined
+                            }
+                            className={`math-teacher-main-nav-icon shrink-0 transition-colors ${
+                              TeacherNavHighlighted
+                                ? "!text-white !stroke-white opacity-100"
+                                : ""
+                            }`}
+                          />
+                          <span
+                            style={
+                              TeacherNavHighlighted
+                                ? { color: "#ffffff", opacity: 1 }
+                                : undefined
+                            }
+                            className={`whitespace-nowrap ${
+                              TeacherNavHighlighted ? "!text-white opacity-100" : ""
+                            }`}
+                          >
                             {group.shortLabel || group.label}
                           </span>
                           <ChevronDown
-                            size={14}
-                            className={`math-teacher-main-nav-chevron shrink-0 transition-colors group-hover:!text-white group-hover:!opacity-100 ${dropdownOpen ? "rotate-180 !text-white !opacity-100" : ""}`}
+                            size={15}
+                            strokeWidth={TeacherNavHighlighted ? 2.9 : 2.15}
+                            style={
+                              TeacherNavHighlighted
+                                ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
+                                : undefined
+                            }
+                            className={`math-teacher-main-nav-chevron shrink-0 transition-colors ${
+                              dropdownOpen ? "rotate-180" : ""
+                            } ${TeacherNavHighlighted ? "!text-white !stroke-white opacity-100" : ""}`}
                           />
                         </button>
 

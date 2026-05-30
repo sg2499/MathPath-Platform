@@ -10775,3 +10775,24 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Teacher main nav icon visibility source-level reinforcement
+   Scope: Teacher main navbar only, light mode only.
+   React now applies direct white color/stroke/style when a Teacher nav item is active/open.
+   This CSS only reinforces that source-level state. */
+@layer components {
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item .math-teacher-main-nav-icon,
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item .math-teacher-main-nav-chevron {
+    opacity: 1;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(.premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"]) .math-teacher-main-nav-icon,
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(.premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"]) .math-teacher-main-nav-chevron,
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(.premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"]) .math-teacher-main-nav-icon *,
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(.premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"]) .math-teacher-main-nav-chevron * {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    opacity: 1 !important;
+  }
+}
+
