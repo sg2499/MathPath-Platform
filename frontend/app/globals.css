@@ -9803,3 +9803,92 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Admin light-mode table header typography consistency
+   Standardizes the typography of every Admin light-mode role-palette table header
+   to match the approved Students/Teachers header reference:
+   stronger blue text, heavier font weight, uppercase, full opacity, and readable tracking.
+   Scope: Admin light mode only. No dark mode, Teacher, Student, row, chip, button, or logic changes. */
+@layer components {
+  html:not(.dark) .math-role-admin :is(
+    .math-admin-users-light-table-header,
+    .math-admin-light-student-summary-header,
+    .math-admin-light-compact-record-header,
+    .math-admin-readiness-sheet-table-header,
+    .math-admin-assessment-control-table-header,
+    .math-admin-parent-report-grid-header,
+    .math-admin-assessment-light-table-header,
+    .math-admin-reports-light-table-header,
+    .math-admin-report-table-header,
+    .math-admin-history-table-header,
+    .math-report-table-header
+  ),
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead,
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead tr,
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead th {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-admin-users-light-table-header,
+    .math-admin-light-student-summary-header,
+    .math-admin-light-compact-record-header,
+    .math-admin-readiness-sheet-table-header,
+    .math-admin-assessment-control-table-header,
+    .math-admin-parent-report-grid-header,
+    .math-admin-assessment-light-table-header,
+    .math-admin-reports-light-table-header,
+    .math-admin-report-table-header,
+    .math-admin-history-table-header,
+    .math-report-table-header
+  ) :is(div, span, p, button, th),
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead :is(th, div, span, p, button),
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-sortable-header,
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-sortable-header:hover,
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-sortable-header:focus-visible,
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-sortable-header-label,
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-table-header-label,
+  html:not(.dark) .math-role-admin .math-student-history-table .math-table-header-label,
+  html:not(.dark) .math-role-admin .math-dps-history-table .math-table-header-label,
+  html:not(.dark) .math-role-admin .math-assessment-history-table .math-table-header-label,
+  html:not(.dark) .math-role-admin .math-promotion-history-table .math-table-header-label {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+}
+
