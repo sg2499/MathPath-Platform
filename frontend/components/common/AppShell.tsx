@@ -143,6 +143,7 @@ export function AppShell({
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [HoveredNavGroup, SetHoveredNavGroup] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [AccountMenuOpen, SetAccountMenuOpen] = useState(false);
@@ -820,8 +821,9 @@ export function AppShell({
                     const active = isGroupActive(group);
                     const hasChildren = Boolean(group.children?.length);
                     const dropdownOpen = openGroup === group.label;
+                    const TeacherNavHovered = HoveredNavGroup === group.label;
                     const TeacherNavHighlighted =
-                      IsTeacher && theme === "light" && (active || dropdownOpen);
+                      IsTeacher && theme === "light" && (active || dropdownOpen || TeacherNavHovered);
 
                     if (!hasChildren) {
                       return (
@@ -829,6 +831,10 @@ export function AppShell({
                           key={group.label}
                           type="button"
                           onClick={() => navigateTo(group.href)}
+                          onMouseEnter={() => SetHoveredNavGroup(group.label)}
+                          onMouseLeave={() => SetHoveredNavGroup((current) => current === group.label ? null : current)}
+                          onFocus={() => SetHoveredNavGroup(group.label)}
+                          onBlur={() => SetHoveredNavGroup((current) => current === group.label ? null : current)}
                           className={`premium-nav-item group shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
@@ -872,8 +878,14 @@ export function AppShell({
                       <div
                         key={group.label}
                         className="relative"
-                        onMouseEnter={() => setOpenGroup(group.label)}
-                        onMouseLeave={() => setOpenGroup(null)}
+                        onMouseEnter={() => {
+                          setOpenGroup(group.label);
+                          SetHoveredNavGroup(group.label);
+                        }}
+                        onMouseLeave={() => {
+                          setOpenGroup(null);
+                          SetHoveredNavGroup((current) => current === group.label ? null : current);
+                        }}
                       >
                         <button
                           type="button"
@@ -890,6 +902,8 @@ export function AppShell({
                           data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
                           data-teacher-nav-active={IsTeacher && theme === "light" && active ? "true" : undefined}
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
+                          onFocus={() => SetHoveredNavGroup(group.label)}
+                          onBlur={() => SetHoveredNavGroup((current) => current === group.label ? null : current)}
                           aria-expanded={dropdownOpen}
                         >
                           <Icon
