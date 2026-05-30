@@ -192,6 +192,13 @@ function AverageAccuracyDisplay(Rows: AnyRow[]) {
   return ReviewedRows.length ? `${averageAccuracy(ReviewedRows)}%` : "—";
 }
 
+function AverageStudentAccuracyDisplay(Students: StudentNode[]) {
+  if (!Students.length) return "—";
+  const Values = Students.map((Student) => StudentOperationalStats(Student.rows).Average);
+  if (!Values.length) return "—";
+  return `${Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length)}%`;
+}
+
 function HasAccuracyValue(Row: AnyRow) {
   const RawAccuracy = Row.accuracy ?? Row.accuracyPercentage ?? Row.averageAccuracy;
   return RawAccuracy !== null && RawAccuracy !== undefined && RawAccuracy !== "" && !Number.isNaN(Number(RawAccuracy));
@@ -562,7 +569,7 @@ function TeacherPracticeTrackerContent() {
             />
             <Metric
               label="Average Accuracy"
-              value={AverageAccuracyDisplay(CurrentFilteredRows)}
+              value={AverageStudentAccuracyDisplay(Students)}
               icon={<BarChart3 size={15} />}
             />
           </div>

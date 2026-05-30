@@ -698,6 +698,17 @@ function averageAssessmentAccuracy(Rows: AnyRow[]) {
   return Values.reduce((Total, Value) => Total + Value, 0) / Values.length;
 }
 
+function studentAssessmentAverageAccuracy(Rows: AnyRow[]) {
+  const CurrentRows = currentAssessmentRows(Rows);
+  return averageAssessmentAccuracy(CurrentRows) ?? 0;
+}
+
+function visibleStudentsAssessmentAverageAccuracy(Students: StudentNode[]) {
+  if (!Students.length) return null;
+  const Values = Students.map((Student) => studentAssessmentAverageAccuracy(Student.rows));
+  return Values.reduce((Total, Value) => Total + Value, 0) / Values.length;
+}
+
 function assessmentManageStatusKey(Row: AnyRow) {
   const Label = assessmentStatusLabel(Row)
     .toUpperCase()
@@ -1253,8 +1264,8 @@ function AdminAssessmentControlPageContent() {
     [FilteredRows],
   );
   const AssessmentAverageAccuracy = useMemo(
-    () => averageAssessmentAccuracy(CurrentMetricRows),
-    [CurrentMetricRows],
+    () => visibleStudentsAssessmentAverageAccuracy(Students),
+    [Students],
   );
   const PromotionReadyCount = useMemo(() => {
     return buildStudents(CurrentMetricRows).filter((Student) => {

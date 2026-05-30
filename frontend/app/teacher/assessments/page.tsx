@@ -321,6 +321,17 @@ function AverageAssessmentAccuracy(Rows: TeacherAssessmentRow[]) {
   return Values.reduce((Total, Value) => Total + Value, 0) / Values.length;
 }
 
+function StudentAssessmentAverageAccuracy(Rows: TeacherAssessmentRow[]) {
+  const CurrentRows = CurrentAssessmentRows(Rows);
+  return AverageAssessmentAccuracy(CurrentRows) ?? 0;
+}
+
+function VisibleStudentsAssessmentAverageAccuracy(Students: StudentAssessmentGroup[]) {
+  if (!Students.length) return null;
+  const Values = Students.map((Student) => StudentAssessmentAverageAccuracy(Student.Rows));
+  return Values.reduce((Total, Value) => Total + Value, 0) / Values.length;
+}
+
 function AccuracyDisplay(Value: number | null) {
   if (Value === null || !Number.isFinite(Value)) return "—";
   return `${CleanNumber(Value)}%`;
@@ -1027,8 +1038,6 @@ function TeacherAssessmentAssignmentsContent() {
     });
   }, [Rows, SearchText, ModuleFilter, LevelFilter, StatusFilterValue]);
 
-  const AllStudents = useMemo(() => BuildStudents(Rows), [Rows]);
-
   const NotificationTargetRow = useMemo(
     () => Rows.find((Row) => RowMatchesDeepLink(Row, DeepLinkTarget)),
     [Rows, DeepLinkTarget],
@@ -1039,6 +1048,8 @@ function TeacherAssessmentAssignmentsContent() {
     if (DeepLinkTarget.HasTarget && NotificationTargetRow) return [NotificationTargetRow];
     return FilteredRows;
   }, [FilteredRows, DeepLinkTarget.HasTarget, NotificationTargetRow]);
+
+  const VisibleStudents = useMemo(() => BuildStudents(VisibleRows), [VisibleRows]);
 
   const CurrentMetricRows = useMemo(
     () => CurrentAssessmentRows(VisibleRows),
@@ -1054,7 +1065,7 @@ function TeacherAssessmentAssignmentsContent() {
   const ReattemptCount = CurrentMetricRows.filter(
     (Row) => NormalizedStatus(Row) === "NEEDS_REATTEMPT",
   ).length;
-  const AverageAccuracyValue = AverageAssessmentAccuracy(CurrentMetricRows);
+  const AverageAccuracyValue = VisibleStudentsAssessmentAverageAccuracy(VisibleStudents);
   const PromotionReadyCount = BuildStudents(CurrentMetricRows).filter(
     (Student) => {
       const LatestRow = LatestAssessmentRow(Student.Rows) || Student.Rows[0];
@@ -1082,7 +1093,7 @@ function TeacherAssessmentAssignmentsContent() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <Metric
               Label="Students"
-              Value={AllStudents.length}
+              Value={VisibleStudents.length}
               Icon={<UsersRound size={17} />}
             />
             <Metric
