@@ -10049,3 +10049,117 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Admin Assessment Control table-header boldness and delivery status chips
+   Scope:
+   - Header typography: Admin Assessment Control light mode only.
+   - Delivery status chips: Parent Reports delivery history in both light and dark modes.
+   This does not touch Teacher, Student, row data, metrics, routing, or business logic. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-admin-assessment-control-table-header,
+  html:not(.dark) .math-role-admin .math-admin-parent-report-grid-header {
+    background: linear-gradient(135deg, rgba(219, 234, 254, 0.96), rgba(239, 246, 255, 0.94)) !important;
+    border-color: rgba(96, 165, 250, 0.42) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 1px 0 rgba(37, 99, 235, 0.08) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-assessment-control-table-header,
+  html:not(.dark) .math-role-admin .math-admin-assessment-control-table-header :is(div, span, p, button, th),
+  html:not(.dark) .math-role-admin .math-admin-parent-report-grid-header,
+  html:not(.dark) .math-role-admin .math-admin-parent-report-grid-header :is(div, span, p, button, th) {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    font-size: 11px !important;
+    line-height: 1.15rem !important;
+    font-weight: 950 !important;
+    font-variation-settings: "wght" 950 !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-assessment-control-table-header,
+  html:not(.dark) .math-role-admin .math-admin-parent-report-grid-header {
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+  }
+
+  .math-role-admin .math-parent-report-delivery-status-chip {
+    display: inline-flex !important;
+    width: fit-content !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    border-radius: 999px !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+    padding: 0.34rem 0.78rem !important;
+    font-size: 0.72rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-parent-report-delivery-status-chip-green {
+    border-color: rgba(16, 185, 129, 0.42) !important;
+    background: #d1fae5 !important;
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-parent-report-delivery-status-chip-red {
+    border-color: rgba(244, 63, 94, 0.42) !important;
+    background: #ffe4e6 !important;
+    color: #be123c !important;
+    -webkit-text-fill-color: #be123c !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-parent-report-delivery-status-chip-amber {
+    border-color: rgba(245, 158, 11, 0.46) !important;
+    background: #fef3c7 !important;
+    color: #92400e !important;
+    -webkit-text-fill-color: #92400e !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-parent-report-delivery-status-chip-slate {
+    border-color: rgba(100, 116, 139, 0.36) !important;
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    -webkit-text-fill-color: #334155 !important;
+  }
+
+  html.dark .math-role-admin .math-parent-report-delivery-status-chip-green {
+    border-color: rgba(52, 211, 153, 0.46) !important;
+    background: rgba(16, 185, 129, 0.18) !important;
+    color: #a7f3d0 !important;
+    -webkit-text-fill-color: #a7f3d0 !important;
+  }
+
+  html.dark .math-role-admin .math-parent-report-delivery-status-chip-red {
+    border-color: rgba(251, 113, 133, 0.52) !important;
+    background: rgba(244, 63, 94, 0.22) !important;
+    color: #ffe4e6 !important;
+    -webkit-text-fill-color: #ffe4e6 !important;
+  }
+
+  html.dark .math-role-admin .math-parent-report-delivery-status-chip-amber {
+    border-color: rgba(251, 191, 36, 0.52) !important;
+    background: rgba(245, 158, 11, 0.22) !important;
+    color: #fde68a !important;
+    -webkit-text-fill-color: #fde68a !important;
+  }
+
+  html.dark .math-role-admin .math-parent-report-delivery-status-chip-slate {
+    border-color: rgba(148, 163, 184, 0.48) !important;
+    background: rgba(51, 65, 85, 0.72) !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+  }
+}
+

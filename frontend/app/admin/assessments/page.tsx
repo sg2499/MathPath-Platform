@@ -3738,8 +3738,19 @@ function ParentReportModeButton({
 function ParentReportDeliveryStatusChip({ Status }: { Status: string }) {
   const Tone = ParentReportDeliveryStatusTone(Status);
   const Label = String(Status || "-").replace(/_/g, " ");
+  const ToneClass =
+    Tone === "green"
+      ? "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-200"
+      : Tone === "red"
+        ? "border-rose-300 bg-rose-100 text-rose-700 dark:border-rose-400/45 dark:bg-rose-500/18 dark:text-rose-100"
+        : Tone === "amber"
+          ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-400/45 dark:bg-amber-500/18 dark:text-amber-100"
+          : "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-500/45 dark:bg-slate-700/55 dark:text-slate-100";
+
   return (
-    <span className={`math-parent-report-delivery-status-chip math-parent-report-delivery-status-chip-${Tone}`}>
+    <span
+      className={`math-parent-report-delivery-status-chip math-parent-report-delivery-status-chip-${Tone} inline-flex w-fit items-center justify-center rounded-full border px-3 py-1 text-[11px] font-black uppercase leading-none tracking-[0.04em] ${ToneClass}`}
+    >
       {Label}
     </span>
   );
