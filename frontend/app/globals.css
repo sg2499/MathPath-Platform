@@ -10938,3 +10938,48 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     box-shadow: none !important;
   }
 }
+
+/* 30 May 2026 — Admin assignment detail light-mode table header palette
+   Scope: Admin login only, light mode only. Aligns Assignment Detail
+   Assigned Students and Attempt History table headers with the approved Admin
+   blue header convention. Keeps Admin dark mode, Teacher, Student, table rows,
+   chips, metrics, and assignment/review logic untouched. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-assignment-detail-table table thead,
+  html:not(.dark) .math-role-admin .math-assignment-detail-table thead tr {
+    background:
+      linear-gradient(180deg, rgba(219, 234, 254, 0.98), rgba(191, 219, 254, 0.84)) !important;
+    border-color: rgba(37, 99, 235, 0.28) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.86),
+      inset 0 -1px 0 rgba(37, 99, 235, 0.28) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-assignment-detail-table thead th {
+    background: transparent !important;
+    border-bottom-color: rgba(37, 99, 235, 0.30) !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-assignment-detail-table thead th:not(:last-child) {
+    border-right: 1px solid rgba(37, 99, 235, 0.14) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-assignment-detail-table .math-assignment-detail-header-label,
+  html:not(.dark) .math-role-admin .math-assignment-detail-table thead th :is(span, button, div, p, svg, .lucide) {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    opacity: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.13em !important;
+    text-transform: uppercase !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-assignment-detail-table thead th:hover,
+  html:not(.dark) .math-role-admin .math-assignment-detail-table thead th:hover :is(span, button, div, p, svg, .lucide) {
+    color: #1e40af !important;
+    -webkit-text-fill-color: #1e40af !important;
+  }
+}
