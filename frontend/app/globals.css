@@ -9983,3 +9983,69 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — FINAL Admin Reports light-mode header boldness/readability fix
+   Scope: Admin Reports only, light mode only.
+   Purpose: make Performance Reports table header labels match the approved
+   Admin Students/Teachers header typography: visibly bold, admin-blue,
+   uppercase, readable size, and full opacity.
+   No dark mode, Teacher, Student, rows, chips, buttons, calculations, or exports are affected. */
+@layer components {
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead :is(th, th *, button, button *, span, div, p),
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) :is(
+    .math-sortable-header,
+    .math-sortable-header *,
+    .math-sortable-header-label,
+    .math-table-header-label,
+    .math-table-header-label *
+  ) {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    font-size: 11px !important;
+    line-height: 1.15rem !important;
+    font-weight: 950 !important;
+    font-variation-settings: "wght" 950 !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+    filter: none !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead th {
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+    vertical-align: middle !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead svg {
+    stroke-width: 2.5 !important;
+    color: #1d4ed8 !important;
+    opacity: 1 !important;
+  }
+}
+
