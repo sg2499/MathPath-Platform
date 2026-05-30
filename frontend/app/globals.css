@@ -10163,3 +10163,43 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Admin Student Assignment Profile light-mode header boldness
+   Scope: Admin Practice Control student detail / Lesson Insights only, light mode only.
+   Matches the approved Admin Students/Teachers table-header typography without touching
+   dark mode, Teacher, Student, rows, chips, buttons, metrics, or business logic. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-admin-light-compact-record-header {
+    background: linear-gradient(135deg, rgba(219, 234, 254, 0.96), rgba(239, 246, 255, 0.94)) !important;
+    border-color: rgba(96, 165, 250, 0.42) !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 1px 0 rgba(37, 99, 235, 0.08) !important;
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-light-compact-record-header :is(div, span, p, button),
+  html:not(.dark) .math-role-admin .math-admin-light-compact-record-header > * {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    font-size: 11px !important;
+    line-height: 1.15rem !important;
+    font-weight: 950 !important;
+    font-variation-settings: "wght" 950 !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+    filter: none !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-light-compact-record-header svg {
+    stroke-width: 2.5 !important;
+    color: #1d4ed8 !important;
+    opacity: 1 !important;
+  }
+}
+
