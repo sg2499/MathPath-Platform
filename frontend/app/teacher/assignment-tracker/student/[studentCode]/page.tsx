@@ -954,7 +954,7 @@ function OverviewTab({
     <div className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <p className="math-kicker">Practice Control</p>
-        <h2 className="text-2xl font-black text-slate-950 dark:text-white">
+        <h2 className="math-teacher-block-title text-2xl font-black text-slate-950 dark:text-white">
           What Needs Attention Now?
         </h2>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -1012,7 +1012,7 @@ function LevelCoverageCard({ Rows }: { Rows: AnyRow[] }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="math-kicker">Level Coverage</p>
-          <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">
+          <h3 className="math-teacher-block-title mt-1 text-lg font-black text-slate-950 dark:text-white">
             Cleared DPS Out Of Available Sheets
           </h3>
         </div>
@@ -1113,7 +1113,7 @@ function PracticeList({
 }) {
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <h2 className="text-xl font-black text-slate-950 dark:text-white">
+      <h2 className="math-teacher-block-title text-xl font-black text-slate-950 dark:text-white">
         {Title}
       </h2>
       <p className="mt-1 text-sm font-semibold text-slate-500">{Description}</p>

@@ -10903,3 +10903,27 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     box-shadow: none !important;
   }
 }
+
+
+/* 30 May 2026 — Teacher block title role-palette color fix
+   Scope: Teacher login only, both light and dark mode.
+   Keeps block/card section titles such as Priority Queue, Recent Practice,
+   Excellence Highlights, Practice Control, and Level Coverage aligned to the
+   Teacher plum palette without restoring filled header patches. */
+@layer components {
+  .math-role-teacher .math-teacher-block-title {
+    color: #7a1f52 !important;
+    -webkit-text-fill-color: #7a1f52 !important;
+    background: transparent !important;
+    background-image: none !important;
+    text-shadow: none !important;
+  }
+
+  .dark .math-role-teacher .math-teacher-block-title {
+    color: #f3a7c9 !important;
+    -webkit-text-fill-color: #f3a7c9 !important;
+    background: transparent !important;
+    background-image: none !important;
+    text-shadow: none !important;
+  }
+}

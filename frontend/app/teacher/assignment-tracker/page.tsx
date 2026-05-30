@@ -892,7 +892,7 @@ function CompactPracticeList({
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black text-slate-950 dark:text-white">
+          <h2 className="math-teacher-block-title text-xl font-black text-slate-950 dark:text-white">
             {Title}
           </h2>
           <p className="mt-1 text-sm font-semibold text-slate-500">
@@ -995,7 +995,7 @@ function ExcellenceHighlightsList({
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black text-slate-950 dark:text-white">
+          <h2 className="math-teacher-block-title text-xl font-black text-slate-950 dark:text-white">
             Excellence Highlights
           </h2>
           <p className="mt-1 text-sm font-semibold text-slate-500">
