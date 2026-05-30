@@ -143,8 +143,6 @@ export function AppShell({
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
-  const [HoveredNavGroup, SetHoveredNavGroup] = useState<string | null>(null);
-  const [HoveredDropdownChild, SetHoveredDropdownChild] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [AccountMenuOpen, SetAccountMenuOpen] = useState(false);
@@ -221,8 +219,6 @@ export function AppShell({
   useEffect(() => {
     setMobileOpen(false);
     setOpenGroup(null);
-    SetHoveredNavGroup(null);
-    SetHoveredDropdownChild(null);
     SetAccountMenuOpen(false);
   }, [pathname]);
 
@@ -825,9 +821,10 @@ export function AppShell({
                     const hasChildren = Boolean(group.children?.length);
                     const dropdownOpen = openGroup === group.label;
                     const TeacherNavHighlighted =
-                      IsTeacher &&
-                      theme === "light" &&
-                      (active || dropdownOpen || HoveredNavGroup === group.label);
+                      IsTeacher && theme === "light" && (active || dropdownOpen);
+                    const StudentNavHighlighted =
+                      IsStudent && theme === "light" && (active || dropdownOpen);
+                    const RoleNavHighlighted = TeacherNavHighlighted || StudentNavHighlighted;
 
                     if (!hasChildren) {
                       return (
@@ -835,41 +832,40 @@ export function AppShell({
                           key={group.label}
                           type="button"
                           onClick={() => navigateTo(group.href)}
-                          onMouseEnter={() => SetHoveredNavGroup(group.label)}
-                          onMouseLeave={() => SetHoveredNavGroup(null)}
-                          onFocus={() => SetHoveredNavGroup(group.label)}
-                          onBlur={() => SetHoveredNavGroup(null)}
                           className={`premium-nav-item group shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
                           aria-label={group.tooltip}
                           data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
+                          data-student-nav-hover-scope={IsStudent && theme === "light" ? "true" : undefined}
                           data-teacher-nav-active={IsTeacher && theme === "light" && active ? "true" : undefined}
+                          data-student-nav-active={IsStudent && theme === "light" && active ? "true" : undefined}
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
+                          data-student-nav-open={IsStudent && theme === "light" && dropdownOpen ? "true" : undefined}
                         >
                           <Icon
                             size={17}
-                            strokeWidth={TeacherNavHighlighted ? 2.9 : 2.15}
+                            strokeWidth={RoleNavHighlighted ? 2.9 : 2.15}
                             style={
-                              TeacherNavHighlighted
+                              RoleNavHighlighted
                                 ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
                                 : undefined
                             }
-                            className={`math-teacher-main-nav-icon shrink-0 transition-colors ${
-                              TeacherNavHighlighted
+                            className={`math-teacher-main-nav-icon math-student-main-nav-icon shrink-0 transition-colors ${
+                              RoleNavHighlighted
                                 ? "!text-white !stroke-white opacity-100"
                                 : ""
                             }`}
                           />
                           <span
                             style={
-                              TeacherNavHighlighted
+                              RoleNavHighlighted
                                 ? { color: "#ffffff", opacity: 1 }
                                 : undefined
                             }
                             className={`whitespace-nowrap ${
-                              TeacherNavHighlighted ? "!text-white opacity-100" : ""
+                              RoleNavHighlighted ? "!text-white opacity-100" : ""
                             }`}
                           >
                             {group.shortLabel || group.label}
@@ -882,15 +878,8 @@ export function AppShell({
                       <div
                         key={group.label}
                         className="relative"
-                        onMouseEnter={() => {
-                          setOpenGroup(group.label);
-                          SetHoveredNavGroup(group.label);
-                        }}
-                        onMouseLeave={() => {
-                          setOpenGroup(null);
-                          SetHoveredNavGroup(null);
-                          SetHoveredDropdownChild(null);
-                        }}
+                        onMouseEnter={() => setOpenGroup(group.label)}
+                        onMouseLeave={() => setOpenGroup(null)}
                       >
                         <button
                           type="button"
@@ -899,55 +888,56 @@ export function AppShell({
                               current === group.label ? null : group.label,
                             )
                           }
-                          onFocus={() => SetHoveredNavGroup(group.label)}
-                          onBlur={() => SetHoveredNavGroup(null)}
                           className={`premium-nav-item group shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
                           aria-label={group.tooltip}
                           data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
+                          data-student-nav-hover-scope={IsStudent && theme === "light" ? "true" : undefined}
                           data-teacher-nav-active={IsTeacher && theme === "light" && active ? "true" : undefined}
+                          data-student-nav-active={IsStudent && theme === "light" && active ? "true" : undefined}
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
+                          data-student-nav-open={IsStudent && theme === "light" && dropdownOpen ? "true" : undefined}
                           aria-expanded={dropdownOpen}
                         >
                           <Icon
                             size={17}
-                            strokeWidth={TeacherNavHighlighted ? 2.9 : 2.15}
+                            strokeWidth={RoleNavHighlighted ? 2.9 : 2.15}
                             style={
-                              TeacherNavHighlighted
+                              RoleNavHighlighted
                                 ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
                                 : undefined
                             }
-                            className={`math-teacher-main-nav-icon shrink-0 transition-colors ${
-                              TeacherNavHighlighted
+                            className={`math-teacher-main-nav-icon math-student-main-nav-icon shrink-0 transition-colors ${
+                              RoleNavHighlighted
                                 ? "!text-white !stroke-white opacity-100"
                                 : ""
                             }`}
                           />
                           <span
                             style={
-                              TeacherNavHighlighted
+                              RoleNavHighlighted
                                 ? { color: "#ffffff", opacity: 1 }
                                 : undefined
                             }
                             className={`whitespace-nowrap ${
-                              TeacherNavHighlighted ? "!text-white opacity-100" : ""
+                              RoleNavHighlighted ? "!text-white opacity-100" : ""
                             }`}
                           >
                             {group.shortLabel || group.label}
                           </span>
                           <ChevronDown
                             size={15}
-                            strokeWidth={TeacherNavHighlighted ? 2.9 : 2.15}
+                            strokeWidth={RoleNavHighlighted ? 2.9 : 2.15}
                             style={
-                              TeacherNavHighlighted
+                              RoleNavHighlighted
                                 ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
                                 : undefined
                             }
-                            className={`math-teacher-main-nav-chevron shrink-0 transition-colors ${
+                            className={`math-teacher-main-nav-chevron math-student-main-nav-chevron shrink-0 transition-colors ${
                               dropdownOpen ? "rotate-180" : ""
-                            } ${TeacherNavHighlighted ? "!text-white !stroke-white opacity-100" : ""}`}
+                            } ${RoleNavHighlighted ? "!text-white !stroke-white opacity-100" : ""}`}
                           />
                         </button>
 
@@ -968,98 +958,33 @@ export function AppShell({
                                 {group.children?.map((child) => {
                                   const ChildIcon = child.icon;
                                   const childActive = isRouteActive(child.href);
-                                  const TeacherDropdownChildHighlighted =
-                                    IsTeacher &&
-                                    theme === "light" &&
-                                    (childActive || HoveredDropdownChild === child.href);
-                                  const TeacherDropdownChildIdle = IsTeacher && theme === "light";
 
                                   return (
                                     <button
                                       key={child.href}
                                       type="button"
                                       onClick={() => navigateTo(child.href)}
-                                      onMouseEnter={() => SetHoveredDropdownChild(child.href)}
-                                      onMouseLeave={() => SetHoveredDropdownChild(null)}
-                                      onFocus={() => SetHoveredDropdownChild(child.href)}
-                                      onBlur={() => SetHoveredDropdownChild(null)}
+                                      data-student-nav-child={IsStudent && theme === "light" ? "true" : undefined}
                                       className={`math-dropdown-option flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
                                         childActive
                                           ? "math-dropdown-option-active bg-slate-950 text-white shadow-lg dark:bg-white dark:text-slate-950"
                                           : "text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-900"
-                                      } ${TeacherDropdownChildIdle ? "math-teacher-dropdown-child-option" : ""} ${
-                                        TeacherDropdownChildHighlighted
-                                          ? "math-teacher-dropdown-child-option-active"
-                                          : ""
                                       }`}
-                                      style={
-                                        TeacherDropdownChildHighlighted
-                                          ? {
-                                              background:
-                                                "linear-gradient(135deg, #3a1538 0%, #7a356a 56%, #c57a85 100%)",
-                                              color: "#ffffff",
-                                              boxShadow:
-                                                "0 16px 34px rgba(109, 46, 95, 0.24), inset 0 1px 0 rgba(255,255,255,0.22)",
-                                            }
-                                          : undefined
-                                      }
                                       title={child.tooltip}
                                       aria-label={child.tooltip}
-                                      data-teacher-dropdown-child={TeacherDropdownChildIdle ? "true" : undefined}
-                                      data-teacher-dropdown-child-active={
-                                        TeacherDropdownChildHighlighted ? "true" : undefined
-                                      }
                                     >
                                       <span
-                                        className={`math-teacher-dropdown-child-icon-box flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                                        data-student-nav-child-icon={IsStudent && theme === "light" ? "true" : undefined}
+                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                                           childActive
                                             ? "bg-white/15 dark:bg-slate-950/10"
                                             : "bg-slate-50 text-blue-600 dark:bg-slate-900"
                                         }`}
-                                        style={
-                                          TeacherDropdownChildIdle
-                                            ? {
-                                                background: TeacherDropdownChildHighlighted
-                                                  ? "rgba(255, 255, 255, 0.16)"
-                                                  : "rgba(255, 255, 255, 0.92)",
-                                                border: TeacherDropdownChildHighlighted
-                                                  ? "1px solid rgba(255, 255, 255, 0.24)"
-                                                  : "1px solid rgba(109, 46, 95, 0.16)",
-                                                color: TeacherDropdownChildHighlighted
-                                                  ? "#ffffff"
-                                                  : "#6d2e5f",
-                                              }
-                                            : undefined
-                                        }
                                       >
-                                        <ChildIcon
-                                          size={17}
-                                          strokeWidth={TeacherDropdownChildIdle ? 2.35 : undefined}
-                                          className="math-teacher-dropdown-child-icon"
-                                          style={
-                                            TeacherDropdownChildIdle
-                                              ? {
-                                                  color: TeacherDropdownChildHighlighted
-                                                    ? "#ffffff"
-                                                    : "#6d2e5f",
-                                                  stroke: TeacherDropdownChildHighlighted
-                                                    ? "#ffffff"
-                                                    : "#6d2e5f",
-                                                  opacity: 1,
-                                                }
-                                              : undefined
-                                          }
-                                        />
+                                        <ChildIcon size={17} />
                                       </span>
                                       <span className="min-w-0 flex-1">
-                                        <span
-                                          className="block truncate"
-                                          style={
-                                            TeacherDropdownChildHighlighted
-                                              ? { color: "#ffffff", opacity: 1 }
-                                              : undefined
-                                          }
-                                        >
+                                        <span className="block truncate">
                                           {child.label}
                                         </span>
                                         <span
@@ -1068,11 +993,6 @@ export function AppShell({
                                               ? "text-white/80 dark:text-slate-800"
                                               : "text-slate-400 dark:text-slate-300"
                                           }`}
-                                          style={
-                                            TeacherDropdownChildHighlighted
-                                              ? { color: "rgba(255,255,255,0.84)", opacity: 1 }
-                                              : undefined
-                                          }
                                         >
                                           {child.tooltip}
                                         </span>
@@ -1217,6 +1137,7 @@ export function AppShell({
                         title={group.tooltip}
                         aria-label={group.tooltip}
                           data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
+                          data-student-nav-hover-scope={IsStudent && theme === "light" ? "true" : undefined}
                         className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition ${
                           active
                             ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
@@ -1241,6 +1162,7 @@ export function AppShell({
                         title={group.tooltip}
                         aria-label={group.tooltip}
                           data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
+                          data-student-nav-hover-scope={IsStudent && theme === "light" ? "true" : undefined}
                         className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm font-black transition ${
                           active
                             ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
