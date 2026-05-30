@@ -9547,3 +9547,35 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   color: #e2e8f0 !important;
   -webkit-text-fill-color: #e2e8f0 !important;
 }
+
+
+/* 30 May 2026 — Admin Users directory light-mode role-palette table headers
+   Scope: Admin Students + Admin Teachers directory tables only.
+   Keeps Admin dark mode, Teacher login, Student login, table data, actions, and metrics untouched. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-admin-directory-table thead,
+  html:not(.dark) .math-role-admin .math-admin-directory-table thead tr {
+    background:
+      linear-gradient(135deg, rgba(219, 234, 254, 0.96), rgba(239, 246, 255, 0.92) 48%, rgba(224, 231, 255, 0.90)) !important;
+    border-color: rgba(59, 130, 246, 0.24) !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-directory-table thead th {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    border-bottom-color: rgba(59, 130, 246, 0.26) !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-directory-table thead th *,
+  html:not(.dark) .math-role-admin .math-admin-directory-table .math-sortable-header,
+  html:not(.dark) .math-role-admin .math-admin-directory-table .math-sortable-header *,
+  html:not(.dark) .math-role-admin .math-admin-directory-table .math-sortable-header:hover,
+  html:not(.dark) .math-role-admin .math-admin-directory-table .math-sortable-header:hover *,
+  html:not(.dark) .math-role-admin .math-admin-directory-table .math-sortable-header:focus-visible,
+  html:not(.dark) .math-role-admin .math-admin-directory-table .math-sortable-header:focus-visible * {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    text-shadow: none !important;
+  }
+}
