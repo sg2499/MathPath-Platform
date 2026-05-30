@@ -365,6 +365,7 @@ export default function StudentResultsPage() {
             const ModuleStatus = ["Active Level", "Not Started"].includes(ActiveLevelStatus) ? "In Progress" : ActiveLevelStatus;
             const ModulePercent = ModuleRequired > 0 ? Math.min(100, Math.round((ModuleCompleted / ModuleRequired) * 100)) : 0;
             const ModuleAverage = HierarchyAverageForRows(ModuleItem.rows);
+            const CurrentLevelAverage = HierarchyAverageForRows(RowsForLevelScope(ModuleItem.rows, ActiveLevel));
 
             return (
               <section key={ModuleItem.moduleCode} className="math-hierarchy-panel rounded-[30px]">
@@ -405,7 +406,7 @@ export default function StudentResultsPage() {
                   <CompactProgressMetric label="Module Status" value={ModuleStatus} icon={<Trophy size={14} />} />
                   <CompactProgressMetric label="Current Level" value={ActiveLevel} icon={<Route size={14} />} />
                   <CompactProgressMetric label="DPS Cleared" value={`${ModuleCompleted}/${ModuleRequired}`} icon={<FileText size={14} />} />
-                  <CompactProgressMetric label="Average Accuracy" value={`${ModuleAverage}%`} icon={<BarChart3 size={14} />} />
+                  <CompactProgressMetric label="Average Accuracy" value={`${CurrentLevelAverage}%`} icon={<BarChart3 size={14} />} />
                   <CompactProgressMetric label="Last Activity" value={latestActivity(ModuleMetricRows)} icon={<Clock3 size={14} />} />
                   <div className="md:col-span-2 xl:col-span-5 rounded-[20px] border border-slate-100 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/70">
                     <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">
