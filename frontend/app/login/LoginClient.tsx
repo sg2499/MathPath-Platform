@@ -28,6 +28,7 @@ type ThemeMode = "light" | "dark";
 type LoginTab = "ADMIN" | "TEACHER" | "STUDENT";
 
 const LOGIN_ROLE_STORAGE_KEY = "mathpath_login_role";
+const LOGIN_IDENTIFIER_STORAGE_PREFIX = "mathpath_login_identifier";
 const ValidLoginTabs: LoginTab[] = ["ADMIN", "TEACHER", "STUDENT"];
 
 const PlatformTagline =
@@ -211,6 +212,30 @@ function PersistLoginTab(Tab: LoginTab, ReplaceUrl = true) {
   window.history.replaceState(null, "", `${UrlValue.pathname}${UrlValue.search}${UrlValue.hash}`);
 }
 
+function loginIdentifierKey(Tab: LoginTab) {
+  return `${LOGIN_IDENTIFIER_STORAGE_PREFIX}_${Tab.toLowerCase()}`;
+}
+
+function NormalizeIdentifierForStorage(Value: string): string {
+  return Value.trim().slice(0, 160);
+}
+
+function ReadRememberedLoginIdentifier(Tab: LoginTab): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(loginIdentifierKey(Tab)) || "";
+}
+
+function RememberLoginIdentifier(Tab: LoginTab, IdentifierValue: string): void {
+  if (typeof window === "undefined") return;
+  const CleanIdentifier = NormalizeIdentifierForStorage(IdentifierValue);
+  if (!CleanIdentifier) return;
+  localStorage.setItem(loginIdentifierKey(Tab), CleanIdentifier);
+}
+
+function AutoCompleteSection(Tab: LoginTab) {
+  return `section-mathpath-${Tab.toLowerCase()}`;
+}
+
 function RoleLabel(Role: UserRole | LoginTab) {
   if (Role === "SUPER_ADMIN") return "Admin";
   if (Role === "ADMIN") return "Admin";
@@ -233,6 +258,7 @@ export default function LoginClient({
   const Router = useRouter();
   const [ActiveTab, SetActiveTab] = useState<LoginTab>(() => ResolveInitialLoginTab(InitialRole));
   const [LoginReady, SetLoginReady] = useState(true);
+  const [ConnectionStatus, SetConnectionStatus] = useState<"preparing" | "ready" | "working">("preparing");
   const [Identifier, SetIdentifier] = useState("");
   const [Password, SetPassword] = useState("");
   const [Error, SetError] = useState("");
@@ -246,12 +272,24 @@ export default function LoginClient({
     Theme === "dark" ? "Switch To Light Theme" : "Switch To Dark Theme";
 
   useEffect(() => {
+    let IsMounted = true;
     PersistLoginTab(ActiveTab);
+    SetIdentifier(ReadRememberedLoginIdentifier(ActiveTab));
     SetLoginReady(true);
-    void warmupAuthApi();
+    SetConnectionStatus("preparing");
+
+    void warmupAuthApi().then((IsReady) => {
+      if (!IsMounted) return;
+      SetConnectionStatus(IsReady ? "ready" : "working");
+    });
+
     Router.prefetch("/admin/dashboard");
     Router.prefetch("/teacher/dashboard");
     Router.prefetch("/student/dashboard");
+
+    return () => {
+      IsMounted = false;
+    };
     // Runs once after the server-provided URL role has already been resolved, so refresh does not visibly fall back to Student.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -282,7 +320,7 @@ export default function LoginClient({
     SetActiveTab(Tab);
     PersistLoginTab(Tab);
     SetError("");
-    SetIdentifier("");
+    SetIdentifier(ReadRememberedLoginIdentifier(Tab));
     SetPassword("");
   }
 
@@ -300,6 +338,7 @@ export default function LoginClient({
 
     SetError("");
     SetLoading(true);
+    SetConnectionStatus("working");
     PersistLoginTab(ActiveTab);
 
     try {
@@ -310,6 +349,8 @@ export default function LoginClient({
         return;
       }
 
+      RememberLoginIdentifier(ActiveTab, CleanIdentifier);
+      SetConnectionStatus("ready");
       setAuth(Response.accessToken, Response.user);
       const TargetRoute = defaultRouteForRole(Response.user.role);
       Router.prefetch(TargetRoute);
@@ -321,6 +362,7 @@ export default function LoginClient({
 
       Router.replace(TargetRoute);
     } catch (Err) {
+      SetConnectionStatus("working");
       SetError(apiErrorMessage(Err));
     } finally {
       SetLoading(false);
@@ -492,7 +534,8 @@ export default function LoginClient({
                   value={Identifier}
                   onChange={(Event) => SetIdentifier(Event.target.value)}
                   placeholder={Active.IdentifierPlaceholder}
-                  autoComplete="username"
+                  autoComplete={`${AutoCompleteSection(ActiveTab)} username`}
+                  name={`mathpath-${ActiveTab.toLowerCase()}-identifier`}
                   required
                 />
               </div>
@@ -505,7 +548,8 @@ export default function LoginClient({
                   value={Password}
                   onChange={(Event) => SetPassword(Event.target.value)}
                   placeholder="Enter your password"
-                  autoComplete="current-password"
+                  autoComplete={`${AutoCompleteSection(ActiveTab)} current-password`}
+                  name={`mathpath-${ActiveTab.toLowerCase()}-password`}
                   required
                 />
               </div>
@@ -516,8 +560,16 @@ export default function LoginClient({
                 </div>
               ) : null}
 
+              {ConnectionStatus !== "ready" || Loading ? (
+                <div className="rounded-[22px] border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-sky-700 dark:border-sky-300/25 dark:bg-sky-400/10 dark:text-sky-200">
+                  {Loading
+                    ? "Connecting securely and preparing your workspace..."
+                    : "Preparing secure login connection..."}
+                </div>
+              ) : null}
+
               <button className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
-                {Loading ? "Opening Workspace..." : Active.ButtonText}
+                {Loading ? "Connecting Securely..." : Active.ButtonText}
               </button>
             </form>
 
