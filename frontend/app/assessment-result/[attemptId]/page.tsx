@@ -265,7 +265,7 @@ function StudentAssessmentResultPageContent() {
 
 function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="rounded-[20px] bg-white/78 p-3 shadow-sm ring-1 ring-white/70 backdrop-blur-md dark:bg-slate-900/60 dark:ring-slate-700">
+    <div className="math-teacher-light-metric-card rounded-[20px] border border-rose-200/70 bg-white/85 p-3 shadow-sm ring-1 ring-rose-100/80 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/60 dark:ring-slate-700">
       <div className="inline-flex rounded-xl bg-blue-50 p-1.5 text-blue-700 dark:bg-cyan-950/50 dark:text-cyan-300">{icon}</div>
       <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">{label}</p>
       <p className="mt-1 text-lg font-black leading-tight text-slate-950 dark:text-white">{value}</p>

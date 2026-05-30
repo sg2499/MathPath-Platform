@@ -186,7 +186,7 @@ export default function TeacherAttemptDetailPage() {
 
 function SummaryMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
   return (
-    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/75">
+    <div className="math-teacher-light-metric-card rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
       <div className="flex items-center gap-2 text-slate-500">
         {icon}
         <p className="text-[10px] font-black uppercase tracking-[0.14em]">{label}</p>
@@ -198,7 +198,7 @@ function SummaryMetric({ icon, label, value }: { icon: ReactNode; label: string;
 
 function InfoCard({ icon, label, value, subValue }: { icon: ReactNode; label: string; value: string; subValue: string }) {
   return (
-    <div className="math-card p-5">
+    <div className="math-teacher-light-metric-card math-card border border-rose-200/70 p-5 ring-1 ring-rose-100/80 dark:border-slate-800 dark:ring-0">
       <div className="inline-flex rounded-2xl bg-blue-50 p-3 text-blue-700">{icon}</div>
       <p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <p className="mt-2 text-xl font-black text-slate-950 dark:text-white">{value}</p>

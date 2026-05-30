@@ -64,7 +64,7 @@ function Metric({
   Icon: ReactNode;
 }) {
   return (
-    <div className="rounded-[22px] border border-white/70 bg-white/75 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+    <div className="math-teacher-light-metric-card rounded-[22px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-slate-800 dark:bg-slate-950/70 dark:ring-0">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-800 dark:text-slate-100">
