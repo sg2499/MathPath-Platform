@@ -18,7 +18,6 @@ import {
 } from "@/lib/date";
 import {
   AnyRow,
-  averageAccuracy,
   buildStudents,
   isBelowBenchmark,
   isCompleted,
@@ -188,6 +187,41 @@ function latestWorkRows(rows: AnyRow[]) {
   return Array.from(CurrentRows.values());
 }
 
+function rowHasAccuracyValue(row: AnyRow) {
+  const RawAccuracy = row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy;
+  return RawAccuracy !== null && RawAccuracy !== undefined && RawAccuracy !== "" && !Number.isNaN(Number(RawAccuracy));
+}
+
+function rowAccuracyValue(row: AnyRow) {
+  const RawAccuracy = row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy;
+  const Parsed = Number(RawAccuracy);
+  return Number.isFinite(Parsed) ? Parsed : 0;
+}
+
+function studentOverallAverageAccuracy(rows: AnyRow[]) {
+  const AccuracyValues = rowsWithAttemptHistory(rows)
+    .filter((row) => isCompleted(row) && rowHasAccuracyValue(row))
+    .map(rowAccuracyValue);
+
+  if (!AccuracyValues.length) return null;
+
+  return Math.round(
+    (AccuracyValues.reduce((sum, value) => sum + value, 0) / AccuracyValues.length) * 100,
+  ) / 100;
+}
+
+function visibleStudentsAverageAccuracy(students: ReturnType<typeof buildStudents>) {
+  const StudentAccuracyValues = students
+    .map((student) => studentOverallAverageAccuracy(student.rows))
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+  if (!StudentAccuracyValues.length) return 0;
+
+  return Math.round(
+    StudentAccuracyValues.reduce((sum, value) => sum + value, 0) / StudentAccuracyValues.length,
+  );
+}
+
 export default function AdminPracticeAssignmentsPage() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const router = useRouter();
@@ -230,15 +264,11 @@ export default function AdminPracticeAssignmentsPage() {
   }, [rows, search, statusFilter, teacherFilter, moduleFilter, levelFilter]);
 
   const students = useMemo(() => buildStudents(filteredRows), [filteredRows]);
-  const currentRows = useMemo(
-    () => latestWorkRows(filteredRows),
-    [filteredRows],
-  );
   const assignedDps = uniqueAssignedConceptCount(filteredRows);
   const clearedDps = uniqueClearedConceptCount(filteredRows);
   const pendingDps = uniquePendingConceptCount(filteredRows);
   const reattemptNeeded = uniqueNeedsReattemptCount(filteredRows);
-  const averageAccuracyValue = averageAccuracy(currentRows);
+  const averageAccuracyValue = visibleStudentsAverageAccuracy(students);
 
   if (!ready || query.isLoading)
     return <LoadingState label="Loading practice assignments..." />;
