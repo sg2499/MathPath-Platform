@@ -9688,3 +9688,46 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — Admin Reports light-mode role-palette table headers
+   Scope: Admin Performance Reports light mode only.
+   Covers Learning Performance, Student History, DPS History, Assessment History,
+   Current Level Tracker, Promotion History, and nested report drilldown tables.
+   Dark mode, Teacher, Student, rows, chips, buttons, exports, and report logic are untouched. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-reports-light-table-header,
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-report-table-header,
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-history-table-header,
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-report-table-header {
+    background:
+      linear-gradient(135deg, rgba(219, 234, 254, 0.98), rgba(239, 246, 255, 0.96)) !important;
+    border-color: rgba(59, 130, 246, 0.30) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 1px 0 rgba(37, 99, 235, 0.10) !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-reports-light-table-header > *,
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-reports-light-table-header :is(div, span, p),
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-report-table-header > *,
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-report-table-header :is(div, span, p),
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-history-table-header > *,
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-history-table-header :is(div, span, p),
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-report-table-header > *,
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-report-table-header :is(div, span, p) {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-reports-light-table-header > *:not(:last-child),
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-report-table-header > *:not(:last-child),
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-admin-history-table-header > *:not(:last-child),
+  html:not(.dark) .math-role-admin .math-admin-results-page .math-report-table-header > *:not(:last-child) {
+    border-right-color: rgba(59, 130, 246, 0.14) !important;
+  }
+}
+
