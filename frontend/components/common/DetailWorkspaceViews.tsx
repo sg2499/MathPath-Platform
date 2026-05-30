@@ -1359,9 +1359,14 @@ export function RecordWorkspace({
                         <Chip tone="green">
                           {uniqueClearedConceptCount(lesson.rows)} Cleared
                         </Chip>
-                        <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
-                          {averageAccuracy(lesson.rows)}% Avg
-                        </Chip>
+                        {(() => {
+                          const LessonAverage = attemptHistoryAverageAccuracy(lesson.rows);
+                          return (
+                            <Chip tone={LessonAverage >= 70 ? "green" : "red"}>
+                              {LessonAverage}% Avg
+                            </Chip>
+                          );
+                        })()}
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                           <ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} />
                         </span>
@@ -1494,9 +1499,14 @@ export function RecordWorkspace({
                                             <Chip tone="green">
                                               {uniqueClearedConceptCount(lesson.rows)} Cleared
                                             </Chip>
-                                            <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
-                                              {averageAccuracy(lesson.rows)}% Avg
-                                            </Chip>
+                                            {(() => {
+                                              const LessonAverage = attemptHistoryAverageAccuracy(lesson.rows);
+                                              return (
+                                                <Chip tone={LessonAverage >= 70 ? "green" : "red"}>
+                                                  {LessonAverage}% Avg
+                                                </Chip>
+                                              );
+                                            })()}
                                             <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                                               <ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} />
                                             </span>
@@ -1642,9 +1652,14 @@ export function RecordWorkspace({
                                             <Chip tone="green">
                                               {uniqueClearedConceptCount(lesson.rows)} Cleared
                                             </Chip>
-                                            <Chip tone={averageAccuracy(lesson.rows) >= 70 ? "green" : "red"}>
-                                              {averageAccuracy(lesson.rows)}% Avg
-                                            </Chip>
+                                            {(() => {
+                                              const LessonAverage = attemptHistoryAverageAccuracy(lesson.rows);
+                                              return (
+                                                <Chip tone={LessonAverage >= 70 ? "green" : "red"}>
+                                                  {LessonAverage}% Avg
+                                                </Chip>
+                                              );
+                                            })()}
                                             <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                                               <ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} />
                                             </span>
@@ -1835,7 +1850,7 @@ function AdminAssignmentOverview({
           <OverviewStat
             icon={<ClipboardList size={18} />}
             label="Assigned DPS"
-            value={stats.total}
+            value={stats.assigned}
             tone="blue"
           />
           <OverviewStat
@@ -2049,9 +2064,14 @@ function StudentProgressOverview({
               {Completed}/{Required} DPS Cleared
             </Chip>
             <Chip tone={Pending ? "amber" : "green"}>{Pending} Pending</Chip>
-            <Chip tone={averageAccuracy(SourceRows) >= 70 ? "green" : "red"}>
-              Average Accuracy: {averageAccuracy(SourceRows)}%
-            </Chip>
+            {(() => {
+              const ScopeAverage = attemptHistoryAverageAccuracy(SourceRows);
+              return (
+                <Chip tone={ScopeAverage >= 70 ? "green" : "red"}>
+                  Average Accuracy: {ScopeAverage}%
+                </Chip>
+              );
+            })()}
           </div>
         </div>
 
@@ -2605,7 +2625,7 @@ function buildLessonFocusItems(rows: AnyRow[]) {
       return {
         key,
         title: CompactLessonLabel(sample),
-        avg: averageAccuracy(SortedRows),
+        avg: attemptHistoryAverageAccuracy(SortedRows),
         below: uniqueNeedsReattemptCount(SortedRows),
         total: SortedRows.length,
         sample,
