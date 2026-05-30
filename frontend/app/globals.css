@@ -9579,3 +9579,41 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     text-shadow: none !important;
   }
 }
+
+
+/* 30 May 2026 — Admin light-mode role-palette table headers for Practice + Readiness
+   Scope: Admin light mode only. Applies the Admin blue header convention to:
+   - Practice Control overview table
+   - Admin Student Assignment Profile / Lesson Insights tables
+   - Assessment Readiness DPS Clearance Tracker tables
+   Dark mode, Teacher, Student, rows, chips, buttons, and data logic are untouched. */
+@layer components {
+  html:not(.dark) .math-role-admin .math-admin-light-student-summary-header,
+  html:not(.dark) .math-role-admin .math-admin-light-compact-record-header,
+  html:not(.dark) .math-role-admin .math-admin-readiness-sheet-table-header {
+    background:
+      linear-gradient(135deg, rgba(219, 234, 254, 0.98), rgba(239, 246, 255, 0.94)) !important;
+    border-color: rgba(59, 130, 246, 0.28) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.86),
+      0 1px 0 rgba(37, 99, 235, 0.08) !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-light-student-summary-header > *,
+  html:not(.dark) .math-role-admin .math-admin-light-compact-record-header > *,
+  html:not(.dark) .math-role-admin .math-admin-readiness-sheet-table-header > *,
+  html:not(.dark) .math-role-admin .math-admin-readiness-sheet-table-header * {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin .math-admin-light-student-summary-header > *:not(:last-child),
+  html:not(.dark) .math-role-admin .math-admin-light-compact-record-header > *:not(:last-child),
+  html:not(.dark) .math-role-admin .math-admin-readiness-sheet-table-header > *:not(:last-child) {
+    border-right-color: rgba(59, 130, 246, 0.12) !important;
+  }
+}
+
