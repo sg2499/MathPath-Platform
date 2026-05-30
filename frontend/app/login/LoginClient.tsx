@@ -195,21 +195,24 @@ function ResolveInitialLoginTab(InitialRole?: string | string[] | null): LoginTa
   const SavedLoginRole = NormalizeLoginTab(localStorage.getItem(LOGIN_ROLE_STORAGE_KEY));
   if (SavedLoginRole) return SavedLoginRole;
 
-  const ActiveRole = NormalizeLoginTab(localStorage.getItem("mathpath_active_role"));
-  return ActiveRole || "STUDENT";
+  return "STUDENT";
 }
 
-function PersistLoginTab(Tab: LoginTab, ReplaceUrl = true) {
+function SyncVisibleLoginTab(Tab: LoginTab, ReplaceUrl = true) {
   if (typeof window === "undefined") return;
-
-  localStorage.setItem(LOGIN_ROLE_STORAGE_KEY, Tab);
-  setActiveRole(Tab);
 
   if (!ReplaceUrl) return;
 
   const UrlValue = new URL(window.location.href);
   UrlValue.searchParams.set("role", Tab.toLowerCase());
   window.history.replaceState(null, "", `${UrlValue.pathname}${UrlValue.search}${UrlValue.hash}`);
+}
+
+function RememberSuccessfulLoginTab(Tab: LoginTab) {
+  if (typeof window === "undefined") return;
+
+  localStorage.setItem(LOGIN_ROLE_STORAGE_KEY, Tab);
+  setActiveRole(Tab);
 }
 
 function loginIdentifierKey(Tab: LoginTab) {
@@ -273,7 +276,7 @@ export default function LoginClient({
 
   useEffect(() => {
     let IsMounted = true;
-    PersistLoginTab(ActiveTab);
+    SyncVisibleLoginTab(ActiveTab);
     SetIdentifier(ReadRememberedLoginIdentifier(ActiveTab));
     SetLoginReady(true);
     SetConnectionStatus("preparing");
@@ -318,7 +321,7 @@ export default function LoginClient({
 
   function ChangeTab(Tab: LoginTab) {
     SetActiveTab(Tab);
-    PersistLoginTab(Tab);
+    SyncVisibleLoginTab(Tab);
     SetError("");
     SetIdentifier(ReadRememberedLoginIdentifier(Tab));
     SetPassword("");
@@ -339,7 +342,6 @@ export default function LoginClient({
     SetError("");
     SetLoading(true);
     SetConnectionStatus("working");
-    PersistLoginTab(ActiveTab);
 
     try {
       const Response = await login(CleanIdentifier, CleanPassword);
@@ -349,6 +351,7 @@ export default function LoginClient({
         return;
       }
 
+      RememberSuccessfulLoginTab(ActiveTab);
       RememberLoginIdentifier(ActiveTab, CleanIdentifier);
       SetConnectionStatus("ready");
       setAuth(Response.accessToken, Response.user);
