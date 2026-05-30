@@ -144,6 +144,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [HoveredNavGroup, SetHoveredNavGroup] = useState<string | null>(null);
+  const [HoveredDropdownChild, SetHoveredDropdownChild] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [AccountMenuOpen, SetAccountMenuOpen] = useState(false);
@@ -220,6 +221,8 @@ export function AppShell({
   useEffect(() => {
     setMobileOpen(false);
     setOpenGroup(null);
+    SetHoveredNavGroup(null);
+    SetHoveredDropdownChild(null);
     SetAccountMenuOpen(false);
   }, [pathname]);
 
@@ -821,9 +824,10 @@ export function AppShell({
                     const active = isGroupActive(group);
                     const hasChildren = Boolean(group.children?.length);
                     const dropdownOpen = openGroup === group.label;
-                    const TeacherNavHovered = HoveredNavGroup === group.label;
                     const TeacherNavHighlighted =
-                      IsTeacher && theme === "light" && (active || dropdownOpen || TeacherNavHovered);
+                      IsTeacher &&
+                      theme === "light" &&
+                      (active || dropdownOpen || HoveredNavGroup === group.label);
 
                     if (!hasChildren) {
                       return (
@@ -832,9 +836,9 @@ export function AppShell({
                           type="button"
                           onClick={() => navigateTo(group.href)}
                           onMouseEnter={() => SetHoveredNavGroup(group.label)}
-                          onMouseLeave={() => SetHoveredNavGroup((current) => current === group.label ? null : current)}
+                          onMouseLeave={() => SetHoveredNavGroup(null)}
                           onFocus={() => SetHoveredNavGroup(group.label)}
-                          onBlur={() => SetHoveredNavGroup((current) => current === group.label ? null : current)}
+                          onBlur={() => SetHoveredNavGroup(null)}
                           className={`premium-nav-item group shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
@@ -884,7 +888,8 @@ export function AppShell({
                         }}
                         onMouseLeave={() => {
                           setOpenGroup(null);
-                          SetHoveredNavGroup((current) => current === group.label ? null : current);
+                          SetHoveredNavGroup(null);
+                          SetHoveredDropdownChild(null);
                         }}
                       >
                         <button
@@ -894,6 +899,8 @@ export function AppShell({
                               current === group.label ? null : group.label,
                             )
                           }
+                          onFocus={() => SetHoveredNavGroup(group.label)}
+                          onBlur={() => SetHoveredNavGroup(null)}
                           className={`premium-nav-item group shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
@@ -902,8 +909,6 @@ export function AppShell({
                           data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
                           data-teacher-nav-active={IsTeacher && theme === "light" && active ? "true" : undefined}
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
-                          onFocus={() => SetHoveredNavGroup(group.label)}
-                          onBlur={() => SetHoveredNavGroup((current) => current === group.label ? null : current)}
                           aria-expanded={dropdownOpen}
                         >
                           <Icon
@@ -963,31 +968,98 @@ export function AppShell({
                                 {group.children?.map((child) => {
                                   const ChildIcon = child.icon;
                                   const childActive = isRouteActive(child.href);
+                                  const TeacherDropdownChildHighlighted =
+                                    IsTeacher &&
+                                    theme === "light" &&
+                                    (childActive || HoveredDropdownChild === child.href);
+                                  const TeacherDropdownChildIdle = IsTeacher && theme === "light";
 
                                   return (
                                     <button
                                       key={child.href}
                                       type="button"
                                       onClick={() => navigateTo(child.href)}
+                                      onMouseEnter={() => SetHoveredDropdownChild(child.href)}
+                                      onMouseLeave={() => SetHoveredDropdownChild(null)}
+                                      onFocus={() => SetHoveredDropdownChild(child.href)}
+                                      onBlur={() => SetHoveredDropdownChild(null)}
                                       className={`math-dropdown-option flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
                                         childActive
                                           ? "math-dropdown-option-active bg-slate-950 text-white shadow-lg dark:bg-white dark:text-slate-950"
                                           : "text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-900"
+                                      } ${TeacherDropdownChildIdle ? "math-teacher-dropdown-child-option" : ""} ${
+                                        TeacherDropdownChildHighlighted
+                                          ? "math-teacher-dropdown-child-option-active"
+                                          : ""
                                       }`}
+                                      style={
+                                        TeacherDropdownChildHighlighted
+                                          ? {
+                                              background:
+                                                "linear-gradient(135deg, #3a1538 0%, #7a356a 56%, #c57a85 100%)",
+                                              color: "#ffffff",
+                                              boxShadow:
+                                                "0 16px 34px rgba(109, 46, 95, 0.24), inset 0 1px 0 rgba(255,255,255,0.22)",
+                                            }
+                                          : undefined
+                                      }
                                       title={child.tooltip}
                                       aria-label={child.tooltip}
+                                      data-teacher-dropdown-child={TeacherDropdownChildIdle ? "true" : undefined}
+                                      data-teacher-dropdown-child-active={
+                                        TeacherDropdownChildHighlighted ? "true" : undefined
+                                      }
                                     >
                                       <span
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                                        className={`math-teacher-dropdown-child-icon-box flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                                           childActive
                                             ? "bg-white/15 dark:bg-slate-950/10"
                                             : "bg-slate-50 text-blue-600 dark:bg-slate-900"
                                         }`}
+                                        style={
+                                          TeacherDropdownChildIdle
+                                            ? {
+                                                background: TeacherDropdownChildHighlighted
+                                                  ? "rgba(255, 255, 255, 0.16)"
+                                                  : "rgba(255, 255, 255, 0.92)",
+                                                border: TeacherDropdownChildHighlighted
+                                                  ? "1px solid rgba(255, 255, 255, 0.24)"
+                                                  : "1px solid rgba(109, 46, 95, 0.16)",
+                                                color: TeacherDropdownChildHighlighted
+                                                  ? "#ffffff"
+                                                  : "#6d2e5f",
+                                              }
+                                            : undefined
+                                        }
                                       >
-                                        <ChildIcon size={17} />
+                                        <ChildIcon
+                                          size={17}
+                                          strokeWidth={TeacherDropdownChildIdle ? 2.35 : undefined}
+                                          className="math-teacher-dropdown-child-icon"
+                                          style={
+                                            TeacherDropdownChildIdle
+                                              ? {
+                                                  color: TeacherDropdownChildHighlighted
+                                                    ? "#ffffff"
+                                                    : "#6d2e5f",
+                                                  stroke: TeacherDropdownChildHighlighted
+                                                    ? "#ffffff"
+                                                    : "#6d2e5f",
+                                                  opacity: 1,
+                                                }
+                                              : undefined
+                                          }
+                                        />
                                       </span>
                                       <span className="min-w-0 flex-1">
-                                        <span className="block truncate">
+                                        <span
+                                          className="block truncate"
+                                          style={
+                                            TeacherDropdownChildHighlighted
+                                              ? { color: "#ffffff", opacity: 1 }
+                                              : undefined
+                                          }
+                                        >
                                           {child.label}
                                         </span>
                                         <span
@@ -996,6 +1068,11 @@ export function AppShell({
                                               ? "text-white/80 dark:text-slate-800"
                                               : "text-slate-400 dark:text-slate-300"
                                           }`}
+                                          style={
+                                            TeacherDropdownChildHighlighted
+                                              ? { color: "rgba(255,255,255,0.84)", opacity: 1 }
+                                              : undefined
+                                          }
                                         >
                                           {child.tooltip}
                                         </span>
