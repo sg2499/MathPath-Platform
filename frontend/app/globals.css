@@ -10966,3 +10966,40 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     opacity: 1 !important;
   }
 }
+
+/* 30 May 2026 — Student Assessment Readiness light-mode control hover completion
+   Scope: Student login only, light mode only. Ensures Assessment Readiness control buttons
+   and Sheet Breakdown tabs follow the Student orange selected/hover role-palette convention.
+   Does not affect Admin, Teacher, Student dark mode, destructive actions, metrics, chips, or logic. */
+@layer components {
+  html:not(.dark) .math-role-student :is(
+    .math-readiness-control-button,
+    .math-readiness-branch-button,
+    .math-readiness-sheet-filter
+  ):not(.math-button-danger):not(.math-action-button-danger):not([data-destructive="true"]):is(:hover, :focus-visible, :active, .is-active, [aria-selected="true"], [aria-pressed="true"], [data-active="true"]) {
+    background: var(--mp-student-light-nav-bg) !important;
+    border-color: var(--mp-student-light-nav-border) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    box-shadow: 0 14px 30px rgba(249, 115, 22, 0.24), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+    transform: translateY(-1px);
+  }
+
+  html:not(.dark) .math-role-student :is(
+    .math-readiness-control-button,
+    .math-readiness-branch-button,
+    .math-readiness-sheet-filter
+  ):not(.math-button-danger):not(.math-action-button-danger):not([data-destructive="true"]):is(:hover, :focus-visible, :active, .is-active, [aria-selected="true"], [aria-pressed="true"], [data-active="true"]) :is(svg, svg *, span) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html:not(.dark) .math-role-student .math-readiness-sheet-filter:not(.is-active):not([aria-selected="true"]):not([aria-pressed="true"]):not([data-active="true"]) {
+    color: #c2410c !important;
+    -webkit-text-fill-color: #c2410c !important;
+    border-color: rgba(249, 115, 22, 0.22) !important;
+    background: rgba(255,255,255,0.94) !important;
+  }
+}
