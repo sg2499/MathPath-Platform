@@ -9731,3 +9731,75 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
+
+/* 30 May 2026 — FINAL Admin Reports light-mode table header role-palette override
+   Scope: Admin Reports only, light mode only.
+   This targets the actual rendered report table classes, including the later
+   Learning Performance-specific CSS that was overriding earlier attempts.
+   No rows, chips, buttons, exports, calculations, dark mode, Teacher, or Student
+   surfaces are affected. */
+@layer components {
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead,
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead tr,
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead th {
+    background:
+      linear-gradient(135deg, rgba(219, 234, 254, 0.98), rgba(239, 246, 255, 0.96)) !important;
+    border-color: rgba(59, 130, 246, 0.30) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 1px 0 rgba(37, 99, 235, 0.10) !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead :is(th, span, button, div, p, svg),
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-sortable-header,
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-sortable-header:hover,
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-sortable-header:focus-visible,
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-sortable-header-label,
+  html:not(.dark) .math-role-admin .math-learning-performance-table .math-table-header-label,
+  html:not(.dark) .math-role-admin .math-student-history-table .math-table-header-label,
+  html:not(.dark) .math-role-admin .math-dps-history-table .math-table-header-label,
+  html:not(.dark) .math-role-admin .math-assessment-history-table .math-table-header-label,
+  html:not(.dark) .math-role-admin .math-promotion-history-table .math-table-header-label {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-learning-performance-table,
+    .math-student-history-table,
+    .math-dps-history-table,
+    .math-assessment-history-table,
+    .math-promotion-history-table
+  ) thead th:not(:last-child) {
+    border-right: 1px solid rgba(59, 130, 246, 0.14) !important;
+  }
+}
+
