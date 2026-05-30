@@ -155,7 +155,7 @@ function Metric({
   icon?: ReactNode;
 }) {
   return (
-    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm ring-1 ring-transparent dark:border dark:border-white/15 dark:bg-slate-950/70 dark:shadow-[0_18px_45px_rgba(2,6,23,0.36)] dark:ring-1 dark:ring-rose-200/10">
+    <div className="rounded-[24px] border border-[#ead7e2] bg-white/90 p-4 shadow-[0_18px_42px_rgba(100,40,80,0.10)] ring-1 ring-[#f4e7ef] dark:border dark:border-white/15 dark:bg-slate-950/70 dark:shadow-[0_18px_45px_rgba(2,6,23,0.36)] dark:ring-1 dark:ring-rose-200/10">
       <div className="flex items-center gap-2 text-slate-700 dark:text-slate-100">
         {icon ? (
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 dark:border dark:border-rose-200/15 dark:bg-rose-400/10 dark:text-rose-100">
