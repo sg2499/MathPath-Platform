@@ -5,7 +5,9 @@ import type { LoginResponse, CurrentUser } from "@/types/auth";
 const PROFILE_PHOTO_MAX_DIMENSION = 360;
 const PROFILE_PHOTO_MAX_UPLOAD_BYTES = 260_000;
 const PROFILE_PHOTO_UPLOAD_TIMEOUT_MS = 60_000;
-const LOGIN_REQUEST_TIMEOUT_MS = 25_000;
+const LOGIN_REQUEST_TIMEOUT_MS = 90_000;
+const AUTH_HEALTH_TIMEOUT_MS = 12_000;
+const AUTH_RETRY_DELAYS_MS = [650, 1_400, 2_600];
 
 function shouldRetryLogin(ErrorValue: unknown): boolean {
   if (!axios.isAxiosError(ErrorValue)) return false;
@@ -13,34 +15,58 @@ function shouldRetryLogin(ErrorValue: unknown): boolean {
   return ErrorValue.code === "ECONNABORTED" || ErrorValue.message === "Network Error";
 }
 
-export async function warmupAuthApi(): Promise<void> {
-  try {
-    await api.get("/health", { timeout: 8_000 });
-  } catch {
-    // The login form must remain usable even while Render wakes the backend.
+function Sleep(DurationMs: number): Promise<void> {
+  return new Promise((Resolve) => window.setTimeout(Resolve, DurationMs));
+}
+
+async function waitBeforeRetry(AttemptIndex: number): Promise<void> {
+  if (typeof window === "undefined") return;
+  const DelayMs = AUTH_RETRY_DELAYS_MS[Math.min(AttemptIndex, AUTH_RETRY_DELAYS_MS.length - 1)] || 1_000;
+  await Sleep(DelayMs);
+}
+
+export async function warmupAuthApi(): Promise<boolean> {
+  for (let AttemptIndex = 0; AttemptIndex < 3; AttemptIndex += 1) {
+    try {
+      await api.get("/health", {
+        timeout: AUTH_HEALTH_TIMEOUT_MS,
+        skipAuth: true,
+      } as any);
+      return true;
+    } catch (ErrorValue) {
+      if (AttemptIndex === 2 || !shouldRetryLogin(ErrorValue)) {
+        return false;
+      }
+      await waitBeforeRetry(AttemptIndex);
+    }
   }
+
+  return false;
 }
 
 export async function login(identifier: string, password: string): Promise<LoginResponse> {
   const Payload = { identifier, password };
+  let LastNetworkError: unknown = null;
 
-  try {
-    const { data } = await api.post<LoginResponse>("/auth/login", Payload, {
-      timeout: LOGIN_REQUEST_TIMEOUT_MS,
-      skipAuth: true,
-    } as any);
-    return data;
-  } catch (ErrorValue) {
-    if (!shouldRetryLogin(ErrorValue)) {
-      throw ErrorValue;
+  for (let AttemptIndex = 0; AttemptIndex < 3; AttemptIndex += 1) {
+    try {
+      const { data } = await api.post<LoginResponse>("/auth/login", Payload, {
+        timeout: LOGIN_REQUEST_TIMEOUT_MS,
+        skipAuth: true,
+      } as any);
+      return data;
+    } catch (ErrorValue) {
+      if (!shouldRetryLogin(ErrorValue)) {
+        throw ErrorValue;
+      }
+
+      LastNetworkError = ErrorValue;
+      await warmupAuthApi();
+      await waitBeforeRetry(AttemptIndex);
     }
-
-    const { data } = await api.post<LoginResponse>("/auth/login", Payload, {
-      timeout: LOGIN_REQUEST_TIMEOUT_MS,
-      skipAuth: true,
-    } as any);
-    return data;
   }
+
+  throw LastNetworkError || new Error("The secure login service is still waking up. Please try again in a few seconds.");
 }
 
 export async function getMe(): Promise<CurrentUser> {
