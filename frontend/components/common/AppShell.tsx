@@ -822,13 +822,15 @@ export function AppShell({
                           key={group.label}
                           type="button"
                           onClick={() => navigateTo(group.href)}
-                          className={`premium-nav-item shrink-0 px-3 text-sm ${
+                          className={`premium-nav-item group shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
                           aria-label={group.tooltip}
+                          data-teacher-nav-active={IsTeacher && theme === "light" && active ? "true" : undefined}
+                          data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
                         >
-                          <Icon size={16} className="math-teacher-main-nav-icon" />
+                          <Icon size={16} className="math-teacher-main-nav-icon shrink-0 transition-colors group-hover:!text-white group-hover:!opacity-100" />
                           <span className="whitespace-nowrap">
                             {group.shortLabel || group.label}
                           </span>
@@ -850,20 +852,22 @@ export function AppShell({
                               current === group.label ? null : group.label,
                             )
                           }
-                          className={`premium-nav-item shrink-0 px-3 text-sm ${
+                          className={`premium-nav-item group shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
                           aria-label={group.tooltip}
+                          data-teacher-nav-active={IsTeacher && theme === "light" && active ? "true" : undefined}
+                          data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
                           aria-expanded={dropdownOpen}
                         >
-                          <Icon size={16} className="math-teacher-main-nav-icon" />
+                          <Icon size={16} className="math-teacher-main-nav-icon shrink-0 transition-colors group-hover:!text-white group-hover:!opacity-100" />
                           <span className="whitespace-nowrap">
                             {group.shortLabel || group.label}
                           </span>
                           <ChevronDown
                             size={14}
-                            className={`math-teacher-main-nav-icon transition ${dropdownOpen ? "rotate-180" : ""}`}
+                            className={`math-teacher-main-nav-chevron shrink-0 transition-colors group-hover:!text-white group-hover:!opacity-100 ${dropdownOpen ? "rotate-180 !text-white !opacity-100" : ""}`}
                           />
                         </button>
 
