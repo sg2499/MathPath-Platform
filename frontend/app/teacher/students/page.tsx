@@ -83,6 +83,48 @@ function trackerAccuracy(row: Record<string, any>) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function trackerAccuracyRawValue(row: Record<string, any>) {
+  return row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy;
+}
+
+function trackerHasAccuracyValue(row: Record<string, any>) {
+  const RawValue = trackerAccuracyRawValue(row);
+  return RawValue !== null && RawValue !== undefined && RawValue !== "" && !Number.isNaN(Number(RawValue));
+}
+
+function trackerScopedAccuracy(row: Record<string, any>) {
+  const NumericValue = Number(trackerAccuracyRawValue(row));
+  return Number.isFinite(NumericValue) ? NumericValue : 0;
+}
+
+function trackerLevelCode(row: Record<string, any>) {
+  return String(row.levelCode || row.levelId || row.level || "Level");
+}
+
+function trackerHierarchyAverageAccuracy(rows: Record<string, any>[]) {
+  const AttemptRows = rows.flatMap(trackerAttemptRows);
+  const LevelCodes = Array.from(new Set(AttemptRows.map(trackerLevelCode).filter(Boolean))).sort((First, Second) =>
+    First.localeCompare(Second, undefined, { numeric: true }),
+  );
+
+  const LevelAverages = LevelCodes
+    .map((LevelCode) => {
+      const LevelRows = AttemptRows.filter((Row) => trackerLevelCode(Row) === LevelCode);
+      const AccuracyValues = LevelRows
+        .filter((Row) => trackerCompleted(Row) && trackerHasAccuracyValue(Row))
+        .map(trackerScopedAccuracy);
+
+      if (!AccuracyValues.length) return null;
+
+      return Math.round(AccuracyValues.reduce((Sum, Value) => Sum + Value, 0) / AccuracyValues.length);
+    })
+    .filter((Value): Value is number => Value !== null);
+
+  if (!LevelAverages.length) return 0;
+
+  return Math.round(LevelAverages.reduce((Sum, Value) => Sum + Value, 0) / LevelAverages.length);
+}
+
 function trackerCompleted(row: Record<string, any>) {
   const status = normalizeTrackerStatus(row.status ?? row.attemptStatus ?? row.benchmarkStatus);
   return (
@@ -176,7 +218,15 @@ function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
   });
 
   const Metrics = new Map<string, StudentPracticeMetric>();
-  const AccuracyBuckets = new Map<string, number[]>();
+  const StudentRows = new Map<string, Record<string, any>[]>();
+
+  rows.forEach((Row) => {
+    const StudentCode = String(Row.studentCode || "");
+    if (!StudentCode) return;
+    const ExistingRows = StudentRows.get(StudentCode) || [];
+    ExistingRows.push(Row);
+    StudentRows.set(StudentCode, ExistingRows);
+  });
 
   ConceptMap.forEach((AttemptRows) => {
     const StudentCode = String(AttemptRows[0]?.studentCode || "");
@@ -192,27 +242,25 @@ function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
     const Cleared = AttemptRows.some(trackerCleared);
     const Pending = AttemptRows.some((AttemptRow) => !trackerCompleted(AttemptRow));
     const NeedsReattempt = !Cleared && AttemptRows.some(trackerNeedsReattempt);
-    const CompletedAccuracies = AttemptRows
-      .filter(trackerCompleted)
-      .map(trackerAccuracy)
-      .filter((Value) => Number.isFinite(Value));
-
     Metric.assigned += 1;
     if (Cleared) Metric.cleared += 1;
     if (Pending) Metric.pending += 1;
     if (NeedsReattempt) Metric.needsReattempt += 1;
 
-    const Bucket = AccuracyBuckets.get(StudentCode) || [];
-    Bucket.push(...CompletedAccuracies);
-    AccuracyBuckets.set(StudentCode, Bucket);
     Metrics.set(StudentCode, Metric);
   });
 
-  Metrics.forEach((Metric, StudentCode) => {
-    const Values = AccuracyBuckets.get(StudentCode) || [];
-    Metric.averageAccuracy = Values.length
-      ? Math.round((Values.reduce((Sum, Value) => Sum + Value, 0) / Values.length) * 100) / 100
-      : null;
+  StudentRows.forEach((Rows, StudentCode) => {
+    const Metric = Metrics.get(StudentCode) || {
+      assigned: 0,
+      cleared: 0,
+      pending: 0,
+      needsReattempt: 0,
+      averageAccuracy: null,
+    };
+
+    Metric.averageAccuracy = trackerHierarchyAverageAccuracy(Rows);
+    Metrics.set(StudentCode, Metric);
   });
 
   return Metrics;
@@ -255,13 +303,25 @@ export default function TeacherStudentsPage() {
     () => (trackerQuery.data?.rows ?? []) as Record<string, any>[],
     [trackerQuery.data],
   );
+  const scopedTrackerRows = useMemo(() => {
+    return trackerRows.filter((Row) => {
+      const RowModuleCode = String(Row.moduleCode || Row.moduleId || "");
+      const RowLevelCode = String(Row.levelCode || Row.levelId || Row.level || "");
+
+      return (
+        (!moduleFilter || moduleFilter === "ALL" || RowModuleCode === moduleFilter) &&
+        (!levelFilter || levelFilter === "ALL" || RowLevelCode === levelFilter)
+      );
+    });
+  }, [trackerRows, moduleFilter, levelFilter]);
+
   const currentNeedsReattemptStudentCodes = useMemo(
-    () => buildCurrentNeedsReattemptStudents(trackerRows),
-    [trackerRows],
+    () => buildCurrentNeedsReattemptStudents(scopedTrackerRows),
+    [scopedTrackerRows],
   );
   const studentPracticeMetrics = useMemo(
-    () => buildStudentPracticeMetrics(trackerRows),
-    [trackerRows],
+    () => buildStudentPracticeMetrics(scopedTrackerRows),
+    [scopedTrackerRows],
   );
 
   const moduleOptions = useMemo(() => {
@@ -338,11 +398,14 @@ export default function TeacherStudentsPage() {
     const assigned = VisibleStudents.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "assigned", s.assignedAssignments ?? 0), 0);
     const completed = VisibleStudents.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "cleared", s.completedAssignments ?? 0), 0);
     const pending = VisibleStudents.reduce((sum, s) => sum + studentMetricValue(studentPracticeMetrics, s, "pending", (s.pendingAssignments ?? 0) + (s.inProgressAssignments ?? 0)), 0);
-    const accuracyValues = VisibleStudents
-      .map((s) => studentPracticeMetrics.get(s.studentCode)?.averageAccuracy ?? s.averageAccuracy)
-      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    const accuracyValues = VisibleStudents.map((Student) => {
+      const MetricAccuracy = studentPracticeMetrics.get(Student.studentCode)?.averageAccuracy;
+      if (typeof MetricAccuracy === "number" && Number.isFinite(MetricAccuracy)) return MetricAccuracy;
+      const FallbackAccuracy = Number(Student.averageAccuracy);
+      return Number.isFinite(FallbackAccuracy) ? FallbackAccuracy : 0;
+    });
     const avgAccuracy = accuracyValues.length
-      ? Math.round((accuracyValues.reduce((a, b) => a + b, 0) / accuracyValues.length) * 100) / 100
+      ? Math.round(accuracyValues.reduce((a, b) => a + b, 0) / accuracyValues.length)
       : null;
 
     return {

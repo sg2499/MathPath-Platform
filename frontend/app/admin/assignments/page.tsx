@@ -19,6 +19,7 @@ import {
 import {
   AnyRow,
   buildStudents,
+  hierarchyAverageAccuracy,
   isBelowBenchmark,
   isCompleted,
   Metric,
@@ -199,23 +200,15 @@ function rowAccuracyValue(row: AnyRow) {
 }
 
 function studentOverallAverageAccuracy(rows: AnyRow[]) {
-  const AccuracyValues = rowsWithAttemptHistory(rows)
-    .filter((row) => isCompleted(row) && rowHasAccuracyValue(row))
-    .map(rowAccuracyValue);
-
-  if (!AccuracyValues.length) return null;
-
-  return Math.round(
-    (AccuracyValues.reduce((sum, value) => sum + value, 0) / AccuracyValues.length) * 100,
-  ) / 100;
+  return hierarchyAverageAccuracy(rows);
 }
 
 function visibleStudentsAverageAccuracy(students: ReturnType<typeof buildStudents>) {
-  const StudentAccuracyValues = students
-    .map((student) => studentOverallAverageAccuracy(student.rows))
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (!students.length) return 0;
 
-  if (!StudentAccuracyValues.length) return 0;
+  const StudentAccuracyValues = students.map((student) =>
+    studentOverallAverageAccuracy(student.rows),
+  );
 
   return Math.round(
     StudentAccuracyValues.reduce((sum, value) => sum + value, 0) / StudentAccuracyValues.length,
