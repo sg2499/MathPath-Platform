@@ -143,6 +143,7 @@ export function AppShell({
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [hoveredNavGroup, setHoveredNavGroup] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [AccountMenuOpen, SetAccountMenuOpen] = useState(false);
@@ -820,10 +821,11 @@ export function AppShell({
                     const active = isGroupActive(group);
                     const hasChildren = Boolean(group.children?.length);
                     const dropdownOpen = openGroup === group.label;
+                    const navHovered = hoveredNavGroup === group.label;
                     const TeacherNavHighlighted =
-                      IsTeacher && theme === "light" && (active || dropdownOpen);
+                      IsTeacher && theme === "light" && (active || dropdownOpen || navHovered);
                     const StudentNavHighlighted =
-                      IsStudent && theme === "light" && (active || dropdownOpen);
+                      IsStudent && theme === "light" && (active || dropdownOpen || navHovered);
                     const RoleNavHighlighted = TeacherNavHighlighted || StudentNavHighlighted;
 
                     if (!hasChildren) {
@@ -832,6 +834,10 @@ export function AppShell({
                           key={group.label}
                           type="button"
                           onClick={() => navigateTo(group.href)}
+                          onMouseEnter={() => setHoveredNavGroup(group.label)}
+                          onMouseLeave={() => setHoveredNavGroup(null)}
+                          onFocus={() => setHoveredNavGroup(group.label)}
+                          onBlur={() => setHoveredNavGroup(null)}
                           className={`premium-nav-item group shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
@@ -878,8 +884,14 @@ export function AppShell({
                       <div
                         key={group.label}
                         className="relative"
-                        onMouseEnter={() => setOpenGroup(group.label)}
-                        onMouseLeave={() => setOpenGroup(null)}
+                        onMouseEnter={() => {
+                          setOpenGroup(group.label);
+                          setHoveredNavGroup(group.label);
+                        }}
+                        onMouseLeave={() => {
+                          setOpenGroup(null);
+                          setHoveredNavGroup(null);
+                        }}
                       >
                         <button
                           type="button"
@@ -888,6 +900,8 @@ export function AppShell({
                               current === group.label ? null : group.label,
                             )
                           }
+                          onFocus={() => setHoveredNavGroup(group.label)}
+                          onBlur={() => setHoveredNavGroup(null)}
                           className={`premium-nav-item group shrink-0 px-3 text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
@@ -964,6 +978,7 @@ export function AppShell({
                                       key={child.href}
                                       type="button"
                                       onClick={() => navigateTo(child.href)}
+                                      data-teacher-nav-child={IsTeacher && theme === "light" ? "true" : undefined}
                                       data-student-nav-child={IsStudent && theme === "light" ? "true" : undefined}
                                       className={`math-dropdown-option flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
                                         childActive
@@ -974,6 +989,7 @@ export function AppShell({
                                       aria-label={child.tooltip}
                                     >
                                       <span
+                                        data-teacher-nav-child-icon={IsTeacher && theme === "light" ? "true" : undefined}
                                         data-student-nav-child-icon={IsStudent && theme === "light" ? "true" : undefined}
                                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                                           childActive
@@ -981,7 +997,20 @@ export function AppShell({
                                             : "bg-slate-50 text-blue-600 dark:bg-slate-900"
                                         }`}
                                       >
-                                        <ChildIcon size={17} />
+                                        <ChildIcon
+                                          size={17}
+                                          strokeWidth={IsTeacher && theme === "light" && childActive ? 2.8 : 2.15}
+                                          style={
+                                            IsTeacher && theme === "light" && childActive
+                                              ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
+                                              : undefined
+                                          }
+                                          className={
+                                            IsTeacher && theme === "light" && childActive
+                                              ? "!text-white !stroke-white opacity-100"
+                                              : undefined
+                                          }
+                                        />
                                       </span>
                                       <span className="min-w-0 flex-1">
                                         <span className="block truncate">
