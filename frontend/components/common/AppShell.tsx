@@ -828,7 +828,7 @@ export function AppShell({
                     const StudentNavHighlighted =
                       IsStudent && theme === "light" && (active || dropdownOpen || navHovered);
                     const RoleNavHighlighted = TeacherNavHighlighted || StudentNavHighlighted;
-                    const TeacherNavIconStyle = TeacherNavHighlighted
+                    const TeacherNavIconStyle: CSSProperties | undefined = TeacherNavHighlighted
                       ? {
                           color: "#ffffff",
                           stroke: "#ffffff",
@@ -837,7 +837,7 @@ export function AppShell({
                           mixBlendMode: "normal",
                         }
                       : undefined;
-                    const TeacherNavTextStyle = TeacherNavHighlighted
+                    const TeacherNavTextStyle: CSSProperties | undefined = TeacherNavHighlighted
                       ? { color: "#ffffff", opacity: 1 }
                       : undefined;
 
