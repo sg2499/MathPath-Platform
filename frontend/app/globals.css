@@ -11003,3 +11003,134 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     background: rgba(255,255,255,0.94) !important;
   }
 }
+
+/* 31 May 2026 — Student light-mode dashboard/readiness hover completion
+   Scope: Student login only, light mode only.
+   Fixes remaining dashboard quick cards/buttons and Assessment Readiness sheet filters so
+   hover/active states use the Student orange role palette with clearly visible white icons/text.
+   Admin, Teacher, Student dark mode, destructive actions, metrics, chips, and business logic are untouched. */
+@layer components {
+  html:not(.dark) .math-role-student :is(
+    .math-dashboard-primary-action,
+    .math-dashboard-secondary-action,
+    .math-dashboard-quick-card,
+    .math-readiness-sheet-filter
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):not([data-destructive="true"]) {
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease,
+      background 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease,
+      opacity 180ms ease !important;
+  }
+
+  html:not(.dark) .math-role-student .math-dashboard-quick-card {
+    border-color: rgba(251, 146, 60, 0.18) !important;
+  }
+
+  html:not(.dark) .math-role-student .math-dashboard-quick-card .math-dashboard-quick-icon {
+    color: #ea580c !important;
+    -webkit-text-fill-color: #ea580c !important;
+  }
+
+  html:not(.dark) .math-role-student .math-readiness-sheet-filter {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.45rem !important;
+    min-height: 34px !important;
+  }
+
+  html:not(.dark) .math-role-student .math-readiness-sheet-filter .math-readiness-sheet-filter-icon,
+  html:not(.dark) .math-role-student .math-readiness-sheet-filter .math-readiness-sheet-filter-label {
+    display: inline-flex !important;
+    align-items: center !important;
+    color: currentColor !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html:not(.dark) .math-role-student .math-readiness-sheet-filter svg {
+    width: 0.9rem !important;
+    height: 0.9rem !important;
+    min-width: 0.9rem !important;
+    min-height: 0.9rem !important;
+    color: currentColor !important;
+    stroke: currentColor !important;
+    fill: none !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+  }
+
+  html:not(.dark) .math-role-student .math-readiness-sheet-filter svg * {
+    stroke: currentColor !important;
+    fill: none !important;
+    vector-effect: non-scaling-stroke;
+  }
+
+  html:not(.dark) .math-role-student :is(
+    .math-dashboard-primary-action:hover,
+    .math-dashboard-primary-action:focus-visible,
+    .math-dashboard-secondary-action:hover,
+    .math-dashboard-secondary-action:focus-visible,
+    .math-dashboard-quick-card:hover,
+    .math-dashboard-quick-card:focus-visible,
+    .math-readiness-sheet-filter:hover,
+    .math-readiness-sheet-filter:focus-visible,
+    .math-readiness-sheet-filter:active,
+    .math-readiness-sheet-filter.is-active,
+    .math-readiness-sheet-filter[aria-pressed="true"],
+    .math-readiness-sheet-filter[aria-selected="true"],
+    .math-readiness-sheet-filter[data-active="true"]
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):not([data-destructive="true"]) {
+    background: var(--mp-student-light-nav-bg) !important;
+    border-color: var(--mp-student-light-nav-border) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    box-shadow: 0 16px 34px rgba(249, 115, 22, 0.28), inset 0 1px 0 rgba(255,255,255,0.20) !important;
+    transform: translateY(-1px);
+  }
+
+  html:not(.dark) .math-role-student :is(
+    .math-dashboard-primary-action:hover,
+    .math-dashboard-primary-action:focus-visible,
+    .math-dashboard-secondary-action:hover,
+    .math-dashboard-secondary-action:focus-visible,
+    .math-dashboard-quick-card:hover,
+    .math-dashboard-quick-card:focus-visible,
+    .math-readiness-sheet-filter:hover,
+    .math-readiness-sheet-filter:focus-visible,
+    .math-readiness-sheet-filter:active,
+    .math-readiness-sheet-filter.is-active,
+    .math-readiness-sheet-filter[aria-pressed="true"],
+    .math-readiness-sheet-filter[aria-selected="true"],
+    .math-readiness-sheet-filter[data-active="true"]
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):not([data-destructive="true"]) :is(svg, svg *, span, p, div, strong, small) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html:not(.dark) .math-role-student :is(
+    .math-dashboard-primary-action:hover,
+    .math-dashboard-primary-action:focus-visible,
+    .math-dashboard-secondary-action:hover,
+    .math-dashboard-secondary-action:focus-visible,
+    .math-dashboard-quick-card:hover,
+    .math-dashboard-quick-card:focus-visible,
+    .math-readiness-sheet-filter:hover,
+    .math-readiness-sheet-filter:focus-visible,
+    .math-readiness-sheet-filter:active,
+    .math-readiness-sheet-filter.is-active,
+    .math-readiness-sheet-filter[aria-pressed="true"],
+    .math-readiness-sheet-filter[aria-selected="true"],
+    .math-readiness-sheet-filter[data-active="true"]
+  ):not(.math-button-danger):not(.math-action-button-danger):not(.math-destructive-button):not([data-danger="true"]):not([data-destructive="true"]) svg {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+  }
+}
