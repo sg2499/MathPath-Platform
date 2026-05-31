@@ -118,10 +118,23 @@ function AdminStudentAssignmentsWorkspacePageContent() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteAssignment,
+    onMutate: async (AssignmentId) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-assignments"] });
+      const PreviousAssignments = queryClient.getQueryData<AdminAssignment[]>(["admin-assignments"]);
+      queryClient.setQueryData<AdminAssignment[]>(["admin-assignments"], (CurrentAssignments = []) =>
+        CurrentAssignments.filter((Assignment) => Assignment.assignmentId !== AssignmentId)
+      );
+      return { PreviousAssignments };
+    },
+    onError: (_Error, _AssignmentId, Context) => {
+      if (Context?.PreviousAssignments) {
+        queryClient.setQueryData(["admin-assignments"], Context.PreviousAssignments);
+      }
+    },
     onSuccess: () => {
       setDeleteTarget(null);
       setConfirmText("");
-      queryClient.invalidateQueries({ queryKey: ["admin-assignments"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-assignments"], refetchType: "active" });
     },
   });
 

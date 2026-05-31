@@ -5,9 +5,9 @@ import type { LoginResponse, CurrentUser } from "@/types/auth";
 const PROFILE_PHOTO_MAX_DIMENSION = 360;
 const PROFILE_PHOTO_MAX_UPLOAD_BYTES = 260_000;
 const PROFILE_PHOTO_UPLOAD_TIMEOUT_MS = 60_000;
-const LOGIN_REQUEST_TIMEOUT_MS = 90_000;
-const AUTH_HEALTH_TIMEOUT_MS = 12_000;
-const AUTH_RETRY_DELAYS_MS = [650, 1_400, 2_600];
+const LOGIN_REQUEST_TIMEOUT_MS = 25_000;
+const AUTH_HEALTH_TIMEOUT_MS = 8_000;
+const AUTH_RETRY_DELAYS_MS = [450, 900, 1_600, 2_800];
 
 function shouldRetryLogin(ErrorValue: unknown): boolean {
   if (!axios.isAxiosError(ErrorValue)) return false;
@@ -26,7 +26,7 @@ async function waitBeforeRetry(AttemptIndex: number): Promise<void> {
 }
 
 export async function warmupAuthApi(): Promise<boolean> {
-  for (let AttemptIndex = 0; AttemptIndex < 3; AttemptIndex += 1) {
+  for (let AttemptIndex = 0; AttemptIndex < 4; AttemptIndex += 1) {
     try {
       await api.get("/health", {
         timeout: AUTH_HEALTH_TIMEOUT_MS,
@@ -34,7 +34,7 @@ export async function warmupAuthApi(): Promise<boolean> {
       } as any);
       return true;
     } catch (ErrorValue) {
-      if (AttemptIndex === 2 || !shouldRetryLogin(ErrorValue)) {
+      if (AttemptIndex === 3 || !shouldRetryLogin(ErrorValue)) {
         return false;
       }
       await waitBeforeRetry(AttemptIndex);
@@ -48,7 +48,7 @@ export async function login(identifier: string, password: string): Promise<Login
   const Payload = { identifier, password };
   let LastNetworkError: unknown = null;
 
-  for (let AttemptIndex = 0; AttemptIndex < 3; AttemptIndex += 1) {
+  for (let AttemptIndex = 0; AttemptIndex < 4; AttemptIndex += 1) {
     try {
       const { data } = await api.post<LoginResponse>("/auth/login", Payload, {
         timeout: LOGIN_REQUEST_TIMEOUT_MS,

@@ -8,7 +8,17 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
     defaultOptions: {
       queries: {
         retry: 1,
-        refetchOnWindowFocus: false
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: true,
+        staleTime: 15_000
+      },
+      mutations: {
+        retry: (FailureCount, ErrorValue: unknown) => {
+          const ErrorLike = ErrorValue as { response?: unknown; code?: string; message?: string };
+          if (ErrorLike?.response) return false;
+          return FailureCount < 1 && (ErrorLike?.code === "ECONNABORTED" || ErrorLike?.message === "Network Error");
+        },
+        retryDelay: 900
       }
     }
   }));

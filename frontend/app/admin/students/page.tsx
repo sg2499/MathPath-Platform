@@ -235,14 +235,46 @@ export default function AdminStudentsPage() {
 
       return response;
     },
-    onSuccess: () => {
+    onMutate: async ({ studentId, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-students"] });
+      const PreviousStudents = queryClient.getQueryData<AdminStudent[]>(["admin-students"]);
+      queryClient.setQueryData<AdminStudent[]>(["admin-students"], (CurrentStudents = []) =>
+        CurrentStudents.map((Student) =>
+          Student.studentId === studentId
+            ? {
+                ...Student,
+                ...payload,
+                fullName: payload.studentName || Student.fullName,
+                isActive: payload.status ? payload.status === "ACTIVE" : Student.isActive,
+                teacherName: payload.teacher || Student.teacherName,
+              }
+            : Student
+        )
+      );
+      setEditingStudentId(null);
+      setSelectedStudent(null);
+      setForm(emptyForm());
+      setIsFormOpen(false);
+      return { PreviousStudents };
+    },
+    onError: (_Error, _Variables, Context) => {
+      if (Context?.PreviousStudents) {
+        queryClient.setQueryData(["admin-students"], Context.PreviousStudents);
+      }
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData<AdminStudent[]>(["admin-students"], (CurrentStudents = []) =>
+        CurrentStudents.map((Student) =>
+          Student.studentId === data.student.studentId ? data.student : Student
+        )
+      );
       setEditingStudentId(null);
       setSelectedStudent(null);
       setPhotoFile(null);
       setSignatureFile(null);
       setForm(emptyForm());
       setIsFormOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["admin-students"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-students"], refetchType: "active" });
     },
   });
 
@@ -254,7 +286,58 @@ export default function AdminStudentsPage() {
       studentId: string;
       isActive: boolean;
     }) => updateStudentStatus(studentId, isActive),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-students"] }),
+    onMutate: async ({ studentId, isActive }) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-students"] });
+      const PreviousStudents = queryClient.getQueryData<AdminStudent[]>(["admin-students"]);
+      queryClient.setQueryData<AdminStudent[]>(["admin-students"], (CurrentStudents = []) =>
+        CurrentStudents.map((Student) =>
+          Student.studentId === studentId
+            ? { ...Student, isActive, status: isActive ? "ACTIVE" : "INACTIVE" }
+            : Student
+        )
+      );
+      return { PreviousStudents };
+    },
+    onError: (_Error, _Variables, Context) => {
+      if (Context?.PreviousStudents) {
+        queryClient.setQueryData(["admin-students"], Context.PreviousStudents);
+      }
+    },
+    onMutate: async ({ studentId, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-students"] });
+      const PreviousStudents = queryClient.getQueryData<AdminStudent[]>(["admin-students"]);
+      queryClient.setQueryData<AdminStudent[]>(["admin-students"], (CurrentStudents = []) =>
+        CurrentStudents.map((Student) =>
+          Student.studentId === studentId
+            ? {
+                ...Student,
+                ...payload,
+                fullName: payload.studentName || Student.fullName,
+                isActive: payload.status ? payload.status === "ACTIVE" : Student.isActive,
+                teacherName: payload.teacher || Student.teacherName,
+              }
+            : Student
+        )
+      );
+      setEditingStudentId(null);
+      setSelectedStudent(null);
+      setForm(emptyForm());
+      setIsFormOpen(false);
+      return { PreviousStudents };
+    },
+    onError: (_Error, _Variables, Context) => {
+      if (Context?.PreviousStudents) {
+        queryClient.setQueryData(["admin-students"], Context.PreviousStudents);
+      }
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData<AdminStudent[]>(["admin-students"], (CurrentStudents = []) =>
+        CurrentStudents.map((Student) =>
+          Student.studentId === data.student.studentId ? data.student : Student
+        )
+      );
+      void queryClient.invalidateQueries({ queryKey: ["admin-students"], refetchType: "active" });
+    },
   });
 
   const resetMutation = useMutation({
@@ -283,9 +366,22 @@ export default function AdminStudentsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteStudent,
+    onMutate: async (StudentId) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-students"] });
+      const PreviousStudents = queryClient.getQueryData<AdminStudent[]>(["admin-students"]);
+      queryClient.setQueryData<AdminStudent[]>(["admin-students"], (CurrentStudents = []) =>
+        CurrentStudents.filter((Student) => Student.studentId !== StudentId)
+      );
+      return { PreviousStudents };
+    },
+    onError: (_Error, _StudentId, Context) => {
+      if (Context?.PreviousStudents) {
+        queryClient.setQueryData(["admin-students"], Context.PreviousStudents);
+      }
+    },
     onSuccess: () => {
       setDeleteTarget(null);
-      queryClient.invalidateQueries({ queryKey: ["admin-students"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-students"], refetchType: "active" });
     },
   });
 
