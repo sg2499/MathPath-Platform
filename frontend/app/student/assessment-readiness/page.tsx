@@ -18,9 +18,12 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Clock3,
   GraduationCap,
+  ListChecks,
   Maximize2,
   Minimize2,
+  RefreshCcw,
   Search,
   ShieldCheck,
 } from "lucide-react";
@@ -509,6 +512,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
         <div className="mt-4 flex flex-wrap gap-2">
           <SheetFilterChip
             active={sheetFilter === "ALL"}
+            icon={<ListChecks size={14} strokeWidth={2.5} />}
             onClick={() => setSheetFilter("ALL")}
           >
             All Sheets{" "}
@@ -516,12 +520,14 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
           </SheetFilterChip>
           <SheetFilterChip
             active={sheetFilter === "PENDING"}
+            icon={<Clock3 size={14} strokeWidth={2.5} />}
             onClick={() => setSheetFilter("PENDING")}
           >
             Pending <span className="ml-1 opacity-70">({pendingCount})</span>
           </SheetFilterChip>
           <SheetFilterChip
             active={sheetFilter === "NEEDS_REATTEMPT"}
+            icon={<RefreshCcw size={14} strokeWidth={2.5} />}
             onClick={() => setSheetFilter("NEEDS_REATTEMPT")}
           >
             Needs Re-Attempt{" "}
@@ -529,6 +535,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
           </SheetFilterChip>
           <SheetFilterChip
             active={sheetFilter === "CLEARED"}
+            icon={<CheckCircle2 size={14} strokeWidth={2.5} />}
             onClick={() => setSheetFilter("CLEARED")}
           >
             Cleared <span className="ml-1 opacity-70">({clearedCount})</span>
@@ -766,20 +773,26 @@ function Chip({
 
 function SheetFilterChip({
   active,
+  icon,
   onClick,
   children,
 }: {
   active: boolean;
+  icon: React.ReactNode;
   onClick: () => void;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
+      aria-pressed={active}
       className={`math-readiness-sheet-filter ${active ? "is-active" : ""}`}
       onClick={onClick}
     >
-      {children}
+      <span className="math-readiness-sheet-filter-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="math-readiness-sheet-filter-label">{children}</span>
     </button>
   );
 }
