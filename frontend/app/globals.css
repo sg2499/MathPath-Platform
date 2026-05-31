@@ -11690,3 +11690,31 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     opacity: 1 !important;
   }
 }
+
+/* 31 May 2026 — Teacher light-mode main navbar icon hard lock
+   Scope: Teacher login only, light mode only, desktop main navbar only.
+   Purpose: keep Teacher nav icons and chevrons visibly white on hover/open/active states even when older global SVG/nav rules load later. */
+@layer components {
+  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"], .premium-nav-item-active, .premium-nav-item-open) svg,
+  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"], .premium-nav-item-active, .premium-nav-item-open) svg *,
+  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] svg,
+  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] svg *,
+  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] svg,
+  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] svg *,
+  html:not(.dark) .math-role-teacher .premium-nav svg[data-teacher-main-nav-svg="true"],
+  html:not(.dark) .math-role-teacher .premium-nav svg[data-teacher-main-nav-svg="true"] * {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"], .premium-nav-item-active, .premium-nav-item-open) svg,
+  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] svg,
+  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] svg,
+  html:not(.dark) .math-role-teacher .premium-nav svg[data-teacher-main-nav-svg="true"] {
+    filter: drop-shadow(0 1px 1px rgba(23, 15, 32, 0.4)) !important;
+    stroke-width: 3.25 !important;
+  }
+}
