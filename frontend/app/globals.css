@@ -11344,3 +11344,76 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     text-shadow: 0 0 0.01px currentColor !important;
   }
 }
+
+/* 31 May 2026 — Admin light-mode metric card surface / role-palette outline stabilization
+   Scope: Admin login only, light mode only.
+   Aligns Admin metric cards with the Admin Students reference surface: visible Admin-blue
+   role-palette borders, clean card boundary, readable icon/value/label hierarchy. Keeps
+   Teacher, Student, Admin dark mode, rows, chips, tables, routing, and business logic untouched. */
+@layer components {
+  html:not(.dark) .math-role-admin :is(
+    .math-metric,
+    .math-teacher-light-metric-card,
+    .math-admin-light-metric-card
+  ):not(.math-status-chip):not(.math-chip):not(.math-badge):not(.math-role-badge):not(.math-status-pill),
+  html:not(.dark) .math-role-admin section.grid > .math-card:not(:has(.math-input)):not(:has(table)):not(:has(.math-table)) {
+    position: relative !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(37, 99, 235, 0.36) !important;
+    background:
+      linear-gradient(145deg, rgba(255,255,255,0.96), rgba(239,246,255,0.46) 58%, rgba(255,255,255,0.9)) !important;
+    box-shadow:
+      0 14px 36px rgba(15, 23, 42, 0.055),
+      0 0 0 1px rgba(219, 234, 254, 0.76) inset !important;
+    backdrop-filter: blur(18px) !important;
+    -webkit-backdrop-filter: blur(18px) !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-metric,
+    .math-teacher-light-metric-card,
+    .math-admin-light-metric-card
+  ):not(.math-status-chip):not(.math-chip):not(.math-badge):not(.math-role-badge):not(.math-status-pill)::after,
+  html:not(.dark) .math-role-admin section.grid > .math-card:not(:has(.math-input)):not(:has(table)):not(:has(.math-table))::after {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    pointer-events: none !important;
+    border-radius: inherit !important;
+    background:
+      linear-gradient(135deg, rgba(37, 99, 235, 0.10), transparent 36%, rgba(59, 130, 246, 0.055)) !important;
+    opacity: 0.9 !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-metric,
+    .math-teacher-light-metric-card,
+    .math-admin-light-metric-card
+  ):not(.math-status-chip):not(.math-chip):not(.math-badge):not(.math-role-badge):not(.math-status-pill):hover,
+  html:not(.dark) .math-role-admin section.grid > .math-card:not(:has(.math-input)):not(:has(table)):not(:has(.math-table)):hover {
+    border-color: rgba(29, 78, 216, 0.58) !important;
+    box-shadow:
+      0 18px 44px rgba(37, 99, 235, 0.13),
+      0 0 0 1px rgba(59, 130, 246, 0.52) inset !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-metric,
+    .math-teacher-light-metric-card,
+    .math-admin-light-metric-card
+  ):not(.math-status-chip):not(.math-chip):not(.math-badge):not(.math-role-badge):not(.math-status-pill) :is(svg, .math-icon, [data-icon]),
+  html:not(.dark) .math-role-admin section.grid > .math-card:not(:has(.math-input)):not(:has(table)):not(:has(.math-table)) :is(svg, .math-icon, [data-icon]) {
+    color: #2563eb !important;
+    stroke: currentColor !important;
+  }
+
+  html:not(.dark) .math-role-admin :is(
+    .math-metric,
+    .math-teacher-light-metric-card,
+    .math-admin-light-metric-card
+  ):not(.math-status-chip):not(.math-chip):not(.math-badge):not(.math-role-badge):not(.math-status-pill) :is(p, span),
+  html:not(.dark) .math-role-admin section.grid > .math-card:not(:has(.math-input)):not(:has(table)):not(:has(.math-table)) :is(p, span) {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+}
