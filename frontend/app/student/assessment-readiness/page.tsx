@@ -551,7 +551,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
                     key={lesson.lessonId}
                     className="border-b border-slate-100 last:border-b-0 dark:border-slate-800"
                   >
-                    <div className="sticky top-0 z-20 grid gap-3 border-b border-slate-100 bg-slate-50/95 px-4 py-3 backdrop-blur lg:grid-cols-[1fr_96px_160px_170px] lg:items-end dark:border-slate-800 dark:bg-slate-900/95">
+                    <div className="math-student-readiness-sheet-table-header sticky top-0 z-20 grid gap-3 border-b border-slate-100 bg-slate-50/95 px-4 py-3 backdrop-blur lg:grid-cols-[1fr_96px_160px_170px] lg:items-end dark:border-slate-800 dark:bg-slate-900/95">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-600">
                           Lesson {lesson.lessonNumber}
