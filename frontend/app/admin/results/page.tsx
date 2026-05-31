@@ -430,6 +430,40 @@ function CurrentAverageAccuracy(Rows: AnyRecord[]) {
   );
 }
 
+function StudentAverageAccuracyKey(Row: AnyRecord, Index: number) {
+  const StudentId = PickFirstString(Row, ["studentId"], "");
+  if (StudentId && StudentId !== "-") return `student-id:${StudentId}`;
+
+  const StudentCode = PickFirstString(Row, ["studentCode"], "");
+  if (StudentCode && StudentCode !== "-") return `student-code:${StudentCode}`;
+
+  const StudentName = PickFirstString(Row, ["studentName"], "");
+  if (StudentName && StudentName !== "-") return `student-name:${StudentName}`;
+
+  return `student-row:${Index}`;
+}
+
+function CurrentAverageAccuracyByStudent(Rows: AnyRecord[]) {
+  const RowsByStudent = new Map<string, AnyRecord[]>();
+
+  Rows.forEach((Row, Index) => {
+    const StudentKey = StudentAverageAccuracyKey(Row, Index);
+    const ExistingRows = RowsByStudent.get(StudentKey) ?? [];
+    ExistingRows.push(Row);
+    RowsByStudent.set(StudentKey, ExistingRows);
+  });
+
+  const StudentAverages = Array.from(RowsByStudent.values())
+    .map((StudentRows) => CurrentAverageAccuracy(StudentRows))
+    .filter((Value) => Number.isFinite(Value));
+
+  if (!StudentAverages.length) return 0;
+
+  return Math.round(
+    StudentAverages.reduce((Total, Value) => Total + Value, 0) /
+      StudentAverages.length,
+  );
+}
 
 function NormalizeScopeValue(Value: unknown) {
   return String(Value ?? "")
@@ -1406,7 +1440,7 @@ export default function AdminResultsPage() {
             <MetricCard
               icon={<BarChart3 size={16} />}
               label="Average Accuracy"
-              value={`${CurrentAverageAccuracy(LearningRows)}%`}
+              value={`${CurrentAverageAccuracyByStudent(FilteredLearningRows)}%`}
             />
           </>
         ) : (
