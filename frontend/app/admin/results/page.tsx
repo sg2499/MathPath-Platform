@@ -430,6 +430,17 @@ function CurrentAverageAccuracy(Rows: AnyRecord[]) {
   );
 }
 
+
+function VisibleAttemptAverageAccuracy(Rows: AnyRecord[]) {
+  const Percentages = Rows.map(RowPercent).filter((Value) =>
+    Number.isFinite(Value),
+  );
+  if (!Percentages.length) return 0;
+  return Math.round(
+    Percentages.reduce((Total, Value) => Total + Value, 0) / Percentages.length,
+  );
+}
+
 function StudentAverageAccuracyKey(Row: AnyRecord, Index: number) {
   const StudentId = PickFirstString(Row, ["studentId"], "");
   if (StudentId && StudentId !== "-") return `student-id:${StudentId}`;
@@ -1440,7 +1451,7 @@ export default function AdminResultsPage() {
             <MetricCard
               icon={<BarChart3 size={16} />}
               label="Average Accuracy"
-              value={`${CurrentAverageAccuracyByStudent(FilteredLearningRows)}%`}
+              value={`${VisibleAttemptAverageAccuracy(FilteredLearningRows)}%`}
             />
           </>
         ) : (
