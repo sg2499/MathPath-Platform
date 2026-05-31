@@ -931,8 +931,8 @@ export default function AdminResultsPage() {
           ["modulesCleared", "modulesCompleted"],
           0,
         ),
-      dpsAverageAccuracy: CurrentAverageAccuracy(FilteredStudentAttempts),
-      assessmentAverageAccuracy: CurrentAverageAccuracy(FilteredAssessmentRows),
+      dpsAverageAccuracy: VisibleAttemptAverageAccuracy(FilteredStudentAttempts),
+      assessmentAverageAccuracy: VisibleAttemptAverageAccuracy(FilteredAssessmentRows),
     };
   }, [FilteredStudentAttempts, FilteredAssessmentRows, StudentSummary]);
 
