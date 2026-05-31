@@ -11830,3 +11830,40 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     opacity: 1 !important;
   }
 }
+
+/* 31 May 2026 — Student/Teacher utility button role-hover stabilization
+   Scope: Student and Teacher only, both light and dark modes.
+   Purpose: top utility/back/theme buttons and compact workspace controls should follow
+   the active role palette on hover without touching Admin, nav tabs, tables, chips, or logic. */
+@layer components {
+  .math-role-teacher :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:hover, :focus-visible, :active),
+  .math-role-student :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:hover, :focus-visible, :active) {
+    color: #ffffff !important;
+    background: var(--mp-role-action-bg) !important;
+    border-color: color-mix(in srgb, var(--mp-role-border-strong) 72%, rgba(255,255,255,0.34)) !important;
+    box-shadow: 0 18px 44px color-mix(in srgb, var(--mp-role-shadow) 58%, transparent), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+    transform: translateY(-1px);
+  }
+
+  .math-role-teacher :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:hover, :focus-visible, :active) *,
+  .math-role-student :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:hover, :focus-visible, :active) * {
+    color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  .math-role-teacher :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:hover, :focus-visible, :active) :is(svg, .lucide),
+  .math-role-student :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:hover, :focus-visible, :active) :is(svg, .lucide),
+  .math-role-teacher :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:hover, :focus-visible, :active) :is(svg, .lucide) *,
+  .math-role-student :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:hover, :focus-visible, :active) :is(svg, .lucide) * {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .math-role-teacher :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:active),
+  .math-role-student :is(.math-icon-button, .math-theme-toggle, .math-context-pill):not(.math-button-danger):is(:active) {
+    transform: translateY(0);
+  }
+}
