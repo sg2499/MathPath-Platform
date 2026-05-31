@@ -180,36 +180,7 @@ export default function AdminTeachersPage() {
         queryClient.setQueryData(["admin-teachers"], Context.PreviousTeachers);
       }
     },
-    onMutate: async ({ teacherId, payload }) => {
-      await queryClient.cancelQueries({ queryKey: ["admin-teachers"] });
-      const PreviousTeachers = queryClient.getQueryData<AdminTeacher[]>(["admin-teachers"]);
-      queryClient.setQueryData<AdminTeacher[]>(["admin-teachers"], (CurrentTeachers = []) =>
-        CurrentTeachers.map((Teacher) =>
-          Teacher.teacherId === teacherId
-            ? {
-                ...Teacher,
-                ...payload,
-                isActive: payload.status ? payload.status === "ACTIVE" : Teacher.isActive,
-              }
-            : Teacher
-        )
-      );
-      setEditingTeacherId(null);
-      setForm(emptyForm());
-      setIsFormOpen(false);
-      return { PreviousTeachers };
-    },
-    onError: (_Error, _Variables, Context) => {
-      if (Context?.PreviousTeachers) {
-        queryClient.setQueryData(["admin-teachers"], Context.PreviousTeachers);
-      }
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData<AdminTeacher[]>(["admin-teachers"], (CurrentTeachers = []) =>
-        CurrentTeachers.map((Teacher) =>
-          Teacher.teacherId === data.teacher.teacherId ? data.teacher : Teacher
-        )
-      );
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin-teachers"], refetchType: "active" });
     },
   });
