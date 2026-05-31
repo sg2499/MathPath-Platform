@@ -955,11 +955,26 @@ function AdminAssessmentControlPageContent() {
       deleteAssessmentAssignment(
         String(Item.assignmentId || Item.assessmentAssignmentId || Item.id),
       ),
+    onMutate: async (Item: AnyRow) => {
+      const AssignmentId = String(Item.assignmentId || Item.assessmentAssignmentId || Item.id);
+      await QueryClient.cancelQueries({ queryKey: ["admin-assessments"] });
+      const PreviousAssessments = QueryClient.getQueryData<AnyRow[]>(["admin-assessments"]);
+      QueryClient.setQueryData<AnyRow[]>(["admin-assessments"], (CurrentRows = []) =>
+        CurrentRows.filter((Row) => String(Row.assignmentId || Row.assessmentAssignmentId || Row.id) !== AssignmentId)
+      );
+      return { PreviousAssessments };
+    },
+    onError: (_Error, _Item, Context) => {
+      if (Context?.PreviousAssessments) {
+        QueryClient.setQueryData(["admin-assessments"], Context.PreviousAssessments);
+      }
+    },
     onSuccess: () => {
       SetDeleteTarget(null);
-      QueryClient.invalidateQueries({ queryKey: ["admin-assessments"] });
-      QueryClient.invalidateQueries({
+      void QueryClient.invalidateQueries({ queryKey: ["admin-assessments"], refetchType: "active" });
+      void QueryClient.invalidateQueries({
         queryKey: ["admin-assessment-reattempt-approvals"],
+        refetchType: "active",
       });
     },
   });
@@ -3874,9 +3889,24 @@ function ParentReportDeliveryHistoryTable({
         throw new Error("Please choose a delivery record to delete.");
       return deleteAdminParentReportDelivery(DeleteItem.id);
     },
+    onMutate: async () => {
+      if (!DeleteItem) return {};
+      await QueryClient.cancelQueries({ queryKey: ["admin-parent-report-delivery-logs"] });
+      const PreviousLogs = QueryClient.getQueryData<any>(["admin-parent-report-delivery-logs"]);
+      QueryClient.setQueryData<any>(["admin-parent-report-delivery-logs"], (CurrentData: any) => {
+        if (!CurrentData?.items) return CurrentData;
+        return {
+          ...CurrentData,
+          items: CurrentData.items.filter((Item: any) => Item.id !== DeleteItem.id),
+          total: Math.max(0, Number(CurrentData.total || CurrentData.items.length) - 1),
+        };
+      });
+      return { PreviousLogs };
+    },
     onSuccess: (Response) => {
-      QueryClient.invalidateQueries({
+      void QueryClient.invalidateQueries({
         queryKey: ["admin-parent-report-delivery-logs"],
+        refetchType: "active",
       });
       SetDeleteItem(null);
       window.alert(
@@ -3884,7 +3914,10 @@ function ParentReportDeliveryHistoryTable({
           "Parent report delivery record deleted successfully.",
       );
     },
-    onError: (Error) => {
+    onError: (Error, _Variables, Context) => {
+      if (Context?.PreviousLogs) {
+        QueryClient.setQueryData(["admin-parent-report-delivery-logs"], Context.PreviousLogs);
+      }
       window.alert(apiErrorMessage(Error));
     },
   });
