@@ -53,6 +53,7 @@ type IconType = ComponentType<{
   className?: string;
   strokeWidth?: string | number;
   style?: CSSProperties;
+  "data-teacher-main-nav-svg"?: string;
 }>;
 
 type NavChild = {
@@ -827,6 +828,17 @@ export function AppShell({
                     const StudentNavHighlighted =
                       IsStudent && theme === "light" && (active || dropdownOpen || navHovered);
                     const RoleNavHighlighted = TeacherNavHighlighted || StudentNavHighlighted;
+                    const TeacherNavIconStyle = TeacherNavHighlighted
+                      ? {
+                          color: "#ffffff",
+                          stroke: "#ffffff",
+                          opacity: 1,
+                          filter: "drop-shadow(0 1px 1px rgba(23, 15, 32, 0.4))",
+                        }
+                      : undefined;
+                    const TeacherNavTextStyle = TeacherNavHighlighted
+                      ? { color: "#ffffff", opacity: 1 }
+                      : undefined;
 
                     if (!hasChildren) {
                       return (
@@ -852,11 +864,13 @@ export function AppShell({
                         >
                           <Icon
                             size={17}
-                            strokeWidth={RoleNavHighlighted ? 2.9 : 2.15}
+                            strokeWidth={TeacherNavHighlighted ? 3.25 : RoleNavHighlighted ? 2.9 : 2.15}
+                            data-teacher-main-nav-svg={TeacherNavHighlighted ? "true" : undefined}
                             style={
-                              RoleNavHighlighted
+                              TeacherNavIconStyle ||
+                              (RoleNavHighlighted
                                 ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
-                                : undefined
+                                : undefined)
                             }
                             className={`math-teacher-main-nav-icon math-student-main-nav-icon shrink-0 transition-colors ${
                               RoleNavHighlighted
@@ -866,9 +880,10 @@ export function AppShell({
                           />
                           <span
                             style={
-                              RoleNavHighlighted
+                              TeacherNavTextStyle ||
+                              (RoleNavHighlighted
                                 ? { color: "#ffffff", opacity: 1 }
-                                : undefined
+                                : undefined)
                             }
                             className={`whitespace-nowrap ${
                               RoleNavHighlighted ? "!text-white opacity-100" : ""
@@ -917,11 +932,13 @@ export function AppShell({
                         >
                           <Icon
                             size={17}
-                            strokeWidth={RoleNavHighlighted ? 2.9 : 2.15}
+                            strokeWidth={TeacherNavHighlighted ? 3.25 : RoleNavHighlighted ? 2.9 : 2.15}
+                            data-teacher-main-nav-svg={TeacherNavHighlighted ? "true" : undefined}
                             style={
-                              RoleNavHighlighted
+                              TeacherNavIconStyle ||
+                              (RoleNavHighlighted
                                 ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
-                                : undefined
+                                : undefined)
                             }
                             className={`math-teacher-main-nav-icon math-student-main-nav-icon shrink-0 transition-colors ${
                               RoleNavHighlighted
@@ -931,9 +948,10 @@ export function AppShell({
                           />
                           <span
                             style={
-                              RoleNavHighlighted
+                              TeacherNavTextStyle ||
+                              (RoleNavHighlighted
                                 ? { color: "#ffffff", opacity: 1 }
-                                : undefined
+                                : undefined)
                             }
                             className={`whitespace-nowrap ${
                               RoleNavHighlighted ? "!text-white opacity-100" : ""
@@ -943,11 +961,13 @@ export function AppShell({
                           </span>
                           <ChevronDown
                             size={15}
-                            strokeWidth={RoleNavHighlighted ? 2.9 : 2.15}
+                            strokeWidth={TeacherNavHighlighted ? 3.25 : RoleNavHighlighted ? 2.9 : 2.15}
+                            data-teacher-main-nav-svg={TeacherNavHighlighted ? "true" : undefined}
                             style={
-                              RoleNavHighlighted
+                              TeacherNavIconStyle ||
+                              (RoleNavHighlighted
                                 ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
-                                : undefined
+                                : undefined)
                             }
                             className={`math-teacher-main-nav-chevron math-student-main-nav-chevron shrink-0 transition-colors ${
                               dropdownOpen ? "rotate-180" : ""
