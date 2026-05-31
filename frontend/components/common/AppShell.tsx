@@ -833,7 +833,8 @@ export function AppShell({
                           color: "#ffffff",
                           stroke: "#ffffff",
                           opacity: 1,
-                          filter: "drop-shadow(0 1px 1px rgba(23, 15, 32, 0.4))",
+                          filter: "brightness(0) invert(1) drop-shadow(0 1px 1px rgba(23, 15, 32, 0.45))",
+                          mixBlendMode: "normal",
                         }
                       : undefined;
                     const TeacherNavTextStyle = TeacherNavHighlighted
@@ -873,9 +874,11 @@ export function AppShell({
                                 : undefined)
                             }
                             className={`math-teacher-main-nav-icon math-student-main-nav-icon shrink-0 transition-colors ${
-                              RoleNavHighlighted
-                                ? "!text-white !stroke-white opacity-100"
-                                : ""
+                              TeacherNavHighlighted
+                                ? "math-teacher-main-nav-force-white !text-white !stroke-white opacity-100"
+                                : RoleNavHighlighted
+                                  ? "!text-white !stroke-white opacity-100"
+                                  : ""
                             }`}
                           />
                           <span
@@ -941,9 +944,11 @@ export function AppShell({
                                 : undefined)
                             }
                             className={`math-teacher-main-nav-icon math-student-main-nav-icon shrink-0 transition-colors ${
-                              RoleNavHighlighted
-                                ? "!text-white !stroke-white opacity-100"
-                                : ""
+                              TeacherNavHighlighted
+                                ? "math-teacher-main-nav-force-white !text-white !stroke-white opacity-100"
+                                : RoleNavHighlighted
+                                  ? "!text-white !stroke-white opacity-100"
+                                  : ""
                             }`}
                           />
                           <span
@@ -971,7 +976,13 @@ export function AppShell({
                             }
                             className={`math-teacher-main-nav-chevron math-student-main-nav-chevron shrink-0 transition-colors ${
                               dropdownOpen ? "rotate-180" : ""
-                            } ${RoleNavHighlighted ? "!text-white !stroke-white opacity-100" : ""}`}
+                            } ${
+                              TeacherNavHighlighted
+                                ? "math-teacher-main-nav-force-white !text-white !stroke-white opacity-100"
+                                : RoleNavHighlighted
+                                  ? "!text-white !stroke-white opacity-100"
+                                  : ""
+                            }`}
                           />
                         </button>
 
@@ -1022,12 +1033,18 @@ export function AppShell({
                                           strokeWidth={IsTeacher && theme === "light" && childActive ? 2.8 : 2.15}
                                           style={
                                             IsTeacher && theme === "light" && childActive
-                                              ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
+                                              ? {
+                                                  color: "#ffffff",
+                                                  stroke: "#ffffff",
+                                                  opacity: 1,
+                                                  filter: "brightness(0) invert(1) drop-shadow(0 1px 1px rgba(23, 15, 32, 0.45))",
+                                                  mixBlendMode: "normal",
+                                                }
                                               : undefined
                                           }
                                           className={
                                             IsTeacher && theme === "light" && childActive
-                                              ? "!text-white !stroke-white opacity-100"
+                                              ? "math-teacher-main-nav-force-white !text-white !stroke-white opacity-100"
                                               : undefined
                                           }
                                         />
