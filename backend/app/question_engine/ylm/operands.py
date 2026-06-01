@@ -16,6 +16,44 @@ TEMPLATE_COMP10_ADD = "COMP10_ADD"
 TEMPLATE_COMP10_SUB = "COMP10_SUB"
 TEMPLATE_REVISION = "REVISION"
 
+
+DIFFICULTY_STAGES: tuple[str, ...] = (
+    "EASY",
+    "EASY",
+    "EASY_MEDIUM",
+    "EASY_MEDIUM",
+    "MEDIUM",
+    "MEDIUM",
+    "MEDIUM_HARD",
+    "MEDIUM_HARD",
+    "CHALLENGE",
+    "CHALLENGE",
+)
+
+DIFFICULTY_ORDER: tuple[str, ...] = (
+    "EASY",
+    "EASY_MEDIUM",
+    "MEDIUM",
+    "MEDIUM_HARD",
+    "CHALLENGE",
+)
+
+TEMPLATE_DIFFICULTY_WEIGHT: dict[str, int] = {
+    TEMPLATE_DIRECT: 0,
+    TEMPLATE_COMP5_ADD: 10,
+    TEMPLATE_COMP5_SUB: 12,
+    TEMPLATE_COMP10_ADD: 18,
+    TEMPLATE_COMP10_SUB: 22,
+}
+
+
+def question_difficulty_stage(question_index: int) -> str:
+    if question_index < 0:
+        return "EASY"
+    if question_index < len(DIFFICULTY_STAGES):
+        return DIFFICULTY_STAGES[question_index]
+    return "CHALLENGE"
+
 # Phase B: revision worksheets must be concept-aware, not generic arithmetic.
 # Each revision lesson uses a deterministic template rotation so every generated
 # preview covers the intended taught families instead of accidentally clustering
@@ -217,28 +255,113 @@ def build_candidate_pool(config: YLMConfig) -> list[list[int]]:
     return _candidate_pool_for_templates(config, _lesson_templates(config))
 
 
+def _operand_template_tag(operands: list[int]) -> str:
+    if len(operands) < 2:
+        return TEMPLATE_DIRECT
+    primary = operands[1]
+    if primary > 0 and abs(primary) in {1, 2, 3, 4}:
+        base_ones = operands[0] % 10
+        if base_ones == 5 - abs(primary):
+            return TEMPLATE_COMP5_ADD
+    if primary < 0 and abs(primary) in {1, 2, 3, 4}:
+        base_ones = operands[0] % 10
+        if 5 <= base_ones <= 4 + abs(primary):
+            return TEMPLATE_COMP5_SUB
+    if primary > 0 and abs(primary) in {1, 2, 3, 4, 5, 6, 7, 8, 9}:
+        base_ones = operands[0] % 10
+        if base_ones == 10 - abs(primary):
+            return TEMPLATE_COMP10_ADD
+    if primary < 0 and abs(primary) in {1, 2, 3, 4, 5, 6, 7, 8, 9}:
+        base_ones = operands[0] % 10
+        if 0 <= base_ones < abs(primary):
+            return TEMPLATE_COMP10_SUB
+    return TEMPLATE_DIRECT
+
+
+def _difficulty_score(operands: list[int]) -> int:
+    base = abs(operands[0]) if operands else 0
+    answer = abs(sum(operands))
+    support_count = max(0, len(operands) - 2)
+    support_load = sum(abs(value) for value in operands[2:])
+    primary_load = abs(operands[1]) if len(operands) > 1 else 0
+    two_digit_bonus = 16 if max(base, answer) >= 10 else 0
+    high_number_bonus = max(base, answer) // 10
+    template_bonus = TEMPLATE_DIFFICULTY_WEIGHT.get(_operand_template_tag(operands), 0)
+    direction_changes = 0
+    previous_sign = 1 if operands[1] >= 0 else -1 if len(operands) > 1 else 0
+    for value in operands[2:]:
+        current_sign = 1 if value >= 0 else -1
+        if previous_sign and current_sign != previous_sign:
+            direction_changes += 1
+        previous_sign = current_sign
+    return (
+        template_bonus
+        + two_digit_bonus
+        + high_number_bonus
+        + primary_load
+        + support_load
+        + support_count * 3
+        + direction_changes * 4
+    )
+
+
+def _bucketed_by_difficulty(pool: list[list[int]]) -> dict[str, list[list[int]]]:
+    if not pool:
+        return {stage: [] for stage in DIFFICULTY_ORDER}
+    ordered = sorted(pool, key=lambda operands: (_difficulty_score(operands), tuple(operands)))
+    bucketed: dict[str, list[list[int]]] = {stage: [] for stage in DIFFICULTY_ORDER}
+    total = len(ordered)
+    for index, operands in enumerate(ordered):
+        bucket_index = min(len(DIFFICULTY_ORDER) - 1, (index * len(DIFFICULTY_ORDER)) // max(total, 1))
+        bucketed[DIFFICULTY_ORDER[bucket_index]].append(operands)
+    return bucketed
+
+
+def _difficulty_candidates(pool: list[list[int]], target_stage: str) -> list[list[int]]:
+    bucketed = _bucketed_by_difficulty(pool)
+    target_stage = target_stage if target_stage in DIFFICULTY_ORDER else "MEDIUM"
+    target_index = DIFFICULTY_ORDER.index(target_stage)
+    stage_order = [target_stage]
+    for distance in range(1, len(DIFFICULTY_ORDER)):
+        lower = target_index - distance
+        upper = target_index + distance
+        if lower >= 0:
+            stage_order.append(DIFFICULTY_ORDER[lower])
+        if upper < len(DIFFICULTY_ORDER):
+            stage_order.append(DIFFICULTY_ORDER[upper])
+    candidates: list[list[int]] = []
+    for stage in stage_order:
+        candidates.extend(bucketed.get(stage, []))
+        if candidates:
+            return candidates
+    return list(pool)
+
+
 def generate_unique_operands(config: YLMConfig, rng: random.Random, seen: set[tuple[int, ...]]) -> list[int]:
     config = enrich_config_with_lesson_rule(config)
     question_index = len(seen)
     preferred_template = _template_for_question(config, question_index)
+    target_stage = question_difficulty_stage(question_index)
 
     if preferred_template:
         preferred_pool = _candidate_pool_for_templates(config, (preferred_template,))
-        available = [operands for operands in preferred_pool if tuple(operands) not in seen]
+        preferred_available = [operands for operands in preferred_pool if tuple(operands) not in seen]
+        available = _difficulty_candidates(preferred_available, target_stage)
         if available:
             return list(rng.choice(available))
         if preferred_pool:
             # If a narrow revision family runs out of unique combinations, reuse that
             # same valid family before moving to broader revision. Never use generic fallback.
-            return list(rng.choice(preferred_pool))
+            return list(rng.choice(_difficulty_candidates(preferred_pool, target_stage)))
 
     pool = build_candidate_pool(config)
-    available = [operands for operands in pool if tuple(operands) not in seen]
+    unique_pool = [operands for operands in pool if tuple(operands) not in seen]
+    available = _difficulty_candidates(unique_pool, target_stage)
     if not available:
         # Non-negotiable platform behavior: every YLM lesson must generate valid output.
         # Reuse the same valid lesson-template pool if the unique request exceeds the
         # available pattern count; never fall back to generic arithmetic.
-        available = pool
+        available = _difficulty_candidates(pool, target_stage)
     if not available:
         raise ValueError(f"YLM lesson {config.lesson_number} has no valid Golden Step generation pool")
     return list(rng.choice(available))

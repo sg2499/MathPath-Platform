@@ -1,7 +1,7 @@
 import random
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
 from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_rule
-from app.question_engine.ylm.operands import generate_unique_operands
+from app.question_engine.ylm.operands import generate_unique_operands, question_difficulty_stage
 from app.question_engine.ylm.validators import question_concept_trace, validate_question
 from app.question_engine.ylm.distractors import generate_distractors
 
@@ -51,6 +51,8 @@ def generate_ylm_question_set(config: YLMConfig) -> list[dict]:
                 "required_concept_tags": concept_trace["required_concept_tags"],
                 "forbidden_concept_tags_present": concept_trace["forbidden_concept_tags_present"],
                 "golden_step_trace": concept_trace["step_trace"],
+                "difficulty_stage": question_difficulty_stage(question_number - 1),
+                "difficulty_progression": "EASY_TO_CHALLENGE",
             },
         })
         seen.add(tuple(operands))
