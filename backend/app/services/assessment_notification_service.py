@@ -251,10 +251,25 @@ def NotifyAssessmentAttemptSubmitted(
             type="STUDENT_ASSESSMENT_CLEARED" if cleared else "STUDENT_ASSESSMENT_NEEDS_REATTEMPT",
             category=category,
             title=f"{context.get('student_name')} {('Cleared Assessment' if cleared else 'Needs Re-Attempt')}",
-            message=f"{context.get('student_name')} completed {assessment_identity} with {score} / 100.",
-            target_route="/teacher/assessments",
-            target_tab="assessment-tracker",
-            metadata={"assignmentId": assignment.id, "attemptId": attempt.id, "score": score, "percentage": percentage, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": attempt.id, "targetAction": "view", **_assessment_identity_metadata(context)},
+            message=(
+                f"{context.get('student_name')} completed {assessment_identity} with {score} / 100. "
+                "Please review the attempt and provide teacher feedback."
+            ),
+            target_route=f"/assessment-result/{attempt.id}?viewer=TEACHER&feedback=1",
+            target_tab="",
+            metadata={
+                "assignmentId": assignment.id,
+                "attemptId": attempt.id,
+                "score": score,
+                "percentage": percentage,
+                "studentCode": context.get("student_code"),
+                "moduleCode": module_code,
+                "levelCode": level_code or level_label,
+                "highlightId": attempt.id,
+                "targetAction": "provide-feedback",
+                "notificationPurpose": "ASSESSMENT_REVIEW_FEEDBACK_REQUEST",
+                **_assessment_identity_metadata(context),
+            },
         )
 
     _admin_notifications(
