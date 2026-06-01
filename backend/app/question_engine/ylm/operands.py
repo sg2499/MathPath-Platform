@@ -6,11 +6,6 @@ from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_
 from app.question_engine.ylm.validators import (
     DIRECT_ADD_ALLOWED,
     DIRECT_SUB_ALLOWED,
-    MOVEMENT_COMP10_ADD,
-    MOVEMENT_COMP10_SUB,
-    MOVEMENT_COMP5_ADD,
-    MOVEMENT_COMP5_SUB,
-    MOVEMENT_DIRECT,
     validate_question,
 )
 
@@ -20,6 +15,50 @@ TEMPLATE_COMP5_SUB = "COMP5_SUB"
 TEMPLATE_COMP10_ADD = "COMP10_ADD"
 TEMPLATE_COMP10_SUB = "COMP10_SUB"
 TEMPLATE_REVISION = "REVISION"
+
+# Phase B: revision worksheets must be concept-aware, not generic arithmetic.
+# Each revision lesson uses a deterministic template rotation so every generated
+# preview covers the intended taught families instead of accidentally clustering
+# around one movement type.
+REVISION_TEMPLATE_SCHEDULES: dict[int, tuple[str, ...]] = {
+    # Direct + complement-of-5 addition revision.
+    7: (
+        TEMPLATE_DIRECT,
+        TEMPLATE_COMP5_ADD,
+        TEMPLATE_COMP5_ADD,
+        TEMPLATE_DIRECT,
+        TEMPLATE_COMP5_ADD,
+    ),
+    # Addition-focused complement-of-5 revision; direct rows only support fluency.
+    12: (
+        TEMPLATE_COMP5_ADD,
+        TEMPLATE_COMP5_ADD,
+        TEMPLATE_DIRECT,
+        TEMPLATE_COMP5_ADD,
+        TEMPLATE_COMP5_ADD,
+    ),
+    # Subtraction-focused complement-of-5 revision; direct rows only support fluency.
+    13: (
+        TEMPLATE_COMP5_SUB,
+        TEMPLATE_COMP5_SUB,
+        TEMPLATE_DIRECT,
+        TEMPLATE_COMP5_SUB,
+        TEMPLATE_COMP5_SUB,
+    ),
+    # Final YLM revision: all previously taught Golden Step families are represented.
+    32: (
+        TEMPLATE_DIRECT,
+        TEMPLATE_COMP5_ADD,
+        TEMPLATE_COMP5_SUB,
+        TEMPLATE_COMP10_ADD,
+        TEMPLATE_COMP10_SUB,
+        TEMPLATE_COMP10_SUB,
+        TEMPLATE_COMP10_ADD,
+        TEMPLATE_COMP5_SUB,
+        TEMPLATE_COMP5_ADD,
+        TEMPLATE_DIRECT,
+    ),
+}
 
 
 def _targets(config: YLMConfig, fallback: list[int]) -> list[int]:
@@ -56,9 +95,10 @@ def _direct_bases(config: YLMConfig) -> list[int]:
 
 
 def _safe_supports(current: int, template: str) -> list[int]:
-    # Phase A convention: after the target Golden-Step movement, the support row must
-    # stay pedagogically aligned with the lesson family. Addition lessons get direct
-    # additions, subtraction lessons get direct subtractions, direct/revision may mix.
+    # Golden Step alignment rule:
+    # - addition concept sheets receive only direct addition support rows
+    # - subtraction concept sheets receive only direct subtraction support rows
+    # - direct/revision direct templates may mix direct add-less rows
     if template in {TEMPLATE_COMP5_ADD, TEMPLATE_COMP10_ADD}:
         supports = _direct_operands_for_focus(current, "ADDITION")
     elif template in {TEMPLATE_COMP5_SUB, TEMPLATE_COMP10_SUB}:
@@ -92,6 +132,7 @@ def _comp10_add_bases(target: int, config: YLMConfig) -> list[int]:
 
 def _comp10_sub_bases(target: int, config: YLMConfig) -> list[int]:
     # -target using complement of 10 must start from the exact borrow trigger range.
+    # Example: -3 => 12 - 3, 22 - 3, 32 - 3. Not random two-digit subtraction.
     ones_values = list(range(0, target))
     tens_values = [10, 20, 30, 40, 50, 60, 70, 80, 90]
     return [tens + ones for tens in tens_values for ones in ones_values]
@@ -132,15 +173,30 @@ def _template_stems(config: YLMConfig, template: str) -> list[tuple[int, int, st
 def _lesson_templates(config: YLMConfig) -> tuple[str, ...]:
     template = (config.generation_template or TEMPLATE_DIRECT).upper()
     if template == TEMPLATE_REVISION:
-        return tuple(value.upper() for value in (config.revision_templates or (TEMPLATE_DIRECT,)))
+        configured = tuple(value.upper() for value in (config.revision_templates or (TEMPLATE_DIRECT,)))
+        schedule = REVISION_TEMPLATE_SCHEDULES.get(config.lesson_number)
+        if schedule:
+            # Keep the schedule strictly inside the lesson's configured taught families.
+            allowed = set(configured)
+            return tuple(value for value in schedule if value in allowed) or configured
+        return configured
     return (template,)
 
 
-def build_candidate_pool(config: YLMConfig) -> list[list[int]]:
-    config = enrich_config_with_lesson_rule(config)
+def _template_for_question(config: YLMConfig, question_index: int) -> str | None:
+    template = (config.generation_template or TEMPLATE_DIRECT).upper()
+    if template != TEMPLATE_REVISION:
+        return None
+    templates = _lesson_templates(config)
+    if not templates:
+        return TEMPLATE_DIRECT
+    return templates[question_index % len(templates)]
+
+
+def _candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...]) -> list[list[int]]:
     pool: list[list[int]] = []
     seen: set[tuple[int, ...]] = set()
-    for template in _lesson_templates(config):
+    for template in templates:
         for base, primary, source_template in _template_stems(config, template):
             current = base + primary
             if current < 0:
@@ -156,8 +212,26 @@ def build_candidate_pool(config: YLMConfig) -> list[list[int]]:
     return pool
 
 
+def build_candidate_pool(config: YLMConfig) -> list[list[int]]:
+    config = enrich_config_with_lesson_rule(config)
+    return _candidate_pool_for_templates(config, _lesson_templates(config))
+
+
 def generate_unique_operands(config: YLMConfig, rng: random.Random, seen: set[tuple[int, ...]]) -> list[int]:
     config = enrich_config_with_lesson_rule(config)
+    question_index = len(seen)
+    preferred_template = _template_for_question(config, question_index)
+
+    if preferred_template:
+        preferred_pool = _candidate_pool_for_templates(config, (preferred_template,))
+        available = [operands for operands in preferred_pool if tuple(operands) not in seen]
+        if available:
+            return list(rng.choice(available))
+        if preferred_pool:
+            # If a narrow revision family runs out of unique combinations, reuse that
+            # same valid family before moving to broader revision. Never use generic fallback.
+            return list(rng.choice(preferred_pool))
+
     pool = build_candidate_pool(config)
     available = [operands for operands in pool if tuple(operands) not in seen]
     if not available:
