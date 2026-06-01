@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
+import { getTokenForRole } from "@/lib/auth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -130,12 +131,21 @@ function CleanFeedbackLabel(Value?: string | null, HasText = false) {
 
 async function SaveFeedback(Role: ViewerRole, AttemptId: string, RemarkText: string) {
   const Prefix = Role === "ADMIN" ? "/admin" : "/teacher";
-  const Response = await api.post(`${Prefix}/assessment-attempts/${AttemptId}/remarks`, { remarkText: RemarkText });
+  const RoleToken = getTokenForRole(Role);
+  const Response = await api.post(
+    `${Prefix}/assessment-attempts/${AttemptId}/remarks`,
+    { remarkText: RemarkText },
+    RoleToken ? { headers: { Authorization: `Bearer ${RoleToken}` } } : undefined,
+  );
   return Response.data?.teacherFeedback as AssessmentTeacherFeedback | null;
 }
 
 async function DeleteFeedback(AttemptId: string) {
-  const Response = await api.delete(`/admin/assessment-attempts/${AttemptId}/remarks`);
+  const RoleToken = getTokenForRole("ADMIN");
+  const Response = await api.delete(
+    `/admin/assessment-attempts/${AttemptId}/remarks`,
+    RoleToken ? { headers: { Authorization: `Bearer ${RoleToken}` } } : undefined,
+  );
   return Response.data;
 }
 

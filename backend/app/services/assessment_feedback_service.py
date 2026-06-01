@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -18,6 +19,8 @@ from app.models import (
     User,
 )
 from app.services.notification_service import ActiveAdminUsers, CreateNotification
+
+logger = logging.getLogger(__name__)
 
 POSITIVE_TERMS = ("excellent", "brilliant", "great", "good", "well done", "proud", "perfect", "strong", "clear", "accurate", "improved")
 MOTIVATION_TERMS = ("keep", "continue", "confidence", "potential", "consistent", "maintain", "speed", "next", "challenge")
@@ -208,6 +211,27 @@ def _notification_title_for_variant(variant: str, role: str) -> str:
     return "Remark Saved"
 
 
+
+def _safe_create_feedback_notification(db: Session, **kwargs: Any) -> None:
+    """Create feedback notifications without risking the saved remark transaction.
+
+    Assessment remarks are the source-of-truth workflow. Notifications are secondary
+    delivery records. If notification creation ever fails because of optional
+    metadata, stale linked ids, or deployment-time schema differences, the remark
+    must still save successfully for every current and future assessment attempt.
+    """
+    try:
+        with db.begin_nested():
+            CreateNotification(db, **kwargs)
+    except Exception:
+        logger.exception(
+            "Assessment feedback notification creation failed for recipient=%s attempt=%s type=%s",
+            kwargs.get("recipient_user_id"),
+            kwargs.get("attempt_id"),
+            kwargs.get("type"),
+        )
+
+
 def notify_assessment_feedback_saved(
     db: Session,
     *,
@@ -246,7 +270,7 @@ def notify_assessment_feedback_saved(
     }
 
     if action != "DELETED" and student_user:
-        CreateNotification(
+        _safe_create_feedback_notification(
             db,
             recipient_user_id=student_user.id,
             recipient_role="STUDENT",
@@ -270,7 +294,7 @@ def notify_assessment_feedback_saved(
     for admin in ActiveAdminUsers(db):
         if admin.id == actor.id and action != "DELETED":
             continue
-        CreateNotification(
+        _safe_create_feedback_notification(
             db,
             recipient_user_id=admin.id,
             recipient_role=admin.role,
@@ -292,7 +316,7 @@ def notify_assessment_feedback_saved(
         )
 
     if action != "DELETED" and teacher_user and teacher_user.id != actor.id:
-        CreateNotification(
+        _safe_create_feedback_notification(
             db,
             recipient_user_id=teacher_user.id,
             recipient_role="TEACHER",
@@ -343,7 +367,10 @@ def upsert_assessment_remark(db: Session, *, attempt: AssessmentAttempt, actor: 
         )
         db.add(remark)
     db.flush()
-    notify_assessment_feedback_saved(db, attempt=attempt, remark=remark, actor=actor, action="SAVED")
+    try:
+        notify_assessment_feedback_saved(db, attempt=attempt, remark=remark, actor=actor, action="SAVED")
+    except Exception:
+        logger.exception("Assessment feedback notification workflow failed after remark save for attempt=%s", attempt.id)
     return remark
 
 
@@ -355,5 +382,8 @@ def delete_assessment_remark(db: Session, *, attempt: AssessmentAttempt, actor: 
     remark.deleted_by_user_id = actor.id
     remark.updated_by_user_id = actor.id
     db.flush()
-    notify_assessment_feedback_saved(db, attempt=attempt, remark=remark, actor=actor, action="DELETED")
+    try:
+        notify_assessment_feedback_saved(db, attempt=attempt, remark=remark, actor=actor, action="DELETED")
+    except Exception:
+        logger.exception("Assessment feedback notification workflow failed after remark delete for attempt=%s", attempt.id)
     return remark
