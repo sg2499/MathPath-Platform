@@ -2,7 +2,7 @@ import random
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
 from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_rule
 from app.question_engine.ylm.operands import generate_unique_operands
-from app.question_engine.ylm.validators import validate_question
+from app.question_engine.ylm.validators import question_concept_trace, validate_question
 from app.question_engine.ylm.distractors import generate_distractors
 
 def generate_ylm_question_set(config: YLMConfig) -> list[dict]:
@@ -18,6 +18,7 @@ def generate_ylm_question_set(config: YLMConfig) -> list[dict]:
             # This should not happen because generation is built from validated pools.
             # Keep the explicit guard so no invalid YLM worksheet can ever be published.
             raise ValueError(f"Generated invalid YLM Golden Step question for lesson {config.lesson_number}")
+        concept_trace = question_concept_trace(config, operands)
         correct_answer = sum(operands)
         distractors = generate_distractors(correct_answer, operands, q_rng, config.allow_negative_answer)
         options = build_mcq_options(correct_answer, distractors, q_rng)
@@ -41,6 +42,15 @@ def generate_ylm_question_set(config: YLMConfig) -> list[dict]:
                 "lesson_title": config.lesson_title,
                 "generation_template": config.generation_template,
                 "revision_templates": list(config.revision_templates or []),
+                "golden_step_validated": concept_trace["golden_step_validated"],
+                "primary_concept_tag": concept_trace["primary_concept_tag"],
+                "primary_concept_label": concept_trace["primary_concept_label"],
+                "concept_tags": concept_trace["concept_tags"],
+                "concept_labels": concept_trace["concept_labels"],
+                "allowed_concept_tags": concept_trace["allowed_concept_tags"],
+                "required_concept_tags": concept_trace["required_concept_tags"],
+                "forbidden_concept_tags_present": concept_trace["forbidden_concept_tags_present"],
+                "golden_step_trace": concept_trace["step_trace"],
             },
         })
         seen.add(tuple(operands))
