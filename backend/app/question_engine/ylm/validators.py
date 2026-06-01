@@ -142,6 +142,106 @@ def movement_profile(operands: list[int]) -> tuple[bool, list[set[str]]]:
     return True, profile
 
 
+
+MOVEMENT_SORT_ORDER = {
+    MOVEMENT_DIRECT: 10,
+    MOVEMENT_COMP5_ADD: 20,
+    MOVEMENT_COMP5_SUB: 30,
+    MOVEMENT_COMP10_ADD: 40,
+    MOVEMENT_COMP10_SUB: 50,
+    MOVEMENT_ZERO: 90,
+    MOVEMENT_INVALID: 999,
+}
+
+MOVEMENT_LABELS = {
+    MOVEMENT_DIRECT: "Direct Add-Less",
+    MOVEMENT_COMP5_ADD: "Complement of 5 Addition",
+    MOVEMENT_COMP5_SUB: "Complement of 5 Subtraction",
+    MOVEMENT_COMP10_ADD: "Complement of 10 Addition",
+    MOVEMENT_COMP10_SUB: "Complement of 10 Subtraction",
+    MOVEMENT_ZERO: "No Movement",
+    MOVEMENT_INVALID: "Invalid Movement",
+}
+
+CORE_MOVEMENT_TAGS = {
+    MOVEMENT_DIRECT,
+    MOVEMENT_COMP5_ADD,
+    MOVEMENT_COMP5_SUB,
+    MOVEMENT_COMP10_ADD,
+    MOVEMENT_COMP10_SUB,
+}
+
+
+def ordered_movement_tags(movement_types: set[str]) -> list[str]:
+    return sorted(
+        [movement_type for movement_type in movement_types if movement_type != MOVEMENT_ZERO],
+        key=lambda movement_type: MOVEMENT_SORT_ORDER.get(movement_type, 500),
+    )
+
+
+def primary_movement_tag(config: YLMConfig, observed: set[str]) -> str:
+    config = enrich_config_with_lesson_rule(config)
+    required = set(config.required_movement_types or ())
+    required_observed = required.intersection(observed)
+    if required_observed:
+        return ordered_movement_tags(required_observed)[0]
+
+    non_direct = observed.difference({MOVEMENT_DIRECT, MOVEMENT_ZERO})
+    if non_direct:
+        return ordered_movement_tags(non_direct)[0]
+
+    if MOVEMENT_DIRECT in observed:
+        return MOVEMENT_DIRECT
+    return MOVEMENT_ZERO
+
+
+def question_concept_trace(config: YLMConfig, operands: list[int]) -> dict:
+    """Return the auditable Golden Step concept tags for a generated YLM question.
+
+    This metadata is intentionally internal. It gives the platform a reliable way to
+    prove that each generated question belongs to the allowed concept families for
+    the selected YLM lesson/DPS without exposing implementation details to students.
+    """
+    config = enrich_config_with_lesson_rule(config)
+    valid, profile = movement_profile(operands)
+    current = operands[0] if operands else 0
+    observed: set[str] = set()
+    steps: list[dict] = []
+
+    for index, operand in enumerate(operands[1:], start=2):
+        movement_types = profile[index - 2] if index - 2 < len(profile) else {MOVEMENT_INVALID}
+        observed.update(movement_types)
+        next_value = current + operand
+        tags = ordered_movement_tags(set(movement_types)) or [MOVEMENT_ZERO]
+        steps.append({
+            "row_number": index,
+            "before": current,
+            "operand": operand,
+            "after": next_value,
+            "concept_tags": tags,
+            "concept_labels": [MOVEMENT_LABELS.get(tag, tag) for tag in tags],
+        })
+        current = next_value
+
+    observed.discard(MOVEMENT_ZERO)
+    concept_tags = ordered_movement_tags(observed)
+    primary_tag = primary_movement_tag(config, observed)
+    allowed = set(config.allowed_movement_types or ())
+    required = set(config.required_movement_types or ())
+
+    return {
+        "golden_step_validated": bool(valid and validate_question(config, operands, set())),
+        "primary_concept_tag": primary_tag,
+        "primary_concept_label": MOVEMENT_LABELS.get(primary_tag, primary_tag),
+        "concept_tags": concept_tags,
+        "concept_labels": [MOVEMENT_LABELS.get(tag, tag) for tag in concept_tags],
+        "allowed_concept_tags": ordered_movement_tags(allowed),
+        "required_concept_tags": ordered_movement_tags(required),
+        "forbidden_concept_tags_present": ordered_movement_tags(observed.difference(allowed)) if allowed else [],
+        "step_trace": steps,
+    }
+
+
 def validate_question(config: YLMConfig, operands: list[int], seen: set[tuple[int, ...]]) -> bool:
     config = enrich_config_with_lesson_rule(config)
     if len(operands) != config.rows:
