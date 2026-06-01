@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_rule
 
+# MathPath YLM direct movement rules model physical bead movement, not only arithmetic.
+# Direct subtraction cannot cross the 5-bead boundary. For example, 8 - 4 is NOT
+# direct because it needs Less 5 Add 1; however 8 - 3 is direct and 8 - 5 is direct.
 DIRECT_ADD_ALLOWED = {
     0: {1, 2, 3, 4},
     1: {1, 2, 3},
@@ -22,9 +25,9 @@ DIRECT_SUB_ALLOWED = {
     3: {1, 2, 3},
     4: {1, 2, 3, 4},
     5: {5},
-    6: {1, 2, 3, 4, 5},
-    7: {1, 2, 3, 4, 5},
-    8: {1, 2, 3, 4, 5},
+    6: {1, 5},
+    7: {1, 2, 5},
+    8: {1, 2, 3, 5},
     9: {1, 2, 3, 4, 5},
 }
 
@@ -47,11 +50,6 @@ def _place_count(*values: int) -> int:
 
 
 def classify_single_digit_movement(current_digit: int, delta_digit: int, carry_in: int = 0) -> str:
-    """Classify one abacus place movement.
-
-    This intentionally models the Golden Step teaching sequence. It classifies the
-    conceptual movement required at one place rather than only checking arithmetic.
-    """
     movement = delta_digit + carry_in
     if movement == 0:
         return MOVEMENT_ZERO
@@ -93,12 +91,7 @@ def classify_step(current_value: int, operand: int) -> tuple[bool, set[str]]:
         return False, {MOVEMENT_INVALID}
 
     amount = abs(operand)
-    movement_types: set[str] = set()
 
-    # YLM Golden Step worksheets primarily introduce one-step bead movements in a
-    # single place at a time. For one-digit add/subtract, classify the conceptual
-    # move directly from the current ones bead state. This avoids mistaking a valid
-    # +10/-10 carry/borrow transformation for an invalid raw digit delta.
     if amount < 10:
         current_digit = current_value % 10
         if operand > 0:
@@ -113,9 +106,7 @@ def classify_step(current_value: int, operand: int) -> tuple[bool, set[str]]:
             return False, {MOVEMENT_INVALID}
         return True, {movement_type}
 
-    # Tens / hundreds direct-support movements are evaluated place by place. This is
-    # used for early recognition/direct DPS where the worksheet pattern includes 10,
-    # 20, 30, 50... style movements.
+    movement_types: set[str] = set()
     places = _place_count(current_value, current_value + operand, operand)
     before_digits = _digits(current_value, places)
     operand_digits = _digits(operand, places)
@@ -131,6 +122,7 @@ def classify_step(current_value: int, operand: int) -> tuple[bool, set[str]]:
         movement_types.add(movement_type)
 
     return True, movement_types or {MOVEMENT_ZERO}
+
 
 def movement_profile(operands: list[int]) -> tuple[bool, list[set[str]]]:
     if not operands:
