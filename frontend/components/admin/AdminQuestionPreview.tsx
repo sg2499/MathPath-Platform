@@ -1,5 +1,5 @@
 import type { AdminPreviewQuestion } from "@/types/question";
-import { VerticalQuestion } from "@/components/student/VerticalQuestion";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { CheckCircle2 } from "lucide-react";
 
 export function AdminQuestionPreview({ questions }: { questions: AdminPreviewQuestion[] }) {
@@ -19,7 +19,7 @@ export function AdminQuestionPreview({ questions }: { questions: AdminPreviewQue
                 <p className="math-kicker">Preview Question</p>
                 <h3 className="mt-3 text-2xl font-black text-slate-950">Question {questionNumber}</h3>
                 <div className="mt-5 rounded-[28px] bg-slate-50/90 p-5">
-                  <VerticalQuestion operands={q.operands} operators={q.operators} />
+                  <MathQuestionDisplay operands={q.operands} operators={q.operators} displayType={(q as any).displayType ?? (q as any).display_type} questionText={(q as any).questionText ?? (q as any).question_text} />
                 </div>
               </div>
 

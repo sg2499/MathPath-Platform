@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
-import { VerticalQuestion } from "@/components/student/VerticalQuestion";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
@@ -699,7 +699,7 @@ function GeneratedQuestionPreview({ item, assessment, showAnswers }: { item: Ass
 
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,360px)_1fr] xl:items-center">
           <div className="rounded-[26px] bg-slate-50/90 p-4 dark:bg-slate-900/70 sm:p-5">
-            <VerticalQuestion operands={CurrentQuestion.operands} operators={CurrentQuestion.operators} />
+            <MathQuestionDisplay operands={CurrentQuestion.operands} operators={CurrentQuestion.operators} displayType={(CurrentQuestion as any).displayType ?? (CurrentQuestion as any).display_type} questionText={(CurrentQuestion as any).questionText ?? (CurrentQuestion as any).question_text} />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -806,7 +806,7 @@ function AssessmentCoverageCheck({ assessment, showAnswers }: { assessment: Asse
             {Group.questions.map((Question) => (
               <div key={Question.id} className="grid gap-3 px-5 py-3 text-sm lg:grid-cols-[80px_1fr_180px_120px] lg:items-center">
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-center text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Q{Question.questionNumber}</span>
-                <p className="font-black text-slate-950 dark:text-white">{Question.questionText || Question.operands.join(" ")}</p>
+                <p className="font-black text-slate-950 dark:text-white">{(Question as any).questionText || Question.operands.join(" ")}</p>
                 <p className="text-xs font-black uppercase tracking-[0.12em] math-role-text">{Question.conceptTag || "Concept Rule"}</p>
                 {showAnswers ? <p className="text-xs font-black text-emerald-700">Answer: {Question.correctAnswer}</p> : <p className="text-xs font-black text-slate-400">Answer Hidden</p>}
               </div>

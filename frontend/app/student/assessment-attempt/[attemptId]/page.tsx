@@ -7,7 +7,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { OptionButton } from "@/components/student/OptionButton";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
-import { VerticalQuestion } from "@/components/student/VerticalQuestion";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useAttemptTimer } from "@/hooks/useAttemptTimer";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
@@ -139,7 +139,7 @@ export default function StudentAssessmentAttemptPage() {
         </div>
         <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(0,360px)_1fr] xl:items-center">
           <div className="rounded-[24px] bg-slate-50/90 p-3 dark:bg-slate-900/70 sm:p-4">
-            <VerticalQuestion operands={CurrentQuestion.operands} operators={CurrentQuestion.operators} />
+            <MathQuestionDisplay operands={CurrentQuestion.operands} operators={CurrentQuestion.operators} displayType={(CurrentQuestion as any).displayType ?? (CurrentQuestion as any).display_type} questionText={(CurrentQuestion as any).questionText ?? (CurrentQuestion as any).question_text} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {CurrentQuestion.options.map((Option) => (
