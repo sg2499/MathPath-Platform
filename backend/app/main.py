@@ -53,14 +53,22 @@ def on_startup():
     if SEED_ON_STARTUP:
         from app.seed.seed_ylm_phase1 import seed as seed_ylm_phase1
         from app.seed.seed_ylm_l2_test import seed as seed_ylm_l2_test
-        from app.seed.seed_master_module import seed as seed_master_module
         db = SessionLocal()
         try:
             seed_ylm_phase1(db)
             seed_ylm_l2_test(db)
-            seed_master_module(db)
         finally:
             db.close()
+
+    # Always run the Master Module curriculum sync independently from demo/legacy seed flags.
+    # This is idempotent: it only creates or completes MM -> MM-L1 -> Lessons 1-30 -> DPS 1-5.
+    # It does not create students, teachers, assignments, attempts, or demo records.
+    from app.seed.seed_master_module import seed as seed_master_module
+    db = SessionLocal()
+    try:
+        seed_master_module(db)
+    finally:
+        db.close()
 
 app.include_router(health_router)
 app.include_router(auth_router)
