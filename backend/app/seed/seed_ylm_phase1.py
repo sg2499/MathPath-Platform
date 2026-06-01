@@ -2,7 +2,23 @@ import json
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
-from app.models import Module, Level, Lesson, DPS, DPSSection, User
+from app.models import (
+    Module,
+    Level,
+    Lesson,
+    DPS,
+    DPSSection,
+    User,
+    Assignment,
+    AssignmentReattemptPermission,
+    GeneratedQuestionSet,
+    GeneratedQuestion,
+    QuestionOption,
+    Attempt,
+    AttemptAnswer,
+    AuditLog,
+    Notification,
+)
 from app.question_engine.ylm.config import YLM_LESSON_RULES, YLM_LEVEL_LESSON_RANGES, rule_metadata
 
 
@@ -141,50 +157,90 @@ def _ensure_section(db: Session, dps: DPS, dps_title: str, rule) -> None:
     section.generator_config_json = json.dumps(rule_metadata(rule))
 
 
-def _retire_legacy_level_lessons(db: Session, level: Level, valid_lesson_numbers: set[int]) -> None:
-    """Remove obsolete YLM lesson rows from active curriculum views.
+def _delete_legacy_level_lessons(db: Session, level: Level, valid_lesson_numbers: set[int]) -> None:
+    """Hard-delete obsolete YLM curriculum rows for this level only.
 
-    Earlier development builds seeded temporary YLM-L2 lessons 1 and 2 for
-    promotion testing. Production YLM-L2 starts at Lesson 17, so those rows
-    must not remain visible or assignable after the full curriculum seed runs.
+    This cleanup is intentionally narrow. It exists to remove the temporary
+    YLM-L2 Lesson 1 and Lesson 2 seed rows that were used during earlier
+    promotion testing. Production YLM-L2 starts at Lesson 17.
 
-    We prefer hard deletion for unassigned legacy curriculum rows. If a row is
-    protected by historical references in a live database, we fall back to a
-    strong archive state so active curriculum APIs can exclude it safely.
+    Deletion order matters because existing generated question history may
+    reference DPS sections/questions/sets. We remove those dependent rows first,
+    then delete the curriculum rows. No other module, level, or valid YLM lesson
+    is touched.
     """
     legacy_lessons = (
         db.query(Lesson)
         .filter(Lesson.level_id == level.id, ~Lesson.lesson_number.in_(valid_lesson_numbers))
         .all()
     )
-    for lesson in legacy_lessons:
-        dps_items = db.query(DPS).filter(DPS.lesson_id == lesson.id).all()
-        for dps in dps_items:
-            db.query(DPSSection).filter(DPSSection.dps_id == dps.id).delete(synchronize_session=False)
-            db.delete(dps)
-        db.delete(lesson)
+    if not legacy_lessons:
+        return
 
-    try:
+    lesson_ids = [lesson.id for lesson in legacy_lessons]
+    dps_items = db.query(DPS).filter(DPS.lesson_id.in_(lesson_ids)).all()
+    dps_ids = [dps.id for dps in dps_items]
+    if not dps_ids:
+        db.query(Lesson).filter(Lesson.id.in_(lesson_ids)).delete(synchronize_session=False)
         db.flush()
-    except Exception:
-        db.rollback()
-        for lesson in (
-            db.query(Lesson)
-            .filter(Lesson.level_id == level.id, ~Lesson.lesson_number.in_(valid_lesson_numbers))
-            .all()
-        ):
-            lesson.is_active = False
-            lesson.display_order = 9999 + int(lesson.lesson_number or 0)
-            if not str(lesson.lesson_title or '').startswith('[Archived]'):
-                lesson.lesson_title = f"[Archived] {lesson.lesson_title}"
-            for dps in db.query(DPS).filter(DPS.lesson_id == lesson.id).all():
-                dps.is_active = False
-                dps.publication_status = 'ARCHIVED'
-                if not str(dps.dps_title or '').startswith('[Archived]'):
-                    dps.dps_title = f"[Archived] {dps.dps_title}"
-                for section in db.query(DPSSection).filter(DPSSection.dps_id == dps.id).all():
-                    section.is_active = False if hasattr(section, 'is_active') else getattr(section, 'is_active', None)
+        return
 
+    section_ids = [row[0] for row in db.query(DPSSection.id).filter(DPSSection.dps_id.in_(dps_ids)).all()]
+    assignment_ids = [row[0] for row in db.query(Assignment.id).filter(Assignment.dps_id.in_(dps_ids)).all()]
+    question_set_ids = [row[0] for row in db.query(GeneratedQuestionSet.id).filter(GeneratedQuestionSet.dps_id.in_(dps_ids)).all()]
+    attempt_ids = [row[0] for row in db.query(Attempt.id).filter(Attempt.dps_id.in_(dps_ids)).all()]
+
+    if attempt_ids:
+        db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id.in_(attempt_ids)).delete(synchronize_session=False)
+        db.query(AuditLog).filter(AuditLog.attempt_id.in_(attempt_ids)).delete(synchronize_session=False)
+        db.query(Attempt).filter(Attempt.id.in_(attempt_ids)).delete(synchronize_session=False)
+
+    if question_set_ids:
+        question_ids = [
+            row[0]
+            for row in db.query(GeneratedQuestion.id)
+            .filter(GeneratedQuestion.question_set_id.in_(question_set_ids))
+            .all()
+        ]
+        if question_ids:
+            db.query(AttemptAnswer).filter(AttemptAnswer.question_id.in_(question_ids)).delete(synchronize_session=False)
+            db.query(QuestionOption).filter(QuestionOption.question_id.in_(question_ids)).delete(synchronize_session=False)
+            db.query(GeneratedQuestion).filter(GeneratedQuestion.id.in_(question_ids)).delete(synchronize_session=False)
+        db.query(GeneratedQuestionSet).filter(GeneratedQuestionSet.id.in_(question_set_ids)).delete(synchronize_session=False)
+
+    if section_ids:
+        # Defensive cleanup for any generated questions that may have been created
+        # without a question set link in older builds but still point to a section.
+        section_question_ids = [
+            row[0]
+            for row in db.query(GeneratedQuestion.id)
+            .filter(GeneratedQuestion.dps_section_id.in_(section_ids))
+            .all()
+        ]
+        if section_question_ids:
+            db.query(AttemptAnswer).filter(AttemptAnswer.question_id.in_(section_question_ids)).delete(synchronize_session=False)
+            db.query(QuestionOption).filter(QuestionOption.question_id.in_(section_question_ids)).delete(synchronize_session=False)
+            db.query(GeneratedQuestion).filter(GeneratedQuestion.id.in_(section_question_ids)).delete(synchronize_session=False)
+        db.query(DPSSection).filter(DPSSection.id.in_(section_ids)).delete(synchronize_session=False)
+
+    if assignment_ids:
+        # Remove/clear downstream assignment references before deleting assignments.
+        db.query(AssignmentReattemptPermission).filter(
+            AssignmentReattemptPermission.assignment_id.in_(assignment_ids)
+        ).delete(synchronize_session=False)
+        db.query(AssignmentReattemptPermission).filter(
+            AssignmentReattemptPermission.used_assignment_id.in_(assignment_ids)
+        ).delete(synchronize_session=False)
+        for assignment in db.query(Assignment).filter(Assignment.source_assignment_id.in_(assignment_ids)).all():
+            assignment.source_assignment_id = None
+        db.flush()
+        db.query(Assignment).filter(Assignment.id.in_(assignment_ids)).delete(synchronize_session=False)
+
+    db.query(AssignmentReattemptPermission).filter(AssignmentReattemptPermission.dps_id.in_(dps_ids)).delete(synchronize_session=False)
+    db.query(Notification).filter(Notification.dps_id.in_(dps_ids)).delete(synchronize_session=False)
+    db.query(DPS).filter(DPS.id.in_(dps_ids)).delete(synchronize_session=False)
+    db.query(Lesson).filter(Lesson.id.in_(lesson_ids)).delete(synchronize_session=False)
+    db.flush()
 
 def seed(db: Session):
     """Seed the complete YLM Golden Steps curriculum.
@@ -201,7 +257,7 @@ def seed(db: Session):
         levels[level_code] = _ensure_level(db, module, level_code)
 
     for level_code, lesson_range in YLM_LEVEL_LESSON_RANGES.items():
-        _retire_legacy_level_lessons(db, levels[level_code], set(lesson_range))
+        _delete_legacy_level_lessons(db, levels[level_code], set(lesson_range))
 
     for lesson_number in sorted(YLM_LESSON_RULES):
         rule = YLM_LESSON_RULES[lesson_number]
