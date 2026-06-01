@@ -1032,21 +1032,21 @@ export function AppShell({
                                       >
                                         <ChildIcon
                                           size={17}
-                                          strokeWidth={IsTeacher && theme === "light" && childActive ? 2.8 : 2.15}
+                                          strokeWidth={2.15}
                                           style={
                                             IsTeacher && theme === "light" && childActive
                                               ? {
                                                   color: "#ffffff",
                                                   stroke: "#ffffff",
                                                   opacity: 1,
-                                                  filter: "brightness(0) invert(1) drop-shadow(0 1px 1px rgba(23, 15, 32, 0.45))",
+                                                  filter: "none",
                                                   mixBlendMode: "normal",
                                                 }
                                               : undefined
                                           }
                                           className={
                                             IsTeacher && theme === "light" && childActive
-                                              ? "math-teacher-main-nav-force-white !text-white !stroke-white opacity-100"
+                                              ? "!text-white !stroke-white opacity-100"
                                               : undefined
                                           }
                                         />

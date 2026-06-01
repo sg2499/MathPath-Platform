@@ -11691,34 +11691,6 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
-/* 31 May 2026 — Teacher light-mode main navbar icon hard lock
-   Scope: Teacher login only, light mode only, desktop main navbar only.
-   Purpose: keep Teacher nav icons and chevrons visibly white on hover/open/active states even when older global SVG/nav rules load later. */
-@layer components {
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"], .premium-nav-item-active, .premium-nav-item-open) svg,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"], .premium-nav-item-active, .premium-nav-item-open) svg *,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] svg,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] svg *,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] svg,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] svg *,
-  html:not(.dark) .math-role-teacher .premium-nav svg[data-teacher-main-nav-svg="true"],
-  html:not(.dark) .math-role-teacher .premium-nav svg[data-teacher-main-nav-svg="true"] * {
-    color: #ffffff !important;
-    stroke: #ffffff !important;
-    fill: none !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-  }
-
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"], .premium-nav-item-active, .premium-nav-item-open) svg,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] svg,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] svg,
-  html:not(.dark) .math-role-teacher .premium-nav svg[data-teacher-main-nav-svg="true"] {
-    filter: drop-shadow(0 1px 1px rgba(23, 15, 32, 0.4)) !important;
-    stroke-width: 3.25 !important;
-  }
-}
-
 /* 31 May 2026 — Teacher light-mode metric card role-palette surface finalization
    Scope: Teacher login only, light mode only.
    Purpose: give Teacher metric cards the same consistent Teacher plum role-palette outline
@@ -11792,45 +11764,6 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
-/* 31 May 2026 — Teacher light-mode main navbar visible-icon hard override v2
-   Scope: Teacher login only, light mode only, main navbar and its dropdown triggers.
-   Purpose: make Teacher nav icons/chevrons visibly white even when older SVG color, opacity,
-   stroke, or browser rendering rules override inherited text color. */
-@layer components {
-  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, .premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"]) :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
-  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, .premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"]) :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) *,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) *,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) *,
-  html:not(.dark) .math-role-teacher .premium-nav .math-teacher-main-nav-force-white,
-  html:not(.dark) .math-role-teacher .premium-nav .math-teacher-main-nav-force-white * {
-    color: #ffffff !important;
-    stroke: #ffffff !important;
-    fill: none !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    vector-effect: non-scaling-stroke !important;
-    filter: brightness(0) invert(1) drop-shadow(0 1px 1px rgba(23, 15, 32, 0.45)) !important;
-  }
-
-  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, .premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"]) :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
-  html:not(.dark) .math-role-teacher .premium-nav .math-teacher-main-nav-force-white {
-    stroke-width: 3.4px !important;
-    min-width: 17px !important;
-    min-height: 17px !important;
-  }
-
-  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, .premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"]) > span,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] > span,
-  html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] > span {
-    color: #ffffff !important;
-    opacity: 1 !important;
-  }
-}
-
 /* 31 May 2026 — Student/Teacher utility button role-hover stabilization
    Scope: Student and Teacher only, both light and dark modes.
    Purpose: top utility/back/theme buttons and compact workspace controls should follow
@@ -11868,14 +11801,13 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   }
 }
 
-/* 1 June 2026 — Teacher main-navbar hover icon clean final lock
-   Scope: Teacher login only, light mode only, main navbar trigger buttons only.
-   Purpose: make hover/open/active icons render the same clean visible white as selected tabs
-   without heavy strokes, blend filters, or washed-out SVG internals. */
+/* 1 June 2026 — Teacher light-mode main navbar icon rendering reset
+   Scope: Teacher login only, light mode only, desktop main navbar triggers and dropdown cards.
+   Purpose: remove previous heavy filter/stroke overrides and make hover/open/selected icons render cleanly. */
 @layer components {
   html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-highlighted="true"],
   html:not(.dark) .math-role-teacher .premium-nav > .relative > .premium-nav-item[data-teacher-nav-highlighted="true"],
-  html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible),
+  html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"]),
   html:not(.dark) .math-role-teacher .premium-nav > .relative > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"]) {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
@@ -11885,8 +11817,8 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-highlighted="true"] > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) *,
   html:not(.dark) .math-role-teacher .premium-nav > .relative > .premium-nav-item[data-teacher-nav-highlighted="true"] > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
   html:not(.dark) .math-role-teacher .premium-nav > .relative > .premium-nav-item[data-teacher-nav-highlighted="true"] > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) *,
-  html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible) > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
-  html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible) > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) *,
+  html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"]) > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
+  html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"]) > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) *,
   html:not(.dark) .math-role-teacher .premium-nav > .relative > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"]) > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron),
   html:not(.dark) .math-role-teacher .premium-nav > .relative > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"]) > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) * {
     color: #ffffff !important;
@@ -11896,37 +11828,26 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     visibility: visible !important;
     filter: none !important;
     mix-blend-mode: normal !important;
-    text-shadow: none !important;
-    stroke-width: 2.25px !important;
+    stroke-width: 2.15px !important;
     vector-effect: non-scaling-stroke !important;
   }
 
   html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-highlighted="true"] > span,
   html:not(.dark) .math-role-teacher .premium-nav > .relative > .premium-nav-item[data-teacher-nav-highlighted="true"] > span,
-  html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible) > span,
+  html:not(.dark) .math-role-teacher .premium-nav > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"]) > span,
   html:not(.dark) .math-role-teacher .premium-nav > .relative > .premium-nav-item[data-teacher-nav-hover-scope="true"]:is(:hover, :focus-visible, [aria-expanded="true"]) > span {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
     opacity: 1 !important;
   }
-}
 
-/* 1 June 2026 — Teacher light-mode main navbar clean SVG override
-   Scope: Teacher login only, light mode only, desktop main navbar only.
-   Fixes the repeated navbar hover bug by overriding the older hard-lock filters
-   and heavy stroke rules that made Teacher hover/open icons look blank or clumsy. */
-@layer components {
-  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, .premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"], [data-teacher-nav-highlighted="true"], [data-teacher-nav-active="true"], [data-teacher-nav-open="true"]) {
-    background: linear-gradient(135deg, #4b1748 0%, #8b3d78 56%, #c27783 100%) !important;
-    border-color: rgba(139, 61, 120, 0.55) !important;
+  html:not(.dark) .math-role-teacher [data-teacher-nav-child="true"].math-dropdown-option:is(:hover, :focus-visible, .math-dropdown-option-active) [data-teacher-nav-child-icon="true"] {
+    background: rgba(255, 255, 255, 0.18) !important;
     color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
   }
 
-  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, .premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"], [data-teacher-nav-highlighted="true"], [data-teacher-nav-active="true"], [data-teacher-nav-open="true"]) > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron, svg),
-  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, .premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"], [data-teacher-nav-highlighted="true"], [data-teacher-nav-active="true"], [data-teacher-nav-open="true"]) > :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron, svg) *,
-  html:not(.dark) .math-role-teacher .premium-nav svg[data-teacher-main-nav-svg="true"],
-  html:not(.dark) .math-role-teacher .premium-nav svg[data-teacher-main-nav-svg="true"] * {
+  html:not(.dark) .math-role-teacher [data-teacher-nav-child="true"].math-dropdown-option:is(:hover, :focus-visible, .math-dropdown-option-active) [data-teacher-nav-child-icon="true"] :is(svg, svg *) {
     color: #ffffff !important;
     stroke: #ffffff !important;
     fill: none !important;
@@ -11934,15 +11855,6 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     visibility: visible !important;
     filter: none !important;
     mix-blend-mode: normal !important;
-    stroke-width: 2.05px !important;
-    vector-effect: non-scaling-stroke !important;
-  }
-
-  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, .premium-nav-item-active, .premium-nav-item-open, [aria-expanded="true"], [data-teacher-nav-highlighted="true"], [data-teacher-nav-active="true"], [data-teacher-nav-open="true"]) > span {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    opacity: 1 !important;
-    filter: none !important;
-    text-shadow: none !important;
+    stroke-width: 2.15px !important;
   }
 }
