@@ -833,7 +833,7 @@ export function AppShell({
                           color: "#ffffff",
                           stroke: "#ffffff",
                           opacity: 1,
-                          filter: "drop-shadow(0 1px 1px rgba(23, 15, 32, 0.18))",
+                          filter: "none",
                           mixBlendMode: "normal",
                         }
                       : undefined;
@@ -865,7 +865,7 @@ export function AppShell({
                         >
                           <Icon
                             size={17}
-                            strokeWidth={TeacherNavHighlighted ? 2.25 : RoleNavHighlighted ? 2.35 : 2.15}
+                            strokeWidth={TeacherNavHighlighted ? 2.05 : RoleNavHighlighted ? 2.25 : 2.15}
                             data-teacher-main-nav-svg={TeacherNavHighlighted ? "true" : undefined}
                             style={
                               TeacherNavIconStyle ||
@@ -935,7 +935,7 @@ export function AppShell({
                         >
                           <Icon
                             size={17}
-                            strokeWidth={TeacherNavHighlighted ? 2.25 : RoleNavHighlighted ? 2.35 : 2.15}
+                            strokeWidth={TeacherNavHighlighted ? 2.05 : RoleNavHighlighted ? 2.25 : 2.15}
                             data-teacher-main-nav-svg={TeacherNavHighlighted ? "true" : undefined}
                             style={
                               TeacherNavIconStyle ||
@@ -966,7 +966,7 @@ export function AppShell({
                           </span>
                           <ChevronDown
                             size={15}
-                            strokeWidth={TeacherNavHighlighted ? 2.25 : RoleNavHighlighted ? 2.35 : 2.15}
+                            strokeWidth={TeacherNavHighlighted ? 2.05 : RoleNavHighlighted ? 2.25 : 2.15}
                             data-teacher-main-nav-svg={TeacherNavHighlighted ? "true" : undefined}
                             style={
                               TeacherNavIconStyle ||
