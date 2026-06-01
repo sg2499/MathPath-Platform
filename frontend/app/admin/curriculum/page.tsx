@@ -163,7 +163,6 @@ export default function AdminCurriculumPage() {
   const canPublish =
     Boolean(dpsId) &&
     previewQuestions.length > 0 &&
-    !IsSelectedDpsPublished &&
     !publishMutation.isPending;
 
   if (!ready) return null;
@@ -318,10 +317,10 @@ export default function AdminCurriculumPage() {
               className="math-button-primary inline-flex items-center justify-center gap-2"
               disabled={!canPublish}
               title={
-                IsSelectedDpsPublished
-                  ? "This DPS is already published for teacher assignment."
-                  : previewQuestions.length === 0
-                    ? "Generate and review the preview before publishing."
+                previewQuestions.length === 0
+                  ? "Generate and review a fresh preview before publishing."
+                  : IsSelectedDpsPublished
+                    ? "Republish this DPS with the newly generated question set."
                     : "Publish this DPS for teacher assignment."
               }
               onClick={() => publishMutation.mutate()}
@@ -330,7 +329,7 @@ export default function AdminCurriculumPage() {
               {publishMutation.isPending
                 ? "Publishing..."
                 : IsSelectedDpsPublished
-                  ? "Published"
+                  ? "Republish DPS"
                   : "Publish DPS"}
             </button>
           </div>
@@ -338,7 +337,7 @@ export default function AdminCurriculumPage() {
 
         {publishMutation.isSuccess ? (
           <div className="mt-4 rounded-2xl bg-green-50 p-4 text-sm font-semibold text-green-700">
-            DPS published successfully. Teachers can now assign this sheet to eligible students.
+            DPS published successfully. Teachers will receive the latest approved question set for this sheet.
           </div>
         ) : null}
       </div>
