@@ -1,11 +1,12 @@
 import random
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
-from app.question_engine.ylm.config import YLMConfig
+from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_rule
 from app.question_engine.ylm.operands import generate_operands
 from app.question_engine.ylm.validators import validate_question
 from app.question_engine.ylm.distractors import generate_distractors
 
 def generate_ylm_question_set(config: YLMConfig) -> list[dict]:
+    config = enrich_config_with_lesson_rule(config)
     questions: list[dict] = []
     seen: set[tuple[int, ...]] = set()
     rng = random.Random(config.seed)
@@ -34,6 +35,9 @@ def generate_ylm_question_set(config: YLMConfig) -> list[dict]:
                     "target_numbers": config.target_numbers,
                     "digit_pattern": config.digit_pattern,
                     "place_value": config.place_value,
+                    "allowed_movement_types": list(config.allowed_movement_types or []),
+                    "required_movement_types": list(config.required_movement_types or []),
+                    "lesson_title": config.lesson_title,
                 },
             })
             seen.add(tuple(operands))

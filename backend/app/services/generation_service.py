@@ -10,6 +10,7 @@ def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
     level = db.get(Level, lesson.level_id)
     module = db.get(Module, level.module_id)
     section = db.query(DPSSection).filter(DPSSection.dps_id == dps.id).order_by(DPSSection.section_number).first()
+    generator_config = json.loads(section.generator_config_json or "{}") if section else {}
     return YLMConfig(
         module_code=module.module_code,
         level_code=level.level_code,
@@ -25,6 +26,9 @@ def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
         digit_pattern=section.digit_pattern or "1D_AND_2D",
         allow_negative_operands=section.allow_negative_operands,
         allow_negative_answer=section.allow_negative_answer,
+        allowed_movement_types=tuple(generator_config.get("allowed_movement_types", [])),
+        required_movement_types=tuple(generator_config.get("required_movement_types", [])),
+        lesson_title=generator_config.get("lesson_title") or lesson.lesson_title,
         seed=seed,
     )
 
