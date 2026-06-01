@@ -141,13 +141,49 @@ def _ensure_section(db: Session, dps: DPS, dps_title: str, rule) -> None:
     section.generator_config_json = json.dumps(rule_metadata(rule))
 
 
-def _deactivate_legacy_level_lessons(db: Session, level: Level, valid_lesson_numbers: set[int]) -> None:
-    legacy_lessons = db.query(Lesson).filter(Lesson.level_id == level.id, ~Lesson.lesson_number.in_(valid_lesson_numbers)).all()
+def _retire_legacy_level_lessons(db: Session, level: Level, valid_lesson_numbers: set[int]) -> None:
+    """Remove obsolete YLM lesson rows from active curriculum views.
+
+    Earlier development builds seeded temporary YLM-L2 lessons 1 and 2 for
+    promotion testing. Production YLM-L2 starts at Lesson 17, so those rows
+    must not remain visible or assignable after the full curriculum seed runs.
+
+    We prefer hard deletion for unassigned legacy curriculum rows. If a row is
+    protected by historical references in a live database, we fall back to a
+    strong archive state so active curriculum APIs can exclude it safely.
+    """
+    legacy_lessons = (
+        db.query(Lesson)
+        .filter(Lesson.level_id == level.id, ~Lesson.lesson_number.in_(valid_lesson_numbers))
+        .all()
+    )
     for lesson in legacy_lessons:
-        lesson.is_active = False
         dps_items = db.query(DPS).filter(DPS.lesson_id == lesson.id).all()
         for dps in dps_items:
-            dps.is_active = False
+            db.query(DPSSection).filter(DPSSection.dps_id == dps.id).delete(synchronize_session=False)
+            db.delete(dps)
+        db.delete(lesson)
+
+    try:
+        db.flush()
+    except Exception:
+        db.rollback()
+        for lesson in (
+            db.query(Lesson)
+            .filter(Lesson.level_id == level.id, ~Lesson.lesson_number.in_(valid_lesson_numbers))
+            .all()
+        ):
+            lesson.is_active = False
+            lesson.display_order = 9999 + int(lesson.lesson_number or 0)
+            if not str(lesson.lesson_title or '').startswith('[Archived]'):
+                lesson.lesson_title = f"[Archived] {lesson.lesson_title}"
+            for dps in db.query(DPS).filter(DPS.lesson_id == lesson.id).all():
+                dps.is_active = False
+                dps.publication_status = 'ARCHIVED'
+                if not str(dps.dps_title or '').startswith('[Archived]'):
+                    dps.dps_title = f"[Archived] {dps.dps_title}"
+                for section in db.query(DPSSection).filter(DPSSection.dps_id == dps.id).all():
+                    section.is_active = False if hasattr(section, 'is_active') else getattr(section, 'is_active', None)
 
 
 def seed(db: Session):
@@ -165,7 +201,7 @@ def seed(db: Session):
         levels[level_code] = _ensure_level(db, module, level_code)
 
     for level_code, lesson_range in YLM_LEVEL_LESSON_RANGES.items():
-        _deactivate_legacy_level_lessons(db, levels[level_code], set(lesson_range))
+        _retire_legacy_level_lessons(db, levels[level_code], set(lesson_range))
 
     for lesson_number in sorted(YLM_LESSON_RULES):
         rule = YLM_LESSON_RULES[lesson_number]

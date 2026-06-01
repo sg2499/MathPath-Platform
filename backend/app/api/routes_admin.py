@@ -1690,28 +1690,28 @@ def admin_notifications(db: Session = Depends(get_db), user: User = Depends(admi
 
 @router.get("/modules")
 def modules(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    rows = db.query(Module).order_by(Module.display_order).all()
+    rows = db.query(Module).filter(Module.is_active == True).order_by(Module.display_order).all()
     return {"modules": [{"moduleId": m.id, "moduleCode": m.module_code, "moduleName": m.module_name, "displayOrder": m.display_order, "isActive": m.is_active} for m in rows]}
 
 
 @router.get("/modules/{module_id}/levels")
 def levels(module_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     module = db.get(Module, module_id)
-    rows = db.query(Level).filter(Level.module_id == module_id).order_by(Level.display_order).all()
+    rows = db.query(Level).filter(Level.module_id == module_id, Level.is_active == True).order_by(Level.display_order).all()
     return {"moduleId": module_id, "moduleCode": module.module_code if module else None, "levels": [{"levelId": l.id, "levelCode": l.level_code, "levelName": l.level_name, "internalLevelNumber": l.internal_level_number, "displayOrder": l.display_order} for l in rows]}
 
 
 @router.get("/levels/{level_id}/lessons")
 def lessons(level_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     level = db.get(Level, level_id)
-    rows = db.query(Lesson).filter(Lesson.level_id == level_id).order_by(Lesson.lesson_number).all()
-    return {"levelId": level_id, "levelCode": level.level_code if level else None, "lessons": [{"lessonId": l.id, "lessonNumber": l.lesson_number, "lessonTitle": l.lesson_title, "dpsCount": db.query(DPS).filter(DPS.lesson_id == l.id).count(), "isActive": l.is_active} for l in rows]}
+    rows = db.query(Lesson).filter(Lesson.level_id == level_id, Lesson.is_active == True).order_by(Lesson.lesson_number).all()
+    return {"levelId": level_id, "levelCode": level.level_code if level else None, "lessons": [{"lessonId": l.id, "lessonNumber": l.lesson_number, "lessonTitle": l.lesson_title, "dpsCount": db.query(DPS).filter(DPS.lesson_id == l.id, DPS.is_active == True).count(), "isActive": l.is_active} for l in rows]}
 
 
 @router.get("/lessons/{lesson_id}/dps")
 def dps_list(lesson_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     lesson = db.get(Lesson, lesson_id)
-    rows = db.query(DPS).filter(DPS.lesson_id == lesson_id).order_by(DPS.dps_number).all()
+    rows = db.query(DPS).filter(DPS.lesson_id == lesson_id, DPS.is_active == True).order_by(DPS.dps_number).all()
     return {
         "lessonId": lesson_id,
         "lessonNumber": lesson.lesson_number if lesson else None,
