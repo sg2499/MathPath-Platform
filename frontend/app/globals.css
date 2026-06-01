@@ -11714,8 +11714,31 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-active="true"] svg,
   html:not(.dark) .math-role-teacher .premium-nav [data-teacher-nav-open="true"] svg,
   html:not(.dark) .math-role-teacher .premium-nav svg[data-teacher-main-nav-svg="true"] {
-    filter: drop-shadow(0 1px 1px rgba(23, 15, 32, 0.4)) !important;
-    stroke-width: 3.25 !important;
+    filter: drop-shadow(0 1px 1px rgba(23, 15, 32, 0.18)) !important;
+    stroke-width: 2.25 !important;
+  }
+}
+
+/* 01 Jun 2026 — Teacher light-mode main navbar icon refinement
+   Scope: Teacher login only, light mode only, desktop main navbar only.
+   Purpose: keep selected/hovered icons visible without the heavy/clumsy thick-stroke effect. */
+@layer components {
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, [aria-expanded="true"], .premium-nav-item-active, .premium-nav-item-open) :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    stroke-width: 2.25 !important;
+    filter: drop-shadow(0 1px 1px rgba(23, 15, 32, 0.18)) !important;
+  }
+
+  html:not(.dark) .math-role-teacher .premium-nav .premium-nav-item:is(:hover, :focus-visible, [aria-expanded="true"], .premium-nav-item-active, .premium-nav-item-open) :is(.math-teacher-main-nav-icon, .math-teacher-main-nav-chevron) * {
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    stroke-width: 2.25 !important;
   }
 }
 
