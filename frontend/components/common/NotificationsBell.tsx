@@ -367,8 +367,22 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       return { Route: AttemptId ? `/assessment-result/${encodeURIComponent(AttemptId)}?viewer=TEACHER&feedback=1` : "/teacher/assessments", TargetTab: "", TargetSubTab: "" };
     }
-    if (IsAssessmentNotification(Notification))
+    if (IsAssessmentNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      const TargetAction = MetadataString(Notification, "targetAction").toLowerCase();
+      const StoredRoute = Notification.targetRoute || "";
+      if (TargetAction === "provide-feedback" && AttemptId) {
+        return {
+          Route: `/assessment-result/${encodeURIComponent(AttemptId)}?viewer=TEACHER&feedback=1`,
+          TargetTab: "",
+          TargetSubTab: "",
+        };
+      }
+      if (StoredRoute.startsWith("/assessment-result/") && AttemptId) {
+        return { Route: StoredRoute, TargetTab: "", TargetSubTab: "" };
+      }
       return { Route: "/teacher/assessments", TargetTab: "", TargetSubTab: "" };
+    }
   }
 
   if (Role === "admin") {
