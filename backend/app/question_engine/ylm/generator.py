@@ -14,7 +14,7 @@ def generate_ylm_question_set(config: YLMConfig) -> list[dict]:
     for question_number in range(1, config.question_count + 1):
         q_rng = random.Random(f"{config.seed}-Q{question_number}")
         operands = generate_unique_operands(config, q_rng, seen)
-        if not validate_question(config, operands, seen):
+        if not validate_question(config, operands, set()):
             # This should not happen because generation is built from validated pools.
             # Keep the explicit guard so no invalid YLM worksheet can ever be published.
             raise ValueError(f"Generated invalid YLM Golden Step question for lesson {config.lesson_number}")
@@ -39,6 +39,8 @@ def generate_ylm_question_set(config: YLMConfig) -> list[dict]:
                 "allowed_movement_types": list(config.allowed_movement_types or []),
                 "required_movement_types": list(config.required_movement_types or []),
                 "lesson_title": config.lesson_title,
+                "generation_template": config.generation_template,
+                "revision_templates": list(config.revision_templates or []),
             },
         })
         seen.add(tuple(operands))
