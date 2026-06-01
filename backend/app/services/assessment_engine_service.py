@@ -1848,6 +1848,8 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
     ModuleItem = Db.get(Module, Blueprint.module_id) if Blueprint else None
     Result = Db.query(AssessmentResult).filter(AssessmentResult.assessment_attempt_id == Attempt.id).first()
     ProgressionPayload = AssessmentProgressionPayload(Db, Assignment, Result=Result, Attempt=Attempt, LevelItem=LevelItem, ModuleItem=ModuleItem)
+    from app.services.assessment_feedback_service import active_assessment_remark, assessment_feedback_payload
+    FeedbackRemark = active_assessment_remark(Db, Attempt.id)
     Payload = {
         "attemptId": Attempt.id,
         "assignmentId": Attempt.assessment_assignment_id,
@@ -1878,6 +1880,7 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
         "completedDate": Iso(Result.completion_date if Result else Attempt.submitted_at),
         "submittedAt": Iso(Attempt.submitted_at),
         "attemptDate": Iso(Attempt.started_at),
+        "teacherFeedback": assessment_feedback_payload(Db, FeedbackRemark),
         **ProgressionPayload,
     }
     if IncludeReview:

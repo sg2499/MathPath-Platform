@@ -21,6 +21,7 @@ from app.services.assessment_engine_service import (
 from app.services.assessment_notification_service import NotifyAssessmentAttemptSubmitted
 from app.services.practice_notification_service import NotifyPracticeAttemptSubmitted, NotifyPracticeAssignmentsCreated
 from app.services.reattempt_operational_service import AttemptConceptKey, AttemptSequenceValue
+from app.services.assessment_feedback_service import assessment_feedback_payload, active_assessment_remark
 
 router = APIRouter(prefix="/api/student", tags=["student"])
 
@@ -748,6 +749,12 @@ def auto_submit_assessment_attempt(attempt_id: str, db: Session = Depends(get_db
 def assessment_attempt_result(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     Attempt = GetAssessmentAttemptForStudent(db, student, attempt_id)
     return AssessmentResultPayload(db, Attempt, IncludeReview=True)
+
+
+@router.get("/assessment-attempts/{attempt_id}/remarks")
+def student_get_assessment_attempt_remark(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    Attempt = GetAssessmentAttemptForStudent(db, student, attempt_id)
+    return {"teacherFeedback": assessment_feedback_payload(db, active_assessment_remark(db, Attempt.id))}
 
 
 @router.get("/assessment-eligibility")

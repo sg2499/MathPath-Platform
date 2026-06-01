@@ -8,7 +8,8 @@ export type NotificationCategory =
   | "PROMOTION"
   | "PARENT_REPORT"
   | "FAILURE"
-  | "SYSTEM";
+  | "SYSTEM"
+  | "ASSESSMENT_FEEDBACK";
 
 export type NotificationColorVariant =
   | "BLUE"
@@ -19,7 +20,12 @@ export type NotificationColorVariant =
   | "TEAL"
   | "RED"
   | "GRAY"
-  | "INFO";
+  | "INFO"
+  | "FEEDBACK_EXCELLENT"
+  | "FEEDBACK_MASTERY"
+  | "FEEDBACK_GUIDANCE"
+  | "FEEDBACK_PRACTICE"
+  | "FEEDBACK_REVISION";
 
 export type NotificationRecord = {
   id: string;

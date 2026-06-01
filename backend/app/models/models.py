@@ -398,6 +398,30 @@ class AssessmentResult(Base):
 
 
 
+class AssessmentAttemptRemark(Base):
+    __tablename__ = "assessment_attempt_remarks"
+    id = Column(String, primary_key=True, default=uuid_str)
+    assessment_attempt_id = Column(String, ForeignKey("assessment_attempts.id", ondelete="CASCADE"), nullable=False)
+    remark_text = Column(Text, nullable=False)
+    feedback_category = Column(String(80), nullable=False)
+    feedback_variant = Column(String(80), nullable=False)
+    feedback_tone = Column(String(80), nullable=False)
+    score_band = Column(String(80), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_role = Column(String(30), nullable=False)
+    updated_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    deleted_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    assessment_attempt = relationship("AssessmentAttempt")
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_user_id])
+    deleted_by = relationship("User", foreign_keys=[deleted_by_user_id])
+
+
+
 
 class StudentLevelPromotion(Base):
     __tablename__ = "student_level_promotions"

@@ -18,6 +18,7 @@ import {
   FileText,
   GraduationCap,
   MailCheck,
+  MessageSquareText,
   RotateCcw,
   Sparkles,
   TriangleAlert,
@@ -34,12 +35,22 @@ type NotificationTone =
   | "indigo"
   | "teal"
   | "red"
-  | "gray";
+  | "gray"
+  | "feedbackExcellent"
+  | "feedbackMastery"
+  | "feedbackGuidance"
+  | "feedbackPractice"
+  | "feedbackRevision";
 
 function NormalizeTone(Notification: NotificationRecord): NotificationTone {
   const Color = String(Notification.colorVariant || "").toUpperCase();
   const Category = String(Notification.category || "").toUpperCase();
 
+  if (Color === "FEEDBACK_EXCELLENT") return "feedbackExcellent";
+  if (Color === "FEEDBACK_MASTERY") return "feedbackMastery";
+  if (Color === "FEEDBACK_PRACTICE") return "feedbackPractice";
+  if (Color === "FEEDBACK_REVISION") return "feedbackRevision";
+  if (Color === "FEEDBACK_GUIDANCE" || Category === "ASSESSMENT_FEEDBACK") return "feedbackGuidance";
   if (Color === "RED" || Category === "FAILURE") return "red";
   if (Color === "GREEN" || Category === "RESULT") return "green";
   if (Color === "AMBER" || Category === "REATTEMPT") return "amber";
@@ -65,6 +76,11 @@ function ToneClasses(Tone: NotificationTone, IsRead: boolean) {
     teal: "border-teal-200 bg-teal-50 text-teal-950 hover:border-teal-300 dark:border-teal-400/20 dark:bg-teal-400/10 dark:text-teal-50",
     red: "border-rose-200 bg-rose-50 text-rose-950 hover:border-rose-300 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-50",
     gray: "border-slate-200 bg-slate-50 text-slate-950 hover:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-white",
+    feedbackExcellent: "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-amber-50 text-emerald-950 hover:border-emerald-300 dark:border-emerald-400/20 dark:from-emerald-400/10 dark:via-slate-950 dark:to-amber-400/10 dark:text-emerald-50",
+    feedbackMastery: "border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 text-cyan-950 hover:border-cyan-300 dark:border-cyan-400/20 dark:from-cyan-400/10 dark:via-slate-950 dark:to-emerald-400/10 dark:text-cyan-50",
+    feedbackGuidance: "border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-slate-50 text-fuchsia-950 hover:border-fuchsia-300 dark:border-fuchsia-400/20 dark:from-fuchsia-400/10 dark:via-slate-950 dark:to-white/5 dark:text-fuchsia-50",
+    feedbackPractice: "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 text-amber-950 hover:border-amber-300 dark:border-amber-400/20 dark:from-amber-400/10 dark:via-slate-950 dark:to-orange-400/10 dark:text-amber-50",
+    feedbackRevision: "border-orange-200 bg-gradient-to-br from-orange-50 via-white to-rose-50 text-orange-950 hover:border-orange-300 dark:border-orange-400/20 dark:from-orange-400/10 dark:via-slate-950 dark:to-rose-400/10 dark:text-orange-50",
   };
   return `${Base} ${Classes[Tone]}`;
 }
@@ -73,6 +89,7 @@ function IconFor(Notification: NotificationRecord) {
   const Category = String(Notification.category || "").toUpperCase();
   const Type = String(Notification.type || "").toUpperCase();
 
+  if (Category === "ASSESSMENT_FEEDBACK") return <MessageSquareText size={16} />;
   if (Category === "FAILURE") return <TriangleAlert size={16} />;
   if (Category === "RESULT") return <CheckCircle2 size={16} />;
   if (Category === "REATTEMPT" || Type.includes("REATTEMPT"))
@@ -177,6 +194,11 @@ function IsPracticeNotification(Notification: NotificationRecord) {
     Route.includes("/student/practice") ||
     Route.includes("/student/result/")
   );
+}
+
+function IsAssessmentFeedbackNotification(Notification: NotificationRecord) {
+  const { Category, Type } = NotificationText(Notification);
+  return Category === "ASSESSMENT_FEEDBACK" || Type.includes("ASSESSMENT_FEEDBACK");
 }
 
 function IsAssessmentNotification(Notification: NotificationRecord) {
@@ -341,6 +363,10 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
         TargetTab: "",
         TargetSubTab: "",
       };
+    if (IsAssessmentFeedbackNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      return { Route: AttemptId ? `/assessment-result/${encodeURIComponent(AttemptId)}?viewer=TEACHER&feedback=1` : "/teacher/assessments", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsAssessmentNotification(Notification))
       return { Route: "/teacher/assessments", TargetTab: "", TargetSubTab: "" };
   }
@@ -383,6 +409,10 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
         TargetSubTab: "",
       };
     }
+    if (IsAssessmentFeedbackNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      return { Route: AttemptId ? `/assessment-result/${encodeURIComponent(AttemptId)}?viewer=ADMIN&feedback=1` : "/admin/assessments", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsAssessmentNotification(Notification))
       return { Route: "/admin/assessments", TargetTab: "", TargetSubTab: "" };
   }
@@ -397,10 +427,14 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
         : "/student/results";
       return { Route, TargetTab: "lesson-insights", TargetSubTab: "" };
     }
+    if (IsAssessmentFeedbackNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      return { Route: AttemptId ? `/assessment-result/${encodeURIComponent(AttemptId)}?viewer=STUDENT&feedback=1` : "/student/assessments", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsAssessmentNotification(Notification)) {
       const StoredRoute = Notification.targetRoute || "";
       return {
-        Route: StoredRoute.startsWith("/student/assessment-result/")
+        Route: StoredRoute.startsWith("/student/assessment-result/") || StoredRoute.startsWith("/assessment-result/")
           ? StoredRoute
           : "/student/assessments",
         TargetTab: "",

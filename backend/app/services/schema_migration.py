@@ -370,6 +370,36 @@ def ensure_assessment_readiness_testing_overrides_table() -> None:
         """))
 
 
+
+def ensure_assessment_attempt_remarks_table() -> None:
+    """Create persisted assessment-attempt remarks table for Teacher/Admin feedback."""
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if "assessment_attempt_remarks" in tables:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS assessment_attempt_remarks (
+                id VARCHAR PRIMARY KEY,
+                assessment_attempt_id VARCHAR NOT NULL,
+                remark_text TEXT NOT NULL,
+                feedback_category VARCHAR(80) NOT NULL,
+                feedback_variant VARCHAR(80) NOT NULL,
+                feedback_tone VARCHAR(80) NOT NULL,
+                score_band VARCHAR(80),
+                created_by_user_id VARCHAR,
+                created_by_role VARCHAR(30) NOT NULL,
+                updated_by_user_id VARCHAR,
+                deleted_by_user_id VARCHAR,
+                deleted_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_assessment_attempt_remarks_attempt_active ON assessment_attempt_remarks (assessment_attempt_id, deleted_at)"))
+
+
 def ensure_notifications_table() -> None:
     """SQLite-safe notification table for role-aware platform notifications."""
     inspector = inspect(engine)

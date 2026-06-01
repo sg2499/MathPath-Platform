@@ -71,6 +71,7 @@ from app.services.assessment_engine_service import (
 from app.services.assessment_notification_service import NotifyAssessmentReattemptDecision, NotifyStudentPromoted
 from app.services.practice_notification_service import NotifyPracticeFreshPracticeAssigned
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
+from app.services.assessment_feedback_service import upsert_assessment_remark, delete_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.parent_report_notification_service import (
     NotifyParentReportGenerated,
     NotifyParentReportDeliveryLogs,
@@ -79,6 +80,9 @@ from app.services.parent_report_notification_service import (
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
+
+class AssessmentRemarkRequest(BaseModel):
+    remarkText: str
 
 
 def _admin_natural_sort_key(value: Any) -> list[Any]:
@@ -2198,6 +2202,48 @@ def admin_assessment_attempt_result_route(
     if not attempt:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
     return AssessmentResultPayload(db, attempt, IncludeReview=True)
+
+
+@router.post("/assessment-attempts/{attempt_id}/remarks")
+def admin_save_assessment_attempt_remark(
+    attempt_id: str,
+    payload: AssessmentRemarkRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    attempt = db.get(AssessmentAttempt, attempt_id)
+    if not attempt:
+        api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
+    remark = upsert_assessment_remark(db, attempt=attempt, actor=user, actor_role="ADMIN", remark_text=payload.remarkText)
+    db.commit()
+    db.refresh(remark)
+    return {"teacherFeedback": assessment_feedback_payload(db, remark)}
+
+
+@router.get("/assessment-attempts/{attempt_id}/remarks")
+def admin_get_assessment_attempt_remark(
+    attempt_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    attempt = db.get(AssessmentAttempt, attempt_id)
+    if not attempt:
+        api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
+    return {"teacherFeedback": assessment_feedback_payload(db, active_assessment_remark(db, attempt.id))}
+
+
+@router.delete("/assessment-attempts/{attempt_id}/remarks")
+def admin_delete_assessment_attempt_remark(
+    attempt_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    attempt = db.get(AssessmentAttempt, attempt_id)
+    if not attempt:
+        api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
+    remark = delete_assessment_remark(db, attempt=attempt, actor=user)
+    db.commit()
+    return {"deleted": True, "remarkId": remark.id}
 
 
 @router.get("/assessments")
