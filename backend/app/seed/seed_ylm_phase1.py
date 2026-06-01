@@ -99,6 +99,30 @@ def _ensure_lesson(db: Session, level: Level, lesson_number: int, lesson_title: 
     return lesson
 
 
+def _is_auto_seed_published_dps(dps: DPS) -> bool:
+    """Identify legacy YLM DPS rows that were incorrectly auto-published by seed logic.
+
+    Admin-published sheets use an ADMIN-PREVIEW seed generated from Learning Path
+    Studio. Those must remain published. Only old seed-generated publication states
+    are reset back to Draft so Admin remains the only publisher.
+    """
+    PublishedSeed = str(getattr(dps, "published_seed", "") or "")
+    PublicationStatus = str(getattr(dps, "publication_status", "") or "").upper()
+    if PublicationStatus != "PUBLISHED":
+        return False
+    return (
+        PublishedSeed.startswith("YLM-")
+        and (PublishedSeed.endswith("-GOLDEN-STEPS") or "YLM-L2-TEST" in PublishedSeed)
+    )
+
+
+def _reset_seed_published_dps_to_draft(dps: DPS) -> None:
+    dps.publication_status = "DRAFT"
+    dps.published_seed = None
+    dps.published_at = None
+    dps.published_by_user_id = None
+
+
 def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str, admin_user_id: str | None) -> DPS:
     dps = db.query(DPS).filter(DPS.lesson_id == lesson.id, DPS.dps_number == dps_number).first()
     if not dps:
@@ -109,10 +133,10 @@ def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str, ad
             default_question_count=10,
             default_duration_seconds=300,
             marks_per_question=1,
-            publication_status="PUBLISHED",
-            published_seed=f"YLM-{lesson.lesson_number}-DPS-{dps_number}-GOLDEN-STEPS",
-            published_at=datetime.now(timezone.utc),
-            published_by_user_id=admin_user_id,
+            publication_status="DRAFT",
+            published_seed=None,
+            published_at=None,
+            published_by_user_id=None,
             is_active=True,
         )
         db.add(dps)
@@ -122,10 +146,10 @@ def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str, ad
         dps.default_question_count = 10
         dps.default_duration_seconds = 300
         dps.marks_per_question = 1
-        dps.publication_status = "PUBLISHED"
-        dps.published_seed = dps.published_seed or f"YLM-{lesson.lesson_number}-DPS-{dps_number}-GOLDEN-STEPS"
-        dps.published_at = dps.published_at or datetime.now(timezone.utc)
-        dps.published_by_user_id = dps.published_by_user_id or admin_user_id
+        if _is_auto_seed_published_dps(dps):
+            _reset_seed_published_dps_to_draft(dps)
+        else:
+            dps.publication_status = getattr(dps, "publication_status", None) or "DRAFT"
         dps.is_active = True
     return dps
 
