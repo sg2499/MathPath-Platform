@@ -34,11 +34,20 @@ def GenerateMmDistractors(CorrectAnswer: Decimal, Rng: random.Random, AllowNegat
         if Candidate not in Candidates:
             Candidates.append(Candidate)
 
-    while len(Candidates) < 3:
-        RandomDelta = Decimal(Rng.choice([-9, -7, -5, -3, 3, 5, 7, 9])) * Step
+    Guard = 0
+    while len(Candidates) < 3 and Guard < 80:
+        Guard += 1
+        RandomDelta = Decimal(Rng.choice([-25, -20, -15, -12, -9, -7, -5, -3, 3, 5, 7, 9, 12, 15, 20, 25])) * Step
         Candidate = _QuantizeLike(CorrectAnswer + RandomDelta, CorrectAnswer)
         if Candidate != CorrectAnswer and (AllowNegative or Candidate >= 0) and Candidate not in Candidates:
             Candidates.append(Candidate)
+
+    Offset = Decimal("1")
+    while len(Candidates) < 3:
+        Candidate = _QuantizeLike(CorrectAnswer + Offset, CorrectAnswer)
+        if Candidate != CorrectAnswer and (AllowNegative or Candidate >= 0) and Candidate not in Candidates:
+            Candidates.append(Candidate)
+        Offset += Decimal("1")
 
     Candidates.sort(key=lambda Candidate: abs(Candidate - CorrectAnswer))
     Selected = Candidates[:3]
