@@ -59,7 +59,11 @@ def _ensure_level(db: Session, module: Module, level_code: str) -> Level:
 
 
 def _ensure_lesson(db: Session, level: Level, lesson_number: int, lesson_title: str) -> Lesson:
-    lesson = db.query(Lesson).filter(Level.id == level.id, Lesson.level_id == level.id, Lesson.lesson_number == lesson_number).first()
+    lesson = (
+        db.query(Lesson)
+        .filter(Lesson.level_id == level.id, Lesson.lesson_number == lesson_number)
+        .first()
+    )
     if not lesson:
         lesson = Lesson(
             level_id=level.id,
