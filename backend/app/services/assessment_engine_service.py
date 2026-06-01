@@ -180,6 +180,7 @@ def SectionConfig(Db: Session, LessonItem: Lesson, Section: DPSSection, Question
     LevelItem = Db.get(Level, LessonItem.level_id)
     ModuleItem = Db.get(Module, LevelItem.module_id) if LevelItem else None
     DpsItem = Db.get(DPS, Section.dps_id) if Section.dps_id else None
+    GeneratorConfig = SafeJson(Section.generator_config_json, {}) if Section else {}
     return YLMConfig(
         module_code=ModuleItem.module_code if ModuleItem else "MATHPATH",
         level_code=LevelItem.level_code if LevelItem else "LEVEL",
@@ -195,6 +196,9 @@ def SectionConfig(Db: Session, LessonItem: Lesson, Section: DPSSection, Question
         digit_pattern=Section.digit_pattern or "1D_AND_2D",
         allow_negative_operands=Section.allow_negative_operands,
         allow_negative_answer=Section.allow_negative_answer,
+        allowed_movement_types=tuple(GeneratorConfig.get("allowed_movement_types", [])),
+        required_movement_types=tuple(GeneratorConfig.get("required_movement_types", [])),
+        lesson_title=GeneratorConfig.get("lesson_title") or LessonItem.lesson_title,
         seed=Seed,
     )
 
@@ -1848,8 +1852,6 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
     ModuleItem = Db.get(Module, Blueprint.module_id) if Blueprint else None
     Result = Db.query(AssessmentResult).filter(AssessmentResult.assessment_attempt_id == Attempt.id).first()
     ProgressionPayload = AssessmentProgressionPayload(Db, Assignment, Result=Result, Attempt=Attempt, LevelItem=LevelItem, ModuleItem=ModuleItem)
-    from app.services.assessment_feedback_service import active_assessment_remark, assessment_feedback_payload
-    FeedbackRemark = active_assessment_remark(Db, Attempt.id)
     Payload = {
         "attemptId": Attempt.id,
         "assignmentId": Attempt.assessment_assignment_id,
@@ -1880,7 +1882,6 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
         "completedDate": Iso(Result.completion_date if Result else Attempt.submitted_at),
         "submittedAt": Iso(Attempt.submitted_at),
         "attemptDate": Iso(Attempt.started_at),
-        "teacherFeedback": assessment_feedback_payload(Db, FeedbackRemark),
         **ProgressionPayload,
     }
     if IncludeReview:
