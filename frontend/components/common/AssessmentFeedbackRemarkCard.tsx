@@ -106,6 +106,28 @@ function LocalPreviewVariant(Text: string, Accuracy: number) {
   return HasPositive ? "FOCUSED_SUPPORT" : "REVISION_REQUIRED";
 }
 
+
+function CleanFeedbackLabel(Value?: string | null, HasText = false) {
+  const Raw = String(Value || "").trim();
+  const Normalized = Raw.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  const Labels: Record<string, string> = {
+    EXCELLENCE: "Excellence",
+    MASTERY_GROWTH: "Mastery Growth",
+    CONSISTENT_PERFORMANCE: "Consistent Performance",
+    CONSISTENT_GROWTH: "Consistent Performance",
+    GREAT_PROGRESS: "Great Progress",
+    POSITIVE_PROGRESS: "Great Progress",
+    ENCOURAGING_PRACTICE: "Encouraging Practice",
+    CONCEPT_REINFORCEMENT: "Concept Reinforcement",
+    FOCUSED_SUPPORT: "Focused Support",
+    REVISION_REQUIRED: "Revision Guidance",
+    TEACHER_GUIDANCE: "Teacher Guidance",
+  };
+  if (Labels[Normalized]) return Labels[Normalized];
+  if (!HasText) return "Optional Feedback";
+  return "Teacher Feedback";
+}
+
 async function SaveFeedback(Role: ViewerRole, AttemptId: string, RemarkText: string) {
   const Prefix = Role === "ADMIN" ? "/admin" : "/teacher";
   const Response = await api.post(`${Prefix}/assessment-attempts/${AttemptId}/remarks`, { remarkText: RemarkText });
@@ -159,7 +181,8 @@ export function AssessmentFeedbackRemarkCard({
 
   if (!CanEdit && !Feedback?.text) return null;
 
-  const Category = Feedback?.feedbackCategory || (RemarkText.trim() ? "Live Preview" : "Awaiting Feedback");
+  const HasVisibleFeedback = Boolean(Feedback?.text || RemarkText.trim());
+  const Category = CleanFeedbackLabel(Feedback?.feedbackCategory || EffectiveVariant, HasVisibleFeedback);
 
   return (
     <section className={`rounded-[30px] border p-5 shadow-lg ring-1 transition ${Config.CardClass}`} id="assessment-feedback">
@@ -170,13 +193,15 @@ export function AssessmentFeedbackRemarkCard({
             <p className="text-[11px] font-black uppercase tracking-[0.18em] opacity-70">{Config.Kicker}</p>
             <h2 className="mt-1 text-2xl font-black tracking-tight">Assessment Remarks</h2>
             <p className="mt-1 text-sm font-semibold opacity-75">
-              {CanEdit ? "Add clear, MathPath-specific guidance for this exact assessment attempt." : "Your teacher has shared feedback for this assessment attempt."}
+              {CanEdit ? "Share clear, supportive feedback for this assessment attempt." : "Your teacher has shared feedback for this assessment attempt."}
             </p>
           </div>
         </div>
-        <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] ${Config.BadgeClass}`}>
-          <Lightbulb size={14} /> {Category}
-        </span>
+        {HasVisibleFeedback ? (
+          <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] ${Config.BadgeClass}`}>
+            <Lightbulb size={14} /> {Category}
+          </span>
+        ) : null}
       </div>
 
       {CanEdit ? (
@@ -186,11 +211,11 @@ export function AssessmentFeedbackRemarkCard({
             onChange={(Event) => SetRemarkText(Event.target.value)}
             maxLength={1500}
             rows={5}
-            placeholder="Example: Strong effort. Revise subtraction carry-over questions once more before the next assessment."
+            placeholder="Write feedback that helps the student understand this assessment performance."
             className="w-full rounded-[24px] border border-current/10 bg-white/80 p-4 text-sm font-semibold leading-6 text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:ring-4 focus:ring-current/10 dark:bg-slate-950/70 dark:text-white"
           />
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs font-bold opacity-70">{RemarkText.length}/1500 · Style updates automatically from score + remark context.</p>
+            <p className="text-xs font-bold opacity-70">{RemarkText.length}/1500</p>
             <div className="flex flex-wrap gap-2">
               {CanDelete ? (
                 <button
