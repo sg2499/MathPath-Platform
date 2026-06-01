@@ -305,6 +305,109 @@ def _difficulty_score(operands: list[int]) -> int:
     )
 
 
+
+
+
+def _max_question_value(operands: list[int]) -> int:
+    running = operands[0] if operands else 0
+    maximum = abs(running)
+    for value in operands[1:]:
+        running += value
+        maximum = max(maximum, abs(running))
+    return maximum
+
+
+def _support_load(operands: list[int]) -> int:
+    return sum(abs(value) for value in operands[2:]) if len(operands) > 2 else 0
+
+
+def _support_direction_changes(operands: list[int]) -> int:
+    if len(operands) < 3:
+        return 0
+    changes = 0
+    previous = 1 if operands[1] >= 0 else -1
+    for value in operands[2:]:
+        current = 1 if value >= 0 else -1
+        if current != previous:
+            changes += 1
+        previous = current
+    return changes
+
+
+def _absolute_stage_match(operands: list[int], target_stage: str) -> bool:
+    """Absolute difficulty guard for YLM DPS ordering.
+
+    Percentile buckets alone can make every question feel similar when a lesson has
+    a narrow concept pool. This guard adds curriculum-friendly separation by using
+    number size, support-row load, and direction changes while keeping the Golden
+    Step concept unchanged.
+    """
+    max_value = _max_question_value(operands)
+    support_load = _support_load(operands)
+    changes = _support_direction_changes(operands)
+    tag = _operand_template_tag(operands)
+
+    # Direct beginner lessons live mostly inside one digit, so progression comes
+    # from support load and direction changes rather than large place value.
+    if tag == TEMPLATE_DIRECT and max_value < 10:
+        if target_stage == "EASY":
+            return support_load <= 4 and changes <= 1
+        if target_stage == "EASY_MEDIUM":
+            return support_load <= 5
+        if target_stage == "MEDIUM":
+            return support_load <= 6
+        if target_stage == "MEDIUM_HARD":
+            return support_load >= 4
+        return support_load >= 5 or changes >= 1
+
+    if target_stage == "EASY":
+        return max_value <= 25 and support_load <= 4 and changes <= 1
+    if target_stage == "EASY_MEDIUM":
+        return max_value <= 45 and support_load <= 5
+    if target_stage == "MEDIUM":
+        return 20 <= max_value <= 70
+    if target_stage == "MEDIUM_HARD":
+        return max_value >= 35 and support_load >= 2
+    if target_stage == "CHALLENGE":
+        return max_value >= 55 or support_load >= 7 or changes >= 1
+    return True
+
+
+def _near_duplicate_key(operands: list[int]) -> tuple:
+    """Stable shape key used to avoid repeated-looking DPS rows.
+
+    Exact uniqueness is not enough for a premium worksheet. Questions such as
+    36 + 4 + 2 and 36 + 4 + 3 are technically unique but feel repetitive. This
+    key keeps the lesson concept intact while preferring different decades and
+    support shapes across a 10-question DPS.
+    """
+    tag = _operand_template_tag(operands)
+    base = operands[0] if operands else 0
+    primary = operands[1] if len(operands) > 1 else 0
+    support_signature = tuple((1 if value >= 0 else -1, abs(value)) for value in operands[2:])
+    return (tag, primary, base // 10, support_signature)
+
+
+def _near_duplicate_family(operands: list[int]) -> tuple:
+    tag = _operand_template_tag(operands)
+    base = operands[0] if operands else 0
+    primary = operands[1] if len(operands) > 1 else 0
+    return (tag, primary, base // 10)
+
+
+def _without_near_duplicates(candidates: list[list[int]], seen: set[tuple[int, ...]]) -> list[list[int]]:
+    if not candidates or not seen:
+        return candidates
+    seen_operands = [list(values) for values in seen]
+    used_keys = {_near_duplicate_key(values) for values in seen_operands}
+    strong = [operands for operands in candidates if _near_duplicate_key(operands) not in used_keys]
+    if strong:
+        return strong
+    used_families = {_near_duplicate_family(values) for values in seen_operands}
+    relaxed = [operands for operands in candidates if _near_duplicate_family(operands) not in used_families]
+    return relaxed or candidates
+
+
 def _bucketed_by_difficulty(pool: list[list[int]]) -> dict[str, list[list[int]]]:
     if not pool:
         return {stage: [] for stage in DIFFICULTY_ORDER}
@@ -321,6 +424,7 @@ def _difficulty_candidates(pool: list[list[int]], target_stage: str) -> list[lis
     bucketed = _bucketed_by_difficulty(pool)
     target_stage = target_stage if target_stage in DIFFICULTY_ORDER else "MEDIUM"
     target_index = DIFFICULTY_ORDER.index(target_stage)
+
     stage_order = [target_stage]
     for distance in range(1, len(DIFFICULTY_ORDER)):
         lower = target_index - distance
@@ -329,12 +433,17 @@ def _difficulty_candidates(pool: list[list[int]], target_stage: str) -> list[lis
             stage_order.append(DIFFICULTY_ORDER[lower])
         if upper < len(DIFFICULTY_ORDER):
             stage_order.append(DIFFICULTY_ORDER[upper])
-    candidates: list[list[int]] = []
+
     for stage in stage_order:
-        candidates.extend(bucketed.get(stage, []))
-        if candidates:
-            return candidates
-    return list(pool)
+        stage_pool = list(bucketed.get(stage, []))
+        absolute_pool = [operands for operands in stage_pool if _absolute_stage_match(operands, target_stage)]
+        if absolute_pool:
+            return absolute_pool
+        if stage_pool:
+            return stage_pool
+
+    absolute_all = [operands for operands in pool if _absolute_stage_match(operands, target_stage)]
+    return absolute_all or list(pool)
 
 
 def generate_unique_operands(config: YLMConfig, rng: random.Random, seen: set[tuple[int, ...]]) -> list[int]:
@@ -346,6 +455,7 @@ def generate_unique_operands(config: YLMConfig, rng: random.Random, seen: set[tu
     if preferred_template:
         preferred_pool = _candidate_pool_for_templates(config, (preferred_template,))
         preferred_available = [operands for operands in preferred_pool if tuple(operands) not in seen]
+        preferred_available = _without_near_duplicates(preferred_available, seen)
         available = _difficulty_candidates(preferred_available, target_stage)
         if available:
             return list(rng.choice(available))
@@ -356,6 +466,7 @@ def generate_unique_operands(config: YLMConfig, rng: random.Random, seen: set[tu
 
     pool = build_candidate_pool(config)
     unique_pool = [operands for operands in pool if tuple(operands) not in seen]
+    unique_pool = _without_near_duplicates(unique_pool, seen)
     available = _difficulty_candidates(unique_pool, target_stage)
     if not available:
         # Non-negotiable platform behavior: every YLM lesson must generate valid output.
