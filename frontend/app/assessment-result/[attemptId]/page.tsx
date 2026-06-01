@@ -3,7 +3,7 @@
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { VerticalQuestion } from "@/components/student/VerticalQuestion";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { api, apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
@@ -11,7 +11,6 @@ import { getStoredUser, getStoredUserForRole, getTokenForRole, setActiveRole } f
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target } from "lucide-react";
 import { PremiumResultFeedbackCard } from "@/components/common/PerformanceFeedback";
-import { AssessmentFeedbackRemarkCard, type AssessmentTeacherFeedback } from "@/components/common/AssessmentFeedbackRemarkCard";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 
@@ -39,7 +38,6 @@ type AssessmentRoleResultPayload = {
   submittedAt?: string | null;
   performanceBand?: string | null;
   questionReview?: AssessmentResultQuestion[];
-  teacherFeedback?: AssessmentTeacherFeedback | null;
 };
 
 
@@ -212,16 +210,6 @@ function StudentAssessmentResultPageContent() {
 
           <AssessmentFeedbackCard Result={Query.data} />
 
-          {ViewerRole ? (
-            <AssessmentFeedbackRemarkCard
-              AttemptId={Query.data.attemptId}
-              ViewerRole={ViewerRole}
-              Feedback={Query.data.teacherFeedback}
-              AccuracyPercentage={Query.data.accuracyPercentage}
-              QueryKey={["assessment-result", Params.attemptId, ViewerRole]}
-            />
-          ) : null}
-
           <div className="flex flex-wrap items-center gap-3">
             <button className="math-role-action-button px-4 py-3" onClick={() => Router.push(assessmentBackRoute(ViewerRole))}>
               <ArrowLeft size={16} />
@@ -252,7 +240,7 @@ function StudentAssessmentResultPageContent() {
                   </div>
 
                   <div className="mt-5 rounded-[28px] bg-slate-50/90 p-6">
-                    <VerticalQuestion operands={Question.operands} operators={Question.operators} />
+                    <MathQuestionDisplay operands={Question.operands} operators={Question.operators} displayType={(Question as any).displayType ?? (Question as any).display_type} questionText={(Question as any).questionText ?? (Question as any).question_text} />
                   </div>
 
                   <div className="mt-5 grid gap-3 xl:grid-cols-2">

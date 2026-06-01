@@ -3,7 +3,7 @@
 import type { StudentQuestion } from "@/types/question";
 import { CheckCircle2, Save } from "lucide-react";
 import { OptionButton } from "./OptionButton";
-import { VerticalQuestion } from "./VerticalQuestion";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 
 export function QuestionCard({
   question,
@@ -42,7 +42,7 @@ export function QuestionCard({
 
       <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(0,360px)_1fr] xl:items-center">
         <div className="rounded-[24px] bg-slate-50/90 p-3 dark:bg-slate-900/70 sm:p-4">
-          <VerticalQuestion operands={question.operands} operators={question.operators} />
+          <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

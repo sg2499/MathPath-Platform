@@ -14,6 +14,32 @@ def _Display(Value: Decimal) -> int | float:
     return float(Value.normalize())
 
 
+def _DisplayMode(Config: MMConfig) -> str:
+    ConceptFamily = Config.ConceptFamily
+    TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".upper()
+
+    if ConceptFamily in {"DECIMAL_ADD_LESS", "INTEGERS"}:
+        return "VISUAL_STACK"
+
+    if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"}:
+        return "VISUAL_STACK"
+
+    if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
+        if "DECIMAL" in TitleText or "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
+            return "ANSWER_POSITION"
+        return "VISUAL_STACK"
+
+    if ConceptFamily in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
+        if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
+            return "ANSWER_POSITION"
+        return "EXPRESSION_WORKSHEET"
+
+    if ConceptFamily in {"BODMAS", "PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
+        return "EXPRESSION_WORKSHEET"
+
+    return "VISUAL_STACK"
+
+
 def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
     if not IsPackage1Supported(Config.ConceptFamily):
         raise ValueError(f"Master Module generator Package 1 does not support concept: {Config.ConceptFamily}")
@@ -51,7 +77,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         Questions.append({
             "question_number": QuestionNumber,
-            "display_type": "VERTICAL",
+            "display_type": _DisplayMode(Config),
             "operands": Operands,
             "operators": Operators,
             "correct_answer": CorrectDisplay,

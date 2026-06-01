@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ResultSummary } from "@/components/student/ResultSummary";
-import { VerticalQuestion } from "@/components/student/VerticalQuestion";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
@@ -156,7 +156,7 @@ export default function TeacherAttemptDetailPage() {
                       </div>
 
                       <div className="mt-5 rounded-[28px] bg-slate-50/90 p-6 dark:bg-slate-900/70">
-                        <VerticalQuestion operands={q.operands || []} operators={q.operators || []} />
+                        <MathQuestionDisplay operands={q.operands || []} operators={q.operators || []} displayType={(q as any).displayType ?? (q as any).display_type} questionText={(q as any).questionText ?? (q as any).question_text} />
                       </div>
 
                       <div className="mt-5 grid gap-3 xl:grid-cols-2">

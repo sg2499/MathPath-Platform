@@ -3,7 +3,7 @@
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { VerticalQuestion } from "@/components/student/VerticalQuestion";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
@@ -213,7 +213,7 @@ export default function StudentAssessmentResultPage() {
                   </div>
 
                   <div className="mt-5 rounded-[28px] bg-slate-50/90 p-6">
-                    <VerticalQuestion operands={Question.operands} operators={Question.operators} />
+                    <MathQuestionDisplay operands={Question.operands} operators={Question.operators} displayType={(Question as any).displayType ?? (Question as any).display_type} questionText={(Question as any).questionText ?? (Question as any).question_text} />
                   </div>
 
                   <div className="mt-5 grid gap-3 xl:grid-cols-2">
