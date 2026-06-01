@@ -4,13 +4,13 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Module, Level, Lesson
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
+from app.core.errors import api_error
 
 def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
     lesson = db.get(Lesson, dps.lesson_id)
     level = db.get(Level, lesson.level_id)
     module = db.get(Module, level.module_id)
     section = db.query(DPSSection).filter(DPSSection.dps_id == dps.id).order_by(DPSSection.section_number).first()
-    generator_config = json.loads(section.generator_config_json or "{}") if section else {}
     return YLMConfig(
         module_code=module.module_code,
         level_code=level.level_code,
@@ -26,9 +26,6 @@ def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
         digit_pattern=section.digit_pattern or "1D_AND_2D",
         allow_negative_operands=section.allow_negative_operands,
         allow_negative_answer=section.allow_negative_answer,
-        allowed_movement_types=tuple(generator_config.get("allowed_movement_types", [])),
-        required_movement_types=tuple(generator_config.get("required_movement_types", [])),
-        lesson_title=generator_config.get("lesson_title") or lesson.lesson_title,
         seed=seed,
     )
 
@@ -64,12 +61,37 @@ def build_preview_seed(dps: DPS) -> str:
     return f"ADMIN-PREVIEW-{dps.id}-{uuid4().hex}"
 
 
+def _is_dynamic_generator_supported(db: Session, dps: DPS) -> bool:
+    lesson = db.get(Lesson, dps.lesson_id)
+    level = db.get(Level, lesson.level_id) if lesson else None
+    module = db.get(Module, level.module_id) if level else None
+    return str(getattr(module, "module_code", "") or "").upper() == "YLM"
+
+
+def _unsupported_static_message(db: Session, dps: DPS) -> str:
+    lesson = db.get(Lesson, dps.lesson_id)
+    level = db.get(Level, lesson.level_id) if lesson else None
+    module = db.get(Module, level.module_id) if level else None
+    module_code = str(getattr(module, "module_code", "") or "Module").upper()
+    level_code = str(getattr(level, "level_code", "") or "Level")
+    lesson_number = getattr(lesson, "lesson_number", "-")
+    return (
+        f"{module_code} {level_code} Lesson {lesson_number} is seeded as a static worksheet reference. "
+        "Dynamic question generation is currently enabled only for YLM. "
+        "Do not publish or assign this DPS until the matching module generator/static-render workflow is implemented."
+    )
+
+
 def generate_preview(db: Session, dps: DPS, seed: str | None = None) -> list[dict]:
+    if not _is_dynamic_generator_supported(db, dps):
+        api_error(400, "STATIC_WORKSHEET_GENERATION_NOT_AVAILABLE", _unsupported_static_message(db, dps))
     seed = seed or build_preview_seed(dps)
     config = build_config_from_dps(db, dps, seed)
     return generate_ylm_question_set(config)
 
 def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, student_id: str, mode: str, seed: str) -> GeneratedQuestionSet:
+    if not _is_dynamic_generator_supported(db, dps):
+        api_error(400, "STATIC_WORKSHEET_GENERATION_NOT_AVAILABLE", _unsupported_static_message(db, dps))
     section = db.query(DPSSection).filter(DPSSection.dps_id == dps.id).order_by(DPSSection.section_number).first()
     config = build_config_from_dps(db, dps, seed)
     generated = generate_ylm_question_set(config)

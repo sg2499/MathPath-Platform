@@ -50,20 +50,17 @@ def on_startup():
     ensure_parent_report_email_logs_table()
     ensure_assessment_readiness_testing_overrides_table()
     ensure_notifications_table()
-
-    # YLM is production curriculum/master data, not demo data.
-    # Keep it outside SEED_ON_STARTUP so existing deployments are reconciled
-    # to the full 3-level / 32-lesson / 160-DPS Young Learners structure.
-    from app.seed.seed_ylm_phase1 import seed as seed_ylm_phase1
-    ylm_db = SessionLocal()
-    try:
-        seed_ylm_phase1(ylm_db)
-    finally:
-        ylm_db.close()
-
     if SEED_ON_STARTUP:
-        # Reserved for optional non-production/demo seeds only.
-        pass
+        from app.seed.seed_ylm_phase1 import seed as seed_ylm_phase1
+        from app.seed.seed_ylm_l2_test import seed as seed_ylm_l2_test
+        from app.seed.seed_master_module import seed as seed_master_module
+        db = SessionLocal()
+        try:
+            seed_ylm_phase1(db)
+            seed_ylm_l2_test(db)
+            seed_master_module(db)
+        finally:
+            db.close()
 
 app.include_router(health_router)
 app.include_router(auth_router)
