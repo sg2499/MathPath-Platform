@@ -21,24 +21,33 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
     Questions: list[dict] = []
     Seen: set[tuple[str, ...]] = set()
 
-    for QuestionNumber in range(1, Config.QuestionCount + 1):
+    QuestionCount = min(max(int(Config.QuestionCount or 10), 1), 25)
+    for QuestionNumber in range(1, QuestionCount + 1):
         QuestionSeed = f"{Config.Seed}-MM-Q{QuestionNumber}"
-        Rng = random.Random(QuestionSeed)
-        Attempt = 0
-        while True:
+        Accepted = None
+        LastCandidate = None
+        for Attempt in range(0, 12):
+            Rng = random.Random(QuestionSeed if Attempt == 0 else f"{QuestionSeed}-retry-{Attempt}")
             Operands, Operators, CorrectAnswer, ExtraMetadata = GeneratePackage1Question(Config, Rng, QuestionNumber)
+            LastCandidate = (Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt)
             Signature = tuple([str(Value) for Value in Operands] + Operators)
-            if Signature not in Seen and ValidateMmQuestion(Config, Operands, Operators, CorrectAnswer):
+            if ValidateMmQuestion(Config, Operands, Operators, CorrectAnswer) and Signature not in Seen:
+                Accepted = LastCandidate
                 Seen.add(Signature)
                 break
-            Attempt += 1
-            if Attempt > 80:
-                # Deterministic fallback by changing only the per-question random stream;
-                # still uses the same concept-specific generator and validator.
-                Rng = random.Random(f"{QuestionSeed}-retry-{Attempt}")
+        if Accepted is None:
+            if LastCandidate is None:
+                raise ValueError(f"Master Module generator could not create question {QuestionNumber} for {Config.ConceptFamily}")
+            Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = LastCandidate
+            if not ValidateMmQuestion(Config, Operands, Operators, CorrectAnswer):
+                raise ValueError(f"Master Module generator produced invalid question {QuestionNumber} for {Config.ConceptFamily}")
+            Seen.add(tuple([str(Value) for Value in Operands] + Operators))
+        else:
+            Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = Accepted
 
         CorrectDisplay = _Display(CorrectAnswer)
-        Distractors = GenerateMmDistractors(CorrectAnswer, Rng, False)
+        AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
+        Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         Questions.append({
             "question_number": QuestionNumber,
@@ -62,6 +71,8 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 "difficulty_progression": "MM_WARM_UP_TO_CHALLENGE",
                 "generator_package": "MM_PACKAGE_2_INTEGERS_BODMAS_PERCENTAGE",
                 "mm_validated": True,
+                "generation_attempts": Attempt + 1,
+                "generation_mode": "DETERMINISTIC_BOUNDED",
                 **ExtraMetadata,
             },
         })

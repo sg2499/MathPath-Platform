@@ -172,18 +172,12 @@ def GenerateWholeNumberDivision(Config: MMConfig, Rng: random.Random, QuestionNu
     Stage = DifficultyStage(QuestionNumber - 1)
     DividendDigits, DivisorDigits = _DivisionDigits(Config, Stage)
     DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
-    QuotientDigits = max(1, DividendDigits - DivisorDigits)
-    QuotientMin, QuotientMax = _DigitRange(QuotientDigits)
-    Divisor = Rng.randint(DivisorMin, DivisorMax)
-    Quotient = Rng.randint(QuotientMin, QuotientMax)
-    Dividend = Divisor * Quotient
     DividendMin, DividendMax = _DigitRange(DividendDigits)
-    Safety = 0
-    while not (DividendMin <= Dividend <= DividendMax) and Safety < 50:
-        Divisor = Rng.randint(DivisorMin, DivisorMax)
-        Quotient = Rng.randint(QuotientMin, QuotientMax)
-        Dividend = Divisor * Quotient
-        Safety += 1
+    Divisor = Rng.randint(DivisorMin, DivisorMax)
+    MinQuotient = max(1, (DividendMin + Divisor - 1) // Divisor)
+    MaxQuotient = max(MinQuotient, DividendMax // Divisor)
+    Quotient = Rng.randint(MinQuotient, MaxQuotient)
+    Dividend = Divisor * Quotient
     CorrectAnswer = Decimal(Quotient)
     return [Dividend, Divisor], ["", "÷"], CorrectAnswer, {"dividend_digits": DividendDigits, "divisor_digits": DivisorDigits}
 
@@ -210,18 +204,26 @@ def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) ->
     A = Rng.randint(2, MaxValue)
     B = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 15)
     C = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 20)
-    D = Rng.randint(1, MaxValue)
-    Pattern = Rng.choice(["ADD_MUL_SUB", "SUB_ADD_MUL", "MUL_ADD_DIV"])
+    Pattern = ["ADD_MUL_SUB", "SUB_ADD_MUL", "MUL_ADD_DIV"][(QuestionNumber - 1) % 3]
+
     if Pattern == "ADD_MUL_SUB":
-        CorrectAnswer = Decimal(A + (B * C) - D)
+        Product = B * C
+        D = Rng.randint(1, max(1, A + Product - 1))
+        CorrectAnswer = Decimal(A + Product - D)
         return [A, B, C, D], ["", "+", "×", "-"], CorrectAnswer, {"bodmas_pattern": Pattern}
+
     if Pattern == "SUB_ADD_MUL":
-        CorrectAnswer = Decimal(A - B + (C * D))
+        D = Rng.randint(2, max(3, MaxValue // 2))
+        Product = C * D
+        if A - B + Product < 0:
+            A = B + Rng.randint(1, MaxValue)
+        CorrectAnswer = Decimal(A - B + Product)
         return [A, B, C, D], ["", "-", "+", "×"], CorrectAnswer, {"bodmas_pattern": Pattern}
+
     Divisor = Rng.randint(2, 9)
     Quotient = Rng.randint(2, max(4, MaxValue // 3))
     Dividend = Divisor * Quotient
-    CorrectAnswer = Decimal((A * B) + (Dividend // Divisor))
+    CorrectAnswer = Decimal((A * B) + Quotient)
     return [A, B, Dividend, Divisor], ["", "×", "+", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern}
 
 
