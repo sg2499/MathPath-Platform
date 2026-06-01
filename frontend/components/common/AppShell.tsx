@@ -862,10 +862,11 @@ export function AppShell({
                           data-student-nav-active={IsStudent && theme === "light" && active ? "true" : undefined}
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
                           data-student-nav-open={IsStudent && theme === "light" && dropdownOpen ? "true" : undefined}
+                          data-teacher-nav-highlighted={TeacherNavHighlighted ? "true" : undefined}
                         >
                           <Icon
                             size={17}
-                            strokeWidth={TeacherNavHighlighted ? 2.05 : RoleNavHighlighted ? 2.25 : 2.15}
+                            strokeWidth={TeacherNavHighlighted ? 2.25 : RoleNavHighlighted ? 2.25 : 2.15}
                             data-teacher-main-nav-svg={TeacherNavHighlighted ? "true" : undefined}
                             style={
                               TeacherNavIconStyle ||
@@ -875,7 +876,7 @@ export function AppShell({
                             }
                             className={`math-teacher-main-nav-icon math-student-main-nav-icon shrink-0 transition-colors ${
                               TeacherNavHighlighted
-                                ? "math-teacher-main-nav-force-white !text-white !stroke-white opacity-100"
+                                ? "math-teacher-main-nav-clean-white !text-white !stroke-white opacity-100"
                                 : RoleNavHighlighted
                                   ? "!text-white !stroke-white opacity-100"
                                   : ""
@@ -931,11 +932,12 @@ export function AppShell({
                           data-student-nav-active={IsStudent && theme === "light" && active ? "true" : undefined}
                           data-teacher-nav-open={IsTeacher && theme === "light" && dropdownOpen ? "true" : undefined}
                           data-student-nav-open={IsStudent && theme === "light" && dropdownOpen ? "true" : undefined}
+                          data-teacher-nav-highlighted={TeacherNavHighlighted ? "true" : undefined}
                           aria-expanded={dropdownOpen}
                         >
                           <Icon
                             size={17}
-                            strokeWidth={TeacherNavHighlighted ? 2.05 : RoleNavHighlighted ? 2.25 : 2.15}
+                            strokeWidth={TeacherNavHighlighted ? 2.25 : RoleNavHighlighted ? 2.25 : 2.15}
                             data-teacher-main-nav-svg={TeacherNavHighlighted ? "true" : undefined}
                             style={
                               TeacherNavIconStyle ||
@@ -945,7 +947,7 @@ export function AppShell({
                             }
                             className={`math-teacher-main-nav-icon math-student-main-nav-icon shrink-0 transition-colors ${
                               TeacherNavHighlighted
-                                ? "math-teacher-main-nav-force-white !text-white !stroke-white opacity-100"
+                                ? "math-teacher-main-nav-clean-white !text-white !stroke-white opacity-100"
                                 : RoleNavHighlighted
                                   ? "!text-white !stroke-white opacity-100"
                                   : ""
@@ -966,7 +968,7 @@ export function AppShell({
                           </span>
                           <ChevronDown
                             size={15}
-                            strokeWidth={TeacherNavHighlighted ? 2.05 : RoleNavHighlighted ? 2.25 : 2.15}
+                            strokeWidth={TeacherNavHighlighted ? 2.25 : RoleNavHighlighted ? 2.25 : 2.15}
                             data-teacher-main-nav-svg={TeacherNavHighlighted ? "true" : undefined}
                             style={
                               TeacherNavIconStyle ||
@@ -978,7 +980,7 @@ export function AppShell({
                               dropdownOpen ? "rotate-180" : ""
                             } ${
                               TeacherNavHighlighted
-                                ? "math-teacher-main-nav-force-white !text-white !stroke-white opacity-100"
+                                ? "math-teacher-main-nav-clean-white !text-white !stroke-white opacity-100"
                                 : RoleNavHighlighted
                                   ? "!text-white !stroke-white opacity-100"
                                   : ""
