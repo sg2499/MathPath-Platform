@@ -1,6 +1,7 @@
 import json
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, Lesson, Level, Module
+from app.question_engine.mm.config import ClassifyMmConcept
 
 MODULE_CODE = "MM"
 MODULE_NAME = "Master Module"
@@ -254,9 +255,10 @@ def _section_config(lesson_number: int, dps_number: int) -> dict:
         "sourceType": source_type,
         "sourceFile": _normalise_source_filename(lesson_number, dps_number),
         "sourceLevelLabel": ORIGINAL_SOURCE_LEVEL_LABEL,
-        "seedMode": "STATIC_MASTER_MODULE_REFERENCE",
+        "seedMode": "DYNAMIC_MASTER_MODULE",
         "durationSeconds": DPS_DURATION_SECONDS,
         "manualReviewRequiredBeforePublishing": True,
+        "generatorPackage": "MM_PACKAGE_1_DECIMAL_MULTIPLICATION_DIVISION",
     }
 
 
@@ -353,9 +355,9 @@ def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int
             default_duration_seconds=DPS_DURATION_SECONDS,
             marks_per_question=1,
             label_style="NUMERIC",
-            answer_type="STATIC_WORKSHEET",
-            options_per_question=0,
-            layout_template="STATIC_MASTER_MODULE_WORKSHEET",
+            answer_type="MCQ",
+            options_per_question=4,
+            layout_template="VERTICAL_MASTER_MODULE",
             publication_status="DRAFT",
             is_active=True,
         )
@@ -367,9 +369,9 @@ def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int
         dps.default_duration_seconds = DPS_DURATION_SECONDS
         dps.marks_per_question = 1
         dps.label_style = "NUMERIC"
-        dps.answer_type = "STATIC_WORKSHEET"
-        dps.options_per_question = 0
-        dps.layout_template = "STATIC_MASTER_MODULE_WORKSHEET"
+        dps.answer_type = "MCQ"
+        dps.options_per_question = 4
+        dps.layout_template = "VERTICAL_MASTER_MODULE"
         dps.is_active = True
         if not getattr(dps, "publication_status", None):
             dps.publication_status = "DRAFT"
@@ -393,9 +395,9 @@ def _upsert_section(db: Session, dps: DPS, lesson_number: int, dps_number: int) 
             section_number=1,
             section_title=_dps_title(lesson_number, dps_number),
             question_count=20,
-            concept_family="MASTER_MODULE_STATIC",
-            operation_focus="STATIC_WORKSHEET",
-            abacus_rule="MASTER_MODULE_REFERENCE",
+            concept_family=ClassifyMmConcept(_dps_title(lesson_number, dps_number), LESSON_TITLES[lesson_number]),
+            operation_focus="MM_PACKAGE_1",
+            abacus_rule="MASTER_MODULE_DYNAMIC",
             target_numbers_json=json.dumps(target_payload),
             place_value="ADVANCED_MIXED",
             digit_pattern="MASTER_MODULE",
@@ -410,9 +412,9 @@ def _upsert_section(db: Session, dps: DPS, lesson_number: int, dps_number: int) 
     else:
         section.section_title = _dps_title(lesson_number, dps_number)
         section.question_count = 20
-        section.concept_family = "MASTER_MODULE_STATIC"
-        section.operation_focus = "STATIC_WORKSHEET"
-        section.abacus_rule = "MASTER_MODULE_REFERENCE"
+        section.concept_family = ClassifyMmConcept(_dps_title(lesson_number, dps_number), LESSON_TITLES[lesson_number])
+        section.operation_focus = "MM_PACKAGE_1"
+        section.abacus_rule = "MASTER_MODULE_DYNAMIC"
         section.target_numbers_json = json.dumps(target_payload)
         section.place_value = "ADVANCED_MIXED"
         section.digit_pattern = "MASTER_MODULE"

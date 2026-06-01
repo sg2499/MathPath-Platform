@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Module, Level, Lesson
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
+from app.question_engine.mm import MMConfig, ClassifyMmConcept, GenerateMmQuestionSet, IsPackage1Supported
 from app.core.errors import api_error
 
 def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
@@ -27,6 +28,53 @@ def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
         allow_negative_operands=section.allow_negative_operands,
         allow_negative_answer=section.allow_negative_answer,
         seed=seed,
+    )
+
+
+def build_mm_config_from_dps(db: Session, dps: DPS, seed: str) -> MMConfig:
+    LessonRecord = db.get(Lesson, dps.lesson_id)
+    LevelRecord = db.get(Level, LessonRecord.level_id) if LessonRecord else None
+    ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
+    SectionRecord = (
+        db.query(DPSSection)
+        .filter(DPSSection.dps_id == dps.id)
+        .order_by(DPSSection.section_number)
+        .first()
+    )
+    GeneratorConfig = {}
+    if SectionRecord and SectionRecord.generator_config_json:
+        try:
+            GeneratorConfig = json.loads(SectionRecord.generator_config_json or "{}")
+        except Exception:
+            GeneratorConfig = {}
+
+    DpsTitle = getattr(dps, "dps_title", "") or GeneratorConfig.get("dpsTitle", "")
+    LessonTitle = getattr(LessonRecord, "lesson_title", "") or GeneratorConfig.get("lessonTitle", "")
+    ConceptFamily = ClassifyMmConcept(DpsTitle, LessonTitle)
+    OperationFocus = "MIXED"
+    if ConceptFamily == "DECIMAL_ADD_LESS":
+        OperationFocus = "ADD_LESS"
+    elif ConceptFamily in {"DECIMAL_MULTIPLICATION", "WHOLE_NUMBER_MULTIPLICATION"}:
+        OperationFocus = "MULTIPLICATION"
+    elif ConceptFamily in {"DECIMAL_DIVISION", "WHOLE_NUMBER_DIVISION"}:
+        OperationFocus = "DIVISION"
+    elif ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
+        OperationFocus = "MULTIPLICATION_DIVISION"
+
+    return MMConfig(
+        ModuleCode=getattr(ModuleRecord, "module_code", "MM") or "MM",
+        LevelCode=getattr(LevelRecord, "level_code", "MM-L1") or "MM-L1",
+        LessonNumber=int(getattr(LessonRecord, "lesson_number", 0) or 0),
+        DpsNumber=int(getattr(dps, "dps_number", 0) or 0),
+        DpsTitle=DpsTitle,
+        LessonTitle=LessonTitle,
+        QuestionCount=int(getattr(dps, "default_question_count", 20) or 20),
+        Seed=seed,
+        ConceptFamily=ConceptFamily,
+        OperationFocus=OperationFocus,
+        DigitPattern=getattr(SectionRecord, "digit_pattern", "MASTER_MODULE") if SectionRecord else "MASTER_MODULE",
+        Difficulty=getattr(SectionRecord, "difficulty", "MASTER") if SectionRecord else "MASTER",
+        GeneratorConfig=GeneratorConfig,
     )
 
 
@@ -61,40 +109,63 @@ def build_preview_seed(dps: DPS) -> str:
     return f"ADMIN-PREVIEW-{dps.id}-{uuid4().hex}"
 
 
+def _module_code_for_dps(db: Session, dps: DPS) -> str:
+    LessonRecord = db.get(Lesson, dps.lesson_id)
+    LevelRecord = db.get(Level, LessonRecord.level_id) if LessonRecord else None
+    ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
+    return str(getattr(ModuleRecord, "module_code", "") or "").upper()
+
+
 def _is_dynamic_generator_supported(db: Session, dps: DPS) -> bool:
-    lesson = db.get(Lesson, dps.lesson_id)
-    level = db.get(Level, lesson.level_id) if lesson else None
-    module = db.get(Module, level.module_id) if level else None
-    return str(getattr(module, "module_code", "") or "").upper() == "YLM"
+    ModuleCode = _module_code_for_dps(db, dps)
+    if ModuleCode == "YLM":
+        return True
+    if ModuleCode == "MM":
+        Config = build_mm_config_from_dps(db, dps, build_preview_seed(dps))
+        return IsPackage1Supported(Config.ConceptFamily)
+    return False
 
 
 def _unsupported_static_message(db: Session, dps: DPS) -> str:
-    lesson = db.get(Lesson, dps.lesson_id)
-    level = db.get(Level, lesson.level_id) if lesson else None
-    module = db.get(Module, level.module_id) if level else None
-    module_code = str(getattr(module, "module_code", "") or "Module").upper()
-    level_code = str(getattr(level, "level_code", "") or "Level")
-    lesson_number = getattr(lesson, "lesson_number", "-")
+    LessonRecord = db.get(Lesson, dps.lesson_id)
+    LevelRecord = db.get(Level, LessonRecord.level_id) if LessonRecord else None
+    ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
+    ModuleCode = str(getattr(ModuleRecord, "module_code", "") or "Module").upper()
+    LevelCode = str(getattr(LevelRecord, "level_code", "") or "Level")
+    LessonNumber = getattr(LessonRecord, "lesson_number", "-")
+    DpsTitle = getattr(dps, "dps_title", "") or "selected DPS"
+    if ModuleCode == "MM":
+        return (
+            f"{ModuleCode} {LevelCode} Lesson {LessonNumber} / {DpsTitle} is not part of the active MM generator package yet. "
+            "Package 1 currently supports decimal add-less, decimal multiplication, decimal division, and multiplication/division digit-pattern practice."
+        )
     return (
-        f"{module_code} {level_code} Lesson {lesson_number} is seeded as a static worksheet reference. "
-        "Dynamic question generation is currently enabled only for YLM. "
-        "Do not publish or assign this DPS until the matching module generator/static-render workflow is implemented."
+        f"{ModuleCode} {LevelCode} Lesson {LessonNumber} is not connected to a dynamic question generator yet."
     )
 
 
 def generate_preview(db: Session, dps: DPS, seed: str | None = None) -> list[dict]:
     if not _is_dynamic_generator_supported(db, dps):
-        api_error(400, "STATIC_WORKSHEET_GENERATION_NOT_AVAILABLE", _unsupported_static_message(db, dps))
+        api_error(400, "DYNAMIC_GENERATION_NOT_AVAILABLE", _unsupported_static_message(db, dps))
     seed = seed or build_preview_seed(dps)
+    ModuleCode = _module_code_for_dps(db, dps)
+    if ModuleCode == "MM":
+        Config = build_mm_config_from_dps(db, dps, seed)
+        return GenerateMmQuestionSet(Config)
     config = build_config_from_dps(db, dps, seed)
     return generate_ylm_question_set(config)
 
 def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, student_id: str, mode: str, seed: str) -> GeneratedQuestionSet:
     if not _is_dynamic_generator_supported(db, dps):
-        api_error(400, "STATIC_WORKSHEET_GENERATION_NOT_AVAILABLE", _unsupported_static_message(db, dps))
+        api_error(400, "DYNAMIC_GENERATION_NOT_AVAILABLE", _unsupported_static_message(db, dps))
     section = db.query(DPSSection).filter(DPSSection.dps_id == dps.id).order_by(DPSSection.section_number).first()
-    config = build_config_from_dps(db, dps, seed)
-    generated = generate_ylm_question_set(config)
+    ModuleCode = _module_code_for_dps(db, dps)
+    if ModuleCode == "MM":
+        Config = build_mm_config_from_dps(db, dps, seed)
+        generated = GenerateMmQuestionSet(Config)
+    else:
+        config = build_config_from_dps(db, dps, seed)
+        generated = generate_ylm_question_set(config)
     qset = GeneratedQuestionSet(assignment_id=assignment_id, dps_id=dps.id, student_id=student_id, mode=mode, seed=seed)
     db.add(qset)
     db.flush()
