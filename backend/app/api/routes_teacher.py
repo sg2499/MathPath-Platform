@@ -20,6 +20,7 @@ from app.services.assessment_engine_service import AvailablePublishedVersions, A
 from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated
 from app.services.practice_notification_service import NotifyPracticeAssignmentsCreated
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
+from app.services.assessment_feedback_service import upsert_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.auth_service import public_profile_photo_url
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
@@ -38,6 +39,9 @@ class TeacherAssignAssessmentRequest(BaseModel):
     studentIds: list[str]
     instructions: str | None = None
 
+
+class AssessmentRemarkRequest(BaseModel):
+    remarkText: str
 
 BENCHMARK_PERCENTAGE = 70.0
 
@@ -949,6 +953,41 @@ def teacher_assessment_attempt_result_route(
     if attempt.student_id not in own_student_ids:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found for this teacher.")
     return AssessmentResultPayload(db, attempt, IncludeReview=True)
+
+
+@router.post("/assessment-attempts/{attempt_id}/remarks")
+def teacher_save_assessment_attempt_remark(
+    attempt_id: str,
+    payload: AssessmentRemarkRequest,
+    db: Session = Depends(get_db),
+    teacher: Teacher = Depends(get_current_teacher),
+):
+    attempt = db.get(AssessmentAttempt, attempt_id)
+    if not attempt:
+        api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
+    own_student_ids = [student.id for student in own_students_query(db, teacher).all()]
+    if attempt.student_id not in own_student_ids:
+        api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found for this teacher.")
+    user = teacher_user(db, teacher)
+    remark = upsert_assessment_remark(db, attempt=attempt, actor=user, actor_role="TEACHER", remark_text=payload.remarkText)
+    db.commit()
+    db.refresh(remark)
+    return {"teacherFeedback": assessment_feedback_payload(db, remark)}
+
+
+@router.get("/assessment-attempts/{attempt_id}/remarks")
+def teacher_get_assessment_attempt_remark(
+    attempt_id: str,
+    db: Session = Depends(get_db),
+    teacher: Teacher = Depends(get_current_teacher),
+):
+    attempt = db.get(AssessmentAttempt, attempt_id)
+    if not attempt:
+        api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
+    own_student_ids = [student.id for student in own_students_query(db, teacher).all()]
+    if attempt.student_id not in own_student_ids:
+        api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found for this teacher.")
+    return {"teacherFeedback": assessment_feedback_payload(db, active_assessment_remark(db, attempt.id))}
 
 
 @router.get("/student-level-promotions")
