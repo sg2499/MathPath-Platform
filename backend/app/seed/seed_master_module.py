@@ -258,7 +258,7 @@ def _section_config(lesson_number: int, dps_number: int) -> dict:
         "seedMode": "DYNAMIC_MASTER_MODULE",
         "durationSeconds": DPS_DURATION_SECONDS,
         "manualReviewRequiredBeforePublishing": True,
-        "generatorPackage": "MM_PACKAGE_1_DECIMAL_MULTIPLICATION_DIVISION",
+        "generatorPackage": "MM_PACKAGE_2_INTEGERS_BODMAS_PERCENTAGE",
     }
 
 
@@ -396,7 +396,7 @@ def _upsert_section(db: Session, dps: DPS, lesson_number: int, dps_number: int) 
             section_title=_dps_title(lesson_number, dps_number),
             question_count=20,
             concept_family=ClassifyMmConcept(_dps_title(lesson_number, dps_number), LESSON_TITLES[lesson_number]),
-            operation_focus="MM_PACKAGE_1",
+            operation_focus="MM_PACKAGE_2",
             abacus_rule="MASTER_MODULE_DYNAMIC",
             target_numbers_json=json.dumps(target_payload),
             place_value="ADVANCED_MIXED",
@@ -413,7 +413,7 @@ def _upsert_section(db: Session, dps: DPS, lesson_number: int, dps_number: int) 
         section.section_title = _dps_title(lesson_number, dps_number)
         section.question_count = 20
         section.concept_family = ClassifyMmConcept(_dps_title(lesson_number, dps_number), LESSON_TITLES[lesson_number])
-        section.operation_focus = "MM_PACKAGE_1"
+        section.operation_focus = "MM_PACKAGE_2"
         section.abacus_rule = "MASTER_MODULE_DYNAMIC"
         section.target_numbers_json = json.dumps(target_payload)
         section.place_value = "ADVANCED_MIXED"
