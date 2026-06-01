@@ -274,19 +274,31 @@ def _upsert_section(db: Session, dps: DPS, lesson_number: int, dps_number: int) 
 
 
 def seed(db: Session) -> None:
-    """Seed the Master Module curriculum skeleton.
+    """Synchronize the Master Module curriculum skeleton.
 
-    This seed is idempotent and intentionally creates only curriculum/master data.
+    This sync is idempotent and intentionally creates only curriculum/master data.
     It does not create students, teachers, assignments, attempts, reports, or demo data.
     All Master Module DPS records are created as Draft by default and use a 5-minute time limit.
     """
+    print("[MathPath Seed] Master Module sync started")
     module = _upsert_module(db)
     level = _upsert_level(db, module)
 
+    lesson_count = 0
+    dps_count = 0
+    section_count = 0
     for lesson_number in range(1, 31):
         lesson = _upsert_lesson(db, level, lesson_number)
+        lesson_count += 1
         for dps_number in range(1, DPS_PER_LESSON + 1):
             dps = _upsert_dps(db, lesson, lesson_number, dps_number)
+            dps_count += 1
             _upsert_section(db, dps, lesson_number, dps_number)
+            section_count += 1
 
     db.commit()
+    print(
+        "[MathPath Seed] Master Module sync completed: "
+        f"module={MODULE_CODE}, level={LEVEL_CODE}, lessons={lesson_count}, "
+        f"dps={dps_count}, sections={section_count}, duration_seconds={DPS_DURATION_SECONDS}"
+    )
