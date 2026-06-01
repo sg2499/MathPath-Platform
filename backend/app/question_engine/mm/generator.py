@@ -60,7 +60,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 "digit_pattern": Config.DigitPattern,
                 "difficulty_stage": DifficultyStage(QuestionNumber - 1),
                 "difficulty_progression": "MM_WARM_UP_TO_CHALLENGE",
-                "generator_package": "MM_PACKAGE_1_DECIMAL_MULTIPLICATION_DIVISION",
+                "generator_package": "MM_PACKAGE_2_INTEGERS_BODMAS_PERCENTAGE",
                 "mm_validated": True,
                 **ExtraMetadata,
             },

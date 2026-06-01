@@ -60,6 +60,12 @@ def build_mm_config_from_dps(db: Session, dps: DPS, seed: str) -> MMConfig:
         OperationFocus = "DIVISION"
     elif ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         OperationFocus = "MULTIPLICATION_DIVISION"
+    elif ConceptFamily == "INTEGERS":
+        OperationFocus = "INTEGER_ADD_LESS"
+    elif ConceptFamily == "BODMAS":
+        OperationFocus = "BODMAS"
+    elif ConceptFamily in {"PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
+        OperationFocus = "PERCENTAGE"
 
     return MMConfig(
         ModuleCode=getattr(ModuleRecord, "module_code", "MM") or "MM",
@@ -137,7 +143,7 @@ def _unsupported_static_message(db: Session, dps: DPS) -> str:
     if ModuleCode == "MM":
         return (
             f"{ModuleCode} {LevelCode} Lesson {LessonNumber} / {DpsTitle} is not part of the active MM generator package yet. "
-            "Package 1 currently supports decimal add-less, decimal multiplication, decimal division, and multiplication/division digit-pattern practice."
+            "Active MM generator packages currently support decimal add-less, decimal multiplication/division, whole-number multiplication/division digit patterns, integers, BODMAS, and percentage practice."
         )
     return (
         f"{ModuleCode} {LevelCode} Lesson {LessonNumber} is not connected to a dynamic question generator yet."

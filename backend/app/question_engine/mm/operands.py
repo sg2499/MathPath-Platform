@@ -177,7 +177,6 @@ def GenerateWholeNumberDivision(Config: MMConfig, Rng: random.Random, QuestionNu
     Divisor = Rng.randint(DivisorMin, DivisorMax)
     Quotient = Rng.randint(QuotientMin, QuotientMax)
     Dividend = Divisor * Quotient
-    # Keep the displayed dividend inside the intended digit band where possible.
     DividendMin, DividendMax = _DigitRange(DividendDigits)
     Safety = 0
     while not (DividendMin <= Dividend <= DividendMax) and Safety < 50:
@@ -189,7 +188,77 @@ def GenerateWholeNumberDivision(Config: MMConfig, Rng: random.Random, QuestionNu
     return [Dividend, Divisor], ["", "÷"], CorrectAnswer, {"dividend_digits": DividendDigits, "divisor_digits": DivisorDigits}
 
 
-def GeneratePackage1Question(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    MaxAbs = {"WARM_UP": 20, "STANDARD": 50, "MIXED_STEP": 100, "ADVANCED": 250, "CHALLENGE": 500}.get(Stage, 50)
+    RowCount = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
+    Values = [Rng.randint(-MaxAbs, MaxAbs) or Rng.choice([-1, 1])]
+    Operators = [""]
+    RunningTotal = Decimal(Values[0])
+    for _ in range(1, RowCount):
+        Operator = Rng.choice(["+", "-"])
+        Value = Rng.randint(-MaxAbs, MaxAbs) or Rng.choice([-1, 1])
+        Values.append(Value)
+        Operators.append(Operator)
+        RunningTotal = RunningTotal + Decimal(Value) if Operator == "+" else RunningTotal - Decimal(Value)
+    return Values, Operators, RunningTotal, {"row_count": RowCount, "integer_range": MaxAbs, "allow_negative_answer": True}
+
+
+def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    MaxValue = {"WARM_UP": 9, "STANDARD": 15, "MIXED_STEP": 25, "ADVANCED": 50, "CHALLENGE": 99}.get(Stage, 15)
+    A = Rng.randint(2, MaxValue)
+    B = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 15)
+    C = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 20)
+    D = Rng.randint(1, MaxValue)
+    Pattern = Rng.choice(["ADD_MUL_SUB", "SUB_ADD_MUL", "MUL_ADD_DIV"])
+    if Pattern == "ADD_MUL_SUB":
+        CorrectAnswer = Decimal(A + (B * C) - D)
+        return [A, B, C, D], ["", "+", "×", "-"], CorrectAnswer, {"bodmas_pattern": Pattern}
+    if Pattern == "SUB_ADD_MUL":
+        CorrectAnswer = Decimal(A - B + (C * D))
+        return [A, B, C, D], ["", "-", "+", "×"], CorrectAnswer, {"bodmas_pattern": Pattern}
+    Divisor = Rng.randint(2, 9)
+    Quotient = Rng.randint(2, max(4, MaxValue // 3))
+    Dividend = Divisor * Quotient
+    CorrectAnswer = Decimal((A * B) + (Dividend // Divisor))
+    return [A, B, Dividend, Divisor], ["", "×", "+", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern}
+
+
+def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    BaseMin, BaseMax = {"WARM_UP": (100, 500), "STANDARD": (200, 1000), "MIXED_STEP": (500, 2500), "ADVANCED": (1000, 5000), "CHALLENGE": (2500, 12000)}.get(Stage, (100, 500))
+    Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, 10))
+    PercentChoices = [5, 10, 15, 20, 25, 30, 40, 50]
+    if Stage in {"ADVANCED", "CHALLENGE"}:
+        PercentChoices.extend([12, 18, 22, 35, 45])
+    FirstPercent = Decimal(Rng.choice(PercentChoices))
+    SecondPercent = Decimal(Rng.choice(PercentChoices)) if Stage in {"MIXED_STEP", "ADVANCED", "CHALLENGE"} else Decimal(0)
+    FirstOp = Rng.choice(["+%", "-%"])
+    SecondOp = Rng.choice(["+%", "-%"]) if SecondPercent else ""
+    Total = Base * (Decimal("1") + FirstPercent / Decimal(100) if FirstOp == "+%" else Decimal("1") - FirstPercent / Decimal(100))
+    if SecondPercent:
+        Total = Total * (Decimal("1") + SecondPercent / Decimal(100) if SecondOp == "+%" else Decimal("1") - SecondPercent / Decimal(100))
+    CorrectAnswer = _Quantize(Total, 2)
+    Operands = [Base, FirstPercent] + ([SecondPercent] if SecondPercent else [])
+    Operators = ["", FirstOp] + ([SecondOp] if SecondPercent else [])
+    return [_AsDisplayNumber(Value) for Value in Operands], Operators, CorrectAnswer, {"percentage_mode": "ADD_LESS", "base_amount": _AsDisplayNumber(Base)}
+
+
+def GeneratePercentageValue(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    BaseMin, BaseMax = {"WARM_UP": (100, 500), "STANDARD": (200, 1000), "MIXED_STEP": (500, 2500), "ADVANCED": (1000, 5000), "CHALLENGE": (2500, 12000)}.get(Stage, (100, 500))
+    Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, 10))
+    Percent = Decimal(Rng.choice([5, 10, 12, 15, 20, 25, 30, 40, 50, 60, 75]))
+    CorrectAnswer = _Quantize(Base * Percent / Decimal(100), 2)
+    return [_AsDisplayNumber(Percent), _AsDisplayNumber(Base)], ["", "% of"], CorrectAnswer, {"percentage_mode": "VALUE"}
+
+
+def GeneratePercentageIncreaseDecrease(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    return GeneratePercentageAddLess(Config, Rng, QuestionNumber)
+
+
+def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     ConceptFamily = Config.ConceptFamily
     if ConceptFamily == "DECIMAL_ADD_LESS":
         return GenerateDecimalAddLess(Config, Rng, QuestionNumber)
@@ -201,10 +270,25 @@ def GeneratePackage1Question(Config: MMConfig, Rng: random.Random, QuestionNumbe
         return GenerateWholeNumberMultiplication(Config, Rng, QuestionNumber)
     if ConceptFamily == "WHOLE_NUMBER_DIVISION":
         return GenerateWholeNumberDivision(Config, Rng, QuestionNumber)
+    if ConceptFamily == "INTEGERS":
+        return GenerateIntegers(Config, Rng, QuestionNumber)
+    if ConceptFamily == "BODMAS":
+        return GenerateBodmas(Config, Rng, QuestionNumber)
+    if ConceptFamily == "PERCENTAGE_ADD_LESS":
+        return GeneratePercentageAddLess(Config, Rng, QuestionNumber)
+    if ConceptFamily == "PERCENTAGE_VALUE":
+        return GeneratePercentageValue(Config, Rng, QuestionNumber)
+    if ConceptFamily == "PERCENTAGE_INCREASE_DECREASE":
+        return GeneratePercentageIncreaseDecrease(Config, Rng, QuestionNumber)
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
         UsesDecimalPattern = "decimal" in TitleText
         if QuestionNumber % 2 == 0:
             return GenerateDecimalDivision(Config, Rng, QuestionNumber) if UsesDecimalPattern else GenerateWholeNumberDivision(Config, Rng, QuestionNumber)
         return GenerateDecimalMultiplication(Config, Rng, QuestionNumber) if UsesDecimalPattern else GenerateWholeNumberMultiplication(Config, Rng, QuestionNumber)
-    raise ValueError(f"Unsupported Master Module Package 1 concept: {ConceptFamily}")
+    raise ValueError(f"Unsupported Master Module Package 2 concept: {ConceptFamily}")
+
+
+# Backward-compatible name used by existing generator.py import in Package 1.
+def GeneratePackage1Question(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    return GenerateMmQuestion(Config, Rng, QuestionNumber)
