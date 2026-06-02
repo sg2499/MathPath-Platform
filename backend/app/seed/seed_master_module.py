@@ -217,7 +217,7 @@ DPS_TITLES = {1: {1: 'Decimal Number Add-Less (Visual)',
 
 # Section-aware workbook structure. This map stores exact/special splits identified from the MM workbook audit.
 # DPS records not present here fall back to a conservative title-derived split.
-# Concept Drill and Skill Stacker remain intentionally tagged separately for a future dedicated convention.
+# Section map supports Package 5 concepts as dedicated sections wherever they appear in workbook sheets.
 MM_DPS_SECTION_OVERRIDES = {
     (4, 5): [
         {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
@@ -257,14 +257,55 @@ SECTION_TITLE_NORMALISATIONS = {
     "decimal multiplication": "Decimal Multiplication",
     "decimal number add less": "Decimal Number Add-Less",
     "add less": "Add-Less",
+    "skill stacker": "Skill Stacker",
+    "skill stacker visual": "Skill Stacker",
+    "concept drill": "Concept Drill",
+    "concept drill abacus": "Concept Drill",
 }
 
 
 def _clean_section_title(value: str) -> str:
-    title = " ".join(str(value or "").replace("/", " and ").replace("&", " and ").split())
-    title = title.replace(" x ", " × ").replace(" X ", " × ")
+    title = " ".join(str(value or "").replace("&", " and ").split())
+    title = title.replace("(Visual)", "").replace("(Abacus)", "")
+    title = title.replace(" x ", " × ").replace(" X ", " × ").strip()
     lower = title.lower().strip()
     return SECTION_TITLE_NORMALISATIONS.get(lower, title)
+
+
+def _split_mm_title_parts(title: str) -> list[str]:
+    working = f" {title} "
+    protected = {
+        "Profit and Loss": "Profit-Loss",
+        "Profit & Loss": "Profit-Loss",
+        "Add-Less": "Add-Less",
+        "Add Less": "Add-Less",
+        "Mixed Pattern Multiplication": "Multiplication Mixed Pattern",
+        "Multiplication Mixed Pattern": "Multiplication Mixed Pattern",
+        "Multiplication and Division Mixed Pattern": "Multiplication and Division Mixed Pattern",
+        "Division of Decimal Numbers": "Division of Decimal Numbers",
+        "Decimal Number Multiplication": "Decimal Number Multiplication",
+        "Decimal Number Add-Less": "Decimal Number Add-Less",
+        "Simple Interest": "Simple Interest",
+        "Selling Price": "Selling Price",
+        "Cost Price": "Cost Price",
+        "Square Root": "Square Root",
+        "Cube Root": "Cube Root",
+        "Skill Stacker": "Skill Stacker",
+        "Concept Drill": "Concept Drill",
+    }
+    for source, target in protected.items():
+        working = working.replace(source, target)
+    # Treat separators as section boundaries after protecting compound concept names.
+    working = working.replace(" / ", " | ").replace(",", " | ")
+    working = working.replace(" and ", " | ")
+    parts = [_clean_section_title(part) for part in working.split("|") if part.strip()]
+    merged: list[str] = []
+    for part in parts:
+        # Restore workbook-friendly display forms after splitting.
+        clean = part.replace("Profit-Loss", "Profit-Loss")
+        if clean and clean not in merged:
+            merged.append(clean)
+    return merged
 
 
 def _concept_for_section(section_title: str, lesson_title: str) -> str:
@@ -278,24 +319,8 @@ def _split_title_into_sections(lesson_number: int, dps_number: int) -> list[dict
 
     title = _dps_title(lesson_number, dps_number)
     lesson_title = LESSON_TITLES[lesson_number]
-    # Keep special future-rule sheets as a single section until their convention is approved.
     lowered = title.lower()
-    if "skill stacker" in lowered or "concept drill" in lowered:
-        return [{
-            "sectionTitle": title,
-            "questionCount": 20,
-            "conceptFamily": ClassifyMmConcept(title, lesson_title),
-        }]
-
-    raw_parts = [title]
-    for delimiter in [" and ", " / "]:
-        if delimiter in title:
-            raw_parts = []
-            for part in title.split(delimiter):
-                raw_parts.append(part)
-            break
-
-    parts = [_clean_section_title(part) for part in raw_parts if str(part).strip()]
+    parts = _split_mm_title_parts(title)
     if len(parts) <= 1:
         return [{
             "sectionTitle": title,

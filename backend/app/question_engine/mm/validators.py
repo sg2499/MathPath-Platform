@@ -6,6 +6,7 @@ from app.question_engine.mm.config import MMConfig, IsPackage1Supported
 
 ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
+PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 
 
@@ -172,6 +173,27 @@ def _ValidateFinancialQuestion(Config: MMConfig, Operands: list[int | float | st
     return False
 
 
+def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if Config.ConceptFamily == "SKILL_STACKER":
+        if len(Operands) != 2 or Operators != ["Add", "Times"]:
+            return False
+        AddValue, Times = [_DecimalValue(Value) for Value in Operands]
+        return AddValue > 0 and Times > 0 and CorrectAnswer == AddValue * Times
+
+    if Config.ConceptFamily == "CONCEPT_DRILL":
+        if len(Operands) != 2 or Operators != ["From", "Less"]:
+            return False
+        FromValue, LessValue = [_DecimalValue(Value) for Value in Operands]
+        if FromValue <= 0 or LessValue <= 0 or FromValue <= LessValue:
+            return False
+        ExpectedAnswer = FromValue % LessValue
+        if ExpectedAnswer == 0:
+            return False
+        return Decimal(0) < CorrectAnswer < LessValue and CorrectAnswer == ExpectedAnswer
+
+    return False
+
+
 def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if not IsPackage1Supported(Config.ConceptFamily):
         return False
@@ -181,6 +203,9 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
 
     if Config.ConceptFamily in PACKAGE_4_FINANCIAL_CONCEPTS:
         return _ValidateFinancialQuestion(Config, Operands, Operators, CorrectAnswer)
+
+    if Config.ConceptFamily in PACKAGE_5_SPECIAL_CONCEPTS:
+        return _ValidatePackage5Special(Config, Operands, Operators, CorrectAnswer)
 
     if any(Operator not in ALLOWED_OPERATORS for Operator in Operators):
         return False

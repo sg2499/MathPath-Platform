@@ -8,6 +8,8 @@ type DisplayMode =
   | "ANSWER_POSITION"
   | "FINANCIAL_TABLE"
   | "COMPACT_EXPRESSION"
+  | "SKILL_STACKER_TABLE"
+  | "CONCEPT_DRILL_TABLE"
   | string
   | null
   | undefined;
@@ -127,6 +129,34 @@ function FinancialTableQuestion({ operands, operators, questionText }: { operand
   );
 }
 
+function CompactTwoColumnQuestion({
+  operands,
+  operators,
+  questionText,
+}: {
+  operands: Array<number | string>;
+  operators: string[];
+  questionText?: string | null;
+}) {
+  const Labels = operators.length ? operators : ["Value 1", "Value 2"];
+
+  return (
+    <div className="mx-auto w-full max-w-md rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+      {questionText ? <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">{questionText}</p> : null}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+        <div className="grid grid-cols-2 bg-slate-100 text-center text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
+          <div className="border-r border-slate-200 px-4 py-3 dark:border-slate-700">{Labels[0] || "Value 1"}</div>
+          <div className="px-4 py-3">{Labels[1] || "Value 2"}</div>
+        </div>
+        <div className="grid grid-cols-2 text-center font-mono text-2xl font-black sm:text-3xl">
+          <div className="border-r border-slate-200 px-4 py-5 dark:border-slate-700">{FormatValue(operands[0] ?? "?")}</div>
+          <div className="px-4 py-5">{FormatValue(operands[1] ?? "?")}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MathQuestionDisplay({ operands, operators, displayType, questionText }: MathQuestionDisplayProps) {
   const Operands = operands ?? [];
   const Operators = operators ?? [];
@@ -146,6 +176,10 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
 
   if (Mode === "COMPACT_EXPRESSION") {
     return <CompactExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} />;
+  }
+
+  if (Mode === "SKILL_STACKER_TABLE" || Mode === "CONCEPT_DRILL_TABLE") {
+    return <CompactTwoColumnQuestion operands={Operands} operators={Operators} questionText={questionText} />;
   }
 
   return <VerticalQuestion operands={Operands} operators={Operators} />;

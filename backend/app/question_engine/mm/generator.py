@@ -43,6 +43,12 @@ def _DisplayMode(Config: MMConfig) -> str:
     if ConceptFamily in {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}:
         return "FINANCIAL_TABLE"
 
+    if ConceptFamily == "SKILL_STACKER":
+        return "SKILL_STACKER_TABLE"
+
+    if ConceptFamily == "CONCEPT_DRILL":
+        return "CONCEPT_DRILL_TABLE"
+
     return "VISUAL_STACK"
 
 
@@ -111,7 +117,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
                 "digit_pattern": Config.DigitPattern,
                 "difficulty_stage": DifficultyStage(SectionQuestionNumber - 1),
                 "difficulty_progression": "MM_SECTION_AWARE_WARM_UP_TO_CHALLENGE",
-                "generator_package": "MM_SECTION_AWARE_PACKAGE_4",
+                "generator_package": "MM_SECTION_AWARE_PACKAGE_5",
                 "mm_validated": True,
                 "generation_attempts": Attempt + 1,
                 "generation_mode": "DETERMINISTIC_BOUNDED",

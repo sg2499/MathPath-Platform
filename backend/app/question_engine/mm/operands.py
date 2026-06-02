@@ -502,6 +502,145 @@ def GenerateFindCostPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: 
     }
 
 
+
+
+def _SkillStackerRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:
+    Band = _LessonBand(Config)
+    if Band <= 2:
+        AddRanges = {
+            "WARM_UP": (8, 25),
+            "STANDARD": (12, 40),
+            "MIXED_STEP": (18, 60),
+            "ADVANCED": (25, 85),
+            "CHALLENGE": (35, 120),
+        }
+        TimesRanges = {
+            "WARM_UP": (5, 10),
+            "STANDARD": (8, 12),
+            "MIXED_STEP": (10, 15),
+            "ADVANCED": (12, 18),
+            "CHALLENGE": (15, 24),
+        }
+    elif Band <= 4:
+        AddRanges = {
+            "WARM_UP": (18, 60),
+            "STANDARD": (25, 90),
+            "MIXED_STEP": (40, 140),
+            "ADVANCED": (75, 220),
+            "CHALLENGE": (100, 350),
+        }
+        TimesRanges = {
+            "WARM_UP": (8, 12),
+            "STANDARD": (10, 16),
+            "MIXED_STEP": (12, 20),
+            "ADVANCED": (15, 25),
+            "CHALLENGE": (20, 30),
+        }
+    else:
+        AddRanges = {
+            "WARM_UP": (35, 125),
+            "STANDARD": (60, 220),
+            "MIXED_STEP": (100, 400),
+            "ADVANCED": (200, 750),
+            "CHALLENGE": (350, 1250),
+        }
+        TimesRanges = {
+            "WARM_UP": (10, 18),
+            "STANDARD": (15, 24),
+            "MIXED_STEP": (20, 30),
+            "ADVANCED": (25, 40),
+            "CHALLENGE": (30, 50),
+        }
+    return AddRanges.get(Stage, (10, 50)), TimesRanges.get(Stage, (5, 15))
+
+
+def GenerateSkillStacker(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    (AddMin, AddMax), (TimesMin, TimesMax) = _SkillStackerRanges(Config, Stage)
+    AddValue = Rng.randint(AddMin, AddMax)
+    Times = Rng.randint(TimesMin, TimesMax)
+    CorrectAnswer = Decimal(AddValue * Times)
+    return [AddValue, Times], ["Add", "Times"], CorrectAnswer, {
+        "question_text": "Skill Stacker",
+        "skill_stacker_mode": "REPEATED_ADDITION",
+    }
+
+
+def _ConceptDrillRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:
+    Band = _LessonBand(Config)
+    if Band <= 2:
+        FromRanges = {
+            "WARM_UP": (250, 1200),
+            "STANDARD": (800, 2500),
+            "MIXED_STEP": (1500, 4500),
+            "ADVANCED": (3000, 7500),
+            "CHALLENGE": (5000, 12000),
+        }
+        LessRanges = {
+            "WARM_UP": (25, 150),
+            "STANDARD": (75, 300),
+            "MIXED_STEP": (150, 600),
+            "ADVANCED": (250, 900),
+            "CHALLENGE": (400, 1500),
+        }
+    elif Band <= 4:
+        FromRanges = {
+            "WARM_UP": (1200, 5000),
+            "STANDARD": (2500, 9000),
+            "MIXED_STEP": (6000, 18000),
+            "ADVANCED": (12000, 35000),
+            "CHALLENGE": (20000, 70000),
+        }
+        LessRanges = {
+            "WARM_UP": (120, 450),
+            "STANDARD": (250, 900),
+            "MIXED_STEP": (500, 1800),
+            "ADVANCED": (900, 3500),
+            "CHALLENGE": (1500, 6500),
+        }
+    else:
+        FromRanges = {
+            "WARM_UP": (5000, 25000),
+            "STANDARD": (15000, 60000),
+            "MIXED_STEP": (30000, 120000),
+            "ADVANCED": (75000, 250000),
+            "CHALLENGE": (150000, 500000),
+        }
+        LessRanges = {
+            "WARM_UP": (250, 1500),
+            "STANDARD": (750, 4500),
+            "MIXED_STEP": (1500, 9000),
+            "ADVANCED": (3500, 18000),
+            "CHALLENGE": (7000, 35000),
+        }
+    return FromRanges.get(Stage, (1000, 5000)), LessRanges.get(Stage, (100, 500))
+
+
+def GenerateConceptDrill(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    (FromMin, FromMax), (LessMin, LessMax) = _ConceptDrillRanges(Config, Stage)
+    LessValue = Rng.randint(LessMin, LessMax)
+    RepetitionCount = Rng.randint(3, 10 if Stage in {"WARM_UP", "STANDARD"} else 16)
+    Remainder = Rng.randint(1, max(1, LessValue - 1))
+    FromValue = (LessValue * RepetitionCount) + Remainder
+    if FromValue < FromMin:
+        ExtraSteps = ((FromMin - FromValue) // LessValue) + 1
+        RepetitionCount += ExtraSteps
+        FromValue = (LessValue * RepetitionCount) + Remainder
+    if FromValue > FromMax:
+        FromValue = Rng.randint(FromMin, FromMax)
+        LessValue = Rng.randint(max(2, min(LessMin, FromValue // 8)), max(3, min(LessMax, FromValue // 2)))
+        if FromValue % LessValue == 0:
+            FromValue += 1
+    CorrectAnswer = Decimal(FromValue % LessValue)
+    if CorrectAnswer == 0:
+        FromValue += 1
+        CorrectAnswer = Decimal(FromValue % LessValue)
+    return [FromValue, LessValue], ["From", "Less"], CorrectAnswer, {
+        "question_text": "Concept Drill",
+        "concept_drill_mode": "REPEATED_SUBTRACTION_REMAINDER",
+    }
+
 def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Band = _LessonBand(Config)
@@ -641,6 +780,10 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateFindSellingPrice(Config, Rng, QuestionNumber)
     if ConceptFamily == "FIND_COST_PRICE":
         return GenerateFindCostPrice(Config, Rng, QuestionNumber)
+    if ConceptFamily == "SKILL_STACKER":
+        return GenerateSkillStacker(Config, Rng, QuestionNumber)
+    if ConceptFamily == "CONCEPT_DRILL":
+        return GenerateConceptDrill(Config, Rng, QuestionNumber)
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         OperationSequence = _MixedMultiplicationDivisionOperationSequence(Config)
         Operation = OperationSequence[(QuestionNumber - 1) % len(OperationSequence)]
