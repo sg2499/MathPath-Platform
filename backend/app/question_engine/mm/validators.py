@@ -5,6 +5,7 @@ from app.question_engine.mm.config import MMConfig, IsPackage1Supported
 
 
 ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
+PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 
 
@@ -132,12 +133,55 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
     return False
 
 
+def _ValidateFinancialQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if Config.ConceptFamily == "SIMPLE_INTEREST":
+        if len(Operands) != 3 or Operators != ["Principal", "Term (Years)", "Rate of Interest"]:
+            return False
+        Principal, Term, Rate = [_DecimalValue(Value) for Value in Operands]
+        ExpectedAnswer = (Principal * Term * Rate / Decimal(100)).quantize(Decimal("0.01"))
+        return Principal > 0 and Term > 0 and Rate > 0 and CorrectAnswer.quantize(Decimal("0.01")) == ExpectedAnswer
+
+    if Config.ConceptFamily == "PROFIT_LOSS":
+        if len(Operands) != 2 or Operators != ["Cost Price", "Selling Price"]:
+            return False
+        CostPrice, SellingPrice = [_DecimalValue(Value) for Value in Operands]
+        if CostPrice <= 0 or SellingPrice <= 0 or CostPrice == SellingPrice or CorrectAnswer < 0:
+            return False
+        Difference = abs(SellingPrice - CostPrice).quantize(Decimal("0.01"))
+        Percentage = (Difference / CostPrice * Decimal(100)).quantize(Decimal("0.01"))
+        Answer = CorrectAnswer.quantize(Decimal("0.01"))
+        return Answer in {Difference, Percentage}
+
+    if Config.ConceptFamily == "FIND_SELLING_PRICE":
+        if len(Operands) != 2 or Operators[0] != "Cost Price" or Operators[1] not in {"Profit %", "Loss %"}:
+            return False
+        CostPrice, Percent = [_DecimalValue(Value) for Value in Operands]
+        ExpectedAnswer = CostPrice + (CostPrice * Percent / Decimal(100)) if Operators[1] == "Profit %" else CostPrice - (CostPrice * Percent / Decimal(100))
+        return CostPrice > 0 and Percent > 0 and CorrectAnswer.quantize(Decimal("0.01")) == ExpectedAnswer.quantize(Decimal("0.01"))
+
+    if Config.ConceptFamily == "FIND_COST_PRICE":
+        if len(Operands) != 2 or Operators[0] != "Selling Price" or Operators[1] not in {"Profit %", "Loss %"}:
+            return False
+        SellingPrice, Percent = [_DecimalValue(Value) for Value in Operands]
+        if Operators[1] == "Profit %":
+            ExpectedAnswer = SellingPrice / (Decimal(1) + (Percent / Decimal(100)))
+        else:
+            ExpectedAnswer = SellingPrice / (Decimal(1) - (Percent / Decimal(100)))
+        return SellingPrice > 0 and Decimal(0) < Percent < Decimal(100) and abs(CorrectAnswer - ExpectedAnswer) < Decimal("0.02")
+
+    return False
+
+
 def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if not IsPackage1Supported(Config.ConceptFamily):
         return False
 
     if len(Operators) != len(Operands):
         return False
+
+    if Config.ConceptFamily in PACKAGE_4_FINANCIAL_CONCEPTS:
+        return _ValidateFinancialQuestion(Config, Operands, Operators, CorrectAnswer)
+
     if any(Operator not in ALLOWED_OPERATORS for Operator in Operators):
         return False
 

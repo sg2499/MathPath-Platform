@@ -97,20 +97,27 @@ function CompactExpressionQuestion({
 }
 
 function FinancialTableQuestion({ operands, operators, questionText }: { operands: Array<number | string>; operators: string[]; questionText?: string | null }) {
-  const LabelA = operators[0] || "Value 1";
-  const LabelB = operators[1] || "Value 2";
+  const Labels = operators.length ? operators : operands.map((_, Index) => `Value ${Index + 1}`);
+  const ColumnCount = Math.max(1, Math.min(Math.max(Labels.length, operands.length), 4));
+  const GridTemplateColumns = { gridTemplateColumns: `repeat(${ColumnCount}, minmax(0, 1fr))` };
 
   return (
-    <div className="mx-auto w-full max-w-xl rounded-[24px] bg-white px-5 py-6 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-7">
-      {questionText ? <p className="mb-4 text-center text-base font-bold text-slate-700 dark:text-slate-200">{questionText}</p> : null}
+    <div className="mx-auto w-full max-w-2xl rounded-[24px] bg-white px-5 py-6 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-7">
+      {questionText ? <p className="mb-4 text-center text-base font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200">{questionText}</p> : null}
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-        <div className="grid grid-cols-2 bg-slate-100 text-center text-sm font-black uppercase tracking-[0.18em] text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-          <div className="border-r border-slate-200 px-4 py-3 dark:border-slate-700">{LabelA}</div>
-          <div className="px-4 py-3">{LabelB}</div>
+        <div className="grid bg-slate-100 text-center text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs" style={GridTemplateColumns}>
+          {Array.from({ length: ColumnCount }).map((_, Index) => (
+            <div key={`financial-label-${Index}`} className="border-r border-slate-200 px-3 py-3 last:border-r-0 dark:border-slate-700">
+              {Labels[Index] || `Value ${Index + 1}`}
+            </div>
+          ))}
         </div>
-        <div className="grid grid-cols-2 text-center font-mono text-3xl font-black">
-          <div className="border-r border-slate-200 px-4 py-5 dark:border-slate-700">{FormatValue(operands[0] ?? "?")}</div>
-          <div className="px-4 py-5">{FormatValue(operands[1] ?? "?")}</div>
+        <div className="grid text-center font-mono text-2xl font-black sm:text-3xl" style={GridTemplateColumns}>
+          {Array.from({ length: ColumnCount }).map((_, Index) => (
+            <div key={`financial-value-${Index}`} className="border-r border-slate-200 px-3 py-5 last:border-r-0 dark:border-slate-700">
+              {FormatValue(operands[Index] ?? "?")}
+            </div>
+          ))}
         </div>
       </div>
       <div className="mt-4 rounded-2xl border border-dashed border-slate-300 px-4 py-3 text-center text-sm font-bold text-slate-600 dark:border-slate-600 dark:text-slate-300">
