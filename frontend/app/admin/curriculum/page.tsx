@@ -448,13 +448,13 @@ function PreviewQuestionCard({
             return (
               <div
                 key={`${option.label}-${option.value}`}
-                className={`flex min-h-[42px] items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-all duration-200 ${optionStateClass}`}
+                className={`flex min-h-[52px] items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${optionStateClass}`}
               >
-                <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${pillClass}`}>
+                <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${pillClass}`}>
                   {option.label}
                 </span>
 
-                <span className="flex-1 leading-5">{option.value}</span>
+                <span className="flex-1 leading-6">{option.value}</span>
 
                 {showCorrectAnswers && isCorrect ? (
                   <span className="math-mcq-correct-pill rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-100/20 dark:text-emerald-50">
