@@ -341,6 +341,74 @@ def GeneratePercentageIncreaseDecrease(Config: MMConfig, Rng: random.Random, Que
     return GeneratePercentageAddLess(Config, Rng, QuestionNumber)
 
 
+def _FindTokenPosition(Text: str, Tokens: list[str]) -> int | None:
+    Positions = [Text.find(Token) for Token in Tokens if Text.find(Token) >= 0]
+    return min(Positions) if Positions else None
+
+
+def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]:
+    """Return the exact operation families for mixed multiplication/division sheets.
+
+    Critical convention:
+    - Normal digit-pattern concepts such as 2D × 2D, 3D × 4D, 4D ÷ 3D
+      must always use whole-number operands.
+    - Decimal operands are allowed only when the concept text explicitly says
+      Decimal Multiplication or Decimal Division.
+    """
+    Text = " ".join(f" {Config.DpsTitle} ".lower().replace("×", " x ").replace("÷", " division ").split())
+    Operations: list[tuple[int, str]] = []
+
+    DecimalMultiplicationPos = _FindTokenPosition(Text, ["decimal multiplication", "decimal x"])
+    DecimalDivisionPos = _FindTokenPosition(Text, ["decimal division", "decimal divide"])
+
+    WholeMultiplicationPos = _FindTokenPosition(
+        Text,
+        [
+            "1d x",
+            "2d x",
+            "3d x",
+            "4d x",
+            "5d x",
+            "6d x",
+            "multiplication by",
+            "mixed pattern multiplication",
+        ],
+    )
+    WholeDivisionPos = _FindTokenPosition(
+        Text,
+        [
+            "1d division",
+            "2d division",
+            "3d division",
+            "4d division",
+            "5d division",
+            "6d division",
+            "division by",
+        ],
+    )
+
+    if DecimalMultiplicationPos is not None:
+        Operations.append((DecimalMultiplicationPos, "DECIMAL_MULTIPLICATION"))
+    if DecimalDivisionPos is not None:
+        Operations.append((DecimalDivisionPos, "DECIMAL_DIVISION"))
+    if WholeMultiplicationPos is not None:
+        Operations.append((WholeMultiplicationPos, "WHOLE_NUMBER_MULTIPLICATION"))
+    if WholeDivisionPos is not None:
+        Operations.append((WholeDivisionPos, "WHOLE_NUMBER_DIVISION"))
+
+    if not Operations:
+        if "decimal" in Text:
+            return ["DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"]
+        return ["WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"]
+
+    Ordered = [Operation for _, Operation in sorted(Operations, key=lambda Item: Item[0])]
+    Deduped: list[str] = []
+    for Operation in Ordered:
+        if Operation not in Deduped:
+            Deduped.append(Operation)
+    return Deduped
+
+
 def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     ConceptFamily = Config.ConceptFamily
     if ConceptFamily == "ADD_LESS":
@@ -378,11 +446,15 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
     if ConceptFamily == "MIXED_ROOTS":
         return GenerateMixedRoots(Config, Rng, QuestionNumber)
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-        TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
-        UsesDecimalPattern = "decimal" in TitleText
-        if QuestionNumber % 2 == 0:
-            return GenerateDecimalDivision(Config, Rng, QuestionNumber) if UsesDecimalPattern else GenerateWholeNumberDivision(Config, Rng, QuestionNumber)
-        return GenerateDecimalMultiplication(Config, Rng, QuestionNumber) if UsesDecimalPattern else GenerateWholeNumberMultiplication(Config, Rng, QuestionNumber)
+        OperationSequence = _MixedMultiplicationDivisionOperationSequence(Config)
+        Operation = OperationSequence[(QuestionNumber - 1) % len(OperationSequence)]
+        if Operation == "DECIMAL_MULTIPLICATION":
+            return GenerateDecimalMultiplication(Config, Rng, QuestionNumber)
+        if Operation == "DECIMAL_DIVISION":
+            return GenerateDecimalDivision(Config, Rng, QuestionNumber)
+        if Operation == "WHOLE_NUMBER_MULTIPLICATION":
+            return GenerateWholeNumberMultiplication(Config, Rng, QuestionNumber)
+        return GenerateWholeNumberDivision(Config, Rng, QuestionNumber)
     raise ValueError(f"Unsupported Master Module Package 3 concept: {ConceptFamily}")
 
 
