@@ -1,7 +1,7 @@
 import json
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, Lesson, Level, Module
-from app.question_engine.mm.config import ClassifyMmConcept
+from app.question_engine.mm.config import ClassifyMmConcept, OperationFocusForConcept
 
 MODULE_CODE = "MM"
 MODULE_NAME = "Master Module"
@@ -214,6 +214,136 @@ DPS_TITLES = {1: {1: 'Decimal Number Add-Less (Visual)',
       4: 'Division of Decimal Numbers and Cube Root',
       5: 'Multiplication by 3D and Division by 3D'}}
 
+
+# Section-aware workbook structure. This map stores exact/special splits identified from the MM workbook audit.
+# DPS records not present here fall back to a conservative title-derived split.
+# Concept Drill and Skill Stacker remain intentionally tagged separately for a future dedicated convention.
+MM_DPS_SECTION_OVERRIDES = {
+    (4, 5): [
+        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Find Position", "questionCount": 5, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
+    ],
+    (20, 5): [
+        {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
+        {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
+        {"sectionTitle": "Cube Root", "questionCount": 5, "conceptFamily": "CUBE_ROOT"},
+    ],
+    (24, 3): [
+        {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
+        {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
+        {"sectionTitle": "Cube Root", "questionCount": 5, "conceptFamily": "CUBE_ROOT"},
+    ],
+    (26, 2): [
+        {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
+        {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
+        {"sectionTitle": "Cube Root", "questionCount": 5, "conceptFamily": "CUBE_ROOT"},
+    ],
+}
+
+SECTION_TITLE_NORMALISATIONS = {
+    "add percentage": "Add Percentage",
+    "less percentage": "Less Percentage",
+    "profit loss": "Profit-Loss",
+    "profit-loss": "Profit-Loss",
+    "simple interest": "Simple Interest",
+    "bodmas": "BODMAS",
+    "integers": "Integers",
+    "squares": "Squares",
+    "cubes": "Cubes",
+    "cube root": "Cube Root",
+    "square root": "Square Root",
+    "decimal number multiplication": "Decimal Number Multiplication",
+    "decimal multiplication": "Decimal Multiplication",
+    "decimal number add less": "Decimal Number Add-Less",
+    "add less": "Add-Less",
+}
+
+
+def _clean_section_title(value: str) -> str:
+    title = " ".join(str(value or "").replace("/", " and ").replace("&", " and ").split())
+    title = title.replace(" x ", " × ").replace(" X ", " × ")
+    lower = title.lower().strip()
+    return SECTION_TITLE_NORMALISATIONS.get(lower, title)
+
+
+def _concept_for_section(section_title: str, lesson_title: str) -> str:
+    return ClassifyMmConcept(section_title, lesson_title)
+
+
+def _split_title_into_sections(lesson_number: int, dps_number: int) -> list[dict]:
+    override = MM_DPS_SECTION_OVERRIDES.get((lesson_number, dps_number))
+    if override:
+        return override
+
+    title = _dps_title(lesson_number, dps_number)
+    lesson_title = LESSON_TITLES[lesson_number]
+    # Keep special future-rule sheets as a single section until their convention is approved.
+    lowered = title.lower()
+    if "skill stacker" in lowered or "concept drill" in lowered:
+        return [{
+            "sectionTitle": title,
+            "questionCount": 20,
+            "conceptFamily": ClassifyMmConcept(title, lesson_title),
+        }]
+
+    raw_parts = [title]
+    for delimiter in [" and ", " / "]:
+        if delimiter in title:
+            raw_parts = []
+            for part in title.split(delimiter):
+                raw_parts.append(part)
+            break
+
+    parts = [_clean_section_title(part) for part in raw_parts if str(part).strip()]
+    if len(parts) <= 1:
+        return [{
+            "sectionTitle": title,
+            "questionCount": int(20 if "visual" in lowered and (" x " in lowered or "÷" in lowered) else 10),
+            "conceptFamily": ClassifyMmConcept(title, lesson_title),
+        }]
+
+    # Default workbook split for normal two-concept sheets is 10+10.
+    # Three-concept sheets default to 10+5+5 unless explicitly overridden as 5+5+5.
+    if len(parts) == 2:
+        counts = [10, 10]
+    elif len(parts) == 3:
+        counts = [10, 5, 5]
+    else:
+        counts = [10] + [5 for _ in parts[1:]]
+
+    return [
+        {
+            "sectionTitle": section_title,
+            "questionCount": counts[index],
+            "conceptFamily": _concept_for_section(section_title, lesson_title),
+        }
+        for index, section_title in enumerate(parts)
+    ]
+
+
+def _dps_sections(lesson_number: int, dps_number: int) -> list[dict]:
+    sections = _split_title_into_sections(lesson_number, dps_number)
+    return [
+        {
+            **section,
+            "sectionNumber": index,
+            "operationFocus": OperationFocusForConcept(section["conceptFamily"]),
+        }
+        for index, section in enumerate(sections, start=1)
+    ]
+
+
+def _dps_display_title(lesson_number: int, dps_number: int) -> str:
+    sections = _dps_sections(lesson_number, dps_number)
+    if len(sections) <= 1:
+        return _dps_title(lesson_number, dps_number)
+    return " + ".join(section["sectionTitle"] for section in sections)
+
+
+def _dps_question_count(lesson_number: int, dps_number: int) -> int:
+    return sum(int(section.get("questionCount") or 0) for section in _dps_sections(lesson_number, dps_number))
+
 LESSON_SOURCE_TYPES = {
     1: "EXCEL_WORKBOOK",
     2: "EXCEL_WORKBOOK",
@@ -250,7 +380,7 @@ def _section_config(lesson_number: int, dps_number: int) -> dict:
         "levelCode": LEVEL_CODE,
         "lessonNumber": lesson_number,
         "dpsNumber": dps_number,
-        "dpsTitle": _dps_title(lesson_number, dps_number),
+        "dpsTitle": _dps_display_title(lesson_number, dps_number),
         "lessonTitle": LESSON_TITLES[lesson_number],
         "sourceType": source_type,
         "sourceFile": _normalise_source_filename(lesson_number, dps_number),
@@ -258,7 +388,8 @@ def _section_config(lesson_number: int, dps_number: int) -> dict:
         "seedMode": "DYNAMIC_MASTER_MODULE",
         "durationSeconds": DPS_DURATION_SECONDS,
         "manualReviewRequiredBeforePublishing": True,
-        "generatorPackage": "MM_PACKAGE_2_LESSON_AWARE_SPIRAL",
+        "generatorPackage": "MM_SECTION_AWARE_PACKAGE_3",
+        "dpsSections": _dps_sections(lesson_number, dps_number),
     }
 
 
@@ -350,8 +481,8 @@ def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int
         dps = DPS(
             lesson_id=lesson.id,
             dps_number=dps_number,
-            dps_title=_dps_title(lesson_number, dps_number),
-            default_question_count=20,
+            dps_title=_dps_display_title(lesson_number, dps_number),
+            default_question_count=_dps_question_count(lesson_number, dps_number),
             default_duration_seconds=DPS_DURATION_SECONDS,
             marks_per_question=1,
             label_style="NUMERIC",
@@ -364,8 +495,8 @@ def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int
         db.add(dps)
         db.flush()
     else:
-        dps.dps_title = _dps_title(lesson_number, dps_number)
-        dps.default_question_count = 20
+        dps.dps_title = _dps_display_title(lesson_number, dps_number)
+        dps.default_question_count = _dps_question_count(lesson_number, dps_number)
         dps.default_duration_seconds = DPS_DURATION_SECONDS
         dps.marks_per_question = 1
         dps.label_style = "NUMERIC"
@@ -378,53 +509,79 @@ def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int
     return dps
 
 
-def _upsert_section(db: Session, dps: DPS, lesson_number: int, dps_number: int) -> DPSSection:
-    section = (
-        db.query(DPSSection)
-        .filter(DPSSection.dps_id == dps.id, DPSSection.section_number == 1)
-        .first()
-    )
+def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int) -> list[DPSSection]:
     config = _section_config(lesson_number, dps_number)
     target_payload = {
         "sourceType": config["sourceType"],
         "sourceFile": config["sourceFile"],
     }
-    if not section:
-        section = DPSSection(
-            dps_id=dps.id,
-            section_number=1,
-            section_title=_dps_title(lesson_number, dps_number),
-            question_count=20,
-            concept_family=ClassifyMmConcept(_dps_title(lesson_number, dps_number), LESSON_TITLES[lesson_number]),
-            operation_focus="MM_PACKAGE_2",
-            abacus_rule="MASTER_MODULE_DYNAMIC",
-            target_numbers_json=json.dumps(target_payload),
-            place_value="ADVANCED_MIXED",
-            digit_pattern="MASTER_MODULE",
-            rows_count=20,
-            difficulty="MASTER",
-            allow_negative_operands=True,
-            allow_negative_answer=True,
-            generator_config_json=json.dumps(config),
-        )
-        db.add(section)
-        db.flush()
-    else:
-        section.section_title = _dps_title(lesson_number, dps_number)
-        section.question_count = 20
-        section.concept_family = ClassifyMmConcept(_dps_title(lesson_number, dps_number), LESSON_TITLES[lesson_number])
-        section.operation_focus = "MM_PACKAGE_2"
-        section.abacus_rule = "MASTER_MODULE_DYNAMIC"
-        section.target_numbers_json = json.dumps(target_payload)
-        section.place_value = "ADVANCED_MIXED"
-        section.digit_pattern = "MASTER_MODULE"
-        section.rows_count = 20
-        section.difficulty = "MASTER"
-        section.allow_negative_operands = True
-        section.allow_negative_answer = True
-        section.generator_config_json = json.dumps(config)
-    return section
+    workbook_sections = _dps_sections(lesson_number, dps_number)
+    active_section_numbers = {int(section["sectionNumber"]) for section in workbook_sections}
+    saved_sections: list[DPSSection] = []
 
+    for section_definition in workbook_sections:
+        section_number = int(section_definition["sectionNumber"])
+        section = (
+            db.query(DPSSection)
+            .filter(DPSSection.dps_id == dps.id, DPSSection.section_number == section_number)
+            .first()
+        )
+        section_title = str(section_definition["sectionTitle"])
+        question_count = int(section_definition["questionCount"])
+        concept_family = str(section_definition["conceptFamily"])
+        operation_focus = str(section_definition.get("operationFocus") or OperationFocusForConcept(concept_family))
+
+        section_config = {
+            **config,
+            "activeSection": section_definition,
+        }
+        if not section:
+            section = DPSSection(
+                dps_id=dps.id,
+                section_number=section_number,
+                section_title=section_title,
+                question_count=question_count,
+                concept_family=concept_family,
+                operation_focus=operation_focus,
+                abacus_rule="MASTER_MODULE_SECTION_DYNAMIC",
+                target_numbers_json=json.dumps(target_payload),
+                place_value="ADVANCED_MIXED",
+                digit_pattern="MASTER_MODULE",
+                rows_count=question_count,
+                difficulty="MASTER",
+                allow_negative_operands=True,
+                allow_negative_answer=True,
+                generator_config_json=json.dumps(section_config),
+            )
+            db.add(section)
+            db.flush()
+        else:
+            section.section_title = section_title
+            section.question_count = question_count
+            section.concept_family = concept_family
+            section.operation_focus = operation_focus
+            section.abacus_rule = "MASTER_MODULE_SECTION_DYNAMIC"
+            section.target_numbers_json = json.dumps(target_payload)
+            section.place_value = "ADVANCED_MIXED"
+            section.digit_pattern = "MASTER_MODULE"
+            section.rows_count = question_count
+            section.difficulty = "MASTER"
+            section.allow_negative_operands = True
+            section.allow_negative_answer = True
+            section.generator_config_json = json.dumps(section_config)
+        saved_sections.append(section)
+
+    stale_sections = (
+        db.query(DPSSection)
+        .filter(DPSSection.dps_id == dps.id)
+        .filter(~DPSSection.section_number.in_(active_section_numbers))
+        .all()
+    )
+    for stale_section in stale_sections:
+        stale_section.question_count = 0
+        stale_section.section_title = f"Archived Section {stale_section.section_number}"
+
+    return saved_sections
 
 def seed(db: Session) -> None:
     """Synchronize the Master Module curriculum skeleton.
@@ -446,8 +603,8 @@ def seed(db: Session) -> None:
         for dps_number in range(1, DPS_PER_LESSON + 1):
             dps = _upsert_dps(db, lesson, lesson_number, dps_number)
             dps_count += 1
-            _upsert_section(db, dps, lesson_number, dps_number)
-            section_count += 1
+            sections = _upsert_sections(db, dps, lesson_number, dps_number)
+            section_count += len(sections)
 
     db.commit()
     print(

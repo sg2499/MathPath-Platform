@@ -159,6 +159,46 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     return "MM_UNSUPPORTED"
 
 
+SECTION_CONCEPT_ALIASES = {
+    "ADD_LESS": "ADD_LESS",
+    "DECIMAL_ADD_LESS": "DECIMAL_ADD_LESS",
+    "DECIMAL MULTIPLICATION": "DECIMAL_MULTIPLICATION",
+    "DECIMAL DIVISION": "DECIMAL_DIVISION",
+    "WHOLE MULTIPLICATION": "WHOLE_NUMBER_MULTIPLICATION",
+    "WHOLE DIVISION": "WHOLE_NUMBER_DIVISION",
+    "MIXED MULTIPLICATION DIVISION": "MULTIPLICATION_DIVISION_MIXED",
+    "INTEGERS": "INTEGERS",
+    "BODMAS": "BODMAS",
+    "PERCENTAGE_ADD_LESS": "PERCENTAGE_ADD_LESS",
+    "SQUARES": "SQUARES",
+    "CUBES": "CUBES",
+    "SQUARE_ROOT": "SQUARE_ROOT",
+    "CUBE_ROOT": "CUBE_ROOT",
+    "MIXED_SQUARE_CUBE": "MIXED_SQUARE_CUBE",
+    "MIXED_ROOTS": "MIXED_ROOTS",
+}
+
+
+def OperationFocusForConcept(ConceptFamily: str) -> str:
+    if ConceptFamily in {"DECIMAL_ADD_LESS", "ADD_LESS"}:
+        return "ADD_LESS"
+    if ConceptFamily in {"DECIMAL_MULTIPLICATION", "WHOLE_NUMBER_MULTIPLICATION"}:
+        return "MULTIPLICATION"
+    if ConceptFamily in {"DECIMAL_DIVISION", "WHOLE_NUMBER_DIVISION"}:
+        return "DIVISION"
+    if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
+        return "MULTIPLICATION_DIVISION"
+    if ConceptFamily == "INTEGERS":
+        return "INTEGER_ADD_LESS"
+    if ConceptFamily == "BODMAS":
+        return "BODMAS"
+    if ConceptFamily in {"PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
+        return "PERCENTAGE"
+    if ConceptFamily in {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}:
+        return "POWERS_ROOTS"
+    return "MIXED"
+
+
 def IsPackage1Supported(ConceptFamily: str) -> bool:
     """Backward-compatible support check used by generation_service.
 
