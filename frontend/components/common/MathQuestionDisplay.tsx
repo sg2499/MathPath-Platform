@@ -7,6 +7,7 @@ type DisplayMode =
   | "EXPRESSION_WORKSHEET"
   | "ANSWER_POSITION"
   | "FINANCIAL_TABLE"
+  | "COMPACT_EXPRESSION"
   | string
   | null
   | undefined;
@@ -73,6 +74,28 @@ function ExpressionQuestion({
   );
 }
 
+
+function CompactExpressionQuestion({
+  operands,
+  operators,
+  questionText,
+}: {
+  operands: Array<number | string>;
+  operators: string[];
+  questionText?: string | null;
+}) {
+  const Expression = questionText?.trim() || BuildExpression(operands, operators);
+
+  return (
+    <div className="mx-auto inline-flex max-w-full rounded-[18px] bg-white px-5 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700">
+      <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
+        <span>{Expression}</span>
+        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
+      </div>
+    </div>
+  );
+}
+
 function FinancialTableQuestion({ operands, operators, questionText }: { operands: Array<number | string>; operators: string[]; questionText?: string | null }) {
   const LabelA = operators[0] || "Value 1";
   const LabelB = operators[1] || "Value 2";
@@ -112,6 +135,10 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
 
   if (Mode === "FINANCIAL_TABLE") {
     return <FinancialTableQuestion operands={Operands} operators={Operators} questionText={questionText} />;
+  }
+
+  if (Mode === "COMPACT_EXPRESSION") {
+    return <CompactExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} />;
   }
 
   return <VerticalQuestion operands={Operands} operators={Operators} />;

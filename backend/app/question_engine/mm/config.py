@@ -37,7 +37,16 @@ PACKAGE_2_CONCEPTS = {
     "PERCENTAGE_INCREASE_DECREASE",
 }
 
-SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS
+PACKAGE_3_CONCEPTS = {
+    "SQUARES",
+    "CUBES",
+    "SQUARE_ROOT",
+    "CUBE_ROOT",
+    "MIXED_SQUARE_CUBE",
+    "MIXED_ROOTS",
+}
+
+SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS
 
 # Backward-compatible name used by the existing generation service.
 SUPPORTED_MM_PACKAGE_1_CONCEPTS = SUPPORTED_MM_CONCEPTS
@@ -98,6 +107,26 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasBodmas = "bodmas" in Text
     HasPercentage = "percentage" in Text or "percent" in Text
     HasIncreaseDecrease = "increase" in Text or "decrease" in Text
+    HasSquareRoot = "square root" in Text
+    HasCubeRoot = "cube root" in Text
+    HasSquares = "square" in Text or "squares" in Text
+    HasCubes = "cube" in Text or "cubes" in Text
+
+    # Package 3 root concepts should win before generic square/cube words.
+    if HasSquareRoot and HasCubeRoot:
+        return "MIXED_ROOTS"
+    if HasSquareRoot:
+        return "SQUARE_ROOT"
+    if HasCubeRoot and HasSquares:
+        return "MIXED_ROOTS"
+    if HasCubeRoot:
+        return "CUBE_ROOT"
+    if HasSquares and HasCubes:
+        return "MIXED_SQUARE_CUBE"
+    if HasSquares:
+        return "SQUARES"
+    if HasCubes:
+        return "CUBES"
 
     # Package 2 concepts should win when the DPS title explicitly names them.
     if HasInteger:
