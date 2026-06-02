@@ -1,4 +1,5 @@
 import random
+import re
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.question_engine.mm.config import MMConfig
@@ -92,21 +93,57 @@ def _DigitRange(Digits: int) -> tuple[int, int]:
     return 10 ** (Digits - 1), (10 ** Digits) - 1
 
 
-def _MultiplicationDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
-    Title = f" {Config.DpsTitle} ".upper()
-    if "5D X 2D" in Title:
-        return 5, 2
-    if "4D X 3D" in Title:
+def _NormalisedPatternTitle(Config: MMConfig) -> str:
+    return " ".join(
+        f" {Config.DpsTitle} {Config.LessonTitle} "
+        .upper()
+        .replace("×", " X ")
+        .replace("*", " X ")
+        .replace("÷", " DIVISION ")
+        .replace("/", " DIVISION ")
+        .replace(":", " DIVISION ")
+        .replace("-", " ")
+        .split()
+    )
+
+
+def _ExtractMultiplicationDigits(Config: MMConfig) -> tuple[int, int] | None:
+    Title = _NormalisedPatternTitle(Config)
+    Patterns = [
+        r"([1-6])D\s*X\s*([1-6])D",
+        r"([1-6])D\s*MULTIPLICATION\s*(?:BY\s*)?([1-6])D",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Title)
+        if Match:
+            return int(Match.group(1)), int(Match.group(2))
+    return None
+
+
+def _ExtractDivisionDigits(Config: MMConfig) -> tuple[int, int] | None:
+    Title = _NormalisedPatternTitle(Config)
+    Patterns = [
+        r"([1-6])D\s*DIVISION\s*([1-6])D",
+        r"([1-6])D\s*DIVIDE\s*([1-6])D",
+        r"([1-6])D\s*DIVIDED\s*BY\s*([1-6])D",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Title)
+        if Match:
+            return int(Match.group(1)), int(Match.group(2))
+    if "DIVISION BY 6D" in Title:
+        return 6, 3
+    if "DIVISION BY 3D" in Title:
         return 4, 3
-    if "4D X 2D" in Title:
-        return 4, 2
-    if "3D X 3D" in Title:
-        return 3, 3
-    if "3D X 2D" in Title:
-        return 3, 2
-    if "2D X 2D" in Title:
-        return 2, 2
-    if "BY 3D" in Title:
+    return None
+
+
+def _MultiplicationDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    ExplicitDigits = _ExtractMultiplicationDigits(Config)
+    if ExplicitDigits is not None:
+        return ExplicitDigits
+    Title = _NormalisedPatternTitle(Config)
+    if "MULTIPLICATION BY 3D" in Title:
         return 3, 3
     if Stage == "WARM_UP":
         return 2, 1
@@ -120,22 +157,13 @@ def _MultiplicationDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
 
 
 def _DivisionDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
-    Title = f" {Config.DpsTitle} ".upper()
-    if "6D ÷ 3D" in Title or "6D DIVISION 3D" in Title:
+    ExplicitDigits = _ExtractDivisionDigits(Config)
+    if ExplicitDigits is not None:
+        return ExplicitDigits
+    Title = _NormalisedPatternTitle(Config)
+    if "DIVISION BY 6D" in Title:
         return 6, 3
-    if "6D" in Title and "DIVISION" in Title:
-        return 6, 3
-    if "5D ÷ 3D" in Title or "5D DIVISION 3D" in Title:
-        return 5, 3
-    if "5D ÷ 2D" in Title or "5D DIVISION 2D" in Title:
-        return 5, 2
-    if "4D ÷ 3D" in Title or "4D DIVISION 3D" in Title:
-        return 4, 3
-    if "4D ÷ 2D" in Title or "4D DIVISION 2D" in Title:
-        return 4, 2
-    if "BY 6D" in Title:
-        return 6, 3
-    if "BY 3D" in Title:
+    if "DIVISION BY 3D" in Title:
         return 4, 3
     if Stage == "WARM_UP":
         return 2, 1
