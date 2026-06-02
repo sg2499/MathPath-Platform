@@ -53,7 +53,12 @@ PACKAGE_4_CONCEPTS = {
     "FIND_COST_PRICE",
 }
 
-SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS
+PACKAGE_5_CONCEPTS = {
+    "SKILL_STACKER",
+    "CONCEPT_DRILL",
+}
+
+SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS
 
 # Backward-compatible name used by the existing generation service.
 SUPPORTED_MM_PACKAGE_1_CONCEPTS = SUPPORTED_MM_CONCEPTS
@@ -73,6 +78,12 @@ def NormaliseText(Value: str | None) -> str:
 
 def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     TitleText = NormaliseText(DpsTitle)
+
+    # Dedicated Package 5 section titles must not inherit broader lesson-title words.
+    if "concept drill" in TitleText:
+        return "CONCEPT_DRILL"
+    if "skill stacker" in TitleText:
+        return "SKILL_STACKER"
 
     # A plain MM "Visual Practice" sheet is an Add/Less visual stack sheet.
     # Do not inherit BODMAS/multiplication words from the lesson title for this case.
@@ -123,11 +134,19 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasCubeRoot = "cube root" in Text
     HasSquares = "square" in Text or "squares" in Text
     HasCubes = "cube" in Text or "cubes" in Text
+    HasSkillStacker = "skill stacker" in Text
+    HasConceptDrill = "concept drill" in Text
     HasSimpleInterest = "simple interest" in Text
     HasProfit = "profit" in Text
     HasLoss = "loss" in Text
     HasSellingPrice = "selling price" in Text
     HasCostPrice = "cost price" in Text
+
+    # Package 5 dedicated MM concepts should win before inherited generic lesson-title signals.
+    if HasSkillStacker:
+        return "SKILL_STACKER"
+    if HasConceptDrill:
+        return "CONCEPT_DRILL"
 
     # Package 4 financial concepts should win before generic percentage words.
     if HasSimpleInterest:
@@ -216,6 +235,8 @@ SECTION_CONCEPT_ALIASES = {
     "PROFIT_LOSS": "PROFIT_LOSS",
     "FIND_SELLING_PRICE": "FIND_SELLING_PRICE",
     "FIND_COST_PRICE": "FIND_COST_PRICE",
+    "SKILL_STACKER": "SKILL_STACKER",
+    "CONCEPT_DRILL": "CONCEPT_DRILL",
 }
 
 
@@ -238,6 +259,10 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
         return "POWERS_ROOTS"
     if ConceptFamily in {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}:
         return "FINANCIAL"
+    if ConceptFamily == "SKILL_STACKER":
+        return "REPEATED_ADDITION"
+    if ConceptFamily == "CONCEPT_DRILL":
+        return "REPEATED_SUBTRACTION"
     return "MIXED"
 
 
