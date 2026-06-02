@@ -166,6 +166,25 @@ export default function AdminCurriculumPage() {
     previewQuestions.length > 0 &&
     !publishMutation.isPending;
 
+  const previewSections = useMemo(() => {
+    const Groups: Array<{ key: string; title: string; questions: AdminPreviewQuestion[] }> = [];
+    const SectionIndex = new Map<string, number>();
+
+    previewQuestions.forEach((Question) => {
+      const Metadata = (Question as any).metadata || {};
+      const SectionNumber = String(Metadata.section_number || Metadata.sectionNumber || 1);
+      const SectionTitle = String(Metadata.section_title || Metadata.sectionTitle || selectedDps?.dpsTitle || "Questions");
+      const Key = `${SectionNumber}-${SectionTitle}`;
+      if (!SectionIndex.has(Key)) {
+        SectionIndex.set(Key, Groups.length);
+        Groups.push({ key: Key, title: SectionTitle, questions: [] });
+      }
+      Groups[SectionIndex.get(Key)!].questions.push(Question);
+    });
+
+    return Groups;
+  }, [previewQuestions, selectedDps?.dpsTitle]);
+
   if (!ready) return null;
 
   return (
@@ -359,13 +378,29 @@ export default function AdminCurriculumPage() {
             Select a DPS and click Generate Preview to inspect questions before publishing.
           </div>
         ) : (
-          <div className="grid gap-4">
-            {previewQuestions.map((question, index) => (
-              <PreviewQuestionCard
-                key={`${question.seed || index}-${index}`}
-                question={question}
-                showCorrectAnswers={showCorrectAnswers}
-              />
+          <div className="grid gap-6">
+            {previewSections.map((Section, SectionIndex) => (
+              <div key={Section.key} className="grid gap-4">
+                {previewSections.length > 1 ? (
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-5 py-4 text-slate-900 shadow-sm dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-50">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600 dark:text-cyan-200">
+                      Section {SectionIndex + 1}
+                    </p>
+                    <h3 className="mt-1 text-xl font-black">{Section.title}</h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-cyan-100/80">
+                      {Section.questions.length} questions
+                    </p>
+                  </div>
+                ) : null}
+
+                {Section.questions.map((question, index) => (
+                  <PreviewQuestionCard
+                    key={`${question.seed || Section.key}-${index}`}
+                    question={question}
+                    showCorrectAnswers={showCorrectAnswers}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         )}
@@ -388,7 +423,7 @@ function PreviewQuestionCard({
   return (
     <div className="math-card p-4 sm:p-5">
       <p className="mb-3 text-sm font-bold text-slate-900 dark:text-white">
-        Question {question.question_number}
+        Question {((question as any).metadata?.section_question_number ?? (question as any).metadata?.sectionQuestionNumber ?? question.question_number)}
       </p>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-center">

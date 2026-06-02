@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Module, Level, Lesson
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
-from app.question_engine.mm import MMConfig, ClassifyMmConcept, GenerateMmQuestionSet, IsPackage1Supported
+from app.question_engine.mm import MMConfig, ClassifyMmConcept, GenerateMmQuestionSet, IsPackage1Supported, OperationFocusForConcept
 from app.core.errors import api_error
 
 def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
@@ -51,21 +51,7 @@ def build_mm_config_from_dps(db: Session, dps: DPS, seed: str) -> MMConfig:
     DpsTitle = getattr(dps, "dps_title", "") or GeneratorConfig.get("dpsTitle", "")
     LessonTitle = getattr(LessonRecord, "lesson_title", "") or GeneratorConfig.get("lessonTitle", "")
     ConceptFamily = ClassifyMmConcept(DpsTitle, LessonTitle)
-    OperationFocus = "MIXED"
-    if ConceptFamily == "DECIMAL_ADD_LESS":
-        OperationFocus = "ADD_LESS"
-    elif ConceptFamily in {"DECIMAL_MULTIPLICATION", "WHOLE_NUMBER_MULTIPLICATION"}:
-        OperationFocus = "MULTIPLICATION"
-    elif ConceptFamily in {"DECIMAL_DIVISION", "WHOLE_NUMBER_DIVISION"}:
-        OperationFocus = "DIVISION"
-    elif ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-        OperationFocus = "MULTIPLICATION_DIVISION"
-    elif ConceptFamily == "INTEGERS":
-        OperationFocus = "INTEGER_ADD_LESS"
-    elif ConceptFamily == "BODMAS":
-        OperationFocus = "BODMAS"
-    elif ConceptFamily in {"PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
-        OperationFocus = "PERCENTAGE"
+    OperationFocus = OperationFocusForConcept(ConceptFamily)
 
     return MMConfig(
         ModuleCode=getattr(ModuleRecord, "module_code", "MM") or "MM",
@@ -164,7 +150,9 @@ def generate_preview(db: Session, dps: DPS, seed: str | None = None) -> list[dic
 def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, student_id: str, mode: str, seed: str) -> GeneratedQuestionSet:
     if not _is_dynamic_generator_supported(db, dps):
         api_error(400, "DYNAMIC_GENERATION_NOT_AVAILABLE", _unsupported_static_message(db, dps))
-    section = db.query(DPSSection).filter(DPSSection.dps_id == dps.id).order_by(DPSSection.section_number).first()
+    sections = db.query(DPSSection).filter(DPSSection.dps_id == dps.id).order_by(DPSSection.section_number).all()
+    section_by_number = {int(getattr(section, "section_number", 1) or 1): section for section in sections}
+    section = sections[0] if sections else None
     ModuleCode = _module_code_for_dps(db, dps)
     if ModuleCode == "MM":
         Config = build_mm_config_from_dps(db, dps, seed)
@@ -176,16 +164,20 @@ def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, stude
     db.add(qset)
     db.flush()
     for q in generated:
+        Metadata = q.get("metadata") or {}
+        SectionNumber = int(Metadata.get("section_number") or 1)
+        LinkedSection = section_by_number.get(SectionNumber) or section
         gq = GeneratedQuestion(
             question_set_id=qset.id,
-            dps_section_id=section.id if section else None,
+            dps_section_id=LinkedSection.id if LinkedSection else None,
             question_number=q["question_number"],
             display_type=q["display_type"],
+            question_text=q.get("question_text"),
             operands_json=json.dumps(q["operands"]),
             operators_json=json.dumps(q["operators"]),
             correct_answer=str(q["correct_answer"]),
             seed=q["seed"],
-            metadata_json=json.dumps(q["metadata"]),
+            metadata_json=json.dumps(Metadata),
         )
         db.add(gq)
         db.flush()
