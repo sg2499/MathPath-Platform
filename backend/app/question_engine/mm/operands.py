@@ -369,6 +369,141 @@ def GeneratePercentageIncreaseDecrease(Config: MMConfig, Rng: random.Random, Que
     return GeneratePercentageAddLess(Config, Rng, QuestionNumber)
 
 
+def _MoneyRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    Band = _LessonBand(Config)
+    BaseRanges = {
+        1: (1000, 6000),
+        2: (1500, 10000),
+        3: (2500, 15000),
+        4: (5000, 35000),
+        5: (7500, 75000),
+        6: (10000, 120000),
+    }
+    Minimum, Maximum = BaseRanges.get(Band, (1000, 6000))
+    StageBoost = {"WARM_UP": 1, "STANDARD": 1, "MIXED_STEP": 2, "ADVANCED": 3, "CHALLENGE": 4}.get(Stage, 1)
+    return Minimum, Maximum * StageBoost
+
+
+def _CleanMoney(Value: Decimal) -> Decimal:
+    return _Quantize(Value, 2)
+
+
+def _FinancialPercentChoices(Config: MMConfig, Stage: str) -> list[Decimal]:
+    if Stage in {"WARM_UP", "STANDARD"}:
+        Choices = [5, 10, 15, 20, 25, 30]
+    elif Stage == "MIXED_STEP":
+        Choices = [5, 8, 10, 12, 15, 18, 20, 22, 25, 30]
+    elif Stage == "ADVANCED":
+        Choices = [2.5, 5, 7.5, 10, 12.5, 15, 18, 20, 25, 30, 35]
+    else:
+        Choices = [1, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 35, 40]
+    return [Decimal(str(Value)) for Value in Choices]
+
+
+def _FinancialMode(Config: MMConfig, QuestionNumber: int) -> str:
+    Text = f" {Config.DpsTitle} ".lower()
+    if "selling price" in Text:
+        return "FIND_SELLING_PRICE"
+    if "cost price" in Text:
+        return "FIND_COST_PRICE"
+    if "profit" in Text and "loss" not in Text:
+        return "PROFIT"
+    if "loss" in Text and "profit" not in Text:
+        return "LOSS"
+    return "PROFIT" if QuestionNumber % 2 == 1 else "LOSS"
+
+
+def GenerateProfitLoss(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Minimum, Maximum = _MoneyRange(Config, Stage)
+    CostPrice = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
+    Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
+    Mode = _FinancialMode(Config, QuestionNumber)
+
+    if Mode == "LOSS":
+        Change = _CleanMoney(CostPrice * Percent / Decimal(100))
+        SellingPrice = _CleanMoney(CostPrice - Change)
+        CorrectAnswer = Change if QuestionNumber % 2 == 1 else Percent
+        QuestionText = "Find Loss" if QuestionNumber % 2 == 1 else "Find Loss %"
+        AnswerKind = "LOSS" if QuestionNumber % 2 == 1 else "LOSS_PERCENT"
+    else:
+        Change = _CleanMoney(CostPrice * Percent / Decimal(100))
+        SellingPrice = _CleanMoney(CostPrice + Change)
+        CorrectAnswer = Change if QuestionNumber % 2 == 1 else Percent
+        QuestionText = "Find Profit" if QuestionNumber % 2 == 1 else "Find Profit %"
+        AnswerKind = "PROFIT" if QuestionNumber % 2 == 1 else "PROFIT_PERCENT"
+
+    return [_AsDisplayNumber(CostPrice), _AsDisplayNumber(SellingPrice)], ["Cost Price", "Selling Price"], _CleanMoney(CorrectAnswer), {
+        "financial_mode": Mode,
+        "answer_kind": AnswerKind,
+        "question_text": QuestionText,
+        "cost_price": _AsDisplayNumber(CostPrice),
+        "selling_price": _AsDisplayNumber(SellingPrice),
+        "percentage": _AsDisplayNumber(Percent),
+    }
+
+
+def GenerateFindSellingPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Minimum, Maximum = _MoneyRange(Config, Stage)
+    CostPrice = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
+    Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
+    IsLoss = "loss" in f" {Config.DpsTitle} ".lower() or ("profit" not in f" {Config.DpsTitle} ".lower() and QuestionNumber % 2 == 0)
+    SellingPrice = _CleanMoney(CostPrice - (CostPrice * Percent / Decimal(100))) if IsLoss else _CleanMoney(CostPrice + (CostPrice * Percent / Decimal(100)))
+    PercentLabel = "Loss %" if IsLoss else "Profit %"
+    return [_AsDisplayNumber(CostPrice), _AsDisplayNumber(Percent)], ["Cost Price", PercentLabel], SellingPrice, {
+        "financial_mode": "FIND_SELLING_PRICE",
+        "question_text": "Find Selling Price",
+        "cost_price": _AsDisplayNumber(CostPrice),
+        "percentage": _AsDisplayNumber(Percent),
+        "percentage_type": PercentLabel,
+    }
+
+
+def GenerateFindCostPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Minimum, Maximum = _MoneyRange(Config, Stage)
+    Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
+    CostPrice = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
+    IsLoss = "loss" in f" {Config.DpsTitle} ".lower() or ("profit" not in f" {Config.DpsTitle} ".lower() and QuestionNumber % 2 == 0)
+    SellingPrice = _CleanMoney(CostPrice - (CostPrice * Percent / Decimal(100))) if IsLoss else _CleanMoney(CostPrice + (CostPrice * Percent / Decimal(100)))
+    PercentLabel = "Loss %" if IsLoss else "Profit %"
+    return [_AsDisplayNumber(SellingPrice), _AsDisplayNumber(Percent)], ["Selling Price", PercentLabel], _CleanMoney(CostPrice), {
+        "financial_mode": "FIND_COST_PRICE",
+        "question_text": "Find Cost Price",
+        "selling_price": _AsDisplayNumber(SellingPrice),
+        "percentage": _AsDisplayNumber(Percent),
+        "percentage_type": PercentLabel,
+    }
+
+
+def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Band = _LessonBand(Config)
+    PrincipalRanges = {
+        1: (1000, 10000),
+        2: (1000, 25000),
+        3: (2500, 75000),
+        4: (5000, 100000),
+        5: (7500, 150000),
+        6: (10000, 250000),
+    }
+    Minimum, Maximum = PrincipalRanges.get(Band, (1000, 25000))
+    Principal = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
+    TermChoices = [2, 3, 4, 5, 6] if Stage in {"WARM_UP", "STANDARD"} else [2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16]
+    RateChoices = [3, 4, 5, 6, 7, 8, 9] if Stage != "CHALLENGE" else [2.5, 3, 4, 5, 6, 7, 8, 9, 10, 12.5]
+    Term = Decimal(str(Rng.choice(TermChoices)))
+    Rate = Decimal(str(Rng.choice(RateChoices)))
+    CorrectAnswer = _CleanMoney(Principal * Term * Rate / Decimal(100))
+    return [_AsDisplayNumber(Principal), _AsDisplayNumber(Term), _AsDisplayNumber(Rate)], ["Principal", "Term (Years)", "Rate of Interest"], CorrectAnswer, {
+        "financial_mode": "SIMPLE_INTEREST",
+        "question_text": "Find Simple Interest",
+        "principal": _AsDisplayNumber(Principal),
+        "term_years": _AsDisplayNumber(Term),
+        "rate_percent": _AsDisplayNumber(Rate),
+    }
+
+
 def _FindTokenPosition(Text: str, Tokens: list[str]) -> int | None:
     Positions = [Text.find(Token) for Token in Tokens if Text.find(Token) >= 0]
     return min(Positions) if Positions else None
@@ -473,6 +608,14 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateMixedSquareCube(Config, Rng, QuestionNumber)
     if ConceptFamily == "MIXED_ROOTS":
         return GenerateMixedRoots(Config, Rng, QuestionNumber)
+    if ConceptFamily == "SIMPLE_INTEREST":
+        return GenerateSimpleInterest(Config, Rng, QuestionNumber)
+    if ConceptFamily == "PROFIT_LOSS":
+        return GenerateProfitLoss(Config, Rng, QuestionNumber)
+    if ConceptFamily == "FIND_SELLING_PRICE":
+        return GenerateFindSellingPrice(Config, Rng, QuestionNumber)
+    if ConceptFamily == "FIND_COST_PRICE":
+        return GenerateFindCostPrice(Config, Rng, QuestionNumber)
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         OperationSequence = _MixedMultiplicationDivisionOperationSequence(Config)
         Operation = OperationSequence[(QuestionNumber - 1) % len(OperationSequence)]
@@ -483,7 +626,7 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         if Operation == "WHOLE_NUMBER_MULTIPLICATION":
             return GenerateWholeNumberMultiplication(Config, Rng, QuestionNumber)
         return GenerateWholeNumberDivision(Config, Rng, QuestionNumber)
-    raise ValueError(f"Unsupported Master Module Package 3 concept: {ConceptFamily}")
+    raise ValueError(f"Unsupported Master Module concept: {ConceptFamily}")
 
 
 # Backward-compatible name used by existing generator.py import in Package 1.

@@ -46,7 +46,14 @@ PACKAGE_3_CONCEPTS = {
     "MIXED_ROOTS",
 }
 
-SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS
+PACKAGE_4_CONCEPTS = {
+    "SIMPLE_INTEREST",
+    "PROFIT_LOSS",
+    "FIND_SELLING_PRICE",
+    "FIND_COST_PRICE",
+}
+
+SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS
 
 # Backward-compatible name used by the existing generation service.
 SUPPORTED_MM_PACKAGE_1_CONCEPTS = SUPPORTED_MM_CONCEPTS
@@ -91,6 +98,11 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
             "bodmas",
             "percentage",
             "percent",
+            "simple interest",
+            "profit",
+            "loss",
+            "selling price",
+            "cost price",
         )
     )
     Text = (
@@ -111,6 +123,25 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasCubeRoot = "cube root" in Text
     HasSquares = "square" in Text or "squares" in Text
     HasCubes = "cube" in Text or "cubes" in Text
+    HasSimpleInterest = "simple interest" in Text
+    HasProfit = "profit" in Text
+    HasLoss = "loss" in Text
+    HasSellingPrice = "selling price" in Text
+    HasCostPrice = "cost price" in Text
+
+    # Package 4 financial concepts should win before generic percentage words.
+    if HasSimpleInterest:
+        return "SIMPLE_INTEREST"
+    if HasSellingPrice and (HasProfit or HasLoss):
+        return "FIND_SELLING_PRICE"
+    if HasCostPrice and (HasProfit or HasLoss):
+        return "FIND_COST_PRICE"
+    if HasSellingPrice:
+        return "FIND_SELLING_PRICE"
+    if HasCostPrice:
+        return "FIND_COST_PRICE"
+    if HasProfit or HasLoss:
+        return "PROFIT_LOSS"
 
     # Package 3 root concepts should win before generic square/cube words.
     if HasSquareRoot and HasCubeRoot:
@@ -176,6 +207,10 @@ SECTION_CONCEPT_ALIASES = {
     "CUBE_ROOT": "CUBE_ROOT",
     "MIXED_SQUARE_CUBE": "MIXED_SQUARE_CUBE",
     "MIXED_ROOTS": "MIXED_ROOTS",
+    "SIMPLE_INTEREST": "SIMPLE_INTEREST",
+    "PROFIT_LOSS": "PROFIT_LOSS",
+    "FIND_SELLING_PRICE": "FIND_SELLING_PRICE",
+    "FIND_COST_PRICE": "FIND_COST_PRICE",
 }
 
 
@@ -196,6 +231,8 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
         return "PERCENTAGE"
     if ConceptFamily in {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}:
         return "POWERS_ROOTS"
+    if ConceptFamily in {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}:
+        return "FINANCIAL"
     return "MIXED"
 
 
