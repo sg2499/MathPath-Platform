@@ -379,11 +379,16 @@ function GetPreviewDisplayMode(question: AdminPreviewQuestion): string {
   return String((question as any).displayType ?? (question as any).display_type ?? "").trim().toUpperCase();
 }
 
-function IsWideWorkbookPreview(DisplayMode: string): boolean {
+function IsExpressionPreview(DisplayMode: string): boolean {
   return [
     "EXPRESSION",
     "EXPRESSION_WORKSHEET",
     "ANSWER_POSITION",
+  ].includes(DisplayMode);
+}
+
+function IsWorkbookOperationPreview(DisplayMode: string): boolean {
+  return [
     "OPERATION_ROW",
     "WORKBOOK_OPERATION",
     "WORKBOOK_OPERATION_ROW",
@@ -401,23 +406,25 @@ function PreviewQuestionCard({
     (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
   );
   const DisplayMode = GetPreviewDisplayMode(question);
-  const UsesWideWorkbookPreview = IsWideWorkbookPreview(DisplayMode);
-  const QuestionColumnClass = UsesWideWorkbookPreview
-    ? "min-w-0 lg:flex-[1.55_1_0%]"
-    : "min-w-0 lg:flex-[1_1_0%]";
-  const OptionGridClass = UsesWideWorkbookPreview
-    ? "grid min-w-0 gap-2 lg:max-w-[420px] lg:flex-[0.7_1_0%] xl:grid-cols-2"
-    : "grid min-w-0 gap-2 sm:grid-cols-2 lg:max-w-[560px] lg:flex-[1_1_0%]";
+  const UsesExpressionPreview = IsExpressionPreview(DisplayMode);
+  const UsesWorkbookOperationPreview = IsWorkbookOperationPreview(DisplayMode);
+  const UsesInlineQuestionPreview = UsesExpressionPreview || UsesWorkbookOperationPreview;
+  const QuestionColumnClass = UsesInlineQuestionPreview
+    ? "min-w-0 shrink-0 lg:max-w-[calc(100%-360px)] xl:max-w-[calc(100%-420px)]"
+    : "min-w-0 shrink-0";
+  const OptionGridClass = UsesInlineQuestionPreview
+    ? "grid min-w-[320px] flex-1 gap-2 sm:grid-cols-2 xl:min-w-[380px]"
+    : "grid min-w-[320px] flex-1 gap-2 sm:grid-cols-2";
 
   return (
     <div className="math-card p-5 sm:p-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
         <div className={QuestionColumnClass}>
           <p className="text-sm font-bold text-slate-900 dark:text-white">
             Question {question.question_number}
           </p>
 
-          <div className="mt-4">
+          <div className="mt-4 flex justify-start">
             <MathQuestionDisplay
               operands={question.operands}
               operators={question.operators}
