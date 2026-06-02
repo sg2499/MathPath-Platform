@@ -4,45 +4,29 @@ function NormaliseOperator(operator?: string | null): string {
     .replace("−", "-")
     .replace("–", "-")
     .replace("*", "×")
+    .replace("x", "×")
+    .replace("X", "×")
     .replace("/", "÷");
 }
 
-function GetDisplaySign({
-  operand,
-  operator,
-  index,
-}: {
-  operand: number | string;
-  operator?: string | null;
-  index: number;
-}): string {
-  const NumericOperand = Number(operand);
-  const IsNegative = Number.isFinite(NumericOperand) && NumericOperand < 0;
-  const NormalisedOperator = NormaliseOperator(operator);
-
-  if (IsNegative || NormalisedOperator === "-") return "−";
-
-  // Global MathPath Add/Less convention:
-  // addition is understood by default, so plus signs are intentionally hidden.
-  if (NormalisedOperator === "+" || NormalisedOperator === "") return "";
-
-  // Multiplication/division visual stacks still need their explicit operation sign.
-  return index === 0 ? "" : NormalisedOperator;
+function IsOperatorToken(value: number | string): boolean {
+  const Token = NormaliseOperator(String(value));
+  return Token === "+" || Token === "-" || Token === "×" || Token === "÷";
 }
 
-function GetOperatorForOperand({
+function GetOperatorForNumberRow({
   operators,
-  index,
+  numberIndex,
 }: {
   operators: string[];
-  index: number;
+  numberIndex: number;
 }): string {
-  if (index === 0) return "";
+  if (numberIndex === 0) return "";
 
   // Generators usually store operators between operands, so the operator that
-  // applies to operand N is operators[N - 1]. Some older records stored a
+  // applies to number row N is operators[N - 1]. Some older records stored a
   // same-length operator array, so fall back safely without changing data.
-  return operators[index - 1] ?? operators[index] ?? "";
+  return operators[numberIndex - 1] ?? operators[numberIndex] ?? "";
 }
 
 function FormatStackValue(operand: number | string): string {
@@ -56,6 +40,49 @@ function FormatStackValue(operand: number | string): string {
   return String(Number(AbsoluteValue.toFixed(8))).replace(/\.0+$/, "");
 }
 
+function BuildStackRows({
+  operands,
+  operators,
+}: {
+  operands: Array<number | string>;
+  operators: string[];
+}) {
+  const Rows: Array<{ sign: string; value: string }> = [];
+  let PendingInlineOperator = "";
+  let NumberIndex = 0;
+
+  operands.forEach((operand) => {
+    const InlineOperator = IsOperatorToken(operand) ? NormaliseOperator(String(operand)) : "";
+
+    if (InlineOperator) {
+      PendingInlineOperator = InlineOperator;
+      return;
+    }
+
+    const NumericOperand = Number(operand);
+    const StoredOperator = PendingInlineOperator || GetOperatorForNumberRow({ operators, numberIndex: NumberIndex });
+    const NormalisedOperator = NormaliseOperator(StoredOperator);
+    const IsNegative = Number.isFinite(NumericOperand) && NumericOperand < 0;
+
+    let Sign = "";
+    if (IsNegative || NormalisedOperator === "-") {
+      Sign = "−";
+    } else if (NormalisedOperator === "×" || NormalisedOperator === "÷") {
+      Sign = NormalisedOperator;
+    }
+
+    Rows.push({
+      sign: Sign,
+      value: FormatStackValue(operand),
+    });
+
+    PendingInlineOperator = "";
+    NumberIndex += 1;
+  });
+
+  return Rows;
+}
+
 export function VerticalQuestion({
   operands,
   operators,
@@ -63,9 +90,12 @@ export function VerticalQuestion({
   operands: Array<number | string>;
   operators: string[];
 }) {
-  const DisplayOperands = operands.map((operand) => Number(operand));
-  const HasDecimalOperand = DisplayOperands.some((operand) => Number.isFinite(operand) && !Number.isInteger(operand));
-  const LongestOperandLength = operands.reduce<number>((length, operand) => Math.max(length, FormatStackValue(operand).length), 0);
+  const StackRows = BuildStackRows({ operands, operators });
+  const NumericOperands = operands
+    .filter((operand) => !IsOperatorToken(operand))
+    .map((operand) => Number(operand));
+  const HasDecimalOperand = NumericOperands.some((operand) => Number.isFinite(operand) && !Number.isInteger(operand));
+  const LongestOperandLength = StackRows.reduce<number>((length, row) => Math.max(length, row.value.length), 0);
   const NeedsWideNumberColumn = HasDecimalOperand || LongestOperandLength >= 4;
   const NumberColumnClass = NeedsWideNumberColumn
     ? "minmax(8.75rem,max-content) sm:minmax(10rem,max-content)"
@@ -77,29 +107,20 @@ export function VerticalQuestion({
   return (
     <div className="mx-auto w-fit max-w-full overflow-x-auto rounded-[24px] bg-white px-5 py-5 text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-8 sm:py-6">
       <div className={`font-mono ${FontSizeClass} font-black leading-tight`}>
-        {operands.map((operand, index) => {
-          const sign = GetDisplaySign({
-            operand,
-            operator: GetOperatorForOperand({ operators, index }),
-            index,
-          });
-          const value = FormatStackValue(operand);
-
-          return (
-            <div
-              key={`${operand}-${index}`}
-              className={`grid grid-cols-[2.35rem_${NumberColumnClass}] justify-end gap-3 text-right sm:grid-cols-[2.75rem_${NumberColumnClass}]`}
-            >
-              <span className="whitespace-nowrap text-right">{sign}</span>
-              <span className="whitespace-nowrap text-right tabular-nums">{value}</span>
-            </div>
-          );
-        })}
+        {StackRows.map((row, index) => (
+          <div
+            key={`${row.sign}-${row.value}-${index}`}
+            className={`grid grid-cols-[2.35rem_${NumberColumnClass}] justify-end gap-2 text-right sm:grid-cols-[2.75rem_${NumberColumnClass}]`}
+          >
+            <span className="whitespace-nowrap text-right tabular-nums">{row.sign}</span>
+            <span className="whitespace-nowrap text-right tabular-nums">{row.value}</span>
+          </div>
+        ))}
       </div>
 
       <div className="my-2.5 border-t-[4px] border-slate-800 dark:border-slate-200" />
 
-      <div className={`grid grid-cols-[2.35rem_${NumberColumnClass}] gap-3 text-right font-mono ${FontSizeClass} font-black text-blue-700 dark:text-cyan-300 sm:grid-cols-[2.75rem_${NumberColumnClass}]`}>
+      <div className={`grid grid-cols-[2.35rem_${NumberColumnClass}] gap-2 text-right font-mono ${FontSizeClass} font-black text-blue-700 dark:text-cyan-300 sm:grid-cols-[2.75rem_${NumberColumnClass}]`}>
         <span></span>
         <span className="whitespace-nowrap text-right">?</span>
       </div>
