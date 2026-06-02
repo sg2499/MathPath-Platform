@@ -1,9 +1,9 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
@@ -374,6 +374,22 @@ export default function AdminCurriculumPage() {
   );
 }
 
+
+function GetPreviewDisplayMode(question: AdminPreviewQuestion): string {
+  return String((question as any).displayType ?? (question as any).display_type ?? "").trim().toUpperCase();
+}
+
+function IsWideWorkbookPreview(DisplayMode: string): boolean {
+  return [
+    "EXPRESSION",
+    "EXPRESSION_WORKSHEET",
+    "ANSWER_POSITION",
+    "OPERATION_ROW",
+    "WORKBOOK_OPERATION",
+    "WORKBOOK_OPERATION_ROW",
+  ].includes(DisplayMode);
+}
+
 function PreviewQuestionCard({
   question,
   showCorrectAnswers,
@@ -384,26 +400,34 @@ function PreviewQuestionCard({
   const options = [...(question.options ?? [])].sort(
     (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
   );
+  const DisplayMode = GetPreviewDisplayMode(question);
+  const UsesWideWorkbookPreview = IsWideWorkbookPreview(DisplayMode);
+  const QuestionColumnClass = UsesWideWorkbookPreview
+    ? "min-w-0 lg:flex-[1.55_1_0%]"
+    : "min-w-0 lg:flex-[1_1_0%]";
+  const OptionGridClass = UsesWideWorkbookPreview
+    ? "grid min-w-0 gap-2 lg:max-w-[420px] lg:flex-[0.7_1_0%] xl:grid-cols-2"
+    : "grid min-w-0 gap-2 sm:grid-cols-2 lg:max-w-[560px] lg:flex-[1_1_0%]";
 
   return (
     <div className="math-card p-5 sm:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="lg:w-[340px] lg:shrink-0">
+        <div className={QuestionColumnClass}>
           <p className="text-sm font-bold text-slate-900 dark:text-white">
             Question {question.question_number}
           </p>
 
-          <div className="mt-4 flex justify-center rounded-[24px] border border-slate-200/80 bg-slate-50/95 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-800/80 sm:p-5">
+          <div className="mt-4">
             <MathQuestionDisplay
               operands={question.operands}
               operators={question.operators}
-              displayType={(question as any).displayType ?? (question as any).display_type}
+              displayType={DisplayMode}
               questionText={(question as any).questionText ?? (question as any).question_text}
             />
           </div>
         </div>
 
-        <div className="grid flex-1 items-center gap-3 sm:grid-cols-2">
+        <div className={OptionGridClass}>
           {options.map((option) => {
             const isCorrect = Boolean(option.is_correct);
             const optionStateClass = showCorrectAnswers && isCorrect
@@ -417,13 +441,13 @@ function PreviewQuestionCard({
             return (
               <div
                 key={`${option.label}-${option.value}`}
-                className={`flex min-h-[72px] items-center gap-3 rounded-2xl border px-4 py-3.5 text-base font-semibold transition-all duration-200 ${optionStateClass}`}
+                className={`flex min-h-[42px] items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-all duration-200 ${optionStateClass}`}
               >
-                <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-black ${pillClass}`}>
+                <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${pillClass}`}>
                   {option.label}
                 </span>
 
-                <span className="flex-1 leading-6">{option.value}</span>
+                <span className="flex-1 leading-5">{option.value}</span>
 
                 {showCorrectAnswers && isCorrect ? (
                   <span className="math-mcq-correct-pill rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-100/20 dark:text-emerald-50">

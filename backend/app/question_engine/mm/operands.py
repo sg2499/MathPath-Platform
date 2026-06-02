@@ -229,24 +229,19 @@ def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) ->
 
 def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    BaseMin, BaseMax = {"WARM_UP": (20, 200), "STANDARD": (40, 500), "MIXED_STEP": (100, 1500), "ADVANCED": (250, 5000), "CHALLENGE": (500, 12000)}.get(Stage, (40, 500))
-    BaseStep = 5 if Stage in {"WARM_UP", "STANDARD"} else 10
-    Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, BaseStep))
-
+    BaseMin, BaseMax = {"WARM_UP": (100, 500), "STANDARD": (200, 1000), "MIXED_STEP": (500, 2500), "ADVANCED": (1000, 5000), "CHALLENGE": (2500, 12000)}.get(Stage, (100, 500))
+    Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, 10))
     PercentChoices = [5, 10, 15, 20, 25, 30, 40, 50]
-    if Stage in {"MIXED_STEP", "ADVANCED", "CHALLENGE"}:
+    if Stage in {"ADVANCED", "CHALLENGE"}:
         PercentChoices.extend([12, 18, 22, 35, 45])
 
     Percent = Decimal(Rng.choice(PercentChoices))
     Operator = Rng.choice(["+%", "-%"])
-    Multiplier = Decimal("1") + Percent / Decimal(100) if Operator == "+%" else Decimal("1") - Percent / Decimal(100)
-    CorrectAnswer = _Quantize(Base * Multiplier, 2)
-
-    return [_AsDisplayNumber(Base), _AsDisplayNumber(Percent)], ["", Operator], CorrectAnswer, {
-        "percentage_mode": "ADD_LESS_TWO_PART",
-        "base_amount": _AsDisplayNumber(Base),
-        "parts_count": 2,
-    }
+    Factor = Decimal("1") + Percent / Decimal(100) if Operator == "+%" else Decimal("1") - Percent / Decimal(100)
+    CorrectAnswer = _Quantize(Base * Factor, 2)
+    Operands = [Base, Percent]
+    Operators = ["", Operator]
+    return [_AsDisplayNumber(Value) for Value in Operands], Operators, CorrectAnswer, {"percentage_mode": "ADD_LESS", "base_amount": _AsDisplayNumber(Base), "parts": 2}
 
 
 def GeneratePercentageValue(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:

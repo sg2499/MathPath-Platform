@@ -56,7 +56,10 @@ def NormaliseText(Value: str | None) -> str:
 
 def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     TitleText = NormaliseText(DpsTitle)
-    GenericTitleTokens = ("visual practice", "skill stacker", "concept drill")
+    GenericTitleTokens = ("skill stacker", "concept drill")
+    if TitleText == "visual practice":
+        TitleText = "add less visual"
+
     HasTitleSignal = any(
         Token in TitleText
         for Token in (
@@ -70,6 +73,7 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
             "5d",
             "6d",
             "add less",
+            "visual add less",
             "integers",
             "integer",
             "bodmas",
@@ -105,6 +109,8 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "PERCENTAGE_VALUE"
 
     if HasDecimal and HasAddLess:
+        return "DECIMAL_ADD_LESS"
+    if HasAddLess:
         return "DECIMAL_ADD_LESS"
     if HasDecimal and HasMultiplication and HasDivision:
         return "MULTIPLICATION_DIVISION_MIXED"

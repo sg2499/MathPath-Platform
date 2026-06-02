@@ -70,7 +70,7 @@ function ExpressionQuestion({
 
   return (
     <div className="mx-auto w-full min-w-0 rounded-[20px] bg-white px-4 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
-      <div className="overflow-x-auto whitespace-nowrap text-center font-mono text-[24px] font-black leading-none tracking-tight sm:text-[30px] lg:text-[32px]">
+      <div className="w-full whitespace-nowrap text-center font-mono text-[25px] font-black leading-none tracking-tight sm:text-[30px] lg:text-[34px]">
         <span>{Expression}</span>
         <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
@@ -97,9 +97,9 @@ function WorkbookOperationQuestion({
   return (
     <div className="mx-auto w-full min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white text-slate-950 shadow-inner ring-1 ring-slate-100 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700">
       <div className="grid grid-cols-[minmax(96px,1fr)_52px_minmax(80px,0.8fr)_72px] items-center text-center font-mono text-[24px] font-black leading-none sm:text-[30px] lg:text-[32px]">
-        <div className="overflow-x-auto whitespace-nowrap border-r border-slate-200 bg-yellow-50 px-3 py-5 dark:border-slate-700 dark:bg-slate-900/80">{Left}</div>
+        <div className="whitespace-nowrap border-r border-slate-200 bg-yellow-50 px-3 py-5 dark:border-slate-700 dark:bg-slate-900/80">{Left}</div>
         <div className="border-r border-slate-200 bg-yellow-50 px-3 py-5 dark:border-slate-700 dark:bg-slate-900/80">{Operator}</div>
-        <div className="overflow-x-auto whitespace-nowrap border-r border-slate-200 bg-yellow-50 px-3 py-5 dark:border-slate-700 dark:bg-slate-900/80">{Right}</div>
+        <div className="whitespace-nowrap border-r border-slate-200 bg-yellow-50 px-3 py-5 dark:border-slate-700 dark:bg-slate-900/80">{Right}</div>
         <div className="bg-fuchsia-50 px-3 py-5 text-blue-700 dark:bg-slate-800/80 dark:text-cyan-300">?</div>
       </div>
     </div>
@@ -151,5 +151,5 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
     return <FinancialTableQuestion operands={Operands} operators={Operators} questionText={questionText} />;
   }
 
-  return <VerticalQuestion operands={Operands as number[]} operators={Operators} />;
+  return <VerticalQuestion operands={Operands} operators={Operators} />;
 }
