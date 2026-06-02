@@ -338,7 +338,7 @@ def _dps_display_title(lesson_number: int, dps_number: int) -> str:
     sections = _dps_sections(lesson_number, dps_number)
     if len(sections) <= 1:
         return _dps_title(lesson_number, dps_number)
-    return " + ".join(section["sectionTitle"] for section in sections)
+    return ", ".join(section["sectionTitle"] for section in sections)
 
 
 def _dps_question_count(lesson_number: int, dps_number: int) -> int:
