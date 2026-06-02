@@ -40,7 +40,7 @@ export function QuestionCard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(180px,1fr)_minmax(340px,440px)] xl:items-center">
+      <div className="mt-4 grid gap-5 xl:grid-cols-2 xl:items-center">
         <div className="flex min-w-0 items-center justify-center rounded-[24px] bg-slate-50/90 p-3 dark:bg-slate-900/70 sm:p-4">
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
