@@ -374,6 +374,22 @@ export default function AdminCurriculumPage() {
   );
 }
 
+
+function GetPreviewDisplayMode(question: AdminPreviewQuestion): string {
+  return String((question as any).displayType ?? (question as any).display_type ?? "").trim().toUpperCase();
+}
+
+function IsWideWorkbookPreview(DisplayMode: string): boolean {
+  return [
+    "EXPRESSION",
+    "EXPRESSION_WORKSHEET",
+    "ANSWER_POSITION",
+    "OPERATION_ROW",
+    "WORKBOOK_OPERATION",
+    "WORKBOOK_OPERATION_ROW",
+  ].includes(DisplayMode);
+}
+
 function PreviewQuestionCard({
   question,
   showCorrectAnswers,
@@ -384,11 +400,19 @@ function PreviewQuestionCard({
   const options = [...(question.options ?? [])].sort(
     (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
   );
+  const DisplayMode = GetPreviewDisplayMode(question);
+  const UsesWideWorkbookPreview = IsWideWorkbookPreview(DisplayMode);
+  const QuestionColumnClass = UsesWideWorkbookPreview
+    ? "lg:w-[520px] xl:w-[600px] lg:shrink-0"
+    : "lg:w-[260px] lg:shrink-0";
+  const OptionGridClass = UsesWideWorkbookPreview
+    ? "grid flex-1 gap-3 xl:grid-cols-2"
+    : "grid flex-1 gap-3 sm:grid-cols-2";
 
   return (
     <div className="math-card p-5 sm:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="lg:w-[260px] lg:shrink-0">
+        <div className={QuestionColumnClass}>
           <p className="text-sm font-bold text-slate-900 dark:text-white">
             Question {question.question_number}
           </p>
@@ -397,13 +421,13 @@ function PreviewQuestionCard({
             <MathQuestionDisplay
               operands={question.operands}
               operators={question.operators}
-              displayType={(question as any).displayType ?? (question as any).display_type}
+              displayType={DisplayMode}
               questionText={(question as any).questionText ?? (question as any).question_text}
             />
           </div>
         </div>
 
-        <div className="grid flex-1 gap-3 sm:grid-cols-2">
+        <div className={OptionGridClass}>
           {options.map((option) => {
             const isCorrect = Boolean(option.is_correct);
             const optionStateClass = showCorrectAnswers && isCorrect
@@ -417,9 +441,9 @@ function PreviewQuestionCard({
             return (
               <div
                 key={`${option.label}-${option.value}`}
-                className={`flex min-h-[72px] items-center gap-3 rounded-2xl border px-4 py-3.5 text-base font-semibold transition-all duration-200 ${optionStateClass}`}
+                className={`flex min-h-[58px] items-center gap-3 rounded-2xl border px-4 py-3 text-base font-semibold transition-all duration-200 ${optionStateClass}`}
               >
-                <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-black ${pillClass}`}>
+                <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${pillClass}`}>
                   {option.label}
                 </span>
 
