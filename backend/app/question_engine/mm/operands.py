@@ -357,12 +357,12 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
 
 
 def GeneratePercentageValue(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
-    Stage = DifficultyStage(QuestionNumber - 1)
-    BaseMin, BaseMax = {"WARM_UP": (100, 500), "STANDARD": (200, 1000), "MIXED_STEP": (500, 2500), "ADVANCED": (1000, 5000), "CHALLENGE": (2500, 12000)}.get(Stage, (100, 500))
-    Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, 10))
-    Percent = Decimal(Rng.choice([5, 10, 12, 15, 20, 25, 30, 40, 50, 60, 75]))
-    CorrectAnswer = _Quantize(Base * Percent / Decimal(100), 2)
-    return [_AsDisplayNumber(Percent), _AsDisplayNumber(Base)], ["", "% of"], CorrectAnswer, {"percentage_mode": "VALUE"}
+    # Percentage calculation format (for example, "25% of 800") is currently
+    # disabled for MM because the workbook convention for active percentage
+    # sheets is Add/Less Percentage only: base + percent% or base - percent%.
+    # Keep this safe fallback so old/ambiguous concept routing cannot leak
+    # percentage-calculation questions into Add/Less Percentage sheets.
+    return GeneratePercentageAddLess(Config, Rng, QuestionNumber)
 
 
 def GeneratePercentageIncreaseDecrease(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
