@@ -164,12 +164,17 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "INTEGERS"
     if HasBodmas:
         return "BODMAS"
-    if HasPercentage and HasAddLess:
+    # MathPath MM percentage convention: percentage calculation sheets such as
+    # "25% of 800" are intentionally disabled until explicitly requested.
+    # Any Add/Less/Percentage section must render as workbook-style
+    # base + percent% or base - percent%, including single-section
+    # "Add Percentage" and "Less Percentage" titles.
+    if HasPercentage and (HasAddLess or "add" in Text or "less" in Text):
         return "PERCENTAGE_ADD_LESS"
     if HasPercentage and HasIncreaseDecrease:
         return "PERCENTAGE_INCREASE_DECREASE"
     if HasPercentage:
-        return "PERCENTAGE_VALUE"
+        return "PERCENTAGE_ADD_LESS"
 
     if HasDecimal and HasAddLess:
         return "DECIMAL_ADD_LESS"
