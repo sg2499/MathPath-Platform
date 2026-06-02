@@ -413,28 +413,53 @@ def _FinancialMode(Config: MMConfig, QuestionNumber: int) -> str:
     return "PROFIT" if QuestionNumber % 2 == 1 else "LOSS"
 
 
+def _ProfitLossVariant(Config: MMConfig, QuestionNumber: int) -> str:
+    Text = f" {Config.DpsTitle} ".lower()
+    HasProfit = "profit" in Text
+    HasLoss = "loss" in Text
+
+    if HasProfit and not HasLoss:
+        Sequence = ["PROFIT", "PROFIT_PERCENT"]
+    elif HasLoss and not HasProfit:
+        Sequence = ["LOSS", "LOSS_PERCENT"]
+    else:
+        # A generic Profit/Loss section must cover all four workbook variants
+        # instead of alternating only Profit and Loss %.
+        Sequence = ["PROFIT", "PROFIT_PERCENT", "LOSS", "LOSS_PERCENT"]
+
+    return Sequence[(QuestionNumber - 1) % len(Sequence)]
+
+
 def GenerateProfitLoss(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Minimum, Maximum = _MoneyRange(Config, Stage)
     CostPrice = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
     Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
-    Mode = _FinancialMode(Config, QuestionNumber)
+    Variant = _ProfitLossVariant(Config, QuestionNumber)
+    IsLoss = Variant.startswith("LOSS")
 
-    if Mode == "LOSS":
-        Change = _CleanMoney(CostPrice * Percent / Decimal(100))
-        SellingPrice = _CleanMoney(CostPrice - Change)
-        CorrectAnswer = Change if QuestionNumber % 2 == 1 else Percent
-        QuestionText = "Find Loss" if QuestionNumber % 2 == 1 else "Find Loss %"
-        AnswerKind = "LOSS" if QuestionNumber % 2 == 1 else "LOSS_PERCENT"
+    Change = _CleanMoney(CostPrice * Percent / Decimal(100))
+    SellingPrice = _CleanMoney(CostPrice - Change) if IsLoss else _CleanMoney(CostPrice + Change)
+
+    if Variant == "LOSS":
+        CorrectAnswer = Change
+        QuestionText = "Find Loss"
+        AnswerKind = "LOSS"
+    elif Variant == "LOSS_PERCENT":
+        CorrectAnswer = Percent
+        QuestionText = "Find Loss %"
+        AnswerKind = "LOSS_PERCENT"
+    elif Variant == "PROFIT_PERCENT":
+        CorrectAnswer = Percent
+        QuestionText = "Find Profit %"
+        AnswerKind = "PROFIT_PERCENT"
     else:
-        Change = _CleanMoney(CostPrice * Percent / Decimal(100))
-        SellingPrice = _CleanMoney(CostPrice + Change)
-        CorrectAnswer = Change if QuestionNumber % 2 == 1 else Percent
-        QuestionText = "Find Profit" if QuestionNumber % 2 == 1 else "Find Profit %"
-        AnswerKind = "PROFIT" if QuestionNumber % 2 == 1 else "PROFIT_PERCENT"
+        CorrectAnswer = Change
+        QuestionText = "Find Profit"
+        AnswerKind = "PROFIT"
 
     return [_AsDisplayNumber(CostPrice), _AsDisplayNumber(SellingPrice)], ["Cost Price", "Selling Price"], _CleanMoney(CorrectAnswer), {
-        "financial_mode": Mode,
+        "financial_mode": "LOSS" if IsLoss else "PROFIT",
         "answer_kind": AnswerKind,
         "question_text": QuestionText,
         "cost_price": _AsDisplayNumber(CostPrice),
