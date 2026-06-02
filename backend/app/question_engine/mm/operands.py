@@ -30,6 +30,41 @@ def _NumberRange(Stage: str) -> tuple[int, int]:
     }
     return Ranges.get(Stage, (10, 99))
 
+def _LessonBand(Config: MMConfig) -> int:
+    LessonNumber = max(1, min(30, int(Config.LessonNumber or 1)))
+    return min(6, ((LessonNumber - 1) // 5) + 1)
+
+
+def _ScaleRangeByLesson(Minimum: int, Maximum: int, Config: MMConfig) -> tuple[int, int]:
+    Band = _LessonBand(Config)
+    Scale = [1, 1, 2, 3, 5, 7][Band - 1]
+    return max(1, Minimum * Scale), max(2, Maximum * Scale)
+
+
+def _IsDecimalConcept(Config: MMConfig) -> bool:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    return "decimal" in Text
+
+
+def _AddLessDecimalPlaces(Config: MMConfig, Stage: str) -> int:
+    if not _IsDecimalConcept(Config):
+        return 0
+    Band = _LessonBand(Config)
+    if Band <= 2:
+        return 1 if Stage == "WARM_UP" else 2
+    return 2
+
+
+def _AddLessRowCount(Config: MMConfig, Stage: str) -> int:
+    Band = _LessonBand(Config)
+    if Stage in {"WARM_UP", "STANDARD"}:
+        return 3
+    if Band <= 2:
+        return 4
+    if Band <= 4:
+        return 5
+    return 6
+
 
 def _Quantize(Value: Decimal, Places: int) -> Decimal:
     Unit = Decimal("1") if Places <= 0 else Decimal("1").scaleb(-Places)
@@ -113,11 +148,12 @@ def _DivisionDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
     return 5, 3
 
 
-def GenerateDecimalAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    Places = _DecimalPlaces(Stage)
-    Minimum, Maximum = _NumberRange(Stage)
-    RowCount = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
+    Places = _AddLessDecimalPlaces(Config, Stage)
+    Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
+    RowCount = _AddLessRowCount(Config, Stage)
+
     Values: list[Decimal] = [_RandDecimal(Rng, Minimum, Maximum, Places)]
     Operators = [""]
     RunningTotal = Values[0]
@@ -125,21 +161,37 @@ def GenerateDecimalAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber:
     for RowIndex in range(1, RowCount):
         Sign = Rng.choice(["+", "-"])
         Value = _RandDecimal(Rng, max(1, Minimum // 4), max(2, Maximum // 3), Places)
+
+        # Workbook-style Add/Less sheets should remain solvable and non-negative unless
+        # the sheet explicitly belongs to an integer/negative-answer concept.
         if Sign == "-" and RunningTotal - Value < 0:
             Sign = "+"
+
         Operators.append(Sign)
         Values.append(Value)
         RunningTotal = RunningTotal + Value if Sign == "+" else RunningTotal - Value
 
     CorrectAnswer = _Quantize(RunningTotal, Places)
-    SignedOperands = [Values[0]] + [Values[Index] if Operators[Index] == "+" else -Values[Index] for Index in range(1, len(Values))]
-    return [_AsDisplayNumber(Value) for Value in SignedOperands], Operators, CorrectAnswer, {"decimal_places": Places, "row_count": RowCount}
+    SignedOperands = [Values[0]] + [
+        Values[Index] if Operators[Index] == "+" else -Values[Index]
+        for Index in range(1, len(Values))
+    ]
+    return [_AsDisplayNumber(Value) for Value in SignedOperands], Operators, CorrectAnswer, {
+        "decimal_places": Places,
+        "row_count": RowCount,
+        "lesson_band": _LessonBand(Config),
+        "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
+    }
+
+
+def GenerateDecimalAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    return GenerateAddLess(Config, Rng, QuestionNumber)
 
 
 def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Places = 1 if Stage in {"WARM_UP", "STANDARD", "MIXED_STEP"} else 2
-    Minimum, Maximum = _NumberRange(Stage)
+    Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
     Left = _RandDecimal(Rng, max(2, Minimum // 5), max(8, Maximum // 20), Places)
     Right = Decimal(Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 99))
     if Stage in {"ADVANCED", "CHALLENGE"} and Rng.random() < 0.55:
@@ -152,7 +204,8 @@ def GenerateDecimalDivision(Config: MMConfig, Rng: random.Random, QuestionNumber
     Stage = DifficultyStage(QuestionNumber - 1)
     Places = 1 if Stage in {"WARM_UP", "STANDARD"} else 2
     Divisor = Decimal(Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 25))
-    Quotient = _RandDecimal(Rng, 2, 40 if Stage in {"WARM_UP", "STANDARD"} else 250, Places)
+    QuotientLimit = (40 if Stage in {"WARM_UP", "STANDARD"} else 250) * _LessonBand(Config)
+    Quotient = _RandDecimal(Rng, 2, QuotientLimit, Places)
     Dividend = _Quantize(Quotient * Divisor, Places)
     return [_AsDisplayNumber(Dividend), _AsDisplayNumber(Divisor)], ["", "÷"], Quotient, {"decimal_places": Places}
 
@@ -184,7 +237,7 @@ def GenerateWholeNumberDivision(Config: MMConfig, Rng: random.Random, QuestionNu
 
 def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    MaxAbs = {"WARM_UP": 20, "STANDARD": 50, "MIXED_STEP": 100, "ADVANCED": 250, "CHALLENGE": 500}.get(Stage, 50)
+    MaxAbs = {"WARM_UP": 20, "STANDARD": 50, "MIXED_STEP": 100, "ADVANCED": 250, "CHALLENGE": 500}.get(Stage, 50) * _LessonBand(Config)
     RowCount = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
     Values = [Rng.randint(-MaxAbs, MaxAbs) or Rng.choice([-1, 1])]
     Operators = [""]
@@ -200,7 +253,7 @@ def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) 
 
 def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    MaxValue = {"WARM_UP": 9, "STANDARD": 15, "MIXED_STEP": 25, "ADVANCED": 50, "CHALLENGE": 99}.get(Stage, 15)
+    MaxValue = {"WARM_UP": 9, "STANDARD": 15, "MIXED_STEP": 25, "ADVANCED": 50, "CHALLENGE": 99}.get(Stage, 15) * _LessonBand(Config)
     A = Rng.randint(2, MaxValue)
     B = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 15)
     C = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 20)
@@ -229,19 +282,50 @@ def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) ->
 
 def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    BaseMin, BaseMax = {"WARM_UP": (100, 500), "STANDARD": (200, 1000), "MIXED_STEP": (500, 2500), "ADVANCED": (1000, 5000), "CHALLENGE": (2500, 12000)}.get(Stage, (100, 500))
-    Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, 10))
-    PercentChoices = [5, 10, 15, 20, 25, 30, 40, 50]
-    if Stage in {"ADVANCED", "CHALLENGE"}:
-        PercentChoices.extend([12, 18, 22, 35, 45])
+    Band = _LessonBand(Config)
+    BaseRanges = {
+        1: (100, 500),
+        2: (200, 1000),
+        3: (500, 2500),
+        4: (1000, 6000),
+        5: (2500, 12000),
+        6: (5000, 25000),
+    }
+    BaseMin, BaseMax = BaseRanges.get(Band, (100, 500))
 
-    Percent = Decimal(Rng.choice(PercentChoices))
-    Operator = Rng.choice(["+%", "-%"])
-    Factor = Decimal("1") + Percent / Decimal(100) if Operator == "+%" else Decimal("1") - Percent / Decimal(100)
-    CorrectAnswer = _Quantize(Base * Factor, 2)
-    Operands = [Base, Percent]
-    Operators = ["", Operator]
-    return [_AsDisplayNumber(Value) for Value in Operands], Operators, CorrectAnswer, {"percentage_mode": "ADD_LESS", "base_amount": _AsDisplayNumber(Base), "parts": 2}
+    if Stage in {"WARM_UP", "STANDARD"}:
+        PercentChoices = [5, 10, 15, 20, 25, 30, 40, 50]
+    elif Stage == "MIXED_STEP":
+        PercentChoices = [5, 8, 10, 12, 15, 18, 20, 22, 25, 30, 35, 45]
+    elif Stage == "ADVANCED":
+        PercentChoices = [2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 35, 45]
+    else:
+        PercentChoices = [0.5, 1, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 40, 50]
+
+    Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, 10))
+    if Band >= 4 and Rng.random() < 0.35:
+        Base = _RandDecimal(Rng, BaseMin, BaseMax, 2)
+
+    Percent = Decimal(str(Rng.choice(PercentChoices)))
+    Text = f" {Config.DpsTitle} ".lower()
+    if "less" in Text and "add" not in Text:
+        Operator = "-%"
+    elif "add" in Text and "less" not in Text:
+        Operator = "+%"
+    else:
+        Operator = Rng.choice(["+%", "-%"])
+
+    PercentValue = Base * Percent / Decimal(100)
+    CorrectAnswer = Base + PercentValue if Operator == "+%" else Base - PercentValue
+    CorrectAnswer = _Quantize(CorrectAnswer, 2)
+
+    return [_AsDisplayNumber(Base), _AsDisplayNumber(Percent)], ["", Operator], CorrectAnswer, {
+        "percentage_mode": "ADD_LESS",
+        "base_amount": _AsDisplayNumber(Base),
+        "percentage_operator": Operator,
+        "two_part_only": True,
+        "lesson_band": Band,
+    }
 
 
 def GeneratePercentageValue(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
@@ -259,6 +343,8 @@ def GeneratePercentageIncreaseDecrease(Config: MMConfig, Rng: random.Random, Que
 
 def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     ConceptFamily = Config.ConceptFamily
+    if ConceptFamily == "ADD_LESS":
+        return GenerateAddLess(Config, Rng, QuestionNumber)
     if ConceptFamily == "DECIMAL_ADD_LESS":
         return GenerateDecimalAddLess(Config, Rng, QuestionNumber)
     if ConceptFamily == "DECIMAL_MULTIPLICATION":

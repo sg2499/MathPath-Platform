@@ -20,6 +20,7 @@ class MMConfig:
 
 
 PACKAGE_1_CONCEPTS = {
+    "ADD_LESS",
     "DECIMAL_ADD_LESS",
     "DECIMAL_MULTIPLICATION",
     "DECIMAL_DIVISION",
@@ -56,10 +57,13 @@ def NormaliseText(Value: str | None) -> str:
 
 def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     TitleText = NormaliseText(DpsTitle)
-    GenericTitleTokens = ("skill stacker", "concept drill")
-    if TitleText == "visual practice":
-        TitleText = "add less visual"
 
+    # A plain MM "Visual Practice" sheet is an Add/Less visual stack sheet.
+    # Do not inherit BODMAS/multiplication words from the lesson title for this case.
+    if TitleText in {"visual practice", "add less visual", "visual add less"}:
+        return "ADD_LESS"
+
+    GenericTitleTokens = ("visual practice", "skill stacker", "concept drill")
     HasTitleSignal = any(
         Token in TitleText
         for Token in (
@@ -73,7 +77,6 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
             "5d",
             "6d",
             "add less",
-            "visual add less",
             "integers",
             "integer",
             "bodmas",
@@ -111,7 +114,7 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     if HasDecimal and HasAddLess:
         return "DECIMAL_ADD_LESS"
     if HasAddLess:
-        return "DECIMAL_ADD_LESS"
+        return "ADD_LESS"
     if HasDecimal and HasMultiplication and HasDivision:
         return "MULTIPLICATION_DIVISION_MIXED"
     if HasDecimal and HasMultiplication:

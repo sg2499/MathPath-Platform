@@ -1,101 +1,79 @@
-import type { CSSProperties } from "react";
-
-type StackToken = number | string | null | undefined;
+type StackToken = number | string;
 
 type StackRow = {
-  sign: string;
+  operator: string;
   value: string;
 };
 
-function NormaliseOperator(operator?: StackToken): string {
-  return String(operator ?? "")
-    .trim()
-    .replace("−", "-")
-    .replace("–", "-")
-    .replace("*", "×")
-    .replace("x", "×")
-    .replace("X", "×")
-    .replace("/", "÷");
+function FormatStackValue(Value: StackToken): string {
+  if (typeof Value === "number") {
+    if (Number.isInteger(Value)) return String(Value);
+    return String(Number(Value.toFixed(8))).replace(/\.0+$/, "");
+  }
+
+  return String(Value ?? "").trim();
 }
 
-function IsOperatorToken(value: StackToken): boolean {
-  const Token = NormaliseOperator(value);
-  return Token === "+" || Token === "-" || Token === "×" || Token === "÷";
+function IsStandaloneOperator(Value: StackToken): boolean {
+  const Text = FormatStackValue(Value);
+  return ["+", "-", "−", "×", "x", "X", "÷", "/"].includes(Text);
 }
 
-function FormatStackValue(value: StackToken): string {
-  const RawValue = String(value ?? "").trim();
-  const NumericValue = Number(RawValue);
-
-  if (!Number.isFinite(NumericValue)) return RawValue;
-
-  const AbsoluteValue = Math.abs(NumericValue);
-  if (Number.isInteger(AbsoluteValue)) return String(AbsoluteValue);
-
-  return String(Number(AbsoluteValue.toFixed(8))).replace(/\.0+$/, "");
+function IsSubtractionOperator(Value: string): boolean {
+  return Value === "-" || Value === "−";
 }
 
-function OperatorForNumberRow({
-  operators,
-  numberIndex,
-  rawIndex,
-}: {
-  operators: string[];
-  numberIndex: number;
-  rawIndex: number;
-}): string {
-  const Candidates = [
-    operators[numberIndex],
-    operators[numberIndex - 1],
-    operators[rawIndex],
-    operators[rawIndex - 1],
-  ];
-
-  return Candidates.find((operator) => NormaliseOperator(operator)) ?? "";
+function IsAdditionOperator(Value: string): boolean {
+  return Value === "+";
 }
 
-function BuildStackRows({
-  operands,
-  operators,
-}: {
-  operands: StackToken[];
-  operators: string[];
-}): StackRow[] {
+function NormaliseOperator(Value: string): string {
+  const Text = String(Value || "").trim();
+  if (Text === "-" || Text === "−") return "−";
+  if (Text === "x" || Text === "X") return "×";
+  if (Text === "/") return "÷";
+  return Text;
+}
+
+function IsNumericText(Value: string): boolean {
+  if (!Value) return false;
+  return !Number.isNaN(Number(Value));
+}
+
+function BuildStackRows(Operands: StackToken[], Operators: string[] = []): StackRow[] {
   const Rows: StackRow[] = [];
   let PendingOperator = "";
-  let NumberIndex = 0;
 
-  operands.forEach((operand, rawIndex) => {
-    const OperandOperator = IsOperatorToken(operand) ? NormaliseOperator(operand) : "";
+  Operands.forEach((Operand, Index) => {
+    const OperandText = FormatStackValue(Operand);
 
-    if (OperandOperator) {
-      PendingOperator = OperandOperator;
+    if (IsStandaloneOperator(Operand)) {
+      PendingOperator = OperandText;
       return;
     }
 
-    const Value = FormatStackValue(operand);
-    if (!Value) return;
+    const OperatorFromArray = Index === 0 ? "" : String(Operators[Index] || "").trim();
+    const RawOperator = PendingOperator || OperatorFromArray;
+    PendingOperator = "";
 
-    const NumericValue = Number(operand);
-    const StoredOperator = PendingOperator || OperatorForNumberRow({ operators, numberIndex: NumberIndex, rawIndex });
-    const NormalisedOperator = NormaliseOperator(StoredOperator);
-    const IsNegativeValue = Number.isFinite(NumericValue) && NumericValue < 0;
+    let DisplayOperator = "";
+    let DisplayValue = OperandText;
 
-    let Sign = "";
-
-    if (NumberIndex > 0 && (IsNegativeValue || NormalisedOperator === "-")) {
-      Sign = "−";
-    } else if (NormalisedOperator === "×" || NormalisedOperator === "÷") {
-      Sign = NormalisedOperator;
+    if (typeof Operand === "number" && Operand < 0) {
+      DisplayOperator = "−";
+      DisplayValue = FormatStackValue(Math.abs(Operand));
+    } else if (typeof Operand === "string" && OperandText.startsWith("-") && IsNumericText(OperandText)) {
+      DisplayOperator = "−";
+      DisplayValue = OperandText.slice(1);
+    } else if (IsSubtractionOperator(RawOperator)) {
+      DisplayOperator = "−";
+    } else if (IsAdditionOperator(RawOperator)) {
+      DisplayOperator = "";
+    } else {
+      DisplayOperator = NormaliseOperator(RawOperator);
     }
 
-    Rows.push({
-      sign: Sign,
-      value: Value,
-    });
-
-    PendingOperator = "";
-    NumberIndex += 1;
+    Rows.push({ operator: DisplayOperator, value: DisplayValue });
   });
 
   return Rows;
@@ -106,46 +84,40 @@ export function VerticalQuestion({
   operators,
 }: {
   operands: StackToken[];
-  operators: string[];
+  operators?: string[];
 }) {
-  const StackRows = BuildStackRows({ operands, operators });
-  const NumericOperands = StackRows.map((row) => Number(row.value));
-  const HasDecimalOperand = NumericOperands.some((operand) => Number.isFinite(operand) && !Number.isInteger(operand));
-  const LongestOperandLength = StackRows.reduce<number>((length, row) => Math.max(length, row.value.length), 0);
-  const NeedsWideNumberColumn = HasDecimalOperand || LongestOperandLength >= 4;
-  const NumberColumnWidth = NeedsWideNumberColumn
-    ? `minmax(${Math.max(5.6, LongestOperandLength * 0.72)}rem, max-content)`
-    : "minmax(2.8rem, max-content)";
-  const StackGridStyle: CSSProperties = {
-    gridTemplateColumns: `1.15rem ${NumberColumnWidth}`,
+  const StackRows = BuildStackRows(operands || [], operators || []);
+  const LongestValueLength = StackRows.reduce((Length, Row) => Math.max(Length, Row.value.length), 1);
+  const NeedsWideColumn = LongestValueLength >= 5 || StackRows.some((Row) => Row.value.includes("."));
+  const NumberColumnStyle = {
+    minWidth: NeedsWideColumn ? "6.75rem" : "3.75rem",
   };
-  const FontSizeClass = NeedsWideNumberColumn
-    ? "text-[21px] sm:text-[26px] xl:text-[30px]"
-    : "text-[34px] sm:text-[42px] xl:text-[46px]";
 
   return (
-    <div className="mx-auto w-fit max-w-full rounded-[20px] bg-white px-4 py-4 text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5 sm:py-5">
-      <div className={`font-mono ${FontSizeClass} font-black leading-[1.18]`}>
-        {StackRows.map((row, index) => (
+    <div className="mx-auto w-fit rounded-[20px] bg-white px-4 py-4 text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5 sm:py-4">
+      <div className="font-mono text-[26px] font-black leading-[1.18] sm:text-[32px]">
+        {StackRows.map((Row, Index) => (
           <div
-            key={`${row.sign}-${row.value}-${index}`}
-            className="grid items-baseline justify-end gap-1 text-right"
-            style={StackGridStyle}
+            key={`${Row.operator}-${Row.value}-${Index}`}
+            className="grid items-baseline gap-1.5"
+            style={{ gridTemplateColumns: "1.35rem max-content" }}
           >
-            <span className="whitespace-nowrap text-right tabular-nums">{row.sign}</span>
-            <span className="whitespace-nowrap text-right tabular-nums">{row.value}</span>
+            <span className="text-center">{Row.operator}</span>
+            <span className="whitespace-nowrap text-right tabular-nums" style={NumberColumnStyle}>
+              {Row.value}
+            </span>
           </div>
         ))}
       </div>
 
-      <div className="my-2 border-t-[3px] border-slate-800 dark:border-slate-200" />
+      <div className="my-2.5 border-t-[3px] border-slate-800 dark:border-slate-200" />
 
       <div
-        className={`grid gap-1 text-right font-mono ${FontSizeClass} font-black leading-[1.18] text-blue-700 dark:text-cyan-300`}
-        style={StackGridStyle}
+        className="grid items-baseline gap-1.5 text-right font-mono text-[26px] font-black text-blue-700 dark:text-cyan-300 sm:text-[32px]"
+        style={{ gridTemplateColumns: "1.35rem max-content" }}
       >
-        <span></span>
-        <span className="whitespace-nowrap text-right">?</span>
+        <span />
+        <span className="whitespace-nowrap text-right tabular-nums" style={NumberColumnStyle}>?</span>
       </div>
     </div>
   );

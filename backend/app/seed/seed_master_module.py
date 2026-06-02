@@ -258,7 +258,7 @@ def _section_config(lesson_number: int, dps_number: int) -> dict:
         "seedMode": "DYNAMIC_MASTER_MODULE",
         "durationSeconds": DPS_DURATION_SECONDS,
         "manualReviewRequiredBeforePublishing": True,
-        "generatorPackage": "MM_PACKAGE_2_INTEGERS_BODMAS_PERCENTAGE",
+        "generatorPackage": "MM_PACKAGE_2_LESSON_AWARE_SPIRAL",
     }
 
 

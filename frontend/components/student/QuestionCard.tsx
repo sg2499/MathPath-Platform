@@ -40,12 +40,12 @@ export function QuestionCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col gap-5 xl:flex-row xl:items-center">
-        <div className="w-fit max-w-full shrink-0 rounded-[24px] bg-slate-50/90 p-3 dark:bg-slate-900/70 sm:p-4 xl:max-w-[calc(100%-420px)]">
+      <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(180px,1fr)_minmax(340px,440px)] xl:items-center">
+        <div className="flex min-w-0 items-center justify-center rounded-[24px] bg-slate-50/90 p-3 dark:bg-slate-900/70 sm:p-4">
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
 
-        <div className="grid min-w-[320px] flex-1 gap-3 sm:grid-cols-2 xl:min-w-[380px]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:self-center">
           {question.options.map((option) => (
             <OptionButton
               key={option.optionId}
