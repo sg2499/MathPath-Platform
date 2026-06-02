@@ -391,7 +391,7 @@ function PreviewQuestionCard({
         Question {question.question_number}
       </p>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(180px,1fr)_minmax(340px,440px)] lg:items-center">
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-center">
         <div className="flex min-w-0 items-center justify-center rounded-[22px] border border-slate-100 bg-slate-50/60 px-4 py-4 dark:border-slate-700/70 dark:bg-slate-900/55">
           <MathQuestionDisplay
             operands={question.operands as Array<number | string>}
@@ -415,7 +415,7 @@ function PreviewQuestionCard({
             return (
               <div
                 key={`${option.label}-${option.value}`}
-                className={`flex min-h-[58px] items-center gap-3 rounded-2xl border px-4 py-3 text-base font-semibold transition-all duration-200 ${optionStateClass}`}
+                className={`flex min-h-[70px] items-center gap-3 rounded-2xl border px-4 py-3.5 text-base font-semibold transition-all duration-200 ${optionStateClass}`}
               >
                 <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${pillClass}`}>
                   {option.label}
