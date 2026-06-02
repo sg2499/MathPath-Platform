@@ -1,5 +1,7 @@
-function NormaliseOperator(operator?: string | null): string {
-  return String(operator || "")
+import type { CSSProperties } from "react";
+
+function NormaliseOperator(operator?: string | number | null): string {
+  return String(operator ?? "")
     .trim()
     .replace("−", "-")
     .replace("–", "-")
@@ -10,34 +12,38 @@ function NormaliseOperator(operator?: string | null): string {
 }
 
 function IsOperatorToken(value: number | string): boolean {
-  const Token = NormaliseOperator(String(value));
+  const Token = NormaliseOperator(value);
   return Token === "+" || Token === "-" || Token === "×" || Token === "÷";
 }
 
-function GetOperatorForNumberRow({
+function FormatStackValue(value: number | string): string {
+  const NumericValue = Number(value);
+
+  if (!Number.isFinite(NumericValue)) return String(value);
+
+  const AbsoluteValue = Math.abs(NumericValue);
+  if (Number.isInteger(AbsoluteValue)) return String(AbsoluteValue);
+
+  return String(Number(AbsoluteValue.toFixed(8))).replace(/\.0+$/, "");
+}
+
+function OperatorForNumberRow({
   operators,
   numberIndex,
 }: {
   operators: string[];
   numberIndex: number;
 }): string {
-  if (numberIndex === 0) return "";
+  const DirectOperator = operators[numberIndex];
+  const PreviousOperator = operators[numberIndex - 1];
 
-  // Generators usually store operators between operands, so the operator that
-  // applies to number row N is operators[N - 1]. Some older records stored a
-  // same-length operator array, so fall back safely without changing data.
-  return operators[numberIndex - 1] ?? operators[numberIndex] ?? "";
-}
-
-function FormatStackValue(operand: number | string): string {
-  const NumericOperand = Number(operand);
-
-  if (!Number.isFinite(NumericOperand)) return String(operand);
-
-  const AbsoluteValue = Math.abs(NumericOperand);
-  if (Number.isInteger(AbsoluteValue)) return String(AbsoluteValue);
-
-  return String(Number(AbsoluteValue.toFixed(8))).replace(/\.0+$/, "");
+  // YLM records often store an operator for every operand. Older MM records may
+  // store operators between operands. This keeps both formats safe.
+  if (DirectOperator === "+" || DirectOperator === "-") return DirectOperator;
+  if (PreviousOperator === "+" || PreviousOperator === "-") return PreviousOperator;
+  if (DirectOperator) return DirectOperator;
+  if (PreviousOperator) return PreviousOperator;
+  return "";
 }
 
 function BuildStackRows({
@@ -48,24 +54,28 @@ function BuildStackRows({
   operators: string[];
 }) {
   const Rows: Array<{ sign: string; value: string }> = [];
-  let PendingInlineOperator = "";
+  let PendingOperator = "";
   let NumberIndex = 0;
 
   operands.forEach((operand) => {
-    const InlineOperator = IsOperatorToken(operand) ? NormaliseOperator(String(operand)) : "";
+    const OperandOperator = IsOperatorToken(operand) ? NormaliseOperator(operand) : "";
 
-    if (InlineOperator) {
-      PendingInlineOperator = InlineOperator;
+    if (OperandOperator) {
+      PendingOperator = OperandOperator;
       return;
     }
 
-    const NumericOperand = Number(operand);
-    const StoredOperator = PendingInlineOperator || GetOperatorForNumberRow({ operators, numberIndex: NumberIndex });
+    const NumericValue = Number(operand);
+    const StoredOperator = PendingOperator || OperatorForNumberRow({ operators, numberIndex: NumberIndex });
     const NormalisedOperator = NormaliseOperator(StoredOperator);
-    const IsNegative = Number.isFinite(NumericOperand) && NumericOperand < 0;
+    const IsNegativeValue = Number.isFinite(NumericValue) && NumericValue < 0;
 
     let Sign = "";
-    if (IsNegative || NormalisedOperator === "-") {
+
+    // Global Add/Less convention:
+    // Addition is blank by default. Only subtraction shows a minus sign on the
+    // same row, in the fixed operator column to the left of the number.
+    if (IsNegativeValue || NormalisedOperator === "-") {
       Sign = "−";
     } else if (NormalisedOperator === "×" || NormalisedOperator === "÷") {
       Sign = NormalisedOperator;
@@ -76,7 +86,7 @@ function BuildStackRows({
       value: FormatStackValue(operand),
     });
 
-    PendingInlineOperator = "";
+    PendingOperator = "";
     NumberIndex += 1;
   });
 
@@ -97,11 +107,14 @@ export function VerticalQuestion({
   const HasDecimalOperand = NumericOperands.some((operand) => Number.isFinite(operand) && !Number.isInteger(operand));
   const LongestOperandLength = StackRows.reduce<number>((length, row) => Math.max(length, row.value.length), 0);
   const NeedsWideNumberColumn = HasDecimalOperand || LongestOperandLength >= 4;
-  const NumberColumnClass = NeedsWideNumberColumn
-    ? "minmax(8.75rem,max-content) sm:minmax(10rem,max-content)"
-    : "minmax(5.6rem,max-content) sm:minmax(6.8rem,max-content)";
+  const NumberColumnWidth = NeedsWideNumberColumn
+    ? `minmax(${Math.max(7.5, LongestOperandLength * 1.05)}rem, max-content)`
+    : "minmax(4.8rem, max-content)";
+  const StackGridStyle: CSSProperties = {
+    gridTemplateColumns: `2.2rem ${NumberColumnWidth}`,
+  };
   const FontSizeClass = NeedsWideNumberColumn
-    ? "text-[28px] sm:text-[36px]"
+    ? "text-[25px] sm:text-[32px]"
     : "text-[34px] sm:text-[46px]";
 
   return (
@@ -110,7 +123,8 @@ export function VerticalQuestion({
         {StackRows.map((row, index) => (
           <div
             key={`${row.sign}-${row.value}-${index}`}
-            className={`grid grid-cols-[2.35rem_${NumberColumnClass}] justify-end gap-2 text-right sm:grid-cols-[2.75rem_${NumberColumnClass}]`}
+            className="grid justify-end gap-1 text-right"
+            style={StackGridStyle}
           >
             <span className="whitespace-nowrap text-right tabular-nums">{row.sign}</span>
             <span className="whitespace-nowrap text-right tabular-nums">{row.value}</span>
@@ -120,7 +134,10 @@ export function VerticalQuestion({
 
       <div className="my-2.5 border-t-[4px] border-slate-800 dark:border-slate-200" />
 
-      <div className={`grid grid-cols-[2.35rem_${NumberColumnClass}] gap-2 text-right font-mono ${FontSizeClass} font-black text-blue-700 dark:text-cyan-300 sm:grid-cols-[2.75rem_${NumberColumnClass}]`}>
+      <div
+        className={`grid gap-1 text-right font-mono ${FontSizeClass} font-black text-blue-700 dark:text-cyan-300`}
+        style={StackGridStyle}
+      >
         <span></span>
         <span className="whitespace-nowrap text-right">?</span>
       </div>
