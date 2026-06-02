@@ -1,9 +1,9 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
@@ -374,22 +374,6 @@ export default function AdminCurriculumPage() {
   );
 }
 
-
-function GetPreviewDisplayMode(question: AdminPreviewQuestion): string {
-  return String((question as any).displayType ?? (question as any).display_type ?? "").trim().toUpperCase();
-}
-
-function IsWideWorkbookPreview(DisplayMode: string): boolean {
-  return [
-    "EXPRESSION",
-    "EXPRESSION_WORKSHEET",
-    "ANSWER_POSITION",
-    "OPERATION_ROW",
-    "WORKBOOK_OPERATION",
-    "WORKBOOK_OPERATION_ROW",
-  ].includes(DisplayMode);
-}
-
 function PreviewQuestionCard({
   question,
   showCorrectAnswers,
@@ -400,34 +384,26 @@ function PreviewQuestionCard({
   const options = [...(question.options ?? [])].sort(
     (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
   );
-  const DisplayMode = GetPreviewDisplayMode(question);
-  const UsesWideWorkbookPreview = IsWideWorkbookPreview(DisplayMode);
-  const QuestionColumnClass = UsesWideWorkbookPreview
-    ? "lg:w-[520px] xl:w-[600px] lg:shrink-0"
-    : "lg:w-[260px] lg:shrink-0";
-  const OptionGridClass = UsesWideWorkbookPreview
-    ? "grid flex-1 gap-3 xl:grid-cols-2"
-    : "grid flex-1 gap-3 sm:grid-cols-2";
 
   return (
     <div className="math-card p-5 sm:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className={QuestionColumnClass}>
+        <div className="lg:w-[340px] lg:shrink-0">
           <p className="text-sm font-bold text-slate-900 dark:text-white">
             Question {question.question_number}
           </p>
 
-          <div className="mt-4">
+          <div className="mt-4 flex justify-center rounded-[24px] border border-slate-200/80 bg-slate-50/95 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-800/80 sm:p-5">
             <MathQuestionDisplay
               operands={question.operands}
               operators={question.operators}
-              displayType={DisplayMode}
+              displayType={(question as any).displayType ?? (question as any).display_type}
               questionText={(question as any).questionText ?? (question as any).question_text}
             />
           </div>
         </div>
 
-        <div className={`${OptionGridClass} lg:self-center`}>
+        <div className="grid flex-1 items-center gap-3 sm:grid-cols-2">
           {options.map((option) => {
             const isCorrect = Boolean(option.is_correct);
             const optionStateClass = showCorrectAnswers && isCorrect
@@ -441,9 +417,9 @@ function PreviewQuestionCard({
             return (
               <div
                 key={`${option.label}-${option.value}`}
-                className={`flex min-h-[58px] items-center gap-3 rounded-2xl border px-4 py-3 text-base font-semibold transition-all duration-200 ${optionStateClass}`}
+                className={`flex min-h-[72px] items-center gap-3 rounded-2xl border px-4 py-3.5 text-base font-semibold transition-all duration-200 ${optionStateClass}`}
               >
-                <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${pillClass}`}>
+                <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-black ${pillClass}`}>
                   {option.label}
                 </span>
 
