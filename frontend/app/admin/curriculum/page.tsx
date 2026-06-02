@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
@@ -392,26 +393,13 @@ function PreviewQuestionCard({
             Question {question.question_number}
           </p>
 
-          <div className="mt-4 inline-block rounded-[24px] border border-slate-200/80 bg-slate-50/95 p-5 text-right font-mono text-3xl font-bold text-slate-900 shadow-sm dark:border-slate-700/70 dark:bg-slate-800/80 dark:text-slate-50">
-            {question.operands?.map((operand, index) => (
-              <div
-                key={`${operand}-${index}`}
-                className="grid grid-cols-[24px_1fr] gap-3"
-              >
-                <span>
-                  {index === 0
-                    ? ""
-                    : operand < 0
-                      ? "-"
-                      : question.operators?.[index] || "+"}
-                </span>
-                <span>{Math.abs(Number(operand))}</span>
-              </div>
-            ))}
-
-            <div className="mt-2 border-t-4 border-slate-800 pt-2 text-blue-700 dark:border-slate-200 dark:text-cyan-300">
-              ?
-            </div>
+          <div className="mt-4">
+            <MathQuestionDisplay
+              operands={question.operands}
+              operators={question.operators}
+              displayType={(question as any).displayType ?? (question as any).display_type}
+              questionText={(question as any).questionText ?? (question as any).question_text}
+            />
           </div>
         </div>
 
