@@ -50,7 +50,7 @@ export function VerticalQuestion({
 }) {
   const DisplayOperands = operands.map((operand) => Number(operand));
   const HasDecimalOperand = DisplayOperands.some((operand) => Number.isFinite(operand) && !Number.isInteger(operand));
-  const LongestOperandLength = operands.reduce((length, operand) => Math.max(length, FormatStackValue(operand).length), 0);
+  const LongestOperandLength = operands.reduce<number>((length, operand) => Math.max(length, FormatStackValue(operand).length), 0);
   const NeedsWideNumberColumn = HasDecimalOperand || LongestOperandLength >= 4;
   const NumberColumnClass = NeedsWideNumberColumn
     ? "minmax(8.75rem,max-content) sm:minmax(10rem,max-content)"
