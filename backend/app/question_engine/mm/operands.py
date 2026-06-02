@@ -365,15 +365,230 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GeneratePercentageValue(Config, Rng, QuestionNumber)
     if ConceptFamily == "PERCENTAGE_INCREASE_DECREASE":
         return GeneratePercentageIncreaseDecrease(Config, Rng, QuestionNumber)
+    if ConceptFamily == "SQUARES":
+        return GenerateSquares(Config, Rng, QuestionNumber)
+    if ConceptFamily == "CUBES":
+        return GenerateCubes(Config, Rng, QuestionNumber)
+    if ConceptFamily == "SQUARE_ROOT":
+        return GenerateSquareRoot(Config, Rng, QuestionNumber)
+    if ConceptFamily == "CUBE_ROOT":
+        return GenerateCubeRoot(Config, Rng, QuestionNumber)
+    if ConceptFamily == "MIXED_SQUARE_CUBE":
+        return GenerateMixedSquareCube(Config, Rng, QuestionNumber)
+    if ConceptFamily == "MIXED_ROOTS":
+        return GenerateMixedRoots(Config, Rng, QuestionNumber)
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
         UsesDecimalPattern = "decimal" in TitleText
         if QuestionNumber % 2 == 0:
             return GenerateDecimalDivision(Config, Rng, QuestionNumber) if UsesDecimalPattern else GenerateWholeNumberDivision(Config, Rng, QuestionNumber)
         return GenerateDecimalMultiplication(Config, Rng, QuestionNumber) if UsesDecimalPattern else GenerateWholeNumberMultiplication(Config, Rng, QuestionNumber)
-    raise ValueError(f"Unsupported Master Module Package 2 concept: {ConceptFamily}")
+    raise ValueError(f"Unsupported Master Module Package 3 concept: {ConceptFamily}")
 
 
 # Backward-compatible name used by existing generator.py import in Package 1.
 def GeneratePackage1Question(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     return GenerateMmQuestion(Config, Rng, QuestionNumber)
+
+
+def _CompactDisplay(Value: int | Decimal) -> str:
+    return str(Value)
+
+
+def _SquareBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    Band = _LessonBand(Config)
+    if Band <= 2:
+        Ranges = {
+            "WARM_UP": (11, 30),
+            "STANDARD": (21, 50),
+            "MIXED_STEP": (31, 75),
+            "ADVANCED": (50, 95),
+            "CHALLENGE": (70, 125),
+        }
+    elif Band <= 4:
+        Ranges = {
+            "WARM_UP": (35, 90),
+            "STANDARD": (50, 125),
+            "MIXED_STEP": (75, 175),
+            "ADVANCED": (100, 250),
+            "CHALLENGE": (150, 350),
+        }
+    else:
+        Ranges = {
+            "WARM_UP": (75, 175),
+            "STANDARD": (100, 250),
+            "MIXED_STEP": (150, 400),
+            "ADVANCED": (250, 650),
+            "CHALLENGE": (400, 900),
+        }
+    return Ranges.get(Stage, (11, 99))
+
+
+def _CubeBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    Band = _LessonBand(Config)
+    if Band <= 3:
+        Ranges = {
+            "WARM_UP": (5, 12),
+            "STANDARD": (8, 18),
+            "MIXED_STEP": (12, 25),
+            "ADVANCED": (18, 35),
+            "CHALLENGE": (25, 50),
+        }
+    elif Band <= 4:
+        Ranges = {
+            "WARM_UP": (12, 25),
+            "STANDARD": (18, 40),
+            "MIXED_STEP": (25, 55),
+            "ADVANCED": (40, 75),
+            "CHALLENGE": (60, 95),
+        }
+    else:
+        Ranges = {
+            "WARM_UP": (20, 45),
+            "STANDARD": (35, 65),
+            "MIXED_STEP": (50, 85),
+            "ADVANCED": (65, 120),
+            "CHALLENGE": (90, 160),
+        }
+    return Ranges.get(Stage, (5, 20))
+
+
+def _SquareRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    Band = _LessonBand(Config)
+    if Band <= 4:
+        Ranges = {
+            "WARM_UP": (20, 50),
+            "STANDARD": (35, 75),
+            "MIXED_STEP": (50, 99),
+            "ADVANCED": (75, 150),
+            "CHALLENGE": (100, 220),
+        }
+    elif Band == 5:
+        Ranges = {
+            "WARM_UP": (40, 90),
+            "STANDARD": (60, 140),
+            "MIXED_STEP": (90, 220),
+            "ADVANCED": (150, 320),
+            "CHALLENGE": (220, 450),
+        }
+    else:
+        Ranges = {
+            "WARM_UP": (70, 160),
+            "STANDARD": (120, 260),
+            "MIXED_STEP": (180, 420),
+            "ADVANCED": (300, 650),
+            "CHALLENGE": (500, 900),
+        }
+    return Ranges.get(Stage, (20, 99))
+
+
+def _CubeRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    Band = _LessonBand(Config)
+    if Band <= 3:
+        Ranges = {
+            "WARM_UP": (10, 16),
+            "STANDARD": (12, 20),
+            "MIXED_STEP": (15, 25),
+            "ADVANCED": (20, 35),
+            "CHALLENGE": (30, 45),
+        }
+    elif Band <= 4:
+        Ranges = {
+            "WARM_UP": (12, 22),
+            "STANDARD": (18, 32),
+            "MIXED_STEP": (25, 45),
+            "ADVANCED": (35, 65),
+            "CHALLENGE": (50, 90),
+        }
+    else:
+        Ranges = {
+            "WARM_UP": (20, 45),
+            "STANDARD": (35, 70),
+            "MIXED_STEP": (50, 100),
+            "ADVANCED": (80, 140),
+            "CHALLENGE": (120, 180),
+        }
+    return Ranges.get(Stage, (10, 25))
+
+
+def GenerateSquares(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Minimum, Maximum = _SquareBaseRange(Config, Stage)
+    Base = Rng.randint(Minimum, Maximum)
+    CorrectAnswer = Decimal(Base * Base)
+    QuestionText = f"({Base})²"
+    return [QuestionText], [""], CorrectAnswer, {
+        "package_3_concept": "SQUARES",
+        "compact_expression": True,
+        "question_text": QuestionText,
+        "base_value": Base,
+        "lesson_band": _LessonBand(Config),
+    }
+
+
+def GenerateCubes(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Minimum, Maximum = _CubeBaseRange(Config, Stage)
+    Base = Rng.randint(Minimum, Maximum)
+    CorrectAnswer = Decimal(Base ** 3)
+    QuestionText = f"({Base})³"
+    return [QuestionText], [""], CorrectAnswer, {
+        "package_3_concept": "CUBES",
+        "compact_expression": True,
+        "question_text": QuestionText,
+        "base_value": Base,
+        "lesson_band": _LessonBand(Config),
+    }
+
+
+def GenerateSquareRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Minimum, Maximum = _SquareRootBaseRange(Config, Stage)
+    Root = Rng.randint(Minimum, Maximum)
+    Radicand = Root * Root
+    CorrectAnswer = Decimal(Root)
+    QuestionText = f"√{Radicand}"
+    return [QuestionText], [""], CorrectAnswer, {
+        "package_3_concept": "SQUARE_ROOT",
+        "compact_expression": True,
+        "question_text": QuestionText,
+        "root_value": Root,
+        "radicand": Radicand,
+        "perfect_root_only": True,
+        "lesson_band": _LessonBand(Config),
+    }
+
+
+def GenerateCubeRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Minimum, Maximum = _CubeRootBaseRange(Config, Stage)
+    Root = Rng.randint(Minimum, Maximum)
+    Radicand = Root ** 3
+    CorrectAnswer = Decimal(Root)
+    QuestionText = f"∛{Radicand}"
+    return [QuestionText], [""], CorrectAnswer, {
+        "package_3_concept": "CUBE_ROOT",
+        "compact_expression": True,
+        "question_text": QuestionText,
+        "root_value": Root,
+        "radicand": Radicand,
+        "perfect_root_only": True,
+        "lesson_band": _LessonBand(Config),
+    }
+
+
+def GenerateMixedSquareCube(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    return GenerateSquares(Config, Rng, QuestionNumber) if QuestionNumber % 2 else GenerateCubes(Config, Rng, QuestionNumber)
+
+
+def GenerateMixedRoots(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    TitleText = f" {Config.DpsTitle} ".lower()
+    if "square root" in TitleText and "cube root" not in TitleText:
+        return GenerateSquareRoot(Config, Rng, QuestionNumber)
+    if "cube root" in TitleText and "square root" not in TitleText and "squares" not in TitleText and "cubes" not in TitleText:
+        return GenerateCubeRoot(Config, Rng, QuestionNumber)
+    if QuestionNumber % 3 == 1:
+        return GenerateCubeRoot(Config, Rng, QuestionNumber)
+    if QuestionNumber % 3 == 2:
+        return GenerateSquares(Config, Rng, QuestionNumber)
+    return GenerateCubes(Config, Rng, QuestionNumber)

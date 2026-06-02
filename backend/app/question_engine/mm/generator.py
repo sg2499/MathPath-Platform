@@ -34,6 +34,9 @@ def _DisplayMode(Config: MMConfig) -> str:
             return "ANSWER_POSITION"
         return "EXPRESSION_WORKSHEET"
 
+    if ConceptFamily in {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}:
+        return "COMPACT_EXPRESSION"
+
     if ConceptFamily in {"BODMAS", "PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
         return "EXPRESSION_WORKSHEET"
 
@@ -42,7 +45,7 @@ def _DisplayMode(Config: MMConfig) -> str:
 
 def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
     if not IsPackage1Supported(Config.ConceptFamily):
-        raise ValueError(f"Master Module generator Package 1 does not support concept: {Config.ConceptFamily}")
+        raise ValueError(f"Master Module generator does not support concept: {Config.ConceptFamily}")
 
     Questions: list[dict] = []
     Seen: set[tuple[str, ...]] = set()
@@ -75,7 +78,8 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
         AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
         Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
-        Questions.append({
+        QuestionText = ExtraMetadata.get("question_text") if isinstance(ExtraMetadata, dict) else None
+        QuestionPayload = {
             "question_number": QuestionNumber,
             "display_type": _DisplayMode(Config),
             "operands": Operands,
@@ -83,7 +87,10 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
             "correct_answer": CorrectDisplay,
             "options": Options,
             "seed": QuestionSeed,
-            "metadata": {
+        }
+        if QuestionText:
+            QuestionPayload["question_text"] = QuestionText
+        QuestionPayload["metadata"] = {
                 "module_code": Config.ModuleCode,
                 "level_code": Config.LevelCode,
                 "lesson_number": Config.LessonNumber,
@@ -95,11 +102,11 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 "digit_pattern": Config.DigitPattern,
                 "difficulty_stage": DifficultyStage(QuestionNumber - 1),
                 "difficulty_progression": "MM_WARM_UP_TO_CHALLENGE",
-                "generator_package": "MM_PACKAGE_2_LESSON_AWARE_SPIRAL",
+                "generator_package": "MM_PACKAGE_3_LESSON_AWARE_SPIRAL",
                 "mm_validated": True,
                 "generation_attempts": Attempt + 1,
                 "generation_mode": "DETERMINISTIC_BOUNDED",
                 **ExtraMetadata,
-            },
-        })
+            }
+        Questions.append(QuestionPayload)
     return rebalance_correct_option_distribution(Questions)
