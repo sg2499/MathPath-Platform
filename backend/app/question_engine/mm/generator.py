@@ -22,17 +22,17 @@ def _DisplayMode(Config: MMConfig) -> str:
         return "VISUAL_STACK"
 
     if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"}:
-        return "OPERATION_ROW"
+        return "WORKBOOK_OPERATION_ROW"
 
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-        if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText or "NUMBER POSITION" in TitleText:
+        if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
             return "ANSWER_POSITION"
-        return "OPERATION_ROW"
+        return "WORKBOOK_OPERATION_ROW"
 
     if ConceptFamily in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
-        if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText or "NUMBER POSITION" in TitleText:
+        if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
             return "ANSWER_POSITION"
-        return "OPERATION_ROW"
+        return "WORKBOOK_OPERATION_ROW"
 
     if ConceptFamily in {"BODMAS", "PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
         return "EXPRESSION_WORKSHEET"
