@@ -22,12 +22,27 @@ function GetDisplaySign({
 
   if (IsNegative || NormalisedOperator === "-") return "−";
 
-  // MathPath Add/Less workbook convention:
+  // Global MathPath Add/Less convention:
   // addition is understood by default, so plus signs are intentionally hidden.
   if (NormalisedOperator === "+" || NormalisedOperator === "") return "";
 
   // Multiplication/division visual stacks still need their explicit operation sign.
   return index === 0 ? "" : NormalisedOperator;
+}
+
+function GetOperatorForOperand({
+  operators,
+  index,
+}: {
+  operators: string[];
+  index: number;
+}): string {
+  if (index === 0) return "";
+
+  // Generators usually store operators between operands, so the operator that
+  // applies to operand N is operators[N - 1]. Some older records stored a
+  // same-length operator array, so fall back safely without changing data.
+  return operators[index - 1] ?? operators[index] ?? "";
 }
 
 function FormatStackValue(operand: number | string): string {
@@ -63,7 +78,11 @@ export function VerticalQuestion({
     <div className="mx-auto w-fit max-w-full overflow-x-auto rounded-[24px] bg-white px-5 py-5 text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-8 sm:py-6">
       <div className={`font-mono ${FontSizeClass} font-black leading-tight`}>
         {operands.map((operand, index) => {
-          const sign = GetDisplaySign({ operand, operator: operators[index], index });
+          const sign = GetDisplaySign({
+            operand,
+            operator: GetOperatorForOperand({ operators, index }),
+            index,
+          });
           const value = FormatStackValue(operand);
 
           return (
