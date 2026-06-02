@@ -411,7 +411,7 @@ function PreviewQuestionCard({
 
   return (
     <div className="math-card p-5 sm:p-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className={QuestionColumnClass}>
           <p className="text-sm font-bold text-slate-900 dark:text-white">
             Question {question.question_number}
@@ -427,7 +427,7 @@ function PreviewQuestionCard({
           </div>
         </div>
 
-        <div className={OptionGridClass}>
+        <div className={`${OptionGridClass} lg:self-center`}>
           {options.map((option) => {
             const isCorrect = Boolean(option.is_correct);
             const optionStateClass = showCorrectAnswers && isCorrect
