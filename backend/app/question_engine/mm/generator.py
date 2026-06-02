@@ -18,21 +18,21 @@ def _DisplayMode(Config: MMConfig) -> str:
     ConceptFamily = Config.ConceptFamily
     TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".upper()
 
-    if ConceptFamily in {"DECIMAL_ADD_LESS", "INTEGERS"}:
+    if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
         return "VISUAL_STACK"
 
     if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"}:
-        return "WORKBOOK_OPERATION_ROW"
+        return "VISUAL_STACK"
 
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-        if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
+        if "DECIMAL" in TitleText or "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
             return "ANSWER_POSITION"
-        return "WORKBOOK_OPERATION_ROW"
+        return "VISUAL_STACK"
 
     if ConceptFamily in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
         if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
             return "ANSWER_POSITION"
-        return "WORKBOOK_OPERATION_ROW"
+        return "EXPRESSION_WORKSHEET"
 
     if ConceptFamily in {"BODMAS", "PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
         return "EXPRESSION_WORKSHEET"
@@ -95,7 +95,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 "digit_pattern": Config.DigitPattern,
                 "difficulty_stage": DifficultyStage(QuestionNumber - 1),
                 "difficulty_progression": "MM_WARM_UP_TO_CHALLENGE",
-                "generator_package": "MM_PACKAGE_2_INTEGERS_BODMAS_PERCENTAGE",
+                "generator_package": "MM_PACKAGE_2_LESSON_AWARE_SPIRAL",
                 "mm_validated": True,
                 "generation_attempts": Attempt + 1,
                 "generation_mode": "DETERMINISTIC_BOUNDED",
