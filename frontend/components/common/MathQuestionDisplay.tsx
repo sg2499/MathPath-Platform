@@ -82,7 +82,8 @@ function ExpressionQuestion({
   questionText?: string | null;
   mode: "EXPRESSION_WORKSHEET" | "ANSWER_POSITION";
 }) {
-  const Expression = questionText?.trim() || BuildExpression(operands, operators);
+  const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
+  const Expression = RawExpression.replace(/\s*=\s*\?\s*$/, "");
   const TypographyClass = GetExpressionTypographyClass(Expression);
 
   return (
@@ -107,7 +108,8 @@ function CompactExpressionQuestion({
   operators: string[];
   questionText?: string | null;
 }) {
-  const Expression = questionText?.trim() || BuildExpression(operands, operators);
+  const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
+  const Expression = RawExpression.replace(/\s*=\s*\?\s*$/, "");
   const TypographyClass = GetExpressionTypographyClass(Expression);
 
   return (

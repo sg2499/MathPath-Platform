@@ -261,13 +261,72 @@ def GenerateDecimalMultiplicationAnswerPosition(Config: MMConfig, Rng: random.Ra
     }
 
 
-def GenerateNumberPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
-    """Generate workbook-style number-position questions.
+def _DigitsForPositionInput(ValueText: str) -> str:
+    return "".join(Character for Character in str(ValueText) if Character.isdigit()) or "0"
 
-    The answer is the decimal-place position of the first non-zero digit after the
-    decimal point. Whole/greater-than-one values intentionally return 0 because
-    the first natural number is already before the decimal point.
+
+def _FormatDecimalPlain(Value: Decimal) -> str:
+    Formatted = format(Value.normalize(), "f")
+    if "." in Formatted:
+        Formatted = Formatted.rstrip("0").rstrip(".")
+    return Formatted or "0"
+
+
+def _ApplyGivenPosition(Position: int, ValueText: str) -> Decimal:
+    Digits = _DigitsForPositionInput(ValueText)
+    RawNumber = Decimal(Digits)
+    Exponent = Position - len(Digits)
+    return RawNumber * (Decimal(10) ** Decimal(Exponent))
+
+
+def _IsWriteNumberFromGivenPosition(Config: MMConfig) -> bool:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    return "write the number" in Text or "number from the given position" in Text or "given position" in Text
+
+
+def GenerateNumberPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Generate workbook-style number-position concepts.
+
+    MM contains two different concepts that were previously being merged:
+    1. Find the position of the first natural number.
+    2. Write the number from the given position.
+
+    This generator keeps both modes separate using the section/DPS title.
     """
+    if _IsWriteNumberFromGivenPosition(Config):
+        WorkbookSamples = [
+            (-2, "56"),
+            (-4, "123"),
+            (0, "2345"),
+            (2, "5698"),
+            (1, "231.45"),
+            (-1, "36.7"),
+            (-3, "2.8"),
+            (4, "0.51"),
+            (5, "64"),
+            (3, "578"),
+            (-1, "101"),
+        ]
+        if QuestionNumber <= len(WorkbookSamples):
+            Position, ValueText = WorkbookSamples[QuestionNumber - 1]
+        else:
+            Position = Rng.choice([-4, -3, -2, -1, 0, 1, 2, 3, 4, 5])
+            RawInteger = str(Rng.randint(12, 9876))
+            if Rng.random() < 0.25:
+                SplitIndex = Rng.randint(1, max(1, len(RawInteger) - 1))
+                ValueText = f"{RawInteger[:SplitIndex]}.{RawInteger[SplitIndex:]}"
+            else:
+                ValueText = RawInteger
+        CorrectAnswer = _ApplyGivenPosition(Position, ValueText)
+        QuestionText = f"Position: {Position} | Number: {ValueText}"
+        return [Position, ValueText], ["POSITION", "NUMBER"], CorrectAnswer, {
+            "question_text": QuestionText,
+            "number_position_mode": "WRITE_NUMBER_FROM_GIVEN_POSITION",
+            "position": Position,
+            "source_number": ValueText,
+            "answer_text": _FormatDecimalPlain(CorrectAnswer),
+        }
+
     Samples = ["1.005", "12.007", "0.0089", "0.012", "345.002", "0.000456", "253.91", "0.2005"]
     ValueText = Samples[(QuestionNumber - 1) % len(Samples)] if QuestionNumber <= len(Samples) else str(_RandDecimal(Rng, 0, 999, Rng.choice([2, 3, 4, 5])))
     DecimalPart = ValueText.split(".", 1)[1] if "." in ValueText else ""
@@ -281,7 +340,6 @@ def GenerateNumberPosition(Config: MMConfig, Rng: random.Random, QuestionNumber:
         "question_text": QuestionText,
         "number_position_mode": "FIRST_NATURAL_NUMBER_POSITION",
     }
-
 
 def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     """Generate small signed-integer solve-the-equation workbook questions."""
@@ -310,7 +368,7 @@ def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: 
                 Operator = "+"
                 Operand = f"({Value})"
             ExpressionParts.append(f"{Operator} {Operand}")
-    QuestionText = " ".join(ExpressionParts) + " = ?"
+    QuestionText = " ".join(ExpressionParts)
     return Terms, ["SIGNED_EXPRESSION"], CorrectAnswer, {
         "question_text": QuestionText,
         "equation_mode": "SIGNED_INTEGER_EXPRESSION",
