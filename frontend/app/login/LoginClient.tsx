@@ -332,7 +332,7 @@ export default function LoginClient({
     if (!LoginReady || Loading) return;
 
     const CleanIdentifier = Identifier.trim();
-    const CleanPassword = Password.trim();
+    const CleanPassword = Password;
 
     if (!CleanIdentifier || !CleanPassword) {
       SetError("Please enter your login credentials.");
@@ -351,22 +351,27 @@ export default function LoginClient({
         return;
       }
 
+      setAuth(Response.accessToken, Response.user);
       RememberSuccessfulLoginTab(ActiveTab);
       RememberLoginIdentifier(ActiveTab, CleanIdentifier);
       SetConnectionStatus("ready");
-      setAuth(Response.accessToken, Response.user);
+
       const TargetRoute = defaultRouteForRole(Response.user.role);
       Router.prefetch(TargetRoute);
+      Router.replace(TargetRoute);
+      Router.refresh();
 
       if (typeof window !== "undefined") {
-        window.location.assign(TargetRoute);
-        return;
+        window.setTimeout(() => {
+          if (window.location.pathname !== TargetRoute) {
+            window.location.assign(TargetRoute);
+          }
+        }, 1_200);
       }
-
-      Router.replace(TargetRoute);
     } catch (Err) {
       SetConnectionStatus("working");
       SetError(apiErrorMessage(Err));
+      void warmupAuthApi();
     } finally {
       SetLoading(false);
     }

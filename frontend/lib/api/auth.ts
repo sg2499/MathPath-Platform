@@ -5,28 +5,48 @@ import type { LoginResponse, CurrentUser } from "@/types/auth";
 const PROFILE_PHOTO_MAX_DIMENSION = 360;
 const PROFILE_PHOTO_MAX_UPLOAD_BYTES = 260_000;
 const PROFILE_PHOTO_UPLOAD_TIMEOUT_MS = 60_000;
-const LOGIN_REQUEST_TIMEOUT_MS = 25_000;
-const AUTH_HEALTH_TIMEOUT_MS = 8_000;
-const AUTH_RETRY_DELAYS_MS = [450, 900, 1_600, 2_800];
+const LOGIN_REQUEST_TIMEOUT_MS = 90_000;
+const AUTH_HEALTH_TIMEOUT_MS = 15_000;
+const AUTH_RETRY_DELAYS_MS = [350, 700, 1_200];
+const LOGIN_MAX_ATTEMPTS = 3;
+const AUTH_WARMUP_MAX_ATTEMPTS = 3;
 
-function shouldRetryLogin(ErrorValue: unknown): boolean {
+let AuthWarmupPromise: Promise<boolean> | null = null;
+
+type RetryableAuthError = {
+  response?: { status?: number };
+  code?: string;
+  message?: string;
+};
+
+function isRetryableAuthError(ErrorValue: unknown): boolean {
   if (!axios.isAxiosError(ErrorValue)) return false;
-  if (ErrorValue.response) return false;
+
+  const Status = (ErrorValue as RetryableAuthError).response?.status;
+  if (Status) {
+    return [408, 429, 502, 503, 504].includes(Status);
+  }
+
   return ErrorValue.code === "ECONNABORTED" || ErrorValue.message === "Network Error";
 }
 
 function Sleep(DurationMs: number): Promise<void> {
-  return new Promise((Resolve) => window.setTimeout(Resolve, DurationMs));
+  return new Promise((Resolve) => {
+    if (typeof window === "undefined") {
+      Resolve();
+      return;
+    }
+    window.setTimeout(Resolve, DurationMs);
+  });
 }
 
 async function waitBeforeRetry(AttemptIndex: number): Promise<void> {
-  if (typeof window === "undefined") return;
-  const DelayMs = AUTH_RETRY_DELAYS_MS[Math.min(AttemptIndex, AUTH_RETRY_DELAYS_MS.length - 1)] || 1_000;
+  const DelayMs = AUTH_RETRY_DELAYS_MS[Math.min(AttemptIndex, AUTH_RETRY_DELAYS_MS.length - 1)] || 700;
   await Sleep(DelayMs);
 }
 
-export async function warmupAuthApi(): Promise<boolean> {
-  for (let AttemptIndex = 0; AttemptIndex < 4; AttemptIndex += 1) {
+async function executeAuthWarmup(): Promise<boolean> {
+  for (let AttemptIndex = 0; AttemptIndex < AUTH_WARMUP_MAX_ATTEMPTS; AttemptIndex += 1) {
     try {
       await api.get("/health", {
         timeout: AUTH_HEALTH_TIMEOUT_MS,
@@ -34,7 +54,7 @@ export async function warmupAuthApi(): Promise<boolean> {
       } as any);
       return true;
     } catch (ErrorValue) {
-      if (AttemptIndex === 3 || !shouldRetryLogin(ErrorValue)) {
+      if (AttemptIndex === AUTH_WARMUP_MAX_ATTEMPTS - 1 || !isRetryableAuthError(ErrorValue)) {
         return false;
       }
       await waitBeforeRetry(AttemptIndex);
@@ -44,11 +64,23 @@ export async function warmupAuthApi(): Promise<boolean> {
   return false;
 }
 
+export async function warmupAuthApi(): Promise<boolean> {
+  if (!AuthWarmupPromise) {
+    AuthWarmupPromise = executeAuthWarmup().finally(() => {
+      AuthWarmupPromise = null;
+    });
+  }
+
+  return AuthWarmupPromise;
+}
+
 export async function login(identifier: string, password: string): Promise<LoginResponse> {
-  const Payload = { identifier, password };
+  const Payload = { identifier: identifier.trim(), password };
   let LastNetworkError: unknown = null;
 
-  for (let AttemptIndex = 0; AttemptIndex < 4; AttemptIndex += 1) {
+  void warmupAuthApi();
+
+  for (let AttemptIndex = 0; AttemptIndex < LOGIN_MAX_ATTEMPTS; AttemptIndex += 1) {
     try {
       const { data } = await api.post<LoginResponse>("/auth/login", Payload, {
         timeout: LOGIN_REQUEST_TIMEOUT_MS,
@@ -56,7 +88,7 @@ export async function login(identifier: string, password: string): Promise<Login
       } as any);
       return data;
     } catch (ErrorValue) {
-      if (!shouldRetryLogin(ErrorValue)) {
+      if (!isRetryableAuthError(ErrorValue)) {
         throw ErrorValue;
       }
 

@@ -7,7 +7,7 @@ function ResolveApiBaseUrl(): string {
   return CleanBaseUrl.endsWith("/api") ? CleanBaseUrl : `${CleanBaseUrl}/api`;
 }
 
-const DEFAULT_API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || "60000");
+const DEFAULT_API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || "90000");
 
 export const api = axios.create({
   baseURL: ResolveApiBaseUrl(),
@@ -17,7 +17,9 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const RequestConfig = config as typeof config & { skipAuth?: boolean };
   if (RequestConfig.skipAuth) {
-    delete config.headers.Authorization;
+    if (config.headers) {
+      delete config.headers.Authorization;
+    }
     return config;
   }
 
