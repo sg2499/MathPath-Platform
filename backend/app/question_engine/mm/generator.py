@@ -59,7 +59,10 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
     Questions: list[dict] = []
     Seen: set[tuple[str, ...]] = set()
 
-    QuestionCount = min(max(int(Config.QuestionCount or 10), 1), 30)
+    RequestedQuestionCount = int(Config.QuestionCount or 10)
+    if Config.ConceptFamily in {"SKILL_STACKER", "CONCEPT_DRILL"}:
+        RequestedQuestionCount = 5
+    QuestionCount = min(max(RequestedQuestionCount, 1), 30)
     for SectionQuestionNumber in range(1, QuestionCount + 1):
         GlobalQuestionNumber = StartNumber + SectionQuestionNumber - 1
         QuestionSeed = f"{Config.Seed}-MM-S{SectionNumber}-Q{SectionQuestionNumber}"

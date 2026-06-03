@@ -16,6 +16,9 @@ LEVEL_DISPLAY_ORDER = 1
 DPS_DURATION_SECONDS = 5 * 60
 DPS_PER_LESSON = 5
 
+PACKAGE_5_FIVE_QUESTION_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
+PACKAGE_5_FIVE_QUESTION_TITLES = {"skill stacker", "concept drill"}
+
 # MathPath module hierarchy convention:
 # 1. Young Learners Module
 # 2. Preparatory Module
@@ -315,10 +318,35 @@ def _concept_for_section(section_title: str, lesson_title: str) -> str:
     return ClassifyMmConcept(section_title, lesson_title)
 
 
+def _section_question_count(section_title: str, concept_family: str, fallback_count: int = 10) -> int:
+    """Return workbook-safe section question counts.
+
+    Skill Stacker and Concept Drill are short abacus reinforcement sections.
+    They must always generate exactly 5 questions wherever they appear,
+    regardless of whether the surrounding DPS is single-concept or mixed.
+    """
+    normalized_title = " ".join(str(section_title or "").replace("-", " ").lower().split())
+    if concept_family in PACKAGE_5_FIVE_QUESTION_CONCEPTS:
+        return 5
+    if any(marker in normalized_title for marker in PACKAGE_5_FIVE_QUESTION_TITLES):
+        return 5
+    return int(fallback_count or 10)
+
+
 def _split_title_into_sections(lesson_number: int, dps_number: int) -> list[dict]:
     override = MM_DPS_SECTION_OVERRIDES.get((lesson_number, dps_number))
     if override:
-        return override
+        return [
+            {
+                **section,
+                "questionCount": _section_question_count(
+                    str(section.get("sectionTitle", "")),
+                    str(section.get("conceptFamily", "")),
+                    int(section.get("questionCount") or 10),
+                ),
+            }
+            for section in override
+        ]
 
     title = _dps_title(lesson_number, dps_number)
     lesson_title = LESSON_TITLES[lesson_number]
@@ -346,10 +374,12 @@ def _split_title_into_sections(lesson_number: int, dps_number: int) -> list[dict
 
     parts = _split_mm_title_parts(title)
     if len(parts) <= 1:
+        concept_family = ClassifyMmConcept(title, lesson_title)
+        fallback_count = int(20 if "visual" in lowered and (" x " in lowered or "÷" in lowered) else 10)
         return [{
             "sectionTitle": title,
-            "questionCount": int(20 if "visual" in lowered and (" x " in lowered or "÷" in lowered) else 10),
-            "conceptFamily": ClassifyMmConcept(title, lesson_title),
+            "questionCount": _section_question_count(title, concept_family, fallback_count),
+            "conceptFamily": concept_family,
         }]
 
     # Default workbook split for normal two-concept sheets is 10+10.
@@ -361,14 +391,15 @@ def _split_title_into_sections(lesson_number: int, dps_number: int) -> list[dict
     else:
         counts = [10] + [5 for _ in parts[1:]]
 
-    return [
-        {
+    sections: list[dict] = []
+    for index, section_title in enumerate(parts):
+        concept_family = _concept_for_section(section_title, lesson_title)
+        sections.append({
             "sectionTitle": section_title,
-            "questionCount": counts[index],
-            "conceptFamily": _concept_for_section(section_title, lesson_title),
-        }
-        for index, section_title in enumerate(parts)
-    ]
+            "questionCount": _section_question_count(section_title, concept_family, counts[index]),
+            "conceptFamily": concept_family,
+        })
+    return sections
 
 
 def _dps_sections(lesson_number: int, dps_number: int) -> list[dict]:
