@@ -261,6 +261,9 @@ SECTION_TITLE_NORMALISATIONS = {
     "skill stacker visual": "Skill Stacker",
     "concept drill": "Concept Drill",
     "concept drill abacus": "Concept Drill",
+    "multiplication mixed pattern": "Multiplication Mixed Pattern",
+    "mixed pattern multiplication": "Multiplication Mixed Pattern",
+    "division mixed pattern": "Division Mixed Pattern",
 }
 
 
@@ -320,6 +323,27 @@ def _split_title_into_sections(lesson_number: int, dps_number: int) -> list[dict
     title = _dps_title(lesson_number, dps_number)
     lesson_title = LESSON_TITLES[lesson_number]
     lowered = title.lower()
+
+    # Workbook convention: "Multiplication and Division Mixed Pattern" is a
+    # two-section DPS. The sections must stay operation-pure:
+    #   Section 1 -> Multiplication Mixed Pattern -> multiplication only
+    #   Section 2 -> Division Mixed Pattern       -> division only
+    # Do not let the generic "and" splitter create a plain "Multiplication"
+    # section or route the division section back into mixed generation.
+    if lowered.strip() == "multiplication and division mixed pattern":
+        return [
+            {
+                "sectionTitle": "Multiplication Mixed Pattern",
+                "questionCount": 10,
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+            },
+            {
+                "sectionTitle": "Division Mixed Pattern",
+                "questionCount": 10,
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+            },
+        ]
+
     parts = _split_mm_title_parts(title)
     if len(parts) <= 1:
         return [{
