@@ -7,6 +7,7 @@ from app.question_engine.mm.config import MMConfig, IsPackage1Supported
 ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
 PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
+PACKAGE_6_BORROWING_CONCEPTS = {"BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 
 
@@ -115,6 +116,37 @@ def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: lis
     return Operators[1] in {"+%", "-%"}
 
 
+def _HasBorrowingBetween(Minuend: int, Subtrahend: int) -> bool:
+    Left = str(abs(Minuend))[::-1]
+    Right = str(abs(Subtrahend))[::-1]
+    MaxLength = max(len(Left), len(Right))
+    Left = Left.ljust(MaxLength, "0")
+    Right = Right.ljust(MaxLength, "0")
+    return any(int(Left[Index]) < int(Right[Index]) for Index in range(MaxLength))
+
+
+def _ValidateBorrowingQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if len(Operands) != 2 or Operators != ["", "-"]:
+        return False
+    if not all(_IsNumeric(Value) and _IsWholeNumber(Value) for Value in Operands):
+        return False
+
+    Minuend = int(abs(_DecimalValue(Operands[0])))
+    Subtrahend = int(abs(_DecimalValue(Operands[1])))
+    ExpectedAnswer = Decimal(Minuend - Subtrahend)
+    if CorrectAnswer != ExpectedAnswer:
+        return False
+    if not _HasBorrowingBetween(Minuend, Subtrahend):
+        return False
+    if Config.ConceptFamily == "BORROWING_NEGATIVE":
+        return CorrectAnswer < 0
+    if Config.ConceptFamily == "BORROWING_POSITIVE":
+        return CorrectAnswer > 0
+    if Config.ConceptFamily == "BORROWING_MIXED":
+        return CorrectAnswer != 0
+    return False
+
+
 def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if len(Operands) != 1 or len(Operators) != 1 or Operators[0] != "":
         return False
@@ -206,6 +238,9 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
 
     if Config.ConceptFamily in PACKAGE_5_SPECIAL_CONCEPTS:
         return _ValidatePackage5Special(Config, Operands, Operators, CorrectAnswer)
+
+    if Config.ConceptFamily in PACKAGE_6_BORROWING_CONCEPTS:
+        return _ValidateBorrowingQuestion(Config, Operands, Operators, CorrectAnswer)
 
     if any(Operator not in ALLOWED_OPERATORS for Operator in Operators):
         return False
