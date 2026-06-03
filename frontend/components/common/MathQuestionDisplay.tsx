@@ -26,11 +26,21 @@ function NormaliseDisplayType(DisplayType: DisplayMode): string {
 }
 
 function FormatValue(Value: number | string): string {
-  if (typeof Value === "number") {
-    if (Number.isInteger(Value)) return String(Value);
-    return String(Number(Value.toFixed(6))).replace(/\.0+$/, "");
-  }
-  return String(Value);
+  const RawValue = String(Value).trim();
+
+  if (!RawValue) return RawValue;
+
+  const NumericValue = typeof Value === "number" ? Value : Number(RawValue);
+  if (!Number.isFinite(NumericValue)) return RawValue;
+
+  if (Number.isInteger(NumericValue)) return String(NumericValue);
+
+  const PlainValue = NumericValue.toLocaleString("en-US", {
+    useGrouping: false,
+    maximumFractionDigits: 20,
+  });
+
+  return PlainValue.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
 }
 
 function BuildExpression(Operands: Array<number | string>, Operators: string[]): string {

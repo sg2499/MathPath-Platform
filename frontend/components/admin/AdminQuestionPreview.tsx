@@ -2,6 +2,24 @@ import type { AdminPreviewQuestion } from "@/types/question";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { CheckCircle2 } from "lucide-react";
 
+function FormatNumericDisplay(Value: unknown): string {
+  const RawValue = String(Value ?? "").trim();
+
+  if (!RawValue) return RawValue;
+
+  const NumericValue = typeof Value === "number" ? Value : Number(RawValue);
+  if (!Number.isFinite(NumericValue)) return RawValue;
+
+  if (Number.isInteger(NumericValue)) return String(NumericValue);
+
+  const PlainValue = NumericValue.toLocaleString("en-US", {
+    useGrouping: false,
+    maximumFractionDigits: 20,
+  });
+
+  return PlainValue.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+}
+
 export function AdminQuestionPreview({ questions }: { questions: AdminPreviewQuestion[] }) {
   return (
     <div className="grid gap-5">
@@ -39,7 +57,7 @@ export function AdminQuestionPreview({ questions }: { questions: AdminPreviewQue
                             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 font-black text-slate-700">
                               {option.label}
                             </span>
-                            <span>{option.value}</span>
+                            <span>{FormatNumericDisplay(option.value)}</span>
                           </div>
                           {isCorrect ? <CheckCircle2 size={18} /> : null}
                         </div>
@@ -49,7 +67,7 @@ export function AdminQuestionPreview({ questions }: { questions: AdminPreviewQue
                 </div>
 
                 <div className="mt-4 rounded-[22px] bg-blue-50 p-4 text-sm text-blue-900">
-                  Correct answer: <span className="font-black">{correctAnswer}</span>
+                  Correct answer: <span className="font-black">{FormatNumericDisplay(correctAnswer)}</span>
                 </div>
               </div>
             </div>

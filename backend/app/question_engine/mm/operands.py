@@ -72,11 +72,17 @@ def _Quantize(Value: Decimal, Places: int) -> Decimal:
     return Value.quantize(Unit, rounding=ROUND_HALF_UP)
 
 
-def _AsDisplayNumber(Value: Decimal | int | float) -> int | float:
+def _AsDisplayNumber(Value: Decimal | int | float) -> int | str:
     DecimalValue = Value if isinstance(Value, Decimal) else Decimal(str(Value))
     if DecimalValue == DecimalValue.to_integral_value():
         return int(DecimalValue)
-    return float(DecimalValue.normalize())
+
+    DisplayText = format(DecimalValue.normalize(), "f")
+    if "." in DisplayText:
+        DisplayText = DisplayText.rstrip("0").rstrip(".")
+    if DisplayText == "-0":
+        DisplayText = "0"
+    return DisplayText
 
 
 def _RandDecimal(Rng: random.Random, Minimum: int, Maximum: int, Places: int) -> Decimal:

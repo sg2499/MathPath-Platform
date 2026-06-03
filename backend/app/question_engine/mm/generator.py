@@ -8,10 +8,21 @@ from app.question_engine.mm.operands import DifficultyStage, GeneratePackage1Que
 from app.question_engine.mm.validators import ValidateMmQuestion
 
 
-def _Display(Value: Decimal) -> int | float:
+def _Display(Value: Decimal) -> int | str:
+    """Return student-safe numeric output without scientific notation.
+
+    Very small Decimal values such as 9E-7 must be shown as 0.0000009,
+    because MathPath workbook convention expects full decimal notation.
+    """
     if Value == Value.to_integral_value():
         return int(Value)
-    return float(Value.normalize())
+
+    DisplayText = format(Value.normalize(), "f")
+    if "." in DisplayText:
+        DisplayText = DisplayText.rstrip("0").rstrip(".")
+    if DisplayText == "-0":
+        DisplayText = "0"
+    return DisplayText
 
 
 def _DisplayMode(Config: MMConfig) -> str:
