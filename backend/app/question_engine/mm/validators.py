@@ -57,6 +57,40 @@ def _NormalisedPatternTitle(Config: MMConfig) -> str:
     )
 
 
+def _ExtractCubeRootDigitCount(Config: MMConfig) -> int | None:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    Text = Text.replace("-", " ").replace("/", " ")
+    Patterns = [
+        r"cube\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*cube\s*root",
+        r"cube\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return int(Match.group(1))
+    return None
+
+
+def _DigitCountFromInteger(Value: int) -> int:
+    Value = abs(int(Value))
+    return len(str(Value)) if Value else 1
+
+
+def _ValidateCubeRootRadicandDigits(Config: MMConfig, Text: str, CorrectAnswer: Decimal) -> bool:
+    ExpectedDigits = _ExtractCubeRootDigitCount(Config)
+    Match = re.search(r"∛\s*(\d+)", Text)
+    if not Match:
+        return False
+    Radicand = int(Match.group(1))
+    Root = int(CorrectAnswer)
+    if Decimal(Root) != CorrectAnswer or Root ** 3 != Radicand:
+        return False
+    if ExpectedDigits is None:
+        return True
+    return _DigitCountFromInteger(Radicand) == ExpectedDigits
+
+
 def _ExtractMultiplicationDigits(Config: MMConfig) -> tuple[int, int] | None:
     Title = _NormalisedPatternTitle(Config)
     for Pattern in [r"([1-6])D\s*X\s*([1-6])D", r"([1-6])D\s*MULTIPLICATION\s*(?:BY\s*)?([1-6])D"]:
@@ -197,7 +231,7 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
     if Config.ConceptFamily == "SQUARE_ROOT":
         return Text.startswith("√") and CorrectAnswer >= 0
     if Config.ConceptFamily == "CUBE_ROOT":
-        return Text.startswith("∛") and CorrectAnswer >= 0
+        return Text.startswith("∛") and CorrectAnswer >= 0 and _ValidateCubeRootRadicandDigits(Config, Text, CorrectAnswer)
     if Config.ConceptFamily == "MIXED_SQUARE_CUBE":
         return ("²" in Text or "³" in Text) and CorrectAnswer >= 0
     if Config.ConceptFamily == "MIXED_ROOTS":

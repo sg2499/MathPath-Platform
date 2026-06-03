@@ -1365,7 +1365,52 @@ def _SquareRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
     return Ranges.get(Stage, (20, 99))
 
 
+
+def _IntegerCubeRootFloor(Value: int) -> int:
+    if Value <= 0:
+        return 0
+    Guess = int(round(Value ** (1 / 3)))
+    while (Guess + 1) ** 3 <= Value:
+        Guess += 1
+    while Guess ** 3 > Value:
+        Guess -= 1
+    return Guess
+
+
+def _IntegerCubeRootCeil(Value: int) -> int:
+    Floor = _IntegerCubeRootFloor(Value)
+    return Floor if Floor ** 3 == Value else Floor + 1
+
+
+def _ExtractCubeRootDigitCount(Config: MMConfig) -> int | None:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    Text = Text.replace("-", " ").replace("/", " ")
+    Patterns = [
+        r"cube\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*cube\s*root",
+        r"cube\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return int(Match.group(1))
+    return None
+
+
+def _CubeRootBaseRangeForRadicandDigits(DigitCount: int) -> tuple[int, int]:
+    MinimumRadicand = 10 ** (DigitCount - 1)
+    MaximumRadicand = (10 ** DigitCount) - 1
+    MinimumRoot = _IntegerCubeRootCeil(MinimumRadicand)
+    MaximumRoot = _IntegerCubeRootFloor(MaximumRadicand)
+    if MinimumRoot > MaximumRoot:
+        raise ValueError(f"No perfect cube exists with {DigitCount} digits")
+    return MinimumRoot, MaximumRoot
+
 def _CubeRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    ExplicitDigitCount = _ExtractCubeRootDigitCount(Config)
+    if ExplicitDigitCount is not None:
+        return _CubeRootBaseRangeForRadicandDigits(ExplicitDigitCount)
+
     Band = _LessonBand(Config)
     if Band <= 3:
         Ranges = {
