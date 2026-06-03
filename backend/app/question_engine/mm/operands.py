@@ -286,8 +286,28 @@ def _ApplyGivenPosition(Position: int, ValueText: str) -> Decimal:
 
 
 def _IsWriteNumberFromGivenPosition(Config: MMConfig) -> bool:
-    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
-    return "write the number" in Text or "number from the given position" in Text or "given position" in Text
+    """Keep two MM number-position concepts strictly separate.
+
+    `Write the Number from the Given Position` is the workbook table where a
+    position and a number are given and the student writes the shifted decimal.
+    `Find the Position of the First Natural Number` is a different concept and
+    must not be used for short section labels such as `Number Position`.
+    """
+    ActiveSection = ""
+    if isinstance(Config.GeneratorConfig, dict):
+        ActiveSectionData = Config.GeneratorConfig.get("activeSection") or {}
+        if isinstance(ActiveSectionData, dict):
+            ActiveSection = str(ActiveSectionData.get("sectionTitle") or ActiveSectionData.get("title") or "")
+    Text = " ".join(str(Value or "") for Value in [ActiveSection, Config.DpsTitle]).lower()
+    Normalized = " ".join(Text.replace("/", " ").replace(",", " ").split())
+
+    if "first natural number" in Normalized or "natural number position" in Normalized:
+        return False
+    if "write the number" in Normalized or "number from the given position" in Normalized or "given position" in Normalized:
+        return True
+    if Normalized.strip() == "number position" or " number position " in f" {Normalized} ":
+        return True
+    return False
 
 
 def GenerateNumberPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
