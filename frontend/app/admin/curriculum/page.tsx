@@ -712,7 +712,7 @@ function PreviewQuestionCard({
                   {option.label}
                 </span>
 
-                <span className="flex-1 leading-6">{option.value}</span>
+                <span className="flex-1 leading-6">{FormatMcqOptionValue(option.value)}</span>
 
                 {showCorrectAnswers && isCorrect ? (
                   <span className="math-mcq-correct-pill rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-100/20 dark:text-emerald-50">
@@ -789,3 +789,21 @@ function Item({
     </button>
   );
 }
+function FormatMcqOptionValue(Value: unknown): string {
+  const RawValue = String(Value ?? "").trim();
+
+  if (!RawValue) return RawValue;
+
+  const NumericValue = typeof Value === "number" ? Value : Number(RawValue);
+  if (!Number.isFinite(NumericValue)) return RawValue;
+
+  if (Number.isInteger(NumericValue)) return String(NumericValue);
+
+  const PlainValue = NumericValue.toLocaleString("en-US", {
+    useGrouping: false,
+    maximumFractionDigits: 20,
+  });
+
+  return PlainValue.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+}
+

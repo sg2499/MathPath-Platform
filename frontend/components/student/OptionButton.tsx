@@ -1,5 +1,23 @@
 import type { McqOption } from "@/types/question";
 
+function FormatNumericDisplay(Value: unknown): string {
+  const RawValue = String(Value ?? "").trim();
+
+  if (!RawValue) return RawValue;
+
+  const NumericValue = typeof Value === "number" ? Value : Number(RawValue);
+  if (!Number.isFinite(NumericValue)) return RawValue;
+
+  if (Number.isInteger(NumericValue)) return String(NumericValue);
+
+  const PlainValue = NumericValue.toLocaleString("en-US", {
+    useGrouping: false,
+    maximumFractionDigits: 20,
+  });
+
+  return PlainValue.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+}
+
 export function OptionButton({
   option,
   selected,
@@ -30,7 +48,7 @@ export function OptionButton({
       >
         {option.label}
       </span>
-      <span className="text-base font-bold">{option.value}</span>
+      <span className="text-base font-bold">{FormatNumericDisplay(option.value)}</span>
     </button>
   );
 }

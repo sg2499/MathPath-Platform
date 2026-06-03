@@ -9,13 +9,20 @@ def _QuantizeLike(Value: Decimal, CorrectAnswer: Decimal) -> Decimal:
     return Value.quantize(Decimal("1").scaleb(Exponent), rounding=ROUND_HALF_UP)
 
 
-def _Display(Value: Decimal) -> int | float:
+def _Display(Value: Decimal) -> int | str:
+    """Return distractor values in plain decimal notation for student display."""
     if Value == Value.to_integral_value():
         return int(Value)
-    return float(Value.normalize())
+
+    DisplayText = format(Value.normalize(), "f")
+    if "." in DisplayText:
+        DisplayText = DisplayText.rstrip("0").rstrip(".")
+    if DisplayText == "-0":
+        DisplayText = "0"
+    return DisplayText
 
 
-def GenerateMmDistractors(CorrectAnswer: Decimal, Rng: random.Random, AllowNegative: bool = False) -> list[int | float]:
+def GenerateMmDistractors(CorrectAnswer: Decimal, Rng: random.Random, AllowNegative: bool = False) -> list[int | str]:
     Magnitude = max(Decimal("1"), abs(CorrectAnswer))
     Step = Decimal("0.1") if CorrectAnswer.as_tuple().exponent < 0 else Decimal("1")
     CandidateDeltas = [Step, -Step, Step * 2, -Step * 2, Step * 5, -Step * 5]
