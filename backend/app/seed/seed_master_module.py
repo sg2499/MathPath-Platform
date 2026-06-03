@@ -430,6 +430,7 @@ SECTION_TITLE_NORMALISATIONS = {
     "find the position for decimal number multiplication answer placement": "Find the Position for Decimal Number Multiplication Answer Placement",
     "find the position of the first natural number": "Find the Position of the First Natural Number",
     "write the number from the given position": "Write the Number from the Given Position",
+    "number position": "Write the Number from the Given Position",
     "solve equation": "Solve Equation",
     "solve the equation": "Solve Equation",
 }
@@ -471,6 +472,7 @@ def _split_mm_title_parts(title: str) -> list[str]:
         "Find the Position for Decimal Number Multiplication Answer Placement": "Find the Position for Decimal Number Multiplication Answer Placement",
         "Find the position of the first Natural Number": "Find the Position of the First Natural Number",
         "Write the Number from the Given Position": "Write the Number from the Given Position",
+        "Number Position": "Write the Number from the Given Position",
         "Solve the Equation": "Solve Equation",
         "Solve Equation": "Solve Equation",
     }
