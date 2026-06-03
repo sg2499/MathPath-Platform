@@ -8,6 +8,7 @@ ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
 PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
 PACKAGE_6_BORROWING_CONCEPTS = {"BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}
+PACKAGE_7_POSITION_EQUATION_CONCEPTS = {"DECIMAL_MULTIPLICATION_ANSWER_POSITION", "NUMBER_POSITION", "SOLVE_EQUATION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 
 
@@ -238,6 +239,16 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
 
 
 
+
+def _ValidatePositionEquationQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if Config.ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
+        return _ValidateDecimalOperation(Operands, Operators, "×") and CorrectAnswer >= 0
+    if Config.ConceptFamily == "NUMBER_POSITION":
+        return len(Operands) == 1 and Operators == ["POSITION"] and CorrectAnswer >= 0
+    if Config.ConceptFamily == "SOLVE_EQUATION":
+        return len(Operands) >= 2 and Operators == ["SIGNED_EXPRESSION"] and CorrectAnswer == sum(_DecimalValue(Value) for Value in Operands)
+    return False
+
 def _ValidateBodmasQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if Config.ConceptFamily != "BODMAS":
         return False
@@ -265,6 +276,9 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
 
     if Config.ConceptFamily in PACKAGE_6_BORROWING_CONCEPTS:
         return _ValidateBorrowingQuestion(Config, Operands, Operators, CorrectAnswer)
+
+    if Config.ConceptFamily in PACKAGE_7_POSITION_EQUATION_CONCEPTS:
+        return _ValidatePositionEquationQuestion(Config, Operands, Operators, CorrectAnswer)
 
     if Config.ConceptFamily == "BODMAS":
         return _ValidateBodmasQuestion(Config, Operands, Operators, CorrectAnswer)

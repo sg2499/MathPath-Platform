@@ -64,7 +64,13 @@ PACKAGE_6_BORROWING_CONCEPTS = {
     "BORROWING_MIXED",
 }
 
-SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS | PACKAGE_6_BORROWING_CONCEPTS
+PACKAGE_7_POSITION_EQUATION_CONCEPTS = {
+    "DECIMAL_MULTIPLICATION_ANSWER_POSITION",
+    "NUMBER_POSITION",
+    "SOLVE_EQUATION",
+}
+
+SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS | PACKAGE_6_BORROWING_CONCEPTS | PACKAGE_7_POSITION_EQUATION_CONCEPTS
 
 # Backward-compatible name used by the existing generation service.
 SUPPORTED_MM_PACKAGE_1_CONCEPTS = SUPPORTED_MM_CONCEPTS
@@ -158,6 +164,17 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasLoss = "loss" in Text
     HasSellingPrice = "selling price" in Text
     HasCostPrice = "cost price" in Text
+    HasAnswerPosition = "answer position" in Text or "answer placement" in Text
+    HasFindPosition = "find position" in Text or "find the position" in Text or "given position" in Text or "first natural number" in Text
+    HasSolveEquation = "solve equation" in Text or "equation solving" in Text or "solve the equation" in Text
+
+    # Dedicated position/equation workbook sections must win before generic decimal/multiplication routing.
+    if HasSolveEquation:
+        return "SOLVE_EQUATION"
+    if HasAnswerPosition and HasDecimal and HasMultiplication:
+        return "DECIMAL_MULTIPLICATION_ANSWER_POSITION"
+    if HasFindPosition:
+        return "NUMBER_POSITION"
 
     # Package 5 dedicated MM concepts should win before inherited generic lesson-title signals.
     if HasSkillStacker:
@@ -278,6 +295,9 @@ SECTION_CONCEPT_ALIASES = {
     "BORROWING_NEGATIVE": "BORROWING_NEGATIVE",
     "BORROWING_POSITIVE": "BORROWING_POSITIVE",
     "BORROWING_MIXED": "BORROWING_MIXED",
+    "DECIMAL_MULTIPLICATION_ANSWER_POSITION": "DECIMAL_MULTIPLICATION_ANSWER_POSITION",
+    "NUMBER_POSITION": "NUMBER_POSITION",
+    "SOLVE_EQUATION": "SOLVE_EQUATION",
 }
 
 
@@ -306,6 +326,12 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
         return "REPEATED_SUBTRACTION"
     if ConceptFamily in {"BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}:
         return "BORROWING_ADD_LESS"
+    if ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
+        return "ANSWER_POSITION"
+    if ConceptFamily == "NUMBER_POSITION":
+        return "NUMBER_POSITION"
+    if ConceptFamily == "SOLVE_EQUATION":
+        return "SIGNED_EQUATION"
     return "MIXED"
 
 

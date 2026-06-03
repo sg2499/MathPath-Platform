@@ -228,6 +228,94 @@ def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, Question
     return [_AsDisplayNumber(Left), _AsDisplayNumber(Right)], ["", "×"], CorrectAnswer, {"decimal_places": Places}
 
 
+
+def GenerateDecimalMultiplicationAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    """Generate workbook-style decimal multiplication answer-placement questions.
+
+    These are not generic multiplication drills. The workbook uses this section to
+    reinforce where the decimal answer lands after multiplying decimal numbers,
+    so the operands intentionally use varied decimal places and compact display.
+    """
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Patterns = [
+        (Decimal("0.001"), Decimal("0.0009")),
+        (Decimal("0.0031"), Decimal("0.002")),
+        (Decimal("2.2"), Decimal("0.004")),
+        (Decimal("0.1023"), Decimal("4")),
+        (Decimal("1.0056"), Decimal("0.006")),
+        (Decimal("213.5"), Decimal("0.0022")),
+        (Decimal("0.351"), Decimal("0.2")),
+    ]
+    if Stage in {"ADVANCED", "CHALLENGE"}:
+        LeftPlaces = Rng.choice([2, 3, 4])
+        RightPlaces = Rng.choice([2, 3, 4])
+        Left = _RandDecimal(Rng, 1, 2500, LeftPlaces)
+        Right = _RandDecimal(Rng, 1, 1000, RightPlaces)
+    else:
+        Left, Right = Patterns[(QuestionNumber - 1) % len(Patterns)]
+    CorrectAnswer = (Left * Right).normalize()
+    QuestionText = f"{_AsDisplayNumber(Left)} × {_AsDisplayNumber(Right)} = ?"
+    return [_AsDisplayNumber(Left), _AsDisplayNumber(Right)], ["", "×"], CorrectAnswer, {
+        "question_text": QuestionText,
+        "answer_position_mode": "DECIMAL_MULTIPLICATION_PLACEMENT",
+    }
+
+
+def GenerateNumberPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    """Generate workbook-style number-position questions.
+
+    The answer is the decimal-place position of the first non-zero digit after the
+    decimal point. Whole/greater-than-one values intentionally return 0 because
+    the first natural number is already before the decimal point.
+    """
+    Samples = ["1.005", "12.007", "0.0089", "0.012", "345.002", "0.000456", "253.91", "0.2005"]
+    ValueText = Samples[(QuestionNumber - 1) % len(Samples)] if QuestionNumber <= len(Samples) else str(_RandDecimal(Rng, 0, 999, Rng.choice([2, 3, 4, 5])))
+    DecimalPart = ValueText.split(".", 1)[1] if "." in ValueText else ""
+    IntegerPart = ValueText.split(".", 1)[0]
+    if IntegerPart.lstrip("-") not in {"", "0"}:
+        Position = 0
+    else:
+        Position = next((Index for Index, Digit in enumerate(DecimalPart, start=1) if Digit != "0"), 0)
+    QuestionText = f"Find the position of the first natural number in {ValueText}"
+    return [float(ValueText)], ["POSITION"], Decimal(Position), {
+        "question_text": QuestionText,
+        "number_position_mode": "FIRST_NATURAL_NUMBER_POSITION",
+    }
+
+
+def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    """Generate small signed-integer solve-the-equation workbook questions."""
+    TermCount = 2 if QuestionNumber <= 3 else 3
+    Terms: list[int] = []
+    for _ in range(TermCount):
+        Value = Rng.randint(0, 15 if _LessonBand(Config) <= 2 else 35)
+        if Rng.random() < 0.5:
+            Value = -Value
+        Terms.append(Value)
+    # Avoid an all-zero expression.
+    if all(Value == 0 for Value in Terms):
+        Terms[0] = Rng.choice([-6, -4, 4, 6])
+    CorrectAnswer = Decimal(sum(Terms))
+
+    ExpressionParts: list[str] = []
+    for Index, Value in enumerate(Terms):
+        Formatted = f"({Value})" if Value < 0 else str(Value)
+        if Index == 0:
+            ExpressionParts.append(Formatted)
+        else:
+            Operator = "+" if Value >= 0 else "-"
+            Operand = str(abs(Value)) if Value < 0 else Formatted
+            if Value < 0 and Rng.random() < 0.5:
+                # Preserve workbook-style forms such as 4 + (-8).
+                Operator = "+"
+                Operand = f"({Value})"
+            ExpressionParts.append(f"{Operator} {Operand}")
+    QuestionText = " ".join(ExpressionParts) + " = ?"
+    return Terms, ["SIGNED_EXPRESSION"], CorrectAnswer, {
+        "question_text": QuestionText,
+        "equation_mode": "SIGNED_INTEGER_EXPRESSION",
+    }
+
 def GenerateDecimalDivision(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Places = 1 if Stage in {"WARM_UP", "STANDARD"} else 2
@@ -996,6 +1084,12 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateDecimalAddLess(Config, Rng, QuestionNumber)
     if ConceptFamily == "DECIMAL_MULTIPLICATION":
         return GenerateDecimalMultiplication(Config, Rng, QuestionNumber)
+    if ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
+        return GenerateDecimalMultiplicationAnswerPosition(Config, Rng, QuestionNumber)
+    if ConceptFamily == "NUMBER_POSITION":
+        return GenerateNumberPosition(Config, Rng, QuestionNumber)
+    if ConceptFamily == "SOLVE_EQUATION":
+        return GenerateSolveEquation(Config, Rng, QuestionNumber)
     if ConceptFamily == "DECIMAL_DIVISION":
         return GenerateDecimalDivision(Config, Rng, QuestionNumber)
     if ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION":
