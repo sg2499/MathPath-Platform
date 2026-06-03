@@ -23,10 +23,18 @@ import type {
 import type { AdminPreviewQuestion } from "@/types/question";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Eye, EyeOff, RefreshCcw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AdminCurriculumPage() {
+  return (
+    <Suspense fallback={<LoadingState label="Loading Learning Path Studio..." />}>
+      <AdminCurriculumPageContent />
+    </Suspense>
+  );
+}
+
+function AdminCurriculumPageContent() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const QueryClient = useQueryClient();
   const Router = useRouter();
