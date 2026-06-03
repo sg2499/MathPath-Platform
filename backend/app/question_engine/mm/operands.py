@@ -47,6 +47,16 @@ def _IsDecimalConcept(Config: MMConfig) -> bool:
     return "decimal" in Text
 
 
+def _IsTwoDigitFastVisualisation(Config: MMConfig) -> bool:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower().replace("-", " ")
+    return (
+        "2 digit" in Text
+        and "add" in Text
+        and "less" in Text
+        and "fast visualisation" in Text
+    )
+
+
 def _AddLessDecimalPlaces(Config: MMConfig, Stage: str) -> int:
     if not _IsDecimalConcept(Config):
         return 0
@@ -184,6 +194,36 @@ def _DivisionDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
 
 def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
+
+    # Workbook convention: 2 Digit Number Add/Less (Fast Visualisation) is a
+    # strict five-row stack of signed two-digit whole numbers. It must never
+    # generate decimal values or larger operand bands.
+    if _IsTwoDigitFastVisualisation(Config):
+        RowCount = 5
+        SignedValues: list[int] = []
+        for RowIndex in range(RowCount):
+            Value = Rng.randint(10, 99)
+            if RowIndex > 0 and Rng.random() < 0.35:
+                Value = -Value
+            SignedValues.append(Value)
+
+        # Ensure the stack is actually mixed like the workbook examples.
+        if not any(Value < 0 for Value in SignedValues[1:]):
+            ReplaceIndex = Rng.randint(1, RowCount - 1)
+            SignedValues[ReplaceIndex] = -abs(SignedValues[ReplaceIndex])
+        if not any(Value > 0 for Value in SignedValues):
+            SignedValues[0] = abs(SignedValues[0])
+
+        Operators = [""] + ["-" if Value < 0 else "+" for Value in SignedValues[1:]]
+        CorrectAnswer = Decimal(sum(SignedValues))
+        return SignedValues, Operators, CorrectAnswer, {
+            "decimal_places": 0,
+            "row_count": RowCount,
+            "lesson_band": _LessonBand(Config),
+            "fast_visualisation_mode": "TWO_DIGIT_ADD_LESS",
+            "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
+        }
+
     Places = _AddLessDecimalPlaces(Config, Stage)
     Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
     RowCount = _AddLessRowCount(Config, Stage)
