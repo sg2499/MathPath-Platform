@@ -18,7 +18,7 @@ def _DisplayMode(Config: MMConfig) -> str:
     ConceptFamily = Config.ConceptFamily
     TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".upper()
 
-    if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
+    if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS", "BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}:
         return "VISUAL_STACK"
 
     if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"}:
@@ -88,7 +88,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
             Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = Accepted
 
         CorrectDisplay = _Display(CorrectAnswer)
-        AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
+        AllowNegativeOptions = Config.ConceptFamily in {"INTEGERS", "BORROWING_NEGATIVE", "BORROWING_MIXED"} or CorrectAnswer < 0
         Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         QuestionText = ExtraMetadata.get("question_text") if isinstance(ExtraMetadata, dict) else None

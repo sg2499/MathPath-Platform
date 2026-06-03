@@ -58,7 +58,13 @@ PACKAGE_5_CONCEPTS = {
     "CONCEPT_DRILL",
 }
 
-SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS
+PACKAGE_6_BORROWING_CONCEPTS = {
+    "BORROWING_NEGATIVE",
+    "BORROWING_POSITIVE",
+    "BORROWING_MIXED",
+}
+
+SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS | PACKAGE_6_BORROWING_CONCEPTS
 
 # Backward-compatible name used by the existing generation service.
 SUPPORTED_MM_PACKAGE_1_CONCEPTS = SUPPORTED_MM_CONCEPTS
@@ -110,6 +116,7 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
             "percentage",
             "percent",
             "simple interest",
+            "borrowing",
             "profit",
             "loss",
             "selling price",
@@ -137,6 +144,9 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasSkillStacker = "skill stacker" in Text
     HasConceptDrill = "concept drill" in Text
     HasSimpleInterest = "simple interest" in Text
+    HasBorrowing = "borrowing" in Text
+    HasNegative = "negative" in Text
+    HasPositive = "positive" in Text
     HasProfit = "profit" in Text
     HasLoss = "loss" in Text
     HasSellingPrice = "selling price" in Text
@@ -147,6 +157,18 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "SKILL_STACKER"
     if HasConceptDrill:
         return "CONCEPT_DRILL"
+
+    # Borrowing is a dedicated visual add/less family in MM.
+    # It must not be routed into generic integers or generic add-less because
+    # borrowing sheets have workbook-specific positive/negative answer control.
+    if HasBorrowing and HasPositive and HasNegative:
+        return "BORROWING_MIXED"
+    if HasBorrowing and HasNegative:
+        return "BORROWING_NEGATIVE"
+    if HasBorrowing and HasPositive:
+        return "BORROWING_POSITIVE"
+    if HasBorrowing:
+        return "BORROWING_MIXED"
 
     # Package 4 financial concepts should win before generic percentage words.
     if HasSimpleInterest:
@@ -246,6 +268,9 @@ SECTION_CONCEPT_ALIASES = {
     "FIND_COST_PRICE": "FIND_COST_PRICE",
     "SKILL_STACKER": "SKILL_STACKER",
     "CONCEPT_DRILL": "CONCEPT_DRILL",
+    "BORROWING_NEGATIVE": "BORROWING_NEGATIVE",
+    "BORROWING_POSITIVE": "BORROWING_POSITIVE",
+    "BORROWING_MIXED": "BORROWING_MIXED",
 }
 
 
@@ -272,6 +297,8 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
         return "REPEATED_ADDITION"
     if ConceptFamily == "CONCEPT_DRILL":
         return "REPEATED_SUBTRACTION"
+    if ConceptFamily in {"BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}:
+        return "BORROWING_ADD_LESS"
     return "MIXED"
 
 

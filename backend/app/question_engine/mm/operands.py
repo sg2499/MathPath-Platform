@@ -263,6 +263,78 @@ def GenerateWholeNumberDivision(Config: MMConfig, Rng: random.Random, QuestionNu
     return [Dividend, Divisor], ["", "÷"], CorrectAnswer, {"dividend_digits": DividendDigits, "divisor_digits": DivisorDigits}
 
 
+def _BorrowingRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    Band = _LessonBand(Config)
+    BaseRanges = {
+        1: {"WARM_UP": (100, 999), "STANDARD": (200, 1200), "MIXED_STEP": (300, 1800), "ADVANCED": (500, 2500), "CHALLENGE": (700, 3500)},
+        2: {"WARM_UP": (200, 1500), "STANDARD": (400, 2500), "MIXED_STEP": (700, 4000), "ADVANCED": (1000, 6500), "CHALLENGE": (1500, 9000)},
+        3: {"WARM_UP": (400, 2500), "STANDARD": (800, 5000), "MIXED_STEP": (1500, 9000), "ADVANCED": (2500, 15000), "CHALLENGE": (4000, 25000)},
+        4: {"WARM_UP": (800, 5000), "STANDARD": (1500, 9000), "MIXED_STEP": (3000, 18000), "ADVANCED": (5000, 35000), "CHALLENGE": (8000, 60000)},
+        5: {"WARM_UP": (1500, 9000), "STANDARD": (3000, 18000), "MIXED_STEP": (6000, 35000), "ADVANCED": (10000, 70000), "CHALLENGE": (15000, 120000)},
+        6: {"WARM_UP": (3000, 18000), "STANDARD": (6000, 35000), "MIXED_STEP": (10000, 75000), "ADVANCED": (20000, 150000), "CHALLENGE": (35000, 250000)},
+    }
+    return BaseRanges.get(Band, BaseRanges[1]).get(Stage, (100, 999))
+
+
+def _HasBorrowingBetween(Minuend: int, Subtrahend: int) -> bool:
+    Left = str(abs(Minuend))[::-1]
+    Right = str(abs(Subtrahend))[::-1]
+    MaxLength = max(len(Left), len(Right))
+    Left = Left.ljust(MaxLength, "0")
+    Right = Right.ljust(MaxLength, "0")
+    return any(int(Left[Index]) < int(Right[Index]) for Index in range(MaxLength))
+
+
+def _GenerateBorrowingPair(Rng: random.Random, Minimum: int, Maximum: int, WantNegative: bool) -> tuple[int, int]:
+    for _ in range(200):
+        Left = Rng.randint(Minimum, Maximum)
+        Right = Rng.randint(Minimum, Maximum)
+        if WantNegative and Left >= Right:
+            Left, Right = min(Left, Right), max(Left, Right)
+        elif not WantNegative and Left <= Right:
+            Left, Right = max(Left, Right), min(Left, Right)
+        if Left != Right and _HasBorrowingBetween(Left, Right):
+            return Left, Right
+
+    # Deterministic fallback that still forces a borrow in the ones/tens place.
+    Base = max(100, Minimum)
+    if WantNegative:
+        return Base + 12, Base + 87
+    return Base + 87, Base + 12
+
+
+def _BorrowingMode(Config: MMConfig, QuestionNumber: int) -> str:
+    if Config.ConceptFamily == "BORROWING_NEGATIVE":
+        return "NEGATIVE"
+    if Config.ConceptFamily == "BORROWING_POSITIVE":
+        return "POSITIVE"
+    # Workbook mixed sheets contain both positive and negative answers.
+    return "NEGATIVE" if QuestionNumber % 2 == 1 else "POSITIVE"
+
+
+def GenerateBorrowing(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Minimum, Maximum = _BorrowingRange(Config, Stage)
+    Mode = _BorrowingMode(Config, QuestionNumber)
+    WantNegative = Mode == "NEGATIVE"
+
+    Minuend, Subtrahend = _GenerateBorrowingPair(Rng, Minimum, Maximum, WantNegative)
+    CorrectAnswer = Decimal(Minuend - Subtrahend)
+
+    # The workbook presents borrowing sections as visual signed-number stacks.
+    # Keep the subtrahend as a signed operand so the shared vertical stack renderer
+    # shows a left-side minus operator and does not introduce a separate operator row.
+    Operands = [Minuend, -Subtrahend]
+    Operators = ["", "-"]
+    return Operands, Operators, CorrectAnswer, {
+        "borrowing_mode": Mode,
+        "requires_borrowing": True,
+        "answer_sign": "NEGATIVE" if CorrectAnswer < 0 else "POSITIVE",
+        "row_count": 2,
+        "lesson_band": _LessonBand(Config),
+    }
+
+
 def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     MaxAbs = {"WARM_UP": 20, "STANDARD": 50, "MIXED_STEP": 100, "ADVANCED": 250, "CHALLENGE": 500}.get(Stage, 50) * _LessonBand(Config)
@@ -750,6 +822,8 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateWholeNumberMultiplication(Config, Rng, QuestionNumber)
     if ConceptFamily == "WHOLE_NUMBER_DIVISION":
         return GenerateWholeNumberDivision(Config, Rng, QuestionNumber)
+    if ConceptFamily in {"BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}:
+        return GenerateBorrowing(Config, Rng, QuestionNumber)
     if ConceptFamily == "INTEGERS":
         return GenerateIntegers(Config, Rng, QuestionNumber)
     if ConceptFamily == "BODMAS":
