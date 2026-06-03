@@ -117,6 +117,33 @@ def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: lis
     return Operators[1] in {"+%", "-%"}
 
 
+def _IsTwoDigitFastVisualisation(Config: MMConfig) -> bool:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower().replace("-", " ")
+    return (
+        "2 digit" in Text
+        and "add" in Text
+        and "less" in Text
+        and "fast visualisation" in Text
+    )
+
+
+def _ValidateTwoDigitFastVisualisation(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if not _IsTwoDigitFastVisualisation(Config):
+        return True
+    if len(Operands) != 5 or len(Operators) != 5:
+        return False
+    if Operators[0] != "" or any(Operator not in {"+", "-"} for Operator in Operators[1:]):
+        return False
+    if not all(_IsNumeric(Value) and _IsWholeNumber(Value) for Value in Operands):
+        return False
+    Values = [int(_DecimalValue(Value)) for Value in Operands]
+    if not all(10 <= abs(Value) <= 99 for Value in Values):
+        return False
+    if not any(Value < 0 for Value in Values[1:]):
+        return False
+    return Decimal(sum(Values)) == CorrectAnswer
+
+
 def _HasBorrowingBetween(Minuend: int, Subtrahend: int) -> bool:
     Left = str(abs(Minuend))[::-1]
     Right = str(abs(Subtrahend))[::-1]
@@ -324,10 +351,13 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
     if Config.ConceptFamily == "PERCENTAGE_ADD_LESS":
         return _ValidatePercentageAddLess(Operands, Operators) and CorrectAnswer >= 0
 
+    if Config.ConceptFamily == "ADD_LESS" and not _ValidateTwoDigitFastVisualisation(Config, Operands, Operators, CorrectAnswer):
+        return False
+
     if Config.ConceptFamily.startswith("PERCENTAGE") and any(_IsNumeric(Value) and Decimal(str(Value)) < 0 for Value in Operands):
         return False
 
-    if Config.ConceptFamily != "INTEGERS" and CorrectAnswer < 0:
+    if Config.ConceptFamily != "INTEGERS" and not _IsTwoDigitFastVisualisation(Config) and CorrectAnswer < 0:
         return False
 
     return True
