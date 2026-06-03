@@ -265,8 +265,14 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
     if not IsPackage1Supported(Config.ConceptFamily):
         return False
 
-    if len(Operators) != len(Operands):
-        return False
+    # Some workbook-style MM display modes intentionally use one semantic
+    # operator label for a full expression/row, for example Solve Equation
+    # uses ["SIGNED_EXPRESSION"] while the operands list stores each signed
+    # term. Validate these specialist formats before applying the generic
+    # operator-count guard used by arithmetic stacks. This prevents supported
+    # restored MM sections from failing preview generation.
+    if Config.ConceptFamily in PACKAGE_7_POSITION_EQUATION_CONCEPTS:
+        return _ValidatePositionEquationQuestion(Config, Operands, Operators, CorrectAnswer)
 
     if Config.ConceptFamily in PACKAGE_4_FINANCIAL_CONCEPTS:
         return _ValidateFinancialQuestion(Config, Operands, Operators, CorrectAnswer)
@@ -276,9 +282,6 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
 
     if Config.ConceptFamily in PACKAGE_6_BORROWING_CONCEPTS:
         return _ValidateBorrowingQuestion(Config, Operands, Operators, CorrectAnswer)
-
-    if Config.ConceptFamily in PACKAGE_7_POSITION_EQUATION_CONCEPTS:
-        return _ValidatePositionEquationQuestion(Config, Operands, Operators, CorrectAnswer)
 
     if Config.ConceptFamily == "BODMAS":
         return _ValidateBodmasQuestion(Config, Operands, Operators, CorrectAnswer)

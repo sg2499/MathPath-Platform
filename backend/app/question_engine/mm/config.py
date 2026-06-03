@@ -165,7 +165,7 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasSellingPrice = "selling price" in Text
     HasCostPrice = "cost price" in Text
     HasAnswerPosition = "answer position" in Text or "answer placement" in Text
-    HasFindPosition = "find position" in Text or "find the position" in Text or "given position" in Text or "first natural number" in Text
+    HasFindPosition = "find position" in Text or "find the position" in Text or "given position" in Text or "first natural number" in Text or "number position" in Text
     HasSolveEquation = "solve equation" in Text or "equation solving" in Text or "solve the equation" in Text
 
     # Dedicated position/equation workbook sections must win before generic decimal/multiplication routing.
