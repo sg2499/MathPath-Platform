@@ -312,26 +312,59 @@ def _BorrowingMode(Config: MMConfig, QuestionNumber: int) -> str:
     return "NEGATIVE" if QuestionNumber % 2 == 1 else "POSITIVE"
 
 
+def _SplitBorrowingTotal(Rng: random.Random, Total: int) -> tuple[int, int]:
+    if Total <= 2:
+        return 1, max(1, Total - 1)
+    Lower = max(1, Total // 5)
+    Upper = max(Lower, (Total * 4) // 5)
+    First = Rng.randint(Lower, Upper)
+    Second = Total - First
+    if Second <= 0:
+        Second = 1
+        First = Total - Second
+    return First, Second
+
+
+def _BuildBorrowingStackOperands(Rng: random.Random, PositiveTotal: int, NegativeTotal: int) -> list[int]:
+    # Workbook borrowing sheets are signed vertical stacks with at least three
+    # numbers in each column, not simple two-number subtraction. Keep exactly
+    # three rows to match the source sheets while allowing either the positive
+    # side or negative side to be split into two rows.
+    SplitPositive = Rng.random() < 0.5
+    if SplitPositive and PositiveTotal > 2:
+        PositiveOne, PositiveTwo = _SplitBorrowingTotal(Rng, PositiveTotal)
+        Operands = [PositiveOne, PositiveTwo, -NegativeTotal]
+    elif NegativeTotal > 2:
+        NegativeOne, NegativeTwo = _SplitBorrowingTotal(Rng, NegativeTotal)
+        Operands = [PositiveTotal, -NegativeOne, -NegativeTwo]
+    else:
+        PositiveOne, PositiveTwo = _SplitBorrowingTotal(Rng, PositiveTotal)
+        Operands = [PositiveOne, PositiveTwo, -NegativeTotal]
+
+    Rng.shuffle(Operands)
+    return Operands
+
+
 def GenerateBorrowing(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Minimum, Maximum = _BorrowingRange(Config, Stage)
     Mode = _BorrowingMode(Config, QuestionNumber)
     WantNegative = Mode == "NEGATIVE"
 
-    Minuend, Subtrahend = _GenerateBorrowingPair(Rng, Minimum, Maximum, WantNegative)
-    CorrectAnswer = Decimal(Minuend - Subtrahend)
+    PositiveTotal, NegativeTotal = _GenerateBorrowingPair(Rng, Minimum, Maximum, WantNegative)
+    CorrectAnswer = Decimal(PositiveTotal - NegativeTotal)
+    Operands = _BuildBorrowingStackOperands(Rng, PositiveTotal, NegativeTotal)
+    Operators = ["" for _ in Operands]
 
-    # The workbook presents borrowing sections as visual signed-number stacks.
-    # Keep the subtrahend as a signed operand so the shared vertical stack renderer
-    # shows a left-side minus operator and does not introduce a separate operator row.
-    Operands = [Minuend, -Subtrahend]
-    Operators = ["", "-"]
     return Operands, Operators, CorrectAnswer, {
         "borrowing_mode": Mode,
         "requires_borrowing": True,
+        "positive_total": PositiveTotal,
+        "negative_total": NegativeTotal,
         "answer_sign": "NEGATIVE" if CorrectAnswer < 0 else "POSITIVE",
-        "row_count": 2,
+        "row_count": len(Operands),
         "lesson_band": _LessonBand(Config),
+        "workbook_stack_style": "SIGNED_THREE_NUMBER_BORROWING_STACK",
     }
 
 

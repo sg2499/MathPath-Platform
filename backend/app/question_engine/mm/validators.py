@@ -126,17 +126,28 @@ def _HasBorrowingBetween(Minuend: int, Subtrahend: int) -> bool:
 
 
 def _ValidateBorrowingQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
-    if len(Operands) != 2 or Operators != ["", "-"]:
+    # MM borrowing sheets are workbook-style signed vertical stacks with at
+    # least three numbers per question. Two-number subtraction is intentionally
+    # rejected because it does not match the source sheets.
+    if len(Operands) < 3 or len(Operators) != len(Operands):
+        return False
+    if any(str(Operator or "").strip() not in {"", "+"} for Operator in Operators):
         return False
     if not all(_IsNumeric(Value) and _IsWholeNumber(Value) for Value in Operands):
         return False
 
-    Minuend = int(abs(_DecimalValue(Operands[0])))
-    Subtrahend = int(abs(_DecimalValue(Operands[1])))
-    ExpectedAnswer = Decimal(Minuend - Subtrahend)
+    SignedValues = [int(_DecimalValue(Value)) for Value in Operands]
+    if not any(Value < 0 for Value in SignedValues) or not any(Value > 0 for Value in SignedValues):
+        return False
+
+    PositiveTotal = sum(Value for Value in SignedValues if Value > 0)
+    NegativeTotal = sum(abs(Value) for Value in SignedValues if Value < 0)
+    ExpectedAnswer = Decimal(PositiveTotal - NegativeTotal)
     if CorrectAnswer != ExpectedAnswer:
         return False
-    if not _HasBorrowingBetween(Minuend, Subtrahend):
+    if PositiveTotal == NegativeTotal:
+        return False
+    if not _HasBorrowingBetween(max(PositiveTotal, NegativeTotal), min(PositiveTotal, NegativeTotal)):
         return False
     if Config.ConceptFamily == "BORROWING_NEGATIVE":
         return CorrectAnswer < 0

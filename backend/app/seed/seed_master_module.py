@@ -16,9 +16,6 @@ LEVEL_DISPLAY_ORDER = 1
 DPS_DURATION_SECONDS = 5 * 60
 DPS_PER_LESSON = 5
 
-PACKAGE_5_FIVE_QUESTION_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
-PACKAGE_5_FIVE_QUESTION_TITLES = {"skill stacker", "concept drill"}
-
 # MathPath module hierarchy convention:
 # 1. Young Learners Module
 # 2. Preparatory Module
@@ -264,9 +261,12 @@ SECTION_TITLE_NORMALISATIONS = {
     "skill stacker visual": "Skill Stacker",
     "concept drill": "Concept Drill",
     "concept drill abacus": "Concept Drill",
-    "multiplication mixed pattern": "Multiplication Mixed Pattern",
-    "mixed pattern multiplication": "Multiplication Mixed Pattern",
-    "division mixed pattern": "Division Mixed Pattern",
+    "borrowing sums with negative answers": "Borrowing Sums with Negative Answers",
+    "borrowing sums with negative answers visual": "Borrowing Sums with Negative Answers",
+    "borrowing sums with positive answers": "Borrowing Sums with Positive Answers",
+    "borrowing sums with positive answers visual": "Borrowing Sums with Positive Answers",
+    "borrowing sums with positive negative answers": "Borrowing Sums with Positive / Negative Answers",
+    "borrowing sums with positive / negative answers": "Borrowing Sums with Positive / Negative Answers",
 }
 
 
@@ -298,6 +298,10 @@ def _split_mm_title_parts(title: str) -> list[str]:
         "Cube Root": "Cube Root",
         "Skill Stacker": "Skill Stacker",
         "Concept Drill": "Concept Drill",
+        "Borrowing Sums with Positive / Negative Answers": "Borrowing Sums with Positive Negative Answers",
+        "Borrowing Sums with Positive, Negative Answers": "Borrowing Sums with Positive Negative Answers",
+        "Borrowing Sums with Negative Answers": "Borrowing Sums with Negative Answers",
+        "Borrowing Sums with Positive Answers": "Borrowing Sums with Positive Answers",
     }
     for source, target in protected.items():
         working = working.replace(source, target)
@@ -318,68 +322,20 @@ def _concept_for_section(section_title: str, lesson_title: str) -> str:
     return ClassifyMmConcept(section_title, lesson_title)
 
 
-def _section_question_count(section_title: str, concept_family: str, fallback_count: int = 10) -> int:
-    """Return workbook-safe section question counts.
-
-    Skill Stacker and Concept Drill are short abacus reinforcement sections.
-    They must always generate exactly 5 questions wherever they appear,
-    regardless of whether the surrounding DPS is single-concept or mixed.
-    """
-    normalized_title = " ".join(str(section_title or "").replace("-", " ").lower().split())
-    if concept_family in PACKAGE_5_FIVE_QUESTION_CONCEPTS:
-        return 5
-    if any(marker in normalized_title for marker in PACKAGE_5_FIVE_QUESTION_TITLES):
-        return 5
-    return int(fallback_count or 10)
-
-
 def _split_title_into_sections(lesson_number: int, dps_number: int) -> list[dict]:
     override = MM_DPS_SECTION_OVERRIDES.get((lesson_number, dps_number))
     if override:
-        return [
-            {
-                **section,
-                "questionCount": _section_question_count(
-                    str(section.get("sectionTitle", "")),
-                    str(section.get("conceptFamily", "")),
-                    int(section.get("questionCount") or 10),
-                ),
-            }
-            for section in override
-        ]
+        return override
 
     title = _dps_title(lesson_number, dps_number)
     lesson_title = LESSON_TITLES[lesson_number]
     lowered = title.lower()
-
-    # Workbook convention: "Multiplication and Division Mixed Pattern" is a
-    # two-section DPS. The sections must stay operation-pure:
-    #   Section 1 -> Multiplication Mixed Pattern -> multiplication only
-    #   Section 2 -> Division Mixed Pattern       -> division only
-    # Do not let the generic "and" splitter create a plain "Multiplication"
-    # section or route the division section back into mixed generation.
-    if lowered.strip() == "multiplication and division mixed pattern":
-        return [
-            {
-                "sectionTitle": "Multiplication Mixed Pattern",
-                "questionCount": 10,
-                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
-            },
-            {
-                "sectionTitle": "Division Mixed Pattern",
-                "questionCount": 10,
-                "conceptFamily": "WHOLE_NUMBER_DIVISION",
-            },
-        ]
-
     parts = _split_mm_title_parts(title)
     if len(parts) <= 1:
-        concept_family = ClassifyMmConcept(title, lesson_title)
-        fallback_count = int(20 if "visual" in lowered and (" x " in lowered or "÷" in lowered) else 10)
         return [{
             "sectionTitle": title,
-            "questionCount": _section_question_count(title, concept_family, fallback_count),
-            "conceptFamily": concept_family,
+            "questionCount": int(20 if "visual" in lowered and (" x " in lowered or "÷" in lowered) else 10),
+            "conceptFamily": ClassifyMmConcept(title, lesson_title),
         }]
 
     # Default workbook split for normal two-concept sheets is 10+10.
@@ -391,15 +347,14 @@ def _split_title_into_sections(lesson_number: int, dps_number: int) -> list[dict
     else:
         counts = [10] + [5 for _ in parts[1:]]
 
-    sections: list[dict] = []
-    for index, section_title in enumerate(parts):
-        concept_family = _concept_for_section(section_title, lesson_title)
-        sections.append({
+    return [
+        {
             "sectionTitle": section_title,
-            "questionCount": _section_question_count(section_title, concept_family, counts[index]),
-            "conceptFamily": concept_family,
-        })
-    return sections
+            "questionCount": counts[index],
+            "conceptFamily": _concept_for_section(section_title, lesson_title),
+        }
+        for index, section_title in enumerate(parts)
+    ]
 
 
 def _dps_sections(lesson_number: int, dps_number: int) -> list[dict]:
