@@ -58,11 +58,22 @@ def _NormalisedPatternTitle(Config: MMConfig) -> str:
 
 
 
-def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
+def _ExtractSquareRootDigitCounts(Config: MMConfig) -> list[int] | None:
     Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
-    Text = Text.replace("-", " ").replace("/", " ")
+    Text = Text.replace("-", " ").replace("/", " ").replace("&", " and ")
     if "square root" not in Text:
         return None
+
+    MixedPatterns = [
+        r"square\s*root\s*(?:of\s*)?([2-6])\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"square\s*root\s*([2-6])\s*(?:digit|d)?\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*square\s*root",
+    ]
+    for Pattern in MixedPatterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return sorted({int(Match.group(1)), int(Match.group(2))})
+
     Patterns = [
         r"square\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
         r"square\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
@@ -71,12 +82,19 @@ def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
     for Pattern in Patterns:
         Match = re.search(Pattern, Text)
         if Match:
-            return int(Match.group(1))
+            return [int(Match.group(1))]
     return None
 
 
+def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
+    DigitCounts = _ExtractSquareRootDigitCounts(Config)
+    if not DigitCounts or len(DigitCounts) != 1:
+        return None
+    return DigitCounts[0]
+
+
 def _ValidateSquareRootRadicandDigits(Config: MMConfig, Text: str, CorrectAnswer: Decimal) -> bool:
-    ExpectedDigits = _ExtractSquareRootDigitCount(Config)
+    ExpectedDigitCounts = _ExtractSquareRootDigitCounts(Config)
     Match = re.search(r"√\s*(\d+)", Text)
     if not Match:
         return False
@@ -84,9 +102,9 @@ def _ValidateSquareRootRadicandDigits(Config: MMConfig, Text: str, CorrectAnswer
     Root = int(CorrectAnswer)
     if Decimal(Root) != CorrectAnswer or Root * Root != Radicand:
         return False
-    if ExpectedDigits is None:
+    if not ExpectedDigitCounts:
         return True
-    return _DigitCountFromInteger(Radicand) == ExpectedDigits
+    return _DigitCountFromInteger(Radicand) in set(ExpectedDigitCounts)
 
 def _ExtractCubeRootDigitCount(Config: MMConfig) -> int | None:
     Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
