@@ -237,6 +237,19 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
     return False
 
 
+
+def _ValidateBodmasQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if Config.ConceptFamily != "BODMAS":
+        return False
+    if len(Operands) != 1 or Operators != [""]:
+        return False
+    Expression = str(Operands[0] or "").strip()
+    if not Expression:
+        return False
+    RequiredSignal = any(Symbol in Expression for Symbol in ["×", "÷", "+", "-"])
+    AdvancedSignalAllowed = all(Symbol not in Expression or Symbol in Expression for Symbol in ["√", "∛", "²", "³", "%", "(", ")"])
+    return RequiredSignal and AdvancedSignalAllowed and CorrectAnswer >= 0
+
 def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if not IsPackage1Supported(Config.ConceptFamily):
         return False
@@ -252,6 +265,9 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
 
     if Config.ConceptFamily in PACKAGE_6_BORROWING_CONCEPTS:
         return _ValidateBorrowingQuestion(Config, Operands, Operators, CorrectAnswer)
+
+    if Config.ConceptFamily == "BODMAS":
+        return _ValidateBodmasQuestion(Config, Operands, Operators, CorrectAnswer)
 
     if any(Operator not in ALLOWED_OPERATORS for Operator in Operators):
         return False
