@@ -124,7 +124,7 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
 
     HasDecimal = "decimal" in Text
     HasAddLess = "add less" in Text or ("add" in Text and "less" in Text)
-    HasMultiplication = "multiplication" in Text or " x " in f" {Text} " or "mixed pattern" in Text
+    HasMultiplication = "multiplication" in Text or " x " in f" {Text} "
     HasDivision = "division" in Text
     HasInteger = "integer" in Text or "integers" in Text
     HasBodmas = "bodmas" in Text
@@ -177,6 +177,15 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "SQUARES"
     if HasCubes:
         return "CUBES"
+
+    # Mixed Pattern section labels must remain operation-pure.
+    # "Multiplication Mixed Pattern" is multiplication-only and
+    # "Division Mixed Pattern" is division-only. The combined DPS title is
+    # split section-wise by the seed map before generation.
+    if "multiplication mixed pattern" in Text and "division" not in Text:
+        return "WHOLE_NUMBER_MULTIPLICATION"
+    if "division mixed pattern" in Text and "multiplication" not in Text:
+        return "WHOLE_NUMBER_DIVISION"
 
     # Package 2 concepts should win when the DPS title explicitly names them.
     if HasInteger:
