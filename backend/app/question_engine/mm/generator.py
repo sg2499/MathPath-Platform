@@ -29,6 +29,15 @@ def _DisplayMode(Config: MMConfig) -> str:
             return "ANSWER_POSITION"
         return "VISUAL_STACK"
 
+    if ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
+        return "ANSWER_POSITION"
+
+    if ConceptFamily == "NUMBER_POSITION":
+        return "EXPRESSION_WORKSHEET"
+
+    if ConceptFamily == "SOLVE_EQUATION":
+        return "EXPRESSION_WORKSHEET"
+
     if ConceptFamily in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
         if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
             return "ANSWER_POSITION"
