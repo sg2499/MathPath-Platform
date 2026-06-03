@@ -23,112 +23,281 @@ import type {
 import type { AdminPreviewQuestion } from "@/types/question";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Eye, EyeOff, RefreshCcw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AdminCurriculumPage() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const QueryClient = useQueryClient();
+  const Router = useRouter();
+  const SearchParams = useSearchParams();
 
-  const [moduleId, setModuleId] = useState("");
-  const [levelId, setLevelId] = useState("");
-  const [lessonId, setLessonId] = useState("");
-  const [dpsId, setDpsId] = useState("");
+  const [moduleId, setModuleId] = useState(
+    () => SearchParams.get("moduleId") ?? "",
+  );
+  const [levelId, setLevelId] = useState(
+    () => SearchParams.get("levelId") ?? "",
+  );
+  const [lessonId, setLessonId] = useState(
+    () => SearchParams.get("lessonId") ?? "",
+  );
+  const [dpsId, setDpsId] = useState(() => SearchParams.get("dpsId") ?? "");
 
   const [showCorrectAnswers, setShowCorrectAnswers] = useState(false);
   const [previewQuestions, setPreviewQuestions] = useState<
     AdminPreviewQuestion[]
   >([]);
 
+  const UpdateSelectionUrl = useCallback(
+    (NextSelection: {
+      moduleId?: string | null;
+      levelId?: string | null;
+      lessonId?: string | null;
+      dpsId?: string | null;
+    }) => {
+      const Params = new URLSearchParams(
+        typeof window === "undefined"
+          ? SearchParams.toString()
+          : window.location.search,
+      );
+
+      Object.entries(NextSelection).forEach(([Key, Value]) => {
+        if (Value) {
+          Params.set(Key, Value);
+        } else {
+          Params.delete(Key);
+        }
+      });
+
+      const QueryString = Params.toString();
+      Router.replace(
+        QueryString ? `?${QueryString}` : window.location.pathname,
+        {
+          scroll: false,
+        },
+      );
+    },
+    [Router, SearchParams],
+  );
+
+  const ClearPreviewState = useCallback(() => {
+    setPreviewQuestions([]);
+    setShowCorrectAnswers(false);
+  }, []);
+
+  const handleModuleSelect = useCallback(
+    (NextModuleId: string) => {
+      if (NextModuleId === moduleId) return;
+
+      setModuleId(NextModuleId);
+      setLevelId("");
+      setLessonId("");
+      setDpsId("");
+      ClearPreviewState();
+      UpdateSelectionUrl({
+        moduleId: NextModuleId,
+        levelId: null,
+        lessonId: null,
+        dpsId: null,
+      });
+    },
+    [ClearPreviewState, UpdateSelectionUrl, moduleId],
+  );
+
+  const handleLevelSelect = useCallback(
+    (NextLevelId: string) => {
+      if (NextLevelId === levelId) return;
+
+      setLevelId(NextLevelId);
+      setLessonId("");
+      setDpsId("");
+      ClearPreviewState();
+      UpdateSelectionUrl({
+        levelId: NextLevelId,
+        lessonId: null,
+        dpsId: null,
+      });
+    },
+    [ClearPreviewState, UpdateSelectionUrl, levelId],
+  );
+
+  const handleLessonSelect = useCallback(
+    (NextLessonId: string) => {
+      if (NextLessonId === lessonId) return;
+
+      setLessonId(NextLessonId);
+      setDpsId("");
+      ClearPreviewState();
+      UpdateSelectionUrl({ lessonId: NextLessonId, dpsId: null });
+    },
+    [ClearPreviewState, UpdateSelectionUrl, lessonId],
+  );
+
+  const handleDpsSelect = useCallback(
+    (NextDpsId: string) => {
+      if (NextDpsId === dpsId) return;
+
+      setDpsId(NextDpsId);
+      ClearPreviewState();
+      UpdateSelectionUrl({ dpsId: NextDpsId });
+    },
+    [ClearPreviewState, UpdateSelectionUrl, dpsId],
+  );
+
   const modulesQuery = useQuery({
     queryKey: ["admin-curriculum-modules"],
     queryFn: getModules,
     enabled: ready,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const levelsQuery = useQuery({
     queryKey: ["admin-curriculum-levels", moduleId],
     queryFn: () => getLevels(moduleId),
     enabled: ready && Boolean(moduleId),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const lessonsQuery = useQuery({
     queryKey: ["admin-curriculum-lessons", levelId],
     queryFn: () => getLessons(levelId),
     enabled: ready && Boolean(levelId),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const dpsQuery = useQuery({
     queryKey: ["admin-curriculum-dps", lessonId],
     queryFn: () => getDpsByLesson(lessonId),
     enabled: ready && Boolean(lessonId),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const selectedModule = useMemo(
     () => modulesQuery.data?.find((item) => item.moduleId === moduleId),
-    [modulesQuery.data, moduleId]
+    [modulesQuery.data, moduleId],
   );
 
   const selectedLevel = useMemo(
     () => levelsQuery.data?.find((item) => item.levelId === levelId),
-    [levelsQuery.data, levelId]
+    [levelsQuery.data, levelId],
   );
 
   const selectedLesson = useMemo(
     () => lessonsQuery.data?.find((item) => item.lessonId === lessonId),
-    [lessonsQuery.data, lessonId]
+    [lessonsQuery.data, lessonId],
   );
 
   const selectedDps = useMemo(
     () => dpsQuery.data?.find((item) => item.dpsId === dpsId),
-    [dpsQuery.data, dpsId]
+    [dpsQuery.data, dpsId],
   );
 
   useEffect(() => {
-    if (!modulesQuery.data?.length || moduleId) return;
+    if (!modulesQuery.data?.length) return;
 
-    const ylm =
+    const HasSelectedModule = modulesQuery.data.some(
+      (item) => item.moduleId === moduleId,
+    );
+
+    if (moduleId && HasSelectedModule) return;
+
+    const DefaultModule =
       modulesQuery.data.find((item) => item.moduleCode === "YLM") ||
       modulesQuery.data[0];
 
-    setModuleId(ylm.moduleId);
-  }, [modulesQuery.data, moduleId]);
+    setModuleId(DefaultModule.moduleId);
+    UpdateSelectionUrl({ moduleId: DefaultModule.moduleId });
+  }, [UpdateSelectionUrl, modulesQuery.data, moduleId]);
 
   useEffect(() => {
-    setLevelId("");
-    setLessonId("");
-    setDpsId("");
-    setPreviewQuestions([]);
-  }, [moduleId]);
+    if (!modulesQuery.data?.length) return;
+
+    modulesQuery.data.forEach((Module) => {
+      if (Module.moduleId === moduleId) return;
+
+      QueryClient.prefetchQuery({
+        queryKey: ["admin-curriculum-levels", Module.moduleId],
+        queryFn: () => getLevels(Module.moduleId),
+        staleTime: 10 * 60 * 1000,
+      });
+    });
+  }, [QueryClient, modulesQuery.data, moduleId]);
 
   useEffect(() => {
-    if (!levelsQuery.data?.length || levelId) return;
-    setLevelId(levelsQuery.data[0].levelId);
-  }, [levelsQuery.data, levelId]);
+    if (!levelsQuery.data?.length) return;
+
+    const HasSelectedLevel = levelsQuery.data.some(
+      (item) => item.levelId === levelId,
+    );
+
+    if (levelId && HasSelectedLevel) return;
+
+    const DefaultLevel = levelsQuery.data[0];
+    setLevelId(DefaultLevel.levelId);
+    UpdateSelectionUrl({ levelId: DefaultLevel.levelId });
+  }, [UpdateSelectionUrl, levelsQuery.data, levelId]);
 
   useEffect(() => {
-    setLessonId("");
-    setDpsId("");
-    setPreviewQuestions([]);
-  }, [levelId]);
+    if (!levelsQuery.data?.length) return;
+
+    levelsQuery.data.forEach((Level) => {
+      if (Level.levelId === levelId) return;
+
+      QueryClient.prefetchQuery({
+        queryKey: ["admin-curriculum-lessons", Level.levelId],
+        queryFn: () => getLessons(Level.levelId),
+        staleTime: 10 * 60 * 1000,
+      });
+    });
+  }, [QueryClient, levelsQuery.data, levelId]);
 
   useEffect(() => {
-    if (!lessonsQuery.data?.length || lessonId) return;
-    setLessonId(lessonsQuery.data[0].lessonId);
-  }, [lessonsQuery.data, lessonId]);
+    if (!lessonsQuery.data?.length) return;
+
+    const HasSelectedLesson = lessonsQuery.data.some(
+      (item) => item.lessonId === lessonId,
+    );
+
+    if (lessonId && HasSelectedLesson) return;
+
+    const DefaultLesson = lessonsQuery.data[0];
+    setLessonId(DefaultLesson.lessonId);
+    UpdateSelectionUrl({ lessonId: DefaultLesson.lessonId });
+  }, [UpdateSelectionUrl, lessonsQuery.data, lessonId]);
 
   useEffect(() => {
-    setDpsId("");
-    setPreviewQuestions([]);
-  }, [lessonId]);
+    if (!lessonsQuery.data?.length) return;
+
+    lessonsQuery.data.forEach((Lesson) => {
+      if (Lesson.lessonId === lessonId) return;
+
+      QueryClient.prefetchQuery({
+        queryKey: ["admin-curriculum-dps", Lesson.lessonId],
+        queryFn: () => getDpsByLesson(Lesson.lessonId),
+        staleTime: 10 * 60 * 1000,
+      });
+    });
+  }, [QueryClient, lessonsQuery.data, lessonId]);
 
   useEffect(() => {
-    if (!dpsQuery.data?.length || dpsId) return;
-    setDpsId(dpsQuery.data[0].dpsId);
-  }, [dpsQuery.data, dpsId]);
+    if (!dpsQuery.data?.length) return;
 
-  useEffect(() => {
-    setPreviewQuestions([]);
-  }, [dpsId]);
+    const HasSelectedDps = dpsQuery.data.some((item) => item.dpsId === dpsId);
+
+    if (dpsId && HasSelectedDps) return;
+
+    const DefaultDps = dpsQuery.data[0];
+    setDpsId(DefaultDps.dpsId);
+    UpdateSelectionUrl({ dpsId: DefaultDps.dpsId });
+  }, [UpdateSelectionUrl, dpsQuery.data, dpsId]);
 
   const previewMutation = useMutation({
     mutationFn: () => generateDpsPreview(dpsId),
@@ -140,15 +309,23 @@ export default function AdminCurriculumPage() {
   const publishMutation = useMutation({
     mutationFn: () => publishDps(dpsId),
     onSuccess: () => {
-      QueryClient.invalidateQueries({ queryKey: ["admin-curriculum-dps", lessonId] });
+      QueryClient.invalidateQueries({
+        queryKey: ["admin-curriculum-dps", lessonId],
+      });
     },
   });
 
   const isLoading =
     modulesQuery.isLoading ||
-    levelsQuery.isLoading ||
-    lessonsQuery.isLoading ||
-    dpsQuery.isLoading;
+    (levelsQuery.isLoading && !levelsQuery.data) ||
+    (lessonsQuery.isLoading && !lessonsQuery.data) ||
+    (dpsQuery.isLoading && !dpsQuery.data);
+
+  const IsHierarchyFetching =
+    modulesQuery.isFetching ||
+    levelsQuery.isFetching ||
+    lessonsQuery.isFetching ||
+    dpsQuery.isFetching;
 
   const error =
     modulesQuery.error ||
@@ -162,18 +339,27 @@ export default function AdminCurriculumPage() {
   const IsSelectedDpsPublished = SelectedDpsStatus === "PUBLISHED";
   const canPreview = Boolean(dpsId) && !previewMutation.isPending;
   const canPublish =
-    Boolean(dpsId) &&
-    previewQuestions.length > 0 &&
-    !publishMutation.isPending;
+    Boolean(dpsId) && previewQuestions.length > 0 && !publishMutation.isPending;
 
   const previewSections = useMemo(() => {
-    const Groups: Array<{ key: string; title: string; questions: AdminPreviewQuestion[] }> = [];
+    const Groups: Array<{
+      key: string;
+      title: string;
+      questions: AdminPreviewQuestion[];
+    }> = [];
     const SectionIndex = new Map<string, number>();
 
     previewQuestions.forEach((Question) => {
       const Metadata = (Question as any).metadata || {};
-      const SectionNumber = String(Metadata.section_number || Metadata.sectionNumber || 1);
-      const SectionTitle = String(Metadata.section_title || Metadata.sectionTitle || selectedDps?.dpsTitle || "Questions");
+      const SectionNumber = String(
+        Metadata.section_number || Metadata.sectionNumber || 1,
+      );
+      const SectionTitle = String(
+        Metadata.section_title ||
+          Metadata.sectionTitle ||
+          selectedDps?.dpsTitle ||
+          "Questions",
+      );
       const Key = `${SectionNumber}-${SectionTitle}`;
       if (!SectionIndex.has(Key)) {
         SectionIndex.set(Key, Groups.length);
@@ -190,16 +376,13 @@ export default function AdminCurriculumPage() {
   return (
     <AppShell>
       <section className="math-hero">
-        <p className="math-kicker">
-          Admin Learning Path
-        </p>
+        <p className="math-kicker">Admin Learning Path</p>
 
-        <h1 className="math-title">
-          Learning Path Studio
-        </h1>
+        <h1 className="math-title">Learning Path Studio</h1>
 
         <p className="math-subtitle">
-          Review modules, levels, lessons, and DPS sheets before publishing practice content for teacher assignment.
+          Review modules, levels, lessons, and DPS sheets before publishing
+          practice content for teacher assignment.
         </p>
       </section>
 
@@ -215,13 +398,19 @@ export default function AdminCurriculumPage() {
         </div>
       ) : null}
 
+      {IsHierarchyFetching && !isLoading ? (
+        <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/80 px-4 py-3 text-sm font-semibold text-blue-700 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-100">
+          Syncing latest learning path data in the background...
+        </div>
+      ) : null}
+
       <div className="mt-6 grid gap-4 lg:grid-cols-4">
         <Panel title="Modules">
           {(modulesQuery.data ?? []).map((moduleItem: ModuleItem) => (
             <Item
               key={moduleItem.moduleId}
               active={moduleId === moduleItem.moduleId}
-              onClick={() => setModuleId(moduleItem.moduleId)}
+              onClick={() => handleModuleSelect(moduleItem.moduleId)}
             >
               <span className="block">{moduleItem.moduleCode}</span>
               <span className="block text-xs font-normal opacity-80">
@@ -236,7 +425,7 @@ export default function AdminCurriculumPage() {
             <Item
               key={level.levelId}
               active={levelId === level.levelId}
-              onClick={() => setLevelId(level.levelId)}
+              onClick={() => handleLevelSelect(level.levelId)}
             >
               <span className="block">{level.levelCode}</span>
               <span className="block text-xs font-normal opacity-80">
@@ -251,7 +440,7 @@ export default function AdminCurriculumPage() {
             <Item
               key={lesson.lessonId}
               active={lessonId === lesson.lessonId}
-              onClick={() => setLessonId(lesson.lessonId)}
+              onClick={() => handleLessonSelect(lesson.lessonId)}
             >
               Lesson {lesson.lessonNumber}: {lesson.lessonTitle}
             </Item>
@@ -263,11 +452,15 @@ export default function AdminCurriculumPage() {
             <Item
               key={dps.dpsId}
               active={dpsId === dps.dpsId}
-              onClick={() => setDpsId(dps.dpsId)}
+              onClick={() => handleDpsSelect(dps.dpsId)}
             >
-              <span className="block">DPS {dps.dpsNumber}: {dps.dpsTitle}</span>
+              <span className="block">
+                DPS {dps.dpsNumber}: {dps.dpsTitle}
+              </span>
               <span className="mt-1 block text-[0.65rem] font-black uppercase tracking-[0.16em] opacity-80">
-                {(dps.publicationStatus || "DRAFT") === "PUBLISHED" ? "Published" : "Draft"}
+                {(dps.publicationStatus || "DRAFT") === "PUBLISHED"
+                  ? "Published"
+                  : "Draft"}
               </span>
             </Item>
           ))}
@@ -287,7 +480,9 @@ export default function AdminCurriculumPage() {
                   ? `DPS ${selectedDps.dpsNumber}: ${selectedDps.dpsTitle}`
                   : "No DPS selected"}
               </h2>
-              {selectedDps ? <PublishStatusChip Status={SelectedDpsStatus} /> : null}
+              {selectedDps ? (
+                <PublishStatusChip Status={SelectedDpsStatus} />
+              ) : null}
             </div>
 
             <div className="mt-3 space-y-1 text-sm text-slate-600">
@@ -357,7 +552,8 @@ export default function AdminCurriculumPage() {
 
         {publishMutation.isSuccess ? (
           <div className="mt-4 rounded-2xl bg-green-50 p-4 text-sm font-semibold text-green-700">
-            DPS published successfully. Teachers will receive the latest approved question set for this sheet.
+            DPS published successfully. Teachers will receive the latest
+            approved question set for this sheet.
           </div>
         ) : null}
       </div>
@@ -375,7 +571,8 @@ export default function AdminCurriculumPage() {
 
         {previewQuestions.length === 0 ? (
           <div className="math-card p-6 text-center text-slate-500">
-            Select a DPS and click Generate Preview to inspect questions before publishing.
+            Select a DPS and click Generate Preview to inspect questions before
+            publishing.
           </div>
         ) : (
           <div className="grid gap-6">
@@ -417,13 +614,16 @@ function PreviewQuestionCard({
   showCorrectAnswers: boolean;
 }) {
   const options = [...(question.options ?? [])].sort(
-    (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
+    (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0),
   );
 
   return (
     <div className="math-card p-4 sm:p-5">
       <p className="mb-3 text-sm font-bold text-slate-900 dark:text-white">
-        Question {((question as any).metadata?.section_question_number ?? (question as any).metadata?.sectionQuestionNumber ?? question.question_number)}
+        Question{" "}
+        {(question as any).metadata?.section_question_number ??
+          (question as any).metadata?.sectionQuestionNumber ??
+          question.question_number}
       </p>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-center">
@@ -431,28 +631,36 @@ function PreviewQuestionCard({
           <MathQuestionDisplay
             operands={question.operands as Array<number | string>}
             operators={question.operators ?? []}
-            displayType={(question as any).displayType ?? (question as any).display_type}
-            questionText={(question as any).questionText ?? (question as any).question_text}
+            displayType={
+              (question as any).displayType ?? (question as any).display_type
+            }
+            questionText={
+              (question as any).questionText ?? (question as any).question_text
+            }
           />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:self-center">
           {options.map((option) => {
             const isCorrect = Boolean(option.is_correct);
-            const optionStateClass = showCorrectAnswers && isCorrect
-              ? "math-mcq-correct-option border-emerald-300 bg-emerald-50 text-emerald-900 shadow-[0_10px_24px_rgba(16,185,129,0.12)] dark:border-emerald-400/70 dark:bg-emerald-700/70 dark:text-emerald-50"
-              : "border-slate-200 bg-white text-slate-800 shadow-sm hover:border-blue-300 hover:bg-blue-50/70 dark:border-slate-700/70 dark:bg-slate-800/88 dark:text-slate-100 dark:hover:border-cyan-400/50 dark:hover:bg-slate-700/88";
+            const optionStateClass =
+              showCorrectAnswers && isCorrect
+                ? "math-mcq-correct-option border-emerald-300 bg-emerald-50 text-emerald-900 shadow-[0_10px_24px_rgba(16,185,129,0.12)] dark:border-emerald-400/70 dark:bg-emerald-700/70 dark:text-emerald-50"
+                : "border-slate-200 bg-white text-slate-800 shadow-sm hover:border-blue-300 hover:bg-blue-50/70 dark:border-slate-700/70 dark:bg-slate-800/88 dark:text-slate-100 dark:hover:border-cyan-400/50 dark:hover:bg-slate-700/88";
 
-            const pillClass = showCorrectAnswers && isCorrect
-              ? "math-mcq-option-pill bg-emerald-100 text-emerald-800 dark:bg-emerald-100/20 dark:text-emerald-50"
-              : "bg-slate-100 text-slate-700 dark:bg-slate-700/80 dark:text-slate-100";
+            const pillClass =
+              showCorrectAnswers && isCorrect
+                ? "math-mcq-option-pill bg-emerald-100 text-emerald-800 dark:bg-emerald-100/20 dark:text-emerald-50"
+                : "bg-slate-100 text-slate-700 dark:bg-slate-700/80 dark:text-slate-100";
 
             return (
               <div
                 key={`${option.label}-${option.value}`}
                 className={`flex min-h-[70px] items-center gap-3 rounded-2xl border px-4 py-3.5 text-base font-semibold transition-all duration-200 ${optionStateClass}`}
               >
-                <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${pillClass}`}>
+                <span
+                  className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${pillClass}`}
+                >
                   {option.label}
                 </span>
 
@@ -504,7 +712,9 @@ function Panel({
   return (
     <div className="math-card p-4">
       <h2 className="mb-3 font-black text-slate-900">{title}</h2>
-      <div className="max-h-[420px] space-y-2 overflow-auto pr-1">{children}</div>
+      <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
+        {children}
+      </div>
     </div>
   );
 }
