@@ -1337,13 +1337,23 @@ def _CubeBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
 
 
 
-def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
+def _ExtractSquareRootDigitCounts(Config: MMConfig) -> list[int] | None:
     Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
-    Text = Text.replace("-", " ").replace("/", " ")
-    # Guard against matching mixed square/cube wording; this helper is only for
-    # explicit square-root digit concepts such as "Square Root - 6 Digit Number".
+    Text = Text.replace("-", " ").replace("/", " ").replace("&", " and ")
     if "square root" not in Text:
         return None
+
+    MixedPatterns = [
+        r"square\s*root\s*(?:of\s*)?([2-6])\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"square\s*root\s*([2-6])\s*(?:digit|d)?\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*square\s*root",
+    ]
+    for Pattern in MixedPatterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            Digits = sorted({int(Match.group(1)), int(Match.group(2))})
+            return Digits
+
     Patterns = [
         r"square\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
         r"square\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
@@ -1352,8 +1362,15 @@ def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
     for Pattern in Patterns:
         Match = re.search(Pattern, Text)
         if Match:
-            return int(Match.group(1))
+            return [int(Match.group(1))]
     return None
+
+
+def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
+    DigitCounts = _ExtractSquareRootDigitCounts(Config)
+    if not DigitCounts or len(DigitCounts) != 1:
+        return None
+    return DigitCounts[0]
 
 
 def _SquareRootBaseRangeForRadicandDigits(DigitCount: int) -> tuple[int, int]:
@@ -1504,7 +1521,18 @@ def GenerateCubes(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> 
 
 def GenerateSquareRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    Minimum, Maximum = _SquareRootBaseRange(Config, Stage)
+    DigitCounts = _ExtractSquareRootDigitCounts(Config)
+
+    if DigitCounts:
+        # Workbook convention: mixed digit labels such as
+        # "Square Root 3 & 4 Digit Number" must produce a real mix across the
+        # 10-question section, not collapse to only the larger digit band.
+        DigitCount = DigitCounts[(QuestionNumber - 1) % len(DigitCounts)]
+        Minimum, Maximum = _SquareRootBaseRangeForRadicandDigits(DigitCount)
+    else:
+        DigitCount = None
+        Minimum, Maximum = _SquareRootBaseRange(Config, Stage)
+
     Root = Rng.randint(Minimum, Maximum)
     Radicand = Root * Root
     CorrectAnswer = Decimal(Root)
@@ -1516,6 +1544,8 @@ def GenerateSquareRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         "root_value": Root,
         "radicand": Radicand,
         "perfect_root_only": True,
+        "radicand_digit_count": DigitCount,
+        "allowed_radicand_digit_counts": DigitCounts,
         "lesson_band": _LessonBand(Config),
     }
 
