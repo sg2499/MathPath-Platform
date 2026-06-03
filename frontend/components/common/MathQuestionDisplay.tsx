@@ -54,6 +54,24 @@ function BuildExpression(Operands: Array<number | string>, Operators: string[]):
   }).join(" ");
 }
 
+function GetExpressionTypographyClass(Expression: string): string {
+  const Length = Expression.length;
+
+  if (Length >= 72) {
+    return "text-[17px] sm:text-[19px] lg:text-[21px]";
+  }
+
+  if (Length >= 58) {
+    return "text-[18px] sm:text-[21px] lg:text-[23px]";
+  }
+
+  if (Length >= 44) {
+    return "text-[20px] sm:text-[23px] lg:text-[25px]";
+  }
+
+  return "text-[24px] sm:text-[30px]";
+}
+
 function ExpressionQuestion({
   operands,
   operators,
@@ -65,12 +83,15 @@ function ExpressionQuestion({
   mode: "EXPRESSION_WORKSHEET" | "ANSWER_POSITION";
 }) {
   const Expression = questionText?.trim() || BuildExpression(operands, operators);
+  const TypographyClass = GetExpressionTypographyClass(Expression);
 
   return (
-    <div className="mx-auto inline-flex max-w-full rounded-[20px] bg-white px-5 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
-      <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
-        <span>{Expression}</span>
-        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
+    <div className="mx-auto flex w-full max-w-full justify-center px-2 sm:px-4">
+      <div className="w-full max-w-[56rem] rounded-[20px] bg-white px-6 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-8 lg:px-10">
+        <div className={`${TypographyClass} mx-auto max-w-full whitespace-normal break-normal text-center font-mono font-black leading-snug tracking-tight`}>
+          <span>{Expression}</span>
+          <span className="ml-2 inline-block text-blue-700 dark:text-cyan-300">= ?</span>
+        </div>
       </div>
     </div>
   );
@@ -87,12 +108,15 @@ function CompactExpressionQuestion({
   questionText?: string | null;
 }) {
   const Expression = questionText?.trim() || BuildExpression(operands, operators);
+  const TypographyClass = GetExpressionTypographyClass(Expression);
 
   return (
-    <div className="mx-auto inline-flex max-w-full rounded-[18px] bg-white px-5 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700">
-      <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
-        <span>{Expression}</span>
-        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
+    <div className="mx-auto flex w-full max-w-full justify-center px-2 sm:px-4">
+      <div className="w-full max-w-[46rem] rounded-[18px] bg-white px-6 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-8">
+        <div className={`${TypographyClass} mx-auto max-w-full whitespace-normal break-normal text-center font-mono font-black leading-snug tracking-tight`}>
+          <span>{Expression}</span>
+          <span className="ml-2 inline-block text-blue-700 dark:text-cyan-300">= ?</span>
+        </div>
       </div>
     </div>
   );
