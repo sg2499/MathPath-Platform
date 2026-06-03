@@ -244,7 +244,17 @@ def _ValidatePositionEquationQuestion(Config: MMConfig, Operands: list[int | flo
     if Config.ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
         return _ValidateDecimalOperation(Operands, Operators, "×") and CorrectAnswer >= 0
     if Config.ConceptFamily == "NUMBER_POSITION":
-        return len(Operands) == 1 and Operators == ["POSITION"] and CorrectAnswer >= 0
+        if Operators == ["POSITION"]:
+            return len(Operands) == 1 and CorrectAnswer >= 0
+        if Operators == ["POSITION", "NUMBER"] and len(Operands) == 2:
+            try:
+                Position = int(Operands[0])
+                Digits = "".join(Character for Character in str(Operands[1]) if Character.isdigit()) or "0"
+                ExpectedAnswer = Decimal(Digits) * (Decimal(10) ** Decimal(Position - len(Digits)))
+                return CorrectAnswer == ExpectedAnswer
+            except Exception:
+                return False
+        return False
     if Config.ConceptFamily == "SOLVE_EQUATION":
         return len(Operands) >= 2 and Operators == ["SIGNED_EXPRESSION"] and CorrectAnswer == sum(_DecimalValue(Value) for Value in Operands)
     return False
