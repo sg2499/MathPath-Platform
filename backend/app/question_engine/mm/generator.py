@@ -2,7 +2,7 @@ import random
 from decimal import Decimal
 
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
-from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept
+from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept, ResolveMmConceptFamily
 from app.question_engine.mm.distractors import GenerateMmDistractors
 from app.question_engine.mm.operands import DifficultyStage, GeneratePackage1Question
 from app.question_engine.mm.validators import ValidateMmQuestion
@@ -53,6 +53,11 @@ def _DisplayMode(Config: MMConfig) -> str:
 
 
 def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, SectionTitle: str | None = None, StartNumber: int = 1, TotalSections: int = 1) -> list[dict]:
+    ResolvedConceptFamily = ResolveMmConceptFamily(Config.ConceptFamily, SectionTitle or Config.DpsTitle, Config.LessonTitle)
+    if ResolvedConceptFamily != Config.ConceptFamily:
+        Config.ConceptFamily = ResolvedConceptFamily
+        Config.OperationFocus = OperationFocusForConcept(ResolvedConceptFamily)
+
     if not IsPackage1Supported(Config.ConceptFamily):
         raise ValueError(f"Master Module generator does not support concept: {Config.ConceptFamily}")
 
@@ -141,7 +146,8 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
         TotalSections = len(SectionDefinitions)
         for Index, Section in enumerate(SectionDefinitions, start=1):
             SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or Config.DpsTitle)
-            SectionConcept = str(Section.get("conceptFamily") or Config.ConceptFamily)
+            RawSectionConcept = str(Section.get("conceptFamily") or Config.ConceptFamily)
+            SectionConcept = ResolveMmConceptFamily(RawSectionConcept, SectionTitle, Config.LessonTitle)
             SectionCount = int(Section.get("questionCount") or 10)
             SectionConfig = MMConfig(
                 ModuleCode=Config.ModuleCode,
@@ -160,7 +166,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
             )
             SectionQuestions = _GenerateSingleSectionQuestionSet(SectionConfig, Index, SectionTitle, StartNumber, TotalSections)
             Questions.extend(SectionQuestions)
-            StartNumber += SectionCount
+            StartNumber += len(SectionQuestions)
         return rebalance_correct_option_distribution(Questions)
 
     return rebalance_correct_option_distribution(_GenerateSingleSectionQuestionSet(Config))
