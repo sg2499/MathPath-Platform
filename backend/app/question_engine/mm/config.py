@@ -76,6 +76,10 @@ def NormaliseText(Value: str | None) -> str:
         .replace("×", " x ")
         .replace("÷", " division ")
         .replace("/", " ")
+        .replace(",", " ")
+        .replace("&", " and ")
+        .replace("(", " ")
+        .replace(")", " ")
         .replace("-", " ")
         .lower()
         .split()
@@ -117,6 +121,9 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
             "percent",
             "simple interest",
             "borrowing",
+            "borrow",
+            "positive",
+            "negative",
             "profit",
             "loss",
             "selling price",
@@ -144,7 +151,7 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasSkillStacker = "skill stacker" in Text
     HasConceptDrill = "concept drill" in Text
     HasSimpleInterest = "simple interest" in Text
-    HasBorrowing = "borrowing" in Text
+    HasBorrowing = "borrowing" in Text or "borrow" in Text
     HasNegative = "negative" in Text
     HasPositive = "positive" in Text
     HasProfit = "profit" in Text
@@ -301,6 +308,28 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
         return "BORROWING_ADD_LESS"
     return "MIXED"
 
+
+
+def ResolveMmConceptFamily(ConceptFamily: str | None, DpsTitle: str = "", LessonTitle: str = "") -> str:
+    Candidate = str(ConceptFamily or "").strip().upper()
+    if Candidate in SUPPORTED_MM_CONCEPTS:
+        return Candidate
+    Classified = ClassifyMmConcept(DpsTitle, LessonTitle)
+    if Classified in SUPPORTED_MM_CONCEPTS:
+        return Classified
+    # Defensive alias support for older/stale seeded section metadata.
+    Text = NormaliseText(f"{ConceptFamily or ''} {DpsTitle} {LessonTitle}")
+    if "borrowing" in Text or "borrow" in Text:
+        HasPositive = "positive" in Text
+        HasNegative = "negative" in Text
+        if HasPositive and HasNegative:
+            return "BORROWING_MIXED"
+        if HasNegative:
+            return "BORROWING_NEGATIVE"
+        if HasPositive:
+            return "BORROWING_POSITIVE"
+        return "BORROWING_MIXED"
+    return Candidate or "MM_UNSUPPORTED"
 
 def IsPackage1Supported(ConceptFamily: str) -> bool:
     """Backward-compatible support check used by generation_service.
