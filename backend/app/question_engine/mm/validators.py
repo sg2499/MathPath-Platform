@@ -57,6 +57,37 @@ def _NormalisedPatternTitle(Config: MMConfig) -> str:
     )
 
 
+
+def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    Text = Text.replace("-", " ").replace("/", " ")
+    if "square root" not in Text:
+        return None
+    Patterns = [
+        r"square\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"square\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*square\s*root",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return int(Match.group(1))
+    return None
+
+
+def _ValidateSquareRootRadicandDigits(Config: MMConfig, Text: str, CorrectAnswer: Decimal) -> bool:
+    ExpectedDigits = _ExtractSquareRootDigitCount(Config)
+    Match = re.search(r"√\s*(\d+)", Text)
+    if not Match:
+        return False
+    Radicand = int(Match.group(1))
+    Root = int(CorrectAnswer)
+    if Decimal(Root) != CorrectAnswer or Root * Root != Radicand:
+        return False
+    if ExpectedDigits is None:
+        return True
+    return _DigitCountFromInteger(Radicand) == ExpectedDigits
+
 def _ExtractCubeRootDigitCount(Config: MMConfig) -> int | None:
     Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
     Text = Text.replace("-", " ").replace("/", " ")
@@ -229,7 +260,7 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
     if Config.ConceptFamily == "CUBES":
         return "³" in Text and "∛" not in Text and CorrectAnswer >= 0
     if Config.ConceptFamily == "SQUARE_ROOT":
-        return Text.startswith("√") and CorrectAnswer >= 0
+        return Text.startswith("√") and CorrectAnswer >= 0 and _ValidateSquareRootRadicandDigits(Config, Text, CorrectAnswer)
     if Config.ConceptFamily == "CUBE_ROOT":
         return Text.startswith("∛") and CorrectAnswer >= 0 and _ValidateCubeRootRadicandDigits(Config, Text, CorrectAnswer)
     if Config.ConceptFamily == "MIXED_SQUARE_CUBE":
