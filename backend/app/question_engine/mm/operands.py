@@ -1336,7 +1336,40 @@ def _CubeBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
     return Ranges.get(Stage, (5, 20))
 
 
+
+def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    Text = Text.replace("-", " ").replace("/", " ")
+    # Guard against matching mixed square/cube wording; this helper is only for
+    # explicit square-root digit concepts such as "Square Root - 6 Digit Number".
+    if "square root" not in Text:
+        return None
+    Patterns = [
+        r"square\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"square\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*square\s*root",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return int(Match.group(1))
+    return None
+
+
+def _SquareRootBaseRangeForRadicandDigits(DigitCount: int) -> tuple[int, int]:
+    MinimumRadicand = 10 ** (DigitCount - 1)
+    MaximumRadicand = (10 ** DigitCount) - 1
+    MinimumRoot = int(Decimal(MinimumRadicand).sqrt().to_integral_value(rounding="ROUND_CEILING"))
+    MaximumRoot = int(Decimal(MaximumRadicand).sqrt().to_integral_value(rounding="ROUND_FLOOR"))
+    if MinimumRoot > MaximumRoot:
+        raise ValueError(f"No perfect square exists with {DigitCount} digits")
+    return MinimumRoot, MaximumRoot
+
 def _SquareRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    ExplicitDigitCount = _ExtractSquareRootDigitCount(Config)
+    if ExplicitDigitCount is not None:
+        return _SquareRootBaseRangeForRadicandDigits(ExplicitDigitCount)
+
     Band = _LessonBand(Config)
     if Band <= 4:
         Ranges = {
