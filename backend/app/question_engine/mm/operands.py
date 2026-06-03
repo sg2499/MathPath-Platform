@@ -384,33 +384,180 @@ def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) 
     return Values, Operators, RunningTotal, {"row_count": RowCount, "integer_range": MaxAbs, "allow_negative_answer": True}
 
 
-def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+def _FormatDecimal(Value: Decimal) -> str:
+    if Value == Value.to_integral_value():
+        return str(int(Value))
+    return format(Value.normalize(), "f").rstrip("0").rstrip(".")
+
+
+def _PerfectSquare(Rng: random.Random, MinimumRoot: int, MaximumRoot: int) -> tuple[int, int]:
+    Root = Rng.randint(MinimumRoot, MaximumRoot)
+    return Root * Root, Root
+
+
+def _PerfectCube(Rng: random.Random, MinimumRoot: int, MaximumRoot: int) -> tuple[int, int]:
+    Root = Rng.randint(MinimumRoot, MaximumRoot)
+    return Root * Root * Root, Root
+
+
+def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Generate workbook-style MM BODMAS expressions.
+
+    The MM workbook does not progress by random arithmetic alone. BODMAS
+    becomes harder by adding brackets, powers, percentages, square roots,
+    cube roots, decimals and larger multiplication/division patterns as the
+    lesson number increases. The returned expression is stored as
+    question_text so all role previews render it as a clean horizontal
+    worksheet expression.
+    """
+
+    LessonNumber = int(Config.LessonNumber or 1)
     Stage = DifficultyStage(QuestionNumber - 1)
-    MaxValue = {"WARM_UP": 9, "STANDARD": 15, "MIXED_STEP": 25, "ADVANCED": 50, "CHALLENGE": 99}.get(Stage, 15) * _LessonBand(Config)
-    A = Rng.randint(2, MaxValue)
-    B = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 15)
-    C = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 20)
-    Pattern = ["ADD_MUL_SUB", "SUB_ADD_MUL", "MUL_ADD_DIV"][(QuestionNumber - 1) % 3]
+    PatternIndex = (QuestionNumber - 1) % 5
 
-    if Pattern == "ADD_MUL_SUB":
-        Product = B * C
-        D = Rng.randint(1, max(1, A + Product - 1))
-        CorrectAnswer = Decimal(A + Product - D)
-        return [A, B, C, D], ["", "+", "×", "-"], CorrectAnswer, {"bodmas_pattern": Pattern}
+    def BasicVisual() -> tuple[str, Decimal, str]:
+        Multiplier = Rng.randint(2, 8 + min(5, _LessonBand(Config)))
+        Multiplicand = Rng.randint(120, 900 + 200 * _LessonBand(Config))
+        Divisor = Rng.randint(6, 20 + 4 * _LessonBand(Config))
+        Quotient = Rng.randint(15, 120 + 20 * _LessonBand(Config))
+        Dividend = Divisor * Quotient
+        Start = Rng.randint(2500, 9500)
+        End = Rng.randint(120, 900)
+        if PatternIndex % 2 == 0:
+            Expression = f"{Start} - {Multiplicand} × {Multiplier} - {Dividend} ÷ {Divisor} + {End}"
+            Answer = Decimal(Start - (Multiplicand * Multiplier) - Quotient + End)
+        else:
+            Expression = f"{Start} + {Multiplicand} × {Multiplier} - {Dividend} ÷ {Divisor} - {End}"
+            Answer = Decimal(Start + (Multiplicand * Multiplier) - Quotient - End)
+        return Expression, Answer, "BASIC_VISUAL_BODMAS"
 
-    if Pattern == "SUB_ADD_MUL":
-        D = Rng.randint(2, max(3, MaxValue // 2))
-        Product = C * D
-        if A - B + Product < 0:
-            A = B + Rng.randint(1, MaxValue)
-        CorrectAnswer = Decimal(A - B + Product)
-        return [A, B, C, D], ["", "-", "+", "×"], CorrectAnswer, {"bodmas_pattern": Pattern}
+    def WithSquares() -> tuple[str, Decimal, str]:
+        SquareRoot = Rng.randint(12, 58)
+        SquareValue = SquareRoot * SquareRoot
+        MultA = Rng.randint(180, 900)
+        MultB = Rng.randint(6, 86)
+        Divisor = Rng.randint(7, 60)
+        Quotient = Rng.randint(12, 180)
+        Dividend = Divisor * Quotient
+        Tail = Rng.randint(40, 900)
+        if PatternIndex in {0, 3}:
+            Expression = f"({SquareRoot})² + {MultA} × {MultB} - {Dividend} ÷ {Divisor} - {Tail}"
+            Answer = Decimal(SquareValue + (MultA * MultB) - Quotient - Tail)
+        elif PatternIndex == 1:
+            Expression = f"{MultA} × {MultB} + {Dividend} ÷ {Divisor} - ({SquareRoot})²"
+            Answer = Decimal((MultA * MultB) + Quotient - SquareValue)
+        else:
+            Expression = f"({MultA}×{MultB})+({Dividend}÷{Divisor})-{SquareRoot}²"
+            Answer = Decimal((MultA * MultB) + Quotient - SquareValue)
+        return Expression, Answer, "BODMAS_WITH_SQUARES"
 
-    Divisor = Rng.randint(2, 9)
-    Quotient = Rng.randint(2, max(4, MaxValue // 3))
-    Dividend = Divisor * Quotient
-    CorrectAnswer = Decimal((A * B) + Quotient)
-    return [A, B, Dividend, Divisor], ["", "×", "+", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern}
+    def WithPowersAndPercentages() -> tuple[str, Decimal, str]:
+        Divisor = Rng.choice([10, 12, 15, 20, 24, 25, 30, 40, 50])
+        A = Divisor * Rng.randint(6, 18)
+        B = Rng.randint(12, 30)
+        Quotient = Rng.randint(15, 120)
+        Dividend = Divisor * Quotient
+        SquareRoot = Rng.randint(12, 35)
+        CubeRoot = Rng.randint(3, 24)
+        PercentBase = Rng.randrange(1000, 6000, 10)
+        Percent = Rng.choice([10, 15, 20, 25, 30, 35, 50, 70, 85])
+        PercentValue = Decimal(PercentBase) * Decimal(Percent) / Decimal(100)
+        if PatternIndex in {0, 1}:
+            Expression = f"({A}×{B})÷{Divisor}+({Dividend}÷{Divisor})+{SquareRoot}²"
+            Answer = (Decimal(A * B) / Decimal(Divisor)) + Decimal(Quotient) + Decimal(SquareRoot * SquareRoot)
+            Variant = "BRACKETS_SQUARES"
+        elif PatternIndex == 2:
+            Expression = f"{Dividend}÷{Divisor}-({A}×{B})-(%s%% of %s)+%s³" % (Percent, PercentBase, CubeRoot)
+            Answer = Decimal(Quotient) - Decimal(A * B) - PercentValue + Decimal(CubeRoot ** 3)
+            Variant = "PERCENTAGE_CUBE"
+        else:
+            Expression = f"({A}×{B})-({PercentBase}×{Percent}%)+{SquareRoot}²"
+            Answer = Decimal(A * B) - PercentValue + Decimal(SquareRoot * SquareRoot)
+            Variant = "PERCENTAGE_SQUARE"
+        return Expression, Answer, f"BODMAS_{Variant}"
+
+    def WithCubeRoots() -> tuple[str, Decimal, str]:
+        Cube, CubeRoot = _PerfectCube(Rng, 22, 90)
+        Divisor = Rng.randint(20, 90)
+        Quotient = Rng.randint(35, 150)
+        Dividend = Divisor * Quotient
+        Multiplier = Rng.randint(2, 9)
+        PercentBase = Rng.randint(250, 950)
+        Percent = Rng.choice([2, 3, 4, 5, 6, 8, 10])
+        PercentValue = Decimal(PercentBase) * Decimal(Percent) / Decimal(100)
+        Expression = f"{Dividend} ÷ {Divisor} + {PercentBase} × {Percent}% + ∛{Cube}"
+        if PatternIndex in {2, 4}:
+            Expression = f"{Dividend} ÷ {Divisor} - {PercentBase} × {Percent}% + ∛{Cube}"
+            Answer = Decimal(Quotient) - PercentValue + Decimal(CubeRoot)
+        else:
+            Answer = Decimal(Quotient) + PercentValue + Decimal(CubeRoot)
+        return Expression, Answer, "BODMAS_WITH_CUBE_ROOT_PERCENTAGE"
+
+    def AdvancedCubeSquare() -> tuple[str, Decimal, str]:
+        Cube, CubeRoot = _PerfectCube(Rng, 23, 45)
+        SquareRoot = Rng.randint(50, 99)
+        SquareValue = SquareRoot * SquareRoot
+        Divisor = Rng.randint(20, 95)
+        Quotient = Rng.randint(25, 140)
+        Dividend = Divisor * Quotient
+        MultA = Rng.randint(120, 950)
+        MultB = Rng.randint(10, 75)
+        TailA = Rng.randint(250, 950)
+        TailB = Rng.randint(150, 750)
+        if PatternIndex in {0, 3}:
+            Expression = f"∛{Cube} + {SquareRoot}² - {Dividend}÷{Divisor} + {MultA}×{MultB} - {TailA} + {TailB}"
+            Answer = Decimal(CubeRoot + SquareValue - Quotient + (MultA * MultB) - TailA + TailB)
+            Variant = "CUBE_ROOT_SQUARE_MIX"
+        else:
+            Expression = f"{MultA}×{MultB} + ∛{Cube} - {Dividend}÷{Divisor} + {TailA} - {TailB}"
+            Answer = Decimal((MultA * MultB) + CubeRoot - Quotient + TailA - TailB)
+            Variant = "ADVANCED_CUBE_ROOT_MIX"
+        return Expression, Answer, f"BODMAS_{Variant}"
+
+    def FinalSquareRootMix() -> tuple[str, Decimal, str]:
+        Square, Root = _PerfectSquare(Rng, 70, 99)
+        MultA = Rng.randint(450, 950)
+        MultB = Rng.randint(24, 90)
+        Divisor = Rng.randint(21, 96)
+        Quotient = Rng.randint(22, 240)
+        Dividend = Divisor * Quotient
+        AddValue = Rng.randint(140, 900)
+        LessValue = Rng.randint(120, 980)
+        Expression = f"{MultA}×{MultB} + √{Square} - {Dividend}÷{Divisor} + {AddValue} - {LessValue}"
+        Answer = Decimal((MultA * MultB) + Root - Quotient + AddValue - LessValue)
+        return Expression, Answer, "BODMAS_WITH_SQUARE_ROOT_ADVANCED_MIX"
+
+    if LessonNumber <= 10:
+        Expression, Answer, Pattern = BasicVisual()
+    elif LessonNumber <= 15:
+        Expression, Answer, Pattern = WithSquares()
+    elif LessonNumber <= 18:
+        Expression, Answer, Pattern = WithPowersAndPercentages()
+    elif LessonNumber <= 21:
+        Expression, Answer, Pattern = WithCubeRoots()
+    elif LessonNumber == 22:
+        Expression, Answer, Pattern = WithPowersAndPercentages()
+    elif LessonNumber <= 26:
+        Expression, Answer, Pattern = AdvancedCubeSquare()
+    else:
+        Expression, Answer, Pattern = FinalSquareRootMix()
+
+    # Keep MM answer options student-friendly. Retry via a foundation-safe
+    # expression if an unusually hard random variant becomes negative.
+    if Answer < 0:
+        Expression, Answer, Pattern = BasicVisual()
+        if Answer < 0:
+            Answer = abs(Answer)
+            Expression = f"{Expression.replace(' - ', ' + ', 1)}"
+            Pattern = f"{Pattern}_POSITIVE_BALANCED"
+
+    Answer = Answer.quantize(Decimal("0.01")) if Answer != Answer.to_integral_value() else Answer.to_integral_value()
+    return [Expression], [""], Answer, {
+        "question_text": Expression,
+        "bodmas_pattern": Pattern,
+        "bodmas_lesson_phase": _LessonBand(Config),
+        "workbook_progression": "LESSON_AWARE_BODMAS",
+    }
 
 
 def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
