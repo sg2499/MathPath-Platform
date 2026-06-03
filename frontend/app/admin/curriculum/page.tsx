@@ -24,7 +24,7 @@ import type { AdminPreviewQuestion } from "@/types/question";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Eye, EyeOff, RefreshCcw } from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 export default function AdminCurriculumPage() {
   return (
@@ -37,39 +37,71 @@ export default function AdminCurriculumPage() {
 function AdminCurriculumPageContent() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const QueryClient = useQueryClient();
-  const Router = useRouter();
   const SearchParams = useSearchParams();
 
-  const [moduleId, setModuleId] = useState(
-    () => SearchParams.get("moduleId") ?? "",
+  const GetInitialSelection = useCallback(
+    (Key: "moduleId" | "levelId" | "lessonId" | "dpsId") => {
+      const UrlValue = SearchParams.get(Key);
+      if (UrlValue) return UrlValue;
+
+      if (typeof window === "undefined") return "";
+
+      try {
+        const StoredSelection = window.localStorage.getItem(
+          "mathpath-admin-curriculum-selection",
+        );
+        if (!StoredSelection) return "";
+
+        const ParsedSelection = JSON.parse(StoredSelection) as Partial<
+          Record<"moduleId" | "levelId" | "lessonId" | "dpsId", string>
+        >;
+
+        return ParsedSelection[Key] || "";
+      } catch {
+        return "";
+      }
+    },
+    [SearchParams],
   );
-  const [levelId, setLevelId] = useState(
-    () => SearchParams.get("levelId") ?? "",
+
+  const [moduleId, setModuleId] = useState(() =>
+    GetInitialSelection("moduleId"),
   );
-  const [lessonId, setLessonId] = useState(
-    () => SearchParams.get("lessonId") ?? "",
+  const [levelId, setLevelId] = useState(() => GetInitialSelection("levelId"));
+  const [lessonId, setLessonId] = useState(() =>
+    GetInitialSelection("lessonId"),
   );
-  const [dpsId, setDpsId] = useState(() => SearchParams.get("dpsId") ?? "");
+  const [dpsId, setDpsId] = useState(() => GetInitialSelection("dpsId"));
 
   const [showCorrectAnswers, setShowCorrectAnswers] = useState(false);
   const [previewQuestions, setPreviewQuestions] = useState<
     AdminPreviewQuestion[]
   >([]);
 
-  const UpdateSelectionUrl = useCallback(
+  const PersistSelection = useCallback(
     (NextSelection: {
       moduleId?: string | null;
       levelId?: string | null;
       lessonId?: string | null;
       dpsId?: string | null;
     }) => {
-      const Params = new URLSearchParams(
-        typeof window === "undefined"
-          ? SearchParams.toString()
-          : window.location.search,
-      );
+      if (typeof window === "undefined") return;
 
-      Object.entries(NextSelection).forEach(([Key, Value]) => {
+      const CurrentSelection = {
+        moduleId,
+        levelId,
+        lessonId,
+        dpsId,
+      };
+
+      const MergedSelection = {
+        ...CurrentSelection,
+        ...NextSelection,
+      };
+
+      const Params = new URLSearchParams(window.location.search);
+
+      Object.entries(MergedSelection).forEach(([Key, Value]) => {
         if (Value) {
           Params.set(Key, Value);
         } else {
@@ -78,14 +110,22 @@ function AdminCurriculumPageContent() {
       });
 
       const QueryString = Params.toString();
-      Router.replace(
-        QueryString ? `?${QueryString}` : window.location.pathname,
-        {
-          scroll: false,
-        },
-      );
+      const NextUrl = QueryString
+        ? `${window.location.pathname}?${QueryString}`
+        : window.location.pathname;
+
+      window.history.replaceState(null, "", NextUrl);
+
+      try {
+        window.localStorage.setItem(
+          "mathpath-admin-curriculum-selection",
+          JSON.stringify(MergedSelection),
+        );
+      } catch {
+        // URL persistence still keeps refresh behavior intact when storage is blocked.
+      }
     },
-    [Router, SearchParams],
+    [dpsId, lessonId, levelId, moduleId],
   );
 
   const ClearPreviewState = useCallback(() => {
@@ -102,14 +142,14 @@ function AdminCurriculumPageContent() {
       setLessonId("");
       setDpsId("");
       ClearPreviewState();
-      UpdateSelectionUrl({
+      PersistSelection({
         moduleId: NextModuleId,
         levelId: null,
         lessonId: null,
         dpsId: null,
       });
     },
-    [ClearPreviewState, UpdateSelectionUrl, moduleId],
+    [ClearPreviewState, PersistSelection, moduleId],
   );
 
   const handleLevelSelect = useCallback(
@@ -120,13 +160,13 @@ function AdminCurriculumPageContent() {
       setLessonId("");
       setDpsId("");
       ClearPreviewState();
-      UpdateSelectionUrl({
+      PersistSelection({
         levelId: NextLevelId,
         lessonId: null,
         dpsId: null,
       });
     },
-    [ClearPreviewState, UpdateSelectionUrl, levelId],
+    [ClearPreviewState, PersistSelection, levelId],
   );
 
   const handleLessonSelect = useCallback(
@@ -136,9 +176,9 @@ function AdminCurriculumPageContent() {
       setLessonId(NextLessonId);
       setDpsId("");
       ClearPreviewState();
-      UpdateSelectionUrl({ lessonId: NextLessonId, dpsId: null });
+      PersistSelection({ lessonId: NextLessonId, dpsId: null });
     },
-    [ClearPreviewState, UpdateSelectionUrl, lessonId],
+    [ClearPreviewState, PersistSelection, lessonId],
   );
 
   const handleDpsSelect = useCallback(
@@ -147,9 +187,9 @@ function AdminCurriculumPageContent() {
 
       setDpsId(NextDpsId);
       ClearPreviewState();
-      UpdateSelectionUrl({ dpsId: NextDpsId });
+      PersistSelection({ dpsId: NextDpsId });
     },
-    [ClearPreviewState, UpdateSelectionUrl, dpsId],
+    [ClearPreviewState, PersistSelection, dpsId],
   );
 
   const modulesQuery = useQuery({
@@ -222,8 +262,8 @@ function AdminCurriculumPageContent() {
       modulesQuery.data[0];
 
     setModuleId(DefaultModule.moduleId);
-    UpdateSelectionUrl({ moduleId: DefaultModule.moduleId });
-  }, [UpdateSelectionUrl, modulesQuery.data, moduleId]);
+    PersistSelection({ moduleId: DefaultModule.moduleId });
+  }, [PersistSelection, modulesQuery.data, moduleId]);
 
   useEffect(() => {
     if (!modulesQuery.data?.length) return;
@@ -250,8 +290,8 @@ function AdminCurriculumPageContent() {
 
     const DefaultLevel = levelsQuery.data[0];
     setLevelId(DefaultLevel.levelId);
-    UpdateSelectionUrl({ levelId: DefaultLevel.levelId });
-  }, [UpdateSelectionUrl, levelsQuery.data, levelId]);
+    PersistSelection({ levelId: DefaultLevel.levelId });
+  }, [PersistSelection, levelsQuery.data, levelId]);
 
   useEffect(() => {
     if (!levelsQuery.data?.length) return;
@@ -278,8 +318,8 @@ function AdminCurriculumPageContent() {
 
     const DefaultLesson = lessonsQuery.data[0];
     setLessonId(DefaultLesson.lessonId);
-    UpdateSelectionUrl({ lessonId: DefaultLesson.lessonId });
-  }, [UpdateSelectionUrl, lessonsQuery.data, lessonId]);
+    PersistSelection({ lessonId: DefaultLesson.lessonId });
+  }, [PersistSelection, lessonsQuery.data, lessonId]);
 
   useEffect(() => {
     if (!lessonsQuery.data?.length) return;
@@ -304,8 +344,8 @@ function AdminCurriculumPageContent() {
 
     const DefaultDps = dpsQuery.data[0];
     setDpsId(DefaultDps.dpsId);
-    UpdateSelectionUrl({ dpsId: DefaultDps.dpsId });
-  }, [UpdateSelectionUrl, dpsQuery.data, dpsId]);
+    PersistSelection({ dpsId: DefaultDps.dpsId });
+  }, [PersistSelection, dpsQuery.data, dpsId]);
 
   const previewMutation = useMutation({
     mutationFn: () => generateDpsPreview(dpsId),
