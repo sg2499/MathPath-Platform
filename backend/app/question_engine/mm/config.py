@@ -56,8 +56,6 @@ PACKAGE_4_CONCEPTS = {
 PACKAGE_5_CONCEPTS = {
     "SKILL_STACKER",
     "CONCEPT_DRILL",
-    "ANSWER_POSITION",
-    "SOLVE_EQUATION",
 }
 
 SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS
@@ -112,8 +110,6 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
             "percentage",
             "percent",
             "simple interest",
-            "solve equation",
-            "equation practice",
             "profit",
             "loss",
             "selling price",
@@ -140,19 +136,11 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasCubes = "cube" in Text or "cubes" in Text
     HasSkillStacker = "skill stacker" in Text
     HasConceptDrill = "concept drill" in Text
-    HasAnswerPosition = any(Token in Text for Token in ("answer position", "answer placement", "find position", "given position", "write the number", "first natural number", "natural number position", "number position"))
-    HasSolveEquation = "solve equation" in Text or "equation practice" in Text
     HasSimpleInterest = "simple interest" in Text
     HasProfit = "profit" in Text
     HasLoss = "loss" in Text
     HasSellingPrice = "selling price" in Text
     HasCostPrice = "cost price" in Text
-
-    # Position/answer-placement workbook tasks must win before generic decimal/multiplication signals.
-    if HasAnswerPosition:
-        return "ANSWER_POSITION"
-    if HasSolveEquation:
-        return "SOLVE_EQUATION"
 
     # Package 5 dedicated MM concepts should win before inherited generic lesson-title signals.
     if HasSkillStacker:
@@ -249,17 +237,6 @@ SECTION_CONCEPT_ALIASES = {
     "FIND_COST_PRICE": "FIND_COST_PRICE",
     "SKILL_STACKER": "SKILL_STACKER",
     "CONCEPT_DRILL": "CONCEPT_DRILL",
-    "ANSWER_POSITION": "ANSWER_POSITION",
-    "SOLVE_EQUATION": "SOLVE_EQUATION",
-    "SOLVE EQUATION": "SOLVE_EQUATION",
-    "EQUATION PRACTICE": "SOLVE_EQUATION",
-    "ANSWER POSITION": "ANSWER_POSITION",
-    "ANSWER PLACEMENT": "ANSWER_POSITION",
-    "FIND POSITION": "ANSWER_POSITION",
-    "GIVEN POSITION": "ANSWER_POSITION",
-    "FIRST NATURAL NUMBER": "ANSWER_POSITION",
-    "NATURAL NUMBER POSITION": "ANSWER_POSITION",
-    "NUMBER POSITION": "ANSWER_POSITION",
 }
 
 
@@ -286,10 +263,6 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
         return "REPEATED_ADDITION"
     if ConceptFamily == "CONCEPT_DRILL":
         return "REPEATED_SUBTRACTION"
-    if ConceptFamily == "ANSWER_POSITION":
-        return "ANSWER_POSITION"
-    if ConceptFamily == "SOLVE_EQUATION":
-        return "EQUATION"
     return "MIXED"
 
 
