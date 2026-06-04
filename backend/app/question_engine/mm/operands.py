@@ -349,7 +349,7 @@ def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) ->
     - Early BODMAS: large add/subtract with multiplication and exact division.
     - Middle BODMAS: brackets and powers.
     - Later BODMAS: percentages, square roots, cube roots, and larger mixed
-      expressions.
+      expressions, capped at a readable length.
 
     The returned question is expression-text driven so the frontend always
     renders it horizontally, exactly like the workbook rows. The stored answer
@@ -475,32 +475,31 @@ def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) ->
         Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
 
     else:
-        # Lesson 23+ style: roots/powers plus large multiplication/division terms.
+        # Lesson 23+ style: richer BODMAS, but capped to a classroom-friendly
+        # 5-6 visible numeric terms so the expression stays inside the question
+        # card and does not overwhelm students.
         if PatternIndex in {0, 1}:
-            CubeValue, CubeRoot = _PerfectCubeRoot(Rng, 45, 98)
-            SquareBase = Rng.randint(45, 99)
-            Divisor, Quotient = Rng.randint(20, 95), Rng.randint(40, 140)
+            CubeValue, CubeRoot = _PerfectCubeRoot(Rng, 25, 75)
+            SquareBase = Rng.randint(30, 85)
+            Divisor, Quotient = Rng.randint(20, 84), Rng.randint(35, 130)
             Dividend = Divisor * Quotient
-            M1, M2 = Rng.randint(150, 950), Rng.randint(10, 90)
-            Subtract = Rng.randint(350, 990)
-            Tail = Rng.randint(150, 950)
-            Expression = f"∛{CubeValue} + {SquareBase}² - {Dividend} ÷ {Divisor} + {M1} × {M2} - {Subtract} + {Tail}"
-            Answer = Decimal(CubeRoot + SquareBase**2 - Quotient + M1 * M2 - Subtract + Tail)
+            M1, M2 = Rng.randint(120, 650), Rng.randint(10, 75)
+            Expression = f"∛{CubeValue} + {SquareBase}² - {Dividend} ÷ {Divisor} + {M1} × {M2}"
+            Answer = Decimal(CubeRoot + SquareBase**2 - Quotient + M1 * M2)
         elif PatternIndex in {2, 3}:
-            M1, M2 = Rng.randint(200, 900), Rng.randint(20, 90)
-            SquareValue, SquareRoot = _PerfectSquareRoot(Rng, 55, 99)
-            Divisor, Quotient = Rng.randint(20, 95), Rng.randint(75, 240)
+            M1, M2 = Rng.randint(180, 780), Rng.randint(18, 80)
+            SquareValue, SquareRoot = _PerfectSquareRoot(Rng, 45, 95)
+            Divisor, Quotient = Rng.randint(20, 84), Rng.randint(60, 220)
             Dividend = Divisor * Quotient
-            Add = Rng.randint(120, 950)
-            Subtract = Rng.randint(120, 950)
-            Expression = f"{M1} × {M2} + √{SquareValue} - {Dividend} ÷ {Divisor} + {Add} - {Subtract}"
-            Answer = Decimal(M1 * M2 + SquareRoot - Quotient + Add - Subtract)
+            Subtract = Rng.randint(120, 850)
+            Expression = f"{M1} × {M2} + √{SquareValue} - {Dividend} ÷ {Divisor} - {Subtract}"
+            Answer = Decimal(M1 * M2 + SquareRoot - Quotient - Subtract)
         else:
-            Lead = Rng.randint(1000, 2500)
-            PercentText, PercentValue = _PercentTerm(Rng, 2000, 9000, [10, 15, 20, 25, 30, 35, 40, 50])
+            Lead = Rng.randint(1000, 2600)
+            PercentText, PercentValue = _PercentTerm(Rng, 1500, 6000, [10, 15, 20, 25, 30, 35, 40, 50])
             Divisor = Rng.choice([10, 12, 15, 20, 25, 30])
-            SquareBase = Rng.randint(12, 30)
-            Tail = Rng.randint(800, 2200)
+            SquareBase = Rng.randint(12, 28)
+            Tail = Rng.randint(700, 1900)
             Expression = f"{Lead} + ({PercentText}) ÷ {Divisor} - {SquareBase}² + {Tail}"
             Answer = Decimal(Lead) + (PercentValue / Decimal(Divisor)) - Decimal(SquareBase**2) + Decimal(Tail)
         Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
@@ -511,6 +510,8 @@ def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) ->
         "bodmas_pattern": f"WORKBOOK_BAND_{Band}",
         "bodmas_mode": "LESSON_AWARE_WORKBOOK_EXPRESSION",
         "lesson_band": Band,
+        "max_readable_terms": 7,
+        "overflow_safe": True,
     }
 
 
@@ -559,6 +560,8 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
         "percentage_operator": Operator,
         "two_part_only": True,
         "lesson_band": Band,
+        "max_readable_terms": 7,
+        "overflow_safe": True,
     }
 
 
