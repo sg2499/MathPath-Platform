@@ -76,8 +76,67 @@ def NormaliseText(Value: str | None) -> str:
     )
 
 
+def ResolveMmConceptAlias(ConceptText: str | None, FallbackTitle: str = "", LessonTitle: str = "") -> str:
+    """Resolve live/stale MM concept aliases without changing seed/section maps.
+
+    This is intentionally narrow: it only maps unsupported or alternate wording
+    to existing generator families so preview generation does not crash. It does
+    not rename DPS records, split sections, or alter renderer behavior.
+    """
+    Text = NormaliseText(" ".join([str(ConceptText or ""), str(FallbackTitle or ""), str(LessonTitle or "")]))
+
+    if not Text:
+        return "MM_UNSUPPORTED"
+
+    # Borrowing is an Add/Less vertical-stack family, including titles such as
+    # "Borrowing Sums with Positive, Negative Answers" from older live data.
+    if "borrowing" in Text:
+        return "ADD_LESS"
+
+    # Position/placement wording is treated as decimal multiplication answer-position
+    # practice unless a more explicit concept family exists later. The frontend
+    # renderer already protects these titles with ANSWER_POSITION display mode.
+    if (
+        "answer position" in Text
+        or "answer placement" in Text
+        or "find position" in Text
+        or "given position" in Text
+        or "number position" in Text
+        or "natural number position" in Text
+        or "first natural number" in Text
+        or "write the number" in Text
+        or "write number" in Text
+    ):
+        return "DECIMAL_MULTIPLICATION"
+
+    # Equation aliases route to the existing expression-workbook family.
+    if "solve equation" in Text or "equation solving" in Text or "equation practice" in Text:
+        return "BODMAS"
+
+    return ClassifyMmConcept(ConceptText or FallbackTitle, LessonTitle)
+
+
 def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     TitleText = NormaliseText(DpsTitle)
+
+    # Runtime alias protection for live/stale MM titles. These aliases only
+    # classify to existing generator families and do not affect seed structure.
+    if "borrowing" in TitleText:
+        return "ADD_LESS"
+    if (
+        "answer position" in TitleText
+        or "answer placement" in TitleText
+        or "find position" in TitleText
+        or "given position" in TitleText
+        or "number position" in TitleText
+        or "natural number position" in TitleText
+        or "first natural number" in TitleText
+        or "write the number" in TitleText
+        or "write number" in TitleText
+    ):
+        return "DECIMAL_MULTIPLICATION"
+    if "solve equation" in TitleText or "equation solving" in TitleText or "equation practice" in TitleText:
+        return "BODMAS"
 
     # Dedicated Package 5 section titles must not inherit broader lesson-title words.
     if "concept drill" in TitleText:
@@ -237,6 +296,22 @@ SECTION_CONCEPT_ALIASES = {
     "FIND_COST_PRICE": "FIND_COST_PRICE",
     "SKILL_STACKER": "SKILL_STACKER",
     "CONCEPT_DRILL": "CONCEPT_DRILL",
+    "BORROWING SUMS": "ADD_LESS",
+    "BORROWING SUMS WITH NEGATIVE ANSWERS": "ADD_LESS",
+    "BORROWING SUMS WITH POSITIVE NEGATIVE ANSWERS": "ADD_LESS",
+    "BORROWING SUMS WITH POSITIVE AND NEGATIVE ANSWERS": "ADD_LESS",
+    "NUMBER POSITION": "DECIMAL_MULTIPLICATION",
+    "NATURAL NUMBER POSITION": "DECIMAL_MULTIPLICATION",
+    "FIRST NATURAL NUMBER POSITION": "DECIMAL_MULTIPLICATION",
+    "FIND POSITION": "DECIMAL_MULTIPLICATION",
+    "ANSWER POSITION": "DECIMAL_MULTIPLICATION",
+    "ANSWER PLACEMENT": "DECIMAL_MULTIPLICATION",
+    "GIVEN POSITION": "DECIMAL_MULTIPLICATION",
+    "WRITE NUMBER FROM GIVEN POSITION": "DECIMAL_MULTIPLICATION",
+    "WRITE THE NUMBER FROM THE GIVEN POSITION": "DECIMAL_MULTIPLICATION",
+    "SOLVE EQUATION": "BODMAS",
+    "EQUATION SOLVING": "BODMAS",
+    "EQUATION PRACTICE": "BODMAS",
 }
 
 
