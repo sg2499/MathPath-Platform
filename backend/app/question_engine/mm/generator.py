@@ -2,51 +2,35 @@ import random
 from decimal import Decimal
 
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
-from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept, ResolveMmConceptFamily
+from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept
 from app.question_engine.mm.distractors import GenerateMmDistractors
 from app.question_engine.mm.operands import DifficultyStage, GeneratePackage1Question
 from app.question_engine.mm.validators import ValidateMmQuestion
 
 
-def _Display(Value: Decimal) -> int | str:
-    """Return student-safe numeric output without scientific notation.
-
-    Very small Decimal values such as 9E-7 must be shown as 0.0000009,
-    because MathPath workbook convention expects full decimal notation.
-    """
+def _Display(Value: Decimal) -> int | float:
     if Value == Value.to_integral_value():
         return int(Value)
-
-    DisplayText = format(Value.normalize(), "f")
-    if "." in DisplayText:
-        DisplayText = DisplayText.rstrip("0").rstrip(".")
-    if DisplayText == "-0":
-        DisplayText = "0"
-    return DisplayText
+    return float(Value.normalize())
 
 
 def _DisplayMode(Config: MMConfig) -> str:
     ConceptFamily = Config.ConceptFamily
     TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".upper()
 
-    if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS", "BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}:
+    if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
         return "VISUAL_STACK"
 
+    # Platform-level multiplication/division display convention:
+    # Every multiplication/division concept must render as a clean one-line
+    # worksheet expression, not as a vertical stack. This applies to digit
+    # pattern, decimal, and mixed multiplication/division sections.
     if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"}:
-        return "VISUAL_STACK"
-
-    if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-        if "DECIMAL" in TitleText or "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
-            return "ANSWER_POSITION"
-        return "VISUAL_STACK"
-
-    if ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
-        return "ANSWER_POSITION"
-
-    if ConceptFamily == "NUMBER_POSITION":
         return "EXPRESSION_WORKSHEET"
 
-    if ConceptFamily == "SOLVE_EQUATION":
+    if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
+        if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
+            return "ANSWER_POSITION"
         return "EXPRESSION_WORKSHEET"
 
     if ConceptFamily in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
@@ -73,21 +57,13 @@ def _DisplayMode(Config: MMConfig) -> str:
 
 
 def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, SectionTitle: str | None = None, StartNumber: int = 1, TotalSections: int = 1) -> list[dict]:
-    ResolvedConceptFamily = ResolveMmConceptFamily(Config.ConceptFamily, SectionTitle or Config.DpsTitle, Config.LessonTitle)
-    if ResolvedConceptFamily != Config.ConceptFamily:
-        Config.ConceptFamily = ResolvedConceptFamily
-        Config.OperationFocus = OperationFocusForConcept(ResolvedConceptFamily)
-
     if not IsPackage1Supported(Config.ConceptFamily):
         raise ValueError(f"Master Module generator does not support concept: {Config.ConceptFamily}")
 
     Questions: list[dict] = []
     Seen: set[tuple[str, ...]] = set()
 
-    RequestedQuestionCount = int(Config.QuestionCount or 10)
-    if Config.ConceptFamily in {"SKILL_STACKER", "CONCEPT_DRILL"}:
-        RequestedQuestionCount = 5
-    QuestionCount = min(max(RequestedQuestionCount, 1), 30)
+    QuestionCount = min(max(int(Config.QuestionCount or 10), 1), 30)
     for SectionQuestionNumber in range(1, QuestionCount + 1):
         GlobalQuestionNumber = StartNumber + SectionQuestionNumber - 1
         QuestionSeed = f"{Config.Seed}-MM-S{SectionNumber}-Q{SectionQuestionNumber}"
@@ -113,7 +89,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
             Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = Accepted
 
         CorrectDisplay = _Display(CorrectAnswer)
-        AllowNegativeOptions = Config.ConceptFamily in {"INTEGERS", "BORROWING_NEGATIVE", "BORROWING_MIXED"} or CorrectAnswer < 0
+        AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
         Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         QuestionText = ExtraMetadata.get("question_text") if isinstance(ExtraMetadata, dict) else None
@@ -166,8 +142,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
         TotalSections = len(SectionDefinitions)
         for Index, Section in enumerate(SectionDefinitions, start=1):
             SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or Config.DpsTitle)
-            RawSectionConcept = str(Section.get("conceptFamily") or Config.ConceptFamily)
-            SectionConcept = ResolveMmConceptFamily(RawSectionConcept, SectionTitle, Config.LessonTitle)
+            SectionConcept = str(Section.get("conceptFamily") or Config.ConceptFamily)
             SectionCount = int(Section.get("questionCount") or 10)
             SectionConfig = MMConfig(
                 ModuleCode=Config.ModuleCode,
@@ -186,7 +161,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
             )
             SectionQuestions = _GenerateSingleSectionQuestionSet(SectionConfig, Index, SectionTitle, StartNumber, TotalSections)
             Questions.extend(SectionQuestions)
-            StartNumber += len(SectionQuestions)
+            StartNumber += SectionCount
         return rebalance_correct_option_distribution(Questions)
 
     return rebalance_correct_option_distribution(_GenerateSingleSectionQuestionSet(Config))
