@@ -26,21 +26,11 @@ function NormaliseDisplayType(DisplayType: DisplayMode): string {
 }
 
 function FormatValue(Value: number | string): string {
-  const RawValue = String(Value).trim();
-
-  if (!RawValue) return RawValue;
-
-  const NumericValue = typeof Value === "number" ? Value : Number(RawValue);
-  if (!Number.isFinite(NumericValue)) return RawValue;
-
-  if (Number.isInteger(NumericValue)) return String(NumericValue);
-
-  const PlainValue = NumericValue.toLocaleString("en-US", {
-    useGrouping: false,
-    maximumFractionDigits: 20,
-  });
-
-  return PlainValue.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+  if (typeof Value === "number") {
+    if (Number.isInteger(Value)) return String(Value);
+    return String(Number(Value.toFixed(6))).replace(/\.0+$/, "");
+  }
+  return String(Value);
 }
 
 function BuildExpression(Operands: Array<number | string>, Operators: string[]): string {
@@ -64,22 +54,21 @@ function BuildExpression(Operands: Array<number | string>, Operators: string[]):
   }).join(" ");
 }
 
-function GetExpressionTypographyClass(Expression: string): string {
-  const Length = Expression.length;
 
-  if (Length >= 72) {
-    return "text-[17px] sm:text-[19px] lg:text-[21px]";
-  }
+function ShouldRenderAsExpression(Operands: Array<number | string>, Operators: string[], Mode: string): boolean {
+  if (Mode === "EXPRESSION" || Mode === "EXPRESSION_WORKSHEET" || Mode === "ANSWER_POSITION") return true;
 
-  if (Length >= 58) {
-    return "text-[18px] sm:text-[21px] lg:text-[23px]";
-  }
+  const NormalisedOperators = Operators.map((Operator) => String(Operator || "").trim().toUpperCase());
+  const HasMultiplicationOrDivision = NormalisedOperators.some((Operator) =>
+    ["×", "X", "*", "÷", "/"].includes(Operator),
+  );
 
-  if (Length >= 44) {
-    return "text-[20px] sm:text-[23px] lg:text-[25px]";
-  }
+  if (!HasMultiplicationOrDivision) return false;
 
-  return "text-[24px] sm:text-[30px]";
+  const IsProtectedWorkbookTable = Mode === "SKILL_STACKER_TABLE" || Mode === "CONCEPT_DRILL_TABLE" || Mode === "FINANCIAL_TABLE";
+  if (IsProtectedWorkbookTable) return false;
+
+  return Operands.length >= 2;
 }
 
 function ExpressionQuestion({
@@ -92,17 +81,13 @@ function ExpressionQuestion({
   questionText?: string | null;
   mode: "EXPRESSION_WORKSHEET" | "ANSWER_POSITION";
 }) {
-  const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
-  const Expression = RawExpression.replace(/\s*=\s*\?\s*$/, "");
-  const TypographyClass = GetExpressionTypographyClass(Expression);
+  const Expression = questionText?.trim() || BuildExpression(operands, operators);
 
   return (
-    <div className="mx-auto flex w-full max-w-full justify-center px-2 sm:px-4">
-      <div className="w-full max-w-[56rem] rounded-[20px] bg-white px-6 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-8 lg:px-10">
-        <div className={`${TypographyClass} mx-auto max-w-full whitespace-normal break-normal text-center font-mono font-black leading-snug tracking-tight`}>
-          <span>{Expression}</span>
-          <span className="ml-2 inline-block text-blue-700 dark:text-cyan-300">= ?</span>
-        </div>
+    <div className="mx-auto inline-flex max-w-full rounded-[20px] bg-white px-5 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+      <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
+        <span>{Expression}</span>
+        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
     </div>
   );
@@ -118,17 +103,13 @@ function CompactExpressionQuestion({
   operators: string[];
   questionText?: string | null;
 }) {
-  const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
-  const Expression = RawExpression.replace(/\s*=\s*\?\s*$/, "");
-  const TypographyClass = GetExpressionTypographyClass(Expression);
+  const Expression = questionText?.trim() || BuildExpression(operands, operators);
 
   return (
-    <div className="mx-auto flex w-full max-w-full justify-center px-2 sm:px-4">
-      <div className="w-full max-w-[46rem] rounded-[18px] bg-white px-6 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-8">
-        <div className={`${TypographyClass} mx-auto max-w-full whitespace-normal break-normal text-center font-mono font-black leading-snug tracking-tight`}>
-          <span>{Expression}</span>
-          <span className="ml-2 inline-block text-blue-700 dark:text-cyan-300">= ?</span>
-        </div>
+    <div className="mx-auto inline-flex max-w-full rounded-[18px] bg-white px-5 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700">
+      <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
+        <span>{Expression}</span>
+        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
     </div>
   );
@@ -198,12 +179,12 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
   const Operators = operators ?? [];
   const Mode = NormaliseDisplayType(displayType);
 
-  if (Mode === "EXPRESSION" || Mode === "EXPRESSION_WORKSHEET") {
-    return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="EXPRESSION_WORKSHEET" />;
-  }
-
   if (Mode === "ANSWER_POSITION") {
     return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="ANSWER_POSITION" />;
+  }
+
+  if (ShouldRenderAsExpression(Operands, Operators, Mode)) {
+    return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="EXPRESSION_WORKSHEET" />;
   }
 
   if (Mode === "FINANCIAL_TABLE") {
