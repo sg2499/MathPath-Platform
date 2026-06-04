@@ -239,10 +239,20 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
         return Decimal(0) < CorrectAnswer < LessValue and CorrectAnswer == ExpectedAnswer
 
     if Config.ConceptFamily == "ANSWER_POSITION":
-        return len(Operands) == 1 and Operators == [""] and CorrectAnswer >= 0
+        if len(Operands) == 1 and Operators == [""] and CorrectAnswer >= 0:
+            return True
+        if len(Operands) == 2 and Operators == ["Position", "Number"]:
+            try:
+                Position = int(_DecimalValue(Operands[0]))
+                NumberValue = _DecimalValue(Operands[1])
+                ExpectedAnswer = NumberValue * ((Decimal(10) ** Position) if Position >= 0 else (Decimal(1) / (Decimal(10) ** abs(Position))))
+                return CorrectAnswer == ExpectedAnswer.quantize(Decimal("1").scaleb(-abs(Position)) if Position < 0 else Decimal("1"))
+            except Exception:
+                return False
+        return False
 
     if Config.ConceptFamily == "SOLVE_EQUATION":
-        return len(Operands) == 1 and Operators == [""] and CorrectAnswer >= 0
+        return len(Operands) == 1 and Operators == [""]
 
     return False
 
