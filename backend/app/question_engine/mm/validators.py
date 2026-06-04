@@ -6,7 +6,7 @@ from app.question_engine.mm.config import MMConfig, IsPackage1Supported
 
 ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
-PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
+PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "ANSWER_POSITION", "SOLVE_EQUATION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 
 
@@ -115,6 +115,50 @@ def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: lis
     return Operators[1] in {"+%", "-%"}
 
 
+def _BorrowingAnswerMode(Config: MMConfig) -> str:
+    Title = " ".join(
+        f" {Config.DpsTitle} {Config.LessonTitle} "
+        .upper()
+        .replace(",", " ")
+        .replace("-", " ")
+        .split()
+    )
+    if "BORROWING" not in Title:
+        return "STANDARD"
+    HasPositive = "POSITIVE" in Title
+    HasNegative = "NEGATIVE" in Title
+    if HasPositive and HasNegative:
+        return "MIXED_POSITIVE_NEGATIVE"
+    if HasNegative:
+        return "NEGATIVE_ONLY"
+    return "BORROWING_STANDARD"
+
+
+def _ValidateAddLessQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if len(Operands) < 2 or len(Operands) != len(Operators) or Operators[0] != "":
+        return False
+    if any(Operator not in {"", "+", "-"} for Operator in Operators):
+        return False
+    if any(not _IsNumeric(Value) for Value in Operands):
+        return False
+
+    ExpectedAnswer = sum(Decimal(str(Value)) for Value in Operands)
+    if CorrectAnswer != ExpectedAnswer:
+        return False
+
+    Mode = _BorrowingAnswerMode(Config)
+    HasPositiveRow = any(Decimal(str(Value)) > 0 for Value in Operands)
+    HasNegativeRow = any(Decimal(str(Value)) < 0 for Value in Operands)
+
+    if Mode == "NEGATIVE_ONLY":
+        return HasPositiveRow and HasNegativeRow and CorrectAnswer < 0
+
+    if Mode == "MIXED_POSITIVE_NEGATIVE":
+        return HasPositiveRow and HasNegativeRow
+
+    return CorrectAnswer >= 0
+
+
 def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if len(Operands) != 1 or len(Operators) != 1 or Operators[0] != "":
         return False
@@ -130,7 +174,10 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
     if Config.ConceptFamily == "MIXED_SQUARE_CUBE":
         return ("²" in Text or "³" in Text) and CorrectAnswer >= 0
     if Config.ConceptFamily == "MIXED_ROOTS":
-        return (Text.startswith("√") or Text.startswith("∛")) and CorrectAnswer >= 0
+        # Some workbook sheets combine cubes, squares, and cube-root sections under
+        # one compact mixed title. Accept all compact power/root forms so preview
+        # generation never fails for those mapped sheets.
+        return (Text.startswith("√") or Text.startswith("∛") or "²" in Text or "³" in Text) and CorrectAnswer >= 0
     return False
 
 
@@ -190,6 +237,12 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
         if ExpectedAnswer == 0:
             return False
         return Decimal(0) < CorrectAnswer < LessValue and CorrectAnswer == ExpectedAnswer
+
+    if Config.ConceptFamily == "ANSWER_POSITION":
+        return len(Operands) == 1 and Operators == [""] and CorrectAnswer >= 0
+
+    if Config.ConceptFamily == "SOLVE_EQUATION":
+        return len(Operands) == 1 and Operators == [""] and CorrectAnswer >= 0
 
     return False
 
@@ -258,6 +311,9 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
 
     if Config.ConceptFamily == "INTEGERS":
         return _ValidateIntegerQuestion(Operands, Operators, CorrectAnswer)
+
+    if Config.ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS"}:
+        return _ValidateAddLessQuestion(Config, Operands, Operators, CorrectAnswer)
 
     if CorrectAnswer < 0:
         return False

@@ -176,7 +176,128 @@ def _DivisionDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
     return 5, 3
 
 
+
+def _BorrowingAnswerMode(Config: MMConfig) -> str:
+    Title = " ".join(
+        f" {Config.DpsTitle} {Config.LessonTitle} "
+        .upper()
+        .replace(",", " ")
+        .replace("-", " ")
+        .split()
+    )
+    if "BORROWING" not in Title:
+        return "STANDARD"
+    HasPositive = "POSITIVE" in Title
+    HasNegative = "NEGATIVE" in Title
+    if HasPositive and HasNegative:
+        return "MIXED_POSITIVE_NEGATIVE"
+    if HasNegative:
+        return "NEGATIVE_ONLY"
+    return "BORROWING_STANDARD"
+
+
+def _BuildBorrowingAddLess(
+    Config: MMConfig,
+    Rng: random.Random,
+    QuestionNumber: int,
+    RequireNegativeAnswer: bool,
+) -> tuple[list[int | float], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Places = _AddLessDecimalPlaces(Config, Stage)
+    Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
+    RowCount = _AddLessRowCount(Config, Stage)
+
+    PositiveRows: list[Decimal] = []
+    NegativeRows: list[Decimal] = []
+
+    # First row remains positive so the stack never becomes an all-negative list.
+    FirstValue = _RandDecimal(Rng, max(1, Minimum // 3), max(3, Maximum // 4), Places)
+    PositiveRows.append(FirstValue)
+    SignedOperands: list[Decimal] = [FirstValue]
+    Operators: list[str] = [""]
+    RunningTotal = FirstValue
+
+    for RowIndex in range(1, RowCount - 1):
+        PreferSubtraction = Rng.random() < (0.65 if RequireNegativeAnswer else 0.45)
+        Value = _RandDecimal(Rng, max(1, Minimum // 4), max(3, Maximum // 3), Places)
+        if PreferSubtraction:
+            Operators.append("-")
+            SignedOperands.append(-Value)
+            NegativeRows.append(Value)
+            RunningTotal -= Value
+        else:
+            Operators.append("+")
+            SignedOperands.append(Value)
+            PositiveRows.append(Value)
+            RunningTotal += Value
+
+    if RequireNegativeAnswer:
+        # Final subtraction is sized from the current running total so the final
+        # answer is genuinely negative, matching the workbook concept.
+        Extra = _RandDecimal(Rng, max(1, Minimum // 5), max(3, Maximum // 5), Places)
+        LastValue = (RunningTotal if RunningTotal > 0 else Decimal(0)) + Extra
+        LastValue = _Quantize(LastValue, Places)
+        if LastValue <= 0:
+            LastValue = Extra
+        Operators.append("-")
+        SignedOperands.append(-LastValue)
+        NegativeRows.append(LastValue)
+        RunningTotal -= LastValue
+    else:
+        # Positive-answer borrowing practice still includes at least one
+        # subtraction row, but the final result stays positive.
+        if not NegativeRows:
+            LastValue = min(FirstValue / Decimal(2), _RandDecimal(Rng, 1, max(2, Maximum // 5), Places))
+            LastValue = _Quantize(max(Decimal(1).scaleb(-Places), LastValue), Places)
+            Operators.append("-")
+            SignedOperands.append(-LastValue)
+            NegativeRows.append(LastValue)
+            RunningTotal -= LastValue
+        else:
+            AddValue = abs(RunningTotal) + _RandDecimal(Rng, max(1, Minimum // 5), max(3, Maximum // 4), Places)
+            AddValue = _Quantize(AddValue, Places)
+            Operators.append("+")
+            SignedOperands.append(AddValue)
+            PositiveRows.append(AddValue)
+            RunningTotal += AddValue
+        if RunningTotal <= 0:
+            LiftValue = abs(RunningTotal) + _RandDecimal(Rng, 1, max(3, Maximum // 5), Places)
+            Operators[-1] = "+"
+            SignedOperands[-1] = _Quantize(LiftValue, Places)
+            RunningTotal += SignedOperands[-1] if SignedOperands[-1] > 0 else abs(SignedOperands[-1])
+
+    CorrectAnswer = _Quantize(RunningTotal, Places)
+
+    # Hard guards: this concept must not silently produce the wrong sign or an
+    # all-negative stack. Retry safety is handled by deterministic outer loops.
+    if RequireNegativeAnswer and CorrectAnswer >= 0:
+        Correction = CorrectAnswer + _RandDecimal(Rng, 1, max(3, Maximum // 5), Places)
+        Correction = _Quantize(Correction, Places)
+        Operators[-1] = "-"
+        SignedOperands[-1] = -abs(SignedOperands[-1]) - Correction
+        CorrectAnswer = _Quantize(sum(SignedOperands), Places)
+
+    if all(Value < 0 for Value in SignedOperands):
+        SignedOperands[0] = abs(SignedOperands[0])
+        CorrectAnswer = _Quantize(sum(SignedOperands), Places)
+
+    return [_AsDisplayNumber(Value) for Value in SignedOperands], Operators, CorrectAnswer, {
+        "decimal_places": Places,
+        "row_count": RowCount,
+        "lesson_band": _LessonBand(Config),
+        "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
+        "borrowing_answer_mode": "NEGATIVE" if RequireNegativeAnswer else "POSITIVE",
+        "borrowing_negative_answer_required": RequireNegativeAnswer,
+        "borrowing_stack_not_all_negative": True,
+    }
+
 def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    BorrowingMode = _BorrowingAnswerMode(Config)
+    if BorrowingMode == "NEGATIVE_ONLY":
+        return _BuildBorrowingAddLess(Config, Rng, QuestionNumber, True)
+    if BorrowingMode == "MIXED_POSITIVE_NEGATIVE":
+        return _BuildBorrowingAddLess(Config, Rng, QuestionNumber, QuestionNumber % 2 == 1)
+
     Stage = DifficultyStage(QuestionNumber - 1)
     Places = _AddLessDecimalPlaces(Config, Stage)
     Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
@@ -191,7 +312,7 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
         Value = _RandDecimal(Rng, max(1, Minimum // 4), max(2, Maximum // 3), Places)
 
         # Workbook-style Add/Less sheets should remain solvable and non-negative unless
-        # the sheet explicitly belongs to an integer/negative-answer concept.
+        # the sheet explicitly belongs to a borrowing negative-answer concept.
         if Sign == "-" and RunningTotal - Value < 0:
             Sign = "+"
 
@@ -665,6 +786,66 @@ def GenerateConceptDrill(Config: MMConfig, Rng: random.Random, QuestionNumber: i
         "concept_drill_mode": "REPEATED_SUBTRACTION_REMAINDER",
     }
 
+
+def _AnswerPositionTitle(Config: MMConfig) -> str:
+    return " ".join(f" {Config.DpsTitle} ".lower().split())
+
+
+def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Generate safe position/placement questions without using generic arithmetic routing.
+
+    This covers workbook concepts such as:
+    - Find the Position of the First Natural Number
+    - Write the Number from the Given Position
+    - Decimal Multiplication Answer Position / Answer Placement
+
+    The concept has its own generator path so multiplication/division display
+    changes cannot break it and unsupported position sections never crash preview.
+    """
+    Title = _AnswerPositionTitle(Config)
+    Stage = DifficultyStage(QuestionNumber - 1)
+
+    if "decimal" in Title or "answer placement" in Title or "answer position" in Title:
+        LeftPlaces = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
+        RightPlaces = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
+        LeftRaw = Rng.randint(1, 9 if Stage in {"WARM_UP", "STANDARD"} else 99)
+        RightRaw = Rng.randint(1, 9 if Stage in {"WARM_UP", "STANDARD"} else 99)
+        Left = Decimal(LeftRaw) / (Decimal(10) ** LeftPlaces)
+        Right = Decimal(RightRaw) / (Decimal(10) ** RightPlaces)
+        Product = Left * Right
+        ProductText = format(Product.normalize(), "f")
+        DecimalPlaces = len(ProductText.split(".", 1)[1].rstrip("0")) if "." in ProductText else 0
+        QuestionText = f"Find the decimal position in {format(Left, 'f')} × {format(Right, 'f')} = ?"
+        return [QuestionText], [""], Decimal(DecimalPlaces), {
+            "question_text": QuestionText,
+            "answer_position_mode": "DECIMAL_MULTIPLICATION_PLACEMENT",
+            "decimal_places_in_answer": DecimalPlaces,
+        }
+
+    if "write" in Title and "given position" in Title:
+        NumberText = str(Rng.randint(1200, 98765))
+        Position = Rng.randint(1, len(NumberText))
+        Digit = int(NumberText[Position - 1])
+        QuestionText = f"Write the digit at position {Position} in {NumberText}"
+        return [QuestionText], [""], Decimal(Digit), {
+            "question_text": QuestionText,
+            "answer_position_mode": "WRITE_DIGIT_FROM_GIVEN_POSITION",
+            "source_number": NumberText,
+            "position": Position,
+        }
+
+    Values = ["1.005", "12.007", "0.0089", "0.012", "345.002", "2.056", "50.0002"]
+    NumberText = Values[(QuestionNumber - 1) % len(Values)]
+    FirstNaturalIndex = next((Index for Index, Char in enumerate(NumberText) if Char.isdigit() and Char != "0"), 0)
+    DigitsBefore = sum(1 for Char in NumberText[:FirstNaturalIndex] if Char.isdigit())
+    QuestionText = f"Find the position of the first natural number in {NumberText}"
+    return [QuestionText], [""], Decimal(DigitsBefore), {
+        "question_text": QuestionText,
+        "answer_position_mode": "FIRST_NATURAL_NUMBER_POSITION",
+        "source_number": NumberText,
+    }
+
+
 def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Band = _LessonBand(Config)
@@ -760,6 +941,30 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
     return Deduped
 
 
+
+def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    XMinimum, XMaximum = {
+        "WARM_UP": (2, 20),
+        "STANDARD": (5, 50),
+        "MIXED_STEP": (10, 100),
+        "ADVANCED": (20, 250),
+        "CHALLENGE": (50, 500),
+    }.get(Stage, (2, 50))
+    XValue = Rng.randint(XMinimum, XMaximum)
+    Offset = Rng.randint(3, max(4, XMaximum // 2))
+    if Rng.random() < 0.5:
+        Result = XValue + Offset
+        QuestionText = f"x + {Offset} = {Result}"
+    else:
+        Result = XValue - Offset
+        QuestionText = f"x − {Offset} = {Result}"
+    return [QuestionText], [""], Decimal(XValue), {
+        "question_text": QuestionText,
+        "solve_equation_mode": "LINEAR_ONE_STEP",
+    }
+
+
 def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     ConceptFamily = Config.ConceptFamily
     if ConceptFamily == "ADD_LESS":
@@ -808,6 +1013,10 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateSkillStacker(Config, Rng, QuestionNumber)
     if ConceptFamily == "CONCEPT_DRILL":
         return GenerateConceptDrill(Config, Rng, QuestionNumber)
+    if ConceptFamily == "ANSWER_POSITION":
+        return GenerateAnswerPosition(Config, Rng, QuestionNumber)
+    if ConceptFamily == "SOLVE_EQUATION":
+        return GenerateSolveEquation(Config, Rng, QuestionNumber)
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         OperationSequence = _MixedMultiplicationDivisionOperationSequence(Config)
         Operation = OperationSequence[(QuestionNumber - 1) % len(OperationSequence)]
