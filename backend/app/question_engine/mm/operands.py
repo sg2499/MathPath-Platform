@@ -79,6 +79,16 @@ def _AsDisplayNumber(Value: Decimal | int | float) -> int | float:
     return float(DecimalValue.normalize())
 
 
+def _PlainDecimalText(Value: Decimal) -> str:
+    Normalised = Value.normalize()
+    Text = format(Normalised, "f")
+    if "." in Text:
+        Text = Text.rstrip("0").rstrip(".")
+    if Text == "-0":
+        Text = "0"
+    return Text
+
+
 def _RandDecimal(Rng: random.Random, Minimum: int, Maximum: int, Places: int) -> Decimal:
     Scale = 10 ** Places
     Raw = Rng.randint(Minimum * Scale, Maximum * Scale)
@@ -267,128 +277,122 @@ def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) 
     Stage = DifficultyStage(QuestionNumber - 1)
     MaxAbs = {"WARM_UP": 20, "STANDARD": 50, "MIXED_STEP": 100, "ADVANCED": 250, "CHALLENGE": 500}.get(Stage, 50) * _LessonBand(Config)
     RowCount = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
-
-    # Platform correctness rule:
-    # The value displayed in the vertical stack must be the value that is evaluated.
-    # Therefore integer stacks use signed operands directly and neutral operators,
-    # avoiding ambiguous cases like operator '-' applied to a negative operand.
-    Values: list[int] = []
-    for _ in range(RowCount):
-        Value = Rng.randint(-MaxAbs, MaxAbs)
-        if Value == 0:
-            Value = Rng.choice([-1, 1])
+    Values = [Rng.randint(-MaxAbs, MaxAbs) or Rng.choice([-1, 1])]
+    Operators = [""]
+    RunningTotal = Decimal(Values[0])
+    for _ in range(1, RowCount):
+        Operator = Rng.choice(["+", "-"])
+        Value = Rng.randint(-MaxAbs, MaxAbs) or Rng.choice([-1, 1])
         Values.append(Value)
+        Operators.append(Operator)
+        RunningTotal = RunningTotal + Decimal(Value) if Operator == "+" else RunningTotal - Decimal(Value)
+    return Values, Operators, RunningTotal, {"row_count": RowCount, "integer_range": MaxAbs, "allow_negative_answer": True}
 
-    CorrectAnswer = sum(Decimal(Value) for Value in Values)
-    Operators = [""] + ["+" for _ in Values[1:]]
-    return Values, Operators, CorrectAnswer, {
-        "row_count": RowCount,
-        "integer_range": MaxAbs,
-        "allow_negative_answer": True,
-        "integer_evaluation_mode": "SIGNED_OPERAND_SUM",
-    }
 
-def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    Stage = DifficultyStage(QuestionNumber - 1)
+def _BodmasRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
     Band = _LessonBand(Config)
-    MaxValue = {"WARM_UP": 15, "STANDARD": 30, "MIXED_STEP": 60, "ADVANCED": 120, "CHALLENGE": 250}.get(Stage, 30) * Band
-    Pattern = ["ADD", "SUB", "MULTIPLY", "DIVIDE"][(QuestionNumber - 1) % 4]
-    XValue = Decimal(Rng.randint(2, MaxValue))
-
-    if Pattern == "ADD":
-        Term = Decimal(Rng.randint(2, max(3, MaxValue // 2)))
-        Right = XValue + Term
-        QuestionText = f"x + {_AsDisplayNumber(Term)} = {_AsDisplayNumber(Right)}"
-    elif Pattern == "SUB":
-        Term = Decimal(Rng.randint(2, max(3, MaxValue // 2)))
-        Right = XValue - Term
-        QuestionText = f"x - {_AsDisplayNumber(Term)} = {_AsDisplayNumber(Right)}"
-    elif Pattern == "MULTIPLY":
-        Term = Decimal(Rng.randint(2, 12 if Stage in {"WARM_UP", "STANDARD"} else 25))
-        Right = XValue * Term
-        QuestionText = f"x × {_AsDisplayNumber(Term)} = {_AsDisplayNumber(Right)}"
-    else:
-        Term = Decimal(Rng.randint(2, 12 if Stage in {"WARM_UP", "STANDARD"} else 25))
-        Right = XValue / Term
-        # Keep division-equation RHS exact and student-friendly.
-        Right = _Quantize(Right, 2) if Right != Right.to_integral_value() else Right
-        XValue = Right * Term
-        XValue = _Quantize(XValue, 2) if XValue != XValue.to_integral_value() else XValue
-        QuestionText = f"x ÷ {_AsDisplayNumber(Term)} = {_AsDisplayNumber(Right)}"
-
-    return [QuestionText], [""], XValue, {
-        "question_text": QuestionText,
-        "equation_pattern": Pattern,
-        "answer_variable": "x",
-        "answer_value": str(XValue),
+    BaseRanges = {
+        "WARM_UP": (2, 12),
+        "STANDARD": (3, 24),
+        "MIXED_STEP": (6, 48),
+        "ADVANCED": (10, 96),
+        "CHALLENGE": (20, 180),
     }
+    Minimum, Maximum = BaseRanges.get(Stage, (2, 24))
+    Scale = [1, 1, 2, 3, 4, 6][max(0, min(5, Band - 1))]
+    return Minimum, Maximum * Scale
 
-
-def GenerateNaturalNumberPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    """Generate a safe MM find-position item.
-
-    This concept is used for workbook sections such as "Find Position",
-    "Natural Number Position", and "Find the Position of the First
-    Natural Number". The generated display is a horizontal expression, and
-    the answer is always derived directly from the generated operands.
-    """
-    Stage = DifficultyStage(QuestionNumber - 1)
-    Band = _LessonBand(Config)
-    Scale = max(1, Band)
-    Pattern = QuestionNumber % 3
-
-    if Pattern == 1:
-        A = Decimal(str(round(Rng.uniform(0.001, 9.999), 4)))
-        B = Decimal(str(Rng.choice([10, 100, 1000])))
-        Answer = A * B
-        Operator = "×"
-    elif Pattern == 2:
-        B = Decimal(str(Rng.choice([10, 100, 1000])))
-        Answer = Decimal(Rng.randint(1, 999 * Scale)) / Decimal(10)
-        A = Answer * B
-        Operator = "÷"
-    else:
-        A = Decimal(Rng.randint(10, 999 * Scale))
-        B = Decimal(Rng.randint(2, 25 + (Scale * 5)))
-        Answer = A + B
-        Operator = "+"
-
-    Answer = _Quantize(Answer, 6) if Answer != Answer.to_integral_value() else Answer
-    QuestionText = f"{_AsDisplayNumber(A)} {Operator} {_AsDisplayNumber(B)} = ?"
-    return [_AsDisplayNumber(A), _AsDisplayNumber(B)], ["", Operator], Answer, {
-        "question_text": QuestionText,
-        "answer_value": str(Answer),
-        "position_mode": "NATURAL_NUMBER_POSITION",
-        "repair_safe_concept": True,
-    }
 
 def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    """Generate workbook-style BODMAS expressions with exact precedence.
+
+    BODMAS must remain a horizontal expression concept. It must not fall back
+    to generic multiplication/division routing, and its stored answer must be
+    derived from the exact displayed expression. Difficulty progresses from
+    short multiplication-first expressions to mixed add/subtract/multiply/divide
+    expressions with exact division results.
+    """
     Stage = DifficultyStage(QuestionNumber - 1)
-    MaxValue = {"WARM_UP": 9, "STANDARD": 15, "MIXED_STEP": 25, "ADVANCED": 50, "CHALLENGE": 99}.get(Stage, 15) * _LessonBand(Config)
-    A = Rng.randint(2, MaxValue)
-    B = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 15)
-    C = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 20)
-    Pattern = ["ADD_MUL_SUB", "SUB_ADD_MUL", "MUL_ADD_DIV"][(QuestionNumber - 1) % 3]
+    Minimum, Maximum = _BodmasRange(Config, Stage)
+    PatternSequence = {
+        "WARM_UP": ["ADD_MUL", "SUB_MUL"],
+        "STANDARD": ["ADD_MUL_SUB", "MUL_ADD_DIV"],
+        "MIXED_STEP": ["ADD_MUL_SUB_DIV", "SUB_ADD_MUL_DIV"],
+        "ADVANCED": ["MUL_ADD_DIV_SUB", "ADD_MUL_SUB_DIV"],
+        "CHALLENGE": ["SUB_ADD_MUL_DIV", "MUL_ADD_DIV_SUB"],
+    }.get(Stage, ["ADD_MUL_SUB"])
+    Pattern = PatternSequence[(QuestionNumber - 1) % len(PatternSequence)]
+
+    SmallLimit = 9 if Stage in {"WARM_UP", "STANDARD"} else 18
+    MidLimit = 15 if Stage in {"WARM_UP", "STANDARD"} else 35
+
+    if Pattern == "ADD_MUL":
+        A = Rng.randint(Minimum, Maximum)
+        B = Rng.randint(2, SmallLimit)
+        C = Rng.randint(2, SmallLimit)
+        CorrectAnswer = Decimal(A + (B * C))
+        return [A, B, C], ["", "+", "×"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
+
+    if Pattern == "SUB_MUL":
+        B = Rng.randint(2, SmallLimit)
+        C = Rng.randint(2, SmallLimit)
+        Product = B * C
+        A = Rng.randint(Product + 1, Product + Maximum)
+        CorrectAnswer = Decimal(A - Product)
+        return [A, B, C], ["", "-", "×"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
 
     if Pattern == "ADD_MUL_SUB":
+        A = Rng.randint(Minimum, Maximum)
+        B = Rng.randint(2, SmallLimit)
+        C = Rng.randint(2, SmallLimit)
         Product = B * C
         D = Rng.randint(1, max(1, A + Product - 1))
         CorrectAnswer = Decimal(A + Product - D)
-        return [A, B, C, D], ["", "+", "×", "-"], CorrectAnswer, {"bodmas_pattern": Pattern}
+        return [A, B, C, D], ["", "+", "×", "-"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
 
-    if Pattern == "SUB_ADD_MUL":
-        D = Rng.randint(2, max(3, MaxValue // 2))
-        Product = C * D
-        if A - B + Product < 0:
-            A = B + Rng.randint(1, MaxValue)
-        CorrectAnswer = Decimal(A - B + Product)
-        return [A, B, C, D], ["", "-", "+", "×"], CorrectAnswer, {"bodmas_pattern": Pattern}
+    if Pattern == "MUL_ADD_DIV":
+        A = Rng.randint(2, MidLimit)
+        B = Rng.randint(2, SmallLimit)
+        Divisor = Rng.randint(2, SmallLimit)
+        Quotient = Rng.randint(2, max(3, Maximum // 4))
+        Dividend = Divisor * Quotient
+        CorrectAnswer = Decimal((A * B) + Quotient)
+        return [A, B, Dividend, Divisor], ["", "×", "+", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
 
-    Divisor = Rng.randint(2, 9)
-    Quotient = Rng.randint(2, max(4, MaxValue // 3))
+    if Pattern == "ADD_MUL_SUB_DIV":
+        A = Rng.randint(Minimum, Maximum)
+        B = Rng.randint(2, SmallLimit)
+        C = Rng.randint(2, SmallLimit)
+        Divisor = Rng.randint(2, SmallLimit)
+        Quotient = Rng.randint(1, max(2, Maximum // 5))
+        Dividend = Divisor * Quotient
+        Product = B * C
+        if A + Product <= Quotient:
+            A += Quotient + Rng.randint(1, Maximum)
+        CorrectAnswer = Decimal(A + Product - Quotient)
+        return [A, B, C, Dividend, Divisor], ["", "+", "×", "-", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
+
+    if Pattern == "SUB_ADD_MUL_DIV":
+        B = Rng.randint(1, Maximum)
+        C = Rng.randint(2, SmallLimit)
+        Divisor = Rng.randint(2, SmallLimit)
+        Quotient = Rng.randint(2, max(3, Maximum // 4))
+        D = Divisor * Quotient
+        ProductDivision = (C * D) // Divisor
+        A = B + Rng.randint(1, Maximum)
+        CorrectAnswer = Decimal(A - B + ProductDivision)
+        return [A, B, C, D, Divisor], ["", "-", "+", "×", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
+
+    # Advanced mixed pattern: A × B + C ÷ D - E
+    A = Rng.randint(2, MidLimit)
+    B = Rng.randint(2, SmallLimit)
+    Divisor = Rng.randint(2, SmallLimit)
+    Quotient = Rng.randint(2, max(3, Maximum // 4))
     Dividend = Divisor * Quotient
-    CorrectAnswer = Decimal((A * B) + Quotient)
-    return [A, B, Dividend, Divisor], ["", "×", "+", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern}
+    Product = A * B
+    E = Rng.randint(1, max(1, Product + Quotient - 1))
+    CorrectAnswer = Decimal(Product + Quotient - E)
+    return [A, B, Dividend, Divisor, E], ["", "×", "+", "÷", "-"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
 
 
 def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
@@ -649,6 +653,112 @@ def GenerateSkillStacker(Config: MMConfig, Rng: random.Random, QuestionNumber: i
     }
 
 
+
+def _FormatSignedIntegerExpression(Left: int, Operator: str, Right: int) -> str:
+    RightText = f"({Right})" if Right < 0 else str(Right)
+    return f"{Left} {Operator} {RightText}"
+
+
+def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Workbook-style 'Solve Equation' signed arithmetic.
+
+    The MM workbook examples for this concept are not algebraic x-equations;
+    they are clean horizontal signed-number expressions such as 5 + (-8),
+    (-7) + (-6), 9 - (-3). Keep this generator separate from BODMAS so
+    section routing cannot accidentally fall through to a generic stack.
+    """
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Band = _LessonBand(Config)
+    Limit = {"WARM_UP": 12, "STANDARD": 25, "MIXED_STEP": 50, "ADVANCED": 100, "CHALLENGE": 250}.get(Stage, 25) * max(1, Band // 2)
+    Left = Rng.randint(-Limit, Limit) or Rng.choice([-5, 5])
+    Right = Rng.randint(-Limit, Limit) or Rng.choice([-3, 3])
+    Operator = Rng.choice(["+", "-"])
+    CorrectAnswer = Decimal(Left + Right if Operator == "+" else Left - Right)
+    QuestionText = _FormatSignedIntegerExpression(Left, Operator, Right)
+    return [Left, Right], ["", Operator], CorrectAnswer, {
+        "question_text": QuestionText,
+        "equation_mode": "SIGNED_ARITHMETIC_WORKBOOK",
+        "left_value": Left,
+        "operator": Operator,
+        "right_value": Right,
+    }
+
+
+def _NumberFromFirstPosition(Digits: int, FirstPosition: int) -> Decimal:
+    DigitText = str(abs(int(Digits)))
+    Exponent = FirstPosition - (len(DigitText) - 1)
+    return Decimal(DigitText) * (Decimal(10) ** Decimal(Exponent))
+
+
+def _FirstNaturalPosition(Value: Decimal) -> int:
+    if Value == 0:
+        return 0
+    AbsoluteValue = abs(Value.normalize())
+    if AbsoluteValue >= 1:
+        IntegerText = str(int(AbsoluteValue.to_integral_value(rounding=ROUND_HALF_UP) if AbsoluteValue == AbsoluteValue.to_integral_value() else int(AbsoluteValue)))
+        return len(IntegerText) - 1
+    Position = -1
+    Current = AbsoluteValue
+    while Current < 1:
+        Current *= 10
+        if int(Current) > 0:
+            return Position
+        Position -= 1
+    return Position
+
+
+def GenerateWriteNumberFromPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Generate workbook-style 'Write the Number From the Given Position'.
+
+    Position means the place value position of the first non-zero digit:
+    units = 0, tens = 1, tenths = -1, hundredths = -2, etc.
+    """
+    Stage = DifficultyStage(QuestionNumber - 1)
+    PositionChoices = {
+        "WARM_UP": [-2, -1, 0, 1],
+        "STANDARD": [-3, -2, -1, 0, 1, 2],
+        "MIXED_STEP": [-4, -3, -2, -1, 0, 1, 2],
+        "ADVANCED": [-5, -4, -3, -2, -1, 0, 1, 2, 3],
+        "CHALLENGE": [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3],
+    }.get(Stage, [-2, -1, 0, 1, 2])
+    FirstPosition = Rng.choice(PositionChoices)
+    DigitCount = Rng.randint(2, 4 if Stage in {"WARM_UP", "STANDARD"} else 5)
+    Minimum, Maximum = _DigitRange(DigitCount)
+    Digits = Rng.randint(Minimum, Maximum)
+    CorrectAnswer = _NumberFromFirstPosition(Digits, FirstPosition).normalize()
+    return [FirstPosition, Digits], ["Position", "Number"], CorrectAnswer, {
+        "question_text": "Write the number from the given position",
+        "position_mode": "WRITE_NUMBER_FROM_GIVEN_POSITION",
+        "first_position": FirstPosition,
+        "digit_sequence": str(Digits),
+    }
+
+
+def GenerateFindFirstNaturalPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Generate workbook-style 'Find the Position of the First Natural Number'."""
+    Stage = DifficultyStage(QuestionNumber - 1)
+    PositionChoices = {
+        "WARM_UP": [-2, -1, 0, 1],
+        "STANDARD": [-3, -2, -1, 0, 1, 2],
+        "MIXED_STEP": [-4, -3, -2, -1, 0, 1, 2],
+        "ADVANCED": [-5, -4, -3, -2, -1, 0, 1, 2, 3],
+        "CHALLENGE": [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3],
+    }.get(Stage, [-3, -2, -1, 0, 1, 2])
+    FirstPosition = Rng.choice(PositionChoices)
+    DigitCount = Rng.randint(2, 4 if Stage in {"WARM_UP", "STANDARD"} else 5)
+    Minimum, Maximum = _DigitRange(DigitCount)
+    Digits = Rng.randint(Minimum, Maximum)
+    Value = _NumberFromFirstPosition(Digits, FirstPosition).normalize()
+    CorrectAnswer = Decimal(FirstPosition)
+    DisplayValue = _PlainDecimalText(Value)
+    QuestionText = DisplayValue
+    return [DisplayValue], ["Number"], CorrectAnswer, {
+        "question_text": QuestionText,
+        "position_mode": "FIND_FIRST_NATURAL_NUMBER_POSITION",
+        "first_position": FirstPosition,
+        "digit_sequence": str(Digits),
+    }
+
 def _ConceptDrillRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:
     Band = _LessonBand(Config)
     if Band <= 2:
@@ -837,10 +947,6 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateIntegers(Config, Rng, QuestionNumber)
     if ConceptFamily == "BODMAS":
         return GenerateBodmas(Config, Rng, QuestionNumber)
-    if ConceptFamily == "SOLVE_EQUATION":
-        return GenerateSolveEquation(Config, Rng, QuestionNumber)
-    if ConceptFamily == "NATURAL_NUMBER_POSITION":
-        return GenerateNaturalNumberPosition(Config, Rng, QuestionNumber)
     if ConceptFamily == "PERCENTAGE_ADD_LESS":
         return GeneratePercentageAddLess(Config, Rng, QuestionNumber)
     if ConceptFamily == "PERCENTAGE_VALUE":
@@ -871,6 +977,12 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateSkillStacker(Config, Rng, QuestionNumber)
     if ConceptFamily == "CONCEPT_DRILL":
         return GenerateConceptDrill(Config, Rng, QuestionNumber)
+    if ConceptFamily == "SOLVE_EQUATION":
+        return GenerateSolveEquation(Config, Rng, QuestionNumber)
+    if ConceptFamily == "WRITE_NUMBER_FROM_POSITION":
+        return GenerateWriteNumberFromPosition(Config, Rng, QuestionNumber)
+    if ConceptFamily == "FIND_FIRST_NATURAL_POSITION":
+        return GenerateFindFirstNaturalPosition(Config, Rng, QuestionNumber)
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         OperationSequence = _MixedMultiplicationDivisionOperationSequence(Config)
         Operation = OperationSequence[(QuestionNumber - 1) % len(OperationSequence)]

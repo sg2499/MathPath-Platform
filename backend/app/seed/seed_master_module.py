@@ -86,8 +86,8 @@ DPS_TITLES = {1: {1: 'Decimal Number Add-Less (Visual)',
  5: {1: 'Borrowing Sums with Negative Answers',
      2: '4D ÷ 3D Visual and Skill Stacker (Visual)',
      3: '2D x 2D and 4D ÷ 2D Visual',
-     4: 'Integers, Find the Position of the First Natural Number',
-     5: 'Find the Position for Decimal Number Multiplication Answer Placement, Solve Equation'},
+     4: 'Integers (Visual)',
+     5: 'Decimal Multiplication Answer Position'},
  6: {1: 'Decimal Number Add-Less (Visual)',
      2: 'Decimal Multiplication Equation',
      3: 'Squares and 4D ÷ 3D',
@@ -219,18 +219,19 @@ DPS_TITLES = {1: {1: 'Decimal Number Add-Less (Visual)',
 # DPS records not present here fall back to a conservative title-derived split.
 # Section map supports Package 5 concepts as dedicated sections wherever they appear in workbook sheets.
 MM_DPS_SECTION_OVERRIDES = {
-    (5, 4): [
-        {"sectionTitle": "Integers", "questionCount": 10, "conceptFamily": "INTEGERS"},
-        {"sectionTitle": "Find the Position of the First Natural Number", "questionCount": 10, "conceptFamily": "NATURAL_NUMBER_POSITION"},
-    ],
-    (5, 5): [
-        {"sectionTitle": "Find the Position for Decimal Number Multiplication Answer Placement", "questionCount": 5, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
-        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "SOLVE_EQUATION"},
-    ],
     (4, 5): [
         {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
-        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "BODMAS"},
-        {"sectionTitle": "Find Position", "questionCount": 5, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
+        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "SOLVE_EQUATION"},
+        {"sectionTitle": "Write the Number From the Given Position", "questionCount": 5, "conceptFamily": "WRITE_NUMBER_FROM_POSITION"},
+    ],
+
+    (5, 4): [
+        {"sectionTitle": "Integers", "questionCount": 10, "conceptFamily": "INTEGERS"},
+        {"sectionTitle": "Find the Position of the First Natural Number", "questionCount": 10, "conceptFamily": "FIND_FIRST_NATURAL_POSITION"},
+    ],
+    (11, 1): [
+        {"sectionTitle": "Find the Position of the First Natural Number", "questionCount": 10, "conceptFamily": "FIND_FIRST_NATURAL_POSITION"},
+        {"sectionTitle": "Solve Equation", "questionCount": 10, "conceptFamily": "SOLVE_EQUATION"},
     ],
     (20, 5): [
         {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
@@ -269,6 +270,13 @@ SECTION_TITLE_NORMALISATIONS = {
     "skill stacker visual": "Skill Stacker",
     "concept drill": "Concept Drill",
     "concept drill abacus": "Concept Drill",
+    "solve equation": "Solve Equation",
+    "equation practice": "Solve Equation",
+    "equation solving": "Solve Equation",
+    "find position": "Find Position",
+    "number position": "Write the Number From the Given Position",
+    "natural number position": "Find the Position of the First Natural Number",
+    "find the position of the first natural number": "Find the Position of the First Natural Number",
 }
 
 
@@ -300,6 +308,9 @@ def _split_mm_title_parts(title: str) -> list[str]:
         "Cube Root": "Cube Root",
         "Skill Stacker": "Skill Stacker",
         "Concept Drill": "Concept Drill",
+        "Borrowing Sums with Positive / Negative Answers": "Borrowing Sums with Positive / Negative Answers",
+        "Borrowing Sums with Positive": "Borrowing Sums with Positive / Negative Answers",
+        "Negative Answers": "Borrowing Sums with Positive / Negative Answers",
     }
     for source, target in protected.items():
         working = working.replace(source, target)
@@ -421,7 +432,7 @@ def _section_config(lesson_number: int, dps_number: int) -> dict:
         "seedMode": "DYNAMIC_MASTER_MODULE",
         "durationSeconds": DPS_DURATION_SECONDS,
         "manualReviewRequiredBeforePublishing": True,
-        "generatorPackage": "MM_SECTION_AWARE_PACKAGE_3",
+        "generatorPackage": "MM_SECTION_AWARE_PACKAGE_6_RELIABILITY",
         "dpsSections": _dps_sections(lesson_number, dps_number),
     }
 

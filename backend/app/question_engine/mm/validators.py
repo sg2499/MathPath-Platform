@@ -6,7 +6,7 @@ from app.question_engine.mm.config import MMConfig, IsPackage1Supported
 
 ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
-PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "SOLVE_EQUATION", "NATURAL_NUMBER_POSITION"}
+PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "SOLVE_EQUATION", "WRITE_NUMBER_FROM_POSITION", "FIND_FIRST_NATURAL_POSITION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 
 
@@ -20,97 +20,6 @@ def _IsNumeric(Value: object) -> bool:
 
 def _DecimalValue(Value: object) -> Decimal:
     return Decimal(str(Value))
-
-
-def _QuantizeComparable(Value: Decimal) -> Decimal:
-    return Value.quantize(Decimal("0.000001")).normalize()
-
-def _AnswersMatch(Actual: Decimal, Expected: Decimal, Tolerance: Decimal = Decimal("0.000001")) -> bool:
-    return abs(Decimal(Actual) - Decimal(Expected)) <= Tolerance
-
-def _EvaluateLinearExpression(Operands: list[int | float | str], Operators: list[str]) -> Decimal | None:
-    if not Operands or len(Operands) != len(Operators):
-        return None
-    try:
-        Terms: list[Decimal] = [_DecimalValue(Operands[0])]
-        PendingOperators: list[str] = []
-        for Index in range(1, len(Operands)):
-            Operator = Operators[Index]
-            Value = _DecimalValue(Operands[Index])
-            if Operator == "×":
-                Terms[-1] = Terms[-1] * Value
-            elif Operator == "÷":
-                if Value == 0:
-                    return None
-                Terms[-1] = Terms[-1] / Value
-            elif Operator == "-":
-                PendingOperators.append("-")
-                Terms.append(Value)
-            else:
-                PendingOperators.append("+")
-                Terms.append(Value)
-        Result = Terms[0]
-        for Operator, Value in zip(PendingOperators, Terms[1:]):
-            Result = Result - Value if Operator == "-" else Result + Value
-        return Result
-    except Exception:
-        return None
-
-def ExpectedMmAnswer(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], Metadata: dict | None = None) -> Decimal | None:
-    Metadata = Metadata or {}
-    if "answer_value" in Metadata:
-        try:
-            return Decimal(str(Metadata["answer_value"]))
-        except Exception:
-            return None
-
-    try:
-        if Config.ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
-            # Add/Less and Integers are displayed as signed rows in the visual stack.
-            # The stored operands are therefore the exact displayed values to sum.
-            return sum(_DecimalValue(Value) for Value in Operands)
-
-
-        if Config.ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION"}:
-            return _DecimalValue(Operands[0]) * _DecimalValue(Operands[1])
-
-        if Config.ConceptFamily in {"WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION"}:
-            Divisor = _DecimalValue(Operands[1])
-            if Divisor == 0:
-                return None
-            return _DecimalValue(Operands[0]) / Divisor
-
-        if Config.ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-            if len(Operands) == 2 and len(Operators) == 2:
-                if Operators[1] == "×":
-                    return _DecimalValue(Operands[0]) * _DecimalValue(Operands[1])
-                if Operators[1] == "÷":
-                    Divisor = _DecimalValue(Operands[1])
-                    if Divisor == 0:
-                        return None
-                    return _DecimalValue(Operands[0]) / Divisor
-
-        if Config.ConceptFamily == "BODMAS":
-            return _EvaluateLinearExpression(Operands, Operators)
-
-        if Config.ConceptFamily in {"PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
-            Base = _DecimalValue(Operands[0])
-            Percent = _DecimalValue(Operands[1])
-            PercentValue = Base * Percent / Decimal(100)
-            return Base - PercentValue if Operators[1] == "-%" else Base + PercentValue
-
-        if Config.ConceptFamily == "SKILL_STACKER":
-            return _DecimalValue(Operands[0]) * _DecimalValue(Operands[1])
-
-        if Config.ConceptFamily == "CONCEPT_DRILL":
-            LessValue = _DecimalValue(Operands[1])
-            if LessValue == 0:
-                return None
-            return _DecimalValue(Operands[0]) % LessValue
-    except Exception:
-        return None
-
-    return None
 
 
 def _IsWholeNumber(Value: object) -> bool:
@@ -206,6 +115,49 @@ def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: lis
     return Operators[1] in {"+%", "-%"}
 
 
+def _EvaluateExpressionWithPrecedence(Operands: list[int | float | str], Operators: list[str]) -> Decimal | None:
+    """Evaluate a flat workbook expression using ×/÷ before +/-.
+
+    Operators are aligned with operands, where Operators[0] is usually "".
+    This intentionally supports the platform's horizontal BODMAS convention
+    without using Python eval or unsafe expression parsing.
+    """
+    if not Operands or len(Operands) != len(Operators):
+        return None
+    try:
+        Values = [_DecimalValue(Value) for Value in Operands]
+    except Exception:
+        return None
+
+    Terms: list[Decimal] = []
+    PendingSign = Decimal(1)
+    Current = Values[0]
+
+    for Index in range(1, len(Values)):
+        Operator = Operators[Index]
+        Value = Values[Index]
+        if Operator == "×":
+            Current *= Value
+        elif Operator == "÷":
+            if Value == 0:
+                return None
+            Current /= Value
+        elif Operator in {"+", "-"}:
+            Terms.append(PendingSign * Current)
+            PendingSign = Decimal(1) if Operator == "+" else Decimal(-1)
+            Current = Value
+        else:
+            return None
+    Terms.append(PendingSign * Current)
+    return sum(Terms, Decimal(0))
+
+
+def _AnswersMatch(Expected: Decimal, CorrectAnswer: Decimal) -> bool:
+    if Expected == CorrectAnswer:
+        return True
+    return abs(Expected - CorrectAnswer) <= Decimal("0.000001")
+
+
 def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if len(Operands) != 1 or len(Operators) != 1 or Operators[0] != "":
         return False
@@ -264,13 +216,35 @@ def _ValidateFinancialQuestion(Config: MMConfig, Operands: list[int | float | st
     return False
 
 
-def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal, Metadata: dict | None = None) -> bool:
+def _ValidateNumberFromFirstPosition(Digits: int, FirstPosition: int) -> Decimal:
+    DigitText = str(abs(int(Digits)))
+    Exponent = FirstPosition - (len(DigitText) - 1)
+    return Decimal(DigitText) * (Decimal(10) ** Decimal(Exponent))
+
+
+def _ValidateFirstNaturalPosition(Value: Decimal) -> int:
+    if Value == 0:
+        return 0
+    AbsoluteValue = abs(Value.normalize())
+    if AbsoluteValue >= 1:
+        IntegerText = str(int(AbsoluteValue))
+        return len(IntegerText) - 1
+    Position = -1
+    Current = AbsoluteValue
+    while Current < 1:
+        Current *= 10
+        if int(Current) > 0:
+            return Position
+        Position -= 1
+    return Position
+
+
+def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if Config.ConceptFamily == "SKILL_STACKER":
         if len(Operands) != 2 or Operators != ["Add", "Times"]:
             return False
         AddValue, Times = [_DecimalValue(Value) for Value in Operands]
-        ExpectedAnswer = ExpectedMmAnswer(Config, Operands, Operators, Metadata)
-        return AddValue > 0 and Times > 0 and ExpectedAnswer is not None and _AnswersMatch(CorrectAnswer, ExpectedAnswer)
+        return AddValue > 0 and Times > 0 and CorrectAnswer == AddValue * Times
 
     if Config.ConceptFamily == "CONCEPT_DRILL":
         if len(Operands) != 2 or Operators != ["From", "Less"]:
@@ -278,20 +252,36 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
         FromValue, LessValue = [_DecimalValue(Value) for Value in Operands]
         if FromValue <= 0 or LessValue <= 0 or FromValue <= LessValue:
             return False
-        ExpectedAnswer = ExpectedMmAnswer(Config, Operands, Operators, Metadata)
-        return ExpectedAnswer is not None and Decimal(0) < CorrectAnswer < LessValue and _AnswersMatch(CorrectAnswer, ExpectedAnswer)
+        ExpectedAnswer = FromValue % LessValue
+        if ExpectedAnswer == 0:
+            return False
+        return Decimal(0) < CorrectAnswer < LessValue and CorrectAnswer == ExpectedAnswer
 
     if Config.ConceptFamily == "SOLVE_EQUATION":
-        ExpectedAnswer = ExpectedMmAnswer(Config, Operands, Operators, Metadata)
-        return len(Operands) == 1 and len(Operators) == 1 and bool((Metadata or {}).get("question_text")) and ExpectedAnswer is not None and _AnswersMatch(CorrectAnswer, ExpectedAnswer)
+        if len(Operands) != 2 or Operators[0] != "" or Operators[1] not in {"+", "-"}:
+            return False
+        Left, Right = [_DecimalValue(Value) for Value in Operands]
+        ExpectedAnswer = Left + Right if Operators[1] == "+" else Left - Right
+        return CorrectAnswer == ExpectedAnswer
 
-    if Config.ConceptFamily == "NATURAL_NUMBER_POSITION":
-        ExpectedAnswer = ExpectedMmAnswer(Config, Operands, Operators, Metadata)
-        return len(Operands) == 2 and len(Operators) == 2 and bool((Metadata or {}).get("question_text")) and ExpectedAnswer is not None and _AnswersMatch(CorrectAnswer, ExpectedAnswer)
+    if Config.ConceptFamily == "WRITE_NUMBER_FROM_POSITION":
+        if len(Operands) != 2 or Operators != ["Position", "Number"]:
+            return False
+        if not _IsWholeNumber(Operands[0]) or not _IsWholeNumber(Operands[1]):
+            return False
+        ExpectedAnswer = _ValidateNumberFromFirstPosition(int(_DecimalValue(Operands[1])), int(_DecimalValue(Operands[0]))).normalize()
+        return CorrectAnswer.normalize() == ExpectedAnswer
+
+    if Config.ConceptFamily == "FIND_FIRST_NATURAL_POSITION":
+        if len(Operands) != 1 or Operators != ["Number"]:
+            return False
+        ExpectedAnswer = Decimal(_ValidateFirstNaturalPosition(_DecimalValue(Operands[0])))
+        return CorrectAnswer == ExpectedAnswer
 
     return False
 
-def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal, Metadata: dict | None = None) -> bool:
+
+def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if not IsPackage1Supported(Config.ConceptFamily):
         return False
 
@@ -302,7 +292,7 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
         return _ValidateFinancialQuestion(Config, Operands, Operators, CorrectAnswer)
 
     if Config.ConceptFamily in PACKAGE_5_SPECIAL_CONCEPTS:
-        return _ValidatePackage5Special(Config, Operands, Operators, CorrectAnswer, Metadata)
+        return _ValidatePackage5Special(Config, Operands, Operators, CorrectAnswer)
 
     if any(Operator not in ALLOWED_OPERATORS for Operator in Operators):
         return False
@@ -313,28 +303,49 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
     if len(Operands) < 2:
         return False
 
-    ExpectedAnswer = ExpectedMmAnswer(Config, Operands, Operators, Metadata)
-    if ExpectedAnswer is not None and not _AnswersMatch(CorrectAnswer, ExpectedAnswer):
-        return False
-
     for Index, Operator in enumerate(Operators):
         if Operator == "÷" and Decimal(str(Operands[Index])) == 0:
             return False
 
+    if Config.ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS"}:
+        try:
+            ExpectedAnswer = sum((_DecimalValue(Value) for Value in Operands), Decimal(0))
+        except Exception:
+            return False
+        return _AnswersMatch(ExpectedAnswer, CorrectAnswer)
+
     if Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION":
-        return _ValidateWholeMultiplicationPattern(Config, Operands, Operators) and CorrectAnswer >= 0
+        ExpectedAnswer = _DecimalValue(Operands[0]) * _DecimalValue(Operands[1]) if len(Operands) == 2 else None
+        return _ValidateWholeMultiplicationPattern(Config, Operands, Operators) and ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "WHOLE_NUMBER_DIVISION":
-        return _ValidateWholeDivisionPattern(Config, Operands, Operators) and CorrectAnswer >= 0
+        ExpectedAnswer = _DecimalValue(Operands[0]) / _DecimalValue(Operands[1]) if len(Operands) == 2 and _DecimalValue(Operands[1]) != 0 else None
+        return _ValidateWholeDivisionPattern(Config, Operands, Operators) and ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "DECIMAL_MULTIPLICATION":
-        return _ValidateDecimalOperation(Operands, Operators, "×") and CorrectAnswer >= 0
+        ExpectedAnswer = _DecimalValue(Operands[0]) * _DecimalValue(Operands[1]) if len(Operands) == 2 else None
+        return _ValidateDecimalOperation(Operands, Operators, "×") and ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "DECIMAL_DIVISION":
-        return _ValidateDecimalOperation(Operands, Operators, "÷") and CorrectAnswer >= 0
+        ExpectedAnswer = _DecimalValue(Operands[0]) / _DecimalValue(Operands[1]) if len(Operands) == 2 and _DecimalValue(Operands[1]) != 0 else None
+        return _ValidateDecimalOperation(Operands, Operators, "÷") and ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
+
+    if Config.ConceptFamily == "BODMAS":
+        if len(Operands) < 3 or Operators[0] != "" or not any(Operator in {"×", "÷"} for Operator in Operators[1:]):
+            return False
+        ExpectedAnswer = _EvaluateExpressionWithPrecedence(Operands, Operators)
+        return ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "PERCENTAGE_ADD_LESS":
-        return _ValidatePercentageAddLess(Operands, Operators) and CorrectAnswer >= 0
+        if not _ValidatePercentageAddLess(Operands, Operators):
+            return False
+        Base, Percent = [_DecimalValue(Value) for Value in Operands]
+        ExpectedAnswer = Base + (Base * Percent / Decimal(100)) if Operators[1] == "+%" else Base - (Base * Percent / Decimal(100))
+        return _AnswersMatch(ExpectedAnswer.quantize(Decimal("0.01")), CorrectAnswer.quantize(Decimal("0.01"))) and CorrectAnswer >= 0
+
+    if Config.ConceptFamily == "INTEGERS":
+        ExpectedAnswer = _EvaluateExpressionWithPrecedence(Operands, Operators)
+        return ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer)
 
     if Config.ConceptFamily.startswith("PERCENTAGE") and any(_IsNumeric(Value) and Decimal(str(Value)) < 0 for Value in Operands):
         return False
@@ -342,4 +353,5 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
     if Config.ConceptFamily != "INTEGERS" and CorrectAnswer < 0:
         return False
 
-    return True
+    ExpectedAnswer = _EvaluateExpressionWithPrecedence(Operands, Operators)
+    return ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer)
