@@ -6,7 +6,7 @@ from app.question_engine.mm.config import MMConfig, IsPackage1Supported
 
 ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
-PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
+PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "ANSWER_POSITION", "SOLVE_EQUATION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 
 
@@ -130,7 +130,10 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
     if Config.ConceptFamily == "MIXED_SQUARE_CUBE":
         return ("²" in Text or "³" in Text) and CorrectAnswer >= 0
     if Config.ConceptFamily == "MIXED_ROOTS":
-        return (Text.startswith("√") or Text.startswith("∛")) and CorrectAnswer >= 0
+        # Some workbook sheets combine cubes, squares, and cube-root sections under
+        # one compact mixed title. Accept all compact power/root forms so preview
+        # generation never fails for those mapped sheets.
+        return (Text.startswith("√") or Text.startswith("∛") or "²" in Text or "³" in Text) and CorrectAnswer >= 0
     return False
 
 
@@ -190,6 +193,12 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
         if ExpectedAnswer == 0:
             return False
         return Decimal(0) < CorrectAnswer < LessValue and CorrectAnswer == ExpectedAnswer
+
+    if Config.ConceptFamily == "ANSWER_POSITION":
+        return len(Operands) == 1 and Operators == [""] and CorrectAnswer >= 0
+
+    if Config.ConceptFamily == "SOLVE_EQUATION":
+        return len(Operands) == 1 and Operators == [""] and CorrectAnswer >= 0
 
     return False
 
