@@ -70,8 +70,24 @@ def _IsNormalMultiplicationDivisionSection(Config: MMConfig, SectionTitle: str |
     return True
 
 
+def _IsSolveEquationConcept(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    TitleText = _ConceptTitleText(Config, SectionTitle)
+    return "SOLVE EQUATION" in TitleText or "EQUATION PRACTICE" in TitleText
+
+
 def _DisplayMode(Config: MMConfig, SectionTitle: str | None = None) -> str:
     ConceptFamily = Config.ConceptFamily
+
+    # Special workbook display concepts must win before generic concept-family
+    # routing. Some of these sections reuse BODMAS, ADD/LESS, decimal, or mixed
+    # multiplication/division generators internally, but their visual task is not
+    # a normal vertical stack. This guard restores their stable display while
+    # preserving the new horizontal layout only for true multiplication/division.
+    if _IsAnswerPositionConcept(Config, SectionTitle):
+        return "ANSWER_POSITION"
+
+    if _IsSolveEquationConcept(Config, SectionTitle):
+        return "EXPRESSION_WORKSHEET"
 
     if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
         return "VISUAL_STACK"
@@ -84,13 +100,9 @@ def _DisplayMode(Config: MMConfig, SectionTitle: str | None = None) -> str:
         return "EXPRESSION_WORKSHEET" if _IsNormalMultiplicationDivisionSection(Config, SectionTitle) else "VISUAL_STACK"
 
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-        if _IsAnswerPositionConcept(Config, SectionTitle):
-            return "ANSWER_POSITION"
         return "EXPRESSION_WORKSHEET" if _IsNormalMultiplicationDivisionSection(Config, SectionTitle) else "VISUAL_STACK"
 
     if ConceptFamily in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
-        if _IsAnswerPositionConcept(Config, SectionTitle):
-            return "ANSWER_POSITION"
         return "EXPRESSION_WORKSHEET"
 
     if ConceptFamily in {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}:
