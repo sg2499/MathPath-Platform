@@ -26,27 +26,35 @@ function NormaliseDisplayType(DisplayType: DisplayMode): string {
 }
 
 function FormatValue(Value: number | string): string {
-  const RawValue = String(Value).trim();
+  if (typeof Value === "number") {
+    if (Number.isInteger(Value)) return String(Value);
+    return String(Number(Value.toFixed(6))).replace(/\.0+$/, "");
+  }
+  return String(Value);
+}
 
-  if (!RawValue) return RawValue;
+function NormaliseOperator(Operator: string): string {
+  const RawOperator = String(Operator || "").trim();
+  const LowerOperator = RawOperator.toLowerCase();
 
-  const NumericValue = typeof Value === "number" ? Value : Number(RawValue);
-  if (!Number.isFinite(NumericValue)) return RawValue;
+  if (["*", "x", "×", "times", "multiply", "multiplication"].includes(LowerOperator)) return "×";
+  if (["/", "÷", "division", "divide"].includes(LowerOperator)) return "÷";
+  if (RawOperator === "-") return "−";
+  return RawOperator;
+}
 
-  if (Number.isInteger(NumericValue)) return String(NumericValue);
+function IsMultiplicationOrDivisionOperator(Operator: string): boolean {
+  return ["×", "÷"].includes(NormaliseOperator(Operator));
+}
 
-  const PlainValue = NumericValue.toLocaleString("en-US", {
-    useGrouping: false,
-    maximumFractionDigits: 20,
-  });
-
-  return PlainValue.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+function ShouldForceHorizontalMultiplicationDivision(Operators: string[]): boolean {
+  return Operators.some((Operator) => IsMultiplicationOrDivisionOperator(Operator));
 }
 
 function BuildExpression(Operands: Array<number | string>, Operators: string[]): string {
   if (!Operands.length) return "?";
 
-  const NormalisedOperators = Operators.map((Operator) => String(Operator || "").trim());
+  const NormalisedOperators = Operators.map((Operator) => NormaliseOperator(Operator));
 
   if (NormalisedOperators[1] === "% of" && Operands.length >= 2) {
     return `${FormatValue(Operands[0])}% of ${FormatValue(Operands[1])}`;
@@ -64,24 +72,6 @@ function BuildExpression(Operands: Array<number | string>, Operators: string[]):
   }).join(" ");
 }
 
-function GetExpressionTypographyClass(Expression: string): string {
-  const Length = Expression.length;
-
-  if (Length >= 72) {
-    return "text-[17px] sm:text-[19px] lg:text-[21px]";
-  }
-
-  if (Length >= 58) {
-    return "text-[18px] sm:text-[21px] lg:text-[23px]";
-  }
-
-  if (Length >= 44) {
-    return "text-[20px] sm:text-[23px] lg:text-[25px]";
-  }
-
-  return "text-[24px] sm:text-[30px]";
-}
-
 function ExpressionQuestion({
   operands,
   operators,
@@ -92,17 +82,13 @@ function ExpressionQuestion({
   questionText?: string | null;
   mode: "EXPRESSION_WORKSHEET" | "ANSWER_POSITION";
 }) {
-  const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
-  const Expression = RawExpression.replace(/\s*=\s*\?\s*$/, "");
-  const TypographyClass = GetExpressionTypographyClass(Expression);
+  const Expression = questionText?.trim() || BuildExpression(operands, operators);
 
   return (
-    <div className="mx-auto flex w-full max-w-full justify-center px-2 sm:px-4">
-      <div className="w-full max-w-[56rem] rounded-[20px] bg-white px-6 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-8 lg:px-10">
-        <div className={`${TypographyClass} mx-auto max-w-full whitespace-normal break-normal text-center font-mono font-black leading-snug tracking-tight`}>
-          <span>{Expression}</span>
-          <span className="ml-2 inline-block text-blue-700 dark:text-cyan-300">= ?</span>
-        </div>
+    <div className="mx-auto inline-flex max-w-full rounded-[20px] bg-white px-5 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+      <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
+        <span>{Expression}</span>
+        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
     </div>
   );
@@ -118,17 +104,13 @@ function CompactExpressionQuestion({
   operators: string[];
   questionText?: string | null;
 }) {
-  const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
-  const Expression = RawExpression.replace(/\s*=\s*\?\s*$/, "");
-  const TypographyClass = GetExpressionTypographyClass(Expression);
+  const Expression = questionText?.trim() || BuildExpression(operands, operators);
 
   return (
-    <div className="mx-auto flex w-full max-w-full justify-center px-2 sm:px-4">
-      <div className="w-full max-w-[46rem] rounded-[18px] bg-white px-6 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-8">
-        <div className={`${TypographyClass} mx-auto max-w-full whitespace-normal break-normal text-center font-mono font-black leading-snug tracking-tight`}>
-          <span>{Expression}</span>
-          <span className="ml-2 inline-block text-blue-700 dark:text-cyan-300">= ?</span>
-        </div>
+    <div className="mx-auto inline-flex max-w-full rounded-[18px] bg-white px-5 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700">
+      <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
+        <span>{Expression}</span>
+        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
     </div>
   );
@@ -199,6 +181,13 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
   const Mode = NormaliseDisplayType(displayType);
 
   if (Mode === "EXPRESSION" || Mode === "EXPRESSION_WORKSHEET") {
+    return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="EXPRESSION_WORKSHEET" />;
+  }
+
+  // Defensive platform-level convention: any multiplication/division question
+  // that reaches this shared renderer must stay as a single-line expression,
+  // even if an older/future generator accidentally tags it as VISUAL_STACK.
+  if (ShouldForceHorizontalMultiplicationDivision(Operators)) {
     return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="EXPRESSION_WORKSHEET" />;
   }
 
