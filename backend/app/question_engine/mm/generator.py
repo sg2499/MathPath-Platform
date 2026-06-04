@@ -14,15 +14,26 @@ def _Display(Value: Decimal) -> int | float:
     return float(Value.normalize())
 
 
-def _ConceptTitleText(Config: MMConfig, SectionTitle: str | None = None) -> str:
-    return f" {Config.DpsTitle} {Config.LessonTitle} {SectionTitle or ''} ".upper()
+def _SectionTitleText(Config: MMConfig, SectionTitle: str | None = None) -> str:
+    """Return only the active DPS/section text.
+
+    This intentionally excludes LessonTitle because lesson names can contain
+    broad words such as Multiplication, Division, Integers, or BODMAS while the
+    current section may be a different workbook concept. Rendering must be based
+    on the active section/concept only so one concept fix cannot override another.
+    """
+    return f" {SectionTitle or Config.DpsTitle or ''} ".upper()
+
+
+def _ContainsAny(Text: str, Markers: tuple[str, ...]) -> bool:
+    return any(Marker in Text for Marker in Markers)
 
 
 def _IsAnswerPositionConcept(Config: MMConfig, SectionTitle: str | None = None) -> bool:
-    TitleText = _ConceptTitleText(Config, SectionTitle)
-    return any(
-        Marker in TitleText
-        for Marker in (
+    TitleText = _SectionTitleText(Config, SectionTitle)
+    return _ContainsAny(
+        TitleText,
+        (
             "ANSWER POSITION",
             "FIND POSITION",
             "ANSWER PLACEMENT",
@@ -30,76 +41,87 @@ def _IsAnswerPositionConcept(Config: MMConfig, SectionTitle: str | None = None) 
             "WRITE THE NUMBER",
             "FIRST NATURAL NUMBER",
             "NATURAL NUMBER POSITION",
-        )
+            "NUMBER POSITION",
+        ),
+    )
+
+
+def _IsSolveEquationConcept(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    TitleText = _SectionTitleText(Config, SectionTitle)
+    return "SOLVE EQUATION" in TitleText or "EQUATION PRACTICE" in TitleText
+
+
+def _IsVisualStackConcept(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    TitleText = _SectionTitleText(Config, SectionTitle)
+    return Config.ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"} or _ContainsAny(
+        TitleText,
+        (
+            "BORROWING",
+            "ADD-LESS",
+            "ADD LESS",
+            "FAST VISUALISATION",
+            "FAST VISUALIZATION",
+            "VISUAL PRACTICE",
+            "INTEGERS",
+            "INTEGER",
+        ),
+    )
+
+
+def _IsNormalMultiplicationSection(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    if _IsAnswerPositionConcept(Config, SectionTitle) or _IsSolveEquationConcept(Config, SectionTitle) or _IsVisualStackConcept(Config, SectionTitle):
+        return False
+    TitleText = _SectionTitleText(Config, SectionTitle)
+    return Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION" or _ContainsAny(
+        TitleText,
+        (
+            "MULTIPLICATION BY",
+            "MULTIPLICATION MIXED PATTERN",
+            "MIXED PATTERN MULTIPLICATION",
+            " X ",
+            " × ",
+        ),
+    )
+
+
+def _IsNormalDivisionSection(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    if _IsAnswerPositionConcept(Config, SectionTitle) or _IsSolveEquationConcept(Config, SectionTitle) or _IsVisualStackConcept(Config, SectionTitle):
+        return False
+    TitleText = _SectionTitleText(Config, SectionTitle)
+    return Config.ConceptFamily == "WHOLE_NUMBER_DIVISION" or _ContainsAny(
+        TitleText,
+        (
+            "DIVISION BY",
+            "DIVISION MIXED PATTERN",
+            " ÷ ",
+        ),
     )
 
 
 def _IsNormalMultiplicationDivisionSection(Config: MMConfig, SectionTitle: str | None = None) -> bool:
-    if _IsAnswerPositionConcept(Config, SectionTitle):
-        return False
-
-    TitleText = _ConceptTitleText(Config, SectionTitle)
-    BlockedMarkers = (
-        "SOLVE EQUATION",
-        "EQUATION PRACTICE",
-        "BODMAS",
-        "ADD-LESS",
-        "ADD LESS",
-        "INTEGERS",
-        "INTEGER",
-        "SKILL STACKER",
-        "CONCEPT DRILL",
-        "SQUARE",
-        "CUBE",
-        "ROOT",
-        "PROFIT",
-        "LOSS",
-        "SIMPLE INTEREST",
-        "PERCENT",
-        "PERCENTAGE",
-    )
-
-    if any(Marker in TitleText for Marker in BlockedMarkers):
-        # Dedicated normal multiplication/division sections can still contain the
-        # pattern text directly; mixed workbook sections with the blocked labels
-        # must keep their existing display modes.
-        ExplicitPatternOnly = any(Marker in TitleText for Marker in (" X ", " × ", " DIVISION", " ÷ "))
-        if not ExplicitPatternOnly:
-            return False
-
-    return True
-
-
-def _IsSolveEquationConcept(Config: MMConfig, SectionTitle: str | None = None) -> bool:
-    TitleText = _ConceptTitleText(Config, SectionTitle)
-    return "SOLVE EQUATION" in TitleText or "EQUATION PRACTICE" in TitleText
+    return _IsNormalMultiplicationSection(Config, SectionTitle) or _IsNormalDivisionSection(Config, SectionTitle)
 
 
 def _DisplayMode(Config: MMConfig, SectionTitle: str | None = None) -> str:
     ConceptFamily = Config.ConceptFamily
 
-    # Special workbook display concepts must win before generic concept-family
-    # routing. Some of these sections reuse BODMAS, ADD/LESS, decimal, or mixed
-    # multiplication/division generators internally, but their visual task is not
-    # a normal vertical stack. This guard restores their stable display while
-    # preserving the new horizontal layout only for true multiplication/division.
+    # Dedicated/special workbook tasks must win before any generic arithmetic rule.
     if _IsAnswerPositionConcept(Config, SectionTitle):
         return "ANSWER_POSITION"
 
     if _IsSolveEquationConcept(Config, SectionTitle):
         return "EXPRESSION_WORKSHEET"
 
-    if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
+    # Existing vertical-stack concepts are protected here. This prevents future
+    # multiplication/division work from changing Borrowing, Add-Less, Integers,
+    # Fast Visualisation, or Visual Practice layouts.
+    if _IsVisualStackConcept(Config, SectionTitle):
         return "VISUAL_STACK"
 
-    # Normal multiplication/division should display as a single horizontal
-    # expression, for example "453 × 675 = ?" or "450 ÷ 9 = ?". The guard above
-    # prevents answer-position, solve-equation, and other workbook-specific
-    # sections from being pulled into this display rule.
-    if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"}:
-        return "EXPRESSION_WORKSHEET" if _IsNormalMultiplicationDivisionSection(Config, SectionTitle) else "VISUAL_STACK"
-
-    if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
+    # Only true normal multiplication/division sections use the new horizontal
+    # expression convention. Mixed workbook sections that are not explicitly a
+    # multiplication/division section fall back to their original safe stack.
+    if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION", "MULTIPLICATION_DIVISION_MIXED"}:
         return "EXPRESSION_WORKSHEET" if _IsNormalMultiplicationDivisionSection(Config, SectionTitle) else "VISUAL_STACK"
 
     if ConceptFamily in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
@@ -128,20 +150,20 @@ def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMet
     OriginalTitle = SectionTitle or Config.DpsTitle
     Metadata = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
 
-    # Do not rename answer-position / find-position sections. These have their
-    # own workbook meaning and must remain exactly as mapped in the stable DPS
-    # section structure.
-    if _IsAnswerPositionConcept(Config, SectionTitle):
+    # Preserve all special/visual section names exactly as mapped. Only true
+    # normal multiplication/division and explicit decimal multiplication/division
+    # sections receive the new naming convention.
+    if _IsAnswerPositionConcept(Config, SectionTitle) or _IsSolveEquationConcept(Config, SectionTitle) or _IsVisualStackConcept(Config, SectionTitle):
         return OriginalTitle
 
-    if Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION":
+    if Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION" or _IsNormalMultiplicationSection(Config, SectionTitle):
         LeftDigits = Metadata.get("left_digits")
         RightDigits = Metadata.get("right_digits")
         if LeftDigits and RightDigits:
             return f"Multiplication {LeftDigits}D × {RightDigits}D"
         return "Multiplication"
 
-    if Config.ConceptFamily == "WHOLE_NUMBER_DIVISION":
+    if Config.ConceptFamily == "WHOLE_NUMBER_DIVISION" or _IsNormalDivisionSection(Config, SectionTitle):
         DividendDigits = Metadata.get("dividend_digits")
         DivisorDigits = Metadata.get("divisor_digits")
         if DividendDigits and DivisorDigits:

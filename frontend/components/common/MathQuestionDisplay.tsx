@@ -54,10 +54,23 @@ function BuildExpression(Operands: Array<number | string>, Operators: string[]):
   }).join(" ");
 }
 
+function RenderExpressionWithBlueQuestion(Expression: string) {
+  const Parts = Expression.split(/([?？])/g);
+
+  return Parts.map((Part, Index) => {
+    if (Part === "?" || Part === "？") {
+      return <span key={`question-mark-${Index}`} className="text-blue-700 dark:text-cyan-300">?</span>;
+    }
+
+    return <span key={`expression-part-${Index}`}>{Part}</span>;
+  });
+}
+
 function ExpressionQuestion({
   operands,
   operators,
   questionText,
+  mode,
 }: {
   operands: Array<number | string>;
   operators: string[];
@@ -65,13 +78,17 @@ function ExpressionQuestion({
   mode: "EXPRESSION_WORKSHEET" | "ANSWER_POSITION";
 }) {
   const Expression = questionText?.trim() || BuildExpression(operands, operators);
-
   const ExpressionAlreadyContainsPrompt = /[?？]/.test(Expression);
+  const IsAnswerPosition = mode === "ANSWER_POSITION";
 
   return (
     <div className="mx-auto inline-flex max-w-full rounded-[20px] bg-white px-5 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
-      <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
-        <span>{Expression}</span>
+      <div
+        className={`max-w-full text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px] ${
+          IsAnswerPosition ? "whitespace-normal break-words" : "whitespace-nowrap"
+        }`}
+      >
+        {RenderExpressionWithBlueQuestion(Expression)}
         {!ExpressionAlreadyContainsPrompt ? <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span> : null}
       </div>
     </div>
@@ -93,7 +110,7 @@ function CompactExpressionQuestion({
   return (
     <div className="mx-auto inline-flex max-w-full rounded-[18px] bg-white px-5 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700">
       <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
-        <span>{Expression}</span>
+        {RenderExpressionWithBlueQuestion(Expression)}
         <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
     </div>
