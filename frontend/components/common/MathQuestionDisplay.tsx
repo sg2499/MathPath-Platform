@@ -10,6 +10,7 @@ type DisplayMode =
   | "COMPACT_EXPRESSION"
   | "SKILL_STACKER_TABLE"
   | "CONCEPT_DRILL_TABLE"
+  | "POSITION_TABLE"
   | string
   | null
   | undefined;
@@ -33,28 +34,10 @@ function FormatValue(Value: number | string): string {
   return String(Value);
 }
 
-function NormaliseOperator(Operator: string): string {
-  const RawOperator = String(Operator || "").trim();
-  const LowerOperator = RawOperator.toLowerCase();
-
-  if (["*", "x", "×", "times", "multiply", "multiplication"].includes(LowerOperator)) return "×";
-  if (["/", "÷", "division", "divide"].includes(LowerOperator)) return "÷";
-  if (RawOperator === "-") return "−";
-  return RawOperator;
-}
-
-function IsMultiplicationOrDivisionOperator(Operator: string): boolean {
-  return ["×", "÷"].includes(NormaliseOperator(Operator));
-}
-
-function ShouldForceHorizontalMultiplicationDivision(Operators: string[]): boolean {
-  return Operators.some((Operator) => IsMultiplicationOrDivisionOperator(Operator));
-}
-
 function BuildExpression(Operands: Array<number | string>, Operators: string[]): string {
   if (!Operands.length) return "?";
 
-  const NormalisedOperators = Operators.map((Operator) => NormaliseOperator(Operator));
+  const NormalisedOperators = Operators.map((Operator) => String(Operator || "").trim());
 
   if (NormalisedOperators[1] === "% of" && Operands.length >= 2) {
     return `${FormatValue(Operands[0])}% of ${FormatValue(Operands[1])}`;
@@ -83,14 +66,13 @@ function ExpressionQuestion({
   mode: "EXPRESSION_WORKSHEET" | "ANSWER_POSITION";
 }) {
   const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
-  const Expression = RawExpression.replace(/\s*=\s*\?\s*=\s*\?\s*$/u, " = ?").replace(/\s+=\s+$/u, "").trim();
-  const HasQuestionPlaceholder = Expression.includes("?");
+  const Expression = RawExpression.replace(/\s*=\s*\?\s*$/u, "");
 
   return (
     <div className="mx-auto inline-flex max-w-full rounded-[20px] bg-white px-5 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
       <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
         <span>{Expression}</span>
-        {!HasQuestionPlaceholder ? <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span> : null}
+        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
     </div>
   );
@@ -107,14 +89,13 @@ function CompactExpressionQuestion({
   questionText?: string | null;
 }) {
   const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
-  const Expression = RawExpression.replace(/\s*=\s*\?\s*=\s*\?\s*$/u, " = ?").trim();
-  const HasQuestionPlaceholder = Expression.includes("?");
+  const Expression = RawExpression.replace(/\s*=\s*\?\s*$/u, "");
 
   return (
     <div className="mx-auto inline-flex max-w-full rounded-[18px] bg-white px-5 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700">
       <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
         <span>{Expression}</span>
-        {!HasQuestionPlaceholder ? <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span> : null}
+        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
     </div>
   );
@@ -151,6 +132,35 @@ function FinancialTableQuestion({ operands, operators, questionText }: { operand
   );
 }
 
+
+function PositionTableQuestion({ operands, operators, questionText }: { operands: Array<number | string>; operators: string[]; questionText?: string | null }) {
+  const Labels = operators.length ? operators : operands.map((_, Index) => `Value ${Index + 1}`);
+  const ColumnCount = Math.max(1, Math.min(Math.max(Labels.length, operands.length), 3));
+  const GridTemplateColumns = { gridTemplateColumns: `repeat(${ColumnCount}, minmax(0, 1fr))` };
+
+  return (
+    <div className="mx-auto w-full max-w-xl rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+      {questionText ? <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200">{questionText}</p> : null}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+        <div className="grid bg-slate-100 text-center text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs" style={GridTemplateColumns}>
+          {Array.from({ length: ColumnCount }).map((_, Index) => (
+            <div key={`position-label-${Index}`} className="border-r border-slate-200 px-4 py-3 last:border-r-0 dark:border-slate-700">
+              {Labels[Index] || `Value ${Index + 1}`}
+            </div>
+          ))}
+        </div>
+        <div className="grid text-center font-mono text-2xl font-black sm:text-3xl" style={GridTemplateColumns}>
+          {Array.from({ length: ColumnCount }).map((_, Index) => (
+            <div key={`position-value-${Index}`} className="border-r border-slate-200 px-4 py-5 last:border-r-0 dark:border-slate-700">
+              {FormatValue(operands[Index] ?? "?")}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CompactTwoColumnQuestion({
   operands,
   operators,
@@ -179,37 +189,12 @@ function CompactTwoColumnQuestion({
   );
 }
 
-function HasSkillStackerShape(Operators: string[], QuestionText?: string | null): boolean {
-  const Labels = Operators.map((Operator) => String(Operator || "").trim().toLowerCase());
-  return (Labels[0] === "add" && Labels[1] === "times") || String(QuestionText || "").toLowerCase().includes("skill stacker");
-}
-
-function HasConceptDrillShape(Operators: string[], QuestionText?: string | null): boolean {
-  const Labels = Operators.map((Operator) => String(Operator || "").trim().toLowerCase());
-  return (Labels[0] === "from" && Labels[1] === "less") || String(QuestionText || "").toLowerCase().includes("concept drill");
-}
-
 export function MathQuestionDisplay({ operands, operators, displayType, questionText }: MathQuestionDisplayProps) {
   const Operands = operands ?? [];
   const Operators = operators ?? [];
   const Mode = NormaliseDisplayType(displayType);
 
-  if (Mode === "SKILL_STACKER_TABLE" || HasSkillStackerShape(Operators, questionText)) {
-    return <CompactTwoColumnQuestion operands={Operands} operators={Operators.length ? Operators : ["Add", "Times"]} questionText={questionText} />;
-  }
-
-  if (Mode === "CONCEPT_DRILL_TABLE" || HasConceptDrillShape(Operators, questionText)) {
-    return <CompactTwoColumnQuestion operands={Operands} operators={Operators.length ? Operators : ["From", "Less"]} questionText={questionText} />;
-  }
-
   if (Mode === "EXPRESSION" || Mode === "EXPRESSION_WORKSHEET") {
-    return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="EXPRESSION_WORKSHEET" />;
-  }
-
-  // Defensive platform-level convention: any multiplication/division question
-  // that reaches this shared renderer must stay as a single-line expression,
-  // even if an older/future generator accidentally tags it as VISUAL_STACK.
-  if (ShouldForceHorizontalMultiplicationDivision(Operators)) {
     return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="EXPRESSION_WORKSHEET" />;
   }
 
@@ -225,6 +210,13 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
     return <CompactExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} />;
   }
 
+  if (Mode === "POSITION_TABLE") {
+    return <PositionTableQuestion operands={Operands} operators={Operators} questionText={questionText} />;
+  }
+
+  if (Mode === "SKILL_STACKER_TABLE" || Mode === "CONCEPT_DRILL_TABLE") {
+    return <CompactTwoColumnQuestion operands={Operands} operators={Operators} questionText={questionText} />;
+  }
 
   return <VerticalQuestion operands={Operands} operators={Operators} />;
 }

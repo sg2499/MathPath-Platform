@@ -57,7 +57,8 @@ PACKAGE_5_CONCEPTS = {
     "SKILL_STACKER",
     "CONCEPT_DRILL",
     "SOLVE_EQUATION",
-    "NATURAL_NUMBER_POSITION",
+    "WRITE_NUMBER_FROM_POSITION",
+    "FIND_FIRST_NATURAL_POSITION",
 }
 
 SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS
@@ -86,10 +87,12 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "CONCEPT_DRILL"
     if "skill stacker" in TitleText:
         return "SKILL_STACKER"
-    if "find position" in TitleText or "natural number position" in TitleText or "first natural number" in TitleText or "number position" in TitleText:
-        return "NATURAL_NUMBER_POSITION"
-    if "solve equation" in TitleText or "equation practice" in TitleText:
+    if "solve equation" in TitleText or "equation practice" in TitleText or "equation solving" in TitleText:
         return "SOLVE_EQUATION"
+    if "write the number" in TitleText or "given position" in TitleText or "number from the given position" in TitleText:
+        return "WRITE_NUMBER_FROM_POSITION"
+    if "first natural number" in TitleText or "natural number position" in TitleText:
+        return "FIND_FIRST_NATURAL_POSITION"
 
     # A plain MM "Visual Practice" sheet is an Add/Less visual stack sheet.
     # Do not inherit BODMAS/multiplication words from the lesson title for this case.
@@ -120,6 +123,16 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
             "loss",
             "selling price",
             "cost price",
+            "solve equation",
+            "equation practice",
+            "equation solving",
+            "find position",
+            "number position",
+            "given position",
+            "first natural number",
+            "natural number position",
+            "borrowing",
+            "negative answers",
         )
     )
     Text = (
@@ -129,10 +142,11 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     )
 
     HasDecimal = "decimal" in Text
-    HasAddLess = "add less" in Text or "borrowing" in Text or ("add" in Text and "less" in Text)
+    HasAddLess = "add less" in Text or ("add" in Text and "less" in Text)
     HasMultiplication = "multiplication" in Text or " x " in f" {Text} " or "mixed pattern" in Text
     HasDivision = "division" in Text
     HasInteger = "integer" in Text or "integers" in Text
+    HasBorrowing = "borrowing" in Text or "negative answers" in Text
     HasBodmas = "bodmas" in Text
     HasPercentage = "percentage" in Text or "percent" in Text
     HasIncreaseDecrease = "increase" in Text or "decrease" in Text
@@ -142,23 +156,28 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasCubes = "cube" in Text or "cubes" in Text
     HasSkillStacker = "skill stacker" in Text
     HasConceptDrill = "concept drill" in Text
-    HasSolveEquation = "solve equation" in Text or "equation practice" in Text
-    HasNaturalNumberPosition = "find position" in Text or "natural number position" in Text or "first natural number" in Text or "number position" in Text
+    HasSolveEquation = "solve equation" in Text or "equation practice" in Text or "equation solving" in Text
+    HasWriteNumberFromPosition = "write the number" in Text or "given position" in Text or "number from the given position" in Text
+    HasFindFirstNaturalPosition = "first natural number" in Text or "natural number position" in Text
     HasSimpleInterest = "simple interest" in Text
     HasProfit = "profit" in Text
     HasLoss = "loss" in Text
     HasSellingPrice = "selling price" in Text
     HasCostPrice = "cost price" in Text
 
+    # Dedicated workbook-special concepts must win before inherited generic lesson-title signals.
+    if HasFindFirstNaturalPosition:
+        return "FIND_FIRST_NATURAL_POSITION"
+    if HasWriteNumberFromPosition:
+        return "WRITE_NUMBER_FROM_POSITION"
+    if HasSolveEquation:
+        return "SOLVE_EQUATION"
+
     # Package 5 dedicated MM concepts should win before inherited generic lesson-title signals.
     if HasSkillStacker:
         return "SKILL_STACKER"
     if HasConceptDrill:
         return "CONCEPT_DRILL"
-    if HasNaturalNumberPosition:
-        return "NATURAL_NUMBER_POSITION"
-    if HasSolveEquation:
-        return "SOLVE_EQUATION"
 
     # Package 4 financial concepts should win before generic percentage words.
     if HasSimpleInterest:
@@ -189,6 +208,11 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "SQUARES"
     if HasCubes:
         return "CUBES"
+
+    # Borrowing / negative-answer visual sheets are signed Add-Less practice.
+    # Route them through the integer stack generator so preview never falls into unsupported state.
+    if HasBorrowing:
+        return "INTEGERS"
 
     # Package 2 concepts should win when the DPS title explicitly names them.
     if HasInteger:
@@ -250,7 +274,14 @@ SECTION_CONCEPT_ALIASES = {
     "SKILL_STACKER": "SKILL_STACKER",
     "CONCEPT_DRILL": "CONCEPT_DRILL",
     "SOLVE_EQUATION": "SOLVE_EQUATION",
-    "NATURAL_NUMBER_POSITION": "NATURAL_NUMBER_POSITION",
+    "SOLVE EQUATION": "SOLVE_EQUATION",
+    "EQUATION PRACTICE": "SOLVE_EQUATION",
+    "WRITE_NUMBER_FROM_POSITION": "WRITE_NUMBER_FROM_POSITION",
+    "WRITE NUMBER FROM POSITION": "WRITE_NUMBER_FROM_POSITION",
+    "WRITE THE NUMBER FROM THE GIVEN POSITION": "WRITE_NUMBER_FROM_POSITION",
+    "FIND_FIRST_NATURAL_POSITION": "FIND_FIRST_NATURAL_POSITION",
+    "FIND POSITION OF FIRST NATURAL NUMBER": "FIND_FIRST_NATURAL_POSITION",
+    "NATURAL NUMBER POSITION": "FIND_FIRST_NATURAL_POSITION",
 }
 
 
@@ -278,9 +309,11 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
     if ConceptFamily == "CONCEPT_DRILL":
         return "REPEATED_SUBTRACTION"
     if ConceptFamily == "SOLVE_EQUATION":
-        return "EQUATION"
-    if ConceptFamily == "NATURAL_NUMBER_POSITION":
-        return "NUMBER_POSITION"
+        return "EQUATION_PRACTICE"
+    if ConceptFamily == "WRITE_NUMBER_FROM_POSITION":
+        return "POSITION_VALUE"
+    if ConceptFamily == "FIND_FIRST_NATURAL_POSITION":
+        return "POSITION_DETECTION"
     return "MIXED"
 
 
