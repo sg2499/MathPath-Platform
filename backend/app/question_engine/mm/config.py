@@ -56,6 +56,8 @@ PACKAGE_4_CONCEPTS = {
 PACKAGE_5_CONCEPTS = {
     "SKILL_STACKER",
     "CONCEPT_DRILL",
+    "ANSWER_POSITION",
+    "SOLVE_EQUATION",
 }
 
 SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS
@@ -76,26 +78,17 @@ def NormaliseText(Value: str | None) -> str:
     )
 
 
-def ResolveMmConceptAlias(ConceptText: str | None, FallbackTitle: str = "", LessonTitle: str = "") -> str:
-    """Resolve live/stale MM concept aliases without changing seed/section maps.
-
-    This is intentionally narrow: it only maps unsupported or alternate wording
-    to existing generator families so preview generation does not crash. It does
-    not rename DPS records, split sections, or alter renderer behavior.
-    """
-    Text = NormaliseText(" ".join([str(ConceptText or ""), str(FallbackTitle or ""), str(LessonTitle or "")]))
-
+def _ResolveMmAliasFromNormalisedText(Text: str) -> str | None:
     if not Text:
-        return "MM_UNSUPPORTED"
+        return None
 
     # Borrowing is an Add/Less vertical-stack family, including titles such as
     # "Borrowing Sums with Positive, Negative Answers" from older live data.
     if "borrowing" in Text:
         return "ADD_LESS"
 
-    # Position/placement wording is treated as decimal multiplication answer-position
-    # practice unless a more explicit concept family exists later. The frontend
-    # renderer already protects these titles with ANSWER_POSITION display mode.
+    # Position/placement aliases are their own workbook task family.
+    # Do not route them to Decimal Multiplication; that produces wrong questions.
     if (
         "answer position" in Text
         or "answer placement" in Text
@@ -107,11 +100,38 @@ def ResolveMmConceptAlias(ConceptText: str | None, FallbackTitle: str = "", Less
         or "write the number" in Text
         or "write number" in Text
     ):
-        return "DECIMAL_MULTIPLICATION"
+        return "ANSWER_POSITION"
 
-    # Equation aliases route to the existing expression-workbook family.
+    # Equation aliases must route to equation generation, not generic BODMAS.
     if "solve equation" in Text or "equation solving" in Text or "equation practice" in Text:
-        return "BODMAS"
+        return "SOLVE_EQUATION"
+
+    return None
+
+
+def ResolveMmConceptAlias(ConceptText: str | None, FallbackTitle: str = "", LessonTitle: str = "") -> str:
+    """Resolve live/stale MM concept aliases without changing seed/section maps.
+
+    This is intentionally narrow: it only maps unsupported or alternate wording
+    to existing generator families so preview generation does not crash. It does
+    not rename DPS records, split sections, or alter renderer behavior.
+
+    Important: section text must win before DPS/lesson fallback text. A section
+    named "Solve Equation" inside a DPS title that also contains position words
+    must still route to SOLVE_EQUATION, not ANSWER_POSITION.
+    """
+    PrimaryText = NormaliseText(ConceptText)
+    PrimaryAlias = _ResolveMmAliasFromNormalisedText(PrimaryText)
+    if PrimaryAlias:
+        return PrimaryAlias
+
+    CombinedText = NormaliseText(" ".join([str(ConceptText or ""), str(FallbackTitle or ""), str(LessonTitle or "")]))
+    CombinedAlias = _ResolveMmAliasFromNormalisedText(CombinedText)
+    if CombinedAlias:
+        return CombinedAlias
+
+    if not CombinedText:
+        return "MM_UNSUPPORTED"
 
     return ClassifyMmConcept(ConceptText or FallbackTitle, LessonTitle)
 
@@ -134,9 +154,9 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         or "write the number" in TitleText
         or "write number" in TitleText
     ):
-        return "DECIMAL_MULTIPLICATION"
+        return "ANSWER_POSITION"
     if "solve equation" in TitleText or "equation solving" in TitleText or "equation practice" in TitleText:
-        return "BODMAS"
+        return "SOLVE_EQUATION"
 
     # Dedicated Package 5 section titles must not inherit broader lesson-title words.
     if "concept drill" in TitleText:
@@ -300,18 +320,18 @@ SECTION_CONCEPT_ALIASES = {
     "BORROWING SUMS WITH NEGATIVE ANSWERS": "ADD_LESS",
     "BORROWING SUMS WITH POSITIVE NEGATIVE ANSWERS": "ADD_LESS",
     "BORROWING SUMS WITH POSITIVE AND NEGATIVE ANSWERS": "ADD_LESS",
-    "NUMBER POSITION": "DECIMAL_MULTIPLICATION",
-    "NATURAL NUMBER POSITION": "DECIMAL_MULTIPLICATION",
-    "FIRST NATURAL NUMBER POSITION": "DECIMAL_MULTIPLICATION",
-    "FIND POSITION": "DECIMAL_MULTIPLICATION",
-    "ANSWER POSITION": "DECIMAL_MULTIPLICATION",
-    "ANSWER PLACEMENT": "DECIMAL_MULTIPLICATION",
-    "GIVEN POSITION": "DECIMAL_MULTIPLICATION",
-    "WRITE NUMBER FROM GIVEN POSITION": "DECIMAL_MULTIPLICATION",
-    "WRITE THE NUMBER FROM THE GIVEN POSITION": "DECIMAL_MULTIPLICATION",
-    "SOLVE EQUATION": "BODMAS",
-    "EQUATION SOLVING": "BODMAS",
-    "EQUATION PRACTICE": "BODMAS",
+    "NUMBER POSITION": "ANSWER_POSITION",
+    "NATURAL NUMBER POSITION": "ANSWER_POSITION",
+    "FIRST NATURAL NUMBER POSITION": "ANSWER_POSITION",
+    "FIND POSITION": "ANSWER_POSITION",
+    "ANSWER POSITION": "ANSWER_POSITION",
+    "ANSWER PLACEMENT": "ANSWER_POSITION",
+    "GIVEN POSITION": "ANSWER_POSITION",
+    "WRITE NUMBER FROM GIVEN POSITION": "ANSWER_POSITION",
+    "WRITE THE NUMBER FROM THE GIVEN POSITION": "ANSWER_POSITION",
+    "SOLVE EQUATION": "SOLVE_EQUATION",
+    "EQUATION SOLVING": "SOLVE_EQUATION",
+    "EQUATION PRACTICE": "SOLVE_EQUATION",
 }
 
 
@@ -338,6 +358,10 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
         return "REPEATED_ADDITION"
     if ConceptFamily == "CONCEPT_DRILL":
         return "REPEATED_SUBTRACTION"
+    if ConceptFamily == "ANSWER_POSITION":
+        return "ANSWER_POSITION"
+    if ConceptFamily == "SOLVE_EQUATION":
+        return "EQUATION"
     return "MIXED"
 
 
