@@ -791,70 +791,19 @@ def _AnswerPositionTitle(Config: MMConfig) -> str:
     return " ".join(f" {Config.DpsTitle} ".lower().split())
 
 
-def _PowerOfTenDecimal(Position: int) -> Decimal:
-    if Position >= 0:
-        return Decimal(10) ** Position
-    return Decimal(1) / (Decimal(10) ** abs(Position))
-
-
-def _WorkbookPositionChoices(Config: MMConfig, Stage: str) -> list[int]:
-    Band = _LessonBand(Config)
-    if Band <= 2:
-        return [-2, -1, 0, 1, 2]
-    if Band <= 4:
-        return [-4, -3, -2, -1, 0, 1, 2]
-    return [-5, -4, -3, -2, -1, 0, 1, 2, 3]
-
-
-def _WorkbookPositionNumber(Config: MMConfig, Rng: random.Random, Stage: str) -> int:
-    Band = _LessonBand(Config)
-    if Stage in {"WARM_UP", "STANDARD"}:
-        DigitLength = 2 if Band <= 2 else Rng.choice([2, 3])
-    elif Stage == "MIXED_STEP":
-        DigitLength = Rng.choice([2, 3, 4])
-    elif Stage == "ADVANCED":
-        DigitLength = Rng.choice([3, 4, 5])
-    else:
-        DigitLength = Rng.choice([3, 4, 5, 6])
-
-    Minimum, Maximum = _DigitRange(DigitLength)
-    return Rng.randint(Minimum, Maximum)
-
-
 def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    """Generate workbook-specific position/placement questions.
+    """Generate safe position/placement questions without using generic arithmetic routing.
 
-    This covers separate MM workbook concepts:
+    This covers workbook concepts such as:
     - Find the Position of the First Natural Number
     - Write the Number from the Given Position
     - Decimal Multiplication Answer Position / Answer Placement
 
-    Each branch is concept-specific so a multiplication/division or equation
-    routing change cannot leak into the position workbook task.
+    The concept has its own generator path so multiplication/division display
+    changes cannot break it and unsupported position sections never crash preview.
     """
     Title = _AnswerPositionTitle(Config)
     Stage = DifficultyStage(QuestionNumber - 1)
-
-    if "write" in Title and "given position" in Title:
-        PositionChoices = _WorkbookPositionChoices(Config, Stage)
-        # Use a deterministic workbook-style spread so one DPS naturally includes
-        # negative, zero, and positive positions instead of random-only patterns.
-        Position = PositionChoices[(QuestionNumber - 1) % len(PositionChoices)]
-        if Rng.random() < 0.35:
-            Position = Rng.choice(PositionChoices)
-
-        NumberValue = _WorkbookPositionNumber(Config, Rng, Stage)
-        CorrectAnswer = Decimal(NumberValue) * _PowerOfTenDecimal(Position)
-        CorrectAnswer = _Quantize(CorrectAnswer, abs(Position) if Position < 0 else 0)
-
-        return [Position, NumberValue], ["Position", "Number"], CorrectAnswer, {
-            "question_text": "Write the Number from the Given Position",
-            "answer_position_mode": "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE",
-            "source_number": str(NumberValue),
-            "position": Position,
-            "position_number_table": True,
-            "workbook_display": "POSITION_NUMBER_TABLE",
-        }
 
     if "decimal" in Title or "answer placement" in Title or "answer position" in Title:
         LeftPlaces = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
@@ -866,11 +815,50 @@ def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber:
         Product = Left * Right
         ProductText = format(Product.normalize(), "f")
         DecimalPlaces = len(ProductText.split(".", 1)[1].rstrip("0")) if "." in ProductText else 0
-        QuestionText = f"Find the decimal position in {format(Left, 'f')} × {format(Right, 'f')}"
+        QuestionText = f"Find the decimal position in {format(Left, 'f')} × {format(Right, 'f')} = ?"
         return [QuestionText], [""], Decimal(DecimalPlaces), {
             "question_text": QuestionText,
             "answer_position_mode": "DECIMAL_MULTIPLICATION_PLACEMENT",
             "decimal_places_in_answer": DecimalPlaces,
+        }
+
+    if "write" in Title and "given position" in Title:
+        # Workbook-faithful "Write the Number from the Given Position"
+        # pattern. This is not a digit-lookup task. The workbook provides a
+        # position and a number, and the answer is the number placed at that
+        # positional value. Keep the first progression aligned to the source
+        # sheet examples shown in the workbook.
+        SourcePatterns = [
+            (-2, "56", Decimal("0.0056")),
+            (-4, "123", Decimal("0.000123")),
+            (0, "2345", Decimal("0.2345")),
+            (2, "5698", Decimal("56.98")),
+            (-1, "101", Decimal("0.0101")),
+        ]
+
+        if QuestionNumber <= len(SourcePatterns):
+            Position, NumberText, CorrectAnswer = SourcePatterns[QuestionNumber - 1]
+        else:
+            # Extension pattern for sheets that request more than five
+            # questions: preserve the same workbook rule instead of falling
+            # back to digit lookup.
+            PositionChoices = [-4, -3, -2, -1, 0, 1, 2]
+            Position = Rng.choice(PositionChoices)
+            DigitCount = Rng.choice([2, 3, 4])
+            NumberMin, NumberMax = _DigitRange(DigitCount)
+            NumberValue = Rng.randint(NumberMin, NumberMax)
+            NumberText = str(NumberValue)
+            Exponent = Position - len(NumberText)
+            CorrectAnswer = Decimal(NumberText).scaleb(Exponent)
+            CorrectAnswer = _Quantize(CorrectAnswer, max(0, -Exponent))
+
+        QuestionText = "Write the Number from the Given Position"
+        return [Position, NumberText], ["Position", "Number"], CorrectAnswer, {
+            "question_text": QuestionText,
+            "answer_position_mode": "WRITE_NUMBER_FROM_GIVEN_POSITION",
+            "source_number": NumberText,
+            "position": Position,
+            "workbook_position_table": True,
         }
 
     Values = ["1.005", "12.007", "0.0089", "0.012", "345.002", "2.056", "50.0002"]
@@ -981,63 +969,26 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
 
 
 
-def _SignedTermText(Value: int, ParenthesisePositive: bool = False) -> str:
-    if Value < 0:
-        return f"({Value})"
-    return f"({Value})" if ParenthesisePositive else str(Value)
-
-
 def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    """Generate workbook-style signed integer expressions for Solve the Equation.
-
-    The MM workbook examples for this section are arithmetic expressions with
-    positive and negative integers, such as:
-    5 + (-8), (-7) + (-6), 9 - (-3), (15) + (25).
-    Therefore this generator must not create generic algebra equations like
-    x + 3 = 7.
-    """
     Stage = DifficultyStage(QuestionNumber - 1)
-    MaxAbs = {
-        "WARM_UP": 12,
-        "STANDARD": 25,
-        "MIXED_STEP": 50,
-        "ADVANCED": 100,
-        "CHALLENGE": 250,
-    }.get(Stage, 25) * _LessonBand(Config)
-
-    Pattern = (QuestionNumber - 1) % 5
-
-    if Pattern == 0:
-        Left = Rng.randint(3, MaxAbs)
-        Right = -Rng.randint(2, MaxAbs)
-        QuestionText = f"{_SignedTermText(Left)} + {_SignedTermText(Right)}"
-        CorrectAnswer = Decimal(Left + Right)
-    elif Pattern == 1:
-        Left = -Rng.randint(2, MaxAbs)
-        Right = -Rng.randint(2, MaxAbs)
-        QuestionText = f"{_SignedTermText(Left)} + {_SignedTermText(Right)}"
-        CorrectAnswer = Decimal(Left + Right)
-    elif Pattern == 2:
-        Left = -Rng.randint(5, MaxAbs)
-        Right = -Rng.randint(5, MaxAbs)
-        QuestionText = f"{_SignedTermText(Left)} + {_SignedTermText(Right)}"
-        CorrectAnswer = Decimal(Left + Right)
-    elif Pattern == 3:
-        Left = Rng.randint(5, MaxAbs)
-        Right = -Rng.randint(2, MaxAbs)
-        QuestionText = f"{_SignedTermText(Left)} - {_SignedTermText(Right)}"
-        CorrectAnswer = Decimal(Left - Right)
+    XMinimum, XMaximum = {
+        "WARM_UP": (2, 20),
+        "STANDARD": (5, 50),
+        "MIXED_STEP": (10, 100),
+        "ADVANCED": (20, 250),
+        "CHALLENGE": (50, 500),
+    }.get(Stage, (2, 50))
+    XValue = Rng.randint(XMinimum, XMaximum)
+    Offset = Rng.randint(3, max(4, XMaximum // 2))
+    if Rng.random() < 0.5:
+        Result = XValue + Offset
+        QuestionText = f"x + {Offset} = {Result}"
     else:
-        Left = Rng.randint(5, MaxAbs)
-        Right = Rng.randint(5, MaxAbs)
-        QuestionText = f"{_SignedTermText(Left, True)} + {_SignedTermText(Right, True)}"
-        CorrectAnswer = Decimal(Left + Right)
-
-    return [QuestionText], [""], CorrectAnswer, {
+        Result = XValue - Offset
+        QuestionText = f"x − {Offset} = {Result}"
+    return [QuestionText], [""], Decimal(XValue), {
         "question_text": QuestionText,
-        "solve_equation_mode": "WORKBOOK_SIGNED_INTEGER_EXPRESSION",
-        "workbook_display": "SIGNED_INTEGER_EXPRESSION",
-        "allow_negative_answer": True,
+        "solve_equation_mode": "LINEAR_ONE_STEP",
     }
 
 
