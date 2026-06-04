@@ -6,7 +6,9 @@ from app.question_engine.mm.config import MMConfig, IsPackage1Supported
 
 ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
-PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "SOLVE_EQUATION", "WRITE_NUMBER_FROM_POSITION", "FIND_FIRST_NATURAL_POSITION"}
+PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
+PACKAGE_6_BORROWING_CONCEPTS = {"BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}
+PACKAGE_7_POSITION_EQUATION_CONCEPTS = {"DECIMAL_MULTIPLICATION_ANSWER_POSITION", "NUMBER_POSITION", "SOLVE_EQUATION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 
 
@@ -53,6 +55,89 @@ def _NormalisedPatternTitle(Config: MMConfig) -> str:
         .replace("-", " ")
         .split()
     )
+
+
+
+def _ExtractSquareRootDigitCounts(Config: MMConfig) -> list[int] | None:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    Text = Text.replace("-", " ").replace("/", " ").replace("&", " and ")
+    if "square root" not in Text:
+        return None
+
+    MixedPatterns = [
+        r"square\s*root\s*(?:of\s*)?([2-6])\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"square\s*root\s*([2-6])\s*(?:digit|d)?\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*square\s*root",
+    ]
+    for Pattern in MixedPatterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return sorted({int(Match.group(1)), int(Match.group(2))})
+
+    Patterns = [
+        r"square\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"square\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*square\s*root",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return [int(Match.group(1))]
+    return None
+
+
+def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
+    DigitCounts = _ExtractSquareRootDigitCounts(Config)
+    if not DigitCounts or len(DigitCounts) != 1:
+        return None
+    return DigitCounts[0]
+
+
+def _ValidateSquareRootRadicandDigits(Config: MMConfig, Text: str, CorrectAnswer: Decimal) -> bool:
+    ExpectedDigitCounts = _ExtractSquareRootDigitCounts(Config)
+    Match = re.search(r"√\s*(\d+)", Text)
+    if not Match:
+        return False
+    Radicand = int(Match.group(1))
+    Root = int(CorrectAnswer)
+    if Decimal(Root) != CorrectAnswer or Root * Root != Radicand:
+        return False
+    if not ExpectedDigitCounts:
+        return True
+    return _DigitCountFromInteger(Radicand) in set(ExpectedDigitCounts)
+
+def _ExtractCubeRootDigitCount(Config: MMConfig) -> int | None:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    Text = Text.replace("-", " ").replace("/", " ")
+    Patterns = [
+        r"cube\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*cube\s*root",
+        r"cube\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return int(Match.group(1))
+    return None
+
+
+def _DigitCountFromInteger(Value: int) -> int:
+    Value = abs(int(Value))
+    return len(str(Value)) if Value else 1
+
+
+def _ValidateCubeRootRadicandDigits(Config: MMConfig, Text: str, CorrectAnswer: Decimal) -> bool:
+    ExpectedDigits = _ExtractCubeRootDigitCount(Config)
+    Match = re.search(r"∛\s*(\d+)", Text)
+    if not Match:
+        return False
+    Radicand = int(Match.group(1))
+    Root = int(CorrectAnswer)
+    if Decimal(Root) != CorrectAnswer or Root ** 3 != Radicand:
+        return False
+    if ExpectedDigits is None:
+        return True
+    return _DigitCountFromInteger(Radicand) == ExpectedDigits
 
 
 def _ExtractMultiplicationDigits(Config: MMConfig) -> tuple[int, int] | None:
@@ -115,121 +200,73 @@ def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: lis
     return Operators[1] in {"+%", "-%"}
 
 
-def _EvaluateBodmasExpression(Expression: str) -> Decimal | None:
-    """Safely evaluate generated workbook BODMAS expression text.
-
-    This is intentionally limited to generator-created arithmetic strings. It
-    supports the workbook symbols used by MM BODMAS: ×, ÷, %, powers, square
-    roots, cube roots, brackets and signed decimals. It is used as a final
-    correctness guard so the stored answer cannot drift from the displayed row.
-    """
-    try:
-        import ast
-        import math
-        import re
-
-        Sanitised = str(Expression)
-        Sanitised = Sanitised.replace("−", "-").replace("×", "*").replace("÷", "/")
-        Sanitised = Sanitised.replace("^", "**")
-        Sanitised = re.sub(r"∛\s*([0-9]+(?:\.[0-9]+)?)", r"cuberoot(\1)", Sanitised)
-        Sanitised = re.sub(r"√\s*([0-9]+(?:\.[0-9]+)?)", r"sqrt(\1)", Sanitised)
-        Sanitised = re.sub(r"(?<![A-Za-z0-9_])([0-9]+(?:\.[0-9]+)?)\s*%", r"(\1/100)", Sanitised)
-        Sanitised = Sanitised.replace("²", "**2").replace("³", "**3")
-
-        AllowedNames = {
-            "sqrt": lambda Value: Decimal(str(int(math.isqrt(int(Value))) if math.isqrt(int(Value)) ** 2 == int(Value) else math.sqrt(float(Value)))),
-            "cuberoot": lambda Value: Decimal(str(round(float(Value) ** (1 / 3)))) if round(float(Value) ** (1 / 3)) ** 3 == int(Value) else Decimal(str(float(Value) ** (1 / 3))),
-        }
-
-        def EvalNode(Node):
-            if isinstance(Node, ast.Expression):
-                return EvalNode(Node.body)
-            if isinstance(Node, ast.Constant) and isinstance(Node.value, (int, float)):
-                return Decimal(str(Node.value))
-            if isinstance(Node, ast.UnaryOp) and isinstance(Node.op, ast.USub):
-                return -EvalNode(Node.operand)
-            if isinstance(Node, ast.UnaryOp) and isinstance(Node.op, ast.UAdd):
-                return EvalNode(Node.operand)
-            if isinstance(Node, ast.BinOp):
-                Left = EvalNode(Node.left)
-                Right = EvalNode(Node.right)
-                if isinstance(Node.op, ast.Add):
-                    return Left + Right
-                if isinstance(Node.op, ast.Sub):
-                    return Left - Right
-                if isinstance(Node.op, ast.Mult):
-                    return Left * Right
-                if isinstance(Node.op, ast.Div):
-                    if Right == 0:
-                        raise ValueError("division by zero")
-                    return Left / Right
-                if isinstance(Node.op, ast.Pow):
-                    return Left ** int(Right)
-            if isinstance(Node, ast.Call) and isinstance(Node.func, ast.Name) and Node.func.id in AllowedNames and len(Node.args) == 1:
-                return AllowedNames[Node.func.id](EvalNode(Node.args[0]))
-            raise ValueError("unsupported expression node")
-
-        Parsed = ast.parse(Sanitised, mode="eval")
-        return EvalNode(Parsed).quantize(Decimal("0.01"))
-    except Exception:
-        return None
+def _IsTwoDigitFastVisualisation(Config: MMConfig) -> bool:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower().replace("-", " ")
+    return (
+        "2 digit" in Text
+        and "add" in Text
+        and "less" in Text
+        and "fast visualisation" in Text
+    )
 
 
-def _ValidateBodmasQuestion(Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
-    if len(Operands) != 1 or Operators != [""]:
-        return False
-    Expression = str(Operands[0]).strip()
-    if not Expression:
-        return False
-    if not any(Symbol in Expression for Symbol in ["+", "-", "×", "÷", "√", "∛", "²", "³", "%", "("]):
-        return False
-    ExpectedAnswer = _EvaluateBodmasExpression(Expression)
-    if ExpectedAnswer is None:
-        return False
-    return CorrectAnswer.quantize(Decimal("0.01")) == ExpectedAnswer
-
-
-def _EvaluateExpressionWithPrecedence(Operands: list[int | float | str], Operators: list[str]) -> Decimal | None:
-    """Evaluate a flat workbook expression using ×/÷ before +/-.
-
-    Operators are aligned with operands, where Operators[0] is usually "".
-    This intentionally supports the platform's horizontal BODMAS convention
-    without using Python eval or unsafe expression parsing.
-    """
-    if not Operands or len(Operands) != len(Operators):
-        return None
-    try:
-        Values = [_DecimalValue(Value) for Value in Operands]
-    except Exception:
-        return None
-
-    Terms: list[Decimal] = []
-    PendingSign = Decimal(1)
-    Current = Values[0]
-
-    for Index in range(1, len(Values)):
-        Operator = Operators[Index]
-        Value = Values[Index]
-        if Operator == "×":
-            Current *= Value
-        elif Operator == "÷":
-            if Value == 0:
-                return None
-            Current /= Value
-        elif Operator in {"+", "-"}:
-            Terms.append(PendingSign * Current)
-            PendingSign = Decimal(1) if Operator == "+" else Decimal(-1)
-            Current = Value
-        else:
-            return None
-    Terms.append(PendingSign * Current)
-    return sum(Terms, Decimal(0))
-
-
-def _AnswersMatch(Expected: Decimal, CorrectAnswer: Decimal) -> bool:
-    if Expected == CorrectAnswer:
+def _ValidateTwoDigitFastVisualisation(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if not _IsTwoDigitFastVisualisation(Config):
         return True
-    return abs(Expected - CorrectAnswer) <= Decimal("0.000001")
+    if len(Operands) != 5 or len(Operators) != 5:
+        return False
+    if Operators[0] != "" or any(Operator not in {"+", "-"} for Operator in Operators[1:]):
+        return False
+    if not all(_IsNumeric(Value) and _IsWholeNumber(Value) for Value in Operands):
+        return False
+    Values = [int(_DecimalValue(Value)) for Value in Operands]
+    if not all(10 <= abs(Value) <= 99 for Value in Values):
+        return False
+    if not any(Value < 0 for Value in Values[1:]):
+        return False
+    return Decimal(sum(Values)) == CorrectAnswer
+
+
+def _HasBorrowingBetween(Minuend: int, Subtrahend: int) -> bool:
+    Left = str(abs(Minuend))[::-1]
+    Right = str(abs(Subtrahend))[::-1]
+    MaxLength = max(len(Left), len(Right))
+    Left = Left.ljust(MaxLength, "0")
+    Right = Right.ljust(MaxLength, "0")
+    return any(int(Left[Index]) < int(Right[Index]) for Index in range(MaxLength))
+
+
+def _ValidateBorrowingQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    # MM borrowing sheets are workbook-style signed vertical stacks with at
+    # least three numbers per question. Two-number subtraction is intentionally
+    # rejected because it does not match the source sheets.
+    if len(Operands) < 3 or len(Operators) != len(Operands):
+        return False
+    if any(str(Operator or "").strip() not in {"", "+"} for Operator in Operators):
+        return False
+    if not all(_IsNumeric(Value) and _IsWholeNumber(Value) for Value in Operands):
+        return False
+
+    SignedValues = [int(_DecimalValue(Value)) for Value in Operands]
+    if not any(Value < 0 for Value in SignedValues) or not any(Value > 0 for Value in SignedValues):
+        return False
+
+    PositiveTotal = sum(Value for Value in SignedValues if Value > 0)
+    NegativeTotal = sum(abs(Value) for Value in SignedValues if Value < 0)
+    ExpectedAnswer = Decimal(PositiveTotal - NegativeTotal)
+    if CorrectAnswer != ExpectedAnswer:
+        return False
+    if PositiveTotal == NegativeTotal:
+        return False
+    if not _HasBorrowingBetween(max(PositiveTotal, NegativeTotal), min(PositiveTotal, NegativeTotal)):
+        return False
+    if Config.ConceptFamily == "BORROWING_NEGATIVE":
+        return CorrectAnswer < 0
+    if Config.ConceptFamily == "BORROWING_POSITIVE":
+        return CorrectAnswer > 0
+    if Config.ConceptFamily == "BORROWING_MIXED":
+        return CorrectAnswer != 0
+    return False
 
 
 def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
@@ -241,9 +278,9 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
     if Config.ConceptFamily == "CUBES":
         return "³" in Text and "∛" not in Text and CorrectAnswer >= 0
     if Config.ConceptFamily == "SQUARE_ROOT":
-        return Text.startswith("√") and CorrectAnswer >= 0
+        return Text.startswith("√") and CorrectAnswer >= 0 and _ValidateSquareRootRadicandDigits(Config, Text, CorrectAnswer)
     if Config.ConceptFamily == "CUBE_ROOT":
-        return Text.startswith("∛") and CorrectAnswer >= 0
+        return Text.startswith("∛") and CorrectAnswer >= 0 and _ValidateCubeRootRadicandDigits(Config, Text, CorrectAnswer)
     if Config.ConceptFamily == "MIXED_SQUARE_CUBE":
         return ("²" in Text or "³" in Text) and CorrectAnswer >= 0
     if Config.ConceptFamily == "MIXED_ROOTS":
@@ -290,29 +327,6 @@ def _ValidateFinancialQuestion(Config: MMConfig, Operands: list[int | float | st
     return False
 
 
-def _ValidateNumberFromFirstPosition(Digits: int, FirstPosition: int) -> Decimal:
-    DigitText = str(abs(int(Digits)))
-    Exponent = FirstPosition - (len(DigitText) - 1)
-    return Decimal(DigitText) * (Decimal(10) ** Decimal(Exponent))
-
-
-def _ValidateFirstNaturalPosition(Value: Decimal) -> int:
-    if Value == 0:
-        return 0
-    AbsoluteValue = abs(Value.normalize())
-    if AbsoluteValue >= 1:
-        IntegerText = str(int(AbsoluteValue))
-        return len(IntegerText) - 1
-    Position = -1
-    Current = AbsoluteValue
-    while Current < 1:
-        Current *= 10
-        if int(Current) > 0:
-            return Position
-        Position -= 1
-    return Position
-
-
 def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if Config.ConceptFamily == "SKILL_STACKER":
         if len(Operands) != 2 or Operators != ["Add", "Times"]:
@@ -331,36 +345,54 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
             return False
         return Decimal(0) < CorrectAnswer < LessValue and CorrectAnswer == ExpectedAnswer
 
-    if Config.ConceptFamily == "SOLVE_EQUATION":
-        if len(Operands) != 2 or Operators[0] != "" or Operators[1] not in {"+", "-"}:
-            return False
-        Left, Right = [_DecimalValue(Value) for Value in Operands]
-        ExpectedAnswer = Left + Right if Operators[1] == "+" else Left - Right
-        return CorrectAnswer == ExpectedAnswer
-
-    if Config.ConceptFamily == "WRITE_NUMBER_FROM_POSITION":
-        if len(Operands) != 2 or Operators != ["Position", "Number"]:
-            return False
-        if not _IsWholeNumber(Operands[0]) or not _IsWholeNumber(Operands[1]):
-            return False
-        ExpectedAnswer = _ValidateNumberFromFirstPosition(int(_DecimalValue(Operands[1])), int(_DecimalValue(Operands[0]))).normalize()
-        return CorrectAnswer.normalize() == ExpectedAnswer
-
-    if Config.ConceptFamily == "FIND_FIRST_NATURAL_POSITION":
-        if len(Operands) != 1 or Operators != ["Number"]:
-            return False
-        ExpectedAnswer = Decimal(_ValidateFirstNaturalPosition(_DecimalValue(Operands[0])))
-        return CorrectAnswer == ExpectedAnswer
-
     return False
 
+
+
+
+def _ValidatePositionEquationQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if Config.ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
+        return _ValidateDecimalOperation(Operands, Operators, "×") and CorrectAnswer >= 0
+    if Config.ConceptFamily == "NUMBER_POSITION":
+        if Operators == ["POSITION"]:
+            return len(Operands) == 1 and CorrectAnswer >= 0
+        if Operators == ["POSITION", "NUMBER"] and len(Operands) == 2:
+            try:
+                Position = int(Operands[0])
+                Digits = "".join(Character for Character in str(Operands[1]) if Character.isdigit()) or "0"
+                ExpectedAnswer = Decimal(Digits) * (Decimal(10) ** Decimal(Position - len(Digits)))
+                return CorrectAnswer == ExpectedAnswer
+            except Exception:
+                return False
+        return False
+    if Config.ConceptFamily == "SOLVE_EQUATION":
+        return len(Operands) >= 2 and Operators == ["SIGNED_EXPRESSION"] and CorrectAnswer == sum(_DecimalValue(Value) for Value in Operands)
+    return False
+
+def _ValidateBodmasQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if Config.ConceptFamily != "BODMAS":
+        return False
+    if len(Operands) != 1 or Operators != [""]:
+        return False
+    Expression = str(Operands[0] or "").strip()
+    if not Expression:
+        return False
+    RequiredSignal = any(Symbol in Expression for Symbol in ["×", "÷", "+", "-"])
+    AdvancedSignalAllowed = all(Symbol not in Expression or Symbol in Expression for Symbol in ["√", "∛", "²", "³", "%", "(", ")"])
+    return RequiredSignal and AdvancedSignalAllowed and CorrectAnswer >= 0
 
 def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if not IsPackage1Supported(Config.ConceptFamily):
         return False
 
-    if len(Operators) != len(Operands):
-        return False
+    # Some workbook-style MM display modes intentionally use one semantic
+    # operator label for a full expression/row, for example Solve Equation
+    # uses ["SIGNED_EXPRESSION"] while the operands list stores each signed
+    # term. Validate these specialist formats before applying the generic
+    # operator-count guard used by arithmetic stacks. This prevents supported
+    # restored MM sections from failing preview generation.
+    if Config.ConceptFamily in PACKAGE_7_POSITION_EQUATION_CONCEPTS:
+        return _ValidatePositionEquationQuestion(Config, Operands, Operators, CorrectAnswer)
 
     if Config.ConceptFamily in PACKAGE_4_FINANCIAL_CONCEPTS:
         return _ValidateFinancialQuestion(Config, Operands, Operators, CorrectAnswer)
@@ -368,14 +400,17 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
     if Config.ConceptFamily in PACKAGE_5_SPECIAL_CONCEPTS:
         return _ValidatePackage5Special(Config, Operands, Operators, CorrectAnswer)
 
+    if Config.ConceptFamily in PACKAGE_6_BORROWING_CONCEPTS:
+        return _ValidateBorrowingQuestion(Config, Operands, Operators, CorrectAnswer)
+
+    if Config.ConceptFamily == "BODMAS":
+        return _ValidateBodmasQuestion(Config, Operands, Operators, CorrectAnswer)
+
     if any(Operator not in ALLOWED_OPERATORS for Operator in Operators):
         return False
 
     if Config.ConceptFamily in PACKAGE_3_COMPACT_CONCEPTS:
         return _ValidatePackage3Compact(Config, Operands, Operators, CorrectAnswer)
-
-    if Config.ConceptFamily == "BODMAS":
-        return _ValidateBodmasQuestion(Operands, Operators, CorrectAnswer)
 
     if len(Operands) < 2:
         return False
@@ -384,51 +419,28 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
         if Operator == "÷" and Decimal(str(Operands[Index])) == 0:
             return False
 
-    if Config.ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS"}:
-        try:
-            ExpectedAnswer = sum((_DecimalValue(Value) for Value in Operands), Decimal(0))
-        except Exception:
-            return False
-        return _AnswersMatch(ExpectedAnswer, CorrectAnswer)
-
     if Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION":
-        ExpectedAnswer = _DecimalValue(Operands[0]) * _DecimalValue(Operands[1]) if len(Operands) == 2 else None
-        return _ValidateWholeMultiplicationPattern(Config, Operands, Operators) and ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
+        return _ValidateWholeMultiplicationPattern(Config, Operands, Operators) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "WHOLE_NUMBER_DIVISION":
-        ExpectedAnswer = _DecimalValue(Operands[0]) / _DecimalValue(Operands[1]) if len(Operands) == 2 and _DecimalValue(Operands[1]) != 0 else None
-        return _ValidateWholeDivisionPattern(Config, Operands, Operators) and ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
+        return _ValidateWholeDivisionPattern(Config, Operands, Operators) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "DECIMAL_MULTIPLICATION":
-        ExpectedAnswer = _DecimalValue(Operands[0]) * _DecimalValue(Operands[1]) if len(Operands) == 2 else None
-        return _ValidateDecimalOperation(Operands, Operators, "×") and ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
+        return _ValidateDecimalOperation(Operands, Operators, "×") and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "DECIMAL_DIVISION":
-        ExpectedAnswer = _DecimalValue(Operands[0]) / _DecimalValue(Operands[1]) if len(Operands) == 2 and _DecimalValue(Operands[1]) != 0 else None
-        return _ValidateDecimalOperation(Operands, Operators, "÷") and ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
-
-    if Config.ConceptFamily == "BODMAS":
-        if len(Operands) < 3 or Operators[0] != "" or not any(Operator in {"×", "÷"} for Operator in Operators[1:]):
-            return False
-        ExpectedAnswer = _EvaluateExpressionWithPrecedence(Operands, Operators)
-        return ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer) and CorrectAnswer >= 0
+        return _ValidateDecimalOperation(Operands, Operators, "÷") and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "PERCENTAGE_ADD_LESS":
-        if not _ValidatePercentageAddLess(Operands, Operators):
-            return False
-        Base, Percent = [_DecimalValue(Value) for Value in Operands]
-        ExpectedAnswer = Base + (Base * Percent / Decimal(100)) if Operators[1] == "+%" else Base - (Base * Percent / Decimal(100))
-        return _AnswersMatch(ExpectedAnswer.quantize(Decimal("0.01")), CorrectAnswer.quantize(Decimal("0.01"))) and CorrectAnswer >= 0
+        return _ValidatePercentageAddLess(Operands, Operators) and CorrectAnswer >= 0
 
-    if Config.ConceptFamily == "INTEGERS":
-        ExpectedAnswer = _EvaluateExpressionWithPrecedence(Operands, Operators)
-        return ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer)
+    if Config.ConceptFamily == "ADD_LESS" and not _ValidateTwoDigitFastVisualisation(Config, Operands, Operators, CorrectAnswer):
+        return False
 
     if Config.ConceptFamily.startswith("PERCENTAGE") and any(_IsNumeric(Value) and Decimal(str(Value)) < 0 for Value in Operands):
         return False
 
-    if Config.ConceptFamily != "INTEGERS" and CorrectAnswer < 0:
+    if Config.ConceptFamily != "INTEGERS" and not _IsTwoDigitFastVisualisation(Config) and CorrectAnswer < 0:
         return False
 
-    ExpectedAnswer = _EvaluateExpressionWithPrecedence(Operands, Operators)
-    return ExpectedAnswer is not None and _AnswersMatch(ExpectedAnswer, CorrectAnswer)
+    return True

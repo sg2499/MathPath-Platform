@@ -47,6 +47,16 @@ def _IsDecimalConcept(Config: MMConfig) -> bool:
     return "decimal" in Text
 
 
+def _IsTwoDigitFastVisualisation(Config: MMConfig) -> bool:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower().replace("-", " ")
+    return (
+        "2 digit" in Text
+        and "add" in Text
+        and "less" in Text
+        and "fast visualisation" in Text
+    )
+
+
 def _AddLessDecimalPlaces(Config: MMConfig, Stage: str) -> int:
     if not _IsDecimalConcept(Config):
         return 0
@@ -72,21 +82,17 @@ def _Quantize(Value: Decimal, Places: int) -> Decimal:
     return Value.quantize(Unit, rounding=ROUND_HALF_UP)
 
 
-def _AsDisplayNumber(Value: Decimal | int | float) -> int | float:
+def _AsDisplayNumber(Value: Decimal | int | float) -> int | str:
     DecimalValue = Value if isinstance(Value, Decimal) else Decimal(str(Value))
     if DecimalValue == DecimalValue.to_integral_value():
         return int(DecimalValue)
-    return float(DecimalValue.normalize())
 
-
-def _PlainDecimalText(Value: Decimal) -> str:
-    Normalised = Value.normalize()
-    Text = format(Normalised, "f")
-    if "." in Text:
-        Text = Text.rstrip("0").rstrip(".")
-    if Text == "-0":
-        Text = "0"
-    return Text
+    DisplayText = format(DecimalValue.normalize(), "f")
+    if "." in DisplayText:
+        DisplayText = DisplayText.rstrip("0").rstrip(".")
+    if DisplayText == "-0":
+        DisplayText = "0"
+    return DisplayText
 
 
 def _RandDecimal(Rng: random.Random, Minimum: int, Maximum: int, Places: int) -> Decimal:
@@ -188,6 +194,36 @@ def _DivisionDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
 
 def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
+
+    # Workbook convention: 2 Digit Number Add/Less (Fast Visualisation) is a
+    # strict five-row stack of signed two-digit whole numbers. It must never
+    # generate decimal values or larger operand bands.
+    if _IsTwoDigitFastVisualisation(Config):
+        RowCount = 5
+        SignedValues: list[int] = []
+        for RowIndex in range(RowCount):
+            Value = Rng.randint(10, 99)
+            if RowIndex > 0 and Rng.random() < 0.35:
+                Value = -Value
+            SignedValues.append(Value)
+
+        # Ensure the stack is actually mixed like the workbook examples.
+        if not any(Value < 0 for Value in SignedValues[1:]):
+            ReplaceIndex = Rng.randint(1, RowCount - 1)
+            SignedValues[ReplaceIndex] = -abs(SignedValues[ReplaceIndex])
+        if not any(Value > 0 for Value in SignedValues):
+            SignedValues[0] = abs(SignedValues[0])
+
+        Operators = [""] + ["-" if Value < 0 else "+" for Value in SignedValues[1:]]
+        CorrectAnswer = Decimal(sum(SignedValues))
+        return SignedValues, Operators, CorrectAnswer, {
+            "decimal_places": 0,
+            "row_count": RowCount,
+            "lesson_band": _LessonBand(Config),
+            "fast_visualisation_mode": "TWO_DIGIT_ADD_LESS",
+            "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
+        }
+
     Places = _AddLessDecimalPlaces(Config, Stage)
     Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
     RowCount = _AddLessRowCount(Config, Stage)
@@ -238,6 +274,172 @@ def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, Question
     return [_AsDisplayNumber(Left), _AsDisplayNumber(Right)], ["", "×"], CorrectAnswer, {"decimal_places": Places}
 
 
+
+def GenerateDecimalMultiplicationAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    """Generate workbook-style decimal multiplication answer-placement questions.
+
+    These are not generic multiplication drills. The workbook uses this section to
+    reinforce where the decimal answer lands after multiplying decimal numbers,
+    so the operands intentionally use varied decimal places and compact display.
+    """
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Patterns = [
+        (Decimal("0.001"), Decimal("0.0009")),
+        (Decimal("0.0031"), Decimal("0.002")),
+        (Decimal("2.2"), Decimal("0.004")),
+        (Decimal("0.1023"), Decimal("4")),
+        (Decimal("1.0056"), Decimal("0.006")),
+        (Decimal("213.5"), Decimal("0.0022")),
+        (Decimal("0.351"), Decimal("0.2")),
+    ]
+    if Stage in {"ADVANCED", "CHALLENGE"}:
+        LeftPlaces = Rng.choice([2, 3, 4])
+        RightPlaces = Rng.choice([2, 3, 4])
+        Left = _RandDecimal(Rng, 1, 2500, LeftPlaces)
+        Right = _RandDecimal(Rng, 1, 1000, RightPlaces)
+    else:
+        Left, Right = Patterns[(QuestionNumber - 1) % len(Patterns)]
+    CorrectAnswer = (Left * Right).normalize()
+    QuestionText = f"{_AsDisplayNumber(Left)} × {_AsDisplayNumber(Right)} = ?"
+    return [_AsDisplayNumber(Left), _AsDisplayNumber(Right)], ["", "×"], CorrectAnswer, {
+        "question_text": QuestionText,
+        "answer_position_mode": "DECIMAL_MULTIPLICATION_PLACEMENT",
+    }
+
+
+def _DigitsForPositionInput(ValueText: str) -> str:
+    return "".join(Character for Character in str(ValueText) if Character.isdigit()) or "0"
+
+
+def _FormatDecimalPlain(Value: Decimal) -> str:
+    Formatted = format(Value.normalize(), "f")
+    if "." in Formatted:
+        Formatted = Formatted.rstrip("0").rstrip(".")
+    return Formatted or "0"
+
+
+def _ApplyGivenPosition(Position: int, ValueText: str) -> Decimal:
+    Digits = _DigitsForPositionInput(ValueText)
+    RawNumber = Decimal(Digits)
+    Exponent = Position - len(Digits)
+    return RawNumber * (Decimal(10) ** Decimal(Exponent))
+
+
+def _IsWriteNumberFromGivenPosition(Config: MMConfig) -> bool:
+    """Keep two MM number-position concepts strictly separate.
+
+    `Write the Number from the Given Position` is the workbook table where a
+    position and a number are given and the student writes the shifted decimal.
+    `Find the Position of the First Natural Number` is a different concept and
+    must not be used for short section labels such as `Number Position`.
+    """
+    ActiveSection = ""
+    if isinstance(Config.GeneratorConfig, dict):
+        ActiveSectionData = Config.GeneratorConfig.get("activeSection") or {}
+        if isinstance(ActiveSectionData, dict):
+            ActiveSection = str(ActiveSectionData.get("sectionTitle") or ActiveSectionData.get("title") or "")
+    Text = " ".join(str(Value or "") for Value in [ActiveSection, Config.DpsTitle]).lower()
+    Normalized = " ".join(Text.replace("/", " ").replace(",", " ").split())
+
+    if "first natural number" in Normalized or "natural number position" in Normalized:
+        return False
+    if "write the number" in Normalized or "number from the given position" in Normalized or "given position" in Normalized:
+        return True
+    if Normalized.strip() == "number position" or " number position " in f" {Normalized} ":
+        return True
+    return False
+
+
+def GenerateNumberPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Generate workbook-style number-position concepts.
+
+    MM contains two different concepts that were previously being merged:
+    1. Find the position of the first natural number.
+    2. Write the number from the given position.
+
+    This generator keeps both modes separate using the section/DPS title.
+    """
+    if _IsWriteNumberFromGivenPosition(Config):
+        WorkbookSamples = [
+            (-2, "56"),
+            (-4, "123"),
+            (0, "2345"),
+            (2, "5698"),
+            (1, "231.45"),
+            (-1, "36.7"),
+            (-3, "2.8"),
+            (4, "0.51"),
+            (5, "64"),
+            (3, "578"),
+            (-1, "101"),
+        ]
+        if QuestionNumber <= len(WorkbookSamples):
+            Position, ValueText = WorkbookSamples[QuestionNumber - 1]
+        else:
+            Position = Rng.choice([-4, -3, -2, -1, 0, 1, 2, 3, 4, 5])
+            RawInteger = str(Rng.randint(12, 9876))
+            if Rng.random() < 0.25:
+                SplitIndex = Rng.randint(1, max(1, len(RawInteger) - 1))
+                ValueText = f"{RawInteger[:SplitIndex]}.{RawInteger[SplitIndex:]}"
+            else:
+                ValueText = RawInteger
+        CorrectAnswer = _ApplyGivenPosition(Position, ValueText)
+        QuestionText = f"Position: {Position} | Number: {ValueText}"
+        return [Position, ValueText], ["POSITION", "NUMBER"], CorrectAnswer, {
+            "question_text": QuestionText,
+            "number_position_mode": "WRITE_NUMBER_FROM_GIVEN_POSITION",
+            "position": Position,
+            "source_number": ValueText,
+            "answer_text": _FormatDecimalPlain(CorrectAnswer),
+        }
+
+    Samples = ["1.005", "12.007", "0.0089", "0.012", "345.002", "0.000456", "253.91", "0.2005"]
+    ValueText = Samples[(QuestionNumber - 1) % len(Samples)] if QuestionNumber <= len(Samples) else str(_RandDecimal(Rng, 0, 999, Rng.choice([2, 3, 4, 5])))
+    DecimalPart = ValueText.split(".", 1)[1] if "." in ValueText else ""
+    IntegerPart = ValueText.split(".", 1)[0]
+    if IntegerPart.lstrip("-") not in {"", "0"}:
+        Position = 0
+    else:
+        Position = next((Index for Index, Digit in enumerate(DecimalPart, start=1) if Digit != "0"), 0)
+    QuestionText = f"Find the position of the first natural number in {ValueText}"
+    return [float(ValueText)], ["POSITION"], Decimal(Position), {
+        "question_text": QuestionText,
+        "number_position_mode": "FIRST_NATURAL_NUMBER_POSITION",
+    }
+
+def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    """Generate small signed-integer solve-the-equation workbook questions."""
+    TermCount = 2 if QuestionNumber <= 3 else 3
+    Terms: list[int] = []
+    for _ in range(TermCount):
+        Value = Rng.randint(0, 15 if _LessonBand(Config) <= 2 else 35)
+        if Rng.random() < 0.5:
+            Value = -Value
+        Terms.append(Value)
+    # Avoid an all-zero expression.
+    if all(Value == 0 for Value in Terms):
+        Terms[0] = Rng.choice([-6, -4, 4, 6])
+    CorrectAnswer = Decimal(sum(Terms))
+
+    ExpressionParts: list[str] = []
+    for Index, Value in enumerate(Terms):
+        Formatted = f"({Value})" if Value < 0 else str(Value)
+        if Index == 0:
+            ExpressionParts.append(Formatted)
+        else:
+            Operator = "+" if Value >= 0 else "-"
+            Operand = str(abs(Value)) if Value < 0 else Formatted
+            if Value < 0 and Rng.random() < 0.5:
+                # Preserve workbook-style forms such as 4 + (-8).
+                Operator = "+"
+                Operand = f"({Value})"
+            ExpressionParts.append(f"{Operator} {Operand}")
+    QuestionText = " ".join(ExpressionParts)
+    return Terms, ["SIGNED_EXPRESSION"], CorrectAnswer, {
+        "question_text": QuestionText,
+        "equation_mode": "SIGNED_INTEGER_EXPRESSION",
+    }
+
 def GenerateDecimalDivision(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Places = 1 if Stage in {"WARM_UP", "STANDARD"} else 2
@@ -273,6 +475,111 @@ def GenerateWholeNumberDivision(Config: MMConfig, Rng: random.Random, QuestionNu
     return [Dividend, Divisor], ["", "÷"], CorrectAnswer, {"dividend_digits": DividendDigits, "divisor_digits": DivisorDigits}
 
 
+def _BorrowingRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    Band = _LessonBand(Config)
+    BaseRanges = {
+        1: {"WARM_UP": (100, 999), "STANDARD": (200, 1200), "MIXED_STEP": (300, 1800), "ADVANCED": (500, 2500), "CHALLENGE": (700, 3500)},
+        2: {"WARM_UP": (200, 1500), "STANDARD": (400, 2500), "MIXED_STEP": (700, 4000), "ADVANCED": (1000, 6500), "CHALLENGE": (1500, 9000)},
+        3: {"WARM_UP": (400, 2500), "STANDARD": (800, 5000), "MIXED_STEP": (1500, 9000), "ADVANCED": (2500, 15000), "CHALLENGE": (4000, 25000)},
+        4: {"WARM_UP": (800, 5000), "STANDARD": (1500, 9000), "MIXED_STEP": (3000, 18000), "ADVANCED": (5000, 35000), "CHALLENGE": (8000, 60000)},
+        5: {"WARM_UP": (1500, 9000), "STANDARD": (3000, 18000), "MIXED_STEP": (6000, 35000), "ADVANCED": (10000, 70000), "CHALLENGE": (15000, 120000)},
+        6: {"WARM_UP": (3000, 18000), "STANDARD": (6000, 35000), "MIXED_STEP": (10000, 75000), "ADVANCED": (20000, 150000), "CHALLENGE": (35000, 250000)},
+    }
+    return BaseRanges.get(Band, BaseRanges[1]).get(Stage, (100, 999))
+
+
+def _HasBorrowingBetween(Minuend: int, Subtrahend: int) -> bool:
+    Left = str(abs(Minuend))[::-1]
+    Right = str(abs(Subtrahend))[::-1]
+    MaxLength = max(len(Left), len(Right))
+    Left = Left.ljust(MaxLength, "0")
+    Right = Right.ljust(MaxLength, "0")
+    return any(int(Left[Index]) < int(Right[Index]) for Index in range(MaxLength))
+
+
+def _GenerateBorrowingPair(Rng: random.Random, Minimum: int, Maximum: int, WantNegative: bool) -> tuple[int, int]:
+    for _ in range(200):
+        Left = Rng.randint(Minimum, Maximum)
+        Right = Rng.randint(Minimum, Maximum)
+        if WantNegative and Left >= Right:
+            Left, Right = min(Left, Right), max(Left, Right)
+        elif not WantNegative and Left <= Right:
+            Left, Right = max(Left, Right), min(Left, Right)
+        if Left != Right and _HasBorrowingBetween(Left, Right):
+            return Left, Right
+
+    # Deterministic fallback that still forces a borrow in the ones/tens place.
+    Base = max(100, Minimum)
+    if WantNegative:
+        return Base + 12, Base + 87
+    return Base + 87, Base + 12
+
+
+def _BorrowingMode(Config: MMConfig, QuestionNumber: int) -> str:
+    if Config.ConceptFamily == "BORROWING_NEGATIVE":
+        return "NEGATIVE"
+    if Config.ConceptFamily == "BORROWING_POSITIVE":
+        return "POSITIVE"
+    # Workbook mixed sheets contain both positive and negative answers.
+    return "NEGATIVE" if QuestionNumber % 2 == 1 else "POSITIVE"
+
+
+def _SplitBorrowingTotal(Rng: random.Random, Total: int) -> tuple[int, int]:
+    if Total <= 2:
+        return 1, max(1, Total - 1)
+    Lower = max(1, Total // 5)
+    Upper = max(Lower, (Total * 4) // 5)
+    First = Rng.randint(Lower, Upper)
+    Second = Total - First
+    if Second <= 0:
+        Second = 1
+        First = Total - Second
+    return First, Second
+
+
+def _BuildBorrowingStackOperands(Rng: random.Random, PositiveTotal: int, NegativeTotal: int) -> list[int]:
+    # Workbook borrowing sheets are signed vertical stacks with at least three
+    # numbers in each column, not simple two-number subtraction. Keep exactly
+    # three rows to match the source sheets while allowing either the positive
+    # side or negative side to be split into two rows.
+    SplitPositive = Rng.random() < 0.5
+    if SplitPositive and PositiveTotal > 2:
+        PositiveOne, PositiveTwo = _SplitBorrowingTotal(Rng, PositiveTotal)
+        Operands = [PositiveOne, PositiveTwo, -NegativeTotal]
+    elif NegativeTotal > 2:
+        NegativeOne, NegativeTwo = _SplitBorrowingTotal(Rng, NegativeTotal)
+        Operands = [PositiveTotal, -NegativeOne, -NegativeTwo]
+    else:
+        PositiveOne, PositiveTwo = _SplitBorrowingTotal(Rng, PositiveTotal)
+        Operands = [PositiveOne, PositiveTwo, -NegativeTotal]
+
+    Rng.shuffle(Operands)
+    return Operands
+
+
+def GenerateBorrowing(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Minimum, Maximum = _BorrowingRange(Config, Stage)
+    Mode = _BorrowingMode(Config, QuestionNumber)
+    WantNegative = Mode == "NEGATIVE"
+
+    PositiveTotal, NegativeTotal = _GenerateBorrowingPair(Rng, Minimum, Maximum, WantNegative)
+    CorrectAnswer = Decimal(PositiveTotal - NegativeTotal)
+    Operands = _BuildBorrowingStackOperands(Rng, PositiveTotal, NegativeTotal)
+    Operators = ["" for _ in Operands]
+
+    return Operands, Operators, CorrectAnswer, {
+        "borrowing_mode": Mode,
+        "requires_borrowing": True,
+        "positive_total": PositiveTotal,
+        "negative_total": NegativeTotal,
+        "answer_sign": "NEGATIVE" if CorrectAnswer < 0 else "POSITIVE",
+        "row_count": len(Operands),
+        "lesson_band": _LessonBand(Config),
+        "workbook_stack_style": "SIGNED_THREE_NUMBER_BORROWING_STACK",
+    }
+
+
 def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     MaxAbs = {"WARM_UP": 20, "STANDARD": 50, "MIXED_STEP": 100, "ADVANCED": 250, "CHALLENGE": 500}.get(Stage, 50) * _LessonBand(Config)
@@ -289,229 +596,179 @@ def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) 
     return Values, Operators, RunningTotal, {"row_count": RowCount, "integer_range": MaxAbs, "allow_negative_answer": True}
 
 
-
-def _BodmasBand(Config: MMConfig) -> int:
-    """Workbook BODMAS progression band by lesson.
-
-    The Master Module workbook does not use one generic BODMAS pattern. The
-    expression structure becomes richer as lessons progress, so the generator
-    must be lesson-aware and must never fall back to tiny/random expressions.
-    """
-    LessonNumber = int(Config.LessonNumber or 1)
-    if LessonNumber <= 6:
-        return 1
-    if LessonNumber <= 11:
-        return 2
-    if LessonNumber <= 16:
-        return 3
-    if LessonNumber <= 19:
-        return 4
-    if LessonNumber <= 22:
-        return 5
-    return 6
+def _FormatDecimal(Value: Decimal) -> str:
+    if Value == Value.to_integral_value():
+        return str(int(Value))
+    return format(Value.normalize(), "f").rstrip("0").rstrip(".")
 
 
-def _BodmasDisplayNumber(Value: Decimal) -> int | float:
-    return _AsDisplayNumber(_Quantize(Value, 2))
-
-
-def _PerfectSquareRoot(Rng: random.Random, MinimumRoot: int, MaximumRoot: int) -> tuple[int, int]:
+def _PerfectSquare(Rng: random.Random, MinimumRoot: int, MaximumRoot: int) -> tuple[int, int]:
     Root = Rng.randint(MinimumRoot, MaximumRoot)
     return Root * Root, Root
 
 
-def _PerfectCubeRoot(Rng: random.Random, MinimumRoot: int, MaximumRoot: int) -> tuple[int, int]:
+def _PerfectCube(Rng: random.Random, MinimumRoot: int, MaximumRoot: int) -> tuple[int, int]:
     Root = Rng.randint(MinimumRoot, MaximumRoot)
     return Root * Root * Root, Root
 
 
-def _PercentTerm(Rng: random.Random, MinimumBase: int, MaximumBase: int, PercentChoices: list[int]) -> tuple[str, Decimal]:
-    Percent = Rng.choice(PercentChoices)
-    BaseUnit = 100 // __import__('math').gcd(100, Percent)
-    BaseMultiplierMinimum = max(1, MinimumBase // BaseUnit)
-    BaseMultiplierMaximum = max(BaseMultiplierMinimum + 1, MaximumBase // BaseUnit)
-    Base = BaseUnit * Rng.randint(BaseMultiplierMinimum, BaseMultiplierMaximum)
-    Value = Decimal(Base * Percent) / Decimal(100)
-    return f"{Base} × {Percent}%", Value
-
-
-def _PositiveAdjustment(Expression: str, Value: Decimal, Rng: random.Random, Minimum: int = 25, Maximum: int = 950) -> tuple[str, Decimal]:
-    if Value >= 0:
-        return Expression, Value
-    Adjustment = Decimal(abs(int(Value)) + Rng.randint(Minimum, Maximum))
-    return f"{Expression} + {int(Adjustment)}", Value + Adjustment
-
-
 def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    """Generate lesson-aware workbook-style BODMAS expressions.
+    """Generate workbook-style MM BODMAS expressions.
 
-    This intentionally mirrors the workbook progression:
-    - Early BODMAS: large add/subtract with multiplication and exact division.
-    - Middle BODMAS: brackets and powers.
-    - Later BODMAS: percentages, square roots, cube roots, and larger mixed
-      expressions, capped at a readable length.
-
-    The returned question is expression-text driven so the frontend always
-    renders it horizontally, exactly like the workbook rows. The stored answer
-    is calculated from the same generated terms before the question is accepted.
+    The MM workbook does not progress by random arithmetic alone. BODMAS
+    becomes harder by adding brackets, powers, percentages, square roots,
+    cube roots, decimals and larger multiplication/division patterns as the
+    lesson number increases. The returned expression is stored as
+    question_text so all role previews render it as a clean horizontal
+    worksheet expression.
     """
-    Band = _BodmasBand(Config)
+
+    LessonNumber = int(Config.LessonNumber or 1)
+    Stage = DifficultyStage(QuestionNumber - 1)
     PatternIndex = (QuestionNumber - 1) % 5
 
-    if Band == 1:
-        # Lesson 5/6 style: 8687 - 243 × 7 - 7720 ÷ 8 + 315
-        Multiplier = Rng.randint(2, 9)
-        Multiplicand = Rng.randint(120, 980)
-        Divisor = Rng.randint(4, 72)
-        Quotient = Rng.randint(25, 1100)
+    def BasicVisual() -> tuple[str, Decimal, str]:
+        Multiplier = Rng.randint(2, 8 + min(5, _LessonBand(Config)))
+        Multiplicand = Rng.randint(120, 900 + 200 * _LessonBand(Config))
+        Divisor = Rng.randint(6, 20 + 4 * _LessonBand(Config))
+        Quotient = Rng.randint(15, 120 + 20 * _LessonBand(Config))
         Dividend = Divisor * Quotient
-        Lead = Rng.randint(700, 9500)
-        Tail = Rng.randint(100, 900)
-        Operators = ["-", "+", "-"][PatternIndex % 3]
-        if Operators == "-":
-            Expression = f"{Lead} - {Multiplicand} × {Multiplier} - {Dividend} ÷ {Divisor} + {Tail}"
-            Answer = Decimal(Lead) - Decimal(Multiplicand * Multiplier) - Decimal(Quotient) + Decimal(Tail)
-        elif Operators == "+":
-            Expression = f"{Lead} + {Multiplicand} × {Multiplier} - {Dividend} ÷ {Divisor} + {Tail}"
-            Answer = Decimal(Lead) + Decimal(Multiplicand * Multiplier) - Decimal(Quotient) + Decimal(Tail)
+        Start = Rng.randint(2500, 9500)
+        End = Rng.randint(120, 900)
+        if PatternIndex % 2 == 0:
+            Expression = f"{Start} - {Multiplicand} × {Multiplier} - {Dividend} ÷ {Divisor} + {End}"
+            Answer = Decimal(Start - (Multiplicand * Multiplier) - Quotient + End)
         else:
-            Expression = f"{Lead} - {Multiplicand} × {Multiplier} + {Dividend} ÷ {Divisor} + {Tail}"
-            Answer = Decimal(Lead) - Decimal(Multiplicand * Multiplier) + Decimal(Quotient) + Decimal(Tail)
-        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
+            Expression = f"{Start} + {Multiplicand} × {Multiplier} - {Dividend} ÷ {Divisor} - {End}"
+            Answer = Decimal(Start + (Multiplicand * Multiplier) - Quotient - End)
+        return Expression, Answer, "BASIC_VISUAL_BODMAS"
 
-    elif Band == 2:
-        # Lesson 11 style: powers/brackets begin, still mostly whole-number BODMAS.
-        if PatternIndex == 0:
-            A, B = Rng.randint(180, 620), Rng.randint(12, 32)
-            Divisor, Quotient = Rng.randint(12, 48), Rng.randint(30, 220)
-            Dividend = Divisor * Quotient
-            Tail = Rng.randint(20, 95)
-            Expression = f"({A} × {B}) + ({Dividend} ÷ {Divisor}) - {Tail}"
-            Answer = Decimal(A * B + Quotient - Tail)
+    def WithSquares() -> tuple[str, Decimal, str]:
+        SquareRoot = Rng.randint(12, 58)
+        SquareValue = SquareRoot * SquareRoot
+        MultA = Rng.randint(180, 900)
+        MultB = Rng.randint(6, 86)
+        Divisor = Rng.randint(7, 60)
+        Quotient = Rng.randint(12, 180)
+        Dividend = Divisor * Quotient
+        Tail = Rng.randint(40, 900)
+        if PatternIndex in {0, 3}:
+            Expression = f"({SquareRoot})² + {MultA} × {MultB} - {Dividend} ÷ {Divisor} - {Tail}"
+            Answer = Decimal(SquareValue + (MultA * MultB) - Quotient - Tail)
         elif PatternIndex == 1:
-            SquareBase = Rng.randint(18, 55)
-            M1, M2 = Rng.randint(120, 850), Rng.randint(4, 9)
-            Divisor, Quotient = Rng.randint(14, 60), Rng.randint(80, 300)
-            Dividend = Divisor * Quotient
-            Tail = Rng.randint(300, 900)
-            Expression = f"({SquareBase})² - {M1} × {M2} - {Dividend} ÷ {Divisor} + {Tail}"
-            Answer = Decimal(SquareBase**2 - M1 * M2 - Quotient + Tail)
+            Expression = f"{MultA} × {MultB} + {Dividend} ÷ {Divisor} - ({SquareRoot})²"
+            Answer = Decimal((MultA * MultB) + Quotient - SquareValue)
         else:
-            Lead = Rng.randint(3500, 9500)
-            M1, M2 = Rng.randint(25, 95), Rng.randint(12, 96)
-            Divisor, Quotient = Rng.randint(9, 65), Rng.randint(70, 400)
-            Dividend = Divisor * Quotient
-            Tail = Rng.randint(250, 1100)
-            Expression = f"{Lead} + {M1} × {M2} - {Dividend} ÷ {Divisor} + {Tail}"
-            Answer = Decimal(Lead + M1 * M2 - Quotient + Tail)
-        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
+            Expression = f"({MultA}×{MultB})+({Dividend}÷{Divisor})-{SquareRoot}²"
+            Answer = Decimal((MultA * MultB) + Quotient - SquareValue)
+        return Expression, Answer, "BODMAS_WITH_SQUARES"
 
-    elif Band == 3:
-        # Lesson 16 style: brackets, cubes/squares and percentage-of terms.
-        if PatternIndex == 0:
-            FirstDivisor = Rng.randint(25, 75)
-            FirstQuotient = Rng.randint(40, 180)
-            FirstDividendLeft = FirstDivisor * FirstQuotient
-            Divisor, Quotient = Rng.randint(20, 60), Rng.randint(80, 250)
-            Dividend = Divisor * Quotient
-            SquareBase = Rng.randint(18, 55)
-            Expression = f"({FirstDividendLeft} ÷ {FirstDivisor}) + ({Dividend} ÷ {Divisor}) + {SquareBase}²"
-            Answer = Decimal(FirstQuotient + Quotient + SquareBase**2)
-        elif PatternIndex in {1, 2}:
-            A, B = Rng.randint(120, 620), Rng.randint(10, 25)
-            CubeBase = Rng.randint(9, 28)
-            Divisor, Quotient = Rng.randint(18, 55), Rng.randint(70, 260)
-            Dividend = Divisor * Quotient
-            Expression = f"({A} × {B}) + {Dividend} ÷ {Divisor} + {CubeBase}³"
-            Answer = Decimal(A * B + Quotient + CubeBase**3)
-        else:
-            PercentText, PercentValue = _PercentTerm(Rng, 1500, 6000, [15, 20, 25, 30, 40, 50, 70, 85])
-            A, B = Rng.randint(280, 520), Rng.randint(12, 22)
-            SquareBase = Rng.randint(14, 35)
-            Tail = Rng.randint(300, 1200)
-            Expression = f"({A} × {B}) - ({PercentText}) + {SquareBase}² + {Tail}"
-            Answer = Decimal(A * B) - PercentValue + Decimal(SquareBase**2 + Tail)
-        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
-
-    elif Band == 4:
-        # Lesson 19 style: division + multiplication percentage + cube root.
-        Divisor = Rng.randint(30, 90)
-        Quotient = Rng.randint(40, 120)
+    def WithPowersAndPercentages() -> tuple[str, Decimal, str]:
+        Divisor = Rng.choice([10, 12, 15, 20, 24, 25, 30, 40, 50])
+        A = Divisor * Rng.randint(6, 18)
+        B = Rng.randint(12, 30)
+        Quotient = Rng.randint(15, 120)
         Dividend = Divisor * Quotient
-        M1 = Rng.randint(250, 950)
-        Percent = Rng.choice([2, 3, 4, 5, 6, 8, 10])
-        CubeValue, CubeRoot = _PerfectCubeRoot(Rng, 35, 95)
-        Sign = "+" if PatternIndex != 2 else "-"
-        Expression = f"{Dividend} ÷ {Divisor} + {M1} × {Percent}% {Sign} ∛{CubeValue}"
-        Answer = Decimal(Quotient) + (Decimal(M1 * Percent) / Decimal(100)) + (Decimal(CubeRoot) if Sign == "+" else -Decimal(CubeRoot))
-        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
-
-    elif Band == 5:
-        # Lesson 21/22 style: brackets, percentages, squares and wider numbers.
+        SquareRoot = Rng.randint(12, 35)
+        CubeRoot = Rng.randint(3, 24)
+        PercentBase = Rng.randrange(1000, 6000, 10)
+        Percent = Rng.choice([10, 15, 20, 25, 30, 35, 50, 70, 85])
+        PercentValue = Decimal(PercentBase) * Decimal(Percent) / Decimal(100)
         if PatternIndex in {0, 1}:
-            PercentText, PercentValue = _PercentTerm(Rng, 3000, 9000, [25, 30, 35, 40, 50, 70, 85])
-            Divisor = Rng.choice([10, 12, 15, 20, 25, 30])
-            SquareBase = Rng.randint(12, 28)
-            Lead = Rng.randrange(1500, 3500, 25)
-            Tail = Rng.randrange(800, 2200, 25)
-            Expression = f"{Lead} + ({PercentText}) ÷ {Divisor} - {SquareBase}² + {Tail}"
-            Answer = Decimal(Lead) + (PercentValue / Decimal(Divisor)) - Decimal(SquareBase**2) + Decimal(Tail)
+            Expression = f"({A}×{B})÷{Divisor}+({Dividend}÷{Divisor})+{SquareRoot}²"
+            Answer = (Decimal(A * B) / Decimal(Divisor)) + Decimal(Quotient) + Decimal(SquareRoot * SquareRoot)
+            Variant = "BRACKETS_SQUARES"
         elif PatternIndex == 2:
-            A, B = Rng.randint(250, 620), Rng.randint(12, 28)
-            Divisor, Quotient = Rng.randint(10, 42), Rng.randint(120, 420)
-            Dividend = Divisor * Quotient
-            CubeBase = Rng.randint(12, 28)
-            Tail = Rng.randint(900, 2200)
-            Expression = f"({A} × {B}) + {Dividend} ÷ {Divisor} + {CubeBase}³ - {Tail}"
-            Answer = Decimal(A * B + Quotient + CubeBase**3 - Tail)
+            Expression = f"{Dividend}÷{Divisor}-({A}×{B})-(%s%% of %s)+%s³" % (Percent, PercentBase, CubeRoot)
+            Answer = Decimal(Quotient) - Decimal(A * B) - PercentValue + Decimal(CubeRoot ** 3)
+            Variant = "PERCENTAGE_CUBE"
         else:
-            Lead = Rng.randint(2500, 9500)
-            M1, M2 = Rng.randint(25, 90), Rng.randint(25, 75)
-            Divisor, Quotient = Rng.randint(2, 20), Rng.randint(250, 900)
-            Dividend = Divisor * Quotient
-            Tail = Rng.randint(300, 950)
-            Expression = f"{Lead} - {M1} × {M2} + {Dividend} ÷ {Divisor} + {Tail}"
-            Answer = Decimal(Lead - M1 * M2 + Quotient + Tail)
-        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
+            Expression = f"({A}×{B})-({PercentBase}×{Percent}%)+{SquareRoot}²"
+            Answer = Decimal(A * B) - PercentValue + Decimal(SquareRoot * SquareRoot)
+            Variant = "PERCENTAGE_SQUARE"
+        return Expression, Answer, f"BODMAS_{Variant}"
 
+    def WithCubeRoots() -> tuple[str, Decimal, str]:
+        Cube, CubeRoot = _PerfectCube(Rng, 22, 90)
+        Divisor = Rng.randint(20, 90)
+        Quotient = Rng.randint(35, 150)
+        Dividend = Divisor * Quotient
+        Multiplier = Rng.randint(2, 9)
+        PercentBase = Rng.randint(250, 950)
+        Percent = Rng.choice([2, 3, 4, 5, 6, 8, 10])
+        PercentValue = Decimal(PercentBase) * Decimal(Percent) / Decimal(100)
+        Expression = f"{Dividend} ÷ {Divisor} + {PercentBase} × {Percent}% + ∛{Cube}"
+        if PatternIndex in {2, 4}:
+            Expression = f"{Dividend} ÷ {Divisor} - {PercentBase} × {Percent}% + ∛{Cube}"
+            Answer = Decimal(Quotient) - PercentValue + Decimal(CubeRoot)
+        else:
+            Answer = Decimal(Quotient) + PercentValue + Decimal(CubeRoot)
+        return Expression, Answer, "BODMAS_WITH_CUBE_ROOT_PERCENTAGE"
+
+    def AdvancedCubeSquare() -> tuple[str, Decimal, str]:
+        Cube, CubeRoot = _PerfectCube(Rng, 23, 45)
+        SquareRoot = Rng.randint(50, 99)
+        SquareValue = SquareRoot * SquareRoot
+        Divisor = Rng.randint(20, 95)
+        Quotient = Rng.randint(25, 140)
+        Dividend = Divisor * Quotient
+        MultA = Rng.randint(120, 950)
+        MultB = Rng.randint(10, 75)
+        TailA = Rng.randint(250, 950)
+        TailB = Rng.randint(150, 750)
+        if PatternIndex in {0, 3}:
+            Expression = f"∛{Cube} + {SquareRoot}² - {Dividend}÷{Divisor} + {MultA}×{MultB} - {TailA} + {TailB}"
+            Answer = Decimal(CubeRoot + SquareValue - Quotient + (MultA * MultB) - TailA + TailB)
+            Variant = "CUBE_ROOT_SQUARE_MIX"
+        else:
+            Expression = f"{MultA}×{MultB} + ∛{Cube} - {Dividend}÷{Divisor} + {TailA} - {TailB}"
+            Answer = Decimal((MultA * MultB) + CubeRoot - Quotient + TailA - TailB)
+            Variant = "ADVANCED_CUBE_ROOT_MIX"
+        return Expression, Answer, f"BODMAS_{Variant}"
+
+    def FinalSquareRootMix() -> tuple[str, Decimal, str]:
+        Square, Root = _PerfectSquare(Rng, 70, 99)
+        MultA = Rng.randint(450, 950)
+        MultB = Rng.randint(24, 90)
+        Divisor = Rng.randint(21, 96)
+        Quotient = Rng.randint(22, 240)
+        Dividend = Divisor * Quotient
+        AddValue = Rng.randint(140, 900)
+        LessValue = Rng.randint(120, 980)
+        Expression = f"{MultA}×{MultB} + √{Square} - {Dividend}÷{Divisor} + {AddValue} - {LessValue}"
+        Answer = Decimal((MultA * MultB) + Root - Quotient + AddValue - LessValue)
+        return Expression, Answer, "BODMAS_WITH_SQUARE_ROOT_ADVANCED_MIX"
+
+    if LessonNumber <= 10:
+        Expression, Answer, Pattern = BasicVisual()
+    elif LessonNumber <= 15:
+        Expression, Answer, Pattern = WithSquares()
+    elif LessonNumber <= 18:
+        Expression, Answer, Pattern = WithPowersAndPercentages()
+    elif LessonNumber <= 21:
+        Expression, Answer, Pattern = WithCubeRoots()
+    elif LessonNumber == 22:
+        Expression, Answer, Pattern = WithPowersAndPercentages()
+    elif LessonNumber <= 26:
+        Expression, Answer, Pattern = AdvancedCubeSquare()
     else:
-        # Lesson 23+ style: richer BODMAS, but capped to a classroom-friendly
-        # 5-6 visible numeric terms so the expression stays inside the question
-        # card and does not overwhelm students.
-        if PatternIndex in {0, 1}:
-            CubeValue, CubeRoot = _PerfectCubeRoot(Rng, 25, 75)
-            SquareBase = Rng.randint(30, 85)
-            Divisor, Quotient = Rng.randint(20, 84), Rng.randint(35, 130)
-            Dividend = Divisor * Quotient
-            M1, M2 = Rng.randint(120, 650), Rng.randint(10, 75)
-            Expression = f"∛{CubeValue} + {SquareBase}² - {Dividend} ÷ {Divisor} + {M1} × {M2}"
-            Answer = Decimal(CubeRoot + SquareBase**2 - Quotient + M1 * M2)
-        elif PatternIndex in {2, 3}:
-            M1, M2 = Rng.randint(180, 780), Rng.randint(18, 80)
-            SquareValue, SquareRoot = _PerfectSquareRoot(Rng, 45, 95)
-            Divisor, Quotient = Rng.randint(20, 84), Rng.randint(60, 220)
-            Dividend = Divisor * Quotient
-            Subtract = Rng.randint(120, 850)
-            Expression = f"{M1} × {M2} + √{SquareValue} - {Dividend} ÷ {Divisor} - {Subtract}"
-            Answer = Decimal(M1 * M2 + SquareRoot - Quotient - Subtract)
-        else:
-            Lead = Rng.randint(1000, 2600)
-            PercentText, PercentValue = _PercentTerm(Rng, 1500, 6000, [10, 15, 20, 25, 30, 35, 40, 50])
-            Divisor = Rng.choice([10, 12, 15, 20, 25, 30])
-            SquareBase = Rng.randint(12, 28)
-            Tail = Rng.randint(700, 1900)
-            Expression = f"{Lead} + ({PercentText}) ÷ {Divisor} - {SquareBase}² + {Tail}"
-            Answer = Decimal(Lead) + (PercentValue / Decimal(Divisor)) - Decimal(SquareBase**2) + Decimal(Tail)
-        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
+        Expression, Answer, Pattern = FinalSquareRootMix()
 
-    CorrectAnswer = _Quantize(Answer, 2)
-    return [Expression], [""], CorrectAnswer, {
+    # Keep MM answer options student-friendly. Retry via a foundation-safe
+    # expression if an unusually hard random variant becomes negative.
+    if Answer < 0:
+        Expression, Answer, Pattern = BasicVisual()
+        if Answer < 0:
+            Answer = abs(Answer)
+            Expression = f"{Expression.replace(' - ', ' + ', 1)}"
+            Pattern = f"{Pattern}_POSITIVE_BALANCED"
+
+    Answer = Answer.quantize(Decimal("0.01")) if Answer != Answer.to_integral_value() else Answer.to_integral_value()
+    return [Expression], [""], Answer, {
         "question_text": Expression,
-        "bodmas_pattern": f"WORKBOOK_BAND_{Band}",
-        "bodmas_mode": "LESSON_AWARE_WORKBOOK_EXPRESSION",
-        "lesson_band": Band,
-        "max_readable_terms": 7,
-        "overflow_safe": True,
+        "bodmas_pattern": Pattern,
+        "bodmas_lesson_phase": _LessonBand(Config),
+        "workbook_progression": "LESSON_AWARE_BODMAS",
     }
 
 
@@ -560,8 +817,6 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
         "percentage_operator": Operator,
         "two_part_only": True,
         "lesson_band": Band,
-        "max_readable_terms": 7,
-        "overflow_safe": True,
     }
 
 
@@ -775,112 +1030,6 @@ def GenerateSkillStacker(Config: MMConfig, Rng: random.Random, QuestionNumber: i
     }
 
 
-
-def _FormatSignedIntegerExpression(Left: int, Operator: str, Right: int) -> str:
-    RightText = f"({Right})" if Right < 0 else str(Right)
-    return f"{Left} {Operator} {RightText}"
-
-
-def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    """Workbook-style 'Solve Equation' signed arithmetic.
-
-    The MM workbook examples for this concept are not algebraic x-equations;
-    they are clean horizontal signed-number expressions such as 5 + (-8),
-    (-7) + (-6), 9 - (-3). Keep this generator separate from BODMAS so
-    section routing cannot accidentally fall through to a generic stack.
-    """
-    Stage = DifficultyStage(QuestionNumber - 1)
-    Band = _LessonBand(Config)
-    Limit = {"WARM_UP": 12, "STANDARD": 25, "MIXED_STEP": 50, "ADVANCED": 100, "CHALLENGE": 250}.get(Stage, 25) * max(1, Band // 2)
-    Left = Rng.randint(-Limit, Limit) or Rng.choice([-5, 5])
-    Right = Rng.randint(-Limit, Limit) or Rng.choice([-3, 3])
-    Operator = Rng.choice(["+", "-"])
-    CorrectAnswer = Decimal(Left + Right if Operator == "+" else Left - Right)
-    QuestionText = _FormatSignedIntegerExpression(Left, Operator, Right)
-    return [Left, Right], ["", Operator], CorrectAnswer, {
-        "question_text": QuestionText,
-        "equation_mode": "SIGNED_ARITHMETIC_WORKBOOK",
-        "left_value": Left,
-        "operator": Operator,
-        "right_value": Right,
-    }
-
-
-def _NumberFromFirstPosition(Digits: int, FirstPosition: int) -> Decimal:
-    DigitText = str(abs(int(Digits)))
-    Exponent = FirstPosition - (len(DigitText) - 1)
-    return Decimal(DigitText) * (Decimal(10) ** Decimal(Exponent))
-
-
-def _FirstNaturalPosition(Value: Decimal) -> int:
-    if Value == 0:
-        return 0
-    AbsoluteValue = abs(Value.normalize())
-    if AbsoluteValue >= 1:
-        IntegerText = str(int(AbsoluteValue.to_integral_value(rounding=ROUND_HALF_UP) if AbsoluteValue == AbsoluteValue.to_integral_value() else int(AbsoluteValue)))
-        return len(IntegerText) - 1
-    Position = -1
-    Current = AbsoluteValue
-    while Current < 1:
-        Current *= 10
-        if int(Current) > 0:
-            return Position
-        Position -= 1
-    return Position
-
-
-def GenerateWriteNumberFromPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    """Generate workbook-style 'Write the Number From the Given Position'.
-
-    Position means the place value position of the first non-zero digit:
-    units = 0, tens = 1, tenths = -1, hundredths = -2, etc.
-    """
-    Stage = DifficultyStage(QuestionNumber - 1)
-    PositionChoices = {
-        "WARM_UP": [-2, -1, 0, 1],
-        "STANDARD": [-3, -2, -1, 0, 1, 2],
-        "MIXED_STEP": [-4, -3, -2, -1, 0, 1, 2],
-        "ADVANCED": [-5, -4, -3, -2, -1, 0, 1, 2, 3],
-        "CHALLENGE": [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3],
-    }.get(Stage, [-2, -1, 0, 1, 2])
-    FirstPosition = Rng.choice(PositionChoices)
-    DigitCount = Rng.randint(2, 4 if Stage in {"WARM_UP", "STANDARD"} else 5)
-    Minimum, Maximum = _DigitRange(DigitCount)
-    Digits = Rng.randint(Minimum, Maximum)
-    CorrectAnswer = _NumberFromFirstPosition(Digits, FirstPosition).normalize()
-    return [FirstPosition, Digits], ["Position", "Number"], CorrectAnswer, {
-        "question_text": "Write the number from the given position",
-        "position_mode": "WRITE_NUMBER_FROM_GIVEN_POSITION",
-        "first_position": FirstPosition,
-        "digit_sequence": str(Digits),
-    }
-
-
-def GenerateFindFirstNaturalPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    """Generate workbook-style 'Find the Position of the First Natural Number'."""
-    Stage = DifficultyStage(QuestionNumber - 1)
-    PositionChoices = {
-        "WARM_UP": [-2, -1, 0, 1],
-        "STANDARD": [-3, -2, -1, 0, 1, 2],
-        "MIXED_STEP": [-4, -3, -2, -1, 0, 1, 2],
-        "ADVANCED": [-5, -4, -3, -2, -1, 0, 1, 2, 3],
-        "CHALLENGE": [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3],
-    }.get(Stage, [-3, -2, -1, 0, 1, 2])
-    FirstPosition = Rng.choice(PositionChoices)
-    DigitCount = Rng.randint(2, 4 if Stage in {"WARM_UP", "STANDARD"} else 5)
-    Minimum, Maximum = _DigitRange(DigitCount)
-    Digits = Rng.randint(Minimum, Maximum)
-    Value = _NumberFromFirstPosition(Digits, FirstPosition).normalize()
-    CorrectAnswer = Decimal(FirstPosition)
-    DisplayValue = _PlainDecimalText(Value)
-    QuestionText = DisplayValue
-    return [DisplayValue], ["Number"], CorrectAnswer, {
-        "question_text": QuestionText,
-        "position_mode": "FIND_FIRST_NATURAL_NUMBER_POSITION",
-        "first_position": FirstPosition,
-        "digit_sequence": str(Digits),
-    }
-
 def _ConceptDrillRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:
     Band = _LessonBand(Config)
     if Band <= 2:
@@ -1059,12 +1208,20 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateDecimalAddLess(Config, Rng, QuestionNumber)
     if ConceptFamily == "DECIMAL_MULTIPLICATION":
         return GenerateDecimalMultiplication(Config, Rng, QuestionNumber)
+    if ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
+        return GenerateDecimalMultiplicationAnswerPosition(Config, Rng, QuestionNumber)
+    if ConceptFamily == "NUMBER_POSITION":
+        return GenerateNumberPosition(Config, Rng, QuestionNumber)
+    if ConceptFamily == "SOLVE_EQUATION":
+        return GenerateSolveEquation(Config, Rng, QuestionNumber)
     if ConceptFamily == "DECIMAL_DIVISION":
         return GenerateDecimalDivision(Config, Rng, QuestionNumber)
     if ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION":
         return GenerateWholeNumberMultiplication(Config, Rng, QuestionNumber)
     if ConceptFamily == "WHOLE_NUMBER_DIVISION":
         return GenerateWholeNumberDivision(Config, Rng, QuestionNumber)
+    if ConceptFamily in {"BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}:
+        return GenerateBorrowing(Config, Rng, QuestionNumber)
     if ConceptFamily == "INTEGERS":
         return GenerateIntegers(Config, Rng, QuestionNumber)
     if ConceptFamily == "BODMAS":
@@ -1099,12 +1256,6 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateSkillStacker(Config, Rng, QuestionNumber)
     if ConceptFamily == "CONCEPT_DRILL":
         return GenerateConceptDrill(Config, Rng, QuestionNumber)
-    if ConceptFamily == "SOLVE_EQUATION":
-        return GenerateSolveEquation(Config, Rng, QuestionNumber)
-    if ConceptFamily == "WRITE_NUMBER_FROM_POSITION":
-        return GenerateWriteNumberFromPosition(Config, Rng, QuestionNumber)
-    if ConceptFamily == "FIND_FIRST_NATURAL_POSITION":
-        return GenerateFindFirstNaturalPosition(Config, Rng, QuestionNumber)
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         OperationSequence = _MixedMultiplicationDivisionOperationSequence(Config)
         Operation = OperationSequence[(QuestionNumber - 1) % len(OperationSequence)]
@@ -1185,7 +1336,57 @@ def _CubeBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
     return Ranges.get(Stage, (5, 20))
 
 
+
+def _ExtractSquareRootDigitCounts(Config: MMConfig) -> list[int] | None:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    Text = Text.replace("-", " ").replace("/", " ").replace("&", " and ")
+    if "square root" not in Text:
+        return None
+
+    MixedPatterns = [
+        r"square\s*root\s*(?:of\s*)?([2-6])\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"square\s*root\s*([2-6])\s*(?:digit|d)?\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:and|,)\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*square\s*root",
+    ]
+    for Pattern in MixedPatterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            Digits = sorted({int(Match.group(1)), int(Match.group(2))})
+            return Digits
+
+    Patterns = [
+        r"square\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"square\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*square\s*root",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return [int(Match.group(1))]
+    return None
+
+
+def _ExtractSquareRootDigitCount(Config: MMConfig) -> int | None:
+    DigitCounts = _ExtractSquareRootDigitCounts(Config)
+    if not DigitCounts or len(DigitCounts) != 1:
+        return None
+    return DigitCounts[0]
+
+
+def _SquareRootBaseRangeForRadicandDigits(DigitCount: int) -> tuple[int, int]:
+    MinimumRadicand = 10 ** (DigitCount - 1)
+    MaximumRadicand = (10 ** DigitCount) - 1
+    MinimumRoot = int(Decimal(MinimumRadicand).sqrt().to_integral_value(rounding="ROUND_CEILING"))
+    MaximumRoot = int(Decimal(MaximumRadicand).sqrt().to_integral_value(rounding="ROUND_FLOOR"))
+    if MinimumRoot > MaximumRoot:
+        raise ValueError(f"No perfect square exists with {DigitCount} digits")
+    return MinimumRoot, MaximumRoot
+
 def _SquareRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    ExplicitDigitCount = _ExtractSquareRootDigitCount(Config)
+    if ExplicitDigitCount is not None:
+        return _SquareRootBaseRangeForRadicandDigits(ExplicitDigitCount)
+
     Band = _LessonBand(Config)
     if Band <= 4:
         Ranges = {
@@ -1214,7 +1415,52 @@ def _SquareRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
     return Ranges.get(Stage, (20, 99))
 
 
+
+def _IntegerCubeRootFloor(Value: int) -> int:
+    if Value <= 0:
+        return 0
+    Guess = int(round(Value ** (1 / 3)))
+    while (Guess + 1) ** 3 <= Value:
+        Guess += 1
+    while Guess ** 3 > Value:
+        Guess -= 1
+    return Guess
+
+
+def _IntegerCubeRootCeil(Value: int) -> int:
+    Floor = _IntegerCubeRootFloor(Value)
+    return Floor if Floor ** 3 == Value else Floor + 1
+
+
+def _ExtractCubeRootDigitCount(Config: MMConfig) -> int | None:
+    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
+    Text = Text.replace("-", " ").replace("/", " ")
+    Patterns = [
+        r"cube\s*root\s*of\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+        r"([2-6])\s*(?:digit|d)\s*(?:number|numbers)?\s*cube\s*root",
+        r"cube\s*root\s*([2-6])\s*(?:digit|d)\s*(?:number|numbers)?",
+    ]
+    for Pattern in Patterns:
+        Match = re.search(Pattern, Text)
+        if Match:
+            return int(Match.group(1))
+    return None
+
+
+def _CubeRootBaseRangeForRadicandDigits(DigitCount: int) -> tuple[int, int]:
+    MinimumRadicand = 10 ** (DigitCount - 1)
+    MaximumRadicand = (10 ** DigitCount) - 1
+    MinimumRoot = _IntegerCubeRootCeil(MinimumRadicand)
+    MaximumRoot = _IntegerCubeRootFloor(MaximumRadicand)
+    if MinimumRoot > MaximumRoot:
+        raise ValueError(f"No perfect cube exists with {DigitCount} digits")
+    return MinimumRoot, MaximumRoot
+
 def _CubeRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    ExplicitDigitCount = _ExtractCubeRootDigitCount(Config)
+    if ExplicitDigitCount is not None:
+        return _CubeRootBaseRangeForRadicandDigits(ExplicitDigitCount)
+
     Band = _LessonBand(Config)
     if Band <= 3:
         Ranges = {
@@ -1275,7 +1521,18 @@ def GenerateCubes(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> 
 
 def GenerateSquareRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    Minimum, Maximum = _SquareRootBaseRange(Config, Stage)
+    DigitCounts = _ExtractSquareRootDigitCounts(Config)
+
+    if DigitCounts:
+        # Workbook convention: mixed digit labels such as
+        # "Square Root 3 & 4 Digit Number" must produce a real mix across the
+        # 10-question section, not collapse to only the larger digit band.
+        DigitCount = DigitCounts[(QuestionNumber - 1) % len(DigitCounts)]
+        Minimum, Maximum = _SquareRootBaseRangeForRadicandDigits(DigitCount)
+    else:
+        DigitCount = None
+        Minimum, Maximum = _SquareRootBaseRange(Config, Stage)
+
     Root = Rng.randint(Minimum, Maximum)
     Radicand = Root * Root
     CorrectAnswer = Decimal(Root)
@@ -1287,6 +1544,8 @@ def GenerateSquareRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         "root_value": Root,
         "radicand": Radicand,
         "perfect_root_only": True,
+        "radicand_digit_count": DigitCount,
+        "allowed_radicand_digit_counts": DigitCounts,
         "lesson_band": _LessonBand(Config),
     }
 
