@@ -2,55 +2,46 @@ import random
 from decimal import Decimal
 
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
-from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept, ResolveMmConceptFamily
+from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept
 from app.question_engine.mm.distractors import GenerateMmDistractors
 from app.question_engine.mm.operands import DifficultyStage, GeneratePackage1Question
 from app.question_engine.mm.validators import ValidateMmQuestion
 
 
-def _Display(Value: Decimal) -> int | str:
-    """Return student-safe numeric output without scientific notation.
-
-    Very small Decimal values such as 9E-7 must be shown as 0.0000009,
-    because MathPath workbook convention expects full decimal notation.
-    """
+def _Display(Value: Decimal) -> int | float:
     if Value == Value.to_integral_value():
         return int(Value)
+    return float(Value.normalize())
 
-    DisplayText = format(Value.normalize(), "f")
-    if "." in DisplayText:
-        DisplayText = DisplayText.rstrip("0").rstrip(".")
-    if DisplayText == "-0":
-        DisplayText = "0"
-    return DisplayText
+
+def _IsAnswerPositionConcept(Config: MMConfig) -> bool:
+    TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".upper()
+    return any(
+        Marker in TitleText
+        for Marker in ("ANSWER POSITION", "FIND POSITION", "ANSWER PLACEMENT", "NATURAL NUMBER POSITION")
+    )
 
 
 def _DisplayMode(Config: MMConfig) -> str:
     ConceptFamily = Config.ConceptFamily
-    TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".upper()
 
-    if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS", "BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}:
+    if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
         return "VISUAL_STACK"
 
+    # Normal multiplication/division should display as a single horizontal
+    # expression, for example "453 × 675 = ?" or "450 ÷ 9 = ?".
+    # This is intentionally a display-mode-only change; operands, section maps,
+    # question counts, and concept routing remain untouched.
     if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"}:
-        return "VISUAL_STACK"
-
-    if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-        if "DECIMAL" in TitleText or "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
-            return "ANSWER_POSITION"
-        return "VISUAL_STACK"
-
-    if ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
-        return "ANSWER_POSITION"
-
-    if ConceptFamily == "NUMBER_POSITION":
         return "EXPRESSION_WORKSHEET"
 
-    if ConceptFamily == "SOLVE_EQUATION":
+    if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
+        if _IsAnswerPositionConcept(Config):
+            return "ANSWER_POSITION"
         return "EXPRESSION_WORKSHEET"
 
     if ConceptFamily in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
-        if "ANSWER POSITION" in TitleText or "FIND POSITION" in TitleText or "ANSWER PLACEMENT" in TitleText:
+        if _IsAnswerPositionConcept(Config):
             return "ANSWER_POSITION"
         return "EXPRESSION_WORKSHEET"
 
@@ -72,22 +63,47 @@ def _DisplayMode(Config: MMConfig) -> str:
     return "VISUAL_STACK"
 
 
-def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, SectionTitle: str | None = None, StartNumber: int = 1, TotalSections: int = 1) -> list[dict]:
-    ResolvedConceptFamily = ResolveMmConceptFamily(Config.ConceptFamily, SectionTitle or Config.DpsTitle, Config.LessonTitle)
-    if ResolvedConceptFamily != Config.ConceptFamily:
-        Config.ConceptFamily = ResolvedConceptFamily
-        Config.OperationFocus = OperationFocusForConcept(ResolvedConceptFamily)
 
+def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMetadata: dict | None) -> str:
+    OriginalTitle = SectionTitle or Config.DpsTitle
+    Metadata = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
+
+    # Do not rename answer-position / find-position sections. These have their
+    # own workbook meaning and must remain exactly as mapped in the stable DPS
+    # section structure.
+    if _IsAnswerPositionConcept(Config):
+        return OriginalTitle
+
+    if Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION":
+        LeftDigits = Metadata.get("left_digits")
+        RightDigits = Metadata.get("right_digits")
+        if LeftDigits and RightDigits:
+            return f"Multiplication {LeftDigits}D × {RightDigits}D"
+        return "Multiplication"
+
+    if Config.ConceptFamily == "WHOLE_NUMBER_DIVISION":
+        DividendDigits = Metadata.get("dividend_digits")
+        DivisorDigits = Metadata.get("divisor_digits")
+        if DividendDigits and DivisorDigits:
+            return f"Division {DividendDigits}D ÷ {DivisorDigits}D"
+        return "Division"
+
+    if Config.ConceptFamily == "DECIMAL_MULTIPLICATION":
+        return "Decimal Multiplication"
+
+    if Config.ConceptFamily == "DECIMAL_DIVISION":
+        return "Decimal Division"
+
+    return OriginalTitle
+
+def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, SectionTitle: str | None = None, StartNumber: int = 1, TotalSections: int = 1) -> list[dict]:
     if not IsPackage1Supported(Config.ConceptFamily):
         raise ValueError(f"Master Module generator does not support concept: {Config.ConceptFamily}")
 
     Questions: list[dict] = []
     Seen: set[tuple[str, ...]] = set()
 
-    RequestedQuestionCount = int(Config.QuestionCount or 10)
-    if Config.ConceptFamily in {"SKILL_STACKER", "CONCEPT_DRILL"}:
-        RequestedQuestionCount = 5
-    QuestionCount = min(max(RequestedQuestionCount, 1), 30)
+    QuestionCount = min(max(int(Config.QuestionCount or 10), 1), 30)
     for SectionQuestionNumber in range(1, QuestionCount + 1):
         GlobalQuestionNumber = StartNumber + SectionQuestionNumber - 1
         QuestionSeed = f"{Config.Seed}-MM-S{SectionNumber}-Q{SectionQuestionNumber}"
@@ -113,10 +129,11 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
             Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = Accepted
 
         CorrectDisplay = _Display(CorrectAnswer)
-        AllowNegativeOptions = Config.ConceptFamily in {"INTEGERS", "BORROWING_NEGATIVE", "BORROWING_MIXED"} or CorrectAnswer < 0
+        AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
         Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         QuestionText = ExtraMetadata.get("question_text") if isinstance(ExtraMetadata, dict) else None
+        DisplaySectionTitle = _NormalisedSectionTitle(Config, SectionTitle, ExtraMetadata)
         QuestionPayload = {
             "question_number": GlobalQuestionNumber,
             "display_type": _DisplayMode(Config),
@@ -136,7 +153,8 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
                 "lesson_title": Config.LessonTitle,
                 "dps_title": Config.DpsTitle,
                 "section_number": SectionNumber,
-                "section_title": SectionTitle or Config.DpsTitle,
+                "section_title": DisplaySectionTitle,
+                "source_section_title": SectionTitle or Config.DpsTitle,
                 "section_question_number": SectionQuestionNumber,
                 "section_question_count": QuestionCount,
                 "dps_total_sections": TotalSections,
@@ -166,8 +184,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
         TotalSections = len(SectionDefinitions)
         for Index, Section in enumerate(SectionDefinitions, start=1):
             SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or Config.DpsTitle)
-            RawSectionConcept = str(Section.get("conceptFamily") or Config.ConceptFamily)
-            SectionConcept = ResolveMmConceptFamily(RawSectionConcept, SectionTitle, Config.LessonTitle)
+            SectionConcept = str(Section.get("conceptFamily") or Config.ConceptFamily)
             SectionCount = int(Section.get("questionCount") or 10)
             SectionConfig = MMConfig(
                 ModuleCode=Config.ModuleCode,
@@ -186,7 +203,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
             )
             SectionQuestions = _GenerateSingleSectionQuestionSet(SectionConfig, Index, SectionTitle, StartNumber, TotalSections)
             Questions.extend(SectionQuestions)
-            StartNumber += len(SectionQuestions)
+            StartNumber += SectionCount
         return rebalance_correct_option_distribution(Questions)
 
     return rebalance_correct_option_distribution(_GenerateSingleSectionQuestionSet(Config))
