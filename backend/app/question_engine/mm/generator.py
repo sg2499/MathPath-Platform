@@ -14,34 +14,82 @@ def _Display(Value: Decimal) -> int | float:
     return float(Value.normalize())
 
 
-def _IsAnswerPositionConcept(Config: MMConfig) -> bool:
-    TitleText = f" {Config.DpsTitle} {Config.LessonTitle} ".upper()
+def _ConceptTitleText(Config: MMConfig, SectionTitle: str | None = None) -> str:
+    return f" {Config.DpsTitle} {Config.LessonTitle} {SectionTitle or ''} ".upper()
+
+
+def _IsAnswerPositionConcept(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    TitleText = _ConceptTitleText(Config, SectionTitle)
     return any(
         Marker in TitleText
-        for Marker in ("ANSWER POSITION", "FIND POSITION", "ANSWER PLACEMENT", "NATURAL NUMBER POSITION")
+        for Marker in (
+            "ANSWER POSITION",
+            "FIND POSITION",
+            "ANSWER PLACEMENT",
+            "GIVEN POSITION",
+            "WRITE THE NUMBER",
+            "FIRST NATURAL NUMBER",
+            "NATURAL NUMBER POSITION",
+        )
     )
 
 
-def _DisplayMode(Config: MMConfig) -> str:
+def _IsNormalMultiplicationDivisionSection(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    if _IsAnswerPositionConcept(Config, SectionTitle):
+        return False
+
+    TitleText = _ConceptTitleText(Config, SectionTitle)
+    BlockedMarkers = (
+        "SOLVE EQUATION",
+        "EQUATION PRACTICE",
+        "BODMAS",
+        "ADD-LESS",
+        "ADD LESS",
+        "INTEGERS",
+        "INTEGER",
+        "SKILL STACKER",
+        "CONCEPT DRILL",
+        "SQUARE",
+        "CUBE",
+        "ROOT",
+        "PROFIT",
+        "LOSS",
+        "SIMPLE INTEREST",
+        "PERCENT",
+        "PERCENTAGE",
+    )
+
+    if any(Marker in TitleText for Marker in BlockedMarkers):
+        # Dedicated normal multiplication/division sections can still contain the
+        # pattern text directly; mixed workbook sections with the blocked labels
+        # must keep their existing display modes.
+        ExplicitPatternOnly = any(Marker in TitleText for Marker in (" X ", " × ", " DIVISION", " ÷ "))
+        if not ExplicitPatternOnly:
+            return False
+
+    return True
+
+
+def _DisplayMode(Config: MMConfig, SectionTitle: str | None = None) -> str:
     ConceptFamily = Config.ConceptFamily
 
     if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
         return "VISUAL_STACK"
 
     # Normal multiplication/division should display as a single horizontal
-    # expression, for example "453 × 675 = ?" or "450 ÷ 9 = ?".
-    # This is intentionally a display-mode-only change; operands, section maps,
-    # question counts, and concept routing remain untouched.
+    # expression, for example "453 × 675 = ?" or "450 ÷ 9 = ?". The guard above
+    # prevents answer-position, solve-equation, and other workbook-specific
+    # sections from being pulled into this display rule.
     if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"}:
-        return "EXPRESSION_WORKSHEET"
+        return "EXPRESSION_WORKSHEET" if _IsNormalMultiplicationDivisionSection(Config, SectionTitle) else "VISUAL_STACK"
 
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-        if _IsAnswerPositionConcept(Config):
+        if _IsAnswerPositionConcept(Config, SectionTitle):
             return "ANSWER_POSITION"
-        return "EXPRESSION_WORKSHEET"
+        return "EXPRESSION_WORKSHEET" if _IsNormalMultiplicationDivisionSection(Config, SectionTitle) else "VISUAL_STACK"
 
     if ConceptFamily in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
-        if _IsAnswerPositionConcept(Config):
+        if _IsAnswerPositionConcept(Config, SectionTitle):
             return "ANSWER_POSITION"
         return "EXPRESSION_WORKSHEET"
 
@@ -71,7 +119,7 @@ def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMet
     # Do not rename answer-position / find-position sections. These have their
     # own workbook meaning and must remain exactly as mapped in the stable DPS
     # section structure.
-    if _IsAnswerPositionConcept(Config):
+    if _IsAnswerPositionConcept(Config, SectionTitle):
         return OriginalTitle
 
     if Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION":
@@ -136,7 +184,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
         DisplaySectionTitle = _NormalisedSectionTitle(Config, SectionTitle, ExtraMetadata)
         QuestionPayload = {
             "question_number": GlobalQuestionNumber,
-            "display_type": _DisplayMode(Config),
+            "display_type": _DisplayMode(Config, SectionTitle),
             "operands": Operands,
             "operators": Operators,
             "correct_answer": CorrectDisplay,
