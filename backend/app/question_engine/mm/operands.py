@@ -289,110 +289,229 @@ def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) 
     return Values, Operators, RunningTotal, {"row_count": RowCount, "integer_range": MaxAbs, "allow_negative_answer": True}
 
 
-def _BodmasRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
-    Band = _LessonBand(Config)
-    BaseRanges = {
-        "WARM_UP": (2, 12),
-        "STANDARD": (3, 24),
-        "MIXED_STEP": (6, 48),
-        "ADVANCED": (10, 96),
-        "CHALLENGE": (20, 180),
-    }
-    Minimum, Maximum = BaseRanges.get(Stage, (2, 24))
-    Scale = [1, 1, 2, 3, 4, 6][max(0, min(5, Band - 1))]
-    return Minimum, Maximum * Scale
 
+def _BodmasBand(Config: MMConfig) -> int:
+    """Workbook BODMAS progression band by lesson.
 
-def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
-    """Generate workbook-style BODMAS expressions with exact precedence.
-
-    BODMAS must remain a horizontal expression concept. It must not fall back
-    to generic multiplication/division routing, and its stored answer must be
-    derived from the exact displayed expression. Difficulty progresses from
-    short multiplication-first expressions to mixed add/subtract/multiply/divide
-    expressions with exact division results.
+    The Master Module workbook does not use one generic BODMAS pattern. The
+    expression structure becomes richer as lessons progress, so the generator
+    must be lesson-aware and must never fall back to tiny/random expressions.
     """
-    Stage = DifficultyStage(QuestionNumber - 1)
-    Minimum, Maximum = _BodmasRange(Config, Stage)
-    PatternSequence = {
-        "WARM_UP": ["ADD_MUL", "SUB_MUL"],
-        "STANDARD": ["ADD_MUL_SUB", "MUL_ADD_DIV"],
-        "MIXED_STEP": ["ADD_MUL_SUB_DIV", "SUB_ADD_MUL_DIV"],
-        "ADVANCED": ["MUL_ADD_DIV_SUB", "ADD_MUL_SUB_DIV"],
-        "CHALLENGE": ["SUB_ADD_MUL_DIV", "MUL_ADD_DIV_SUB"],
-    }.get(Stage, ["ADD_MUL_SUB"])
-    Pattern = PatternSequence[(QuestionNumber - 1) % len(PatternSequence)]
+    LessonNumber = int(Config.LessonNumber or 1)
+    if LessonNumber <= 6:
+        return 1
+    if LessonNumber <= 11:
+        return 2
+    if LessonNumber <= 16:
+        return 3
+    if LessonNumber <= 19:
+        return 4
+    if LessonNumber <= 22:
+        return 5
+    return 6
 
-    SmallLimit = 9 if Stage in {"WARM_UP", "STANDARD"} else 18
-    MidLimit = 15 if Stage in {"WARM_UP", "STANDARD"} else 35
 
-    if Pattern == "ADD_MUL":
-        A = Rng.randint(Minimum, Maximum)
-        B = Rng.randint(2, SmallLimit)
-        C = Rng.randint(2, SmallLimit)
-        CorrectAnswer = Decimal(A + (B * C))
-        return [A, B, C], ["", "+", "×"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
+def _BodmasDisplayNumber(Value: Decimal) -> int | float:
+    return _AsDisplayNumber(_Quantize(Value, 2))
 
-    if Pattern == "SUB_MUL":
-        B = Rng.randint(2, SmallLimit)
-        C = Rng.randint(2, SmallLimit)
-        Product = B * C
-        A = Rng.randint(Product + 1, Product + Maximum)
-        CorrectAnswer = Decimal(A - Product)
-        return [A, B, C], ["", "-", "×"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
 
-    if Pattern == "ADD_MUL_SUB":
-        A = Rng.randint(Minimum, Maximum)
-        B = Rng.randint(2, SmallLimit)
-        C = Rng.randint(2, SmallLimit)
-        Product = B * C
-        D = Rng.randint(1, max(1, A + Product - 1))
-        CorrectAnswer = Decimal(A + Product - D)
-        return [A, B, C, D], ["", "+", "×", "-"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
+def _PerfectSquareRoot(Rng: random.Random, MinimumRoot: int, MaximumRoot: int) -> tuple[int, int]:
+    Root = Rng.randint(MinimumRoot, MaximumRoot)
+    return Root * Root, Root
 
-    if Pattern == "MUL_ADD_DIV":
-        A = Rng.randint(2, MidLimit)
-        B = Rng.randint(2, SmallLimit)
-        Divisor = Rng.randint(2, SmallLimit)
-        Quotient = Rng.randint(2, max(3, Maximum // 4))
+
+def _PerfectCubeRoot(Rng: random.Random, MinimumRoot: int, MaximumRoot: int) -> tuple[int, int]:
+    Root = Rng.randint(MinimumRoot, MaximumRoot)
+    return Root * Root * Root, Root
+
+
+def _PercentTerm(Rng: random.Random, MinimumBase: int, MaximumBase: int, PercentChoices: list[int]) -> tuple[str, Decimal]:
+    Percent = Rng.choice(PercentChoices)
+    BaseUnit = 100 // __import__('math').gcd(100, Percent)
+    BaseMultiplierMinimum = max(1, MinimumBase // BaseUnit)
+    BaseMultiplierMaximum = max(BaseMultiplierMinimum + 1, MaximumBase // BaseUnit)
+    Base = BaseUnit * Rng.randint(BaseMultiplierMinimum, BaseMultiplierMaximum)
+    Value = Decimal(Base * Percent) / Decimal(100)
+    return f"{Base} × {Percent}%", Value
+
+
+def _PositiveAdjustment(Expression: str, Value: Decimal, Rng: random.Random, Minimum: int = 25, Maximum: int = 950) -> tuple[str, Decimal]:
+    if Value >= 0:
+        return Expression, Value
+    Adjustment = Decimal(abs(int(Value)) + Rng.randint(Minimum, Maximum))
+    return f"{Expression} + {int(Adjustment)}", Value + Adjustment
+
+
+def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Generate lesson-aware workbook-style BODMAS expressions.
+
+    This intentionally mirrors the workbook progression:
+    - Early BODMAS: large add/subtract with multiplication and exact division.
+    - Middle BODMAS: brackets and powers.
+    - Later BODMAS: percentages, square roots, cube roots, and larger mixed
+      expressions.
+
+    The returned question is expression-text driven so the frontend always
+    renders it horizontally, exactly like the workbook rows. The stored answer
+    is calculated from the same generated terms before the question is accepted.
+    """
+    Band = _BodmasBand(Config)
+    PatternIndex = (QuestionNumber - 1) % 5
+
+    if Band == 1:
+        # Lesson 5/6 style: 8687 - 243 × 7 - 7720 ÷ 8 + 315
+        Multiplier = Rng.randint(2, 9)
+        Multiplicand = Rng.randint(120, 980)
+        Divisor = Rng.randint(4, 72)
+        Quotient = Rng.randint(25, 1100)
         Dividend = Divisor * Quotient
-        CorrectAnswer = Decimal((A * B) + Quotient)
-        return [A, B, Dividend, Divisor], ["", "×", "+", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
+        Lead = Rng.randint(700, 9500)
+        Tail = Rng.randint(100, 900)
+        Operators = ["-", "+", "-"][PatternIndex % 3]
+        if Operators == "-":
+            Expression = f"{Lead} - {Multiplicand} × {Multiplier} - {Dividend} ÷ {Divisor} + {Tail}"
+            Answer = Decimal(Lead) - Decimal(Multiplicand * Multiplier) - Decimal(Quotient) + Decimal(Tail)
+        elif Operators == "+":
+            Expression = f"{Lead} + {Multiplicand} × {Multiplier} - {Dividend} ÷ {Divisor} + {Tail}"
+            Answer = Decimal(Lead) + Decimal(Multiplicand * Multiplier) - Decimal(Quotient) + Decimal(Tail)
+        else:
+            Expression = f"{Lead} - {Multiplicand} × {Multiplier} + {Dividend} ÷ {Divisor} + {Tail}"
+            Answer = Decimal(Lead) - Decimal(Multiplicand * Multiplier) + Decimal(Quotient) + Decimal(Tail)
+        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
 
-    if Pattern == "ADD_MUL_SUB_DIV":
-        A = Rng.randint(Minimum, Maximum)
-        B = Rng.randint(2, SmallLimit)
-        C = Rng.randint(2, SmallLimit)
-        Divisor = Rng.randint(2, SmallLimit)
-        Quotient = Rng.randint(1, max(2, Maximum // 5))
+    elif Band == 2:
+        # Lesson 11 style: powers/brackets begin, still mostly whole-number BODMAS.
+        if PatternIndex == 0:
+            A, B = Rng.randint(180, 620), Rng.randint(12, 32)
+            Divisor, Quotient = Rng.randint(12, 48), Rng.randint(30, 220)
+            Dividend = Divisor * Quotient
+            Tail = Rng.randint(20, 95)
+            Expression = f"({A} × {B}) + ({Dividend} ÷ {Divisor}) - {Tail}"
+            Answer = Decimal(A * B + Quotient - Tail)
+        elif PatternIndex == 1:
+            SquareBase = Rng.randint(18, 55)
+            M1, M2 = Rng.randint(120, 850), Rng.randint(4, 9)
+            Divisor, Quotient = Rng.randint(14, 60), Rng.randint(80, 300)
+            Dividend = Divisor * Quotient
+            Tail = Rng.randint(300, 900)
+            Expression = f"({SquareBase})² - {M1} × {M2} - {Dividend} ÷ {Divisor} + {Tail}"
+            Answer = Decimal(SquareBase**2 - M1 * M2 - Quotient + Tail)
+        else:
+            Lead = Rng.randint(3500, 9500)
+            M1, M2 = Rng.randint(25, 95), Rng.randint(12, 96)
+            Divisor, Quotient = Rng.randint(9, 65), Rng.randint(70, 400)
+            Dividend = Divisor * Quotient
+            Tail = Rng.randint(250, 1100)
+            Expression = f"{Lead} + {M1} × {M2} - {Dividend} ÷ {Divisor} + {Tail}"
+            Answer = Decimal(Lead + M1 * M2 - Quotient + Tail)
+        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
+
+    elif Band == 3:
+        # Lesson 16 style: brackets, cubes/squares and percentage-of terms.
+        if PatternIndex == 0:
+            FirstDivisor = Rng.randint(25, 75)
+            FirstQuotient = Rng.randint(40, 180)
+            FirstDividendLeft = FirstDivisor * FirstQuotient
+            Divisor, Quotient = Rng.randint(20, 60), Rng.randint(80, 250)
+            Dividend = Divisor * Quotient
+            SquareBase = Rng.randint(18, 55)
+            Expression = f"({FirstDividendLeft} ÷ {FirstDivisor}) + ({Dividend} ÷ {Divisor}) + {SquareBase}²"
+            Answer = Decimal(FirstQuotient + Quotient + SquareBase**2)
+        elif PatternIndex in {1, 2}:
+            A, B = Rng.randint(120, 620), Rng.randint(10, 25)
+            CubeBase = Rng.randint(9, 28)
+            Divisor, Quotient = Rng.randint(18, 55), Rng.randint(70, 260)
+            Dividend = Divisor * Quotient
+            Expression = f"({A} × {B}) + {Dividend} ÷ {Divisor} + {CubeBase}³"
+            Answer = Decimal(A * B + Quotient + CubeBase**3)
+        else:
+            PercentText, PercentValue = _PercentTerm(Rng, 1500, 6000, [15, 20, 25, 30, 40, 50, 70, 85])
+            A, B = Rng.randint(280, 520), Rng.randint(12, 22)
+            SquareBase = Rng.randint(14, 35)
+            Tail = Rng.randint(300, 1200)
+            Expression = f"({A} × {B}) - ({PercentText}) + {SquareBase}² + {Tail}"
+            Answer = Decimal(A * B) - PercentValue + Decimal(SquareBase**2 + Tail)
+        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
+
+    elif Band == 4:
+        # Lesson 19 style: division + multiplication percentage + cube root.
+        Divisor = Rng.randint(30, 90)
+        Quotient = Rng.randint(40, 120)
         Dividend = Divisor * Quotient
-        Product = B * C
-        if A + Product <= Quotient:
-            A += Quotient + Rng.randint(1, Maximum)
-        CorrectAnswer = Decimal(A + Product - Quotient)
-        return [A, B, C, Dividend, Divisor], ["", "+", "×", "-", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
+        M1 = Rng.randint(250, 950)
+        Percent = Rng.choice([2, 3, 4, 5, 6, 8, 10])
+        CubeValue, CubeRoot = _PerfectCubeRoot(Rng, 35, 95)
+        Sign = "+" if PatternIndex != 2 else "-"
+        Expression = f"{Dividend} ÷ {Divisor} + {M1} × {Percent}% {Sign} ∛{CubeValue}"
+        Answer = Decimal(Quotient) + (Decimal(M1 * Percent) / Decimal(100)) + (Decimal(CubeRoot) if Sign == "+" else -Decimal(CubeRoot))
+        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
 
-    if Pattern == "SUB_ADD_MUL_DIV":
-        B = Rng.randint(1, Maximum)
-        C = Rng.randint(2, SmallLimit)
-        Divisor = Rng.randint(2, SmallLimit)
-        Quotient = Rng.randint(2, max(3, Maximum // 4))
-        D = Divisor * Quotient
-        ProductDivision = (C * D) // Divisor
-        A = B + Rng.randint(1, Maximum)
-        CorrectAnswer = Decimal(A - B + ProductDivision)
-        return [A, B, C, D, Divisor], ["", "-", "+", "×", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
+    elif Band == 5:
+        # Lesson 21/22 style: brackets, percentages, squares and wider numbers.
+        if PatternIndex in {0, 1}:
+            PercentText, PercentValue = _PercentTerm(Rng, 3000, 9000, [25, 30, 35, 40, 50, 70, 85])
+            Divisor = Rng.choice([10, 12, 15, 20, 25, 30])
+            SquareBase = Rng.randint(12, 28)
+            Lead = Rng.randrange(1500, 3500, 25)
+            Tail = Rng.randrange(800, 2200, 25)
+            Expression = f"{Lead} + ({PercentText}) ÷ {Divisor} - {SquareBase}² + {Tail}"
+            Answer = Decimal(Lead) + (PercentValue / Decimal(Divisor)) - Decimal(SquareBase**2) + Decimal(Tail)
+        elif PatternIndex == 2:
+            A, B = Rng.randint(250, 620), Rng.randint(12, 28)
+            Divisor, Quotient = Rng.randint(10, 42), Rng.randint(120, 420)
+            Dividend = Divisor * Quotient
+            CubeBase = Rng.randint(12, 28)
+            Tail = Rng.randint(900, 2200)
+            Expression = f"({A} × {B}) + {Dividend} ÷ {Divisor} + {CubeBase}³ - {Tail}"
+            Answer = Decimal(A * B + Quotient + CubeBase**3 - Tail)
+        else:
+            Lead = Rng.randint(2500, 9500)
+            M1, M2 = Rng.randint(25, 90), Rng.randint(25, 75)
+            Divisor, Quotient = Rng.randint(2, 20), Rng.randint(250, 900)
+            Dividend = Divisor * Quotient
+            Tail = Rng.randint(300, 950)
+            Expression = f"{Lead} - {M1} × {M2} + {Dividend} ÷ {Divisor} + {Tail}"
+            Answer = Decimal(Lead - M1 * M2 + Quotient + Tail)
+        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
 
-    # Advanced mixed pattern: A × B + C ÷ D - E
-    A = Rng.randint(2, MidLimit)
-    B = Rng.randint(2, SmallLimit)
-    Divisor = Rng.randint(2, SmallLimit)
-    Quotient = Rng.randint(2, max(3, Maximum // 4))
-    Dividend = Divisor * Quotient
-    Product = A * B
-    E = Rng.randint(1, max(1, Product + Quotient - 1))
-    CorrectAnswer = Decimal(Product + Quotient - E)
-    return [A, B, Dividend, Divisor, E], ["", "×", "+", "÷", "-"], CorrectAnswer, {"bodmas_pattern": Pattern, "bodmas_mode": "ORDER_OF_OPERATIONS"}
+    else:
+        # Lesson 23+ style: roots/powers plus large multiplication/division terms.
+        if PatternIndex in {0, 1}:
+            CubeValue, CubeRoot = _PerfectCubeRoot(Rng, 45, 98)
+            SquareBase = Rng.randint(45, 99)
+            Divisor, Quotient = Rng.randint(20, 95), Rng.randint(40, 140)
+            Dividend = Divisor * Quotient
+            M1, M2 = Rng.randint(150, 950), Rng.randint(10, 90)
+            Subtract = Rng.randint(350, 990)
+            Tail = Rng.randint(150, 950)
+            Expression = f"∛{CubeValue} + {SquareBase}² - {Dividend} ÷ {Divisor} + {M1} × {M2} - {Subtract} + {Tail}"
+            Answer = Decimal(CubeRoot + SquareBase**2 - Quotient + M1 * M2 - Subtract + Tail)
+        elif PatternIndex in {2, 3}:
+            M1, M2 = Rng.randint(200, 900), Rng.randint(20, 90)
+            SquareValue, SquareRoot = _PerfectSquareRoot(Rng, 55, 99)
+            Divisor, Quotient = Rng.randint(20, 95), Rng.randint(75, 240)
+            Dividend = Divisor * Quotient
+            Add = Rng.randint(120, 950)
+            Subtract = Rng.randint(120, 950)
+            Expression = f"{M1} × {M2} + √{SquareValue} - {Dividend} ÷ {Divisor} + {Add} - {Subtract}"
+            Answer = Decimal(M1 * M2 + SquareRoot - Quotient + Add - Subtract)
+        else:
+            Lead = Rng.randint(1000, 2500)
+            PercentText, PercentValue = _PercentTerm(Rng, 2000, 9000, [10, 15, 20, 25, 30, 35, 40, 50])
+            Divisor = Rng.choice([10, 12, 15, 20, 25, 30])
+            SquareBase = Rng.randint(12, 30)
+            Tail = Rng.randint(800, 2200)
+            Expression = f"{Lead} + ({PercentText}) ÷ {Divisor} - {SquareBase}² + {Tail}"
+            Answer = Decimal(Lead) + (PercentValue / Decimal(Divisor)) - Decimal(SquareBase**2) + Decimal(Tail)
+        Expression, Answer = _PositiveAdjustment(Expression, Answer, Rng)
+
+    CorrectAnswer = _Quantize(Answer, 2)
+    return [Expression], [""], CorrectAnswer, {
+        "question_text": Expression,
+        "bodmas_pattern": f"WORKBOOK_BAND_{Band}",
+        "bodmas_mode": "LESSON_AWARE_WORKBOOK_EXPRESSION",
+        "lesson_band": Band,
+    }
 
 
 def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
