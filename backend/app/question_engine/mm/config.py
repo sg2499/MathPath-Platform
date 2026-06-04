@@ -57,6 +57,7 @@ PACKAGE_5_CONCEPTS = {
     "SKILL_STACKER",
     "CONCEPT_DRILL",
     "SOLVE_EQUATION",
+    "NATURAL_NUMBER_POSITION",
 }
 
 SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS
@@ -85,6 +86,8 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "CONCEPT_DRILL"
     if "skill stacker" in TitleText:
         return "SKILL_STACKER"
+    if "find position" in TitleText or "natural number position" in TitleText or "first natural number" in TitleText or "number position" in TitleText:
+        return "NATURAL_NUMBER_POSITION"
     if "solve equation" in TitleText or "equation practice" in TitleText:
         return "SOLVE_EQUATION"
 
@@ -126,7 +129,7 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     )
 
     HasDecimal = "decimal" in Text
-    HasAddLess = "add less" in Text or ("add" in Text and "less" in Text)
+    HasAddLess = "add less" in Text or "borrowing" in Text or ("add" in Text and "less" in Text)
     HasMultiplication = "multiplication" in Text or " x " in f" {Text} " or "mixed pattern" in Text
     HasDivision = "division" in Text
     HasInteger = "integer" in Text or "integers" in Text
@@ -140,6 +143,7 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasSkillStacker = "skill stacker" in Text
     HasConceptDrill = "concept drill" in Text
     HasSolveEquation = "solve equation" in Text or "equation practice" in Text
+    HasNaturalNumberPosition = "find position" in Text or "natural number position" in Text or "first natural number" in Text or "number position" in Text
     HasSimpleInterest = "simple interest" in Text
     HasProfit = "profit" in Text
     HasLoss = "loss" in Text
@@ -151,6 +155,8 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "SKILL_STACKER"
     if HasConceptDrill:
         return "CONCEPT_DRILL"
+    if HasNaturalNumberPosition:
+        return "NATURAL_NUMBER_POSITION"
     if HasSolveEquation:
         return "SOLVE_EQUATION"
 
@@ -244,6 +250,7 @@ SECTION_CONCEPT_ALIASES = {
     "SKILL_STACKER": "SKILL_STACKER",
     "CONCEPT_DRILL": "CONCEPT_DRILL",
     "SOLVE_EQUATION": "SOLVE_EQUATION",
+    "NATURAL_NUMBER_POSITION": "NATURAL_NUMBER_POSITION",
 }
 
 
@@ -272,6 +279,8 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
         return "REPEATED_SUBTRACTION"
     if ConceptFamily == "SOLVE_EQUATION":
         return "EQUATION"
+    if ConceptFamily == "NATURAL_NUMBER_POSITION":
+        return "NUMBER_POSITION"
     return "MIXED"
 
 

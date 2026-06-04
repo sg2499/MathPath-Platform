@@ -6,7 +6,7 @@ from app.question_engine.mm.config import MMConfig, IsPackage1Supported
 
 ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
-PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "SOLVE_EQUATION"}
+PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "SOLVE_EQUATION", "NATURAL_NUMBER_POSITION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 
 
@@ -66,7 +66,10 @@ def ExpectedMmAnswer(Config: MMConfig, Operands: list[int | float | str], Operat
 
     try:
         if Config.ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
+            # Add/Less and Integers are displayed as signed rows in the visual stack.
+            # The stored operands are therefore the exact displayed values to sum.
             return sum(_DecimalValue(Value) for Value in Operands)
+
 
         if Config.ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION"}:
             return _DecimalValue(Operands[0]) * _DecimalValue(Operands[1])
@@ -281,6 +284,10 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
     if Config.ConceptFamily == "SOLVE_EQUATION":
         ExpectedAnswer = ExpectedMmAnswer(Config, Operands, Operators, Metadata)
         return len(Operands) == 1 and len(Operators) == 1 and bool((Metadata or {}).get("question_text")) and ExpectedAnswer is not None and _AnswersMatch(CorrectAnswer, ExpectedAnswer)
+
+    if Config.ConceptFamily == "NATURAL_NUMBER_POSITION":
+        ExpectedAnswer = ExpectedMmAnswer(Config, Operands, Operators, Metadata)
+        return len(Operands) == 2 and len(Operators) == 2 and bool((Metadata or {}).get("question_text")) and ExpectedAnswer is not None and _AnswersMatch(CorrectAnswer, ExpectedAnswer)
 
     return False
 
