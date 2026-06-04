@@ -2,7 +2,7 @@ import random
 from decimal import Decimal
 
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
-from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept
+from app.question_engine.mm.config import MMConfig, ClassifyMmConcept, IsPackage1Supported, OperationFocusForConcept
 from app.question_engine.mm.distractors import GenerateMmDistractors
 from app.question_engine.mm.operands import DifficultyStage, GeneratePackage1Question
 from app.question_engine.mm.validators import ValidateMmQuestion
@@ -267,6 +267,8 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
         for Index, Section in enumerate(SectionDefinitions, start=1):
             SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or Config.DpsTitle)
             SectionConcept = str(Section.get("conceptFamily") or Config.ConceptFamily)
+            if not IsPackage1Supported(SectionConcept):
+                SectionConcept = ClassifyMmConcept(SectionTitle, Config.LessonTitle)
             SectionCount = int(Section.get("questionCount") or 10)
             SectionConfig = MMConfig(
                 ModuleCode=Config.ModuleCode,
