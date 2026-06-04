@@ -176,6 +176,43 @@ function CompactTwoColumnQuestion({
   );
 }
 
+
+function PositionNumberTableQuestion({
+  operands,
+  operators,
+  questionText,
+}: {
+  operands: Array<number | string>;
+  operators: string[];
+  questionText?: string | null;
+}) {
+  const Labels = operators.length ? operators : ["Position", "Number"];
+
+  return (
+    <div className="mx-auto w-full max-w-md rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+      <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
+        {questionText?.trim() || "Write the Number from the Given Position"}
+      </p>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+        <div className="grid grid-cols-2 bg-slate-100 text-center text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
+          <div className="border-r border-slate-200 px-4 py-3 dark:border-slate-700">{Labels[0] || "Position"}</div>
+          <div className="px-4 py-3">{Labels[1] || "Number"}</div>
+        </div>
+        <div className="grid grid-cols-2 text-center font-mono text-2xl font-black sm:text-3xl">
+          <div className="border-r border-slate-200 px-4 py-5 dark:border-slate-700">{FormatValue(operands[0] ?? "?")}</div>
+          <div className="px-4 py-5">{FormatValue(operands[1] ?? "?")}</div>
+        </div>
+      </div>
+      <div className="mt-4 text-center text-2xl font-black text-blue-700 dark:text-cyan-300">?</div>
+    </div>
+  );
+}
+
+function IsPositionNumberTable(operators: string[]): boolean {
+  const Labels = operators.map((Operator) => String(Operator || "").trim().toUpperCase());
+  return Labels[0] === "POSITION" && Labels[1] === "NUMBER";
+}
+
 export function MathQuestionDisplay({ operands, operators, displayType, questionText }: MathQuestionDisplayProps) {
   const Operands = operands ?? [];
   const Operators = operators ?? [];
@@ -186,13 +223,8 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
   }
 
   if (Mode === "ANSWER_POSITION") {
-    const IsWriteNumberFromPositionTable =
-      Operands.length === 2 &&
-      String(Operators[0] || "").toLowerCase() === "position" &&
-      String(Operators[1] || "").toLowerCase() === "number";
-
-    if (IsWriteNumberFromPositionTable) {
-      return <CompactTwoColumnQuestion operands={Operands} operators={Operators} questionText={questionText || "Write the Number from the Given Position"} />;
+    if (IsPositionNumberTable(Operators)) {
+      return <PositionNumberTableQuestion operands={Operands} operators={Operators} questionText={questionText} />;
     }
 
     return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="ANSWER_POSITION" />;
