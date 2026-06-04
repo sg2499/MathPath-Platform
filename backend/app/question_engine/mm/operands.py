@@ -797,6 +797,28 @@ def _PowerOfTenDecimal(Position: int) -> Decimal:
     return Decimal(1) / (Decimal(10) ** abs(Position))
 
 
+def _WorkbookPositionAnswer(NumberValue: int, Position: int) -> Decimal:
+    """Return workbook answer for Write Number from the Given Position.
+
+    Workbook rule:
+    - Place the complete number so its first digit starts at the requested
+      position on the place-value scale.
+    - Example: position -2 with number 56 => 0.0056.
+    - Formula: number × 10^(position - digit_count(number)).
+    """
+    DigitCount = len(str(abs(int(NumberValue))))
+    Exponent = int(Position) - DigitCount
+    if Exponent >= 0:
+        return Decimal(NumberValue) * (Decimal(10) ** Exponent)
+    return Decimal(NumberValue) / (Decimal(10) ** abs(Exponent))
+
+
+def _WorkbookPositionDecimalPlaces(NumberValue: int, Position: int) -> int:
+    DigitCount = len(str(abs(int(NumberValue))))
+    Exponent = int(Position) - DigitCount
+    return abs(Exponent) if Exponent < 0 else 0
+
+
 def _WorkbookPositionChoices(Config: MMConfig, Stage: str) -> list[int]:
     Band = _LessonBand(Config)
     if Band <= 2:
@@ -844,8 +866,8 @@ def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber:
             Position = Rng.choice(PositionChoices)
 
         NumberValue = _WorkbookPositionNumber(Config, Rng, Stage)
-        CorrectAnswer = Decimal(NumberValue) * _PowerOfTenDecimal(Position)
-        CorrectAnswer = _Quantize(CorrectAnswer, abs(Position) if Position < 0 else 0)
+        CorrectAnswer = _WorkbookPositionAnswer(NumberValue, Position)
+        CorrectAnswer = _Quantize(CorrectAnswer, _WorkbookPositionDecimalPlaces(NumberValue, Position))
 
         return [Position, NumberValue], ["Position", "Number"], CorrectAnswer, {
             "question_text": "Write the Number from the Given Position",
