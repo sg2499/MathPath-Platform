@@ -323,6 +323,45 @@ def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: 
         "answer_value": str(XValue),
     }
 
+
+def GenerateNaturalNumberPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Generate a safe MM find-position item.
+
+    This concept is used for workbook sections such as "Find Position",
+    "Natural Number Position", and "Find the Position of the First
+    Natural Number". The generated display is a horizontal expression, and
+    the answer is always derived directly from the generated operands.
+    """
+    Stage = DifficultyStage(QuestionNumber - 1)
+    Band = _LessonBand(Config)
+    Scale = max(1, Band)
+    Pattern = QuestionNumber % 3
+
+    if Pattern == 1:
+        A = Decimal(str(round(Rng.uniform(0.001, 9.999), 4)))
+        B = Decimal(str(Rng.choice([10, 100, 1000])))
+        Answer = A * B
+        Operator = "×"
+    elif Pattern == 2:
+        B = Decimal(str(Rng.choice([10, 100, 1000])))
+        Answer = Decimal(Rng.randint(1, 999 * Scale)) / Decimal(10)
+        A = Answer * B
+        Operator = "÷"
+    else:
+        A = Decimal(Rng.randint(10, 999 * Scale))
+        B = Decimal(Rng.randint(2, 25 + (Scale * 5)))
+        Answer = A + B
+        Operator = "+"
+
+    Answer = _Quantize(Answer, 6) if Answer != Answer.to_integral_value() else Answer
+    QuestionText = f"{_AsDisplayNumber(A)} {Operator} {_AsDisplayNumber(B)} = ?"
+    return [_AsDisplayNumber(A), _AsDisplayNumber(B)], ["", Operator], Answer, {
+        "question_text": QuestionText,
+        "answer_value": str(Answer),
+        "position_mode": "NATURAL_NUMBER_POSITION",
+        "repair_safe_concept": True,
+    }
+
 def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     MaxValue = {"WARM_UP": 9, "STANDARD": 15, "MIXED_STEP": 25, "ADVANCED": 50, "CHALLENGE": 99}.get(Stage, 15) * _LessonBand(Config)
@@ -800,6 +839,8 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateBodmas(Config, Rng, QuestionNumber)
     if ConceptFamily == "SOLVE_EQUATION":
         return GenerateSolveEquation(Config, Rng, QuestionNumber)
+    if ConceptFamily == "NATURAL_NUMBER_POSITION":
+        return GenerateNaturalNumberPosition(Config, Rng, QuestionNumber)
     if ConceptFamily == "PERCENTAGE_ADD_LESS":
         return GeneratePercentageAddLess(Config, Rng, QuestionNumber)
     if ConceptFamily == "PERCENTAGE_VALUE":
