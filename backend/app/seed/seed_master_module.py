@@ -1,4 +1,5 @@
 import json
+import re
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, Lesson, Level, Module
 from app.question_engine.mm.config import ClassifyMmConcept, OperationFocusForConcept
@@ -219,165 +220,15 @@ DPS_TITLES = {1: {1: 'Decimal Number Add-Less (Visual)',
 # DPS records not present here fall back to a conservative title-derived split.
 # Section map supports Package 5 concepts as dedicated sections wherever they appear in workbook sheets.
 MM_DPS_SECTION_OVERRIDES = {
-    # Lessons 1-2 Excel workbook sheets: each DPS carries multiple workbook sections.
-    (1, 1): [
-        {"sectionTitle": "Decimal Number Add-Less (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_ADD_LESS"},
-        {"sectionTitle": "2D × 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
-        {"sectionTitle": "4D ÷ 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (1, 2): [
-        {"sectionTitle": "Add-Less (Visual)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
-        {"sectionTitle": "2D × 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
-        {"sectionTitle": "4D ÷ 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (1, 3): [
-        {"sectionTitle": "Borrowing Sums with Negative Answers", "questionCount": 10, "conceptFamily": "BORROWING_NEGATIVE"},
-        {"sectionTitle": "3D × 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
-        {"sectionTitle": "4D ÷ 3D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (1, 4): [
-        {"sectionTitle": "Integers", "questionCount": 10, "conceptFamily": "INTEGERS"},
-        {"sectionTitle": "Squares", "questionCount": 10, "conceptFamily": "SQUARES"},
-        {"sectionTitle": "4D ÷ 3D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (1, 5): [
-        {"sectionTitle": "2 Digit Number Add-Less (Fast Visualisation)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
-        {"sectionTitle": "BODMAS (Visual)", "questionCount": 10, "conceptFamily": "BODMAS"},
-    ],
-    (2, 1): [
-        {"sectionTitle": "Decimal Number Add-Less (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_ADD_LESS"},
-        {"sectionTitle": "2D × 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
-        {"sectionTitle": "4D ÷ 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (2, 2): [
-        {"sectionTitle": "Add-Less (Visual)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
-        {"sectionTitle": "2D × 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
-        {"sectionTitle": "4D ÷ 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (2, 3): [
-        {"sectionTitle": "Borrowing Sums with Negative Answers", "questionCount": 10, "conceptFamily": "BORROWING_NEGATIVE"},
-        {"sectionTitle": "3D × 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
-        {"sectionTitle": "5D ÷ 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (2, 4): [
-        {"sectionTitle": "Integers", "questionCount": 10, "conceptFamily": "INTEGERS"},
-        {"sectionTitle": "Squares", "questionCount": 10, "conceptFamily": "SQUARES"},
-        {"sectionTitle": "4D ÷ 3D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (2, 5): [
-        {"sectionTitle": "2 Digit Number Add-Less (Fast Visualisation)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
-        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
-        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "SOLVE_EQUATION"},
-    ],
-
-    # Image workbook sheets with missing secondary sections in the platform map.
-    (3, 1): [
-        {"sectionTitle": "Decimal Number Add-Less (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_ADD_LESS"},
-        {"sectionTitle": "Skill Stacker", "questionCount": 5, "conceptFamily": "SKILL_STACKER"},
-        {"sectionTitle": "Concept Drill", "questionCount": 5, "conceptFamily": "CONCEPT_DRILL"},
-    ],
-    (3, 4): [
-        {"sectionTitle": "Add-Less (Visual)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
-        {"sectionTitle": "Squares", "questionCount": 10, "conceptFamily": "SQUARES"},
-        {"sectionTitle": "4D ÷ 3D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (3, 5): [
-        {"sectionTitle": "Borrowing Sums with Negative Answers", "questionCount": 10, "conceptFamily": "BORROWING_NEGATIVE"},
-        {"sectionTitle": "4D ÷ 3D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
-    ],
-    (4, 2): [
-        {"sectionTitle": "2 Digit Number Add-Less (Fast Visualisation)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
-        {"sectionTitle": "2D × 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
-    ],
-    (4, 3): [
-        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
-        {"sectionTitle": "Concept Drill", "questionCount": 5, "conceptFamily": "CONCEPT_DRILL"},
-    ],
     (4, 5): [
         {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
-        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "SOLVE_EQUATION"},
-        {"sectionTitle": "Write the Number from the Given Position", "questionCount": 5, "conceptFamily": "NUMBER_POSITION"},
-    ],
-    (5, 1): [
-        {"sectionTitle": "Borrowing Sums with Negative Answers", "questionCount": 10, "conceptFamily": "BORROWING_NEGATIVE"},
-        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
-    ],
-    (5, 4): [
-        {"sectionTitle": "Integers", "questionCount": 10, "conceptFamily": "INTEGERS"},
-        {"sectionTitle": "Find the Position of the First Natural Number", "questionCount": 5, "conceptFamily": "NUMBER_POSITION"},
-    ],
-    (5, 5): [
-        {"sectionTitle": "Find the Position for Decimal Number Multiplication Answer Placement", "questionCount": 5, "conceptFamily": "DECIMAL_MULTIPLICATION_ANSWER_POSITION"},
-        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "SOLVE_EQUATION"},
-    ],
-    (6, 1): [
-        {"sectionTitle": "Decimal Number Add-Less (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_ADD_LESS"},
-        {"sectionTitle": "2D × 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
-    ],
-    (6, 2): [
-        {"sectionTitle": "Find the Position for Decimal Number Multiplication Answer Placement", "questionCount": 5, "conceptFamily": "DECIMAL_MULTIPLICATION_ANSWER_POSITION"},
-        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "SOLVE_EQUATION"},
-    ],
-    (7, 2): [
-        {"sectionTitle": "Add-Less (Visual)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
-        {"sectionTitle": "Find the Position for Decimal Number Multiplication Answer Placement", "questionCount": 5, "conceptFamily": "DECIMAL_MULTIPLICATION_ANSWER_POSITION"},
-    ],
-    (9, 2): [
-        {"sectionTitle": "Skill Stacker", "questionCount": 5, "conceptFamily": "SKILL_STACKER"},
-        {"sectionTitle": "Concept Drill", "questionCount": 5, "conceptFamily": "CONCEPT_DRILL"},
-    ],
-    (9, 4): [
-        {"sectionTitle": "Borrowing Sums with Positive / Negative Answers", "questionCount": 10, "conceptFamily": "BORROWING_MIXED"},
-        {"sectionTitle": "Find the Position of the First Natural Number", "questionCount": 5, "conceptFamily": "NUMBER_POSITION"},
-        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "SOLVE_EQUATION"},
-    ],
-    (10, 2): [
-        {"sectionTitle": "3 Digit Add-Less (Fast Visualisation)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
-        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
-    ],
-    (11, 1): [
-        {"sectionTitle": "Find the Position of the First Natural Number", "questionCount": 5, "conceptFamily": "NUMBER_POSITION"},
-        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "SOLVE_EQUATION"},
-        {"sectionTitle": "Decimal Multiplication", "questionCount": 10, "conceptFamily": "DECIMAL_MULTIPLICATION"},
-    ],
-    (11, 5): [
-        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
-        {"sectionTitle": "Division of Decimal Numbers", "questionCount": 10, "conceptFamily": "DECIMAL_DIVISION"},
-    ],
-    (16, 1): [
-        {"sectionTitle": "Integers", "questionCount": 10, "conceptFamily": "INTEGERS"},
-        {"sectionTitle": "Concept Drill", "questionCount": 5, "conceptFamily": "CONCEPT_DRILL"},
-    ],
-    (16, 5): [
-        {"sectionTitle": "BODMAS", "questionCount": 5, "conceptFamily": "BODMAS"},
-        {"sectionTitle": "Concept Drill", "questionCount": 5, "conceptFamily": "CONCEPT_DRILL"},
-    ],
-    (19, 1): [
-        {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
-        {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
-        {"sectionTitle": "Skill Stacker", "questionCount": 5, "conceptFamily": "SKILL_STACKER"},
-        {"sectionTitle": "Concept Drill", "questionCount": 5, "conceptFamily": "CONCEPT_DRILL"},
-    ],
-    (19, 4): [
-        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
-        {"sectionTitle": "Concept Drill", "questionCount": 5, "conceptFamily": "CONCEPT_DRILL"},
-    ],
-    (19, 5): [
-        {"sectionTitle": "Division of Decimal Numbers", "questionCount": 5, "conceptFamily": "DECIMAL_DIVISION"},
-        {"sectionTitle": "Simple Interest", "questionCount": 5, "conceptFamily": "SIMPLE_INTEREST"},
+        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Find Position", "questionCount": 5, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
     ],
     (20, 5): [
         {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
         {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
         {"sectionTitle": "Cube Root", "questionCount": 5, "conceptFamily": "CUBE_ROOT"},
-    ],
-    (22, 3): [
-        {"sectionTitle": "Borrowing Sums with Positive / Negative Answers", "questionCount": 10, "conceptFamily": "BORROWING_MIXED"},
-        {"sectionTitle": "Skill Stacker", "questionCount": 5, "conceptFamily": "SKILL_STACKER"},
-    ],
-    (23, 1): [
-        {"sectionTitle": "Skill Stacker", "questionCount": 5, "conceptFamily": "SKILL_STACKER"},
-        {"sectionTitle": "Concept Drill", "questionCount": 5, "conceptFamily": "CONCEPT_DRILL"},
     ],
     (24, 3): [
         {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
@@ -388,16 +239,6 @@ MM_DPS_SECTION_OVERRIDES = {
         {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
         {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
         {"sectionTitle": "Cube Root", "questionCount": 5, "conceptFamily": "CUBE_ROOT"},
-    ],
-    (28, 1): [
-        {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
-        {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
-        {"sectionTitle": "Cube Root", "questionCount": 5, "conceptFamily": "CUBE_ROOT"},
-        {"sectionTitle": "Square Root", "questionCount": 5, "conceptFamily": "SQUARE_ROOT"},
-    ],
-    (28, 5): [
-        {"sectionTitle": "Concept Drill", "questionCount": 5, "conceptFamily": "CONCEPT_DRILL"},
-        {"sectionTitle": "Skill Stacker", "questionCount": 5, "conceptFamily": "SKILL_STACKER"},
     ],
 }
 
@@ -421,19 +262,34 @@ SECTION_TITLE_NORMALISATIONS = {
     "skill stacker visual": "Skill Stacker",
     "concept drill": "Concept Drill",
     "concept drill abacus": "Concept Drill",
-    "borrowing sums with negative answers": "Borrowing Sums with Negative Answers",
-    "borrowing sums with negative answers visual": "Borrowing Sums with Negative Answers",
-    "borrowing sums with positive answers": "Borrowing Sums with Positive Answers",
-    "borrowing sums with positive answers visual": "Borrowing Sums with Positive Answers",
-    "borrowing sums with positive negative answers": "Borrowing Sums with Positive / Negative Answers",
-    "borrowing sums with positive / negative answers": "Borrowing Sums with Positive / Negative Answers",
-    "find the position for decimal number multiplication answer placement": "Find the Position for Decimal Number Multiplication Answer Placement",
-    "find the position of the first natural number": "Find the Position of the First Natural Number",
-    "write the number from the given position": "Write the Number from the Given Position",
-    "number position": "Write the Number from the Given Position",
-    "solve equation": "Solve Equation",
-    "solve the equation": "Solve Equation",
 }
+
+
+def _format_multiplication_division_section_title(title: str) -> str:
+    clean_title = " ".join(str(title or "").split()).strip()
+    lower_title = clean_title.lower()
+
+    digit_multiplication_pattern = re.fullmatch(r"(\d+d)\s*[×x]\s*(\d+d)", lower_title)
+    if digit_multiplication_pattern:
+        return f"Multiplication {digit_multiplication_pattern.group(1).upper()} × {digit_multiplication_pattern.group(2).upper()}"
+
+    digit_division_pattern = re.fullmatch(r"(\d+d)\s*÷\s*(\d+d)", lower_title)
+    if digit_division_pattern:
+        return f"Division {digit_division_pattern.group(1).upper()} ÷ {digit_division_pattern.group(2).upper()}"
+
+    if "decimal" in lower_title and "multiplication" in lower_title and not lower_title.startswith("multiplication"):
+        return "Multiplication Decimal Numbers"
+
+    if "decimal" in lower_title and "division" in lower_title and not lower_title.startswith("division"):
+        return "Division Decimal Numbers"
+
+    if "mixed pattern" in lower_title and "multiplication" in lower_title and "division" in lower_title:
+        return "Multiplication and Division Mixed Pattern"
+
+    if "mixed pattern" in lower_title and "multiplication" in lower_title and not lower_title.startswith("multiplication"):
+        return "Multiplication Mixed Pattern"
+
+    return clean_title
 
 
 def _clean_section_title(value: str) -> str:
@@ -441,7 +297,8 @@ def _clean_section_title(value: str) -> str:
     title = title.replace("(Visual)", "").replace("(Abacus)", "")
     title = title.replace(" x ", " × ").replace(" X ", " × ").strip()
     lower = title.lower().strip()
-    return SECTION_TITLE_NORMALISATIONS.get(lower, title)
+    normalised = SECTION_TITLE_NORMALISATIONS.get(lower, title)
+    return _format_multiplication_division_section_title(normalised)
 
 
 def _split_mm_title_parts(title: str) -> list[str]:
@@ -464,17 +321,6 @@ def _split_mm_title_parts(title: str) -> list[str]:
         "Cube Root": "Cube Root",
         "Skill Stacker": "Skill Stacker",
         "Concept Drill": "Concept Drill",
-        "Borrowing Sums with Positive / Negative Answers": "Borrowing Sums with Positive Negative Answers",
-        "Borrowing Sums with Positive, Negative Answers": "Borrowing Sums with Positive Negative Answers",
-        "Borrowing Sums with Negative Answers": "Borrowing Sums with Negative Answers",
-        "Borrowing Sums with Positive Answers": "Borrowing Sums with Positive Answers",
-        "Find the position for Decimal number Multiplication Answer placement": "Find the Position for Decimal Number Multiplication Answer Placement",
-        "Find the Position for Decimal Number Multiplication Answer Placement": "Find the Position for Decimal Number Multiplication Answer Placement",
-        "Find the position of the first Natural Number": "Find the Position of the First Natural Number",
-        "Write the Number from the Given Position": "Write the Number from the Given Position",
-        "Number Position": "Write the Number from the Given Position",
-        "Solve the Equation": "Solve Equation",
-        "Solve Equation": "Solve Equation",
     }
     for source, target in protected.items():
         working = working.replace(source, target)
