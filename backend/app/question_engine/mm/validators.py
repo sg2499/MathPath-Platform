@@ -245,8 +245,11 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
             try:
                 Position = int(_DecimalValue(Operands[0]))
                 NumberValue = _DecimalValue(Operands[1])
-                ExpectedAnswer = NumberValue * ((Decimal(10) ** Position) if Position >= 0 else (Decimal(1) / (Decimal(10) ** abs(Position))))
-                return CorrectAnswer == ExpectedAnswer.quantize(Decimal("1").scaleb(-abs(Position)) if Position < 0 else Decimal("1"))
+                DigitCount = len(str(abs(int(NumberValue))))
+                Exponent = Position - DigitCount
+                ExpectedAnswer = NumberValue * ((Decimal(10) ** Exponent) if Exponent >= 0 else (Decimal(1) / (Decimal(10) ** abs(Exponent))))
+                QuantizeUnit = Decimal("1").scaleb(-abs(Exponent)) if Exponent < 0 else Decimal("1")
+                return CorrectAnswer == ExpectedAnswer.quantize(QuantizeUnit)
             except Exception:
                 return False
         return False
