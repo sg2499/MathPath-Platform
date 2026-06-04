@@ -219,20 +219,165 @@ DPS_TITLES = {1: {1: 'Decimal Number Add-Less (Visual)',
 # DPS records not present here fall back to a conservative title-derived split.
 # Section map supports Package 5 concepts as dedicated sections wherever they appear in workbook sheets.
 MM_DPS_SECTION_OVERRIDES = {
-    (4, 5): [
-        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
-        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "SOLVE_EQUATION"},
-        {"sectionTitle": "Write the Number From the Given Position", "questionCount": 5, "conceptFamily": "WRITE_NUMBER_FROM_POSITION"},
+    # Lesson 3 workbook sections
+    (3, 1): [
+        {"sectionTitle": "Decimal Number Add-Less (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_ADD_LESS"},
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 2, "conceptFamily": "SKILL_STACKER"},
+        {"sectionTitle": "Concept Drill (Abacus)", "questionCount": 2, "conceptFamily": "CONCEPT_DRILL"},
+    ],
+    (3, 4): [
+        {"sectionTitle": "Borrowing Sums with Positive / Negative Answers (Visual)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
+        {"sectionTitle": "Squares (Visual)", "questionCount": 10, "conceptFamily": "SQUARES"},
+        {"sectionTitle": "4D ÷ 3D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
+    ],
+    (3, 5): [
+        {"sectionTitle": "Borrowing Sums with Negative Answers (Visual)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
+        {"sectionTitle": "4D ÷ 3D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
     ],
 
-    (5, 4): [
+    # Lesson 4 workbook sections
+    (4, 1): [
         {"sectionTitle": "Integers", "questionCount": 10, "conceptFamily": "INTEGERS"},
-        {"sectionTitle": "Find the Position of the First Natural Number", "questionCount": 10, "conceptFamily": "FIND_FIRST_NATURAL_POSITION"},
+        {"sectionTitle": "3D x 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
     ],
+    (4, 2): [
+        {"sectionTitle": "2 Digit Number Add-Less (Fast Visualisation)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
+        {"sectionTitle": "2D x 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
+    ],
+    (4, 3): [
+        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Concept Drill (Abacus)", "questionCount": 2, "conceptFamily": "CONCEPT_DRILL"},
+    ],
+    (4, 5): [
+        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Write Number From Given Position", "questionCount": 5, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
+    ],
+
+    # Lesson 5 workbook sections
+    (5, 1): [
+        {"sectionTitle": "Borrowing Sums with Negative Answers (Visual)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
+        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
+    ],
+    (5, 2): [
+        {"sectionTitle": "4D ÷ 3D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 2, "conceptFamily": "SKILL_STACKER"},
+    ],
+    (5, 4): [
+        {"sectionTitle": "Integers (Visual)", "questionCount": 10, "conceptFamily": "INTEGERS"},
+        {"sectionTitle": "Find Position of the First Natural Number", "questionCount": 5, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
+    ],
+    (5, 5): [
+        {"sectionTitle": "Find Position for Decimal Number Multiplication Answer Placement", "questionCount": 5, "conceptFamily": "DECIMAL_MULTIPLICATION"},
+        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "BODMAS"},
+    ],
+
+    # Lesson 6 workbook sections
+    (6, 1): [
+        {"sectionTitle": "Decimal Number Add-Less (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_ADD_LESS"},
+        {"sectionTitle": "2D x 2D Visual", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
+    ],
+    (6, 2): [
+        {"sectionTitle": "Find Position for Decimal Number Multiplication Answer Placement", "questionCount": 5, "conceptFamily": "DECIMAL_MULTIPLICATION"},
+        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "BODMAS"},
+    ],
+    (6, 3): [
+        {"sectionTitle": "Squares (Visual)", "questionCount": 10, "conceptFamily": "SQUARES"},
+        {"sectionTitle": "4D ÷ 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
+    ],
+
+    # Lesson 7 workbook sections
+    (7, 2): [
+        {"sectionTitle": "Decimal Number Add-Less (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_ADD_LESS"},
+        {"sectionTitle": "Find Position for Decimal Number Multiplication Answer Placement", "questionCount": 5, "conceptFamily": "DECIMAL_MULTIPLICATION"},
+    ],
+
+    # Lesson 8 workbook sections
+    (8, 3): [
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 2, "conceptFamily": "SKILL_STACKER"},
+        {"sectionTitle": "Concept Drill (Abacus)", "questionCount": 2, "conceptFamily": "CONCEPT_DRILL"},
+    ],
+
+    # Lesson 9 workbook sections
+    (9, 2): [
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 2, "conceptFamily": "SKILL_STACKER"},
+        {"sectionTitle": "Concept Drill (Abacus)", "questionCount": 2, "conceptFamily": "CONCEPT_DRILL"},
+    ],
+    (9, 4): [
+        {"sectionTitle": "Borrowing Sums with Positive / Negative Answers (Visual)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
+        {"sectionTitle": "Find Position of the First Natural Number", "questionCount": 5, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
+        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "BODMAS"},
+    ],
+
+    # Lesson 10 workbook sections
+    (10, 2): [
+        {"sectionTitle": "3 Digit Add-Less (Fast Visualisation)", "questionCount": 10, "conceptFamily": "ADD_LESS"},
+        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
+    ],
+    (10, 3): [
+        {"sectionTitle": "Decimal Multiplication (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_MULTIPLICATION"},
+        {"sectionTitle": "Write Number From Given Position", "questionCount": 10, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
+    ],
+    (10, 5): [
+        {"sectionTitle": "Squares (Visual)", "questionCount": 10, "conceptFamily": "SQUARES"},
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 1, "conceptFamily": "SKILL_STACKER"},
+        {"sectionTitle": "Concept Drill (Visual)", "questionCount": 1, "conceptFamily": "CONCEPT_DRILL"},
+    ],
+
+    # Lesson 11 workbook sections
     (11, 1): [
-        {"sectionTitle": "Find the Position of the First Natural Number", "questionCount": 10, "conceptFamily": "FIND_FIRST_NATURAL_POSITION"},
-        {"sectionTitle": "Solve Equation", "questionCount": 10, "conceptFamily": "SOLVE_EQUATION"},
+        {"sectionTitle": "Find Position of the First Natural Number", "questionCount": 5, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
+        {"sectionTitle": "Solve Equation", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Decimal Multiplication (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_MULTIPLICATION"},
     ],
+    (11, 2): [
+        {"sectionTitle": "Decimal Multiplication (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_MULTIPLICATION"},
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 5, "conceptFamily": "SKILL_STACKER"},
+    ],
+    (11, 3): [
+        {"sectionTitle": "Mixed Pattern Multiplication (Visual)", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 5, "conceptFamily": "SKILL_STACKER"},
+    ],
+    (11, 5): [
+        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Division of Decimal Numbers", "questionCount": 10, "conceptFamily": "DECIMAL_DIVISION"},
+    ],
+
+    # Lesson 16 workbook sections
+    (16, 1): [
+        {"sectionTitle": "Integers (Visual)", "questionCount": 10, "conceptFamily": "INTEGERS"},
+        {"sectionTitle": "Concept Drill (Abacus)", "questionCount": 2, "conceptFamily": "CONCEPT_DRILL"},
+    ],
+    (16, 3): [
+        {"sectionTitle": "Find Profit & Profit %", "questionCount": 10, "conceptFamily": "PROFIT_LOSS"},
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 2, "conceptFamily": "SKILL_STACKER"},
+    ],
+    (16, 4): [
+        {"sectionTitle": "Multiplication Mixed Pattern", "questionCount": 10, "conceptFamily": "MULTIPLICATION_DIVISION_MIXED"},
+        {"sectionTitle": "BODMAS", "questionCount": 5, "conceptFamily": "BODMAS"},
+    ],
+    (16, 5): [
+        {"sectionTitle": "BODMAS", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Concept Drill with Abacus", "questionCount": 2, "conceptFamily": "CONCEPT_DRILL"},
+    ],
+
+    # Lesson 19 workbook sections
+    (19, 1): [
+        {"sectionTitle": "Squares (Visual)", "questionCount": 5, "conceptFamily": "SQUARES"},
+        {"sectionTitle": "Cubes (Visual)", "questionCount": 5, "conceptFamily": "CUBES"},
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 1, "conceptFamily": "SKILL_STACKER"},
+        {"sectionTitle": "Concept Drill (Abacus)", "questionCount": 1, "conceptFamily": "CONCEPT_DRILL"},
+    ],
+    (19, 4): [
+        {"sectionTitle": "BODMAS (Visual)", "questionCount": 5, "conceptFamily": "BODMAS"},
+        {"sectionTitle": "Simple Interest", "questionCount": 5, "conceptFamily": "SIMPLE_INTEREST"},
+    ],
+    (19, 5): [
+        {"sectionTitle": "Division of Decimal Numbers", "questionCount": 5, "conceptFamily": "DECIMAL_DIVISION"},
+        {"sectionTitle": "Simple Interest", "questionCount": 5, "conceptFamily": "SIMPLE_INTEREST"},
+    ],
+
+    # Lesson 20/24/26 root workbook splits
     (20, 5): [
         {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
         {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
@@ -247,6 +392,24 @@ MM_DPS_SECTION_OVERRIDES = {
         {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
         {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
         {"sectionTitle": "Cube Root", "questionCount": 5, "conceptFamily": "CUBE_ROOT"},
+    ],
+
+    # Lesson 22 workbook sections
+    (22, 3): [
+        {"sectionTitle": "Borrowing Sums with Positive / Negative Answers", "questionCount": 10, "conceptFamily": "ADD_LESS"},
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 2, "conceptFamily": "SKILL_STACKER"},
+    ],
+
+    # Lesson 28 workbook sections
+    (28, 1): [
+        {"sectionTitle": "Cubes", "questionCount": 5, "conceptFamily": "CUBES"},
+        {"sectionTitle": "Squares", "questionCount": 5, "conceptFamily": "SQUARES"},
+        {"sectionTitle": "Cube Root", "questionCount": 5, "conceptFamily": "CUBE_ROOT"},
+        {"sectionTitle": "Square Root", "questionCount": 5, "conceptFamily": "SQUARE_ROOT"},
+    ],
+    (28, 5): [
+        {"sectionTitle": "Concept Drill (Abacus)", "questionCount": 2, "conceptFamily": "CONCEPT_DRILL"},
+        {"sectionTitle": "Skill Stacker (Visual)", "questionCount": 2, "conceptFamily": "SKILL_STACKER"},
     ],
 }
 
@@ -270,13 +433,6 @@ SECTION_TITLE_NORMALISATIONS = {
     "skill stacker visual": "Skill Stacker",
     "concept drill": "Concept Drill",
     "concept drill abacus": "Concept Drill",
-    "solve equation": "Solve Equation",
-    "equation practice": "Solve Equation",
-    "equation solving": "Solve Equation",
-    "find position": "Find Position",
-    "number position": "Write the Number From the Given Position",
-    "natural number position": "Find the Position of the First Natural Number",
-    "find the position of the first natural number": "Find the Position of the First Natural Number",
 }
 
 
@@ -308,9 +464,6 @@ def _split_mm_title_parts(title: str) -> list[str]:
         "Cube Root": "Cube Root",
         "Skill Stacker": "Skill Stacker",
         "Concept Drill": "Concept Drill",
-        "Borrowing Sums with Positive / Negative Answers": "Borrowing Sums with Positive / Negative Answers",
-        "Borrowing Sums with Positive": "Borrowing Sums with Positive / Negative Answers",
-        "Negative Answers": "Borrowing Sums with Positive / Negative Answers",
     }
     for source, target in protected.items():
         working = working.replace(source, target)
@@ -432,7 +585,7 @@ def _section_config(lesson_number: int, dps_number: int) -> dict:
         "seedMode": "DYNAMIC_MASTER_MODULE",
         "durationSeconds": DPS_DURATION_SECONDS,
         "manualReviewRequiredBeforePublishing": True,
-        "generatorPackage": "MM_SECTION_AWARE_PACKAGE_6_RELIABILITY",
+        "generatorPackage": "MM_SECTION_AWARE_PACKAGE_3",
         "dpsSections": _dps_sections(lesson_number, dps_number),
     }
 
