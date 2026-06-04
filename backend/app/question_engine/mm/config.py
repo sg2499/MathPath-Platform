@@ -114,13 +114,6 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
             "loss",
             "selling price",
             "cost price",
-            "borrowing",
-            "position",
-            "given position",
-            "answer placement",
-            "answer position",
-            "equation solving",
-            "solve equation",
         )
     )
     Text = (
@@ -128,21 +121,6 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         if (not HasTitleSignal and any(Token in TitleText for Token in GenericTitleTokens))
         else TitleText
     )
-
-    LessonText = NormaliseText(LessonTitle)
-
-    HasBorrowing = "borrowing" in Text or (
-        ("negative answer" in Text or "negative answers" in Text or "positive answer" in Text or "positive answers" in Text)
-        and "borrowing" in LessonText
-    )
-    HasPosition = (
-        "position" in Text
-        or "answer placement" in Text
-        or "given position" in Text
-        or "first natural number" in Text
-        or "natural number" in Text and "position" in Text
-    )
-    HasEquationSolving = "equation solving" in Text or "solve equation" in Text or "solve the equation" in Text
 
     HasDecimal = "decimal" in Text
     HasAddLess = "add less" in Text or ("add" in Text and "less" in Text)
@@ -199,19 +177,6 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "SQUARES"
     if HasCubes:
         return "CUBES"
-
-    # Workbook alias/special concept routing. Keep these exact and explicit so
-    # legacy/live DB wording does not become MM_UNSUPPORTED.
-    if HasBorrowing:
-        return "ADD_LESS"
-    if HasEquationSolving:
-        return "BODMAS"
-    if HasPosition:
-        if "natural number" in Text or "first natural number" in Text:
-            return "WHOLE_NUMBER_MULTIPLICATION"
-        if HasDecimal or "decimal multiplication" in LessonText or "decimal number multiplication" in LessonText:
-            return "DECIMAL_MULTIPLICATION"
-        return "WHOLE_NUMBER_MULTIPLICATION"
 
     # Package 2 concepts should win when the DPS title explicitly names them.
     if HasInteger:
@@ -272,17 +237,6 @@ SECTION_CONCEPT_ALIASES = {
     "FIND_COST_PRICE": "FIND_COST_PRICE",
     "SKILL_STACKER": "SKILL_STACKER",
     "CONCEPT_DRILL": "CONCEPT_DRILL",
-    "BORROWING SUMS WITH NEGATIVE ANSWERS": "ADD_LESS",
-    "BORROWING SUMS WITH POSITIVE AND NEGATIVE ANSWERS": "ADD_LESS",
-    "BORROWING SUMS WITH POSITIVE NEGATIVE ANSWERS": "ADD_LESS",
-    "NUMBER POSITION": "DECIMAL_MULTIPLICATION",
-    "NATURAL NUMBER POSITION": "WHOLE_NUMBER_MULTIPLICATION",
-    "FIND THE POSITION OF THE FIRST NATURAL NUMBER": "WHOLE_NUMBER_MULTIPLICATION",
-    "FIND POSITION": "WHOLE_NUMBER_MULTIPLICATION",
-    "ANSWER PLACEMENT": "DECIMAL_MULTIPLICATION",
-    "FIND THE POSITION FOR DECIMAL NUMBER MULTIPLICATION ANSWER PLACEMENT": "DECIMAL_MULTIPLICATION",
-    "EQUATION SOLVING": "BODMAS",
-    "SOLVE EQUATION": "BODMAS",
 }
 
 
