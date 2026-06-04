@@ -5,7 +5,7 @@ from app.question_engine.option_utils import build_mcq_options, rebalance_correc
 from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept
 from app.question_engine.mm.distractors import GenerateMmDistractors
 from app.question_engine.mm.operands import DifficultyStage, GeneratePackage1Question
-from app.question_engine.mm.validators import ValidateMmQuestion
+from app.question_engine.mm.validators import ExpectedMmAnswer, ValidateMmQuestion
 
 
 def _Display(Value: Decimal) -> int | float:
@@ -41,7 +41,7 @@ def _DisplayMode(Config: MMConfig) -> str:
     if ConceptFamily in {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}:
         return "COMPACT_EXPRESSION"
 
-    if ConceptFamily in {"BODMAS", "PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
+    if ConceptFamily in {"BODMAS", "SOLVE_EQUATION", "PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE"}:
         return "EXPRESSION_WORKSHEET"
 
     if ConceptFamily in {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}:
@@ -74,7 +74,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
             Operands, Operators, CorrectAnswer, ExtraMetadata = GeneratePackage1Question(Config, Rng, SectionQuestionNumber)
             LastCandidate = (Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt)
             Signature = tuple([str(Value) for Value in Operands] + Operators)
-            if ValidateMmQuestion(Config, Operands, Operators, CorrectAnswer) and Signature not in Seen:
+            if ValidateMmQuestion(Config, Operands, Operators, CorrectAnswer, ExtraMetadata) and Signature not in Seen:
                 Accepted = LastCandidate
                 Seen.add(Signature)
                 break
@@ -82,11 +82,15 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
             if LastCandidate is None:
                 raise ValueError(f"Master Module generator could not create question {SectionQuestionNumber} for {Config.ConceptFamily}")
             Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = LastCandidate
-            if not ValidateMmQuestion(Config, Operands, Operators, CorrectAnswer):
+            if not ValidateMmQuestion(Config, Operands, Operators, CorrectAnswer, ExtraMetadata):
                 raise ValueError(f"Master Module generator produced invalid question {SectionQuestionNumber} for {Config.ConceptFamily}")
             Seen.add(tuple([str(Value) for Value in Operands] + Operators))
         else:
             Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = Accepted
+
+        ExpectedAnswer = ExpectedMmAnswer(Config, Operands, Operators, ExtraMetadata)
+        if ExpectedAnswer is not None and abs(ExpectedAnswer - CorrectAnswer) > Decimal("0.000001"):
+            raise ValueError(f"Master Module answer audit failed for {Config.ConceptFamily}: displayed question evaluates to {ExpectedAnswer}, stored answer is {CorrectAnswer}")
 
         CorrectDisplay = _Display(CorrectAnswer)
         AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
@@ -143,6 +147,13 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
         for Index, Section in enumerate(SectionDefinitions, start=1):
             SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or Config.DpsTitle)
             SectionConcept = str(Section.get("conceptFamily") or Config.ConceptFamily)
+            NormalisedSectionTitle = SectionTitle.strip().lower()
+            if "solve equation" in NormalisedSectionTitle or "equation practice" in NormalisedSectionTitle:
+                SectionConcept = "SOLVE_EQUATION"
+            elif "skill stacker" in NormalisedSectionTitle:
+                SectionConcept = "SKILL_STACKER"
+            elif "concept drill" in NormalisedSectionTitle:
+                SectionConcept = "CONCEPT_DRILL"
             SectionCount = int(Section.get("questionCount") or 10)
             SectionConfig = MMConfig(
                 ModuleCode=Config.ModuleCode,

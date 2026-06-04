@@ -56,21 +56,10 @@ PACKAGE_4_CONCEPTS = {
 PACKAGE_5_CONCEPTS = {
     "SKILL_STACKER",
     "CONCEPT_DRILL",
-}
-
-PACKAGE_6_BORROWING_CONCEPTS = {
-    "BORROWING_NEGATIVE",
-    "BORROWING_POSITIVE",
-    "BORROWING_MIXED",
-}
-
-PACKAGE_7_POSITION_EQUATION_CONCEPTS = {
-    "DECIMAL_MULTIPLICATION_ANSWER_POSITION",
-    "NUMBER_POSITION",
     "SOLVE_EQUATION",
 }
 
-SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS | PACKAGE_6_BORROWING_CONCEPTS | PACKAGE_7_POSITION_EQUATION_CONCEPTS
+SUPPORTED_MM_CONCEPTS = PACKAGE_1_CONCEPTS | PACKAGE_2_CONCEPTS | PACKAGE_3_CONCEPTS | PACKAGE_4_CONCEPTS | PACKAGE_5_CONCEPTS
 
 # Backward-compatible name used by the existing generation service.
 SUPPORTED_MM_PACKAGE_1_CONCEPTS = SUPPORTED_MM_CONCEPTS
@@ -82,10 +71,6 @@ def NormaliseText(Value: str | None) -> str:
         .replace("×", " x ")
         .replace("÷", " division ")
         .replace("/", " ")
-        .replace(",", " ")
-        .replace("&", " and ")
-        .replace("(", " ")
-        .replace(")", " ")
         .replace("-", " ")
         .lower()
         .split()
@@ -100,6 +85,8 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "CONCEPT_DRILL"
     if "skill stacker" in TitleText:
         return "SKILL_STACKER"
+    if "solve equation" in TitleText or "equation practice" in TitleText:
+        return "SOLVE_EQUATION"
 
     # A plain MM "Visual Practice" sheet is an Add/Less visual stack sheet.
     # Do not inherit BODMAS/multiplication words from the lesson title for this case.
@@ -126,10 +113,6 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
             "percentage",
             "percent",
             "simple interest",
-            "borrowing",
-            "borrow",
-            "positive",
-            "negative",
             "profit",
             "loss",
             "selling price",
@@ -144,7 +127,7 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
 
     HasDecimal = "decimal" in Text
     HasAddLess = "add less" in Text or ("add" in Text and "less" in Text)
-    HasMultiplication = "multiplication" in Text or " x " in f" {Text} "
+    HasMultiplication = "multiplication" in Text or " x " in f" {Text} " or "mixed pattern" in Text
     HasDivision = "division" in Text
     HasInteger = "integer" in Text or "integers" in Text
     HasBodmas = "bodmas" in Text
@@ -156,43 +139,20 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
     HasCubes = "cube" in Text or "cubes" in Text
     HasSkillStacker = "skill stacker" in Text
     HasConceptDrill = "concept drill" in Text
+    HasSolveEquation = "solve equation" in Text or "equation practice" in Text
     HasSimpleInterest = "simple interest" in Text
-    HasBorrowing = "borrowing" in Text or "borrow" in Text
-    HasNegative = "negative" in Text
-    HasPositive = "positive" in Text
     HasProfit = "profit" in Text
     HasLoss = "loss" in Text
     HasSellingPrice = "selling price" in Text
     HasCostPrice = "cost price" in Text
-    HasAnswerPosition = "answer position" in Text or "answer placement" in Text
-    HasFindPosition = "find position" in Text or "find the position" in Text or "given position" in Text or "first natural number" in Text or "number position" in Text
-    HasSolveEquation = "solve equation" in Text or "equation solving" in Text or "solve the equation" in Text
-
-    # Dedicated position/equation workbook sections must win before generic decimal/multiplication routing.
-    if HasSolveEquation:
-        return "SOLVE_EQUATION"
-    if HasAnswerPosition and HasDecimal and HasMultiplication:
-        return "DECIMAL_MULTIPLICATION_ANSWER_POSITION"
-    if HasFindPosition:
-        return "NUMBER_POSITION"
 
     # Package 5 dedicated MM concepts should win before inherited generic lesson-title signals.
     if HasSkillStacker:
         return "SKILL_STACKER"
     if HasConceptDrill:
         return "CONCEPT_DRILL"
-
-    # Borrowing is a dedicated visual add/less family in MM.
-    # It must not be routed into generic integers or generic add-less because
-    # borrowing sheets have workbook-specific positive/negative answer control.
-    if HasBorrowing and HasPositive and HasNegative:
-        return "BORROWING_MIXED"
-    if HasBorrowing and HasNegative:
-        return "BORROWING_NEGATIVE"
-    if HasBorrowing and HasPositive:
-        return "BORROWING_POSITIVE"
-    if HasBorrowing:
-        return "BORROWING_MIXED"
+    if HasSolveEquation:
+        return "SOLVE_EQUATION"
 
     # Package 4 financial concepts should win before generic percentage words.
     if HasSimpleInterest:
@@ -223,15 +183,6 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "SQUARES"
     if HasCubes:
         return "CUBES"
-
-    # Mixed Pattern section labels must remain operation-pure.
-    # "Multiplication Mixed Pattern" is multiplication-only and
-    # "Division Mixed Pattern" is division-only. The combined DPS title is
-    # split section-wise by the seed map before generation.
-    if "multiplication mixed pattern" in Text and "division" not in Text:
-        return "WHOLE_NUMBER_MULTIPLICATION"
-    if "division mixed pattern" in Text and "multiplication" not in Text:
-        return "WHOLE_NUMBER_DIVISION"
 
     # Package 2 concepts should win when the DPS title explicitly names them.
     if HasInteger:
@@ -292,11 +243,6 @@ SECTION_CONCEPT_ALIASES = {
     "FIND_COST_PRICE": "FIND_COST_PRICE",
     "SKILL_STACKER": "SKILL_STACKER",
     "CONCEPT_DRILL": "CONCEPT_DRILL",
-    "BORROWING_NEGATIVE": "BORROWING_NEGATIVE",
-    "BORROWING_POSITIVE": "BORROWING_POSITIVE",
-    "BORROWING_MIXED": "BORROWING_MIXED",
-    "DECIMAL_MULTIPLICATION_ANSWER_POSITION": "DECIMAL_MULTIPLICATION_ANSWER_POSITION",
-    "NUMBER_POSITION": "NUMBER_POSITION",
     "SOLVE_EQUATION": "SOLVE_EQUATION",
 }
 
@@ -324,38 +270,10 @@ def OperationFocusForConcept(ConceptFamily: str) -> str:
         return "REPEATED_ADDITION"
     if ConceptFamily == "CONCEPT_DRILL":
         return "REPEATED_SUBTRACTION"
-    if ConceptFamily in {"BORROWING_NEGATIVE", "BORROWING_POSITIVE", "BORROWING_MIXED"}:
-        return "BORROWING_ADD_LESS"
-    if ConceptFamily == "DECIMAL_MULTIPLICATION_ANSWER_POSITION":
-        return "ANSWER_POSITION"
-    if ConceptFamily == "NUMBER_POSITION":
-        return "NUMBER_POSITION"
     if ConceptFamily == "SOLVE_EQUATION":
-        return "SIGNED_EQUATION"
+        return "EQUATION"
     return "MIXED"
 
-
-
-def ResolveMmConceptFamily(ConceptFamily: str | None, DpsTitle: str = "", LessonTitle: str = "") -> str:
-    Candidate = str(ConceptFamily or "").strip().upper()
-    if Candidate in SUPPORTED_MM_CONCEPTS:
-        return Candidate
-    Classified = ClassifyMmConcept(DpsTitle, LessonTitle)
-    if Classified in SUPPORTED_MM_CONCEPTS:
-        return Classified
-    # Defensive alias support for older/stale seeded section metadata.
-    Text = NormaliseText(f"{ConceptFamily or ''} {DpsTitle} {LessonTitle}")
-    if "borrowing" in Text or "borrow" in Text:
-        HasPositive = "positive" in Text
-        HasNegative = "negative" in Text
-        if HasPositive and HasNegative:
-            return "BORROWING_MIXED"
-        if HasNegative:
-            return "BORROWING_NEGATIVE"
-        if HasPositive:
-            return "BORROWING_POSITIVE"
-        return "BORROWING_MIXED"
-    return Candidate or "MM_UNSUPPORTED"
 
 def IsPackage1Supported(ConceptFamily: str) -> bool:
     """Backward-compatible support check used by generation_service.

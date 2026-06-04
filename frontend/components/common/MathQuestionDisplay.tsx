@@ -82,13 +82,15 @@ function ExpressionQuestion({
   questionText?: string | null;
   mode: "EXPRESSION_WORKSHEET" | "ANSWER_POSITION";
 }) {
-  const Expression = questionText?.trim() || BuildExpression(operands, operators);
+  const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
+  const Expression = RawExpression.replace(/\s*=\s*\?\s*=\s*\?\s*$/u, " = ?").replace(/\s+=\s+$/u, "").trim();
+  const HasQuestionPlaceholder = Expression.includes("?");
 
   return (
     <div className="mx-auto inline-flex max-w-full rounded-[20px] bg-white px-5 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
       <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
         <span>{Expression}</span>
-        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
+        {!HasQuestionPlaceholder ? <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span> : null}
       </div>
     </div>
   );
@@ -104,13 +106,15 @@ function CompactExpressionQuestion({
   operators: string[];
   questionText?: string | null;
 }) {
-  const Expression = questionText?.trim() || BuildExpression(operands, operators);
+  const RawExpression = questionText?.trim() || BuildExpression(operands, operators);
+  const Expression = RawExpression.replace(/\s*=\s*\?\s*=\s*\?\s*$/u, " = ?").trim();
+  const HasQuestionPlaceholder = Expression.includes("?");
 
   return (
     <div className="mx-auto inline-flex max-w-full rounded-[18px] bg-white px-5 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700">
       <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
         <span>{Expression}</span>
-        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
+        {!HasQuestionPlaceholder ? <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span> : null}
       </div>
     </div>
   );
@@ -175,10 +179,28 @@ function CompactTwoColumnQuestion({
   );
 }
 
+function HasSkillStackerShape(Operators: string[], QuestionText?: string | null): boolean {
+  const Labels = Operators.map((Operator) => String(Operator || "").trim().toLowerCase());
+  return (Labels[0] === "add" && Labels[1] === "times") || String(QuestionText || "").toLowerCase().includes("skill stacker");
+}
+
+function HasConceptDrillShape(Operators: string[], QuestionText?: string | null): boolean {
+  const Labels = Operators.map((Operator) => String(Operator || "").trim().toLowerCase());
+  return (Labels[0] === "from" && Labels[1] === "less") || String(QuestionText || "").toLowerCase().includes("concept drill");
+}
+
 export function MathQuestionDisplay({ operands, operators, displayType, questionText }: MathQuestionDisplayProps) {
   const Operands = operands ?? [];
   const Operators = operators ?? [];
   const Mode = NormaliseDisplayType(displayType);
+
+  if (Mode === "SKILL_STACKER_TABLE" || HasSkillStackerShape(Operators, questionText)) {
+    return <CompactTwoColumnQuestion operands={Operands} operators={Operators.length ? Operators : ["Add", "Times"]} questionText={questionText} />;
+  }
+
+  if (Mode === "CONCEPT_DRILL_TABLE" || HasConceptDrillShape(Operators, questionText)) {
+    return <CompactTwoColumnQuestion operands={Operands} operators={Operators.length ? Operators : ["From", "Less"]} questionText={questionText} />;
+  }
 
   if (Mode === "EXPRESSION" || Mode === "EXPRESSION_WORKSHEET") {
     return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="EXPRESSION_WORKSHEET" />;
@@ -203,9 +225,6 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
     return <CompactExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} />;
   }
 
-  if (Mode === "SKILL_STACKER_TABLE" || Mode === "CONCEPT_DRILL_TABLE") {
-    return <CompactTwoColumnQuestion operands={Operands} operators={Operators} questionText={questionText} />;
-  }
 
   return <VerticalQuestion operands={Operands} operators={Operators} />;
 }
