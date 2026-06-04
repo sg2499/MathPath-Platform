@@ -115,6 +115,80 @@ def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: lis
     return Operators[1] in {"+%", "-%"}
 
 
+def _EvaluateBodmasExpression(Expression: str) -> Decimal | None:
+    """Safely evaluate generated workbook BODMAS expression text.
+
+    This is intentionally limited to generator-created arithmetic strings. It
+    supports the workbook symbols used by MM BODMAS: ×, ÷, %, powers, square
+    roots, cube roots, brackets and signed decimals. It is used as a final
+    correctness guard so the stored answer cannot drift from the displayed row.
+    """
+    try:
+        import ast
+        import math
+        import re
+
+        Sanitised = str(Expression)
+        Sanitised = Sanitised.replace("−", "-").replace("×", "*").replace("÷", "/")
+        Sanitised = Sanitised.replace("^", "**")
+        Sanitised = re.sub(r"∛\s*([0-9]+(?:\.[0-9]+)?)", r"cuberoot(\1)", Sanitised)
+        Sanitised = re.sub(r"√\s*([0-9]+(?:\.[0-9]+)?)", r"sqrt(\1)", Sanitised)
+        Sanitised = re.sub(r"(?<![A-Za-z0-9_])([0-9]+(?:\.[0-9]+)?)\s*%", r"(\1/100)", Sanitised)
+        Sanitised = Sanitised.replace("²", "**2").replace("³", "**3")
+
+        AllowedNames = {
+            "sqrt": lambda Value: Decimal(str(int(math.isqrt(int(Value))) if math.isqrt(int(Value)) ** 2 == int(Value) else math.sqrt(float(Value)))),
+            "cuberoot": lambda Value: Decimal(str(round(float(Value) ** (1 / 3)))) if round(float(Value) ** (1 / 3)) ** 3 == int(Value) else Decimal(str(float(Value) ** (1 / 3))),
+        }
+
+        def EvalNode(Node):
+            if isinstance(Node, ast.Expression):
+                return EvalNode(Node.body)
+            if isinstance(Node, ast.Constant) and isinstance(Node.value, (int, float)):
+                return Decimal(str(Node.value))
+            if isinstance(Node, ast.UnaryOp) and isinstance(Node.op, ast.USub):
+                return -EvalNode(Node.operand)
+            if isinstance(Node, ast.UnaryOp) and isinstance(Node.op, ast.UAdd):
+                return EvalNode(Node.operand)
+            if isinstance(Node, ast.BinOp):
+                Left = EvalNode(Node.left)
+                Right = EvalNode(Node.right)
+                if isinstance(Node.op, ast.Add):
+                    return Left + Right
+                if isinstance(Node.op, ast.Sub):
+                    return Left - Right
+                if isinstance(Node.op, ast.Mult):
+                    return Left * Right
+                if isinstance(Node.op, ast.Div):
+                    if Right == 0:
+                        raise ValueError("division by zero")
+                    return Left / Right
+                if isinstance(Node.op, ast.Pow):
+                    return Left ** int(Right)
+            if isinstance(Node, ast.Call) and isinstance(Node.func, ast.Name) and Node.func.id in AllowedNames and len(Node.args) == 1:
+                return AllowedNames[Node.func.id](EvalNode(Node.args[0]))
+            raise ValueError("unsupported expression node")
+
+        Parsed = ast.parse(Sanitised, mode="eval")
+        return EvalNode(Parsed).quantize(Decimal("0.01"))
+    except Exception:
+        return None
+
+
+def _ValidateBodmasQuestion(Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if len(Operands) != 1 or Operators != [""]:
+        return False
+    Expression = str(Operands[0]).strip()
+    if not Expression:
+        return False
+    if not any(Symbol in Expression for Symbol in ["+", "-", "×", "÷", "√", "∛", "²", "³", "%", "("]):
+        return False
+    ExpectedAnswer = _EvaluateBodmasExpression(Expression)
+    if ExpectedAnswer is None:
+        return False
+    return CorrectAnswer.quantize(Decimal("0.01")) == ExpectedAnswer
+
+
 def _EvaluateExpressionWithPrecedence(Operands: list[int | float | str], Operators: list[str]) -> Decimal | None:
     """Evaluate a flat workbook expression using ×/÷ before +/-.
 
@@ -299,6 +373,9 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
 
     if Config.ConceptFamily in PACKAGE_3_COMPACT_CONCEPTS:
         return _ValidatePackage3Compact(Config, Operands, Operators, CorrectAnswer)
+
+    if Config.ConceptFamily == "BODMAS":
+        return _ValidateBodmasQuestion(Operands, Operators, CorrectAnswer)
 
     if len(Operands) < 2:
         return False
