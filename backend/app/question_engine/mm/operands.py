@@ -665,6 +665,66 @@ def GenerateConceptDrill(Config: MMConfig, Rng: random.Random, QuestionNumber: i
         "concept_drill_mode": "REPEATED_SUBTRACTION_REMAINDER",
     }
 
+
+def _AnswerPositionTitle(Config: MMConfig) -> str:
+    return " ".join(f" {Config.DpsTitle} ".lower().split())
+
+
+def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Generate safe position/placement questions without using generic arithmetic routing.
+
+    This covers workbook concepts such as:
+    - Find the Position of the First Natural Number
+    - Write the Number from the Given Position
+    - Decimal Multiplication Answer Position / Answer Placement
+
+    The concept has its own generator path so multiplication/division display
+    changes cannot break it and unsupported position sections never crash preview.
+    """
+    Title = _AnswerPositionTitle(Config)
+    Stage = DifficultyStage(QuestionNumber - 1)
+
+    if "decimal" in Title or "answer placement" in Title or "answer position" in Title:
+        LeftPlaces = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
+        RightPlaces = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
+        LeftRaw = Rng.randint(1, 9 if Stage in {"WARM_UP", "STANDARD"} else 99)
+        RightRaw = Rng.randint(1, 9 if Stage in {"WARM_UP", "STANDARD"} else 99)
+        Left = Decimal(LeftRaw) / (Decimal(10) ** LeftPlaces)
+        Right = Decimal(RightRaw) / (Decimal(10) ** RightPlaces)
+        Product = Left * Right
+        ProductText = format(Product.normalize(), "f")
+        DecimalPlaces = len(ProductText.split(".", 1)[1].rstrip("0")) if "." in ProductText else 0
+        QuestionText = f"Find the decimal position in {format(Left, 'f')} × {format(Right, 'f')} = ?"
+        return [QuestionText], [""], Decimal(DecimalPlaces), {
+            "question_text": QuestionText,
+            "answer_position_mode": "DECIMAL_MULTIPLICATION_PLACEMENT",
+            "decimal_places_in_answer": DecimalPlaces,
+        }
+
+    if "write" in Title and "given position" in Title:
+        NumberText = str(Rng.randint(1200, 98765))
+        Position = Rng.randint(1, len(NumberText))
+        Digit = int(NumberText[Position - 1])
+        QuestionText = f"Write the digit at position {Position} in {NumberText}"
+        return [QuestionText], [""], Decimal(Digit), {
+            "question_text": QuestionText,
+            "answer_position_mode": "WRITE_DIGIT_FROM_GIVEN_POSITION",
+            "source_number": NumberText,
+            "position": Position,
+        }
+
+    Values = ["1.005", "12.007", "0.0089", "0.012", "345.002", "2.056", "50.0002"]
+    NumberText = Values[(QuestionNumber - 1) % len(Values)]
+    FirstNaturalIndex = next((Index for Index, Char in enumerate(NumberText) if Char.isdigit() and Char != "0"), 0)
+    DigitsBefore = sum(1 for Char in NumberText[:FirstNaturalIndex] if Char.isdigit())
+    QuestionText = f"Find the position of the first natural number in {NumberText}"
+    return [QuestionText], [""], Decimal(DigitsBefore), {
+        "question_text": QuestionText,
+        "answer_position_mode": "FIRST_NATURAL_NUMBER_POSITION",
+        "source_number": NumberText,
+    }
+
+
 def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Band = _LessonBand(Config)
@@ -760,6 +820,30 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
     return Deduped
 
 
+
+def GenerateSolveEquation(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    XMinimum, XMaximum = {
+        "WARM_UP": (2, 20),
+        "STANDARD": (5, 50),
+        "MIXED_STEP": (10, 100),
+        "ADVANCED": (20, 250),
+        "CHALLENGE": (50, 500),
+    }.get(Stage, (2, 50))
+    XValue = Rng.randint(XMinimum, XMaximum)
+    Offset = Rng.randint(3, max(4, XMaximum // 2))
+    if Rng.random() < 0.5:
+        Result = XValue + Offset
+        QuestionText = f"x + {Offset} = {Result}"
+    else:
+        Result = XValue - Offset
+        QuestionText = f"x − {Offset} = {Result}"
+    return [QuestionText], [""], Decimal(XValue), {
+        "question_text": QuestionText,
+        "solve_equation_mode": "LINEAR_ONE_STEP",
+    }
+
+
 def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     ConceptFamily = Config.ConceptFamily
     if ConceptFamily == "ADD_LESS":
@@ -808,6 +892,10 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         return GenerateSkillStacker(Config, Rng, QuestionNumber)
     if ConceptFamily == "CONCEPT_DRILL":
         return GenerateConceptDrill(Config, Rng, QuestionNumber)
+    if ConceptFamily == "ANSWER_POSITION":
+        return GenerateAnswerPosition(Config, Rng, QuestionNumber)
+    if ConceptFamily == "SOLVE_EQUATION":
+        return GenerateSolveEquation(Config, Rng, QuestionNumber)
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         OperationSequence = _MixedMultiplicationDivisionOperationSequence(Config)
         Operation = OperationSequence[(QuestionNumber - 1) % len(OperationSequence)]

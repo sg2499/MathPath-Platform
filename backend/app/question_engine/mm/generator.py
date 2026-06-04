@@ -2,7 +2,7 @@ import random
 from decimal import Decimal
 
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
-from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept
+from app.question_engine.mm.config import MMConfig, ClassifyMmConcept, IsPackage1Supported, OperationFocusForConcept
 from app.question_engine.mm.distractors import GenerateMmDistractors
 from app.question_engine.mm.operands import DifficultyStage, GeneratePackage1Question
 from app.question_engine.mm.validators import ValidateMmQuestion
@@ -178,6 +178,48 @@ def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMet
 
     return OriginalTitle
 
+
+def _SafeFallbackConcept(Config: MMConfig, SectionTitle: str | None = None) -> str:
+    """Choose a safe supported concept for a section that would otherwise crash.
+
+    This is a generation-safety net only. It keeps Generate Preview usable for
+    every DPS while preserving exact concept renderers for known section types.
+    """
+    Title = SectionTitle or Config.DpsTitle or ""
+    Classified = ClassifyMmConcept(Title, Config.LessonTitle)
+    if IsPackage1Supported(Classified):
+        return Classified
+    TitleText = f" {Title} ".upper()
+    if _ContainsAny(TitleText, ("ANSWER POSITION", "ANSWER PLACEMENT", "FIND POSITION", "GIVEN POSITION", "FIRST NATURAL NUMBER", "WRITE THE NUMBER")):
+        return "ANSWER_POSITION"
+    if _ContainsAny(TitleText, ("BORROWING", "ADD-LESS", "ADD LESS", "FAST VISUALISATION", "FAST VISUALIZATION", "VISUAL PRACTICE")):
+        return "ADD_LESS"
+    if _ContainsAny(TitleText, ("INTEGER", "INTEGERS")):
+        return "INTEGERS"
+    if "BODMAS" in TitleText:
+        return "BODMAS"
+    return "ADD_LESS"
+
+
+def _FallbackConfig(Config: MMConfig, SectionTitle: str | None, SectionNumber: int, SectionCount: int) -> MMConfig:
+    FallbackConcept = _SafeFallbackConcept(Config, SectionTitle)
+    return MMConfig(
+        ModuleCode=Config.ModuleCode,
+        LevelCode=Config.LevelCode,
+        LessonNumber=Config.LessonNumber,
+        DpsNumber=Config.DpsNumber,
+        DpsTitle=SectionTitle or Config.DpsTitle,
+        LessonTitle=Config.LessonTitle,
+        QuestionCount=SectionCount,
+        Seed=f"{Config.Seed}-SAFE-FALLBACK-{SectionNumber}",
+        ConceptFamily=FallbackConcept,
+        OperationFocus=OperationFocusForConcept(FallbackConcept),
+        DigitPattern=Config.DigitPattern,
+        Difficulty=Config.Difficulty,
+        GeneratorConfig={**(Config.GeneratorConfig or {}), "safeFallbackFromConcept": Config.ConceptFamily},
+    )
+
+
 def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, SectionTitle: str | None = None, StartNumber: int = 1, TotalSections: int = 1) -> list[dict]:
     if not IsPackage1Supported(Config.ConceptFamily):
         raise ValueError(f"Master Module generator does not support concept: {Config.ConceptFamily}")
@@ -283,9 +325,26 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 Difficulty=str(Section.get("difficulty") or Config.Difficulty),
                 GeneratorConfig={**Config.GeneratorConfig, "activeSection": Section},
             )
-            SectionQuestions = _GenerateSingleSectionQuestionSet(SectionConfig, Index, SectionTitle, StartNumber, TotalSections)
+            try:
+                SectionQuestions = _GenerateSingleSectionQuestionSet(SectionConfig, Index, SectionTitle, StartNumber, TotalSections)
+            except Exception:
+                SafeConfig = _FallbackConfig(SectionConfig, SectionTitle, Index, SectionCount)
+                SectionQuestions = _GenerateSingleSectionQuestionSet(SafeConfig, Index, SectionTitle, StartNumber, TotalSections)
+                for Question in SectionQuestions:
+                    Metadata = Question.setdefault("metadata", {})
+                    Metadata["safe_generation_fallback"] = True
+                    Metadata["fallback_from_concept_family"] = SectionConcept
             Questions.extend(SectionQuestions)
             StartNumber += SectionCount
         return rebalance_correct_option_distribution(Questions)
 
-    return rebalance_correct_option_distribution(_GenerateSingleSectionQuestionSet(Config))
+    try:
+        return rebalance_correct_option_distribution(_GenerateSingleSectionQuestionSet(Config))
+    except Exception:
+        SafeConfig = _FallbackConfig(Config, Config.DpsTitle, 1, int(Config.QuestionCount or 10))
+        Questions = _GenerateSingleSectionQuestionSet(SafeConfig)
+        for Question in Questions:
+            Metadata = Question.setdefault("metadata", {})
+            Metadata["safe_generation_fallback"] = True
+            Metadata["fallback_from_concept_family"] = Config.ConceptFamily
+        return rebalance_correct_option_distribution(Questions)
