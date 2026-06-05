@@ -820,20 +820,36 @@ def GenerateDecimalDivision(Config: MMConfig, Rng: random.Random, QuestionNumber
     }
 
 
-def GenerateWholeNumberMultiplication(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
-    Stage = DifficultyStage(QuestionNumber - 1)
-    LeftDigits, RightDigits = _MultiplicationDigits(Config, Stage)
+def _GenerateWholeNumberMultiplicationByDigits(
+    Rng: random.Random,
+    LeftDigits: int,
+    RightDigits: int,
+    MixedVariant: str | None = None,
+) -> tuple[list[int | float], list[str], Decimal, dict]:
     LeftMin, LeftMax = _DigitRange(LeftDigits)
     RightMin, RightMax = _DigitRange(RightDigits)
     Left = Rng.randint(LeftMin, LeftMax)
     Right = Rng.randint(RightMin, RightMax)
     CorrectAnswer = Decimal(Left * Right)
-    return [Left, Right], ["", "×"], CorrectAnswer, {"left_digits": LeftDigits, "right_digits": RightDigits}
+    Metadata = {"left_digits": LeftDigits, "right_digits": RightDigits}
+    if MixedVariant:
+        Metadata["mixed_pattern_variant"] = MixedVariant
+        Metadata["mixed_pattern_family"] = "WHOLE_NUMBER_MULTIPLICATION"
+    return [Left, Right], ["", "×"], CorrectAnswer, Metadata
 
 
-def GenerateWholeNumberDivision(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+def GenerateWholeNumberMultiplication(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    DividendDigits, DivisorDigits = _DivisionDigits(Config, Stage)
+    LeftDigits, RightDigits = _MultiplicationDigits(Config, Stage)
+    return _GenerateWholeNumberMultiplicationByDigits(Rng, LeftDigits, RightDigits)
+
+
+def _GenerateWholeNumberDivisionByDigits(
+    Rng: random.Random,
+    DividendDigits: int,
+    DivisorDigits: int,
+    MixedVariant: str | None = None,
+) -> tuple[list[int | float], list[str], Decimal, dict]:
     DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
     DividendMin, DividendMax = _DigitRange(DividendDigits)
     Divisor = Rng.randint(DivisorMin, DivisorMax)
@@ -842,7 +858,17 @@ def GenerateWholeNumberDivision(Config: MMConfig, Rng: random.Random, QuestionNu
     Quotient = Rng.randint(MinQuotient, MaxQuotient)
     Dividend = Divisor * Quotient
     CorrectAnswer = Decimal(Quotient)
-    return [Dividend, Divisor], ["", "÷"], CorrectAnswer, {"dividend_digits": DividendDigits, "divisor_digits": DivisorDigits}
+    Metadata = {"dividend_digits": DividendDigits, "divisor_digits": DivisorDigits}
+    if MixedVariant:
+        Metadata["mixed_pattern_variant"] = MixedVariant
+        Metadata["mixed_pattern_family"] = "WHOLE_NUMBER_DIVISION"
+    return [Dividend, Divisor], ["", "÷"], CorrectAnswer, Metadata
+
+
+def GenerateWholeNumberDivision(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    DividendDigits, DivisorDigits = _DivisionDigits(Config, Stage)
+    return _GenerateWholeNumberDivisionByDigits(Rng, DividendDigits, DivisorDigits)
 
 
 def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
@@ -1814,14 +1840,12 @@ def _FindTokenPosition(Text: str, Tokens: list[str]) -> int | None:
 
 
 def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]:
-    """Return the exact operation families for mixed multiplication/division sheets.
+    """Return lesson-aware operation variants for mixed multiplication/division sheets.
 
-    Critical convention:
-    - Normal digit-pattern concepts such as 2D × 2D, 3D × 4D, 4D ÷ 3D
-      must always use whole-number operands.
-    - Decimal Multiplication / Decimal Division sections must always show at
-      least one decimal operand; whole-number mechanisms belong only in true
-      Mixed Pattern sections.
+    Mixed Pattern means a balanced review of the operation family, not merely a
+    whole/decimal split. Standalone decimal sections remain decimal-only, but
+    true mixed sections cycle through the digit patterns introduced by the
+    current lesson and include decimal mechanisms as one part of the review.
     """
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
     MixedOperationGroup = str(GeneratorConfig.get("mixedOperationGroup") or "").upper()
@@ -1829,6 +1853,9 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
     ActiveSectionTitle = str(ActiveSection.get("sectionTitle") or ActiveSection.get("title") or "")
     SourceDpsTitle = str(GeneratorConfig.get("sourceDpsTitle") or Config.DpsTitle)
     SourceLessonTitle = str(GeneratorConfig.get("sourceLessonTitle") or Config.LessonTitle)
+    SectionText = " ".join(
+        f" {Config.DpsTitle} {ActiveSectionTitle} ".lower().replace("×", " x ").replace("÷", " division ").split()
+    )
     FullText = " ".join(
         f" {SourceDpsTitle} {SourceLessonTitle} {Config.DpsTitle} {Config.LessonTitle} {ActiveSectionTitle} "
         .lower()
@@ -1846,16 +1873,43 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
         or "division of decimal" in FullText
         or "decimal number division" in FullText
     )
-    IsTrueMixedPattern = "mixed pattern" in FullText and not (HasDecimalMultiplication or HasDecimalDivision)
+    MixedDpsText = " ".join(f" {SourceDpsTitle} {Config.DpsTitle} {ActiveSectionTitle} ".lower().split())
+    IsTrueMixedPattern = "mixed pattern" in MixedDpsText
+
+    LessonNumber = int(Config.LessonNumber or 1)
+
+    MultiplicationVariants = ["MUL_2D_1D", "MUL_2D_2D"]
+    if LessonNumber >= 8:
+        MultiplicationVariants.append("MUL_DECIMAL")
+    if LessonNumber >= 10:
+        MultiplicationVariants.append("MUL_3D_1D")
+    if LessonNumber >= 14:
+        MultiplicationVariants.append("MUL_3D_2D")
+    if LessonNumber >= 20:
+        MultiplicationVariants.extend(["MUL_4D_1D", "MUL_4D_2D"])
+    if LessonNumber >= 23:
+        MultiplicationVariants.append("MUL_3D_3D")
+
+    DivisionVariants = ["DIV_2D_1D", "DIV_3D_1D"]
+    if LessonNumber >= 11:
+        DivisionVariants.append("DIV_DECIMAL")
+    if LessonNumber >= 14:
+        DivisionVariants.append("DIV_4D_1D")
+    if LessonNumber >= 18:
+        DivisionVariants.extend(["DIV_3D_2D", "DIV_4D_2D"])
+    if LessonNumber >= 22:
+        DivisionVariants.extend(["DIV_5D_2D", "DIV_4D_3D"])
+    if LessonNumber >= 26:
+        DivisionVariants.extend(["DIV_6D_2D", "DIV_5D_3D", "DIV_6D_3D"])
 
     if MixedOperationGroup == "MULTIPLICATION":
         if HasDecimalMultiplication and not IsTrueMixedPattern:
             return ["DECIMAL_MULTIPLICATION"]
-        return ["WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION"]
+        return MultiplicationVariants
     if MixedOperationGroup == "DIVISION":
         if HasDecimalDivision and not IsTrueMixedPattern:
             return ["DECIMAL_DIVISION"]
-        return ["WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION"]
+        return DivisionVariants
 
     Text = FullText
     Operations: list[tuple[int, str]] = []
@@ -2036,13 +2090,45 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
     if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
         OperationSequence = _MixedMultiplicationDivisionOperationSequence(Config)
         Operation = OperationSequence[(QuestionNumber - 1) % len(OperationSequence)]
-        if Operation == "DECIMAL_MULTIPLICATION":
-            return GenerateDecimalMultiplication(Config, Rng, QuestionNumber)
-        if Operation == "DECIMAL_DIVISION":
-            return GenerateDecimalDivision(Config, Rng, QuestionNumber)
-        if Operation == "WHOLE_NUMBER_MULTIPLICATION":
-            return GenerateWholeNumberMultiplication(Config, Rng, QuestionNumber)
-        return GenerateWholeNumberDivision(Config, Rng, QuestionNumber)
+        if Operation in {"DECIMAL_MULTIPLICATION", "MUL_DECIMAL"}:
+            Operands, Operators, CorrectAnswer, Metadata = GenerateDecimalMultiplication(Config, Rng, QuestionNumber)
+            Metadata["mixed_pattern_variant"] = "DECIMAL_MULTIPLICATION"
+            Metadata["mixed_pattern_family"] = "DECIMAL_MULTIPLICATION"
+            return Operands, Operators, CorrectAnswer, Metadata
+        if Operation in {"DECIMAL_DIVISION", "DIV_DECIMAL"}:
+            Operands, Operators, CorrectAnswer, Metadata = GenerateDecimalDivision(Config, Rng, QuestionNumber)
+            Metadata["mixed_pattern_variant"] = "DECIMAL_DIVISION"
+            Metadata["mixed_pattern_family"] = "DECIMAL_DIVISION"
+            return Operands, Operators, CorrectAnswer, Metadata
+
+        MultiplicationPatternDigits = {
+            "WHOLE_NUMBER_MULTIPLICATION": (2, 1),
+            "MUL_2D_1D": (2, 1),
+            "MUL_3D_1D": (3, 1),
+            "MUL_4D_1D": (4, 1),
+            "MUL_2D_2D": (2, 2),
+            "MUL_3D_2D": (3, 2),
+            "MUL_4D_2D": (4, 2),
+            "MUL_3D_3D": (3, 3),
+        }
+        DivisionPatternDigits = {
+            "WHOLE_NUMBER_DIVISION": (2, 1),
+            "DIV_2D_1D": (2, 1),
+            "DIV_3D_1D": (3, 1),
+            "DIV_4D_1D": (4, 1),
+            "DIV_3D_2D": (3, 2),
+            "DIV_4D_2D": (4, 2),
+            "DIV_5D_2D": (5, 2),
+            "DIV_6D_2D": (6, 2),
+            "DIV_4D_3D": (4, 3),
+            "DIV_5D_3D": (5, 3),
+            "DIV_6D_3D": (6, 3),
+        }
+        if Operation in MultiplicationPatternDigits:
+            LeftDigits, RightDigits = MultiplicationPatternDigits[Operation]
+            return _GenerateWholeNumberMultiplicationByDigits(Rng, LeftDigits, RightDigits, Operation)
+        DividendDigits, DivisorDigits = DivisionPatternDigits.get(Operation, (2, 1))
+        return _GenerateWholeNumberDivisionByDigits(Rng, DividendDigits, DivisorDigits, Operation)
     raise ValueError(f"Unsupported Master Module concept: {ConceptFamily}")
 
 
