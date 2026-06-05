@@ -218,6 +218,98 @@ def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMet
 SPECIAL_FIXED_COUNT_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
 
 
+def _FormatPositionOptionValue(Value: Decimal) -> str:
+    """Return plain, non-scientific decimal text for position MCQ options."""
+    if Value == Value.to_integral_value():
+        return str(int(Value))
+
+    DisplayText = format(Value.normalize(), "f")
+    if "." in DisplayText:
+        DisplayText = DisplayText.rstrip("0").rstrip(".")
+    if DisplayText == "-0":
+        return "0"
+    return DisplayText
+
+
+def _WorkbookPositionAnswerValue(NumberValue: int, Position: int) -> Decimal:
+    """Mirror workbook formula for same-number alternative placements."""
+    DigitCount = len(str(abs(int(NumberValue))))
+    Exponent = int(Position) - DigitCount
+    if Exponent >= 0:
+        return Decimal(NumberValue) * (Decimal(10) ** Exponent)
+    return Decimal(NumberValue) / (Decimal(10) ** abs(Exponent))
+
+
+def _BuildWriteNumberPositionOptions(CorrectAnswer: Decimal, ExtraMetadata: dict, Rng: random.Random) -> list[dict] | None:
+    """Build concept-specific distractors from the same digit sequence.
+
+    For Write the Number from the Given Position, wrong MCQ options must be
+    plausible alternate position interpretations of the same Number value.
+    Random unrelated decimals make the answer guessable and weaken the concept.
+    """
+    if ExtraMetadata.get("answer_position_mode") != "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE":
+        return None
+
+    SourceNumber = ExtraMetadata.get("source_number")
+    Position = ExtraMetadata.get("position")
+    if SourceNumber is None or Position is None:
+        return None
+
+    try:
+        NumberValue = int(str(SourceNumber))
+        CorrectPosition = int(Position)
+    except (TypeError, ValueError):
+        return None
+
+    CorrectText = _FormatPositionOptionValue(CorrectAnswer)
+    CandidatePositions = [
+        CorrectPosition + 1,
+        CorrectPosition - 1,
+        CorrectPosition + 2,
+        CorrectPosition - 2,
+        CorrectPosition + 3,
+        CorrectPosition - 3,
+        0,
+        1,
+        -1,
+        2,
+        -2,
+        3,
+        -3,
+        -4,
+    ]
+
+    CandidateTexts: list[str] = []
+    for CandidatePosition in CandidatePositions:
+        if CandidatePosition == CorrectPosition:
+            continue
+        CandidateText = _FormatPositionOptionValue(_WorkbookPositionAnswerValue(NumberValue, CandidatePosition))
+        if CandidateText != CorrectText and CandidateText not in CandidateTexts:
+            CandidateTexts.append(CandidateText)
+        if len(CandidateTexts) >= 3:
+            break
+
+    FallbackPosition = -8
+    while len(CandidateTexts) < 3 and FallbackPosition <= 8:
+        if FallbackPosition != CorrectPosition:
+            CandidateText = _FormatPositionOptionValue(_WorkbookPositionAnswerValue(NumberValue, FallbackPosition))
+            if CandidateText != CorrectText and CandidateText not in CandidateTexts:
+                CandidateTexts.append(CandidateText)
+        FallbackPosition += 1
+
+    Values = [CorrectText] + CandidateTexts[:3]
+    Rng.shuffle(Values)
+    return [
+        {
+            "label": ["A", "B", "C", "D"][Index],
+            "value": Value,
+            "is_correct": Value == CorrectText,
+            "display_order": Index + 1,
+        }
+        for Index, Value in enumerate(Values)
+    ]
+
+
 def _QuestionCountForConcept(ConceptFamily: str, RequestedCount: int | None) -> int:
     if ConceptFamily in SPECIAL_FIXED_COUNT_CONCEPTS:
         return 5
@@ -257,9 +349,14 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
             Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = Accepted
 
         CorrectDisplay = _Display(CorrectAnswer)
-        AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
-        Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
-        Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
+        MetadataForOptions = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
+        PositionOptions = _BuildWriteNumberPositionOptions(CorrectAnswer, MetadataForOptions, Rng)
+        if PositionOptions is not None:
+            Options = PositionOptions
+        else:
+            AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
+            Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
+            Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         QuestionText = ExtraMetadata.get("question_text") if isinstance(ExtraMetadata, dict) else None
         DisplaySectionTitle = _NormalisedSectionTitle(Config, SectionTitle, ExtraMetadata, Operators)
         QuestionPayload = {
