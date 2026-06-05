@@ -213,6 +213,28 @@ function IsPositionNumberTable(operators: string[]): boolean {
   return Labels[0] === "POSITION" && Labels[1] === "NUMBER";
 }
 
+function IsFirstNaturalNumberCard(operators: string[]): boolean {
+  const Labels = operators.map((Operator) => String(Operator || "").trim().toUpperCase());
+  return Labels.length === 1 && Labels[0] === "NUMBER";
+}
+
+function FirstNaturalNumberCardQuestion({ operands }: { operands: Array<number | string> }) {
+  return (
+    <div className="mx-auto w-full max-w-sm rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+        <div className="bg-slate-100 px-4 py-3 text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
+          Number
+        </div>
+        <div className="px-5 py-6 text-center font-mono text-3xl font-black leading-none sm:text-4xl">
+          {FormatValue(operands[0] ?? "?")}
+        </div>
+      </div>
+      <div className="mt-4 text-center text-2xl font-black text-blue-700 dark:text-cyan-300">?</div>
+    </div>
+  );
+}
+
+
 export function MathQuestionDisplay({ operands, operators, displayType, questionText }: MathQuestionDisplayProps) {
   const Operands = operands ?? [];
   const Operators = operators ?? [];
@@ -225,6 +247,10 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
   if (Mode === "ANSWER_POSITION") {
     if (IsPositionNumberTable(Operators)) {
       return <PositionNumberTableQuestion operands={Operands} operators={Operators} questionText={questionText} />;
+    }
+
+    if (IsFirstNaturalNumberCard(Operators)) {
+      return <FirstNaturalNumberCardQuestion operands={Operands} />;
     }
 
     return <ExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} mode="ANSWER_POSITION" />;
