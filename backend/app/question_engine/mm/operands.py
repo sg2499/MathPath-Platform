@@ -1327,15 +1327,59 @@ def _SkillStackerAnswer(AddValue: int, Times: int) -> Decimal:
     return Decimal(AddValue * (2 ** (Times - 1)))
 
 
+def _SkillStackerMagnitudeBand(Config: MMConfig, QuestionNumber: int) -> str:
+    """Return workbook-style Skill Stacker ADD-size band.
+
+    Workbook progression balances the ADD value against the TIMES count:
+    small ADD values can be stacked more times, medium ADD values use moderate
+    TIMES counts, and large ADD values use fewer TIMES counts. This prevents
+    unrealistically huge answers while still giving students varied accumulation
+    practice across lessons and DPS sheets.
+    """
+    LessonBand = _LessonBand(Config)
+    NormalizedQuestionNumber = max(1, min(5, int(QuestionNumber or 1)))
+
+    if LessonBand <= 2:
+        Pattern = ["SMALL", "SMALL", "SMALL", "MEDIUM", "MEDIUM"]
+    elif LessonBand <= 4:
+        Pattern = ["SMALL", "MEDIUM", "MEDIUM", "MEDIUM", "LARGE"]
+    else:
+        Pattern = ["MEDIUM", "LARGE", "MEDIUM", "LARGE", "LARGE"]
+
+    return Pattern[NormalizedQuestionNumber - 1]
+
+
+def _SkillStackerPairFromBand(PairSlot: int, Band: str) -> tuple[int, int]:
+    """Return a deterministic unique ADD/TIMES pair for the selected band."""
+    if Band == "SMALL":
+        # Small numbers can carry higher repetition counts.
+        AddValue = 8 + ((PairSlot * 17) % 92)      # 8–99
+        Times = 9 + ((PairSlot * 3) % 4)           # 9–12
+        return AddValue, Times
+
+    if Band == "LARGE":
+        # Large numbers must use low repetition counts to stay workbook-safe.
+        AddValue = 10000 + ((PairSlot * 997) % 90000)  # 10000–99999
+        Times = 5 + (PairSlot % 2)                     # 5–6
+        return AddValue, Times
+
+    # Medium numbers use moderate repetition counts.
+    AddValue = 100 + ((PairSlot * 137) % 9900)     # 100–9999
+    Times = 7 + ((PairSlot * 5) % 3)               # 7–9
+    return AddValue, Times
+
+
 def _SkillStackerUniquePair(Config: MMConfig, QuestionNumber: int) -> tuple[int, int]:
     """Return a deterministic ADD/TIMES pair that stays distinct across DPS sheets.
 
     Skill Stacker is reused in several mixed MM sheets. A purely random draw can
     repeat the same ADD/TIMES pair across lesson DPS previews, which weakens
     practice quality. The slot formula below gives every lesson/DPS/question a
-    stable position in a large workbook-safe pair pool. The pair period is larger
-    than the full 30-lesson × 5-DPS × 5-question workbook surface, so the same
-    ADD/TIMES pair is not intentionally reused across the Master Module.
+    stable position in a large workbook-safe pair pool. The ADD size and TIMES
+    count are banded together to match workbook progression:
+      - small ADD values: higher TIMES counts
+      - medium ADD values: moderate TIMES counts
+      - large ADD values: low TIMES counts
     """
     LessonNumber = max(1, min(30, int(Config.LessonNumber or 1)))
     DpsNumber = max(1, min(5, int(Config.DpsNumber or 1)))
@@ -1352,10 +1396,9 @@ def _SkillStackerUniquePair(Config: MMConfig, QuestionNumber: int) -> tuple[int,
     WorkbookSlot = ((LessonNumber - 1) * 25) + ((DpsNumber - 1) * 5) + (NormalizedQuestionNumber - 1)
     SectionOffset = (SectionNumber - 1) * 150
     PairSlot = WorkbookSlot + SectionOffset
+    Band = _SkillStackerMagnitudeBand(Config, NormalizedQuestionNumber)
 
-    AddValue = 8 + ((PairSlot * 17) % 173)
-    Times = 8 + (PairSlot % 5)
-    return AddValue, Times
+    return _SkillStackerPairFromBand(PairSlot, Band)
 
 
 def GenerateSkillStacker(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
