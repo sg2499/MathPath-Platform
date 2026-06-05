@@ -412,8 +412,27 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
                 return CorrectAnswer == ExpectedAnswer
             except Exception:
                 return False
-        if len(Operands) == 1 and Operators == [""] and CorrectAnswer >= 0:
-            return True
+        if len(Operands) == 2 and Operators == ["", "×"]:
+            try:
+                def _Position(Value: int | float | str | Decimal) -> Decimal:
+                    TextValue = str(Value).strip().replace(",", "")
+                    if TextValue.startswith("+") or TextValue.startswith("-"):
+                        TextValue = TextValue[1:]
+                    IntegerPart, _, DecimalPart = TextValue.partition(".")
+                    IntegerDigits = (IntegerPart or "0").lstrip("0")
+                    if IntegerDigits:
+                        return Decimal(len(IntegerDigits))
+                    for Index, Character in enumerate(DecimalPart):
+                        if Character.isdigit() and Character != "0":
+                            return Decimal(-Index)
+                    return Decimal(0)
+
+                ExpectedAnswer = _Position(Operands[0]) + _Position(Operands[1])
+                return CorrectAnswer == ExpectedAnswer
+            except Exception:
+                return False
+        if len(Operands) == 1 and Operators == [""]:
+            return False
         if len(Operands) == 2 and Operators == ["Position", "Number"]:
             try:
                 Position = int(_DecimalValue(Operands[0]))
