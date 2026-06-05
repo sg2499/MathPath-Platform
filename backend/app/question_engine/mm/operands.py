@@ -337,16 +337,130 @@ def GenerateDecimalAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber:
     return GenerateAddLess(Config, Rng, QuestionNumber)
 
 
-def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
-    Stage = DifficultyStage(QuestionNumber - 1)
-    Places = 1 if Stage in {"WARM_UP", "STANDARD", "MIXED_STEP"} else 2
-    Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
-    Left = _RandDecimal(Rng, max(2, Minimum // 5), max(8, Maximum // 20), Places)
-    Right = Decimal(Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 99))
-    if Stage in {"ADVANCED", "CHALLENGE"} and Rng.random() < 0.55:
-        Right = _RandDecimal(Rng, 2, 25, 1)
-    CorrectAnswer = _Quantize(Left * Right, Places + (1 if Right != Right.to_integral_value() else 0))
-    return [_AsDisplayNumber(Left), _AsDisplayNumber(Right)], ["", "×"], CorrectAnswer, {"decimal_places": Places}
+DECIMAL_MULTIPLICATION_PATTERNS: tuple[tuple[int, int], ...] = (
+    (2, 1),
+    (3, 1),
+    (4, 1),
+    (2, 2),
+    (3, 2),
+    (4, 2),
+    (3, 3),
+)
+
+
+def _DecimalMultiplicationPatternsForLesson(Config: MMConfig) -> list[tuple[int, int]]:
+    ExplicitPattern = _ExtractMultiplicationDigits(Config)
+    if ExplicitPattern in DECIMAL_MULTIPLICATION_PATTERNS:
+        return [ExplicitPattern]
+
+    LessonNumber = int(Config.LessonNumber or 1)
+    if LessonNumber <= 7:
+        return [(2, 1), (3, 1), (2, 2)]
+    if LessonNumber <= 10:
+        return [(2, 2), (3, 1), (3, 2)]
+    if LessonNumber <= 13:
+        return [(3, 2), (4, 1), (2, 2), (3, 1)]
+    if LessonNumber <= 18:
+        return [(4, 2), (3, 3), (3, 2), (4, 1)]
+    return [(4, 2), (3, 3), (3, 2), (4, 1), (2, 2)]
+
+
+def _GeneratePatternWholeOperand(Rng: random.Random, Digits: int) -> int:
+    Minimum, Maximum = _DigitRange(Digits)
+    if Digits == 1:
+        Minimum = max(2, Minimum)
+    return Rng.randint(Minimum, Maximum)
+
+
+def _DecimalShiftOptions(Value: int) -> list[int]:
+    DigitCount = len(str(abs(Value)))
+    # Keep at least one whole-number digit before the decimal point where possible.
+    # This preserves workbook-style readability while still making decimal placement
+    # a presentation step after whole-number pattern generation.
+    return [Shift for Shift in range(0, DigitCount) if Shift <= 3]
+
+
+def _FormatDecimalOperandFromWhole(Value: int, DecimalPlaces: int) -> str:
+    if DecimalPlaces <= 0:
+        return str(Value)
+    Raw = str(abs(Value))
+    if DecimalPlaces >= len(Raw):
+        Raw = "0" * (DecimalPlaces - len(Raw) + 1) + Raw
+    SplitAt = len(Raw) - DecimalPlaces
+    WholePart = Raw[:SplitAt] or "0"
+    DecimalPart = Raw[SplitAt:]
+    Sign = "-" if Value < 0 else ""
+    return f"{Sign}{WholePart}.{DecimalPart}"
+
+
+def _DisplayDecimalMultiplicationOperand(Value: int, DecimalPlaces: int) -> int | str:
+    if DecimalPlaces <= 0:
+        return Value
+    return _FormatDecimalOperandFromWhole(Value, DecimalPlaces)
+
+
+def _DecimalPlacesInOperand(Value: int | float | str) -> int:
+    Text = str(Value)
+    return len(Text.split(".", 1)[1]) if "." in Text else 0
+
+
+def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    PatternOptions = _DecimalMultiplicationPatternsForLesson(Config)
+    Pattern = PatternOptions[(QuestionNumber - 1) % len(PatternOptions)]
+    LeftDigits, RightDigits = Pattern
+
+    # Generate the abacus multiplication first as whole-number operands.
+    # Decimal placement is applied only after the underlying pattern is fixed.
+    for _Attempt in range(100):
+        LeftWhole = _GeneratePatternWholeOperand(Rng, LeftDigits)
+        RightWhole = _GeneratePatternWholeOperand(Rng, RightDigits)
+        WholeProduct = LeftWhole * RightWhole
+        if WholeProduct >= 1000000:
+            continue
+
+        LeftShiftOptions = _DecimalShiftOptions(LeftWhole)
+        RightShiftOptions = _DecimalShiftOptions(RightWhole)
+        ShiftPairs = [
+            (LeftShift, RightShift)
+            for LeftShift in LeftShiftOptions
+            for RightShift in RightShiftOptions
+            if LeftShift + RightShift > 0
+        ]
+        if not ShiftPairs:
+            continue
+
+        LeftShift, RightShift = Rng.choice(ShiftPairs)
+        LeftOperand = _DisplayDecimalMultiplicationOperand(LeftWhole, LeftShift)
+        RightOperand = _DisplayDecimalMultiplicationOperand(RightWhole, RightShift)
+        TotalDecimalPlaces = _DecimalPlacesInOperand(LeftOperand) + _DecimalPlacesInOperand(RightOperand)
+        CorrectAnswer = _Quantize(Decimal(WholeProduct) / (Decimal(10) ** TotalDecimalPlaces), TotalDecimalPlaces)
+
+        return [LeftOperand, RightOperand], ["", "×"], CorrectAnswer, {
+            "left_digits": LeftDigits,
+            "right_digits": RightDigits,
+            "underlying_left": LeftWhole,
+            "underlying_right": RightWhole,
+            "underlying_product": WholeProduct,
+            "decimal_places": TotalDecimalPlaces,
+            "decimal_pattern_rule": "DIGIT_COUNT_AFTER_DECIMAL_REMOVAL",
+        }
+
+    # Conservative fallback should almost never be used, but keeps preview generation safe.
+    LeftDigits, RightDigits = (2, 1)
+    LeftWhole = _GeneratePatternWholeOperand(Rng, LeftDigits)
+    RightWhole = _GeneratePatternWholeOperand(Rng, RightDigits)
+    LeftOperand = _DisplayDecimalMultiplicationOperand(LeftWhole, 1)
+    RightOperand = RightWhole
+    CorrectAnswer = _Quantize(Decimal(LeftWhole * RightWhole) / Decimal(10), 1)
+    return [LeftOperand, RightOperand], ["", "×"], CorrectAnswer, {
+        "left_digits": LeftDigits,
+        "right_digits": RightDigits,
+        "underlying_left": LeftWhole,
+        "underlying_right": RightWhole,
+        "underlying_product": LeftWhole * RightWhole,
+        "decimal_places": 1,
+        "decimal_pattern_rule": "DIGIT_COUNT_AFTER_DECIMAL_REMOVAL",
+    }
 
 
 def GenerateDecimalDivision(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
