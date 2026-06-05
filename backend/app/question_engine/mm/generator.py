@@ -348,8 +348,11 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
         else:
             Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = Accepted
 
-        CorrectDisplay = _Display(CorrectAnswer)
         MetadataForOptions = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
+        if MetadataForOptions.get("answer_position_mode") == "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE":
+            CorrectDisplay = _FormatPositionOptionValue(CorrectAnswer)
+        else:
+            CorrectDisplay = _Display(CorrectAnswer)
         PositionOptions = _BuildWriteNumberPositionOptions(CorrectAnswer, MetadataForOptions, Rng)
         if PositionOptions is not None:
             Options = PositionOptions
