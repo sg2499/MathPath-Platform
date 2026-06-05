@@ -1327,15 +1327,44 @@ def _SkillStackerAnswer(AddValue: int, Times: int) -> Decimal:
     return Decimal(AddValue * (2 ** (Times - 1)))
 
 
+def _SkillStackerUniquePair(Config: MMConfig, QuestionNumber: int) -> tuple[int, int]:
+    """Return a deterministic ADD/TIMES pair that stays distinct across DPS sheets.
+
+    Skill Stacker is reused in several mixed MM sheets. A purely random draw can
+    repeat the same ADD/TIMES pair across lesson DPS previews, which weakens
+    practice quality. The slot formula below gives every lesson/DPS/question a
+    stable position in a large workbook-safe pair pool. The pair period is larger
+    than the full 30-lesson × 5-DPS × 5-question workbook surface, so the same
+    ADD/TIMES pair is not intentionally reused across the Master Module.
+    """
+    LessonNumber = max(1, min(30, int(Config.LessonNumber or 1)))
+    DpsNumber = max(1, min(5, int(Config.DpsNumber or 1)))
+    SectionNumber = 1
+    if isinstance(Config.GeneratorConfig, dict):
+        ActiveSection = Config.GeneratorConfig.get("activeSection")
+        if isinstance(ActiveSection, dict):
+            try:
+                SectionNumber = max(1, int(ActiveSection.get("sectionNumber") or ActiveSection.get("order") or 1))
+            except Exception:
+                SectionNumber = 1
+
+    NormalizedQuestionNumber = max(1, min(5, int(QuestionNumber or 1)))
+    WorkbookSlot = ((LessonNumber - 1) * 25) + ((DpsNumber - 1) * 5) + (NormalizedQuestionNumber - 1)
+    SectionOffset = (SectionNumber - 1) * 150
+    PairSlot = WorkbookSlot + SectionOffset
+
+    AddValue = 8 + ((PairSlot * 17) % 173)
+    Times = 8 + (PairSlot % 5)
+    return AddValue, Times
+
+
 def GenerateSkillStacker(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    Stage = DifficultyStage(QuestionNumber - 1)
-    (AddMin, AddMax), (TimesMin, TimesMax) = _SkillStackerRanges(Config, Stage)
-    AddValue = Rng.randint(AddMin, AddMax)
-    Times = Rng.randint(TimesMin, TimesMax)
+    AddValue, Times = _SkillStackerUniquePair(Config, QuestionNumber)
     CorrectAnswer = _SkillStackerAnswer(AddValue, Times)
     return [AddValue, Times], ["Add", "Times"], CorrectAnswer, {
         "question_text": "Skill Stacker",
         "skill_stacker_mode": "REPEATED_DOUBLING_ACCUMULATION",
+        "skill_stacker_uniqueness": "LESSON_DPS_QUESTION_PAIR_POOL",
     }
 
 def _ConceptDrillRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:

@@ -215,6 +215,15 @@ def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMet
 
     return OriginalTitle
 
+SPECIAL_FIXED_COUNT_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
+
+
+def _QuestionCountForConcept(ConceptFamily: str, RequestedCount: int | None) -> int:
+    if ConceptFamily in SPECIAL_FIXED_COUNT_CONCEPTS:
+        return 5
+    return min(max(int(RequestedCount or 10), 1), 30)
+
+
 def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, SectionTitle: str | None = None, StartNumber: int = 1, TotalSections: int = 1) -> list[dict]:
     if not IsPackage1Supported(Config.ConceptFamily):
         raise ValueError(f"Master Module generator does not support concept: {Config.ConceptFamily}")
@@ -222,7 +231,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
     Questions: list[dict] = []
     Seen: set[tuple[str, ...]] = set()
 
-    QuestionCount = min(max(int(Config.QuestionCount or 10), 1), 30)
+    QuestionCount = _QuestionCountForConcept(Config.ConceptFamily, Config.QuestionCount)
     for SectionQuestionNumber in range(1, QuestionCount + 1):
         GlobalQuestionNumber = StartNumber + SectionQuestionNumber - 1
         QuestionSeed = f"{Config.Seed}-MM-S{SectionNumber}-Q{SectionQuestionNumber}"
@@ -318,7 +327,8 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                     MixedOperationGroup = "MULTIPLICATION"
                     SectionConcept = "MULTIPLICATION_DIVISION_MIXED"
 
-            SectionCount = int(Section.get("questionCount") or 10)
+            RequestedSectionCount = int(Section.get("questionCount") or 10)
+            SectionCount = _QuestionCountForConcept(SectionConcept, RequestedSectionCount)
             SectionGeneratorConfig = {**Config.GeneratorConfig, "activeSection": Section}
             if MixedOperationGroup:
                 SectionGeneratorConfig["mixedOperationGroup"] = MixedOperationGroup
