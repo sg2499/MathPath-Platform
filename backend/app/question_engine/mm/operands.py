@@ -1696,7 +1696,7 @@ def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber:
 
     if "decimal" in Title or "answer placement" in Title or "answer position" in Title:
         LeftText, RightText, CorrectPosition = _DecimalMultiplicationPlacementOperands(Config, QuestionNumber)
-        QuestionText = f"Find the decimal position in {LeftText} × {RightText}"
+        QuestionText = f"{LeftText} × {RightText} = ?"
         return [LeftText, RightText], ["", "×"], Decimal(CorrectPosition), {
             "question_text": QuestionText,
             "answer_position_mode": "DECIMAL_MULTIPLICATION_PLACEMENT",
