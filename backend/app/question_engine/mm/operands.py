@@ -2199,7 +2199,71 @@ def _CubeBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
     return Ranges.get(Stage, (5, 20))
 
 
+def _SquareRootTitleText(Config: MMConfig) -> str:
+    return " ".join(
+        f" {Config.DpsTitle or ''} {Config.LessonTitle or ''} "
+        .lower()
+        .replace("-", " ")
+        .replace("_", " ")
+        .replace("&", " and ")
+        .split()
+    )
+
+
+def _SquareRootRadicandDigitTargets(Config: MMConfig) -> list[int] | None:
+    """Return exact workbook radicand digit targets from the active title.
+
+    Square-root sheets are digit-range concepts. A title such as
+    "Square Root - 5 Digit Number" must generate 5-digit radicands only;
+    "Square Root 3 & 4 Digit Number" must generate only 3- and 4-digit
+    radicands. This intentionally keys off the active title so later generic
+    root range changes cannot leak into explicit workbook sheets.
+    """
+    Text = _SquareRootTitleText(Config)
+    if "square root" not in Text:
+        return None
+
+    RangeMatch = re.search(r"\b([3-6])\s*(?:and|to|/)\s*([3-6])\s*digit", Text)
+    if RangeMatch:
+        Start = int(RangeMatch.group(1))
+        End = int(RangeMatch.group(2))
+        Lower, Upper = sorted((Start, End))
+        return list(range(Lower, Upper + 1))
+
+    DigitMatches = []
+    for Match in re.finditer(r"\b([3-6])\s*digit", Text):
+        DigitValue = int(Match.group(1))
+        if DigitValue not in DigitMatches:
+            DigitMatches.append(DigitValue)
+    if len(DigitMatches) >= 2:
+        return DigitMatches
+
+    SingleMatch = re.search(r"\b([3-6])\s*digit", Text)
+    if SingleMatch:
+        return [int(SingleMatch.group(1))]
+
+    return None
+
+
+def _RootRangeForRadicandDigits(DigitCount: int) -> tuple[int, int]:
+    LowerRadicand = 10 ** (DigitCount - 1)
+    UpperRadicand = (10 ** DigitCount) - 1
+    MinimumRoot = 1
+    while MinimumRoot * MinimumRoot < LowerRadicand:
+        MinimumRoot += 1
+    MaximumRoot = int(UpperRadicand ** 0.5)
+    return MinimumRoot, MaximumRoot
+
+
 def _SquareRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    ExplicitTargets = _SquareRootRadicandDigitTargets(Config)
+    if ExplicitTargets:
+        # Generate within the full explicit radicand target band. Question-level
+        # selection happens in GenerateSquareRoot so mixed 3/4-digit sheets can
+        # alternate cleanly without crossing into unintended digit ranges.
+        MinimumsAndMaximums = [_RootRangeForRadicandDigits(Target) for Target in ExplicitTargets]
+        return min(Minimum for Minimum, _ in MinimumsAndMaximums), max(Maximum for _, Maximum in MinimumsAndMaximums)
+
     Band = _LessonBand(Config)
     if Band <= 4:
         Ranges = {
@@ -2289,9 +2353,25 @@ def GenerateCubes(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> 
 
 def GenerateSquareRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    Minimum, Maximum = _SquareRootBaseRange(Config, Stage)
+    ExplicitTargets = _SquareRootRadicandDigitTargets(Config)
+    TargetDigits = None
+    if ExplicitTargets:
+        TargetDigits = ExplicitTargets[(QuestionNumber - 1) % len(ExplicitTargets)]
+        Minimum, Maximum = _RootRangeForRadicandDigits(TargetDigits)
+    else:
+        Minimum, Maximum = _SquareRootBaseRange(Config, Stage)
+
     Root = Rng.randint(Minimum, Maximum)
     Radicand = Root * Root
+    if TargetDigits is not None:
+        # Defensive guard: keep trying within the explicit digit band so the
+        # visible radicand always follows the sheet title exactly.
+        for _ in range(25):
+            if len(str(Radicand)) == TargetDigits:
+                break
+            Root = Rng.randint(Minimum, Maximum)
+            Radicand = Root * Root
+
     CorrectAnswer = Decimal(Root)
     QuestionText = f"√{Radicand}"
     return [QuestionText], [""], CorrectAnswer, {
@@ -2302,6 +2382,8 @@ def GenerateSquareRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         "radicand": Radicand,
         "perfect_root_only": True,
         "lesson_band": _LessonBand(Config),
+        "radicand_digit_target": TargetDigits,
+        "radicand_digit_count": len(str(Radicand)),
     }
 
 
