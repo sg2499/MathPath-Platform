@@ -50,6 +50,31 @@ def _SquareRootRadicandDigitTargets(Config: MMConfig) -> list[int] | None:
 
     return None
 
+
+def _CubeRootRadicandDigitTargets(Config: MMConfig) -> list[int] | None:
+    Text = _SquareRootTitleText(Config)
+    if "cube root" not in Text:
+        return None
+    if "mixed" in Text:
+        return None
+
+    RangeMatch = re.search(r"\b([3-6])\s*(?:and|to|/)\s*([3-6])\s*digit", Text)
+    if RangeMatch:
+        Start = int(RangeMatch.group(1))
+        End = int(RangeMatch.group(2))
+        Lower, Upper = sorted((Start, End))
+        return list(range(Lower, Upper + 1))
+
+    DigitMatches = []
+    for Match in re.finditer(r"\b([3-6])\s*digit", Text):
+        DigitValue = int(Match.group(1))
+        if DigitValue not in DigitMatches:
+            DigitMatches.append(DigitValue)
+    if DigitMatches:
+        return DigitMatches
+
+    return None
+
 def _IsNumeric(Value: object) -> bool:
     try:
         Decimal(str(Value))
@@ -378,7 +403,15 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
             return False
         return True
     if Config.ConceptFamily == "CUBE_ROOT":
-        return Text.startswith("∛") and CorrectAnswer >= 0
+        if not Text.startswith("∛") or CorrectAnswer < 0:
+            return False
+        RadicandText = Text.replace("∛", "", 1).strip()
+        if not RadicandText.isdigit():
+            return False
+        TargetDigits = _CubeRootRadicandDigitTargets(Config)
+        if TargetDigits and len(RadicandText) not in set(TargetDigits):
+            return False
+        return True
     if Config.ConceptFamily == "MIXED_SQUARE_CUBE":
         return ("²" in Text or "³" in Text) and CorrectAnswer >= 0
     if Config.ConceptFamily == "MIXED_ROOTS":
