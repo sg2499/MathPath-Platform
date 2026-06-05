@@ -146,15 +146,46 @@ def _DisplayMode(Config: MMConfig, SectionTitle: str | None = None) -> str:
 
 
 
-def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMetadata: dict | None) -> str:
+def _IsMultiplicationDivisionMixedDps(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    """Return True only for workbook DPSs that should collapse to two sections.
+
+    Multiplication and Division Mixed Pattern sheets contain many internal digit
+    patterns, but the workbook presents them as one Multiplication section and
+    one Division section. This detector is intentionally narrow so normal
+    pattern-specific sheets such as 3D × 3D and 4D ÷ 3D remain unaffected.
+    """
+    TitleText = _SectionTitleText(Config, SectionTitle)
+    if "MULTIPLICATION AND DIVISION MIXED PATTERN" in TitleText:
+        return True
+    if Config.ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
+        return True
+
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    Sections = GeneratorConfig.get("dpsSections") or []
+    SectionTitles = [str(Section.get("sectionTitle") or Section.get("title") or "").upper() for Section in Sections if isinstance(Section, dict)]
+    HasMultiplicationSection = any(Title.strip() in {"MULTIPLICATION", "MULTIPLICATION MIXED PATTERN"} for Title in SectionTitles)
+    HasDivisionMixedSection = any("DIVISION MIXED PATTERN" in Title for Title in SectionTitles)
+    return HasMultiplicationSection and HasDivisionMixedSection
+
+
+def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMetadata: dict | None, Operators: list[str] | None = None) -> str:
     OriginalTitle = SectionTitle or Config.DpsTitle
     Metadata = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
+    OperatorText = " ".join(Operators or [])
 
     # Preserve all special/visual section names exactly as mapped. Only true
     # normal multiplication/division and explicit decimal multiplication/division
     # sections receive the new naming convention.
     if _IsAnswerPositionConcept(Config, SectionTitle) or _IsSolveEquationConcept(Config, SectionTitle) or _IsVisualStackConcept(Config, SectionTitle):
         return OriginalTitle
+
+    # Mixed Multiplication/Division workbook sheets must not create one visible
+    # section per internal digit pattern. Keep the pattern variety inside two
+    # parent sections only: Multiplication and Division.
+    if _IsMultiplicationDivisionMixedDps(Config, SectionTitle):
+        if "÷" in OperatorText or "dividend_digits" in Metadata or "DIVISION" in str(OriginalTitle).upper():
+            return "Division"
+        return "Multiplication"
 
     if Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION" or _IsNormalMultiplicationSection(Config, SectionTitle):
         LeftDigits = Metadata.get("left_digits")
@@ -215,7 +246,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
         Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         QuestionText = ExtraMetadata.get("question_text") if isinstance(ExtraMetadata, dict) else None
-        DisplaySectionTitle = _NormalisedSectionTitle(Config, SectionTitle, ExtraMetadata)
+        DisplaySectionTitle = _NormalisedSectionTitle(Config, SectionTitle, ExtraMetadata, Operators)
         QuestionPayload = {
             "question_number": GlobalQuestionNumber,
             "display_type": _DisplayMode(Config, SectionTitle),
