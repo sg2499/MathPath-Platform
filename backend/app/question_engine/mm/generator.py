@@ -174,6 +174,32 @@ def _IsMultiplicationDivisionMixedDps(Config: MMConfig, SectionTitle: str | None
     return HasMultiplicationSection and HasDivisionMixedSection
 
 
+
+def _IsMultiplicationMixedPatternDps(Config: MMConfig, SectionTitle: str | None = None, ExtraMetadata: dict | None = None, Operators: list[str] | None = None) -> bool:
+    """Return True for Multiplication Mixed Pattern parent sheets only.
+
+    These workbook sheets should appear as one visible section while retaining
+    internal digit-pattern variety. This must not collapse BODMAS or any other
+    section that appears on the same DPS.
+    """
+    DpsTitleText = f" {Config.DpsTitle or ''} ".upper()
+    if "MULTIPLICATION MIXED PATTERN" not in DpsTitleText:
+        return False
+
+    Metadata = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
+    OriginalTitleText = f" {SectionTitle or Config.DpsTitle or ''} ".upper()
+    OperatorText = " ".join(Operators or [])
+
+    if "BODMAS" in OriginalTitleText or "PERCENTAGE" in OriginalTitleText or "DIVISION" in OriginalTitleText:
+        return False
+
+    return (
+        "MULTIPLICATION" in OriginalTitleText
+        or "×" in OperatorText
+        or " X " in OperatorText.upper()
+        or (Metadata.get("left_digits") is not None and Metadata.get("right_digits") is not None)
+    )
+
 def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMetadata: dict | None, Operators: list[str] | None = None) -> str:
     OriginalTitle = SectionTitle or Config.DpsTitle
     Metadata = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
@@ -192,6 +218,12 @@ def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMet
         if "÷" in OperatorText or "dividend_digits" in Metadata or "DIVISION" in str(OriginalTitle).upper():
             return "Division"
         return "Multiplication"
+
+    # Multiplication Mixed Pattern sheets should be one workbook section, not
+    # micro-sections for 2D×1D, 3D×2D, 4D×2D, etc. Keep the internal pattern
+    # metadata for generation/validation, but collapse the visible section title.
+    if _IsMultiplicationMixedPatternDps(Config, SectionTitle, Metadata, Operators):
+        return "Multiplication Mixed Pattern"
 
     if Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION" or _IsNormalMultiplicationSection(Config, SectionTitle):
         LeftDigits = Metadata.get("left_digits")
