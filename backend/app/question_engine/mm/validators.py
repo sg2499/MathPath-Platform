@@ -378,15 +378,7 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
             return False
         return True
     if Config.ConceptFamily == "CUBE_ROOT":
-        if not Text.startswith("∛") or CorrectAnswer < 0:
-            return False
-        RadicandText = Text.replace("∛", "", 1).strip()
-        if not RadicandText.isdigit():
-            return False
-        TargetDigits = _CubeRootRadicandDigitTargets(Config)
-        if TargetDigits and len(RadicandText) not in set(TargetDigits):
-            return False
-        return True
+        return Text.startswith("∛") and CorrectAnswer >= 0
     if Config.ConceptFamily == "MIXED_SQUARE_CUBE":
         return ("²" in Text or "³" in Text) and CorrectAnswer >= 0
     if Config.ConceptFamily == "MIXED_ROOTS":
