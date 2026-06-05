@@ -426,7 +426,12 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
 
             RequestedSectionCount = int(Section.get("questionCount") or 10)
             SectionCount = _QuestionCountForConcept(SectionConcept, RequestedSectionCount)
-            SectionGeneratorConfig = {**Config.GeneratorConfig, "activeSection": Section}
+            SectionGeneratorConfig = {
+                **Config.GeneratorConfig,
+                "activeSection": Section,
+                "sourceDpsTitle": Config.DpsTitle,
+                "sourceLessonTitle": Config.LessonTitle,
+            }
             if MixedOperationGroup:
                 SectionGeneratorConfig["mixedOperationGroup"] = MixedOperationGroup
             SectionConfig = MMConfig(
