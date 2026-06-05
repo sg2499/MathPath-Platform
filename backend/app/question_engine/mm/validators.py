@@ -8,6 +8,7 @@ ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
 PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "ANSWER_POSITION", "SOLVE_EQUATION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
+DECIMAL_MULTIPLICATION_PATTERNS = {(2, 1), (3, 1), (4, 1), (2, 2), (3, 2), (4, 2), (3, 3)}
 
 
 def _IsNumeric(Value: object) -> bool:
@@ -34,11 +35,45 @@ def _HasDecimalOperand(Operands: list[int | float | str]) -> bool:
     return any(_IsNumeric(Value) and not _IsWholeNumber(Value) for Value in Operands)
 
 
+def _HasVisibleDecimalOperand(Operands: list[int | float | str]) -> bool:
+    return any(_IsNumeric(Value) and "." in str(Value) for Value in Operands)
+
+
 def _DigitCount(Value: object) -> int | None:
     if not _IsNumeric(Value) or not _IsWholeNumber(Value):
         return None
     IntegerValue = abs(int(_DecimalValue(Value)))
     return len(str(IntegerValue)) if IntegerValue != 0 else 1
+
+
+def _DecimalRemovalIntegerAndPlaces(Value: object) -> tuple[int, int] | None:
+    if not _IsNumeric(Value):
+        return None
+    Text = str(Value).strip()
+    if Text.startswith("+"):
+        Text = Text[1:]
+    Negative = Text.startswith("-")
+    if Negative:
+        Text = Text[1:]
+    if "E" in Text.upper():
+        Text = format(Decimal(str(Value)), "f")
+        if Text.startswith("-"):
+            Negative = True
+            Text = Text[1:]
+    DecimalPlaces = len(Text.split(".", 1)[1]) if "." in Text else 0
+    DigitsOnly = Text.replace(".", "").lstrip("0") or "0"
+    IntegerValue = int(DigitsOnly)
+    if Negative:
+        IntegerValue = -IntegerValue
+    return IntegerValue, DecimalPlaces
+
+
+def _DigitCountAfterDecimalRemoval(Value: object) -> int | None:
+    Parsed = _DecimalRemovalIntegerAndPlaces(Value)
+    if Parsed is None:
+        return None
+    IntegerValue, _Places = Parsed
+    return len(str(abs(IntegerValue))) if IntegerValue != 0 else 1
 
 
 def _NormalisedPatternTitle(Config: MMConfig) -> str:
@@ -107,6 +142,40 @@ def _ValidateDecimalOperation(Operands: list[int | float | str], Operators: list
     if len(Operands) != 2 or Operators != ["", ExpectedOperator]:
         return False
     return _HasDecimalOperand(Operands)
+
+
+def _ValidateDecimalMultiplicationPattern(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if len(Operands) != 2 or Operators != ["", "×"]:
+        return False
+    if not _HasVisibleDecimalOperand(Operands):
+        return False
+
+    LeftParsed = _DecimalRemovalIntegerAndPlaces(Operands[0])
+    RightParsed = _DecimalRemovalIntegerAndPlaces(Operands[1])
+    if LeftParsed is None or RightParsed is None:
+        return False
+
+    LeftWhole, LeftPlaces = LeftParsed
+    RightWhole, RightPlaces = RightParsed
+    if LeftWhole <= 0 or RightWhole <= 0:
+        return False
+
+    Pattern = (_DigitCountAfterDecimalRemoval(Operands[0]), _DigitCountAfterDecimalRemoval(Operands[1]))
+    if Pattern not in DECIMAL_MULTIPLICATION_PATTERNS:
+        return False
+
+    ExpectedDigits = _ExtractMultiplicationDigits(Config)
+    if ExpectedDigits is not None and ExpectedDigits in DECIMAL_MULTIPLICATION_PATTERNS and Pattern != ExpectedDigits:
+        return False
+
+    WholeProduct = LeftWhole * RightWhole
+    if WholeProduct >= 1000000:
+        return False
+
+    TotalDecimalPlaces = LeftPlaces + RightPlaces
+    ExpectedAnswer = Decimal(WholeProduct) / (Decimal(10) ** TotalDecimalPlaces)
+    QuantizeUnit = Decimal("1") if TotalDecimalPlaces <= 0 else Decimal("1").scaleb(-TotalDecimalPlaces)
+    return CorrectAnswer.quantize(QuantizeUnit) == ExpectedAnswer.quantize(QuantizeUnit)
 
 
 def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: list[str]) -> bool:
@@ -311,7 +380,7 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
         return _ValidateWholeDivisionPattern(Config, Operands, Operators) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "DECIMAL_MULTIPLICATION":
-        return _ValidateDecimalOperation(Operands, Operators, "×") and CorrectAnswer >= 0
+        return _ValidateDecimalMultiplicationPattern(Config, Operands, Operators, CorrectAnswer) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "DECIMAL_DIVISION":
         return _ValidateDecimalOperation(Operands, Operators, "÷") and CorrectAnswer >= 0
