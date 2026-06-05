@@ -42,18 +42,49 @@ def _ScaleRangeByLesson(Minimum: int, Maximum: int, Config: MMConfig) -> tuple[i
     return max(1, Minimum * Scale), max(2, Maximum * Scale)
 
 
+def _AddLessTitleText(Config: MMConfig) -> str:
+    return " ".join(
+        f" {Config.DpsTitle} "
+        .lower()
+        .replace("-", " ")
+        .replace("_", " ")
+        .split()
+    )
+
+
+def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
+    Text = _AddLessTitleText(Config)
+    Match = re.search(r"\b([2-6])\s*digit(?:\s+number)?\s+add\s+less\b", Text)
+    if Match:
+        return int(Match.group(1))
+    return None
+
+
 def _IsDecimalConcept(Config: MMConfig) -> bool:
-    Text = f" {Config.DpsTitle} {Config.LessonTitle} ".lower()
-    return "decimal" in Text
+    # Use the active DPS/section title, not the broader lesson title.
+    # Example: a section named "2 Digit Number Add-Less" inside a lesson that
+    # contains decimal concepts must remain a whole-number 2-digit stack.
+    if Config.ConceptFamily == "DECIMAL_ADD_LESS":
+        return True
+    return "decimal" in _AddLessTitleText(Config)
 
 
 def _AddLessDecimalPlaces(Config: MMConfig, Stage: str) -> int:
+    if _ExplicitAddLessDigitCount(Config) is not None:
+        return 0
     if not _IsDecimalConcept(Config):
         return 0
     Band = _LessonBand(Config)
     if Band <= 2:
         return 1 if Stage == "WARM_UP" else 2
     return 2
+
+
+def _AddLessValueRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    ExplicitDigits = _ExplicitAddLessDigitCount(Config)
+    if ExplicitDigits is not None:
+        return _DigitRange(ExplicitDigits)
+    return _ScaleRangeByLesson(*_NumberRange(Stage), Config)
 
 
 def _AddLessRowCount(Config: MMConfig, Stage: str) -> int:
@@ -300,7 +331,7 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
 
     Stage = DifficultyStage(QuestionNumber - 1)
     Places = _AddLessDecimalPlaces(Config, Stage)
-    Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
+    Minimum, Maximum = _AddLessValueRange(Config, Stage)
     RowCount = _AddLessRowCount(Config, Stage)
 
     Values: list[Decimal] = [_RandDecimal(Rng, Minimum, Maximum, Places)]
@@ -309,7 +340,10 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
 
     for RowIndex in range(1, RowCount):
         Sign = Rng.choice(["+", "-"])
-        Value = _RandDecimal(Rng, max(1, Minimum // 4), max(2, Maximum // 3), Places)
+        if _ExplicitAddLessDigitCount(Config) is not None:
+            Value = _RandDecimal(Rng, Minimum, Maximum, Places)
+        else:
+            Value = _RandDecimal(Rng, max(1, Minimum // 4), max(2, Maximum // 3), Places)
 
         # Workbook-style Add/Less sheets should remain solvable and non-negative unless
         # the sheet explicitly belongs to a borrowing negative-answer concept.
