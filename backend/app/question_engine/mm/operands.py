@@ -1576,6 +1576,89 @@ def _WorkbookPositionNumber(Config: MMConfig, Rng: random.Random, Stage: str) ->
     return Rng.randint(Minimum, Maximum)
 
 
+
+def _FirstNaturalDigitPositionFromDecimalText(ValueText: str) -> int:
+    """Return the workbook position of the first non-zero/natural digit.
+
+    Workbook scale for decimal multiplication answer placement:
+    2001 -> 4, 213.5 -> 3, 2.06 -> 1, 0.351 -> 0,
+    0.03 -> -1, 0.003 -> -2.
+    """
+    CleanText = str(ValueText).strip().replace(",", "")
+    if CleanText.startswith("+") or CleanText.startswith("-"):
+        CleanText = CleanText[1:]
+    IntegerPart, _, DecimalPart = CleanText.partition(".")
+    IntegerPart = IntegerPart or "0"
+    IntegerDigits = IntegerPart.lstrip("0")
+    if IntegerDigits:
+        return len(IntegerDigits)
+
+    for Index, Character in enumerate(DecimalPart):
+        if Character.isdigit() and Character != "0":
+            return -Index
+    return 0
+
+
+def _GenerateDecimalPlacementOperandForPosition(TargetPosition: int, SeedValue: int) -> str:
+    """Create a compact workbook-style operand with the requested first-digit position.
+
+    The generated value is deterministic from lesson/DPS/question seed so the
+    examples vary without becoming random or repeated-looking across previews.
+    """
+    FirstDigit = str((SeedValue % 8) + 1)
+    SecondDigit = str(((SeedValue // 3) % 9) + 1)
+    ThirdDigit = str(((SeedValue // 7) % 9) + 1)
+    FourthDigit = str(((SeedValue // 11) % 9) + 1)
+
+    if TargetPosition >= 1:
+        IntegerDigits = (FirstDigit + SecondDigit + ThirdDigit + FourthDigit + "246813579")[:TargetPosition]
+        DecimalTailLength = 1 + (SeedValue % 3)
+        DecimalTail = (SecondDigit + FourthDigit + ThirdDigit + "579")[:DecimalTailLength]
+        if TargetPosition >= 4 and SeedValue % 2 == 0:
+            return IntegerDigits
+        return f"{IntegerDigits}.{DecimalTail}"
+
+    if TargetPosition == 0:
+        DecimalTailLength = 2 + (SeedValue % 3)
+        DecimalTail = (FirstDigit + ThirdDigit + SecondDigit + FourthDigit + "864")[:DecimalTailLength]
+        return f"0.{DecimalTail}"
+
+    LeadingZeros = "0" * abs(TargetPosition)
+    TailLength = 1 + (SeedValue % 3)
+    Tail = (FirstDigit + SecondDigit + ThirdDigit + FourthDigit + "975")[:TailLength]
+    return f"0.{LeadingZeros}{Tail}"
+
+
+def _DecimalMultiplicationPlacementOperands(Config: MMConfig, QuestionNumber: int) -> tuple[str, str, int]:
+    """Generate workbook-aligned answer-placement operands.
+
+    The answer is not product decimal places. It is the sum of the workbook
+    first-natural-digit positions of both operands.
+    """
+    LessonNumber = max(1, int(Config.LessonNumber or 1))
+    DpsNumber = max(1, int(Config.DpsNumber or 1))
+    Slot = ((LessonNumber - 1) * 5 * 10) + ((DpsNumber - 1) * 10) + max(1, QuestionNumber)
+    WorkbookPairs = [
+        (1, -2),    # 2.2 × 0.004 -> -1
+        (-2, -3),  # 0.001 × 0.0009 -> -5
+        (4, -2),   # 2001 × 0.003 -> 2
+        (0, 0),     # 0.351 × 0.2 -> 0
+        (3, -2),   # 213.5 × 0.0022 -> 1
+        (-2, -2),  # 0.0031 × 0.002 -> -4
+        (0, 1),     # 0.1023 × 4 -> 1
+        (1, -2),
+        (-1, -3),
+        (2, -2),
+    ]
+    LeftPosition, RightPosition = WorkbookPairs[(QuestionNumber - 1) % len(WorkbookPairs)]
+    if (LessonNumber + DpsNumber + QuestionNumber) % 4 == 0:
+        LeftPosition, RightPosition = RightPosition, LeftPosition
+
+    LeftText = _GenerateDecimalPlacementOperandForPosition(LeftPosition, Slot + 17)
+    RightText = _GenerateDecimalPlacementOperandForPosition(RightPosition, Slot + 43)
+    CorrectPosition = _FirstNaturalDigitPositionFromDecimalText(LeftText) + _FirstNaturalDigitPositionFromDecimalText(RightText)
+    return LeftText, RightText, CorrectPosition
+
 def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     """Generate workbook-specific position/placement questions.
 
@@ -1612,20 +1695,13 @@ def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber:
         }
 
     if "decimal" in Title or "answer placement" in Title or "answer position" in Title:
-        LeftPlaces = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
-        RightPlaces = 3 if Stage in {"WARM_UP", "STANDARD"} else 4
-        LeftRaw = Rng.randint(1, 9 if Stage in {"WARM_UP", "STANDARD"} else 99)
-        RightRaw = Rng.randint(1, 9 if Stage in {"WARM_UP", "STANDARD"} else 99)
-        Left = Decimal(LeftRaw) / (Decimal(10) ** LeftPlaces)
-        Right = Decimal(RightRaw) / (Decimal(10) ** RightPlaces)
-        Product = Left * Right
-        ProductText = format(Product.normalize(), "f")
-        DecimalPlaces = len(ProductText.split(".", 1)[1].rstrip("0")) if "." in ProductText else 0
-        QuestionText = f"Find the decimal position in {format(Left, 'f')} × {format(Right, 'f')}"
-        return [QuestionText], [""], Decimal(DecimalPlaces), {
+        LeftText, RightText, CorrectPosition = _DecimalMultiplicationPlacementOperands(Config, QuestionNumber)
+        QuestionText = f"Find the decimal position in {LeftText} × {RightText}"
+        return [LeftText, RightText], ["", "×"], Decimal(CorrectPosition), {
             "question_text": QuestionText,
             "answer_position_mode": "DECIMAL_MULTIPLICATION_PLACEMENT",
-            "decimal_places_in_answer": DecimalPlaces,
+            "left_position": _FirstNaturalDigitPositionFromDecimalText(LeftText),
+            "right_position": _FirstNaturalDigitPositionFromDecimalText(RightText),
         }
 
     def _FirstNaturalUniqueNumber(Config: MMConfig, QuestionNumber: int) -> str:
