@@ -360,6 +360,26 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
         return Decimal(0) < CorrectAnswer < LessValue and CorrectAnswer == ExpectedAnswer
 
     if Config.ConceptFamily == "ANSWER_POSITION":
+        if len(Operands) == 1 and Operators == ["Number"]:
+            try:
+                NumberText = str(Operands[0]).strip().replace(",", "")
+                IntegerPart, _, DecimalPart = NumberText.partition(".")
+                IntegerDigits = IntegerPart.lstrip("+-") or "0"
+                if any(Char != "0" for Char in IntegerDigits):
+                    ExpectedAnswer = Decimal(len(IntegerDigits.lstrip("0")))
+                else:
+                    LeadingDecimalZeros = 0
+                    ExpectedAnswer = Decimal(0)
+                    for Char in DecimalPart:
+                        if Char == "0":
+                            LeadingDecimalZeros += 1
+                            continue
+                        if Char.isdigit():
+                            ExpectedAnswer = Decimal(-LeadingDecimalZeros)
+                            break
+                return CorrectAnswer == ExpectedAnswer
+            except Exception:
+                return False
         if len(Operands) == 1 and Operators == [""] and CorrectAnswer >= 0:
             return True
         if len(Operands) == 2 and Operators == ["Position", "Number"]:

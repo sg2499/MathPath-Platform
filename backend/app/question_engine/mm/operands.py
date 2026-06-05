@@ -1594,15 +1594,37 @@ def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber:
             "decimal_places_in_answer": DecimalPlaces,
         }
 
-    Values = ["1.005", "12.007", "0.0089", "0.012", "345.002", "2.056", "50.0002"]
+    FirstNaturalNumberBanks = {
+        "WARM_UP": ["1.005", "12.007", "0.0089", "0.012", "345.002"],
+        "STANDARD": ["253.91", "0.2005", "0.0078", "0.0126", "0.000673"],
+        "MIXED_STEP": ["0.108", "1.0076", "0.000456", "0.0007", "234.0008"],
+        "ADVANCED": ["4567.02", "78.0004", "0.00089", "0.0063", "900.25"],
+        "CHALLENGE": ["23891.004", "604.0009", "0.000073", "0.0038", "42.7005"],
+    }
+    Values = FirstNaturalNumberBanks.get(Stage, FirstNaturalNumberBanks["WARM_UP"])
     NumberText = Values[(QuestionNumber - 1) % len(Values)]
-    FirstNaturalIndex = next((Index for Index, Char in enumerate(NumberText) if Char.isdigit() and Char != "0"), 0)
-    DigitsBefore = sum(1 for Char in NumberText[:FirstNaturalIndex] if Char.isdigit())
-    QuestionText = f"Find the position of the first natural number in {NumberText}"
-    return [QuestionText], [""], Decimal(DigitsBefore), {
-        "question_text": QuestionText,
+
+    def _FirstNaturalPosition(ValueText: str) -> int:
+        CleanValue = str(ValueText).strip().replace(",", "")
+        IntegerPart, _, DecimalPart = CleanValue.partition(".")
+        IntegerDigits = IntegerPart.lstrip("+-") or "0"
+        if any(Char != "0" for Char in IntegerDigits):
+            return len(IntegerDigits.lstrip("0"))
+        LeadingDecimalZeros = 0
+        for Char in DecimalPart:
+            if Char == "0":
+                LeadingDecimalZeros += 1
+                continue
+            if Char.isdigit():
+                return -LeadingDecimalZeros
+        return 0
+
+    CorrectAnswer = Decimal(_FirstNaturalPosition(NumberText))
+    return [NumberText], ["Number"], CorrectAnswer, {
+        "question_text": "",
         "answer_position_mode": "FIRST_NATURAL_NUMBER_POSITION",
         "source_number": NumberText,
+        "workbook_display": "FIRST_NATURAL_NUMBER_CARD",
     }
 
 
