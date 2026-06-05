@@ -118,9 +118,15 @@ def _DisplayMode(Config: MMConfig, SectionTitle: str | None = None) -> str:
     if _IsVisualStackConcept(Config, SectionTitle):
         return "VISUAL_STACK"
 
-    # Only true normal multiplication/division sections use the new horizontal
-    # expression convention. Mixed workbook sections that are not explicitly a
-    # multiplication/division section fall back to their original safe stack.
+    # Mixed Multiplication/Division workbook sections are horizontal expression
+    # sections even when their visible parent title is simply "Multiplication"
+    # or "Division". Keep this narrow so Add-Less/Integers/Borrowing remain
+    # protected by the earlier visual-stack guard.
+    if _IsMultiplicationDivisionMixedDps(Config, SectionTitle):
+        return "EXPRESSION_WORKSHEET"
+
+    # Only true normal multiplication/division sections use the horizontal
+    # expression convention. Mixed workbook sections are handled just above.
     if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION", "MULTIPLICATION_DIVISION_MIXED"}:
         return "EXPRESSION_WORKSHEET" if _IsNormalMultiplicationDivisionSection(Config, SectionTitle) else "VISUAL_STACK"
 
@@ -301,7 +307,21 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
             SectionConcept = RawSectionConcept
             if not IsPackage1Supported(SectionConcept):
                 SectionConcept = ResolveMmConceptAlias(SectionTitle, Config.DpsTitle, Config.LessonTitle)
+
+            MixedOperationGroup = None
+            if _IsMultiplicationDivisionMixedDps(Config, SectionTitle):
+                SectionTitleText = str(SectionTitle or "").upper()
+                if "DIVISION" in SectionTitleText:
+                    MixedOperationGroup = "DIVISION"
+                    SectionConcept = "MULTIPLICATION_DIVISION_MIXED"
+                elif "MULTIPLICATION" in SectionTitleText:
+                    MixedOperationGroup = "MULTIPLICATION"
+                    SectionConcept = "MULTIPLICATION_DIVISION_MIXED"
+
             SectionCount = int(Section.get("questionCount") or 10)
+            SectionGeneratorConfig = {**Config.GeneratorConfig, "activeSection": Section}
+            if MixedOperationGroup:
+                SectionGeneratorConfig["mixedOperationGroup"] = MixedOperationGroup
             SectionConfig = MMConfig(
                 ModuleCode=Config.ModuleCode,
                 LevelCode=Config.LevelCode,
@@ -315,7 +335,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 OperationFocus=OperationFocusForConcept(SectionConcept),
                 DigitPattern=str(Section.get("digitPattern") or Config.DigitPattern),
                 Difficulty=str(Section.get("difficulty") or Config.Difficulty),
-                GeneratorConfig={**Config.GeneratorConfig, "activeSection": Section},
+                GeneratorConfig=SectionGeneratorConfig,
             )
             SectionQuestions = _GenerateSingleSectionQuestionSet(SectionConfig, Index, SectionTitle, StartNumber, TotalSections)
             Questions.extend(SectionQuestions)

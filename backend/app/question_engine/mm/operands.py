@@ -1562,6 +1562,13 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
     - Decimal operands are allowed only when the concept text explicitly says
       Decimal Multiplication or Decimal Division.
     """
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    MixedOperationGroup = str(GeneratorConfig.get("mixedOperationGroup") or "").upper()
+    if MixedOperationGroup == "MULTIPLICATION":
+        return ["WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION"]
+    if MixedOperationGroup == "DIVISION":
+        return ["WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION"]
+
     Text = " ".join(f" {Config.DpsTitle} ".lower().replace("×", " x ").replace("÷", " division ").split())
     Operations: list[tuple[int, str]] = []
 
@@ -1606,7 +1613,16 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
     if not Operations:
         if "decimal" in Text:
             return ["DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"]
-        return ["WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION"]
+        # Generic mixed multiplication/division sheets should test both the
+        # whole-number mechanisms and the decimal mechanisms in their respective
+        # parent sections. The section-level mixedOperationGroup override above
+        # keeps visible output grouped as Multiplication and Division.
+        return [
+            "WHOLE_NUMBER_MULTIPLICATION",
+            "DECIMAL_MULTIPLICATION",
+            "WHOLE_NUMBER_DIVISION",
+            "DECIMAL_DIVISION",
+        ]
 
     Ordered = [Operation for _, Operation in sorted(Operations, key=lambda Item: Item[0])]
     Deduped: list[str] = []
