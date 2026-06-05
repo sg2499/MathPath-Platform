@@ -252,12 +252,44 @@ def _BorrowingAnswerMode(Config: MMConfig) -> str:
     return "BORROWING_STANDARD"
 
 
+
+
+def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
+    Text = " ".join(
+        f" {Config.DpsTitle} "
+        .lower()
+        .replace("-", " ")
+        .replace("_", " ")
+        .split()
+    )
+    Match = re.search(r"\b([2-6])\s*digit(?:\s+number)?\s+add\s+less\b", Text)
+    if Match:
+        return int(Match.group(1))
+    return None
+
+
+def _ValidateExplicitAddLessDigits(Config: MMConfig, Operands: list[int | float | str]) -> bool:
+    Digits = _ExplicitAddLessDigitCount(Config)
+    if Digits is None:
+        return True
+    Minimum, Maximum = (10 ** (Digits - 1), (10 ** Digits) - 1)
+    for Value in Operands:
+        DecimalValue = abs(_DecimalValue(Value))
+        if DecimalValue != DecimalValue.to_integral_value():
+            return False
+        if not (Decimal(Minimum) <= DecimalValue <= Decimal(Maximum)):
+            return False
+    return True
+
+
 def _ValidateAddLessQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if len(Operands) < 2 or len(Operands) != len(Operators) or Operators[0] != "":
         return False
     if any(Operator not in {"", "+", "-"} for Operator in Operators):
         return False
     if any(not _IsNumeric(Value) for Value in Operands):
+        return False
+    if not _ValidateExplicitAddLessDigits(Config, Operands):
         return False
 
     ExpectedAnswer = sum(Decimal(str(Value)) for Value in Operands)
