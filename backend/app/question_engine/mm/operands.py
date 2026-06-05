@@ -338,6 +338,7 @@ def GenerateDecimalAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber:
 
 
 DECIMAL_MULTIPLICATION_PATTERNS: tuple[tuple[int, int], ...] = (
+    (1, 1),
     (2, 1),
     (3, 1),
     (4, 1),
@@ -348,21 +349,25 @@ DECIMAL_MULTIPLICATION_PATTERNS: tuple[tuple[int, int], ...] = (
 )
 
 
+def _CanonicalMultiplicationPattern(LeftDigits: int, RightDigits: int) -> tuple[int, int]:
+    return (max(LeftDigits, RightDigits), min(LeftDigits, RightDigits))
+
+
 def _DecimalMultiplicationPatternsForLesson(Config: MMConfig) -> list[tuple[int, int]]:
     ExplicitPattern = _ExtractMultiplicationDigits(Config)
-    if ExplicitPattern in DECIMAL_MULTIPLICATION_PATTERNS:
-        return [ExplicitPattern]
+    if ExplicitPattern is not None:
+        CanonicalPattern = _CanonicalMultiplicationPattern(*ExplicitPattern)
+        if CanonicalPattern in DECIMAL_MULTIPLICATION_PATTERNS:
+            return [CanonicalPattern]
 
     LessonNumber = int(Config.LessonNumber or 1)
-    if LessonNumber <= 7:
-        return [(2, 1), (3, 1), (2, 2)]
-    if LessonNumber <= 10:
-        return [(2, 2), (3, 1), (3, 2)]
+    if LessonNumber <= 8:
+        return [(1, 1), (2, 1), (2, 2), (3, 1)]
     if LessonNumber <= 13:
-        return [(3, 2), (4, 1), (2, 2), (3, 1)]
+        return [(2, 1), (2, 2), (3, 1), (3, 2), (4, 1)]
     if LessonNumber <= 18:
-        return [(4, 2), (3, 3), (3, 2), (4, 1)]
-    return [(4, 2), (3, 3), (3, 2), (4, 1), (2, 2)]
+        return [(3, 2), (4, 1), (4, 2), (3, 3), (2, 2)]
+    return [(4, 2), (3, 3), (3, 2), (4, 1), (2, 2), (2, 1)]
 
 
 def _GeneratePatternWholeOperand(Rng: random.Random, Digits: int) -> int:
@@ -374,10 +379,12 @@ def _GeneratePatternWholeOperand(Rng: random.Random, Digits: int) -> int:
 
 def _DecimalShiftOptions(Value: int) -> list[int]:
     DigitCount = len(str(abs(Value)))
-    # Keep at least one whole-number digit before the decimal point where possible.
-    # This preserves workbook-style readability while still making decimal placement
-    # a presentation step after whole-number pattern generation.
-    return [Shift for Shift in range(0, DigitCount) if Shift <= 3]
+    # Workbook Decimal Multiplication Visual sheets frequently use leading-zero
+    # decimal placements such as 0.003, 0.00014, 0.001, and 0.0006.
+    # Pattern classification still happens after removing the decimal point;
+    # these wider shift options only control presentation.
+    MaxShift = min(DigitCount + 4, 5)
+    return list(range(0, MaxShift + 1))
 
 
 def _FormatDecimalOperandFromWhole(Value: int, DecimalPlaces: int) -> str:
@@ -404,34 +411,136 @@ def _DecimalPlacesInOperand(Value: int | float | str) -> int:
     return len(Text.split(".", 1)[1]) if "." in Text else 0
 
 
+def _DecimalMultiplicationShiftTemplatesForLesson(LessonNumber: int) -> list[tuple[int, int]]:
+    if LessonNumber <= 8:
+        return [
+            (3, 0),
+            (1, 3),
+            (0, 2),
+            (4, 1),
+            (2, 2),
+            (5, 1),
+            (1, 1),
+            (0, 1),
+            (1, 4),
+            (2, 0),
+        ]
+    if LessonNumber <= 13:
+        return [
+            (3, 0),
+            (2, 3),
+            (3, 2),
+            (1, 3),
+            (2, 2),
+            (4, 1),
+            (5, 1),
+            (1, 1),
+            (0, 1),
+            (1, 0),
+        ]
+    if LessonNumber <= 18:
+        return [
+            (1, 0),
+            (0, 1),
+            (1, 1),
+            (2, 1),
+            (1, 2),
+            (2, 2),
+            (3, 1),
+            (1, 3),
+            (0, 2),
+            (2, 0),
+        ]
+    return [
+        (1, 0),
+        (0, 1),
+        (1, 1),
+        (2, 1),
+        (1, 2),
+        (2, 2),
+        (3, 1),
+        (1, 3),
+        (0, 2),
+        (2, 0),
+    ]
+
+
+def _SelectDecimalMultiplicationShiftPair(
+    Rng: random.Random,
+    LessonNumber: int,
+    QuestionNumber: int,
+    LeftWhole: int,
+    RightWhole: int,
+) -> tuple[int, int] | None:
+    LeftOptions = set(_DecimalShiftOptions(LeftWhole))
+    RightOptions = set(_DecimalShiftOptions(RightWhole))
+    Templates = _DecimalMultiplicationShiftTemplatesForLesson(LessonNumber)
+    OrderedTemplates = Templates[(QuestionNumber - 1) % len(Templates):] + Templates[:(QuestionNumber - 1) % len(Templates)]
+
+    for LeftShift, RightShift in OrderedTemplates:
+        if (
+            LeftShift in LeftOptions
+            and RightShift in RightOptions
+            and LeftShift + RightShift > 0
+            and LeftShift + RightShift <= 6
+        ):
+            return LeftShift, RightShift
+
+    CandidatePairs = [
+        (LeftShift, RightShift)
+        for LeftShift in LeftOptions
+        for RightShift in RightOptions
+        if LeftShift + RightShift > 0 and LeftShift + RightShift <= 6
+    ]
+    if not CandidatePairs:
+        return None
+    return Rng.choice(CandidatePairs)
+
+
+def _MaybeSwapDecimalMultiplicationOperands(
+    Rng: random.Random,
+    QuestionNumber: int,
+    LeftWhole: int,
+    RightWhole: int,
+    LeftShift: int,
+    RightShift: int,
+) -> tuple[int, int, int, int]:
+    # Workbook sheets freely alternate decimal × whole, whole × decimal, and
+    # decimal × decimal. Swapping is presentation-only and does not change the
+    # underlying abacus pattern because multiplication is commutative.
+    if QuestionNumber % 3 == 0 or (QuestionNumber % 5 == 0 and Rng.random() < 0.7):
+        return RightWhole, LeftWhole, RightShift, LeftShift
+    return LeftWhole, RightWhole, LeftShift, RightShift
+
+
 def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     PatternOptions = _DecimalMultiplicationPatternsForLesson(Config)
     Pattern = PatternOptions[(QuestionNumber - 1) % len(PatternOptions)]
     LeftDigits, RightDigits = Pattern
+    LessonNumber = int(Config.LessonNumber or 1)
 
     # Generate the abacus multiplication first as whole-number operands.
     # Decimal placement is applied only after the underlying pattern is fixed.
-    for _Attempt in range(100):
+    for _Attempt in range(160):
         LeftWhole = _GeneratePatternWholeOperand(Rng, LeftDigits)
         RightWhole = _GeneratePatternWholeOperand(Rng, RightDigits)
         WholeProduct = LeftWhole * RightWhole
         if WholeProduct >= 1000000:
             continue
 
-        LeftShiftOptions = _DecimalShiftOptions(LeftWhole)
-        RightShiftOptions = _DecimalShiftOptions(RightWhole)
-        ShiftPairs = [
-            (LeftShift, RightShift)
-            for LeftShift in LeftShiftOptions
-            for RightShift in RightShiftOptions
-            if LeftShift + RightShift > 0
-        ]
-        if not ShiftPairs:
+        ShiftPair = _SelectDecimalMultiplicationShiftPair(Rng, LessonNumber, QuestionNumber + _Attempt, LeftWhole, RightWhole)
+        if ShiftPair is None:
+            continue
+        LeftShift, RightShift = ShiftPair
+        DisplayLeftWhole, DisplayRightWhole, DisplayLeftShift, DisplayRightShift = _MaybeSwapDecimalMultiplicationOperands(
+            Rng, QuestionNumber + _Attempt, LeftWhole, RightWhole, LeftShift, RightShift
+        )
+
+        if (DisplayLeftShift > 0 and DisplayLeftWhole % 10 == 0) or (DisplayRightShift > 0 and DisplayRightWhole % 10 == 0):
             continue
 
-        LeftShift, RightShift = Rng.choice(ShiftPairs)
-        LeftOperand = _DisplayDecimalMultiplicationOperand(LeftWhole, LeftShift)
-        RightOperand = _DisplayDecimalMultiplicationOperand(RightWhole, RightShift)
+        LeftOperand = _DisplayDecimalMultiplicationOperand(DisplayLeftWhole, DisplayLeftShift)
+        RightOperand = _DisplayDecimalMultiplicationOperand(DisplayRightWhole, DisplayRightShift)
         TotalDecimalPlaces = _DecimalPlacesInOperand(LeftOperand) + _DecimalPlacesInOperand(RightOperand)
         CorrectAnswer = _Quantize(Decimal(WholeProduct) / (Decimal(10) ** TotalDecimalPlaces), TotalDecimalPlaces)
 
@@ -443,6 +552,7 @@ def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, Question
             "underlying_product": WholeProduct,
             "decimal_places": TotalDecimalPlaces,
             "decimal_pattern_rule": "DIGIT_COUNT_AFTER_DECIMAL_REMOVAL",
+            "decimal_variation_rule": "WORKBOOK_STYLE_SHIFT_TEMPLATES",
         }
 
     # Conservative fallback should almost never be used, but keeps preview generation safe.
