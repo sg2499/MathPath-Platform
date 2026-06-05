@@ -49,6 +49,7 @@ function BuildExpression(Operands: Array<number | string>, Operators: string[]):
     const Operator = NormalisedOperators[Index] || "+";
     if (Operator === "+%") return `+ ${Value}%`;
     if (Operator === "-%") return `− ${Value}%`;
+    if (Operator === "×%") return `× ${Value}%`;
     if (Operator === "%") return `% ${Value}`;
     return `${Operator} ${Value}`;
   }).join(" ");

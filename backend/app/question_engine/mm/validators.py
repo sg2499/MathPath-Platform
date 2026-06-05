@@ -4,7 +4,7 @@ import re
 from app.question_engine.mm.config import MMConfig, IsPackage1Supported
 
 
-ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
+ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "×%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
 PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "ANSWER_POSITION", "SOLVE_EQUATION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
@@ -227,10 +227,22 @@ def _ValidateDecimalDivisionPattern(Config: MMConfig, Operands: list[int | float
     return CorrectAnswer.quantize(QuantizeUnit) == ExpectedAnswer.quantize(QuantizeUnit)
 
 
-def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: list[str]) -> bool:
+def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if len(Operands) != 2 or Operators[0] != "":
         return False
-    return Operators[1] in {"+%", "-%"}
+    if Operators[1] not in {"×%", "-%"}:
+        return False
+    try:
+        Base = Decimal(str(Operands[0]))
+        Percent = Decimal(str(Operands[1]))
+    except Exception:
+        return False
+    if Base < 0 or Percent < 0:
+        return False
+    PercentValue = Base * Percent / Decimal(100)
+    ExpectedAnswer = PercentValue if Operators[1] == "×%" else Base - PercentValue
+    ExpectedAnswer = ExpectedAnswer.quantize(Decimal("0.01"))
+    return Decimal(0) <= CorrectAnswer <= Decimal("100000") and CorrectAnswer.quantize(Decimal("0.01")) == ExpectedAnswer
 
 
 def _BorrowingAnswerMode(Config: MMConfig) -> str:
@@ -509,7 +521,7 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
         return _ValidateDecimalDivisionPattern(Config, Operands, Operators, CorrectAnswer) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "PERCENTAGE_ADD_LESS":
-        return _ValidatePercentageAddLess(Operands, Operators) and CorrectAnswer >= 0
+        return _ValidatePercentageAddLess(Operands, Operators, CorrectAnswer)
 
     if Config.ConceptFamily.startswith("PERCENTAGE") and any(_IsNumeric(Value) and Decimal(str(Value)) < 0 for Value in Operands):
         return False

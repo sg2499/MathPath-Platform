@@ -1105,45 +1105,66 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
     Stage = DifficultyStage(QuestionNumber - 1)
     Band = _LessonBand(Config)
     BaseRanges = {
-        1: (100, 500),
-        2: (200, 1000),
-        3: (500, 2500),
-        4: (1000, 6000),
-        5: (2500, 12000),
-        6: (5000, 25000),
+        1: (100, 750),
+        2: (250, 1500),
+        3: (500, 3000),
+        4: (750, 7000),
+        5: (1000, 15000),
+        6: (1500, 25000),
     }
-    BaseMin, BaseMax = BaseRanges.get(Band, (100, 500))
+    BaseMin, BaseMax = BaseRanges.get(Band, (100, 750))
 
     if Stage in {"WARM_UP", "STANDARD"}:
         PercentChoices = [5, 10, 15, 20, 25, 30, 40, 50]
     elif Stage == "MIXED_STEP":
-        PercentChoices = [5, 8, 10, 12, 15, 18, 20, 22, 25, 30, 35, 45]
+        PercentChoices = [5, 8, 10, 12, 15, 18, 20, 22, 25, 30, 35, 45, 50]
     elif Stage == "ADVANCED":
-        PercentChoices = [2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 35, 45]
+        PercentChoices = [2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 35, 42, 45, 47, 50, 60, 70]
     else:
-        PercentChoices = [0.5, 1, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 40, 50]
+        PercentChoices = [0, 0.5, 1, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 40, 47, 50, 52, 60, 70, 75, 80, 86, 90]
 
-    Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, 10))
-    if Band >= 4 and Rng.random() < 0.35:
-        Base = _RandDecimal(Rng, BaseMin, BaseMax, 2)
-
-    Percent = Decimal(str(Rng.choice(PercentChoices)))
-    Text = f" {Config.DpsTitle} ".lower()
-    if "less" in Text and "add" not in Text:
+    ActiveSectionTitle = ""
+    if isinstance(Config.GeneratorConfig, dict) and isinstance(Config.GeneratorConfig.get("activeSection"), dict):
+        ActiveSectionTitle = str(Config.GeneratorConfig.get("activeSection", {}).get("sectionTitle") or Config.GeneratorConfig.get("activeSection", {}).get("title") or "")
+    TitleText = f" {ActiveSectionTitle or Config.DpsTitle} ".lower()
+    if "less" in TitleText and "add" not in TitleText:
         Operator = "-%"
-    elif "add" in Text and "less" not in Text:
-        Operator = "+%"
+    elif "add" in TitleText and "less" not in TitleText:
+        Operator = "×%"
     else:
-        Operator = Rng.choice(["+%", "-%"])
+        Operator = Rng.choice(["×%", "-%"])
 
-    PercentValue = Base * Percent / Decimal(100)
-    CorrectAnswer = Base + PercentValue if Operator == "+%" else Base - PercentValue
-    CorrectAnswer = _Quantize(CorrectAnswer, 2)
+    LakhCap = Decimal("100000")
+    Base = Decimal(0)
+    Percent = Decimal(0)
+    CorrectAnswer = Decimal(0)
+    for Attempt in range(40):
+        if Band >= 3 and Rng.random() < 0.45:
+            Base = _RandDecimal(Rng, BaseMin, BaseMax, 2)
+        else:
+            Step = 10 if BaseMax >= 1000 else 1
+            Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, Step))
+
+        Percent = Decimal(str(Rng.choice(PercentChoices)))
+        PercentValue = Base * Percent / Decimal(100)
+        if Operator == "×%":
+            CorrectAnswer = PercentValue
+        else:
+            CorrectAnswer = Base - PercentValue
+        CorrectAnswer = _Quantize(CorrectAnswer, 2)
+        if Decimal(0) <= CorrectAnswer <= LakhCap:
+            break
+    else:
+        Percent = Decimal("10")
+        Base = Decimal(min(BaseMax, 10000))
+        CorrectAnswer = _Quantize(Base * Percent / Decimal(100) if Operator == "×%" else Base - (Base * Percent / Decimal(100)), 2)
 
     return [_AsDisplayNumber(Base), _AsDisplayNumber(Percent)], ["", Operator], CorrectAnswer, {
-        "percentage_mode": "ADD_LESS",
+        "percentage_mode": "ADD_PERCENTAGE" if Operator == "×%" else "LESS_PERCENTAGE",
         "base_amount": _AsDisplayNumber(Base),
         "percentage_operator": Operator,
+        "percentage_workbook_rule": "BASE_TIMES_PERCENT" if Operator == "×%" else "BASE_MINUS_PERCENT_OF_BASE",
+        "lakh_range_cap": int(LakhCap),
         "two_part_only": True,
         "lesson_band": Band,
     }
@@ -1152,7 +1173,7 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
 def GeneratePercentageValue(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     # Percentage calculation format (for example, "25% of 800") is currently
     # disabled for MM because the workbook convention for active percentage
-    # sheets is Add/Less Percentage only: base + percent% or base - percent%.
+    # sheets is Add/Less Percentage only: base × percent% or base - percent%.
     # Keep this safe fallback so old/ambiguous concept routing cannot leak
     # percentage-calculation questions into Add/Less Percentage sheets.
     return GeneratePercentageAddLess(Config, Rng, QuestionNumber)
