@@ -424,33 +424,208 @@ def GenerateIntegers(Config: MMConfig, Rng: random.Random, QuestionNumber: int) 
     }
 
 
-def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
-    Stage = DifficultyStage(QuestionNumber - 1)
-    MaxValue = {"WARM_UP": 9, "STANDARD": 15, "MIXED_STEP": 25, "ADVANCED": 50, "CHALLENGE": 99}.get(Stage, 15) * _LessonBand(Config)
-    A = Rng.randint(2, MaxValue)
-    B = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 15)
-    C = Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 20)
-    Pattern = ["ADD_MUL_SUB", "SUB_ADD_MUL", "MUL_ADD_DIV"][(QuestionNumber - 1) % 3]
+def _FormatBodmasNumber(Value: Decimal | int | float) -> str:
+    DecimalValue = Value if isinstance(Value, Decimal) else Decimal(str(Value))
+    if DecimalValue == DecimalValue.to_integral_value():
+        return str(int(DecimalValue))
+    return format(DecimalValue.normalize(), "f")
 
-    if Pattern == "ADD_MUL_SUB":
-        Product = B * C
-        D = Rng.randint(1, max(1, A + Product - 1))
-        CorrectAnswer = Decimal(A + Product - D)
-        return [A, B, C, D], ["", "+", "×", "-"], CorrectAnswer, {"bodmas_pattern": Pattern}
 
-    if Pattern == "SUB_ADD_MUL":
-        D = Rng.randint(2, max(3, MaxValue // 2))
-        Product = C * D
-        if A - B + Product < 0:
-            A = B + Rng.randint(1, MaxValue)
-        CorrectAnswer = Decimal(A - B + Product)
-        return [A, B, C, D], ["", "-", "+", "×"], CorrectAnswer, {"bodmas_pattern": Pattern}
+def _BodmasPayload(ExpressionTokens: list[str], CorrectAnswer: Decimal, Pattern: str, LessonStage: str) -> tuple[list[str], list[str], Decimal, dict]:
+    Expression = " ".join(ExpressionTokens)
+    ExpressionUnits = [Token for Token in ExpressionTokens if Token not in {"+", "-", "×", "÷"}]
+    return ExpressionUnits, [""] * len(ExpressionUnits), CorrectAnswer, {
+        "question_text": Expression,
+        "bodmas_pattern": Pattern,
+        "bodmas_lesson_stage": LessonStage,
+        "bodmas_expression_unit_count": len(ExpressionUnits),
+        "bodmas_workbook_progressive": True,
+        "bodmas_max_expression_units": 7,
+    }
 
-    Divisor = Rng.randint(2, 9)
-    Quotient = Rng.randint(2, max(4, MaxValue // 3))
+
+def _BodmasBasicArithmetic(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
+    Band = _LessonBand(Config)
+    LargeBaseMin = 1200 + (Band * 350)
+    LargeBaseMax = 8500 + (Band * 900)
+    Multiplier = Rng.randint(3, 9 if Stage in {"WARM_UP", "STANDARD"} else 16)
+    Multiplicand = Rng.randint(120, 950 if Stage in {"WARM_UP", "STANDARD"} else 2500)
+    Divisor = Rng.randint(6, 25 if Stage in {"WARM_UP", "STANDARD"} else 90)
+    Quotient = Rng.randint(12, 120 if Stage in {"WARM_UP", "STANDARD"} else 350)
     Dividend = Divisor * Quotient
-    CorrectAnswer = Decimal((A * B) + Quotient)
-    return [A, B, Dividend, Divisor], ["", "×", "+", "÷"], CorrectAnswer, {"bodmas_pattern": Pattern}
+    A = Rng.randint(LargeBaseMin, LargeBaseMax)
+    E = Rng.randint(100, 900)
+    Product = Multiplicand * Multiplier
+    CorrectAnswer = Decimal(A - Product - Quotient + E)
+    if CorrectAnswer <= 0:
+        A += int(abs(CorrectAnswer)) + Rng.randint(100, 800)
+        CorrectAnswer = Decimal(A - Product - Quotient + E)
+    Units = [str(A), "-", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(E)]
+    return _BodmasPayload(Units, CorrectAnswer, "BASIC_ADD_SUB_MUL_DIV", "LESSON_4_6_BASIC")
+
+
+def _BodmasSquares(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
+    SquareBase = Rng.randint(24, 95 if Stage in {"WARM_UP", "STANDARD"} else 260)
+    Multiplier = Rng.randint(3, 9 if Stage in {"WARM_UP", "STANDARD"} else 15)
+    Multiplicand = Rng.randint(180, 900 if Stage in {"WARM_UP", "STANDARD"} else 1800)
+    Divisor = Rng.randint(14, 60)
+    Quotient = Rng.randint(10, 140)
+    Dividend = Divisor * Quotient
+    AddValue = Rng.randint(500, 9500)
+    Product = Multiplicand * Multiplier
+
+    if QuestionNumber % 2 == 0:
+        CorrectAnswer = Decimal(AddValue + Product - Quotient - (SquareBase ** 2))
+        if CorrectAnswer <= 0:
+            AddValue += int(abs(CorrectAnswer)) + Rng.randint(200, 1200)
+            CorrectAnswer = Decimal(AddValue + Product - Quotient - (SquareBase ** 2))
+        Units = [str(AddValue), "+", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "-", f"({SquareBase})²"]
+        Pattern = "SQUARE_TRAILING"
+    else:
+        CorrectAnswer = Decimal((SquareBase ** 2) - Product - Quotient + AddValue)
+        if CorrectAnswer <= 0:
+            AddValue += int(abs(CorrectAnswer)) + Rng.randint(200, 1200)
+            CorrectAnswer = Decimal((SquareBase ** 2) - Product - Quotient + AddValue)
+        Units = [f"({SquareBase})²", "-", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(AddValue)]
+        Pattern = "SQUARE_LEADING"
+    return _BodmasPayload(Units, CorrectAnswer, Pattern, "LESSON_11_SQUARES")
+
+
+def _BodmasBracketsPowersPercent(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
+    Left = Rng.randint(240, 900)
+    Right = Rng.randint(12, 30)
+    BracketDivisor = Rng.choice([10, 20, 25, 40, 50])
+    BracketProduct = Decimal(Left * Right) / Decimal(BracketDivisor)
+
+    Divisor = Rng.randint(16, 72)
+    Quotient = Rng.randint(30, 180)
+    Dividend = Divisor * Quotient
+
+    Percent = Rng.choice([10, 15, 20, 25, 30, 40, 50, 70, 85])
+    PercentBase = Rng.randrange(500, 6500, 10)
+    PercentValue = Decimal(PercentBase * Percent) / Decimal(100)
+
+    if QuestionNumber % 2 == 0:
+        PowerBase = Rng.randint(18, 35)
+        PowerValue = Decimal(PowerBase ** 3)
+        PowerText = f"{PowerBase}³"
+        Pattern = "BRACKET_PERCENT_CUBE"
+    else:
+        PowerBase = Rng.randint(28, 75)
+        PowerValue = Decimal(PowerBase ** 2)
+        PowerText = f"{PowerBase}²"
+        Pattern = "BRACKET_PERCENT_SQUARE"
+
+    CorrectAnswer = BracketProduct + Decimal(Quotient) - PercentValue + PowerValue
+    Units = [f"({Left} × {Right}) ÷ {BracketDivisor}", "+", f"{Dividend} ÷ {Divisor}", "-", f"({Percent}% of {PercentBase})", "+", PowerText]
+    return _BodmasPayload(Units, _Quantize(CorrectAnswer, 2), Pattern, "LESSON_16_BRACKETS_POWERS_PERCENT")
+
+
+def _BodmasCubeRootPercent(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
+    Divisor = Rng.randint(21, 90)
+    Quotient = Rng.randint(40, 150)
+    Dividend = Divisor * Quotient
+
+    Multiplier = Rng.randint(120, 900)
+    Percent = Rng.choice([3, 4, 5, 6, 8, 10, 12, 15])
+    PercentProduct = Decimal(Multiplier * Percent) / Decimal(100)
+
+    Root = Rng.randint(24, 85)
+    Radicand = Root ** 3
+
+    if QuestionNumber % 2 == 0:
+        CorrectAnswer = Decimal(Quotient) - PercentProduct + Decimal(Root)
+        Units = [f"{Dividend} ÷ {Divisor}", "-", f"{Multiplier} × {Percent}%", "+", f"∛{Radicand}"]
+        Pattern = "DIV_PERCENT_CUBEROOT_SUB"
+    else:
+        CorrectAnswer = Decimal(Quotient) + PercentProduct + Decimal(Root)
+        Units = [f"{Dividend} ÷ {Divisor}", "+", f"{Multiplier} × {Percent}%", "+", f"∛{Radicand}"]
+        Pattern = "DIV_PERCENT_CUBEROOT_ADD"
+    if CorrectAnswer <= 0:
+        CorrectAnswer = Decimal(Quotient) + PercentProduct + Decimal(Root)
+        Units = [f"{Dividend} ÷ {Divisor}", "+", f"{Multiplier} × {Percent}%", "+", f"∛{Radicand}"]
+        Pattern = "DIV_PERCENT_CUBEROOT_ADD_SAFE"
+    return _BodmasPayload(Units, _Quantize(CorrectAnswer, 2), Pattern, "LESSON_19_CUBEROOT_PERCENT")
+
+
+def _BodmasDecimalPercentSquare(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
+    StartValue = Decimal(Rng.randrange(1200, 8500, 25))
+    DecimalFactor = _RandDecimal(Rng, 20, 95, 2)
+    Percent = Decimal(str(Rng.choice([10, 15, 20, 25, 30, 40, 50])))
+    Divisor = Decimal(str(Rng.choice([5, 10, 15, 20, 25])))
+    PercentTerm = (DecimalFactor * Percent / Decimal(100)) / Divisor
+    SquareBase = Rng.randint(12, 32)
+    AddValue = Decimal(Rng.randrange(500, 2500, 25))
+    CorrectAnswer = StartValue + PercentTerm - Decimal(SquareBase ** 2) + AddValue
+    if CorrectAnswer <= 0:
+        AddValue += Decimal(abs(int(CorrectAnswer))) + Decimal(Rng.randint(200, 800))
+        CorrectAnswer = StartValue + PercentTerm - Decimal(SquareBase ** 2) + AddValue
+    Units = [
+        _FormatBodmasNumber(StartValue),
+        "+",
+        f"({_FormatBodmasNumber(DecimalFactor)} × {_FormatBodmasNumber(Percent)}%) ÷ {_FormatBodmasNumber(Divisor)}",
+        "-",
+        f"{SquareBase}²",
+        "+",
+        _FormatBodmasNumber(AddValue),
+    ]
+    return _BodmasPayload(Units, _Quantize(CorrectAnswer, 2), "DECIMAL_PERCENT_SQUARE", "LESSON_22_DECIMAL_PERCENT_SQUARE")
+
+
+def _BodmasCubeRootSquareLarge(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
+    CubeRoot = Rng.randint(24, 78)
+    CubeRadicand = CubeRoot ** 3
+    SquareBase = Rng.randint(42, 99)
+    Divisor = Rng.randint(32, 96)
+    Quotient = Rng.randint(24, 160)
+    Dividend = Divisor * Quotient
+    Multiplier = Rng.randint(25, 85)
+    Multiplicand = Rng.randint(180, 980)
+    SubValue = Rng.randint(120, 750)
+    AddValue = Rng.randint(100, 600)
+    CorrectAnswer = Decimal(CubeRoot + (SquareBase ** 2) - Quotient + (Multiplicand * Multiplier) - SubValue + AddValue)
+    Units = [f"∛{CubeRadicand}", "+", f"{SquareBase}²", "-", f"{Dividend} ÷ {Divisor}", "+", f"{Multiplicand} × {Multiplier}", "-", str(SubValue), "+", str(AddValue)]
+    # Compress the final constant pair into one workbook-style tail when needed so
+    # BODMAS stays visually short and never exceeds seven expression units.
+    if len([Unit for Unit in Units if Unit not in {"+", "-", "×", "÷"}]) > 7:
+        TailValue = AddValue - SubValue
+        TailOperator = "+" if TailValue >= 0 else "-"
+        Units = [f"∛{CubeRadicand}", "+", f"{SquareBase}²", "-", f"{Dividend} ÷ {Divisor}", "+", f"{Multiplicand} × {Multiplier}", TailOperator, str(abs(TailValue))]
+    return _BodmasPayload(Units, CorrectAnswer, "CUBEROOT_SQUARE_LARGE", "LESSON_23_CUBEROOT_SQUARE_LARGE")
+
+
+def _BodmasSquareRootLarge(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
+    Multiplicand = Rng.randint(240, 980)
+    Multiplier = Rng.randint(24, 86)
+    Root = Rng.randint(54, 99)
+    Radicand = Root ** 2
+    Divisor = Rng.randint(24, 96)
+    Quotient = Rng.randint(40, 180)
+    Dividend = Divisor * Quotient
+    AddValue = Rng.randint(80, 350)
+    SubValue = Rng.randint(80, 350)
+    CorrectAnswer = Decimal((Multiplicand * Multiplier) + Root - Quotient + AddValue - SubValue)
+    Units = [f"{Multiplicand} × {Multiplier}", "+", f"√{Radicand}", "-", f"{Dividend} ÷ {Divisor}", "+", str(AddValue), "-", str(SubValue)]
+    return _BodmasPayload(Units, CorrectAnswer, "SQUAREROOT_LARGE", "LESSON_27_SQUAREROOT_LARGE")
+
+
+def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    Stage = DifficultyStage(QuestionNumber - 1)
+    LessonNumber = int(Config.LessonNumber or 1)
+
+    if LessonNumber >= 27:
+        return _BodmasSquareRootLarge(Config, Rng, QuestionNumber, Stage)
+    if LessonNumber >= 23:
+        return _BodmasCubeRootSquareLarge(Config, Rng, QuestionNumber, Stage)
+    if LessonNumber >= 22:
+        return _BodmasDecimalPercentSquare(Config, Rng, QuestionNumber, Stage)
+    if LessonNumber >= 19:
+        return _BodmasCubeRootPercent(Config, Rng, QuestionNumber, Stage)
+    if LessonNumber >= 16:
+        return _BodmasBracketsPowersPercent(Config, Rng, QuestionNumber, Stage)
+    if LessonNumber >= 11:
+        return _BodmasSquares(Config, Rng, QuestionNumber, Stage)
+    return _BodmasBasicArithmetic(Config, Rng, QuestionNumber, Stage)
 
 
 def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
