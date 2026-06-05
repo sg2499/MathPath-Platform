@@ -343,7 +343,10 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
         if len(Operands) != 2 or Operators != ["Add", "Times"]:
             return False
         AddValue, Times = [_DecimalValue(Value) for Value in Operands]
-        return AddValue > 0 and Times > 0 and CorrectAnswer == AddValue * Times
+        if AddValue <= 0 or Times <= 0 or Times != Times.to_integral_value():
+            return False
+        ExpectedAnswer = AddValue * (Decimal(2) ** (int(Times) - 1))
+        return CorrectAnswer == ExpectedAnswer
 
     if Config.ConceptFamily == "CONCEPT_DRILL":
         if len(Operands) != 2 or Operators != ["From", "Less"]:

@@ -1264,53 +1264,67 @@ def GenerateFindCostPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: 
 
 
 def _SkillStackerRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:
+    """Workbook-safe Skill Stacker bands.
+
+    Skill Stacker is an accumulation/doubling skill, not normal multiplication.
+    A row such as ADD 18, TIMES 12 means:
+      18, 36, 72, ... for 12 stacked doublings
+    therefore the answer is 18 * 2^(12 - 1).
+
+    The TIMES range is intentionally capped to workbook-like values so answers
+    remain printable, reviewable, and aligned with the workbook examples.
+    """
     Band = _LessonBand(Config)
     if Band <= 2:
         AddRanges = {
-            "WARM_UP": (8, 25),
-            "STANDARD": (12, 40),
-            "MIXED_STEP": (18, 60),
-            "ADVANCED": (25, 85),
-            "CHALLENGE": (35, 120),
+            "WARM_UP": (8, 18),
+            "STANDARD": (10, 24),
+            "MIXED_STEP": (12, 30),
+            "ADVANCED": (16, 36),
+            "CHALLENGE": (18, 42),
         }
         TimesRanges = {
-            "WARM_UP": (5, 10),
-            "STANDARD": (8, 12),
-            "MIXED_STEP": (10, 15),
-            "ADVANCED": (12, 18),
-            "CHALLENGE": (15, 24),
+            "WARM_UP": (8, 10),
+            "STANDARD": (9, 11),
+            "MIXED_STEP": (10, 12),
+            "ADVANCED": (10, 12),
+            "CHALLENGE": (11, 12),
         }
     elif Band <= 4:
         AddRanges = {
-            "WARM_UP": (18, 60),
-            "STANDARD": (25, 90),
-            "MIXED_STEP": (40, 140),
-            "ADVANCED": (75, 220),
-            "CHALLENGE": (100, 350),
+            "WARM_UP": (10, 24),
+            "STANDARD": (12, 30),
+            "MIXED_STEP": (16, 36),
+            "ADVANCED": (18, 42),
+            "CHALLENGE": (20, 48),
         }
         TimesRanges = {
-            "WARM_UP": (8, 12),
-            "STANDARD": (10, 16),
-            "MIXED_STEP": (12, 20),
-            "ADVANCED": (15, 25),
-            "CHALLENGE": (20, 30),
+            "WARM_UP": (8, 10),
+            "STANDARD": (9, 11),
+            "MIXED_STEP": (10, 12),
+            "ADVANCED": (10, 12),
+            "CHALLENGE": (11, 12),
         }
     else:
         AddRanges = {
-            "WARM_UP": (35, 125),
-            "STANDARD": (60, 220),
-            "MIXED_STEP": (100, 400),
-            "ADVANCED": (200, 750),
-            "CHALLENGE": (350, 1250),
+            "WARM_UP": (12, 30),
+            "STANDARD": (16, 36),
+            "MIXED_STEP": (18, 42),
+            "ADVANCED": (20, 48),
+            "CHALLENGE": (24, 54),
         }
         TimesRanges = {
-            "WARM_UP": (10, 18),
-            "STANDARD": (15, 24),
-            "MIXED_STEP": (20, 30),
-            "ADVANCED": (25, 40),
-            "CHALLENGE": (30, 50),
+            "WARM_UP": (8, 10),
+            "STANDARD": (9, 11),
+            "MIXED_STEP": (10, 12),
+            "ADVANCED": (10, 12),
+            "CHALLENGE": (11, 12),
         }
-    return AddRanges.get(Stage, (10, 50)), TimesRanges.get(Stage, (5, 15))
+    return AddRanges.get(Stage, (10, 30)), TimesRanges.get(Stage, (8, 12))
+
+
+def _SkillStackerAnswer(AddValue: int, Times: int) -> Decimal:
+    return Decimal(AddValue * (2 ** (Times - 1)))
 
 
 def GenerateSkillStacker(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
@@ -1318,12 +1332,11 @@ def GenerateSkillStacker(Config: MMConfig, Rng: random.Random, QuestionNumber: i
     (AddMin, AddMax), (TimesMin, TimesMax) = _SkillStackerRanges(Config, Stage)
     AddValue = Rng.randint(AddMin, AddMax)
     Times = Rng.randint(TimesMin, TimesMax)
-    CorrectAnswer = Decimal(AddValue * Times)
+    CorrectAnswer = _SkillStackerAnswer(AddValue, Times)
     return [AddValue, Times], ["Add", "Times"], CorrectAnswer, {
         "question_text": "Skill Stacker",
-        "skill_stacker_mode": "REPEATED_ADDITION",
+        "skill_stacker_mode": "REPEATED_DOUBLING_ACCUMULATION",
     }
-
 
 def _ConceptDrillRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:
     Band = _LessonBand(Config)
