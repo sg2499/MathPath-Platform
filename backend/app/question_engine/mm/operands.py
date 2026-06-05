@@ -1819,17 +1819,45 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
     Critical convention:
     - Normal digit-pattern concepts such as 2D × 2D, 3D × 4D, 4D ÷ 3D
       must always use whole-number operands.
-    - Decimal operands are allowed only when the concept text explicitly says
-      Decimal Multiplication or Decimal Division.
+    - Decimal Multiplication / Decimal Division sections must always show at
+      least one decimal operand; whole-number mechanisms belong only in true
+      Mixed Pattern sections.
     """
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
     MixedOperationGroup = str(GeneratorConfig.get("mixedOperationGroup") or "").upper()
+    ActiveSection = GeneratorConfig.get("activeSection") if isinstance(GeneratorConfig.get("activeSection"), dict) else {}
+    ActiveSectionTitle = str(ActiveSection.get("sectionTitle") or ActiveSection.get("title") or "")
+    SourceDpsTitle = str(GeneratorConfig.get("sourceDpsTitle") or Config.DpsTitle)
+    SourceLessonTitle = str(GeneratorConfig.get("sourceLessonTitle") or Config.LessonTitle)
+    FullText = " ".join(
+        f" {SourceDpsTitle} {SourceLessonTitle} {Config.DpsTitle} {Config.LessonTitle} {ActiveSectionTitle} "
+        .lower()
+        .replace("×", " x ")
+        .replace("÷", " division ")
+        .split()
+    )
+    HasDecimalMultiplication = (
+        "decimal multiplication" in FullText
+        or "decimal number multiplication" in FullText
+        or "multiplication of decimal" in FullText
+    )
+    HasDecimalDivision = (
+        "decimal division" in FullText
+        or "division of decimal" in FullText
+        or "decimal number division" in FullText
+    )
+    IsTrueMixedPattern = "mixed pattern" in FullText and not (HasDecimalMultiplication or HasDecimalDivision)
+
     if MixedOperationGroup == "MULTIPLICATION":
+        if HasDecimalMultiplication and not IsTrueMixedPattern:
+            return ["DECIMAL_MULTIPLICATION"]
         return ["WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION"]
     if MixedOperationGroup == "DIVISION":
+        if HasDecimalDivision and not IsTrueMixedPattern:
+            return ["DECIMAL_DIVISION"]
         return ["WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION"]
 
-    Text = " ".join(f" {Config.DpsTitle} ".lower().replace("×", " x ").replace("÷", " division ").split())
+    Text = FullText
     Operations: list[tuple[int, str]] = []
 
     DecimalMultiplicationPos = _FindTokenPosition(Text, ["decimal multiplication", "decimal x"])
