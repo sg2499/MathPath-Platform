@@ -573,14 +573,217 @@ def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, Question
     }
 
 
-def GenerateDecimalDivision(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
-    Stage = DifficultyStage(QuestionNumber - 1)
-    Places = 1 if Stage in {"WARM_UP", "STANDARD"} else 2
-    Divisor = Decimal(Rng.randint(2, 9 if Stage in {"WARM_UP", "STANDARD"} else 25))
-    QuotientLimit = (40 if Stage in {"WARM_UP", "STANDARD"} else 250) * _LessonBand(Config)
-    Quotient = _RandDecimal(Rng, 2, QuotientLimit, Places)
-    Dividend = _Quantize(Quotient * Divisor, Places)
-    return [_AsDisplayNumber(Dividend), _AsDisplayNumber(Divisor)], ["", "÷"], Quotient, {"decimal_places": Places}
+DECIMAL_DIVISION_PATTERNS: tuple[tuple[int, int], ...] = (
+    (2, 1),
+    (3, 1),
+    (4, 1),
+    (5, 1),
+    (3, 2),
+    (4, 2),
+    (5, 2),
+    (6, 2),
+    (4, 3),
+    (5, 3),
+    (6, 3),
+)
+
+
+def _DecimalDivisionPatternsForLesson(Config: MMConfig) -> list[tuple[int, int]]:
+    ExplicitPattern = _ExtractDivisionDigits(Config)
+    if ExplicitPattern is not None and ExplicitPattern in DECIMAL_DIVISION_PATTERNS:
+        return [ExplicitPattern]
+
+    LessonNumber = int(Config.LessonNumber or 1)
+    if LessonNumber <= 11:
+        return [(2, 1), (3, 1), (2, 1), (3, 2)]
+    if LessonNumber <= 15:
+        return [(2, 1), (3, 1), (4, 1), (3, 2), (4, 2)]
+    if LessonNumber <= 22:
+        return [(3, 1), (4, 1), (3, 2), (4, 2), (5, 2), (6, 2), (4, 3)]
+    return [(4, 1), (4, 2), (5, 2), (6, 2), (4, 3), (5, 3), (6, 3), (3, 2)]
+
+
+def _GenerateDivisionBase(Rng: random.Random, DividendDigits: int, DivisorDigits: int) -> tuple[int, int, int] | None:
+    DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
+    DividendMin, DividendMax = _DigitRange(DividendDigits)
+
+    for _Attempt in range(120):
+        Divisor = Rng.randint(DivisorMin, DivisorMax)
+        if Divisor == 0:
+            continue
+
+        MinQuotient = max(1, (DividendMin + Divisor - 1) // Divisor)
+        MaxQuotient = max(MinQuotient, DividendMax // Divisor)
+        if MinQuotient > MaxQuotient:
+            continue
+
+        Quotient = Rng.randint(MinQuotient, MaxQuotient)
+        Dividend = Divisor * Quotient
+        if DividendMin <= Dividend <= DividendMax:
+            return Dividend, Divisor, Quotient
+
+    return None
+
+
+def _DisplayDecimalDivisionOperand(Value: int, DecimalPlaces: int) -> int | str:
+    if DecimalPlaces <= 0:
+        return Value
+    return _FormatDecimalOperandFromWhole(Value, DecimalPlaces)
+
+
+def _DecimalDivisionShiftTemplatesForLesson(LessonNumber: int) -> list[tuple[int, int]]:
+    if LessonNumber <= 11:
+        return [
+            (1, 0),
+            (2, 1),
+            (2, 0),
+            (2, 2),
+            (3, 2),
+            (3, 1),
+            (1, 1),
+            (0, 1),
+        ]
+    if LessonNumber <= 15:
+        return [
+            (1, 1),
+            (2, 1),
+            (3, 2),
+            (4, 3),
+            (1, 0),
+            (2, 0),
+            (3, 1),
+            (0, 1),
+            (1, 2),
+        ]
+    if LessonNumber <= 22:
+        return [
+            (3, 2),
+            (2, 1),
+            (1, 1),
+            (4, 2),
+            (4, 3),
+            (1, 0),
+            (2, 0),
+            (0, 1),
+            (3, 1),
+        ]
+    return [
+        (2, 1),
+        (3, 2),
+        (1, 1),
+        (4, 2),
+        (5, 2),
+        (3, 0),
+        (1, 0),
+        (0, 1),
+        (4, 3),
+    ]
+
+
+def _SelectDecimalDivisionShiftPair(
+    Rng: random.Random,
+    LessonNumber: int,
+    QuestionNumber: int,
+    DividendWhole: int,
+    DivisorWhole: int,
+) -> tuple[int, int] | None:
+    DividendOptions = set(_DecimalShiftOptions(DividendWhole))
+    DivisorOptions = set(_DecimalShiftOptions(DivisorWhole))
+    Templates = _DecimalDivisionShiftTemplatesForLesson(LessonNumber)
+    OrderedTemplates = Templates[(QuestionNumber - 1) % len(Templates):] + Templates[:(QuestionNumber - 1) % len(Templates)]
+
+    for DividendShift, DivisorShift in OrderedTemplates:
+        if (
+            DividendShift in DividendOptions
+            and DivisorShift in DivisorOptions
+            and DividendShift + DivisorShift > 0
+            and DividendShift + DivisorShift <= 7
+        ):
+            return DividendShift, DivisorShift
+
+    CandidatePairs = [
+        (DividendShift, DivisorShift)
+        for DividendShift in DividendOptions
+        for DivisorShift in DivisorOptions
+        if DividendShift + DivisorShift > 0 and DividendShift + DivisorShift <= 7
+    ]
+    if not CandidatePairs:
+        return None
+    return Rng.choice(CandidatePairs)
+
+
+def _DecimalDivisionAnswer(DividendWhole: int, DivisorWhole: int, DividendShift: int, DivisorShift: int) -> Decimal:
+    return (
+        Decimal(DividendWhole)
+        * (Decimal(10) ** DivisorShift)
+        / (Decimal(DivisorWhole) * (Decimal(10) ** DividendShift))
+    )
+
+
+def _DecimalDivisionAnswerPlaces(DividendShift: int, DivisorShift: int) -> int:
+    # Base whole-number division is generated with an integer quotient. Decimal
+    # placement only moves the decimal point, so the answer needs at most the
+    # positive shift difference as decimal places.
+    return max(0, DividendShift - DivisorShift)
+
+
+def GenerateDecimalDivision(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    PatternOptions = _DecimalDivisionPatternsForLesson(Config)
+    Pattern = PatternOptions[(QuestionNumber - 1) % len(PatternOptions)]
+    DividendDigits, DivisorDigits = Pattern
+    LessonNumber = int(Config.LessonNumber or 1)
+
+    # Generate the whole-number abacus division pattern first. Decimal placement
+    # is applied only after the underlying dividend/divisor digit pattern is fixed.
+    for _Attempt in range(180):
+        Base = _GenerateDivisionBase(Rng, DividendDigits, DivisorDigits)
+        if Base is None:
+            continue
+        DividendWhole, DivisorWhole, WholeQuotient = Base
+
+        ShiftPair = _SelectDecimalDivisionShiftPair(Rng, LessonNumber, QuestionNumber + _Attempt, DividendWhole, DivisorWhole)
+        if ShiftPair is None:
+            continue
+        DividendShift, DivisorShift = ShiftPair
+
+        if (DividendShift > 0 and DividendWhole % 10 == 0) or (DivisorShift > 0 and DivisorWhole % 10 == 0):
+            continue
+
+        CorrectAnswer = _DecimalDivisionAnswer(DividendWhole, DivisorWhole, DividendShift, DivisorShift)
+        if CorrectAnswer <= 0 or CorrectAnswer > Decimal("200000"):
+            continue
+
+        AnswerPlaces = _DecimalDivisionAnswerPlaces(DividendShift, DivisorShift)
+        CorrectAnswer = _Quantize(CorrectAnswer, AnswerPlaces)
+        DividendOperand = _DisplayDecimalDivisionOperand(DividendWhole, DividendShift)
+        DivisorOperand = _DisplayDecimalDivisionOperand(DivisorWhole, DivisorShift)
+
+        return [DividendOperand, DivisorOperand], ["", "÷"], CorrectAnswer, {
+            "dividend_digits": DividendDigits,
+            "divisor_digits": DivisorDigits,
+            "underlying_dividend": DividendWhole,
+            "underlying_divisor": DivisorWhole,
+            "underlying_quotient": WholeQuotient,
+            "dividend_decimal_places": DividendShift,
+            "divisor_decimal_places": DivisorShift,
+            "decimal_pattern_rule": "DIGIT_COUNT_AFTER_DECIMAL_REMOVAL_AND_LEADING_ZERO_NORMALIZATION",
+            "decimal_variation_rule": "WORKBOOK_STYLE_DIVISION_SHIFT_TEMPLATES",
+        }
+
+    # Conservative fallback should almost never be used, but keeps preview generation safe.
+    DividendWhole, DivisorWhole, WholeQuotient = 21, 7, 3
+    DividendOperand = _DisplayDecimalDivisionOperand(DividendWhole, 1)
+    CorrectAnswer = Decimal("0.3")
+    return [DividendOperand, DivisorWhole], ["", "÷"], CorrectAnswer, {
+        "dividend_digits": 2,
+        "divisor_digits": 1,
+        "underlying_dividend": DividendWhole,
+        "underlying_divisor": DivisorWhole,
+        "underlying_quotient": WholeQuotient,
+        "dividend_decimal_places": 1,
+        "divisor_decimal_places": 0,
+        "decimal_pattern_rule": "DIGIT_COUNT_AFTER_DECIMAL_REMOVAL_AND_LEADING_ZERO_NORMALIZATION",
+    }
 
 
 def GenerateWholeNumberMultiplication(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:

@@ -9,6 +9,7 @@ PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_
 PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "ANSWER_POSITION", "SOLVE_EQUATION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
 DECIMAL_MULTIPLICATION_PATTERNS = {(1, 1), (2, 1), (3, 1), (4, 1), (2, 2), (3, 2), (4, 2), (3, 3)}
+DECIMAL_DIVISION_PATTERNS = {(2, 1), (3, 1), (4, 1), (5, 1), (3, 2), (4, 2), (5, 2), (6, 2), (4, 3), (5, 3), (6, 3)}
 
 
 def _IsNumeric(Value: object) -> bool:
@@ -186,6 +187,43 @@ def _ValidateDecimalMultiplicationPattern(Config: MMConfig, Operands: list[int |
     TotalDecimalPlaces = LeftPlaces + RightPlaces
     ExpectedAnswer = Decimal(WholeProduct) / (Decimal(10) ** TotalDecimalPlaces)
     QuantizeUnit = Decimal("1") if TotalDecimalPlaces <= 0 else Decimal("1").scaleb(-TotalDecimalPlaces)
+    return CorrectAnswer.quantize(QuantizeUnit) == ExpectedAnswer.quantize(QuantizeUnit)
+
+
+def _ValidateDecimalDivisionPattern(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    if len(Operands) != 2 or Operators != ["", "÷"]:
+        return False
+    if not _HasVisibleDecimalOperand(Operands):
+        return False
+
+    DividendParsed = _DecimalRemovalIntegerAndPlaces(Operands[0])
+    DivisorParsed = _DecimalRemovalIntegerAndPlaces(Operands[1])
+    if DividendParsed is None or DivisorParsed is None:
+        return False
+
+    DividendWhole, DividendPlaces = DividendParsed
+    DivisorWhole, DivisorPlaces = DivisorParsed
+    if DividendWhole <= 0 or DivisorWhole <= 0:
+        return False
+
+    Pattern = (
+        _DigitCountAfterDecimalRemoval(Operands[0]),
+        _DigitCountAfterDecimalRemoval(Operands[1]),
+    )
+    if Pattern not in DECIMAL_DIVISION_PATTERNS:
+        return False
+
+    ExpectedDigits = _ExtractDivisionDigits(Config)
+    if ExpectedDigits is not None and ExpectedDigits in DECIMAL_DIVISION_PATTERNS and Pattern != ExpectedDigits:
+        return False
+
+    ExpectedAnswer = (
+        Decimal(DividendWhole)
+        * (Decimal(10) ** DivisorPlaces)
+        / (Decimal(DivisorWhole) * (Decimal(10) ** DividendPlaces))
+    )
+    AnswerPlaces = max(0, DividendPlaces - DivisorPlaces)
+    QuantizeUnit = Decimal("1") if AnswerPlaces <= 0 else Decimal("1").scaleb(-AnswerPlaces)
     return CorrectAnswer.quantize(QuantizeUnit) == ExpectedAnswer.quantize(QuantizeUnit)
 
 
@@ -394,7 +432,7 @@ def ValidateMmQuestion(Config: MMConfig, Operands: list[int | float | str], Oper
         return _ValidateDecimalMultiplicationPattern(Config, Operands, Operators, CorrectAnswer) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "DECIMAL_DIVISION":
-        return _ValidateDecimalOperation(Operands, Operators, "÷") and CorrectAnswer >= 0
+        return _ValidateDecimalDivisionPattern(Config, Operands, Operators, CorrectAnswer) and CorrectAnswer >= 0
 
     if Config.ConceptFamily == "PERCENTAGE_ADD_LESS":
         return _ValidatePercentageAddLess(Operands, Operators) and CorrectAnswer >= 0
