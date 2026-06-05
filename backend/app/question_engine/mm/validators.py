@@ -8,7 +8,7 @@ ALLOWED_OPERATORS = {"", "+", "-", "×", "÷", "+%", "-%", "% of", "%"}
 PACKAGE_4_FINANCIAL_CONCEPTS = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
 PACKAGE_5_SPECIAL_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL", "ANSWER_POSITION", "SOLVE_EQUATION"}
 PACKAGE_3_COMPACT_CONCEPTS = {"SQUARES", "CUBES", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_SQUARE_CUBE", "MIXED_ROOTS"}
-DECIMAL_MULTIPLICATION_PATTERNS = {(2, 1), (3, 1), (4, 1), (2, 2), (3, 2), (4, 2), (3, 3)}
+DECIMAL_MULTIPLICATION_PATTERNS = {(1, 1), (2, 1), (3, 1), (4, 1), (2, 2), (3, 2), (4, 2), (3, 3)}
 
 
 def _IsNumeric(Value: object) -> bool:
@@ -74,6 +74,12 @@ def _DigitCountAfterDecimalRemoval(Value: object) -> int | None:
         return None
     IntegerValue, _Places = Parsed
     return len(str(abs(IntegerValue))) if IntegerValue != 0 else 1
+
+
+def _CanonicalMultiplicationPattern(LeftDigits: int | None, RightDigits: int | None) -> tuple[int, int] | None:
+    if LeftDigits is None or RightDigits is None:
+        return None
+    return (max(LeftDigits, RightDigits), min(LeftDigits, RightDigits))
 
 
 def _NormalisedPatternTitle(Config: MMConfig) -> str:
@@ -160,13 +166,18 @@ def _ValidateDecimalMultiplicationPattern(Config: MMConfig, Operands: list[int |
     if LeftWhole <= 0 or RightWhole <= 0:
         return False
 
-    Pattern = (_DigitCountAfterDecimalRemoval(Operands[0]), _DigitCountAfterDecimalRemoval(Operands[1]))
+    Pattern = _CanonicalMultiplicationPattern(
+        _DigitCountAfterDecimalRemoval(Operands[0]),
+        _DigitCountAfterDecimalRemoval(Operands[1]),
+    )
     if Pattern not in DECIMAL_MULTIPLICATION_PATTERNS:
         return False
 
     ExpectedDigits = _ExtractMultiplicationDigits(Config)
-    if ExpectedDigits is not None and ExpectedDigits in DECIMAL_MULTIPLICATION_PATTERNS and Pattern != ExpectedDigits:
-        return False
+    if ExpectedDigits is not None:
+        ExpectedPattern = _CanonicalMultiplicationPattern(*ExpectedDigits)
+        if ExpectedPattern in DECIMAL_MULTIPLICATION_PATTERNS and Pattern != ExpectedPattern:
+            return False
 
     WholeProduct = LeftWhole * RightWhole
     if WholeProduct >= 1000000:
