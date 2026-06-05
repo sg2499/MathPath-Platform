@@ -2255,6 +2255,52 @@ def _RootRangeForRadicandDigits(DigitCount: int) -> tuple[int, int]:
     return MinimumRoot, MaximumRoot
 
 
+def _CubeRootRadicandDigitTargets(Config: MMConfig) -> list[int] | None:
+    """Return exact workbook cube-root radicand digit targets from the active title.
+
+    Cube-root sheets are digit-range concepts. A title such as
+    "Cube Root of 5 Digit Numbers" must generate 5-digit radicands only;
+    "6 Digit Number Cube Root" must generate only 6-digit radicands.
+    Generic/mixed cube-root sheets keep the existing lesson-band progression.
+    """
+    Text = _SquareRootTitleText(Config)
+    if "cube root" not in Text:
+        return None
+
+    RangeMatch = re.search(r"\b([3-6])\s*(?:and|to|/)\s*([3-6])\s*digit", Text)
+    if RangeMatch:
+        Start = int(RangeMatch.group(1))
+        End = int(RangeMatch.group(2))
+        Lower, Upper = sorted((Start, End))
+        return list(range(Lower, Upper + 1))
+
+    DigitMatches = []
+    for Match in re.finditer(r"\b([3-6])\s*digit", Text):
+        DigitValue = int(Match.group(1))
+        if DigitValue not in DigitMatches:
+            DigitMatches.append(DigitValue)
+    if len(DigitMatches) >= 2:
+        return DigitMatches
+
+    SingleMatch = re.search(r"\b([3-6])\s*digit", Text)
+    if SingleMatch:
+        return [int(SingleMatch.group(1))]
+
+    return None
+
+
+def _CubeRootRangeForRadicandDigits(DigitCount: int) -> tuple[int, int]:
+    LowerRadicand = 10 ** (DigitCount - 1)
+    UpperRadicand = (10 ** DigitCount) - 1
+    MinimumRoot = 1
+    while MinimumRoot ** 3 < LowerRadicand:
+        MinimumRoot += 1
+    MaximumRoot = MinimumRoot
+    while (MaximumRoot + 1) ** 3 <= UpperRadicand:
+        MaximumRoot += 1
+    return MinimumRoot, MaximumRoot
+
+
 def _SquareRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
     ExplicitTargets = _SquareRootRadicandDigitTargets(Config)
     if ExplicitTargets:
@@ -2293,6 +2339,11 @@ def _SquareRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
 
 
 def _CubeRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    ExplicitTargets = _CubeRootRadicandDigitTargets(Config)
+    if ExplicitTargets:
+        MinimumsAndMaximums = [_CubeRootRangeForRadicandDigits(Target) for Target in ExplicitTargets]
+        return min(Minimum for Minimum, _ in MinimumsAndMaximums), max(Maximum for _, Maximum in MinimumsAndMaximums)
+
     Band = _LessonBand(Config)
     if Band <= 3:
         Ranges = {
@@ -2389,9 +2440,25 @@ def GenerateSquareRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int
 
 def GenerateCubeRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    Minimum, Maximum = _CubeRootBaseRange(Config, Stage)
+    ExplicitTargets = _CubeRootRadicandDigitTargets(Config)
+    TargetDigits = None
+    if ExplicitTargets:
+        TargetDigits = ExplicitTargets[(QuestionNumber - 1) % len(ExplicitTargets)]
+        Minimum, Maximum = _CubeRootRangeForRadicandDigits(TargetDigits)
+    else:
+        Minimum, Maximum = _CubeRootBaseRange(Config, Stage)
+
     Root = Rng.randint(Minimum, Maximum)
     Radicand = Root ** 3
+    if TargetDigits is not None:
+        # Defensive guard: keep trying within the explicit digit band so the
+        # visible radicand always follows the sheet title exactly.
+        for _ in range(25):
+            if len(str(Radicand)) == TargetDigits:
+                break
+            Root = Rng.randint(Minimum, Maximum)
+            Radicand = Root ** 3
+
     CorrectAnswer = Decimal(Root)
     QuestionText = f"∛{Radicand}"
     return [QuestionText], [""], CorrectAnswer, {
@@ -2402,6 +2469,8 @@ def GenerateCubeRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int) 
         "radicand": Radicand,
         "perfect_root_only": True,
         "lesson_band": _LessonBand(Config),
+        "radicand_digit_target": TargetDigits,
+        "radicand_digit_count": len(str(Radicand)),
     }
 
 
