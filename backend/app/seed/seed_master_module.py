@@ -164,18 +164,18 @@ DPS_TITLES = {1: {1: 'Decimal Number Add-Less (Visual)',
       4: 'Simple Interest and Profit-Loss',
       5: 'Cubes, Squares and Cube Root'},
  21: {1: 'Mixed Digit Add-Less (Visual)',
-      2: 'Multiplication and Division by 3D',
-      3: 'Multiplication and Division by 5D',
+      2: '4D × 3D, 5D ÷ 3D',
+      3: '5D × 3D, 4D ÷ 2D',
       4: 'Simple Interest and Decimal Division',
       5: 'BODMAS'},
  22: {1: 'BODMAS',
       2: 'Division of Decimal Numbers and Decimal Number Multiplication',
       3: 'Borrowing Sums with Positive / Negative Answers',
-      4: 'Multiplication by 3D and Division by 6D',
+      4: '3D × 3D, 6D ÷ 3D',
       5: 'Division of Decimal Numbers and 6 Digit Number Cube Root'},
  23: {1: 'Concept Drill (Abacus)',
       2: 'BODMAS',
-      3: 'Multiplication by 3D and Division by 6D',
+      3: '3D × 3D, 6D ÷ 3D',
       4: 'Add Percentage and Less Percentage',
       5: 'Multiplication Mixed Pattern and Less Percentage'},
  24: {1: 'Profit-Loss / Selling Price',
@@ -207,18 +207,44 @@ DPS_TITLES = {1: {1: 'Decimal Number Add-Less (Visual)',
       2: 'Profit-Loss / Selling Price',
       3: 'Profit & Loss',
       4: 'Simple Interest and Profit-Loss',
-      5: 'Multiplication by 3D and Division by 6D'},
+      5: '3D × 3D, 6D ÷ 3D'},
  30: {1: 'Profit & Loss',
       2: 'Square Root - 5 Digit Number',
       3: 'Square Root - 6 Digit Number',
       4: 'Division of Decimal Numbers and Cube Root',
-      5: 'Multiplication by 3D and Division by 3D'}}
+      5: '3D × 3D, 6D ÷ 3D'}}
 
 
 # Section-aware workbook structure. This map stores exact/special splits identified from the MM workbook audit.
 # DPS records not present here fall back to a conservative title-derived split.
 # Section map supports Package 5 concepts as dedicated sections wherever they appear in workbook sheets.
 MM_DPS_SECTION_OVERRIDES = {
+    # Exact pattern-specific multiplication/division sheets from MM workbook audit.
+    # These must not route through generic mixed multiplication/division pools.
+    (21, 2): [
+        {"sectionTitle": "4D × 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
+        {"sectionTitle": "5D ÷ 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
+    ],
+    (21, 3): [
+        {"sectionTitle": "5D × 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
+        {"sectionTitle": "4D ÷ 2D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
+    ],
+    (22, 4): [
+        {"sectionTitle": "3D × 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
+        {"sectionTitle": "6D ÷ 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
+    ],
+    (23, 3): [
+        {"sectionTitle": "3D × 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
+        {"sectionTitle": "6D ÷ 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
+    ],
+    (29, 5): [
+        {"sectionTitle": "3D × 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
+        {"sectionTitle": "6D ÷ 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
+    ],
+    (30, 5): [
+        {"sectionTitle": "3D × 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION"},
+        {"sectionTitle": "6D ÷ 3D", "questionCount": 10, "conceptFamily": "WHOLE_NUMBER_DIVISION"},
+    ],
     # Lessons 1-2 Excel workbook sheets: each DPS carries multiple workbook sections.
     (1, 1): [
         {"sectionTitle": "Decimal Number Add-Less (Visual)", "questionCount": 10, "conceptFamily": "DECIMAL_ADD_LESS"},

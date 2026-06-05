@@ -1,4 +1,5 @@
 import random
+import re
 from decimal import Decimal
 
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
@@ -118,15 +119,9 @@ def _DisplayMode(Config: MMConfig, SectionTitle: str | None = None) -> str:
     if _IsVisualStackConcept(Config, SectionTitle):
         return "VISUAL_STACK"
 
-    # Mixed Multiplication/Division workbook sections are horizontal expression
-    # sections even when their visible parent title is simply "Multiplication"
-    # or "Division". Keep this narrow so Add-Less/Integers/Borrowing remain
-    # protected by the earlier visual-stack guard.
-    if _IsMultiplicationDivisionMixedDps(Config, SectionTitle):
-        return "EXPRESSION_WORKSHEET"
-
-    # Only true normal multiplication/division sections use the horizontal
-    # expression convention. Mixed workbook sections are handled just above.
+    # Only true normal multiplication/division sections use the new horizontal
+    # expression convention. Mixed workbook sections that are not explicitly a
+    # multiplication/division section fall back to their original safe stack.
     if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION", "MULTIPLICATION_DIVISION_MIXED"}:
         return "EXPRESSION_WORKSHEET" if _IsNormalMultiplicationDivisionSection(Config, SectionTitle) else "VISUAL_STACK"
 
@@ -152,58 +147,12 @@ def _DisplayMode(Config: MMConfig, SectionTitle: str | None = None) -> str:
 
 
 
-def _IsMultiplicationDivisionMixedDps(Config: MMConfig, SectionTitle: str | None = None) -> bool:
-    """Return True only for workbook DPSs that should collapse to two sections.
-
-    Multiplication and Division Mixed Pattern sheets contain many internal digit
-    patterns, but the workbook presents them as one Multiplication section and
-    one Division section. This detector is intentionally narrow so normal
-    pattern-specific sheets such as 3D × 3D and 4D ÷ 3D remain unaffected.
-    """
-    TitleText = _SectionTitleText(Config, SectionTitle)
-    if "MULTIPLICATION AND DIVISION MIXED PATTERN" in TitleText:
-        return True
-    if Config.ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
-        return True
-
-    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
-    Sections = GeneratorConfig.get("dpsSections") or []
-    SectionTitles = [str(Section.get("sectionTitle") or Section.get("title") or "").upper() for Section in Sections if isinstance(Section, dict)]
-    HasMultiplicationSection = any(Title.strip() in {"MULTIPLICATION", "MULTIPLICATION MIXED PATTERN"} for Title in SectionTitles)
-    HasDivisionMixedSection = any("DIVISION MIXED PATTERN" in Title for Title in SectionTitles)
-    return HasMultiplicationSection and HasDivisionMixedSection
-
-
-
-def _IsMultiplicationMixedPatternDps(Config: MMConfig, SectionTitle: str | None = None, ExtraMetadata: dict | None = None, Operators: list[str] | None = None) -> bool:
-    """Return True for Multiplication Mixed Pattern parent sheets only.
-
-    These workbook sheets should appear as one visible section while retaining
-    internal digit-pattern variety. This must not collapse BODMAS or any other
-    section that appears on the same DPS.
-    """
-    DpsTitleText = f" {Config.DpsTitle or ''} ".upper()
-    if "MULTIPLICATION MIXED PATTERN" not in DpsTitleText:
-        return False
-
-    Metadata = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
-    OriginalTitleText = f" {SectionTitle or Config.DpsTitle or ''} ".upper()
-    OperatorText = " ".join(Operators or [])
-
-    if "BODMAS" in OriginalTitleText or "PERCENTAGE" in OriginalTitleText or "DIVISION" in OriginalTitleText:
-        return False
-
-    return (
-        "MULTIPLICATION" in OriginalTitleText
-        or "×" in OperatorText
-        or " X " in OperatorText.upper()
-        or (Metadata.get("left_digits") is not None and Metadata.get("right_digits") is not None)
-    )
-
-def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMetadata: dict | None, Operators: list[str] | None = None) -> str:
+def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMetadata: dict | None) -> str:
     OriginalTitle = SectionTitle or Config.DpsTitle
     Metadata = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
-    OperatorText = " ".join(Operators or [])
+    TitleText = _SectionTitleText(Config, SectionTitle)
+    HasExplicitMultiplicationPattern = bool(re.search(r"[1-6]D\s*(?:X|×)\s*[1-6]D", TitleText))
+    HasExplicitDivisionPattern = bool(re.search(r"[1-6]D\s*(?:DIVISION|÷)\s*[1-6]D", TitleText))
 
     # Preserve all special/visual section names exactly as mapped. Only true
     # normal multiplication/division and explicit decimal multiplication/division
@@ -211,19 +160,11 @@ def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMet
     if _IsAnswerPositionConcept(Config, SectionTitle) or _IsSolveEquationConcept(Config, SectionTitle) or _IsVisualStackConcept(Config, SectionTitle):
         return OriginalTitle
 
-    # Mixed Multiplication/Division workbook sheets must not create one visible
-    # section per internal digit pattern. Keep the pattern variety inside two
-    # parent sections only: Multiplication and Division.
-    if _IsMultiplicationDivisionMixedDps(Config, SectionTitle):
-        if "÷" in OperatorText or "dividend_digits" in Metadata or "DIVISION" in str(OriginalTitle).upper():
-            return "Division"
-        return "Multiplication"
-
-    # Multiplication Mixed Pattern sheets should be one workbook section, not
-    # micro-sections for 2D×1D, 3D×2D, 4D×2D, etc. Keep the internal pattern
-    # metadata for generation/validation, but collapse the visible section title.
-    if _IsMultiplicationMixedPatternDps(Config, SectionTitle, Metadata, Operators):
-        return "Multiplication Mixed Pattern"
+    # Exact workbook pattern sections such as "3D × 3D" and "6D ÷ 3D" must
+    # display exactly as their section title. Prefixes like "Multiplication" or
+    # "Division" make these audited sheets look like generic mixed sections.
+    if HasExplicitMultiplicationPattern or HasExplicitDivisionPattern:
+        return OriginalTitle
 
     if Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION" or _IsNormalMultiplicationSection(Config, SectionTitle):
         LeftDigits = Metadata.get("left_digits")
@@ -247,107 +188,6 @@ def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMet
 
     return OriginalTitle
 
-SPECIAL_FIXED_COUNT_CONCEPTS = {"SKILL_STACKER", "CONCEPT_DRILL"}
-
-
-def _FormatPositionOptionValue(Value: Decimal) -> str:
-    """Return plain, non-scientific decimal text for position MCQ options."""
-    if Value == Value.to_integral_value():
-        return str(int(Value))
-
-    DisplayText = format(Value.normalize(), "f")
-    if "." in DisplayText:
-        DisplayText = DisplayText.rstrip("0").rstrip(".")
-    if DisplayText == "-0":
-        return "0"
-    return DisplayText
-
-
-def _WorkbookPositionAnswerValue(NumberValue: int, Position: int) -> Decimal:
-    """Mirror workbook formula for same-number alternative placements."""
-    DigitCount = len(str(abs(int(NumberValue))))
-    Exponent = int(Position) - DigitCount
-    if Exponent >= 0:
-        return Decimal(NumberValue) * (Decimal(10) ** Exponent)
-    return Decimal(NumberValue) / (Decimal(10) ** abs(Exponent))
-
-
-def _BuildWriteNumberPositionOptions(CorrectAnswer: Decimal, ExtraMetadata: dict, Rng: random.Random) -> list[dict] | None:
-    """Build concept-specific distractors from the same digit sequence.
-
-    For Write the Number from the Given Position, wrong MCQ options must be
-    plausible alternate position interpretations of the same Number value.
-    Random unrelated decimals make the answer guessable and weaken the concept.
-    """
-    if ExtraMetadata.get("answer_position_mode") != "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE":
-        return None
-
-    SourceNumber = ExtraMetadata.get("source_number")
-    Position = ExtraMetadata.get("position")
-    if SourceNumber is None or Position is None:
-        return None
-
-    try:
-        NumberValue = int(str(SourceNumber))
-        CorrectPosition = int(Position)
-    except (TypeError, ValueError):
-        return None
-
-    CorrectText = _FormatPositionOptionValue(CorrectAnswer)
-    CandidatePositions = [
-        CorrectPosition + 1,
-        CorrectPosition - 1,
-        CorrectPosition + 2,
-        CorrectPosition - 2,
-        CorrectPosition + 3,
-        CorrectPosition - 3,
-        0,
-        1,
-        -1,
-        2,
-        -2,
-        3,
-        -3,
-        -4,
-    ]
-
-    CandidateTexts: list[str] = []
-    for CandidatePosition in CandidatePositions:
-        if CandidatePosition == CorrectPosition:
-            continue
-        CandidateText = _FormatPositionOptionValue(_WorkbookPositionAnswerValue(NumberValue, CandidatePosition))
-        if CandidateText != CorrectText and CandidateText not in CandidateTexts:
-            CandidateTexts.append(CandidateText)
-        if len(CandidateTexts) >= 3:
-            break
-
-    FallbackPosition = -8
-    while len(CandidateTexts) < 3 and FallbackPosition <= 8:
-        if FallbackPosition != CorrectPosition:
-            CandidateText = _FormatPositionOptionValue(_WorkbookPositionAnswerValue(NumberValue, FallbackPosition))
-            if CandidateText != CorrectText and CandidateText not in CandidateTexts:
-                CandidateTexts.append(CandidateText)
-        FallbackPosition += 1
-
-    Values = [CorrectText] + CandidateTexts[:3]
-    Rng.shuffle(Values)
-    return [
-        {
-            "label": ["A", "B", "C", "D"][Index],
-            "value": Value,
-            "is_correct": Value == CorrectText,
-            "display_order": Index + 1,
-        }
-        for Index, Value in enumerate(Values)
-    ]
-
-
-def _QuestionCountForConcept(ConceptFamily: str, RequestedCount: int | None) -> int:
-    if ConceptFamily in SPECIAL_FIXED_COUNT_CONCEPTS:
-        return 5
-    return min(max(int(RequestedCount or 10), 1), 30)
-
-
 def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, SectionTitle: str | None = None, StartNumber: int = 1, TotalSections: int = 1) -> list[dict]:
     if not IsPackage1Supported(Config.ConceptFamily):
         raise ValueError(f"Master Module generator does not support concept: {Config.ConceptFamily}")
@@ -355,7 +195,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
     Questions: list[dict] = []
     Seen: set[tuple[str, ...]] = set()
 
-    QuestionCount = _QuestionCountForConcept(Config.ConceptFamily, Config.QuestionCount)
+    QuestionCount = min(max(int(Config.QuestionCount or 10), 1), 30)
     for SectionQuestionNumber in range(1, QuestionCount + 1):
         GlobalQuestionNumber = StartNumber + SectionQuestionNumber - 1
         QuestionSeed = f"{Config.Seed}-MM-S{SectionNumber}-Q{SectionQuestionNumber}"
@@ -380,20 +220,12 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
         else:
             Operands, Operators, CorrectAnswer, ExtraMetadata, Rng, Attempt = Accepted
 
-        MetadataForOptions = ExtraMetadata if isinstance(ExtraMetadata, dict) else {}
-        if MetadataForOptions.get("answer_position_mode") == "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE":
-            CorrectDisplay = _FormatPositionOptionValue(CorrectAnswer)
-        else:
-            CorrectDisplay = _Display(CorrectAnswer)
-        PositionOptions = _BuildWriteNumberPositionOptions(CorrectAnswer, MetadataForOptions, Rng)
-        if PositionOptions is not None:
-            Options = PositionOptions
-        else:
-            AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
-            Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
-            Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
+        CorrectDisplay = _Display(CorrectAnswer)
+        AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
+        Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
+        Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         QuestionText = ExtraMetadata.get("question_text") if isinstance(ExtraMetadata, dict) else None
-        DisplaySectionTitle = _NormalisedSectionTitle(Config, SectionTitle, ExtraMetadata, Operators)
+        DisplaySectionTitle = _NormalisedSectionTitle(Config, SectionTitle, ExtraMetadata)
         QuestionPayload = {
             "question_number": GlobalQuestionNumber,
             "display_type": _DisplayMode(Config, SectionTitle),
@@ -448,27 +280,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
             SectionConcept = RawSectionConcept
             if not IsPackage1Supported(SectionConcept):
                 SectionConcept = ResolveMmConceptAlias(SectionTitle, Config.DpsTitle, Config.LessonTitle)
-
-            MixedOperationGroup = None
-            if _IsMultiplicationDivisionMixedDps(Config, SectionTitle):
-                SectionTitleText = str(SectionTitle or "").upper()
-                if "DIVISION" in SectionTitleText:
-                    MixedOperationGroup = "DIVISION"
-                    SectionConcept = "MULTIPLICATION_DIVISION_MIXED"
-                elif "MULTIPLICATION" in SectionTitleText:
-                    MixedOperationGroup = "MULTIPLICATION"
-                    SectionConcept = "MULTIPLICATION_DIVISION_MIXED"
-
-            RequestedSectionCount = int(Section.get("questionCount") or 10)
-            SectionCount = _QuestionCountForConcept(SectionConcept, RequestedSectionCount)
-            SectionGeneratorConfig = {
-                **Config.GeneratorConfig,
-                "activeSection": Section,
-                "sourceDpsTitle": Config.DpsTitle,
-                "sourceLessonTitle": Config.LessonTitle,
-            }
-            if MixedOperationGroup:
-                SectionGeneratorConfig["mixedOperationGroup"] = MixedOperationGroup
+            SectionCount = int(Section.get("questionCount") or 10)
             SectionConfig = MMConfig(
                 ModuleCode=Config.ModuleCode,
                 LevelCode=Config.LevelCode,
@@ -482,7 +294,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 OperationFocus=OperationFocusForConcept(SectionConcept),
                 DigitPattern=str(Section.get("digitPattern") or Config.DigitPattern),
                 Difficulty=str(Section.get("difficulty") or Config.Difficulty),
-                GeneratorConfig=SectionGeneratorConfig,
+                GeneratorConfig={**Config.GeneratorConfig, "activeSection": Section},
             )
             SectionQuestions = _GenerateSingleSectionQuestionSet(SectionConfig, Index, SectionTitle, StartNumber, TotalSections)
             Questions.extend(SectionQuestions)
