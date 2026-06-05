@@ -1594,15 +1594,37 @@ def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber:
             "decimal_places_in_answer": DecimalPlaces,
         }
 
-    FirstNaturalNumberBanks = {
-        "WARM_UP": ["1.005", "12.007", "0.0089", "0.012", "345.002"],
-        "STANDARD": ["253.91", "0.2005", "0.0078", "0.0126", "0.000673"],
-        "MIXED_STEP": ["0.108", "1.0076", "0.000456", "0.0007", "234.0008"],
-        "ADVANCED": ["4567.02", "78.0004", "0.00089", "0.0063", "900.25"],
-        "CHALLENGE": ["23891.004", "604.0009", "0.000073", "0.0038", "42.7005"],
-    }
-    Values = FirstNaturalNumberBanks.get(Stage, FirstNaturalNumberBanks["WARM_UP"])
-    NumberText = Values[(QuestionNumber - 1) % len(Values)]
+    def _FirstNaturalUniqueNumber(Config: MMConfig, QuestionNumber: int) -> str:
+        """Create a deterministic, workbook-style non-repeating number.
+
+        The workbook treats this concept as repeated place-value recognition, so
+        students should not see the same source number again in later DPS sheets.
+        The slot formula below gives each lesson/DPS/question a stable unique
+        source value while cycling through positive, zero, and negative position
+        bands from the workbook.
+        """
+        LessonNumber = max(1, min(30, int(Config.LessonNumber or 1)))
+        DpsNumber = max(1, min(5, int(Config.DpsNumber or 1)))
+        Slot = ((LessonNumber - 1) * 5 * 10) + ((DpsNumber - 1) * 10) + max(1, QuestionNumber)
+        PositionCycle = [1, 2, -2, -1, 3, 0, -3, 2, -4, 1]
+        TargetPosition = PositionCycle[(Slot - 1) % len(PositionCycle)]
+        Offset = Slot * 37
+        UniqueSuffix = f"{Slot:04d}"
+
+        if TargetPosition >= 1:
+            Minimum = 10 ** (TargetPosition - 1)
+            Maximum = (10 ** TargetPosition) - 1
+            IntegerValue = Minimum + (Offset % (Maximum - Minimum + 1))
+            return f"{IntegerValue}.{UniqueSuffix}"
+
+        FirstDigit = 1 + (Offset % 9)
+        if TargetPosition == 0:
+            return f"0.{FirstDigit}{UniqueSuffix}"
+
+        LeadingZeros = abs(TargetPosition)
+        return f"0.{('0' * LeadingZeros)}{FirstDigit}{UniqueSuffix}"
+
+    NumberText = _FirstNaturalUniqueNumber(Config, QuestionNumber)
 
     def _FirstNaturalPosition(ValueText: str) -> int:
         CleanValue = str(ValueText).strip().replace(",", "")
