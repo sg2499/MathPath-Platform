@@ -450,7 +450,7 @@ def _ValidateFinancialQuestion(Config: MMConfig, Operands: list[int | float | st
         if len(Operands) != 3 or Operators != ["Principal", "Term (Years)", "Rate of Interest"]:
             return False
         Principal, Term, Rate = [_DecimalValue(Value) for Value in Operands]
-        if Principal <= 0 or Principal > Decimal("99999") or Term <= 0 or Term > Decimal("9") or Rate < Decimal("1") or Rate > Decimal("9"):
+        if Principal <= 0 or Principal > Decimal("99999") or Term <= 0 or Term > Decimal("5") or Rate < Decimal("1") or Rate > Decimal("9"):
             return False
         if Principal != Principal.to_integral_value() or Term != Term.to_integral_value() or Rate != Rate.to_integral_value():
             return False
