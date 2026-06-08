@@ -1410,10 +1410,30 @@ def GenerateProfitLoss(Config: MMConfig, Rng: random.Random, QuestionNumber: int
     }
 
 
+def _ProfitLossDirection(Config: MMConfig, QuestionNumber: int) -> bool:
+    """Return True for loss-direction questions and False for profit-direction questions.
+
+    Titles such as "Profit-Loss / Selling Price" contain both words. Those
+    sheets must not be treated as loss-only simply because the word "loss" is
+    present. When both profit and loss appear, alternate the direction so the
+    section covers both workbook mechanisms.
+    """
+    Text = f" {Config.DpsTitle} ".lower()
+    HasProfit = "profit" in Text
+    HasLoss = "loss" in Text
+    if HasProfit and HasLoss:
+        return QuestionNumber % 2 == 0
+    if HasLoss:
+        return True
+    if HasProfit:
+        return False
+    return QuestionNumber % 2 == 0
+
+
 def GenerateFindSellingPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Minimum, Maximum = _MoneyRange(Config, Stage)
-    IsLoss = "loss" in f" {Config.DpsTitle} ".lower() or ("profit" not in f" {Config.DpsTitle} ".lower() and QuestionNumber % 2 == 0)
+    IsLoss = _ProfitLossDirection(Config, QuestionNumber)
 
     CostPrice = Decimal(0)
     SellingPrice = Decimal(0)
@@ -1431,6 +1451,7 @@ def GenerateFindSellingPrice(Config: MMConfig, Rng: random.Random, QuestionNumbe
     PercentLabel = "Loss %" if IsLoss else "Profit %"
     return [_AsDisplayNumber(CostPrice), _AsDisplayNumber(Percent)], ["Cost Price", PercentLabel], SellingPrice, {
         "financial_mode": "FIND_SELLING_PRICE",
+        "answer_kind": "SELLING_PRICE_LOSS" if IsLoss else "SELLING_PRICE_PROFIT",
         "question_text": "Find Selling Price",
         "cost_price": _AsDisplayNumber(CostPrice),
         "percentage": _AsDisplayNumber(Percent),
@@ -1444,7 +1465,7 @@ def GenerateFindCostPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: 
     Minimum, Maximum = _MoneyRange(Config, Stage)
     Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
     CostPrice = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
-    IsLoss = "loss" in f" {Config.DpsTitle} ".lower() or ("profit" not in f" {Config.DpsTitle} ".lower() and QuestionNumber % 2 == 0)
+    IsLoss = _ProfitLossDirection(Config, QuestionNumber)
     SellingPrice = _CleanMoney(CostPrice - (CostPrice * Percent / Decimal(100))) if IsLoss else _CleanMoney(CostPrice + (CostPrice * Percent / Decimal(100)))
     if SellingPrice > Decimal(50000):
         SellingPrice = Decimal(50000)

@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
 from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept, ResolveMmConceptAlias
-from app.question_engine.mm.distractors import GenerateMmDistractors
+from app.question_engine.mm.distractors import GenerateFinancialDistractors, GenerateMmDistractors
 from app.question_engine.mm.operands import DifficultyStage, GeneratePackage1Question
 from app.question_engine.mm.validators import ValidateMmQuestion
 
@@ -365,7 +365,10 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
 
         CorrectDisplay = _Display(CorrectAnswer)
         AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
-        Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
+        if Config.ConceptFamily in {"PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}:
+            Distractors = GenerateFinancialDistractors(CorrectAnswer, Rng, ExtraMetadata)
+        else:
+            Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         QuestionText = ExtraMetadata.get("question_text") if isinstance(ExtraMetadata, dict) else None
         DisplaySectionTitle = _NormalisedSectionTitle(Config, SectionTitle, ExtraMetadata)
