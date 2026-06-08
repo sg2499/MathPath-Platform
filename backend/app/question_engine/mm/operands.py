@@ -927,6 +927,9 @@ def _GenerateWholeNumberDivisionByDigits(
 ) -> tuple[list[int | float], list[str], Decimal, dict]:
     DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
     DividendMin, DividendMax = _DigitRange(DividendDigits)
+    if MixedVariant:
+        # Mixed Division should remain challenging; division by 1 is excluded.
+        DivisorMin = max(DivisorMin, 2)
     Divisor = Rng.randint(DivisorMin, DivisorMax)
     MinQuotient = max(1, (DividendMin + Divisor - 1) // Divisor)
     MaxQuotient = max(MinQuotient, DividendMax // Divisor)
@@ -1975,17 +1978,23 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
     if LessonNumber >= 23:
         MultiplicationVariants.append("MUL_3D_3D")
 
-    DivisionVariants = ["DIV_3D_1D"]
-    if LessonNumber >= 11:
-        DivisionVariants.append("DIV_DECIMAL")
-    if LessonNumber >= 14:
-        DivisionVariants.append("DIV_4D_1D")
-    if LessonNumber >= 18:
-        DivisionVariants.extend(["DIV_3D_2D", "DIV_4D_2D"])
-    if LessonNumber >= 22:
-        DivisionVariants.extend(["DIV_5D_2D", "DIV_4D_3D"])
-    if LessonNumber >= 26:
-        DivisionVariants.extend(["DIV_6D_2D", "DIV_5D_3D", "DIV_6D_3D"])
+    # Mixed Division must be truly mixed across division pattern families.
+    # Do not include 2D ÷ 1D in mixed sections, and never allow a divisor of 1.
+    # The sequence below intentionally combines whole-number and decimal division
+    # so a 10-question mixed Division section cannot collapse into all-decimal
+    # or all-basic whole-number practice.
+    DivisionVariants = [
+        "DIV_3D_1D",
+        "DIV_4D_1D",
+        "DIV_3D_2D",
+        "DIV_4D_2D",
+        "DIV_DECIMAL",
+        "DIV_5D_2D",
+        "DIV_4D_3D",
+        "DIV_DECIMAL",
+        "DIV_5D_3D",
+        "DIV_6D_3D",
+    ]
 
     if MixedOperationGroup == "MULTIPLICATION":
         if HasDecimalMultiplication and not IsTrueMixedPattern:
