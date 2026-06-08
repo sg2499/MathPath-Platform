@@ -1957,7 +1957,7 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
     if LessonNumber >= 23:
         MultiplicationVariants.append("MUL_3D_3D")
 
-    DivisionVariants = ["DIV_2D_1D", "DIV_3D_1D"]
+    DivisionVariants = ["DIV_3D_1D"]
     if LessonNumber >= 11:
         DivisionVariants.append("DIV_DECIMAL")
     if LessonNumber >= 14:
@@ -2178,7 +2178,7 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
             "MUL_3D_3D": (3, 3),
         }
         DivisionPatternDigits = {
-            "WHOLE_NUMBER_DIVISION": (2, 1),
+            "WHOLE_NUMBER_DIVISION": (3, 1),
             "DIV_2D_1D": (2, 1),
             "DIV_3D_1D": (3, 1),
             "DIV_4D_1D": (4, 1),
@@ -2193,7 +2193,7 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         if Operation in MultiplicationPatternDigits:
             LeftDigits, RightDigits = MultiplicationPatternDigits[Operation]
             return _GenerateWholeNumberMultiplicationByDigits(Rng, LeftDigits, RightDigits, Operation)
-        DividendDigits, DivisorDigits = DivisionPatternDigits.get(Operation, (2, 1))
+        DividendDigits, DivisorDigits = DivisionPatternDigits.get(Operation, (3, 1))
         return _GenerateWholeNumberDivisionByDigits(Rng, DividendDigits, DivisorDigits, Operation)
     raise ValueError(f"Unsupported Master Module concept: {ConceptFamily}")
 
