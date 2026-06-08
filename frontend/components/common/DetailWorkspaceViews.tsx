@@ -664,6 +664,34 @@ export function timeTakenText(row: AnyRow) {
   return formatTimeTakenDuration(RawValue);
 }
 
+
+function numericFromFirstAvailable(Row: AnyRow, Keys: string[], Fallback = 0) {
+  for (const Key of Keys) {
+    const Value = Row[Key];
+    if (Value !== null && Value !== undefined && Value !== "" && !Number.isNaN(Number(Value))) {
+      return Number(Value);
+    }
+  }
+  return Fallback;
+}
+
+function lessonSortValue(Row: AnyRow) {
+  return numericFromFirstAvailable(Row, ["lessonNumber", "lessonNo", "lessonIndex", "lessonOrder"], Number(String(Row.lessonTitle ?? Row.lessonName ?? "").match(/\d+/)?.[0] ?? 0));
+}
+
+function dpsSortValue(Row: AnyRow) {
+  return numericFromFirstAvailable(Row, ["dpsNumber", "dpsNo", "dpsIndex", "dpsOrder"], Number(String(Row.dpsTitle ?? Row.sheetTitle ?? Row.dpsName ?? "").match(/\d+/)?.[0] ?? 0));
+}
+
+
+function scoreValue(Row: AnyRow) {
+  return numericFromFirstAvailable(Row, ["score", "marks", "correct", "correctCount", "latestCorrectCount", "bestCorrectCount", "correctAnswers", "attemptCorrectCount"], -1);
+}
+
+function timeTakenSeconds(Row: AnyRow) {
+  return numericFromFirstAvailable(Row, ["timeTakenSeconds", "timeTaken", "time_taken_seconds", "durationTakenSeconds", "elapsedSeconds"], -1);
+}
+
 export function latestActivity(rows: AnyRow[]) {
   return formatMathPathActivityDateTime(rows);
 }
@@ -2923,6 +2951,53 @@ export function accuracyToneClass(Value: AnyRow | number | string | null | undef
   return "border-rose-300 bg-rose-100 text-rose-800 shadow-sm dark:border-rose-300/90 dark:bg-rose-500/45 dark:text-white dark:shadow-rose-950/30";
 }
 
+type CompactRecordSortKey =
+  | "lesson"
+  | "dps"
+  | "attempt"
+  | "status"
+  | "score"
+  | "accuracy"
+  | "benchmark"
+  | "timeTaken"
+  | "completion";
+
+type CompactRecordSortDirection = "asc" | "desc";
+
+function compactRecordSortValue(Row: AnyRow, Key: CompactRecordSortKey) {
+  if (Key === "lesson") return lessonSortValue(Row);
+  if (Key === "dps") return dpsSortValue(Row);
+  if (Key === "attempt") return attemptNumber(Row);
+  if (Key === "status") return issueLabel(Row).label;
+  if (Key === "score") return scoreValue(Row) ?? -1;
+  if (Key === "accuracy") return accuracy(Row) ?? -1;
+  if (Key === "benchmark") return benchmarkLabel(Row).label;
+  if (Key === "timeTaken") return timeTakenSeconds(Row) ?? -1;
+  return mathPathTimestampValue(getFirstMathPathTimestamp(Row, MATHPATH_COMPLETION_TIMESTAMP_KEYS)) || 0;
+}
+
+function compareCompactRecordRows(
+  FirstRow: AnyRow,
+  SecondRow: AnyRow,
+  Key: CompactRecordSortKey,
+  Direction: CompactRecordSortDirection,
+) {
+  const FirstValue = compactRecordSortValue(FirstRow, Key);
+  const SecondValue = compactRecordSortValue(SecondRow, Key);
+  let Result = 0;
+
+  if (typeof FirstValue === "number" && typeof SecondValue === "number") {
+    Result = FirstValue - SecondValue;
+  } else {
+    Result = String(FirstValue ?? "").localeCompare(String(SecondValue ?? ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  }
+
+  return Direction === "asc" ? Result : -Result;
+}
+
 export function CompactRecordTable({
   rows,
   onView,
@@ -2943,29 +3018,73 @@ export function CompactRecordTable({
   useStrongSemanticChips?: boolean;
 }) {
   const SourceRows = showAttemptColumn ? ExpandAttemptHistoryRows(rows) : rows;
-  const DisplayRows = SortRowsByCurriculum(SourceRows);
+  const [SortKey, SetSortKey] = useState<CompactRecordSortKey | null>(null);
+  const [SortDirection, SetSortDirection] = useState<CompactRecordSortDirection>("asc");
+  const DisplayRows = useMemo(() => {
+    const DefaultRows = SortRowsByCurriculum(SourceRows);
+    if (!SortKey) return DefaultRows;
+    return [...DefaultRows].sort((FirstRow, SecondRow) =>
+      compareCompactRecordRows(FirstRow, SecondRow, SortKey, SortDirection),
+    );
+  }, [SourceRows, SortDirection, SortKey]);
   const SemanticChipComponent = useStrongSemanticChips ? StrongSemanticChip : Chip;
   const GridColumns = hideLessonColumn
     ? showAttemptColumn
-      ? "grid-cols-[minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
-      : "grid-cols-[minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
+      ? "grid-cols-[minmax(150px,1fr)_minmax(104px,.54fr)_minmax(122px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
+      : "grid-cols-[minmax(150px,1fr)_minmax(122px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
     : showAttemptColumn
-      ? "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
-      : "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]";
+      ? "grid-cols-[minmax(132px,.74fr)_minmax(150px,1fr)_minmax(104px,.54fr)_minmax(122px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
+      : "grid-cols-[minmax(132px,.74fr)_minmax(150px,1fr)_minmax(122px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]";
+
+  const ToggleSort = (Key: CompactRecordSortKey) => {
+    if (SortKey !== Key) {
+      SetSortKey(Key);
+      SetSortDirection("asc");
+      return;
+    }
+
+    if (SortDirection === "asc") {
+      SetSortDirection("desc");
+      return;
+    }
+
+    SetSortKey(null);
+    SetSortDirection("asc");
+  };
+
+  const SortHeader = ({ label, sortKey }: { label: string; sortKey: CompactRecordSortKey }) => {
+    const IsActive = SortKey === sortKey;
+    const Icon = !IsActive ? ArrowUpDown : SortDirection === "asc" ? ArrowUp : ArrowDown;
+    const NextDirection = !IsActive ? "Ascending" : SortDirection === "asc" ? "Descending" : "Default";
+
+    return (
+      <button
+        type="button"
+        onClick={() => ToggleSort(sortKey)}
+        title={`Sort ${label} ${NextDirection}`}
+        aria-label={`Sort ${label} ${NextDirection}`}
+        className="inline-flex min-w-0 items-center gap-1.5 text-left font-black uppercase tracking-[0.14em] text-slate-500 transition hover:text-slate-800 focus-visible:outline-none focus-visible:text-slate-800 dark:text-slate-400 dark:hover:text-white dark:focus-visible:text-white"
+      >
+        <span className="min-w-0 leading-[1.16]">{label}</span>
+        <Icon className={IsActive ? "h-3 w-3 shrink-0 opacity-100" : "h-3 w-3 shrink-0 opacity-45"} />
+      </button>
+    );
+  };
 
   return (
     <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div
         className={`math-admin-light-compact-record-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
       >
-        {hideLessonColumn ? null : <div>Lesson</div>}
-        <div>DPS</div>
-        {showAttemptColumn ? <div>Attempt</div> : null}
-        <div>Status</div>
-        <div>Score</div>
-        <div>Accuracy</div>
-        <div>Benchmark</div>
-        <div>Completion Date</div>
+        {hideLessonColumn ? null : <SortHeader label="Lesson" sortKey="lesson" />}
+        <SortHeader label="DPS" sortKey="dps" />
+        {showAttemptColumn ? <SortHeader label="Attempt" sortKey="attempt" /> : null}
+        <SortHeader label="Status" sortKey="status" />
+        <SortHeader label="Score" sortKey="score" />
+        <SortHeader label="Accuracy" sortKey="accuracy" />
+        <SortHeader label="Benchmark" sortKey="benchmark" />
+        <SortHeader label="Time Taken" sortKey="timeTaken" />
+        <SortHeader label="Completion Date" sortKey="completion" />
         <div>Review</div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -3022,7 +3141,10 @@ export function CompactRecordTable({
                   return <SemanticChipComponent tone={Benchmark.tone}>{Benchmark.label}</SemanticChipComponent>;
                 })()}
               </div>
-              <div className="text-sm font-semibold text-slate-600">
+              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                {timeTakenText(row)}
+              </div>
+              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                 {completedText(row)}
               </div>
               <div className="flex justify-start">
