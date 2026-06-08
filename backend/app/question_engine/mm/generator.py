@@ -195,7 +195,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
     Questions: list[dict] = []
     Seen: set[tuple[str, ...]] = set()
 
-    QuestionCount = min(max(int(Config.QuestionCount or 10), 1), 30)
+    QuestionCount = 5 if Config.ConceptFamily == "SKILL_STACKER" else min(max(int(Config.QuestionCount or 10), 1), 30)
     for SectionQuestionNumber in range(1, QuestionCount + 1):
         GlobalQuestionNumber = StartNumber + SectionQuestionNumber - 1
         QuestionSeed = f"{Config.Seed}-MM-S{SectionNumber}-Q{SectionQuestionNumber}"
@@ -280,7 +280,8 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
             SectionConcept = RawSectionConcept
             if not IsPackage1Supported(SectionConcept):
                 SectionConcept = ResolveMmConceptAlias(SectionTitle, Config.DpsTitle, Config.LessonTitle)
-            SectionCount = int(Section.get("questionCount") or 10)
+            RawSectionCount = int(Section.get("questionCount") or 10)
+            SectionCount = 5 if SectionConcept == "SKILL_STACKER" else RawSectionCount
             SectionConfig = MMConfig(
                 ModuleCode=Config.ModuleCode,
                 LevelCode=Config.LevelCode,

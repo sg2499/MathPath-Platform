@@ -1345,63 +1345,21 @@ def GenerateFindCostPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: 
 
 
 def _SkillStackerRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:
-    """Workbook-safe Skill Stacker bands.
+    """Strict workbook-safe Skill Stacker range.
 
-    Skill Stacker is an accumulation/doubling skill, not normal multiplication.
-    A row such as ADD 18, TIMES 12 means:
-      18, 36, 72, ... for 12 stacked doublings
-    therefore the answer is 18 * 2^(12 - 1).
-
-    The TIMES range is intentionally capped to workbook-like values so answers
-    remain printable, reviewable, and aligned with the workbook examples.
+    Skill Stacker ADD values must stay two-digit and never exceed 50.
+    TIMES remains progression-banded so the accumulation challenge still grows
+    without leaking into 3+ digit ADD values.
     """
-    Band = _LessonBand(Config)
-    if Band <= 2:
-        AddRanges = {
-            "WARM_UP": (8, 18),
-            "STANDARD": (10, 24),
-            "MIXED_STEP": (12, 30),
-            "ADVANCED": (16, 36),
-            "CHALLENGE": (18, 42),
-        }
-        TimesRanges = {
-            "WARM_UP": (8, 10),
-            "STANDARD": (9, 11),
-            "MIXED_STEP": (10, 12),
-            "ADVANCED": (10, 12),
-            "CHALLENGE": (11, 12),
-        }
-    elif Band <= 4:
-        AddRanges = {
-            "WARM_UP": (10, 24),
-            "STANDARD": (12, 30),
-            "MIXED_STEP": (16, 36),
-            "ADVANCED": (18, 42),
-            "CHALLENGE": (20, 48),
-        }
-        TimesRanges = {
-            "WARM_UP": (8, 10),
-            "STANDARD": (9, 11),
-            "MIXED_STEP": (10, 12),
-            "ADVANCED": (10, 12),
-            "CHALLENGE": (11, 12),
-        }
-    else:
-        AddRanges = {
-            "WARM_UP": (12, 30),
-            "STANDARD": (16, 36),
-            "MIXED_STEP": (18, 42),
-            "ADVANCED": (20, 48),
-            "CHALLENGE": (24, 54),
-        }
-        TimesRanges = {
-            "WARM_UP": (8, 10),
-            "STANDARD": (9, 11),
-            "MIXED_STEP": (10, 12),
-            "ADVANCED": (10, 12),
-            "CHALLENGE": (11, 12),
-        }
-    return AddRanges.get(Stage, (10, 30)), TimesRanges.get(Stage, (8, 12))
+    AddRange = (10, 50)
+    TimesRanges = {
+        "WARM_UP": (8, 10),
+        "STANDARD": (8, 11),
+        "MIXED_STEP": (7, 11),
+        "ADVANCED": (6, 10),
+        "CHALLENGE": (5, 9),
+    }
+    return AddRange, TimesRanges.get(Stage, (6, 10))
 
 
 def _SkillStackerAnswer(AddValue: int, Times: int) -> Decimal:
@@ -1409,58 +1367,47 @@ def _SkillStackerAnswer(AddValue: int, Times: int) -> Decimal:
 
 
 def _SkillStackerMagnitudeBand(Config: MMConfig, QuestionNumber: int) -> str:
-    """Return workbook-style Skill Stacker ADD-size band.
+    """Return the Skill Stacker difficulty band for two-digit ADD values.
 
-    Workbook progression balances the ADD value against the TIMES count:
-    small ADD values can be stacked more times, medium ADD values use moderate
-    TIMES counts, and large ADD values use fewer TIMES counts. This prevents
-    unrealistically huge answers while still giving students varied accumulation
-    practice across lessons and DPS sheets.
+    The ADD value is always 10–50. Progression is created by pairing lower ADD
+    values with higher TIMES and higher ADD values with lower TIMES.
     """
-    LessonBand = _LessonBand(Config)
     NormalizedQuestionNumber = max(1, min(5, int(QuestionNumber or 1)))
-
-    if LessonBand <= 2:
-        Pattern = ["SMALL", "SMALL", "SMALL", "MEDIUM", "MEDIUM"]
-    elif LessonBand <= 4:
-        Pattern = ["SMALL", "MEDIUM", "MEDIUM", "MEDIUM", "LARGE"]
-    else:
-        Pattern = ["MEDIUM", "LARGE", "MEDIUM", "LARGE", "LARGE"]
-
+    Pattern = ["SMALL", "SMALL", "MEDIUM", "MEDIUM", "LARGE"]
     return Pattern[NormalizedQuestionNumber - 1]
 
 
 def _SkillStackerPairFromBand(PairSlot: int, Band: str) -> tuple[int, int]:
-    """Return a deterministic unique ADD/TIMES pair for the selected band."""
+    """Return a deterministic unique ADD/TIMES pair for the selected band.
+
+    ADD is strictly two-digit and within 10–50 inclusive.
+    """
     if Band == "SMALL":
-        # Small numbers can carry higher repetition counts.
-        AddValue = 8 + ((PairSlot * 17) % 92)      # 8–99
-        Times = 9 + ((PairSlot * 3) % 4)           # 9–12
-        return AddValue, Times
+        AddCandidates = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+        TimesCandidates = [12, 11, 10, 9, 8]
+    elif Band == "LARGE":
+        AddCandidates = [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50]
+        TimesCandidates = [7, 6, 5, 4, 3]
+    else:
+        AddCandidates = [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
+        TimesCandidates = [10, 9, 8, 7, 6]
 
-    if Band == "LARGE":
-        # Large numbers must use low repetition counts to stay workbook-safe.
-        AddValue = 10000 + ((PairSlot * 997) % 90000)  # 10000–99999
-        Times = 5 + (PairSlot % 2)                     # 5–6
-        return AddValue, Times
-
-    # Medium numbers use moderate repetition counts.
-    AddValue = 100 + ((PairSlot * 137) % 9900)     # 100–9999
-    Times = 7 + ((PairSlot * 5) % 3)               # 7–9
+    AddValue = AddCandidates[PairSlot % len(AddCandidates)]
+    Times = TimesCandidates[(PairSlot // len(AddCandidates)) % len(TimesCandidates)]
     return AddValue, Times
 
 
 def _SkillStackerUniquePair(Config: MMConfig, QuestionNumber: int) -> tuple[int, int]:
-    """Return a deterministic ADD/TIMES pair that stays distinct across DPS sheets.
+    """Return a deterministic ADD/TIMES pair for Skill Stacker.
 
-    Skill Stacker is reused in several mixed MM sheets. A purely random draw can
-    repeat the same ADD/TIMES pair across lesson DPS previews, which weakens
-    practice quality. The slot formula below gives every lesson/DPS/question a
-    stable position in a large workbook-safe pair pool. The ADD size and TIMES
-    count are banded together to match workbook progression:
-      - small ADD values: higher TIMES counts
-      - medium ADD values: moderate TIMES counts
-      - large ADD values: low TIMES counts
+    Hard rules:
+    - ADD is always two-digit.
+    - ADD is always between 10 and 50 inclusive.
+    - Question numbers are intentionally capped to 1–5 because every Skill
+      Stacker section is limited to exactly five sums.
+    - Pair selection includes lesson, DPS, section, and question slot so the five
+      rows inside a sheet stay unique and sheets avoid repeated pairs as much as
+      the finite 10–50 pool allows.
     """
     LessonNumber = max(1, min(30, int(Config.LessonNumber or 1)))
     DpsNumber = max(1, min(5, int(Config.DpsNumber or 1)))
