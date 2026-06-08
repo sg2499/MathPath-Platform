@@ -61,6 +61,8 @@ def _MixedOperationGroupFromConfig(Config: MMConfig) -> str:
 def _IsMixedPatternSectionCandidate(Config: MMConfig, Section: dict) -> bool:
     SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or "")
     SectionConcept = str(Section.get("conceptFamily") or "")
+    if SectionConcept in {"DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"}:
+        return False
     SectionText = " ".join(
         f" {SectionTitle} "
         .upper()
@@ -72,6 +74,8 @@ def _IsMixedPatternSectionCandidate(Config: MMConfig, Section: dict) -> bool:
     )
     SourceText = _MixedContextText(Config, [Section])
     if "MIXED PATTERN" not in SourceText:
+        return False
+    if "DECIMAL" in SectionText:
         return False
     if SectionConcept in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION", "MULTIPLICATION_DIVISION_MIXED"}:
         return True
@@ -88,6 +92,59 @@ def _SectionLooksLikeMultiplication(Section: dict) -> bool:
     SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or "").upper().replace("×", " X ")
     SectionConcept = str(Section.get("conceptFamily") or "").upper()
     return SectionConcept == "WHOLE_NUMBER_MULTIPLICATION" or "MULTIPLICATION" in SectionTitle or " X " in f" {SectionTitle} "
+
+
+
+def _BuildFallbackMixedPatternSections(Config: MMConfig) -> list[dict]:
+    """Build parent mixed-pattern sections for legacy/stale DPS payloads.
+
+    Some live records can arrive without explicit dpsSections. In that case the
+    old generator treated each digit pattern as its own visible section. Mixed
+    pattern workbook convention is parent-section grouping only: Multiplication,
+    Division, or both. Pattern variety belongs inside question generation.
+    """
+    SourceText = _MixedContextText(Config)
+    if "MIXED PATTERN" not in SourceText:
+        return []
+
+    WantsMultiplication = "MULTIPLICATION" in SourceText or " X " in f" {SourceText} "
+    WantsDivision = "DIVISION" in SourceText
+
+    HasDecimalMultiplication = "DECIMAL MULTIPLICATION" in SourceText or "DECIMAL NUMBER MULTIPLICATION" in SourceText
+    HasDecimalDivision = "DECIMAL DIVISION" in SourceText or "DIVISION OF DECIMAL" in SourceText or "DECIMAL NUMBER DIVISION" in SourceText
+
+    Sections: list[dict] = []
+    if HasDecimalMultiplication and WantsMultiplication:
+        Sections.append({
+            "sectionTitle": "Decimal Multiplication",
+            "questionCount": 10,
+            "conceptFamily": "DECIMAL_MULTIPLICATION",
+        })
+
+    if WantsMultiplication:
+        Sections.append({
+            "sectionTitle": "Multiplication",
+            "questionCount": 10,
+            "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+            "mixedOperationGroup": "MULTIPLICATION",
+        })
+
+    if HasDecimalDivision and WantsDivision:
+        Sections.append({
+            "sectionTitle": "Decimal Division",
+            "questionCount": 10,
+            "conceptFamily": "DECIMAL_DIVISION",
+        })
+
+    if WantsDivision:
+        Sections.append({
+            "sectionTitle": "Division",
+            "questionCount": 10,
+            "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+            "mixedOperationGroup": "DIVISION",
+        })
+
+    return Sections
 
 
 def _CollapsedMixedPatternSections(Config: MMConfig, SectionDefinitions: list[dict]) -> list[dict]:
@@ -415,6 +472,9 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
     SectionDefinitions = []
     if isinstance(Config.GeneratorConfig, dict):
         SectionDefinitions = Config.GeneratorConfig.get("dpsSections") or []
+
+    if not SectionDefinitions:
+        SectionDefinitions = _BuildFallbackMixedPatternSections(Config)
 
     if SectionDefinitions:
         SectionDefinitions = _CollapsedMixedPatternSections(Config, SectionDefinitions)
