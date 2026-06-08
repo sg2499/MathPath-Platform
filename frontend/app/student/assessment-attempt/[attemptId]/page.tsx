@@ -67,7 +67,17 @@ export default function StudentAssessmentAttemptPage() {
 
   async function HandleSelect(QuestionId: string, SelectedOptionId: string) {
     if (!Attempt || RemainingSeconds <= 0) return;
+
+    const SelectedQuestionIndex = Questions.findIndex(
+      (Question) => Question.questionId === QuestionId
+    );
+
     SetLocalAnswers((Previous) => ({ ...Previous, [QuestionId]: SelectedOptionId }));
+
+    if (SelectedQuestionIndex >= 0 && SelectedQuestionIndex < Questions.length - 1) {
+      SetCurrentIndex(SelectedQuestionIndex + 1);
+    }
+
     SetSavingQuestionId(QuestionId);
     try {
       const Response = await saveAssessmentAnswer(AttemptId, { questionId: QuestionId, selectedOptionId: SelectedOptionId });
