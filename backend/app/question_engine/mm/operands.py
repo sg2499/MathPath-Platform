@@ -52,6 +52,11 @@ def _AddLessTitleText(Config: MMConfig) -> str:
     )
 
 
+def _IsFastVisualisationConcept(Config: MMConfig) -> bool:
+    Text = _AddLessTitleText(Config)
+    return "fast visualisation" in Text or "fast visualization" in Text
+
+
 def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
     Text = _AddLessTitleText(Config)
     Match = re.search(r"\b([2-6])\s*digit(?:\s+number)?\s+add\s+less\b", Text)
@@ -88,6 +93,9 @@ def _AddLessValueRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
 
 
 def _AddLessRowCount(Config: MMConfig, Stage: str) -> int:
+    if _IsFastVisualisationConcept(Config):
+        return 6 if Stage in {"WARM_UP", "STANDARD", "MIXED_STEP"} else 7
+
     Band = _LessonBand(Config)
     if Stage in {"WARM_UP", "STANDARD"}:
         return 3
@@ -237,6 +245,55 @@ def _BuildBorrowingAddLess(
     Places = _AddLessDecimalPlaces(Config, Stage)
     Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
     RowCount = _AddLessRowCount(Config, Stage)
+
+    if RequireNegativeAnswer:
+        # Master Module negative borrowing sheets must use only 4-digit/5-digit
+        # operands while preserving a mixed stack and a negative final answer.
+        RowCount = max(4, RowCount)
+        SignedOperands: list[Decimal] = []
+        Operators: list[str] = []
+        RunningTotal = Decimal(0)
+
+        FirstValue = Decimal(Rng.randrange(1000, 9001, 25))
+        SignedOperands.append(FirstValue)
+        Operators.append("")
+        RunningTotal += FirstValue
+
+        for RowIndex in range(1, RowCount - 1):
+            Value = Decimal(Rng.randrange(1000, 9001, 25))
+            UseSubtraction = RowIndex % 3 == 0
+            if UseSubtraction:
+                SignedOperands.append(-Value)
+                Operators.append("-")
+                RunningTotal -= Value
+            else:
+                SignedOperands.append(Value)
+                Operators.append("+")
+                RunningTotal += Value
+
+        FinalSubtraction = abs(RunningTotal) + Decimal(Rng.randrange(1000, 9001, 25))
+        if FinalSubtraction > Decimal(99999):
+            FinalSubtraction = Decimal(Rng.randrange(50000, 95001, 25))
+        SignedOperands.append(-FinalSubtraction)
+        Operators.append("-")
+        CorrectAnswer = sum(SignedOperands, Decimal(0))
+
+        if CorrectAnswer >= 0:
+            ExtraNeeded = CorrectAnswer + Decimal(Rng.randrange(1000, 9001, 25))
+            Replacement = min(Decimal(99999), abs(SignedOperands[-1]) + ExtraNeeded)
+            SignedOperands[-1] = -Replacement
+            CorrectAnswer = sum(SignedOperands, Decimal(0))
+
+        return [_AsDisplayNumber(Value) for Value in SignedOperands], Operators, CorrectAnswer, {
+            "decimal_places": 0,
+            "row_count": RowCount,
+            "lesson_band": _LessonBand(Config),
+            "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
+            "borrowing_answer_mode": "NEGATIVE",
+            "borrowing_negative_answer_required": True,
+            "borrowing_stack_not_all_negative": True,
+            "borrowing_negative_operand_digit_rule": "4D_OR_5D_ONLY",
+        }
 
     PositiveRows: list[Decimal] = []
     NegativeRows: list[Decimal] = []
@@ -948,8 +1005,8 @@ def _BodmasPayload(ExpressionTokens: list[str], CorrectAnswer: Decimal, Pattern:
 
 def _BodmasBasicArithmetic(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
     Band = _LessonBand(Config)
-    LargeBaseMin = 1200 + (Band * 350)
-    LargeBaseMax = 8500 + (Band * 900)
+    LargeBaseMin = min(9999, 1200 + (Band * 350))
+    LargeBaseMax = min(9999, 8500 + (Band * 900))
     Multiplier = Rng.randint(3, 9 if Stage in {"WARM_UP", "STANDARD"} else 16)
     Multiplicand = Rng.randint(120, 950 if Stage in {"WARM_UP", "STANDARD"} else 2500)
     Divisor = Rng.randint(6, 25 if Stage in {"WARM_UP", "STANDARD"} else 90)
@@ -960,7 +1017,7 @@ def _BodmasBasicArithmetic(Config: MMConfig, Rng: random.Random, QuestionNumber:
     Product = Multiplicand * Multiplier
     CorrectAnswer = Decimal(A - Product - Quotient + E)
     if CorrectAnswer <= 0:
-        A += int(abs(CorrectAnswer)) + Rng.randint(100, 800)
+        A = min(9999, A + int(abs(CorrectAnswer)) + Rng.randint(100, 800))
         CorrectAnswer = Decimal(A - Product - Quotient + E)
     Units = [str(A), "-", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(E)]
     return _BodmasPayload(Units, CorrectAnswer, "BASIC_ADD_SUB_MUL_DIV", "LESSON_4_6_BASIC")
@@ -973,20 +1030,20 @@ def _BodmasSquares(Config: MMConfig, Rng: random.Random, QuestionNumber: int, St
     Divisor = Rng.randint(14, 60)
     Quotient = Rng.randint(10, 140)
     Dividend = Divisor * Quotient
-    AddValue = Rng.randint(500, 9500)
+    AddValue = Rng.randint(500, 9000)
     Product = Multiplicand * Multiplier
 
     if QuestionNumber % 2 == 0:
         CorrectAnswer = Decimal(AddValue + Product - Quotient - (SquareBase ** 2))
         if CorrectAnswer <= 0:
-            AddValue += int(abs(CorrectAnswer)) + Rng.randint(200, 1200)
+            AddValue = min(9999, AddValue + int(abs(CorrectAnswer)) + Rng.randint(200, 1200))
             CorrectAnswer = Decimal(AddValue + Product - Quotient - (SquareBase ** 2))
         Units = [str(AddValue), "+", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "-", f"({SquareBase})²"]
         Pattern = "SQUARE_TRAILING"
     else:
         CorrectAnswer = Decimal((SquareBase ** 2) - Product - Quotient + AddValue)
         if CorrectAnswer <= 0:
-            AddValue += int(abs(CorrectAnswer)) + Rng.randint(200, 1200)
+            AddValue = min(9999, AddValue + int(abs(CorrectAnswer)) + Rng.randint(200, 1200))
             CorrectAnswer = Decimal((SquareBase ** 2) - Product - Quotient + AddValue)
         Units = [f"({SquareBase})²", "-", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(AddValue)]
         Pattern = "SQUARE_LEADING"
@@ -1066,7 +1123,7 @@ def _BodmasDecimalPercentSquare(Config: MMConfig, Rng: random.Random, QuestionNu
     SquareBase = Rng.randint(12, 30)
     CorrectAnswer = StartValue + PercentTerm - Decimal(SquareBase ** 2)
     if CorrectAnswer <= 0:
-        StartValue += Decimal(abs(int(CorrectAnswer))) + Decimal(Rng.randint(300, 900))
+        StartValue = min(Decimal(9999), StartValue + Decimal(abs(int(CorrectAnswer))) + Decimal(Rng.randint(300, 900)))
         CorrectAnswer = StartValue + PercentTerm - Decimal(SquareBase ** 2)
     Units = [
         _FormatBodmasNumber(StartValue),
@@ -1127,6 +1184,10 @@ def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) ->
     return _BodmasBasicArithmetic(Config, Rng, QuestionNumber, Stage)
 
 
+def _NumericDigitCount(Value: Decimal) -> int:
+    return len("".join(Character for Character in format(Value, "f") if Character.isdigit()))
+
+
 def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Band = _LessonBand(Config)
@@ -1140,15 +1201,6 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
     }
     BaseMin, BaseMax = BaseRanges.get(Band, (100, 750))
 
-    if Stage in {"WARM_UP", "STANDARD"}:
-        PercentChoices = [5, 10, 15, 20, 25, 30, 40, 50]
-    elif Stage == "MIXED_STEP":
-        PercentChoices = [5, 8, 10, 12, 15, 18, 20, 22, 25, 30, 35, 45, 50]
-    elif Stage == "ADVANCED":
-        PercentChoices = [2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 35, 42, 45, 47, 50, 60, 70]
-    else:
-        PercentChoices = [0, 0.5, 1, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 40, 47, 50, 52, 60, 70, 75, 80, 86, 90]
-
     ActiveSectionTitle = ""
     if isinstance(Config.GeneratorConfig, dict) and isinstance(Config.GeneratorConfig.get("activeSection"), dict):
         ActiveSectionTitle = str(Config.GeneratorConfig.get("activeSection", {}).get("sectionTitle") or Config.GeneratorConfig.get("activeSection", {}).get("title") or "")
@@ -1160,29 +1212,46 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
     else:
         Operator = Rng.choice(["×%", "-%"])
 
+    if Operator == "-%":
+        PercentChoices = [5, 8, 10, 12, 15, 18, 20, 22, 25, 30, 35, 40, 45, 50]
+    elif Stage in {"WARM_UP", "STANDARD"}:
+        PercentChoices = [5, 10, 15, 20, 25, 30, 40, 50]
+    elif Stage == "MIXED_STEP":
+        PercentChoices = [5, 8, 10, 12, 15, 18, 20, 22, 25, 30, 35, 45, 50]
+    else:
+        PercentChoices = [5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 35, 40, 45, 50, 60, 70]
+
     LakhCap = Decimal("100000")
     Base = Decimal(0)
     Percent = Decimal(0)
     CorrectAnswer = Decimal(0)
-    for Attempt in range(40):
-        if Band >= 3 and Rng.random() < 0.45:
-            Base = _RandDecimal(Rng, BaseMin, BaseMax, 2)
-        else:
+    for Attempt in range(60):
+        Percent = Decimal(str(Rng.choice(PercentChoices)))
+        if Operator == "-%":
+            # Less Percentage must use whole-number base and whole-number percent.
             Step = 10 if BaseMax >= 1000 else 1
             Base = Decimal(Rng.randrange(BaseMin, BaseMax + 1, Step))
-
-        Percent = Decimal(str(Rng.choice(PercentChoices)))
-        PercentValue = Base * Percent / Decimal(100)
-        if Operator == "×%":
-            CorrectAnswer = PercentValue
+            Percent = Decimal(int(Percent))
         else:
-            CorrectAnswer = Base - PercentValue
+            if Band >= 3 and Rng.random() < 0.45:
+                Base = _RandDecimal(Rng, BaseMin, min(BaseMax, 9999), 2)
+            else:
+                Step = 10 if BaseMax >= 1000 else 1
+                Base = Decimal(Rng.randrange(BaseMin, min(BaseMax, 999999) + 1, Step))
+
+        if Operator == "×%" and _NumericDigitCount(Base) > 6:
+            continue
+        if Operator == "-%" and (Base != Base.to_integral_value() or Percent != Percent.to_integral_value()):
+            continue
+
+        PercentValue = Base * Percent / Decimal(100)
+        CorrectAnswer = PercentValue if Operator == "×%" else Base - PercentValue
         CorrectAnswer = _Quantize(CorrectAnswer, 2)
         if Decimal(0) <= CorrectAnswer <= LakhCap:
             break
     else:
         Percent = Decimal("10")
-        Base = Decimal(min(BaseMax, 10000))
+        Base = Decimal(min(BaseMax, 9999))
         CorrectAnswer = _Quantize(Base * Percent / Decimal(100) if Operator == "×%" else Base - (Base * Percent / Decimal(100)), 2)
 
     return [_AsDisplayNumber(Base), _AsDisplayNumber(Percent)], ["", Operator], CorrectAnswer, {
@@ -1193,6 +1262,8 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
         "lakh_range_cap": int(LakhCap),
         "two_part_only": True,
         "lesson_band": Band,
+        "add_percentage_max_numeric_digits": 6 if Operator == "×%" else None,
+        "less_percentage_whole_numbers_only": Operator == "-%",
     }
 
 
@@ -1215,13 +1286,12 @@ def _MoneyRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
         1: (1000, 6000),
         2: (1500, 10000),
         3: (2500, 15000),
-        4: (5000, 35000),
-        5: (7500, 75000),
-        6: (10000, 120000),
+        4: (5000, 30000),
+        5: (7500, 40000),
+        6: (10000, 45000),
     }
     Minimum, Maximum = BaseRanges.get(Band, (1000, 6000))
-    StageBoost = {"WARM_UP": 1, "STANDARD": 1, "MIXED_STEP": 2, "ADVANCED": 3, "CHALLENGE": 4}.get(Stage, 1)
-    return Minimum, Maximum * StageBoost
+    return Minimum, min(Maximum, 50000)
 
 
 def _CleanMoney(Value: Decimal) -> Decimal:
@@ -1273,13 +1343,24 @@ def _ProfitLossVariant(Config: MMConfig, QuestionNumber: int) -> str:
 def GenerateProfitLoss(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Minimum, Maximum = _MoneyRange(Config, Stage)
-    CostPrice = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
     Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
     Variant = _ProfitLossVariant(Config, QuestionNumber)
     IsLoss = Variant.startswith("LOSS")
 
-    Change = _CleanMoney(CostPrice * Percent / Decimal(100))
-    SellingPrice = _CleanMoney(CostPrice - Change) if IsLoss else _CleanMoney(CostPrice + Change)
+    CostPrice = Decimal(0)
+    SellingPrice = Decimal(0)
+    for _ in range(40):
+        Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
+        EffectiveMaximum = Maximum
+        if not IsLoss:
+            EffectiveMaximum = min(EffectiveMaximum, int(Decimal(50000) / (Decimal(1) + Percent / Decimal(100))))
+        CostPrice = Decimal(Rng.randrange(Minimum, max(Minimum, EffectiveMaximum) + 1, 25))
+        Change = _CleanMoney(CostPrice * Percent / Decimal(100))
+        SellingPrice = _CleanMoney(CostPrice - Change) if IsLoss else _CleanMoney(CostPrice + Change)
+        if CostPrice <= Decimal(50000) and SellingPrice <= Decimal(50000):
+            break
+
+    Change = _CleanMoney(abs(SellingPrice - CostPrice))
 
     if Variant == "LOSS":
         CorrectAnswer = Change
@@ -1305,16 +1386,28 @@ def GenerateProfitLoss(Config: MMConfig, Rng: random.Random, QuestionNumber: int
         "cost_price": _AsDisplayNumber(CostPrice),
         "selling_price": _AsDisplayNumber(SellingPrice),
         "percentage": _AsDisplayNumber(Percent),
+        "money_cap": 50000,
     }
 
 
 def GenerateFindSellingPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Minimum, Maximum = _MoneyRange(Config, Stage)
-    CostPrice = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
-    Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
     IsLoss = "loss" in f" {Config.DpsTitle} ".lower() or ("profit" not in f" {Config.DpsTitle} ".lower() and QuestionNumber % 2 == 0)
-    SellingPrice = _CleanMoney(CostPrice - (CostPrice * Percent / Decimal(100))) if IsLoss else _CleanMoney(CostPrice + (CostPrice * Percent / Decimal(100)))
+
+    CostPrice = Decimal(0)
+    SellingPrice = Decimal(0)
+    Percent = Decimal(0)
+    for _ in range(40):
+        Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
+        EffectiveMaximum = Maximum
+        if not IsLoss:
+            EffectiveMaximum = min(EffectiveMaximum, int(Decimal(50000) / (Decimal(1) + Percent / Decimal(100))))
+        CostPrice = Decimal(Rng.randrange(Minimum, max(Minimum, EffectiveMaximum) + 1, 25))
+        SellingPrice = _CleanMoney(CostPrice - (CostPrice * Percent / Decimal(100))) if IsLoss else _CleanMoney(CostPrice + (CostPrice * Percent / Decimal(100)))
+        if CostPrice <= Decimal(50000) and SellingPrice <= Decimal(50000):
+            break
+
     PercentLabel = "Loss %" if IsLoss else "Profit %"
     return [_AsDisplayNumber(CostPrice), _AsDisplayNumber(Percent)], ["Cost Price", PercentLabel], SellingPrice, {
         "financial_mode": "FIND_SELLING_PRICE",
@@ -1322,6 +1415,7 @@ def GenerateFindSellingPrice(Config: MMConfig, Rng: random.Random, QuestionNumbe
         "cost_price": _AsDisplayNumber(CostPrice),
         "percentage": _AsDisplayNumber(Percent),
         "percentage_type": PercentLabel,
+        "selling_price_cap": 50000,
     }
 
 
@@ -1332,6 +1426,12 @@ def GenerateFindCostPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: 
     CostPrice = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
     IsLoss = "loss" in f" {Config.DpsTitle} ".lower() or ("profit" not in f" {Config.DpsTitle} ".lower() and QuestionNumber % 2 == 0)
     SellingPrice = _CleanMoney(CostPrice - (CostPrice * Percent / Decimal(100))) if IsLoss else _CleanMoney(CostPrice + (CostPrice * Percent / Decimal(100)))
+    if SellingPrice > Decimal(50000):
+        SellingPrice = Decimal(50000)
+        if IsLoss:
+            CostPrice = _CleanMoney(SellingPrice / (Decimal(1) - (Percent / Decimal(100))))
+        else:
+            CostPrice = _CleanMoney(SellingPrice / (Decimal(1) + (Percent / Decimal(100))))
     PercentLabel = "Loss %" if IsLoss else "Profit %"
     return [_AsDisplayNumber(SellingPrice), _AsDisplayNumber(Percent)], ["Selling Price", PercentLabel], _CleanMoney(CostPrice), {
         "financial_mode": "FIND_COST_PRICE",
@@ -1339,7 +1439,9 @@ def GenerateFindCostPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: 
         "selling_price": _AsDisplayNumber(SellingPrice),
         "percentage": _AsDisplayNumber(Percent),
         "percentage_type": PercentLabel,
+        "money_cap": 50000,
     }
+
 
 
 
@@ -1756,21 +1858,18 @@ def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber:
 
 def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    Band = _LessonBand(Config)
     PrincipalRanges = {
-        1: (1000, 10000),
-        2: (1000, 25000),
-        3: (2500, 75000),
-        4: (5000, 100000),
-        5: (7500, 150000),
-        6: (10000, 250000),
+        "WARM_UP": (1000, 12000),
+        "STANDARD": (2500, 25000),
+        "MIXED_STEP": (5000, 40000),
+        "ADVANCED": (7500, 75000),
+        "CHALLENGE": (10000, 99975),
     }
-    Minimum, Maximum = PrincipalRanges.get(Band, (1000, 25000))
+    Minimum, Maximum = PrincipalRanges.get(Stage, (1000, 25000))
     Principal = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
-    TermChoices = [2, 3, 4, 5, 6] if Stage in {"WARM_UP", "STANDARD"} else [2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16]
-    RateChoices = [3, 4, 5, 6, 7, 8, 9] if Stage != "CHALLENGE" else [2.5, 3, 4, 5, 6, 7, 8, 9, 10, 12.5]
+    Rate = Decimal(Rng.randint(1, 9))
+    TermChoices = [2, 3, 4, 5, 6] if Stage in {"WARM_UP", "STANDARD"} else [2, 3, 4, 5, 6, 7, 8, 9]
     Term = Decimal(str(Rng.choice(TermChoices)))
-    Rate = Decimal(str(Rng.choice(RateChoices)))
     CorrectAnswer = _CleanMoney(Principal * Term * Rate / Decimal(100))
     return [_AsDisplayNumber(Principal), _AsDisplayNumber(Term), _AsDisplayNumber(Rate)], ["Principal", "Term (Years)", "Rate of Interest"], CorrectAnswer, {
         "financial_mode": "SIMPLE_INTEREST",
@@ -1778,6 +1877,9 @@ def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber:
         "principal": _AsDisplayNumber(Principal),
         "term_years": _AsDisplayNumber(Term),
         "rate_percent": _AsDisplayNumber(Rate),
+        "principal_max_digits": 5,
+        "single_digit_rate_only": True,
+        "time_limited_for_known_patterns": True,
     }
 
 
@@ -1825,7 +1927,7 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
 
     LessonNumber = int(Config.LessonNumber or 1)
 
-    MultiplicationVariants = ["MUL_2D_1D", "MUL_2D_2D"]
+    MultiplicationVariants = ["MUL_2D_2D"]
     if LessonNumber >= 8:
         MultiplicationVariants.append("MUL_DECIMAL")
     if LessonNumber >= 10:
@@ -2049,8 +2151,7 @@ def GenerateMmQuestion(Config: MMConfig, Rng: random.Random, QuestionNumber: int
             return Operands, Operators, CorrectAnswer, Metadata
 
         MultiplicationPatternDigits = {
-            "WHOLE_NUMBER_MULTIPLICATION": (2, 1),
-            "MUL_2D_1D": (2, 1),
+            "WHOLE_NUMBER_MULTIPLICATION": (2, 2),
             "MUL_3D_1D": (3, 1),
             "MUL_4D_1D": (4, 1),
             "MUL_2D_2D": (2, 2),
@@ -2285,8 +2386,11 @@ def _SquareRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
 def _CubeRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
     ExplicitTargets = _CubeRootRadicandDigitTargets(Config)
     if ExplicitTargets:
-        MinimumsAndMaximums = [_CubeRootRangeForRadicandDigits(Target) for Target in ExplicitTargets]
-        return min(Minimum for Minimum, _ in MinimumsAndMaximums), max(Maximum for _, Maximum in MinimumsAndMaximums)
+        SafeTargets = [Target for Target in ExplicitTargets if Target <= 6]
+        if not SafeTargets:
+            SafeTargets = [6]
+        MinimumsAndMaximums = [_CubeRootRangeForRadicandDigits(Target) for Target in SafeTargets]
+        return min(Minimum for Minimum, _ in MinimumsAndMaximums), min(99, max(Maximum for _, Maximum in MinimumsAndMaximums))
 
     Band = _LessonBand(Config)
     if Band <= 3:
@@ -2313,7 +2417,11 @@ def _CubeRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
             "ADVANCED": (80, 140),
             "CHALLENGE": (120, 180),
         }
-    return Ranges.get(Stage, (10, 25))
+    Minimum, Maximum = Ranges.get(Stage, (10, 25))
+    Maximum = min(Maximum, 99)
+    if Minimum > Maximum:
+        Minimum = max(10, Maximum - 25)
+    return Minimum, Maximum
 
 
 def GenerateSquares(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
@@ -2387,8 +2495,9 @@ def GenerateCubeRoot(Config: MMConfig, Rng: random.Random, QuestionNumber: int) 
     ExplicitTargets = _CubeRootRadicandDigitTargets(Config)
     TargetDigits = None
     if ExplicitTargets:
-        TargetDigits = ExplicitTargets[(QuestionNumber - 1) % len(ExplicitTargets)]
+        TargetDigits = min(6, ExplicitTargets[(QuestionNumber - 1) % len(ExplicitTargets)])
         Minimum, Maximum = _CubeRootRangeForRadicandDigits(TargetDigits)
+        Maximum = min(Maximum, 99)
     else:
         Minimum, Maximum = _CubeRootBaseRange(Config, Stage)
 
