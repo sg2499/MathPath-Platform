@@ -194,9 +194,21 @@ def _IsVisualStackConcept(Config: MMConfig, SectionTitle: str | None = None) -> 
     )
 
 
+def _IsCollapsedMixedMultiplicationParent(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    TitleText = _SectionTitleText(Config, SectionTitle).strip()
+    return Config.ConceptFamily == "MULTIPLICATION_DIVISION_MIXED" and TitleText == "MULTIPLICATION"
+
+
+def _IsCollapsedMixedDivisionParent(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    TitleText = _SectionTitleText(Config, SectionTitle).strip()
+    return Config.ConceptFamily == "MULTIPLICATION_DIVISION_MIXED" and TitleText == "DIVISION"
+
+
 def _IsNormalMultiplicationSection(Config: MMConfig, SectionTitle: str | None = None) -> bool:
     if _IsAnswerPositionConcept(Config, SectionTitle) or _IsSolveEquationConcept(Config, SectionTitle) or _IsVisualStackConcept(Config, SectionTitle):
         return False
+    if _IsCollapsedMixedMultiplicationParent(Config, SectionTitle):
+        return True
     TitleText = _SectionTitleText(Config, SectionTitle)
     return Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION" or _ContainsAny(
         TitleText,
@@ -213,6 +225,8 @@ def _IsNormalMultiplicationSection(Config: MMConfig, SectionTitle: str | None = 
 def _IsNormalDivisionSection(Config: MMConfig, SectionTitle: str | None = None) -> bool:
     if _IsAnswerPositionConcept(Config, SectionTitle) or _IsSolveEquationConcept(Config, SectionTitle) or _IsVisualStackConcept(Config, SectionTitle):
         return False
+    if _IsCollapsedMixedDivisionParent(Config, SectionTitle):
+        return True
     TitleText = _SectionTitleText(Config, SectionTitle)
     return Config.ConceptFamily == "WHOLE_NUMBER_DIVISION" or _ContainsAny(
         TitleText,
