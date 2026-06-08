@@ -61,6 +61,62 @@ import {
 import type { ReactNode } from "react";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
+
+
+type SortDirection = "asc" | "desc";
+type SortState<Key extends string> = {
+  Key: Key;
+  Direction: SortDirection;
+} | null;
+
+function NextSortState<Key extends string>(Current: SortState<Key>, Key: Key): SortState<Key> {
+  if (!Current || Current.Key !== Key) return { Key, Direction: "asc" };
+  if (Current.Direction === "asc") return { Key, Direction: "desc" };
+  return null;
+}
+
+function SortIndicator<Key extends string>({ SortState, SortKey }: { SortState: SortState<Key>; SortKey: Key }) {
+  if (!SortState || SortState.Key !== SortKey) return <span className="opacity-35">↕</span>;
+  return <span aria-hidden="true">{SortState.Direction === "asc" ? "▲" : "▼"}</span>;
+}
+
+function SortableHeader<Key extends string>({
+  Label,
+  SortKey,
+  SortState,
+  OnSort,
+}: {
+  Label: string;
+  SortKey: Key;
+  SortState: SortState<Key>;
+  OnSort: (Key: Key) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => OnSort(SortKey)}
+      className="inline-flex items-center justify-start gap-1 text-left font-black uppercase tracking-[0.14em] transition hover:text-[#7a1f58] dark:hover:text-rose-100"
+    >
+      <span>{Label}</span>
+      <SortIndicator SortState={SortState} SortKey={SortKey} />
+    </button>
+  );
+}
+
+function CompareText(FirstValue: unknown, SecondValue: unknown) {
+  return NaturalCompare(String(FirstValue ?? ""), String(SecondValue ?? ""));
+}
+
+function CompareNumber(FirstValue: unknown, SecondValue: unknown) {
+  const FirstNumber = Number(FirstValue ?? 0);
+  const SecondNumber = Number(SecondValue ?? 0);
+  return (Number.isFinite(FirstNumber) ? FirstNumber : 0) - (Number.isFinite(SecondNumber) ? SecondNumber : 0);
+}
+
+function ApplyDirection(Value: number, Direction: SortDirection) {
+  return Direction === "asc" ? Value : -Value;
+}
+
 type WorkspaceTab = "OVERVIEW" | "LESSON_INSIGHTS";
 type LessonFilter = string;
 type StatusFilter = "" | "ALL" | "PENDING" | "CLEARED" | "NEEDS_REATTEMPT";
@@ -130,6 +186,18 @@ function DisplayStatus(Row: AnyRow) {
   if (Key === "PENDING") return "Pending";
   if (Key === "NEEDS_REATTEMPT") return "Needs Re-Attempt";
   return "Cleared";
+}
+
+function RowCompletionTime(Row: AnyRow) {
+  const Value = getFirstMathPathTimestamp(Row, MATHPATH_ACTIVITY_TIMESTAMP_KEYS);
+  return Value ? mathPathTimestampValue(Value) : 0;
+}
+
+function RowTimeTakenSeconds(Row: AnyRow) {
+  const Record = Row as any;
+  const RawValue = Record.timeTakenSeconds ?? Record.durationSeconds ?? Record.timeTaken ?? Record.elapsedSeconds ?? Record.secondsSpent ?? 0;
+  const NumberValue = Number(RawValue);
+  return Number.isFinite(NumberValue) ? NumberValue : 0;
 }
 
 function IsActionNeeded(Row: AnyRow) {
@@ -1483,6 +1551,28 @@ function AttemptStatusLabel(Row: AnyRow, AttemptType: string) {
     : "Needs Re-Attempt";
 }
 
+type TeacherPracticeDetailSortKey = "dps" | "attempt" | "status" | "score" | "accuracy" | "benchmark" | "timeTaken" | "completionDate";
+
+function ComparePracticeDetailRows(FirstRow: AnyRow, SecondRow: AnyRow, SortState: SortState<TeacherPracticeDetailSortKey>) {
+  if (!SortState) return SortRowsByCurriculum([FirstRow, SecondRow])[0] === FirstRow ? -1 : 1;
+  const FirstAttemptType = AttemptTypeLabel(FirstRow, 0);
+  const SecondAttemptType = AttemptTypeLabel(SecondRow, 0);
+  let Result = 0;
+  if (SortState.Key === "dps") Result = CompareText(CompactDpsLabel(FirstRow), CompactDpsLabel(SecondRow));
+  if (SortState.Key === "attempt") Result = CompareText(FirstAttemptType, SecondAttemptType);
+  if (SortState.Key === "status") Result = CompareText(AttemptStatusLabel(FirstRow, FirstAttemptType), AttemptStatusLabel(SecondRow, SecondAttemptType));
+  if (SortState.Key === "score") Result = CompareText(scoreText(FirstRow), scoreText(SecondRow));
+  if (SortState.Key === "accuracy") Result = CompareNumber(isCompleted(FirstRow) ? accuracy(FirstRow) : -1, isCompleted(SecondRow) ? accuracy(SecondRow) : -1);
+  if (SortState.Key === "benchmark") {
+    const FirstBenchmark = isCompleted(FirstRow) ? (RowNeedsReattempt(FirstRow) ? "Benchmark Not Met" : "Benchmark Met") : "Pending";
+    const SecondBenchmark = isCompleted(SecondRow) ? (RowNeedsReattempt(SecondRow) ? "Benchmark Not Met" : "Benchmark Met") : "Pending";
+    Result = CompareText(FirstBenchmark, SecondBenchmark);
+  }
+  if (SortState.Key === "timeTaken") Result = CompareNumber(RowTimeTakenSeconds(FirstRow), RowTimeTakenSeconds(SecondRow));
+  if (SortState.Key === "completionDate") Result = CompareNumber(RowCompletionTime(FirstRow), RowCompletionTime(SecondRow));
+  return ApplyDirection(Result || (SortRowsByCurriculum([FirstRow, SecondRow])[0] === FirstRow ? -1 : 1), SortState.Direction);
+}
+
 function PracticeRowsTable({
   Rows,
   OnView,
@@ -1492,7 +1582,15 @@ function PracticeRowsTable({
   OnView: (Row: AnyRow) => void;
   ShowBenchmark?: boolean;
 }) {
-  const DisplayRows = SortRowsByCurriculum(ExpandAttemptHistoryRows(Rows));
+  const [SortStateValue, SetSortStateValue] = useState<SortState<TeacherPracticeDetailSortKey>>(null);
+  const BaseRows = useMemo(() => SortRowsByCurriculum(ExpandAttemptHistoryRows(Rows)), [Rows]);
+  const DisplayRows = useMemo(
+    () => SortStateValue ? [...BaseRows].sort((FirstRow, SecondRow) => ComparePracticeDetailRows(FirstRow, SecondRow, SortStateValue)) : BaseRows,
+    [BaseRows, SortStateValue],
+  );
+  const HandleSort = useCallback((Key: TeacherPracticeDetailSortKey) => {
+    SetSortStateValue((Current) => NextSortState(Current, Key));
+  }, []);
   const DpsAttemptCounts = new Map<string, number>();
   const GridColumns = ShowBenchmark
     ? "grid-cols-[minmax(142px,.96fr)_minmax(100px,.5fr)_minmax(118px,.58fr)_minmax(82px,.4fr)_minmax(90px,.44fr)_minmax(124px,.58fr)_minmax(100px,.48fr)_minmax(142px,.66fr)_136px]"
