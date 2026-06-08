@@ -339,18 +339,39 @@ def _BorrowingAnswerMode(Config: MMConfig) -> str:
 
 
 
-def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
-    Text = " ".join(
+def _AddLessTitleText(Config: MMConfig) -> str:
+    return " ".join(
         f" {Config.DpsTitle} "
         .lower()
         .replace("-", " ")
         .replace("_", " ")
         .split()
     )
+
+
+def _IsMixedDigitAddLessConcept(Config: MMConfig) -> bool:
+    Text = _AddLessTitleText(Config)
+    return "mixed digit" in Text and "add less" in Text
+
+
+def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
+    Text = _AddLessTitleText(Config)
     Match = re.search(r"\b([2-6])\s*digit(?:\s+number)?\s+add\s+less\b", Text)
     if Match:
         return int(Match.group(1))
     return None
+
+
+def _ValidateMixedDigitAddLessDigits(Config: MMConfig, Operands: list[int | float | str]) -> bool:
+    if not _IsMixedDigitAddLessConcept(Config):
+        return True
+    for Value in Operands:
+        DecimalValue = abs(_DecimalValue(Value))
+        if DecimalValue != DecimalValue.to_integral_value():
+            return False
+        if not (Decimal(10) <= DecimalValue <= Decimal(9999)):
+            return False
+    return True
 
 
 def _ValidateExplicitAddLessDigits(Config: MMConfig, Operands: list[int | float | str]) -> bool:
@@ -375,6 +396,8 @@ def _ValidateAddLessQuestion(Config: MMConfig, Operands: list[int | float | str]
     if any(not _IsNumeric(Value) for Value in Operands):
         return False
     if not _ValidateExplicitAddLessDigits(Config, Operands):
+        return False
+    if not _ValidateMixedDigitAddLessDigits(Config, Operands):
         return False
 
     ExpectedAnswer = sum(Decimal(str(Value)) for Value in Operands)

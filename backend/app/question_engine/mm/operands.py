@@ -57,6 +57,11 @@ def _IsFastVisualisationConcept(Config: MMConfig) -> bool:
     return "fast visualisation" in Text or "fast visualization" in Text
 
 
+def _IsMixedDigitAddLessConcept(Config: MMConfig) -> bool:
+    Text = _AddLessTitleText(Config)
+    return "mixed digit" in Text and "add less" in Text
+
+
 def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
     Text = _AddLessTitleText(Config)
     Match = re.search(r"\b([2-6])\s*digit(?:\s+number)?\s+add\s+less\b", Text)
@@ -89,7 +94,15 @@ def _AddLessValueRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
     ExplicitDigits = _ExplicitAddLessDigitCount(Config)
     if ExplicitDigits is not None:
         return _DigitRange(ExplicitDigits)
+    if _IsMixedDigitAddLessConcept(Config):
+        return _DigitRange(2)[0], _DigitRange(4)[1]
     return _ScaleRangeByLesson(*_NumberRange(Stage), Config)
+
+
+def _RandMixedDigitAddLessValue(Rng: random.Random) -> Decimal:
+    Digits = Rng.choice([2, 3, 4])
+    Minimum, Maximum = _DigitRange(Digits)
+    return Decimal(Rng.randint(Minimum, Maximum))
 
 
 def _AddLessRowCount(Config: MMConfig, Stage: str) -> int:
@@ -391,13 +404,17 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
     Minimum, Maximum = _AddLessValueRange(Config, Stage)
     RowCount = _AddLessRowCount(Config, Stage)
 
-    Values: list[Decimal] = [_RandDecimal(Rng, Minimum, Maximum, Places)]
+    IsMixedDigitAddLess = _IsMixedDigitAddLessConcept(Config)
+    InitialValue = _RandMixedDigitAddLessValue(Rng) if IsMixedDigitAddLess else _RandDecimal(Rng, Minimum, Maximum, Places)
+    Values: list[Decimal] = [InitialValue]
     Operators = [""]
     RunningTotal = Values[0]
 
     for RowIndex in range(1, RowCount):
         Sign = Rng.choice(["+", "-"])
-        if _ExplicitAddLessDigitCount(Config) is not None:
+        if IsMixedDigitAddLess:
+            Value = _RandMixedDigitAddLessValue(Rng)
+        elif _ExplicitAddLessDigitCount(Config) is not None:
             Value = _RandDecimal(Rng, Minimum, Maximum, Places)
         else:
             Value = _RandDecimal(Rng, max(1, Minimum // 4), max(2, Maximum // 3), Places)
@@ -421,6 +438,7 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
         "row_count": RowCount,
         "lesson_band": _LessonBand(Config),
         "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
+        "mixed_digit_range": "2D_TO_4D" if IsMixedDigitAddLess else None,
     }
 
 
@@ -1410,30 +1428,10 @@ def GenerateProfitLoss(Config: MMConfig, Rng: random.Random, QuestionNumber: int
     }
 
 
-def _ProfitLossDirection(Config: MMConfig, QuestionNumber: int) -> bool:
-    """Return True for loss-direction questions and False for profit-direction questions.
-
-    Titles such as "Profit-Loss / Selling Price" contain both words. Those
-    sheets must not be treated as loss-only simply because the word "loss" is
-    present. When both profit and loss appear, alternate the direction so the
-    section covers both workbook mechanisms.
-    """
-    Text = f" {Config.DpsTitle} ".lower()
-    HasProfit = "profit" in Text
-    HasLoss = "loss" in Text
-    if HasProfit and HasLoss:
-        return QuestionNumber % 2 == 0
-    if HasLoss:
-        return True
-    if HasProfit:
-        return False
-    return QuestionNumber % 2 == 0
-
-
 def GenerateFindSellingPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Minimum, Maximum = _MoneyRange(Config, Stage)
-    IsLoss = _ProfitLossDirection(Config, QuestionNumber)
+    IsLoss = "loss" in f" {Config.DpsTitle} ".lower() or ("profit" not in f" {Config.DpsTitle} ".lower() and QuestionNumber % 2 == 0)
 
     CostPrice = Decimal(0)
     SellingPrice = Decimal(0)
@@ -1451,7 +1449,6 @@ def GenerateFindSellingPrice(Config: MMConfig, Rng: random.Random, QuestionNumbe
     PercentLabel = "Loss %" if IsLoss else "Profit %"
     return [_AsDisplayNumber(CostPrice), _AsDisplayNumber(Percent)], ["Cost Price", PercentLabel], SellingPrice, {
         "financial_mode": "FIND_SELLING_PRICE",
-        "answer_kind": "SELLING_PRICE_LOSS" if IsLoss else "SELLING_PRICE_PROFIT",
         "question_text": "Find Selling Price",
         "cost_price": _AsDisplayNumber(CostPrice),
         "percentage": _AsDisplayNumber(Percent),
@@ -1465,7 +1462,7 @@ def GenerateFindCostPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: 
     Minimum, Maximum = _MoneyRange(Config, Stage)
     Percent = Rng.choice(_FinancialPercentChoices(Config, Stage))
     CostPrice = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
-    IsLoss = _ProfitLossDirection(Config, QuestionNumber)
+    IsLoss = "loss" in f" {Config.DpsTitle} ".lower() or ("profit" not in f" {Config.DpsTitle} ".lower() and QuestionNumber % 2 == 0)
     SellingPrice = _CleanMoney(CostPrice - (CostPrice * Percent / Decimal(100))) if IsLoss else _CleanMoney(CostPrice + (CostPrice * Percent / Decimal(100)))
     if SellingPrice > Decimal(50000):
         SellingPrice = Decimal(50000)
@@ -1909,11 +1906,7 @@ def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber:
     Minimum, Maximum = PrincipalRanges.get(Stage, (1000, 25000))
     Principal = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
     Rate = Decimal(Rng.randint(1, 9))
-
-    # Simple Interest must stay inside the taught Master Module calculation
-    # scope. Keep rate single digit and time short enough that the worksheet
-    # does not drift into oversized multi-step multiplication complexity.
-    TermChoices = [1, 2, 3, 4, 5]
+    TermChoices = [2, 3, 4, 5, 6] if Stage in {"WARM_UP", "STANDARD"} else [2, 3, 4, 5, 6, 7, 8, 9]
     Term = Decimal(str(Rng.choice(TermChoices)))
     CorrectAnswer = _CleanMoney(Principal * Term * Rate / Decimal(100))
     return [_AsDisplayNumber(Principal), _AsDisplayNumber(Term), _AsDisplayNumber(Rate)], ["Principal", "Term (Years)", "Rate of Interest"], CorrectAnswer, {
@@ -1922,7 +1915,6 @@ def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber:
         "principal": _AsDisplayNumber(Principal),
         "term_years": _AsDisplayNumber(Term),
         "rate_percent": _AsDisplayNumber(Rate),
-        "answer_kind": "SIMPLE_INTEREST",
         "principal_max_digits": 5,
         "single_digit_rate_only": True,
         "time_limited_for_known_patterns": True,
