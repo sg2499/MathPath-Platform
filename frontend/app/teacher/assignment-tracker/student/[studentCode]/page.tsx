@@ -30,6 +30,7 @@ import {
   scoreText,
   studentCodeOf,
   studentNameOf,
+  timeTakenText,
   uniqueAssignedConceptCount,
   uniqueClearedConceptCount,
   uniqueNeedsReattemptCount,
@@ -1494,8 +1495,8 @@ function PracticeRowsTable({
   const DisplayRows = SortRowsByCurriculum(ExpandAttemptHistoryRows(Rows));
   const DpsAttemptCounts = new Map<string, number>();
   const GridColumns = ShowBenchmark
-    ? "grid-cols-[minmax(150px,1.02fr)_minmax(108px,.54fr)_minmax(128px,.62fr)_minmax(88px,.42fr)_minmax(96px,.46fr)_minmax(132px,.62fr)_minmax(150px,.7fr)_150px]"
-    : "grid-cols-[minmax(150px,1.08fr)_minmax(108px,.56fr)_minmax(128px,.66fr)_minmax(88px,.44fr)_minmax(96px,.48fr)_minmax(150px,.76fr)_150px]";
+    ? "grid-cols-[minmax(142px,.96fr)_minmax(100px,.5fr)_minmax(118px,.58fr)_minmax(82px,.4fr)_minmax(90px,.44fr)_minmax(124px,.58fr)_minmax(100px,.48fr)_minmax(142px,.66fr)_136px]"
+    : "grid-cols-[minmax(142px,1fr)_minmax(100px,.52fr)_minmax(118px,.62fr)_minmax(82px,.42fr)_minmax(90px,.46fr)_minmax(100px,.5fr)_minmax(142px,.7fr)_136px]";
 
   return (
     <div className="math-teacher-practice-lesson-insights-table mt-4 overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-800">
@@ -1508,6 +1509,7 @@ function PracticeRowsTable({
         <div>Score</div>
         <div>Accuracy</div>
         {ShowBenchmark ? <div>Benchmark</div> : null}
+        <div>Time Taken</div>
         <div>Completion Date</div>
         <div>Review</div>
       </div>
@@ -1581,7 +1583,10 @@ function PracticeRowsTable({
                 </Chip>
               </div>
             ) : null}
-            <div className="text-sm font-bold text-slate-600">
+            <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
+              {timeTakenText(Row)}
+            </div>
+            <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
               {isCompleted(Row) ? completedText(Row) : "Pending"}
             </div>
             <div className="flex justify-start">

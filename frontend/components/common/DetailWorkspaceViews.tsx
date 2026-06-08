@@ -635,6 +635,18 @@ export function completedText(row: AnyRow) {
   return rowDate(row, MATHPATH_COMPLETION_TIMESTAMP_KEYS as unknown as string[]);
 }
 
+export function timeTakenText(row: AnyRow) {
+  const RawValue =
+    row.timeTakenSeconds ??
+    row.timeTaken ??
+    row.time_taken_seconds ??
+    row.durationTakenSeconds ??
+    row.elapsedSeconds;
+  const Seconds = Number(RawValue);
+  if (!Number.isFinite(Seconds) || Seconds <= 0) return "-";
+  return `${Math.round(Seconds)}s`;
+}
+
 export function latestActivity(rows: AnyRow[]) {
   return formatMathPathActivityDateTime(rows);
 }
@@ -2789,11 +2801,11 @@ export function CompactRecordTable({
   const SemanticChipComponent = useStrongSemanticChips ? StrongSemanticChip : Chip;
   const GridColumns = hideLessonColumn
     ? showAttemptColumn
-      ? "grid-cols-[minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
-      : "grid-cols-[minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
+      ? "grid-cols-[minmax(150px,1fr)_minmax(106px,.54fr)_minmax(118px,.58fr)_minmax(84px,.42fr)_minmax(96px,.48fr)_minmax(128px,.62fr)_minmax(104px,.5fr)_minmax(146px,.68fr)_minmax(116px,.54fr)]"
+      : "grid-cols-[minmax(150px,1fr)_minmax(118px,.58fr)_minmax(84px,.42fr)_minmax(96px,.48fr)_minmax(128px,.62fr)_minmax(104px,.5fr)_minmax(146px,.68fr)_minmax(116px,.54fr)]"
     : showAttemptColumn
-      ? "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
-      : "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]";
+      ? "grid-cols-[minmax(128px,.74fr)_minmax(150px,.92fr)_minmax(106px,.54fr)_minmax(118px,.58fr)_minmax(84px,.42fr)_minmax(96px,.48fr)_minmax(128px,.62fr)_minmax(104px,.5fr)_minmax(146px,.68fr)_minmax(116px,.54fr)]"
+      : "grid-cols-[minmax(128px,.74fr)_minmax(150px,.92fr)_minmax(118px,.58fr)_minmax(84px,.42fr)_minmax(96px,.48fr)_minmax(128px,.62fr)_minmax(104px,.5fr)_minmax(146px,.68fr)_minmax(116px,.54fr)]";
 
   return (
     <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
@@ -2807,6 +2819,7 @@ export function CompactRecordTable({
         <div>Score</div>
         <div>Accuracy</div>
         <div>Benchmark</div>
+        <div>Time Taken</div>
         <div>Completion Date</div>
         <div>Review</div>
       </div>
@@ -2864,7 +2877,10 @@ export function CompactRecordTable({
                   return <SemanticChipComponent tone={Benchmark.tone}>{Benchmark.label}</SemanticChipComponent>;
                 })()}
               </div>
-              <div className="text-sm font-semibold text-slate-600">
+              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                {timeTakenText(row)}
+              </div>
+              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                 {completedText(row)}
               </div>
               <div className="flex justify-start">

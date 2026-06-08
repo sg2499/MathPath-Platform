@@ -29,6 +29,12 @@ function formatDate(value?: string | null) {
   return formatMathPathDateTime(value);
 }
 
+function formatTimeTaken(value?: number | string | null) {
+  const Seconds = Number(value);
+  if (!Number.isFinite(Seconds) || Seconds <= 0) return "-";
+  return `${Math.round(Seconds)}s`;
+}
+
 export default function AdminAssignmentDetailPage() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const params = useParams<{ assignmentId: string }>();
@@ -121,9 +127,9 @@ export default function AdminAssignmentDetailPage() {
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Score</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Accuracy</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Benchmark</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Time Taken</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Attempt Date</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Completion Date</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Time</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Review</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Re-Attempt</span></th>
                     </tr>
@@ -139,9 +145,9 @@ export default function AdminAssignmentDetailPage() {
                         <td><PerformanceChip Value={`${RoundedDisplay(row.score)} / ${RoundedDisplay(row.maxScore)}`} Tone={ScoreTone(row.score, row.maxScore)} /></td>
                         <td><PerformanceChip Value={`${RoundedDisplay(row.accuracyPercentage)}%`} Tone={AccuracyTone(row.accuracyPercentage)} /></td>
                         <td><BenchmarkChip Status={row.benchmarkStatus} RequiresAttention={row.requiresAttention} /></td>
+                        <td>{formatTimeTaken(row.timeTakenSeconds)}</td>
                         <td>{formatDate(row.attemptDate || row.startedAt)}</td>
                         <td>{formatDate(row.completedDate || row.submittedAt)}</td>
-                        <td>{row.timeTakenSeconds ? `${row.timeTakenSeconds}s` : "-"}</td>
                         <td>
                           {row.attemptId ? (
                             <button className="math-role-action-button px-3 py-2" onClick={() => router.push(`/admin/results/${row.attemptId}`)}>
@@ -202,6 +208,7 @@ export default function AdminAssignmentDetailPage() {
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Score</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Correct</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Benchmark</span></th>
+                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Time Taken</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Attempt Date</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Completion Date</span></th>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Review</span></th>
@@ -218,6 +225,7 @@ export default function AdminAssignmentDetailPage() {
                         <td><PerformanceChip Value={`${RoundedDisplay(attempt.score)} / ${RoundedDisplay(attempt.maxScore)}`} Tone={ScoreTone(attempt.score, attempt.maxScore)} /></td>
                         <td><PerformanceChip Value={RoundedDisplay(attempt.correct)} Tone={Number.isFinite(Number(attempt.correct)) ? "blue" : "slate"} /></td>
                         <td><BenchmarkChip Status={attempt.benchmarkStatus} RequiresAttention={attempt.requiresAttention} /></td>
+                        <td>{formatTimeTaken(attempt.timeTakenSeconds)}</td>
                         <td>{formatDate(attempt.attemptDate || attempt.startedAt)}</td>
                         <td>{formatDate(attempt.completedDate || attempt.submittedAt)}</td>
                         <td>
