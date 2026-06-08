@@ -466,7 +466,9 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
         if len(Operands) != 2 or Operators != ["Add", "Times"]:
             return False
         AddValue, Times = [_DecimalValue(Value) for Value in Operands]
-        if AddValue <= 0 or Times <= 0 or Times != Times.to_integral_value():
+        if AddValue != AddValue.to_integral_value() or Times != Times.to_integral_value():
+            return False
+        if AddValue < 10 or AddValue > 50 or Times <= 0:
             return False
         ExpectedAnswer = AddValue * (Decimal(2) ** (int(Times) - 1))
         return CorrectAnswer == ExpectedAnswer
