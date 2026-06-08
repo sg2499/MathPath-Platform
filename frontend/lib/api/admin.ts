@@ -1,8 +1,15 @@
 import { api } from "@/lib/api";
+import { getToken, getTokenForRole } from "@/lib/auth";
 import type { ModuleItem, LevelItem, LessonItem, DpsItem } from "@/types/curriculum";
 import type { AdminPreviewQuestion } from "@/types/question";
 import type { AdminStudent, BulkUploadResult, StudentProfilePayload } from "@/types/student";
 import type { AdminTeacher, TeacherPayload } from "@/types/teacher";
+
+function AdminAuthRequestConfig() {
+  const Token = getTokenForRole("ADMIN") || getToken();
+  return Token ? { headers: { Authorization: `Bearer ${Token}` } } : undefined;
+}
+
 
 export async function getModules(): Promise<ModuleItem[]> {
   const { data } = await api.get<{ modules: ModuleItem[] }>("/admin/modules");
@@ -241,7 +248,7 @@ export async function resetTeacherPassword(
   teacherId: string,
   password: string
 ): Promise<{ updated: boolean; message: string; login: { identifier: string; password: string } }> {
-  const { data } = await api.post(`/admin/teachers/${teacherId}/reset-password`, { password });
+  const { data } = await api.post(`/admin/teachers/${teacherId}/reset-password`, { password }, AdminAuthRequestConfig());
   return data;
 }
 
