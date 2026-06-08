@@ -11,6 +11,9 @@ import {
 import { CompareStudentCodes } from "@/lib/studentSort";
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Archive,
   BookOpen,
   CalendarClock,
@@ -635,32 +638,6 @@ export function completedText(row: AnyRow) {
   return rowDate(row, MATHPATH_COMPLETION_TIMESTAMP_KEYS as unknown as string[]);
 }
 
-export function formatTimeTakenDuration(Value?: number | string | null) {
-  const Seconds = Math.round(Number(Value));
-  if (!Number.isFinite(Seconds) || Seconds <= 0) return "-";
-
-  const Minutes = Math.floor(Seconds / 60);
-  const RemainingSeconds = Seconds % 60;
-
-  const MinuteText = Minutes === 1 ? "Min" : "Mins";
-  const SecondText = RemainingSeconds === 1 ? "Sec" : "Secs";
-
-  if (Minutes <= 0) return `${RemainingSeconds} ${SecondText}`;
-  if (RemainingSeconds <= 0) return `${Minutes} ${MinuteText}`;
-
-  return `${Minutes} ${MinuteText} ${RemainingSeconds} ${SecondText}`;
-}
-
-export function timeTakenText(row: AnyRow) {
-  const RawValue =
-    row.timeTakenSeconds ??
-    row.timeTaken ??
-    row.time_taken_seconds ??
-    row.durationTakenSeconds ??
-    row.elapsedSeconds;
-  return formatTimeTakenDuration(RawValue);
-}
-
 export function latestActivity(rows: AnyRow[]) {
   return formatMathPathActivityDateTime(rows);
 }
@@ -871,6 +848,71 @@ export function StandardViewButton({
   );
 }
 
+type StudentSummarySortKey =
+  | "student"
+  | "assigned"
+  | "completed"
+  | "pending"
+  | "below"
+  | "accuracy"
+  | "last";
+
+type StudentSummarySortDirection = "asc" | "desc";
+
+function studentSummarySortValue(Student: StudentNode, Key: StudentSummarySortKey) {
+  const Stats = studentStats(Student.rows);
+  if (Key === "student") return Student.studentCode || Student.studentName;
+  if (Key === "assigned") return Stats.assigned;
+  if (Key === "completed") return Stats.completed;
+  if (Key === "pending") return Stats.pending;
+  if (Key === "below") return Stats.below;
+  if (Key === "accuracy") return hierarchyAverageAccuracy(Student.rows);
+  if (Key === "last") {
+    const Times = Student.rows
+      .map((Row) => getFirstMathPathTimestamp(Row, MATHPATH_ACTIVITY_TIMESTAMP_KEYS))
+      .map((Value) => (Value ? mathPathTimestampValue(Value) : 0));
+    return Times.length ? Math.max(...Times) : 0;
+  }
+  return "";
+}
+
+function compareStudentSummaryValues(
+  FirstStudent: StudentNode,
+  SecondStudent: StudentNode,
+  Key: StudentSummarySortKey,
+  Direction: StudentSummarySortDirection,
+) {
+  const DirectionMultiplier = Direction === "asc" ? 1 : -1;
+
+  if (Key === "student") {
+    const StudentCodeCompare = CompareStudentCodes(
+      FirstStudent.studentCode,
+      SecondStudent.studentCode,
+    );
+    const NameCompare = FirstStudent.studentName.localeCompare(
+      SecondStudent.studentName,
+      undefined,
+      { numeric: true, sensitivity: "base" },
+    );
+    return (StudentCodeCompare || NameCompare) * DirectionMultiplier;
+  }
+
+  const FirstValue = studentSummarySortValue(FirstStudent, Key);
+  const SecondValue = studentSummarySortValue(SecondStudent, Key);
+  const NumericDifference = Number(FirstValue) - Number(SecondValue);
+  if (Number.isFinite(NumericDifference) && NumericDifference !== 0) {
+    return NumericDifference * DirectionMultiplier;
+  }
+
+  return (
+    CompareStudentCodes(FirstStudent.studentCode, SecondStudent.studentCode) ||
+    FirstStudent.studentName.localeCompare(SecondStudent.studentName, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    })
+  );
+}
+
 export function StudentSummaryTable({
   students,
   onOpen,
@@ -882,21 +924,85 @@ export function StudentSummaryTable({
   viewLabel?: string;
   viewTooltip?: string;
 }) {
+  const [SortKey, SetSortKey] = useState<StudentSummarySortKey | null>(null);
+  const [SortDirection, SetSortDirection] =
+    useState<StudentSummarySortDirection>("asc");
+
+  const SortedStudents = useMemo(() => {
+    const DefaultSorted = [...students].sort((FirstStudent, SecondStudent) =>
+      CompareStudentCodes(FirstStudent.studentCode, SecondStudent.studentCode),
+    );
+    if (!SortKey) return DefaultSorted;
+    return DefaultSorted.sort((FirstStudent, SecondStudent) =>
+      compareStudentSummaryValues(FirstStudent, SecondStudent, SortKey, SortDirection),
+    );
+  }, [students, SortDirection, SortKey]);
+
+  const ToggleSort = (Key: StudentSummarySortKey) => {
+    if (SortKey !== Key) {
+      SetSortKey(Key);
+      SetSortDirection("asc");
+      return;
+    }
+    if (SortDirection === "asc") {
+      SetSortDirection("desc");
+      return;
+    }
+    SetSortKey(null);
+    SetSortDirection("asc");
+  };
+
+  const SortHeader = ({
+    label,
+    sortKey,
+  }: {
+    label: string;
+    sortKey: StudentSummarySortKey;
+  }) => {
+    const IsActive = SortKey === sortKey;
+    const Icon = !IsActive
+      ? ArrowUpDown
+      : SortDirection === "asc"
+        ? ArrowUp
+        : ArrowDown;
+    const NextDirection = !IsActive
+      ? "ascending"
+      : SortDirection === "asc"
+        ? "descending"
+        : "default";
+    return (
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 text-left font-black uppercase tracking-[0.14em] text-inherit transition hover:text-blue-700 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-blue-200"
+        onClick={() => ToggleSort(sortKey)}
+        title={`Sort ${label} ${NextDirection}`}
+        aria-label={`Sort ${label} ${NextDirection}`}
+      >
+        <span>{label}</span>
+        <Icon
+          size={12}
+          className={IsActive ? "opacity-100" : "opacity-45"}
+          aria-hidden="true"
+        />
+      </button>
+    );
+  };
+
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="math-admin-light-student-summary-header grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
-        <div>Student</div>
-        <div>Assigned DPS</div>
-        <div>Cleared DPS</div>
-        <div>Pending DPS</div>
-        <div>Needs Re-Attempt</div>
-        <div>Average Accuracy</div>
-        <div>Last Activity</div>
+        <SortHeader label="Student" sortKey="student" />
+        <SortHeader label="Assigned DPS" sortKey="assigned" />
+        <SortHeader label="Cleared DPS" sortKey="completed" />
+        <SortHeader label="Pending DPS" sortKey="pending" />
+        <SortHeader label="Needs Re-Attempt" sortKey="below" />
+        <SortHeader label="Average Accuracy" sortKey="accuracy" />
+        <SortHeader label="Last Activity" sortKey="last" />
         <div>Action</div>
       </div>
 
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
-        {students.map((student) => {
+        {SortedStudents.map((student) => {
           const stats = studentStats(student.rows);
           return (
             <div
@@ -2815,11 +2921,11 @@ export function CompactRecordTable({
   const SemanticChipComponent = useStrongSemanticChips ? StrongSemanticChip : Chip;
   const GridColumns = hideLessonColumn
     ? showAttemptColumn
-      ? "grid-cols-[minmax(150px,1fr)_minmax(106px,.54fr)_minmax(118px,.58fr)_minmax(84px,.42fr)_minmax(96px,.48fr)_minmax(128px,.62fr)_minmax(104px,.5fr)_minmax(146px,.68fr)_minmax(116px,.54fr)]"
-      : "grid-cols-[minmax(150px,1fr)_minmax(118px,.58fr)_minmax(84px,.42fr)_minmax(96px,.48fr)_minmax(128px,.62fr)_minmax(104px,.5fr)_minmax(146px,.68fr)_minmax(116px,.54fr)]"
+      ? "grid-cols-[minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
+      : "grid-cols-[minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
     : showAttemptColumn
-      ? "grid-cols-[minmax(128px,.74fr)_minmax(150px,.92fr)_minmax(106px,.54fr)_minmax(118px,.58fr)_minmax(84px,.42fr)_minmax(96px,.48fr)_minmax(128px,.62fr)_minmax(104px,.5fr)_minmax(146px,.68fr)_minmax(116px,.54fr)]"
-      : "grid-cols-[minmax(128px,.74fr)_minmax(150px,.92fr)_minmax(118px,.58fr)_minmax(84px,.42fr)_minmax(96px,.48fr)_minmax(128px,.62fr)_minmax(104px,.5fr)_minmax(146px,.68fr)_minmax(116px,.54fr)]";
+      ? "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(112px,.58fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]"
+      : "grid-cols-[minmax(145px,.82fr)_minmax(165px,1fr)_minmax(130px,.64fr)_minmax(92px,.46fr)_minmax(104px,.52fr)_minmax(148px,.72fr)_minmax(154px,.72fr)_minmax(124px,.58fr)]";
 
   return (
     <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
@@ -2833,7 +2939,6 @@ export function CompactRecordTable({
         <div>Score</div>
         <div>Accuracy</div>
         <div>Benchmark</div>
-        <div>Time Taken</div>
         <div>Completion Date</div>
         <div>Review</div>
       </div>
@@ -2891,10 +2996,7 @@ export function CompactRecordTable({
                   return <SemanticChipComponent tone={Benchmark.tone}>{Benchmark.label}</SemanticChipComponent>;
                 })()}
               </div>
-              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                {timeTakenText(row)}
-              </div>
-              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              <div className="text-sm font-semibold text-slate-600">
                 {completedText(row)}
               </div>
               <div className="flex justify-start">
