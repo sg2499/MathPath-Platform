@@ -62,7 +62,8 @@ type LearningSortKey =
   | "score"
   | "accuracy"
   | "benchmark"
-  | "completedDate";
+  | "completedDate"
+  | "timeTaken";
 type StudentAttemptSortKey =
   | "scope"
   | "teacher"
@@ -70,7 +71,35 @@ type StudentAttemptSortKey =
   | "score"
   | "accuracy"
   | "benchmark"
-  | "completedDate";
+  | "completedDate"
+  | "timeTaken";
+type DpsHistorySortKey =
+  | "dps"
+  | "teacher"
+  | "attempt"
+  | "status"
+  | "score"
+  | "accuracy"
+  | "benchmark"
+  | "completedDate"
+  | "timeTaken";
+type AssessmentHistorySortKey =
+  | "assessment"
+  | "attempt"
+  | "status"
+  | "score"
+  | "accuracy"
+  | "completedDate"
+  | "timeTaken";
+type PromotionHistorySortKey =
+  | "fromLevel"
+  | "toLevel"
+  | "assessment"
+  | "score"
+  | "percentage"
+  | "status"
+  | "promotionDate"
+  | "promotedBy";
 type SortDirection = "asc" | "desc";
 type StudentHistoryDetailTab = "CURRENT" | "DPS" | "ASSESSMENT" | "PROMOTION";
 
@@ -166,6 +195,18 @@ function CompareSortValues(FirstValue: unknown, SecondValue: unknown) {
     numeric: true,
     sensitivity: "base",
   });
+}
+
+function SortDirectionFor<Key extends string>(
+  Key: Key,
+  ActiveKey: Key,
+  Direction: SortDirection,
+  DefaultKey: Key,
+  DefaultDirection: SortDirection,
+): { Key: Key; Direction: SortDirection } {
+  if (ActiveKey !== Key) return { Key, Direction: "asc" };
+  if (Direction === "asc") return { Key, Direction: "desc" };
+  return { Key: DefaultKey, Direction: DefaultDirection };
 }
 
 function FilterSearchRows(Rows: AnyRecord[], SearchText: string) {
@@ -843,6 +884,12 @@ export default function AdminResultsPage() {
           return PickFirstNumber(Row, ["accuracy", "accuracyPercentage"], -1);
         if (LearningSortKeyValue === "benchmark")
           return PickFirstString(Row, ["benchmarkStatus"], "");
+        if (LearningSortKeyValue === "timeTaken")
+          return PickFirstNumber(
+            Row,
+            ["timeTakenSeconds", "durationSeconds", "timeTaken"],
+            -1,
+          );
         return PickFirstString(
           Row,
           ["completedDate", "submittedAt", "startedAt"],
@@ -870,6 +917,12 @@ export default function AdminResultsPage() {
           return PickFirstNumber(Row, ["accuracyPercentage"], -1);
         if (StudentSortKeyValue === "benchmark")
           return PickFirstString(Row, ["benchmarkStatus"], "");
+        if (StudentSortKeyValue === "timeTaken")
+          return PickFirstNumber(
+            Row,
+            ["timeTakenSeconds", "durationSeconds", "timeTaken"],
+            -1,
+          );
         return PickFirstString(
           Row,
           ["completedDate", "submittedAt", "attemptDate", "startedAt"],
@@ -959,33 +1012,27 @@ export default function AdminResultsPage() {
         StudentAssessmentScopeReportQuery.isLoading));
 
   function ToggleLearningSort(Key: LearningSortKey) {
-    if (LearningSortKeyValue === Key)
-      SetSortDirectionValue((Direction) =>
-        Direction === "asc" ? "desc" : "asc",
-      );
-    else {
-      SetLearningSortKeyValue(Key);
-      SetSortDirectionValue(
-        Key === "completedDate" || Key === "score" || Key === "accuracy"
-          ? "desc"
-          : "asc",
-      );
-    }
+    const Next = SortDirectionFor(
+      Key,
+      LearningSortKeyValue,
+      SortDirectionValue,
+      "completedDate",
+      "desc",
+    );
+    SetLearningSortKeyValue(Next.Key);
+    SetSortDirectionValue(Next.Direction);
   }
 
   function ToggleStudentSort(Key: StudentAttemptSortKey) {
-    if (StudentSortKeyValue === Key)
-      SetSortDirectionValue((Direction) =>
-        Direction === "asc" ? "desc" : "asc",
-      );
-    else {
-      SetStudentSortKeyValue(Key);
-      SetSortDirectionValue(
-        Key === "completedDate" || Key === "accuracy" || Key === "score"
-          ? "desc"
-          : "asc",
-      );
-    }
+    const Next = SortDirectionFor(
+      Key,
+      StudentSortKeyValue,
+      SortDirectionValue,
+      "completedDate",
+      "desc",
+    );
+    SetStudentSortKeyValue(Next.Key);
+    SetSortDirectionValue(Next.Direction);
   }
 
   function ScopeLabel() {
@@ -1712,7 +1759,15 @@ function LearningPerformanceTable({
                 Completion Date
               </SortableHeader>
             </th>
-            <th><span className="math-table-header-label math-table-header-label-wrap">Time<br />Taken</span></th>
+            <th>
+              <SortableHeader
+                active={SortKey === "timeTaken"}
+                direction={SortDirectionValue}
+                onClick={() => ToggleSort("timeTaken")}
+              >
+                <span className="math-table-header-label-wrap">Time<br />Taken</span>
+              </SortableHeader>
+            </th>
             <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
           </tr>
         </thead>
@@ -2516,25 +2571,60 @@ function StudentHistoryView({
 }
 
 function PromotionHistoryRecordsTable({ Rows }: { Rows: AnyRecord[] }) {
-  const SortedRows = Rows.slice().sort(
-    (First, Second) =>
-      Date.parse(PickFirstString(Second, ["promotedAt"], "")) -
-      Date.parse(PickFirstString(First, ["promotedAt"], "")),
-  );
+  const DefaultSortKey: PromotionHistorySortKey = "promotionDate";
+  const DefaultSortDirection: SortDirection = "desc";
+  const [SortKey, SetSortKey] = useState<PromotionHistorySortKey>(DefaultSortKey);
+  const [SortDirectionValue, SetSortDirectionValue] =
+    useState<SortDirection>(DefaultSortDirection);
+
+  function ToggleSort(Key: PromotionHistorySortKey) {
+    const Next = SortDirectionFor(
+      Key,
+      SortKey,
+      SortDirectionValue,
+      DefaultSortKey,
+      DefaultSortDirection,
+    );
+    SetSortKey(Next.Key);
+    SetSortDirectionValue(Next.Direction);
+  }
+
+  const SortedRows = useMemo(() => {
+    const ValueFor = (Row: AnyRecord) => {
+      if (SortKey === "fromLevel")
+        return `${PickFirstString(Row, ["fromModuleCode"], "")} ${PickFirstString(Row, ["fromLevelCode"], "")}`;
+      if (SortKey === "toLevel")
+        return `${PickFirstString(Row, ["toModuleCode"], "")} ${PickFirstString(Row, ["toLevelCode"], "")}`;
+      if (SortKey === "assessment")
+        return PickFirstString(Row, ["assessmentTitle"], "");
+      if (SortKey === "score") return PickFirstNumber(Row, ["score"], -1);
+      if (SortKey === "percentage")
+        return PickFirstNumber(Row, ["percentage"], -1);
+      if (SortKey === "status")
+        return PickFirstString(Row, ["promotionStatus", "statusLabel"], "");
+      if (SortKey === "promotedBy")
+        return PickFirstString(Row, ["promotedByName"], "");
+      return PickFirstString(Row, ["promotedAt"], "");
+    };
+    return Rows.slice().sort((First, Second) => {
+      const Result = CompareSortValues(ValueFor(First), ValueFor(Second));
+      return SortDirectionValue === "asc" ? Result : -Result;
+    });
+  }, [Rows, SortKey, SortDirectionValue]);
 
   return (
     <div className="math-table math-student-history-table math-promotion-history-table">
       <table>
         <thead>
           <tr>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">From Level</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">To Level</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Assessment</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Percentage</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Promotion Date</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Promoted By</span></th>
+            <th><SortableHeader active={SortKey === "fromLevel"} direction={SortDirectionValue} onClick={() => ToggleSort("fromLevel")}>From Level</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "toLevel"} direction={SortDirectionValue} onClick={() => ToggleSort("toLevel")}>To Level</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "assessment"} direction={SortDirectionValue} onClick={() => ToggleSort("assessment")}>Assessment</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "score"} direction={SortDirectionValue} onClick={() => ToggleSort("score")}>Score</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "percentage"} direction={SortDirectionValue} onClick={() => ToggleSort("percentage")}>Percentage</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "status"} direction={SortDirectionValue} onClick={() => ToggleSort("status")}>Status</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "promotionDate"} direction={SortDirectionValue} onClick={() => ToggleSort("promotionDate")}>Promotion Date</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "promotedBy"} direction={SortDirectionValue} onClick={() => ToggleSort("promotedBy")}>Promoted By</SortableHeader></th>
           </tr>
         </thead>
         <tbody>
@@ -2543,48 +2633,22 @@ function PromotionHistoryRecordsTable({ Rows }: { Rows: AnyRecord[] }) {
             const MaxScore = PickFirstNumber(Row, ["maxScore"], 100);
             const Percentage = PickFirstNumber(Row, ["percentage"], Number.NaN);
             return (
-              <tr
-                key={`${PickFirstString(Row, ["promotionId"], "promotion")}-${Index}`}
-              >
+              <tr key={`${PickFirstString(Row, ["promotionId"], "promotion")}-${Index}`}>
                 <td>
-                  <p className="font-black">
-                    {PickFirstString(Row, ["fromLevelCode"], "-")}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {PickFirstString(Row, ["fromModuleCode"], "-")}
-                  </p>
+                  <p className="font-black">{PickFirstString(Row, ["fromLevelCode"], "-")}</p>
+                  <p className="text-xs text-slate-500">{PickFirstString(Row, ["fromModuleCode"], "-")}</p>
                 </td>
                 <td>
-                  <p className="font-black">
-                    {PickFirstString(Row, ["toLevelCode"], "-")}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {PickFirstString(Row, ["toModuleCode"], "-")}
-                  </p>
+                  <p className="font-black">{PickFirstString(Row, ["toLevelCode"], "-")}</p>
+                  <p className="text-xs text-slate-500">{PickFirstString(Row, ["toModuleCode"], "-")}</p>
                 </td>
-                <td>
-                  <p className="font-black">
-                    {PickFirstString(Row, ["assessmentTitle"], "Assessment")}
-                  </p>
-                </td>
-                <td>
-                  <ScoreValueChip Score={Score} MaxScore={MaxScore} />
-                </td>
-                <td>
-                  <AccuracyValueChip Accuracy={Percentage} />
-                </td>
+                <td><p className="font-black">{PickFirstString(Row, ["assessmentTitle"], "Assessment")}</p></td>
+                <td><ScoreValueChip Score={Score} MaxScore={MaxScore} /></td>
+                <td><AccuracyValueChip Accuracy={Percentage} /></td>
                 <td className="math-table-chip-cell">
-                  <PromotionChip
-                    Label={PickFirstString(
-                      Row,
-                      ["promotionStatus", "statusLabel"],
-                      "Promoted",
-                    )}
-                  />
+                  <PromotionChip Label={PickFirstString(Row, ["promotionStatus", "statusLabel"], "Promoted")} />
                 </td>
-                <td className="math-history-date-cell">
-                  {FormatDate(PickFirstString(Row, ["promotedAt"], "-"))}
-                </td>
+                <td className="math-history-date-cell">{FormatDate(PickFirstString(Row, ["promotedAt"], "-"))}</td>
                 <td className="math-history-owner-cell math-promoted-by-cell">{PickFirstString(Row, ["promotedByName"], "Admin")}</td>
               </tr>
             );
@@ -2674,106 +2738,94 @@ function DpsAttemptRecordsTable({
   Rows: AnyRecord[];
   Router: ReturnType<typeof useRouter>;
 }) {
-  const SortedRows = Rows.slice().sort(
-    (First, Second) => AttemptSortTime(Second) - AttemptSortTime(First),
-  );
+  const DefaultSortKey: DpsHistorySortKey = "completedDate";
+  const DefaultSortDirection: SortDirection = "desc";
+  const [SortKey, SetSortKey] = useState<DpsHistorySortKey>(DefaultSortKey);
+  const [SortDirectionValue, SetSortDirectionValue] =
+    useState<SortDirection>(DefaultSortDirection);
+
+  function ToggleSort(Key: DpsHistorySortKey) {
+    const Next = SortDirectionFor(
+      Key,
+      SortKey,
+      SortDirectionValue,
+      DefaultSortKey,
+      DefaultSortDirection,
+    );
+    SetSortKey(Next.Key);
+    SetSortDirectionValue(Next.Direction);
+  }
+
+  const SortedRows = useMemo(() => {
+    const ValueFor = (Row: AnyRecord) => {
+      if (SortKey === "dps") return PickFirstNumber(Row, ["dpsNumber"], 0);
+      if (SortKey === "teacher")
+        return `${PickFirstString(Row, ["teacherName"], "")} ${PickFirstString(Row, ["teacherCode"], "")}`;
+      if (SortKey === "attempt") return AttemptLabel(Row);
+      if (SortKey === "status") return AttemptDisplayStatus(Row);
+      if (SortKey === "score") return PickFirstNumber(Row, ["score"], -1);
+      if (SortKey === "accuracy")
+        return PickFirstNumber(Row, ["accuracyPercentage"], -1);
+      if (SortKey === "benchmark")
+        return PickFirstString(Row, ["benchmarkStatus"], "");
+      if (SortKey === "timeTaken")
+        return PickFirstNumber(Row, ["timeTakenSeconds", "durationSeconds", "timeTaken"], -1);
+      return PickFirstString(Row, ["completedDate", "submittedAt"], "");
+    };
+    return Rows.slice().sort((First, Second) => {
+      const Result = CompareSortValues(ValueFor(First), ValueFor(Second));
+      return SortDirectionValue === "asc" ? Result : -Result;
+    });
+  }, [Rows, SortKey, SortDirectionValue]);
+
   return (
     <div className="math-table math-student-history-table math-dps-history-table">
       <table>
         <thead>
           <tr>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">DPS</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Teacher</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Attempt</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Accuracy</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Benchmark</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Completion Date</span></th>
-            <th><span className="math-table-header-label math-table-header-label-wrap">Time<br />Taken</span></th>
+            <th><SortableHeader active={SortKey === "dps"} direction={SortDirectionValue} onClick={() => ToggleSort("dps")}>DPS</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "teacher"} direction={SortDirectionValue} onClick={() => ToggleSort("teacher")}>Teacher</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "attempt"} direction={SortDirectionValue} onClick={() => ToggleSort("attempt")}>Attempt</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "status"} direction={SortDirectionValue} onClick={() => ToggleSort("status")}>Status</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "score"} direction={SortDirectionValue} onClick={() => ToggleSort("score")}>Score</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "accuracy"} direction={SortDirectionValue} onClick={() => ToggleSort("accuracy")}>Accuracy</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "benchmark"} direction={SortDirectionValue} onClick={() => ToggleSort("benchmark")}>Benchmark</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "completedDate"} direction={SortDirectionValue} onClick={() => ToggleSort("completedDate")}>Completion Date</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "timeTaken"} direction={SortDirectionValue} onClick={() => ToggleSort("timeTaken")}><span className="math-table-header-label-wrap">Time<br />Taken</span></SortableHeader></th>
             <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
           </tr>
         </thead>
         <tbody>
           {SortedRows.map((Row, Index) => {
-            const AttemptId = PickFirstString(
-              Row,
-              ["attemptId"],
-              `attempt-${Index}`,
-            );
+            const AttemptId = PickFirstString(Row, ["attemptId"], `attempt-${Index}`);
             const Score = PickFirstNumber(Row, ["score"], Number.NaN);
             const MaxScore = PickFirstNumber(Row, ["maxScore"], Number.NaN);
-            const Accuracy = PickFirstNumber(
-              Row,
-              ["accuracyPercentage"],
-              Number.NaN,
-            );
-            const RequiresAttention =
-              String(PickFirstString(Row, ["requiresAttention"], "false")) ===
-              "true";
+            const Accuracy = PickFirstNumber(Row, ["accuracyPercentage"], Number.NaN);
+            const RequiresAttention = String(PickFirstString(Row, ["requiresAttention"], "false")) === "true";
             return (
               <tr key={AttemptId}>
+                <td><p className="font-black">DPS {PickFirstNumber(Row, ["dpsNumber"], 0) || "-"}</p></td>
                 <td>
-                  <p className="font-black">
-                    DPS {PickFirstNumber(Row, ["dpsNumber"], 0) || "-"}
-                  </p>
-                </td>
-                <td>
-                  <p className="font-black">
-                    {PickFirstString(Row, ["teacherName"], "Not Assigned")}
-                  </p>
+                  <p className="font-black">{PickFirstString(Row, ["teacherName"], "Not Assigned")}</p>
                   {PickFirstString(Row, ["teacherCode"], "") ? (
-                    <p className="text-xs text-slate-500">
-                      {PickFirstString(Row, ["teacherCode"], "")}
-                    </p>
+                    <p className="text-xs text-slate-500">{PickFirstString(Row, ["teacherCode"], "")}</p>
                   ) : null}
                 </td>
-                <td className="math-table-chip-cell">
-                  <AttemptChip Label={AttemptLabel(Row)} />
-                </td>
-                <td className="math-table-chip-cell">
-                  <StatusChip Label={AttemptDisplayStatus(Row)} />
-                </td>
-                <td className="math-table-chip-cell">
-                  <ScoreValueChip Score={Score} MaxScore={MaxScore} />
-                </td>
-                <td className="math-table-chip-cell">
-                  <AccuracyValueChip Accuracy={Accuracy} />
-                </td>
+                <td className="math-table-chip-cell"><AttemptChip Label={AttemptLabel(Row)} /></td>
+                <td className="math-table-chip-cell"><StatusChip Label={AttemptDisplayStatus(Row)} /></td>
+                <td className="math-table-chip-cell"><ScoreValueChip Score={Score} MaxScore={MaxScore} /></td>
+                <td className="math-table-chip-cell"><AccuracyValueChip Accuracy={Accuracy} /></td>
                 <td className="math-table-chip-cell">
                   <BenchmarkBadge
-                    status={PickFirstString(
-                      Row,
-                      ["benchmarkStatus"],
-                      "PENDING",
-                    )}
+                    status={PickFirstString(Row, ["benchmarkStatus"], "PENDING")}
                     requiresAttention={RequiresAttention}
-                    percentage={PickFirstNumber(
-                      Row,
-                      ["benchmarkPercentage"],
-                      70,
-                    )}
+                    percentage={PickFirstNumber(Row, ["benchmarkPercentage"], 70)}
                   />
                 </td>
-                <td className="math-history-date-cell">
-                  {FormatDate(
-                    PickFirstString(Row, ["completedDate", "submittedAt"], "-"),
-                  )}
-                </td>
+                <td className="math-history-date-cell">{FormatDate(PickFirstString(Row, ["completedDate", "submittedAt"], "-"))}</td>
+                <td>{FormatTimeTaken(PickFirstNumber(Row, ["timeTakenSeconds", "durationSeconds", "timeTaken"], Number.NaN))}</td>
                 <td>
-                  {FormatTimeTaken(
-                    PickFirstNumber(
-                      Row,
-                      ["timeTakenSeconds", "durationSeconds", "timeTaken"],
-                      Number.NaN,
-                    ),
-                  )}
-                </td>
-                <td>
-                  <button
-                    className="math-role-action-button math-history-review-button"
-                    onClick={() => Router.push(`/admin/results/${AttemptId}`)}
-                  >
+                  <button className="math-role-action-button math-history-review-button" onClick={() => Router.push(`/admin/results/${AttemptId}`)}>
                     <Eye size={14} />
                     <span>View</span>
                   </button>
@@ -2794,94 +2846,81 @@ function AssessmentAttemptRecordsTable({
   Rows: AnyRecord[];
   Router: ReturnType<typeof useRouter>;
 }) {
-  const SortedRows = Rows.slice().sort(
-    (First, Second) => AttemptSortTime(Second) - AttemptSortTime(First),
-  );
+  const DefaultSortKey: AssessmentHistorySortKey = "completedDate";
+  const DefaultSortDirection: SortDirection = "desc";
+  const [SortKey, SetSortKey] = useState<AssessmentHistorySortKey>(DefaultSortKey);
+  const [SortDirectionValue, SetSortDirectionValue] =
+    useState<SortDirection>(DefaultSortDirection);
+
+  function ToggleSort(Key: AssessmentHistorySortKey) {
+    const Next = SortDirectionFor(
+      Key,
+      SortKey,
+      SortDirectionValue,
+      DefaultSortKey,
+      DefaultSortDirection,
+    );
+    SetSortKey(Next.Key);
+    SetSortDirectionValue(Next.Direction);
+  }
+
+  const SortedRows = useMemo(() => {
+    const ValueFor = (Row: AnyRecord) => {
+      if (SortKey === "assessment")
+        return PickFirstString(Row, ["assessmentTitle", "assignmentTitle"], "Assessment");
+      if (SortKey === "attempt") return AttemptLabel(Row);
+      if (SortKey === "status") return AttemptDisplayStatus(Row);
+      if (SortKey === "score") return PickFirstNumber(Row, ["score"], -1);
+      if (SortKey === "accuracy")
+        return PickFirstNumber(Row, ["accuracyPercentage", "percentage"], -1);
+      if (SortKey === "timeTaken")
+        return PickFirstNumber(Row, ["timeTakenSeconds", "durationSeconds", "timeTaken"], -1);
+      return PickFirstString(Row, ["completedDate", "submittedAt"], "");
+    };
+    return Rows.slice().sort((First, Second) => {
+      const Result = CompareSortValues(ValueFor(First), ValueFor(Second));
+      return SortDirectionValue === "asc" ? Result : -Result;
+    });
+  }, [Rows, SortKey, SortDirectionValue]);
+
   return (
     <div className="math-table math-student-history-table math-assessment-history-table">
       <table>
         <thead>
           <tr>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Assessment</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Attempt</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Status</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Score</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Accuracy</span></th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Completion Date</span></th>
-            <th><span className="math-table-header-label math-table-header-label-wrap">Time<br />Taken</span></th>
+            <th><SortableHeader active={SortKey === "assessment"} direction={SortDirectionValue} onClick={() => ToggleSort("assessment")}>Assessment</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "attempt"} direction={SortDirectionValue} onClick={() => ToggleSort("attempt")}>Attempt</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "status"} direction={SortDirectionValue} onClick={() => ToggleSort("status")}>Status</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "score"} direction={SortDirectionValue} onClick={() => ToggleSort("score")}>Score</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "accuracy"} direction={SortDirectionValue} onClick={() => ToggleSort("accuracy")}>Accuracy</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "completedDate"} direction={SortDirectionValue} onClick={() => ToggleSort("completedDate")}>Completion Date</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "timeTaken"} direction={SortDirectionValue} onClick={() => ToggleSort("timeTaken")}><span className="math-table-header-label-wrap">Time<br />Taken</span></SortableHeader></th>
             <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
           </tr>
         </thead>
         <tbody>
           {SortedRows.map((Row, Index) => {
             const Score = PickFirstNumber(Row, ["score"], Number.NaN);
-            const MaxScore = PickFirstNumber(
-              Row,
-              ["maxScore", "totalMarks"],
-              Number.NaN,
-            );
-            const Accuracy = PickFirstNumber(
-              Row,
-              ["accuracyPercentage", "percentage"],
-              Number.NaN,
-            );
-            const AttemptId = PickFirstString(
-              Row,
-              ["attemptId", "assessmentAttemptId"],
-              "",
-            );
+            const MaxScore = PickFirstNumber(Row, ["maxScore", "totalMarks"], Number.NaN);
+            const Accuracy = PickFirstNumber(Row, ["accuracyPercentage", "percentage"], Number.NaN);
+            const AttemptId = PickFirstString(Row, ["attemptId", "assessmentAttemptId"], "");
             return (
-              <tr
-                key={`${PickFirstString(Row, ["attemptId", "assessmentAttemptId"], "assessment")}-${Index}`}
-              >
+              <tr key={`${PickFirstString(Row, ["attemptId", "assessmentAttemptId"], "assessment")}-${Index}`}>
                 <td>
-                  <p className="font-black">
-                    {PickFirstString(
-                      Row,
-                      ["assessmentTitle", "assignmentTitle"],
-                      "Assessment",
-                    )}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {PickFirstString(Row, ["moduleCode"], "-")} →{" "}
-                    {PickFirstString(Row, ["levelCode"], "-")}
-                  </p>
+                  <p className="font-black">{PickFirstString(Row, ["assessmentTitle", "assignmentTitle"], "Assessment")}</p>
+                  <p className="text-xs text-slate-500">{PickFirstString(Row, ["moduleCode"], "-")} → {PickFirstString(Row, ["levelCode"], "-")}</p>
                 </td>
-                <td className="math-table-chip-cell">
-                  <AttemptChip Label={AttemptLabel(Row)} />
-                </td>
-                <td className="math-table-chip-cell">
-                  <StatusChip Label={AttemptDisplayStatus(Row)} />
-                </td>
-                <td className="math-table-chip-cell">
-                  <ScoreValueChip Score={Score} MaxScore={MaxScore} />
-                </td>
-                <td className="math-table-chip-cell">
-                  <AccuracyValueChip Accuracy={Accuracy} />
-                </td>
-                <td className="math-history-date-cell">
-                  {FormatDate(
-                    PickFirstString(Row, ["completedDate", "submittedAt"], "-"),
-                  )}
-                </td>
-                <td>
-                  {FormatTimeTaken(
-                    PickFirstNumber(
-                      Row,
-                      ["timeTakenSeconds", "durationSeconds", "timeTaken"],
-                      Number.NaN,
-                    ),
-                  )}
-                </td>
+                <td className="math-table-chip-cell"><AttemptChip Label={AttemptLabel(Row)} /></td>
+                <td className="math-table-chip-cell"><StatusChip Label={AttemptDisplayStatus(Row)} /></td>
+                <td className="math-table-chip-cell"><ScoreValueChip Score={Score} MaxScore={MaxScore} /></td>
+                <td className="math-table-chip-cell"><AccuracyValueChip Accuracy={Accuracy} /></td>
+                <td className="math-history-date-cell">{FormatDate(PickFirstString(Row, ["completedDate", "submittedAt"], "-"))}</td>
+                <td>{FormatTimeTaken(PickFirstNumber(Row, ["timeTakenSeconds", "durationSeconds", "timeTaken"], Number.NaN))}</td>
                 <td>
                   {AttemptId ? (
                     <button
                       className="math-role-action-button math-history-review-button"
-                      onClick={() =>
-                        Router.push(
-                          `/assessment-result/${AttemptId}?viewer=admin`,
-                        )
-                      }
+                      onClick={() => Router.push(`/assessment-result/${AttemptId}?viewer=admin`)}
                     >
                       <Eye size={14} />
                       <span>View</span>
