@@ -212,16 +212,17 @@ function DecimalAlignedVerticalQuestion({ operands, operators }: { operands: Arr
   const MaxIntegerLength = Math.max(1, ...Rows.map((Row) => Row.integerPart.length));
   const MaxDecimalLength = Math.max(1, ...Rows.map((Row) => Row.decimalPart.length));
   const IntegerWidth = `${Math.max(2.5, MaxIntegerLength * 0.78)}em`;
-  const DecimalWidth = `${Math.max(1.5, MaxDecimalLength * 0.78)}em`;
+  const DecimalWidth = `${Math.max(1.75, MaxDecimalLength * 0.82)}em`;
+  const DecimalPointWidth = "0.7rem";
 
   return (
     <div className="mx-auto w-fit rounded-[20px] bg-white px-4 py-4 text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5 sm:py-4">
       <div className="font-mono text-[26px] font-black leading-[1.18] sm:text-[32px]">
         {Rows.map((Row, Index) => (
-          <div key={`${Row.operator}-${Row.integerPart}-${Row.decimalPart}-${Index}`} className="grid items-baseline gap-0.5" style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} 0.35rem ${DecimalWidth}` }}>
+          <div key={`${Row.operator}-${Row.integerPart}-${Row.decimalPart}-${Index}`} className="grid items-baseline gap-0.5" style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} ${DecimalPointWidth} ${DecimalWidth}` }}>
             <span className="text-center">{Row.operator}</span>
             <span className="text-right tabular-nums">{Row.integerPart}</span>
-            <span className="text-center">.</span>
+            <span className="px-1 text-center font-black text-slate-950 dark:text-white">.</span>
             <span className="text-left tabular-nums">{Row.decimalPart.padEnd(MaxDecimalLength, "0")}</span>
           </div>
         ))}
@@ -229,7 +230,7 @@ function DecimalAlignedVerticalQuestion({ operands, operators }: { operands: Arr
 
       <div className="my-2.5 border-t-[3px] border-slate-800 dark:border-slate-200" />
 
-      <div className="grid items-baseline gap-0.5 text-right font-mono text-[26px] font-black text-blue-700 dark:text-cyan-300 sm:text-[32px]" style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} 0.35rem ${DecimalWidth}` }}>
+      <div className="grid items-baseline gap-0.5 text-right font-mono text-[26px] font-black text-blue-700 dark:text-cyan-300 sm:text-[32px]" style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} ${DecimalPointWidth} ${DecimalWidth}` }}>
         <span />
         <span />
         <span />
