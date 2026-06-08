@@ -13,7 +13,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   BarChart3,
-  CalendarClock,
   CheckCircle2,
   Clock,
   Eye,
@@ -122,8 +121,8 @@ export default function AdminAssignmentDetailPage() {
                 <UserRound size={22} />
               </div>
               <div>
-                <h2 className="text-3xl font-black text-slate-950">Assigned Students</h2>
-                <p className="text-slate-600">completion date, attempt date, completion date, and scores.</p>
+                <h2 className="text-3xl font-black text-slate-950">Student Attempt Summary</h2>
+                <p className="text-slate-600">Review student status, score, benchmark, time taken, and re-attempt action for this assignment.</p>
               </div>
             </div>
 
@@ -194,63 +193,6 @@ export default function AdminAssignmentDetailPage() {
               </div>
             ) : (
               <EmptyState message="No assigned student list is available for this assignment target yet." />
-            )}
-          </section>
-
-          <section>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="rounded-2xl bg-cyan-50 p-3 text-cyan-700">
-                <CalendarClock size={22} />
-              </div>
-              <div>
-                <h2 className="text-3xl font-black text-slate-950">Attempt History</h2>
-                <p className="text-slate-600">Every submitted or in-progress attempt for this assignment.</p>
-              </div>
-            </div>
-
-            {data?.attempts?.length ? (
-              <div className="math-table math-assignment-detail-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Student</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Status</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Score</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Correct</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Benchmark</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Time Taken</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Attempt Date</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Completion Date</span></th>
-                      <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Review</span></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.attempts.map((attempt) => (
-                      <tr key={attempt.attemptId}>
-                        <td>
-                          <p className="font-black text-slate-950">{attempt.studentName}</p>
-                          <p className="text-xs text-slate-500">{attempt.studentCode}</p>
-                        </td>
-                        <td><SemanticChip Value={attempt.status} Tone={StatusTone(attempt.status, attempt.requiresAttention)} /></td>
-                        <td><PerformanceChip Value={`${RoundedDisplay(attempt.score)} / ${RoundedDisplay(attempt.maxScore)}`} Tone={ScoreTone(attempt.score, attempt.maxScore)} /></td>
-                        <td><PerformanceChip Value={RoundedDisplay(attempt.correct)} Tone={Number.isFinite(Number(attempt.correct)) ? "blue" : "slate"} /></td>
-                        <td><BenchmarkChip Status={attempt.benchmarkStatus} RequiresAttention={attempt.requiresAttention} /></td>
-                        <td>{formatTimeTaken(attempt.timeTakenSeconds)}</td>
-                        <td>{formatDate(attempt.attemptDate || attempt.startedAt)}</td>
-                        <td>{formatDate(attempt.completedDate || attempt.submittedAt)}</td>
-                        <td>
-                          <button className="math-role-action-button px-3 py-2" onClick={() => router.push(`/admin/results/${attempt.attemptId}`)}>
-                            <Eye size={15} />
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <EmptyState message="No attempts have been made for this assignment yet." />
             )}
           </section>
         </div>
