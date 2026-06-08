@@ -58,7 +58,7 @@ import type { FormEvent, ReactNode } from "react";
 const DEFAULT_PASSWORD = "Student@123";
 const PAGE_SIZE = 20;
 
-type StudentSortKey = "studentCode" | "studentName" | "className" | "teacher" | "level" | "status";
+type StudentSortKey = "studentCode" | "studentName" | "className" | "teacher" | "level" | "fatherMobile" | "status";
 
 type SortDirection = "asc" | "desc";
 
@@ -147,7 +147,7 @@ export default function AdminStudentsPage() {
   const [teacherFilter, setTeacherFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "teacher-filter"), "");
   const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "level-filter"), "");
   const [page, setPage] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "page"), 1);
-  const [sortKey, setSortKey] = usePersistentUiState<StudentSortKey>(CreatePersistedUiStateKey(StudentDirectoryStateKey, "sort-key"), "studentCode");
+  const [sortKey, setSortKey] = usePersistentUiState<StudentSortKey | "DEFAULT">(CreatePersistedUiStateKey(StudentDirectoryStateKey, "sort-key"), "DEFAULT");
   const [sortDirection, setSortDirection] = usePersistentUiState<SortDirection>(CreatePersistedUiStateKey(StudentDirectoryStateKey, "sort-direction"), "asc");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
@@ -423,13 +423,20 @@ export default function AdminStudentsPage() {
       return matchesTeacher && MatchesLevel && matchesSearch;
     });
 
-    return filteredRows.slice().sort((a, b) => {
+    const DefaultSortedRows = filteredRows.slice().sort((a, b) =>
+      compareSortValues(a.studentCode || a.customId || a.studentName, b.studentCode || b.customId || b.studentName)
+    );
+
+    if (sortKey === "DEFAULT") return DefaultSortedRows;
+
+    return DefaultSortedRows.sort((a, b) => {
       const valueFor = (student: AdminStudent) => {
         if (sortKey === "studentCode") return student.studentCode;
         if (sortKey === "studentName") return student.studentName;
         if (sortKey === "className") return `${student.className || ""} ${student.section || ""}`;
         if (sortKey === "teacher") return student.teacher;
         if (sortKey === "level") return student.currentLevelCode;
+        if (sortKey === "fatherMobile") return student.fatherMobile;
         return student.isActive ? "ACTIVE" : "INACTIVE";
       };
       const result = compareSortValues(valueFor(a), valueFor(b));
@@ -441,12 +448,21 @@ export default function AdminStudentsPage() {
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function toggleSort(key: StudentSortKey) {
-    if (sortKey === key) {
-      setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
-    } else {
+    if (sortKey !== key) {
       setSortKey(key);
       setSortDirection("asc");
+      setPage(1);
+      return;
     }
+
+    if (sortDirection === "asc") {
+      setSortDirection("desc");
+      setPage(1);
+      return;
+    }
+
+    setSortKey("DEFAULT");
+    setSortDirection("asc");
     setPage(1);
   }
 
@@ -894,7 +910,7 @@ export default function AdminStudentsPage() {
                   <th><SortableHeader active={sortKey === "className"} direction={sortDirection} onClick={() => toggleSort("className")}>Class</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "teacher"} direction={sortDirection} onClick={() => toggleSort("teacher")}>Teacher</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "level"} direction={sortDirection} onClick={() => toggleSort("level")}>Level</SortableHeader></th>
-                  <th>Father Mobile</th>
+                  <th><SortableHeader active={sortKey === "fatherMobile"} direction={sortDirection} onClick={() => toggleSort("fatherMobile")}>Father Mobile</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => toggleSort("status")}>Status</SortableHeader></th>
                   <th>Action</th>
                 </tr>
