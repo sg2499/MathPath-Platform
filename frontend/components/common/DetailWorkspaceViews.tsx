@@ -638,6 +638,32 @@ export function completedText(row: AnyRow) {
   return rowDate(row, MATHPATH_COMPLETION_TIMESTAMP_KEYS as unknown as string[]);
 }
 
+export function formatTimeTakenDuration(Value?: number | string | null) {
+  const Seconds = Math.round(Number(Value));
+  if (!Number.isFinite(Seconds) || Seconds <= 0) return "-";
+
+  const Minutes = Math.floor(Seconds / 60);
+  const RemainingSeconds = Seconds % 60;
+
+  const MinuteText = Minutes === 1 ? "Min" : "Mins";
+  const SecondText = RemainingSeconds === 1 ? "Sec" : "Secs";
+
+  if (Minutes <= 0) return `${RemainingSeconds} ${SecondText}`;
+  if (RemainingSeconds <= 0) return `${Minutes} ${MinuteText}`;
+
+  return `${Minutes} ${MinuteText} ${RemainingSeconds} ${SecondText}`;
+}
+
+export function timeTakenText(row: AnyRow) {
+  const RawValue =
+    row.timeTakenSeconds ??
+    row.timeTaken ??
+    row.time_taken_seconds ??
+    row.durationTakenSeconds ??
+    row.elapsedSeconds;
+  return formatTimeTakenDuration(RawValue);
+}
+
 export function latestActivity(rows: AnyRow[]) {
   return formatMathPathActivityDateTime(rows);
 }
