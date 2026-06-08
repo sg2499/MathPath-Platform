@@ -110,6 +110,12 @@ def _DigitCount(Value: object) -> int | None:
     return len(str(IntegerValue)) if IntegerValue != 0 else 1
 
 
+def _NumericDigitCount(Value: object) -> int:
+    if not _IsNumeric(Value):
+        return 0
+    return len("".join(Character for Character in format(_DecimalValue(Value), "f") if Character.isdigit()))
+
+
 def _DecimalRemovalIntegerAndPlaces(Value: object) -> tuple[int, int] | None:
     if not _IsNumeric(Value):
         return None
@@ -302,6 +308,10 @@ def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: lis
         return False
     if Base < 0 or Percent < 0:
         return False
+    if Operators[1] == "×%" and _NumericDigitCount(Base) > 6:
+        return False
+    if Operators[1] == "-%" and (Base != Base.to_integral_value() or Percent != Percent.to_integral_value()):
+        return False
     PercentValue = Base * Percent / Decimal(100)
     ExpectedAnswer = PercentValue if Operators[1] == "×%" else Base - PercentValue
     ExpectedAnswer = ExpectedAnswer.quantize(Decimal("0.01"))
@@ -376,7 +386,13 @@ def _ValidateAddLessQuestion(Config: MMConfig, Operands: list[int | float | str]
     HasNegativeRow = any(Decimal(str(Value)) < 0 for Value in Operands)
 
     if Mode == "NEGATIVE_ONLY":
-        return HasPositiveRow and HasNegativeRow and CorrectAnswer < 0
+        if not (HasPositiveRow and HasNegativeRow and CorrectAnswer < 0):
+            return False
+        for Value in Operands:
+            Magnitude = abs(_DecimalValue(Value))
+            if Magnitude != Magnitude.to_integral_value() or Magnitude < Decimal(1000) or Magnitude > Decimal(99999):
+                return False
+        return True
 
     if Mode == "MIXED_POSITIVE_NEGATIVE":
         return HasPositiveRow and HasNegativeRow
@@ -409,7 +425,9 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
         if not RadicandText.isdigit():
             return False
         TargetDigits = _CubeRootRadicandDigitTargets(Config)
-        if TargetDigits and len(RadicandText) not in set(TargetDigits):
+        if len(RadicandText) > 6:
+            return False
+        if TargetDigits and len(RadicandText) not in set(Target for Target in TargetDigits if Target <= 6):
             return False
         return True
     if Config.ConceptFamily == "MIXED_SQUARE_CUBE":
@@ -418,23 +436,32 @@ def _ValidatePackage3Compact(Config: MMConfig, Operands: list[int | float | str]
         # Some workbook sheets combine cubes, squares, and cube-root sections under
         # one compact mixed title. Accept all compact power/root forms so preview
         # generation never fails for those mapped sheets.
+        if Text.startswith("∛"):
+            RadicandText = Text.replace("∛", "", 1).strip()
+            if not RadicandText.isdigit() or len(RadicandText) > 6:
+                return False
         return (Text.startswith("√") or Text.startswith("∛") or "²" in Text or "³" in Text) and CorrectAnswer >= 0
     return False
 
 
 def _ValidateFinancialQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
+    MoneyCap = Decimal("50000")
     if Config.ConceptFamily == "SIMPLE_INTEREST":
         if len(Operands) != 3 or Operators != ["Principal", "Term (Years)", "Rate of Interest"]:
             return False
         Principal, Term, Rate = [_DecimalValue(Value) for Value in Operands]
+        if Principal <= 0 or Principal > Decimal("99999") or Term <= 0 or Term > Decimal("9") or Rate < Decimal("1") or Rate > Decimal("9"):
+            return False
+        if Principal != Principal.to_integral_value() or Term != Term.to_integral_value() or Rate != Rate.to_integral_value():
+            return False
         ExpectedAnswer = (Principal * Term * Rate / Decimal(100)).quantize(Decimal("0.01"))
-        return Principal > 0 and Term > 0 and Rate > 0 and CorrectAnswer.quantize(Decimal("0.01")) == ExpectedAnswer
+        return CorrectAnswer.quantize(Decimal("0.01")) == ExpectedAnswer
 
     if Config.ConceptFamily == "PROFIT_LOSS":
         if len(Operands) != 2 or Operators != ["Cost Price", "Selling Price"]:
             return False
         CostPrice, SellingPrice = [_DecimalValue(Value) for Value in Operands]
-        if CostPrice <= 0 or SellingPrice <= 0 or CostPrice == SellingPrice or CorrectAnswer < 0:
+        if CostPrice <= 0 or SellingPrice <= 0 or CostPrice > MoneyCap or SellingPrice > MoneyCap or CostPrice == SellingPrice or CorrectAnswer < 0:
             return False
         Difference = abs(SellingPrice - CostPrice).quantize(Decimal("0.01"))
         Percentage = (Difference / CostPrice * Decimal(100)).quantize(Decimal("0.01"))
@@ -446,17 +473,19 @@ def _ValidateFinancialQuestion(Config: MMConfig, Operands: list[int | float | st
             return False
         CostPrice, Percent = [_DecimalValue(Value) for Value in Operands]
         ExpectedAnswer = CostPrice + (CostPrice * Percent / Decimal(100)) if Operators[1] == "Profit %" else CostPrice - (CostPrice * Percent / Decimal(100))
-        return CostPrice > 0 and Percent > 0 and CorrectAnswer.quantize(Decimal("0.01")) == ExpectedAnswer.quantize(Decimal("0.01"))
+        return CostPrice > 0 and CostPrice <= MoneyCap and Decimal(0) < Percent < Decimal(100) and CorrectAnswer <= MoneyCap and CorrectAnswer.quantize(Decimal("0.01")) == ExpectedAnswer.quantize(Decimal("0.01"))
 
     if Config.ConceptFamily == "FIND_COST_PRICE":
         if len(Operands) != 2 or Operators[0] != "Selling Price" or Operators[1] not in {"Profit %", "Loss %"}:
             return False
         SellingPrice, Percent = [_DecimalValue(Value) for Value in Operands]
+        if SellingPrice <= 0 or SellingPrice > MoneyCap or not (Decimal(0) < Percent < Decimal(100)):
+            return False
         if Operators[1] == "Profit %":
             ExpectedAnswer = SellingPrice / (Decimal(1) + (Percent / Decimal(100)))
         else:
             ExpectedAnswer = SellingPrice / (Decimal(1) - (Percent / Decimal(100)))
-        return SellingPrice > 0 and Decimal(0) < Percent < Decimal(100) and abs(CorrectAnswer - ExpectedAnswer) < Decimal("0.02")
+        return ExpectedAnswer <= MoneyCap and abs(CorrectAnswer - ExpectedAnswer) < Decimal("0.02")
 
     return False
 

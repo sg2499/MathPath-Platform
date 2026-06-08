@@ -21,6 +21,13 @@ type MathQuestionDisplayProps = {
   questionText?: string | null;
 };
 
+type DecimalStackRow = {
+  operator: string;
+  integerPart: string;
+  decimalPart: string;
+  hasDecimal: boolean;
+};
+
 function NormaliseDisplayType(DisplayType: DisplayMode): string {
   return String(DisplayType || "VERTICAL").trim().toUpperCase();
 }
@@ -28,7 +35,7 @@ function NormaliseDisplayType(DisplayType: DisplayMode): string {
 function FormatValue(Value: number | string): string {
   if (typeof Value === "number") {
     if (Number.isInteger(Value)) return String(Value);
-    return String(Number(Value.toFixed(6))).replace(/\.0+$/, "");
+    return String(Number(Value.toFixed(8))).replace(/\.0+$/, "");
   }
   return String(Value);
 }
@@ -95,7 +102,6 @@ function ExpressionQuestion({
     </div>
   );
 }
-
 
 function CompactExpressionQuestion({
   operands,
@@ -177,6 +183,61 @@ function CompactTwoColumnQuestion({
   );
 }
 
+function IsDecimalStackCandidate(operands: Array<number | string>, operators: string[]): boolean {
+  if (!operands.length || operands.length !== operators.length) return false;
+  if (operators.some((Operator) => !["", "+", "-", "−"].includes(String(Operator || "").trim()))) return false;
+  return operands.some((Operand) => FormatValue(Operand).includes("."));
+}
+
+function BuildDecimalStackRows(operands: Array<number | string>, operators: string[]): DecimalStackRow[] {
+  return operands.map((Operand, Index) => {
+    const RawValue = FormatValue(Operand).trim();
+    const IsNegative = RawValue.startsWith("-");
+    const CleanValue = IsNegative ? RawValue.slice(1) : RawValue;
+    const [IntegerPart, DecimalPart = ""] = CleanValue.split(".");
+    const RawOperator = Index === 0 ? "" : String(operators[Index] || "").trim();
+    const Operator = IsNegative || RawOperator === "-" || RawOperator === "−" ? "−" : "";
+
+    return {
+      operator: Operator,
+      integerPart: IntegerPart || "0",
+      decimalPart: DecimalPart,
+      hasDecimal: CleanValue.includes("."),
+    };
+  });
+}
+
+function DecimalAlignedVerticalQuestion({ operands, operators }: { operands: Array<number | string>; operators: string[] }) {
+  const Rows = BuildDecimalStackRows(operands, operators);
+  const MaxIntegerLength = Math.max(1, ...Rows.map((Row) => Row.integerPart.length));
+  const MaxDecimalLength = Math.max(1, ...Rows.map((Row) => Row.decimalPart.length));
+  const IntegerWidth = `${Math.max(2.5, MaxIntegerLength * 0.78)}em`;
+  const DecimalWidth = `${Math.max(1.5, MaxDecimalLength * 0.78)}em`;
+
+  return (
+    <div className="mx-auto w-fit rounded-[20px] bg-white px-4 py-4 text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5 sm:py-4">
+      <div className="font-mono text-[26px] font-black leading-[1.18] sm:text-[32px]">
+        {Rows.map((Row, Index) => (
+          <div key={`${Row.operator}-${Row.integerPart}-${Row.decimalPart}-${Index}`} className="grid items-baseline gap-0.5" style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} 0.35rem ${DecimalWidth}` }}>
+            <span className="text-center">{Row.operator}</span>
+            <span className="text-right tabular-nums">{Row.integerPart}</span>
+            <span className="text-center">.</span>
+            <span className="text-left tabular-nums">{Row.decimalPart.padEnd(MaxDecimalLength, "0")}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="my-2.5 border-t-[3px] border-slate-800 dark:border-slate-200" />
+
+      <div className="grid items-baseline gap-0.5 text-right font-mono text-[26px] font-black text-blue-700 dark:text-cyan-300 sm:text-[32px]" style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} 0.35rem ${DecimalWidth}` }}>
+        <span />
+        <span />
+        <span />
+        <span className="text-left tabular-nums">?</span>
+      </div>
+    </div>
+  );
+}
 
 function PositionNumberTableQuestion({
   operands,
@@ -235,7 +296,6 @@ function FirstNaturalNumberCardQuestion({ operands }: { operands: Array<number |
   );
 }
 
-
 export function MathQuestionDisplay({ operands, operators, displayType, questionText }: MathQuestionDisplayProps) {
   const Operands = operands ?? [];
   const Operators = operators ?? [];
@@ -267,6 +327,10 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
 
   if (Mode === "SKILL_STACKER_TABLE" || Mode === "CONCEPT_DRILL_TABLE") {
     return <CompactTwoColumnQuestion operands={Operands} operators={Operators} questionText={questionText} />;
+  }
+
+  if ((Mode === "VERTICAL" || Mode === "VISUAL_STACK") && IsDecimalStackCandidate(Operands, Operators)) {
+    return <DecimalAlignedVerticalQuestion operands={Operands} operators={Operators} />;
   }
 
   return <VerticalQuestion operands={Operands} operators={Operators} />;
