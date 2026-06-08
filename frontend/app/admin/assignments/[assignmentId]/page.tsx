@@ -30,9 +30,19 @@ function formatDate(value?: string | null) {
 }
 
 function formatTimeTaken(value?: number | string | null) {
-  const Seconds = Number(value);
+  const Seconds = Math.round(Number(value));
   if (!Number.isFinite(Seconds) || Seconds <= 0) return "-";
-  return `${Math.round(Seconds)}s`;
+
+  const Minutes = Math.floor(Seconds / 60);
+  const RemainingSeconds = Seconds % 60;
+
+  const MinuteText = Minutes === 1 ? "Min" : "Mins";
+  const SecondText = RemainingSeconds === 1 ? "Sec" : "Secs";
+
+  if (Minutes <= 0) return `${RemainingSeconds} ${SecondText}`;
+  if (RemainingSeconds <= 0) return `${Minutes} ${MinuteText}`;
+
+  return `${Minutes} ${MinuteText} ${RemainingSeconds} ${SecondText}`;
 }
 
 export default function AdminAssignmentDetailPage() {
