@@ -975,6 +975,30 @@ def _FormatBodmasNumber(Value: Decimal | int | float) -> str:
     return format(DecimalValue.normalize(), "f")
 
 
+def _GenerateBodmasDivisionTerm(Rng: random.Random, DivisorMinimum: int, DivisorMaximum: int, QuotientMinimum: int, QuotientMaximum: int) -> tuple[int, int, int]:
+    """Generate a BODMAS division term whose visible dividend stays within 4 digits.
+
+    Workbook correction: addition/subtraction terms inside BODMAS should stay
+    mentally readable. Division terms that appear after + or - must therefore
+    avoid 5-digit dividends such as 19590 ÷ 89.
+    """
+    SafeDivisorMinimum = max(1, int(DivisorMinimum))
+    SafeDivisorMaximum = max(SafeDivisorMinimum, int(DivisorMaximum))
+    SafeQuotientMinimum = max(1, int(QuotientMinimum))
+    SafeQuotientMaximum = max(SafeQuotientMinimum, int(QuotientMaximum))
+
+    for _ in range(80):
+        Divisor = Rng.randint(SafeDivisorMinimum, SafeDivisorMaximum)
+        MaxSafeQuotient = min(SafeQuotientMaximum, 9999 // Divisor)
+        if MaxSafeQuotient >= SafeQuotientMinimum:
+            Quotient = Rng.randint(SafeQuotientMinimum, MaxSafeQuotient)
+            return Divisor, Quotient, Divisor * Quotient
+
+    Divisor = min(SafeDivisorMaximum, max(SafeDivisorMinimum, 99))
+    Quotient = min(SafeQuotientMaximum, max(SafeQuotientMinimum, 9999 // Divisor))
+    return Divisor, Quotient, Divisor * Quotient
+
+
 def _BodmasRawNumberCount(ExpressionUnits: list[str]) -> int:
     # Workbook BODMAS rows must stay short enough for the DPS/MCQ card.
     # Count every visible numeric value, including operands inside ×/÷,
@@ -1009,9 +1033,13 @@ def _BodmasBasicArithmetic(Config: MMConfig, Rng: random.Random, QuestionNumber:
     LargeBaseMax = min(9999, 8500 + (Band * 900))
     Multiplier = Rng.randint(3, 9 if Stage in {"WARM_UP", "STANDARD"} else 16)
     Multiplicand = Rng.randint(120, 950 if Stage in {"WARM_UP", "STANDARD"} else 2500)
-    Divisor = Rng.randint(6, 25 if Stage in {"WARM_UP", "STANDARD"} else 90)
-    Quotient = Rng.randint(12, 120 if Stage in {"WARM_UP", "STANDARD"} else 350)
-    Dividend = Divisor * Quotient
+    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(
+        Rng,
+        6,
+        25 if Stage in {"WARM_UP", "STANDARD"} else 90,
+        12,
+        120 if Stage in {"WARM_UP", "STANDARD"} else 350,
+    )
     A = Rng.randint(LargeBaseMin, LargeBaseMax)
     E = Rng.randint(100, 900)
     Product = Multiplicand * Multiplier
@@ -1027,9 +1055,7 @@ def _BodmasSquares(Config: MMConfig, Rng: random.Random, QuestionNumber: int, St
     SquareBase = Rng.randint(24, 95 if Stage in {"WARM_UP", "STANDARD"} else 260)
     Multiplier = Rng.randint(3, 9 if Stage in {"WARM_UP", "STANDARD"} else 15)
     Multiplicand = Rng.randint(180, 900 if Stage in {"WARM_UP", "STANDARD"} else 1800)
-    Divisor = Rng.randint(14, 60)
-    Quotient = Rng.randint(10, 140)
-    Dividend = Divisor * Quotient
+    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 14, 60, 10, 140)
     AddValue = Rng.randint(500, 9000)
     Product = Multiplicand * Multiplier
 
@@ -1086,9 +1112,7 @@ def _BodmasBracketsPowersPercent(Config: MMConfig, Rng: random.Random, QuestionN
 
 
 def _BodmasCubeRootPercent(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    Divisor = Rng.randint(21, 90)
-    Quotient = Rng.randint(40, 150)
-    Dividend = Divisor * Quotient
+    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 21, 90, 40, 150)
 
     Multiplier = Rng.randint(120, 900)
     Percent = Rng.choice([3, 4, 5, 6, 8, 10, 12, 15])
@@ -1139,9 +1163,7 @@ def _BodmasCubeRootSquareLarge(Config: MMConfig, Rng: random.Random, QuestionNum
     CubeRoot = Rng.randint(24, 78)
     CubeRadicand = CubeRoot ** 3
     SquareBase = Rng.randint(42, 99)
-    Divisor = Rng.randint(32, 96)
-    Quotient = Rng.randint(24, 160)
-    Dividend = Divisor * Quotient
+    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 32, 96, 24, 160)
     Multiplier = Rng.randint(25, 85)
     Multiplicand = Rng.randint(180, 980)
     TailValue = Rng.randint(120, 750)
@@ -1155,9 +1177,7 @@ def _BodmasSquareRootLarge(Config: MMConfig, Rng: random.Random, QuestionNumber:
     Multiplier = Rng.randint(24, 86)
     Root = Rng.randint(54, 99)
     Radicand = Root ** 2
-    Divisor = Rng.randint(24, 96)
-    Quotient = Rng.randint(40, 180)
-    Dividend = Divisor * Quotient
+    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 24, 96, 40, 180)
     AddValue = Rng.randint(80, 350)
     SubValue = Rng.randint(80, 350)
     CorrectAnswer = Decimal((Multiplicand * Multiplier) + Root - Quotient + AddValue - SubValue)
