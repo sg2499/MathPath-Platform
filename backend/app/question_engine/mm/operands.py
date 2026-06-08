@@ -1950,8 +1950,6 @@ def _MixedMultiplicationDivisionOperationSequence(Config: MMConfig) -> list[str]
     MultiplicationVariants = ["MUL_2D_2D"]
     if LessonNumber >= 8:
         MultiplicationVariants.append("MUL_DECIMAL")
-    if LessonNumber >= 10:
-        MultiplicationVariants.append("MUL_3D_1D")
     if LessonNumber >= 14:
         MultiplicationVariants.append("MUL_3D_2D")
     if LessonNumber >= 20:
