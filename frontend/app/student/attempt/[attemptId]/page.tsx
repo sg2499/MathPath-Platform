@@ -83,7 +83,16 @@ export default function AttemptPage() {
   async function handleSelect(questionId: string, selectedOptionId: string) {
     if (!attempt || remainingSeconds <= 0) return;
 
+    const selectedQuestionIndex = questions.findIndex(
+      (question) => question.questionId === questionId
+    );
+
     setLocalAnswers((prev) => ({ ...prev, [questionId]: selectedOptionId }));
+
+    if (selectedQuestionIndex >= 0 && selectedQuestionIndex < questions.length - 1) {
+      setCurrentIndex(selectedQuestionIndex + 1);
+    }
+
     setSavingQuestionId(questionId);
 
     try {
