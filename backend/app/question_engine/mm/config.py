@@ -203,7 +203,8 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
 
     HasDecimal = "decimal" in Text
     HasAddLess = "add less" in Text or ("add" in Text and "less" in Text)
-    HasMultiplication = "multiplication" in Text or " x " in f" {Text} " or "mixed pattern" in Text
+    HasMixedPattern = "mixed pattern" in Text
+    HasMultiplication = "multiplication" in Text or " x " in f" {Text} " or HasMixedPattern
     HasDivision = "division" in Text
     HasInteger = "integer" in Text or "integers" in Text
     HasBodmas = "bodmas" in Text
@@ -278,6 +279,14 @@ def ClassifyMmConcept(DpsTitle: str, LessonTitle: str = "") -> str:
         return "DECIMAL_ADD_LESS"
     if HasAddLess:
         return "ADD_LESS"
+
+    # Workbook mixed-pattern concepts must route to the mixed family even when
+    # the visible title only says "Multiplication Mixed Pattern" or
+    # "Division Mixed Pattern". The operation group is resolved later by the
+    # generator so these sheets do not split into digit-pattern micro sections.
+    if HasMixedPattern and (HasMultiplication or HasDivision):
+        return "MULTIPLICATION_DIVISION_MIXED"
+
     if HasDecimal and HasMultiplication and HasDivision:
         return "MULTIPLICATION_DIVISION_MIXED"
     if HasDecimal and HasMultiplication:
