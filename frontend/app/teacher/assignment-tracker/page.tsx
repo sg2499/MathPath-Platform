@@ -99,6 +99,64 @@ function TabUrlValue(Tab: TrackerTab) {
   return Tab.toLowerCase().replace(/_/g, "-");
 }
 
+
+
+type SortDirection = "asc" | "desc";
+type SortState<Key extends string> = {
+  Key: Key;
+  Direction: SortDirection;
+} | null;
+
+function NextSortState<Key extends string>(Current: SortState<Key>, Key: Key): SortState<Key> {
+  if (!Current || Current.Key !== Key) return { Key, Direction: "asc" };
+  if (Current.Direction === "asc") return { Key, Direction: "desc" };
+  return null;
+}
+
+function SortIndicator<Key extends string>({ SortState, SortKey }: { SortState: SortState<Key>; SortKey: Key }) {
+  if (!SortState || SortState.Key !== SortKey) return <span className="opacity-35">↕</span>;
+  return <span aria-hidden="true">{SortState.Direction === "asc" ? "▲" : "▼"}</span>;
+}
+
+function SortableHeader<Key extends string>({
+  Label,
+  SortKey,
+  SortState,
+  OnSort,
+  Align = "left",
+}: {
+  Label: string;
+  SortKey: Key;
+  SortState: SortState<Key>;
+  OnSort: (Key: Key) => void;
+  Align?: "left" | "right";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => OnSort(SortKey)}
+      className={`inline-flex items-center gap-1 font-black uppercase tracking-[0.14em] transition hover:text-[#7a1f58] dark:hover:text-rose-100 ${Align === "right" ? "justify-end text-right" : "justify-start text-left"}`}
+    >
+      <span>{Label}</span>
+      <SortIndicator SortState={SortState} SortKey={SortKey} />
+    </button>
+  );
+}
+
+function CompareText(FirstValue: unknown, SecondValue: unknown) {
+  return NaturalCompare(String(FirstValue ?? ""), String(SecondValue ?? ""));
+}
+
+function CompareNumber(FirstValue: unknown, SecondValue: unknown) {
+  const FirstNumber = Number(FirstValue ?? 0);
+  const SecondNumber = Number(SecondValue ?? 0);
+  return (Number.isFinite(FirstNumber) ? FirstNumber : 0) - (Number.isFinite(SecondNumber) ? SecondNumber : 0);
+}
+
+function ApplyDirection(Value: number, Direction: SortDirection) {
+  return Direction === "asc" ? Value : -Value;
+}
+
 type ExcellenceHighlightGroup = {
   GroupKey: string;
   ModuleCode: string;
@@ -1217,6 +1275,40 @@ function ExpandedRecentPracticeView({
   );
 }
 
+type TeacherActionQueueSortKey = "student" | "module" | "level" | "lesson" | "dps" | "accuracy" | "status";
+type TeacherStudentReviewSortKey = "student" | "module" | "level" | "assigned" | "cleared" | "pending" | "needsReattempt" | "average" | "performance" | "lastActivity";
+
+function CompareTeacherActionQueueRows(FirstRow: AnyRow, SecondRow: AnyRow, SortState: SortState<TeacherActionQueueSortKey>) {
+  if (!SortState) return SortRowsByPriority(FirstRow, SecondRow);
+  let Result = 0;
+  if (SortState.Key === "student") Result = CompareText(`${studentNameOf(FirstRow)} ${studentCodeOf(FirstRow)}`, `${studentNameOf(SecondRow)} ${studentCodeOf(SecondRow)}`);
+  if (SortState.Key === "module") Result = CompareText(moduleCodeOf(FirstRow), moduleCodeOf(SecondRow));
+  if (SortState.Key === "level") Result = CompareText(levelCodeOf(FirstRow), levelCodeOf(SecondRow));
+  if (SortState.Key === "lesson") Result = CompareText(CompactLessonLabel(FirstRow), CompactLessonLabel(SecondRow));
+  if (SortState.Key === "dps") Result = CompareText(CompactDpsLabel(FirstRow), CompactDpsLabel(SecondRow));
+  if (SortState.Key === "accuracy") Result = CompareNumber(isCompleted(FirstRow) ? accuracy(FirstRow) : -1, isCompleted(SecondRow) ? accuracy(SecondRow) : -1);
+  if (SortState.Key === "status") Result = CompareText(DisplayStatus(FirstRow), DisplayStatus(SecondRow));
+  return ApplyDirection(Result || SortRowsByPriority(FirstRow, SecondRow), SortState.Direction);
+}
+
+function CompareTeacherStudentRows(FirstStudent: StudentNode, SecondStudent: StudentNode, SortState: SortState<TeacherStudentReviewSortKey>) {
+  if (!SortState) return NaturalCompare(FirstStudent.studentCode, SecondStudent.studentCode);
+  const FirstStats = StudentOperationalStats(FirstStudent.rows);
+  const SecondStats = StudentOperationalStats(SecondStudent.rows);
+  let Result = 0;
+  if (SortState.Key === "student") Result = CompareText(`${FirstStudent.studentName} ${FirstStudent.studentCode}`, `${SecondStudent.studentName} ${SecondStudent.studentCode}`);
+  if (SortState.Key === "module") Result = CompareText(StudentPrimaryModule(FirstStudent), StudentPrimaryModule(SecondStudent));
+  if (SortState.Key === "level") Result = CompareText(StudentPrimaryLevel(FirstStudent), StudentPrimaryLevel(SecondStudent));
+  if (SortState.Key === "assigned") Result = CompareNumber(FirstStats.Assigned, SecondStats.Assigned);
+  if (SortState.Key === "cleared") Result = CompareNumber(FirstStats.Cleared, SecondStats.Cleared);
+  if (SortState.Key === "pending") Result = CompareNumber(FirstStats.Pending, SecondStats.Pending);
+  if (SortState.Key === "needsReattempt") Result = CompareNumber(FirstStats.NeedsReattempt, SecondStats.NeedsReattempt);
+  if (SortState.Key === "average") Result = CompareNumber(FirstStats.Average, SecondStats.Average);
+  if (SortState.Key === "performance") Result = CompareText(PerformanceBand(FirstStudent.rows).Label, PerformanceBand(SecondStudent.rows).Label);
+  if (SortState.Key === "lastActivity") Result = CompareNumber(RowActivityTime(FirstStudent.rows[0] || {}), RowActivityTime(SecondStudent.rows[0] || {}));
+  return ApplyDirection(Result || NaturalCompare(FirstStudent.studentCode, SecondStudent.studentCode), SortState.Direction);
+}
+
 function ActionQueueTab({
   Rows,
   OnOpenStudent,
@@ -1224,6 +1316,15 @@ function ActionQueueTab({
   Rows: AnyRow[];
   OnOpenStudent: (StudentCode: string) => void;
 }) {
+  const [SortStateValue, SetSortStateValue] = useState<SortState<TeacherActionQueueSortKey>>(null);
+  const SortedRows = useMemo(
+    () => [...Rows].sort((FirstRow, SecondRow) => CompareTeacherActionQueueRows(FirstRow, SecondRow, SortStateValue)),
+    [Rows, SortStateValue],
+  );
+  const HandleSort = useCallback((Key: TeacherActionQueueSortKey) => {
+    SetSortStateValue((Current) => NextSortState(Current, Key));
+  }, []);
+
   if (!Rows.length)
     return (
       <EmptyState message="No practice work currently needs teacher action." />
@@ -1231,17 +1332,17 @@ function ActionQueueTab({
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="math-teacher-practice-record-table-header grid grid-cols-[1.1fr_.55fr_.55fr_.5fr_.5fr_.55fr_.7fr_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
-        <div>Student</div>
-        <div>Module</div>
-        <div>Level</div>
-        <div>Lesson</div>
-        <div>DPS</div>
-        <div>Accuracy</div>
-        <div>Status</div>
+        <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Module" SortKey="module" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Level" SortKey="level" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Lesson" SortKey="lesson" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="DPS" SortKey="dps" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Status" SortKey="status" SortState={SortStateValue} OnSort={HandleSort} />
         <div className="text-right">Review</div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
-        {Rows.map((Row, Index) => {
+        {SortedRows.map((Row, Index) => {
           const StudentCode = studentCodeOf(Row);
           const RowCompleted = isCompleted(Row);
           const StatusText = DisplayStatus(Row);
@@ -1323,6 +1424,15 @@ function StudentReviewTab({
   Students: StudentNode[];
   OnOpenStudent: (StudentCode: string) => void;
 }) {
+  const [SortStateValue, SetSortStateValue] = useState<SortState<TeacherStudentReviewSortKey>>(null);
+  const SortedStudents = useMemo(
+    () => [...Students].sort((FirstStudent, SecondStudent) => CompareTeacherStudentRows(FirstStudent, SecondStudent, SortStateValue)),
+    [Students, SortStateValue],
+  );
+  const HandleSort = useCallback((Key: TeacherStudentReviewSortKey) => {
+    SetSortStateValue((Current) => NextSortState(Current, Key));
+  }, []);
+
   if (!Students.length)
     return (
       <EmptyState message="Change the filters to view matching students." />
@@ -1330,20 +1440,20 @@ function StudentReviewTab({
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="math-teacher-practice-record-table-header grid grid-cols-[minmax(160px,1fr)_minmax(72px,.42fr)_minmax(90px,.46fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(128px,.58fr)_minmax(104px,.5fr)_minmax(150px,.7fr)_minmax(150px,.68fr)_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
-        <div>Student</div>
-        <div>Module</div>
-        <div>Level</div>
-        <div>Assigned DPS</div>
-        <div>Cleared DPS</div>
-        <div>Pending DPS</div>
-        <div>Needs Re-Attempt</div>
-        <div>Average Accuracy</div>
-        <div>Performance</div>
-        <div>Last Activity</div>
+        <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Module" SortKey="module" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Level" SortKey="level" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Assigned DPS" SortKey="assigned" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Cleared DPS" SortKey="cleared" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Pending DPS" SortKey="pending" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Needs Re-Attempt" SortKey="needsReattempt" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Average Accuracy" SortKey="average" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Performance" SortKey="performance" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Last Activity" SortKey="lastActivity" SortState={SortStateValue} OnSort={HandleSort} />
         <div>Review</div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
-        {Students.map((Student) => {
+        {SortedStudents.map((Student) => {
           const Stats = StudentOperationalStats(Student.rows);
           const Band = PerformanceBand(Student.rows);
           return (
