@@ -213,7 +213,7 @@ function DecimalAlignedVerticalQuestion({ operands, operators }: { operands: Arr
   const MaxDecimalLength = Math.max(1, ...Rows.map((Row) => Row.decimalPart.length));
   const IntegerWidth = `${Math.max(2.5, MaxIntegerLength * 0.78)}em`;
   const DecimalWidth = `${Math.max(1.75, MaxDecimalLength * 0.82)}em`;
-  const DecimalPointWidth = "0.7rem";
+  const DecimalPointWidth = "0.95rem";
 
   return (
     <div className="mx-auto w-fit rounded-[20px] bg-white px-4 py-4 text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5 sm:py-4">
@@ -221,9 +221,11 @@ function DecimalAlignedVerticalQuestion({ operands, operators }: { operands: Arr
         {Rows.map((Row, Index) => (
           <div key={`${Row.operator}-${Row.integerPart}-${Row.decimalPart}-${Index}`} className="grid items-baseline gap-0.5" style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} ${DecimalPointWidth} ${DecimalWidth}` }}>
             <span className="text-center">{Row.operator}</span>
-            <span className="text-right tabular-nums">{Row.integerPart}</span>
-            <span className="px-1 text-center font-black text-slate-950 dark:text-white">.</span>
-            <span className="text-left tabular-nums">{Row.decimalPart.padEnd(MaxDecimalLength, "0")}</span>
+            <span className="pr-1 text-right tabular-nums">{Row.integerPart}</span>
+            <span className="flex h-[1.05em] items-end justify-center pb-[0.18em]" aria-hidden="true">
+              <span className="block h-[0.24em] w-[0.24em] rounded-full bg-slate-950 dark:bg-white" />
+            </span>
+            <span className="pl-1 text-left tabular-nums">{Row.decimalPart.padEnd(MaxDecimalLength, "0")}</span>
           </div>
         ))}
       </div>
@@ -234,7 +236,7 @@ function DecimalAlignedVerticalQuestion({ operands, operators }: { operands: Arr
         <span />
         <span />
         <span />
-        <span className="text-left tabular-nums">?</span>
+        <span className="pl-1 text-left tabular-nums">?</span>
       </div>
     </div>
   );
