@@ -1601,14 +1601,14 @@ function PracticeRowsTable({
       <div
         className={`math-teacher-practice-lesson-insights-table-header grid ${GridColumns} gap-3 bg-slate-50 px-5 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70`}
       >
-        <div>DPS</div>
-        <div>Attempt</div>
-        <div>Status</div>
-        <div>Score</div>
-        <div>Accuracy</div>
-        {ShowBenchmark ? <div>Benchmark</div> : null}
-        <div>Time Taken</div>
-        <div>Completion Date</div>
+        <SortableHeader Label="DPS" SortKey="dps" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Attempt" SortKey="attempt" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Status" SortKey="status" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Score" SortKey="score" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} />
+        {ShowBenchmark ? <SortableHeader Label="Benchmark" SortKey="benchmark" SortState={SortStateValue} OnSort={HandleSort} /> : null}
+        <SortableHeader Label="Time Taken" SortKey="timeTaken" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Completion Date" SortKey="completionDate" SortState={SortStateValue} OnSort={HandleSort} />
         <div>Review</div>
       </div>
       {DisplayRows.map((Row, Index) => {
