@@ -30,131 +30,6 @@ def _ContainsAny(Text: str, Markers: tuple[str, ...]) -> bool:
     return any(Marker in Text for Marker in Markers)
 
 
-def _MixedContextText(Config: MMConfig, SectionDefinitions: list[dict] | None = None) -> str:
-    SectionText = " ".join(
-        str(Section.get("sectionTitle") or Section.get("title") or "")
-        for Section in (SectionDefinitions or [])
-        if isinstance(Section, dict)
-    )
-    return " ".join(
-        f" {Config.DpsTitle or ''} {Config.LessonTitle or ''} {SectionText} "
-        .upper()
-        .replace("×", " X ")
-        .replace("÷", " DIVISION ")
-        .replace("/", " ")
-        .replace(",", " ")
-        .split()
-    )
-
-
-def _IsMixedPatternContext(Config: MMConfig, SectionTitle: str | None = None) -> bool:
-    Text = _MixedContextText(Config, [{"sectionTitle": SectionTitle or ""}])
-    return "MIXED PATTERN" in Text and ("MULTIPLICATION" in Text or "DIVISION" in Text or " X " in f" {Text} ")
-
-
-def _MixedOperationGroupFromConfig(Config: MMConfig) -> str:
-    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
-    ActiveSection = GeneratorConfig.get("activeSection") if isinstance(GeneratorConfig.get("activeSection"), dict) else {}
-    return str(ActiveSection.get("mixedOperationGroup") or GeneratorConfig.get("mixedOperationGroup") or "").upper()
-
-
-def _IsMixedPatternSectionCandidate(Config: MMConfig, Section: dict) -> bool:
-    SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or "")
-    SectionConcept = str(Section.get("conceptFamily") or "")
-    SectionText = " ".join(
-        f" {SectionTitle} "
-        .upper()
-        .replace("×", " X ")
-        .replace("÷", " DIVISION ")
-        .replace("/", " ")
-        .replace(",", " ")
-        .split()
-    )
-    SourceText = _MixedContextText(Config, [Section])
-    if "MIXED PATTERN" not in SourceText:
-        return False
-    if SectionConcept in {"WHOLE_NUMBER_MULTIPLICATION", "WHOLE_NUMBER_DIVISION", "MULTIPLICATION_DIVISION_MIXED"}:
-        return True
-    return "MULTIPLICATION" in SectionText or "DIVISION" in SectionText or " X " in f" {SectionText} "
-
-
-def _SectionLooksLikeDivision(Section: dict) -> bool:
-    SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or "").upper().replace("÷", " DIVISION ")
-    SectionConcept = str(Section.get("conceptFamily") or "").upper()
-    return SectionConcept == "WHOLE_NUMBER_DIVISION" or "DIVISION" in SectionTitle
-
-
-def _SectionLooksLikeMultiplication(Section: dict) -> bool:
-    SectionTitle = str(Section.get("sectionTitle") or Section.get("title") or "").upper().replace("×", " X ")
-    SectionConcept = str(Section.get("conceptFamily") or "").upper()
-    return SectionConcept == "WHOLE_NUMBER_MULTIPLICATION" or "MULTIPLICATION" in SectionTitle or " X " in f" {SectionTitle} "
-
-
-def _CollapsedMixedPatternSections(Config: MMConfig, SectionDefinitions: list[dict]) -> list[dict]:
-    """Collapse mixed-pattern micro sections into workbook parent sections.
-
-    The workbook convention is section-level grouping, not one section per digit
-    pattern. Pattern variety belongs inside generated questions. This protects:
-      - Multiplication Mixed Pattern -> one Multiplication section.
-      - Division Mixed Pattern -> one Division section.
-      - Multiplication and Division Mixed Pattern -> two parent sections only.
-    """
-    if not SectionDefinitions or "MIXED PATTERN" not in _MixedContextText(Config, SectionDefinitions):
-        return SectionDefinitions
-
-    Collapsed: list[dict] = []
-    MultiplicationCount = 0
-    DivisionCount = 0
-    SawMultiplication = False
-    SawDivision = False
-
-    for Section in SectionDefinitions:
-        if not isinstance(Section, dict) or not _IsMixedPatternSectionCandidate(Config, Section):
-            Collapsed.append(Section)
-            continue
-
-        Count = int(Section.get("questionCount") or 10)
-        if _SectionLooksLikeDivision(Section):
-            SawDivision = True
-            DivisionCount += Count
-        elif _SectionLooksLikeMultiplication(Section):
-            SawMultiplication = True
-            MultiplicationCount += Count
-        else:
-            # Ambiguous full mixed section: split into the two workbook parent groups.
-            SawMultiplication = True
-            SawDivision = True
-            MultiplicationCount += max(10, Count // 2)
-            DivisionCount += max(10, Count - (Count // 2))
-
-    SourceText = _MixedContextText(Config, SectionDefinitions)
-    WantsDivision = SawDivision or "DIVISION" in SourceText
-    WantsMultiplication = SawMultiplication or "MULTIPLICATION" in SourceText or " X " in f" {SourceText} "
-
-    ParentSections: list[dict] = []
-    if WantsMultiplication:
-        ParentSections.append({
-            "sectionTitle": "Multiplication",
-            "questionCount": max(10, MultiplicationCount or 10),
-            "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            "mixedOperationGroup": "MULTIPLICATION",
-        })
-    if WantsDivision:
-        ParentSections.append({
-            "sectionTitle": "Division",
-            "questionCount": max(10, DivisionCount or 10),
-            "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            "mixedOperationGroup": "DIVISION",
-        })
-
-    # Preserve non-mixed companion sections such as Less Percentage, Skill Stacker, etc.
-    NonMixedSections = [
-        Section for Section in Collapsed
-        if isinstance(Section, dict) and not _IsMixedPatternSectionCandidate(Config, Section)
-    ]
-    return ParentSections + NonMixedSections if ParentSections else SectionDefinitions
-
-
 def _IsAnswerPositionConcept(Config: MMConfig, SectionTitle: str | None = None) -> bool:
     TitleText = _SectionTitleText(Config, SectionTitle)
     return _ContainsAny(
@@ -194,9 +69,21 @@ def _IsVisualStackConcept(Config: MMConfig, SectionTitle: str | None = None) -> 
     )
 
 
+def _IsCollapsedMixedMultiplicationParent(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    TitleText = _SectionTitleText(Config, SectionTitle).strip()
+    return Config.ConceptFamily == "MULTIPLICATION_DIVISION_MIXED" and TitleText == "MULTIPLICATION"
+
+
+def _IsCollapsedMixedDivisionParent(Config: MMConfig, SectionTitle: str | None = None) -> bool:
+    TitleText = _SectionTitleText(Config, SectionTitle).strip()
+    return Config.ConceptFamily == "MULTIPLICATION_DIVISION_MIXED" and TitleText == "DIVISION"
+
+
 def _IsNormalMultiplicationSection(Config: MMConfig, SectionTitle: str | None = None) -> bool:
     if _IsAnswerPositionConcept(Config, SectionTitle) or _IsSolveEquationConcept(Config, SectionTitle) or _IsVisualStackConcept(Config, SectionTitle):
         return False
+    if _IsCollapsedMixedMultiplicationParent(Config, SectionTitle):
+        return True
     TitleText = _SectionTitleText(Config, SectionTitle)
     return Config.ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION" or _ContainsAny(
         TitleText,
@@ -213,6 +100,8 @@ def _IsNormalMultiplicationSection(Config: MMConfig, SectionTitle: str | None = 
 def _IsNormalDivisionSection(Config: MMConfig, SectionTitle: str | None = None) -> bool:
     if _IsAnswerPositionConcept(Config, SectionTitle) or _IsSolveEquationConcept(Config, SectionTitle) or _IsVisualStackConcept(Config, SectionTitle):
         return False
+    if _IsCollapsedMixedDivisionParent(Config, SectionTitle):
+        return True
     TitleText = _SectionTitleText(Config, SectionTitle)
     return Config.ConceptFamily == "WHOLE_NUMBER_DIVISION" or _ContainsAny(
         TitleText,
@@ -278,10 +167,6 @@ def _NormalisedSectionTitle(Config: MMConfig, SectionTitle: str | None, ExtraMet
     TitleText = _SectionTitleText(Config, SectionTitle)
     HasExplicitMultiplicationPattern = bool(re.search(r"[1-6]D\s*(?:X|×)\s*[1-6]D", TitleText))
     HasExplicitDivisionPattern = bool(re.search(r"[1-6]D\s*(?:DIVISION|÷)\s*[1-6]D", TitleText))
-
-    MixedOperationGroup = _MixedOperationGroupFromConfig(Config)
-    if Config.ConceptFamily == "MULTIPLICATION_DIVISION_MIXED" and MixedOperationGroup in {"MULTIPLICATION", "DIVISION"}:
-        return "Multiplication" if MixedOperationGroup == "MULTIPLICATION" else "Division"
 
     # Preserve all special/visual section names exactly as mapped. Only true
     # normal multiplication/division and explicit decimal multiplication/division
@@ -400,7 +285,6 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
         SectionDefinitions = Config.GeneratorConfig.get("dpsSections") or []
 
     if SectionDefinitions:
-        SectionDefinitions = _CollapsedMixedPatternSections(Config, SectionDefinitions)
         Questions: list[dict] = []
         StartNumber = 1
         TotalSections = len(SectionDefinitions)
@@ -425,11 +309,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 OperationFocus=OperationFocusForConcept(SectionConcept),
                 DigitPattern=str(Section.get("digitPattern") or Config.DigitPattern),
                 Difficulty=str(Section.get("difficulty") or Config.Difficulty),
-                GeneratorConfig={
-                    **Config.GeneratorConfig,
-                    "activeSection": Section,
-                    "mixedOperationGroup": str(Section.get("mixedOperationGroup") or ""),
-                },
+                GeneratorConfig={**Config.GeneratorConfig, "activeSection": Section},
             )
             SectionQuestions = _GenerateSingleSectionQuestionSet(SectionConfig, Index, SectionTitle, StartNumber, TotalSections)
             Questions.extend(SectionQuestions)
