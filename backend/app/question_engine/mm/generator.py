@@ -110,8 +110,22 @@ def _BuildFallbackMixedPatternSections(Config: MMConfig) -> list[dict]:
     WantsMultiplication = "MULTIPLICATION" in SourceText or " X " in f" {SourceText} "
     WantsDivision = "DIVISION" in SourceText
 
-    HasDecimalMultiplication = "DECIMAL MULTIPLICATION" in SourceText or "DECIMAL NUMBER MULTIPLICATION" in SourceText
-    HasDecimalDivision = "DECIMAL DIVISION" in SourceText or "DIVISION OF DECIMAL" in SourceText or "DECIMAL NUMBER DIVISION" in SourceText
+    DpsOnlyText = " ".join(
+        f" {Config.DpsTitle or ''} "
+        .upper()
+        .replace("×", " X ")
+        .replace("÷", " DIVISION ")
+        .replace("/", " ")
+        .replace(",", " ")
+        .split()
+    )
+    # Separate Decimal Multiplication/Division sections should be created only
+    # when the DPS title explicitly says that decimal concept is part of the
+    # sheet. Lesson-level words such as "Decimal Division" must not leak into a
+    # plain "Multiplication and Division Mixed Pattern" DPS and create all-
+    # decimal mixed sections.
+    HasDecimalMultiplication = "DECIMAL MULTIPLICATION" in DpsOnlyText or "DECIMAL NUMBER MULTIPLICATION" in DpsOnlyText
+    HasDecimalDivision = "DECIMAL DIVISION" in DpsOnlyText or "DIVISION OF DECIMAL" in DpsOnlyText or "DECIMAL NUMBER DIVISION" in DpsOnlyText
 
     Sections: list[dict] = []
     if HasDecimalMultiplication and WantsMultiplication:
@@ -504,6 +518,8 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 Difficulty=str(Section.get("difficulty") or Config.Difficulty),
                 GeneratorConfig={
                     **Config.GeneratorConfig,
+                    "sourceDpsTitle": Config.DpsTitle,
+                    "sourceLessonTitle": Config.LessonTitle,
                     "activeSection": Section,
                     "mixedOperationGroup": str(Section.get("mixedOperationGroup") or ""),
                 },
