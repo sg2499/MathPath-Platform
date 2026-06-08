@@ -94,6 +94,28 @@ def GenerateFinancialDistractors(CorrectAnswer: Decimal, Rng: random.Random, Met
     Selling = Decimal(str(SellingPrice)) if SellingPrice not in {None, ""} else None
     Rate = Decimal(str(Percent)) if Percent not in {None, ""} else None
 
+    Principal = Metadata.get("principal")
+    TermYears = Metadata.get("term_years")
+    RatePercent = Metadata.get("rate_percent")
+
+    PrincipalValue = Decimal(str(Principal)) if Principal not in {None, ""} else None
+    TermValue = Decimal(str(TermYears)) if TermYears not in {None, ""} else None
+    InterestRateValue = Decimal(str(RatePercent)) if RatePercent not in {None, ""} else None
+
+    if PrincipalValue is not None and TermValue is not None and InterestRateValue is not None:
+        # Formula-aware Simple Interest distractors. These represent common
+        # mistakes without becoming tiny +/- decimal offsets: missing the /100,
+        # using only one of rate/time, or using nearby rate/time values.
+        AddCandidate(PrincipalValue * InterestRateValue / Decimal(100))
+        AddCandidate(PrincipalValue * TermValue / Decimal(100))
+        AddCandidate(PrincipalValue * (InterestRateValue + Decimal(1)) * TermValue / Decimal(100))
+        if InterestRateValue > 1:
+            AddCandidate(PrincipalValue * (InterestRateValue - Decimal(1)) * TermValue / Decimal(100))
+        AddCandidate(PrincipalValue * InterestRateValue * (TermValue + Decimal(1)) / Decimal(100))
+        if TermValue > 1:
+            AddCandidate(PrincipalValue * InterestRateValue * (TermValue - Decimal(1)) / Decimal(100))
+        AddCandidate(PrincipalValue + CorrectAnswer)
+
     if Cost is not None and Selling is not None:
         Difference = abs(Selling - Cost)
         AddCandidate(Difference)

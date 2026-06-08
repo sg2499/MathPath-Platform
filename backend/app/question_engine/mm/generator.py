@@ -365,7 +365,7 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
 
         CorrectDisplay = _Display(CorrectAnswer)
         AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
-        if Config.ConceptFamily in {"PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}:
+        if Config.ConceptFamily in {"PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE", "SIMPLE_INTEREST"}:
             Distractors = GenerateFinancialDistractors(CorrectAnswer, Rng, ExtraMetadata)
         else:
             Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)

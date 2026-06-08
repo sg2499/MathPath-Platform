@@ -1909,7 +1909,11 @@ def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber:
     Minimum, Maximum = PrincipalRanges.get(Stage, (1000, 25000))
     Principal = Decimal(Rng.randrange(Minimum, Maximum + 1, 25))
     Rate = Decimal(Rng.randint(1, 9))
-    TermChoices = [2, 3, 4, 5, 6] if Stage in {"WARM_UP", "STANDARD"} else [2, 3, 4, 5, 6, 7, 8, 9]
+
+    # Simple Interest must stay inside the taught Master Module calculation
+    # scope. Keep rate single digit and time short enough that the worksheet
+    # does not drift into oversized multi-step multiplication complexity.
+    TermChoices = [1, 2, 3, 4, 5]
     Term = Decimal(str(Rng.choice(TermChoices)))
     CorrectAnswer = _CleanMoney(Principal * Term * Rate / Decimal(100))
     return [_AsDisplayNumber(Principal), _AsDisplayNumber(Term), _AsDisplayNumber(Rate)], ["Principal", "Term (Years)", "Rate of Interest"], CorrectAnswer, {
@@ -1918,6 +1922,7 @@ def GenerateSimpleInterest(Config: MMConfig, Rng: random.Random, QuestionNumber:
         "principal": _AsDisplayNumber(Principal),
         "term_years": _AsDisplayNumber(Term),
         "rate_percent": _AsDisplayNumber(Rate),
+        "answer_kind": "SIMPLE_INTEREST",
         "principal_max_digits": 5,
         "single_digit_rate_only": True,
         "time_limited_for_known_patterns": True,
