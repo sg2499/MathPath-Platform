@@ -9,7 +9,9 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
   assignCompetitionMockExams,
+  deleteCompetitionMockExam,
   generateCompetitionMockDraft,
+  getCompetitionMockSectionPlan,
   getAdminStudents,
   getCompetitionMockExam,
   getLevels,
@@ -21,8 +23,8 @@ import {
 import type { LevelItem, ModuleItem } from "@/types/curriculum";
 import type { AdminStudent } from "@/types/student";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Eye, FilePenLine, Loader2, Plus, Search, Send, ShieldCheck, Target, UsersRound, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2, Eye, FilePenLine, Loader2, Plus, Search, Send, ShieldCheck, Target, Trash2, UsersRound, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 const DefaultQuestionCount = 40;
@@ -72,21 +74,55 @@ export default function AdminCompetitionMockStudioPage() {
   const [StudentSearch, SetStudentSearch] = useState("");
   const [AssignmentInstructions, SetAssignmentInstructions] = useState("");
   const [PreviewMockId, SetPreviewMockId] = useState<string | null>(null);
+  const [DeleteMockId, SetDeleteMockId] = useState<string | null>(null);
+  const [SectionCounts, SetSectionCounts] = useState<Record<string, string>>({});
   const [LastMessage, SetLastMessage] = useState<string | null>(null);
 
   const ModulesQuery = useQuery({ queryKey: ["admin", "competition", "modules"], queryFn: getModules, enabled: Ready });
   const LevelsQuery = useQuery({ queryKey: ["admin", "competition", "levels", SelectedModuleId], queryFn: () => getLevels(SelectedModuleId), enabled: Ready && Boolean(SelectedModuleId) });
   const StudentsQuery = useQuery({ queryKey: ["admin", "competition", "students"], queryFn: getAdminStudents, enabled: Ready });
   const MocksQuery = useQuery({ queryKey: ["admin", "competition", "mocks", SelectedLevelId], queryFn: () => listCompetitionMockExams(SelectedLevelId || undefined), enabled: Ready });
+  const SectionPlanQuery = useQuery({ queryKey: ["admin", "competition", "section-plan", SelectedLevelId, QuestionCount], queryFn: () => getCompetitionMockSectionPlan(SelectedLevelId, Number(QuestionCount) || DefaultQuestionCount), enabled: Ready && Boolean(SelectedLevelId) });
   const PreviewQuery = useQuery({ queryKey: ["admin", "competition", "mock", PreviewMockId], queryFn: () => getCompetitionMockExam(PreviewMockId || ""), enabled: Ready && Boolean(PreviewMockId) });
 
   const Modules = ModulesQuery.data || [];
   const Levels = LevelsQuery.data || [];
   const Students = StudentsQuery.data || [];
   const MockExams = MocksQuery.data || [];
+  const SectionPlan = SectionPlanQuery.data || null;
+
+  useEffect(() => {
+    if (!SectionPlan?.sections?.length) {
+      SetSectionCounts({});
+      return;
+    }
+    SetSectionCounts((CurrentValue) => {
+      const NextValue: Record<string, string> = {};
+      SectionPlan.sections.forEach((SectionValue) => {
+        NextValue[SectionValue.sectionKey] = CurrentValue[SectionValue.sectionKey] ?? String(SectionValue.questionCount || 0);
+      });
+      return NextValue;
+    });
+  }, [SectionPlan]);
 
   const SelectedLevel = Levels.find((LevelValue) => LevelValue.levelId === SelectedLevelId) || null;
   const SelectedModule = Modules.find((ModuleValue) => ModuleValue.moduleId === SelectedModuleId) || null;
+
+
+  const CleanSectionCounts = useMemo(() => {
+    const Counts: Record<string, number> = {};
+    Object.entries(SectionCounts).forEach(([Key, Value]) => {
+      const CountValue = Math.max(0, Math.floor(Number(Value) || 0));
+      if (CountValue > 0) Counts[Key] = CountValue;
+    });
+    return Counts;
+  }, [SectionCounts]);
+
+  const SectionCountTotal = useMemo(() => Object.values(CleanSectionCounts).reduce((Total, Value) => Total + Value, 0), [CleanSectionCounts]);
+
+  function UpdateSectionCount(SectionKey: string, Value: string) {
+    SetSectionCounts((CurrentValue) => ({ ...CurrentValue, [SectionKey]: Value }));
+  }
 
   const LevelStudents = useMemo(() => {
     const SearchValue = StudentSearch.trim().toLowerCase();
@@ -100,10 +136,11 @@ export default function AdminCompetitionMockStudioPage() {
     mutationFn: () => generateCompetitionMockDraft({
       levelId: SelectedLevelId,
       title: MockTitle.trim() || undefined,
-      totalQuestions: Number(QuestionCount) || DefaultQuestionCount,
+      totalQuestions: SectionCountTotal || Number(QuestionCount) || DefaultQuestionCount,
       durationSeconds: (Number(DurationMinutes) || DefaultDurationMinutes) * 60,
       competitionScope: "GENERAL",
       difficultyBand: "COMPETITION",
+      sectionCounts: CleanSectionCounts,
     }),
     onSuccess: (ResultValue) => {
       SetLastMessage(`Draft mock generated: ${ResultValue.title}`);
@@ -129,12 +166,27 @@ export default function AdminCompetitionMockStudioPage() {
     },
   });
 
+
+
+  const DeleteMutation = useMutation({
+    mutationFn: (MockExamId: string) => deleteCompetitionMockExam(MockExamId),
+    onSuccess: (ResultValue) => {
+      SetLastMessage(ResultValue.message || "Competition mock exam deleted.");
+      SetSelectedMockIds((CurrentValue) => CurrentValue.filter((MockId) => MockId !== DeleteMockId));
+      if (PreviewMockId === DeleteMockId) SetPreviewMockId(null);
+      SetDeleteMockId(null);
+      QueryClient.invalidateQueries({ queryKey: ["admin", "competition"] });
+    },
+  });
+
   function HandleModuleChange(ModuleId: string) {
     SetSelectedModuleId(ModuleId);
     SetSelectedLevelId("");
     SetSelectedMockIds([]);
     SetSelectedStudentIds([]);
     SetPreviewMockId(null);
+    SetDeleteMockId(null);
+    SetSectionCounts({});
   }
 
   function ToggleMock(MockId: string) {
@@ -145,7 +197,7 @@ export default function AdminCompetitionMockStudioPage() {
     SetSelectedStudentIds((CurrentValue) => CurrentValue.includes(StudentId) ? CurrentValue.filter((Item) => Item !== StudentId) : [...CurrentValue, StudentId]);
   }
 
-  const CanGenerate = Boolean(SelectedLevelId) && !GenerateMutation.isPending;
+  const CanGenerate = Boolean(SelectedLevelId) && SectionCountTotal >= 10 && !GenerateMutation.isPending;
   const CanAssign = Boolean(SelectedLevelId) && SelectedMockIds.length > 0 && (AssignToAll || SelectedStudentIds.length > 0) && !AssignMutation.isPending;
 
   if (!Ready) return null;
@@ -162,8 +214,8 @@ export default function AdminCompetitionMockStudioPage() {
           </p>
         </div>
 
-        {(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || GenerateMutation.error || AssignMutation.error) && (
-          <ErrorState message={apiErrorMessage(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || GenerateMutation.error || AssignMutation.error)} />
+        {(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error) && (
+          <ErrorState message={apiErrorMessage(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error)} />
         )}
 
         {LastMessage && (
@@ -192,7 +244,7 @@ export default function AdminCompetitionMockStudioPage() {
                 </label>
                 <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                   Level
-                  <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetPreviewMockId(null); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
+                  <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetPreviewMockId(null); SetDeleteMockId(null); SetSectionCounts({}); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
                     <option value="">Select level</option>
                     {Levels.map((LevelValue: LevelItem) => <option key={LevelValue.levelId} value={LevelValue.levelId}>{LevelValue.levelCode} · {LevelValue.levelName}</option>)}
                   </select>
@@ -211,13 +263,48 @@ export default function AdminCompetitionMockStudioPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Total Questions
-                    <input value={QuestionCount} onChange={(EventValue) => SetQuestionCount(EventValue.target.value)} type="number" min={10} max={100} className="math-input" />
+                    <input value={QuestionCount} onChange={(EventValue) => SetQuestionCount(EventValue.target.value)} type="number" min={10} max={150} className="math-input" />
                   </label>
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Duration Minutes
                     <input value={DurationMinutes} onChange={(EventValue) => SetDurationMinutes(EventValue.target.value)} type="number" min={5} max={120} className="math-input" />
                   </label>
                 </div>
+
+                <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--math-role-primary)]">Section Allocation</p>
+                      <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Balance question count per competition section before generating.</p>
+                    </div>
+                    <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${SectionCountTotal >= 10 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"}`}>
+                      {SectionCountTotal} Selected
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    {SectionPlanQuery.isLoading && <LoadingState label="Loading section plan..." />}
+                    {!SelectedLevelId && <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Select a level to load section allocation.</p>}
+                    {SectionPlan?.sections?.map((SectionValue) => (
+                      <div key={SectionValue.sectionKey} className="grid gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50 sm:grid-cols-[1fr_110px] sm:items-center">
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-950 dark:text-white">{SectionValue.sectionTitle}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Section {SectionValue.sectionNumber}</p>
+                        </div>
+                        <input
+                          value={SectionCounts[SectionValue.sectionKey] ?? String(SectionValue.questionCount || 0)}
+                          onChange={(EventValue) => UpdateSectionCount(SectionValue.sectionKey, EventValue.target.value)}
+                          type="number"
+                          min={0}
+                          max={150}
+                          className="math-input text-center font-black"
+                          aria-label={`${SectionValue.sectionTitle} question count`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <button disabled={!CanGenerate} onClick={() => GenerateMutation.mutate()} className="math-primary-btn inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50">
                   {GenerateMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
                   Generate Draft Mock
@@ -245,6 +332,9 @@ export default function AdminCompetitionMockStudioPage() {
                       <StatusChip status={MockValue.status} />
                       <button onClick={() => { SetPreviewMockId(MockValue.mockExamId); SetLastMessage(`Preview opened: ${MockValue.title}`); }} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] dark:border-slate-700 dark:text-slate-200">
                         <Eye size={14} className="mr-1 inline" /> Preview
+                      </button>
+                      <button onClick={() => SetDeleteMockId(MockValue.mockExamId)} className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-600 hover:text-white dark:border-rose-900/60 dark:text-rose-200 dark:hover:bg-rose-700">
+                        <Trash2 size={14} className="mr-1 inline" /> Delete
                       </button>
                     </div>
                   </div>
@@ -309,6 +399,36 @@ export default function AdminCompetitionMockStudioPage() {
             </div>
           </div>
         </div>
+
+
+
+        {DeleteMockId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8 backdrop-blur-sm">
+            <div className="w-full max-w-xl rounded-[2rem] border border-rose-200 bg-white p-6 shadow-2xl dark:border-rose-900/60 dark:bg-slate-950">
+              <div className="flex items-start gap-4">
+                <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <p className="math-kicker text-rose-600 dark:text-rose-300">Delete Mock Exam</p>
+                  <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Permanently delete this mock?</h2>
+                  <p className="mt-3 text-sm font-bold leading-6 text-slate-600 dark:text-slate-300">
+                    This will permanently delete the mock paper, questions, options, assignments, attempts, answers, and result summaries linked to this mock. This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button type="button" onClick={() => SetDeleteMockId(null)} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900">
+                  Cancel
+                </button>
+                <button type="button" disabled={DeleteMutation.isPending} onClick={() => DeleteMutation.mutate(DeleteMockId)} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-rose-900/20 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  {DeleteMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                  Delete Permanently
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {PreviewMockId && (
           <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/55 px-4 py-8 backdrop-blur-sm">

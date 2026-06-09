@@ -11,6 +11,10 @@ from app.models import (
     CompetitionMockExam,
     CompetitionMockQuestion,
     CompetitionMockQuestionOption,
+    CompetitionMockAssignment,
+    CompetitionMockAttempt,
+    CompetitionMockAttemptAnswer,
+    CompetitionMockResultSummary,
     DPS,
     DPSSection,
     Lesson,
@@ -70,6 +74,91 @@ MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
 ]
 
 MM_COMPETITION_SECTION_BY_KEY = {Row["key"]: Row for Row in MM_COMPETITION_SECTION_DEFINITIONS}
+
+
+MM_DEFAULT_SECTION_COUNT_FLOOR = 0
+
+
+def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int | None = None) -> dict[str, Any]:
+    ModuleRecord, LevelRecord, Lessons, DpsRows = _LevelRecords(db, LevelId)
+    RequestedQuestionCount = int(TotalQuestions or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+    if _IsMasterModule(ModuleRecord):
+        Base = RequestedQuestionCount // len(MM_COMPETITION_SECTION_DEFINITIONS)
+        Remainder = RequestedQuestionCount % len(MM_COMPETITION_SECTION_DEFINITIONS)
+        Sections = []
+        for Index, Section in enumerate(MM_COMPETITION_SECTION_DEFINITIONS):
+            Sections.append({
+                "sectionKey": Section["key"],
+                "sectionNumber": Section["number"],
+                "sectionTitle": Section["title"],
+                "questionCount": Base + (1 if Index < Remainder else 0),
+                "locked": False,
+            })
+        return {
+            "moduleId": ModuleRecord.id,
+            "moduleCode": ModuleRecord.module_code,
+            "moduleName": ModuleRecord.module_name,
+            "levelId": LevelRecord.id,
+            "levelCode": LevelRecord.level_code,
+            "levelName": LevelRecord.level_name,
+            "totalQuestions": RequestedQuestionCount,
+            "structure": "MM_8_SECTION_COMPETITION_MOCK",
+            "sections": Sections,
+        }
+
+    SectionsByDps = _ActiveSectionsByDps(db, DpsRows)
+    UniqueSections: dict[str, dict[str, Any]] = {}
+    for DpsRecord in DpsRows:
+        for Section in SectionsByDps.get(DpsRecord.id, []):
+            Title = _NormalizeText(Section.section_title) or _NormalizeText(Section.concept_family) or DpsRecord.dps_title
+            Key = Title.upper().replace(" ", "_")[:80]
+            if Key not in UniqueSections:
+                UniqueSections[Key] = {
+                    "sectionKey": Key,
+                    "sectionNumber": len(UniqueSections) + 1,
+                    "sectionTitle": Title,
+                    "questionCount": 0,
+                    "locked": False,
+                }
+    if not UniqueSections:
+        UniqueSections["GENERAL_COMPETITION_PRACTICE"] = {
+            "sectionKey": "GENERAL_COMPETITION_PRACTICE",
+            "sectionNumber": 1,
+            "sectionTitle": "Competition Practice",
+            "questionCount": RequestedQuestionCount,
+            "locked": False,
+        }
+    Base = RequestedQuestionCount // len(UniqueSections)
+    Remainder = RequestedQuestionCount % len(UniqueSections)
+    Sections = list(UniqueSections.values())
+    for Index, Section in enumerate(Sections):
+        Section["questionCount"] = Base + (1 if Index < Remainder else 0)
+    return {
+        "moduleId": ModuleRecord.id,
+        "moduleCode": ModuleRecord.module_code,
+        "moduleName": ModuleRecord.module_name,
+        "levelId": LevelRecord.id,
+        "levelCode": LevelRecord.level_code,
+        "levelName": LevelRecord.level_name,
+        "totalQuestions": RequestedQuestionCount,
+        "structure": "LEVEL_SECTION_COMPETITION_MOCK",
+        "sections": Sections,
+    }
+
+
+def _NormalizeSectionCounts(SectionCounts: dict[str, Any] | None) -> dict[str, int]:
+    Normalized: dict[str, int] = {}
+    for Key, Value in (SectionCounts or {}).items():
+        CleanKey = _NormalizeText(Key)
+        if not CleanKey:
+            continue
+        try:
+            Count = int(Value)
+        except Exception:
+            Count = 0
+        if Count > 0:
+            Normalized[CleanKey] = Count
+    return Normalized
 
 
 def _SafeJsonLoads(Value: str | None, Fallback: Any) -> Any:
@@ -275,7 +364,7 @@ def _CompetitionInstructions(ModuleRecord: Module, LevelRecord: Level, TotalQues
     )
 
 
-def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, DpsRows: list[DPS], TargetQuestionCount: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, DpsRows: list[DPS], TargetQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     SectionsByDps = _ActiveSectionsByDps(db, DpsRows)
     GeneratedByConcept: dict[str, list[dict[str, Any]]] = defaultdict(list)
     MmGeneratedBySection: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
@@ -338,7 +427,7 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, DpsRows: list[
             SectionKey: sum(len(Questions) for Questions in ConceptBuckets.values())
             for SectionKey, ConceptBuckets in MmGeneratedBySection.items()
         }
-        SectionCounts = _AllocateCompetitionSectionCounts(TargetQuestionCount, AvailableBySection)
+        SectionCounts = SectionCountsOverride or _AllocateCompetitionSectionCounts(TargetQuestionCount, AvailableBySection)
         Selected: list[dict[str, Any]] = []
         SectionCoverage: list[dict[str, Any]] = []
         for SectionDefinition in MM_COMPETITION_SECTION_DEFINITIONS:
@@ -457,9 +546,11 @@ def GenerateCompetitionMockDraft(
     DurationSeconds: int | None = None,
     CompetitionScope: str = "GENERAL",
     DifficultyBand: str = "COMPETITION",
+    SectionCounts: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ModuleRecord, LevelRecord, Lessons, DpsRows = _LevelRecords(db, LevelId)
-    RequestedQuestionCount = int(TotalQuestions or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+    SectionCountsOverride = _NormalizeSectionCounts(SectionCounts)
+    RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
     if RequestedQuestionCount < 10:
         api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams must contain at least 10 questions.")
     if RequestedQuestionCount > 150:
@@ -469,7 +560,9 @@ def GenerateCompetitionMockDraft(
     if RequestedDurationSeconds < 300:
         api_error(400, "INVALID_DURATION", "Competition mock duration must be at least 5 minutes.")
 
-    SelectedQuestions, CoveragePayload = _CollectGeneratedQuestions(db, ModuleRecord, DpsRows, RequestedQuestionCount)
+    if SectionCountsOverride:
+        RequestedQuestionCount = sum(SectionCountsOverride.values())
+    SelectedQuestions, CoveragePayload = _CollectGeneratedQuestions(db, ModuleRecord, DpsRows, RequestedQuestionCount, SectionCountsOverride)
     ActualQuestionCount = len(SelectedQuestions)
     MockCode = _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)
     MockTitle = Title or f"{LevelRecord.level_code} Competition Mock Practice {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
@@ -494,6 +587,7 @@ def GenerateCompetitionMockDraft(
             "actualQuestionCount": ActualQuestionCount,
             "source": "LEVEL_DPS_GENERATORS",
             "competitionStructure": CoveragePayload.get("competitionStructure", "BALANCED_CONCEPT_ROTATION"),
+            "sectionCounts": SectionCountsOverride,
         }),
         created_by_user_id=CreatedBy.id if CreatedBy else None,
         is_active=True,
@@ -552,6 +646,39 @@ def GenerateCompetitionMockDraft(
     db.refresh(ExamRecord)
     return CompetitionMockExamPayload(db, ExamRecord, IncludeQuestions=True)
 
+
+
+def DeleteCompetitionMockExam(db: Session, *, MockExamId: str) -> dict[str, Any]:
+    ExamRecord = db.get(CompetitionMockExam, MockExamId)
+    if not ExamRecord:
+        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
+
+    Questions = db.query(CompetitionMockQuestion).filter(CompetitionMockQuestion.mock_exam_id == MockExamId).all()
+    QuestionIds = [Question.id for Question in Questions]
+    Assignments = db.query(CompetitionMockAssignment).filter(CompetitionMockAssignment.mock_exam_id == MockExamId).all()
+    AssignmentIds = [Assignment.id for Assignment in Assignments]
+    Attempts = db.query(CompetitionMockAttempt).filter(CompetitionMockAttempt.mock_exam_id == MockExamId).all()
+    AttemptIds = [Attempt.id for Attempt in Attempts]
+
+    DeletedSummary = {
+        "mockExamId": MockExamId,
+        "title": ExamRecord.title,
+        "questionsDeleted": len(QuestionIds),
+        "assignmentsDeleted": len(AssignmentIds),
+        "attemptsDeleted": len(AttemptIds),
+    }
+
+    if AttemptIds:
+        db.query(CompetitionMockResultSummary).filter(CompetitionMockResultSummary.mock_attempt_id.in_(AttemptIds)).delete(synchronize_session=False)
+        db.query(CompetitionMockAttemptAnswer).filter(CompetitionMockAttemptAnswer.mock_attempt_id.in_(AttemptIds)).delete(synchronize_session=False)
+    if QuestionIds:
+        db.query(CompetitionMockQuestionOption).filter(CompetitionMockQuestionOption.mock_question_id.in_(QuestionIds)).delete(synchronize_session=False)
+    db.query(CompetitionMockAttempt).filter(CompetitionMockAttempt.mock_exam_id == MockExamId).delete(synchronize_session=False)
+    db.query(CompetitionMockAssignment).filter(CompetitionMockAssignment.mock_exam_id == MockExamId).delete(synchronize_session=False)
+    db.query(CompetitionMockQuestion).filter(CompetitionMockQuestion.mock_exam_id == MockExamId).delete(synchronize_session=False)
+    db.delete(ExamRecord)
+    db.commit()
+    return DeletedSummary
 
 def CompetitionMockExamPayload(db: Session, ExamRecord: CompetitionMockExam, IncludeQuestions: bool = False) -> dict[str, Any]:
     ModuleRecord = db.get(Module, ExamRecord.module_id)

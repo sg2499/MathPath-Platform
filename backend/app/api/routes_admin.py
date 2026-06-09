@@ -81,6 +81,8 @@ from app.services.competition_mock_generation_service import (
     GenerateCompetitionMockDraft,
     ListCompetitionMockDrafts,
     CompetitionMockExamPayload,
+    CompetitionMockSectionPlan,
+    DeleteCompetitionMockExam,
 )
 
 from app.services.competition_mock_assignment_service import (
@@ -100,6 +102,7 @@ class CompetitionMockGenerateRequest(BaseModel):
     durationSeconds: int | None = None
     competitionScope: str | None = "GENERAL"
     difficultyBand: str | None = "COMPETITION"
+    sectionCounts: dict[str, int] | None = None
 
 
 class CompetitionMockAssignRequest(BaseModel):
@@ -5424,6 +5427,11 @@ def admin_delete_assessment_blueprint(
     }
 
 
+@router.get("/competition/mock-section-plan")
+def admin_get_competition_mock_section_plan(levelId: str, totalQuestions: int | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return CompetitionMockSectionPlan(db, LevelId=levelId, TotalQuestions=totalQuestions)
+
+
 @router.post("/competition/mock-exams/generate-draft")
 def admin_generate_competition_mock_draft(payload: CompetitionMockGenerateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return GenerateCompetitionMockDraft(
@@ -5435,6 +5443,7 @@ def admin_generate_competition_mock_draft(payload: CompetitionMockGenerateReques
         DurationSeconds=payload.durationSeconds,
         CompetitionScope=payload.competitionScope or "GENERAL",
         DifficultyBand=payload.difficultyBand or "COMPETITION",
+        SectionCounts=payload.sectionCounts,
     )
 
 
@@ -5449,6 +5458,12 @@ def admin_get_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get
     if not ExamRecord or not ExamRecord.is_active:
         api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
     return CompetitionMockExamPayload(db, ExamRecord, IncludeQuestions=True)
+
+@router.delete("/competition/mock-exams/{mock_exam_id}")
+def admin_delete_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Deleted = DeleteCompetitionMockExam(db, MockExamId=mock_exam_id)
+    return {"ok": True, "message": "Competition mock exam permanently deleted.", "deleted": Deleted}
+
 
 @router.post("/competition/mock-exams/assign")
 def admin_assign_competition_mock_exams(payload: CompetitionMockAssignRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
