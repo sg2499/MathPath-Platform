@@ -3052,7 +3052,8 @@ export function CompactRecordTable({
     SetSortDirection("asc");
   };
 
-  const CompactHeaderTextClass = "inline-flex min-w-0 items-center gap-1.5 text-left text-[11px] font-black uppercase leading-[1.16] tracking-[0.13em] text-slate-500 dark:text-slate-400";
+  const CompactHeaderTextClass = "inline-flex min-w-0 items-center gap-1.5 text-left text-xs font-black uppercase leading-[1.16] tracking-[0.13em] text-slate-500 dark:text-slate-400";
+  const CompactHeaderLabelClass = "min-w-0 font-black";
 
   const SortHeader = ({ label, sortKey }: { label: string; sortKey: CompactRecordSortKey }) => {
     const IsActive = SortKey === sortKey;
@@ -3067,7 +3068,7 @@ export function CompactRecordTable({
         aria-label={`Sort ${label} ${NextDirection}`}
         className={`${CompactHeaderTextClass} transition hover:text-slate-800 focus-visible:outline-none focus-visible:text-slate-800 dark:hover:text-white dark:focus-visible:text-white`}
       >
-        <span className="min-w-0">{label}</span>
+        <span className={CompactHeaderLabelClass}>{label}</span>
         <Icon className={IsActive ? "h-3 w-3 shrink-0 opacity-100" : "h-3 w-3 shrink-0 opacity-45"} />
       </button>
     );
@@ -3075,7 +3076,7 @@ export function CompactRecordTable({
 
   const StaticHeader = ({ label }: { label: string }) => (
     <div className={CompactHeaderTextClass}>
-      <span className="min-w-0">{label}</span>
+      <span className={CompactHeaderLabelClass}>{label}</span>
     </div>
   );
 
