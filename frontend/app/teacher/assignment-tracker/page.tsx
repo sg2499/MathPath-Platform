@@ -1464,18 +1464,18 @@ function StudentReviewTab({
     );
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-teacher-practice-record-table-header grid grid-cols-[minmax(150px,1.65fr)_64px_74px_82px_82px_82px_104px_104px_132px_138px_92px] items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-4 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="math-teacher-practice-record-table-header grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-4 text-[10px] font-black uppercase tracking-[0.07em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <StudentReviewHeader SortKey="student">Student</StudentReviewHeader>
         <StudentReviewHeader SortKey="module" Align="center">Module</StudentReviewHeader>
         <StudentReviewHeader SortKey="level" Align="center">Level</StudentReviewHeader>
         <StudentReviewHeader SortKey="assigned" Align="center">Assigned<br />DPS</StudentReviewHeader>
         <StudentReviewHeader SortKey="cleared" Align="center">Cleared<br />DPS</StudentReviewHeader>
         <StudentReviewHeader SortKey="pending" Align="center">Pending<br />DPS</StudentReviewHeader>
-        <StudentReviewHeader SortKey="needsReattempt" Align="center">Needs Re-<br />Attempt</StudentReviewHeader>
+        <StudentReviewHeader SortKey="needsReattempt" Align="center">Needs<br />Re-Attempt</StudentReviewHeader>
         <StudentReviewHeader SortKey="average" Align="center">Average<br />Accuracy</StudentReviewHeader>
         <StudentReviewHeader SortKey="performance" Align="center">Performance</StudentReviewHeader>
         <StudentReviewHeader SortKey="lastActivity" Align="center">Last<br />Activity</StudentReviewHeader>
-        <div className="text-right font-black uppercase leading-[1.15] tracking-[0.08em]">Review</div>
+        <div className="text-right font-black uppercase leading-[1.15] tracking-[0.07em]">Review</div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {SortedStudents.map((Student) => {
@@ -1484,12 +1484,12 @@ function StudentReviewTab({
           return (
             <div
               key={Student.key}
-              className="grid grid-cols-[minmax(150px,1.65fr)_64px_74px_82px_82px_82px_104px_104px_132px_138px_92px] items-center gap-2 px-4 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
+              className="grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 px-3 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
             >
               <div className="min-w-0">
                 <button
                   type="button"
-                  className="truncate text-left text-base font-black text-slate-950 transition hover:text-blue-700 dark:text-white"
+                  className="truncate text-left text-sm font-black text-slate-950 transition hover:text-blue-700 dark:text-white"
                   onClick={() => OnOpenStudent(Student.studentCode)}
                 >
                   {Student.studentName}
@@ -1528,7 +1528,7 @@ function StudentReviewTab({
               <div className="flex justify-center">
                 <Chip tone={Band.Tone}>{Band.Label}</Chip>
               </div>
-              <div className="text-center text-sm font-bold leading-snug text-slate-600">
+              <div className="text-center text-xs font-bold leading-snug text-slate-600">
                 {Stats.Last}
               </div>
               <div className="flex justify-end">
