@@ -96,11 +96,9 @@ function DpsInstructionPageContent() {
                       return (
                         <div
                           key={`${Item.sectionNumber || Index}-${Item.sectionTitle || Index}`}
-                          className="grid grid-cols-[92px_16px_1fr] items-start rounded-2xl border border-white/80 bg-white/80 px-4 py-3 font-black text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100 sm:grid-cols-[104px_18px_1fr]"
+                          className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 font-black leading-6 text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100"
                         >
-                          <span className="whitespace-nowrap">Section {SectionNumber}</span>
-                          <span className="text-center text-slate-400 dark:text-slate-500">-</span>
-                          <span className="min-w-0 leading-6">{SectionTitle}</span>
+                          Section {SectionNumber} - {SectionTitle}
                         </div>
                       );
                     })}
