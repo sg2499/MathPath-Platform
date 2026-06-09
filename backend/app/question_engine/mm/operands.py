@@ -1054,6 +1054,68 @@ def _GenerateBodmasDivisionTerm(Rng: random.Random, DivisorMinimum: int, Divisor
     return Divisor, Quotient, Divisor * Quotient
 
 
+def _GenerateBodmasMultiplicationTermByDigits(Rng: random.Random, LeftDigits: int, RightDigits: int) -> tuple[int, int, int]:
+    """Generate a stronger MM BODMAS multiplication term.
+
+    The visible operands are digit-controlled and never exceed 4 digits. This
+    keeps the question card workbook-readable while allowing challenging
+    patterns such as 4D × 2D and 4D × 3D in BODMAS expressions.
+    """
+    SafeLeftDigits = min(max(int(LeftDigits), 1), 4)
+    SafeRightDigits = min(max(int(RightDigits), 1), 4)
+    LeftMinimum, LeftMaximum = _DigitRange(SafeLeftDigits)
+    RightMinimum, RightMaximum = _DigitRange(SafeRightDigits)
+    Left = Rng.randint(LeftMinimum, min(LeftMaximum, 9999))
+    Right = Rng.randint(RightMinimum, min(RightMaximum, 9999))
+    return Left, Right, Left * Right
+
+
+def _GenerateBodmasDivisionTermByDigits(Rng: random.Random, DividendDigits: int, DivisorDigits: int) -> tuple[int, int, int]:
+    """Generate exact-style MM BODMAS division with a 4D-or-smaller dividend.
+
+    The visible dividend and divisor are controlled by digit length. The quotient
+    is selected so the final visible dividend remains within the requested digit
+    band and never exceeds 4 digits.
+    """
+    SafeDividendDigits = min(max(int(DividendDigits), 1), 4)
+    SafeDivisorDigits = min(max(int(DivisorDigits), 1), 4)
+    DividendMinimum, DividendMaximum = _DigitRange(SafeDividendDigits)
+    DivisorMinimum, DivisorMaximum = _DigitRange(SafeDivisorDigits)
+    DividendMaximum = min(DividendMaximum, 9999)
+    DivisorMaximum = min(DivisorMaximum, 9999)
+
+    for _ in range(120):
+        Divisor = Rng.randint(max(2, DivisorMinimum), DivisorMaximum)
+        MinQuotient = max(2, (DividendMinimum + Divisor - 1) // Divisor)
+        MaxQuotient = max(MinQuotient, DividendMaximum // Divisor)
+        if MaxQuotient >= MinQuotient:
+            Quotient = Rng.randint(MinQuotient, MaxQuotient)
+            Dividend = Divisor * Quotient
+            if DividendMinimum <= Dividend <= DividendMaximum:
+                return Divisor, Quotient, Dividend
+
+    # Safe deterministic fallback for rare narrow ranges.
+    Divisor = max(2, min(DivisorMaximum, max(DivisorMinimum, 100 if SafeDivisorDigits >= 3 else 10)))
+    Quotient = max(2, min(DividendMaximum // Divisor, 99))
+    Dividend = Divisor * Quotient
+    if Dividend < DividendMinimum:
+        Quotient = max(2, (DividendMinimum + Divisor - 1) // Divisor)
+        Dividend = min(DividendMaximum, Divisor * Quotient)
+    return Divisor, Quotient, Dividend
+
+
+def _BodmasStrongArithmeticPattern(QuestionNumber: int) -> tuple[int, int, int, int]:
+    """Rotate stronger arithmetic patterns inside MM BODMAS worksheets."""
+    Patterns = (
+        (4, 2, 4, 2),
+        (4, 3, 4, 2),
+        (3, 2, 4, 3),
+        (4, 2, 4, 3),
+        (3, 3, 4, 2),
+    )
+    return Patterns[(QuestionNumber - 1) % len(Patterns)]
+
+
 def _BodmasRawNumberCount(ExpressionUnits: list[str]) -> int:
     # Workbook BODMAS rows must stay short enough for the DPS/MCQ card.
     # Count every visible numeric value, including operands inside ×/÷,
@@ -1086,59 +1148,52 @@ def _BodmasBasicArithmetic(Config: MMConfig, Rng: random.Random, QuestionNumber:
     Band = _LessonBand(Config)
     LargeBaseMin = min(9999, 1200 + (Band * 350))
     LargeBaseMax = min(9999, 8500 + (Band * 900))
-    Multiplier = Rng.randint(3, 9 if Stage in {"WARM_UP", "STANDARD"} else 16)
-    Multiplicand = Rng.randint(120, 950 if Stage in {"WARM_UP", "STANDARD"} else 2500)
-    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(
-        Rng,
-        6,
-        25 if Stage in {"WARM_UP", "STANDARD"} else 90,
-        12,
-        120 if Stage in {"WARM_UP", "STANDARD"} else 350,
-    )
+    MultiplicandDigits, MultiplierDigits, DividendDigits, DivisorDigits = _BodmasStrongArithmeticPattern(QuestionNumber)
+    Multiplicand, Multiplier, Product = _GenerateBodmasMultiplicationTermByDigits(Rng, MultiplicandDigits, MultiplierDigits)
+    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTermByDigits(Rng, DividendDigits, DivisorDigits)
     A = Rng.randint(LargeBaseMin, LargeBaseMax)
     E = Rng.randint(100, 900)
-    Product = Multiplicand * Multiplier
-    CorrectAnswer = Decimal(A - Product - Quotient + E)
-    if CorrectAnswer <= 0:
-        A = min(9999, A + int(abs(CorrectAnswer)) + Rng.randint(100, 800))
-        CorrectAnswer = Decimal(A - Product - Quotient + E)
-    Units = [str(A), "-", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(E)]
-    return _BodmasPayload(Units, CorrectAnswer, "BASIC_ADD_SUB_MUL_DIV", "LESSON_4_6_BASIC")
+
+    # Keep the basic BODMAS structure compact, but make the arithmetic pattern
+    # Master-Module appropriate. Multiplication and division terms now rotate
+    # through stronger 3D/4D visible patterns while every visible operand remains
+    # within the approved 4-digit cap.
+    if QuestionNumber % 2 == 0:
+        CorrectAnswer = Decimal(Product + A - Quotient - E)
+        Units = [f"{Multiplicand} × {Multiplier}", "+", str(A), "-", f"{Dividend} ÷ {Divisor}", "-", str(E)]
+        Pattern = f"BASIC_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D_{DividendDigits}D_DIV_{DivisorDigits}D"
+    else:
+        CorrectAnswer = Decimal(A + Product - Quotient + E)
+        Units = [str(A), "+", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(E)]
+        Pattern = f"BASIC_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D_{DividendDigits}D_DIV_{DivisorDigits}D"
+    return _BodmasPayload(Units, CorrectAnswer, Pattern, "LESSON_4_6_BASIC")
 
 
 def _BodmasSquares(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    SquareBase = Rng.randint(24, 95 if Stage in {"WARM_UP", "STANDARD"} else 260)
-    Multiplier = Rng.randint(3, 9 if Stage in {"WARM_UP", "STANDARD"} else 15)
-    Multiplicand = Rng.randint(180, 900 if Stage in {"WARM_UP", "STANDARD"} else 1800)
-    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 14, 60, 10, 140)
+    SquareBase = Rng.randint(24, 95 if Stage in {"WARM_UP", "STANDARD"} else 99)
+    MultiplicandDigits, MultiplierDigits, DividendDigits, DivisorDigits = _BodmasStrongArithmeticPattern(QuestionNumber)
+    Multiplicand, Multiplier, Product = _GenerateBodmasMultiplicationTermByDigits(Rng, MultiplicandDigits, MultiplierDigits)
+    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTermByDigits(Rng, DividendDigits, DivisorDigits)
     AddValue = Rng.randint(500, 9000)
-    Product = Multiplicand * Multiplier
 
     if QuestionNumber % 2 == 0:
         CorrectAnswer = Decimal(AddValue + Product - Quotient - (SquareBase ** 2))
-        if CorrectAnswer <= 0:
-            AddValue = min(9999, AddValue + int(abs(CorrectAnswer)) + Rng.randint(200, 1200))
-            CorrectAnswer = Decimal(AddValue + Product - Quotient - (SquareBase ** 2))
         Units = [str(AddValue), "+", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "-", f"({SquareBase})²"]
-        Pattern = "SQUARE_TRAILING"
+        Pattern = f"SQUARE_TRAILING_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D_{DividendDigits}D_DIV_{DivisorDigits}D"
     else:
-        CorrectAnswer = Decimal((SquareBase ** 2) - Product - Quotient + AddValue)
-        if CorrectAnswer <= 0:
-            AddValue = min(9999, AddValue + int(abs(CorrectAnswer)) + Rng.randint(200, 1200))
-            CorrectAnswer = Decimal((SquareBase ** 2) - Product - Quotient + AddValue)
-        Units = [f"({SquareBase})²", "-", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(AddValue)]
-        Pattern = "SQUARE_LEADING"
+        CorrectAnswer = Decimal((SquareBase ** 2) + Product - Quotient + AddValue)
+        Units = [f"({SquareBase})²", "+", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(AddValue)]
+        Pattern = f"SQUARE_LEADING_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D_{DividendDigits}D_DIV_{DivisorDigits}D"
     return _BodmasPayload(Units, CorrectAnswer, Pattern, "LESSON_11_SQUARES")
 
 
 def _BodmasBracketsPowersPercent(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
     # Lesson 16 workbook rows introduce brackets, powers, and percentages,
-    # but the expression must still remain compact. This template intentionally
-    # avoids adding a separate division term so the visible numeric count stays
-    # within the workbook limit of seven.
-    Left = Rng.randint(240, 850)
-    Right = Rng.randint(12, 28)
-    BracketDivisor = Rng.choice([10, 20, 25, 40, 50])
+    # but the expression must still remain compact. Keep the same concept mix
+    # while upgrading the bracket multiplication to stronger MM digit patterns.
+    MultiplicandDigits, MultiplierDigits, _, _ = _BodmasStrongArithmeticPattern(QuestionNumber)
+    Left, Right, _ = _GenerateBodmasMultiplicationTermByDigits(Rng, MultiplicandDigits, MultiplierDigits)
+    BracketDivisor = Rng.choice([10, 20, 25, 40, 50, 75, 100])
     BracketProduct = Decimal(Left * Right) / Decimal(BracketDivisor)
 
     Percent = Rng.choice([10, 15, 20, 25, 30, 40, 50, 70, 85])
@@ -1149,12 +1204,12 @@ def _BodmasBracketsPowersPercent(Config: MMConfig, Rng: random.Random, QuestionN
         PowerBase = Rng.randint(18, 32)
         PowerValue = Decimal(PowerBase ** 3)
         PowerText = f"{PowerBase}³"
-        Pattern = "BRACKET_PERCENT_CUBE_COMPACT"
+        Pattern = f"BRACKET_PERCENT_CUBE_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D"
     else:
         PowerBase = Rng.randint(28, 72)
         PowerValue = Decimal(PowerBase ** 2)
         PowerText = f"{PowerBase}²"
-        Pattern = "BRACKET_PERCENT_SQUARE_COMPACT"
+        Pattern = f"BRACKET_PERCENT_SQUARE_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D"
 
     CorrectAnswer = BracketProduct - PercentValue + PowerValue
     if CorrectAnswer <= 0:
