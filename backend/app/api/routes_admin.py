@@ -83,6 +83,11 @@ from app.services.competition_mock_generation_service import (
     CompetitionMockExamPayload,
 )
 
+from app.services.competition_mock_assignment_service import (
+    AssignCompetitionMockExams,
+    ListCompetitionMockAssignments,
+)
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 
@@ -95,6 +100,16 @@ class CompetitionMockGenerateRequest(BaseModel):
     durationSeconds: int | None = None
     competitionScope: str | None = "GENERAL"
     difficultyBand: str | None = "COMPETITION"
+
+
+class CompetitionMockAssignRequest(BaseModel):
+    levelId: str
+    mockExamIds: list[str]
+    studentIds: list[str] | None = None
+    assignToAllInLevel: bool = False
+    maxAttempts: int | None = 1
+    dueAt: str | None = None
+    instructions: str | None = None
 
 class AssessmentRemarkRequest(BaseModel):
     remarkText: str
@@ -5434,3 +5449,38 @@ def admin_get_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get
     if not ExamRecord or not ExamRecord.is_active:
         api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
     return CompetitionMockExamPayload(db, ExamRecord, IncludeQuestions=True)
+
+@router.post("/competition/mock-exams/assign")
+def admin_assign_competition_mock_exams(payload: CompetitionMockAssignRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return AssignCompetitionMockExams(
+        db,
+        LevelId=payload.levelId,
+        MockExamIds=payload.mockExamIds,
+        AssignedBy=user,
+        StudentIds=payload.studentIds,
+        AssignToAllInLevel=payload.assignToAllInLevel,
+        MaxAttempts=payload.maxAttempts or 1,
+        DueAt=payload.dueAt,
+        Instructions=payload.instructions,
+    )
+
+
+@router.get("/competition/mock-assignments")
+def admin_list_competition_mock_assignments(
+    levelId: str | None = None,
+    mockExamId: str | None = None,
+    studentId: str | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return {
+        "assignments": ListCompetitionMockAssignments(
+            db,
+            LevelId=levelId,
+            MockExamId=mockExamId,
+            StudentId=studentId,
+            Status=status,
+        )
+    }
+
