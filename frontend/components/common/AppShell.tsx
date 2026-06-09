@@ -1048,7 +1048,11 @@ export function AppShell({
                             <div className="math-dropdown-arrow" />
                             <div className="math-dropdown-panel">
                               <div className="math-dropdown-header">
-                                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-600 dark:text-blue-300">
+                                <p
+                                  className={`text-[10px] font-black uppercase tracking-[0.16em] dark:text-blue-300 ${
+                                    IsStudent && theme === "light" ? "text-orange-600" : "text-blue-600"
+                                  }`}
+                                >
                                   {group.label}
                                 </p>
                                 <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -1060,6 +1064,7 @@ export function AppShell({
                                 {group.children?.map((child) => {
                                   const ChildIcon = child.icon;
                                   const childActive = isRouteActive(child.href);
+                                  const StudentChildLight = IsStudent && theme === "light";
 
                                   return (
                                     <button
@@ -1068,10 +1073,14 @@ export function AppShell({
                                       onClick={() => navigateTo(child.href)}
                                       data-teacher-nav-child={IsTeacher && theme === "light" ? "true" : undefined}
                                       data-student-nav-child={IsStudent && theme === "light" ? "true" : undefined}
-                                      className={`math-dropdown-option flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
+                                      className={`math-dropdown-option group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
                                         childActive
-                                          ? "math-dropdown-option-active bg-slate-950 text-white shadow-lg dark:bg-white dark:text-slate-950"
-                                          : "text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-900"
+                                          ? StudentChildLight
+                                            ? "math-dropdown-option-active bg-gradient-to-r from-orange-900 via-orange-500 to-rose-400 text-white shadow-lg"
+                                            : "math-dropdown-option-active bg-slate-950 text-white shadow-lg dark:bg-white dark:text-slate-950"
+                                          : StudentChildLight
+                                            ? "text-slate-700 hover:bg-orange-50 hover:text-orange-700 focus-visible:bg-orange-50 focus-visible:text-orange-700 dark:text-slate-200 dark:hover:bg-slate-900"
+                                            : "text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-900"
                                       }`}
                                       title={child.tooltip}
                                       aria-label={child.tooltip}
@@ -1079,17 +1088,19 @@ export function AppShell({
                                       <span
                                         data-teacher-nav-child-icon={IsTeacher && theme === "light" ? "true" : undefined}
                                         data-student-nav-child-icon={IsStudent && theme === "light" ? "true" : undefined}
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
                                           childActive
-                                            ? "bg-white/15 dark:bg-slate-950/10"
-                                            : "bg-slate-50 text-blue-600 dark:bg-slate-900"
+                                            ? "bg-white/15 text-white dark:bg-slate-950/10"
+                                            : StudentChildLight
+                                              ? "bg-orange-50 text-orange-600 group-hover:bg-white group-hover:text-orange-700"
+                                              : "bg-slate-50 text-blue-600 dark:bg-slate-900"
                                         }`}
                                       >
                                         <ChildIcon
                                           size={17}
                                           strokeWidth={2.15}
                                           style={
-                                            IsTeacher && theme === "light" && childActive
+                                            (IsTeacher || IsStudent) && theme === "light" && childActive
                                               ? {
                                                   color: "#ffffff",
                                                   stroke: "#ffffff",
@@ -1100,7 +1111,7 @@ export function AppShell({
                                               : undefined
                                           }
                                           className={
-                                            IsTeacher && theme === "light" && childActive
+                                            (IsTeacher || IsStudent) && theme === "light" && childActive
                                               ? "!text-white !stroke-white opacity-100"
                                               : undefined
                                           }
@@ -1114,7 +1125,9 @@ export function AppShell({
                                           className={`math-dropdown-option-subtitle mt-0.5 block truncate text-xs font-semibold ${
                                             childActive
                                               ? "text-white/80 dark:text-slate-800"
-                                              : "text-slate-400 dark:text-slate-300"
+                                              : StudentChildLight
+                                                ? "text-slate-400 group-hover:text-orange-500 dark:text-slate-300"
+                                                : "text-slate-400 dark:text-slate-300"
                                           }`}
                                         >
                                           {child.tooltip}
