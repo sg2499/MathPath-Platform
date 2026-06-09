@@ -4,6 +4,7 @@ import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
@@ -340,30 +341,104 @@ export default function AdminCompetitionMockStudioPage() {
   );
 }
 
+function NormalisePreviewOperands(Operands: unknown[] | null | undefined): Array<number | string> {
+  return (Operands || []).map((OperandValue) => {
+    if (typeof OperandValue === "number" || typeof OperandValue === "string") return OperandValue;
+    if (OperandValue === null || OperandValue === undefined) return "";
+    return String(OperandValue);
+  });
+}
+
+function GroupMockQuestionsBySection(Questions: CompetitionMockExamDetail["questions"]) {
+  const SectionMap = new Map<number, { sectionNumber: number; sectionTitle: string; questions: CompetitionMockExamDetail["questions"] }>();
+
+  Questions.forEach((QuestionValue) => {
+    const SectionNumber = Number(QuestionValue.sectionNumber || 1);
+    const ExistingSection = SectionMap.get(SectionNumber);
+    if (ExistingSection) {
+      ExistingSection.questions.push(QuestionValue);
+      return;
+    }
+
+    SectionMap.set(SectionNumber, {
+      sectionNumber: SectionNumber,
+      sectionTitle: QuestionValue.sectionTitle || QuestionValue.conceptTag || `Section ${SectionNumber}`,
+      questions: [QuestionValue],
+    });
+  });
+
+  return Array.from(SectionMap.values()).sort((LeftValue, RightValue) => LeftValue.sectionNumber - RightValue.sectionNumber);
+}
+
 function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
-  const SectionNames = Array.from(new Map((exam.questions || []).map((QuestionValue) => [QuestionValue.sectionNumber, QuestionValue.sectionTitle])).entries());
+  const Sections = GroupMockQuestionsBySection(exam.questions || []);
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-        <h3 className="text-base font-black text-slate-950 dark:text-white">{exam.title}</h3>
-        <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{exam.totalQuestions} Questions · {FormatDuration(exam.durationSeconds)} · {exam.totalMarks} Marks</p>
-      </div>
-      <div className="space-y-2">
-        {SectionNames.slice(0, 8).map(([SectionNumber, SectionTitleValue]) => (
-          <div key={SectionNumber} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950/50 dark:text-slate-200 dark:ring-slate-800">
-            Section {SectionNumber} - {SectionTitleValue}
+    <div className="space-y-5">
+      <div className="rounded-[28px] border border-blue-100 bg-gradient-to-br from-white via-blue-50/50 to-indigo-50 p-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-lg font-black text-slate-950 dark:text-white">{exam.title}</h3>
+            <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
+              {exam.totalQuestions} Questions · {FormatDuration(exam.durationSeconds)} · {exam.totalMarks} Marks
+            </p>
           </div>
-        ))}
-        {SectionNames.length > 8 && <p className="text-xs font-bold text-slate-500">+ {SectionNames.length - 8} more section(s)</p>}
-      </div>
-      <div className="space-y-2">
-        {(exam.questions || []).slice(0, 5).map((QuestionValue) => (
-          <div key={QuestionValue.mockQuestionId} className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-800 dark:bg-slate-950/50">
-            <p className="font-black text-slate-950 dark:text-white">Q{QuestionValue.questionNumber}. {QuestionValue.questionText || QuestionValue.conceptTag}</p>
-            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Answer: {QuestionValue.correctAnswer}</p>
+          <div className="inline-flex w-fit rounded-full border border-blue-100 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-cyan-200">
+            Generated MCQ Preview
           </div>
-        ))}
+        </div>
       </div>
+
+      {Sections.map((SectionValue) => (
+        <section key={SectionValue.sectionNumber} className="space-y-4">
+          <div className="rounded-[24px] border border-blue-200 bg-blue-50/80 px-5 py-4 dark:border-blue-900/50 dark:bg-blue-950/20">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-blue-700 dark:text-cyan-300">Section {SectionValue.sectionNumber}</p>
+            <h4 className="mt-1 text-base font-black text-slate-950 dark:text-white">{SectionValue.sectionTitle}</h4>
+            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{SectionValue.questions.length} question{SectionValue.questions.length === 1 ? "" : "s"}</p>
+          </div>
+
+          <div className="space-y-4">
+            {SectionValue.questions.map((QuestionValue) => (
+              <article key={QuestionValue.mockQuestionId} className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+                <div className="mb-4 flex flex-col gap-2 border-b border-slate-100 pb-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Question {QuestionValue.questionNumber}</p>
+                    <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">{QuestionValue.conceptTag || QuestionValue.sectionTitle}</p>
+                  </div>
+                  <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                    {QuestionValue.difficulty || exam.difficultyBand}
+                  </span>
+                </div>
+
+                <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+                  <div className="rounded-[24px] border border-blue-100 bg-slate-50 px-4 py-6 dark:border-slate-800 dark:bg-slate-900/40">
+                    <MathQuestionDisplay
+                      operands={NormalisePreviewOperands(QuestionValue.operands)}
+                      operators={QuestionValue.operators || []}
+                      displayType={QuestionValue.displayType}
+                      questionText={QuestionValue.questionText}
+                    />
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    {(QuestionValue.options || []).map((OptionValue) => (
+                      <div
+                        key={OptionValue.optionId || `${QuestionValue.mockQuestionId}-${OptionValue.label}`}
+                        className={`flex min-h-[52px] items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-black shadow-sm ${OptionValue.isCorrect ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"}`}
+                      >
+                        <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black ${OptionValue.isCorrect ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
+                          {OptionValue.label}
+                        </span>
+                        <span className="break-words">{OptionValue.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
