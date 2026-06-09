@@ -608,6 +608,17 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
                             return Decimal(-Index)
                     return Decimal(0)
 
+                def _UnderlyingDigitCount(Value: int | float | str | Decimal) -> int:
+                    TextValue = str(Value).strip().replace(",", "")
+                    DigitsOnly = "".join(Character for Character in TextValue if Character.isdigit())
+                    NormalizedDigits = DigitsOnly.lstrip("0")
+                    return len(NormalizedDigits or "0")
+
+                LeftDigits = _UnderlyingDigitCount(Operands[0])
+                RightDigits = _UnderlyingDigitCount(Operands[1])
+                if LeftDigits > 5 or RightDigits > 5:
+                    return False
+
                 ExpectedAnswer = _Position(Operands[0]) + _Position(Operands[1])
                 return CorrectAnswer == ExpectedAnswer
             except Exception:

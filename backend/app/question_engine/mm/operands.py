@@ -1814,32 +1814,47 @@ def _FirstNaturalDigitPositionFromDecimalText(ValueText: str) -> int:
     return 0
 
 
+def _DecimalPlacementSignificantDigitCount(ValueText: str) -> int:
+    """Count significant operand digits after removing decimal notation.
+
+    Leading zeros are ignored so values such as 0.0073 count as 2D, matching
+    the workbook digit-pattern convention used for decimal multiplication.
+    """
+    DigitsOnly = "".join(Character for Character in str(ValueText) if Character.isdigit())
+    NormalizedDigits = DigitsOnly.lstrip("0")
+    return len(NormalizedDigits or "0")
+
+
 def _GenerateDecimalPlacementOperandForPosition(TargetPosition: int, SeedValue: int) -> str:
     """Create a compact workbook-style operand with the requested first-digit position.
 
     The generated value is deterministic from lesson/DPS/question seed so the
     examples vary without becoming random or repeated-looking across previews.
+    Decimal multiplication answer-placement operands are capped to a maximum
+    underlying 5D pattern so unsupported 6D × 2D style questions cannot appear.
     """
     FirstDigit = str((SeedValue % 8) + 1)
     SecondDigit = str(((SeedValue // 3) % 9) + 1)
     ThirdDigit = str(((SeedValue // 7) % 9) + 1)
     FourthDigit = str(((SeedValue // 11) % 9) + 1)
+    MaxUnderlyingDigits = 5
 
     if TargetPosition >= 1:
         IntegerDigits = (FirstDigit + SecondDigit + ThirdDigit + FourthDigit + "246813579")[:TargetPosition]
-        DecimalTailLength = 1 + (SeedValue % 3)
-        DecimalTail = (SecondDigit + FourthDigit + ThirdDigit + "579")[:DecimalTailLength]
-        if TargetPosition >= 4 and SeedValue % 2 == 0:
+        RemainingDigitSlots = max(0, MaxUnderlyingDigits - len(IntegerDigits))
+        if RemainingDigitSlots == 0 or TargetPosition >= 4 and SeedValue % 2 == 0:
             return IntegerDigits
+        DecimalTailLength = min(1 + (SeedValue % 3), RemainingDigitSlots)
+        DecimalTail = (SecondDigit + FourthDigit + ThirdDigit + "579")[:DecimalTailLength]
         return f"{IntegerDigits}.{DecimalTail}"
 
     if TargetPosition == 0:
-        DecimalTailLength = 2 + (SeedValue % 3)
+        DecimalTailLength = min(2 + (SeedValue % 3), MaxUnderlyingDigits)
         DecimalTail = (FirstDigit + ThirdDigit + SecondDigit + FourthDigit + "864")[:DecimalTailLength]
         return f"0.{DecimalTail}"
 
     LeadingZeros = "0" * abs(TargetPosition)
-    TailLength = 1 + (SeedValue % 3)
+    TailLength = min(1 + (SeedValue % 3), MaxUnderlyingDigits)
     Tail = (FirstDigit + SecondDigit + ThirdDigit + FourthDigit + "975")[:TailLength]
     return f"0.{LeadingZeros}{Tail}"
 
