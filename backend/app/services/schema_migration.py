@@ -442,3 +442,173 @@ def ensure_notifications_table() -> None:
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_recipient_created ON notifications (recipient_user_id, created_at)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_recipient_read ON notifications (recipient_user_id, is_read)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_category ON notifications (category)"))
+
+
+def ensure_competition_mock_tables() -> None:
+    """Create isolated Competition Mock Practice tables without touching DPS or Assessment tables."""
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+
+    with engine.begin() as connection:
+        if "competition_mock_exams" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_mock_exams (
+                    id VARCHAR PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL,
+                    mock_code VARCHAR(80),
+                    module_id VARCHAR NOT NULL,
+                    level_id VARCHAR NOT NULL,
+                    competition_scope VARCHAR(50) DEFAULT 'GENERAL' NOT NULL,
+                    difficulty_band VARCHAR(50) DEFAULT 'COMPETITION' NOT NULL,
+                    total_questions INTEGER NOT NULL,
+                    total_marks FLOAT DEFAULT 100 NOT NULL,
+                    marks_per_question FLOAT DEFAULT 1 NOT NULL,
+                    duration_seconds INTEGER NOT NULL,
+                    status VARCHAR(30) DEFAULT 'DRAFT' NOT NULL,
+                    instructions TEXT,
+                    syllabus_coverage_json TEXT,
+                    generation_config_json TEXT,
+                    created_by_user_id VARCHAR,
+                    published_by_user_id VARCHAR,
+                    published_at TIMESTAMP,
+                    archived_at TIMESTAMP,
+                    is_active BOOLEAN DEFAULT true NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_competition_mock_level_code UNIQUE (level_id, mock_code)
+                )
+            """))
+
+        if "competition_mock_questions" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_mock_questions (
+                    id VARCHAR PRIMARY KEY,
+                    mock_exam_id VARCHAR NOT NULL,
+                    section_number INTEGER DEFAULT 1 NOT NULL,
+                    section_title VARCHAR(255),
+                    question_number INTEGER NOT NULL,
+                    display_type VARCHAR(50) DEFAULT 'VERTICAL' NOT NULL,
+                    question_text TEXT,
+                    operands_json TEXT,
+                    operators_json TEXT,
+                    correct_answer TEXT NOT NULL,
+                    explanation TEXT,
+                    difficulty VARCHAR(50),
+                    concept_family VARCHAR(100),
+                    concept_tag VARCHAR(100),
+                    source_type VARCHAR(50) DEFAULT 'COMPETITION_MOCK_ENGINE' NOT NULL,
+                    source_reference_id VARCHAR,
+                    seed TEXT,
+                    marks FLOAT DEFAULT 1 NOT NULL,
+                    metadata_json TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_competition_mock_question_number UNIQUE (mock_exam_id, question_number)
+                )
+            """))
+
+        if "competition_mock_question_options" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_mock_question_options (
+                    id VARCHAR PRIMARY KEY,
+                    mock_question_id VARCHAR NOT NULL,
+                    option_label VARCHAR(1) NOT NULL,
+                    option_value TEXT NOT NULL,
+                    is_correct BOOLEAN DEFAULT false NOT NULL,
+                    display_order INTEGER NOT NULL,
+                    CONSTRAINT uq_competition_mock_option_label UNIQUE (mock_question_id, option_label)
+                )
+            """))
+
+        if "competition_mock_assignments" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_mock_assignments (
+                    id VARCHAR PRIMARY KEY,
+                    mock_exam_id VARCHAR NOT NULL,
+                    student_id VARCHAR NOT NULL,
+                    teacher_id VARCHAR,
+                    assigned_by_user_id VARCHAR,
+                    status VARCHAR(30) DEFAULT 'ASSIGNED' NOT NULL,
+                    current_attempt_number INTEGER DEFAULT 0 NOT NULL,
+                    max_attempts INTEGER DEFAULT 1 NOT NULL,
+                    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    due_at TIMESTAMP,
+                    instructions TEXT,
+                    is_active BOOLEAN DEFAULT true NOT NULL,
+                    CONSTRAINT uq_competition_mock_assignment_student UNIQUE (mock_exam_id, student_id)
+                )
+            """))
+
+        if "competition_mock_attempts" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_mock_attempts (
+                    id VARCHAR PRIMARY KEY,
+                    mock_assignment_id VARCHAR NOT NULL,
+                    mock_exam_id VARCHAR NOT NULL,
+                    student_id VARCHAR NOT NULL,
+                    attempt_number INTEGER NOT NULL,
+                    status VARCHAR(30) DEFAULT 'IN_PROGRESS' NOT NULL,
+                    started_at TIMESTAMP NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    submitted_at TIMESTAMP,
+                    duration_seconds INTEGER NOT NULL,
+                    total_questions INTEGER DEFAULT 0 NOT NULL,
+                    attempted_count INTEGER DEFAULT 0 NOT NULL,
+                    correct_count INTEGER DEFAULT 0 NOT NULL,
+                    wrong_count INTEGER DEFAULT 0 NOT NULL,
+                    unanswered_count INTEGER DEFAULT 0 NOT NULL,
+                    total_score FLOAT DEFAULT 0 NOT NULL,
+                    max_score FLOAT DEFAULT 0 NOT NULL,
+                    percentage FLOAT DEFAULT 0 NOT NULL,
+                    performance_band VARCHAR(50),
+                    time_taken_seconds INTEGER,
+                    time_utilization_percentage FLOAT,
+                    CONSTRAINT uq_competition_mock_attempt_number UNIQUE (mock_assignment_id, attempt_number)
+                )
+            """))
+
+        if "competition_mock_attempt_answers" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_mock_attempt_answers (
+                    id VARCHAR PRIMARY KEY,
+                    mock_attempt_id VARCHAR NOT NULL,
+                    mock_question_id VARCHAR NOT NULL,
+                    selected_option_id VARCHAR,
+                    selected_value TEXT,
+                    is_correct BOOLEAN,
+                    marks_awarded FLOAT DEFAULT 0 NOT NULL,
+                    answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_competition_mock_attempt_question_answer UNIQUE (mock_attempt_id, mock_question_id)
+                )
+            """))
+
+        if "competition_mock_result_summaries" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_mock_result_summaries (
+                    id VARCHAR PRIMARY KEY,
+                    mock_attempt_id VARCHAR NOT NULL UNIQUE,
+                    mock_assignment_id VARCHAR NOT NULL,
+                    mock_exam_id VARCHAR NOT NULL,
+                    student_id VARCHAR NOT NULL,
+                    score FLOAT DEFAULT 0 NOT NULL,
+                    max_score FLOAT DEFAULT 100 NOT NULL,
+                    percentage FLOAT DEFAULT 0 NOT NULL,
+                    accuracy_percentage FLOAT DEFAULT 0 NOT NULL,
+                    time_taken_seconds INTEGER,
+                    time_utilization_percentage FLOAT,
+                    performance_band VARCHAR(50) NOT NULL,
+                    concept_strengths_json TEXT,
+                    concept_weaknesses_json TEXT,
+                    concept_performance_json TEXT,
+                    recommendation_json TEXT,
+                    completed_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_exams_level_status ON competition_mock_exams (level_id, status)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_questions_exam_section ON competition_mock_questions (mock_exam_id, section_number)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_assignments_student_status ON competition_mock_assignments (student_id, status)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_assignments_exam ON competition_mock_assignments (mock_exam_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_attempts_student ON competition_mock_attempts (student_id, submitted_at)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_results_student ON competition_mock_result_summaries (student_id, completed_at)"))
