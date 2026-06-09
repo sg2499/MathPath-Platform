@@ -26,6 +26,52 @@ DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 1800
 DEFAULT_COMPETITION_MARKS_PER_QUESTION = 1
 
 
+MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
+    {
+        "key": "MM_ABACUS_ADD_LESS",
+        "number": 1,
+        "title": "Section 1 (With Abacus) - Add/Less",
+    },
+    {
+        "key": "MM_VISUAL_ADD_LESS",
+        "number": 2,
+        "title": "Section 2 (Visual) - Add/Less",
+    },
+    {
+        "key": "MM_MULTIPLICATION",
+        "number": 3,
+        "title": "Section 3 - Multiplication",
+    },
+    {
+        "key": "MM_DIVISION",
+        "number": 4,
+        "title": "Section 4 - Division",
+    },
+    {
+        "key": "MM_POSITIONAL_PLACEMENT",
+        "number": 5,
+        "title": "Section 5 - Positional & Placement",
+    },
+    {
+        "key": "MM_BODMAS_PERCENTAGE",
+        "number": 6,
+        "title": "Section 6 - BODMAS, Add/Less Percentage",
+    },
+    {
+        "key": "MM_FINANCIAL",
+        "number": 7,
+        "title": "Section 7 - Profit/Loss, Simple Interest, Selling Price",
+    },
+    {
+        "key": "MM_SKILL_DRILL",
+        "number": 8,
+        "title": "Section 8 - Skill Stacker, Concept Drill",
+    },
+]
+
+MM_COMPETITION_SECTION_BY_KEY = {Row["key"]: Row for Row in MM_COMPETITION_SECTION_DEFINITIONS}
+
+
 def _SafeJsonLoads(Value: str | None, Fallback: Any) -> Any:
     if not Value:
         return Fallback
@@ -37,6 +83,118 @@ def _SafeJsonLoads(Value: str | None, Fallback: Any) -> Any:
 
 def _NormalizeText(Value: Any) -> str:
     return str(Value or "").strip()
+
+
+def _NormalizedSearchText(*Values: Any) -> str:
+    return " ".join(_NormalizeText(Value).lower() for Value in Values if _NormalizeText(Value))
+
+
+def _IsMasterModule(ModuleRecord: Module) -> bool:
+    ModuleCode = _NormalizeText(getattr(ModuleRecord, "module_code", "")).upper()
+    ModuleName = _NormalizeText(getattr(ModuleRecord, "module_name", "")).lower()
+    return ModuleCode == "MM" or "master module" in ModuleName
+
+
+def _QuestionSourceText(Question: dict[str, Any], FallbackTitle: str) -> str:
+    Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+    return _NormalizedSearchText(
+        Metadata.get("sectionTitle"),
+        Metadata.get("section_title"),
+        Metadata.get("conceptFamily"),
+        Metadata.get("concept_family"),
+        Metadata.get("competitionConceptKey"),
+        Metadata.get("sourceDpsTitle"),
+        FallbackTitle,
+        Question.get("question_text"),
+    )
+
+
+def _MmCompetitionSectionKey(Question: dict[str, Any], FallbackTitle: str) -> str | None:
+    Text = _QuestionSourceText(Question, FallbackTitle)
+
+    if any(Term in Text for Term in ["skill stacker", "concept drill"]):
+        return "MM_SKILL_DRILL"
+
+    if any(Term in Text for Term in ["profit", "loss", "simple interest", "selling price", "cost price"]):
+        return "MM_FINANCIAL"
+
+    if any(Term in Text for Term in ["bodmas", "percentage", "percent", "add percentage", "less percentage"]):
+        return "MM_BODMAS_PERCENTAGE"
+
+    if any(Term in Text for Term in ["position", "placement", "natural number"]):
+        return "MM_POSITIONAL_PLACEMENT"
+
+    if any(Term in Text for Term in ["add-less", "add less", "add/less", "borrowing", "integer", "fast visualisation", "fast visualization"]):
+        if any(Term in Text for Term in ["visual", "visualisation", "visualization"]):
+            return "MM_VISUAL_ADD_LESS"
+        return "MM_ABACUS_ADD_LESS"
+
+    if any(Term in Text for Term in ["division", "÷", "divide"]):
+        return "MM_DIVISION"
+
+    if any(Term in Text for Term in ["multiplication", "×", " x ", "times", "square", "cube"]):
+        return "MM_MULTIPLICATION"
+
+    return None
+
+
+def _AllocateCompetitionSectionCounts(TargetQuestionCount: int, AvailableBySection: dict[str, int]) -> dict[str, int]:
+    ActiveSections = [
+        Section["key"]
+        for Section in MM_COMPETITION_SECTION_DEFINITIONS
+        if AvailableBySection.get(Section["key"], 0) > 0
+    ]
+    if not ActiveSections:
+        return {}
+
+    Requested = max(1, TargetQuestionCount)
+    Counts = {SectionKey: 0 for SectionKey in ActiveSections}
+    Base = Requested // len(ActiveSections)
+    Remainder = Requested % len(ActiveSections)
+    for Index, SectionKey in enumerate(ActiveSections):
+        Counts[SectionKey] = Base + (1 if Index < Remainder else 0)
+
+    RemainingToAllocate = 0
+    for SectionKey in list(Counts.keys()):
+        Available = AvailableBySection.get(SectionKey, 0)
+        if Counts[SectionKey] > Available:
+            RemainingToAllocate += Counts[SectionKey] - Available
+            Counts[SectionKey] = Available
+
+    while RemainingToAllocate > 0:
+        Added = False
+        for SectionKey in ActiveSections:
+            Available = AvailableBySection.get(SectionKey, 0)
+            if Counts[SectionKey] < Available:
+                Counts[SectionKey] += 1
+                RemainingToAllocate -= 1
+                Added = True
+                if RemainingToAllocate <= 0:
+                    break
+        if not Added:
+            break
+
+    return {Key: Value for Key, Value in Counts.items() if Value > 0}
+
+
+def _RoundRobinSelectFromConceptBuckets(ConceptBuckets: dict[str, list[dict[str, Any]]], RequiredCount: int) -> list[dict[str, Any]]:
+    Selected: list[dict[str, Any]] = []
+    OrderedConcepts = sorted(ConceptBuckets.keys())
+    CursorByConcept = {Concept: 0 for Concept in OrderedConcepts}
+    while len(Selected) < RequiredCount:
+        AddedInPass = False
+        for Concept in OrderedConcepts:
+            Bucket = ConceptBuckets[Concept]
+            Cursor = CursorByConcept[Concept]
+            if Cursor < len(Bucket):
+                Selected.append(Bucket[Cursor])
+                CursorByConcept[Concept] = Cursor + 1
+                AddedInPass = True
+                if len(Selected) >= RequiredCount:
+                    break
+        if not AddedInPass:
+            break
+    return Selected
 
 
 def _QuestionConceptKey(Question: dict[str, Any], FallbackTitle: str) -> str:
@@ -117,11 +275,13 @@ def _CompetitionInstructions(ModuleRecord: Module, LevelRecord: Level, TotalQues
     )
 
 
-def _CollectGeneratedQuestions(db: Session, DpsRows: list[DPS], TargetQuestionCount: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, DpsRows: list[DPS], TargetQuestionCount: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     SectionsByDps = _ActiveSectionsByDps(db, DpsRows)
     GeneratedByConcept: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    MmGeneratedBySection: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
     CoverageRows: list[dict[str, Any]] = []
     GenerationErrors: list[dict[str, Any]] = []
+    IsMmMock = _IsMasterModule(ModuleRecord)
 
     for DpsRecord in DpsRows:
         Seed = f"COMPETITION-MOCK-DRAFT-{DpsRecord.id}-{uuid4().hex}"
@@ -148,7 +308,14 @@ def _CollectGeneratedQuestions(db: Session, DpsRows: list[DPS], TargetQuestionCo
                 "competitionConceptKey": ConceptKey,
             })
             QuestionCopy["metadata"] = Metadata
-            GeneratedByConcept[ConceptKey].append(QuestionCopy)
+            if IsMmMock:
+                SectionKey = _MmCompetitionSectionKey(QuestionCopy, DpsRecord.dps_title)
+                if SectionKey:
+                    MmGeneratedBySection[SectionKey][ConceptKey].append(QuestionCopy)
+                else:
+                    GeneratedByConcept[ConceptKey].append(QuestionCopy)
+            else:
+                GeneratedByConcept[ConceptKey].append(QuestionCopy)
 
         CoverageRows.append({
             "dpsId": DpsRecord.id,
@@ -166,6 +333,64 @@ def _CollectGeneratedQuestions(db: Session, DpsRows: list[DPS], TargetQuestionCo
             "generatedQuestionCount": len(Questions),
         })
 
+    if IsMmMock:
+        AvailableBySection = {
+            SectionKey: sum(len(Questions) for Questions in ConceptBuckets.values())
+            for SectionKey, ConceptBuckets in MmGeneratedBySection.items()
+        }
+        SectionCounts = _AllocateCompetitionSectionCounts(TargetQuestionCount, AvailableBySection)
+        Selected: list[dict[str, Any]] = []
+        SectionCoverage: list[dict[str, Any]] = []
+        for SectionDefinition in MM_COMPETITION_SECTION_DEFINITIONS:
+            SectionKey = SectionDefinition["key"]
+            RequiredCount = SectionCounts.get(SectionKey, 0)
+            ConceptBuckets = MmGeneratedBySection.get(SectionKey, {})
+            SectionSelected = _RoundRobinSelectFromConceptBuckets(ConceptBuckets, RequiredCount)
+            for Question in SectionSelected:
+                Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+                Metadata = dict(Metadata)
+                Metadata.update({
+                    "competitionSectionKey": SectionKey,
+                    "competitionSectionNumber": SectionDefinition["number"],
+                    "competitionSectionTitle": SectionDefinition["title"],
+                })
+                Question["metadata"] = Metadata
+            Selected.extend(SectionSelected)
+            SectionCoverage.append({
+                "sectionKey": SectionKey,
+                "sectionNumber": SectionDefinition["number"],
+                "sectionTitle": SectionDefinition["title"],
+                "availableQuestionCount": AvailableBySection.get(SectionKey, 0),
+                "selectedQuestionCount": len(SectionSelected),
+                "concepts": [
+                    {"conceptName": Concept, "availableQuestionCount": len(Questions)}
+                    for Concept, Questions in sorted(ConceptBuckets.items())
+                ],
+            })
+
+        if not Selected:
+            api_error(
+                400,
+                "COMPETITION_GENERATION_EMPTY",
+                "No Master Module competition mock questions could be generated for this level.",
+                {"generationErrors": GenerationErrors},
+            )
+
+        CoveragePayload = {
+            "targetQuestionCount": TargetQuestionCount,
+            "selectedQuestionCount": len(Selected),
+            "competitionStructure": "MM_8_SECTION_COMPETITION_MOCK",
+            "sectionCount": len([Row for Row in SectionCoverage if Row["selectedQuestionCount"] > 0]),
+            "sections": SectionCoverage,
+            "uncategorizedConcepts": [
+                {"conceptName": Concept, "availableQuestionCount": len(GeneratedByConcept[Concept])}
+                for Concept in sorted(GeneratedByConcept.keys())
+            ],
+            "dpsCoverage": CoverageRows,
+            "generationErrors": GenerationErrors,
+        }
+        return Selected, CoveragePayload
+
     if not GeneratedByConcept:
         api_error(
             400,
@@ -175,7 +400,7 @@ def _CollectGeneratedQuestions(db: Session, DpsRows: list[DPS], TargetQuestionCo
         )
 
     OrderedConcepts = sorted(GeneratedByConcept.keys())
-    Selected: list[dict[str, Any]] = []
+    Selected = []
     CursorByConcept = {Concept: 0 for Concept in OrderedConcepts}
 
     while len(Selected) < TargetQuestionCount:
@@ -244,7 +469,7 @@ def GenerateCompetitionMockDraft(
     if RequestedDurationSeconds < 300:
         api_error(400, "INVALID_DURATION", "Competition mock duration must be at least 5 minutes.")
 
-    SelectedQuestions, CoveragePayload = _CollectGeneratedQuestions(db, DpsRows, RequestedQuestionCount)
+    SelectedQuestions, CoveragePayload = _CollectGeneratedQuestions(db, ModuleRecord, DpsRows, RequestedQuestionCount)
     ActualQuestionCount = len(SelectedQuestions)
     MockCode = _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)
     MockTitle = Title or f"{LevelRecord.level_code} Competition Mock Practice {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
@@ -268,6 +493,7 @@ def GenerateCompetitionMockDraft(
             "requestedQuestionCount": RequestedQuestionCount,
             "actualQuestionCount": ActualQuestionCount,
             "source": "LEVEL_DPS_GENERATORS",
+            "competitionStructure": CoveragePayload.get("competitionStructure", "BALANCED_CONCEPT_ROTATION"),
         }),
         created_by_user_id=CreatedBy.id if CreatedBy else None,
         is_active=True,
@@ -279,19 +505,29 @@ def GenerateCompetitionMockDraft(
     for Index, Question in enumerate(SelectedQuestions, start=1):
         Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
         ConceptKey = _QuestionConceptKey(Question, f"Section {Index}")
-        if ConceptKey not in ConceptSectionNumbers:
-            ConceptSectionNumbers[ConceptKey] = len(ConceptSectionNumbers) + 1
-        SectionNumber = ConceptSectionNumbers[ConceptKey]
+        ExistingSectionNumber = Metadata.get("competitionSectionNumber")
+        ExistingSectionTitle = _NormalizeText(Metadata.get("competitionSectionTitle"))
+        if ExistingSectionNumber and ExistingSectionTitle:
+            try:
+                SectionNumber = int(ExistingSectionNumber)
+            except Exception:
+                SectionNumber = len(ConceptSectionNumbers) + 1
+            SectionTitle = ExistingSectionTitle
+        else:
+            if ConceptKey not in ConceptSectionNumbers:
+                ConceptSectionNumbers[ConceptKey] = len(ConceptSectionNumbers) + 1
+            SectionNumber = ConceptSectionNumbers[ConceptKey]
+            SectionTitle = ConceptKey
         QuestionMetadata = dict(Metadata)
         QuestionMetadata.update({
             "competitionSectionNumber": SectionNumber,
-            "competitionSectionTitle": ConceptKey,
+            "competitionSectionTitle": SectionTitle,
             "sourceQuestionNumber": Question.get("question_number"),
         })
         QuestionRecord = CompetitionMockQuestion(
             mock_exam_id=ExamRecord.id,
             section_number=SectionNumber,
-            section_title=ConceptKey,
+            section_title=SectionTitle,
             question_number=Index,
             display_type=str(Question.get("display_type") or "VERTICAL"),
             question_text=Question.get("question_text"),
