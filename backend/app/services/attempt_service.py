@@ -31,7 +31,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.core.errors import api_error
-from app.models import Attempt, AttemptAnswer, GeneratedQuestion, QuestionOption, DPS, Assignment, AssignmentReattemptPermission
+from app.models import Attempt, AttemptAnswer, GeneratedQuestion, QuestionOption, DPS, DPSSection, Assignment, AssignmentReattemptPermission
 from app.services.assignment_service import validate_assignment_access, create_auto_retry_assignment_for_attempt
 from app.services.generation_service import build_attempt_question_seed, persist_question_set
 from app.services.audit_service import log_event
@@ -80,15 +80,25 @@ def latest_attempt_for_student_assignment(db: Session, assignment_id: str, stude
 def safe_questions_payload(db: Session, attempt: Attempt) -> list[dict]:
     questions = db.query(GeneratedQuestion).filter(GeneratedQuestion.question_set_id == attempt.question_set_id).order_by(GeneratedQuestion.question_number).all()
     answers = {a.question_id: a.selected_option_id for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
+    dps_sections = db.query(DPSSection).filter(DPSSection.dps_id == attempt.dps_id).order_by(DPSSection.section_number.asc()).all()
+    section_count = len(dps_sections)
+    section_by_id = {section.id: section for section in dps_sections}
     payload = []
     for q in questions:
         options = db.query(QuestionOption).filter(QuestionOption.question_id == q.id).order_by(QuestionOption.display_order).all()
+        metadata = json.loads(q.metadata_json or "{}")
+        linked_section = section_by_id.get(q.dps_section_id) if q.dps_section_id else None
+        if linked_section:
+            metadata.setdefault("section_number", linked_section.section_number)
+            metadata.setdefault("section_title", linked_section.section_title)
+        metadata.setdefault("dps_total_sections", section_count)
         payload.append({
             "questionId": q.id,
             "questionNumber": q.question_number,
             "displayType": q.display_type,
             "operands": json.loads(q.operands_json or "[]"),
             "operators": json.loads(q.operators_json or "[]"),
+            "metadata": metadata,
             "options": [{"optionId": o.id, "label": o.option_label, "value": o.option_value} for o in options],
             "savedOptionId": answers.get(q.id),
         })

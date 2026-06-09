@@ -18,17 +18,22 @@ export function QuestionCard({
   saving: boolean;
   onSelect: (optionId: string) => void;
 }) {
-  const Metadata = (question as any).metadata || {};
-  const SectionTitle = Metadata.section_title || Metadata.sectionTitle;
-  const SectionQuestionNumber = Metadata.section_question_number || Metadata.sectionQuestionNumber || question.questionNumber;
+  const Metadata = question.metadata || {};
+  const SectionTitle = String(Metadata.section_title || Metadata.sectionTitle || "").trim();
+  const SectionNumber = Metadata.section_number || Metadata.sectionNumber;
+  const TotalSections = Number(Metadata.dps_total_sections || Metadata.dpsTotalSections || 0);
+  const ShowSectionLabel = Boolean(SectionTitle) && (TotalSections > 1 || Boolean(SectionNumber));
+  const SectionLabel = ShowSectionLabel
+    ? `Section ${SectionNumber || 1} · ${SectionTitle}`
+    : "Practice Question";
 
   return (
     <div className="math-card overflow-hidden p-4 sm:p-5">
       <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="math-kicker">{SectionTitle ? SectionTitle : "Practice Question"}</p>
+          <p className="math-kicker">{SectionLabel}</p>
           <h2 className="mt-1.5 text-xl font-black text-slate-950 dark:text-white">
-            Question {SectionQuestionNumber}
+            Question {question.questionNumber}
           </h2>
         </div>
 
