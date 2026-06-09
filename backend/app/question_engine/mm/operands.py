@@ -1579,19 +1579,11 @@ def GenerateFindCostPrice(Config: MMConfig, Rng: random.Random, QuestionNumber: 
 def _SkillStackerRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:
     """Strict workbook-safe Skill Stacker range.
 
-    Skill Stacker ADD values must stay two-digit and never exceed 50.
-    TIMES remains progression-banded so the accumulation challenge still grows
-    without leaking into 3+ digit ADD values.
+    Skill Stacker ADD values must stay two-digit and never exceed 50. TIMES
+    is locked to 8–12 across MM so every visual repeated-doubling sum remains
+    challenging without leaking outside the confirmed workbook-safe band.
     """
-    AddRange = (10, 50)
-    TimesRanges = {
-        "WARM_UP": (8, 10),
-        "STANDARD": (8, 11),
-        "MIXED_STEP": (7, 11),
-        "ADVANCED": (6, 10),
-        "CHALLENGE": (5, 9),
-    }
-    return AddRange, TimesRanges.get(Stage, (6, 10))
+    return (10, 50), (8, 12)
 
 
 def _SkillStackerAnswer(AddValue: int, Times: int) -> Decimal:
@@ -1619,10 +1611,10 @@ def _SkillStackerPairFromBand(PairSlot: int, Band: str) -> tuple[int, int]:
         TimesCandidates = [12, 11, 10, 9, 8]
     elif Band == "LARGE":
         AddCandidates = [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50]
-        TimesCandidates = [7, 6, 5, 4, 3]
+        TimesCandidates = [12, 11, 10, 9, 8]
     else:
         AddCandidates = [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
-        TimesCandidates = [10, 9, 8, 7, 6]
+        TimesCandidates = [12, 11, 10, 9, 8]
 
     AddValue = AddCandidates[PairSlot % len(AddCandidates)]
     Times = TimesCandidates[(PairSlot // len(AddCandidates)) % len(TimesCandidates)]
@@ -1635,6 +1627,7 @@ def _SkillStackerUniquePair(Config: MMConfig, QuestionNumber: int) -> tuple[int,
     Hard rules:
     - ADD is always two-digit.
     - ADD is always between 10 and 50 inclusive.
+    - TIMES is always between 8 and 12 inclusive.
     - Question numbers are intentionally capped to 1–5 because every Skill
       Stacker section is limited to exactly five sums.
     - Pair selection includes lesson, DPS, section, and question slot so the five
@@ -1671,78 +1664,74 @@ def GenerateSkillStacker(Config: MMConfig, Rng: random.Random, QuestionNumber: i
     }
 
 def _ConceptDrillRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], tuple[int, int]]:
-    Band = _LessonBand(Config)
-    if Band <= 2:
-        FromRanges = {
-            "WARM_UP": (250, 1200),
-            "STANDARD": (800, 2500),
-            "MIXED_STEP": (1500, 4500),
-            "ADVANCED": (3000, 7500),
-            "CHALLENGE": (5000, 12000),
-        }
-        LessRanges = {
-            "WARM_UP": (25, 150),
-            "STANDARD": (75, 300),
-            "MIXED_STEP": (150, 600),
-            "ADVANCED": (250, 900),
-            "CHALLENGE": (400, 1500),
-        }
-    elif Band <= 4:
-        FromRanges = {
-            "WARM_UP": (1200, 5000),
-            "STANDARD": (2500, 9000),
-            "MIXED_STEP": (6000, 18000),
-            "ADVANCED": (12000, 35000),
-            "CHALLENGE": (20000, 70000),
-        }
-        LessRanges = {
-            "WARM_UP": (120, 450),
-            "STANDARD": (250, 900),
-            "MIXED_STEP": (500, 1800),
-            "ADVANCED": (900, 3500),
-            "CHALLENGE": (1500, 6500),
-        }
-    else:
-        FromRanges = {
-            "WARM_UP": (5000, 25000),
-            "STANDARD": (15000, 60000),
-            "MIXED_STEP": (30000, 120000),
-            "ADVANCED": (75000, 250000),
-            "CHALLENGE": (150000, 500000),
-        }
-        LessRanges = {
-            "WARM_UP": (250, 1500),
-            "STANDARD": (750, 4500),
-            "MIXED_STEP": (1500, 9000),
-            "ADVANCED": (3500, 18000),
-            "CHALLENGE": (7000, 35000),
-        }
-    return FromRanges.get(Stage, (1000, 5000)), LessRanges.get(Stage, (100, 500))
+    """Return MM-wide Concept Drill ranges.
+
+    Concept Drill is an abacus repeated-less drill. FROM must remain 4D–5D,
+    and every generated pair must support exactly 10 repeated LESS steps.
+    """
+    FromRange = (1000, 99999)
+    LessRanges = {
+        "WARM_UP": (90, 450),
+        "STANDARD": (150, 900),
+        "MIXED_STEP": (250, 1800),
+        "ADVANCED": (400, 3500),
+        "CHALLENGE": (750, 7500),
+    }
+    return FromRange, LessRanges.get(Stage, (150, 900))
+
+
+def _ConceptDrillUniquePair(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[int, int]:
+    """Return a workbook-safe FROM/LESS pair for exactly 10 steps.
+
+    Hard rules:
+    - FROM is always 4D–5D.
+    - LESS is positive.
+    - Answer is FROM - (LESS × 10).
+    - The answer remains positive, which means the drill has exactly ten
+      complete LESS steps.
+    """
+    Stage = DifficultyStage(QuestionNumber - 1)
+    (FromMin, FromMax), (LessMin, LessMax) = _ConceptDrillRanges(Config, Stage)
+
+    LessonNumber = max(1, min(30, int(Config.LessonNumber or 1)))
+    DpsNumber = max(1, min(5, int(Config.DpsNumber or 1)))
+    NormalizedQuestionNumber = max(1, min(5, int(QuestionNumber or 1)))
+    WorkbookSlot = ((LessonNumber - 1) * 25) + ((DpsNumber - 1) * 5) + (NormalizedQuestionNumber - 1)
+
+    for Attempt in range(80):
+        LessValue = Rng.randint(LessMin, LessMax)
+        LessValue = max(1, min(LessValue, (FromMax - 1) // 10))
+
+        MinimumAnswer = max(100, FromMin - (LessValue * 10))
+        MaximumAnswer = min(9999, FromMax - (LessValue * 10))
+        if MaximumAnswer < MinimumAnswer:
+            continue
+
+        AnswerSpan = MaximumAnswer - MinimumAnswer + 1
+        AnswerValue = MinimumAnswer + ((WorkbookSlot * 97 + Attempt * 31 + Rng.randint(0, max(0, AnswerSpan - 1))) % AnswerSpan)
+        FromValue = (LessValue * 10) + AnswerValue
+        if 1000 <= FromValue <= 99999 and AnswerValue > 0:
+            return FromValue, LessValue
+
+    SafeLessValue = 300 + ((WorkbookSlot * 37) % 700)
+    SafeAnswerValue = 100 + ((WorkbookSlot * 53) % 900)
+    SafeFromValue = (SafeLessValue * 10) + SafeAnswerValue
+    if SafeFromValue < 1000:
+        SafeFromValue += 1000
+    if SafeFromValue > 99999:
+        SafeFromValue = 99999
+        SafeLessValue = 9000
+        SafeAnswerValue = SafeFromValue - (SafeLessValue * 10)
+    return SafeFromValue, SafeLessValue
 
 
 def GenerateConceptDrill(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    Stage = DifficultyStage(QuestionNumber - 1)
-    (FromMin, FromMax), (LessMin, LessMax) = _ConceptDrillRanges(Config, Stage)
-    LessValue = Rng.randint(LessMin, LessMax)
-    RepetitionCount = Rng.randint(3, 10 if Stage in {"WARM_UP", "STANDARD"} else 16)
-    Remainder = Rng.randint(1, max(1, LessValue - 1))
-    FromValue = (LessValue * RepetitionCount) + Remainder
-    if FromValue < FromMin:
-        ExtraSteps = ((FromMin - FromValue) // LessValue) + 1
-        RepetitionCount += ExtraSteps
-        FromValue = (LessValue * RepetitionCount) + Remainder
-    if FromValue > FromMax:
-        FromValue = Rng.randint(FromMin, FromMax)
-        LessValue = Rng.randint(max(2, min(LessMin, FromValue // 8)), max(3, min(LessMax, FromValue // 2)))
-        if FromValue % LessValue == 0:
-            FromValue += 1
-    CorrectAnswer = Decimal(FromValue % LessValue)
-    if CorrectAnswer == 0:
-        FromValue += 1
-        CorrectAnswer = Decimal(FromValue % LessValue)
+    FromValue, LessValue = _ConceptDrillUniquePair(Config, Rng, QuestionNumber)
+    CorrectAnswer = Decimal(FromValue - (LessValue * 10))
     return [FromValue, LessValue], ["From", "Less"], CorrectAnswer, {
         "question_text": "Concept Drill",
-        "concept_drill_mode": "REPEATED_SUBTRACTION_REMAINDER",
+        "concept_drill_mode": "EXACT_TEN_STEP_REPEATED_SUBTRACTION",
+        "concept_drill_step_count": 10,
     }
 
 
