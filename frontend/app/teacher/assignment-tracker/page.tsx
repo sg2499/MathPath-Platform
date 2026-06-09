@@ -1439,18 +1439,18 @@ function StudentReviewTab({
     );
   return (
     <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-teacher-practice-record-table-header grid min-w-[1420px] grid-cols-[1.35fr_.48fr_.58fr_.72fr_.72fr_.72fr_.92fr_.86fr_.9fr_1fr_118px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="math-teacher-practice-record-table-header grid min-w-[1640px] grid-cols-[230px_82px_82px_110px_110px_110px_150px_150px_165px_180px_112px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 [&>button]:whitespace-nowrap">
         <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Module" SortKey="module" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Level" SortKey="level" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Assigned DPS" SortKey="assigned" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Cleared DPS" SortKey="cleared" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Pending DPS" SortKey="pending" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Assigned DPS" SortKey="assigned" SortState={SortStateValue} OnSort={HandleSort} Align="left" />
+        <SortableHeader Label="Cleared DPS" SortKey="cleared" SortState={SortStateValue} OnSort={HandleSort} Align="left" />
+        <SortableHeader Label="Pending DPS" SortKey="pending" SortState={SortStateValue} OnSort={HandleSort} Align="left" />
         <SortableHeader Label="Needs Re-Attempt" SortKey="needsReattempt" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Average Accuracy" SortKey="average" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Performance" SortKey="performance" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Last Activity" SortKey="lastActivity" SortState={SortStateValue} OnSort={HandleSort} />
-        <div className="text-right">Review</div>
+        <div className="whitespace-nowrap text-right">Review</div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {SortedStudents.map((Student) => {
@@ -1459,7 +1459,7 @@ function StudentReviewTab({
           return (
             <div
               key={Student.key}
-              className="grid min-w-[1420px] grid-cols-[1.35fr_.48fr_.58fr_.72fr_.72fr_.72fr_.92fr_.86fr_.9fr_1fr_118px] items-center gap-4 px-5 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
+              className="grid min-w-[1640px] grid-cols-[230px_82px_82px_110px_110px_110px_150px_150px_165px_180px_112px] items-center gap-3 px-5 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
             >
               <div className="min-w-0">
                 <button
