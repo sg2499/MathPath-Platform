@@ -554,7 +554,7 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
         AddValue, Times = [_DecimalValue(Value) for Value in Operands]
         if AddValue != AddValue.to_integral_value() or Times != Times.to_integral_value():
             return False
-        if AddValue < 10 or AddValue > 50 or Times <= 0:
+        if AddValue < 10 or AddValue > 50 or Times < 8 or Times > 12:
             return False
         ExpectedAnswer = AddValue * (Decimal(2) ** (int(Times) - 1))
         return CorrectAnswer == ExpectedAnswer
@@ -563,12 +563,14 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
         if len(Operands) != 2 or Operators != ["From", "Less"]:
             return False
         FromValue, LessValue = [_DecimalValue(Value) for Value in Operands]
-        if FromValue <= 0 or LessValue <= 0 or FromValue <= LessValue:
+        if FromValue != FromValue.to_integral_value() or LessValue != LessValue.to_integral_value():
             return False
-        ExpectedAnswer = FromValue % LessValue
-        if ExpectedAnswer == 0:
+        if FromValue < 1000 or FromValue > 99999 or LessValue <= 0:
             return False
-        return Decimal(0) < CorrectAnswer < LessValue and CorrectAnswer == ExpectedAnswer
+        ExpectedAnswer = FromValue - (LessValue * Decimal(10))
+        if ExpectedAnswer <= 0:
+            return False
+        return CorrectAnswer == ExpectedAnswer
 
     if Config.ConceptFamily == "ANSWER_POSITION":
         if len(Operands) == 1 and Operators == ["Number"]:
