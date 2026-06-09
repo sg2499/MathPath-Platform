@@ -11,6 +11,19 @@ import { Brain, ClipboardList, Clock3, PlayCircle, ShieldCheck } from "lucide-re
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
+type ConceptSection = {
+  sectionNumber?: number | null;
+  sectionTitle?: string | null;
+  questionCount?: number | null;
+  conceptFamily?: string | null;
+  operationFocus?: string | null;
+};
+
+function conceptSectionLabel(Item: ConceptSection, Index: number) {
+  const SectionNumber = Item.sectionNumber || Index + 1;
+  const SectionTitle = Item.sectionTitle || Item.operationFocus || Item.conceptFamily || "MathPath Practice";
+  return `Section ${SectionNumber} · ${SectionTitle}`;
+}
 
 
 export default function DpsInstructionPage() {
@@ -76,7 +89,20 @@ function DpsInstructionPageContent() {
               </div>
 
               <div className="mt-4 rounded-[22px] bg-slate-50/90 p-4 text-sm font-semibold leading-6 text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-                {Query.data.concept?.description || Query.data.concept?.abacusRule || "MathPath practice"}
+                {Array.isArray(Query.data.concept?.sections) && Query.data.concept.sections.length > 0 ? (
+                  <div className="grid gap-2">
+                    {Query.data.concept.sections.map((Item: ConceptSection, Index: number) => (
+                      <div
+                        key={`${Item.sectionNumber || Index}-${Item.sectionTitle || Index}`}
+                        className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 font-black text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100"
+                      >
+                        {conceptSectionLabel(Item, Index)}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  Query.data.concept?.description || Query.data.concept?.abacusRule || "MathPath practice"
+                )}
               </div>
 
               <div className="mt-4 rounded-[24px] border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/30">
@@ -106,7 +132,7 @@ function DpsInstructionPageContent() {
                 </p>
                 <button className="math-button-primary mt-4 w-full" disabled={Mutation.isPending || !AssignmentId} onClick={() => Mutation.mutate()}>
                   <PlayCircle size={18} />
-                  {Mutation.isPending ? "Starting..." : "Start Test"}
+                  {Mutation.isPending ? "Starting..." : "Start Practice"}
                 </button>
                 {Mutation.error ? <div className="mt-4"><ErrorState message={apiErrorMessage(Mutation.error)} /></div> : null}
                 {!AssignmentId ? <p className="mt-3 text-sm font-semibold text-amber-600">Missing assignment ID. Open this DPS from the dashboard.</p> : null}
