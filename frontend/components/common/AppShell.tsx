@@ -357,6 +357,27 @@ export function AppShell({
       ],
     },
     {
+      label: "Competition",
+      icon: Target,
+      tooltip: "Manage competition mock practice",
+      children: [
+        {
+          label: "Competition Mock Studio",
+          shortLabel: "Mock Studio",
+          href: "/admin/competition/mock-studio",
+          icon: FilePenLine,
+          tooltip: "Create and publish competition mock exams",
+        },
+        {
+          label: "Competition Mock Tracker",
+          shortLabel: "Mock Tracker",
+          href: "/admin/competition/mock-tracker",
+          icon: BarChart3,
+          tooltip: "Track competition mock performance",
+        },
+      ],
+    },
+    {
       label: "Reports",
       icon: BarChart3,
       tooltip: "Generate and review reports",
@@ -445,6 +466,20 @@ export function AppShell({
         },
       ],
     },
+    {
+      label: "Competition",
+      icon: Target,
+      tooltip: "Track competition mock performance",
+      children: [
+        {
+          label: "Competition Mock Tracker",
+          shortLabel: "Mock Tracker",
+          href: "/teacher/competition/mock-tracker",
+          icon: BarChart3,
+          tooltip: "Review assigned mock exam performance",
+        },
+      ],
+    },
   ];
 
   const studentNav: NavGroup[] = [
@@ -478,6 +513,26 @@ export function AppShell({
       icon: Target,
       href: "/student/results",
       tooltip: "View progress",
+    },
+    {
+      label: "Competition",
+      icon: Target,
+      tooltip: "Open competition mock practice",
+      children: [
+        {
+          label: "Mock Exams",
+          href: "/student/competition/mock-exams",
+          icon: ClipboardPlus,
+          tooltip: "Attempt assigned competition mocks",
+        },
+        {
+          label: "Competition Progress",
+          shortLabel: "Progress",
+          href: "/student/competition/progress",
+          icon: BarChart3,
+          tooltip: "Track mock strengths and weak areas",
+        },
+      ],
     },
   ];
 
