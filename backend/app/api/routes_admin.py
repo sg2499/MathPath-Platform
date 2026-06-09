@@ -25,7 +25,7 @@ from app.core.config import (
 from app.core.security import hash_password
 from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
-from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog
+from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam
 from app.services.assignment_service import create_assignment
 from app.services.attempt_service import result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, ClearedConceptAttempts, CurrentOperationalAttempts, NeedsReattemptAttempts
@@ -77,9 +77,24 @@ from app.services.parent_report_notification_service import (
     NotifyParentReportDeliveryLogs,
     NotifyParentReportDeliveryDeleted,
 )
+from app.services.competition_mock_generation_service import (
+    GenerateCompetitionMockDraft,
+    ListCompetitionMockDrafts,
+    CompetitionMockExamPayload,
+)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
+
+
+
+class CompetitionMockGenerateRequest(BaseModel):
+    levelId: str
+    title: str | None = None
+    totalQuestions: int | None = None
+    durationSeconds: int | None = None
+    competitionScope: str | None = "GENERAL"
+    difficultyBand: str | None = "COMPETITION"
 
 class AssessmentRemarkRequest(BaseModel):
     remarkText: str
@@ -5392,3 +5407,30 @@ def admin_delete_assessment_blueprint(
         "message": "Assessment permanently deleted.",
         "item": blueprint_snapshot,
     }
+
+
+@router.post("/competition/mock-exams/generate-draft")
+def admin_generate_competition_mock_draft(payload: CompetitionMockGenerateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GenerateCompetitionMockDraft(
+        db,
+        LevelId=payload.levelId,
+        CreatedBy=user,
+        Title=payload.title,
+        TotalQuestions=payload.totalQuestions,
+        DurationSeconds=payload.durationSeconds,
+        CompetitionScope=payload.competitionScope or "GENERAL",
+        DifficultyBand=payload.difficultyBand or "COMPETITION",
+    )
+
+
+@router.get("/competition/mock-exams")
+def admin_list_competition_mock_exams(levelId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return {"mockExams": ListCompetitionMockDrafts(db, LevelId=levelId)}
+
+
+@router.get("/competition/mock-exams/{mock_exam_id}")
+def admin_get_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    ExamRecord = db.get(CompetitionMockExam, mock_exam_id)
+    if not ExamRecord or not ExamRecord.is_active:
+        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
+    return CompetitionMockExamPayload(db, ExamRecord, IncludeQuestions=True)
