@@ -1196,6 +1196,26 @@ export type CompetitionMockExamDetail = CompetitionMockExamSummary & {
   questions: CompetitionMockQuestion[];
 };
 
+export type CompetitionMockSectionPlanItem = {
+  sectionKey: string;
+  sectionNumber: number;
+  sectionTitle: string;
+  questionCount: number;
+  locked?: boolean;
+};
+
+export type CompetitionMockSectionPlan = {
+  moduleId: string;
+  moduleCode?: string | null;
+  moduleName?: string | null;
+  levelId: string;
+  levelCode?: string | null;
+  levelName?: string | null;
+  totalQuestions: number;
+  structure: string;
+  sections: CompetitionMockSectionPlanItem[];
+};
+
 export type GenerateCompetitionMockPayload = {
   levelId: string;
   title?: string;
@@ -1203,6 +1223,7 @@ export type GenerateCompetitionMockPayload = {
   durationSeconds?: number;
   competitionScope?: string;
   difficultyBand?: string;
+  sectionCounts?: Record<string, number>;
 };
 
 export type CompetitionMockAssignment = {
@@ -1241,6 +1262,11 @@ export type AssignCompetitionMocksPayload = {
   instructions?: string | null;
 };
 
+export async function getCompetitionMockSectionPlan(levelId: string, totalQuestions?: number): Promise<CompetitionMockSectionPlan> {
+  const { data } = await api.get<CompetitionMockSectionPlan>("/admin/competition/mock-section-plan", { params: { levelId, totalQuestions } });
+  return data;
+}
+
 export async function generateCompetitionMockDraft(payload: GenerateCompetitionMockPayload): Promise<CompetitionMockExamDetail> {
   const { data } = await api.post<CompetitionMockExamDetail>("/admin/competition/mock-exams/generate-draft", payload, { timeout: 60000 });
   return data;
@@ -1253,6 +1279,11 @@ export async function listCompetitionMockExams(levelId?: string): Promise<Compet
 
 export async function getCompetitionMockExam(mockExamId: string): Promise<CompetitionMockExamDetail> {
   const { data } = await api.get<CompetitionMockExamDetail>(`/admin/competition/mock-exams/${mockExamId}`);
+  return data;
+}
+
+export async function deleteCompetitionMockExam(mockExamId: string): Promise<{ ok: boolean; message: string; deleted: { mockExamId: string; title: string; questionsDeleted: number; assignmentsDeleted: number; attemptsDeleted: number } }> {
+  const { data } = await api.delete(`/admin/competition/mock-exams/${mockExamId}`);
   return data;
 }
 
