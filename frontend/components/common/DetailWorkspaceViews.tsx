@@ -3052,6 +3052,8 @@ export function CompactRecordTable({
     SetSortDirection("asc");
   };
 
+  const CompactHeaderTextClass = "inline-flex min-w-0 items-center gap-1.5 text-left text-[11px] font-black uppercase leading-[1.16] tracking-[0.13em] text-slate-500 dark:text-slate-400";
+
   const SortHeader = ({ label, sortKey }: { label: string; sortKey: CompactRecordSortKey }) => {
     const IsActive = SortKey === sortKey;
     const Icon = !IsActive ? ArrowUpDown : SortDirection === "asc" ? ArrowUp : ArrowDown;
@@ -3063,18 +3065,24 @@ export function CompactRecordTable({
         onClick={() => ToggleSort(sortKey)}
         title={`Sort ${label} ${NextDirection}`}
         aria-label={`Sort ${label} ${NextDirection}`}
-        className="inline-flex min-w-0 items-center gap-1.5 text-left font-black uppercase tracking-[0.14em] text-slate-500 transition hover:text-slate-800 focus-visible:outline-none focus-visible:text-slate-800 dark:text-slate-400 dark:hover:text-white dark:focus-visible:text-white"
+        className={`${CompactHeaderTextClass} transition hover:text-slate-800 focus-visible:outline-none focus-visible:text-slate-800 dark:hover:text-white dark:focus-visible:text-white`}
       >
-        <span className="min-w-0 leading-[1.16]">{label}</span>
+        <span className="min-w-0">{label}</span>
         <Icon className={IsActive ? "h-3 w-3 shrink-0 opacity-100" : "h-3 w-3 shrink-0 opacity-45"} />
       </button>
     );
   };
 
+  const StaticHeader = ({ label }: { label: string }) => (
+    <div className={CompactHeaderTextClass}>
+      <span className="min-w-0">{label}</span>
+    </div>
+  );
+
   return (
     <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div
-        className={`math-admin-light-compact-record-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
+        className={`math-admin-light-compact-record-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 font-black uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
       >
         {hideLessonColumn ? null : <SortHeader label="Lesson" sortKey="lesson" />}
         <SortHeader label="DPS" sortKey="dps" />
@@ -3085,7 +3093,7 @@ export function CompactRecordTable({
         <SortHeader label="Benchmark" sortKey="benchmark" />
         <SortHeader label="Time Taken" sortKey="timeTaken" />
         <SortHeader label="Completion Date" sortKey="completion" />
-        <div>Review</div>
+        <StaticHeader label="Review" />
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {DisplayRows.map((row, index) => {
