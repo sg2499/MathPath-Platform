@@ -181,6 +181,181 @@ class DPSSection(Base):
 
 
 
+class CompetitionMockExam(Base):
+    __tablename__ = "competition_mock_exams"
+    id = Column(String, primary_key=True, default=uuid_str)
+    title = Column(String(255), nullable=False)
+    mock_code = Column(String(80), nullable=True)
+    module_id = Column(String, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False)
+    level_id = Column(String, ForeignKey("levels.id", ondelete="CASCADE"), nullable=False)
+    competition_scope = Column(String(50), default="GENERAL", nullable=False)
+    difficulty_band = Column(String(50), default="COMPETITION", nullable=False)
+    total_questions = Column(Integer, nullable=False)
+    total_marks = Column(Float, default=100, nullable=False)
+    marks_per_question = Column(Float, default=1, nullable=False)
+    duration_seconds = Column(Integer, nullable=False)
+    status = Column(String(30), default="DRAFT", nullable=False)
+    instructions = Column(Text, nullable=True)
+    syllabus_coverage_json = Column(Text, nullable=True)
+    generation_config_json = Column(Text, nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    published_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    published_at = Column(DateTime(timezone=True), nullable=True)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    module = relationship("Module")
+    level = relationship("Level")
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
+    published_by = relationship("User", foreign_keys=[published_by_user_id])
+
+    __table_args__ = (UniqueConstraint("level_id", "mock_code", name="uq_competition_mock_level_code"),)
+
+
+class CompetitionMockQuestion(Base):
+    __tablename__ = "competition_mock_questions"
+    id = Column(String, primary_key=True, default=uuid_str)
+    mock_exam_id = Column(String, ForeignKey("competition_mock_exams.id", ondelete="CASCADE"), nullable=False)
+    section_number = Column(Integer, default=1, nullable=False)
+    section_title = Column(String(255), nullable=True)
+    question_number = Column(Integer, nullable=False)
+    display_type = Column(String(50), default="VERTICAL", nullable=False)
+    question_text = Column(Text, nullable=True)
+    operands_json = Column(Text, nullable=True)
+    operators_json = Column(Text, nullable=True)
+    correct_answer = Column(Text, nullable=False)
+    explanation = Column(Text, nullable=True)
+    difficulty = Column(String(50), nullable=True)
+    concept_family = Column(String(100), nullable=True)
+    concept_tag = Column(String(100), nullable=True)
+    source_type = Column(String(50), default="COMPETITION_MOCK_ENGINE", nullable=False)
+    source_reference_id = Column(String, nullable=True)
+    seed = Column(Text, nullable=True)
+    marks = Column(Float, default=1, nullable=False)
+    metadata_json = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    mock_exam = relationship("CompetitionMockExam")
+
+    __table_args__ = (UniqueConstraint("mock_exam_id", "question_number", name="uq_competition_mock_question_number"),)
+
+
+class CompetitionMockQuestionOption(Base):
+    __tablename__ = "competition_mock_question_options"
+    id = Column(String, primary_key=True, default=uuid_str)
+    mock_question_id = Column(String, ForeignKey("competition_mock_questions.id", ondelete="CASCADE"), nullable=False)
+    option_label = Column(String(1), nullable=False)
+    option_value = Column(Text, nullable=False)
+    is_correct = Column(Boolean, default=False, nullable=False)
+    display_order = Column(Integer, nullable=False)
+
+    mock_question = relationship("CompetitionMockQuestion")
+
+    __table_args__ = (UniqueConstraint("mock_question_id", "option_label", name="uq_competition_mock_option_label"),)
+
+
+class CompetitionMockAssignment(Base):
+    __tablename__ = "competition_mock_assignments"
+    id = Column(String, primary_key=True, default=uuid_str)
+    mock_exam_id = Column(String, ForeignKey("competition_mock_exams.id"), nullable=False)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=True)
+    assigned_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    status = Column(String(30), default="ASSIGNED", nullable=False)
+    current_attempt_number = Column(Integer, default=0, nullable=False)
+    max_attempts = Column(Integer, default=1, nullable=False)
+    assigned_at = Column(DateTime(timezone=True), server_default=func.now())
+    due_at = Column(DateTime(timezone=True), nullable=True)
+    instructions = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    mock_exam = relationship("CompetitionMockExam")
+    student = relationship("Student")
+    teacher = relationship("Teacher")
+    assigned_by = relationship("User")
+
+    __table_args__ = (UniqueConstraint("mock_exam_id", "student_id", name="uq_competition_mock_assignment_student"),)
+
+
+class CompetitionMockAttempt(Base):
+    __tablename__ = "competition_mock_attempts"
+    id = Column(String, primary_key=True, default=uuid_str)
+    mock_assignment_id = Column(String, ForeignKey("competition_mock_assignments.id", ondelete="CASCADE"), nullable=False)
+    mock_exam_id = Column(String, ForeignKey("competition_mock_exams.id"), nullable=False)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    attempt_number = Column(Integer, nullable=False)
+    status = Column(String(30), default="IN_PROGRESS", nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    submitted_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Integer, nullable=False)
+    total_questions = Column(Integer, default=0, nullable=False)
+    attempted_count = Column(Integer, default=0, nullable=False)
+    correct_count = Column(Integer, default=0, nullable=False)
+    wrong_count = Column(Integer, default=0, nullable=False)
+    unanswered_count = Column(Integer, default=0, nullable=False)
+    total_score = Column(Float, default=0, nullable=False)
+    max_score = Column(Float, default=0, nullable=False)
+    percentage = Column(Float, default=0, nullable=False)
+    performance_band = Column(String(50), nullable=True)
+    time_taken_seconds = Column(Integer, nullable=True)
+    time_utilization_percentage = Column(Float, nullable=True)
+
+    mock_assignment = relationship("CompetitionMockAssignment")
+    mock_exam = relationship("CompetitionMockExam")
+    student = relationship("Student")
+
+    __table_args__ = (UniqueConstraint("mock_assignment_id", "attempt_number", name="uq_competition_mock_attempt_number"),)
+
+
+class CompetitionMockAttemptAnswer(Base):
+    __tablename__ = "competition_mock_attempt_answers"
+    id = Column(String, primary_key=True, default=uuid_str)
+    mock_attempt_id = Column(String, ForeignKey("competition_mock_attempts.id", ondelete="CASCADE"), nullable=False)
+    mock_question_id = Column(String, ForeignKey("competition_mock_questions.id", ondelete="CASCADE"), nullable=False)
+    selected_option_id = Column(String, ForeignKey("competition_mock_question_options.id"), nullable=True)
+    selected_value = Column(Text, nullable=True)
+    is_correct = Column(Boolean, nullable=True)
+    marks_awarded = Column(Float, default=0, nullable=False)
+    answered_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    mock_attempt = relationship("CompetitionMockAttempt")
+    mock_question = relationship("CompetitionMockQuestion")
+    selected_option = relationship("CompetitionMockQuestionOption")
+
+    __table_args__ = (UniqueConstraint("mock_attempt_id", "mock_question_id", name="uq_competition_mock_attempt_question_answer"),)
+
+
+class CompetitionMockResultSummary(Base):
+    __tablename__ = "competition_mock_result_summaries"
+    id = Column(String, primary_key=True, default=uuid_str)
+    mock_attempt_id = Column(String, ForeignKey("competition_mock_attempts.id", ondelete="CASCADE"), unique=True, nullable=False)
+    mock_assignment_id = Column(String, ForeignKey("competition_mock_assignments.id"), nullable=False)
+    mock_exam_id = Column(String, ForeignKey("competition_mock_exams.id"), nullable=False)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    score = Column(Float, default=0, nullable=False)
+    max_score = Column(Float, default=100, nullable=False)
+    percentage = Column(Float, default=0, nullable=False)
+    accuracy_percentage = Column(Float, default=0, nullable=False)
+    time_taken_seconds = Column(Integer, nullable=True)
+    time_utilization_percentage = Column(Float, nullable=True)
+    performance_band = Column(String(50), nullable=False)
+    concept_strengths_json = Column(Text, nullable=True)
+    concept_weaknesses_json = Column(Text, nullable=True)
+    concept_performance_json = Column(Text, nullable=True)
+    recommendation_json = Column(Text, nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    mock_attempt = relationship("CompetitionMockAttempt")
+    mock_assignment = relationship("CompetitionMockAssignment")
+    mock_exam = relationship("CompetitionMockExam")
+    student = relationship("Student")
+
+
 class AssessmentBlueprint(Base):
     __tablename__ = "assessment_blueprints"
     id = Column(String, primary_key=True, default=uuid_str)
