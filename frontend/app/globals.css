@@ -11858,3 +11858,40 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     stroke-width: 2.15px !important;
   }
 }
+
+
+/* 9 June 2026 — Student Competition dropdown light-mode role-palette override
+   Scope: Student login, Competition dropdown items only, light mode only.
+   Purpose: override the generic Student dropdown hover rule that was forcing a pale beige state.
+   Admin, Teacher, dark mode, routes, and page content are untouched. */
+@layer components {
+  html:not(.dark) .math-role-student [data-student-competition-nav-child="true"].math-dropdown-option:is(:hover, :focus-visible, .math-dropdown-option-active) {
+    background: linear-gradient(135deg, #7c2d12 0%, #f97316 54%, #fb7185 100%) !important;
+    border-color: rgba(249, 115, 22, 0.52) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    box-shadow: 0 14px 30px rgba(249, 115, 22, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+  }
+
+  html:not(.dark) .math-role-student [data-student-competition-nav-child="true"].math-dropdown-option:is(:hover, :focus-visible, .math-dropdown-option-active) :is(span, small, p, div, strong, .math-dropdown-option-subtitle) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  html:not(.dark) .math-role-student [data-student-competition-nav-child="true"].math-dropdown-option:is(:hover, :focus-visible, .math-dropdown-option-active) [data-student-competition-nav-child-icon="true"] {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+  }
+
+  html:not(.dark) .math-role-student [data-student-competition-nav-child="true"].math-dropdown-option:is(:hover, :focus-visible, .math-dropdown-option-active) [data-student-competition-nav-child-icon="true"] :is(svg, svg *, .lucide, path, line, rect, circle, polyline) {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+  }
+}

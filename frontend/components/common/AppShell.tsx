@@ -1074,6 +1074,7 @@ export function AppShell({
                                       onClick={() => navigateTo(child.href)}
                                       data-teacher-nav-child={IsTeacher && theme === "light" ? "true" : undefined}
                                       data-student-nav-child={IsStudent && theme === "light" ? "true" : undefined}
+                                      data-student-competition-nav-child={StudentCompetitionChildLight ? "true" : undefined}
                                       className={`math-dropdown-option group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
                                         childActive
                                           ? StudentChildLight
@@ -1091,6 +1092,7 @@ export function AppShell({
                                       <span
                                         data-teacher-nav-child-icon={IsTeacher && theme === "light" ? "true" : undefined}
                                         data-student-nav-child-icon={IsStudent && theme === "light" ? "true" : undefined}
+                                        data-student-competition-nav-child-icon={StudentCompetitionChildLight ? "true" : undefined}
                                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
                                           childActive
                                             ? "bg-white/15 text-white dark:bg-slate-950/10"
