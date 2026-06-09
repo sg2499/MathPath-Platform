@@ -19,10 +19,10 @@ type ConceptSection = {
   operationFocus?: string | null;
 };
 
-function conceptSectionLabel(Item: ConceptSection, Index: number) {
+function conceptSectionParts(Item: ConceptSection, Index: number) {
   const SectionNumber = Item.sectionNumber || Index + 1;
   const SectionTitle = Item.sectionTitle || Item.operationFocus || Item.conceptFamily || "MathPath Practice";
-  return `Section ${SectionNumber} · ${SectionTitle}`;
+  return { SectionNumber, SectionTitle };
 }
 
 
@@ -91,14 +91,19 @@ function DpsInstructionPageContent() {
               <div className="mt-4 rounded-[22px] bg-slate-50/90 p-4 text-sm font-semibold leading-6 text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
                 {Array.isArray(Query.data.concept?.sections) && Query.data.concept.sections.length > 0 ? (
                   <div className="grid gap-2">
-                    {Query.data.concept.sections.map((Item: ConceptSection, Index: number) => (
-                      <div
-                        key={`${Item.sectionNumber || Index}-${Item.sectionTitle || Index}`}
-                        className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 font-black text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100"
-                      >
-                        {conceptSectionLabel(Item, Index)}
-                      </div>
-                    ))}
+                    {Query.data.concept.sections.map((Item: ConceptSection, Index: number) => {
+                      const { SectionNumber, SectionTitle } = conceptSectionParts(Item, Index);
+                      return (
+                        <div
+                          key={`${Item.sectionNumber || Index}-${Item.sectionTitle || Index}`}
+                          className="grid grid-cols-[92px_16px_1fr] items-start rounded-2xl border border-white/80 bg-white/80 px-4 py-3 font-black text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100 sm:grid-cols-[104px_18px_1fr]"
+                        >
+                          <span className="whitespace-nowrap">Section {SectionNumber}</span>
+                          <span className="text-center text-slate-400 dark:text-slate-500">-</span>
+                          <span className="min-w-0 leading-6">{SectionTitle}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   Query.data.concept?.description || Query.data.concept?.abacusRule || "MathPath practice"
