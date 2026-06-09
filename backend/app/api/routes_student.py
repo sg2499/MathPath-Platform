@@ -22,6 +22,7 @@ from app.services.assessment_notification_service import NotifyAssessmentAttempt
 from app.services.practice_notification_service import NotifyPracticeAttemptSubmitted, NotifyPracticeAssignmentsCreated
 from app.services.reattempt_operational_service import AttemptConceptKey, AttemptSequenceValue
 from app.services.assessment_feedback_service import assessment_feedback_payload, active_assessment_remark
+from app.services.competition_mock_assignment_service import ListStudentCompetitionMockAssignments
 
 router = APIRouter(prefix="/api/student", tags=["student"])
 
@@ -179,6 +180,11 @@ def student_notifications(db: Session = Depends(get_db), student: Student = Depe
 
     notifications = sorted(notifications, key=lambda item: item.get("createdAt") or "", reverse=True)
     return {"notifications": notifications[:25]}
+
+
+@router.get("/competition/mock-assignments")
+def student_competition_mock_assignments(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return {"assignments": ListStudentCompetitionMockAssignments(db, student)}
 
 
 @router.get("/assignments")
@@ -620,17 +626,6 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
 def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     payload = dps_config_payload(db, dps_id)
     section = payload["sections"][0] if payload["sections"] else {}
-    concept_sections = [
-        {
-            "sectionNumber": item.get("sectionNumber"),
-            "sectionTitle": item.get("sectionTitle"),
-            "questionCount": item.get("questionCount"),
-            "conceptFamily": item.get("conceptFamily"),
-            "operationFocus": item.get("operationFocus"),
-        }
-        for item in payload.get("sections", [])
-    ]
-    question_count = payload["defaultQuestionCount"]
     return {
         "dpsId": payload["dpsId"],
         "moduleCode": payload["moduleCode"],
@@ -643,10 +638,9 @@ def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = D
             "operationFocus": section.get("operationFocus"),
             "abacusRule": section.get("abacusRule"),
             "description": section.get("sectionTitle"),
-            "sections": concept_sections,
         },
         "testSettings": {
-            "questionCount": question_count,
+            "questionCount": payload["defaultQuestionCount"],
             "durationSeconds": payload["defaultDurationSeconds"],
             "marksPerQuestion": payload["marksPerQuestion"],
             "answerType": "MCQ",
@@ -655,7 +649,7 @@ def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = D
             "navigationAllowed": True,
             "autoSubmit": True,
         },
-        "instructions": [f"You will get {question_count} questions.", "Each question has 4 options.", "Choose the correct answer.", "The practice will auto-submit when time is up."],
+        "instructions": ["You will get 10 questions.", "Each question has 4 options.", "Choose the correct answer.", "The test will auto-submit when time is up."],
     }
 
 @router.post("/attempts/start")
