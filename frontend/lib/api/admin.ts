@@ -1145,3 +1145,139 @@ export async function deleteAdminParentReportDelivery(
   );
   return data;
 }
+
+export type CompetitionMockExamSummary = {
+  mockExamId: string;
+  mockCode: string;
+  title: string;
+  moduleId: string;
+  moduleCode: string | null;
+  moduleName: string | null;
+  levelId: string;
+  levelCode: string | null;
+  levelName: string | null;
+  competitionScope: string;
+  difficultyBand: string;
+  totalQuestions: number;
+  totalMarks: number;
+  marksPerQuestion: number;
+  durationSeconds: number;
+  status: string;
+  instructions?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type CompetitionMockQuestionOption = {
+  optionId: string;
+  label: string;
+  value: string;
+  isCorrect: boolean;
+  displayOrder: number;
+};
+
+export type CompetitionMockQuestion = {
+  mockQuestionId: string;
+  sectionNumber: number;
+  sectionTitle: string;
+  questionNumber: number;
+  displayType: string;
+  questionText: string;
+  operands: unknown[];
+  operators: string[];
+  correctAnswer: string;
+  difficulty: string;
+  conceptFamily: string;
+  conceptTag: string;
+  options: CompetitionMockQuestionOption[];
+};
+
+export type CompetitionMockExamDetail = CompetitionMockExamSummary & {
+  questions: CompetitionMockQuestion[];
+};
+
+export type GenerateCompetitionMockPayload = {
+  levelId: string;
+  title?: string;
+  totalQuestions?: number;
+  durationSeconds?: number;
+  competitionScope?: string;
+  difficultyBand?: string;
+};
+
+export type CompetitionMockAssignment = {
+  assignmentId: string;
+  mockExamId: string;
+  studentId: string;
+  student?: {
+    studentId: string;
+    studentCode: string;
+    studentName: string | null;
+    currentModuleId: string | null;
+    currentLevelId: string | null;
+    teacherId: string | null;
+  } | null;
+  teacherId?: string | null;
+  teacherCode?: string | null;
+  assignedByUserId?: string | null;
+  assignedByName?: string | null;
+  status: string;
+  currentAttemptNumber: number;
+  maxAttempts: number;
+  assignedAt?: string | null;
+  dueAt?: string | null;
+  instructions?: string | null;
+  isActive: boolean;
+  mockExam?: CompetitionMockExamSummary;
+};
+
+export type AssignCompetitionMocksPayload = {
+  levelId: string;
+  mockExamIds: string[];
+  studentIds?: string[];
+  assignToAllInLevel?: boolean;
+  maxAttempts?: number;
+  dueAt?: string | null;
+  instructions?: string | null;
+};
+
+export async function generateCompetitionMockDraft(payload: GenerateCompetitionMockPayload): Promise<CompetitionMockExamDetail> {
+  const { data } = await api.post<CompetitionMockExamDetail>("/admin/competition/mock-exams/generate-draft", payload, { timeout: 60000 });
+  return data;
+}
+
+export async function listCompetitionMockExams(levelId?: string): Promise<CompetitionMockExamSummary[]> {
+  const { data } = await api.get<{ mockExams: CompetitionMockExamSummary[] }>("/admin/competition/mock-exams", { params: levelId ? { levelId } : undefined });
+  return data.mockExams;
+}
+
+export async function getCompetitionMockExam(mockExamId: string): Promise<CompetitionMockExamDetail> {
+  const { data } = await api.get<CompetitionMockExamDetail>(`/admin/competition/mock-exams/${mockExamId}`);
+  return data;
+}
+
+export async function assignCompetitionMockExams(payload: AssignCompetitionMocksPayload): Promise<{
+  ok: boolean;
+  levelId: string;
+  levelCode?: string | null;
+  moduleId?: string | null;
+  moduleCode?: string | null;
+  mockExamCount: number;
+  studentCount: number;
+  createdAssignmentCount: number;
+  updatedExistingAssignmentCount: number;
+  assignments: CompetitionMockAssignment[];
+}> {
+  const { data } = await api.post("/admin/competition/mock-exams/assign", payload);
+  return data;
+}
+
+export async function listCompetitionMockAssignments(params: {
+  levelId?: string;
+  mockExamId?: string;
+  studentId?: string;
+  status?: string;
+} = {}): Promise<CompetitionMockAssignment[]> {
+  const { data } = await api.get<{ assignments: CompetitionMockAssignment[] }>("/admin/competition/mock-assignments", { params });
+  return data.assignments;
+}
