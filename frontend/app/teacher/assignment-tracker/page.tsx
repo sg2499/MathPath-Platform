@@ -1438,8 +1438,8 @@ function StudentReviewTab({
       <EmptyState message="Change the filters to view matching students." />
     );
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-teacher-practice-record-table-header grid grid-cols-[minmax(160px,1fr)_minmax(72px,.42fr)_minmax(90px,.46fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(128px,.58fr)_minmax(104px,.5fr)_minmax(150px,.7fr)_minmax(150px,.68fr)_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+    <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="math-teacher-practice-record-table-header grid min-w-[1420px] grid-cols-[1.35fr_.48fr_.58fr_.72fr_.72fr_.72fr_.92fr_.86fr_.9fr_1fr_118px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Module" SortKey="module" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Level" SortKey="level" SortState={SortStateValue} OnSort={HandleSort} />
@@ -1450,7 +1450,7 @@ function StudentReviewTab({
         <SortableHeader Label="Average Accuracy" SortKey="average" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Performance" SortKey="performance" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Last Activity" SortKey="lastActivity" SortState={SortStateValue} OnSort={HandleSort} />
-        <div>Review</div>
+        <div className="text-right">Review</div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {SortedStudents.map((Student) => {
@@ -1459,7 +1459,7 @@ function StudentReviewTab({
           return (
             <div
               key={Student.key}
-              className="grid grid-cols-[minmax(160px,1fr)_minmax(72px,.42fr)_minmax(90px,.46fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(102px,.5fr)_minmax(128px,.58fr)_minmax(104px,.5fr)_minmax(150px,.7fr)_minmax(150px,.68fr)_120px] items-center gap-3 px-5 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
+              className="grid min-w-[1420px] grid-cols-[1.35fr_.48fr_.58fr_.72fr_.72fr_.72fr_.92fr_.86fr_.9fr_1fr_118px] items-center gap-4 px-5 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
             >
               <div className="min-w-0">
                 <button
@@ -1506,7 +1506,7 @@ function StudentReviewTab({
               <div className="text-sm font-bold text-slate-600">
                 {Stats.Last}
               </div>
-              <div className="flex justify-start">
+              <div className="flex justify-end">
                 <StandardViewButton
                   label="Review"
                   tooltip="Open student practice review"
