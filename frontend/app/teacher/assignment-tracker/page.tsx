@@ -1433,24 +1433,49 @@ function StudentReviewTab({
     SetSortStateValue((Current) => NextSortState(Current, Key));
   }, []);
 
+  const StudentReviewHeader = ({
+    Children,
+    SortKey,
+    Align = "left",
+  }: {
+    Children: ReactNode;
+    SortKey: TeacherStudentReviewSortKey;
+    Align?: "left" | "center" | "right";
+  }) => (
+    <button
+      type="button"
+      onClick={() => HandleSort(SortKey)}
+      className={`inline-flex min-w-0 items-center gap-1 font-black uppercase leading-[1.15] tracking-[0.08em] transition hover:text-[#7a1f58] dark:hover:text-rose-100 ${
+        Align === "center"
+          ? "justify-center text-center"
+          : Align === "right"
+            ? "justify-end text-right"
+            : "justify-start text-left"
+      }`}
+    >
+      <span className="whitespace-normal break-words">{Children}</span>
+      <SortIndicator SortState={SortStateValue} SortKey={SortKey} />
+    </button>
+  );
+
   if (!Students.length)
     return (
       <EmptyState message="Change the filters to view matching students." />
     );
   return (
-    <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-teacher-practice-record-table-header grid min-w-[1640px] grid-cols-[230px_82px_82px_110px_110px_110px_150px_150px_165px_180px_112px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 [&>button]:whitespace-nowrap">
-        <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Module" SortKey="module" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Level" SortKey="level" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Assigned DPS" SortKey="assigned" SortState={SortStateValue} OnSort={HandleSort} Align="left" />
-        <SortableHeader Label="Cleared DPS" SortKey="cleared" SortState={SortStateValue} OnSort={HandleSort} Align="left" />
-        <SortableHeader Label="Pending DPS" SortKey="pending" SortState={SortStateValue} OnSort={HandleSort} Align="left" />
-        <SortableHeader Label="Needs Re-Attempt" SortKey="needsReattempt" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Average Accuracy" SortKey="average" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Performance" SortKey="performance" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Last Activity" SortKey="lastActivity" SortState={SortStateValue} OnSort={HandleSort} />
-        <div className="whitespace-nowrap text-right">Review</div>
+    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="math-teacher-practice-record-table-header grid grid-cols-[minmax(150px,1.65fr)_64px_74px_82px_82px_82px_104px_104px_132px_138px_92px] items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-4 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+        <StudentReviewHeader SortKey="student">Student</StudentReviewHeader>
+        <StudentReviewHeader SortKey="module" Align="center">Module</StudentReviewHeader>
+        <StudentReviewHeader SortKey="level" Align="center">Level</StudentReviewHeader>
+        <StudentReviewHeader SortKey="assigned" Align="center">Assigned<br />DPS</StudentReviewHeader>
+        <StudentReviewHeader SortKey="cleared" Align="center">Cleared<br />DPS</StudentReviewHeader>
+        <StudentReviewHeader SortKey="pending" Align="center">Pending<br />DPS</StudentReviewHeader>
+        <StudentReviewHeader SortKey="needsReattempt" Align="center">Needs Re-<br />Attempt</StudentReviewHeader>
+        <StudentReviewHeader SortKey="average" Align="center">Average<br />Accuracy</StudentReviewHeader>
+        <StudentReviewHeader SortKey="performance" Align="center">Performance</StudentReviewHeader>
+        <StudentReviewHeader SortKey="lastActivity" Align="center">Last<br />Activity</StudentReviewHeader>
+        <div className="text-right font-black uppercase leading-[1.15] tracking-[0.08em]">Review</div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {SortedStudents.map((Student) => {
@@ -1459,7 +1484,7 @@ function StudentReviewTab({
           return (
             <div
               key={Student.key}
-              className="grid min-w-[1640px] grid-cols-[230px_82px_82px_110px_110px_110px_150px_150px_165px_180px_112px] items-center gap-3 px-5 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
+              className="grid grid-cols-[minmax(150px,1.65fr)_64px_74px_82px_82px_82px_104px_104px_132px_138px_92px] items-center gap-2 px-4 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
             >
               <div className="min-w-0">
                 <button
@@ -1473,37 +1498,37 @@ function StudentReviewTab({
                   {Student.studentCode}
                 </p>
               </div>
-              <div className="text-sm font-bold text-slate-600">
+              <div className="text-center text-sm font-bold text-slate-600">
                 {StudentPrimaryModule(Student)}
               </div>
-              <div className="text-sm font-bold text-slate-600">
+              <div className="text-center text-sm font-bold text-slate-600">
                 {StudentPrimaryLevel(Student)}
               </div>
-              <div>
+              <div className="flex justify-center">
                 <Chip tone="blue">{Stats.Assigned}</Chip>
               </div>
-              <div>
+              <div className="flex justify-center">
                 <Chip tone="green">{Stats.Cleared}</Chip>
               </div>
-              <div>
+              <div className="flex justify-center">
                 <Chip tone="amber">
                   {Stats.Pending}
                 </Chip>
               </div>
-              <div>
+              <div className="flex justify-center">
                 <Chip tone="red">
                   {Stats.NeedsReattempt}
                 </Chip>
               </div>
-              <div>
+              <div className="flex justify-center">
                 <Chip tone={accuracyTone(Stats.Average)}>
                   {Stats.Average}%
                 </Chip>
               </div>
-              <div>
+              <div className="flex justify-center">
                 <Chip tone={Band.Tone}>{Band.Label}</Chip>
               </div>
-              <div className="text-sm font-bold text-slate-600">
+              <div className="text-center text-sm font-bold leading-snug text-slate-600">
                 {Stats.Last}
               </div>
               <div className="flex justify-end">
