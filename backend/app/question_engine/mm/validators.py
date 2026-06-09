@@ -354,6 +354,22 @@ def _IsMixedDigitAddLessConcept(Config: MMConfig) -> bool:
     return "mixed digit" in Text and "add less" in Text
 
 
+def _IsFastVisualisationConcept(Config: MMConfig) -> bool:
+    Text = _AddLessTitleText(Config)
+    return "fast visualisation" in Text or "fast visualization" in Text
+
+
+def _IsMmAddLessVisualConcept(Config: MMConfig) -> bool:
+    Text = _AddLessTitleText(Config)
+    return (
+        "add less" in Text
+        and "visual" in Text
+        and "decimal" not in Text
+        and "borrowing" not in Text
+        and not _IsFastVisualisationConcept(Config)
+    )
+
+
 def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
     Text = _AddLessTitleText(Config)
     Match = re.search(r"\b([2-6])\s*digit(?:\s+number)?\s+add\s+less\b", Text)
@@ -375,6 +391,8 @@ def _ValidateMixedDigitAddLessDigits(Config: MMConfig, Operands: list[int | floa
 
 
 def _ValidateExplicitAddLessDigits(Config: MMConfig, Operands: list[int | float | str]) -> bool:
+    if _IsMmAddLessVisualConcept(Config):
+        return True
     Digits = _ExplicitAddLessDigitCount(Config)
     if Digits is None:
         return True
@@ -384,6 +402,20 @@ def _ValidateExplicitAddLessDigits(Config: MMConfig, Operands: list[int | float 
         if DecimalValue != DecimalValue.to_integral_value():
             return False
         if not (Decimal(Minimum) <= DecimalValue <= Decimal(Maximum)):
+            return False
+    return True
+
+
+def _ValidateMmAddLessVisual(Config: MMConfig, Operands: list[int | float | str]) -> bool:
+    if not _IsMmAddLessVisualConcept(Config):
+        return True
+    if len(Operands) > 5:
+        return False
+    for Value in Operands:
+        DecimalValue = abs(_DecimalValue(Value))
+        if DecimalValue != DecimalValue.to_integral_value():
+            return False
+        if not (Decimal(100) <= DecimalValue <= Decimal(9999)):
             return False
     return True
 
@@ -398,6 +430,8 @@ def _ValidateAddLessQuestion(Config: MMConfig, Operands: list[int | float | str]
     if not _ValidateExplicitAddLessDigits(Config, Operands):
         return False
     if not _ValidateMixedDigitAddLessDigits(Config, Operands):
+        return False
+    if not _ValidateMmAddLessVisual(Config, Operands):
         return False
 
     ExpectedAnswer = sum(Decimal(str(Value)) for Value in Operands)
