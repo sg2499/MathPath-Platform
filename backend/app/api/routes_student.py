@@ -620,6 +620,17 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
 def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     payload = dps_config_payload(db, dps_id)
     section = payload["sections"][0] if payload["sections"] else {}
+    concept_sections = [
+        {
+            "sectionNumber": item.get("sectionNumber"),
+            "sectionTitle": item.get("sectionTitle"),
+            "questionCount": item.get("questionCount"),
+            "conceptFamily": item.get("conceptFamily"),
+            "operationFocus": item.get("operationFocus"),
+        }
+        for item in payload.get("sections", [])
+    ]
+    question_count = payload["defaultQuestionCount"]
     return {
         "dpsId": payload["dpsId"],
         "moduleCode": payload["moduleCode"],
@@ -632,9 +643,10 @@ def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = D
             "operationFocus": section.get("operationFocus"),
             "abacusRule": section.get("abacusRule"),
             "description": section.get("sectionTitle"),
+            "sections": concept_sections,
         },
         "testSettings": {
-            "questionCount": payload["defaultQuestionCount"],
+            "questionCount": question_count,
             "durationSeconds": payload["defaultDurationSeconds"],
             "marksPerQuestion": payload["marksPerQuestion"],
             "answerType": "MCQ",
@@ -643,7 +655,7 @@ def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = D
             "navigationAllowed": True,
             "autoSubmit": True,
         },
-        "instructions": ["You will get 10 questions.", "Each question has 4 options.", "Choose the correct answer.", "The test will auto-submit when time is up."],
+        "instructions": [f"You will get {question_count} questions.", "Each question has 4 options.", "Choose the correct answer.", "The practice will auto-submit when time is up."],
     }
 
 @router.post("/attempts/start")
