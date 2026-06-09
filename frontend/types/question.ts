@@ -10,6 +10,10 @@ export type StudentQuestion = {
   displayType: "VERTICAL" | string;
   operands: number[];
   operators: string[];
+  metadata?: Record<string, unknown>;
+  questionText?: string | null;
+  question_text?: string | null;
+  display_type?: string | null;
   options: McqOption[];
   savedOptionId?: string | null;
 };

@@ -1532,6 +1532,7 @@ def AssessmentQuestionSafePayload(Db: Session, Question: AssessmentQuestion, Sav
         "questionText": Question.question_text,
         "operands": SafeJson(Question.operands_json, []),
         "operators": SafeJson(Question.operators_json, []),
+        "metadata": SafeJson(Question.metadata_json, {}),
         "savedOptionId": SavedOptionId,
         "options": [
             {

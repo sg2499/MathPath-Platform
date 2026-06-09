@@ -112,6 +112,15 @@ export default function StudentAssessmentAttemptPage() {
     return <AppShell><LoadingState label="Preparing assessment questions..." /></AppShell>;
   }
 
+  const Metadata = (CurrentQuestion as any).metadata || {};
+  const SectionTitle = String(Metadata.section_title || Metadata.sectionTitle || "").trim();
+  const SectionNumber = Metadata.section_number || Metadata.sectionNumber;
+  const TotalSections = Number(Metadata.dps_total_sections || Metadata.dpsTotalSections || 0);
+  const ShowSectionLabel = Boolean(SectionTitle) && (TotalSections > 1 || Boolean(SectionNumber));
+  const SectionLabel = ShowSectionLabel
+    ? `Section ${SectionNumber || 1} · ${SectionTitle}`
+    : "Assessment Question";
+
   return (
     <AppShell title="Assessment Attempt">
       <section className="math-slide-up rounded-[30px] border border-white/70 bg-gradient-to-br from-white/92 via-sky-50/78 to-cyan-100/58 p-4 shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:from-slate-950/92 dark:via-slate-900/82 dark:to-cyan-950/36 sm:p-5">
@@ -140,7 +149,7 @@ export default function StudentAssessmentAttemptPage() {
       <div className="mt-4 math-card overflow-hidden p-4 sm:p-5">
         <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="math-kicker">Assessment Question</p>
+            <p className="math-kicker">{SectionLabel}</p>
             <h2 className="mt-1.5 text-xl font-black text-slate-950 dark:text-white">Question {CurrentQuestion.questionNumber}</h2>
           </div>
           <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${SavingQuestionId === CurrentQuestion.questionId ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
