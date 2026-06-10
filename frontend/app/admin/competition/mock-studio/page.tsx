@@ -276,14 +276,14 @@ export default function AdminCompetitionMockStudioPage() {
             <button
               type="button"
               onClick={() => SetActiveStudioTab("CREATE")}
-              className={`rounded-2xl px-5 py-3 text-sm font-black transition ${ActiveStudioTab === "CREATE" ? "math-primary-btn" : "border border-slate-200 bg-white text-[var(--math-role-primary)] hover:border-[var(--math-role-primary)] dark:border-slate-800 dark:bg-slate-950/40"}`}
+              className={`inline-flex min-h-11 items-center justify-center rounded-2xl border px-5 py-3 text-sm font-black shadow-sm transition ${ActiveStudioTab === "CREATE" ? "border-[var(--math-role-primary)] bg-[var(--math-role-primary)] text-white shadow-blue-900/20 hover:bg-[var(--math-role-primary-dark)]" : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] hover:shadow-md dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200"}`}
             >
               Create Mock
             </button>
             <button
               type="button"
               onClick={() => SetActiveStudioTab("MANAGE")}
-              className={`rounded-2xl px-5 py-3 text-sm font-black transition ${ActiveStudioTab === "MANAGE" ? "math-primary-btn" : "border border-slate-200 bg-white text-[var(--math-role-primary)] hover:border-[var(--math-role-primary)] dark:border-slate-800 dark:bg-slate-950/40"}`}
+              className={`inline-flex min-h-11 items-center justify-center rounded-2xl border px-5 py-3 text-sm font-black shadow-sm transition ${ActiveStudioTab === "MANAGE" ? "border-[var(--math-role-primary)] bg-[var(--math-role-primary)] text-white shadow-blue-900/20 hover:bg-[var(--math-role-primary-dark)]" : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] hover:shadow-md dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200"}`}
             >
               Manage Mocks
             </button>
@@ -332,6 +332,13 @@ export default function AdminCompetitionMockStudioPage() {
                     </label>
                   </div>
 
+                  <div className="rounded-[24px] border border-[var(--math-role-primary)]/20 bg-[var(--math-role-primary)]/5 p-3 shadow-sm">
+                    <button disabled={!CanGenerate} onClick={() => GenerateMutation.mutate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--math-role-primary)] bg-[var(--math-role-primary)] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-[var(--math-role-primary-dark)] hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:shadow-none dark:disabled:border-slate-700 dark:disabled:bg-slate-900/80 dark:disabled:text-slate-400">
+                      {GenerateMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                      Generate Draft Mock
+                    </button>
+                  </div>
+
                   <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -366,10 +373,6 @@ export default function AdminCompetitionMockStudioPage() {
                     </div>
                   </div>
 
-                  <button disabled={!CanGenerate} onClick={() => GenerateMutation.mutate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--math-role-primary)] bg-[var(--math-role-primary)] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-[var(--math-role-primary-dark)] hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none dark:disabled:border-slate-800 dark:disabled:bg-slate-900/70 dark:disabled:text-slate-500">
-                    {GenerateMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                    Generate Draft Mock
-                  </button>
                 </div>
               </div>
             </div>
@@ -478,7 +481,7 @@ export default function AdminCompetitionMockStudioPage() {
                     <textarea value={AssignmentInstructions} onChange={(EventValue) => SetAssignmentInstructions(EventValue.target.value)} rows={3} placeholder="Example: Complete this mock under competition timing without taking breaks." className="math-input min-h-24" />
                   </label>
 
-                  <button disabled={!CanAssign} onClick={() => AssignMutation.mutate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--math-role-primary)] bg-[var(--math-role-primary)] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-[var(--math-role-primary-dark)] hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none dark:disabled:border-slate-800 dark:disabled:bg-slate-900/70 dark:disabled:text-slate-500">
+                  <button disabled={!CanAssign} onClick={() => AssignMutation.mutate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--math-role-primary)] bg-[var(--math-role-primary)] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-[var(--math-role-primary-dark)] hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:shadow-none dark:disabled:border-slate-700 dark:disabled:bg-slate-900/80 dark:disabled:text-slate-400">
                     {AssignMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                     Assign Selected Mock Exams
                   </button>
