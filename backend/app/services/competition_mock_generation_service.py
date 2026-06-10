@@ -1,6 +1,8 @@
 import json
+import random
 from collections import defaultdict
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 from uuid import uuid4
 
@@ -892,6 +894,112 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: L
     return Selected, CoveragePayload
 
 
+
+
+def _PlainDecimalText(Value: Decimal) -> str:
+    if Value == Value.to_integral_value():
+        return str(int(Value))
+    Text = format(Value.normalize(), "f")
+    if "." in Text:
+        Text = Text.rstrip("0").rstrip(".")
+    return "0" if Text in {"", "-0"} else Text
+
+
+def _WorkbookPositionAnswerForDigits(NumberText: str, Position: int) -> Decimal:
+    CleanDigits = "".join(Character for Character in str(NumberText) if Character.isdigit()) or "0"
+    DigitCount = len(CleanDigits)
+    NumberValue = Decimal(CleanDigits)
+    Exponent = int(Position) - DigitCount
+    if Exponent >= 0:
+        return NumberValue * (Decimal(10) ** Exponent)
+    return NumberValue / (Decimal(10) ** abs(Exponent))
+
+
+def _BuildSameDigitPositionOptions(Question: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """Build smart same-digit distractors for Write Number From Given Position.
+
+    In competition mocks the student must solve the place-value task.  Options
+    that mutate 5809 into 4809/6809 let students pattern-spot without solving,
+    so every option here preserves the exact source digit sequence and varies
+    only the decimal/place-value placement.
+    """
+    Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+    Mode = str(Metadata.get("answer_position_mode") or "").upper()
+    QuestionText = str(Question.get("question_text") or "").lower()
+    Operators = [str(Value or "").strip().lower() for Value in (Question.get("operators") or [])]
+    if Mode != "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE" and not ("write" in QuestionText and "given position" in QuestionText) and Operators[:2] != ["position", "number"]:
+        return None
+
+    Operands = Question.get("operands") or []
+    if len(Operands) < 2:
+        return None
+
+    try:
+        CorrectPosition = int(Operands[0])
+    except Exception:
+        CorrectPosition = int(Metadata.get("position") or 0)
+
+    SourceNumber = str(Metadata.get("source_number") or Operands[1] or "").strip()
+    SourceDigits = "".join(Character for Character in SourceNumber if Character.isdigit())
+    if not SourceDigits:
+        return None
+
+    CorrectValue = _WorkbookPositionAnswerForDigits(SourceDigits, CorrectPosition)
+    CorrectText = _PlainDecimalText(CorrectValue)
+    CandidatePositions = [
+        CorrectPosition,
+        CorrectPosition + 1,
+        CorrectPosition - 1,
+        CorrectPosition + 2,
+        CorrectPosition - 2,
+        CorrectPosition + 3,
+        CorrectPosition - 3,
+        0,
+        1,
+        -1,
+        2,
+        -2,
+    ]
+
+    Values: list[str] = []
+    for CandidatePosition in CandidatePositions:
+        CandidateText = _PlainDecimalText(_WorkbookPositionAnswerForDigits(SourceDigits, CandidatePosition))
+        if CandidateText not in Values:
+            Values.append(CandidateText)
+        if len(Values) >= 6:
+            break
+
+    if CorrectText not in Values:
+        Values.insert(0, CorrectText)
+
+    Distractors = [Value for Value in Values if Value != CorrectText][:3]
+    if len(Distractors) < 3:
+        return None
+
+    OptionValues = [CorrectText] + Distractors[:3]
+    Rng = random.Random(str(Question.get("seed") or "MM-COMPETITION-POSITION-OPTIONS"))
+    Rng.shuffle(OptionValues)
+    Labels = ["A", "B", "C", "D"]
+    return [
+        {
+            "label": Labels[Index],
+            "value": Value,
+            "is_correct": Value == CorrectText,
+            "display_order": Index + 1,
+        }
+        for Index, Value in enumerate(OptionValues)
+    ]
+
+
+def _ApplyMmCompetitionOptionQualityGuards(Question: dict[str, Any]) -> dict[str, Any]:
+    UpdatedQuestion = dict(Question)
+    SameDigitOptions = _BuildSameDigitPositionOptions(UpdatedQuestion)
+    if SameDigitOptions:
+        UpdatedQuestion["options"] = SameDigitOptions
+        UpdatedQuestion["correct_answer"] = next(Option["value"] for Option in SameDigitOptions if Option["is_correct"])
+    return UpdatedQuestion
+
+
 def _StoreQuestionOptions(db: Session, QuestionRecord: CompetitionMockQuestion, Options: list[dict[str, Any]]) -> None:
     Labels = ["A", "B", "C", "D", "E", "F"]
     for Index, Option in enumerate(Options or []):
@@ -965,7 +1073,8 @@ def GenerateCompetitionMockDraft(
     db.flush()
 
     ConceptSectionNumbers: dict[str, int] = {}
-    for Index, Question in enumerate(SelectedQuestions, start=1):
+    for Index, RawQuestion in enumerate(SelectedQuestions, start=1):
+        Question = _ApplyMmCompetitionOptionQualityGuards(RawQuestion) if _IsMasterModule(ModuleRecord) else RawQuestion
         Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
         ConceptKey = _QuestionConceptKey(Question, f"Section {Index}")
         ExistingSectionNumber = Metadata.get("competitionSectionNumber")
