@@ -76,6 +76,25 @@ MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
 MM_COMPETITION_SECTION_BY_KEY = {Row["key"]: Row for Row in MM_COMPETITION_SECTION_DEFINITIONS}
 
 
+def _CompetitionSectionDisplayTitle(SectionDefinition: dict[str, Any]) -> str:
+    return f"Section {SectionDefinition['number']} - {SectionDefinition['title'].split(' - ', 1)[-1]}"
+
+
+def _DecorateCompetitionSectionQuestion(Question: dict[str, Any], SectionKey: str, SectionDefinition: dict[str, Any]) -> dict[str, Any]:
+    DecoratedQuestion = dict(Question)
+    Metadata = DecoratedQuestion.get("metadata") if isinstance(DecoratedQuestion.get("metadata"), dict) else {}
+    Metadata = dict(Metadata)
+    Metadata.update({
+        "competitionSectionKey": SectionKey,
+        "competitionSectionNumber": SectionDefinition["number"],
+        "competitionSectionTitle": SectionDefinition["title"],
+        "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
+        "competitionSectionLocked": True,
+    })
+    DecoratedQuestion["metadata"] = Metadata
+    return DecoratedQuestion
+
+
 MM_DEFAULT_SECTION_COUNT_FLOOR = 0
 
 
@@ -522,17 +541,11 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, DpsRows: list[
                         Existing.add(Signature)
                     if len(SectionSelected) >= RequiredCount:
                         break
+            DecoratedSectionQuestions: list[dict[str, Any]] = []
             for Question in SectionSelected:
                 UsedQuestionSignatures.add(_QuestionSignature(Question))
-                Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
-                Metadata = dict(Metadata)
-                Metadata.update({
-                    "competitionSectionKey": SectionKey,
-                    "competitionSectionNumber": SectionDefinition["number"],
-                    "competitionSectionTitle": SectionDefinition["title"],
-                })
-                Question["metadata"] = Metadata
-            Selected.extend(SectionSelected)
+                DecoratedSectionQuestions.append(_DecorateCompetitionSectionQuestion(Question, SectionKey, SectionDefinition))
+            Selected.extend(DecoratedSectionQuestions)
             SectionCoverage.append({
                 "sectionKey": SectionKey,
                 "sectionNumber": SectionDefinition["number"],
