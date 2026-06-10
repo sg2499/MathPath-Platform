@@ -110,11 +110,12 @@ MM_DEFAULT_SECTION_COUNT_FLOOR = 0
 
 MM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
     "MM_ABACUS_ADD_LESS": [
-        {"conceptFamily": "ADD_LESS", "title": "2 Digit Number Add-Less"},
-        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Add-Less"},
-        {"conceptFamily": "INTEGERS", "title": "Integers Add-Less"},
         {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Positive and Negative Answers"},
         {"conceptFamily": "ADD_LESS", "title": "Mixed Digit Add-Less"},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Add-Less"},
+        {"conceptFamily": "INTEGERS", "title": "Integers Add-Less"},
+        {"conceptFamily": "ADD_LESS", "title": "4 Digit Number Add-Less"},
+        {"conceptFamily": "ADD_LESS", "title": "2 Digit Number Add-Less (Fast Visualisation)"},
     ],
     "MM_VISUAL_ADD_LESS": [
         {"conceptFamily": "ADD_LESS", "title": "2 Digit Number Add-Less (Fast Visualisation)"},
@@ -124,14 +125,28 @@ MM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
         {"conceptFamily": "ADD_LESS", "title": "Mixed Digit Add-Less (Visual)"},
     ],
     "MM_MULTIPLICATION": [
-        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "Multiplication"},
-        {"conceptFamily": "DECIMAL_MULTIPLICATION", "title": "Decimal Multiplication"},
-        {"conceptFamily": "MULTIPLICATION_DIVISION_MIXED", "title": "Multiplication Mixed Pattern", "mixedOperationGroup": "MULTIPLICATION"},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "2D × 2D Multiplication"},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "3D × 2D Multiplication"},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "3D × 3D Multiplication"},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "4D × 2D Multiplication"},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "4D × 3D Multiplication"},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "5D × 2D Multiplication"},
+        {"conceptFamily": "DECIMAL_MULTIPLICATION", "title": "2D × 2D Decimal Multiplication"},
+        {"conceptFamily": "DECIMAL_MULTIPLICATION", "title": "3D × 2D Decimal Multiplication"},
+        {"conceptFamily": "DECIMAL_MULTIPLICATION", "title": "3D × 3D Decimal Multiplication"},
+        {"conceptFamily": "DECIMAL_MULTIPLICATION", "title": "4D × 2D Decimal Multiplication"},
     ],
     "MM_DIVISION": [
-        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "Division"},
-        {"conceptFamily": "DECIMAL_DIVISION", "title": "Decimal Division"},
-        {"conceptFamily": "MULTIPLICATION_DIVISION_MIXED", "title": "Division Mixed Pattern", "mixedOperationGroup": "DIVISION"},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "3D ÷ 2D Division"},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "4D ÷ 2D Division"},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "5D ÷ 2D Division"},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "5D ÷ 3D Division"},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "6D ÷ 3D Division"},
+        {"conceptFamily": "DECIMAL_DIVISION", "title": "3D ÷ 2D Decimal Division"},
+        {"conceptFamily": "DECIMAL_DIVISION", "title": "4D ÷ 2D Decimal Division"},
+        {"conceptFamily": "DECIMAL_DIVISION", "title": "5D ÷ 2D Decimal Division"},
+        {"conceptFamily": "DECIMAL_DIVISION", "title": "5D ÷ 3D Decimal Division"},
+        {"conceptFamily": "DECIMAL_DIVISION", "title": "6D ÷ 3D Decimal Division"},
     ],
     "MM_POSITIONAL_PLACEMENT": [
         {"conceptFamily": "ANSWER_POSITION", "title": "Find Position of the First Natural Number"},
@@ -140,15 +155,22 @@ MM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
     ],
     "MM_SQUARES_ROOTS": [
         {"conceptFamily": "SQUARES", "title": "Squares"},
-        {"conceptFamily": "SQUARE_ROOT", "title": "Square Root"},
+        {"conceptFamily": "SQUARE_ROOT", "title": "Square Root 5 Digit Number"},
+        {"conceptFamily": "SQUARE_ROOT", "title": "Square Root 4 Digit Number"},
+        {"conceptFamily": "SQUARE_ROOT", "title": "Square Root 3 & 4 Digit Number"},
     ],
     "MM_CUBES_ROOTS": [
         {"conceptFamily": "CUBES", "title": "Cubes"},
-        {"conceptFamily": "CUBE_ROOT", "title": "Cube Root"},
+        {"conceptFamily": "CUBE_ROOT", "title": "Cube Root 6 Digit Number"},
+        {"conceptFamily": "CUBE_ROOT", "title": "Cube Root 5 Digit Number"},
+        {"conceptFamily": "CUBE_ROOT", "title": "Cube Root 4 Digit Number"},
     ],
     "MM_BODMAS_PERCENTAGE": [
-        {"conceptFamily": "BODMAS", "title": "BODMAS"},
-        {"conceptFamily": "PERCENTAGE_ADD_LESS", "title": "Add-Less Percentage"},
+        {"conceptFamily": "BODMAS", "title": "BODMAS Competition Challenge"},
+        {"conceptFamily": "BODMAS", "title": "BODMAS Square Root Decimal Percentage Challenge"},
+        {"conceptFamily": "PERCENTAGE_ADD_LESS", "title": "Add-Less Percentage Challenge"},
+        {"conceptFamily": "PERCENTAGE_ADD_LESS", "title": "Less Percentage Challenge"},
+        {"conceptFamily": "PERCENTAGE_ADD_LESS", "title": "Add Percentage Challenge"},
     ],
     "MM_FINANCIAL": [
         {"conceptFamily": "PROFIT_LOSS", "title": "Profit-Loss"},
@@ -161,6 +183,46 @@ MM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
         {"conceptFamily": "CONCEPT_DRILL", "title": "Concept Drill"},
     ],
 }
+
+
+MM_COMPETITION_CHALLENGE_LESSON_FLOORS: dict[str, int] = {
+    "MM_ABACUS_ADD_LESS": 20,
+    "MM_VISUAL_ADD_LESS": 20,
+    "MM_MULTIPLICATION": 18,
+    "MM_DIVISION": 18,
+    "MM_POSITIONAL_PLACEMENT": 20,
+    "MM_SQUARES_ROOTS": 24,
+    "MM_CUBES_ROOTS": 24,
+    "MM_BODMAS_PERCENTAGE": 27,
+    "MM_FINANCIAL": 20,
+    "MM_SKILL_DRILL": 20,
+}
+
+
+MM_COMPETITION_BATCH_SIZE = 5
+
+
+def _MmCompetitionChallengeLessons(Lessons: list[Lesson], SectionKey: str) -> list[Lesson]:
+    if not Lessons:
+        return []
+    MinimumLessonNumber = MM_COMPETITION_CHALLENGE_LESSON_FLOORS.get(SectionKey, 20)
+    ChallengeLessons = [
+        LessonRecord
+        for LessonRecord in Lessons
+        if int(getattr(LessonRecord, "lesson_number", 1) or 1) >= MinimumLessonNumber
+    ]
+    return ChallengeLessons or Lessons
+
+
+def _MmCompetitionOrderedCandidates(Questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Prefer the later/difficult generated rows inside the MM section generator.
+
+    Normal MM practice sheets intentionally progress from warm-up to challenge.
+    Competition mocks should draw from the challenge end of that same generator
+    without changing DPS/Learning Path behaviour, so we consume generated rows
+    in reverse question order.
+    """
+    return list(reversed(Questions))
 
 
 def _MmSectionCountMap(TotalQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
@@ -243,25 +305,25 @@ def _CollectMmCompetitionSectionLockedQuestions(
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
         Attempts = 0
+        ChallengeLessons = _MmCompetitionChallengeLessons(Lessons, SectionKey) or OrderedLessons
 
-        while len(SectionQuestions) < RequiredCount and Attempts < max(RequiredCount * 4, 16):
+        while len(SectionQuestions) < RequiredCount and Attempts < max(RequiredCount * 8, 32):
             ConceptSpec = ConceptPool[Attempts % len(ConceptPool)]
-            LessonRecord = OrderedLessons[(SectionIndex + Attempts) % len(OrderedLessons)]
-            Needed = RequiredCount - len(SectionQuestions)
+            LessonRecord = ChallengeLessons[(SectionIndex + Attempts) % len(ChallengeLessons)]
             Batch = _GenerateMmCompetitionConceptBatch(
                 ModuleRecord=ModuleRecord,
                 LevelRecord=LevelRecord,
                 LessonRecord=LessonRecord,
                 SectionDefinition=SectionDefinition,
                 ConceptSpec=ConceptSpec,
-                # Generate one accepted question per concept turn. Some MM concepts
-                # such as Skill Stacker and Concept Drill intentionally generate
-                # five rows by default; taking only one per turn prevents one
-                # concept from swallowing the whole competition section.
-                RequiredCount=1,
-                Seed=f"COMPETITION-MM-{SectionKey}-{ConceptSpec['conceptFamily']}-{uuid4().hex}-{Attempts}",
+                # Generate a full MM warm-up-to-challenge mini-set and select
+                # from the challenge end. This keeps normal DPS generation
+                # untouched while making competition mocks exam-worthy.
+                RequiredCount=MM_COMPETITION_BATCH_SIZE,
+                Seed=f"COMPETITION-MM-CHALLENGE-{SectionKey}-{ConceptSpec['conceptFamily']}-{uuid4().hex}-{Attempts}",
             )
-            for Question in Batch:
+            AcceptedFromThisTurn = False
+            for Question in _MmCompetitionOrderedCandidates(Batch):
                 Signature = _QuestionSignature(Question)
                 if Signature in UsedSignatures:
                     continue
@@ -276,6 +338,8 @@ def _CollectMmCompetitionSectionLockedQuestions(
                     "competitionSectionTitle": SectionDefinition["title"],
                     "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
                     "competitionSectionLocked": True,
+                    "competitionDifficultyProfile": "MM_COMPETITION_CHALLENGE",
+                    "competitionChallengeLessonFloor": MM_COMPETITION_CHALLENGE_LESSON_FLOORS.get(SectionKey, 20),
                     "section_number": SectionDefinition["number"],
                     "section_title": _CompetitionSectionDisplayTitle(SectionDefinition),
                 })
@@ -283,9 +347,13 @@ def _CollectMmCompetitionSectionLockedQuestions(
                 QuestionCopy["metadata"] = Metadata
                 SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition))
                 ConceptCoverage[ConceptSpec["title"]] += 1
-                if len(SectionQuestions) >= RequiredCount:
-                    break
+                AcceptedFromThisTurn = True
+                break
             Attempts += 1
+            if len(SectionQuestions) >= RequiredCount:
+                break
+            if not AcceptedFromThisTurn and Attempts > max(RequiredCount * 6, 24):
+                break
 
         if len(SectionQuestions) < RequiredCount:
             api_error(
