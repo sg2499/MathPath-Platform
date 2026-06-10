@@ -570,6 +570,96 @@ function NormalisePreviewOperands(Operands: unknown[] | null | undefined): Array
   });
 }
 
+
+function IsMasterModuleMock(ModuleCode: string | null | undefined) {
+  return String(ModuleCode || "").trim().toUpperCase().includes("MM");
+}
+
+function QuestionSearchText(QuestionValue: CompetitionMockExamDetail["questions"][number]) {
+  return [
+    QuestionValue.sectionTitle,
+    QuestionValue.conceptTag,
+    QuestionValue.conceptFamily,
+    QuestionValue.displayType,
+    QuestionValue.questionText,
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function IsMmExpressionQuestion(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
+  if (!IsMasterModuleMock(ExamValue.moduleCode)) return false;
+  const TextValue = QuestionSearchText(QuestionValue);
+  return Number(QuestionValue.sectionNumber) === 8 || TextValue.includes("bodmas") || TextValue.includes("percentage") || TextValue.includes("percent");
+}
+
+function IsMmFinancialQuestion(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
+  if (!IsMasterModuleMock(ExamValue.moduleCode)) return false;
+  const TextValue = QuestionSearchText(QuestionValue);
+  return Number(QuestionValue.sectionNumber) === 9 || TextValue.includes("profit") || TextValue.includes("loss") || TextValue.includes("interest") || TextValue.includes("selling price") || TextValue.includes("cost price");
+}
+
+function GetMockDisplayType(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
+  if (IsMmFinancialQuestion(QuestionValue, ExamValue)) return "FINANCIAL_TABLE";
+  if (IsMmExpressionQuestion(QuestionValue, ExamValue)) return "EXPRESSION_WORKSHEET";
+  return QuestionValue.displayType;
+}
+
+function FormatMockExpressionValue(Value: number | string) {
+  if (typeof Value === "number") {
+    if (Number.isInteger(Value)) return String(Value);
+    return String(Number(Value.toFixed(8))).replace(/\.0+$/, "");
+  }
+  return String(Value);
+}
+
+function BuildMockExpression(Operands: Array<number | string>, Operators: string[]) {
+  if (!Operands.length) return "?";
+  return Operands.map((OperandValue, IndexValue) => {
+    const ValueText = FormatMockExpressionValue(OperandValue);
+    if (IndexValue === 0) return ValueText;
+    const OperatorText = String(Operators[IndexValue] || Operators[IndexValue - 1] || "+").trim();
+    if (OperatorText === "+%") return `+ ${ValueText}%`;
+    if (OperatorText === "-%") return `− ${ValueText}%`;
+    if (OperatorText === "×%") return `× ${ValueText}%`;
+    if (OperatorText === "%") return `% ${ValueText}`;
+    return `${OperatorText || "+"} ${ValueText}`;
+  }).join(" ");
+}
+
+function RenderMockExpressionParts(ExpressionValue: string) {
+  return ExpressionValue.split(/([?？])/g).map((PartValue, IndexValue) => (
+    PartValue === "?" || PartValue === "？"
+      ? <span key={`mock-question-mark-${IndexValue}`} className="text-blue-700 dark:text-cyan-300">?</span>
+      : <span key={`mock-expression-part-${IndexValue}`}>{PartValue}</span>
+  ));
+}
+
+function MockQuestionRenderer({ question, exam, compact = false }: { question: CompetitionMockExamDetail["questions"][number]; exam: CompetitionMockExamDetail; compact?: boolean }) {
+  const Operands = NormalisePreviewOperands(question.operands);
+  const Operators = question.operators || [];
+
+  if (IsMmExpressionQuestion(question, exam)) {
+    const ExpressionValue = question.questionText?.trim() || BuildMockExpression(Operands, Operators);
+    const HasPrompt = /[?？]/.test(ExpressionValue);
+    return (
+      <div className="mx-auto flex w-full justify-center rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+        <div className={`${compact ? "text-[16px] sm:text-[20px]" : "text-[24px] sm:text-[30px]"} max-w-full whitespace-normal break-words text-center font-mono font-black leading-snug tracking-tight`}>
+          {RenderMockExpressionParts(ExpressionValue)}
+          {!HasPrompt ? <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span> : null}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <MathQuestionDisplay
+      operands={Operands}
+      operators={Operators}
+      displayType={GetMockDisplayType(question, exam)}
+      questionText={question.questionText}
+    />
+  );
+}
+
 function GroupMockQuestionsBySection(Questions: CompetitionMockExamDetail["questions"]) {
   const SectionMap = new Map<number, { sectionNumber: number; sectionTitle: string; questions: CompetitionMockExamDetail["questions"] }>();
 
@@ -627,14 +717,9 @@ function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
 
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {SampleQuestions.map((QuestionValue) => (
-                  <article key={QuestionValue.mockQuestionId} className="grid gap-4 px-5 py-4 xl:grid-cols-[280px_1fr] xl:items-center">
+                  <article key={QuestionValue.mockQuestionId} className={`grid gap-4 px-5 py-4 ${IsMmExpressionQuestion(QuestionValue, exam) || IsMmFinancialQuestion(QuestionValue, exam) ? "xl:grid-cols-1" : "xl:grid-cols-[280px_1fr] xl:items-center"}`}>
                     <div className="rounded-[22px] border border-blue-100 bg-slate-50 px-4 py-5 dark:border-slate-800 dark:bg-slate-900/40">
-                      <MathQuestionDisplay
-                        operands={NormalisePreviewOperands(QuestionValue.operands)}
-                        operators={QuestionValue.operators || []}
-                        displayType={QuestionValue.displayType}
-                        questionText={QuestionValue.questionText}
-                      />
+                      <MockQuestionRenderer question={QuestionValue} exam={exam} compact />
                     </div>
 
                     <div className="min-w-0 space-y-3">
