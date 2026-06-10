@@ -284,7 +284,7 @@ export default function AdminCompetitionMockDetailPage() {
                       <Archive size={15} />Archive
                     </button>
                   ) : null}
-                  <button type="button" className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-[13px] font-black text-rose-700 hover:bg-rose-600 hover:text-white dark:border-rose-900/60 dark:text-rose-200 dark:hover:bg-rose-700" onClick={() => setDeleteOpen(true)}>
+                  <button type="button" className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl border border-rose-300 bg-rose-50 px-4 py-2 text-[13px] font-black text-rose-700 shadow-sm shadow-rose-900/10 transition hover:-translate-y-0.5 hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow-lg hover:shadow-rose-900/20 dark:border-rose-700/70 dark:bg-rose-950/30 dark:text-rose-200 dark:hover:border-rose-600 dark:hover:bg-rose-700 dark:hover:text-white" onClick={() => setDeleteOpen(true)}>
                     <Trash2 size={15} />Delete
                   </button>
                 </div>
