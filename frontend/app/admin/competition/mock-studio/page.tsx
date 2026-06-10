@@ -776,7 +776,7 @@ function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
                     <div className="min-w-0 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Q{QuestionValue.questionNumber}</span>
-                        <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">{GetMmQuestionConceptDisplayTitle(QuestionValue, examDetail)}</span>
+                        <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">{GetMmQuestionConceptDisplayTitle(QuestionValue, exam)}</span>
                         <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200">Answer: {QuestionValue.correctAnswer}</span>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
