@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import Link from "next/link";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -24,7 +25,7 @@ import {
 import type { LevelItem, ModuleItem } from "@/types/curriculum";
 import type { AdminStudent } from "@/types/student";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Archive, CheckCircle2, Eye, FilePenLine, Loader2, Plus, Search, Send, ShieldCheck, Target, Trash2, UsersRound, X } from "lucide-react";
+import { AlertTriangle, Archive, CheckCircle2, Eye, FilePenLine, Loader2, Plus, Search, Send, ShieldCheck, Target, Trash2, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -415,9 +416,9 @@ export default function AdminCompetitionMockStudioPage() {
                           </label>
                           <div className="flex flex-wrap items-center gap-2">
                             <StatusChip status={MockValue.status} />
-                            <button onClick={() => { SetPreviewMockId(MockValue.mockExamId); SetLastMessage(`Preview opened: ${MockValue.title}`); }} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] dark:border-slate-700 dark:text-slate-200">
+                            <Link href={`/admin/competition/mock-studio/${MockValue.mockExamId}`} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] dark:border-slate-700 dark:text-slate-200">
                               <Eye size={14} className="mr-1 inline" /> View
-                            </button>
+                            </Link>
                             <button disabled={IsArchived} onClick={() => ToggleMock(MockValue.mockExamId)} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200">
                               <Send size={14} className="mr-1 inline" /> Assign
                             </button>
@@ -543,33 +544,6 @@ export default function AdminCompetitionMockStudioPage() {
                   {DeleteMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
                   Delete Permanently
                 </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {PreviewMockId && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/55 px-4 py-8 backdrop-blur-sm">
-            <div className="w-full max-w-5xl rounded-[2rem] border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4 dark:border-slate-800">
-                <div>
-                  <p className="math-kicker">Mock Preview</p>
-                  <h2 className="text-xl font-black text-slate-950 dark:text-white">Generated Mock Paper Preview</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Review the selected mock before assigning it to students.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => SetPreviewMockId(null)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-[var(--math-role-primary)] hover:bg-[var(--math-role-primary)] hover:text-white dark:border-slate-700 dark:text-slate-200"
-                  aria-label="Close mock preview"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="mt-5">
-                {PreviewQuery.isLoading && <LoadingState label="Loading mock preview..." />}
-                {PreviewQuery.error && <ErrorState message={apiErrorMessage(PreviewQuery.error)} />}
-                {PreviewQuery.data && <MockPreview exam={PreviewQuery.data} />}
               </div>
             </div>
           </div>
