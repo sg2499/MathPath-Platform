@@ -71,6 +71,20 @@ function isMmFinancialQuestion(question: CompetitionMockQuestion, mock: Competit
   return Number(question.sectionNumber) === 9 || text.includes("profit") || text.includes("loss") || text.includes("interest") || text.includes("selling price") || text.includes("cost price");
 }
 
+function isMmPositionalQuestion(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
+  if (!isMasterModuleMock(mock.moduleCode)) return false;
+  const text = questionSearchText(question);
+  return Number(question.sectionNumber) === 5 || text.includes("position") || text.includes("placement");
+}
+
+function getMmPositionalPromptTitle(question: CompetitionMockQuestion) {
+  const text = questionSearchText(question);
+  if (text.includes("write") && text.includes("given position")) return null;
+  if (text.includes("first natural") || text.includes("find position")) return "FIND POSITION OF FIRST NATURAL NUMBER";
+  if (text.includes("multiplication") || text.includes("answer position") || text.includes("placement")) return "DECIMAL MULTIPLICATION ANSWER POSITION";
+  return "POSITIONAL & PLACEMENT";
+}
+
 function getMockDisplayType(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
   if (isMmFinancialQuestion(question, mock)) return "FINANCIAL_TABLE";
   if (isMmExpressionQuestion(question, mock)) return "EXPRESSION_WORKSHEET";
@@ -110,7 +124,9 @@ function renderExpressionParts(expression: string) {
 function MockQuestionRenderer({ question, mock, compact = false }: { question: CompetitionMockQuestion; mock: CompetitionMockExamDetail; compact?: boolean }) {
   const operands = normalisePreviewOperands(question.operands);
   const operators = question.operators || [];
-  if (isMmExpressionQuestion(question, mock)) {
+  const positionalPromptTitle = isMmPositionalQuestion(question, mock) ? getMmPositionalPromptTitle(question) : null;
+
+  const renderedQuestion = isMmExpressionQuestion(question, mock) ? (() => {
     const expression = question.questionText?.trim() || buildMockExpression(operands, operators);
     const hasPrompt = /[?？]/.test(expression);
     return (
@@ -121,15 +137,24 @@ function MockQuestionRenderer({ question, mock, compact = false }: { question: C
         </div>
       </div>
     );
-  }
-
-  return (
+  })() : (
     <MathQuestionDisplay
       operands={operands}
       operators={operators}
       displayType={getMockDisplayType(question, mock)}
       questionText={question.questionText}
     />
+  );
+
+  if (!positionalPromptTitle) return renderedQuestion;
+
+  return (
+    <div className="mx-auto w-full max-w-md overflow-hidden rounded-[22px] border border-slate-200 bg-white text-center shadow-inner dark:border-slate-700 dark:bg-slate-950/70">
+      <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">{positionalPromptTitle}</p>
+      </div>
+      <div className="px-4 py-5">{renderedQuestion}</div>
+    </div>
   );
 }
 
