@@ -77,12 +77,39 @@ function isMmPositionalQuestion(question: CompetitionMockQuestion, mock: Competi
   return Number(question.sectionNumber) === 5 || text.includes("position") || text.includes("placement");
 }
 
-function getMmPositionalPromptTitle(question: CompetitionMockQuestion) {
+function hasMultiplicationPlacementShape(question: CompetitionMockQuestion) {
   const text = questionSearchText(question);
-  if (text.includes("write") && text.includes("given position")) return null;
-  if (text.includes("first natural") || text.includes("find position")) return "FIND POSITION OF FIRST NATURAL NUMBER";
-  if (text.includes("multiplication") || text.includes("answer position") || text.includes("placement")) return "DECIMAL MULTIPLICATION ANSWER POSITION";
-  return "POSITIONAL & PLACEMENT";
+  const operators = (question.operators || []).map((operator) => String(operator || "").toLowerCase());
+  const operands = normalisePreviewOperands(question.operands);
+
+  return (
+    text.includes("decimal multiplication answer position") ||
+    text.includes("answer position") ||
+    /[×x*]/.test(String(question.questionText || "")) ||
+    operators.some((operator) => operator === "×" || operator === "x" || operator === "*") ||
+    (operands.length >= 2 && text.includes("multiplication"))
+  );
+}
+
+function hasWriteNumberPositionShape(question: CompetitionMockQuestion) {
+  const text = questionSearchText(question);
+  return text.includes("write") && text.includes("given position");
+}
+
+function getMmQuestionConceptDisplayTitle(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
+  if (!isMasterModuleMock(mock.moduleCode)) return question.conceptTag || question.conceptFamily || "Concept";
+  if (Number(question.sectionNumber) === 5 || isMmPositionalQuestion(question, mock)) {
+    if (hasWriteNumberPositionShape(question)) return "Write Number From Given Position";
+    if (hasMultiplicationPlacementShape(question)) return "Decimal Multiplication Answer Position";
+    return "Find Position of the First Natural Number";
+  }
+  return question.conceptTag || question.conceptFamily || "Concept";
+}
+
+function getMmPositionalPromptTitle(question: CompetitionMockQuestion) {
+  if (hasWriteNumberPositionShape(question)) return null;
+  if (hasMultiplicationPlacementShape(question)) return "DECIMAL MULTIPLICATION ANSWER POSITION";
+  return "FIND POSITION OF FIRST NATURAL NUMBER";
 }
 
 function getMockDisplayType(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
@@ -369,7 +396,7 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">Section {currentQuestion.sectionNumber}</span>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{currentQuestion.sectionTitle}</span>
-                <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">{currentQuestion.conceptTag || currentQuestion.conceptFamily || "Concept"}</span>
+                <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">{getMmQuestionConceptDisplayTitle(currentQuestion, mock)}</span>
                 <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{currentQuestion.difficulty || mock.difficultyBand}</span>
               </div>
             </div>
@@ -452,7 +479,7 @@ function MockCoverageTab({ mock, showAnswers }: { mock: CompetitionMockExamDetai
                 <div key={question.mockQuestionId} className="grid gap-3 px-5 py-3 text-sm lg:grid-cols-[80px_1fr_180px_120px] lg:items-center">
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-center text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Q{question.questionNumber}</span>
                   <p className="font-black text-slate-950 dark:text-white">{question.questionText || normalisePreviewOperands(question.operands).join(" ")}</p>
-                  <p className="text-xs font-black uppercase tracking-[0.12em] math-role-text">{question.conceptTag || question.conceptFamily || "Concept"}</p>
+                  <p className="text-xs font-black uppercase tracking-[0.12em] math-role-text">{getMmQuestionConceptDisplayTitle(question, mock)}</p>
                   {showAnswers ? <p className="text-xs font-black text-emerald-700">Answer: {question.correctAnswer}</p> : <p className="text-xs font-black text-slate-400">Answer Hidden</p>}
                 </div>
               ))}
