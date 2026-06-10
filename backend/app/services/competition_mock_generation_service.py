@@ -626,8 +626,15 @@ def _RoundRobinSelectFromConceptBuckets(
 
 def _QuestionConceptKey(Question: dict[str, Any], FallbackTitle: str) -> str:
     Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+    # Store the actual generated concept as the question concept tag.
+    # Competition section titles are grouping labels only and must not overwrite
+    # concept identity in the mock preview/student-facing cards.
     return (
-        _NormalizeText(Metadata.get("sectionTitle"))
+        _NormalizeText(Metadata.get("competitionConceptKey"))
+        or _NormalizeText(Metadata.get("sourceDpsTitle"))
+        or _NormalizeText(Metadata.get("conceptTitle"))
+        or _NormalizeText(Metadata.get("conceptName"))
+        or _NormalizeText(Metadata.get("sectionTitle"))
         or _NormalizeText(Metadata.get("section_title"))
         or _NormalizeText(Metadata.get("conceptFamily"))
         or _NormalizeText(FallbackTitle)

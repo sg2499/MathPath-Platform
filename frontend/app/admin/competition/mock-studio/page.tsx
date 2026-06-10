@@ -603,12 +603,39 @@ function IsMmPositionalQuestion(QuestionValue: CompetitionMockExamDetail["questi
   return Number(QuestionValue.sectionNumber) === 5 || TextValue.includes("position") || TextValue.includes("placement");
 }
 
-function GetMmPositionalPromptTitle(QuestionValue: CompetitionMockExamDetail["questions"][number]) {
+function HasMultiplicationPlacementShape(QuestionValue: CompetitionMockExamDetail["questions"][number]) {
   const TextValue = QuestionSearchText(QuestionValue);
-  if (TextValue.includes("write") && TextValue.includes("given position")) return null;
-  if (TextValue.includes("first natural") || TextValue.includes("find position")) return "FIND POSITION OF FIRST NATURAL NUMBER";
-  if (TextValue.includes("multiplication") || TextValue.includes("answer position") || TextValue.includes("placement")) return "DECIMAL MULTIPLICATION ANSWER POSITION";
-  return "POSITIONAL & PLACEMENT";
+  const Operators = (QuestionValue.operators || []).map((OperatorValue) => String(OperatorValue || "").toLowerCase());
+  const Operands = NormalisePreviewOperands(QuestionValue.operands);
+
+  return (
+    TextValue.includes("decimal multiplication answer position") ||
+    TextValue.includes("answer position") ||
+    /[×x*]/.test(String(QuestionValue.questionText || "")) ||
+    Operators.some((OperatorValue) => OperatorValue === "×" || OperatorValue === "x" || OperatorValue === "*") ||
+    (Operands.length >= 2 && TextValue.includes("multiplication"))
+  );
+}
+
+function HasWriteNumberPositionShape(QuestionValue: CompetitionMockExamDetail["questions"][number]) {
+  const TextValue = QuestionSearchText(QuestionValue);
+  return TextValue.includes("write") && TextValue.includes("given position");
+}
+
+function GetMmQuestionConceptDisplayTitle(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
+  if (!IsMasterModuleMock(ExamValue.moduleCode)) return QuestionValue.conceptTag || QuestionValue.conceptFamily || "Concept";
+  if (Number(QuestionValue.sectionNumber) === 5 || IsMmPositionalQuestion(QuestionValue, ExamValue)) {
+    if (HasWriteNumberPositionShape(QuestionValue)) return "Write Number From Given Position";
+    if (HasMultiplicationPlacementShape(QuestionValue)) return "Decimal Multiplication Answer Position";
+    return "Find Position of the First Natural Number";
+  }
+  return QuestionValue.conceptTag || QuestionValue.conceptFamily || "Concept";
+}
+
+function GetMmPositionalPromptTitle(QuestionValue: CompetitionMockExamDetail["questions"][number]) {
+  if (HasWriteNumberPositionShape(QuestionValue)) return null;
+  if (HasMultiplicationPlacementShape(QuestionValue)) return "DECIMAL MULTIPLICATION ANSWER POSITION";
+  return "FIND POSITION OF FIRST NATURAL NUMBER";
 }
 
 function GetMockDisplayType(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
@@ -749,7 +776,7 @@ function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
                     <div className="min-w-0 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Q{QuestionValue.questionNumber}</span>
-                        <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">{QuestionValue.conceptTag || QuestionValue.conceptFamily || "Concept"}</span>
+                        <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">{GetMmQuestionConceptDisplayTitle(QuestionValue, examDetail)}</span>
                         <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200">Answer: {QuestionValue.correctAnswer}</span>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
