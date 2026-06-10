@@ -30,7 +30,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 const DefaultQuestionCount = 40;
+const MmDefaultQuestionCount = 50;
 const DefaultDurationMinutes = 20;
+const MmDefaultDurationMinutes = 30;
 
 function FormatDuration(SecondsValue: number | null | undefined) {
   const SafeSeconds = Math.max(0, Number(SecondsValue || 0));
@@ -117,6 +119,13 @@ export default function AdminCompetitionMockStudioPage() {
 
   const SelectedLevel = Levels.find((LevelValue) => LevelValue.levelId === SelectedLevelId) || null;
   const SelectedModule = Modules.find((ModuleValue) => ModuleValue.moduleId === SelectedModuleId) || null;
+  const IsSelectedMasterModule = Boolean(SelectedModule && (SelectedModule.moduleCode?.toUpperCase() === "MM" || SelectedModule.moduleName?.toLowerCase().includes("master module")));
+
+  useEffect(() => {
+    if (!IsSelectedMasterModule) return;
+    SetQuestionCount((CurrentValue) => CurrentValue === String(DefaultQuestionCount) ? String(MmDefaultQuestionCount) : CurrentValue);
+    SetDurationMinutes((CurrentValue) => CurrentValue === String(DefaultDurationMinutes) ? String(MmDefaultDurationMinutes) : CurrentValue);
+  }, [IsSelectedMasterModule]);
 
 
   const CleanSectionCounts = useMemo(() => {

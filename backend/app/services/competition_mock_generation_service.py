@@ -35,12 +35,12 @@ MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
     {
         "key": "MM_ABACUS_ADD_LESS",
         "number": 1,
-        "title": "Section 1 (With Abacus) - Add/Less",
+        "title": "Section 1 - Add/Less (Abacus)",
     },
     {
         "key": "MM_VISUAL_ADD_LESS",
         "number": 2,
-        "title": "Section 2 (Visual) - Add/Less",
+        "title": "Section 2 - Add/Less (Visual)",
     },
     {
         "key": "MM_MULTIPLICATION",
@@ -58,19 +58,29 @@ MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
         "title": "Section 5 - Positional & Placement",
     },
     {
-        "key": "MM_BODMAS_PERCENTAGE",
+        "key": "MM_SQUARES_ROOTS",
         "number": 6,
-        "title": "Section 6 - BODMAS, Add/Less Percentage",
+        "title": "Section 6 - Squares and Square Roots",
+    },
+    {
+        "key": "MM_CUBES_ROOTS",
+        "number": 7,
+        "title": "Section 7 - Cubes and Cube Roots",
+    },
+    {
+        "key": "MM_BODMAS_PERCENTAGE",
+        "number": 8,
+        "title": "Section 8 - BODMAS, Add/Less Percentage",
     },
     {
         "key": "MM_FINANCIAL",
-        "number": 7,
-        "title": "Section 7 - Profit/Loss, Simple Interest, Selling Price",
+        "number": 9,
+        "title": "Section 9 - Profit/Loss, Simple Interest, Selling Price",
     },
     {
         "key": "MM_SKILL_DRILL",
-        "number": 8,
-        "title": "Section 8 - Skill Stacker, Concept Drill",
+        "number": 10,
+        "title": "Section 10 - Skill Stacker, Concept Drill",
     },
 ]
 
@@ -117,20 +127,24 @@ MM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
         {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "Multiplication"},
         {"conceptFamily": "DECIMAL_MULTIPLICATION", "title": "Decimal Multiplication"},
         {"conceptFamily": "MULTIPLICATION_DIVISION_MIXED", "title": "Multiplication Mixed Pattern", "mixedOperationGroup": "MULTIPLICATION"},
-        {"conceptFamily": "SQUARES", "title": "Squares"},
-        {"conceptFamily": "CUBES", "title": "Cubes"},
     ],
     "MM_DIVISION": [
         {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "Division"},
         {"conceptFamily": "DECIMAL_DIVISION", "title": "Decimal Division"},
         {"conceptFamily": "MULTIPLICATION_DIVISION_MIXED", "title": "Division Mixed Pattern", "mixedOperationGroup": "DIVISION"},
-        {"conceptFamily": "SQUARE_ROOT", "title": "Square Root"},
-        {"conceptFamily": "CUBE_ROOT", "title": "Cube Root"},
     ],
     "MM_POSITIONAL_PLACEMENT": [
         {"conceptFamily": "ANSWER_POSITION", "title": "Find Position of the First Natural Number"},
         {"conceptFamily": "ANSWER_POSITION", "title": "Write Number From Given Position"},
         {"conceptFamily": "ANSWER_POSITION", "title": "Decimal Multiplication Answer Position"},
+    ],
+    "MM_SQUARES_ROOTS": [
+        {"conceptFamily": "SQUARES", "title": "Squares"},
+        {"conceptFamily": "SQUARE_ROOT", "title": "Square Root"},
+    ],
+    "MM_CUBES_ROOTS": [
+        {"conceptFamily": "CUBES", "title": "Cubes"},
+        {"conceptFamily": "CUBE_ROOT", "title": "Cube Root"},
     ],
     "MM_BODMAS_PERCENTAGE": [
         {"conceptFamily": "BODMAS", "title": "BODMAS"},
@@ -305,7 +319,7 @@ def _CollectMmCompetitionSectionLockedQuestions(
     CoveragePayload = {
         "targetQuestionCount": TargetQuestionCount,
         "selectedQuestionCount": len(Selected),
-        "competitionStructure": "MM_8_SECTION_COMPETITION_MOCK_SECTION_LOCKED",
+        "competitionStructure": "MM_10_SECTION_COMPETITION_MOCK_SECTION_LOCKED",
         "sectionCount": len(SectionCoverage),
         "sections": SectionCoverage,
         "generationErrors": [],
@@ -337,7 +351,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
             "levelCode": LevelRecord.level_code,
             "levelName": LevelRecord.level_name,
             "totalQuestions": RequestedQuestionCount,
-            "structure": "MM_8_SECTION_COMPETITION_MOCK",
+            "structure": "MM_10_SECTION_COMPETITION_MOCK",
             "sections": Sections,
         }
 
@@ -462,7 +476,7 @@ def _QuestionSectionTitleText(Question: dict[str, Any], FallbackTitle: str) -> s
 
 
 def _MmCompetitionSectionKeys(Question: dict[str, Any], FallbackTitle: str) -> list[str]:
-    """Map generated MM questions into the approved 8 competition sections.
+    """Map generated MM questions into the approved 10 competition sections.
 
     The competition mock must reuse Learning Path Studio's MM generators while
     grouping generated questions by competition-family.  The mapping is based on
@@ -479,8 +493,10 @@ def _MmCompetitionSectionKeys(Question: dict[str, Any], FallbackTitle: str) -> l
     BodmasPercentageFamilies = {"BODMAS", "PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE", "SOLVE_EQUATION"}
     PositionalFamilies = {"ANSWER_POSITION"}
     AddLessFamilies = {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}
-    MultiplicationFamilies = {"WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION", "SQUARES", "CUBES", "MIXED_SQUARE_CUBE"}
-    DivisionFamilies = {"WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_ROOTS"}
+    MultiplicationFamilies = {"WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION"}
+    DivisionFamilies = {"WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION"}
+    SquaresRootsFamilies = {"SQUARES", "SQUARE_ROOT"}
+    CubesRootsFamilies = {"CUBES", "CUBE_ROOT"}
 
     if ConceptFamily in SkillDrillFamilies or any(Term in Text for Term in ["skill stacker", "concept drill"]):
         return ["MM_SKILL_DRILL"]
@@ -508,10 +524,22 @@ def _MmCompetitionSectionKeys(Question: dict[str, Any], FallbackTitle: str) -> l
             return ["MM_MULTIPLICATION"]
         return ["MM_MULTIPLICATION", "MM_DIVISION"]
 
+    if ConceptFamily in SquaresRootsFamilies or any(Term in Text for Term in ["square root", "squareroot", "squares"]):
+        return ["MM_SQUARES_ROOTS"]
+
+    if ConceptFamily in CubesRootsFamilies or any(Term in Text for Term in ["cube root", "cuberoot", "cubes"]):
+        return ["MM_CUBES_ROOTS"]
+
+    if ConceptFamily == "MIXED_SQUARE_CUBE":
+        return ["MM_SQUARES_ROOTS", "MM_CUBES_ROOTS"]
+
+    if ConceptFamily == "MIXED_ROOTS":
+        return ["MM_SQUARES_ROOTS", "MM_CUBES_ROOTS"]
+
     if ConceptFamily in DivisionFamilies or any(Term in Text for Term in ["division", "÷", "divide"]):
         return ["MM_DIVISION"]
 
-    if ConceptFamily in MultiplicationFamilies or any(Term in Text for Term in ["multiplication", "×", " x ", "times", "square", "cube"]):
+    if ConceptFamily in MultiplicationFamilies or any(Term in Text for Term in ["multiplication", "×", " x ", "times"]):
         return ["MM_MULTIPLICATION"]
 
     return []
