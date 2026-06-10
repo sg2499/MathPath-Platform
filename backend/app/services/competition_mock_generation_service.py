@@ -352,6 +352,100 @@ def _MmCompetitionSmartNumericOptions(CorrectAnswer: Decimal, Seed: str) -> list
         for Index, Value in enumerate(Values)
     ]
 
+def _PerfectSquareAtOrBelow(MaxValue: int, Rng: random.Random, MinimumRoot: int = 12) -> tuple[int, int]:
+    Root = Rng.randint(MinimumRoot, max(MinimumRoot, int(MaxValue ** 0.5)))
+    return Root * Root, Root
+
+
+def _PerfectCubeAtOrBelow(MaxValue: int, Rng: random.Random, MinimumRoot: int = 8) -> tuple[int, int]:
+    Roots = [Value for Value in range(MinimumRoot, 22) if Value ** 3 <= MaxValue]
+    Root = Rng.choice(Roots or [MinimumRoot])
+    return Root ** 3, Root
+
+
+def _DivisiblePairForBodmas(Rng: random.Random, *, MinDivisor: int = 12, MaxDivisor: int = 96, MinQuotient: int = 18, MaxQuotient: int = 98) -> tuple[int, int, int]:
+    for _ in range(80):
+        Divisor = Rng.randint(MinDivisor, MaxDivisor)
+        Quotient = Rng.randint(MinQuotient, MaxQuotient)
+        Dividend = Divisor * Quotient
+        if 100 <= Dividend <= 9999:
+            return Dividend, Divisor, Quotient
+    Divisor = 24
+    Quotient = 37
+    return Divisor * Quotient, Divisor, Quotient
+
+
+def _BuildMmCompetitionBodmasChallengeQuestion(*, Seed: str, VariantIndex: int = 0) -> dict[str, Any]:
+    """Generate MM competition-only BODMAS with challenge operands.
+
+    This intentionally does not modify the normal MM DPS BODMAS generator.  The
+    mock exam must test competition readiness, so every expression includes a
+    mix of advanced MM-safe operands while preserving the BODMAS guard that no
+    displayed number may exceed 4 digits.
+    """
+    Rng = random.Random(Seed)
+    Variant = VariantIndex % 4
+
+    if Variant == 0:
+        Left = Rng.randint(112, 987)
+        Multiplier = Rng.randint(24, 86)
+        SquareRadicand, SquareRoot = _PerfectSquareAtOrBelow(9801, Rng, 18)
+        Dividend, Divisor, Quotient = _DivisiblePairForBodmas(Rng)
+        PercentBase = Rng.randrange(1200, 9000, 100)
+        Percent = Rng.choice([12, 15, 18, 20, 24, 25, 30, 35, 40, 45, 50, 60, 75])
+        SubtractValue = Rng.randint(121, 987)
+        Answer = Decimal(Left * Multiplier) + Decimal(SquareRoot) - Decimal(Quotient) + (Decimal(PercentBase) * Decimal(Percent) / Decimal(100)) - Decimal(SubtractValue)
+        Expression = f"{Left}×{Multiplier} + √{SquareRadicand} - {Dividend}÷{Divisor} + {PercentBase}×{Percent}% - {SubtractValue} = ?"
+    elif Variant == 1:
+        A = Rng.randint(120, 890)
+        B = Rng.randint(80, 940)
+        Multiplier = Rng.randint(12, 48)
+        CubeRadicand, CubeRoot = _PerfectCubeAtOrBelow(9261, Rng, 9)
+        SquareBase = Rng.randint(18, 96)
+        Dividend, Divisor, Quotient = _DivisiblePairForBodmas(Rng, MinDivisor=18, MaxDivisor=88, MinQuotient=16, MaxQuotient=84)
+        Answer = Decimal(A + B) * Decimal(Multiplier) + Decimal(CubeRoot) - Decimal(SquareBase ** 2) + Decimal(Quotient)
+        Expression = f"({A}+{B})×{Multiplier} + ∛{CubeRadicand} - {SquareBase}² + {Dividend}÷{Divisor} = ?"
+    elif Variant == 2:
+        SquareBase = Rng.randint(34, 98)
+        CubeBase = Rng.randint(9, 21)
+        Dividend, Divisor, Quotient = _DivisiblePairForBodmas(Rng, MinDivisor=22, MaxDivisor=99, MinQuotient=20, MaxQuotient=92)
+        PercentBase = Rng.randrange(1600, 9600, 100)
+        Percent = Rng.choice([12, 15, 20, 24, 25, 30, 40, 45, 50, 60])
+        MinusValue = Rng.randint(200, 999)
+        Answer = Decimal(SquareBase ** 2) + Decimal(CubeBase ** 3) - Decimal(Quotient) + (Decimal(PercentBase) * Decimal(Percent) / Decimal(100)) - Decimal(MinusValue)
+        Expression = f"{SquareBase}² + {CubeBase}³ - {Dividend}÷{Divisor} + {PercentBase}×{Percent}% - {MinusValue} = ?"
+    else:
+        Base = Rng.randrange(1800, 9800, 100)
+        LessPercent = Rng.choice([10, 12, 15, 20, 25, 30, 35, 40, 50])
+        MultLeft = Rng.randint(123, 987)
+        MultRight = Rng.randint(18, 76)
+        SquareRadicand, SquareRoot = _PerfectSquareAtOrBelow(9801, Rng, 20)
+        CubeRadicand, CubeRoot = _PerfectCubeAtOrBelow(9261, Rng, 8)
+        Answer = (Decimal(Base) - (Decimal(Base) * Decimal(LessPercent) / Decimal(100))) + Decimal(MultLeft * MultRight) - Decimal(SquareRoot) + Decimal(CubeRoot)
+        Expression = f"{Base} - {LessPercent}% + {MultLeft}×{MultRight} - √{SquareRadicand} + ∛{CubeRadicand} = ?"
+
+    # Every number inserted above is bounded to 4 digits by construction.
+    Answer = Answer.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if Answer != Answer.to_integral_value() else Answer
+    CorrectAnswer = _PlainDecimalText(Answer)
+    return {
+        "question_number": 1,
+        "display_type": "EXPRESSION_WORKSHEET",
+        "question_text": Expression,
+        "operands": [],
+        "operators": [],
+        "correct_answer": CorrectAnswer,
+        "options": _MmCompetitionSmartNumericOptions(Answer, Seed),
+        "difficulty": "COMPETITION_CHALLENGE",
+        "seed": Seed,
+        "metadata": {
+            "conceptFamily": "BODMAS",
+            "competitionConceptKey": "BODMAS Competition Challenge",
+            "competitionBodmasProfile": "ADVANCED_MAX_4_DIGIT_OPERANDS",
+            "maxDisplayedNumberDigits": 4,
+        },
+    }
+
+
 
 def _MmCompetitionPadVisualAddLessRows(Question: dict[str, Any], *, SectionKey: str, ConceptTitle: str, Seed: str) -> dict[str, Any]:
     if SectionKey != "MM_VISUAL_ADD_LESS" or not _MmCompetitionIsAddLessStack(Question):
@@ -431,6 +525,15 @@ def _GenerateMmCompetitionConceptBatch(
     ConceptFamily = str(ConceptSpec["conceptFamily"])
     ConceptTitle = str(ConceptSpec["title"])
     MixedOperationGroup = str(ConceptSpec.get("mixedOperationGroup") or "")
+    if SectionDefinition.get("key") == "MM_BODMAS_PERCENTAGE" and ConceptFamily == "BODMAS":
+        return [
+            _BuildMmCompetitionBodmasChallengeQuestion(
+                Seed=f"{Seed}-BODMAS-{Index}",
+                VariantIndex=Index,
+            )
+            for Index in range(max(RequiredCount, 1))
+        ][:RequiredCount]
+
     Config = MMConfig(
         ModuleCode=getattr(ModuleRecord, "module_code", "MM") or "MM",
         LevelCode=getattr(LevelRecord, "level_code", "MM-L1") or "MM-L1",
