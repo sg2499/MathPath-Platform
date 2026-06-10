@@ -596,61 +596,71 @@ function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
             </p>
           </div>
           <div className="inline-flex w-fit rounded-full border border-blue-100 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-cyan-200">
-            Generated MCQ Preview
+            Section-Locked Preview
           </div>
         </div>
       </div>
 
-      {Sections.map((SectionValue) => (
-        <section key={SectionValue.sectionNumber} className="space-y-4">
-          <div className="rounded-[24px] border border-blue-200 bg-blue-50/80 px-5 py-4 dark:border-blue-900/50 dark:bg-blue-950/20">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-blue-700 dark:text-cyan-300">Section {SectionValue.sectionNumber}</p>
-            <h4 className="mt-1 text-base font-black text-slate-950 dark:text-white">{SectionValue.sectionTitle}</h4>
-            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{SectionValue.questions.length} question{SectionValue.questions.length === 1 ? "" : "s"}</p>
-          </div>
-
-          <div className="space-y-4">
-            {SectionValue.questions.map((QuestionValue) => (
-              <article key={QuestionValue.mockQuestionId} className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-                <div className="mb-4 flex flex-col gap-2 border-b border-slate-100 pb-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Question {QuestionValue.questionNumber}</p>
-                    <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">{QuestionValue.conceptTag || QuestionValue.sectionTitle}</p>
-                  </div>
-                  <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                    {QuestionValue.difficulty || exam.difficultyBand}
-                  </span>
+      <div className="space-y-3">
+        {Sections.map((SectionValue) => {
+          const SampleQuestions = SectionValue.questions.slice(0, 2);
+          return (
+            <section key={SectionValue.sectionNumber} className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+              <div className="flex flex-col gap-2 bg-slate-50 px-5 py-4 dark:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-blue-700 dark:text-cyan-300">Section {SectionValue.sectionNumber}</p>
+                  <h4 className="mt-1 text-base font-black text-slate-950 dark:text-white">{SectionValue.sectionTitle}</h4>
                 </div>
+                <span className="inline-flex w-fit rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">
+                  {SectionValue.questions.length} Questions
+                </span>
+              </div>
 
-                <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr] lg:items-center">
-                  <div className="rounded-[24px] border border-blue-100 bg-slate-50 px-4 py-6 dark:border-slate-800 dark:bg-slate-900/40">
-                    <MathQuestionDisplay
-                      operands={NormalisePreviewOperands(QuestionValue.operands)}
-                      operators={QuestionValue.operators || []}
-                      displayType={QuestionValue.displayType}
-                      questionText={QuestionValue.questionText}
-                    />
-                  </div>
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {SampleQuestions.map((QuestionValue) => (
+                  <article key={QuestionValue.mockQuestionId} className="grid gap-4 px-5 py-4 xl:grid-cols-[280px_1fr] xl:items-center">
+                    <div className="rounded-[22px] border border-blue-100 bg-slate-50 px-4 py-5 dark:border-slate-800 dark:bg-slate-900/40">
+                      <MathQuestionDisplay
+                        operands={NormalisePreviewOperands(QuestionValue.operands)}
+                        operators={QuestionValue.operators || []}
+                        displayType={QuestionValue.displayType}
+                        questionText={QuestionValue.questionText}
+                      />
+                    </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                    {(QuestionValue.options || []).map((OptionValue) => (
-                      <div
-                        key={OptionValue.optionId || `${QuestionValue.mockQuestionId}-${OptionValue.label}`}
-                        className={`flex min-h-[52px] items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-black shadow-sm ${OptionValue.isCorrect ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"}`}
-                      >
-                        <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black ${OptionValue.isCorrect ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
-                          {OptionValue.label}
-                        </span>
-                        <span className="break-words">{OptionValue.value}</span>
+                    <div className="min-w-0 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Q{QuestionValue.questionNumber}</span>
+                        <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">{QuestionValue.conceptTag || QuestionValue.conceptFamily || "Concept"}</span>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200">Answer: {QuestionValue.correctAnswer}</span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {(QuestionValue.options || []).map((OptionValue) => (
+                          <div
+                            key={OptionValue.optionId || `${QuestionValue.mockQuestionId}-${OptionValue.label}`}
+                            className={`flex min-h-[44px] items-center gap-3 rounded-2xl border px-3 py-2 text-sm font-black ${OptionValue.isCorrect ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"}`}
+                          >
+                            <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs font-black ${OptionValue.isCorrect ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
+                              {OptionValue.label}
+                            </span>
+                            <span className="break-words">{OptionValue.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {SectionValue.questions.length > SampleQuestions.length ? (
+                <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-xs font-black text-slate-500 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
+                  Showing {SampleQuestions.length} clean samples from this section. Open the full-page View for all {SectionValue.questions.length} questions.
                 </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ))}
+              ) : null}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
