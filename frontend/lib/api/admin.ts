@@ -707,6 +707,7 @@ export type AssessmentTestingOverride = {
   usedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  archivedAt?: string | null;
 };
 
 export type AssessmentTestingOverrideListResponse = {
@@ -1284,6 +1285,11 @@ export async function getCompetitionMockExam(mockExamId: string): Promise<Compet
 
 export async function deleteCompetitionMockExam(mockExamId: string): Promise<{ ok: boolean; message: string; deleted: { mockExamId: string; title: string; questionsDeleted: number; assignmentsDeleted: number; attemptsDeleted: number } }> {
   const { data } = await api.delete(`/admin/competition/mock-exams/${mockExamId}`);
+  return data;
+}
+
+export async function archiveCompetitionMockExam(mockExamId: string): Promise<{ ok: boolean; message: string; mockExam: CompetitionMockExamSummary }> {
+  const { data } = await api.patch(`/admin/competition/mock-exams/${mockExamId}/archive`);
   return data;
 }
 

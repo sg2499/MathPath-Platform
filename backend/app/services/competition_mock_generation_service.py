@@ -680,6 +680,18 @@ def DeleteCompetitionMockExam(db: Session, *, MockExamId: str) -> dict[str, Any]
     db.commit()
     return DeletedSummary
 
+
+def ArchiveCompetitionMockExam(db: Session, *, MockExamId: str) -> dict[str, Any]:
+    ExamRecord = db.get(CompetitionMockExam, MockExamId)
+    if not ExamRecord or not ExamRecord.is_active:
+        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
+
+    ExamRecord.status = "ARCHIVED"
+    ExamRecord.archived_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(ExamRecord)
+    return CompetitionMockExamPayload(db, ExamRecord, IncludeQuestions=False)
+
 def CompetitionMockExamPayload(db: Session, ExamRecord: CompetitionMockExam, IncludeQuestions: bool = False) -> dict[str, Any]:
     ModuleRecord = db.get(Module, ExamRecord.module_id)
     LevelRecord = db.get(Level, ExamRecord.level_id)
@@ -705,6 +717,7 @@ def CompetitionMockExamPayload(db: Session, ExamRecord: CompetitionMockExam, Inc
         "generationConfig": _SafeJsonLoads(ExamRecord.generation_config_json, {}),
         "createdAt": ExamRecord.created_at.isoformat() if ExamRecord.created_at else None,
         "updatedAt": ExamRecord.updated_at.isoformat() if ExamRecord.updated_at else None,
+        "archivedAt": ExamRecord.archived_at.isoformat() if ExamRecord.archived_at else None,
     }
     if IncludeQuestions:
         Questions = (

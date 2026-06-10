@@ -83,6 +83,7 @@ from app.services.competition_mock_generation_service import (
     CompetitionMockExamPayload,
     CompetitionMockSectionPlan,
     DeleteCompetitionMockExam,
+    ArchiveCompetitionMockExam,
 )
 
 from app.services.competition_mock_assignment_service import (
@@ -5463,6 +5464,12 @@ def admin_get_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get
 def admin_delete_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     Deleted = DeleteCompetitionMockExam(db, MockExamId=mock_exam_id)
     return {"ok": True, "message": "Competition mock exam permanently deleted.", "deleted": Deleted}
+
+
+@router.patch("/competition/mock-exams/{mock_exam_id}/archive")
+def admin_archive_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Archived = ArchiveCompetitionMockExam(db, MockExamId=mock_exam_id)
+    return {"ok": True, "message": "Competition mock exam archived.", "mockExam": Archived}
 
 
 @router.post("/competition/mock-exams/assign")

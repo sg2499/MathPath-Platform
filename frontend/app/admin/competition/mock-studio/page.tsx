@@ -8,6 +8,7 @@ import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
+  archiveCompetitionMockExam,
   assignCompetitionMockExams,
   deleteCompetitionMockExam,
   generateCompetitionMockDraft,
@@ -23,7 +24,7 @@ import {
 import type { LevelItem, ModuleItem } from "@/types/curriculum";
 import type { AdminStudent } from "@/types/student";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Eye, FilePenLine, Loader2, Plus, Search, Send, ShieldCheck, Target, Trash2, UsersRound, X } from "lucide-react";
+import { AlertTriangle, Archive, CheckCircle2, Eye, FilePenLine, Loader2, Plus, Search, Send, ShieldCheck, Target, Trash2, UsersRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -41,9 +42,13 @@ function FormatDuration(SecondsValue: number | null | undefined) {
 
 function StatusChip({ status }: { status: string }) {
   const StatusValue = String(status || "DRAFT").toUpperCase();
-  const IsDraft = StatusValue === "DRAFT";
+  const ChipClass = StatusValue === "ARCHIVED"
+    ? "bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+    : StatusValue === "DRAFT"
+      ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
+      : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200";
   return (
-    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${IsDraft ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>
+    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${ChipClass}`}>
       {StatusValue}
     </span>
   );
@@ -75,6 +80,10 @@ export default function AdminCompetitionMockStudioPage() {
   const [AssignmentInstructions, SetAssignmentInstructions] = useState("");
   const [PreviewMockId, SetPreviewMockId] = useState<string | null>(null);
   const [DeleteMockId, SetDeleteMockId] = useState<string | null>(null);
+  const [ArchiveMockId, SetArchiveMockId] = useState<string | null>(null);
+  const [ActiveStudioTab, SetActiveStudioTab] = useState<"CREATE" | "MANAGE">("CREATE");
+  const [ManageSearch, SetManageSearch] = useState("");
+  const [ManageStatusFilter, SetManageStatusFilter] = useState("ALL");
   const [SectionCounts, SetSectionCounts] = useState<Record<string, string>>({});
   const [LastMessage, SetLastMessage] = useState<string | null>(null);
 
@@ -168,6 +177,17 @@ export default function AdminCompetitionMockStudioPage() {
 
 
 
+  const ArchiveMutation = useMutation({
+    mutationFn: (MockExamId: string) => archiveCompetitionMockExam(MockExamId),
+    onSuccess: (ResultValue) => {
+      SetLastMessage(ResultValue.message || "Competition mock exam archived.");
+      SetSelectedMockIds((CurrentValue) => CurrentValue.filter((MockId) => MockId !== ArchiveMockId));
+      if (PreviewMockId === ArchiveMockId) SetPreviewMockId(null);
+      SetArchiveMockId(null);
+      QueryClient.invalidateQueries({ queryKey: ["admin", "competition"] });
+    },
+  });
+
   const DeleteMutation = useMutation({
     mutationFn: (MockExamId: string) => deleteCompetitionMockExam(MockExamId),
     onSuccess: (ResultValue) => {
@@ -186,6 +206,7 @@ export default function AdminCompetitionMockStudioPage() {
     SetSelectedStudentIds([]);
     SetPreviewMockId(null);
     SetDeleteMockId(null);
+    SetArchiveMockId(null);
     SetSectionCounts({});
   }
 
@@ -199,6 +220,16 @@ export default function AdminCompetitionMockStudioPage() {
 
   const CanGenerate = Boolean(SelectedLevelId) && SectionCountTotal >= 10 && !GenerateMutation.isPending;
   const CanAssign = Boolean(SelectedLevelId) && SelectedMockIds.length > 0 && (AssignToAll || SelectedStudentIds.length > 0) && !AssignMutation.isPending;
+
+  const FilteredMockExams = useMemo(() => {
+    const SearchValue = ManageSearch.trim().toLowerCase();
+    return MockExams.filter((MockValue) => {
+      const StatusValue = String(MockValue.status || "DRAFT").toUpperCase();
+      if (ManageStatusFilter !== "ALL" && StatusValue !== ManageStatusFilter) return false;
+      if (!SearchValue) return true;
+      return `${MockValue.title} ${MockValue.mockCode} ${MockValue.levelCode || ""}`.toLowerCase().includes(SearchValue);
+    });
+  }, [MockExams, ManageSearch, ManageStatusFilter]);
 
   if (!Ready) return null;
   if (ModulesQuery.isLoading) return <AppShell title="Competition Mock Studio"><LoadingState label="Loading Competition Mock Studio..." /></AppShell>;
@@ -214,8 +245,8 @@ export default function AdminCompetitionMockStudioPage() {
           </p>
         </div>
 
-        {(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error) && (
-          <ErrorState message={apiErrorMessage(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error)} />
+        {(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error || ArchiveMutation.error) && (
+          <ErrorState message={apiErrorMessage(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error || ArchiveMutation.error)} />
         )}
 
         {LastMessage && (
@@ -225,182 +256,269 @@ export default function AdminCompetitionMockStudioPage() {
         )}
 
         <div className="grid gap-4 lg:grid-cols-3">
-          <FeatureCard icon={<FilePenLine size={18} />} title="Generate Draft Mocks" description="Create varied competition-style mock papers from the selected level syllabus." />
-          <FeatureCard icon={<Target size={18} />} title="Assign By Level" description="Assign multiple mock exams to all active students in a level or selected students only." />
+          <FeatureCard icon={<FilePenLine size={18} />} title="Create Draft Mocks" description="Create varied competition-style mock papers from the selected level syllabus." />
+          <FeatureCard icon={<Target size={18} />} title="Manage Mock Library" description="View, preview, assign, archive, or delete mock papers from one operational library." />
           <FeatureCard icon={<ShieldCheck size={18} />} title="Independent Workflow" description="No DPS, Assessment, readiness, progression, or report workflow is changed." />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
-          <div className="space-y-6">
-            <div className="math-card p-5">
-              <SectionTitle kicker="Step 1" title="Select Module And Level" description="Mock papers and assignments are controlled at level scope." />
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                  Module
-                  <select value={SelectedModuleId} onChange={(EventValue) => HandleModuleChange(EventValue.target.value)} className="math-input">
-                    <option value="">Select module</option>
-                    {Modules.map((ModuleValue: ModuleItem) => <option key={ModuleValue.moduleId} value={ModuleValue.moduleId}>{ModuleValue.moduleCode} · {ModuleValue.moduleName}</option>)}
-                  </select>
-                </label>
-                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                  Level
-                  <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetPreviewMockId(null); SetDeleteMockId(null); SetSectionCounts({}); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
-                    <option value="">Select level</option>
-                    {Levels.map((LevelValue: LevelItem) => <option key={LevelValue.levelId} value={LevelValue.levelId}>{LevelValue.levelCode} · {LevelValue.levelName}</option>)}
-                  </select>
-                </label>
+        <div className="math-card p-3">
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => SetActiveStudioTab("CREATE")}
+              className={`rounded-2xl px-5 py-3 text-sm font-black transition ${ActiveStudioTab === "CREATE" ? "math-primary-btn" : "border border-slate-200 bg-white text-[var(--math-role-primary)] hover:border-[var(--math-role-primary)] dark:border-slate-800 dark:bg-slate-950/40"}`}
+            >
+              Create Mock
+            </button>
+            <button
+              type="button"
+              onClick={() => SetActiveStudioTab("MANAGE")}
+              className={`rounded-2xl px-5 py-3 text-sm font-black transition ${ActiveStudioTab === "MANAGE" ? "math-primary-btn" : "border border-slate-200 bg-white text-[var(--math-role-primary)] hover:border-[var(--math-role-primary)] dark:border-slate-800 dark:bg-slate-950/40"}`}
+            >
+              Manage Mocks
+            </button>
+          </div>
+        </div>
+
+        {ActiveStudioTab === "CREATE" && (
+          <div className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
+            <div className="space-y-6">
+              <div className="math-card p-5">
+                <SectionTitle kicker="Create Mock" title="Select Module And Level" description="Mock papers are generated at level scope, independent from DPS practice and assessment structures." />
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                    Module
+                    <select value={SelectedModuleId} onChange={(EventValue) => HandleModuleChange(EventValue.target.value)} className="math-input">
+                      <option value="">Select module</option>
+                      {Modules.map((ModuleValue: ModuleItem) => <option key={ModuleValue.moduleId} value={ModuleValue.moduleId}>{ModuleValue.moduleCode} · {ModuleValue.moduleName}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                    Level
+                    <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetPreviewMockId(null); SetDeleteMockId(null); SetArchiveMockId(null); SetSectionCounts({}); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
+                      <option value="">Select level</option>
+                      {Levels.map((LevelValue: LevelItem) => <option key={LevelValue.levelId} value={LevelValue.levelId}>{LevelValue.levelCode} · {LevelValue.levelName}</option>)}
+                    </select>
+                  </label>
+                </div>
+                {SelectedModule && SelectedLevel && <p className="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400">Selected scope: {SelectedModule.moduleCode} · {SelectedLevel.levelCode}</p>}
               </div>
-              {SelectedModule && SelectedLevel && <p className="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400">Selected scope: {SelectedModule.moduleCode} · {SelectedLevel.levelCode}</p>}
+
+              <div className="math-card p-5">
+                <SectionTitle kicker="Create Mock" title="Build Mock Paper" description="Create a fresh mock version with varied question combinations for the selected level." />
+                <div className="mt-5 grid gap-4">
+                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                    Mock Title
+                    <input value={MockTitle} onChange={(EventValue) => SetMockTitle(EventValue.target.value)} placeholder="Example: MM-L1 State Championship Mock 1" className="math-input" />
+                  </label>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                      Total Questions
+                      <input value={QuestionCount} onChange={(EventValue) => SetQuestionCount(EventValue.target.value)} type="number" min={10} max={150} className="math-input" />
+                    </label>
+                    <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                      Duration Minutes
+                      <input value={DurationMinutes} onChange={(EventValue) => SetDurationMinutes(EventValue.target.value)} type="number" min={5} max={120} className="math-input" />
+                    </label>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--math-role-primary)]">Section Allocation</p>
+                        <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Balance question count per competition section before generating.</p>
+                      </div>
+                      <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${SectionCountTotal >= 10 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"}`}>
+                        {SectionCountTotal} Selected
+                      </span>
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      {SectionPlanQuery.isLoading && <LoadingState label="Loading section plan..." />}
+                      {!SelectedLevelId && <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Select a level to load section allocation.</p>}
+                      {SectionPlan?.sections?.map((SectionValue) => (
+                        <div key={SectionValue.sectionKey} className="grid gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50 sm:grid-cols-[1fr_110px] sm:items-center">
+                          <div className="min-w-0">
+                            <p className="text-sm font-black text-slate-950 dark:text-white">{SectionValue.sectionTitle}</p>
+                            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Section {SectionValue.sectionNumber}</p>
+                          </div>
+                          <input
+                            value={SectionCounts[SectionValue.sectionKey] ?? String(SectionValue.questionCount || 0)}
+                            onChange={(EventValue) => UpdateSectionCount(SectionValue.sectionKey, EventValue.target.value)}
+                            type="number"
+                            min={0}
+                            max={150}
+                            className="math-input text-center font-black"
+                            aria-label={`${SectionValue.sectionTitle} question count`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button disabled={!CanGenerate} onClick={() => GenerateMutation.mutate()} className="math-primary-btn inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50">
+                    {GenerateMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                    Generate Draft Mock
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="math-card p-5">
-              <SectionTitle kicker="Step 2" title="Generate Draft Mock Paper" description="Create a fresh mock version with varied question combinations for the selected level." />
-              <div className="mt-5 grid gap-4">
-                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                  Mock Title
-                  <input value={MockTitle} onChange={(EventValue) => SetMockTitle(EventValue.target.value)} placeholder="Example: MM-L1 State Championship Mock 1" className="math-input" />
-                </label>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                    Total Questions
-                    <input value={QuestionCount} onChange={(EventValue) => SetQuestionCount(EventValue.target.value)} type="number" min={10} max={150} className="math-input" />
-                  </label>
-                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                    Duration Minutes
-                    <input value={DurationMinutes} onChange={(EventValue) => SetDurationMinutes(EventValue.target.value)} type="number" min={5} max={120} className="math-input" />
-                  </label>
+              <SectionTitle kicker="Preview" title="Latest / Selected Mock Snapshot" description="Preview the generated paper before moving to Manage Mocks for assignment." />
+              <div className="mt-5">
+                {PreviewQuery.isLoading && <LoadingState label="Loading mock preview..." />}
+                {!PreviewMockId && <EmptyState title="No preview selected" description="Generate a draft or click Preview from Manage Mocks." />}
+                {PreviewQuery.data && <MockPreview exam={PreviewQuery.data} />}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {ActiveStudioTab === "MANAGE" && (
+          <div className="grid gap-6 xl:grid-cols-[1.05fr_1fr]">
+            <div className="space-y-6">
+              <div className="math-card p-5">
+                <SectionTitle kicker="Manage Mocks" title="Mock Paper Library" description="View, preview, assign, archive, or delete competition mock papers from one focused control panel." />
+
+                <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_190px_190px]">
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input value={ManageSearch} onChange={(EventValue) => SetManageSearch(EventValue.target.value)} placeholder="Search mocks by title, code, or level" className="math-input pl-10" />
+                  </div>
+                  <select value={ManageStatusFilter} onChange={(EventValue) => SetManageStatusFilter(EventValue.target.value)} className="math-input">
+                    <option value="ALL">All Statuses</option>
+                    <option value="DRAFT">Draft</option>
+                    <option value="ASSIGNED">Assigned</option>
+                    <option value="ARCHIVED">Archived</option>
+                  </select>
+                  <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetPreviewMockId(null); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
+                    <option value="">All Levels</option>
+                    {Levels.map((LevelValue: LevelItem) => <option key={LevelValue.levelId} value={LevelValue.levelId}>{LevelValue.levelCode}</option>)}
+                  </select>
                 </div>
 
-                <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--math-role-primary)]">Section Allocation</p>
-                      <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Balance question count per competition section before generating.</p>
-                    </div>
-                    <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${SectionCountTotal >= 10 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"}`}>
-                      {SectionCountTotal} Selected
-                    </span>
-                  </div>
-
-                  <div className="mt-4 space-y-2">
-                    {SectionPlanQuery.isLoading && <LoadingState label="Loading section plan..." />}
-                    {!SelectedLevelId && <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Select a level to load section allocation.</p>}
-                    {SectionPlan?.sections?.map((SectionValue) => (
-                      <div key={SectionValue.sectionKey} className="grid gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50 sm:grid-cols-[1fr_110px] sm:items-center">
-                        <div className="min-w-0">
-                          <p className="text-sm font-black text-slate-950 dark:text-white">{SectionValue.sectionTitle}</p>
-                          <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Section {SectionValue.sectionNumber}</p>
+                <div className="mt-5 space-y-3">
+                  {MocksQuery.isLoading && <LoadingState label="Loading mock papers..." />}
+                  {!MocksQuery.isLoading && FilteredMockExams.length === 0 && <EmptyState title="No mock papers found" description="Create a draft mock or adjust the search/filter values." />}
+                  {FilteredMockExams.map((MockValue: CompetitionMockExamSummary) => {
+                    const IsArchived = String(MockValue.status || "").toUpperCase() === "ARCHIVED";
+                    return (
+                      <article key={MockValue.mockExamId} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/50">
+                        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                          <label className={`flex min-w-0 flex-1 items-start gap-3 ${IsArchived ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                            <input type="checkbox" disabled={IsArchived} checked={SelectedMockIds.includes(MockValue.mockExamId)} onChange={() => ToggleMock(MockValue.mockExamId)} className="mt-1 h-4 w-4 accent-[var(--math-role-primary)]" />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-black text-slate-950 dark:text-white">{MockValue.title}</span>
+                              <span className="mt-1 block text-xs font-bold text-slate-500 dark:text-slate-400">{MockValue.mockCode} · {MockValue.levelCode || "-"} · {MockValue.totalQuestions} Questions · {FormatDuration(MockValue.durationSeconds)}</span>
+                            </span>
+                          </label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <StatusChip status={MockValue.status} />
+                            <button onClick={() => { SetPreviewMockId(MockValue.mockExamId); SetLastMessage(`Preview opened: ${MockValue.title}`); }} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] dark:border-slate-700 dark:text-slate-200">
+                              <Eye size={14} className="mr-1 inline" /> View
+                            </button>
+                            <button disabled={IsArchived} onClick={() => ToggleMock(MockValue.mockExamId)} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200">
+                              <Send size={14} className="mr-1 inline" /> Assign
+                            </button>
+                            <button disabled={IsArchived} onClick={() => SetArchiveMockId(MockValue.mockExamId)} className="rounded-full border border-amber-200 px-3 py-1.5 text-xs font-black text-amber-700 hover:bg-amber-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-900/60 dark:text-amber-200 dark:hover:bg-amber-700">
+                              <Archive size={14} className="mr-1 inline" /> Archive
+                            </button>
+                            <button onClick={() => SetDeleteMockId(MockValue.mockExamId)} className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-600 hover:text-white dark:border-rose-900/60 dark:text-rose-200 dark:hover:bg-rose-700">
+                              <Trash2 size={14} className="mr-1 inline" /> Delete
+                            </button>
+                          </div>
                         </div>
-                        <input
-                          value={SectionCounts[SectionValue.sectionKey] ?? String(SectionValue.questionCount || 0)}
-                          onChange={(EventValue) => UpdateSectionCount(SectionValue.sectionKey, EventValue.target.value)}
-                          type="number"
-                          min={0}
-                          max={150}
-                          className="math-input text-center font-black"
-                          aria-label={`${SectionValue.sectionTitle} question count`}
-                        />
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="math-card p-5">
+                <SectionTitle kicker="Assign" title="Assign Selected Mock Exams" description="Admin can assign selected mocks directly, without involving the teacher." />
+                <div className="mt-5 space-y-5">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm font-black text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
+                    <input type="checkbox" checked={AssignToAll} onChange={(EventValue) => SetAssignToAll(EventValue.target.checked)} className="h-4 w-4 accent-[var(--math-role-primary)]" />
+                    Assign selected mock exam(s) to all active students in this level
+                  </label>
+
+                  {!AssignToAll && (
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input value={StudentSearch} onChange={(EventValue) => SetStudentSearch(EventValue.target.value)} placeholder="Search student by name or code" className="math-input pl-10" />
                       </div>
-                    ))}
+                      <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+                        {LevelStudents.map((StudentValue: AdminStudent) => (
+                          <label key={StudentValue.studentId} className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-200">
+                            <span>
+                              <span className="font-black text-slate-950 dark:text-white">{StudentValue.studentCode}</span> · {StudentValue.studentName}
+                            </span>
+                            <input type="checkbox" checked={SelectedStudentIds.includes(StudentValue.studentId)} onChange={() => ToggleStudent(StudentValue.studentId)} className="h-4 w-4 accent-[var(--math-role-primary)]" />
+                          </label>
+                        ))}
+                        {LevelStudents.length === 0 && <EmptyState title="No students found" description="No active students match the selected level/search." />}
+                      </div>
+                    </div>
+                  )}
+
+                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                    Optional Instructions
+                    <textarea value={AssignmentInstructions} onChange={(EventValue) => SetAssignmentInstructions(EventValue.target.value)} rows={3} placeholder="Example: Complete this mock under competition timing without taking breaks." className="math-input min-h-24" />
+                  </label>
+
+                  <button disabled={!CanAssign} onClick={() => AssignMutation.mutate()} className="math-primary-btn inline-flex w-full items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50">
+                    {AssignMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                    Assign Selected Mock Exams
+                  </button>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <MetricCard icon={<FilePenLine size={16} />} label="Selected Mocks" value={SelectedMockIds.length} />
+                    <MetricCard icon={<UsersRound size={16} />} label="Level Students" value={LevelStudents.length} />
+                    <MetricCard icon={<CheckCircle2 size={16} />} label="Selected Students" value={AssignToAll ? LevelStudents.length : SelectedStudentIds.length} />
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <button disabled={!CanGenerate} onClick={() => GenerateMutation.mutate()} className="math-primary-btn inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50">
-                  {GenerateMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                  Generate Draft Mock
+            <div className="math-card p-5">
+              <SectionTitle kicker="Preview" title="Selected Mock Snapshot" description="Quickly check sections and sample questions before assigning." />
+              <div className="mt-5">
+                {PreviewQuery.isLoading && <LoadingState label="Loading mock preview..." />}
+                {!PreviewMockId && <EmptyState title="No preview selected" description="Click View on any mock paper to inspect its generated questions." />}
+                {PreviewQuery.data && <MockPreview exam={PreviewQuery.data} />}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {ArchiveMockId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8 backdrop-blur-sm">
+            <div className="w-full max-w-xl rounded-[2rem] border border-amber-200 bg-white p-6 shadow-2xl dark:border-amber-900/60 dark:bg-slate-950">
+              <div className="flex items-start gap-4">
+                <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+                  <Archive size={22} />
+                </div>
+                <div>
+                  <p className="math-kicker text-amber-600 dark:text-amber-300">Archive Mock Exam</p>
+                  <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Archive this mock?</h2>
+                  <p className="mt-3 text-sm font-bold leading-6 text-slate-600 dark:text-slate-300">
+                    This keeps the mock and its history available for management, but removes it from normal assignment selection. Permanent delete remains available separately.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button type="button" onClick={() => SetArchiveMockId(null)} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900">
+                  Cancel
+                </button>
+                <button type="button" disabled={ArchiveMutation.isPending} onClick={() => ArchiveMutation.mutate(ArchiveMockId)} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-amber-900/20 hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  {ArchiveMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Archive size={18} />}
+                  Archive Mock
                 </button>
               </div>
             </div>
           </div>
-
-          <div className="math-card p-5">
-            <SectionTitle kicker="Step 3" title="Mock Papers In Selected Level" description="Select one or multiple mock papers for assignment, or open a quick preview." />
-            <div className="mt-5 space-y-3">
-              {MocksQuery.isLoading && <LoadingState label="Loading mock papers..." />}
-              {!MocksQuery.isLoading && MockExams.length === 0 && <EmptyState title="No mock papers yet" description="Generate the first draft mock for this level to begin assignment." />}
-              {MockExams.map((MockValue: CompetitionMockExamSummary) => (
-                <article key={MockValue.mockExamId} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/50">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
-                      <input type="checkbox" checked={SelectedMockIds.includes(MockValue.mockExamId)} onChange={() => ToggleMock(MockValue.mockExamId)} className="mt-1 h-4 w-4 accent-[var(--math-role-primary)]" />
-                      <span className="min-w-0">
-                        <span className="block text-sm font-black text-slate-950 dark:text-white">{MockValue.title}</span>
-                        <span className="mt-1 block text-xs font-bold text-slate-500 dark:text-slate-400">{MockValue.mockCode} · {MockValue.totalQuestions} Questions · {FormatDuration(MockValue.durationSeconds)}</span>
-                      </span>
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <StatusChip status={MockValue.status} />
-                      <button onClick={() => { SetPreviewMockId(MockValue.mockExamId); SetLastMessage(`Preview opened: ${MockValue.title}`); }} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] dark:border-slate-700 dark:text-slate-200">
-                        <Eye size={14} className="mr-1 inline" /> Preview
-                      </button>
-                      <button onClick={() => SetDeleteMockId(MockValue.mockExamId)} className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-600 hover:text-white dark:border-rose-900/60 dark:text-rose-200 dark:hover:bg-rose-700">
-                        <Trash2 size={14} className="mr-1 inline" /> Delete
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-[1.15fr_1fr]">
-          <div className="math-card p-5">
-            <SectionTitle kicker="Step 4" title="Assign Mock Exams" description="Admin can assign selected mocks directly, without involving the teacher." />
-            <div className="mt-5 space-y-5">
-              <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm font-black text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
-                <input type="checkbox" checked={AssignToAll} onChange={(EventValue) => SetAssignToAll(EventValue.target.checked)} className="h-4 w-4 accent-[var(--math-role-primary)]" />
-                Assign selected mock exam(s) to all active students in this level
-              </label>
-
-              {!AssignToAll && (
-                <div className="space-y-3">
-                  <div className="relative">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input value={StudentSearch} onChange={(EventValue) => SetStudentSearch(EventValue.target.value)} placeholder="Search student by name or code" className="math-input pl-10" />
-                  </div>
-                  <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-                    {LevelStudents.map((StudentValue: AdminStudent) => (
-                      <label key={StudentValue.studentId} className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-200">
-                        <span>
-                          <span className="font-black text-slate-950 dark:text-white">{StudentValue.studentCode}</span> · {StudentValue.studentName}
-                        </span>
-                        <input type="checkbox" checked={SelectedStudentIds.includes(StudentValue.studentId)} onChange={() => ToggleStudent(StudentValue.studentId)} className="h-4 w-4 accent-[var(--math-role-primary)]" />
-                      </label>
-                    ))}
-                    {LevelStudents.length === 0 && <EmptyState title="No students found" description="No active students match the selected level/search." />}
-                  </div>
-                </div>
-              )}
-
-              <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                Optional Instructions
-                <textarea value={AssignmentInstructions} onChange={(EventValue) => SetAssignmentInstructions(EventValue.target.value)} rows={3} placeholder="Example: Complete this mock under competition timing without taking breaks." className="math-input min-h-24" />
-              </label>
-
-              <button disabled={!CanAssign} onClick={() => AssignMutation.mutate()} className="math-primary-btn inline-flex w-full items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50">
-                {AssignMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                Assign Selected Mock Exams
-              </button>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <MetricCard icon={<FilePenLine size={16} />} label="Selected Mocks" value={SelectedMockIds.length} />
-                <MetricCard icon={<UsersRound size={16} />} label="Level Students" value={LevelStudents.length} />
-                <MetricCard icon={<CheckCircle2 size={16} />} label="Selected Students" value={AssignToAll ? LevelStudents.length : SelectedStudentIds.length} />
-              </div>
-            </div>
-          </div>
-
-          <div className="math-card p-5">
-            <SectionTitle kicker="Preview" title="Selected Mock Snapshot" description="Quickly check sections and sample questions before assigning." />
-            <div className="mt-5">
-              {PreviewQuery.isLoading && <LoadingState label="Loading mock preview..." />}
-              {!PreviewMockId && <EmptyState title="No preview selected" description="Click Preview on any mock paper to inspect its generated questions." />}
-              {PreviewQuery.data && <MockPreview exam={PreviewQuery.data} />}
-            </div>
-          </div>
-        </div>
-
-
+        )}
 
         {DeleteMockId && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8 backdrop-blur-sm">
