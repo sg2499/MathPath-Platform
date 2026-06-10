@@ -75,7 +75,7 @@ def _ValidatedMockExams(db: Session, MockExamIds: list[str]) -> list[Competition
 
     Exams = (
         db.query(CompetitionMockExam)
-        .filter(CompetitionMockExam.id.in_(UniqueIds), CompetitionMockExam.is_active == True)
+        .filter(CompetitionMockExam.id.in_(UniqueIds), CompetitionMockExam.is_active == True, CompetitionMockExam.status != "ARCHIVED")
         .all()
     )
     ExamById = {Exam.id: Exam for Exam in Exams}
