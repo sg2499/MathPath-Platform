@@ -198,33 +198,100 @@ def _QuestionSourceText(Question: dict[str, Any], FallbackTitle: str) -> str:
     )
 
 
-def _MmCompetitionSectionKey(Question: dict[str, Any], FallbackTitle: str) -> str | None:
+def _QuestionMetadata(Question: dict[str, Any]) -> dict[str, Any]:
+    Metadata = Question.get("metadata")
+    return Metadata if isinstance(Metadata, dict) else {}
+
+
+def _QuestionConceptFamily(Question: dict[str, Any], FallbackTitle: str) -> str:
+    Metadata = _QuestionMetadata(Question)
+    RawConcept = (
+        Metadata.get("concept_family")
+        or Metadata.get("conceptFamily")
+        or Metadata.get("competitionConceptKey")
+        or FallbackTitle
+    )
+    return _NormalizeText(RawConcept).upper()
+
+
+def _QuestionSectionTitleText(Question: dict[str, Any], FallbackTitle: str) -> str:
+    Metadata = _QuestionMetadata(Question)
+    return _NormalizedSearchText(
+        Metadata.get("section_title"),
+        Metadata.get("sectionTitle"),
+        Metadata.get("source_section_title"),
+        Metadata.get("sourceSectionTitle"),
+        FallbackTitle,
+        Question.get("question_text"),
+    )
+
+
+def _MmCompetitionSectionKeys(Question: dict[str, Any], FallbackTitle: str) -> list[str]:
+    """Map generated MM questions into the approved 8 competition sections.
+
+    The competition mock must reuse Learning Path Studio's MM generators while
+    grouping generated questions by competition-family.  The mapping is based on
+    the generator's concept-family metadata first and text only as a fallback so
+    stale titles or section labels do not narrow a competition section to one
+    small worksheet subtype.
+    """
+    ConceptFamily = _QuestionConceptFamily(Question, FallbackTitle)
     Text = _QuestionSourceText(Question, FallbackTitle)
+    SectionText = _QuestionSectionTitleText(Question, FallbackTitle)
 
-    if any(Term in Text for Term in ["skill stacker", "concept drill"]):
-        return "MM_SKILL_DRILL"
+    SkillDrillFamilies = {"SKILL_STACKER", "CONCEPT_DRILL"}
+    FinancialFamilies = {"SIMPLE_INTEREST", "PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE"}
+    BodmasPercentageFamilies = {"BODMAS", "PERCENTAGE_ADD_LESS", "PERCENTAGE_VALUE", "PERCENTAGE_INCREASE_DECREASE", "SOLVE_EQUATION"}
+    PositionalFamilies = {"ANSWER_POSITION"}
+    AddLessFamilies = {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}
+    MultiplicationFamilies = {"WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION", "SQUARES", "CUBES", "MIXED_SQUARE_CUBE"}
+    DivisionFamilies = {"WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION", "SQUARE_ROOT", "CUBE_ROOT", "MIXED_ROOTS"}
 
-    if any(Term in Text for Term in ["profit", "loss", "simple interest", "selling price", "cost price"]):
-        return "MM_FINANCIAL"
+    if ConceptFamily in SkillDrillFamilies or any(Term in Text for Term in ["skill stacker", "concept drill"]):
+        return ["MM_SKILL_DRILL"]
 
-    if any(Term in Text for Term in ["bodmas", "percentage", "percent", "add percentage", "less percentage"]):
-        return "MM_BODMAS_PERCENTAGE"
+    if ConceptFamily in FinancialFamilies or any(Term in Text for Term in ["profit", "loss", "simple interest", "selling price", "cost price"]):
+        return ["MM_FINANCIAL"]
 
-    if any(Term in Text for Term in ["position", "placement", "natural number"]):
-        return "MM_POSITIONAL_PLACEMENT"
+    if ConceptFamily in BodmasPercentageFamilies or any(Term in Text for Term in ["bodmas", "percentage", "percent", "add percentage", "less percentage", "solve equation"]):
+        return ["MM_BODMAS_PERCENTAGE"]
 
-    if any(Term in Text for Term in ["add-less", "add less", "add/less", "borrowing", "integer", "fast visualisation", "fast visualization"]):
-        if any(Term in Text for Term in ["visual", "visualisation", "visualization"]):
-            return "MM_VISUAL_ADD_LESS"
-        return "MM_ABACUS_ADD_LESS"
+    if ConceptFamily in PositionalFamilies or any(Term in Text for Term in ["position", "placement", "natural number"]):
+        return ["MM_POSITIONAL_PLACEMENT"]
 
-    if any(Term in Text for Term in ["division", "÷", "divide"]):
-        return "MM_DIVISION"
+    if ConceptFamily in AddLessFamilies or any(Term in Text for Term in ["add-less", "add less", "add/less", "borrowing", "integer", "fast visualisation", "fast visualization"]):
+        # Both approved Add/Less competition sections must draw from the full MM
+        # Add/Less family: ordinary stacks, decimals, fast visualisation,
+        # integers, borrowing, exact digit sheets, and related workbook-valid
+        # Add/Less variants.  Do not narrow Section 2 to only visual titles.
+        return ["MM_ABACUS_ADD_LESS", "MM_VISUAL_ADD_LESS"]
 
-    if any(Term in Text for Term in ["multiplication", "×", " x ", "times", "square", "cube"]):
-        return "MM_MULTIPLICATION"
+    if ConceptFamily == "MULTIPLICATION_DIVISION_MIXED":
+        if any(Term in SectionText for Term in ["division", "divide", "÷"]):
+            return ["MM_DIVISION"]
+        if any(Term in SectionText for Term in ["multiplication", " x ", "×", "times"]):
+            return ["MM_MULTIPLICATION"]
+        return ["MM_MULTIPLICATION", "MM_DIVISION"]
 
-    return None
+    if ConceptFamily in DivisionFamilies or any(Term in Text for Term in ["division", "÷", "divide"]):
+        return ["MM_DIVISION"]
+
+    if ConceptFamily in MultiplicationFamilies or any(Term in Text for Term in ["multiplication", "×", " x ", "times", "square", "cube"]):
+        return ["MM_MULTIPLICATION"]
+
+    return []
+
+
+def _QuestionSignature(Question: dict[str, Any]) -> str:
+    Metadata = _QuestionMetadata(Question)
+    return "|".join([
+        _NormalizeText(Metadata.get("sourceDpsId")),
+        _NormalizeText(Metadata.get("sourceQuestionNumber") or Question.get("question_number")),
+        _NormalizeText(Question.get("question_text")),
+        json.dumps(Question.get("operands") or [], sort_keys=True, default=str),
+        json.dumps(Question.get("operators") or [], sort_keys=True, default=str),
+        _NormalizeText(Question.get("correct_answer")),
+    ])
 
 
 def _AllocateCompetitionSectionCounts(TargetQuestionCount: int, AvailableBySection: dict[str, int]) -> dict[str, int]:
@@ -266,15 +333,23 @@ def _AllocateCompetitionSectionCounts(TargetQuestionCount: int, AvailableBySecti
     return {Key: Value for Key, Value in Counts.items() if Value > 0}
 
 
-def _RoundRobinSelectFromConceptBuckets(ConceptBuckets: dict[str, list[dict[str, Any]]], RequiredCount: int) -> list[dict[str, Any]]:
+def _RoundRobinSelectFromConceptBuckets(
+    ConceptBuckets: dict[str, list[dict[str, Any]]],
+    RequiredCount: int,
+    ExcludedSignatures: set[str] | None = None,
+) -> list[dict[str, Any]]:
     Selected: list[dict[str, Any]] = []
     OrderedConcepts = sorted(ConceptBuckets.keys())
     CursorByConcept = {Concept: 0 for Concept in OrderedConcepts}
+    Blocked = ExcludedSignatures or set()
     while len(Selected) < RequiredCount:
         AddedInPass = False
         for Concept in OrderedConcepts:
             Bucket = ConceptBuckets[Concept]
             Cursor = CursorByConcept[Concept]
+            while Cursor < len(Bucket) and _QuestionSignature(Bucket[Cursor]) in Blocked:
+                Cursor += 1
+            CursorByConcept[Concept] = Cursor
             if Cursor < len(Bucket):
                 Selected.append(Bucket[Cursor])
                 CursorByConcept[Concept] = Cursor + 1
@@ -398,9 +473,10 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, DpsRows: list[
             })
             QuestionCopy["metadata"] = Metadata
             if IsMmMock:
-                SectionKey = _MmCompetitionSectionKey(QuestionCopy, DpsRecord.dps_title)
-                if SectionKey:
-                    MmGeneratedBySection[SectionKey][ConceptKey].append(QuestionCopy)
+                SectionKeys = _MmCompetitionSectionKeys(QuestionCopy, DpsRecord.dps_title)
+                if SectionKeys:
+                    for SectionKey in SectionKeys:
+                        MmGeneratedBySection[SectionKey][ConceptKey].append(dict(QuestionCopy))
                 else:
                     GeneratedByConcept[ConceptKey].append(QuestionCopy)
             else:
@@ -430,12 +506,24 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, DpsRows: list[
         SectionCounts = SectionCountsOverride or _AllocateCompetitionSectionCounts(TargetQuestionCount, AvailableBySection)
         Selected: list[dict[str, Any]] = []
         SectionCoverage: list[dict[str, Any]] = []
+        UsedQuestionSignatures: set[str] = set()
         for SectionDefinition in MM_COMPETITION_SECTION_DEFINITIONS:
             SectionKey = SectionDefinition["key"]
             RequiredCount = SectionCounts.get(SectionKey, 0)
             ConceptBuckets = MmGeneratedBySection.get(SectionKey, {})
-            SectionSelected = _RoundRobinSelectFromConceptBuckets(ConceptBuckets, RequiredCount)
+            SectionSelected = _RoundRobinSelectFromConceptBuckets(ConceptBuckets, RequiredCount, UsedQuestionSignatures)
+            if len(SectionSelected) < RequiredCount:
+                FallbackSelected = _RoundRobinSelectFromConceptBuckets(ConceptBuckets, RequiredCount - len(SectionSelected))
+                Existing = {_QuestionSignature(Question) for Question in SectionSelected}
+                for Question in FallbackSelected:
+                    Signature = _QuestionSignature(Question)
+                    if Signature not in Existing:
+                        SectionSelected.append(Question)
+                        Existing.add(Signature)
+                    if len(SectionSelected) >= RequiredCount:
+                        break
             for Question in SectionSelected:
+                UsedQuestionSignatures.add(_QuestionSignature(Question))
                 Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
                 Metadata = dict(Metadata)
                 Metadata.update({
