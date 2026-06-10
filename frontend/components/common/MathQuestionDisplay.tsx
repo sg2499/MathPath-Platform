@@ -90,10 +90,10 @@ function ExpressionQuestion({
   const IsAnswerPosition = mode === "ANSWER_POSITION";
 
   return (
-    <div className="mx-auto inline-flex max-w-full overflow-x-auto rounded-[20px] bg-white px-5 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+    <div className="mx-auto flex w-full max-w-full justify-center rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
       <div
         className={`max-w-full text-center font-mono font-black leading-tight tracking-tight ${
-          IsAnswerPosition ? "whitespace-nowrap text-[20px] sm:text-[26px]" : "whitespace-nowrap text-[24px] sm:text-[30px]"
+          IsAnswerPosition ? "whitespace-nowrap text-[16px] sm:text-[20px] lg:text-[24px]" : "whitespace-normal break-words text-[20px] sm:text-[24px] lg:text-[28px]"
         }`}
       >
         {RenderExpressionWithBlueQuestion(Expression)}
@@ -115,8 +115,8 @@ function CompactExpressionQuestion({
   const Expression = questionText?.trim() || BuildExpression(operands, operators);
 
   return (
-    <div className="mx-auto inline-flex max-w-full rounded-[18px] bg-white px-5 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700">
-      <div className="whitespace-nowrap text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px]">
+    <div className="mx-auto flex w-full max-w-full justify-center rounded-[18px] bg-white px-4 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
+      <div className="max-w-full whitespace-normal break-words text-center font-mono text-[20px] font-black leading-tight tracking-tight sm:text-[24px] lg:text-[28px]">
         {RenderExpressionWithBlueQuestion(Expression)}
         <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
