@@ -90,10 +90,10 @@ function ExpressionQuestion({
   const IsAnswerPosition = mode === "ANSWER_POSITION";
 
   return (
-    <div className="mx-auto inline-flex max-w-full rounded-[20px] bg-white px-5 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+    <div className="mx-auto inline-flex max-w-full overflow-x-auto rounded-[20px] bg-white px-5 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
       <div
-        className={`max-w-full text-center font-mono text-[24px] font-black leading-tight tracking-tight sm:text-[30px] ${
-          IsAnswerPosition ? "whitespace-normal break-words" : "whitespace-nowrap"
+        className={`max-w-full text-center font-mono font-black leading-tight tracking-tight ${
+          IsAnswerPosition ? "whitespace-nowrap text-[20px] sm:text-[26px]" : "whitespace-nowrap text-[24px] sm:text-[30px]"
         }`}
       >
         {RenderExpressionWithBlueQuestion(Expression)}
