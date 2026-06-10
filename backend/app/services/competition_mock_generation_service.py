@@ -175,7 +175,10 @@ MM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
         {"conceptFamily": "PERCENTAGE_ADD_LESS", "title": "Add Percentage Challenge"},
     ],
     "MM_FINANCIAL": [
-        {"conceptFamily": "PROFIT_LOSS", "title": "Profit-Loss"},
+        {"conceptFamily": "PROFIT_LOSS", "title": "Find Profit"},
+        {"conceptFamily": "PROFIT_LOSS", "title": "Find Loss"},
+        {"conceptFamily": "PROFIT_LOSS", "title": "Find Profit %"},
+        {"conceptFamily": "PROFIT_LOSS", "title": "Find Loss %"},
         {"conceptFamily": "SIMPLE_INTEREST", "title": "Simple Interest"},
         {"conceptFamily": "FIND_SELLING_PRICE", "title": "Selling Price"},
         {"conceptFamily": "FIND_COST_PRICE", "title": "Cost Price"},
@@ -224,7 +227,7 @@ MM_COMPETITION_ORDERED_CONCEPT_GROUPS: dict[str, list[list[str]]] = {
         ["Less Percentage Challenge"],
     ],
     "MM_FINANCIAL": [
-        ["Profit-Loss"],
+        ["Find Profit", "Find Loss", "Find Profit %", "Find Loss %"],
         ["Simple Interest"],
         ["Selling Price"],
     ],
@@ -492,6 +495,61 @@ def _MmCompetitionPadVisualAddLessRows(Question: dict[str, Any], *, SectionKey: 
     return Updated
 
 
+
+def _BuildMmCompetitionProfitLossQuestion(*, Seed: str, VariantTitle: str) -> dict[str, Any]:
+    """Generate MM competition-only Profit/Loss variants.
+
+    Normal MM Profit/Loss DPS generation stays untouched.  Competition mocks
+    must rotate through Profit, Loss, Profit %, and Loss % so Section 9 does
+    not collapse into only one financial subtype.
+    """
+    Rng = random.Random(Seed)
+    VariantText = _NormalizedSearchText(VariantTitle)
+    IsPercent = "%" in VariantTitle or "percent" in VariantText
+    IsLoss = "loss" in VariantText
+
+    CostPrice = Decimal(Rng.randrange(12000, 50001, 250))
+    Rate = Decimal(Rng.choice([8, 10, 12, 15, 16, 18, 20, 22, 25, 28, 30, 32, 35, 40]))
+    Amount = (CostPrice * Rate / Decimal(100)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    if Amount <= 0:
+        Amount = Decimal("500")
+
+    if IsLoss:
+        SellingPrice = CostPrice - Amount
+        Result = (Amount * Decimal(100) / CostPrice).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if IsPercent else Amount
+        Prompt = "Find Loss %" if IsPercent else "Find Loss"
+    else:
+        SellingPrice = CostPrice + Amount
+        Result = (Amount * Decimal(100) / CostPrice).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if IsPercent else Amount
+        Prompt = "Find Profit %" if IsPercent else "Find Profit"
+
+    CorrectAnswer = _PlainDecimalText(Result)
+    Suffix = "%" if IsPercent else ""
+    Options = _MmCompetitionSmartNumericOptions(Result, Seed)
+    if IsPercent:
+        for Option in Options:
+            ValueText = str(Option.get("value") or "")
+            Option["value"] = ValueText if ValueText.endswith("%") else f"{ValueText}%"
+            Option["is_correct"] = Option["value"] == f"{CorrectAnswer}%"
+
+    return {
+        "question_number": 1,
+        "display_type": "FINANCIAL_TABLE",
+        "question_text": Prompt,
+        "operands": [_PlainDecimalText(CostPrice), _PlainDecimalText(SellingPrice)],
+        "operators": ["Cost Price", "Selling Price"],
+        "correct_answer": f"{CorrectAnswer}{Suffix}",
+        "options": Options,
+        "difficulty": "COMPETITION_CHALLENGE",
+        "seed": Seed,
+        "metadata": {
+            "conceptFamily": "PROFIT_LOSS",
+            "competitionConceptKey": Prompt,
+            "competitionFinancialVariant": Prompt,
+            "competitionProfitLossMixedVariant": True,
+        },
+    }
+
 def _ApplyMmCompetitionQuestionShaping(Question: dict[str, Any], *, SectionKey: str, ConceptTitle: str, Seed: str) -> dict[str, Any]:
     ShapedQuestion = _MmCompetitionPadVisualAddLessRows(Question, SectionKey=SectionKey, ConceptTitle=ConceptTitle, Seed=Seed)
     return ShapedQuestion
@@ -530,6 +588,15 @@ def _GenerateMmCompetitionConceptBatch(
             _BuildMmCompetitionBodmasChallengeQuestion(
                 Seed=f"{Seed}-BODMAS-{Index}",
                 VariantIndex=Index,
+            )
+            for Index in range(max(RequiredCount, 1))
+        ][:RequiredCount]
+
+    if SectionDefinition.get("key") == "MM_FINANCIAL" and ConceptFamily == "PROFIT_LOSS":
+        return [
+            _BuildMmCompetitionProfitLossQuestion(
+                Seed=f"{Seed}-PROFIT-LOSS-{Index}",
+                VariantTitle=ConceptTitle,
             )
             for Index in range(max(RequiredCount, 1))
         ][:RequiredCount]
