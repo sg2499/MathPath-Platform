@@ -227,6 +227,120 @@ def _MmCompetitionOrderedCandidates(Questions: list[dict[str, Any]]) -> list[dic
     return list(reversed(Questions))
 
 
+def _DecimalOrIntFromAny(Value: Any) -> Decimal | None:
+    try:
+        Clean = str(Value).strip().replace(",", "")
+        if Clean in {"", "+", "-", "−"}:
+            return None
+        return Decimal(Clean.replace("−", "-"))
+    except Exception:
+        return None
+
+
+def _FormatCompetitionNumber(Value: Decimal) -> str:
+    return _PlainDecimalText(Value) if "_PlainDecimalText" in globals() else str(Value.normalize())
+
+
+def _MmCompetitionIsAddLessStack(Question: dict[str, Any]) -> bool:
+    Operands = Question.get("operands") or []
+    Operators = Question.get("operators") or []
+    if not isinstance(Operands, list) or not Operands:
+        return False
+    if Operators and any(str(Operator or "").strip() not in {"", "+", "-", "−"} for Operator in Operators):
+        return False
+    return all(_DecimalOrIntFromAny(Operand) is not None for Operand in Operands)
+
+
+def _MmCompetitionStackAnswer(Operands: list[Any], Operators: list[Any]) -> Decimal:
+    Total = Decimal("0")
+    for Index, Operand in enumerate(Operands):
+        Value = _DecimalOrIntFromAny(Operand)
+        if Value is None:
+            continue
+        RawOperator = str(Operators[Index] if Index < len(Operators) else "").strip()
+        if Index > 0 and RawOperator in {"-", "−"}:
+            Total -= abs(Value)
+        else:
+            Total += Value
+    return Total
+
+
+def _MmCompetitionSmartNumericOptions(CorrectAnswer: Decimal, Seed: str) -> list[dict[str, Any]]:
+    Rng = random.Random(Seed)
+    IsDecimal = CorrectAnswer != CorrectAnswer.to_integral_value()
+    Quantum = Decimal("0.01") if IsDecimal else Decimal("1")
+    BaseOffsets = [Decimal("1"), Decimal("2"), Decimal("3"), Decimal("5")]
+    if IsDecimal:
+        BaseOffsets = [Decimal("0.10"), Decimal("0.20"), Decimal("0.50"), Decimal("1.00")]
+    Distractors: list[str] = []
+    for Offset in BaseOffsets + [Offset * -1 for Offset in BaseOffsets]:
+        Candidate = CorrectAnswer + Offset
+        if IsDecimal:
+            Candidate = Candidate.quantize(Quantum, rounding=ROUND_HALF_UP)
+        CandidateText = _PlainDecimalText(Candidate)
+        if CandidateText != _PlainDecimalText(CorrectAnswer) and CandidateText not in Distractors:
+            Distractors.append(CandidateText)
+        if len(Distractors) >= 3:
+            break
+    Values = [_PlainDecimalText(CorrectAnswer)] + Distractors[:3]
+    Rng.shuffle(Values)
+    Labels = ["A", "B", "C", "D"]
+    return [
+        {"label": Labels[Index], "value": Value, "is_correct": Value == _PlainDecimalText(CorrectAnswer), "display_order": Index + 1}
+        for Index, Value in enumerate(Values)
+    ]
+
+
+def _MmCompetitionPadVisualAddLessRows(Question: dict[str, Any], *, SectionKey: str, ConceptTitle: str, Seed: str) -> dict[str, Any]:
+    if SectionKey != "MM_VISUAL_ADD_LESS" or not _MmCompetitionIsAddLessStack(Question):
+        return Question
+
+    Updated = dict(Question)
+    Operands = list(Updated.get("operands") or [])
+    Operators = list(Updated.get("operators") or [])
+    Text = _NormalizedSearchText(ConceptTitle, Updated.get("question_text"), _QuestionMetadata(Updated).get("competitionConceptKey"))
+    IsTwoDigitFastVisualisation = "2 digit" in Text and ("fast visualisation" in Text or "fast visualization" in Text)
+    TargetMin = 7 if IsTwoDigitFastVisualisation else 4
+    TargetMax = 7 if IsTwoDigitFastVisualisation else 5
+    Rng = random.Random(Seed)
+
+    if len(Operands) > TargetMax:
+        Operands = Operands[:TargetMax]
+        Operators = Operators[:TargetMax]
+
+    while len(Operands) < TargetMin:
+        if IsTwoDigitFastVisualisation:
+            NewValue = Rng.randint(21, 98)
+        else:
+            NewValue = Rng.randint(300, 9999)
+        NewOperator = "-" if len(Operands) % 3 == 1 else "+"
+        Operands.append(NewValue)
+        Operators.append(NewOperator)
+
+    if len(Operators) < len(Operands):
+        Operators = Operators + ["+"] * (len(Operands) - len(Operators))
+    Operators = Operators[:len(Operands)]
+
+    CorrectAnswer = _MmCompetitionStackAnswer(Operands, Operators)
+    Updated["operands"] = Operands
+    Updated["operators"] = Operators
+    Updated["correct_answer"] = _PlainDecimalText(CorrectAnswer)
+    Updated["options"] = _MmCompetitionSmartNumericOptions(CorrectAnswer, Seed)
+    Metadata = Updated.get("metadata") if isinstance(Updated.get("metadata"), dict) else {}
+    Metadata = dict(Metadata)
+    Metadata.update({
+        "competitionVisualRowRule": "EXACTLY_7_ROWS" if IsTwoDigitFastVisualisation else "FOUR_TO_FIVE_ROWS",
+        "competitionVisualRowCount": len(Operands),
+    })
+    Updated["metadata"] = Metadata
+    return Updated
+
+
+def _ApplyMmCompetitionQuestionShaping(Question: dict[str, Any], *, SectionKey: str, ConceptTitle: str, Seed: str) -> dict[str, Any]:
+    ShapedQuestion = _MmCompetitionPadVisualAddLessRows(Question, SectionKey=SectionKey, ConceptTitle=ConceptTitle, Seed=Seed)
+    return ShapedQuestion
+
+
 def _MmSectionCountMap(TotalQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
     if SectionCountsOverride:
         return {
@@ -326,6 +440,12 @@ def _CollectMmCompetitionSectionLockedQuestions(
             )
             AcceptedFromThisTurn = False
             for Question in _MmCompetitionOrderedCandidates(Batch):
+                Question = _ApplyMmCompetitionQuestionShaping(
+                    Question,
+                    SectionKey=SectionKey,
+                    ConceptTitle=str(ConceptSpec["title"]),
+                    Seed=f"MM-COMPETITION-SHAPE-{SectionKey}-{ConceptSpec['title']}-{Attempts}-{uuid4().hex}",
+                )
                 Signature = _QuestionSignature(Question)
                 if Signature in UsedSignatures:
                     continue
@@ -927,7 +1047,22 @@ def _BuildSameDigitPositionOptions(Question: dict[str, Any]) -> list[dict[str, A
     Mode = str(Metadata.get("answer_position_mode") or "").upper()
     QuestionText = str(Question.get("question_text") or "").lower()
     Operators = [str(Value or "").strip().lower() for Value in (Question.get("operators") or [])]
-    if Mode != "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE" and not ("write" in QuestionText and "given position" in QuestionText) and Operators[:2] != ["position", "number"]:
+    ConceptText = _NormalizedSearchText(
+        Metadata.get("competitionConceptKey"),
+        Metadata.get("conceptTitle"),
+        Metadata.get("conceptName"),
+        Metadata.get("sectionTitle"),
+        Metadata.get("section_title"),
+        Question.get("display_type"),
+    )
+    IsWriteNumberQuestion = (
+        Mode == "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE"
+        or ("write" in QuestionText and "given position" in QuestionText)
+        or Operators[:2] == ["position", "number"]
+        or "write number" in ConceptText
+        or "given position" in ConceptText
+    )
+    if not IsWriteNumberQuestion:
         return None
 
     Operands = Question.get("operands") or []
@@ -939,7 +1074,13 @@ def _BuildSameDigitPositionOptions(Question: dict[str, Any]) -> list[dict[str, A
     except Exception:
         CorrectPosition = int(Metadata.get("position") or 0)
 
-    SourceNumber = str(Metadata.get("source_number") or Operands[1] or "").strip()
+    SourceNumber = str(
+        Metadata.get("source_number")
+        or Metadata.get("sourceNumber")
+        or Metadata.get("number")
+        or Operands[1]
+        or ""
+    ).strip()
     SourceDigits = "".join(Character for Character in SourceNumber if Character.isdigit())
     if not SourceDigits:
         return None
