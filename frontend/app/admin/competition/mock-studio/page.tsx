@@ -622,6 +622,16 @@ function HasWriteNumberPositionShape(QuestionValue: CompetitionMockExamDetail["q
   return TextValue.includes("write") && TextValue.includes("given position");
 }
 
+
+function GetCleanMmSectionName(QuestionValue: CompetitionMockExamDetail["questions"][number]): string {
+  const SectionNumber = Number(QuestionValue.sectionNumber || 0);
+  const RawTitle = String(QuestionValue.sectionTitle || QuestionValue.conceptTag || "").trim();
+  if (!RawTitle) return SectionNumber ? `Section ${SectionNumber}` : "Section";
+  const PrefixPattern = new RegExp(`^section\\s*${SectionNumber}\\s*[-–—:]\\s*`, "i");
+  const CleanTitle = RawTitle.replace(PrefixPattern, "").trim();
+  return CleanTitle || RawTitle;
+}
+
 function GetMmQuestionConceptDisplayTitle(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
   if (!IsMasterModuleMock(ExamValue.moduleCode)) return QuestionValue.conceptTag || QuestionValue.conceptFamily || "Concept";
   if (Number(QuestionValue.sectionNumber) === 5 || IsMmPositionalQuestion(QuestionValue, ExamValue)) {
@@ -775,8 +785,8 @@ function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
 
                     <div className="min-w-0 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Q{QuestionValue.questionNumber}</span>
-                        <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">{GetMmQuestionConceptDisplayTitle(QuestionValue, exam)}</span>
+                        <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">Section {QuestionValue.sectionNumber}</span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{GetCleanMmSectionName(QuestionValue)}</span>
                         <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200">Answer: {QuestionValue.correctAnswer}</span>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">

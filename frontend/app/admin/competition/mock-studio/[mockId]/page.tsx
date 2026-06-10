@@ -96,6 +96,16 @@ function hasWriteNumberPositionShape(question: CompetitionMockQuestion) {
   return text.includes("write") && text.includes("given position");
 }
 
+
+function getCleanMmSectionName(question: CompetitionMockQuestion): string {
+  const sectionNumber = Number(question.sectionNumber || 0);
+  const rawTitle = String(question.sectionTitle || question.conceptTag || "").trim();
+  if (!rawTitle) return sectionNumber ? `Section ${sectionNumber}` : "Section";
+  const prefixPattern = new RegExp(`^section\\s*${sectionNumber}\\s*[-–—:]\\s*`, "i");
+  const cleanTitle = rawTitle.replace(prefixPattern, "").trim();
+  return cleanTitle || rawTitle;
+}
+
 function getMmQuestionConceptDisplayTitle(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
   if (!isMasterModuleMock(mock.moduleCode)) return question.conceptTag || question.conceptFamily || "Concept";
   if (Number(question.sectionNumber) === 5 || isMmPositionalQuestion(question, mock)) {
@@ -395,9 +405,7 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
               <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Question {currentQuestion.questionNumber} of {questions.length}</h2>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">Section {currentQuestion.sectionNumber}</span>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{currentQuestion.sectionTitle}</span>
-                <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">{getMmQuestionConceptDisplayTitle(currentQuestion, mock)}</span>
-                <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{currentQuestion.difficulty || mock.difficultyBand}</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{getCleanMmSectionName(currentQuestion)}</span>
               </div>
             </div>
 
