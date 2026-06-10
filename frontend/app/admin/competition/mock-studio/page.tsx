@@ -366,7 +366,7 @@ export default function AdminCompetitionMockStudioPage() {
                     </div>
                   </div>
 
-                  <button disabled={!CanGenerate} onClick={() => GenerateMutation.mutate()} className="math-primary-btn inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button disabled={!CanGenerate} onClick={() => GenerateMutation.mutate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--math-role-primary)] bg-[var(--math-role-primary)] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-[var(--math-role-primary-dark)] hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none dark:disabled:border-slate-800 dark:disabled:bg-slate-900/70 dark:disabled:text-slate-500">
                     {GenerateMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
                     Generate Draft Mock
                   </button>
@@ -478,7 +478,7 @@ export default function AdminCompetitionMockStudioPage() {
                     <textarea value={AssignmentInstructions} onChange={(EventValue) => SetAssignmentInstructions(EventValue.target.value)} rows={3} placeholder="Example: Complete this mock under competition timing without taking breaks." className="math-input min-h-24" />
                   </label>
 
-                  <button disabled={!CanAssign} onClick={() => AssignMutation.mutate()} className="math-primary-btn inline-flex w-full items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button disabled={!CanAssign} onClick={() => AssignMutation.mutate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--math-role-primary)] bg-[var(--math-role-primary)] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-[var(--math-role-primary-dark)] hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none dark:disabled:border-slate-800 dark:disabled:bg-slate-900/70 dark:disabled:text-slate-500">
                     {AssignMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                     Assign Selected Mock Exams
                   </button>
