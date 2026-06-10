@@ -204,6 +204,68 @@ MM_COMPETITION_CHALLENGE_LESSON_FLOORS: dict[str, int] = {
 MM_COMPETITION_BATCH_SIZE = 5
 
 
+MM_COMPETITION_ORDERED_CONCEPT_GROUPS: dict[str, list[list[str]]] = {
+    "MM_POSITIONAL_PLACEMENT": [
+        ["Find Position of the First Natural Number"],
+        ["Write Number From Given Position"],
+        ["Decimal Multiplication Answer Position"],
+    ],
+    "MM_SQUARES_ROOTS": [
+        ["Squares"],
+        ["Square Root 5 Digit Number", "Square Root 4 Digit Number", "Square Root 3 & 4 Digit Number"],
+    ],
+    "MM_CUBES_ROOTS": [
+        ["Cubes"],
+        ["Cube Root 6 Digit Number", "Cube Root 5 Digit Number", "Cube Root 4 Digit Number"],
+    ],
+    "MM_BODMAS_PERCENTAGE": [
+        ["BODMAS Competition Challenge", "BODMAS Square Root Decimal Percentage Challenge"],
+        ["Add Percentage Challenge"],
+        ["Less Percentage Challenge"],
+    ],
+    "MM_FINANCIAL": [
+        ["Profit-Loss"],
+        ["Simple Interest"],
+        ["Selling Price"],
+    ],
+    "MM_SKILL_DRILL": [
+        ["Skill Stacker"],
+        ["Concept Drill"],
+    ],
+}
+
+
+def _MmCompetitionOrderedConceptSchedule(SectionKey: str, ConceptPool: list[dict[str, Any]], RequiredCount: int) -> list[dict[str, Any]] | None:
+    """Return a section-internal ordered concept schedule for MM competition mocks.
+
+    Students are trained to solve one concept family at a time inside a section.
+    For mixed competition sections, keep the questions grouped in the same
+    predictable training order while preserving the section's total count.
+    """
+    Groups = MM_COMPETITION_ORDERED_CONCEPT_GROUPS.get(SectionKey)
+    if not Groups or RequiredCount <= 0:
+        return None
+
+    SpecByTitle = {str(Spec.get("title") or ""): Spec for Spec in ConceptPool}
+    ResolvedGroups: list[list[dict[str, Any]]] = []
+    for Group in Groups:
+        Resolved = [SpecByTitle[Title] for Title in Group if Title in SpecByTitle]
+        if Resolved:
+            ResolvedGroups.append(Resolved)
+
+    if not ResolvedGroups:
+        return None
+
+    Base = RequiredCount // len(ResolvedGroups)
+    Remainder = RequiredCount % len(ResolvedGroups)
+    Schedule: list[dict[str, Any]] = []
+    for GroupIndex, GroupSpecs in enumerate(ResolvedGroups):
+        GroupCount = Base + (1 if GroupIndex < Remainder else 0)
+        for LocalIndex in range(GroupCount):
+            Schedule.append(GroupSpecs[LocalIndex % len(GroupSpecs)])
+    return Schedule
+
+
 def _MmCompetitionChallengeLessons(Lessons: list[Lesson], SectionKey: str) -> list[Lesson]:
     if not Lessons:
         return []
@@ -420,11 +482,16 @@ def _CollectMmCompetitionSectionLockedQuestions(
         ConceptPool = MM_COMPETITION_SECTION_CONCEPT_POOLS.get(SectionKey, [])
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
+        ConceptCoverageOrder: list[str] = []
+        OrderedConceptSchedule = _MmCompetitionOrderedConceptSchedule(SectionKey, ConceptPool, RequiredCount)
         Attempts = 0
         ChallengeLessons = _MmCompetitionChallengeLessons(Lessons, SectionKey) or OrderedLessons
 
-        while len(SectionQuestions) < RequiredCount and Attempts < max(RequiredCount * 8, 32):
-            ConceptSpec = ConceptPool[Attempts % len(ConceptPool)]
+        while len(SectionQuestions) < RequiredCount and Attempts < max(RequiredCount * 12, 48):
+            if OrderedConceptSchedule:
+                ConceptSpec = OrderedConceptSchedule[len(SectionQuestions)]
+            else:
+                ConceptSpec = ConceptPool[Attempts % len(ConceptPool)]
             LessonRecord = ChallengeLessons[(SectionIndex + Attempts) % len(ChallengeLessons)]
             Batch = _GenerateMmCompetitionConceptBatch(
                 ModuleRecord=ModuleRecord,
@@ -468,7 +535,10 @@ def _CollectMmCompetitionSectionLockedQuestions(
                 QuestionCopy = dict(Question)
                 QuestionCopy["metadata"] = Metadata
                 SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition))
-                ConceptCoverage[ConceptSpec["title"]] += 1
+                ConceptName = str(ConceptSpec["title"])
+                ConceptCoverage[ConceptName] += 1
+                if ConceptName not in ConceptCoverageOrder:
+                    ConceptCoverageOrder.append(ConceptName)
                 AcceptedFromThisTurn = True
                 break
             Attempts += 1
@@ -498,8 +568,8 @@ def _CollectMmCompetitionSectionLockedQuestions(
             "availableQuestionCount": len(SectionQuestions),
             "locked": True,
             "concepts": [
-                {"conceptName": Name, "selectedQuestionCount": Count, "availableQuestionCount": Count}
-                for Name, Count in sorted(ConceptCoverage.items())
+                {"conceptName": Name, "selectedQuestionCount": ConceptCoverage[Name], "availableQuestionCount": ConceptCoverage[Name]}
+                for Name in ConceptCoverageOrder
             ],
         })
 
