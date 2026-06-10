@@ -23,6 +23,7 @@ from app.models import (
     User,
 )
 from app.services.generation_service import generate_preview
+from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, OperationFocusForConcept
 
 
 DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 60
@@ -96,6 +97,221 @@ def _DecorateCompetitionSectionQuestion(Question: dict[str, Any], SectionKey: st
 
 
 MM_DEFAULT_SECTION_COUNT_FLOOR = 0
+
+MM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
+    "MM_ABACUS_ADD_LESS": [
+        {"conceptFamily": "ADD_LESS", "title": "2 Digit Number Add-Less"},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Add-Less"},
+        {"conceptFamily": "INTEGERS", "title": "Integers Add-Less"},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Positive and Negative Answers"},
+        {"conceptFamily": "ADD_LESS", "title": "Mixed Digit Add-Less"},
+    ],
+    "MM_VISUAL_ADD_LESS": [
+        {"conceptFamily": "ADD_LESS", "title": "2 Digit Number Add-Less (Fast Visualisation)"},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Add-Less (Visual)"},
+        {"conceptFamily": "INTEGERS", "title": "Integers Add-Less (Visual)"},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Add-Less (Visual)"},
+        {"conceptFamily": "ADD_LESS", "title": "Mixed Digit Add-Less (Visual)"},
+    ],
+    "MM_MULTIPLICATION": [
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "Multiplication"},
+        {"conceptFamily": "DECIMAL_MULTIPLICATION", "title": "Decimal Multiplication"},
+        {"conceptFamily": "MULTIPLICATION_DIVISION_MIXED", "title": "Multiplication Mixed Pattern", "mixedOperationGroup": "MULTIPLICATION"},
+        {"conceptFamily": "SQUARES", "title": "Squares"},
+        {"conceptFamily": "CUBES", "title": "Cubes"},
+    ],
+    "MM_DIVISION": [
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "Division"},
+        {"conceptFamily": "DECIMAL_DIVISION", "title": "Decimal Division"},
+        {"conceptFamily": "MULTIPLICATION_DIVISION_MIXED", "title": "Division Mixed Pattern", "mixedOperationGroup": "DIVISION"},
+        {"conceptFamily": "SQUARE_ROOT", "title": "Square Root"},
+        {"conceptFamily": "CUBE_ROOT", "title": "Cube Root"},
+    ],
+    "MM_POSITIONAL_PLACEMENT": [
+        {"conceptFamily": "ANSWER_POSITION", "title": "Find Position of the First Natural Number"},
+        {"conceptFamily": "ANSWER_POSITION", "title": "Write Number From Given Position"},
+        {"conceptFamily": "ANSWER_POSITION", "title": "Decimal Multiplication Answer Position"},
+    ],
+    "MM_BODMAS_PERCENTAGE": [
+        {"conceptFamily": "BODMAS", "title": "BODMAS"},
+        {"conceptFamily": "PERCENTAGE_ADD_LESS", "title": "Add-Less Percentage"},
+    ],
+    "MM_FINANCIAL": [
+        {"conceptFamily": "PROFIT_LOSS", "title": "Profit-Loss"},
+        {"conceptFamily": "SIMPLE_INTEREST", "title": "Simple Interest"},
+        {"conceptFamily": "FIND_SELLING_PRICE", "title": "Selling Price"},
+        {"conceptFamily": "FIND_COST_PRICE", "title": "Cost Price"},
+    ],
+    "MM_SKILL_DRILL": [
+        {"conceptFamily": "SKILL_STACKER", "title": "Skill Stacker"},
+        {"conceptFamily": "CONCEPT_DRILL", "title": "Concept Drill"},
+    ],
+}
+
+
+def _MmSectionCountMap(TotalQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
+    if SectionCountsOverride:
+        return {
+            Section["key"]: int(SectionCountsOverride.get(Section["key"], 0) or 0)
+            for Section in MM_COMPETITION_SECTION_DEFINITIONS
+        }
+    Requested = max(1, int(TotalQuestionCount or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT))
+    Base = Requested // len(MM_COMPETITION_SECTION_DEFINITIONS)
+    Remainder = Requested % len(MM_COMPETITION_SECTION_DEFINITIONS)
+    return {
+        Section["key"]: Base + (1 if Index < Remainder else 0)
+        for Index, Section in enumerate(MM_COMPETITION_SECTION_DEFINITIONS)
+    }
+
+
+def _GenerateMmCompetitionConceptBatch(
+    *,
+    ModuleRecord: Module,
+    LevelRecord: Level,
+    LessonRecord: Lesson | None,
+    SectionDefinition: dict[str, Any],
+    ConceptSpec: dict[str, Any],
+    RequiredCount: int,
+    Seed: str,
+) -> list[dict[str, Any]]:
+    ConceptFamily = str(ConceptSpec["conceptFamily"])
+    ConceptTitle = str(ConceptSpec["title"])
+    MixedOperationGroup = str(ConceptSpec.get("mixedOperationGroup") or "")
+    Config = MMConfig(
+        ModuleCode=getattr(ModuleRecord, "module_code", "MM") or "MM",
+        LevelCode=getattr(LevelRecord, "level_code", "MM-L1") or "MM-L1",
+        LessonNumber=int(getattr(LessonRecord, "lesson_number", 1) or 1),
+        DpsNumber=SectionDefinition["number"],
+        DpsTitle=ConceptTitle,
+        LessonTitle=getattr(LessonRecord, "lesson_title", "Competition Mock") or "Competition Mock",
+        QuestionCount=max(RequiredCount, 1),
+        Seed=Seed,
+        ConceptFamily=ConceptFamily,
+        OperationFocus=OperationFocusForConcept(ConceptFamily),
+        DigitPattern="MASTER_MODULE",
+        Difficulty="MASTER",
+        GeneratorConfig={
+            "source": "MM_COMPETITION_SECTION_LOCKED_GENERATOR",
+            "competitionSectionKey": SectionDefinition["key"],
+            "competitionSectionNumber": SectionDefinition["number"],
+            "competitionSectionTitle": SectionDefinition["title"],
+            "mixedOperationGroup": MixedOperationGroup,
+            "activeSection": {
+                "sectionNumber": SectionDefinition["number"],
+                "sectionTitle": ConceptTitle,
+                "questionCount": max(RequiredCount, 1),
+                "conceptFamily": ConceptFamily,
+                "mixedOperationGroup": MixedOperationGroup,
+            },
+        },
+    )
+    Questions = GenerateMmQuestionSet(Config)
+    return Questions[:RequiredCount]
+
+
+def _CollectMmCompetitionSectionLockedQuestions(
+    ModuleRecord: Module,
+    LevelRecord: Level,
+    Lessons: list[Lesson],
+    TargetQuestionCount: int,
+    SectionCountsOverride: dict[str, int] | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    SectionCounts = _MmSectionCountMap(TargetQuestionCount, SectionCountsOverride)
+    Selected: list[dict[str, Any]] = []
+    SectionCoverage: list[dict[str, Any]] = []
+    UsedSignatures: set[str] = set()
+    OrderedLessons = Lessons or [None]
+
+    for SectionIndex, SectionDefinition in enumerate(MM_COMPETITION_SECTION_DEFINITIONS):
+        SectionKey = SectionDefinition["key"]
+        RequiredCount = int(SectionCounts.get(SectionKey, 0) or 0)
+        ConceptPool = MM_COMPETITION_SECTION_CONCEPT_POOLS.get(SectionKey, [])
+        SectionQuestions: list[dict[str, Any]] = []
+        ConceptCoverage: dict[str, int] = defaultdict(int)
+        Attempts = 0
+
+        while len(SectionQuestions) < RequiredCount and Attempts < max(RequiredCount * 4, 16):
+            ConceptSpec = ConceptPool[Attempts % len(ConceptPool)]
+            LessonRecord = OrderedLessons[(SectionIndex + Attempts) % len(OrderedLessons)]
+            Needed = RequiredCount - len(SectionQuestions)
+            Batch = _GenerateMmCompetitionConceptBatch(
+                ModuleRecord=ModuleRecord,
+                LevelRecord=LevelRecord,
+                LessonRecord=LessonRecord,
+                SectionDefinition=SectionDefinition,
+                ConceptSpec=ConceptSpec,
+                # Generate one accepted question per concept turn. Some MM concepts
+                # such as Skill Stacker and Concept Drill intentionally generate
+                # five rows by default; taking only one per turn prevents one
+                # concept from swallowing the whole competition section.
+                RequiredCount=1,
+                Seed=f"COMPETITION-MM-{SectionKey}-{ConceptSpec['conceptFamily']}-{uuid4().hex}-{Attempts}",
+            )
+            for Question in Batch:
+                Signature = _QuestionSignature(Question)
+                if Signature in UsedSignatures:
+                    continue
+                UsedSignatures.add(Signature)
+                Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+                Metadata = dict(Metadata)
+                Metadata.update({
+                    "competitionConceptKey": ConceptSpec["title"],
+                    "competitionAllowedConceptFamily": ConceptSpec["conceptFamily"],
+                    "competitionSectionKey": SectionKey,
+                    "competitionSectionNumber": SectionDefinition["number"],
+                    "competitionSectionTitle": SectionDefinition["title"],
+                    "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
+                    "competitionSectionLocked": True,
+                    "section_number": SectionDefinition["number"],
+                    "section_title": _CompetitionSectionDisplayTitle(SectionDefinition),
+                })
+                QuestionCopy = dict(Question)
+                QuestionCopy["metadata"] = Metadata
+                SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition))
+                ConceptCoverage[ConceptSpec["title"]] += 1
+                if len(SectionQuestions) >= RequiredCount:
+                    break
+            Attempts += 1
+
+        if len(SectionQuestions) < RequiredCount:
+            api_error(
+                400,
+                "MM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
+                f"Could not generate the required {RequiredCount} questions for {SectionDefinition['title']}.",
+                {
+                    "sectionKey": SectionKey,
+                    "required": RequiredCount,
+                    "generated": len(SectionQuestions),
+                },
+            )
+
+        Selected.extend(SectionQuestions)
+        SectionCoverage.append({
+            "sectionKey": SectionKey,
+            "sectionNumber": SectionDefinition["number"],
+            "sectionTitle": SectionDefinition["title"],
+            "selectedQuestionCount": len(SectionQuestions),
+            "availableQuestionCount": len(SectionQuestions),
+            "locked": True,
+            "concepts": [
+                {"conceptName": Name, "selectedQuestionCount": Count, "availableQuestionCount": Count}
+                for Name, Count in sorted(ConceptCoverage.items())
+            ],
+        })
+
+    for Index, Question in enumerate(Selected, start=1):
+        Question["question_number"] = Index
+
+    CoveragePayload = {
+        "targetQuestionCount": TargetQuestionCount,
+        "selectedQuestionCount": len(Selected),
+        "competitionStructure": "MM_8_SECTION_COMPETITION_MOCK_SECTION_LOCKED",
+        "sectionCount": len(SectionCoverage),
+        "sections": SectionCoverage,
+        "generationErrors": [],
+    }
+    return Selected, CoveragePayload
+
 
 
 def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int | None = None) -> dict[str, Any]:
@@ -458,7 +674,7 @@ def _CompetitionInstructions(ModuleRecord: Module, LevelRecord: Level, TotalQues
     )
 
 
-def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, DpsRows: list[DPS], TargetQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: Level, Lessons: list[Lesson], DpsRows: list[DPS], TargetQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     SectionsByDps = _ActiveSectionsByDps(db, DpsRows)
     GeneratedByConcept: dict[str, list[dict[str, Any]]] = defaultdict(list)
     MmGeneratedBySection: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
@@ -518,68 +734,17 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, DpsRows: list[
         })
 
     if IsMmMock:
-        AvailableBySection = {
-            SectionKey: sum(len(Questions) for Questions in ConceptBuckets.values())
-            for SectionKey, ConceptBuckets in MmGeneratedBySection.items()
-        }
-        SectionCounts = SectionCountsOverride or _AllocateCompetitionSectionCounts(TargetQuestionCount, AvailableBySection)
-        Selected: list[dict[str, Any]] = []
-        SectionCoverage: list[dict[str, Any]] = []
-        UsedQuestionSignatures: set[str] = set()
-        for SectionDefinition in MM_COMPETITION_SECTION_DEFINITIONS:
-            SectionKey = SectionDefinition["key"]
-            RequiredCount = SectionCounts.get(SectionKey, 0)
-            ConceptBuckets = MmGeneratedBySection.get(SectionKey, {})
-            SectionSelected = _RoundRobinSelectFromConceptBuckets(ConceptBuckets, RequiredCount, UsedQuestionSignatures)
-            if len(SectionSelected) < RequiredCount:
-                FallbackSelected = _RoundRobinSelectFromConceptBuckets(ConceptBuckets, RequiredCount - len(SectionSelected))
-                Existing = {_QuestionSignature(Question) for Question in SectionSelected}
-                for Question in FallbackSelected:
-                    Signature = _QuestionSignature(Question)
-                    if Signature not in Existing:
-                        SectionSelected.append(Question)
-                        Existing.add(Signature)
-                    if len(SectionSelected) >= RequiredCount:
-                        break
-            DecoratedSectionQuestions: list[dict[str, Any]] = []
-            for Question in SectionSelected:
-                UsedQuestionSignatures.add(_QuestionSignature(Question))
-                DecoratedSectionQuestions.append(_DecorateCompetitionSectionQuestion(Question, SectionKey, SectionDefinition))
-            Selected.extend(DecoratedSectionQuestions)
-            SectionCoverage.append({
-                "sectionKey": SectionKey,
-                "sectionNumber": SectionDefinition["number"],
-                "sectionTitle": SectionDefinition["title"],
-                "availableQuestionCount": AvailableBySection.get(SectionKey, 0),
-                "selectedQuestionCount": len(SectionSelected),
-                "concepts": [
-                    {"conceptName": Concept, "availableQuestionCount": len(Questions)}
-                    for Concept, Questions in sorted(ConceptBuckets.items())
-                ],
-            })
-
-        if not Selected:
-            api_error(
-                400,
-                "COMPETITION_GENERATION_EMPTY",
-                "No Master Module competition mock questions could be generated for this level.",
-                {"generationErrors": GenerationErrors},
-            )
-
-        CoveragePayload = {
-            "targetQuestionCount": TargetQuestionCount,
-            "selectedQuestionCount": len(Selected),
-            "competitionStructure": "MM_8_SECTION_COMPETITION_MOCK",
-            "sectionCount": len([Row for Row in SectionCoverage if Row["selectedQuestionCount"] > 0]),
-            "sections": SectionCoverage,
-            "uncategorizedConcepts": [
-                {"conceptName": Concept, "availableQuestionCount": len(GeneratedByConcept[Concept])}
-                for Concept in sorted(GeneratedByConcept.keys())
-            ],
-            "dpsCoverage": CoverageRows,
-            "generationErrors": GenerationErrors,
-        }
-        return Selected, CoveragePayload
+        # MM competition papers are not allowed to inherit mixed/stale DPS section
+        # titles and then classify later. Generate directly from the approved
+        # 8-section competition whitelist so every section receives only the
+        # concepts that belong to that section.
+        return _CollectMmCompetitionSectionLockedQuestions(
+            ModuleRecord,
+            LevelRecord,
+            Lessons,
+            TargetQuestionCount,
+            SectionCountsOverride,
+        )
 
     if not GeneratedByConcept:
         api_error(
@@ -663,7 +828,7 @@ def GenerateCompetitionMockDraft(
 
     if SectionCountsOverride:
         RequestedQuestionCount = sum(SectionCountsOverride.values())
-    SelectedQuestions, CoveragePayload = _CollectGeneratedQuestions(db, ModuleRecord, DpsRows, RequestedQuestionCount, SectionCountsOverride)
+    SelectedQuestions, CoveragePayload = _CollectGeneratedQuestions(db, ModuleRecord, LevelRecord, Lessons, DpsRows, RequestedQuestionCount, SectionCountsOverride)
     ActualQuestionCount = len(SelectedQuestions)
     MockCode = _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)
     MockTitle = Title or f"{LevelRecord.level_code} Competition Mock Practice {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
