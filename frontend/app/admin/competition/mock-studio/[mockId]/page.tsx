@@ -270,7 +270,7 @@ export default function AdminCompetitionMockDetailPage() {
                     <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${statusTone(mock.status)}`}>{mock.status}</span>
                     <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-[10px] font-black">{mock.moduleCode || "-"} · {mock.levelCode || "-"}</span>
                     <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-[10px] font-black">Code: {mock.mockCode || "-"}</span>
-                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">MOCK</span>
+                    <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-800 shadow-sm dark:border-emerald-700/70 dark:bg-emerald-950/30 dark:text-emerald-200">MOCK</span>
                   </div>
                   <p className="math-kicker mt-2 text-[10px]">Mock Details</p>
                   <h1 className="mt-0.5 max-w-4xl truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">{mock.title}</h1>
