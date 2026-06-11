@@ -313,6 +313,16 @@ export type StudentCompetitionMockAssignment = {
   instructions?: string | null;
   latestAttemptId?: string | null;
   latestAttemptStatus?: string | null;
+  latestResult?: {
+    score: number;
+    maxScore: number;
+    percentage: number;
+    accuracyPercentage: number;
+    timeTakenSeconds?: number | null;
+    timeUtilizationPercentage?: number | null;
+    performanceBand?: string | null;
+    completedAt?: string | null;
+  } | null;
   mockExam: {
     mockExamId: string;
     title: string;
@@ -358,5 +368,48 @@ export async function submitCompetitionMockAttempt(attemptId: string) {
 
 export async function autoSubmitCompetitionMockAttempt(attemptId: string) {
   const { data } = await api.post(`/student/competition/mock-attempts/${attemptId}/auto-submit`, { reason: "TIME_UP" });
+  return data;
+}
+
+
+export type StudentCompetitionMockResult = {
+  attemptId: string;
+  assignmentId: string;
+  mockExamId: string;
+  status: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  correct: number;
+  wrong: number;
+  unanswered: number;
+  attempted: number;
+  totalQuestions: number;
+  timeTakenSeconds?: number | null;
+  timeUtilizationPercentage?: number | null;
+  performanceBand?: string | null;
+  completedAt?: string | null;
+  submittedAt?: string | null;
+  conceptPerformance: Array<{ concept: string; correct: number; total: number; percentage: number }>;
+  conceptStrengths: Array<{ concept: string; correct: number; total: number; percentage: number }>;
+  conceptWeaknesses: Array<{ concept: string; correct: number; total: number; percentage: number }>;
+  recommendation?: { message?: string } | null;
+  mockExam: {
+    title: string;
+    mockCode?: string | null;
+    totalQuestions: number;
+    totalMarks: number;
+    marksPerQuestion: number;
+    durationSeconds: number;
+    moduleCode?: string | null;
+    moduleName?: string | null;
+    levelCode?: string | null;
+    levelName?: string | null;
+  };
+};
+
+export async function getCompetitionMockResult(attemptId: string): Promise<StudentCompetitionMockResult> {
+  const { data } = await api.get<StudentCompetitionMockResult>(`/student/competition/mock-attempts/${attemptId}/result`);
   return data;
 }

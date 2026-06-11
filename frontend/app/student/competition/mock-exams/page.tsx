@@ -11,7 +11,7 @@ import {
   type StudentCompetitionMockAssignment,
 } from "@/lib/api/student";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarClock, CheckCircle2, Clock3, ClipboardPlus, PlayCircle, Target } from "lucide-react";
+import { BarChart3, CalendarClock, CheckCircle2, Clock3, ClipboardPlus, PlayCircle, Target, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 function FormatDuration(seconds?: number | null) {
@@ -28,6 +28,12 @@ function FormatDate(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function FormatScore(value?: number | null) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  const numeric = Number(value);
+  return Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(1);
 }
 
 export default function StudentCompetitionMockExamsPage() {
@@ -105,6 +111,7 @@ export default function StudentCompetitionMockExamsPage() {
                   starting={startMutation.isPending}
                   onStart={() => startMutation.mutate(assignment.assignmentId)}
                   onResume={() => assignment.latestAttemptId && router.push(`/student/competition/mock-attempt/${assignment.latestAttemptId}`)}
+                  onViewResult={() => assignment.latestAttemptId && router.push(`/student/competition/mock-result/${assignment.latestAttemptId}`)}
                 />
               ))}
             </div>
@@ -131,16 +138,19 @@ function MockAssignmentCard({
   starting,
   onStart,
   onResume,
+  onViewResult,
 }: {
   assignment: StudentCompetitionMockAssignment;
   starting: boolean;
   onStart: () => void;
   onResume: () => void;
+  onViewResult: () => void;
 }) {
   const exam = assignment.mockExam;
   const isInProgress = assignment.status === "IN_PROGRESS" && assignment.latestAttemptId;
   const isCompleted = assignment.status === "COMPLETED";
-  const actionLabel = isCompleted ? "Submitted" : isInProgress ? "Continue Mock" : "Start Mock";
+  const result = assignment.latestResult;
+  const actionLabel = isCompleted ? "View Result" : isInProgress ? "Continue Mock" : "Start Mock";
 
   return (
     <article className="rounded-[26px] border border-orange-100 bg-white/92 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900/70 dark:hover:border-orange-500/60">
@@ -166,13 +176,25 @@ function MockAssignmentCard({
             <span className="inline-flex items-center gap-1.5"><CalendarClock size={15} /> Assigned {FormatDate(assignment.assignedAt)}</span>
           </div>
         </div>
-        <button
-          className="math-role-action-button w-full justify-center px-4 py-2.5 text-sm lg:w-auto"
-          disabled={starting || isCompleted}
-          onClick={isInProgress ? onResume : onStart}
-        >
-          {starting ? "Opening..." : actionLabel}
-        </button>
+        <div className="flex w-full flex-col gap-2 lg:w-auto lg:items-end">
+          {isCompleted && result ? (
+            <div className="grid w-full grid-cols-2 gap-2 text-xs font-black text-slate-800 dark:text-slate-100 lg:w-56">
+              <span className="inline-flex items-center justify-center gap-1 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 dark:border-orange-800 dark:bg-orange-950/30">
+                <Trophy size={14} /> {FormatScore(result.score)}/{FormatScore(result.maxScore)}
+              </span>
+              <span className="inline-flex items-center justify-center gap-1 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 dark:border-orange-800 dark:bg-orange-950/30">
+                <BarChart3 size={14} /> {FormatScore(result.percentage)}%
+              </span>
+            </div>
+          ) : null}
+          <button
+            className="math-role-action-button w-full justify-center px-4 py-2.5 text-sm lg:w-auto"
+            disabled={starting || (isCompleted && !assignment.latestAttemptId)}
+            onClick={isCompleted ? onViewResult : isInProgress ? onResume : onStart}
+          >
+            {starting ? "Opening..." : actionLabel}
+          </button>
+        </div>
       </div>
     </article>
   );
