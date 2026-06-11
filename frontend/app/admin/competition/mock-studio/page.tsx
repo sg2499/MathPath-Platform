@@ -74,6 +74,7 @@ export default function AdminCompetitionMockStudioPage() {
   const [SelectedModuleId, SetSelectedModuleId] = useState("");
   const [SelectedLevelId, SetSelectedLevelId] = useState("");
   const [MockTitle, SetMockTitle] = useState("");
+  const [MockCode, SetMockCode] = useState("");
   const [QuestionCount, SetQuestionCount] = useState(String(DefaultQuestionCount));
   const [DurationMinutes, SetDurationMinutes] = useState(String(DefaultDurationMinutes));
   const [SelectedMockIds, SetSelectedMockIds] = useState<string[]>([]);
@@ -155,6 +156,7 @@ export default function AdminCompetitionMockStudioPage() {
     mutationFn: () => generateCompetitionMockDraft({
       levelId: SelectedLevelId,
       title: MockTitle.trim() || undefined,
+      mockCode: MockCode.trim() || undefined,
       totalQuestions: SectionCountTotal || Number(QuestionCount) || DefaultQuestionCount,
       durationSeconds: (Number(DurationMinutes) || DefaultDurationMinutes) * 60,
       competitionScope: "GENERAL",
@@ -164,6 +166,7 @@ export default function AdminCompetitionMockStudioPage() {
     onSuccess: (ResultValue) => {
       SetLastMessage(`Draft mock generated: ${ResultValue.title}`);
       SetMockTitle("");
+      SetMockCode("");
       SetSelectedMockIds((CurrentValue) => Array.from(new Set([ResultValue.mockExamId, ...CurrentValue])));
       SetActiveStudioTab("MANAGE");
       QueryClient.invalidateQueries({ queryKey: ["admin", "competition", "mocks"] });
@@ -316,10 +319,23 @@ export default function AdminCompetitionMockStudioPage() {
               <div className="math-card p-5">
                 <SectionTitle kicker="Create Mock" title="Build Mock Paper" description="Create a fresh mock version with varied question combinations for the selected level." />
                 <div className="mt-5 grid gap-4">
-                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                    Mock Title
-                    <input value={MockTitle} onChange={(EventValue) => SetMockTitle(EventValue.target.value)} placeholder="Example: MM-L1 State Championship Mock 1" className="math-input" />
-                  </label>
+                  <div className="grid gap-4 sm:grid-cols-[1.35fr_0.65fr]">
+                    <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                      Mock Title
+                      <input value={MockTitle} onChange={(EventValue) => SetMockTitle(EventValue.target.value)} placeholder="Example: MM-L1 State Championship Mock 1" className="math-input" />
+                    </label>
+                    <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                      Mock Code
+                      <input
+                        value={MockCode}
+                        onChange={(EventValue) => SetMockCode(EventValue.target.value.toUpperCase().replace(/\s+/g, "-"))}
+                        placeholder="Example: MM-JUN26-01"
+                        maxLength={25}
+                        className="math-input"
+                      />
+                    </label>
+                  </div>
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Mock Code is optional. Use A-Z, 0-9, hyphen, or underscore. If left blank, the system will create one automatically.</p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                       Total Questions

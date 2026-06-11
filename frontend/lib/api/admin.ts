@@ -1220,6 +1220,7 @@ export type CompetitionMockSectionPlan = {
 export type GenerateCompetitionMockPayload = {
   levelId: string;
   title?: string;
+  mockCode?: string;
   totalQuestions?: number;
   durationSeconds?: number;
   competitionScope?: string;

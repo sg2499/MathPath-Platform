@@ -1,5 +1,6 @@
 import json
 import random
+import re
 from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
@@ -1527,12 +1528,33 @@ def _StoreQuestionOptions(db: Session, QuestionRecord: CompetitionMockQuestion, 
         ))
 
 
+
+
+def _NormalizeMockCodeInput(MockCode: str | None) -> str | None:
+    RawValue = _NormalizeText(MockCode)
+    if not RawValue:
+        return None
+    NormalizedValue = re.sub(r"\s+", "-", RawValue.strip()).upper()
+    if not re.fullmatch(r"[A-Z0-9_-]{2,25}", NormalizedValue):
+        api_error(400, "INVALID_MOCK_CODE", "Mock code must be 2-25 characters using only A-Z, 0-9, hyphen, or underscore.")
+    return NormalizedValue
+
+
+def _EnsureUniqueMockCode(db: Session, *, LevelId: str, MockCode: str) -> None:
+    ExistingRecord = (
+        db.query(CompetitionMockExam)
+        .filter(CompetitionMockExam.level_id == LevelId, CompetitionMockExam.mock_code == MockCode)
+        .first()
+    )
+    if ExistingRecord:
+        api_error(400, "DUPLICATE_MOCK_CODE", "This mock code already exists for the selected level. Please use a different code.")
 def GenerateCompetitionMockDraft(
     db: Session,
     *,
     LevelId: str,
     CreatedBy: User,
     Title: str | None = None,
+    MockCode: str | None = None,
     TotalQuestions: int | None = None,
     DurationSeconds: int | None = None,
     CompetitionScope: str = "GENERAL",
@@ -1555,12 +1577,13 @@ def GenerateCompetitionMockDraft(
         RequestedQuestionCount = sum(SectionCountsOverride.values())
     SelectedQuestions, CoveragePayload = _CollectGeneratedQuestions(db, ModuleRecord, LevelRecord, Lessons, DpsRows, RequestedQuestionCount, SectionCountsOverride)
     ActualQuestionCount = len(SelectedQuestions)
-    MockCode = _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)
+    DisplayMockCode = _NormalizeMockCodeInput(MockCode) or _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)
+    _EnsureUniqueMockCode(db, LevelId=LevelRecord.id, MockCode=DisplayMockCode)
     MockTitle = Title or f"{LevelRecord.level_code} Competition Mock Practice {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
 
     ExamRecord = CompetitionMockExam(
         title=MockTitle,
-        mock_code=MockCode,
+        mock_code=DisplayMockCode,
         module_id=ModuleRecord.id,
         level_id=LevelRecord.id,
         competition_scope=CompetitionScope or "GENERAL",
