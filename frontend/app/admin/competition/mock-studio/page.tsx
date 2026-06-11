@@ -265,12 +265,6 @@ export default function AdminCompetitionMockStudioPage() {
           </div>
         )}
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <FeatureCard icon={<FilePenLine size={18} />} title="Create Draft Mocks" description="Create varied competition-style mock papers from the selected level syllabus." />
-          <FeatureCard icon={<Target size={18} />} title="Manage Mock Library" description="View, preview, assign, archive, or delete mock papers from one operational library." />
-          <FeatureCard icon={<ShieldCheck size={18} />} title="Independent Workflow" description="No DPS, Assessment, readiness, progression, or report workflow is changed." />
-        </div>
-
         <div className="math-card p-3">
           <div className="flex flex-wrap gap-3">
             <button
@@ -814,18 +808,6 @@ function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
         })}
       </div>
     </div>
-  );
-}
-
-function FeatureCard({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
-  return (
-    <article className="math-card p-5">
-      <div className="flex items-center gap-3 text-[var(--mp-role-primary)]">
-        {icon}
-        <h2 className="text-base font-black text-slate-950 dark:text-white">{title}</h2>
-      </div>
-      <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{description}</p>
-    </article>
   );
 }
 
