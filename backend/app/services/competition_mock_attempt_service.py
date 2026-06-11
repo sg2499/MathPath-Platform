@@ -23,6 +23,65 @@ from app.models import (
 COMPLETED_STATUSES = {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED", "EXPIRED", "LOCKED"}
 ACTIVE_STATUS = "IN_PROGRESS"
 
+MM_COMPETITION_SECTION_TITLES: dict[int, str] = {
+    1: "Add/Less (Abacus)",
+    2: "Add/Less (Visual)",
+    3: "Multiplication",
+    4: "Division",
+    5: "Positional & Placement",
+    6: "Squares and Square Roots",
+    7: "Cubes and Cube Roots",
+    8: "BODMAS, Solve Equation, Add/Less Percentage",
+    9: "Profit/Loss, Simple Interest, Selling Price",
+    10: "Skill Stacker, Concept Drill",
+}
+
+
+def _competition_section_title(question: CompetitionMockQuestion) -> str:
+    try:
+        section_number = int(question.section_number or 0)
+    except Exception:
+        section_number = 0
+    return MM_COMPETITION_SECTION_TITLES.get(section_number) or question.section_title or "Competition Mock"
+
+
+def _section_sort_key(item: dict[str, Any]) -> tuple[int, str]:
+    try:
+        return (int(item.get("sectionNumber") or 999), str(item.get("concept") or ""))
+    except Exception:
+        return (999, str(item.get("concept") or ""))
+
+
+def _section_performance_from_review(review: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    section_totals: dict[int, dict[str, Any]] = {}
+    for question in review:
+        try:
+            section_number = int(question.get("sectionNumber") or 0)
+        except Exception:
+            section_number = 0
+        section_title = MM_COMPETITION_SECTION_TITLES.get(section_number) or question.get("sectionTitle") or "Competition Mock"
+        bucket = section_totals.setdefault(
+            section_number,
+            {"concept": section_title, "sectionNumber": section_number, "correct": 0, "total": 0, "percentage": 0.0},
+        )
+        bucket["total"] += 1
+        if question.get("isCorrect"):
+            bucket["correct"] += 1
+    performance: list[dict[str, Any]] = []
+    strengths: list[dict[str, Any]] = []
+    weaknesses: list[dict[str, Any]] = []
+    for item in sorted(section_totals.values(), key=_section_sort_key):
+        total = int(item["total"] or 0)
+        correct = int(item["correct"] or 0)
+        percentage = round((correct / total) * 100, 2) if total else 0.0
+        payload = {**item, "percentage": percentage}
+        performance.append(payload)
+        if percentage >= 75:
+            strengths.append(payload)
+        elif percentage < 60:
+            weaknesses.append(payload)
+    return performance, strengths, weaknesses
+
 
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
@@ -75,9 +134,11 @@ def _question_payload(
     saved_answer: CompetitionMockAttemptAnswer | None = None,
 ) -> dict[str, Any]:
     metadata = _json_loads(question.metadata_json, {})
+    section_title = _competition_section_title(question)
     metadata.update({
         "section_number": question.section_number,
-        "section_title": question.section_title,
+        "section_title": section_title,
+        "sectionTitle": section_title,
         "concept_family": question.concept_family,
         "concept_tag": question.concept_tag,
         "mock_mode": "COMPETITION_MOCK",
@@ -406,7 +467,7 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
 
     for question in questions:
         max_score += float(question.marks or 1)
-        concept_key = question.concept_tag or question.concept_family or "Competition Mock"
+        concept_key = _competition_section_title(question)
         concept_totals.setdefault(concept_key, {"correct": 0, "total": 0})
         concept_totals[concept_key]["total"] += 1
         answer = answers.get(question.id)
@@ -539,10 +600,12 @@ def _question_review_payload(db: Session, attempt: CompetitionMockAttempt) -> li
 
     review: list[dict[str, Any]] = []
     for question in questions:
+        section_title = _competition_section_title(question)
         metadata = _json_loads(question.metadata_json, {})
         metadata.update({
             "section_number": question.section_number,
-            "section_title": question.section_title,
+            "section_title": section_title,
+            "sectionTitle": section_title,
             "concept_family": question.concept_family,
             "concept_tag": question.concept_tag,
             "mock_mode": "COMPETITION_MOCK",
@@ -556,8 +619,8 @@ def _question_review_payload(db: Session, attempt: CompetitionMockAttempt) -> li
             "questionId": question.id,
             "questionNumber": question.question_number,
             "sectionNumber": question.section_number,
-            "sectionTitle": question.section_title,
-            "concept": question.concept_tag or question.concept_family or question.section_title or "Competition Mock",
+            "sectionTitle": section_title,
+            "concept": section_title,
             "displayType": question.display_type,
             "questionText": question.question_text,
             "operands": _json_loads(question.operands_json, []),
@@ -622,6 +685,8 @@ def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, A
 
     level_record = db.get(Level, exam.level_id)
     module_record = db.get(Module, exam.module_id)
+    question_review = _question_review_payload(db, attempt)
+    section_performance, section_strengths, section_weaknesses = _section_performance_from_review(question_review)
 
     return {
         "attemptId": attempt.id,
@@ -642,11 +707,11 @@ def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, A
         "performanceBand": summary.performance_band,
         "completedAt": summary.completed_at.isoformat() if summary.completed_at else None,
         "submittedAt": attempt.submitted_at.isoformat() if attempt.submitted_at else None,
-        "conceptPerformance": _json_loads(summary.concept_performance_json, []),
-        "conceptStrengths": _json_loads(summary.concept_strengths_json, []),
-        "conceptWeaknesses": _json_loads(summary.concept_weaknesses_json, []),
+        "conceptPerformance": section_performance or _json_loads(summary.concept_performance_json, []),
+        "conceptStrengths": section_strengths or _json_loads(summary.concept_strengths_json, []),
+        "conceptWeaknesses": section_weaknesses or _json_loads(summary.concept_weaknesses_json, []),
         "recommendation": _json_loads(summary.recommendation_json, {}),
-        "questionReview": _question_review_payload(db, attempt),
+        "questionReview": question_review,
         "mockExam": {
             "title": exam.title,
             "mockCode": exam.mock_code,
