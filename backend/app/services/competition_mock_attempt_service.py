@@ -184,6 +184,14 @@ def _assignment_with_current_attempt_payload(db: Session, assignment: Competitio
     elif latest_attempt and latest_attempt.status in COMPLETED_STATUSES:
         status = "COMPLETED"
 
+    latest_result = None
+    if latest_attempt and latest_attempt.status in COMPLETED_STATUSES:
+        latest_result = (
+            db.query(CompetitionMockResultSummary)
+            .filter(CompetitionMockResultSummary.mock_attempt_id == latest_attempt.id)
+            .first()
+        )
+
     return {
         "assignmentId": assignment.id,
         "mockExamId": exam.id,
@@ -196,6 +204,19 @@ def _assignment_with_current_attempt_payload(db: Session, assignment: Competitio
         "instructions": assignment.instructions,
         "latestAttemptId": latest_attempt.id if latest_attempt else None,
         "latestAttemptStatus": latest_attempt.status if latest_attempt else None,
+        "latestResult": (
+            {
+                "score": latest_result.score,
+                "maxScore": latest_result.max_score,
+                "percentage": latest_result.percentage,
+                "accuracyPercentage": latest_result.accuracy_percentage,
+                "timeTakenSeconds": latest_result.time_taken_seconds,
+                "timeUtilizationPercentage": latest_result.time_utilization_percentage,
+                "performanceBand": latest_result.performance_band,
+                "completedAt": latest_result.completed_at.isoformat() if latest_result.completed_at else None,
+            }
+            if latest_result else None
+        ),
         "mockExam": {
             "mockExamId": exam.id,
             "title": exam.title,
@@ -483,3 +504,77 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
         "unanswered": attempt.unanswered_count,
         "timeTakenSeconds": attempt.time_taken_seconds,
     }
+
+
+def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, Any]:
+    assignment = db.get(CompetitionMockAssignment, attempt.mock_assignment_id)
+    exam = db.get(CompetitionMockExam, attempt.mock_exam_id)
+    if not assignment or not exam:
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result could not be loaded.")
+
+    if attempt.status not in COMPLETED_STATUSES:
+        api_error(409, "COMPETITION_ATTEMPT_NOT_SUBMITTED", "Submit the mock before viewing the result.")
+
+    summary = (
+        db.query(CompetitionMockResultSummary)
+        .filter(CompetitionMockResultSummary.mock_attempt_id == attempt.id)
+        .first()
+    )
+    if not summary:
+        # Defensive repair for already-submitted attempts where summary creation did not run.
+        attempt = SubmitCompetitionMockAttempt(db, attempt, auto=attempt.status == "AUTO_SUBMITTED")
+        summary = (
+            db.query(CompetitionMockResultSummary)
+            .filter(CompetitionMockResultSummary.mock_attempt_id == attempt.id)
+            .first()
+        )
+    if not summary:
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result summary is not available.")
+
+    level_record = db.get(Level, exam.level_id)
+    module_record = db.get(Module, exam.module_id)
+
+    return {
+        "attemptId": attempt.id,
+        "assignmentId": assignment.id,
+        "mockExamId": exam.id,
+        "status": attempt.status,
+        "score": summary.score,
+        "maxScore": summary.max_score,
+        "percentage": summary.percentage,
+        "accuracyPercentage": summary.accuracy_percentage,
+        "correct": attempt.correct_count,
+        "wrong": attempt.wrong_count,
+        "unanswered": attempt.unanswered_count,
+        "attempted": attempt.attempted_count,
+        "totalQuestions": attempt.total_questions,
+        "timeTakenSeconds": summary.time_taken_seconds,
+        "timeUtilizationPercentage": summary.time_utilization_percentage,
+        "performanceBand": summary.performance_band,
+        "completedAt": summary.completed_at.isoformat() if summary.completed_at else None,
+        "submittedAt": attempt.submitted_at.isoformat() if attempt.submitted_at else None,
+        "conceptPerformance": _json_loads(summary.concept_performance_json, []),
+        "conceptStrengths": _json_loads(summary.concept_strengths_json, []),
+        "conceptWeaknesses": _json_loads(summary.concept_weaknesses_json, []),
+        "recommendation": _json_loads(summary.recommendation_json, {}),
+        "mockExam": {
+            "title": exam.title,
+            "mockCode": exam.mock_code,
+            "totalQuestions": exam.total_questions,
+            "totalMarks": exam.total_marks,
+            "marksPerQuestion": exam.marks_per_question,
+            "durationSeconds": exam.duration_seconds,
+            "moduleCode": module_record.module_code if module_record else None,
+            "moduleName": module_record.module_name if module_record else None,
+            "levelCode": level_record.level_code if level_record else None,
+            "levelName": level_record.level_name if level_record else None,
+        },
+    }
+
+
+def GetCompetitionMockResultForStudent(db: Session, student: Student, attempt_id: str) -> dict[str, Any]:
+    attempt = db.get(CompetitionMockAttempt, attempt_id)
+    if not attempt or attempt.student_id != student.id:
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+    attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
+    return _result_payload(db, attempt)
