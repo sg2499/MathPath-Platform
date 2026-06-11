@@ -10,7 +10,7 @@ import { getCompetitionMockResult } from "@/lib/api/student";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpenCheck, CheckCircle2, Clock3, Target, XCircle } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 function formatDuration(seconds?: number | null) {
   if (seconds === null || seconds === undefined) return "-";
@@ -33,6 +33,11 @@ function formatDate(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function sectionAnchorKey(sectionTitle?: string | null, sectionNumber?: number | string | null) {
+  const base = sectionTitle || `Section ${sectionNumber || "unknown"}`;
+  return `competition-section-${String(base).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
 }
 
 type ResultTab = "questions" | "analysis";
@@ -80,6 +85,14 @@ export default function StudentCompetitionMockResultPage() {
   const mock = result.mockExam || {};
   const questionReview = result.questionReview || [];
 
+  const jumpToSection = (sectionName: string) => {
+    setActiveTab("questions");
+    window.setTimeout(() => {
+      const target = document.getElementById(sectionAnchorKey(sectionName));
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  };
+
   return (
     <AppShell title="Competition Mock Result">
       <section className="space-y-5">
@@ -89,15 +102,14 @@ export default function StudentCompetitionMockResultPage() {
           </button>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="math-kicker">Competition Result</p>
+              <p className="math-kicker">Mock Result</p>
               <h1 className="math-title">{mock.title || "Mock Result"}</h1>
               <div className="mt-3 flex flex-wrap gap-2">
                 {mock.mockCode ? <Chip label={mock.mockCode} /> : null}
                 <Chip label={`${mock.moduleCode || "Module"} · ${mock.levelCode || "Level"}`} />
-                <Chip label={result.performanceBand || "Completed"} />
               </div>
               <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300">
-                Submitted {formatDate(result.completedAt || result.submittedAt)}. Competition mocks remain independent from Practice, Assessment Readiness, and Promotion.
+                Submitted {formatDate(result.completedAt || result.submittedAt)}. Review your mock answers, correct solutions, and section performance below.
               </p>
             </div>
             <div className="rounded-[24px] border border-orange-200 bg-orange-50/70 px-6 py-4 text-center dark:border-orange-800 dark:bg-orange-950/30">
@@ -123,7 +135,7 @@ export default function StudentCompetitionMockResultPage() {
         </div>
 
         {activeTab === "questions" ? <QuestionReviewTab questions={questionReview} /> : null}
-        {activeTab === "analysis" ? <ResultAnalysisTab result={result} /> : null}
+        {activeTab === "analysis" ? <ResultAnalysisTab result={result} onSectionSelect={jumpToSection} /> : null}
       </section>
     </AppShell>
   );
@@ -146,6 +158,28 @@ function ResultTabButton({ active, label, onClick }: { active: boolean; label: s
 }
 
 function QuestionReviewTab({ questions }: { questions: NonNullable<Awaited<ReturnType<typeof getCompetitionMockResult>>["questionReview"]> }) {
+  const groupedSections = useMemo(() => {
+    const groups: Array<{
+      key: string;
+      title: string;
+      sectionNumber?: number | string | null;
+      questions: typeof questions;
+    }> = [];
+
+    questions.forEach((question) => {
+      const title = question.sectionTitle || question.concept || "Competition Mock";
+      const key = sectionAnchorKey(title, question.sectionNumber);
+      const existing = groups.find((group) => group.key === key);
+      if (existing) {
+        existing.questions.push(question);
+      } else {
+        groups.push({ key, title, sectionNumber: question.sectionNumber, questions: [question] });
+      }
+    });
+
+    return groups;
+  }, [questions]);
+
   return (
     <section className="math-card p-5">
       <div className="mb-5 flex items-center gap-3">
@@ -164,52 +198,70 @@ function QuestionReviewTab({ questions }: { questions: NonNullable<Awaited<Retur
           Question review is not available for this submitted mock yet.
         </p>
       ) : (
-        <div className="space-y-5">
-          {questions.map((question) => (
-            <article key={question.questionId} className="rounded-[28px] border border-orange-100 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-6">
+          {groupedSections.map((section) => (
+            <div key={section.key} id={section.key} className="scroll-mt-28 rounded-[30px] border border-orange-100 bg-orange-50/25 p-4 dark:border-slate-700 dark:bg-slate-950/30">
+              <div className="mb-4 flex flex-col gap-2 rounded-[22px] border border-orange-100 bg-white/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h3 className="text-xl font-black text-slate-950 dark:text-white">Question {question.questionNumber}</h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
-                      Section {question.sectionNumber || "-"}
-                    </span>
-                    <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black text-orange-700 dark:border-slate-700 dark:bg-slate-950 dark:text-orange-200">
-                      {question.sectionTitle || question.concept || "Competition Mock"}
-                    </span>
-                  </div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-orange-700 dark:text-orange-200">Section Review</p>
+                  <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                    {section.sectionNumber ? `Section ${section.sectionNumber} - ` : ""}{section.title}
+                  </h3>
                 </div>
-                <span
-                  className={
-                    question.isUnanswered
-                      ? "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                      : question.isCorrect
-                        ? "math-badge border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
-                        : "math-badge border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200"
-                  }
-                >
-                  {question.isUnanswered ? "Unanswered" : question.isCorrect ? "Correct" : "Wrong"}
+                <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-black text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+                  {section.questions.length} Questions
                 </span>
               </div>
 
-              <div className="mt-5 rounded-[24px] bg-slate-50/90 p-5 dark:bg-slate-950/60">
-                <MathQuestionDisplay
-                  operands={(question.operands || []) as any}
-                  operators={(question.operators || []) as any}
-                  displayType={(question as any).displayType ?? (question as any).display_type}
-                  questionText={(question as any).questionText ?? (question as any).question_text}
-                />
-              </div>
+              <div className="space-y-5">
+                {section.questions.map((question) => (
+                  <article key={question.questionId} className="rounded-[28px] border border-orange-100 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-xl font-black text-slate-950 dark:text-white">Question {question.questionNumber}</h3>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+                            Section {question.sectionNumber || "-"}
+                          </span>
+                          <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black text-orange-700 dark:border-slate-700 dark:bg-slate-950 dark:text-orange-200">
+                            {question.sectionTitle || "Competition Mock"}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={
+                          question.isUnanswered
+                            ? "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                            : question.isCorrect
+                              ? "math-badge border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
+                              : "math-badge border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200"
+                        }
+                      >
+                        {question.isUnanswered ? "Unanswered" : question.isCorrect ? "Correct" : "Wrong"}
+                      </span>
+                    </div>
 
-              <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                <AnswerBox title="Student Answer" tone={question.isCorrect ? "correct" : question.isUnanswered ? "neutral" : "wrong"}>
-                  {question.selectedOption ? `${question.selectedOption.label}. ${question.selectedOption.value}` : "Not Answered"}
-                </AnswerBox>
-                <AnswerBox title="Correct Answer" tone="correct">
-                  {question.correctOption ? `${question.correctOption.label}. ${question.correctOption.value}` : "Not Available"}
-                </AnswerBox>
+                    <div className="mt-5 rounded-[24px] bg-slate-50/90 p-5 dark:bg-slate-950/60">
+                      <MathQuestionDisplay
+                        operands={(question.operands || []) as any}
+                        operators={(question.operators || []) as any}
+                        displayType={(question as any).displayType ?? (question as any).display_type}
+                        questionText={(question as any).questionText ?? (question as any).question_text}
+                      />
+                    </div>
+
+                    <div className="mt-5 grid gap-3 xl:grid-cols-2">
+                      <AnswerBox title="Student Answer" tone={question.isCorrect ? "correct" : question.isUnanswered ? "neutral" : "wrong"}>
+                        {question.selectedOption ? `${question.selectedOption.label}. ${question.selectedOption.value}` : "Not Answered"}
+                      </AnswerBox>
+                      <AnswerBox title="Correct Answer" tone="correct">
+                        {question.correctOption ? `${question.correctOption.label}. ${question.correctOption.value}` : "Not Available"}
+                      </AnswerBox>
+                    </div>
+                  </article>
+                ))}
               </div>
-            </article>
+            </div>
           ))}
         </div>
       )}
@@ -232,7 +284,7 @@ function AnswerBox({ title, children, tone }: { title: string; children: React.R
   );
 }
 
-function ResultAnalysisTab({ result }: { result: Awaited<ReturnType<typeof getCompetitionMockResult>> }) {
+function ResultAnalysisTab({ result, onSectionSelect }: { result: Awaited<ReturnType<typeof getCompetitionMockResult>>; onSectionSelect: (sectionName: string) => void }) {
   return (
     <>
       <div className="math-card overflow-hidden p-5">
@@ -248,13 +300,18 @@ function ResultAnalysisTab({ result }: { result: Awaited<ReturnType<typeof getCo
           ) : (
             <div className="divide-y divide-orange-100 dark:divide-slate-700">
               {result.conceptPerformance.map((item) => (
-                <div key={item.concept} className="grid gap-2 p-4 text-sm font-bold text-slate-800 dark:text-slate-100 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                <button
+                  key={item.concept}
+                  type="button"
+                  onClick={() => onSectionSelect(item.concept)}
+                  className="grid w-full gap-2 p-4 text-left text-sm font-bold text-slate-800 transition hover:bg-orange-50 hover:text-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:text-slate-100 dark:hover:bg-orange-950/30 dark:hover:text-orange-100 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                >
                   <span>{item.concept}</span>
                   <span>{item.correct}/{item.total} Correct</span>
                   <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
                     {formatNumber(item.percentage)}%
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -262,8 +319,8 @@ function ResultAnalysisTab({ result }: { result: Awaited<ReturnType<typeof getCo
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <InsightCard title="Strengths" items={result.conceptStrengths || []} empty="No strong areas identified yet." />
-        <InsightCard title="Weak Areas" items={result.conceptWeaknesses || []} empty="No weak areas identified from this mock." />
+        <InsightCard title="Strengths" items={result.conceptStrengths || []} empty="No strong areas identified yet." onSectionSelect={onSectionSelect} />
+        <InsightCard title="Weak Areas" items={result.conceptWeaknesses || []} empty="No weak areas identified from this mock." onSectionSelect={onSectionSelect} />
       </div>
     </>
   );
@@ -288,7 +345,7 @@ function MetricCard({ icon, label, value, helper }: { icon: React.ReactNode; lab
   );
 }
 
-function InsightCard({ title, items, empty }: { title: string; items: Array<{ concept: string; correct: number; total: number; percentage: number }>; empty: string }) {
+function InsightCard({ title, items, empty, onSectionSelect }: { title: string; items: Array<{ concept: string; correct: number; total: number; percentage: number }>; empty: string; onSectionSelect: (sectionName: string) => void }) {
   return (
     <article className="math-card p-5">
       <p className="math-kicker">Result Insight</p>
@@ -298,10 +355,15 @@ function InsightCard({ title, items, empty }: { title: string; items: Array<{ co
       ) : (
         <div className="mt-4 grid gap-2">
           {items.map((item) => (
-            <div key={item.concept} className="flex items-center justify-between rounded-[18px] border border-orange-100 bg-white/80 px-4 py-3 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100">
+            <button
+              key={item.concept}
+              type="button"
+              onClick={() => onSectionSelect(item.concept)}
+              className="flex w-full items-center justify-between rounded-[18px] border border-orange-100 bg-white/80 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-orange-500 dark:hover:bg-orange-950/30 dark:hover:text-orange-100"
+            >
               <span>{item.concept}</span>
               <span>{formatNumber(item.percentage)}%</span>
-            </div>
+            </button>
           ))}
         </div>
       )}
