@@ -300,3 +300,63 @@ export async function getAssessmentAttemptResult(attemptId: string): Promise<Ass
   const { data } = await api.get<AssessmentResultPayload>(`/student/assessment-attempts/${attemptId}/result`);
   return data;
 }
+
+export type StudentCompetitionMockAssignment = {
+  assignmentId: string;
+  mockExamId: string;
+  status: string;
+  assignmentStatus?: string;
+  currentAttemptNumber?: number;
+  maxAttempts?: number;
+  assignedAt?: string | null;
+  dueAt?: string | null;
+  instructions?: string | null;
+  latestAttemptId?: string | null;
+  latestAttemptStatus?: string | null;
+  mockExam: {
+    mockExamId: string;
+    title: string;
+    mockCode?: string | null;
+    status?: string;
+    totalQuestions: number;
+    totalMarks: number;
+    marksPerQuestion: number;
+    durationSeconds: number;
+    moduleId?: string | null;
+    moduleCode?: string | null;
+    moduleName?: string | null;
+    levelId?: string | null;
+    levelCode?: string | null;
+    levelName?: string | null;
+  };
+};
+
+export async function getStudentCompetitionMockAssignments(): Promise<StudentCompetitionMockAssignment[]> {
+  const { data } = await api.get<{ assignments: StudentCompetitionMockAssignment[] }>("/student/competition/mock-assignments");
+  return data.assignments;
+}
+
+export async function startCompetitionMockAttempt(payload: { assignmentId: string }): Promise<AttemptPayload> {
+  const { data } = await api.post<AttemptPayload>("/student/competition/mock-attempts/start", payload);
+  return data;
+}
+
+export async function resumeCompetitionMockAttempt(attemptId: string): Promise<AttemptPayload | { attemptId: string; status: string; message?: string; resultAvailable?: boolean }> {
+  const { data } = await api.get(`/student/competition/mock-attempts/${attemptId}`);
+  return data;
+}
+
+export async function saveCompetitionMockAnswer(attemptId: string, payload: { questionId: string; selectedOptionId: string }) {
+  const { data } = await api.post(`/student/competition/mock-attempts/${attemptId}/answers`, payload);
+  return data;
+}
+
+export async function submitCompetitionMockAttempt(attemptId: string) {
+  const { data } = await api.post(`/student/competition/mock-attempts/${attemptId}/submit`, { confirmSubmit: true });
+  return data;
+}
+
+export async function autoSubmitCompetitionMockAttempt(attemptId: string) {
+  const { data } = await api.post(`/student/competition/mock-attempts/${attemptId}/auto-submit`, { reason: "TIME_UP" });
+  return data;
+}

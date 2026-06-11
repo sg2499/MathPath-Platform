@@ -23,6 +23,13 @@ from app.services.practice_notification_service import NotifyPracticeAttemptSubm
 from app.services.reattempt_operational_service import AttemptConceptKey, AttemptSequenceValue
 from app.services.assessment_feedback_service import assessment_feedback_payload, active_assessment_remark
 from app.services.competition_mock_assignment_service import ListStudentCompetitionMockAssignments
+from app.services.competition_mock_attempt_service import (
+    ListStudentCompetitionMockAssignmentsForAttempt,
+    StartCompetitionMockAttempt,
+    GetCompetitionMockAttemptForStudent,
+    SaveCompetitionMockAnswer,
+    SubmitCompetitionMockAttemptForStudent,
+)
 
 router = APIRouter(prefix="/api/student", tags=["student"])
 
@@ -46,6 +53,18 @@ class SaveAssessmentAnswerRequest(BaseModel):
     questionId: str
     selectedOptionId: str
 
+
+class StartCompetitionMockRequest(BaseModel):
+    assignmentId: str
+
+
+class SaveCompetitionMockAnswerRequest(BaseModel):
+    questionId: str
+    selectedOptionId: str
+
+
+class SubmitCompetitionMockRequest(BaseModel):
+    confirmSubmit: bool = True
 
 
 def active_reattempt_permission_for_student(db: Session, assignment_id: str, student_id: str):
@@ -184,7 +203,32 @@ def student_notifications(db: Session = Depends(get_db), student: Student = Depe
 
 @router.get("/competition/mock-assignments")
 def student_competition_mock_assignments(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
-    return {"assignments": ListStudentCompetitionMockAssignments(db, student)}
+    return {"assignments": ListStudentCompetitionMockAssignmentsForAttempt(db, student)}
+
+
+@router.post("/competition/mock-attempts/start")
+def student_start_competition_mock_attempt(payload: StartCompetitionMockRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return StartCompetitionMockAttempt(db, student, payload.assignmentId)
+
+
+@router.get("/competition/mock-attempts/{attempt_id}")
+def student_get_competition_mock_attempt(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return GetCompetitionMockAttemptForStudent(db, student, attempt_id)
+
+
+@router.post("/competition/mock-attempts/{attempt_id}/answers")
+def student_save_competition_mock_answer(attempt_id: str, payload: SaveCompetitionMockAnswerRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return SaveCompetitionMockAnswer(db, student, attempt_id, payload.questionId, payload.selectedOptionId)
+
+
+@router.post("/competition/mock-attempts/{attempt_id}/submit")
+def student_submit_competition_mock_attempt(attempt_id: str, payload: SubmitCompetitionMockRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return SubmitCompetitionMockAttemptForStudent(db, student, attempt_id, auto=False)
+
+
+@router.post("/competition/mock-attempts/{attempt_id}/auto-submit")
+def student_auto_submit_competition_mock_attempt(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return SubmitCompetitionMockAttemptForStudent(db, student, attempt_id, auto=True)
 
 
 @router.get("/assignments")
