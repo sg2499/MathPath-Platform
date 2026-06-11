@@ -395,6 +395,25 @@ export type StudentCompetitionMockResult = {
   conceptStrengths: Array<{ concept: string; correct: number; total: number; percentage: number }>;
   conceptWeaknesses: Array<{ concept: string; correct: number; total: number; percentage: number }>;
   recommendation?: { message?: string } | null;
+  questionReview?: Array<{
+    questionId: string;
+    questionNumber: number;
+    sectionNumber?: number | null;
+    sectionTitle?: string | null;
+    concept?: string | null;
+    displayType?: string | null;
+    questionText?: string | null;
+    operands: unknown[];
+    operators: string[];
+    metadata?: Record<string, unknown>;
+    options: Array<{ optionId: string; label: string; value: string; isCorrect?: boolean }>;
+    selectedOption?: { optionId: string; label: string; value: string } | null;
+    correctOption?: { optionId: string; label: string; value: string } | null;
+    isCorrect: boolean;
+    isUnanswered: boolean;
+    marksAwarded?: number | null;
+    marks?: number | null;
+  }>;
   mockExam: {
     title: string;
     mockCode?: string | null;
