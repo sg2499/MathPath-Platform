@@ -72,7 +72,7 @@ MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
     {
         "key": "MM_BODMAS_PERCENTAGE",
         "number": 8,
-        "title": "Section 8 - BODMAS, Add/Less Percentage",
+        "title": "Section 8 - BODMAS, Solve Equation, Add/Less Percentage",
     },
     {
         "key": "MM_FINANCIAL",
@@ -170,6 +170,7 @@ MM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
     "MM_BODMAS_PERCENTAGE": [
         {"conceptFamily": "BODMAS", "title": "BODMAS Competition Challenge"},
         {"conceptFamily": "BODMAS", "title": "BODMAS Square Root Decimal Percentage Challenge"},
+        {"conceptFamily": "SOLVE_EQUATION", "title": "Solve Equation Competition Challenge"},
         {"conceptFamily": "PERCENTAGE_ADD_LESS", "title": "Add-Less Percentage Challenge"},
         {"conceptFamily": "PERCENTAGE_ADD_LESS", "title": "Less Percentage Challenge"},
         {"conceptFamily": "PERCENTAGE_ADD_LESS", "title": "Add Percentage Challenge"},
@@ -223,8 +224,8 @@ MM_COMPETITION_ORDERED_CONCEPT_GROUPS: dict[str, list[list[str]]] = {
     ],
     "MM_BODMAS_PERCENTAGE": [
         ["BODMAS Competition Challenge", "BODMAS Square Root Decimal Percentage Challenge"],
-        ["Add Percentage Challenge"],
-        ["Less Percentage Challenge"],
+        ["Solve Equation Competition Challenge"],
+        ["Add Percentage Challenge", "Less Percentage Challenge", "Add-Less Percentage Challenge"],
     ],
     "MM_FINANCIAL": [
         ["Find Profit", "Find Loss", "Find Profit %", "Find Loss %"],
