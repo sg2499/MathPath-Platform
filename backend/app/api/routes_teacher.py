@@ -8,7 +8,7 @@ from app.core.config import TEMPORARY_ASSESSMENT_READINESS_BYPASS, ASSESSMENT_RE
 from app.core.errors import api_error
 from app.database import get_db
 from app.dependencies import get_current_teacher
-from app.models import Assignment, Attempt, DPS, Lesson, Level, Module, Student, Teacher, User, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentReattemptApproval, StudentLevelPromotion, AssessmentReadinessTestingOverride
+from app.models import Assignment, Attempt, DPS, Lesson, Level, Module, Student, Teacher, User, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentReattemptApproval, StudentLevelPromotion, AssessmentReadinessTestingOverride, CompetitionMockAssignment, CompetitionMockExam, CompetitionMockAttempt, CompetitionMockResultSummary
 from app.services.assignment_service import create_assignment
 from app.services.attempt_chain_service import ATTEMPT_SOURCE_MANUAL_RETRY
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
@@ -22,6 +22,7 @@ from app.services.practice_notification_service import NotifyPracticeAssignments
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
 from app.services.assessment_feedback_service import upsert_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.auth_service import public_profile_photo_url
+import json
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 
@@ -44,6 +45,166 @@ class AssessmentRemarkRequest(BaseModel):
     remarkText: str
 
 BENCHMARK_PERCENTAGE = 70.0
+
+COMPETITION_COMPLETED_STATUSES = {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED", "EXPIRED", "LOCKED"}
+
+
+def _competition_json(value, fallback):
+    if not value:
+        return fallback
+    try:
+        return json.loads(value)
+    except Exception:
+        return fallback
+
+
+def _competition_iso(value):
+    return value.isoformat() if value else None
+
+
+def _competition_duration_text(seconds):
+    if seconds is None:
+        return "-"
+    try:
+        total = max(0, int(seconds))
+    except Exception:
+        return "-"
+    minutes = total // 60
+    secs = total % 60
+    if minutes and secs:
+        return f"{minutes} Min{'s' if minutes != 1 else ''} {secs} Sec{'s' if secs != 1 else ''}"
+    if minutes:
+        return f"{minutes} Min{'s' if minutes != 1 else ''}"
+    return f"{secs} Sec{'s' if secs != 1 else ''}"
+
+
+def _teacher_competition_row_payload(db: Session, assignment: CompetitionMockAssignment):
+    exam = db.get(CompetitionMockExam, assignment.mock_exam_id)
+    student = db.get(Student, assignment.student_id)
+    if not exam or not student:
+        return None
+    user = db.get(User, student.user_id) if student.user_id else None
+    module = db.get(Module, exam.module_id) if exam.module_id else None
+    level = db.get(Level, exam.level_id) if exam.level_id else None
+    latest_attempt = (
+        db.query(CompetitionMockAttempt)
+        .filter(CompetitionMockAttempt.mock_assignment_id == assignment.id)
+        .order_by(CompetitionMockAttempt.attempt_number.desc(), CompetitionMockAttempt.started_at.desc())
+        .first()
+    )
+    result_summary = None
+    if latest_attempt:
+        result_summary = (
+            db.query(CompetitionMockResultSummary)
+            .filter(CompetitionMockResultSummary.mock_attempt_id == latest_attempt.id)
+            .first()
+        )
+
+    display_status = assignment.status or "ASSIGNED"
+    if latest_attempt and latest_attempt.status == "IN_PROGRESS":
+        display_status = "IN_PROGRESS"
+    elif latest_attempt and latest_attempt.status in COMPETITION_COMPLETED_STATUSES:
+        display_status = "COMPLETED"
+
+    section_performance = _competition_json(result_summary.concept_performance_json if result_summary else None, [])
+    strengths = _competition_json(result_summary.concept_strengths_json if result_summary else None, [])
+    weak_areas = _competition_json(result_summary.concept_weaknesses_json if result_summary else None, [])
+
+    return {
+        "assignmentId": assignment.id,
+        "mockExamId": exam.id,
+        "attemptId": latest_attempt.id if latest_attempt else None,
+        "status": display_status,
+        "assignmentStatus": assignment.status,
+        "attemptStatus": latest_attempt.status if latest_attempt else None,
+        "assignedAt": _competition_iso(assignment.assigned_at),
+        "dueAt": _competition_iso(assignment.due_at),
+        "submittedAt": _competition_iso(latest_attempt.submitted_at) if latest_attempt else None,
+        "student": {
+            "studentId": student.id,
+            "studentCode": student.student_code,
+            "studentName": user.full_name if user else student.student_code,
+            "className": student.class_name,
+            "section": student.section,
+        },
+        "mockExam": {
+            "title": exam.title,
+            "mockCode": exam.mock_code,
+            "moduleCode": module.module_code if module else None,
+            "levelCode": level.level_code if level else None,
+            "totalQuestions": exam.total_questions,
+            "totalMarks": exam.total_marks,
+            "marksPerQuestion": exam.marks_per_question,
+            "durationSeconds": exam.duration_seconds,
+        },
+        "score": result_summary.score if result_summary else (latest_attempt.total_score if latest_attempt else None),
+        "maxScore": result_summary.max_score if result_summary else (latest_attempt.max_score if latest_attempt else None),
+        "percentage": result_summary.percentage if result_summary else (latest_attempt.percentage if latest_attempt else None),
+        "accuracyPercentage": result_summary.accuracy_percentage if result_summary else None,
+        "correctCount": latest_attempt.correct_count if latest_attempt else None,
+        "wrongCount": latest_attempt.wrong_count if latest_attempt else None,
+        "unansweredCount": latest_attempt.unanswered_count if latest_attempt else None,
+        "timeTakenSeconds": result_summary.time_taken_seconds if result_summary else (latest_attempt.time_taken_seconds if latest_attempt else None),
+        "timeTakenText": _competition_duration_text(result_summary.time_taken_seconds if result_summary else (latest_attempt.time_taken_seconds if latest_attempt else None)),
+        "timeUtilizationPercentage": result_summary.time_utilization_percentage if result_summary else (latest_attempt.time_utilization_percentage if latest_attempt else None),
+        "performanceBand": result_summary.performance_band if result_summary else (latest_attempt.performance_band if latest_attempt else None),
+        "sectionPerformance": section_performance,
+        "strengths": strengths,
+        "weakAreas": weak_areas,
+    }
+
+
+def _teacher_competition_tracker_payload(db: Session, teacher: Teacher):
+    students = own_students_query(db, teacher).filter(Student.is_active == True).all()
+    student_ids = [student.id for student in students]
+    if not student_ids:
+        return {
+            "summary": {
+                "assignedCount": 0,
+                "completedCount": 0,
+                "pendingCount": 0,
+                "inProgressCount": 0,
+                "averageScore": 0,
+                "averageAccuracy": 0,
+                "averageTimeTakenSeconds": None,
+            },
+            "rows": [],
+        }
+
+    assignments = (
+        db.query(CompetitionMockAssignment)
+        .join(CompetitionMockExam, CompetitionMockAssignment.mock_exam_id == CompetitionMockExam.id)
+        .filter(
+            CompetitionMockAssignment.student_id.in_(student_ids),
+            CompetitionMockAssignment.is_active == True,
+            CompetitionMockExam.is_active == True,
+            CompetitionMockExam.status != "ARCHIVED",
+        )
+        .order_by(CompetitionMockAssignment.assigned_at.desc())
+        .limit(500)
+        .all()
+    )
+    rows = [row for row in (_teacher_competition_row_payload(db, assignment) for assignment in assignments) if row]
+    completed = [row for row in rows if row.get("status") == "COMPLETED"]
+    pending = [row for row in rows if row.get("status") in {"ASSIGNED", "PENDING"}]
+    in_progress = [row for row in rows if row.get("status") == "IN_PROGRESS"]
+    avg_score = round(sum(float(row.get("percentage") or 0) for row in completed) / len(completed), 2) if completed else 0
+    avg_accuracy = round(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed), 2) if completed else 0
+    time_values = [int(row.get("timeTakenSeconds") or 0) for row in completed if row.get("timeTakenSeconds") is not None]
+    avg_time = round(sum(time_values) / len(time_values)) if time_values else None
+    return {
+        "summary": {
+            "assignedCount": len(rows),
+            "completedCount": len(completed),
+            "pendingCount": len(pending),
+            "inProgressCount": len(in_progress),
+            "averageScore": avg_score,
+            "averageAccuracy": avg_accuracy,
+            "averageTimeTakenSeconds": avg_time,
+            "averageTimeTakenText": _competition_duration_text(avg_time),
+        },
+        "rows": rows,
+    }
 
 
 def benchmark_payload_for_attempt(attempt) -> dict:
@@ -83,6 +244,11 @@ def own_students_query(db: Session, teacher: Teacher):
         )
     return db.query(Student).filter(Student.teacher == teacher_name)
 
+
+
+@router.get("/competition/mock-tracker")
+def teacher_competition_mock_tracker(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    return _teacher_competition_tracker_payload(db, teacher)
 
 
 @router.get("/dashboard")

@@ -443,3 +443,65 @@ export async function getTeacherAssessmentEligibility(levelId?: string): Promise
   });
   return data;
 }
+
+export type TeacherCompetitionTrackerRow = {
+  assignmentId: string;
+  mockExamId: string;
+  attemptId: string | null;
+  status: string;
+  assignmentStatus?: string | null;
+  attemptStatus?: string | null;
+  assignedAt?: string | null;
+  dueAt?: string | null;
+  submittedAt?: string | null;
+  student: {
+    studentId: string;
+    studentCode: string;
+    studentName: string;
+    className?: string | null;
+    section?: string | null;
+  };
+  mockExam: {
+    title: string;
+    mockCode?: string | null;
+    moduleCode?: string | null;
+    levelCode?: string | null;
+    totalQuestions: number;
+    totalMarks: number;
+    marksPerQuestion: number;
+    durationSeconds: number;
+  };
+  score?: number | null;
+  maxScore?: number | null;
+  percentage?: number | null;
+  accuracyPercentage?: number | null;
+  correctCount?: number | null;
+  wrongCount?: number | null;
+  unansweredCount?: number | null;
+  timeTakenSeconds?: number | null;
+  timeTakenText?: string | null;
+  timeUtilizationPercentage?: number | null;
+  performanceBand?: string | null;
+  sectionPerformance: Array<{ concept?: string; section?: string; correct: number; total: number; percentage: number }>;
+  strengths: Array<{ concept?: string; section?: string; correct: number; total: number; percentage: number }>;
+  weakAreas: Array<{ concept?: string; section?: string; correct: number; total: number; percentage: number }>;
+};
+
+export type TeacherCompetitionTrackerPayload = {
+  summary: {
+    assignedCount: number;
+    completedCount: number;
+    pendingCount: number;
+    inProgressCount: number;
+    averageScore: number;
+    averageAccuracy: number;
+    averageTimeTakenSeconds: number | null;
+    averageTimeTakenText?: string | null;
+  };
+  rows: TeacherCompetitionTrackerRow[];
+};
+
+export async function getTeacherCompetitionMockTracker(): Promise<TeacherCompetitionTrackerPayload> {
+  const { data } = await api.get<TeacherCompetitionTrackerPayload>("/teacher/competition/mock-tracker");
+  return data;
+}
