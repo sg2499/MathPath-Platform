@@ -356,6 +356,97 @@ def _MmCompetitionSmartNumericOptions(CorrectAnswer: Decimal, Seed: str) -> list
         for Index, Value in enumerate(Values)
     ]
 
+
+def _DigitRange(Digits: int) -> tuple[int, int]:
+    Digits = max(1, int(Digits or 1))
+    return (10 ** (Digits - 1), (10 ** Digits) - 1)
+
+
+def _MultiplicationPairForBodmasPattern(Rng: random.Random, LeftDigits: int, RightDigits: int) -> tuple[int, int]:
+    LeftMin, LeftMax = _DigitRange(LeftDigits)
+    RightMin, RightMax = _DigitRange(RightDigits)
+    return Rng.randint(LeftMin, LeftMax), Rng.randint(RightMin, RightMax)
+
+
+def _DivisiblePairForBodmasPattern(Rng: random.Random, DividendDigits: int, DivisorDigits: int) -> tuple[int, int, int]:
+    DividendMin, DividendMax = _DigitRange(DividendDigits)
+    DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
+    for _ in range(160):
+        Divisor = Rng.randint(DivisorMin, DivisorMax)
+        MinQuotient = max(2, (DividendMin + Divisor - 1) // Divisor)
+        MaxQuotient = max(MinQuotient, DividendMax // Divisor)
+        if MaxQuotient < MinQuotient:
+            continue
+        Quotient = Rng.randint(MinQuotient, MaxQuotient)
+        Dividend = Divisor * Quotient
+        if DividendMin <= Dividend <= DividendMax:
+            return Dividend, Divisor, Quotient
+    # Deterministic fallbacks preserve exact displayed digit patterns.
+    if DividendDigits == 3 and DivisorDigits == 3:
+        return 936, 312, 3
+    if DividendDigits == 4 and DivisorDigits == 3:
+        return 8736, 312, 28
+    return _DivisiblePairForBodmas(Rng)
+
+
+def _SignedTermText(Value: int) -> str:
+    return f"({Value})" if Value < 0 else str(Value)
+
+
+def _BuildMmCompetitionSolveEquationChallengeQuestion(*, Seed: str, VariantIndex: int = 0) -> dict[str, Any]:
+    """Generate competition-only Solve Equation questions.
+
+    This keeps the workbook-approved signed-integer arithmetic style and avoids
+    unsupported x-based algebra.  Competition difficulty comes from longer
+    signed expressions, subtraction of negatives, and mixed 2D/3D/4D values.
+    """
+    Rng = random.Random(Seed)
+    TermCount = 5 if VariantIndex % 2 == 0 else 6
+    Values: list[int] = []
+    Operators: list[str] = []
+    for Index in range(TermCount):
+        Magnitude = Rng.choice([Rng.randint(45, 98), Rng.randint(120, 980), Rng.randint(1200, 4800)])
+        Sign = -1 if (Index + VariantIndex) % 3 == 1 or Rng.random() < 0.35 else 1
+        Values.append(Sign * Magnitude)
+        if Index > 0:
+            Operators.append(Rng.choice(["+", "-", "+", "-"]))
+
+    # Force at least one subtraction of a negative value so the question is not
+    # a plain warm-up signed-addition row.
+    if not any(Operator == "-" and Value < 0 for Operator, Value in zip(Operators, Values[1:])):
+        Operators[1 if len(Operators) > 1 else 0] = "-"
+        Values[2 if len(Values) > 2 else 1] = -abs(Values[2 if len(Values) > 2 else 1])
+
+    Answer = Decimal(Values[0])
+    ExpressionParts = [_SignedTermText(Values[0])]
+    for Operator, Value in zip(Operators, Values[1:]):
+        ExpressionParts.append(Operator)
+        ExpressionParts.append(_SignedTermText(Value))
+        if Operator == "-":
+            Answer -= Decimal(Value)
+        else:
+            Answer += Decimal(Value)
+
+    Expression = " ".join(ExpressionParts) + " = ?"
+    CorrectAnswer = _PlainDecimalText(Answer)
+    return {
+        "question_number": 1,
+        "display_type": "EXPRESSION_WORKSHEET",
+        "question_text": Expression,
+        "operands": Values,
+        "operators": ["+"] + Operators,
+        "correct_answer": CorrectAnswer,
+        "options": _MmCompetitionSmartNumericOptions(Answer, Seed),
+        "difficulty": "COMPETITION_CHALLENGE",
+        "seed": Seed,
+        "metadata": {
+            "conceptFamily": "SOLVE_EQUATION",
+            "competitionConceptKey": "Solve Equation Competition Challenge",
+            "competitionSolveEquationProfile": "SIGNED_INTEGER_MULTI_TERM_WORKBOOK_STYLE",
+            "unsupportedAlgebraUsed": False,
+        },
+    }
+
 def _PerfectSquareAtOrBelow(MaxValue: int, Rng: random.Random, MinimumRoot: int = 12) -> tuple[int, int]:
     Root = Rng.randint(MinimumRoot, max(MinimumRoot, int(MaxValue ** 0.5)))
     return Root * Root, Root
@@ -385,50 +476,55 @@ def _BuildMmCompetitionBodmasChallengeQuestion(*, Seed: str, VariantIndex: int =
     This intentionally does not modify the normal MM DPS BODMAS generator.  The
     mock exam must test competition readiness, so every expression includes a
     mix of advanced MM-safe operands while preserving the BODMAS guard that no
-    displayed number may exceed 4 digits.
+    displayed number may exceed 4 digits. Multiplication and division rotate
+    through 3D×3D, 4D×3D, 3D÷3D, and 4D÷3D patterns so the competition paper
+    does not collapse into easier 3D×2D / 4D÷2D-only questions.
     """
     Rng = random.Random(Seed)
     Variant = VariantIndex % 4
 
     if Variant == 0:
-        Left = Rng.randint(112, 987)
-        Multiplier = Rng.randint(24, 86)
+        Left, Multiplier = _MultiplicationPairForBodmasPattern(Rng, 3, 3)
         SquareRadicand, SquareRoot = _PerfectSquareAtOrBelow(9801, Rng, 18)
-        Dividend, Divisor, Quotient = _DivisiblePairForBodmas(Rng)
+        Dividend, Divisor, Quotient = _DivisiblePairForBodmasPattern(Rng, 4, 3)
         PercentBase = Rng.randrange(1200, 9000, 100)
         Percent = Rng.choice([12, 15, 18, 20, 24, 25, 30, 35, 40, 45, 50, 60, 75])
         SubtractValue = Rng.randint(121, 987)
         Answer = Decimal(Left * Multiplier) + Decimal(SquareRoot) - Decimal(Quotient) + (Decimal(PercentBase) * Decimal(Percent) / Decimal(100)) - Decimal(SubtractValue)
         Expression = f"{Left}×{Multiplier} + √{SquareRadicand} - {Dividend}÷{Divisor} + {PercentBase}×{Percent}% - {SubtractValue} = ?"
+        PatternProfile = "3D×3D_AND_4D÷3D"
     elif Variant == 1:
         A = Rng.randint(120, 890)
         B = Rng.randint(80, 940)
-        Multiplier = Rng.randint(12, 48)
+        MultLeft, MultRight = _MultiplicationPairForBodmasPattern(Rng, 4, 3)
         CubeRadicand, CubeRoot = _PerfectCubeAtOrBelow(9261, Rng, 9)
         SquareBase = Rng.randint(18, 96)
-        Dividend, Divisor, Quotient = _DivisiblePairForBodmas(Rng, MinDivisor=18, MaxDivisor=88, MinQuotient=16, MaxQuotient=84)
-        Answer = Decimal(A + B) * Decimal(Multiplier) + Decimal(CubeRoot) - Decimal(SquareBase ** 2) + Decimal(Quotient)
-        Expression = f"({A}+{B})×{Multiplier} + ∛{CubeRadicand} - {SquareBase}² + {Dividend}÷{Divisor} = ?"
+        Dividend, Divisor, Quotient = _DivisiblePairForBodmasPattern(Rng, 3, 3)
+        Answer = Decimal(A + B) + Decimal(MultLeft * MultRight) + Decimal(CubeRoot) - Decimal(SquareBase ** 2) + Decimal(Quotient)
+        Expression = f"({A}+{B}) + {MultLeft}×{MultRight} + ∛{CubeRadicand} - {SquareBase}² + {Dividend}÷{Divisor} = ?"
+        PatternProfile = "4D×3D_AND_3D÷3D"
     elif Variant == 2:
         SquareBase = Rng.randint(34, 98)
         CubeBase = Rng.randint(9, 21)
-        Dividend, Divisor, Quotient = _DivisiblePairForBodmas(Rng, MinDivisor=22, MaxDivisor=99, MinQuotient=20, MaxQuotient=92)
+        MultLeft, MultRight = _MultiplicationPairForBodmasPattern(Rng, 3, 3)
+        Dividend, Divisor, Quotient = _DivisiblePairForBodmasPattern(Rng, 4, 3)
         PercentBase = Rng.randrange(1600, 9600, 100)
         Percent = Rng.choice([12, 15, 20, 24, 25, 30, 40, 45, 50, 60])
-        MinusValue = Rng.randint(200, 999)
-        Answer = Decimal(SquareBase ** 2) + Decimal(CubeBase ** 3) - Decimal(Quotient) + (Decimal(PercentBase) * Decimal(Percent) / Decimal(100)) - Decimal(MinusValue)
-        Expression = f"{SquareBase}² + {CubeBase}³ - {Dividend}÷{Divisor} + {PercentBase}×{Percent}% - {MinusValue} = ?"
+        Answer = Decimal(SquareBase ** 2) + Decimal(CubeBase ** 3) + Decimal(MultLeft * MultRight) - Decimal(Quotient) + (Decimal(PercentBase) * Decimal(Percent) / Decimal(100))
+        Expression = f"{SquareBase}² + {CubeBase}³ + {MultLeft}×{MultRight} - {Dividend}÷{Divisor} + {PercentBase}×{Percent}% = ?"
+        PatternProfile = "3D×3D_AND_4D÷3D"
     else:
         Base = Rng.randrange(1800, 9800, 100)
         LessPercent = Rng.choice([10, 12, 15, 20, 25, 30, 35, 40, 50])
-        MultLeft = Rng.randint(123, 987)
-        MultRight = Rng.randint(18, 76)
+        MultLeft, MultRight = _MultiplicationPairForBodmasPattern(Rng, 4, 3)
+        Dividend, Divisor, Quotient = _DivisiblePairForBodmasPattern(Rng, 3, 3)
         SquareRadicand, SquareRoot = _PerfectSquareAtOrBelow(9801, Rng, 20)
         CubeRadicand, CubeRoot = _PerfectCubeAtOrBelow(9261, Rng, 8)
-        Answer = (Decimal(Base) - (Decimal(Base) * Decimal(LessPercent) / Decimal(100))) + Decimal(MultLeft * MultRight) - Decimal(SquareRoot) + Decimal(CubeRoot)
-        Expression = f"{Base} - {LessPercent}% + {MultLeft}×{MultRight} - √{SquareRadicand} + ∛{CubeRadicand} = ?"
+        Answer = (Decimal(Base) - (Decimal(Base) * Decimal(LessPercent) / Decimal(100))) + Decimal(MultLeft * MultRight) - Decimal(Quotient) - Decimal(SquareRoot) + Decimal(CubeRoot)
+        Expression = f"{Base} - {LessPercent}% + {MultLeft}×{MultRight} - {Dividend}÷{Divisor} - √{SquareRadicand} + ∛{CubeRadicand} = ?"
+        PatternProfile = "4D×3D_AND_3D÷3D"
 
-    # Every number inserted above is bounded to 4 digits by construction.
+    # Every displayed number inserted above is bounded to 4 digits by construction.
     Answer = Answer.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if Answer != Answer.to_integral_value() else Answer
     CorrectAnswer = _PlainDecimalText(Answer)
     return {
@@ -445,6 +541,7 @@ def _BuildMmCompetitionBodmasChallengeQuestion(*, Seed: str, VariantIndex: int =
             "conceptFamily": "BODMAS",
             "competitionConceptKey": "BODMAS Competition Challenge",
             "competitionBodmasProfile": "ADVANCED_MAX_4_DIGIT_OPERANDS",
+            "competitionBodmasPatternProfile": PatternProfile,
             "maxDisplayedNumberDigits": 4,
         },
     }
@@ -588,6 +685,15 @@ def _GenerateMmCompetitionConceptBatch(
         return [
             _BuildMmCompetitionBodmasChallengeQuestion(
                 Seed=f"{Seed}-BODMAS-{Index}",
+                VariantIndex=Index,
+            )
+            for Index in range(max(RequiredCount, 1))
+        ][:RequiredCount]
+
+    if SectionDefinition.get("key") == "MM_BODMAS_PERCENTAGE" and ConceptFamily == "SOLVE_EQUATION":
+        return [
+            _BuildMmCompetitionSolveEquationChallengeQuestion(
+                Seed=f"{Seed}-SOLVE-EQUATION-{Index}",
                 VariantIndex=Index,
             )
             for Index in range(max(RequiredCount, 1))
