@@ -164,8 +164,8 @@ export default function AdminCompetitionMockStudioPage() {
     onSuccess: (ResultValue) => {
       SetLastMessage(`Draft mock generated: ${ResultValue.title}`);
       SetMockTitle("");
-      SetPreviewMockId(ResultValue.mockExamId);
       SetSelectedMockIds((CurrentValue) => Array.from(new Set([ResultValue.mockExamId, ...CurrentValue])));
+      SetActiveStudioTab("MANAGE");
       QueryClient.invalidateQueries({ queryKey: ["admin", "competition", "mocks"] });
     },
   });
@@ -297,8 +297,7 @@ export default function AdminCompetitionMockStudioPage() {
         </div>
 
         {ActiveStudioTab === "CREATE" && (
-          <div className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
-            <div className="space-y-6">
+          <div className="space-y-6">
               <div className="math-card p-5">
                 <SectionTitle kicker="Create Mock" title="Select Module And Level" description="Mock papers are generated at level scope, independent from DPS practice and assessment structures." />
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -386,22 +385,11 @@ export default function AdminCompetitionMockStudioPage() {
 
                 </div>
               </div>
-            </div>
-
-            <div className="math-card p-5">
-              <SectionTitle kicker="Preview" title="Latest / Selected Mock Snapshot" description="Preview the generated paper before moving to Manage Mocks for assignment." />
-              <div className="mt-5">
-                {PreviewQuery.isLoading && <LoadingState label="Loading mock preview..." />}
-                {!PreviewMockId && <EmptyState title="No preview selected" description="Generate a draft or click Preview from Manage Mocks." />}
-                {PreviewQuery.data && <MockPreview exam={PreviewQuery.data} />}
-              </div>
-            </div>
           </div>
         )}
 
         {ActiveStudioTab === "MANAGE" && (
-          <div className="grid gap-6 xl:grid-cols-[1.05fr_1fr]">
-            <div className="space-y-6">
+          <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
               <div className="math-card p-5">
                 <SectionTitle kicker="Manage Mocks" title="Mock Paper Library" description="View, preview, assign, archive, or delete competition mock papers from one focused control panel." />
 
@@ -508,16 +496,6 @@ export default function AdminCompetitionMockStudioPage() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="math-card p-5">
-              <SectionTitle kicker="Preview" title="Selected Mock Snapshot" description="Quickly check sections and sample questions before assigning." />
-              <div className="mt-5">
-                {PreviewQuery.isLoading && <LoadingState label="Loading mock preview..." />}
-                {!PreviewMockId && <EmptyState title="No preview selected" description="Click View on any mock paper to inspect its generated questions." />}
-                {PreviewQuery.data && <MockPreview exam={PreviewQuery.data} />}
-              </div>
-            </div>
           </div>
         )}
 
