@@ -99,6 +99,7 @@ admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 class CompetitionMockGenerateRequest(BaseModel):
     levelId: str
     title: str | None = None
+    mockCode: str | None = None
     totalQuestions: int | None = None
     durationSeconds: int | None = None
     competitionScope: str | None = "GENERAL"
@@ -5440,6 +5441,7 @@ def admin_generate_competition_mock_draft(payload: CompetitionMockGenerateReques
         LevelId=payload.levelId,
         CreatedBy=user,
         Title=payload.title,
+        MockCode=payload.mockCode,
         TotalQuestions=payload.totalQuestions,
         DurationSeconds=payload.durationSeconds,
         CompetitionScope=payload.competitionScope or "GENERAL",

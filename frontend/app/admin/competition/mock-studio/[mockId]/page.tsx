@@ -16,7 +16,7 @@ import {
   type CompetitionMockQuestion,
 } from "@/lib/api/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Archive, ArrowLeft, CheckCircle2, Clock, Eye, FileText, Gauge, Layers3, ShieldCheck, Target, Trash2 } from "lucide-react";
+import { AlertTriangle, Archive, ArrowLeft, CheckCircle2, Clock, Eye, FileText, Layers3, ShieldCheck, Target, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -291,12 +291,11 @@ export default function AdminCompetitionMockDetailPage() {
               </div>
             </section>
 
-            <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <DetailMetric icon={<Target size={16} />} label="Questions" value={mock.totalQuestions} helper="Mock Length" />
               <DetailMetric icon={<ShieldCheck size={16} />} label="Total Marks" value={mock.totalMarks} helper="Competition Total" />
               <DetailMetric icon={<FileText size={16} />} label="Marks/Question" value={mock.marksPerQuestion || "Auto"} helper="Configured Marking" />
               <DetailMetric icon={<Clock size={16} />} label="Duration" value={formatDuration(mock.durationSeconds)} helper="Competition Time" />
-              <DetailMetric icon={<Gauge size={16} />} label="Generated" value={mock.questions?.length || 0} helper="Preview Set" />
             </section>
 
             {(archiveMutation.error || deleteMutation.error) ? <ErrorState message={apiErrorMessage(archiveMutation.error || deleteMutation.error)} /> : null}
@@ -382,22 +381,19 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
 
   return (
     <section className="rounded-[32px] border border-white/70 bg-white/90 p-4 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="math-kicker">Question Preview</p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">Generated Mock Paper</h2>
           <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">Review the generated questions in the same clean full-page format used for assessment review.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wide ${statusTone(mock.status)}`}>{mock.status}</span>
+            <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">Code: {mock.mockCode}</span>
+          </div>
         </div>
       </div>
 
       <div className="mt-4 space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Info label="Status" value={mock.status} />
-          <Info label="Questions" value={`${questions.length}/${mock.totalQuestions}`} />
-          <Info label="Mock Code" value={mock.mockCode} />
-          <Info label="Mode" value="Competition Mock" />
-        </div>
-
         <div className="math-card overflow-hidden p-4 sm:p-5">
           <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -555,6 +551,3 @@ function DetailMetric({ icon, label, value, helper }: { icon: ReactNode; label: 
   );
 }
 
-function Info({ label, value }: { label: string; value: string | number }) {
-  return <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p><p className="mt-2 text-lg font-black text-slate-950 dark:text-white">{value}</p></div>;
-}
