@@ -34,6 +34,8 @@ const MmDefaultQuestionCount = 50;
 const DefaultDurationMinutes = 20;
 const MmDefaultDurationMinutes = 30;
 
+const AdminRowActionButtonClass = "inline-flex items-center justify-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] shadow-sm transition hover:-translate-y-px hover:border-[color:var(--mp-role-border-strong)] hover:bg-[color:var(--mp-role-soft)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--mp-role-primary)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm dark:bg-slate-950/60 dark:text-blue-100 dark:hover:bg-[color:var(--mp-role-soft)]";
+
 function FormatDuration(SecondsValue: number | null | undefined) {
   const SafeSeconds = Math.max(0, Number(SecondsValue || 0));
   const Minutes = Math.floor(SafeSeconds / 60);
@@ -437,13 +439,13 @@ export default function AdminCompetitionMockStudioPage() {
                           </label>
                           <div className="flex flex-wrap items-center gap-2">
                             <StatusChip status={MockValue.status} />
-                            <Link href={`/admin/competition/mock-studio/${MockValue.mockExamId}`} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--mp-role-primary)] hover:text-[var(--mp-role-primary)] dark:border-slate-700 dark:text-slate-200">
+                            <Link href={`/admin/competition/mock-studio/${MockValue.mockExamId}`} className={AdminRowActionButtonClass}>
                               <Eye size={14} className="mr-1 inline" /> View
                             </Link>
-                            <button disabled={IsArchived} onClick={() => ToggleMock(MockValue.mockExamId)} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--mp-role-primary)] hover:text-[var(--mp-role-primary)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200">
+                            <button disabled={IsArchived} onClick={() => ToggleMock(MockValue.mockExamId)} className={AdminRowActionButtonClass}>
                               <Send size={14} className="mr-1 inline" /> Assign
                             </button>
-                            <button disabled={IsArchived} onClick={() => SetArchiveMockId(MockValue.mockExamId)} className="rounded-full border border-amber-200 px-3 py-1.5 text-xs font-black text-amber-700 hover:bg-amber-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-900/60 dark:text-amber-200 dark:hover:bg-amber-700">
+                            <button disabled={IsArchived} onClick={() => SetArchiveMockId(MockValue.mockExamId)} className={AdminRowActionButtonClass}>
                               <Archive size={14} className="mr-1 inline" /> Archive
                             </button>
                             <button onClick={() => SetDeleteMockId(MockValue.mockExamId)} className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-600 hover:text-white dark:border-rose-900/60 dark:text-rose-200 dark:hover:bg-rose-700">
