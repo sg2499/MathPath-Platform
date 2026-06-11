@@ -506,6 +506,95 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
     }
 
 
+
+def _question_review_payload(db: Session, attempt: CompetitionMockAttempt) -> list[dict[str, Any]]:
+    questions = (
+        db.query(CompetitionMockQuestion)
+        .filter(CompetitionMockQuestion.mock_exam_id == attempt.mock_exam_id)
+        .order_by(CompetitionMockQuestion.question_number.asc())
+        .all()
+    )
+    if not questions:
+        return []
+
+    question_ids = [question.id for question in questions]
+    option_rows = (
+        db.query(CompetitionMockQuestionOption)
+        .filter(CompetitionMockQuestionOption.mock_question_id.in_(question_ids))
+        .order_by(CompetitionMockQuestionOption.display_order.asc())
+        .all()
+    )
+    options_by_question: dict[str, list[CompetitionMockQuestionOption]] = {}
+    options_by_id: dict[str, CompetitionMockQuestionOption] = {}
+    for option in option_rows:
+        options_by_question.setdefault(option.mock_question_id, []).append(option)
+        options_by_id[option.id] = option
+
+    answer_rows = (
+        db.query(CompetitionMockAttemptAnswer)
+        .filter(CompetitionMockAttemptAnswer.mock_attempt_id == attempt.id)
+        .all()
+    )
+    answers_by_question = {answer.mock_question_id: answer for answer in answer_rows}
+
+    review: list[dict[str, Any]] = []
+    for question in questions:
+        metadata = _json_loads(question.metadata_json, {})
+        metadata.update({
+            "section_number": question.section_number,
+            "section_title": question.section_title,
+            "concept_family": question.concept_family,
+            "concept_tag": question.concept_tag,
+            "mock_mode": "COMPETITION_MOCK",
+        })
+        options = options_by_question.get(question.id, [])
+        correct_option = next((option for option in options if option.is_correct), None)
+        answer = answers_by_question.get(question.id)
+        selected_option = options_by_id.get(answer.selected_option_id) if answer and answer.selected_option_id else None
+
+        review.append({
+            "questionId": question.id,
+            "questionNumber": question.question_number,
+            "sectionNumber": question.section_number,
+            "sectionTitle": question.section_title,
+            "concept": question.concept_tag or question.concept_family or question.section_title or "Competition Mock",
+            "displayType": question.display_type,
+            "questionText": question.question_text,
+            "operands": _json_loads(question.operands_json, []),
+            "operators": _json_loads(question.operators_json, []),
+            "metadata": metadata,
+            "options": [
+                {
+                    "optionId": option.id,
+                    "label": option.option_label,
+                    "value": option.option_value,
+                    "isCorrect": bool(option.is_correct),
+                }
+                for option in options
+            ],
+            "selectedOption": (
+                {
+                    "optionId": selected_option.id,
+                    "label": selected_option.option_label,
+                    "value": selected_option.option_value,
+                }
+                if selected_option else None
+            ),
+            "correctOption": (
+                {
+                    "optionId": correct_option.id,
+                    "label": correct_option.option_label,
+                    "value": correct_option.option_value,
+                }
+                if correct_option else None
+            ),
+            "isCorrect": bool(answer.is_correct) if answer and answer.selected_option_id else False,
+            "isUnanswered": not bool(answer and answer.selected_option_id),
+            "marksAwarded": float(answer.marks_awarded or 0) if answer else 0.0,
+            "marks": float(question.marks or 1),
+        })
+    return review
+
 def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, Any]:
     assignment = db.get(CompetitionMockAssignment, attempt.mock_assignment_id)
     exam = db.get(CompetitionMockExam, attempt.mock_exam_id)
@@ -557,6 +646,7 @@ def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, A
         "conceptStrengths": _json_loads(summary.concept_strengths_json, []),
         "conceptWeaknesses": _json_loads(summary.concept_weaknesses_json, []),
         "recommendation": _json_loads(summary.recommendation_json, {}),
+        "questionReview": _question_review_payload(db, attempt),
         "mockExam": {
             "title": exam.title,
             "mockCode": exam.mock_code,
