@@ -486,10 +486,10 @@ function CompetitionMessageBox({
             <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
               {message.title}
             </h2>
-            <p className="mt-3 max-w-5xl text-sm font-semibold leading-6 text-slate-800 dark:text-slate-200">
+            <p className="mt-4 max-w-5xl text-lg font-black leading-8 text-slate-950 dark:text-white">
               {message.message}
             </p>
-            <p className="mt-2 max-w-5xl text-sm font-bold leading-6 text-slate-700 dark:text-slate-300">
+            <p className="mt-3 max-w-5xl text-base font-black leading-7 text-slate-900 dark:text-slate-100">
               {message.coachNote}
             </p>
           </div>
@@ -506,7 +506,7 @@ function CompetitionMessageBox({
                   key={area}
                   type="button"
                   onClick={() => onSectionSelect(area)}
-                  className="rounded-[16px] border border-orange-100 bg-orange-50/70 px-3 py-2 text-left text-xs font-black text-slate-800 transition hover:border-orange-400 hover:bg-orange-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-orange-900 dark:bg-orange-950/30 dark:text-slate-100 dark:hover:border-orange-500 dark:hover:bg-orange-600 dark:hover:text-white"
+                  className="rounded-[16px] border border-orange-100 bg-orange-50/70 px-3 py-2.5 text-left text-sm font-black text-slate-900 transition hover:border-orange-400 hover:bg-orange-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-orange-900 dark:bg-orange-950/30 dark:text-white dark:hover:border-orange-500 dark:hover:bg-orange-600 dark:hover:text-white"
                 >
                   {area}
                 </button>
@@ -517,7 +517,7 @@ function CompetitionMessageBox({
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-amber-700 dark:text-amber-200">
               Next Target
             </p>
-            <p className="mt-2 text-sm font-black text-slate-900 dark:text-slate-100">
+            <p className="mt-2 text-base font-black leading-6 text-slate-950 dark:text-white">
               {message.nextTarget}
             </p>
           </div>
