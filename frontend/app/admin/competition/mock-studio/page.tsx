@@ -255,7 +255,7 @@ export default function AdminCompetitionMockStudioPage() {
         <div className="math-card p-6">
           <p className="math-kicker">Competition</p>
           <h1 className="math-title">Competition Mock Studio</h1>
-          <p className="mt-3 max-w-4xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+          <p className="mt-3 max-w-none text-sm font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
             Create draft championship-style mock papers and assign one or multiple mocks directly to students by level. This remains independent from DPS Practice, Assessments, readiness, and progression.
           </p>
         </div>
