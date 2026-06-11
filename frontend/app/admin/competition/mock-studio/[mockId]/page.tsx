@@ -269,7 +269,8 @@ export default function AdminCompetitionMockDetailPage() {
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${statusTone(mock.status)}`}>{mock.status}</span>
                     <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-[10px] font-black">{mock.moduleCode || "-"} · {mock.levelCode || "-"}</span>
-                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">COMPETITION</span>
+                    <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-[10px] font-black">Code: {mock.mockCode || "-"}</span>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">MOCK</span>
                   </div>
                   <p className="math-kicker mt-2 text-[10px]">Mock Details</p>
                   <h1 className="mt-0.5 max-w-4xl truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">{mock.title}</h1>
@@ -386,10 +387,6 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
           <p className="math-kicker">Question Preview</p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">Generated Mock Paper</h2>
           <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">Review the generated questions in the same clean full-page format used for assessment review.</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wide ${statusTone(mock.status)}`}>{mock.status}</span>
-            <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">Code: {mock.mockCode}</span>
-          </div>
         </div>
       </div>
 
@@ -545,8 +542,8 @@ function DetailMetric({ icon, label, value, helper }: { icon: ReactNode; label: 
         <div className="math-icon-shell inline-flex h-9 w-9 items-center justify-center rounded-2xl border shadow-sm">{icon}</div>
         <p className="text-xl font-black text-slate-950 dark:text-white">{value}</p>
       </div>
-      <p className="relative z-10 mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="relative z-10 mt-0.5 text-[11px] font-semibold text-slate-500">{helper}</p>
+      <p className="relative z-10 mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">{label}</p>
+      <p className="relative z-10 mt-0.5 text-[11px] font-bold text-slate-800 dark:text-slate-200">{helper}</p>
     </div>
   );
 }
