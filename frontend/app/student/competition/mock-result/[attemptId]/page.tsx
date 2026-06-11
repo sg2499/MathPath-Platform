@@ -137,7 +137,7 @@ function ResultTabButton({ active, label, onClick }: { active: boolean; label: s
       className={
         active
           ? "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-orange-600 to-amber-500 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-orange-200 transition dark:shadow-orange-950/30"
-          : "inline-flex items-center justify-center rounded-full border border-orange-200 bg-white px-5 py-2.5 text-sm font-black text-orange-700 transition hover:border-orange-400 hover:bg-orange-50 dark:border-slate-700 dark:bg-slate-950 dark:text-orange-200 dark:hover:border-orange-500 dark:hover:bg-orange-950/30"
+          : "inline-flex items-center justify-center rounded-full border border-orange-200 bg-white px-5 py-2.5 text-sm font-black text-orange-700 transition hover:border-orange-500 hover:bg-orange-600 hover:text-white hover:shadow-md hover:shadow-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-orange-200 dark:hover:border-orange-500 dark:hover:bg-orange-600 dark:hover:text-white"
       }
     >
       {label}
@@ -175,7 +175,7 @@ function QuestionReviewTab({ questions }: { questions: NonNullable<Awaited<Retur
                       Section {question.sectionNumber || "-"}
                     </span>
                     <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black text-orange-700 dark:border-slate-700 dark:bg-slate-950 dark:text-orange-200">
-                      {question.concept || question.sectionTitle || "Competition Mock"}
+                      {question.sectionTitle || question.concept || "Competition Mock"}
                     </span>
                   </div>
                 </div>
@@ -239,7 +239,7 @@ function ResultAnalysisTab({ result }: { result: Awaited<ReturnType<typeof getCo
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="math-kicker">Concept Analysis</p>
-            <h2 className="text-xl font-black text-slate-950 dark:text-white">Section And Concept Performance</h2>
+            <h2 className="text-xl font-black text-slate-950 dark:text-white">Section Performance</h2>
           </div>
         </div>
         <div className="mt-5 overflow-hidden rounded-[24px] border border-orange-100 dark:border-slate-700">
