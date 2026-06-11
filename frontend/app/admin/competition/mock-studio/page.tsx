@@ -277,8 +277,8 @@ export default function AdminCompetitionMockStudioPage() {
               type="button"
               onClick={() => SetActiveStudioTab("CREATE")}
               aria-selected={ActiveStudioTab === "CREATE"}
-              data-active={ActiveStudioTab === "CREATE" ? "true" : undefined}
-              className={`math-role-tab gap-2 ${ActiveStudioTab === "CREATE" ? "math-role-tab-active" : ""}`}
+              data-active={ActiveStudioTab === "CREATE" ? "true" : "false"}
+              className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${ActiveStudioTab === "CREATE" ? "is-active math-admin-tab-force-selected" : ""}`}
             >
               <Plus size={16} />
               Create Mock
@@ -287,8 +287,8 @@ export default function AdminCompetitionMockStudioPage() {
               type="button"
               onClick={() => SetActiveStudioTab("MANAGE")}
               aria-selected={ActiveStudioTab === "MANAGE"}
-              data-active={ActiveStudioTab === "MANAGE" ? "true" : undefined}
-              className={`math-role-tab gap-2 ${ActiveStudioTab === "MANAGE" ? "math-role-tab-active" : ""}`}
+              data-active={ActiveStudioTab === "MANAGE" ? "true" : "false"}
+              className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${ActiveStudioTab === "MANAGE" ? "is-active math-admin-tab-force-selected" : ""}`}
             >
               <Target size={16} />
               Manage Mocks
