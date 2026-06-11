@@ -276,15 +276,21 @@ export default function AdminCompetitionMockStudioPage() {
             <button
               type="button"
               onClick={() => SetActiveStudioTab("CREATE")}
-              className={`inline-flex min-h-11 items-center justify-center rounded-2xl border px-5 py-3 text-sm font-black shadow-sm transition ${ActiveStudioTab === "CREATE" ? "border-[var(--math-role-primary)] bg-[var(--math-role-primary)] text-white shadow-blue-900/20 hover:bg-[var(--math-role-primary-dark)]" : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] hover:shadow-md dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200"}`}
+              aria-selected={ActiveStudioTab === "CREATE"}
+              data-active={ActiveStudioTab === "CREATE" ? "true" : undefined}
+              className={`math-role-tab gap-2 ${ActiveStudioTab === "CREATE" ? "math-role-tab-active" : ""}`}
             >
+              <Plus size={16} />
               Create Mock
             </button>
             <button
               type="button"
               onClick={() => SetActiveStudioTab("MANAGE")}
-              className={`inline-flex min-h-11 items-center justify-center rounded-2xl border px-5 py-3 text-sm font-black shadow-sm transition ${ActiveStudioTab === "MANAGE" ? "border-[var(--math-role-primary)] bg-[var(--math-role-primary)] text-white shadow-blue-900/20 hover:bg-[var(--math-role-primary-dark)]" : "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] hover:shadow-md dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200"}`}
+              aria-selected={ActiveStudioTab === "MANAGE"}
+              data-active={ActiveStudioTab === "MANAGE" ? "true" : undefined}
+              className={`math-role-tab gap-2 ${ActiveStudioTab === "MANAGE" ? "math-role-tab-active" : ""}`}
             >
+              <Target size={16} />
               Manage Mocks
             </button>
           </div>
@@ -332,8 +338,13 @@ export default function AdminCompetitionMockStudioPage() {
                     </label>
                   </div>
 
-                  <div className="rounded-[24px] border border-[var(--math-role-primary)]/20 bg-[var(--math-role-primary)]/5 p-3 shadow-sm">
-                    <button disabled={!CanGenerate} onClick={() => GenerateMutation.mutate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--math-role-primary)] bg-[var(--math-role-primary)] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-[var(--math-role-primary-dark)] hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:shadow-none dark:disabled:border-slate-700 dark:disabled:bg-slate-900/80 dark:disabled:text-slate-400">
+                  <div className="rounded-[24px] border border-[color:var(--mp-role-border)] bg-[var(--mp-role-soft)]/60 p-3 shadow-sm dark:bg-slate-950/40">
+                    <button
+                      type="button"
+                      disabled={!CanGenerate}
+                      onClick={() => GenerateMutation.mutate()}
+                      className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border px-5 py-3 text-sm font-black shadow-lg transition ${CanGenerate ? "border-[color:var(--mp-role-border-strong)] bg-[image:var(--mp-role-action-bg)] text-white shadow-blue-900/20 hover:-translate-y-0.5 hover:shadow-xl" : "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500 shadow-none dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400"}`}
+                    >
                       {GenerateMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
                       Generate Draft Mock
                     </button>
@@ -342,7 +353,7 @@ export default function AdminCompetitionMockStudioPage() {
                   <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--math-role-primary)]">Section Allocation</p>
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--mp-role-primary)]">Section Allocation</p>
                         <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Balance question count per competition section before generating.</p>
                       </div>
                       <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${SectionCountTotal >= 10 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"}`}>
@@ -420,7 +431,7 @@ export default function AdminCompetitionMockStudioPage() {
                       <article key={MockValue.mockExamId} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/50">
                         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                           <label className={`flex min-w-0 flex-1 items-start gap-3 ${IsArchived ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
-                            <input type="checkbox" disabled={IsArchived} checked={SelectedMockIds.includes(MockValue.mockExamId)} onChange={() => ToggleMock(MockValue.mockExamId)} className="mt-1 h-4 w-4 accent-[var(--math-role-primary)]" />
+                            <input type="checkbox" disabled={IsArchived} checked={SelectedMockIds.includes(MockValue.mockExamId)} onChange={() => ToggleMock(MockValue.mockExamId)} className="mt-1 h-4 w-4 accent-[var(--mp-role-primary)]" />
                             <span className="min-w-0">
                               <span className="block text-sm font-black text-slate-950 dark:text-white">{MockValue.title}</span>
                               <span className="mt-1 block text-xs font-bold text-slate-500 dark:text-slate-400">{MockValue.mockCode} · {MockValue.levelCode || "-"} · {MockValue.totalQuestions} Questions · {FormatDuration(MockValue.durationSeconds)}</span>
@@ -428,10 +439,10 @@ export default function AdminCompetitionMockStudioPage() {
                           </label>
                           <div className="flex flex-wrap items-center gap-2">
                             <StatusChip status={MockValue.status} />
-                            <Link href={`/admin/competition/mock-studio/${MockValue.mockExamId}`} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] dark:border-slate-700 dark:text-slate-200">
+                            <Link href={`/admin/competition/mock-studio/${MockValue.mockExamId}`} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--mp-role-primary)] hover:text-[var(--mp-role-primary)] dark:border-slate-700 dark:text-slate-200">
                               <Eye size={14} className="mr-1 inline" /> View
                             </Link>
-                            <button disabled={IsArchived} onClick={() => ToggleMock(MockValue.mockExamId)} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--math-role-primary)] hover:text-[var(--math-role-primary)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200">
+                            <button disabled={IsArchived} onClick={() => ToggleMock(MockValue.mockExamId)} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:border-[var(--mp-role-primary)] hover:text-[var(--mp-role-primary)] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200">
                               <Send size={14} className="mr-1 inline" /> Assign
                             </button>
                             <button disabled={IsArchived} onClick={() => SetArchiveMockId(MockValue.mockExamId)} className="rounded-full border border-amber-200 px-3 py-1.5 text-xs font-black text-amber-700 hover:bg-amber-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-900/60 dark:text-amber-200 dark:hover:bg-amber-700">
@@ -452,7 +463,7 @@ export default function AdminCompetitionMockStudioPage() {
                 <SectionTitle kicker="Assign" title="Assign Selected Mock Exams" description="Admin can assign selected mocks directly, without involving the teacher." />
                 <div className="mt-5 space-y-5">
                   <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm font-black text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
-                    <input type="checkbox" checked={AssignToAll} onChange={(EventValue) => SetAssignToAll(EventValue.target.checked)} className="h-4 w-4 accent-[var(--math-role-primary)]" />
+                    <input type="checkbox" checked={AssignToAll} onChange={(EventValue) => SetAssignToAll(EventValue.target.checked)} className="h-4 w-4 accent-[var(--mp-role-primary)]" />
                     Assign selected mock exam(s) to all active students in this level
                   </label>
 
@@ -468,7 +479,7 @@ export default function AdminCompetitionMockStudioPage() {
                             <span>
                               <span className="font-black text-slate-950 dark:text-white">{StudentValue.studentCode}</span> · {StudentValue.studentName}
                             </span>
-                            <input type="checkbox" checked={SelectedStudentIds.includes(StudentValue.studentId)} onChange={() => ToggleStudent(StudentValue.studentId)} className="h-4 w-4 accent-[var(--math-role-primary)]" />
+                            <input type="checkbox" checked={SelectedStudentIds.includes(StudentValue.studentId)} onChange={() => ToggleStudent(StudentValue.studentId)} className="h-4 w-4 accent-[var(--mp-role-primary)]" />
                           </label>
                         ))}
                         {LevelStudents.length === 0 && <EmptyState title="No students found" description="No active students match the selected level/search." />}
@@ -481,7 +492,12 @@ export default function AdminCompetitionMockStudioPage() {
                     <textarea value={AssignmentInstructions} onChange={(EventValue) => SetAssignmentInstructions(EventValue.target.value)} rows={3} placeholder="Example: Complete this mock under competition timing without taking breaks." className="math-input min-h-24" />
                   </label>
 
-                  <button disabled={!CanAssign} onClick={() => AssignMutation.mutate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--math-role-primary)] bg-[var(--math-role-primary)] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-[var(--math-role-primary-dark)] hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:shadow-none dark:disabled:border-slate-700 dark:disabled:bg-slate-900/80 dark:disabled:text-slate-400">
+                  <button
+                    type="button"
+                    disabled={!CanAssign}
+                    onClick={() => AssignMutation.mutate()}
+                    className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border px-5 py-3 text-sm font-black shadow-lg transition ${CanAssign ? "border-[color:var(--mp-role-border-strong)] bg-[image:var(--mp-role-action-bg)] text-white shadow-blue-900/20 hover:-translate-y-0.5 hover:shadow-xl" : "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500 shadow-none dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400"}`}
+                  >
                     {AssignMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                     Assign Selected Mock Exams
                   </button>
@@ -826,7 +842,7 @@ function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
 function FeatureCard({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
   return (
     <article className="math-card p-5">
-      <div className="flex items-center gap-3 text-[var(--math-role-primary)]">
+      <div className="flex items-center gap-3 text-[var(--mp-role-primary)]">
         {icon}
         <h2 className="text-base font-black text-slate-950 dark:text-white">{title}</h2>
       </div>
@@ -838,7 +854,7 @@ function FeatureCard({ icon, title, description }: { icon: ReactNode; title: str
 function MetricCard({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/50">
-      <div className="flex items-center gap-2 text-[var(--math-role-primary)]">{icon}<span className="text-xs font-black uppercase tracking-[0.2em]">{label}</span></div>
+      <div className="flex items-center gap-2 text-[var(--mp-role-primary)]">{icon}<span className="text-xs font-black uppercase tracking-[0.2em]">{label}</span></div>
       <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{value}</p>
     </div>
   );
