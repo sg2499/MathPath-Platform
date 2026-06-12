@@ -20,15 +20,15 @@ type SortDirection = "asc" | "desc";
 type SortState = { key: SortKey; direction: SortDirection } | null;
 
 const MockTableColumns: Array<{ label: string; key?: SortKey; className?: string }> = [
-  { label: "Mock", key: "mock" },
-  { label: "Mock Code", key: "mockCode" },
-  { label: "Status", key: "status" },
-  { label: "Score", key: "score" },
-  { label: "Accuracy", key: "accuracy" },
-  { label: "Time Taken", key: "timeTaken" },
-  { label: "Assigned Date", key: "assignedDate" },
-  { label: "Completion Date", key: "completionDate" },
-  { label: "Review" },
+  { label: "MOCK", key: "mock" },
+  { label: "MOCK CODE", key: "mockCode" },
+  { label: "STATUS", key: "status" },
+  { label: "SCORE", key: "score" },
+  { label: "ACCURACY", key: "accuracy" },
+  { label: "TIME TAKEN", key: "timeTaken" },
+  { label: "ASSIGNED DATE", key: "assignedDate" },
+  { label: "COMPLETION DATE", key: "completionDate" },
+  { label: "REVIEW" },
 ];
 
 function FormatDate(Value?: string | null) {
