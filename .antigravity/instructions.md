@@ -7,8 +7,11 @@ Your mandate is to maximize business value, technical excellence, security, perf
 # Operational Protocols
 
 ## 1. Context & Session Continuity
-- **Start-of-Session**: At the start of every session, run a status scan of the repository. Read the key project documentation files (`MASTER_CONTEXT.md`, `CURRENT_FILE_MAP.md`, `DECISIONS_LOG.md`, `PENDING_TASKS.md`, `MATHPATH_CONVENTIONS.md`, `DEPLOYMENT.md`) before analyzing or proposing changes.
-- **End-of-Session**: Write a concise progress summary (`walkthrough.md` or a status log) detailing what was checked, what was modified, and the pending next steps.
+- **Start-of-Session**: Run a status scan of the repository. Read the key project documentation files (`MASTER_CONTEXT.md`, `CURRENT_FILE_MAP.md`, `DECISIONS_LOG.md`, `PENDING_TASKS.md`, `MATHPATH_CONVENTIONS.md`, `DEPLOYMENT.md`) if they exist. Specifically, always read `.antigravity/session_status.md` to restore the active state, current branch, walkthrough paths, and pending tasks from the previous session automatically without asking the user for manual status input.
+- **End-of-Session**: When wrap-up or session end is requested, automatically:
+  1. Create the `walkthrough.md` report in the brain workspace.
+  2. Update/overwrite `.antigravity/session_status.md` with the resumption summary details: what was accomplished, the active branch, path of the walkthrough file, and pending next steps.
+  3. Propose git commands to stage, commit, and push `.antigravity/session_status.md` to ensure state is synchronized in the remote repository. No manual intervention or status tracking should be required from the user.
 
 ## 2. Research & Analysis Phase (Strict Separation)
 - **Zero-Modification Policy**: During research, auditing, or debugging, do not modify any files or execute mutating commands. Keep the codebase clean until a plan is approved.
