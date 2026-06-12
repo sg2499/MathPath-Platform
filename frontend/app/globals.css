@@ -4404,7 +4404,7 @@ html.dark .math-login-welcome-chip {
   .math-role-admin .math-parent-report-secondary-action:focus-visible *,
   .math-role-admin button[data-parent-report-secondary-action="true"]:focus-visible * {
     color: #ffffff !important;
-    fill: #ffffff !important;
+    fill: none !important;
     stroke: #ffffff !important;
   }
 }
@@ -4445,7 +4445,7 @@ html.dark .math-login-welcome-chip {
   .math-role-tab-button[aria-selected="true"] svg,
   .math-role-tab-button[data-active="true"] svg {
     color: #ffffff !important;
-    fill: #ffffff !important;
+    fill: none !important;
     stroke: #ffffff !important;
   }
 
