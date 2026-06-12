@@ -43,11 +43,57 @@ function PercentValue(Value?: number | null) {
   return Value != null ? `${Value}%` : "-";
 }
 
-function AverageAccuracyChip(Rows: TeacherCompetitionTrackerRow[]) {
+function AverageAccuracyValue(Rows: TeacherCompetitionTrackerRow[]) {
   const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && Row.accuracyPercentage != null);
-  if (CompletedRows.length === 0) return "Avg Accuracy -";
+  if (CompletedRows.length === 0) return null;
   const Total = CompletedRows.reduce((Sum, Row) => Sum + Number(Row.accuracyPercentage || 0), 0);
-  return `Avg Accuracy ${Math.round(Total / CompletedRows.length)}%`;
+  return Math.round(Total / CompletedRows.length);
+}
+
+function AccuracyBandClass(Value: number | null) {
+  if (Value == null) {
+    return "border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300";
+  }
+  if (Value < 60) {
+    return "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/30 dark:text-rose-200";
+  }
+  if (Value < 80) {
+    return "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200";
+  }
+  if (Value < 90) {
+    return "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800/70 dark:bg-violet-950/30 dark:text-violet-200";
+  }
+  return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200";
+}
+
+function AverageAccuracyChip(Rows: TeacherCompetitionTrackerRow[]) {
+  const Value = AverageAccuracyValue(Rows);
+  return (
+    <span className={`rounded-full border px-3 py-1 text-xs font-black ${AccuracyBandClass(Value)}`}>
+      Avg Accuracy {Value == null ? "-" : `${Value}%`}
+    </span>
+  );
+}
+
+function ScoreText(Row: TeacherCompetitionTrackerRow) {
+  if (!IsCompleted(Row) || Row.score == null || Row.maxScore == null) return "-";
+  return `${Row.score}/${Row.maxScore}`;
+}
+
+function ReviewButton({ Row }: { Row: TeacherCompetitionTrackerRow }) {
+  if (!Row.attemptId) {
+    return (
+      <span className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-500">
+        Pending
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-2 text-xs font-black text-[#7a1f58] transition group-hover:border-[#7a1f58] group-hover:bg-[#7a1f58] group-hover:text-white dark:border-rose-300/30 dark:bg-slate-950/40 dark:text-rose-100 dark:group-hover:border-rose-300 dark:group-hover:bg-rose-300 dark:group-hover:text-slate-950">
+      <Eye size={14} /> Review
+    </span>
+  );
 }
 
 function SafeModuleLabel(Row: TeacherCompetitionTrackerRow) {
@@ -261,7 +307,7 @@ function TeacherCompetitionMockTrackerContent() {
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2 text-xs font-black">
-                              <span className="rounded-full border border-[#7a1f58]/25 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{AverageAccuracyChip(StudentGroup.rows)}</span>
+                              {AverageAccuracyChip(StudentGroup.rows)}
                               <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{StudentGroup.rows.length} Mock{StudentGroup.rows.length === 1 ? "" : "s"}</span>
                               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200">{CompletedCount} Completed</span>
                               <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{PendingCountForStudent} Pending</span>
@@ -290,7 +336,7 @@ function TeacherCompetitionMockTrackerContent() {
                                         </div>
                                       </div>
                                       <div className="flex flex-wrap justify-end gap-2 text-xs font-black">
-                                        <span className="rounded-full border border-[#7a1f58]/25 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{AverageAccuracyChip(ModuleRows)}</span>
+                                        {AverageAccuracyChip(ModuleRows)}
                                         <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{ModuleRows.length} Mock{ModuleRows.length === 1 ? "" : "s"}</span>
                                       </div>
                                     </button>
@@ -317,42 +363,60 @@ function TeacherCompetitionMockTrackerContent() {
                                                   </div>
                                                 </div>
                                                 <div className="flex flex-wrap justify-end gap-2 text-xs font-black">
-                                                  <span className="rounded-full border border-[#7a1f58]/25 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{AverageAccuracyChip(LevelGroup.rows)}</span>
+                                                  {AverageAccuracyChip(LevelGroup.rows)}
                                                   <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{LevelGroup.rows.length} Mock{LevelGroup.rows.length === 1 ? "" : "s"}</span>
                                                   <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200">{LevelCompleted} Completed</span>
                                                 </div>
                                               </button>
 
                                               {LevelOpen ? (
-                                                <div className="space-y-2 border-t border-slate-100 p-3 dark:border-white/10">
-                                                  {LevelGroup.rows.map((Row) => (
-                                                    <button
-                                                      key={Row.assignmentId}
-                                                      type="button"
-                                                      onClick={() => Row.attemptId ? router.push(`/teacher/competition/mock-result/${Row.attemptId}`) : undefined}
-                                                      disabled={!Row.attemptId}
-                                                      className="group w-full rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left shadow-sm transition hover:border-[#7a1f58]/40 hover:bg-[#7a1f58]/[0.035] disabled:cursor-not-allowed disabled:opacity-70 dark:border-white/10 dark:bg-white/5 dark:hover:bg-rose-400/10"
-                                                    >
-                                                      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                                                        <div className="min-w-0">
-                                                          <div className="flex flex-wrap items-center gap-2">
-                                                            <span className={`rounded-full border px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.14em] ${StatusClass(Row.status)}`}>{StatusLabel(Row.status)}</span>
-                                                            <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{Row.mockExam.mockCode || "Mock"}</span>
+                                                <div className="border-t border-slate-100 p-3 dark:border-white/10">
+                                                  <div className="overflow-hidden rounded-2xl border border-[#7a1f58]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
+                                                    <div className="grid grid-cols-[1.2fr_1fr_0.8fr_0.8fr_1fr_1fr_1fr_0.8fr] gap-0 bg-[#7a1f58]/10 text-[#7a1f58] dark:bg-rose-300/15 dark:text-rose-100">
+                                                      {["Mock", "Mock Code", "Score", "Accuracy", "Time Taken", "Assigned Date", "Completion Date", "Review"].map((Header) => (
+                                                        <div key={Header} className="px-3 py-3 text-[0.64rem] font-black uppercase tracking-[0.14em]">
+                                                          {Header}
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                    <div className="divide-y divide-slate-100 dark:divide-white/10">
+                                                      {LevelGroup.rows.map((Row) => (
+                                                        <div
+                                                          key={Row.assignmentId}
+                                                          role={Row.attemptId ? "button" : undefined}
+                                                          tabIndex={Row.attemptId ? 0 : -1}
+                                                          onClick={() => Row.attemptId ? router.push(`/teacher/competition/mock-result/${Row.attemptId}`) : undefined}
+                                                          onKeyDown={(Event) => {
+                                                            if (Row.attemptId && (Event.key === "Enter" || Event.key === " ")) {
+                                                              Event.preventDefault();
+                                                              router.push(`/teacher/competition/mock-result/${Row.attemptId}`);
+                                                            }
+                                                          }}
+                                                          className={`group grid grid-cols-[1.2fr_1fr_0.8fr_0.8fr_1fr_1fr_1fr_0.8fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-400/10" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
+                                                        >
+                                                          <div className="px-3 py-4">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                              <span className={`rounded-full border px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] ${StatusClass(Row.status)}`}>{StatusLabel(Row.status)}</span>
+                                                            </div>
+                                                            <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</p>
                                                           </div>
-                                                          <h4 className="mt-3 truncate text-base font-black text-slate-950 dark:text-white">{Row.mockExam.title}</h4>
-                                                          <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">Assigned {FormatDate(Row.assignedAt)}{Row.submittedAt ? ` · Submitted ${FormatDate(Row.submittedAt)}` : ""}</p>
+                                                          <div className="px-3 py-4 text-xs font-black text-[#7a1f58] dark:text-rose-100">{Row.mockExam.mockCode || "-"}</div>
+                                                          <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{ScoreText(Row)}</div>
+                                                          <div className="px-3 py-4">
+                                                            <span className={`rounded-full border px-2.5 py-1 text-xs font-black ${AccuracyBandClass(IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : null)}`}>
+                                                              {IsCompleted(Row) ? PercentValue(Row.accuracyPercentage) : "-"}
+                                                            </span>
+                                                          </div>
+                                                          <div className="px-3 py-4 text-sm font-bold text-slate-700 dark:text-slate-200">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
+                                                          <div className="px-3 py-4 text-sm font-bold text-slate-700 dark:text-slate-200">{FormatDate(Row.assignedAt)}</div>
+                                                          <div className="px-3 py-4 text-sm font-bold text-slate-700 dark:text-slate-200">{IsCompleted(Row) ? FormatDate(Row.submittedAt) : "-"}</div>
+                                                          <div className="px-3 py-4">
+                                                            <ReviewButton Row={Row} />
+                                                          </div>
                                                         </div>
-                                                        <div className="grid gap-2 sm:grid-cols-4 xl:min-w-[520px]">
-                                                          <MiniMetric Label="Score" Value={PercentValue(Row.percentage)} />
-                                                          <MiniMetric Label="Accuracy" Value={PercentValue(Row.accuracyPercentage)} />
-                                                          <MiniMetric Label="Time" Value={Row.timeTakenText || "-"} />
-                                                          <span className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-3 text-sm font-black text-[#7a1f58] transition group-hover:border-[#7a1f58] group-hover:bg-[#7a1f58] group-hover:text-white dark:border-rose-300/30 dark:bg-slate-950/40 dark:text-rose-100 dark:group-hover:border-rose-300 dark:group-hover:bg-rose-300 dark:group-hover:text-slate-950">
-                                                            <Eye size={15} /> Review
-                                                          </span>
-                                                        </div>
-                                                      </div>
-                                                    </button>
-                                                  ))}
+                                                      ))}
+                                                    </div>
+                                                  </div>
                                                 </div>
                                               ) : null}
                                             </div>
