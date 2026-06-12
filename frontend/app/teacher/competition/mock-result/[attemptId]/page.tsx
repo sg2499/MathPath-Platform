@@ -27,9 +27,13 @@ function formatDuration(seconds?: number | null) {
   const total = Math.max(0, Number(seconds || 0));
   const mins = Math.floor(total / 60);
   const secs = total % 60;
-  if (mins && secs) return `${mins} Mins ${secs} Secs`;
-  if (mins) return `${mins} Mins`;
-  return `${secs} Secs`;
+  if (mins && secs) {
+    return `${mins} Min${mins !== 1 ? "s" : ""} ${secs} Sec${secs !== 1 ? "s" : ""}`;
+  }
+  if (mins) {
+    return `${mins} Min${mins !== 1 ? "s" : ""}`;
+  }
+  return `${secs} Sec${secs !== 1 ? "s" : ""}`;
 }
 
 function formatNumber(value?: number | null) {

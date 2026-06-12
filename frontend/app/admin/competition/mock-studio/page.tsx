@@ -40,9 +40,13 @@ function FormatDuration(SecondsValue: number | null | undefined) {
   const SafeSeconds = Math.max(0, Number(SecondsValue || 0));
   const Minutes = Math.floor(SafeSeconds / 60);
   const Seconds = SafeSeconds % 60;
-  if (Minutes && Seconds) return `${Minutes} Min ${Seconds} Secs`;
-  if (Minutes) return `${Minutes} Min${Minutes === 1 ? "" : "s"}`;
-  return `${Seconds} Secs`;
+  if (Minutes && Seconds) {
+    return `${Minutes} Min${Minutes !== 1 ? "s" : ""} ${Seconds} Sec${Seconds !== 1 ? "s" : ""}`;
+  }
+  if (Minutes) {
+    return `${Minutes} Min${Minutes !== 1 ? "s" : ""}`;
+  }
+  return `${Seconds} Sec${Seconds !== 1 ? "s" : ""}`;
 }
 
 function StatusChip({ status }: { status: string }) {

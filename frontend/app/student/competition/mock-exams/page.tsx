@@ -34,9 +34,13 @@ function FormatDuration(seconds?: number | null) {
   const total = Math.max(0, Number(seconds || 0));
   const minutes = Math.floor(total / 60);
   const secs = total % 60;
-  if (minutes && secs) return `${minutes} Mins ${secs} Secs`;
-  if (minutes) return `${minutes} Mins`;
-  return `${secs} Secs`;
+  if (minutes && secs) {
+    return `${minutes} Min${minutes !== 1 ? "s" : ""} ${secs} Sec${secs !== 1 ? "s" : ""}`;
+  }
+  if (minutes) {
+    return `${minutes} Min${minutes !== 1 ? "s" : ""}`;
+  }
+  return `${secs} Sec${secs !== 1 ? "s" : ""}`;
 }
 
 function FormatDate(value?: string | null) {
