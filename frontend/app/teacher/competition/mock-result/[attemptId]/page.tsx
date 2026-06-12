@@ -303,6 +303,83 @@ function sectionAnchorKey(
 
 type ResultTab = "questions" | "analysis";
 
+
+function TeacherCompetitionResultDarkHoverStyles() {
+  return (
+    <style>{`
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row {
+        transition-property: background-color, border-color, color, box-shadow, transform;
+        transition-duration: 180ms;
+        transition-timing-function: ease;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface:focus-visible,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-soft:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-soft:focus-visible {
+        background-color: rgba(122, 31, 88, 0.42) !important;
+        border-color: rgba(251, 207, 232, 0.72) !important;
+        box-shadow: 0 0 0 1px rgba(251, 207, 232, 0.20), 0 18px 42px rgba(88, 28, 63, 0.34) !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row:focus-visible {
+        background-color: rgba(122, 31, 88, 0.55) !important;
+        border-color: rgba(251, 207, 232, 0.78) !important;
+        box-shadow: inset 4px 0 0 rgba(251, 207, 232, 0.80), 0 14px 34px rgba(88, 28, 63, 0.32) !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control:focus-visible,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface:hover .tc-dark-hover-control,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row:hover .tc-dark-hover-control {
+        background-color: #7a1f58 !important;
+        border-color: rgba(251, 207, 232, 0.92) !important;
+        color: #ffffff !important;
+        box-shadow: 0 10px 24px rgba(88, 28, 63, 0.46) !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control:hover *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control:focus-visible *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface:hover .tc-dark-hover-control *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row:hover .tc-dark-hover-control * {
+        color: #ffffff !important;
+        stroke: #ffffff !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab:focus-visible,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row:focus-visible {
+        background-color: #7a1f58 !important;
+        border-color: rgba(251, 207, 232, 0.92) !important;
+        color: #ffffff !important;
+        box-shadow: 0 12px 28px rgba(88, 28, 63, 0.42) !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab:hover *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab:focus-visible *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row:hover *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row:focus-visible * {
+        color: #ffffff !important;
+        stroke: #ffffff !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-filter:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-filter:focus,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-filter:focus-within {
+        background-color: rgba(122, 31, 88, 0.36) !important;
+        border-color: rgba(251, 207, 232, 0.82) !important;
+        box-shadow: 0 0 0 3px rgba(251, 207, 232, 0.16) !important;
+      }
+    `}</style>
+  );
+}
+
 export default function TeacherCompetitionMockResultPage() {
   const ready = useProtectedPage(["TEACHER"]);
   const params = useParams<{ attemptId: string }>();
@@ -357,7 +434,8 @@ export default function TeacherCompetitionMockResultPage() {
 
   return (
     <AppShell title="Competition Mock Result">
-      <section className="space-y-5">
+      <TeacherCompetitionResultDarkHoverStyles />
+      <section className="teacher-competition-dark-hover-scope space-y-5">
         <div className="math-card p-6">
           <button
             className="math-button-secondary mb-4 px-4 py-2 text-sm"
@@ -506,7 +584,7 @@ function CompetitionMessageBox({
                   key={area}
                   type="button"
                   onClick={() => onSectionSelect(area)}
-                  className="rounded-[16px] border border-[#7a1f58]/15 bg-[#7a1f58]/5 px-3 py-2.5 text-left text-sm font-black text-slate-900 transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/40 dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-white dark:hover:border-rose-100 dark:hover:bg-rose-500/35 dark:hover:text-white dark:hover:shadow-md dark:hover:shadow-rose-950/30 dark:focus:ring-rose-300/40"
+                  className="tc-dark-hover-analysis-row rounded-[16px] border border-[#7a1f58]/15 bg-[#7a1f58]/5 px-3 py-2.5 text-left text-sm font-black text-slate-900 transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/40 dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-white dark:hover:border-rose-100 dark:hover:bg-rose-500/35 dark:hover:text-white dark:hover:shadow-md dark:hover:shadow-rose-950/30 dark:focus:ring-rose-300/40"
                 >
                   {area}
                 </button>
@@ -542,8 +620,8 @@ function ResultTabButton({
       onClick={onClick}
       className={
         active
-          ? "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#7a1f58] to-[#b76e79] px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[#7a1f58]/20 transition dark:shadow-rose-950/30"
-          : "inline-flex items-center justify-center rounded-full border border-[#7a1f58]/20 bg-white px-5 py-2.5 text-sm font-black text-[#7a1f58] transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white hover:shadow-md hover:shadow-[#7a1f58]/10 dark:border-rose-300/25 dark:bg-slate-950/70 dark:text-rose-100 dark:hover:border-rose-100 dark:hover:bg-rose-500/35 dark:hover:text-white dark:hover:shadow-md dark:hover:shadow-rose-950/30 dark:focus:ring-rose-300/40"
+          ? "tc-dark-hover-tab inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#7a1f58] to-[#b76e79] px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[#7a1f58]/20 transition dark:shadow-rose-950/30"
+          : "tc-dark-hover-tab inline-flex items-center justify-center rounded-full border border-[#7a1f58]/20 bg-white px-5 py-2.5 text-sm font-black text-[#7a1f58] transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white hover:shadow-md hover:shadow-[#7a1f58]/10 dark:border-rose-300/25 dark:bg-slate-950/70 dark:text-rose-100 dark:hover:border-rose-100 dark:hover:bg-rose-500/35 dark:hover:text-white dark:hover:shadow-md dark:hover:shadow-rose-950/30 dark:focus:ring-rose-300/40"
       }
     >
       {label}
@@ -772,7 +850,7 @@ function ResultAnalysisTab({
                   key={item.concept}
                   type="button"
                   onClick={() => onSectionSelect(item.concept)}
-                  className="grid w-full gap-2 p-4 text-left text-sm font-bold text-slate-800 transition hover:bg-[#7a1f58]/5 hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/40 dark:text-slate-100 dark:hover:bg-rose-500/25 dark:hover:text-white dark:focus:ring-rose-300/40 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                  className="tc-dark-hover-analysis-row grid w-full gap-2 p-4 text-left text-sm font-bold text-slate-800 transition hover:bg-[#7a1f58]/5 hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/40 dark:text-slate-100 dark:hover:bg-rose-500/25 dark:hover:text-white dark:focus:ring-rose-300/40 sm:grid-cols-[1fr_auto_auto] sm:items-center"
                 >
                   <span>{item.concept}</span>
                   <span>
@@ -876,7 +954,7 @@ function InsightCard({
               key={item.concept}
               type="button"
               onClick={() => onSectionSelect(item.concept)}
-              className="flex w-full items-center justify-between rounded-[18px] border border-[#7a1f58]/15 bg-white/80 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-[#7a1f58]/40 hover:bg-[#7a1f58]/5 hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/40 dark:border-rose-300/20 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/25 dark:hover:text-white dark:focus:ring-rose-300/40"
+              className="tc-dark-hover-analysis-row flex w-full items-center justify-between rounded-[18px] border border-[#7a1f58]/15 bg-white/80 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-[#7a1f58]/40 hover:bg-[#7a1f58]/5 hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/40 dark:border-rose-300/20 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/25 dark:hover:text-white dark:focus:ring-rose-300/40"
             >
               <span>{item.concept}</span>
               <span>{formatNumber(item.percentage)}%</span>

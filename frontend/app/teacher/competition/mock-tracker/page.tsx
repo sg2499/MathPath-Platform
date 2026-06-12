@@ -136,7 +136,7 @@ function ReviewButton({ Row }: { Row: TeacherCompetitionTrackerRow }) {
   }
 
   return (
-    <span className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-2 text-xs font-black text-[#7a1f58] transition group-hover:border-[#7a1f58] group-hover:bg-[#7a1f58] group-hover:text-white dark:border-rose-300/35 dark:bg-slate-950/40 dark:text-rose-100 dark:group-hover:border-rose-300 dark:group-hover:bg-rose-500/30 dark:group-hover:text-rose-50">
+    <span className="tc-dark-hover-control inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-2 text-xs font-black text-[#7a1f58] transition group-hover:border-[#7a1f58] group-hover:bg-[#7a1f58] group-hover:text-white dark:border-rose-300/35 dark:bg-slate-950/40 dark:text-rose-100 dark:group-hover:border-rose-300 dark:group-hover:bg-rose-500/30 dark:group-hover:text-rose-50">
       <Eye size={14} /> Review
     </span>
   );
@@ -234,7 +234,7 @@ function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string
   return (
     <article className="math-teacher-light-metric-card rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
       <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+        <span className="tc-dark-hover-control inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
           <Icon size={15} />
         </span>
         <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:text-rose-100">
@@ -245,6 +245,83 @@ function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string
         {Value}
       </p>
     </article>
+  );
+}
+
+
+function TeacherCompetitionDarkHoverStyles() {
+  return (
+    <style>{`
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row {
+        transition-property: background-color, border-color, color, box-shadow, transform;
+        transition-duration: 180ms;
+        transition-timing-function: ease;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface:focus-visible,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-soft:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-soft:focus-visible {
+        background-color: rgba(122, 31, 88, 0.42) !important;
+        border-color: rgba(251, 207, 232, 0.72) !important;
+        box-shadow: 0 0 0 1px rgba(251, 207, 232, 0.20), 0 18px 42px rgba(88, 28, 63, 0.34) !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row:focus-visible {
+        background-color: rgba(122, 31, 88, 0.55) !important;
+        border-color: rgba(251, 207, 232, 0.78) !important;
+        box-shadow: inset 4px 0 0 rgba(251, 207, 232, 0.80), 0 14px 34px rgba(88, 28, 63, 0.32) !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control:focus-visible,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface:hover .tc-dark-hover-control,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row:hover .tc-dark-hover-control {
+        background-color: #7a1f58 !important;
+        border-color: rgba(251, 207, 232, 0.92) !important;
+        color: #ffffff !important;
+        box-shadow: 0 10px 24px rgba(88, 28, 63, 0.46) !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control:hover *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-control:focus-visible *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-surface:hover .tc-dark-hover-control *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-row:hover .tc-dark-hover-control * {
+        color: #ffffff !important;
+        stroke: #ffffff !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab:focus-visible,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row:focus-visible {
+        background-color: #7a1f58 !important;
+        border-color: rgba(251, 207, 232, 0.92) !important;
+        color: #ffffff !important;
+        box-shadow: 0 12px 28px rgba(88, 28, 63, 0.42) !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab:hover *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-tab:focus-visible *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row:hover *,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-hover-analysis-row:focus-visible * {
+        color: #ffffff !important;
+        stroke: #ffffff !important;
+      }
+
+      .dark .teacher-competition-dark-hover-scope .tc-dark-filter:hover,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-filter:focus,
+      .dark .teacher-competition-dark-hover-scope .tc-dark-filter:focus-within {
+        background-color: rgba(122, 31, 88, 0.36) !important;
+        border-color: rgba(251, 207, 232, 0.82) !important;
+        box-shadow: 0 0 0 3px rgba(251, 207, 232, 0.16) !important;
+      }
+    `}</style>
   );
 }
 
@@ -351,7 +428,8 @@ function TeacherCompetitionMockTrackerContent() {
 
   return (
     <AppShell title="Competition Mock Tracker">
-      <section className="space-y-6">
+      <TeacherCompetitionDarkHoverStyles />
+      <section className="teacher-competition-dark-hover-scope space-y-6">
         <div className="math-card p-6 sm:p-8">
           <p className="math-kicker">Competition</p>
           <h1 className="math-title">Competition Mock Tracker</h1>
@@ -385,7 +463,7 @@ function TeacherCompetitionMockTrackerContent() {
                     </p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_180px_180px_180px] xl:w-[820px]">
-                    <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#7a1f58] focus-within:border-[#7a1f58] focus-within:ring-2 focus-within:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus-within:border-rose-300 dark:focus-within:bg-rose-500/20 dark:focus-within:ring-rose-300/25">
+                    <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#7a1f58] focus-within:border-[#7a1f58] focus-within:ring-2 focus-within:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus-within:border-rose-300 dark:focus-within:bg-rose-500/20 dark:focus-within:ring-rose-300/25">
                       <Search size={16} className="text-[#7a1f58] dark:text-rose-100" />
                       <input
                         value={SearchText}
@@ -400,7 +478,7 @@ function TeacherCompetitionMockTrackerContent() {
                         SetModuleFilter(Event.target.value);
                         SetLevelFilter("ALL");
                       }}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus:border-rose-300 dark:focus:bg-rose-500/20 dark:focus:ring-rose-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus:border-rose-300 dark:focus:bg-rose-500/20 dark:focus:ring-rose-300/25"
                     >
                       <option value="ALL">All Modules</option>
                       {ModuleOptions.map((Module) => (
@@ -410,7 +488,7 @@ function TeacherCompetitionMockTrackerContent() {
                     <select
                       value={LevelFilter}
                       onChange={(Event) => SetLevelFilter(Event.target.value)}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus:border-rose-300 dark:focus:bg-rose-500/20 dark:focus:ring-rose-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus:border-rose-300 dark:focus:bg-rose-500/20 dark:focus:ring-rose-300/25"
                     >
                       <option value="ALL">All Levels</option>
                       {LevelOptions.map((Level) => (
@@ -420,7 +498,7 @@ function TeacherCompetitionMockTrackerContent() {
                     <select
                       value={Status}
                       onChange={(Event) => SetStatus(Event.target.value as StatusFilter)}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus:border-rose-300 dark:focus:bg-rose-500/20 dark:focus:ring-rose-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus:border-rose-300 dark:focus:bg-rose-500/20 dark:focus:ring-rose-300/25"
                     >
                       <option value="ALL">All Statuses</option>
                       <option value="PENDING">Pending</option>
@@ -442,10 +520,10 @@ function TeacherCompetitionMockTrackerContent() {
                           <button
                             type="button"
                             onClick={() => ToggleExpanded(SetExpandedStudents, StudentGroup.key)}
-                            className="group flex w-full flex-col gap-3 bg-[#7a1f58]/[0.025] px-4 py-4 text-left transition hover:bg-[#7a1f58]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-rose-400/5 dark:hover:bg-rose-500/25 dark:hover:shadow-lg dark:hover:shadow-rose-950/30 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
+                            className="tc-dark-hover-surface group flex w-full flex-col gap-3 bg-[#7a1f58]/[0.025] px-4 py-4 text-left transition hover:bg-[#7a1f58]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-rose-400/5 dark:hover:bg-rose-500/25 dark:hover:shadow-lg dark:hover:shadow-rose-950/30 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
                           >
                             <div className="flex min-w-0 items-center gap-3">
-                              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/25 bg-white text-[#7a1f58] shadow-sm ring-1 ring-[#7a1f58]/10 transition group-hover:bg-[#7a1f58]/5 dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100 dark:ring-rose-300/10 dark:group-hover:bg-rose-500/25">
+                              <span className="tc-dark-hover-control inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/25 bg-white text-[#7a1f58] shadow-sm ring-1 ring-[#7a1f58]/10 transition group-hover:bg-[#7a1f58]/5 dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100 dark:ring-rose-300/10 dark:group-hover:bg-rose-500/25">
                                 {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
                               </span>
                               <div className="min-w-0">
@@ -471,10 +549,10 @@ function TeacherCompetitionMockTrackerContent() {
                                     <button
                                       type="button"
                                       onClick={() => ToggleExpanded(SetExpandedModules, ModuleGroup.key)}
-                                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.045] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
+                                      className="tc-dark-hover-soft flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.045] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
                                     >
                                       <div className="flex min-w-0 items-center gap-3">
-                                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#7a1f58]/20 bg-white text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">
+                                        <span className="tc-dark-hover-control inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#7a1f58]/20 bg-white text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">
                                           {ModuleOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                         </span>
                                         <div>
@@ -498,10 +576,10 @@ function TeacherCompetitionMockTrackerContent() {
                                               <button
                                                 type="button"
                                                 onClick={() => ToggleExpanded(SetExpandedLevels, LevelGroup.key)}
-                                                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.04] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
+                                                className="tc-dark-hover-soft flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.04] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
                                               >
                                                 <div className="flex min-w-0 items-center gap-3">
-                                                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+                                                  <span className="tc-dark-hover-control inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
                                                     {LevelOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                                   </span>
                                                   <div>
@@ -526,7 +604,7 @@ function TeacherCompetitionMockTrackerContent() {
                                                             <button
                                                               type="button"
                                                               onClick={() => SetMockTableSort((Current) => NextSortState(Current, Column.key!))}
-                                                              className="inline-flex items-center gap-1.5 rounded-lg text-left transition hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/25 dark:hover:text-white dark:focus:ring-rose-300/40"
+                                                              className="tc-dark-hover-tab inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/25 dark:hover:text-white dark:focus:ring-rose-300/40"
                                                               aria-label={`Sort by ${Column.label}`}
                                                             >
                                                               <span>{Column.label}</span>
@@ -551,7 +629,7 @@ function TeacherCompetitionMockTrackerContent() {
                                                               router.push(`/teacher/competition/mock-result/${Row.attemptId}`);
                                                             }
                                                           }}
-                                                          className={`group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
+                                                          className={`tc-dark-hover-row group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
                                                         >
                                                           <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</div>
                                                           <div className="px-3 py-4 text-xs font-black text-slate-950 dark:text-white">{Row.mockExam.mockCode || "-"}</div>
