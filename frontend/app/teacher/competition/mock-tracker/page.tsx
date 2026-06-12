@@ -181,9 +181,31 @@ function SortValue(Row: TeacherCompetitionTrackerRow, Key: SortKey): string | nu
   return "";
 }
 
+function ChronologicalSortValue(Row: TeacherCompetitionTrackerRow): number {
+  const AssignedTime = Row.assignedAt ? new Date(Row.assignedAt).getTime() : 0;
+  return Number.isNaN(AssignedTime) ? 0 : AssignedTime;
+}
+
 function SortRows(Rows: TeacherCompetitionTrackerRow[], Sort: SortState) {
-  if (!Sort) return Rows;
-  return [...Rows].sort((Left, Right) => {
+  const ChronologicalRows = [...Rows].sort((Left, Right) => {
+    const DateResult = ChronologicalSortValue(Left) - ChronologicalSortValue(Right);
+    if (DateResult !== 0) return DateResult;
+
+    const MockCodeResult = String(Left.mockExam.mockCode || "").localeCompare(String(Right.mockExam.mockCode || ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    if (MockCodeResult !== 0) return MockCodeResult;
+
+    return String(Left.mockExam.title || "").localeCompare(String(Right.mockExam.title || ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
+
+  if (!Sort) return ChronologicalRows;
+
+  return ChronologicalRows.sort((Left, Right) => {
     const LeftValue = SortValue(Left, Sort.key);
     const RightValue = SortValue(Right, Sort.key);
     let Result = 0;
