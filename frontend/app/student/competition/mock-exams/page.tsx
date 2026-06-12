@@ -22,6 +22,7 @@ import {
   Eye,
   Layers3,
   PlayCircle,
+  Search,
   Target,
   Trophy,
 } from "lucide-react";
@@ -149,6 +150,10 @@ export default function StudentCompetitionMockExamsPage() {
   const router = useRouter();
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedLevels, setExpandedLevels] = useState<Record<string, boolean>>({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("ALL");
+  const [levelFilter, setLevelFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   const query = useQuery({
     queryKey: ["student-competition-mock-assignments"],
@@ -180,11 +185,56 @@ export default function StudentCompetitionMockExamsPage() {
   }
 
   const assignments = query.data || [];
-  const completedCount = assignments.filter(IsCompleted).length;
-  const pendingCount = Math.max(0, assignments.length - completedCount);
-  const avgScore = Average(assignments.map(ScoreValue));
-  const avgAccuracy = Average(assignments.map(AccuracyValue));
-  const hierarchy = BuildHierarchy(assignments);
+
+  const moduleOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    assignments.forEach((assignment) => {
+      const exam = assignment.mockExam;
+      const value = exam.moduleCode || exam.moduleName || "Module";
+      options.set(value, exam.moduleName ? `${exam.moduleCode || exam.moduleName}` : value);
+    });
+    return Array.from(options.entries()).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [assignments]);
+
+  const levelOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    assignments
+      .filter((assignment) => moduleFilter === "ALL" || assignment.mockExam.moduleCode === moduleFilter || assignment.mockExam.moduleName === moduleFilter)
+      .forEach((assignment) => {
+        const exam = assignment.mockExam;
+        const value = exam.levelCode || exam.levelName || "Level";
+        options.set(value, exam.levelName ? `${exam.levelCode || exam.levelName}` : value);
+      });
+    return Array.from(options.entries()).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [assignments, moduleFilter]);
+
+  const filteredAssignments = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return assignments.filter((assignment) => {
+      const exam = assignment.mockExam;
+      const completed = IsCompleted(assignment);
+      const statusLabel = completed ? "completed" : "pending";
+      const moduleMatches = moduleFilter === "ALL" || exam.moduleCode === moduleFilter || exam.moduleName === moduleFilter;
+      const levelMatches = levelFilter === "ALL" || exam.levelCode === levelFilter || exam.levelName === levelFilter;
+      const statusMatches = statusFilter === "ALL" || statusLabel === statusFilter.toLowerCase();
+      const searchMatches = !normalizedSearch || [
+        exam.title,
+        exam.mockCode,
+        exam.moduleCode,
+        exam.moduleName,
+        exam.levelCode,
+        exam.levelName,
+        statusLabel,
+      ].some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
+      return moduleMatches && levelMatches && statusMatches && searchMatches;
+    });
+  }, [assignments, searchTerm, moduleFilter, levelFilter, statusFilter]);
+
+  const completedCount = filteredAssignments.filter(IsCompleted).length;
+  const pendingCount = Math.max(0, filteredAssignments.length - completedCount);
+  const avgScore = Average(filteredAssignments.map(ScoreValue));
+  const avgAccuracy = Average(filteredAssignments.map(AccuracyValue));
+  const hierarchy = BuildHierarchy(filteredAssignments);
 
   return (
     <AppShell title="Competition Mock Exams">
@@ -206,16 +256,59 @@ export default function StudentCompetitionMockExamsPage() {
         </div>
 
         <div className="math-card overflow-hidden p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="math-kicker">Assigned Mocks</p>
               <h2 className="text-xl font-black text-slate-950 dark:text-white">Competition Mock Library</h2>
+            </div>
+            <div className="grid w-full gap-3 lg:w-auto lg:grid-cols-[minmax(220px,1fr)_160px_160px_160px]">
+              <label className="relative block">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-700 dark:text-orange-200" />
+                <input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search mock, code, module, level"
+                  className="h-12 w-full rounded-2xl border border-orange-100 bg-white/90 pl-11 pr-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-orange-500 dark:focus:ring-orange-950/40"
+                />
+              </label>
+              <select
+                value={moduleFilter}
+                onChange={(event) => {
+                  setModuleFilter(event.target.value);
+                  setLevelFilter("ALL");
+                }}
+                className="h-12 rounded-2xl border border-orange-100 bg-white/90 px-4 text-sm font-black text-slate-800 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white dark:focus:border-orange-500 dark:focus:ring-orange-950/40"
+              >
+                <option value="ALL">All Modules</option>
+                {moduleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <select
+                value={levelFilter}
+                onChange={(event) => setLevelFilter(event.target.value)}
+                className="h-12 rounded-2xl border border-orange-100 bg-white/90 px-4 text-sm font-black text-slate-800 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white dark:focus:border-orange-500 dark:focus:ring-orange-950/40"
+              >
+                <option value="ALL">All Levels</option>
+                {levelOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="h-12 rounded-2xl border border-orange-100 bg-white/90 px-4 text-sm font-black text-slate-800 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white dark:focus:border-orange-500 dark:focus:ring-orange-950/40"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
             </div>
           </div>
 
           {assignments.length === 0 ? (
             <div className="mt-5 rounded-[24px] border border-dashed border-orange-200 bg-orange-50/70 p-6 text-sm font-bold text-slate-700 dark:border-orange-800/60 dark:bg-orange-950/20 dark:text-slate-200">
               No competition mocks are assigned for your current level yet.
+            </div>
+          ) : filteredAssignments.length === 0 ? (
+            <div className="mt-5 rounded-[24px] border border-dashed border-orange-200 bg-orange-50/70 p-6 text-sm font-bold text-slate-700 dark:border-orange-800/60 dark:bg-orange-950/20 dark:text-slate-200">
+              No competition mocks match the selected filters.
             </div>
           ) : (
             <div className="mt-5 space-y-4">
