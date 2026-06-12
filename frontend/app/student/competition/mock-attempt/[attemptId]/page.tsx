@@ -43,12 +43,12 @@ export default function StudentCompetitionMockAttemptPage() {
 
   const autoSubmitMutation = useMutation({
     mutationFn: () => autoSubmitCompetitionMockAttempt(attemptId),
-    onSuccess: () => router.replace("/student/competition/mock-exams"),
+    onSuccess: () => router.replace(`/student/competition/mock-result/${attemptId}`),
   });
 
   const manualSubmitMutation = useMutation({
     mutationFn: () => submitCompetitionMockAttempt(attemptId),
-    onSuccess: () => router.replace("/student/competition/mock-exams"),
+    onSuccess: () => router.replace(`/student/competition/mock-result/${attemptId}`),
   });
 
   const handleTimeUp = useCallback(() => {
@@ -81,7 +81,7 @@ export default function StudentCompetitionMockAttemptPage() {
     setSavingQuestionId(questionId);
     try {
       const response = await saveCompetitionMockAnswer(attemptId, { questionId, selectedOptionId });
-      if (response?.status === "AUTO_SUBMITTED") router.replace("/student/competition/mock-exams");
+      if (response?.status === "AUTO_SUBMITTED") router.replace(`/student/competition/mock-result/${attemptId}`);
     } finally {
       setSavingQuestionId(null);
     }
