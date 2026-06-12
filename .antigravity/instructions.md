@@ -30,7 +30,15 @@ Before executing any code modification, write and present an **Implementation Pl
 ## 4. Coding & Architecture Standards
 - **Surgical Code Edits**: Never perform broad refactors or generic fixes when a surgical edit is possible. Prefer additive changes over destructive ones.
 - **Clean Diffing**: Retain all existing docstrings, formatting, and comments. Make minimal, clean changes.
-- **Regression Safety**: Every commit must be compile-safe and type-safe. Run validation scripts (e.g., type-checkers, lint tools, or local builds) before marking a task as done.
+- **Regression Safety**: Every commit must be compile-safe and type-safe. Run validation scripts (e.g., `npm run typecheck`, `npm run lint`, or `pytest`) before proposing or pushing.
+
+## 5. End-to-End Automated Deployment Loop
+Once the developer approves an Implementation Plan, the agent must execute the following workflow fully autonomously:
+1. **Implement Fix**: Make the code changes locally.
+2. **Validate**: Run local lints, type-checks, and tests.
+3. **Commit & Push**: Run Git commands to stage, commit, and push the changes directly to `main` (triggering auto-rebuild on Render and Vercel).
+4. **Monitor Deploy**: Execute `python .antigravity/scripts/monitor_deploy.py` to poll the live Vercel and Render endpoints. 
+5. **Notify**: Wake up and notify the developer with a direct link to the live Vercel domain only when the deployment health checks are successful.
 
 ---
 
