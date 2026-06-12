@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 
-type StatusFilter = "ALL" | "COMPLETED" | "PENDING" | "ASSIGNED";
+type StatusFilter = "ALL" | "COMPLETED" | "PENDING";
 
 type SortKey = "mock" | "mockCode" | "status" | "score" | "accuracy" | "timeTaken" | "assignedDate" | "completionDate";
 type SortDirection = "asc" | "desc";
@@ -64,6 +64,31 @@ function AverageAccuracyValue(Rows: TeacherCompetitionTrackerRow[]) {
   if (CompletedRows.length === 0) return null;
   const Total = CompletedRows.reduce((Sum, Row) => Sum + Number(Row.accuracyPercentage || 0), 0);
   return Math.round(Total / CompletedRows.length);
+}
+
+
+function AverageScoreValue(Rows: TeacherCompetitionTrackerRow[]) {
+  const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && ScorePercentage(Row) != null);
+  if (CompletedRows.length === 0) return 0;
+  const Total = CompletedRows.reduce((Sum, Row) => Sum + Number(ScorePercentage(Row) || 0), 0);
+  return Math.round(Total / CompletedRows.length);
+}
+
+function AverageOfStudentAccuracyValues(Rows: TeacherCompetitionTrackerRow[]) {
+  const StudentMap = new Map<string, TeacherCompetitionTrackerRow[]>();
+  Rows.forEach((Row) => {
+    const StudentKey = Row.student.studentId || Row.student.studentCode || "student";
+    if (!StudentMap.has(StudentKey)) StudentMap.set(StudentKey, []);
+    StudentMap.get(StudentKey)!.push(Row);
+  });
+
+  const StudentAverages = Array.from(StudentMap.values())
+    .map((StudentRows) => AverageAccuracyValue(StudentRows))
+    .filter((Value): Value is number => Value != null);
+
+  if (StudentAverages.length === 0) return 0;
+  const Total = StudentAverages.reduce((Sum, Value) => Sum + Value, 0);
+  return Math.round(Total / StudentAverages.length);
 }
 
 function AccuracyBandClass(Value: number | null) {
@@ -226,6 +251,8 @@ function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string
 function TeacherCompetitionMockTrackerContent() {
   useProtectedPage(["TEACHER"]);
   const [SearchText, SetSearchText] = useState("");
+  const [ModuleFilter, SetModuleFilter] = useState("ALL");
+  const [LevelFilter, SetLevelFilter] = useState("ALL");
   const [Status, SetStatus] = useState<StatusFilter>("ALL");
   const [ExpandedStudents, SetExpandedStudents] = useState<Set<string>>(() => new Set());
   const [ExpandedModules, SetExpandedModules] = useState<Set<string>>(() => new Set());
@@ -236,13 +263,30 @@ function TeacherCompetitionMockTrackerContent() {
   const Query = useQuery({ queryKey: ["teacher", "competition", "mock-tracker"], queryFn: getTeacherCompetitionMockTracker });
 
   const Rows = Query.data?.rows || [];
+
+  const ModuleOptions = useMemo(() => {
+    const Values = new Set<string>();
+    Rows.forEach((Row) => Values.add(SafeModuleLabel(Row)));
+    return Array.from(Values).sort((Left, Right) => Left.localeCompare(Right, undefined, { numeric: true, sensitivity: "base" }));
+  }, [Rows]);
+
+  const LevelOptions = useMemo(() => {
+    const Values = new Set<string>();
+    Rows.forEach((Row) => {
+      if (ModuleFilter !== "ALL" && SafeModuleLabel(Row) !== ModuleFilter) return;
+      Values.add(SafeLevelLabel(Row));
+    });
+    return Array.from(Values).sort((Left, Right) => Left.localeCompare(Right, undefined, { numeric: true, sensitivity: "base" }));
+  }, [Rows, ModuleFilter]);
+
   const FilteredRows = useMemo(() => {
     const Term = SearchText.trim().toLowerCase();
     return Rows.filter((Row) => {
       const RowStatus = String(Row.status || "ASSIGNED").toUpperCase();
+      if (ModuleFilter !== "ALL" && SafeModuleLabel(Row) !== ModuleFilter) return false;
+      if (LevelFilter !== "ALL" && SafeLevelLabel(Row) !== LevelFilter) return false;
       if (Status === "COMPLETED" && RowStatus !== "COMPLETED") return false;
       if (Status === "PENDING" && RowStatus === "COMPLETED") return false;
-      if (Status === "ASSIGNED" && RowStatus !== "ASSIGNED") return false;
       if (!Term) return true;
       const Haystack = [
         Row.student.studentName,
@@ -254,7 +298,19 @@ function TeacherCompetitionMockTrackerContent() {
       ].join(" ").toLowerCase();
       return Haystack.includes(Term);
     });
-  }, [Rows, SearchText, Status]);
+  }, [Rows, SearchText, ModuleFilter, LevelFilter, Status]);
+
+  const FilteredSummary = useMemo(() => {
+    const AssignedCount = FilteredRows.length;
+    const CompletedCount = FilteredRows.filter(IsCompleted).length;
+    return {
+      assignedCount: AssignedCount,
+      completedCount: CompletedCount,
+      pendingCount: Math.max(AssignedCount - CompletedCount, 0),
+      averageScore: AverageScoreValue(FilteredRows),
+      averageAccuracy: AverageOfStudentAccuracyValues(FilteredRows),
+    };
+  }, [FilteredRows]);
 
   const GroupedRows = useMemo<StudentMockGroup[]>(() => {
     const StudentMap = new Map<string, StudentMockGroup>();
@@ -292,8 +348,6 @@ function TeacherCompetitionMockTrackerContent() {
     });
   }, [FilteredRows]);
 
-  const Summary = Query.data?.summary;
-  const PendingCount = Summary?.pendingCount ?? Math.max((Summary?.assignedCount ?? 0) - (Summary?.completedCount ?? 0), 0);
 
   return (
     <AppShell title="Competition Mock Tracker">
@@ -313,11 +367,11 @@ function TeacherCompetitionMockTrackerContent() {
         ) : (
           <>
             <div className="grid gap-4 xl:grid-cols-5 md:grid-cols-2">
-              <MetricCard Icon={UsersRound} Label="Assigned" Value={Summary?.assignedCount ?? 0} />
-              <MetricCard Icon={ShieldCheck} Label="Completed" Value={Summary?.completedCount ?? 0} />
-              <MetricCard Icon={Clock3} Label="Pending" Value={PendingCount} />
-              <MetricCard Icon={Trophy} Label="Avg Score" Value={`${Summary?.averageScore ?? 0}%`} />
-              <MetricCard Icon={BarChart3} Label="Avg Accuracy" Value={`${Summary?.averageAccuracy ?? 0}%`} />
+              <MetricCard Icon={UsersRound} Label="Assigned" Value={FilteredSummary.assignedCount} />
+              <MetricCard Icon={ShieldCheck} Label="Completed" Value={FilteredSummary.completedCount} />
+              <MetricCard Icon={Clock3} Label="Pending" Value={FilteredSummary.pendingCount} />
+              <MetricCard Icon={Trophy} Label="Avg Score" Value={`${FilteredSummary.averageScore}%`} />
+              <MetricCard Icon={BarChart3} Label="Avg Accuracy" Value={`${FilteredSummary.averageAccuracy}%`} />
             </div>
 
             <div className="grid gap-5">
@@ -330,7 +384,7 @@ function TeacherCompetitionMockTrackerContent() {
                       Review completion status, score, accuracy, and time taken for your students.
                     </p>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-[1fr_180px] lg:w-[520px]">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_180px_180px_180px] xl:w-[820px]">
                     <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200">
                       <Search size={16} className="text-[#7a1f58] dark:text-rose-100" />
                       <input
@@ -341,12 +395,34 @@ function TeacherCompetitionMockTrackerContent() {
                       />
                     </label>
                     <select
+                      value={ModuleFilter}
+                      onChange={(Event) => {
+                        SetModuleFilter(Event.target.value);
+                        SetLevelFilter("ALL");
+                      }}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200"
+                    >
+                      <option value="ALL">All Modules</option>
+                      {ModuleOptions.map((Module) => (
+                        <option key={Module} value={Module}>{Module}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={LevelFilter}
+                      onChange={(Event) => SetLevelFilter(Event.target.value)}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200"
+                    >
+                      <option value="ALL">All Levels</option>
+                      {LevelOptions.map((Level) => (
+                        <option key={Level} value={Level}>{Level}</option>
+                      ))}
+                    </select>
+                    <select
                       value={Status}
                       onChange={(Event) => SetStatus(Event.target.value as StatusFilter)}
                       className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200"
                     >
                       <option value="ALL">All Statuses</option>
-                      <option value="ASSIGNED">Assigned</option>
                       <option value="PENDING">Pending</option>
                       <option value="COMPLETED">Completed</option>
                     </select>
