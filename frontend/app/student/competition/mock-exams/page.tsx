@@ -422,6 +422,72 @@ function StatusCountChip({ value, label, tone }: { value: number; label: string;
   return <span className={`rounded-full border px-3 py-1 text-xs font-black ${classes}`}>{value} {label}</span>;
 }
 
+
+type StudentMockSortKey = "mock" | "mockCode" | "status" | "score" | "accuracy" | "timeTaken" | "assignedDate" | "completionDate";
+type StudentMockSortConfig = { key: StudentMockSortKey; direction: "asc" | "desc" } | null;
+
+function StudentMockSortValue(assignment: StudentCompetitionMockAssignment, key: StudentMockSortKey) {
+  const exam = assignment.mockExam;
+  const completed = IsCompleted(assignment);
+  const result = assignment.latestResult;
+  switch (key) {
+    case "mock":
+      return String(exam.title || "").toLowerCase();
+    case "mockCode":
+      return String(exam.mockCode || "").toLowerCase();
+    case "status":
+      return completed ? 2 : 1;
+    case "score":
+      return ScoreValue(assignment) ?? -1;
+    case "accuracy":
+      return AccuracyValue(assignment) ?? -1;
+    case "timeTaken":
+      return completed ? Number(result?.timeTakenSeconds || 0) : -1;
+    case "assignedDate":
+      return new Date(assignment.assignedAt || 0).getTime();
+    case "completionDate":
+      return completed ? new Date(result?.completedAt || 0).getTime() : -1;
+    default:
+      return "";
+  }
+}
+
+function CompareStudentMockValues(left: string | number, right: string | number) {
+  if (typeof left === "number" && typeof right === "number") return left - right;
+  return String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: "base" });
+}
+
+function StudentMockSortableHeader({
+  label,
+  sortKey,
+  sortConfig,
+  onSort,
+}: {
+  label: string;
+  sortKey: StudentMockSortKey;
+  sortConfig: StudentMockSortConfig;
+  onSort: (key: StudentMockSortKey) => void;
+}) {
+  const active = sortConfig?.key === sortKey;
+  const indicator = !active ? "↕" : sortConfig.direction === "asc" ? "↑" : "↓";
+  return (
+    <th className="px-4 py-3">
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="inline-flex items-center gap-1 rounded-lg text-[11px] font-black uppercase tracking-[0.18em] text-orange-800 transition hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-300 dark:text-orange-100 dark:hover:text-orange-200 dark:focus:ring-orange-700"
+      >
+        <span>{label}</span>
+        <span className={active ? "text-orange-700 dark:text-orange-200" : "text-orange-400/70 dark:text-orange-300/60"}>{indicator}</span>
+      </button>
+    </th>
+  );
+}
+
+function StudentMockStaticHeader({ label }: { label: string }) {
+  return <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-orange-800 dark:text-orange-100">{label}</th>;
+}
+
 function MockRecordsTable({
   assignments,
   starting,
@@ -435,24 +501,45 @@ function MockRecordsTable({
   onResume: (assignment: StudentCompetitionMockAssignment) => void;
   onViewResult: (assignment: StudentCompetitionMockAssignment) => void;
 }) {
+  const [sortConfig, setSortConfig] = useState<StudentMockSortConfig>(null);
+
+  const handleSort = (key: StudentMockSortKey) => {
+    setSortConfig((current) => {
+      if (!current || current.key !== key) return { key, direction: "asc" };
+      if (current.direction === "asc") return { key, direction: "desc" };
+      return null;
+    });
+  };
+
+  const sortedAssignments = useMemo(() => {
+    if (!sortConfig) return assignments;
+    return [...assignments].sort((left, right) => {
+      const comparison = CompareStudentMockValues(
+        StudentMockSortValue(left, sortConfig.key),
+        StudentMockSortValue(right, sortConfig.key),
+      );
+      return sortConfig.direction === "asc" ? comparison : -comparison;
+    });
+  }, [assignments, sortConfig]);
+
   return (
     <div className="overflow-x-auto border-t border-orange-100 dark:border-slate-700">
       <table className="min-w-full text-left text-sm">
-        <thead className="bg-orange-100/70 text-[11px] font-black uppercase tracking-[0.16em] text-orange-800 dark:bg-orange-950/35 dark:text-orange-100">
+        <thead className="bg-orange-100/70 dark:bg-orange-950/35">
           <tr>
-            <th className="px-4 py-3">MOCK</th>
-            <th className="px-4 py-3">MOCK CODE</th>
-            <th className="px-4 py-3">STATUS</th>
-            <th className="px-4 py-3">SCORE</th>
-            <th className="px-4 py-3">ACCURACY</th>
-            <th className="px-4 py-3">TIME TAKEN</th>
-            <th className="px-4 py-3">ASSIGNED DATE</th>
-            <th className="px-4 py-3">COMPLETION DATE</th>
-            <th className="px-4 py-3">ACTION</th>
+            <StudentMockSortableHeader label="MOCK" sortKey="mock" sortConfig={sortConfig} onSort={handleSort} />
+            <StudentMockSortableHeader label="MOCK CODE" sortKey="mockCode" sortConfig={sortConfig} onSort={handleSort} />
+            <StudentMockSortableHeader label="STATUS" sortKey="status" sortConfig={sortConfig} onSort={handleSort} />
+            <StudentMockSortableHeader label="SCORE" sortKey="score" sortConfig={sortConfig} onSort={handleSort} />
+            <StudentMockSortableHeader label="ACCURACY" sortKey="accuracy" sortConfig={sortConfig} onSort={handleSort} />
+            <StudentMockSortableHeader label="TIME TAKEN" sortKey="timeTaken" sortConfig={sortConfig} onSort={handleSort} />
+            <StudentMockSortableHeader label="ASSIGNED DATE" sortKey="assignedDate" sortConfig={sortConfig} onSort={handleSort} />
+            <StudentMockSortableHeader label="COMPLETION DATE" sortKey="completionDate" sortConfig={sortConfig} onSort={handleSort} />
+            <StudentMockStaticHeader label="ACTION" />
           </tr>
         </thead>
         <tbody className="divide-y divide-orange-100 bg-white/80 dark:divide-slate-700 dark:bg-slate-950/20">
-          {assignments.map((assignment) => {
+          {sortedAssignments.map((assignment) => {
             const exam = assignment.mockExam;
             const completed = IsCompleted(assignment);
             const inProgress = IsInProgress(assignment);
