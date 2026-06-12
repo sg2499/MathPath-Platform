@@ -24,25 +24,38 @@ npm run verify:teacher-results
 
 ## First-Time Setup
 
+1. Install dependencies and browser binaries:
 ```powershell
 cd frontend
 npm install
 npx playwright install chromium
 ```
 
-Copy:
-
+2. Create a local environment file by copying the template:
 ```text
-.env.verification.example
+.env.verification.example  ->  .env.verification
+```
+The file `.env.verification` is ignored by Git (via `.gitignore`), meaning it is secure to put actual live platform credentials there for local testing.
+
+## Live Verification & Theme Testing
+
+By default, the sweeps target `http://localhost:3000` in `light` mode. You can redirect the target or change the theme using environment variables:
+
+### 1. Target Base URL
+Define `MATHPATH_BASE_URL` in `.env.verification` or set it in your shell. For example, to sweep the live deployed site:
+```powershell
+$env:MATHPATH_BASE_URL="https://math-path-platform.vercel.app"
 ```
 
-to:
-
-```text
-.env.verification
+### 2. Theme Mode Sweep
+Specify `MATHPATH_THEME="light"` or `MATHPATH_THEME="dark"`. The test runner will automatically inject the corresponding key into `localStorage` and class updates to test the layout in that mode:
+```powershell
+# Run a full dark mode sweep on live site
+$env:MATHPATH_THEME="dark"
+$env:MATHPATH_REPORT_DIR="verification-report/dark"
+npx playwright test tests/mathpath-platform-verification.spec.ts --config=playwright.config.ts
 ```
 
-Then update credentials and sample IDs if needed.
 
 ## Command Levels
 
