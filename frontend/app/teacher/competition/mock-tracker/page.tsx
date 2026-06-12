@@ -8,8 +8,9 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherCompetitionMockTracker, type TeacherCompetitionTrackerRow } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Clock3, Eye, Search, ShieldCheck, Target, Trophy, UsersRound } from "lucide-react";
+import { BarChart3, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type StatusFilter = "ALL" | "COMPLETED" | "IN_PROGRESS" | "ASSIGNED";
 
@@ -49,15 +50,11 @@ function MetricCard({ Icon, Label, Value, Helper }: { Icon: typeof Trophy; Label
   );
 }
 
-function SectionName(Item: { concept?: string; section?: string }) {
-  return Item.section || Item.concept || "Competition Section";
-}
-
 function TeacherCompetitionMockTrackerContent() {
   useProtectedPage(["TEACHER"]);
   const [SearchText, SetSearchText] = useState("");
   const [Status, SetStatus] = useState<StatusFilter>("ALL");
-  const [SelectedRow, SetSelectedRow] = useState<TeacherCompetitionTrackerRow | null>(null);
+  const router = useRouter();
 
   const Query = useQuery({ queryKey: ["teacher", "competition", "mock-tracker"], queryFn: getTeacherCompetitionMockTracker });
 
@@ -107,7 +104,7 @@ function TeacherCompetitionMockTrackerContent() {
               <MetricCard Icon={BarChart3} Label="Avg Accuracy" Value={`${Summary?.averageAccuracy ?? 0}%`} Helper="Attempted answers" />
             </div>
 
-            <div className="grid gap-5 xl:grid-cols-[1.3fr_0.9fr]">
+            <div className="grid gap-5">
               <article className="math-card p-5 sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
@@ -164,8 +161,9 @@ function TeacherCompetitionMockTrackerContent() {
                             <MiniMetric Label="Time" Value={Row.timeTakenText || "-"} />
                             <button
                               type="button"
-                              onClick={() => SetSelectedRow(Row)}
-                              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-3 text-sm font-black text-[#7a1f58] transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white dark:border-rose-300/30 dark:bg-slate-950/40 dark:text-rose-100 dark:hover:bg-rose-700"
+                              onClick={() => Row.attemptId ? router.push(`/teacher/competition/mock-result/${Row.attemptId}`) : undefined}
+                              disabled={!Row.attemptId}
+                              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-3 text-sm font-black text-[#7a1f58] transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-white disabled:hover:text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/40 dark:text-rose-100 dark:hover:bg-rose-700 dark:disabled:hover:bg-slate-950/40 dark:disabled:hover:text-rose-100"
                             >
                               <Eye size={15} /> Review
                             </button>
@@ -175,33 +173,6 @@ function TeacherCompetitionMockTrackerContent() {
                     ))
                   )}
                 </div>
-              </article>
-
-              <article className="math-card p-5 sm:p-6">
-                <p className="math-kicker">Review</p>
-                <h2 className="text-2xl font-black text-slate-950 dark:text-white">Result Details</h2>
-                {!SelectedRow ? (
-                  <div className="mt-6 rounded-3xl border border-dashed border-[#7a1f58]/25 bg-[#7a1f58]/5 p-6 text-sm font-bold leading-6 text-slate-700 dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-slate-200">
-                    Select a completed or in-progress mock row to review score, timing, strengths, and weak areas. Teachers can monitor only; no assignment action is available here.
-                  </div>
-                ) : (
-                  <div className="mt-5 space-y-4">
-                    <div className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950/35">
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7a1f58] dark:text-rose-100">{SelectedRow.student.studentCode}</p>
-                      <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">{SelectedRow.student.studentName}</h3>
-                      <p className="mt-1 text-sm font-bold text-slate-600 dark:text-slate-300">{SelectedRow.mockExam.title}</p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <MiniMetric Label="Correct" Value={SelectedRow.correctCount ?? "-"} />
-                      <MiniMetric Label="Unanswered" Value={SelectedRow.unansweredCount ?? "-"} />
-                      <MiniMetric Label="Score" Value={SelectedRow.percentage != null ? `${SelectedRow.percentage}%` : "-"} />
-                      <MiniMetric Label="Time" Value={SelectedRow.timeTakenText || "-"} />
-                    </div>
-                    <SectionList Title="Strengths" Items={SelectedRow.strengths} Empty="Strengths will appear after submission." />
-                    <SectionList Title="Weak Areas" Items={SelectedRow.weakAreas} Empty="Weak areas will appear after submission." />
-                    <SectionList Title="Section Performance" Items={SelectedRow.sectionPerformance} Empty="Section performance will appear after submission." />
-                  </div>
-                )}
               </article>
             </div>
           </>
@@ -220,25 +191,6 @@ function MiniMetric({ Label, Value }: { Label: string; Value: string | number })
   );
 }
 
-function SectionList({ Title, Items, Empty }: { Title: string; Items: Array<{ concept?: string; section?: string; correct: number; total: number; percentage: number }>; Empty: string }) {
-  return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950/35">
-      <h3 className="text-sm font-black text-slate-950 dark:text-white">{Title}</h3>
-      <div className="mt-3 space-y-2">
-        {Items.length === 0 ? (
-          <p className="text-sm font-bold text-slate-600 dark:text-slate-300">{Empty}</p>
-        ) : (
-          Items.slice(0, 8).map((Item, Index) => (
-            <div key={`${Title}-${Index}`} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs font-bold text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-              <span className="truncate">{SectionName(Item)}</span>
-              <span className="shrink-0 font-black text-[#7a1f58] dark:text-rose-100">{Item.correct}/{Item.total} · {Item.percentage}%</span>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function TeacherCompetitionMockTrackerPage() {
   return <TeacherCompetitionMockTrackerContent />;

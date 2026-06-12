@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import type { StudentCompetitionMockResult } from "@/lib/api/student";
 
 export type TeacherStudent = {
   studentId: string;
@@ -503,5 +504,10 @@ export type TeacherCompetitionTrackerPayload = {
 
 export async function getTeacherCompetitionMockTracker(): Promise<TeacherCompetitionTrackerPayload> {
   const { data } = await api.get<TeacherCompetitionTrackerPayload>("/teacher/competition/mock-tracker");
+  return data;
+}
+
+export async function getTeacherCompetitionMockResult(attemptId: string): Promise<StudentCompetitionMockResult> {
+  const { data } = await api.get<StudentCompetitionMockResult>(`/teacher/competition/mock-attempts/${attemptId}/result`);
   return data;
 }

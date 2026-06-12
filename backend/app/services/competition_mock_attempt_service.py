@@ -18,6 +18,8 @@ from app.models import (
     Level,
     Module,
     Student,
+    Teacher,
+    User,
 )
 
 COMPLETED_STATUSES = {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED", "EXPIRED", "LOCKED"}
@@ -731,5 +733,28 @@ def GetCompetitionMockResultForStudent(db: Session, student: Student, attempt_id
     attempt = db.get(CompetitionMockAttempt, attempt_id)
     if not attempt or attempt.student_id != student.id:
         api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+    attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
+    return _result_payload(db, attempt)
+
+
+def GetCompetitionMockResultForTeacher(db: Session, teacher: Teacher, attempt_id: str) -> dict[str, Any]:
+    attempt = db.get(CompetitionMockAttempt, attempt_id)
+    if not attempt:
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+
+    student = db.get(Student, attempt.student_id) if attempt.student_id else None
+    if not student or not getattr(student, "is_active", True):
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+
+    teacher_name = ""
+    if getattr(teacher, "user_id", None):
+        teacher_user = db.get(User, teacher.user_id)
+        teacher_name = teacher_user.full_name if teacher_user else ""
+
+    linked_by_id = bool(getattr(student, "teacher_id", None) and student.teacher_id == teacher.id)
+    linked_by_name = bool(teacher_name and getattr(student, "teacher", None) == teacher_name)
+    if not linked_by_id and not linked_by_name:
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+
     attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
     return _result_payload(db, attempt)

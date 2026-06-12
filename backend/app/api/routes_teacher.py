@@ -19,6 +19,7 @@ from app.services.assessment_blueprint_service import blueprint_payload, teacher
 from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload
 from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated
 from app.services.practice_notification_service import NotifyPracticeAssignmentsCreated
+from app.services.competition_mock_attempt_service import GetCompetitionMockResultForTeacher
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
 from app.services.assessment_feedback_service import upsert_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.auth_service import public_profile_photo_url
@@ -249,6 +250,11 @@ def own_students_query(db: Session, teacher: Teacher):
 @router.get("/competition/mock-tracker")
 def teacher_competition_mock_tracker(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
     return _teacher_competition_tracker_payload(db, teacher)
+
+
+@router.get("/competition/mock-attempts/{attempt_id}/result")
+def teacher_get_competition_mock_result(attempt_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    return GetCompetitionMockResultForTeacher(db, teacher, attempt_id)
 
 
 @router.get("/dashboard")
