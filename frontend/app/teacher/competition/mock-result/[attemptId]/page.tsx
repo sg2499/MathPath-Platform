@@ -381,8 +381,8 @@ export default function TeacherCompetitionMockResultPage() {
                 performance below.
               </p>
             </div>
-            <div className="rounded-[24px] border border-orange-200 bg-orange-50/70 px-6 py-4 text-center dark:border-orange-800 dark:bg-orange-950/30">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">
+            <div className="rounded-[24px] border border-[#7a1f58]/25 bg-[#7a1f58]/5 px-6 py-4 text-center dark:border-rose-300/30 dark:bg-rose-400/10">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#7a1f58] dark:text-rose-100">
                 Score
               </p>
               <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
@@ -469,17 +469,17 @@ function CompetitionMessageBox({
           ? Flame
           : Sparkles;
   return (
-    <article className="relative overflow-hidden rounded-[32px] border border-orange-200 bg-gradient-to-br from-white via-orange-50/70 to-amber-50/60 p-5 shadow-xl shadow-orange-100/60 dark:border-orange-800 dark:from-slate-950 dark:via-orange-950/20 dark:to-slate-900 dark:shadow-orange-950/20">
-      <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-orange-300/20 blur-3xl" />
+    <article className="relative overflow-hidden rounded-[32px] border border-[#7a1f58]/25 bg-gradient-to-br from-white via-[#7a1f58]/5 to-[#e6b8a2]/10 p-5 shadow-xl shadow-[#7a1f58]/10 dark:border-rose-300/30 dark:from-slate-950 dark:via-rose-950/20 dark:to-slate-900 dark:shadow-rose-950/20">
+      <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-[#7a1f58]/20 blur-3xl" />
       <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-600 to-amber-500 text-white shadow-lg shadow-orange-200 dark:shadow-orange-950/40">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#7a1f58] to-[#b76e79] text-white shadow-lg shadow-[#7a1f58]/20 dark:shadow-rose-950/40">
             <Icon size={26} />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="math-kicker">Competition Coach</p>
-              <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
+              <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
                 {message.badge}
               </span>
             </div>
@@ -496,8 +496,8 @@ function CompetitionMessageBox({
         </div>
 
         <div className="grid min-w-0 gap-3 lg:w-[360px]">
-          <div className="rounded-[24px] border border-orange-200 bg-white/90 p-4 dark:border-orange-800 dark:bg-slate-950/70">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-orange-700 dark:text-orange-200">
+          <div className="rounded-[24px] border border-[#7a1f58]/20 bg-white/90 p-4 dark:border-rose-300/30 dark:bg-slate-950/70">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
               Focus Next
             </p>
             <div className="mt-3 grid gap-2">
@@ -506,15 +506,15 @@ function CompetitionMessageBox({
                   key={area}
                   type="button"
                   onClick={() => onSectionSelect(area)}
-                  className="rounded-[16px] border border-orange-100 bg-orange-50/70 px-3 py-2.5 text-left text-sm font-black text-slate-900 transition hover:border-orange-400 hover:bg-orange-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-orange-900 dark:bg-orange-950/30 dark:text-white dark:hover:border-orange-500 dark:hover:bg-orange-600 dark:hover:text-white"
+                  className="rounded-[16px] border border-[#7a1f58]/15 bg-[#7a1f58]/5 px-3 py-2.5 text-left text-sm font-black text-slate-900 transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/40 dark:border-rose-300/25 dark:bg-rose-400/10 dark:text-white dark:hover:border-rose-300 dark:hover:bg-rose-700 dark:hover:text-white"
                 >
                   {area}
                 </button>
               ))}
             </div>
           </div>
-          <div className="rounded-[24px] border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/20">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-amber-700 dark:text-amber-200">
+          <div className="rounded-[24px] border border-[#e6b8a2]/50 bg-[#e6b8a2]/15 p-4 dark:border-[#e6b8a2]/30 dark:bg-[#e6b8a2]/10">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
               Next Target
             </p>
             <p className="mt-2 text-base font-black leading-6 text-slate-950 dark:text-white">
@@ -542,8 +542,8 @@ function ResultTabButton({
       onClick={onClick}
       className={
         active
-          ? "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-orange-600 to-amber-500 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-orange-200 transition dark:shadow-orange-950/30"
-          : "inline-flex items-center justify-center rounded-full border border-orange-200 bg-white px-5 py-2.5 text-sm font-black text-orange-700 transition hover:border-orange-500 hover:bg-orange-600 hover:text-white hover:shadow-md hover:shadow-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-orange-200 dark:hover:border-orange-500 dark:hover:bg-orange-600 dark:hover:text-white"
+          ? "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#7a1f58] to-[#b76e79] px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[#7a1f58]/20 transition dark:shadow-rose-950/30"
+          : "inline-flex items-center justify-center rounded-full border border-[#7a1f58]/20 bg-white px-5 py-2.5 text-sm font-black text-[#7a1f58] transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white hover:shadow-md hover:shadow-[#7a1f58]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-rose-100 dark:hover:border-rose-300 dark:hover:bg-rose-700 dark:hover:text-white"
       }
     >
       {label}
@@ -589,7 +589,7 @@ function QuestionReviewTab({
   return (
     <section className="math-card p-5">
       <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7a1f58]/5 text-[#7a1f58] dark:bg-rose-400/10 dark:text-rose-100">
           <BookOpenCheck size={22} />
         </div>
         <div>
@@ -605,7 +605,7 @@ function QuestionReviewTab({
       </div>
 
       {questions.length === 0 ? (
-        <p className="rounded-[22px] border border-orange-100 bg-orange-50/50 p-5 text-sm font-bold text-slate-700 dark:border-orange-900 dark:bg-orange-950/20 dark:text-slate-300">
+        <p className="rounded-[22px] border border-[#7a1f58]/15 bg-[#7a1f58]/5 p-5 text-sm font-bold text-slate-700 dark:border-rose-300/25 dark:bg-rose-400/10 dark:text-slate-300">
           Question review is not available for this submitted mock yet.
         </p>
       ) : (
@@ -614,11 +614,11 @@ function QuestionReviewTab({
             <div
               key={section.key}
               id={section.key}
-              className="scroll-mt-28 rounded-[30px] border border-orange-100 bg-orange-50/25 p-4 dark:border-slate-700 dark:bg-slate-950/30"
+              className="scroll-mt-28 rounded-[30px] border border-[#7a1f58]/15 bg-[#7a1f58]/5 p-4 dark:border-slate-700 dark:bg-slate-950/30"
             >
-              <div className="mb-4 flex flex-col gap-2 rounded-[22px] border border-orange-100 bg-white/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mb-4 flex flex-col gap-2 rounded-[22px] border border-[#7a1f58]/15 bg-white/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-orange-700 dark:text-orange-200">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
                     Section Review
                   </p>
                   <h3 className="text-lg font-black text-slate-950 dark:text-white">
@@ -628,7 +628,7 @@ function QuestionReviewTab({
                     {section.title}
                   </h3>
                 </div>
-                <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-black text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+                <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-xs font-black text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
                   {section.questions.length} Questions
                 </span>
               </div>
@@ -637,7 +637,7 @@ function QuestionReviewTab({
                 {section.questions.map((question) => (
                   <article
                     key={question.questionId}
-                    className="rounded-[28px] border border-orange-100 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70"
+                    className="rounded-[28px] border border-[#7a1f58]/15 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -645,10 +645,10 @@ function QuestionReviewTab({
                           Question {question.questionNumber}
                         </h3>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+                          <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[11px] font-black text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
                             Section {question.sectionNumber || "-"}
                           </span>
-                          <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black text-orange-700 dark:border-slate-700 dark:bg-slate-950 dark:text-orange-200">
+                          <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[11px] font-black text-[#7a1f58] dark:border-slate-700 dark:bg-slate-950 dark:text-rose-100">
                             {question.sectionTitle || "Competition Mock"}
                           </span>
                         </div>
@@ -760,25 +760,25 @@ function ResultAnalysisTab({
             </h2>
           </div>
         </div>
-        <div className="mt-5 overflow-hidden rounded-[24px] border border-orange-100 dark:border-slate-700">
+        <div className="mt-5 overflow-hidden rounded-[24px] border border-[#7a1f58]/15 dark:border-slate-700">
           {(result.conceptPerformance || []).length === 0 ? (
             <div className="p-5 text-sm font-bold text-slate-700 dark:text-slate-300">
               No concept analysis is available for this mock yet.
             </div>
           ) : (
-            <div className="divide-y divide-orange-100 dark:divide-slate-700">
+            <div className="divide-y divide-[#7a1f58]/15 dark:divide-slate-700">
               {result.conceptPerformance.map((item) => (
                 <button
                   key={item.concept}
                   type="button"
                   onClick={() => onSectionSelect(item.concept)}
-                  className="grid w-full gap-2 p-4 text-left text-sm font-bold text-slate-800 transition hover:bg-orange-50 hover:text-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:text-slate-100 dark:hover:bg-orange-950/30 dark:hover:text-orange-100 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                  className="grid w-full gap-2 p-4 text-left text-sm font-bold text-slate-800 transition hover:bg-[#7a1f58]/5 hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/40 dark:text-slate-100 dark:hover:bg-rose-400/10 dark:hover:text-rose-100 sm:grid-cols-[1fr_auto_auto] sm:items-center"
                 >
                   <span>{item.concept}</span>
                   <span>
                     {item.correct}/{item.total} Correct
                   </span>
-                  <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+                  <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
                     {formatNumber(item.percentage)}%
                   </span>
                 </button>
@@ -808,7 +808,7 @@ function ResultAnalysisTab({
 
 function Chip({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+    <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
       {label}
     </span>
   );
@@ -827,7 +827,7 @@ function MetricCard({
 }) {
   return (
     <article className="math-card p-5">
-      <div className="inline-flex rounded-2xl bg-orange-50 p-2 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
+      <div className="inline-flex rounded-2xl bg-[#7a1f58]/5 p-2 text-[#7a1f58] dark:bg-rose-400/10 dark:text-rose-100">
         {icon}
       </div>
       <p className="mt-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:text-slate-300">
@@ -866,7 +866,7 @@ function InsightCard({
         {title}
       </h3>
       {items.length === 0 ? (
-        <p className="mt-4 rounded-[20px] border border-orange-100 bg-orange-50/50 p-4 text-sm font-bold text-slate-700 dark:border-orange-900 dark:bg-orange-950/20 dark:text-slate-300">
+        <p className="mt-4 rounded-[20px] border border-[#7a1f58]/15 bg-[#7a1f58]/5 p-4 text-sm font-bold text-slate-700 dark:border-rose-300/25 dark:bg-rose-400/10 dark:text-slate-300">
           {empty}
         </p>
       ) : (
@@ -876,7 +876,7 @@ function InsightCard({
               key={item.concept}
               type="button"
               onClick={() => onSectionSelect(item.concept)}
-              className="flex w-full items-center justify-between rounded-[18px] border border-orange-100 bg-white/80 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-orange-500 dark:hover:bg-orange-950/30 dark:hover:text-orange-100"
+              className="flex w-full items-center justify-between rounded-[18px] border border-[#7a1f58]/15 bg-white/80 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-[#7a1f58]/40 hover:bg-[#7a1f58]/5 hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/40 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-[#7a1f58] dark:hover:bg-rose-400/10 dark:hover:text-rose-100"
             >
               <span>{item.concept}</span>
               <span>{formatNumber(item.percentage)}%</span>
