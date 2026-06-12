@@ -131,7 +131,7 @@ function BuildHierarchy(assignments: StudentCompetitionMockAssignment[]): Module
         key: `${moduleKey}-${levelKey}`,
         levelCode: firstLevelExam?.levelCode || "Level",
         levelName: firstLevelExam?.levelName || firstLevelExam?.levelCode || "Level",
-        assignments: [...levelAssignments].sort((left, right) => new Date(right.assignedAt || 0).getTime() - new Date(left.assignedAt || 0).getTime()),
+        assignments: [...levelAssignments].sort((left, right) => new Date(left.assignedAt || 0).getTime() - new Date(right.assignedAt || 0).getTime()),
         avgAccuracy: Average(levelAssignments.map(AccuracyValue)),
       };
     });
