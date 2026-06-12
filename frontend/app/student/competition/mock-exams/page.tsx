@@ -84,8 +84,8 @@ function Average(values: Array<number | null | undefined>) {
 function AccuracyChipClasses(value: number | null) {
   if (value === null) return "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300";
   if (value < 60) return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200";
-  if (value < 80) return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/35 dark:text-orange-200";
-  if (value < 90) return "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/35 dark:text-indigo-200";
+  if (value < 80) return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/70 dark:bg-amber-950/35 dark:text-amber-200";
+  if (value < 90) return "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800/70 dark:bg-violet-950/35 dark:text-violet-200";
   return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-200";
 }
 
@@ -401,7 +401,7 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
 
 function AvgAccuracyChip({ value }: { value: number | null }) {
   return (
-    <span className={`rounded-full border px-3 py-1 text-xs font-black ${AccuracyChipClasses(value)}`}>
+    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black shadow-sm ${AccuracyChipClasses(value)}`}>
       Avg Accuracy {value === null ? "-" : `${FormatScore(value)}%`}
     </span>
   );
