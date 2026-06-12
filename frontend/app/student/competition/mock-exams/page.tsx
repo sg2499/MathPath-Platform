@@ -166,24 +166,6 @@ export default function StudentCompetitionMockExamsPage() {
     onSuccess: (attempt) => router.push(`/student/competition/mock-attempt/${attempt.attemptId}`),
   });
 
-  if (!ready) return null;
-
-  if (query.isLoading) {
-    return (
-      <AppShell title="Competition Mock Exams">
-        <LoadingState label="Loading competition mocks..." />
-      </AppShell>
-    );
-  }
-
-  if (query.error) {
-    return (
-      <AppShell title="Competition Mock Exams">
-        <ErrorState message={apiErrorMessage(query.error)} />
-      </AppShell>
-    );
-  }
-
   const assignments = query.data || [];
 
   const moduleOptions = useMemo(() => {
@@ -235,6 +217,24 @@ export default function StudentCompetitionMockExamsPage() {
   const avgScore = Average(filteredAssignments.map(ScoreValue));
   const avgAccuracy = Average(filteredAssignments.map(AccuracyValue));
   const hierarchy = BuildHierarchy(filteredAssignments);
+
+  if (!ready) return null;
+
+  if (query.isLoading) {
+    return (
+      <AppShell title="Competition Mock Exams">
+        <LoadingState label="Loading competition mocks..." />
+      </AppShell>
+    );
+  }
+
+  if (query.error) {
+    return (
+      <AppShell title="Competition Mock Exams">
+        <ErrorState message={apiErrorMessage(query.error)} />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title="Competition Mock Exams">
