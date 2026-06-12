@@ -136,7 +136,7 @@ function ReviewButton({ Row }: { Row: TeacherCompetitionTrackerRow }) {
   }
 
   return (
-    <span className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-2 text-xs font-black text-[#7a1f58] transition group-hover:border-[#7a1f58] group-hover:bg-[#7a1f58] group-hover:text-white dark:border-rose-300/35 dark:bg-slate-950/40 dark:text-rose-100 dark:group-hover:border-rose-300 dark:group-hover:bg-rose-400/20 dark:group-hover:text-rose-50">
+    <span className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-2 text-xs font-black text-[#7a1f58] transition group-hover:border-[#7a1f58] group-hover:bg-[#7a1f58] group-hover:text-white dark:border-rose-300/35 dark:bg-slate-950/40 dark:text-rose-100 dark:group-hover:border-rose-300 dark:group-hover:bg-rose-500/30 dark:group-hover:text-rose-50">
       <Eye size={14} /> Review
     </span>
   );
@@ -385,7 +385,7 @@ function TeacherCompetitionMockTrackerContent() {
                     </p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_180px_180px_180px] xl:w-[820px]">
-                    <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#7a1f58] focus-within:border-[#7a1f58] focus-within:ring-2 focus-within:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-300/60 dark:hover:bg-rose-400/10 dark:focus-within:border-rose-300 dark:focus-within:bg-rose-400/10 dark:focus-within:ring-rose-300/25">
+                    <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#7a1f58] focus-within:border-[#7a1f58] focus-within:ring-2 focus-within:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus-within:border-rose-300 dark:focus-within:bg-rose-500/20 dark:focus-within:ring-rose-300/25">
                       <Search size={16} className="text-[#7a1f58] dark:text-rose-100" />
                       <input
                         value={SearchText}
@@ -400,7 +400,7 @@ function TeacherCompetitionMockTrackerContent() {
                         SetModuleFilter(Event.target.value);
                         SetLevelFilter("ALL");
                       }}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-300/60 dark:hover:bg-rose-400/10 dark:focus:border-rose-300 dark:focus:bg-rose-400/10 dark:focus:ring-rose-300/25"
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus:border-rose-300 dark:focus:bg-rose-500/20 dark:focus:ring-rose-300/25"
                     >
                       <option value="ALL">All Modules</option>
                       {ModuleOptions.map((Module) => (
@@ -410,7 +410,7 @@ function TeacherCompetitionMockTrackerContent() {
                     <select
                       value={LevelFilter}
                       onChange={(Event) => SetLevelFilter(Event.target.value)}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-300/60 dark:hover:bg-rose-400/10 dark:focus:border-rose-300 dark:focus:bg-rose-400/10 dark:focus:ring-rose-300/25"
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus:border-rose-300 dark:focus:bg-rose-500/20 dark:focus:ring-rose-300/25"
                     >
                       <option value="ALL">All Levels</option>
                       {LevelOptions.map((Level) => (
@@ -420,7 +420,7 @@ function TeacherCompetitionMockTrackerContent() {
                     <select
                       value={Status}
                       onChange={(Event) => SetStatus(Event.target.value as StatusFilter)}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-300/60 dark:hover:bg-rose-400/10 dark:focus:border-rose-300 dark:focus:bg-rose-400/10 dark:focus:ring-rose-300/25"
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#7a1f58] focus:border-[#7a1f58] focus:ring-2 focus:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus:border-rose-300 dark:focus:bg-rose-500/20 dark:focus:ring-rose-300/25"
                     >
                       <option value="ALL">All Statuses</option>
                       <option value="PENDING">Pending</option>
@@ -442,10 +442,10 @@ function TeacherCompetitionMockTrackerContent() {
                           <button
                             type="button"
                             onClick={() => ToggleExpanded(SetExpandedStudents, StudentGroup.key)}
-                            className="group flex w-full flex-col gap-3 bg-[#7a1f58]/[0.025] px-4 py-4 text-left transition hover:bg-[#7a1f58]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-rose-400/5 dark:hover:bg-rose-400/15 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
+                            className="group flex w-full flex-col gap-3 bg-[#7a1f58]/[0.025] px-4 py-4 text-left transition hover:bg-[#7a1f58]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-rose-400/5 dark:hover:bg-rose-500/25 dark:hover:shadow-lg dark:hover:shadow-rose-950/30 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
                           >
                             <div className="flex min-w-0 items-center gap-3">
-                              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/25 bg-white text-[#7a1f58] shadow-sm ring-1 ring-[#7a1f58]/10 transition group-hover:bg-[#7a1f58]/5 dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100 dark:ring-rose-300/10 dark:group-hover:bg-rose-400/10">
+                              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/25 bg-white text-[#7a1f58] shadow-sm ring-1 ring-[#7a1f58]/10 transition group-hover:bg-[#7a1f58]/5 dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100 dark:ring-rose-300/10 dark:group-hover:bg-rose-500/25">
                                 {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
                               </span>
                               <div className="min-w-0">
@@ -471,7 +471,7 @@ function TeacherCompetitionMockTrackerContent() {
                                     <button
                                       type="button"
                                       onClick={() => ToggleExpanded(SetExpandedModules, ModuleGroup.key)}
-                                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.045] dark:hover:bg-rose-400/15 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
+                                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.045] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
                                     >
                                       <div className="flex min-w-0 items-center gap-3">
                                         <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#7a1f58]/20 bg-white text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">
@@ -498,7 +498,7 @@ function TeacherCompetitionMockTrackerContent() {
                                               <button
                                                 type="button"
                                                 onClick={() => ToggleExpanded(SetExpandedLevels, LevelGroup.key)}
-                                                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.04] dark:hover:bg-rose-400/15 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
+                                                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.04] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30"
                                               >
                                                 <div className="flex min-w-0 items-center gap-3">
                                                   <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
@@ -526,7 +526,7 @@ function TeacherCompetitionMockTrackerContent() {
                                                             <button
                                                               type="button"
                                                               onClick={() => SetMockTableSort((Current) => NextSortState(Current, Column.key!))}
-                                                              className="inline-flex items-center gap-1.5 rounded-lg text-left transition hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/25 dark:hover:text-rose-50 dark:focus:ring-rose-300/30"
+                                                              className="inline-flex items-center gap-1.5 rounded-lg text-left transition hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/25 dark:hover:text-white dark:focus:ring-rose-300/40"
                                                               aria-label={`Sort by ${Column.label}`}
                                                             >
                                                               <span>{Column.label}</span>
@@ -551,7 +551,7 @@ function TeacherCompetitionMockTrackerContent() {
                                                               router.push(`/teacher/competition/mock-result/${Row.attemptId}`);
                                                             }
                                                           }}
-                                                          className={`group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-400/15 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
+                                                          className={`group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
                                                         >
                                                           <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</div>
                                                           <div className="px-3 py-4 text-xs font-black text-slate-950 dark:text-white">{Row.mockExam.mockCode || "-"}</div>
