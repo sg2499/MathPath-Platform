@@ -75,6 +75,11 @@ function AverageAccuracyChip(Rows: TeacherCompetitionTrackerRow[]) {
   );
 }
 
+function ScorePercentage(Row: TeacherCompetitionTrackerRow) {
+  if (!IsCompleted(Row) || Row.score == null || Row.maxScore == null || Number(Row.maxScore) === 0) return null;
+  return Math.round((Number(Row.score) / Number(Row.maxScore)) * 100);
+}
+
 function ScoreText(Row: TeacherCompetitionTrackerRow) {
   if (!IsCompleted(Row) || Row.score == null || Row.maxScore == null) return "-";
   return `${Row.score}/${Row.maxScore}`;
@@ -372,9 +377,9 @@ function TeacherCompetitionMockTrackerContent() {
                                               {LevelOpen ? (
                                                 <div className="border-t border-slate-100 p-3 dark:border-white/10">
                                                   <div className="overflow-hidden rounded-2xl border border-[#7a1f58]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
-                                                    <div className="grid grid-cols-[1.2fr_1fr_0.8fr_0.8fr_1fr_1fr_1fr_0.8fr] gap-0 bg-[#7a1f58]/10 text-[#7a1f58] dark:bg-rose-300/15 dark:text-rose-100">
-                                                      {["Mock", "Mock Code", "Score", "Accuracy", "Time Taken", "Assigned Date", "Completion Date", "Review"].map((Header) => (
-                                                        <div key={Header} className="px-3 py-3 text-[0.64rem] font-black uppercase tracking-[0.14em]">
+                                                    <div className="grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-0 bg-[#7a1f58]/10 text-[#7a1f58] dark:bg-rose-300/15 dark:text-rose-100">
+                                                      {["Mock", "Mock Code", "Status", "Score", "Accuracy", "Time Taken", "Assigned Date", "Completion Date", "Review"].map((Header) => (
+                                                        <div key={Header} className="px-3 py-3 text-[0.68rem] font-black uppercase tracking-[0.16em] text-[#5f123f] dark:text-rose-50">
                                                           {Header}
                                                         </div>
                                                       ))}
@@ -392,24 +397,26 @@ function TeacherCompetitionMockTrackerContent() {
                                                               router.push(`/teacher/competition/mock-result/${Row.attemptId}`);
                                                             }
                                                           }}
-                                                          className={`group grid grid-cols-[1.2fr_1fr_0.8fr_0.8fr_1fr_1fr_1fr_0.8fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-400/10" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
+                                                          className={`group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-400/10" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
                                                         >
+                                                          <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</div>
+                                                          <div className="px-3 py-4 text-xs font-black text-slate-950 dark:text-white">{Row.mockExam.mockCode || "-"}</div>
                                                           <div className="px-3 py-4">
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                              <span className={`rounded-full border px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] ${StatusClass(Row.status)}`}>{StatusLabel(Row.status)}</span>
-                                                            </div>
-                                                            <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</p>
+                                                            <span className={`rounded-full border px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] ${StatusClass(Row.status)}`}>{StatusLabel(Row.status)}</span>
                                                           </div>
-                                                          <div className="px-3 py-4 text-xs font-black text-[#7a1f58] dark:text-rose-100">{Row.mockExam.mockCode || "-"}</div>
-                                                          <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{ScoreText(Row)}</div>
+                                                          <div className="px-3 py-4">
+                                                            <span className={`rounded-full border px-2.5 py-1 text-xs font-black ${AccuracyBandClass(ScorePercentage(Row))}`}>
+                                                              {ScoreText(Row)}
+                                                            </span>
+                                                          </div>
                                                           <div className="px-3 py-4">
                                                             <span className={`rounded-full border px-2.5 py-1 text-xs font-black ${AccuracyBandClass(IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : null)}`}>
                                                               {IsCompleted(Row) ? PercentValue(Row.accuracyPercentage) : "-"}
                                                             </span>
                                                           </div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-700 dark:text-slate-200">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-700 dark:text-slate-200">{FormatDate(Row.assignedAt)}</div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-700 dark:text-slate-200">{IsCompleted(Row) ? FormatDate(Row.submittedAt) : "-"}</div>
+                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
+                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{FormatDate(Row.assignedAt)}</div>
+                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? FormatDate(Row.submittedAt) : "-"}</div>
                                                           <div className="px-3 py-4">
                                                             <ReviewButton Row={Row} />
                                                           </div>
