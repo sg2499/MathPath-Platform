@@ -68,9 +68,9 @@ function AverageAccuracyValue(Rows: TeacherCompetitionTrackerRow[]) {
 
 
 function AverageScoreValue(Rows: TeacherCompetitionTrackerRow[]) {
-  const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && ScorePercentage(Row) != null);
+  const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && Row.score != null);
   if (CompletedRows.length === 0) return 0;
-  const Total = CompletedRows.reduce((Sum, Row) => Sum + Number(ScorePercentage(Row) || 0), 0);
+  const Total = CompletedRows.reduce((Sum, Row) => Sum + Number(Row.score || 0), 0);
   return Math.round(Total / CompletedRows.length);
 }
 
@@ -370,7 +370,7 @@ function TeacherCompetitionMockTrackerContent() {
               <MetricCard Icon={UsersRound} Label="Assigned" Value={FilteredSummary.assignedCount} />
               <MetricCard Icon={ShieldCheck} Label="Completed" Value={FilteredSummary.completedCount} />
               <MetricCard Icon={Clock3} Label="Pending" Value={FilteredSummary.pendingCount} />
-              <MetricCard Icon={Trophy} Label="Avg Score" Value={`${FilteredSummary.averageScore}%`} />
+              <MetricCard Icon={Trophy} Label="Avg Score" Value={FilteredSummary.averageScore} />
               <MetricCard Icon={BarChart3} Label="Avg Accuracy" Value={`${FilteredSummary.averageAccuracy}%`} />
             </div>
 
@@ -455,7 +455,7 @@ function TeacherCompetitionMockTrackerContent() {
                             </div>
                             <div className="flex flex-wrap gap-2 text-xs font-black">
                               {AverageAccuracyChip(StudentGroup.rows)}
-                              <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{StudentGroup.rows.length} Mock{StudentGroup.rows.length === 1 ? "" : "s"}</span>
+                              <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{StudentGroup.rows.length} Mock{StudentGroup.rows.length === 1 ? "" : "s"}</span>
                               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200">{CompletedCount} Completed</span>
                               <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{PendingCountForStudent} Pending</span>
                             </div>
@@ -484,7 +484,7 @@ function TeacherCompetitionMockTrackerContent() {
                                       </div>
                                       <div className="flex flex-wrap justify-end gap-2 text-xs font-black">
                                         {AverageAccuracyChip(ModuleRows)}
-                                        <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{ModuleRows.length} Mock{ModuleRows.length === 1 ? "" : "s"}</span>
+                                        <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{ModuleRows.length} Mock{ModuleRows.length === 1 ? "" : "s"}</span>
                                       </div>
                                     </button>
 
