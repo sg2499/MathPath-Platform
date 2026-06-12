@@ -15,6 +15,22 @@ import { useRouter } from "next/navigation";
 
 type StatusFilter = "ALL" | "COMPLETED" | "PENDING" | "ASSIGNED";
 
+type SortKey = "mock" | "mockCode" | "status" | "score" | "accuracy" | "timeTaken" | "assignedDate" | "completionDate";
+type SortDirection = "asc" | "desc";
+type SortState = { key: SortKey; direction: SortDirection } | null;
+
+const MockTableColumns: Array<{ label: string; key?: SortKey; className?: string }> = [
+  { label: "Mock", key: "mock" },
+  { label: "Mock Code", key: "mockCode" },
+  { label: "Status", key: "status" },
+  { label: "Score", key: "score" },
+  { label: "Accuracy", key: "accuracy" },
+  { label: "Time Taken", key: "timeTaken" },
+  { label: "Assigned Date", key: "assignedDate" },
+  { label: "Completion Date", key: "completionDate" },
+  { label: "Review" },
+];
+
 function FormatDate(Value?: string | null) {
   if (!Value) return "-";
   const DateValue = new Date(Value);
@@ -121,6 +137,55 @@ function ToggleExpanded(Setter: Dispatch<SetStateAction<Set<string>>>, Key: stri
   });
 }
 
+
+function SortValue(Row: TeacherCompetitionTrackerRow, Key: SortKey): string | number {
+  if (Key === "mock") return Row.mockExam.title || "";
+  if (Key === "mockCode") return Row.mockExam.mockCode || "";
+  if (Key === "status") return IsCompleted(Row) ? 1 : 0;
+  if (Key === "score") return ScorePercentage(Row) ?? -1;
+  if (Key === "accuracy") return IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : -1;
+  if (Key === "timeTaken") return IsCompleted(Row) && Row.timeTakenSeconds != null ? Number(Row.timeTakenSeconds) : -1;
+  if (Key === "assignedDate") {
+    const Time = Row.assignedAt ? new Date(Row.assignedAt).getTime() : 0;
+    return Number.isNaN(Time) ? 0 : Time;
+  }
+  if (Key === "completionDate") {
+    const Time = Row.submittedAt ? new Date(Row.submittedAt).getTime() : 0;
+    return Number.isNaN(Time) ? 0 : Time;
+  }
+  return "";
+}
+
+function SortRows(Rows: TeacherCompetitionTrackerRow[], Sort: SortState) {
+  if (!Sort) return Rows;
+  return [...Rows].sort((Left, Right) => {
+    const LeftValue = SortValue(Left, Sort.key);
+    const RightValue = SortValue(Right, Sort.key);
+    let Result = 0;
+
+    if (typeof LeftValue === "number" && typeof RightValue === "number") {
+      Result = LeftValue - RightValue;
+    } else {
+      Result = String(LeftValue).localeCompare(String(RightValue), undefined, { numeric: true, sensitivity: "base" });
+    }
+
+    return Sort.direction === "asc" ? Result : -Result;
+  });
+}
+
+function NextSortState(Current: SortState, Key: SortKey): SortState {
+  if (!Current || Current.key !== Key) return { key: Key, direction: "asc" };
+  if (Current.direction === "asc") return { key: Key, direction: "desc" };
+  return null;
+}
+
+function SortIndicator({ Sort, ColumnKey }: { Sort: SortState; ColumnKey: SortKey }) {
+  if (!Sort || Sort.key !== ColumnKey) {
+    return <span className="text-[#7a1f58]/45 dark:text-rose-100/45">↕</span>;
+  }
+  return <span className="text-[#7a1f58] dark:text-rose-100">{Sort.direction === "asc" ? "↑" : "↓"}</span>;
+}
+
 type MockLevelGroup = {
   key: string;
   label: string;
@@ -165,6 +230,7 @@ function TeacherCompetitionMockTrackerContent() {
   const [ExpandedStudents, SetExpandedStudents] = useState<Set<string>>(() => new Set());
   const [ExpandedModules, SetExpandedModules] = useState<Set<string>>(() => new Set());
   const [ExpandedLevels, SetExpandedLevels] = useState<Set<string>>(() => new Set());
+  const [MockTableSort, SetMockTableSort] = useState<SortState>(null);
   const router = useRouter();
 
   const Query = useQuery({ queryKey: ["teacher", "competition", "mock-tracker"], queryFn: getTeacherCompetitionMockTracker });
@@ -378,14 +444,26 @@ function TeacherCompetitionMockTrackerContent() {
                                                 <div className="border-t border-slate-100 p-3 dark:border-white/10">
                                                   <div className="overflow-hidden rounded-2xl border border-[#7a1f58]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
                                                     <div className="grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-0 bg-[#7a1f58]/10 text-[#7a1f58] dark:bg-rose-300/15 dark:text-rose-100">
-                                                      {["Mock", "Mock Code", "Status", "Score", "Accuracy", "Time Taken", "Assigned Date", "Completion Date", "Review"].map((Header) => (
-                                                        <div key={Header} className="px-3 py-3 text-[0.68rem] font-black uppercase tracking-[0.16em] text-[#5f123f] dark:text-rose-50">
-                                                          {Header}
+                                                      {MockTableColumns.map((Column) => (
+                                                        <div key={Column.label} className="px-3 py-3 text-[0.68rem] font-black uppercase tracking-[0.16em] text-[#5f123f] dark:text-rose-50">
+                                                          {Column.key ? (
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => SetMockTableSort((Current) => NextSortState(Current, Column.key!))}
+                                                              className="inline-flex items-center gap-1.5 rounded-lg text-left transition hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/25 dark:hover:text-rose-100 dark:focus:ring-rose-300/25"
+                                                              aria-label={`Sort by ${Column.label}`}
+                                                            >
+                                                              <span>{Column.label}</span>
+                                                              <SortIndicator Sort={MockTableSort} ColumnKey={Column.key} />
+                                                            </button>
+                                                          ) : (
+                                                            Column.label
+                                                          )}
                                                         </div>
                                                       ))}
                                                     </div>
                                                     <div className="divide-y divide-slate-100 dark:divide-white/10">
-                                                      {LevelGroup.rows.map((Row) => (
+                                                      {SortRows(LevelGroup.rows, MockTableSort).map((Row) => (
                                                         <div
                                                           key={Row.assignmentId}
                                                           role={Row.attemptId ? "button" : undefined}
