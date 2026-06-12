@@ -43,6 +43,13 @@ function PercentValue(Value?: number | null) {
   return Value != null ? `${Value}%` : "-";
 }
 
+function AverageAccuracyChip(Rows: TeacherCompetitionTrackerRow[]) {
+  const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && Row.accuracyPercentage != null);
+  if (CompletedRows.length === 0) return "Avg Accuracy -";
+  const Total = CompletedRows.reduce((Sum, Row) => Sum + Number(Row.accuracyPercentage || 0), 0);
+  return `Avg Accuracy ${Math.round(Total / CompletedRows.length)}%`;
+}
+
 function SafeModuleLabel(Row: TeacherCompetitionTrackerRow) {
   return Row.mockExam.moduleCode || "Module";
 }
@@ -242,10 +249,10 @@ function TeacherCompetitionMockTrackerContent() {
                           <button
                             type="button"
                             onClick={() => ToggleExpanded(SetExpandedStudents, StudentGroup.key)}
-                            className="flex w-full flex-col gap-3 bg-[#7a1f58]/[0.025] px-4 py-4 text-left transition hover:bg-[#7a1f58]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-rose-400/5 dark:hover:bg-rose-400/10"
+                            className="group flex w-full flex-col gap-3 bg-[#7a1f58]/[0.025] px-4 py-4 text-left transition hover:bg-[#7a1f58]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-rose-400/5 dark:hover:bg-rose-400/10"
                           >
                             <div className="flex min-w-0 items-center gap-3">
-                              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+                              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/25 bg-white text-[#7a1f58] shadow-sm ring-1 ring-[#7a1f58]/10 transition group-hover:bg-[#7a1f58]/5 dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100 dark:ring-rose-300/10 dark:group-hover:bg-rose-400/10">
                                 {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
                               </span>
                               <div className="min-w-0">
@@ -254,6 +261,7 @@ function TeacherCompetitionMockTrackerContent() {
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2 text-xs font-black">
+                              <span className="rounded-full border border-[#7a1f58]/25 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{AverageAccuracyChip(StudentGroup.rows)}</span>
                               <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{StudentGroup.rows.length} Mock{StudentGroup.rows.length === 1 ? "" : "s"}</span>
                               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200">{CompletedCount} Completed</span>
                               <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{PendingCountForStudent} Pending</span>
@@ -281,7 +289,10 @@ function TeacherCompetitionMockTrackerContent() {
                                           <p className="text-sm font-black text-slate-950 dark:text-white">{ModuleGroup.label}</p>
                                         </div>
                                       </div>
-                                      <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-xs font-black text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{ModuleRows.length} Mock{ModuleRows.length === 1 ? "" : "s"}</span>
+                                      <div className="flex flex-wrap justify-end gap-2 text-xs font-black">
+                                        <span className="rounded-full border border-[#7a1f58]/25 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{AverageAccuracyChip(ModuleRows)}</span>
+                                        <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{ModuleRows.length} Mock{ModuleRows.length === 1 ? "" : "s"}</span>
+                                      </div>
                                     </button>
 
                                     {ModuleOpen ? (
@@ -306,6 +317,7 @@ function TeacherCompetitionMockTrackerContent() {
                                                   </div>
                                                 </div>
                                                 <div className="flex flex-wrap justify-end gap-2 text-xs font-black">
+                                                  <span className="rounded-full border border-[#7a1f58]/25 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{AverageAccuracyChip(LevelGroup.rows)}</span>
                                                   <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{LevelGroup.rows.length} Mock{LevelGroup.rows.length === 1 ? "" : "s"}</span>
                                                   <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200">{LevelCompleted} Completed</span>
                                                 </div>
@@ -319,7 +331,7 @@ function TeacherCompetitionMockTrackerContent() {
                                                       type="button"
                                                       onClick={() => Row.attemptId ? router.push(`/teacher/competition/mock-result/${Row.attemptId}`) : undefined}
                                                       disabled={!Row.attemptId}
-                                                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left shadow-sm transition hover:border-[#7a1f58]/40 hover:bg-[#7a1f58]/[0.035] disabled:cursor-not-allowed disabled:opacity-70 dark:border-white/10 dark:bg-white/5 dark:hover:bg-rose-400/10"
+                                                      className="group w-full rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left shadow-sm transition hover:border-[#7a1f58]/40 hover:bg-[#7a1f58]/[0.035] disabled:cursor-not-allowed disabled:opacity-70 dark:border-white/10 dark:bg-white/5 dark:hover:bg-rose-400/10"
                                                     >
                                                       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                                                         <div className="min-w-0">
@@ -334,7 +346,7 @@ function TeacherCompetitionMockTrackerContent() {
                                                           <MiniMetric Label="Score" Value={PercentValue(Row.percentage)} />
                                                           <MiniMetric Label="Accuracy" Value={PercentValue(Row.accuracyPercentage)} />
                                                           <MiniMetric Label="Time" Value={Row.timeTakenText || "-"} />
-                                                          <span className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-3 text-sm font-black text-[#7a1f58] transition dark:border-rose-300/30 dark:bg-slate-950/40 dark:text-rose-100">
+                                                          <span className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-3 text-sm font-black text-[#7a1f58] transition group-hover:border-[#7a1f58] group-hover:bg-[#7a1f58] group-hover:text-white dark:border-rose-300/30 dark:bg-slate-950/40 dark:text-rose-100 dark:group-hover:border-rose-300 dark:group-hover:bg-rose-300 dark:group-hover:text-slate-950">
                                                             <Eye size={15} /> Review
                                                           </span>
                                                         </div>
