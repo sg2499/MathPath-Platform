@@ -12,7 +12,7 @@ import { BarChart3, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type StatusFilter = "ALL" | "COMPLETED" | "IN_PROGRESS" | "ASSIGNED";
+type StatusFilter = "ALL" | "COMPLETED" | "PENDING" | "ASSIGNED";
 
 function FormatDate(Value?: string | null) {
   if (!Value) return "-";
@@ -24,20 +24,19 @@ function FormatDate(Value?: string | null) {
 function StatusLabel(Status?: string | null) {
   const Value = String(Status || "ASSIGNED").toUpperCase();
   if (Value === "COMPLETED") return "Completed";
-  if (Value === "IN_PROGRESS") return "In Progress";
-  return "Assigned";
+  if (Value === "IN_PROGRESS") return "Pending";
+  return "Pending";
 }
 
 function StatusClass(Status?: string | null) {
   const Value = String(Status || "ASSIGNED").toUpperCase();
   if (Value === "COMPLETED") return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200";
-  if (Value === "IN_PROGRESS") return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200";
   return "border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100";
 }
 
-function MetricCard({ Icon, Label, Value, Helper }: { Icon: typeof Trophy; Label: string; Value: string | number; Helper: string }) {
+function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string; Value: string | number }) {
   return (
-    <article className="math-card p-5">
+    <article className="math-card border-[#7a1f58]/20 p-5 ring-1 ring-[#7a1f58]/10 dark:border-rose-300/25 dark:ring-rose-300/10">
       <div className="flex items-start justify-between gap-4">
         <span className="grid h-9 w-9 place-items-center rounded-2xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
           <Icon size={17} />
@@ -45,7 +44,6 @@ function MetricCard({ Icon, Label, Value, Helper }: { Icon: typeof Trophy; Label
         <strong className="text-3xl font-black text-slate-950 dark:text-white">{Value}</strong>
       </div>
       <p className="mt-4 text-[0.68rem] font-black uppercase tracking-[0.24em] text-[#7a1f58] dark:text-rose-100">{Label}</p>
-      <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">{Helper}</p>
     </article>
   );
 }
@@ -63,7 +61,9 @@ function TeacherCompetitionMockTrackerContent() {
     const Term = SearchText.trim().toLowerCase();
     return Rows.filter((Row) => {
       const RowStatus = String(Row.status || "ASSIGNED").toUpperCase();
-      if (Status !== "ALL" && RowStatus !== Status) return false;
+      if (Status === "COMPLETED" && RowStatus !== "COMPLETED") return false;
+      if (Status === "PENDING" && RowStatus === "COMPLETED") return false;
+      if (Status === "ASSIGNED" && RowStatus !== "ASSIGNED") return false;
       if (!Term) return true;
       const Haystack = [
         Row.student.studentName,
@@ -78,6 +78,7 @@ function TeacherCompetitionMockTrackerContent() {
   }, [Rows, SearchText, Status]);
 
   const Summary = Query.data?.summary;
+  const PendingCount = Summary?.pendingCount ?? Math.max((Summary?.assignedCount ?? 0) - (Summary?.completedCount ?? 0), 0);
 
   return (
     <AppShell title="Competition Mock Tracker">
@@ -97,11 +98,11 @@ function TeacherCompetitionMockTrackerContent() {
         ) : (
           <>
             <div className="grid gap-4 xl:grid-cols-5 md:grid-cols-2">
-              <MetricCard Icon={UsersRound} Label="Assigned" Value={Summary?.assignedCount ?? 0} Helper="Teacher-visible mock assignments" />
-              <MetricCard Icon={ShieldCheck} Label="Completed" Value={Summary?.completedCount ?? 0} Helper="Submitted mocks" />
-              <MetricCard Icon={Clock3} Label="In Progress" Value={Summary?.inProgressCount ?? 0} Helper="Currently active attempts" />
-              <MetricCard Icon={Trophy} Label="Avg Score" Value={`${Summary?.averageScore ?? 0}%`} Helper="Completed mocks" />
-              <MetricCard Icon={BarChart3} Label="Avg Accuracy" Value={`${Summary?.averageAccuracy ?? 0}%`} Helper="Attempted answers" />
+              <MetricCard Icon={UsersRound} Label="Assigned" Value={Summary?.assignedCount ?? 0} />
+              <MetricCard Icon={ShieldCheck} Label="Completed" Value={Summary?.completedCount ?? 0} />
+              <MetricCard Icon={Clock3} Label="Pending" Value={PendingCount} />
+              <MetricCard Icon={Trophy} Label="Avg Score" Value={`${Summary?.averageScore ?? 0}%`} />
+              <MetricCard Icon={BarChart3} Label="Avg Accuracy" Value={`${Summary?.averageAccuracy ?? 0}%`} />
             </div>
 
             <div className="grid gap-5">
@@ -131,7 +132,7 @@ function TeacherCompetitionMockTrackerContent() {
                     >
                       <option value="ALL">All Statuses</option>
                       <option value="ASSIGNED">Assigned</option>
-                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="PENDING">Pending</option>
                       <option value="COMPLETED">Completed</option>
                     </select>
                   </div>
