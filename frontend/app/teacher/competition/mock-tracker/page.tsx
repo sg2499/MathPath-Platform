@@ -8,8 +8,9 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherCompetitionMockTracker, type TeacherCompetitionTrackerRow } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 
 type StatusFilter = "ALL" | "COMPLETED" | "PENDING" | "ASSIGNED";
@@ -34,6 +35,53 @@ function StatusClass(Status?: string | null) {
   return "border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100";
 }
 
+function IsCompleted(Row: TeacherCompetitionTrackerRow) {
+  return String(Row.status || "ASSIGNED").toUpperCase() === "COMPLETED";
+}
+
+function PercentValue(Value?: number | null) {
+  return Value != null ? `${Value}%` : "-";
+}
+
+function SafeModuleLabel(Row: TeacherCompetitionTrackerRow) {
+  return Row.mockExam.moduleCode || "Module";
+}
+
+function SafeLevelLabel(Row: TeacherCompetitionTrackerRow) {
+  return Row.mockExam.levelCode || "Level";
+}
+
+function ToggleExpanded(Setter: Dispatch<SetStateAction<Set<string>>>, Key: string) {
+  Setter((Previous) => {
+    const Next = new Set(Previous);
+    if (Next.has(Key)) {
+      Next.delete(Key);
+    } else {
+      Next.add(Key);
+    }
+    return Next;
+  });
+}
+
+type MockLevelGroup = {
+  key: string;
+  label: string;
+  rows: TeacherCompetitionTrackerRow[];
+};
+
+type MockModuleGroup = {
+  key: string;
+  label: string;
+  levels: MockLevelGroup[];
+};
+
+type StudentMockGroup = {
+  key: string;
+  student: TeacherCompetitionTrackerRow["student"];
+  rows: TeacherCompetitionTrackerRow[];
+  modules: MockModuleGroup[];
+};
+
 function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string; Value: string | number }) {
   return (
     <article className="math-teacher-light-metric-card rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
@@ -56,6 +104,9 @@ function TeacherCompetitionMockTrackerContent() {
   useProtectedPage(["TEACHER"]);
   const [SearchText, SetSearchText] = useState("");
   const [Status, SetStatus] = useState<StatusFilter>("ALL");
+  const [ExpandedStudents, SetExpandedStudents] = useState<Set<string>>(() => new Set());
+  const [ExpandedModules, SetExpandedModules] = useState<Set<string>>(() => new Set());
+  const [ExpandedLevels, SetExpandedLevels] = useState<Set<string>>(() => new Set());
   const router = useRouter();
 
   const Query = useQuery({ queryKey: ["teacher", "competition", "mock-tracker"], queryFn: getTeacherCompetitionMockTracker });
@@ -80,6 +131,42 @@ function TeacherCompetitionMockTrackerContent() {
       return Haystack.includes(Term);
     });
   }, [Rows, SearchText, Status]);
+
+  const GroupedRows = useMemo<StudentMockGroup[]>(() => {
+    const StudentMap = new Map<string, StudentMockGroup>();
+
+    FilteredRows.forEach((Row) => {
+      const StudentKey = Row.student.studentId || Row.student.studentCode || "student";
+      if (!StudentMap.has(StudentKey)) {
+        StudentMap.set(StudentKey, { key: StudentKey, student: Row.student, rows: [], modules: [] });
+      }
+      StudentMap.get(StudentKey)!.rows.push(Row);
+    });
+
+    return Array.from(StudentMap.values()).map((StudentGroup) => {
+      const ModuleMap = new Map<string, MockModuleGroup>();
+
+      StudentGroup.rows.forEach((Row) => {
+        const ModuleLabel = SafeModuleLabel(Row);
+        const ModuleKey = `${StudentGroup.key}::${ModuleLabel}`;
+        if (!ModuleMap.has(ModuleKey)) {
+          ModuleMap.set(ModuleKey, { key: ModuleKey, label: ModuleLabel, levels: [] });
+        }
+
+        const ModuleGroup = ModuleMap.get(ModuleKey)!;
+        const LevelLabel = SafeLevelLabel(Row);
+        const LevelKey = `${ModuleKey}::${LevelLabel}`;
+        let LevelGroup = ModuleGroup.levels.find((Item) => Item.key === LevelKey);
+        if (!LevelGroup) {
+          LevelGroup = { key: LevelKey, label: LevelLabel, rows: [] };
+          ModuleGroup.levels.push(LevelGroup);
+        }
+        LevelGroup.rows.push(Row);
+      });
+
+      return { ...StudentGroup, modules: Array.from(ModuleMap.values()) };
+    });
+  }, [FilteredRows]);
 
   const Summary = Query.data?.summary;
   const PendingCount = Summary?.pendingCount ?? Math.max((Summary?.assignedCount ?? 0) - (Summary?.completedCount ?? 0), 0);
@@ -143,39 +230,132 @@ function TeacherCompetitionMockTrackerContent() {
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  {FilteredRows.length === 0 ? (
+                  {GroupedRows.length === 0 ? (
                     <EmptyState title="No competition mock records" message="Assigned competition mock outcomes for your students will appear here." />
                   ) : (
-                    FilteredRows.map((Row) => (
-                      <div key={Row.assignmentId} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/35">
-                        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className={`rounded-full border px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.14em] ${StatusClass(Row.status)}`}>{StatusLabel(Row.status)}</span>
-                              <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{Row.mockExam.levelCode || "Level"}</span>
+                    GroupedRows.map((StudentGroup) => {
+                      const StudentOpen = ExpandedStudents.has(StudentGroup.key);
+                      const CompletedCount = StudentGroup.rows.filter(IsCompleted).length;
+                      const PendingCountForStudent = StudentGroup.rows.length - CompletedCount;
+                      return (
+                        <div key={StudentGroup.key} className="overflow-hidden rounded-3xl border border-[#7a1f58]/15 bg-white shadow-sm ring-1 ring-rose-100/70 dark:border-rose-300/15 dark:bg-slate-950/35 dark:ring-white/10">
+                          <button
+                            type="button"
+                            onClick={() => ToggleExpanded(SetExpandedStudents, StudentGroup.key)}
+                            className="flex w-full flex-col gap-3 bg-[#7a1f58]/[0.025] px-4 py-4 text-left transition hover:bg-[#7a1f58]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-rose-400/5 dark:hover:bg-rose-400/10"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+                                {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+                              </span>
+                              <div className="min-w-0">
+                                <h3 className="truncate text-lg font-black text-slate-950 dark:text-white">{StudentGroup.student.studentName}</h3>
+                                <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{StudentGroup.student.studentCode}</p>
+                              </div>
                             </div>
-                            <h3 className="mt-3 truncate text-lg font-black text-slate-950 dark:text-white">{Row.mockExam.title}</h3>
-                            <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">
-                              {Row.student.studentName} · {Row.student.studentCode} · {Row.mockExam.mockCode || "Mock"}
-                            </p>
-                            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">Assigned {FormatDate(Row.assignedAt)}{Row.submittedAt ? ` · Submitted ${FormatDate(Row.submittedAt)}` : ""}</p>
-                          </div>
-                          <div className="grid gap-2 sm:grid-cols-4 xl:min-w-[520px]">
-                            <MiniMetric Label="Score" Value={Row.percentage != null ? `${Row.percentage}%` : "-"} />
-                            <MiniMetric Label="Accuracy" Value={Row.accuracyPercentage != null ? `${Row.accuracyPercentage}%` : "-"} />
-                            <MiniMetric Label="Time" Value={Row.timeTakenText || "-"} />
-                            <button
-                              type="button"
-                              onClick={() => Row.attemptId ? router.push(`/teacher/competition/mock-result/${Row.attemptId}`) : undefined}
-                              disabled={!Row.attemptId}
-                              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-3 text-sm font-black text-[#7a1f58] transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-white disabled:hover:text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/40 dark:text-rose-100 dark:hover:bg-rose-700 dark:disabled:hover:bg-slate-950/40 dark:disabled:hover:text-rose-100"
-                            >
-                              <Eye size={15} /> Review
-                            </button>
-                          </div>
+                            <div className="flex flex-wrap gap-2 text-xs font-black">
+                              <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{StudentGroup.rows.length} Mock{StudentGroup.rows.length === 1 ? "" : "s"}</span>
+                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200">{CompletedCount} Completed</span>
+                              <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{PendingCountForStudent} Pending</span>
+                            </div>
+                          </button>
+
+                          {StudentOpen ? (
+                            <div className="space-y-3 border-t border-[#7a1f58]/10 p-4 dark:border-rose-300/10">
+                              {StudentGroup.modules.map((ModuleGroup) => {
+                                const ModuleOpen = ExpandedModules.has(ModuleGroup.key);
+                                const ModuleRows = ModuleGroup.levels.flatMap((Level) => Level.rows);
+                                return (
+                                  <div key={ModuleGroup.key} className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/60 dark:border-white/10 dark:bg-white/5">
+                                    <button
+                                      type="button"
+                                      onClick={() => ToggleExpanded(SetExpandedModules, ModuleGroup.key)}
+                                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.045] dark:hover:bg-rose-400/10"
+                                    >
+                                      <div className="flex min-w-0 items-center gap-3">
+                                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#7a1f58]/20 bg-white text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">
+                                          {ModuleOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                        </span>
+                                        <div>
+                                          <p className="text-[0.64rem] font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">Module</p>
+                                          <p className="text-sm font-black text-slate-950 dark:text-white">{ModuleGroup.label}</p>
+                                        </div>
+                                      </div>
+                                      <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-xs font-black text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{ModuleRows.length} Mock{ModuleRows.length === 1 ? "" : "s"}</span>
+                                    </button>
+
+                                    {ModuleOpen ? (
+                                      <div className="space-y-3 border-t border-slate-200 p-3 dark:border-white/10">
+                                        {ModuleGroup.levels.map((LevelGroup) => {
+                                          const LevelOpen = ExpandedLevels.has(LevelGroup.key);
+                                          const LevelCompleted = LevelGroup.rows.filter(IsCompleted).length;
+                                          return (
+                                            <div key={LevelGroup.key} className="overflow-hidden rounded-2xl border border-white bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
+                                              <button
+                                                type="button"
+                                                onClick={() => ToggleExpanded(SetExpandedLevels, LevelGroup.key)}
+                                                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#7a1f58]/[0.04] dark:hover:bg-rose-400/10"
+                                              >
+                                                <div className="flex min-w-0 items-center gap-3">
+                                                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+                                                    {LevelOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                                  </span>
+                                                  <div>
+                                                    <p className="text-[0.64rem] font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">Level</p>
+                                                    <p className="text-sm font-black text-slate-950 dark:text-white">{LevelGroup.label}</p>
+                                                  </div>
+                                                </div>
+                                                <div className="flex flex-wrap justify-end gap-2 text-xs font-black">
+                                                  <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{LevelGroup.rows.length} Mock{LevelGroup.rows.length === 1 ? "" : "s"}</span>
+                                                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200">{LevelCompleted} Completed</span>
+                                                </div>
+                                              </button>
+
+                                              {LevelOpen ? (
+                                                <div className="space-y-2 border-t border-slate-100 p-3 dark:border-white/10">
+                                                  {LevelGroup.rows.map((Row) => (
+                                                    <button
+                                                      key={Row.assignmentId}
+                                                      type="button"
+                                                      onClick={() => Row.attemptId ? router.push(`/teacher/competition/mock-result/${Row.attemptId}`) : undefined}
+                                                      disabled={!Row.attemptId}
+                                                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left shadow-sm transition hover:border-[#7a1f58]/40 hover:bg-[#7a1f58]/[0.035] disabled:cursor-not-allowed disabled:opacity-70 dark:border-white/10 dark:bg-white/5 dark:hover:bg-rose-400/10"
+                                                    >
+                                                      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                                                        <div className="min-w-0">
+                                                          <div className="flex flex-wrap items-center gap-2">
+                                                            <span className={`rounded-full border px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.14em] ${StatusClass(Row.status)}`}>{StatusLabel(Row.status)}</span>
+                                                            <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-slate-950/50 dark:text-rose-100">{Row.mockExam.mockCode || "Mock"}</span>
+                                                          </div>
+                                                          <h4 className="mt-3 truncate text-base font-black text-slate-950 dark:text-white">{Row.mockExam.title}</h4>
+                                                          <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">Assigned {FormatDate(Row.assignedAt)}{Row.submittedAt ? ` · Submitted ${FormatDate(Row.submittedAt)}` : ""}</p>
+                                                        </div>
+                                                        <div className="grid gap-2 sm:grid-cols-4 xl:min-w-[520px]">
+                                                          <MiniMetric Label="Score" Value={PercentValue(Row.percentage)} />
+                                                          <MiniMetric Label="Accuracy" Value={PercentValue(Row.accuracyPercentage)} />
+                                                          <MiniMetric Label="Time" Value={Row.timeTakenText || "-"} />
+                                                          <span className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#7a1f58]/25 bg-white px-4 py-3 text-sm font-black text-[#7a1f58] transition dark:border-rose-300/30 dark:bg-slate-950/40 dark:text-rose-100">
+                                                            <Eye size={15} /> Review
+                                                          </span>
+                                                        </div>
+                                                      </div>
+                                                    </button>
+                                                  ))}
+                                                </div>
+                                              ) : null}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : null}
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </article>
