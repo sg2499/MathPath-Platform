@@ -46,10 +46,13 @@ function FormatDate(value?: string | null) {
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function RoundHalfUp(value: number) {
+  return Math.floor(Number(value) + 0.5);
+}
+
 function FormatScore(value?: number | null) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
-  const numeric = Number(value);
-  return Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(1);
+  return String(RoundHalfUp(Number(value)));
 }
 
 function IsCompleted(assignment: StudentCompetitionMockAssignment) {
