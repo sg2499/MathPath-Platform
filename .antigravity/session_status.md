@@ -2,14 +2,19 @@
 
 - **Last Active Session End**: 2026-06-12
 - **Active Branch**: `main` (Clean working tree)
-- **Latest Commit**: `cc28935` ("fix: resolve SVG icon fill issue in active tab buttons")
+- **Latest Commit**: `94c45a7` ("tests: fix theme injection localStorage keys")
 - **Last Walkthrough Report**: [walkthrough.md](file:///C:/Users/shail/.gemini/antigravity/brain/4fa773f1-5b4c-4bc1-90ef-93ba27cc34e7/walkthrough.md)
 
-## Accomplished in Previous Session
-- Automated session continuity/resumption flow.
-- Setup **End-to-End Automated Deployment Loop** including `.antigravity/deployment_config.json` and `.antigravity/scripts/monitor_deploy.py`.
-- Fixed the tab icon fill color bug in [globals.css](file:///c:/Users/shail/OneDrive/Shailesh/Work/Math%20Path/Platform/MathPath_Platform_Live/MathPath-Platform/frontend/app/globals.css) so that outline SVGs (like the "Manage Mocks" `Target` icon) display correctly when selected.
-- Committed, pushed, and verified the live deployment.
+## Accomplished in Current Session
+- **Live Database Password Sync**: Programmatically reset demo passwords for Teacher `MP-T-001` (`Teacher@123`) and Student `MP-ST-001` (`Student@123`) using a custom scratch script, resolving all 401 Unauthorized errors on the live platform.
+- **Injected Theme Bootstrap Fix**: Corrected the theme initialization hook in Playwright tests so it sets `mathpath_theme` local storage values instead of writing directly to the document element, eliminating startup TypeErrors and allowing pages to bootstrap correctly.
+- **Clean Light Mode Sweep**: Ran the full regression sweep for Light Mode. All 4 sweeps passed (PUBLIC, ADMIN, TEACHER, STUDENT) visiting 37 routes with zero failures.
+- **Documentation Updated**: Integrated live-target, theme variables (`MATHPATH_THEME`), and credential setups into [MATHPATH_VERIFICATION_README.md](file:///c:/Users/shail/OneDrive/Shailesh/Work/Math%20Path/Platform/MathPath_Platform_Live/MathPath-Platform/frontend/MATHPATH_VERIFICATION_README.md).
 
-## Pending Next Steps
-- Awaiting the next bug report, design review, or feature request from the developer.
+## Pending Next Steps (For Next Session)
+- **Dark Mode Sweep**: Execute the full Dark Mode sweep on the live site:
+  ```powershell
+  $env:MATHPATH_THEME="dark"; $env:MATHPATH_REPORT_DIR="verification-report/dark"; npx playwright test tests/mathpath-platform-verification.spec.ts --config=playwright.config.ts
+  ```
+- **Conventions Audit (Dark Mode)**: Audit role palette color conventions, tabs, and metrics layout alignments under dark theme.
+- **Visual Glitch Resolution**: Fix any identified dark mode display/color regressions.
