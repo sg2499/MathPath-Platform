@@ -36,14 +36,18 @@ function StatusClass(Status?: string | null) {
 
 function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string; Value: string | number }) {
   return (
-    <article className="math-card border-[#7a1f58]/20 p-5 ring-1 ring-[#7a1f58]/10 dark:border-rose-300/25 dark:ring-rose-300/10">
-      <div className="flex items-start justify-between gap-4">
-        <span className="grid h-9 w-9 place-items-center rounded-2xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
-          <Icon size={17} />
+    <article className="math-teacher-light-metric-card rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
+      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+          <Icon size={15} />
         </span>
-        <strong className="text-3xl font-black text-slate-950 dark:text-white">{Value}</strong>
+        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:text-rose-100">
+          {Label}
+        </p>
       </div>
-      <p className="mt-4 text-[0.68rem] font-black uppercase tracking-[0.24em] text-[#7a1f58] dark:text-rose-100">{Label}</p>
+      <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+        {Value}
+      </p>
     </article>
   );
 }
