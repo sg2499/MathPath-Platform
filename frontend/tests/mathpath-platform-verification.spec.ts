@@ -185,6 +185,16 @@ Test.afterAll(async () => {
   WriteSummary();
 });
 
+Test.beforeEach(async ({ page: Page }) => {
+  const ThemeValue = process.env.MATHPATH_THEME || "light";
+  await Page.addInitScript((Theme) => {
+    window.localStorage.setItem("mathpath_theme", Theme);
+    window.localStorage.setItem("mathpath_theme_user_set", "true");
+  }, ThemeValue);
+});
+
+
+
 if (SelectedScope.IncludePublic) {
   Test(`PUBLIC login and landing sweep — ${SelectedScope.Name}`, async ({ page: Page }) => {
     AttachDiagnostics(Page, "PUBLIC");
