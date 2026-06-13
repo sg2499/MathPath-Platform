@@ -785,7 +785,9 @@ export function AppShell({
                   }
                 >
                   {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-                  {theme === "dark" ? "Light" : "Dark"}
+                  <span className="hidden 2xl:inline">
+                    {theme === "dark" ? "Light" : "Dark"}
+                  </span>
                 </button>
 
                 {MountedUser ? <NotificationsBell /> : null}
@@ -1179,7 +1181,7 @@ export function AppShell({
                   }
                 >
                   {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-                  <span className="hidden xl:inline">
+                  <span className="hidden 2xl:inline">
                     {theme === "dark" ? "Light" : "Dark"}
                   </span>
                 </button>
@@ -1601,8 +1603,8 @@ function UserCard({
       type="button"
       className={`math-user-pill text-left ${menuOpen ? "math-user-pill-active" : ""} ${
         compact
-          ? "min-h-12 min-w-[210px] px-3 py-2"
-          : "min-h-14 min-w-[220px] px-3 py-2"
+          ? "min-h-12 px-3 py-2 min-w-0 2xl:min-w-[210px]"
+          : "min-h-14 px-3 py-2 min-w-0 2xl:min-w-[220px]"
       }`}
       title="Open account menu"
       aria-label="Open account menu"
@@ -1610,7 +1612,7 @@ function UserCard({
       onClick={onClick}
     >
       <Avatar user={user} avatarUrl={avatarUrl} compact={compact} />
-      <div className="min-w-0 flex-1 leading-tight">
+      <div className="min-w-0 flex-1 leading-tight hidden 2xl:block">
         <p className="max-w-[150px] truncate text-sm font-black text-slate-900 dark:text-white">
           {user.fullName}
         </p>
@@ -1622,7 +1624,7 @@ function UserCard({
       </div>
       <ChevronDown
         size={15}
-        className={`shrink-0 text-slate-400 transition ${menuOpen ? "rotate-180" : ""}`}
+        className={`shrink-0 text-slate-400 transition hidden 2xl:block ${menuOpen ? "rotate-180" : ""}`}
       />
     </button>
   );

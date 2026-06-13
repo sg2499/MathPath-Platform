@@ -89,11 +89,11 @@ function Average(values: Array<number | null | undefined>) {
 }
 
 function AccuracyChipClasses(value: number | null) {
-  if (value === null) return "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300";
-  if (value < 60) return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200";
-  if (value < 80) return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/70 dark:bg-amber-950/35 dark:text-amber-200";
-  if (value < 90) return "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800/70 dark:bg-violet-950/35 dark:text-violet-200";
-  return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-200";
+  if (value === null) return "border-slate-200 bg-slate-50 text-slate-700";
+  if (value < 60) return "border-rose-200 bg-rose-50 text-rose-700";
+  if (value < 80) return "border-amber-200 bg-amber-50 text-amber-700";
+  if (value < 90) return "border-violet-200 bg-violet-50 text-violet-700";
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
 function ScoreChipClasses(value: number | null) {
@@ -322,63 +322,69 @@ export default function StudentCompetitionMockExamsPage() {
               {hierarchy.map((moduleGroup) => {
                 const moduleOpen = expandedModules[moduleGroup.key] ?? true;
                 return (
-                  <div key={moduleGroup.key} className="overflow-hidden rounded-[26px] border border-orange-100 bg-white/88 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+                  <div key={moduleGroup.key} className="math-hierarchy-panel p-5">
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-orange-50/80 dark:hover:bg-orange-950/20"
+                      className="math-hierarchy-row flex-col gap-3 px-0 py-0 lg:flex-row lg:items-center lg:justify-between"
                       onClick={() => setExpandedModules((previous) => ({ ...previous, [moduleGroup.key]: !moduleOpen }))}
+                      aria-expanded={moduleOpen}
+                      title={moduleOpen ? "Collapse module" : "Expand module"}
                     >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/35 dark:text-orange-200">
-                          {moduleOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">MODULE</span>
-                          <span className="block truncate text-lg font-black text-slate-950 dark:text-white">{moduleGroup.moduleCode}</span>
-                        </span>
-                      </span>
-                      <span className="flex flex-wrap justify-end gap-2">
+                      <div>
+                        <p className="math-kicker">Module</p>
+                        <h3 className="text-xl font-black text-slate-950 dark:text-white">
+                          {moduleGroup.moduleCode}
+                        </h3>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
                         <AvgAccuracyChip value={moduleGroup.avgAccuracy} />
                         <CountChip value={moduleGroup.levels.reduce((sum, level) => sum + level.assignments.length, 0)} label="Mock" />
-                      </span>
+                        <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
+                          <ChevronDown className={moduleOpen ? "rotate-180 transition" : "transition"} size={18} />
+                        </span>
+                      </div>
                     </button>
 
                     {moduleOpen ? (
-                      <div className="space-y-3 border-t border-orange-100 bg-white/60 p-4 dark:border-slate-700 dark:bg-slate-950/20">
+                      <div className="mt-4 grid gap-4">
                         {moduleGroup.levels.map((levelGroup) => {
                           const levelOpen = expandedLevels[levelGroup.key] ?? true;
                           return (
-                            <div key={levelGroup.key} className="overflow-hidden rounded-[22px] border border-orange-100 bg-white/88 dark:border-slate-700 dark:bg-slate-900/70">
+                            <div key={levelGroup.key} className="math-hierarchy-panel-soft p-4">
                               <button
                                 type="button"
-                                className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-orange-50/80 dark:hover:bg-orange-950/20"
+                                className="math-hierarchy-row flex-col gap-3 px-0 py-0 lg:flex-row lg:items-center lg:justify-between"
                                 onClick={() => setExpandedLevels((previous) => ({ ...previous, [levelGroup.key]: !levelOpen }))}
+                                aria-expanded={levelOpen}
+                                title={levelOpen ? "Collapse level" : "Expand level"}
                               >
-                                <span className="flex min-w-0 items-center gap-3">
-                                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/35 dark:text-orange-200">
-                                    {levelOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                  </span>
-                                  <span className="min-w-0">
-                                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">LEVEL</span>
-                                    <span className="block truncate text-base font-black text-slate-950 dark:text-white">{levelGroup.levelCode}</span>
-                                  </span>
-                                </span>
-                                <span className="flex flex-wrap justify-end gap-2">
+                                <div>
+                                  <p className="math-kicker">Level</p>
+                                  <h4 className="text-base font-black text-slate-950 dark:text-white">
+                                    {levelGroup.levelCode}
+                                  </h4>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
                                   <AvgAccuracyChip value={levelGroup.avgAccuracy} />
                                   <CountChip value={levelGroup.assignments.length} label="Mock" />
                                   <StatusCountChip value={levelGroup.assignments.filter(IsCompleted).length} label="Completed" tone="green" />
                                   <StatusCountChip value={Math.max(0, levelGroup.assignments.length - levelGroup.assignments.filter(IsCompleted).length)} label="Pending" tone="orange" />
-                                </span>
+                                  <span className="rounded-2xl bg-white p-2 text-slate-600 shadow-sm dark:bg-slate-950 dark:text-slate-300">
+                                    <ChevronDown className={levelOpen ? "rotate-180 transition" : "transition"} size={18} />
+                                  </span>
+                                </div>
                               </button>
 
                               {levelOpen ? (
-                                <MockRecordsTable
-                                  assignments={levelGroup.assignments}
-                                  starting={startMutation.isPending}
-                                  onStart={(assignment) => startMutation.mutate(assignment.assignmentId)}
-                                  onResume={(assignment) => assignment.latestAttemptId && router.push(`/student/competition/mock-attempt/${assignment.latestAttemptId}`)}
-                                  onViewResult={(assignment) => assignment.latestAttemptId && router.push(`/student/competition/mock-result/${assignment.latestAttemptId}`)}
-                                />
+                                <div className="mt-4">
+                                  <MockRecordsTable
+                                    assignments={levelGroup.assignments}
+                                    starting={startMutation.isPending}
+                                    onStart={(assignment) => startMutation.mutate(assignment.assignmentId)}
+                                    onResume={(assignment) => assignment.latestAttemptId && router.push(`/student/competition/mock-attempt/${assignment.latestAttemptId}`)}
+                                    onViewResult={(assignment) => assignment.latestAttemptId && router.push(`/student/competition/mock-result/${assignment.latestAttemptId}`)}
+                                  />
+                                </div>
                               ) : null}
                             </div>
                           );
@@ -416,7 +422,7 @@ function AvgAccuracyChip({ value }: { value: number | null }) {
 
 function CountChip({ value, label }: { value: number; label: string }) {
   return (
-    <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-black text-orange-700 dark:border-orange-800 dark:bg-orange-950/35 dark:text-orange-200">
+    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
       {value} {label}{value === 1 ? "" : "s"}
     </span>
   );
@@ -424,8 +430,8 @@ function CountChip({ value, label }: { value: number; label: string }) {
 
 function StatusCountChip({ value, label, tone }: { value: number; label: string; tone: "green" | "orange" }) {
   const classes = tone === "green"
-    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-200"
-    : "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/35 dark:text-orange-200";
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-amber-200 bg-amber-50 text-amber-700";
   return <span className={`rounded-full border px-3 py-1 text-xs font-black ${classes}`}>{value} {label}</span>;
 }
 
@@ -482,17 +488,21 @@ function StudentMockSortableHeader({
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        className="inline-flex items-center gap-1 rounded-lg text-[11px] font-black uppercase tracking-[0.18em] text-orange-800 transition hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-300 dark:text-orange-100 dark:hover:text-orange-200 dark:focus:ring-orange-700"
+        className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400 transition hover:text-slate-800 dark:hover:text-white focus:outline-none"
       >
         <span>{label}</span>
-        <span className={active ? "text-orange-700 dark:text-orange-200" : "text-orange-400/70 dark:text-orange-300/60"}>{indicator}</span>
+        <span className={active ? "text-slate-800 dark:text-white" : "text-slate-400/70 dark:text-slate-500/60"}>{indicator}</span>
       </button>
     </th>
   );
 }
 
 function StudentMockStaticHeader({ label }: { label: string }) {
-  return <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-orange-800 dark:text-orange-100">{label}</th>;
+  return (
+    <th className="px-4 py-3 text-xs font-black uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400">
+      {label}
+    </th>
+  );
 }
 
 function MockRecordsTable({
@@ -530,9 +540,9 @@ function MockRecordsTable({
   }, [assignments, sortConfig]);
 
   return (
-    <div className="overflow-x-auto border-t border-orange-100 dark:border-slate-700">
+    <div className="math-table overflow-x-auto border-t border-orange-100 dark:border-slate-700">
       <table className="min-w-full text-left text-sm">
-        <thead className="bg-orange-100/70 dark:bg-orange-950/35">
+        <thead>
           <tr>
             <StudentMockSortableHeader label="MOCK" sortKey="mock" sortConfig={sortConfig} onSort={handleSort} />
             <StudentMockSortableHeader label="MOCK CODE" sortKey="mockCode" sortConfig={sortConfig} onSort={handleSort} />
@@ -545,7 +555,7 @@ function MockRecordsTable({
             <StudentMockStaticHeader label="ACTION" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-orange-100 bg-white/80 dark:divide-slate-700 dark:bg-slate-950/20">
+        <tbody className="divide-y divide-orange-100 dark:divide-slate-800">
           {sortedAssignments.map((assignment) => {
             const exam = assignment.mockExam;
             const completed = IsCompleted(assignment);
@@ -555,11 +565,11 @@ function MockRecordsTable({
             const accuracy = AccuracyValue(assignment);
             const actionLabel = completed ? "View Result" : inProgress ? "Continue Mock" : "Start Mock";
             return (
-              <tr key={assignment.assignmentId} className="transition hover:bg-orange-50/70 dark:hover:bg-orange-950/20">
+              <tr key={assignment.assignmentId}>
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.title}</td>
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.mockCode || "-"}</td>
                 <td className="px-4 py-4">
-                  <span className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${completed ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-200" : "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/35 dark:text-orange-200"}`}>
+                  <span className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${completed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                     {completed ? "Completed" : "Pending"}
                   </span>
                 </td>
@@ -574,7 +584,7 @@ function MockRecordsTable({
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{completed ? FormatDate(result?.completedAt) : "-"}</td>
                 <td className="px-4 py-4">
                   <button
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-white px-4 py-2 text-xs font-black text-orange-700 transition hover:border-orange-500 hover:bg-orange-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-800 dark:bg-slate-950 dark:text-orange-200 dark:hover:border-orange-400 dark:hover:bg-orange-500/25 dark:hover:text-orange-100"
+                    className="math-role-action-button h-9 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={starting || (completed && !assignment.latestAttemptId)}
                     onClick={() => completed ? onViewResult(assignment) : inProgress ? onResume(assignment) : onStart(assignment)}
                   >

@@ -483,7 +483,7 @@ function CompetitionMessageBox({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="math-kicker">Competition Coach</p>
-              <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
+              <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700">
                 {message.badge}
               </span>
             </div>
@@ -632,7 +632,7 @@ function QuestionReviewTab({
                     {section.title}
                   </h3>
                 </div>
-                <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-black text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+                <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">
                   {section.questions.length} Questions
                 </span>
               </div>
@@ -649,10 +649,10 @@ function QuestionReviewTab({
                           Question {question.questionNumber}
                         </h3>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+                          <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-700">
                             Section {question.sectionNumber || "-"}
                           </span>
-                          <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black text-orange-700 dark:border-slate-700 dark:bg-slate-950 dark:text-orange-200">
+                          <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black text-orange-700">
                             {question.sectionTitle || "Competition Mock"}
                           </span>
                         </div>
@@ -660,10 +660,10 @@ function QuestionReviewTab({
                       <span
                         className={
                           question.isUnanswered
-                            ? "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                            ? "math-badge border-slate-200 bg-slate-50 text-slate-700"
                             : question.isCorrect
-                              ? "math-badge border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
-                              : "math-badge border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200"
+                              ? "math-badge border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "math-badge border-rose-200 bg-rose-50 text-rose-700"
                         }
                       >
                         {question.isUnanswered
@@ -782,7 +782,7 @@ function ResultAnalysisTab({
                   <span>
                     {item.correct}/{item.total} Correct
                   </span>
-                  <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+                  <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-orange-700">
                     {formatNumber(item.percentage)}%
                   </span>
                 </button>
@@ -812,7 +812,7 @@ function ResultAnalysisTab({
 
 function Chip({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+    <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700">
       {label}
     </span>
   );
