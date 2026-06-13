@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { Chip as StandardChip } from "@/components/common/DetailWorkspaceViews";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
@@ -56,12 +57,12 @@ function formatDate(value?: string | null) {
   });
 }
 
-function AccuracyChipClasses(value: number | null) {
-  if (value === null) return "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300";
-  if (value < 60) return "math-badge math-tone-danger";
-  if (value < 80) return "math-badge math-tone-warning";
-  if (value < 90) return "math-badge math-tone-purple";
-  return "math-badge math-tone-success";
+function AccuracyChipTone(value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
+  if (value === null) return "slate";
+  if (value < 60) return "red";
+  if (value < 80) return "amber";
+  if (value < 90) return "purple";
+  return "green";
 }
 
 type CompetitionMessage = {
@@ -553,7 +554,7 @@ function ResultTabButton({
       type="button"
       onClick={onClick}
       data-active={active ? "true" : undefined}
-      className="math-role-tab-button"
+      className={`math-role-tab ${active ? "math-role-tab-active" : ""}`}
     >
       {label}
     </button>
@@ -662,13 +663,13 @@ function QuestionReviewTab({
                           </span>
                         </div>
                       </div>
-                      <span
-                        className={
+                      <StandardChip
+                        tone={
                           question.isUnanswered
-                            ? "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                            ? "slate"
                             : question.isCorrect
-                              ? "math-badge math-tone-success"
-                              : "math-badge math-tone-danger"
+                              ? "green"
+                              : "red"
                         }
                       >
                         {question.isUnanswered
@@ -676,7 +677,7 @@ function QuestionReviewTab({
                           : question.isCorrect
                             ? "Correct"
                             : "Wrong"}
-                      </span>
+                      </StandardChip>
                     </div>
 
                     <div className="mt-5 rounded-[24px] bg-slate-50/90 p-5 dark:bg-slate-950/60">
@@ -787,9 +788,9 @@ function ResultAnalysisTab({
                   <span className="text-slate-600 dark:text-slate-400">
                     {item.correct}/{item.total} Correct
                   </span>
-                  <span className={AccuracyChipClasses(item.percentage)}>
+                  <StandardChip tone={AccuracyChipTone(item.percentage)}>
                     {formatNumber(item.percentage)}%
-                  </span>
+                  </StandardChip>
                 </button>
               ))}
             </div>
@@ -888,7 +889,7 @@ function InsightCard({
               className="flex w-full items-center justify-between rounded-[18px] border border-[var(--mp-role-border)] bg-white/80 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-[var(--mp-role-primary)] hover:bg-[var(--mp-role-softer)] hover:text-[var(--mp-role-readable)] focus:outline-none focus:ring-2 focus:ring-[var(--mp-role-primary)] dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-[var(--mp-role-primary)] dark:hover:bg-[var(--mp-role-softer)] dark:hover:text-[var(--mp-role-readable)]"
             >
               <span>{item.concept}</span>
-              <span className={AccuracyChipClasses(item.percentage)}>{formatNumber(item.percentage)}%</span>
+              <StandardChip tone={AccuracyChipTone(item.percentage)}>{formatNumber(item.percentage)}%</StandardChip>
             </button>
           ))}
         </div>

@@ -11,6 +11,7 @@ import {
   type StudentCompetitionMockAssignment,
 } from "@/lib/api/student";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Chip } from "@/components/common/DetailWorkspaceViews";
 import {
   BarChart3,
   CalendarClock,
@@ -88,16 +89,16 @@ function Average(values: Array<number | null | undefined>) {
   return valid.reduce((sum, value) => sum + value, 0) / valid.length;
 }
 
-function AccuracyChipClasses(value: number | null) {
-  if (value === null) return "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300";
-  if (value < 60) return "math-badge math-tone-danger";
-  if (value < 80) return "math-badge math-tone-warning";
-  if (value < 90) return "math-badge math-tone-purple";
-  return "math-badge math-tone-success";
+function AccuracyChipTone(value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
+  if (value === null) return "slate";
+  if (value < 60) return "red";
+  if (value < 80) return "amber";
+  if (value < 90) return "purple";
+  return "green";
 }
 
-function ScoreChipClasses(value: number | null) {
-  return AccuracyChipClasses(value);
+function ScoreChipTone(value: number | null) {
+  return AccuracyChipTone(value);
 }
 
 type LevelGroup = {
@@ -414,23 +415,22 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
 
 function AvgAccuracyChip({ value }: { value: number | null }) {
   return (
-    <span className={`shadow-sm ${AccuracyChipClasses(value)}`}>
+    <Chip tone={AccuracyChipTone(value)}>
       Avg Accuracy {value === null ? "-" : `${FormatScore(value)}%`}
-    </span>
+    </Chip>
   );
 }
 
 function CountChip({ value, label }: { value: number; label: string }) {
   return (
-    <span className="math-badge math-tone-warning">
+    <Chip tone="amber">
       {value} {label}{value === 1 ? "" : "s"}
-    </span>
+    </Chip>
   );
 }
 
 function StatusCountChip({ value, label, tone }: { value: number; label: string; tone: "green" | "orange" }) {
-  const toneClass = tone === "green" ? "math-tone-success" : "math-tone-warning";
-  return <span className={`math-badge ${toneClass}`}>{value} {label}</span>;
+  return <Chip tone={tone === "green" ? "green" : "amber"}>{value} {label}</Chip>;
 }
 
 
@@ -486,7 +486,7 @@ function StudentMockSortableHeader({
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.13em] text-inherit transition hover:text-[var(--mp-role-readable)] focus:outline-none focus:text-[var(--mp-role-readable)]"
+        className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.13em] text-slate-500 transition hover:text-[var(--mp-role-readable)] focus:outline-none focus:text-[var(--mp-role-readable)] dark:text-slate-400 dark:hover:text-[var(--mp-role-readable)]"
       >
         <span>{label}</span>
         <span className={active ? "text-[var(--mp-role-readable)]" : "opacity-40"}>{indicator}</span>
@@ -497,7 +497,7 @@ function StudentMockSortableHeader({
 
 function StudentMockStaticHeader({ label }: { label: string }) {
   return (
-    <th className="px-4 py-3 text-xs font-black uppercase tracking-[0.13em]">
+    <th className="px-4 py-3 text-xs font-black uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400">
       {label}
     </th>
   );
@@ -540,7 +540,7 @@ function MockRecordsTable({
   return (
     <div className="math-table overflow-x-auto border-t border-orange-100 dark:border-slate-700">
       <table className="min-w-full text-left text-sm">
-        <thead>
+        <thead className="border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
           <tr>
             <StudentMockSortableHeader label="MOCK" sortKey="mock" sortConfig={sortConfig} onSort={handleSort} />
             <StudentMockSortableHeader label="MOCK CODE" sortKey="mockCode" sortConfig={sortConfig} onSort={handleSort} />
@@ -567,15 +567,15 @@ function MockRecordsTable({
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.title}</td>
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.mockCode || "-"}</td>
                 <td className="px-4 py-4">
-                  <span className={`math-badge ${completed ? "math-tone-success" : "math-tone-warning"}`}>
+                  <Chip tone={completed ? "green" : "amber"}>
                     {completed ? "Completed" : "Pending"}
-                  </span>
+                  </Chip>
                 </td>
                 <td className="px-4 py-4 font-black">
-                  <span className={ScoreChipClasses(accuracy)}>{score === null ? "-" : FormatScore(score)}</span>
+                  <Chip tone={ScoreChipTone(accuracy)}>{score === null ? "-" : FormatScore(score)}</Chip>
                 </td>
                 <td className="px-4 py-4 font-black">
-                  <span className={AccuracyChipClasses(accuracy)}>{accuracy === null ? "-" : `${FormatScore(accuracy)}%`}</span>
+                  <Chip tone={AccuracyChipTone(accuracy)}>{accuracy === null ? "-" : `${FormatScore(accuracy)}%`}</Chip>
                 </td>
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{completed ? FormatDuration(result?.timeTakenSeconds) : "-"}</td>
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{FormatDate(assignment.assignedAt)}</td>
