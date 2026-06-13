@@ -89,11 +89,11 @@ function Average(values: Array<number | null | undefined>) {
 }
 
 function AccuracyChipClasses(value: number | null) {
-  if (value === null) return "border-slate-200 bg-slate-50 text-slate-700";
-  if (value < 60) return "border-rose-200 bg-rose-50 text-rose-700";
-  if (value < 80) return "border-amber-200 bg-amber-50 text-amber-700";
-  if (value < 90) return "border-violet-200 bg-violet-50 text-violet-700";
-  return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (value === null) return "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300";
+  if (value < 60) return "math-badge math-tone-danger";
+  if (value < 80) return "math-badge math-tone-warning";
+  if (value < 90) return "math-badge math-tone-purple";
+  return "math-badge math-tone-success";
 }
 
 function ScoreChipClasses(value: number | null) {
@@ -404,9 +404,9 @@ export default function StudentCompetitionMockExamsPage() {
 
 function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <article className="rounded-[24px] border border-orange-200 bg-gradient-to-br from-white/95 via-orange-50/50 to-amber-50/45 p-5 shadow-sm dark:border-orange-800/55 dark:from-slate-950/85 dark:via-slate-900/80 dark:to-orange-950/25">
-      <div className="inline-flex rounded-2xl border border-orange-200 bg-orange-50 p-2 text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">{icon}</div>
-      <p className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">{label}</p>
+    <article className="math-card p-5">
+      <div className="inline-flex rounded-2xl bg-[var(--mp-role-softer)] p-2 text-[var(--mp-role-readable)]">{icon}</div>
+      <p className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--mp-role-readable)]">{label}</p>
       <p className="mt-2 text-3xl font-black text-slate-950 dark:text-white">{value}</p>
     </article>
   );
@@ -414,7 +414,7 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
 
 function AvgAccuracyChip({ value }: { value: number | null }) {
   return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black shadow-sm ${AccuracyChipClasses(value)}`}>
+    <span className={`shadow-sm ${AccuracyChipClasses(value)}`}>
       Avg Accuracy {value === null ? "-" : `${FormatScore(value)}%`}
     </span>
   );
@@ -422,17 +422,15 @@ function AvgAccuracyChip({ value }: { value: number | null }) {
 
 function CountChip({ value, label }: { value: number; label: string }) {
   return (
-    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
+    <span className="math-badge math-tone-warning">
       {value} {label}{value === 1 ? "" : "s"}
     </span>
   );
 }
 
 function StatusCountChip({ value, label, tone }: { value: number; label: string; tone: "green" | "orange" }) {
-  const classes = tone === "green"
-    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-    : "border-amber-200 bg-amber-50 text-amber-700";
-  return <span className={`rounded-full border px-3 py-1 text-xs font-black ${classes}`}>{value} {label}</span>;
+  const toneClass = tone === "green" ? "math-tone-success" : "math-tone-warning";
+  return <span className={`math-badge ${toneClass}`}>{value} {label}</span>;
 }
 
 
@@ -488,10 +486,10 @@ function StudentMockSortableHeader({
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400 transition hover:text-slate-800 dark:hover:text-white focus:outline-none"
+        className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.13em] text-inherit transition hover:text-[var(--mp-role-readable)] focus:outline-none focus:text-[var(--mp-role-readable)]"
       >
         <span>{label}</span>
-        <span className={active ? "text-slate-800 dark:text-white" : "text-slate-400/70 dark:text-slate-500/60"}>{indicator}</span>
+        <span className={active ? "text-[var(--mp-role-readable)]" : "opacity-40"}>{indicator}</span>
       </button>
     </th>
   );
@@ -499,7 +497,7 @@ function StudentMockSortableHeader({
 
 function StudentMockStaticHeader({ label }: { label: string }) {
   return (
-    <th className="px-4 py-3 text-xs font-black uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400">
+    <th className="px-4 py-3 text-xs font-black uppercase tracking-[0.13em]">
       {label}
     </th>
   );
@@ -569,15 +567,15 @@ function MockRecordsTable({
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.title}</td>
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.mockCode || "-"}</td>
                 <td className="px-4 py-4">
-                  <span className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${completed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                  <span className={`math-badge ${completed ? "math-tone-success" : "math-tone-warning"}`}>
                     {completed ? "Completed" : "Pending"}
                   </span>
                 </td>
-                <td className="px-4 py-4">
-                  <span className={`rounded-full border px-3 py-1 text-xs font-black ${ScoreChipClasses(accuracy)}`}>{score === null ? "-" : FormatScore(score)}</span>
+                <td className="px-4 py-4 font-black">
+                  <span className={ScoreChipClasses(accuracy)}>{score === null ? "-" : FormatScore(score)}</span>
                 </td>
-                <td className="px-4 py-4">
-                  <span className={`rounded-full border px-3 py-1 text-xs font-black ${AccuracyChipClasses(accuracy)}`}>{accuracy === null ? "-" : `${FormatScore(accuracy)}%`}</span>
+                <td className="px-4 py-4 font-black">
+                  <span className={AccuracyChipClasses(accuracy)}>{accuracy === null ? "-" : `${FormatScore(accuracy)}%`}</span>
                 </td>
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{completed ? FormatDuration(result?.timeTakenSeconds) : "-"}</td>
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{FormatDate(assignment.assignedAt)}</td>
