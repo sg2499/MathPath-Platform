@@ -111,11 +111,11 @@ export default function StudentCompetitionProgressPage() {
           
           {query.data && query.data.totalMocksAttempted > 0 && (
             <div className="grid grid-cols-2 gap-2 xl:grid-cols-5">
-              <CompactProgressMetric label="Avg Score" value={query.data.overallScore} icon={<TrendingUp size={14} />} />
-              <CompactProgressMetric label="Accuracy" value={`${query.data.overallAccuracy}%`} icon={<Target size={14} />} />
+              <CompactProgressMetric label="Average Score" value={query.data.overallScore} icon={<TrendingUp size={14} />} />
+              <CompactProgressMetric label="Average Accuracy" value={`${query.data.overallAccuracy}%`} icon={<Target size={14} />} />
               <CompactProgressMetric label="Total Attempts" value={query.data.totalMocksAttempted} icon={<Trophy size={14} />} />
-              <CompactProgressMetric label="Time / Q" value={FormatDuration(query.data.averageTimePerQuestion)} icon={<Clock size={14} />} />
-              <CompactProgressMetric label="Time Util" value={`${query.data.overallTimeUtilization}%`} icon={<Gauge size={14} />} />
+              <CompactProgressMetric label="Time / Question" value={FormatDuration(query.data.averageTimePerQuestion)} icon={<Clock size={14} />} />
+              <CompactProgressMetric label="Time Utilization" value={`${query.data.overallTimeUtilization}%`} icon={<Gauge size={14} />} />
             </div>
           )}
         </div>
@@ -135,58 +135,79 @@ export default function StudentCompetitionProgressPage() {
             </p>
           </div>
         ) : query.data ? (
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="space-y-10">
+            {query.data.moduleInsights.map((insight) => (
+              <div key={`${insight.moduleId}-${insight.levelId}`} className="space-y-4">
+                <div className="flex flex-col">
+                   <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                     {insight.moduleCode} · {insight.moduleName}
+                   </h3>
+                   <p className="text-sm font-black uppercase tracking-widest text-[var(--math-role-primary)]">
+                     Level: {insight.levelCode}
+                   </p>
+                </div>
+
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {/* Strengths */}
+                  <div className="flex flex-col rounded-[28px] border border-[var(--math-role-primary)]/20 bg-white/85 p-6 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        <CheckCircle2 size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white">Strengths</h3>
+                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">&ge; 70% Accuracy</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col gap-1 min-h-[200px]">
+                      {insight.strongConcepts.length > 0 ? (
+                        insight.strongConcepts.map((c) => (
+                          <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={true} />
+                        ))
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center p-6 text-sm font-semibold text-slate-400">
+                          No strengths identified yet. Keep practicing!
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Weaknesses */}
+                  <div className="flex flex-col rounded-[28px] border border-[var(--math-role-primary)]/20 bg-white/85 p-6 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+                        <AlertTriangle size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white">Areas to Improve</h3>
+                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">&lt; 70% Accuracy</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col gap-1 min-h-[200px]">
+                      {insight.weakConcepts.length > 0 ? (
+                        insight.weakConcepts.map((c) => (
+                          <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={false} />
+                        ))
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center p-6 text-sm font-semibold text-slate-400">
+                          No major weak areas detected. Great job!
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
             
-            {/* Strengths */}
-            <div className="flex flex-col rounded-[28px] border border-[var(--math-role-primary)]/20 bg-white/85 p-6 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                  <CheckCircle2 size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Strengths</h3>
-                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">&ge; 70% Accuracy</p>
-                </div>
+            {query.data.moduleInsights.length === 0 && (
+              <div className="flex flex-col items-center justify-center rounded-[28px] border border-[var(--math-role-primary)]/20 bg-white/85 py-20 px-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  No concept data available yet.
+                </p>
               </div>
-              
-              <div className="flex flex-col gap-1 min-h-[200px]">
-                {query.data.strongConcepts.length > 0 ? (
-                  query.data.strongConcepts.map((c) => (
-                    <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={true} />
-                  ))
-                ) : (
-                  <div className="flex-1 flex items-center justify-center p-6 text-sm font-semibold text-slate-400">
-                    No strengths identified yet. Keep practicing!
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Weaknesses */}
-            <div className="flex flex-col rounded-[28px] border border-[var(--math-role-primary)]/20 bg-white/85 p-6 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
-                  <AlertTriangle size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Areas to Improve</h3>
-                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">&lt; 70% Accuracy</p>
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-1 min-h-[200px]">
-                {query.data.weakConcepts.length > 0 ? (
-                  query.data.weakConcepts.map((c) => (
-                    <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={false} />
-                  ))
-                ) : (
-                  <div className="flex-1 flex items-center justify-center p-6 text-sm font-semibold text-slate-400">
-                    No major weak areas detected. Great job!
-                  </div>
-                )}
-              </div>
-            </div>
-
+            )}
           </div>
         ) : null}
       </section>
