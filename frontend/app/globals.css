@@ -3540,6 +3540,60 @@ html.dark .math-login-welcome-chip {
     color: #94a3b8 !important; /* text-slate-400 */
   }
 
+  /* Admin Light Mode Table Headers */
+  html:not(.dark) .math-role-admin .math-table thead,
+  html:not(.dark) .math-role-admin .math-table thead tr {
+    background: linear-gradient(135deg, rgba(219, 234, 254, 0.98), rgba(239, 246, 255, 0.94)) !important;
+    border-color: rgba(59, 130, 246, 0.28) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86), 0 1px 0 rgba(37, 99, 235, 0.08) !important;
+  }
+  html:not(.dark) .math-role-admin .math-table thead th,
+  html:not(.dark) .math-role-admin .math-table thead th * {
+    background: transparent !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    text-shadow: none !important;
+  }
+  html:not(.dark) .math-role-admin .math-table thead th:not(:last-child) {
+    border-right: 1px solid rgba(59, 130, 246, 0.12) !important;
+  }
+
+  /* Teacher Light Mode Table Headers */
+  html:not(.dark) .math-role-teacher .math-table thead,
+  html:not(.dark) .math-role-teacher .math-table thead tr {
+    background: linear-gradient(180deg, rgba(253, 242, 248, 0.98), rgba(252, 231, 243, 0.78)) !important;
+    border-color: rgba(190, 24, 93, 0.30) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84), 0 1px 0 rgba(190, 24, 93, 0.14) !important;
+  }
+  html:not(.dark) .math-role-teacher .math-table thead th,
+  html:not(.dark) .math-role-teacher .math-table thead th * {
+    background: transparent !important;
+    color: #8a185d !important;
+    -webkit-text-fill-color: #8a185d !important;
+    text-shadow: none !important;
+  }
+  html:not(.dark) .math-role-teacher .math-table thead th:not(:last-child) {
+    border-right: 1px solid rgba(190, 24, 93, 0.14) !important;
+  }
+
+  /* Student Light Mode Table Headers */
+  html:not(.dark) .math-role-student .math-table thead,
+  html:not(.dark) .math-role-student .math-table thead tr {
+    background: linear-gradient(180deg, rgba(255, 247, 237, 0.98), rgba(255, 237, 213, 0.78)) !important;
+    border-color: rgba(249, 115, 22, 0.30) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 1px 0 rgba(249, 115, 22, 0.14) !important;
+  }
+  html:not(.dark) .math-role-student .math-table thead th,
+  html:not(.dark) .math-role-student .math-table thead th * {
+    background: transparent !important;
+    color: #9a3412 !important;
+    -webkit-text-fill-color: #9a3412 !important;
+    text-shadow: none !important;
+  }
+  html:not(.dark) .math-role-student .math-table thead th:not(:last-child) {
+    border-right: 1px solid rgba(249, 115, 22, 0.14) !important;
+  }
+
   .math-role-admin .math-action-button:not(.math-action-button-danger):not(.math-button-danger):hover,
   .math-role-teacher .math-action-button:not(.math-action-button-danger):not(.math-button-danger):hover,
   .math-role-student .math-action-button:not(.math-action-button-danger):not(.math-button-danger):hover {
