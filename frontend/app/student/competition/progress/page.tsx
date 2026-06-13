@@ -36,7 +36,7 @@ function FormatDuration(seconds?: number | null) {
 }
 
 export default function StudentCompetitionProgressPage() {
-  const { ready } = useProtectedPage(["STUDENT"]);
+  const ready = useProtectedPage(["STUDENT"]);
 
   const query = useQuery({
     queryKey: ["student-competition-progress-insights"],
