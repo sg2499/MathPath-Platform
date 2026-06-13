@@ -58,7 +58,7 @@ export default function StudentCompetitionProgressPage() {
         {!ready || query.isLoading ? (
           <LoadingState message="Loading insights..." />
         ) : query.isError ? (
-          <ErrorState message={apiErrorMessage(query.error)} onRetry={() => query.refetch()} />
+          <ErrorState message={apiErrorMessage(query.error)} />
         ) : query.data?.totalMocksAttempted === 0 ? (
           <div className="math-card flex flex-col items-center justify-center p-12 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
