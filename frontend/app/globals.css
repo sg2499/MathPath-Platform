@@ -272,13 +272,13 @@ html.dark {
   }
 
   .premium-nav {
-    @apply flex items-center gap-2 border p-1.5 shadow-sm backdrop-blur-2xl;
+    @apply flex items-center gap-1.5 border p-1.5 shadow-sm backdrop-blur-2xl 2xl:gap-2;
     border-radius: 24px;
     background: var(--glass);
     border-color: var(--line);
   }
   .premium-nav-item {
-    @apply inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-[18px] px-4 text-sm font-black transition;
+    @apply inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-[18px] px-2.5 text-sm font-black transition 2xl:gap-2 2xl:px-4;
     color: var(--ink-soft);
   }
   .premium-nav-item:hover { background: var(--surface-strong); color: var(--ink); }
