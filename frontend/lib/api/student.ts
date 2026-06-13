@@ -447,17 +447,25 @@ export type StudentCompetitionProgressInsights = {
     timeUtilizationPercentage: number | null;
     timeTakenSeconds: number | null;
   }>;
-  strongConcepts: Array<{
-    concept: string;
-    accuracy: number;
-    totalQuestions: number;
-    timePerQuestion: number;
-  }>;
-  weakConcepts: Array<{
-    concept: string;
-    accuracy: number;
-    totalQuestions: number;
-    timePerQuestion: number;
+  moduleInsights: Array<{
+    moduleId: string;
+    moduleCode: string;
+    moduleName: string;
+    levelId: string;
+    levelCode: string;
+    levelName: string;
+    strongConcepts: Array<{
+      concept: string;
+      accuracy: number;
+      totalQuestions: number;
+      timePerQuestion: number;
+    }>;
+    weakConcepts: Array<{
+      concept: string;
+      accuracy: number;
+      totalQuestions: number;
+      timePerQuestion: number;
+    }>;
   }>;
 };
 

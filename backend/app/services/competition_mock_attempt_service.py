@@ -763,9 +763,15 @@ def GetCompetitionMockResultForTeacher(db: Session, teacher: Teacher, attempt_id
 def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) -> dict[str, Any]:
     from collections import defaultdict
     import json
+    from sqlalchemy.orm import joinedload
+    from app.models.models import CompetitionMockResultSummary, CompetitionMockExam
 
     summaries = (
         db.query(CompetitionMockResultSummary)
+        .options(
+            joinedload(CompetitionMockResultSummary.mock_exam).joinedload(CompetitionMockExam.module),
+            joinedload(CompetitionMockResultSummary.mock_exam).joinedload(CompetitionMockExam.level)
+        )
         .filter(CompetitionMockResultSummary.student_id == student.id)
         .order_by(CompetitionMockResultSummary.completed_at.asc())
         .all()
@@ -779,8 +785,7 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
             "totalMocksAttempted": 0,
             "averageTimePerQuestion": 0,
             "history": [],
-            "strongConcepts": [],
-            "weakConcepts": []
+            "moduleInsights": []
         }
 
     total_score = 0
@@ -790,7 +795,10 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
     total_questions = 0
 
     history = []
-    concept_stats = defaultdict(lambda: {"correct": 0, "total": 0, "time_taken": 0})
+    
+    # Structure: module_level_key -> concept -> stats
+    # module_level_key = (module.id, level.id, module.module_code, level.level_code, module.module_name, level.level_name)
+    concept_stats_by_level = defaultdict(lambda: defaultdict(lambda: {"correct": 0, "total": 0, "time_taken": 0}))
 
     for s in summaries:
         history.append({
@@ -811,35 +819,57 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
         if s.time_taken_seconds:
             total_time_taken += s.time_taken_seconds
 
+        module = s.mock_exam.module
+        level = s.mock_exam.level
+        level_key = (module.id, level.id, module.module_code, level.level_code, module.module_name, level.level_name)
+
         if s.concept_performance_json:
             try:
                 perfs = json.loads(s.concept_performance_json)
                 for p in perfs:
                     concept = p.get("concept", "Unknown")
-                    concept_stats[concept]["correct"] += p.get("correct", 0)
-                    concept_stats[concept]["total"] += p.get("total", 0)
-                    concept_stats[concept]["time_taken"] += p.get("time_taken", 0)
+                    concept_stats_by_level[level_key][concept]["correct"] += p.get("correct", 0)
+                    concept_stats_by_level[level_key][concept]["total"] += p.get("total", 0)
+                    concept_stats_by_level[level_key][concept]["time_taken"] += p.get("time_taken", 0)
                     total_questions += p.get("total", 0)
             except:
                 pass
 
     n = len(summaries)
     
-    strong_concepts = []
-    weak_concepts = []
+    module_insights = []
     
-    for concept, stats in concept_stats.items():
-        if stats["total"] > 0:
-            acc = (stats["correct"] / stats["total"]) * 100
-            time_per_q = stats["time_taken"] / stats["total"]
-            item = {"concept": concept, "accuracy": acc, "totalQuestions": stats["total"], "timePerQuestion": time_per_q}
-            if acc >= 70:
-                strong_concepts.append(item)
-            else:
-                weak_concepts.append(item)
+    for level_key, concept_stats in concept_stats_by_level.items():
+        module_id, level_id, module_code, level_code, module_name, level_name = level_key
+        strong_concepts = []
+        weak_concepts = []
+        
+        for concept, stats in concept_stats.items():
+            if stats["total"] > 0:
+                acc = (stats["correct"] / stats["total"]) * 100
+                time_per_q = stats["time_taken"] / stats["total"]
+                item = {"concept": concept, "accuracy": acc, "totalQuestions": stats["total"], "timePerQuestion": time_per_q}
+                if acc >= 70:
+                    strong_concepts.append(item)
+                else:
+                    weak_concepts.append(item)
 
-    strong_concepts.sort(key=lambda x: x["accuracy"], reverse=True)
-    weak_concepts.sort(key=lambda x: x["accuracy"])
+        strong_concepts.sort(key=lambda x: x["accuracy"], reverse=True)
+        weak_concepts.sort(key=lambda x: x["accuracy"])
+        
+        module_insights.append({
+            "moduleId": module_id,
+            "moduleCode": module_code,
+            "moduleName": module_name,
+            "levelId": level_id,
+            "levelCode": level_code,
+            "levelName": level_name,
+            "strongConcepts": strong_concepts,
+            "weakConcepts": weak_concepts
+        })
+
+    # Sort by module code then level code
+    module_insights.sort(key=lambda x: (x["moduleCode"], x["levelCode"]))
 
     return {
         "overallScore": round(total_score / n, 1) if n > 0 else 0,
@@ -848,6 +878,5 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
         "totalMocksAttempted": n,
         "averageTimePerQuestion": round(total_time_taken / total_questions, 1) if total_questions > 0 else 0,
         "history": history,
-        "strongConcepts": strong_concepts,
-        "weakConcepts": weak_concepts
+        "moduleInsights": module_insights
     }
