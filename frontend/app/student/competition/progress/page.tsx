@@ -121,7 +121,7 @@ export default function StudentCompetitionProgressPage() {
                   {query.data.strongConcepts.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {query.data.strongConcepts.slice(0, 5).map((c) => (
-                        <Chip key={c.concept} label={`${c.concept} (${Math.round(c.accuracy)}%)`} tone="success" />
+                        <Chip key={c.concept} label={`${c.concept} (${Math.round(c.accuracy)}%)`} tone="green" />
                       ))}
                     </div>
                   ) : (
@@ -136,7 +136,7 @@ export default function StudentCompetitionProgressPage() {
                   {query.data.weakConcepts.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {query.data.weakConcepts.slice(0, 5).map((c) => (
-                        <Chip key={c.concept} label={`${c.concept} (${Math.round(c.accuracy)}%)`} tone="danger" />
+                        <Chip key={c.concept} label={`${c.concept} (${Math.round(c.accuracy)}%)`} tone="red" />
                       ))}
                     </div>
                   ) : (
