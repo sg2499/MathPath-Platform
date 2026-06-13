@@ -828,9 +828,11 @@ export function Metric({
 export function Chip({
   children,
   tone = "slate",
+  label,
 }: {
-  children: ReactNode;
+  children?: ReactNode;
   tone?: "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple";
+  label?: string;
 }) {
   const tones = {
     slate: "border-slate-200 bg-slate-50 text-slate-700",
@@ -843,9 +845,9 @@ export function Chip({
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black ${tones[tone]}`}
+      className={`math-badge math-tone-${tone} inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black ${tones[tone]}`}
     >
-      {children}
+      {children || label}
     </span>
   );
 }
