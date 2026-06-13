@@ -37,16 +37,16 @@ function FormatDuration(seconds?: number | null) {
   return `${secs}s`;
 }
 
-function MetricCard({ label, value, icon }: { label: string; value: string | number; icon: ReactNode }) {
+function CompactProgressMetric({ label, value, icon }: { label: string; value: string | number; icon: ReactNode }) {
   return (
-    <div className="flex flex-col bg-white border border-slate-200 rounded-xl p-5 shadow-sm dark:bg-slate-900/50 dark:border-slate-800">
-      <div className="flex items-center gap-2 text-slate-500 mb-2">
-        <div className="[&>svg]:h-4 [&>svg]:w-4">{icon}</div>
-        <span className="text-xs font-medium">{label}</span>
+    <div className="math-student-metric-card p-4">
+      <div className="flex items-center gap-2">
+        <span className="math-student-icon-chip flex h-8 w-8 items-center justify-center rounded-xl">
+          {icon}
+        </span>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-950 dark:text-white">{label}</p>
       </div>
-      <span className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
-        {value}
-      </span>
+      <p className="mt-3 truncate text-2xl font-black text-slate-950 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -54,11 +54,11 @@ function MetricCard({ label, value, icon }: { label: string; value: string | num
 function ConceptRow({ concept, accuracy, isStrong }: { concept: string; accuracy: number; isStrong: boolean }) {
   return (
     <div className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors dark:hover:bg-slate-800/50">
-      <span className="text-sm font-medium text-slate-700 truncate pr-4 dark:text-slate-300">
+      <span className="text-sm font-semibold text-slate-700 truncate pr-4 dark:text-slate-300">
         {concept}
       </span>
       <div className="flex items-center gap-3 shrink-0">
-        <div className="hidden sm:block w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden dark:bg-slate-800">
+        <div className="hidden sm:block w-24 h-2 bg-slate-100 rounded-full overflow-hidden dark:bg-slate-800">
           <div
             className={classNames(
               "h-full rounded-full",
@@ -67,7 +67,7 @@ function ConceptRow({ concept, accuracy, isStrong }: { concept: string; accuracy
             style={{ width: `${accuracy}%` }}
           />
         </div>
-        <span className="text-sm font-semibold text-slate-900 tabular-nums w-10 text-right dark:text-white">
+        <span className="text-sm font-black tabular-nums w-12 text-right dark:text-white">
           {Math.round(accuracy)}%
         </span>
       </div>
@@ -86,97 +86,99 @@ export default function StudentCompetitionProgressPage() {
 
   return (
     <AppShell title="Competition Progress">
-      <div className="mx-auto max-w-6xl space-y-8 pb-12">
+      <section className="w-full space-y-5 pb-12">
         
-        {/* Header - No box, just clean text */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Trophy size={16} className="text-[var(--math-role-primary)]" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--math-role-primary)]">
-              Competition
-            </span>
+        {/* Thematic Hero Header */}
+        <div className="math-hero">
+          <div>
+            <p className="math-kicker">Competition History</p>
+            <h1 className="math-title">Progress Insights</h1>
+            <p className="math-subtitle">
+              Overview of your mock exam performance and concept mastery.
+            </p>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Progress Insights
-          </h1>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Overview of your mock exam performance and concept mastery.
-          </p>
+          
+          {query.data && query.data.totalMocksAttempted > 0 && (
+            <div className="grid grid-cols-2 gap-2 xl:grid-cols-5">
+              <CompactProgressMetric label="Avg Score" value={query.data.overallScore} icon={<TrendingUp size={14} />} />
+              <CompactProgressMetric label="Accuracy" value={`${query.data.overallAccuracy}%`} icon={<Target size={14} />} />
+              <CompactProgressMetric label="Total Attempts" value={query.data.totalMocksAttempted} icon={<Trophy size={14} />} />
+              <CompactProgressMetric label="Time / Q" value={FormatDuration(query.data.averageTimePerQuestion)} icon={<Clock size={14} />} />
+              <CompactProgressMetric label="Time Util" value={`${query.data.overallTimeUtilization}%`} icon={<Gauge size={14} />} />
+            </div>
+          )}
         </div>
 
         {!ready || query.isLoading ? (
-          <LoadingState message="Loading insights..." />
+          <LoadingState label="Loading insights..." />
         ) : query.isError ? (
           <ErrorState message={apiErrorMessage(query.error)} />
         ) : query.data?.totalMocksAttempted === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white py-20 px-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/50">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-400 mb-4 dark:bg-slate-800/50 dark:text-slate-500">
-              <BarChart3 size={24} />
+          <div className="flex flex-col items-center justify-center rounded-[28px] border border-[var(--math-role-primary)]/20 bg-white/85 py-20 px-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+            <div className="math-student-icon-chip flex h-16 w-16 items-center justify-center rounded-2xl mb-4">
+              <BarChart3 size={32} />
             </div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No data available</h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">No data available</h2>
+            <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
               Complete your first mock exam to generate performance analytics.
             </p>
           </div>
         ) : query.data ? (
-          <div className="space-y-8">
+          <div className="grid gap-5 lg:grid-cols-2">
             
-            {/* Metrics Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              <MetricCard label="Average Score" value={query.data.overallScore} icon={<TrendingUp />} />
-              <MetricCard label="Average Accuracy" value={`${query.data.overallAccuracy}%`} icon={<Target />} />
-              <MetricCard label="Total Attempts" value={query.data.totalMocksAttempted} icon={<Trophy />} />
-              <MetricCard label="Time / Question" value={FormatDuration(query.data.averageTimePerQuestion)} icon={<Clock />} />
-              <MetricCard label="Time Utilization" value={`${query.data.overallTimeUtilization}%`} icon={<Gauge />} />
-            </div>
-
-            {/* Concept Mastery Columns */}
-            <div className="grid gap-6 lg:grid-cols-2">
+            {/* Strengths */}
+            <div className="flex flex-col rounded-[28px] border border-[var(--math-role-primary)]/20 bg-white/85 p-6 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                  <CheckCircle2 size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Strengths</h3>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">&ge; 70% Accuracy</p>
+                </div>
+              </div>
               
-              {/* Strengths */}
-              <div className="flex flex-col bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden dark:bg-slate-900/50 dark:border-slate-800">
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/80">
-                  <CheckCircle2 size={16} className="text-emerald-500" />
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Strengths</h3>
-                  <span className="text-xs text-slate-500 ml-auto">&ge; 70%</span>
-                </div>
-                <div className="p-2 flex flex-col min-h-[200px]">
-                  {query.data.strongConcepts.length > 0 ? (
-                    query.data.strongConcepts.map((c) => (
-                      <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={true} />
-                    ))
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center p-6 text-sm text-slate-400">
-                      No strengths identified yet.
-                    </div>
-                  )}
-                </div>
+              <div className="flex flex-col gap-1 min-h-[200px]">
+                {query.data.strongConcepts.length > 0 ? (
+                  query.data.strongConcepts.map((c) => (
+                    <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={true} />
+                  ))
+                ) : (
+                  <div className="flex-1 flex items-center justify-center p-6 text-sm font-semibold text-slate-400">
+                    No strengths identified yet. Keep practicing!
+                  </div>
+                )}
               </div>
-
-              {/* Weaknesses */}
-              <div className="flex flex-col bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden dark:bg-slate-900/50 dark:border-slate-800">
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/80">
-                  <AlertTriangle size={16} className="text-rose-500" />
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Areas to Improve</h3>
-                  <span className="text-xs text-slate-500 ml-auto">&lt; 70%</span>
-                </div>
-                <div className="p-2 flex flex-col min-h-[200px]">
-                  {query.data.weakConcepts.length > 0 ? (
-                    query.data.weakConcepts.map((c) => (
-                      <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={false} />
-                    ))
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center p-6 text-sm text-slate-400">
-                      No major weak areas detected.
-                    </div>
-                  )}
-                </div>
-              </div>
-
             </div>
+
+            {/* Weaknesses */}
+            <div className="flex flex-col rounded-[28px] border border-[var(--math-role-primary)]/20 bg-white/85 p-6 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Areas to Improve</h3>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">&lt; 70% Accuracy</p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col gap-1 min-h-[200px]">
+                {query.data.weakConcepts.length > 0 ? (
+                  query.data.weakConcepts.map((c) => (
+                    <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={false} />
+                  ))
+                ) : (
+                  <div className="flex-1 flex items-center justify-center p-6 text-sm font-semibold text-slate-400">
+                    No major weak areas detected. Great job!
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
         ) : null}
-      </div>
+      </section>
     </AppShell>
   );
 }
