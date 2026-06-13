@@ -432,3 +432,36 @@ export async function getCompetitionMockResult(attemptId: string): Promise<Stude
   const { data } = await api.get<StudentCompetitionMockResult>(`/student/competition/mock-attempts/${attemptId}/result`);
   return data;
 }
+
+export type StudentCompetitionProgressInsights = {
+  overallScore: number;
+  overallAccuracy: number;
+  overallTimeUtilization: number;
+  totalMocksAttempted: number;
+  averageTimePerQuestion: number;
+  history: Array<{
+    mockExamId: string;
+    completedAt: string | null;
+    score: number;
+    accuracyPercentage: number;
+    timeUtilizationPercentage: number | null;
+    timeTakenSeconds: number | null;
+  }>;
+  strongConcepts: Array<{
+    concept: string;
+    accuracy: number;
+    totalQuestions: number;
+    timePerQuestion: number;
+  }>;
+  weakConcepts: Array<{
+    concept: string;
+    accuracy: number;
+    totalQuestions: number;
+    timePerQuestion: number;
+  }>;
+};
+
+export async function getCompetitionProgressInsights(): Promise<StudentCompetitionProgressInsights> {
+  const { data } = await api.get<StudentCompetitionProgressInsights>("/student/competition/progress/insights");
+  return data;
+}

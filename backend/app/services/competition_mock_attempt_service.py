@@ -758,3 +758,96 @@ def GetCompetitionMockResultForTeacher(db: Session, teacher: Teacher, attempt_id
 
     attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
     return _result_payload(db, attempt)
+
+
+def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) -> dict[str, Any]:
+    from collections import defaultdict
+    import json
+
+    summaries = (
+        db.query(CompetitionMockResultSummary)
+        .filter(CompetitionMockResultSummary.student_id == student.id)
+        .order_by(CompetitionMockResultSummary.completed_at.asc())
+        .all()
+    )
+
+    if not summaries:
+        return {
+            "overallScore": 0,
+            "overallAccuracy": 0,
+            "overallTimeUtilization": 0,
+            "totalMocksAttempted": 0,
+            "averageTimePerQuestion": 0,
+            "history": [],
+            "strongConcepts": [],
+            "weakConcepts": []
+        }
+
+    total_score = 0
+    total_accuracy = 0
+    total_time_utilization = 0
+    total_time_taken = 0
+    total_questions = 0
+
+    history = []
+    concept_stats = defaultdict(lambda: {"correct": 0, "total": 0, "time_taken": 0})
+
+    for s in summaries:
+        history.append({
+            "mockExamId": s.mock_exam_id,
+            "completedAt": s.completed_at.isoformat() if s.completed_at else None,
+            "score": s.score,
+            "accuracyPercentage": s.accuracy_percentage,
+            "timeUtilizationPercentage": s.time_utilization_percentage,
+            "timeTakenSeconds": s.time_taken_seconds
+        })
+
+        total_score += s.score
+        total_accuracy += s.accuracy_percentage
+        
+        if s.time_utilization_percentage:
+            total_time_utilization += s.time_utilization_percentage
+            
+        if s.time_taken_seconds:
+            total_time_taken += s.time_taken_seconds
+
+        if s.concept_performance_json:
+            try:
+                perfs = json.loads(s.concept_performance_json)
+                for p in perfs:
+                    concept = p.get("concept", "Unknown")
+                    concept_stats[concept]["correct"] += p.get("correct", 0)
+                    concept_stats[concept]["total"] += p.get("total", 0)
+                    concept_stats[concept]["time_taken"] += p.get("time_taken", 0)
+                    total_questions += p.get("total", 0)
+            except:
+                pass
+
+    n = len(summaries)
+    
+    strong_concepts = []
+    weak_concepts = []
+    
+    for concept, stats in concept_stats.items():
+        if stats["total"] > 0:
+            acc = (stats["correct"] / stats["total"]) * 100
+            time_per_q = stats["time_taken"] / stats["total"]
+            item = {"concept": concept, "accuracy": acc, "totalQuestions": stats["total"], "timePerQuestion": time_per_q}
+            if acc >= 70:
+                strong_concepts.append(item)
+            else:
+                weak_concepts.append(item)
+
+    strong_concepts.sort(key=lambda x: x["accuracy"], reverse=True)
+    weak_concepts.sort(key=lambda x: x["accuracy"])
+
+    return {
+        "overallScore": round(total_score / n, 1) if n > 0 else 0,
+        "overallAccuracy": round(total_accuracy / n, 1) if n > 0 else 0,
+        "overallTimeUtilization": round(total_time_utilization / n, 1) if n > 0 else 0,
+        "totalMocksAttempted": n,
+        "averageTimePerQuestion": round(total_time_taken / total_questions, 1) if total_questions > 0 else 0,
+        "history": history,
+        "strongConcepts": strong_concepts,
+        "weakConcepts": weak_concepts
+    }
