@@ -844,7 +844,7 @@ export function Chip({
     slate: "",
   };
   const lightColors: Record<string, string> = {
-    slate: "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300",
+    slate: "border-slate-200 bg-slate-50 text-slate-700",
     green: "border-emerald-200 bg-emerald-50 text-emerald-700",
     red: "border-rose-200 bg-rose-50 text-rose-700",
     amber: "border-amber-200 bg-amber-50 text-amber-700",

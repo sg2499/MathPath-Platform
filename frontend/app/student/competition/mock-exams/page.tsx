@@ -369,7 +369,7 @@ export default function StudentCompetitionMockExamsPage() {
                                   <AvgAccuracyChip value={levelGroup.avgAccuracy} />
                                   <CountChip value={levelGroup.assignments.length} label="Mock" />
                                   <StatusCountChip value={levelGroup.assignments.filter(IsCompleted).length} label="Completed" tone="green" />
-                                  <StatusCountChip value={Math.max(0, levelGroup.assignments.length - levelGroup.assignments.filter(IsCompleted).length)} label="Pending" tone="orange" />
+                                  <StatusCountChip value={Math.max(0, levelGroup.assignments.length - levelGroup.assignments.filter(IsCompleted).length)} label="Pending" tone="slate" />
                                   <span className="rounded-2xl bg-white p-2 text-slate-600 shadow-sm dark:bg-slate-950 dark:text-slate-300">
                                     <ChevronDown className={levelOpen ? "rotate-180 transition" : "transition"} size={18} />
                                   </span>
@@ -423,14 +423,14 @@ function AvgAccuracyChip({ value }: { value: number | null }) {
 
 function CountChip({ value, label }: { value: number; label: string }) {
   return (
-    <Chip tone="amber">
+    <Chip tone="slate">
       {value} {label}{value === 1 ? "" : "s"}
     </Chip>
   );
 }
 
-function StatusCountChip({ value, label, tone }: { value: number; label: string; tone: "green" | "orange" }) {
-  return <Chip tone={tone === "green" ? "green" : "amber"}>{value} {label}</Chip>;
+function StatusCountChip({ value, label, tone }: { value: number; label: string; tone: "green" | "slate" }) {
+  return <Chip tone={tone}>{value} {label}</Chip>;
 }
 
 
