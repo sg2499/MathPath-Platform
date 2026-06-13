@@ -220,9 +220,9 @@ function NextSortState(Current: SortState, Key: SortKey): SortState {
 
 function SortIndicator({ Sort, ColumnKey }: { Sort: SortState; ColumnKey: SortKey }) {
   if (!Sort || Sort.key !== ColumnKey) {
-    return <span className="text-[#7a1f58]/45 dark:text-rose-100/45">↕</span>;
+    return <span className="math-tc-mock-header-sort-inactive">↕</span>;
   }
-  return <span className="text-[#7a1f58] dark:text-rose-100">{Sort.direction === "asc" ? "↑" : "↓"}</span>;
+  return <span className="math-tc-mock-header-sort-active">{Sort.direction === "asc" ? "↑" : "↓"}</span>;
 }
 
 type MockLevelGroup = {
@@ -611,14 +611,14 @@ function TeacherCompetitionMockTrackerContent() {
                                               {LevelOpen ? (
                                                 <div className="border-t border-slate-100 p-3 dark:border-white/10">
                                                   <div className="overflow-hidden rounded-2xl border border-[#7a1f58]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
-                                                    <div className="grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-0 bg-[#7a1f58]/10 text-[#7a1f58] dark:bg-rose-300/15 dark:text-rose-100">
+                                                    <div className="math-tc-mock-header-row grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-0">
                                                       {MockTableColumns.map((Column) => (
-                                                        <div key={Column.label} className="px-3 py-3 text-[0.68rem] font-black uppercase tracking-[0.16em] text-[#5f123f] dark:text-rose-50">
+                                                        <div key={Column.label} className="math-tc-mock-header-cell px-3 py-3">
                                                           {Column.key ? (
                                                             <button
                                                               type="button"
                                                               onClick={() => SetMockTableSort((Current) => NextSortState(Current, Column.key!))}
-                                                              className="tc-dark-hover-tab inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition hover:text-[#7a1f58] focus:outline-none focus:ring-2 focus:ring-[#7a1f58]/25 dark:hover:text-white dark:focus:ring-rose-300/40"
+                                                              className="math-tc-mock-header-sort-btn inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition focus:outline-none focus:ring-2"
                                                               aria-label={`Sort by ${Column.label}`}
                                                             >
                                                               <span>{Column.label}</span>
