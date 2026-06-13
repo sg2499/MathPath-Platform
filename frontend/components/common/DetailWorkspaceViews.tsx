@@ -834,8 +834,17 @@ export function Chip({
   tone?: "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple";
   label?: string;
 }) {
-  const tones = {
-    slate: "border-slate-200 bg-slate-50 text-slate-700",
+  const toneMap: Record<string, string> = {
+    green: "math-tone-success",
+    red: "math-tone-danger",
+    amber: "math-tone-warning",
+    blue: "math-tone-info",
+    cyan: "math-tone-info",
+    purple: "math-tone-purple",
+    slate: "",
+  };
+  const lightColors: Record<string, string> = {
+    slate: "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300",
     green: "border-emerald-200 bg-emerald-50 text-emerald-700",
     red: "border-rose-200 bg-rose-50 text-rose-700",
     amber: "border-amber-200 bg-amber-50 text-amber-700",
@@ -843,11 +852,12 @@ export function Chip({
     cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
     purple: "border-violet-200 bg-violet-50 text-violet-700",
   };
+  const toneCssClass = toneMap[tone] ?? "";
   return (
     <span
-      className={`math-badge math-tone-${tone} inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black ${tones[tone]}`}
+      className={`math-badge ${toneCssClass} inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black ${lightColors[tone]}`}
     >
-      {children || label}
+      {children ?? label}
     </span>
   );
 }
