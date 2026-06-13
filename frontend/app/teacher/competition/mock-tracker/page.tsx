@@ -45,10 +45,10 @@ function StatusLabel(Status?: string | null) {
   return "Pending";
 }
 
-function StatusClass(Status?: string | null) {
+function StatusTone(Status?: string | null): "green" | "amber" {
   const Value = String(Status || "ASSIGNED").toUpperCase();
-  if (Value === "COMPLETED") return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200";
-  return "border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100";
+  if (Value === "COMPLETED") return "green";
+  return "amber";
 }
 
 function IsCompleted(Row: TeacherCompetitionTrackerRow) {
@@ -91,28 +91,22 @@ function AverageOfStudentAccuracyValues(Rows: TeacherCompetitionTrackerRow[]) {
   return Math.round(Total / StudentAverages.length);
 }
 
-function AccuracyBandClass(Value: number | null) {
-  if (Value == null) {
-    return "border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300";
-  }
-  if (Value < 60) {
-    return "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/30 dark:text-rose-200";
-  }
-  if (Value < 80) {
-    return "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200";
-  }
-  if (Value < 90) {
-    return "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800/70 dark:bg-violet-950/30 dark:text-violet-200";
-  }
-  return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200";
+import { Chip } from "@/components/common/DetailWorkspaceViews";
+
+function AccuracyBandTone(Value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
+  if (Value == null) return "slate";
+  if (Value < 60) return "red";
+  if (Value < 80) return "amber";
+  if (Value < 90) return "purple";
+  return "green";
 }
 
 function AverageAccuracyChip(Rows: TeacherCompetitionTrackerRow[]) {
   const Value = AverageAccuracyValue(Rows);
   return (
-    <span className={`rounded-full border px-3 py-1 text-xs font-black ${AccuracyBandClass(Value)}`}>
+    <Chip tone={AccuracyBandTone(Value)}>
       Avg Accuracy {Value == null ? "-" : `${Value}%`}
-    </span>
+    </Chip>
   );
 }
 
@@ -129,9 +123,7 @@ function ScoreText(Row: TeacherCompetitionTrackerRow) {
 function ReviewButton({ Row }: { Row: TeacherCompetitionTrackerRow }) {
   if (!Row.attemptId) {
     return (
-      <span className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-500">
-        Pending
-      </span>
+      <Chip tone="slate">Pending</Chip>
     );
   }
 
@@ -555,9 +547,9 @@ function TeacherCompetitionMockTrackerContent() {
                             </div>
                             <div className="flex flex-wrap gap-2 text-xs font-black">
                               {AverageAccuracyChip(StudentGroup.rows)}
-                              <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{StudentGroup.rows.length} Mock{StudentGroup.rows.length === 1 ? "" : "s"}</span>
-                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200">{CompletedCount} Completed</span>
-                              <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{PendingCountForStudent} Pending</span>
+                              <Chip tone="amber">{StudentGroup.rows.length} Mock{StudentGroup.rows.length === 1 ? "" : "s"}</Chip>
+                              <Chip tone="green">{CompletedCount} Completed</Chip>
+                              <Chip tone="amber">{PendingCountForStudent} Pending</Chip>
                             </div>
                           </button>
 
@@ -584,7 +576,7 @@ function TeacherCompetitionMockTrackerContent() {
                                       </div>
                                       <div className="flex flex-wrap justify-end gap-2 text-xs font-black">
                                         {AverageAccuracyChip(ModuleRows)}
-                                        <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{ModuleRows.length} Mock{ModuleRows.length === 1 ? "" : "s"}</span>
+                                        <Chip tone="amber">{ModuleRows.length} Mock{ModuleRows.length === 1 ? "" : "s"}</Chip>
                                       </div>
                                     </button>
 
@@ -609,10 +601,10 @@ function TeacherCompetitionMockTrackerContent() {
                                                     <p className="text-sm font-black text-slate-950 dark:text-white">{LevelGroup.label}</p>
                                                   </div>
                                                 </div>
-                                                <div className="flex flex-wrap justify-end gap-2 text-xs font-black">
+                                                <div className="flex flex-wrap gap-2 text-xs font-black">
                                                   {AverageAccuracyChip(LevelGroup.rows)}
-                                                  <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">{LevelGroup.rows.length} Mock{LevelGroup.rows.length === 1 ? "" : "s"}</span>
-                                                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200">{LevelCompleted} Completed</span>
+                                                  <Chip tone="amber">{LevelGroup.rows.length} Mock{LevelGroup.rows.length === 1 ? "" : "s"}</Chip>
+                                                  <Chip tone="green">{LevelCompleted} Completed</Chip>
                                                 </div>
                                               </button>
 
@@ -656,17 +648,17 @@ function TeacherCompetitionMockTrackerContent() {
                                                           <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</div>
                                                           <div className="px-3 py-4 text-xs font-black text-slate-950 dark:text-white">{Row.mockExam.mockCode || "-"}</div>
                                                           <div className="px-3 py-4">
-                                                            <span className={`rounded-full border px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] ${StatusClass(Row.status)}`}>{StatusLabel(Row.status)}</span>
+                                                            <Chip tone={StatusTone(Row.status)}>{StatusLabel(Row.status)}</Chip>
                                                           </div>
                                                           <div className="px-3 py-4">
-                                                            <span className={`rounded-full border px-2.5 py-1 text-xs font-black ${AccuracyBandClass(ScorePercentage(Row))}`}>
+                                                            <Chip tone={AccuracyBandTone(ScorePercentage(Row))}>
                                                               {ScoreText(Row)}
-                                                            </span>
+                                                            </Chip>
                                                           </div>
                                                           <div className="px-3 py-4">
-                                                            <span className={`rounded-full border px-2.5 py-1 text-xs font-black ${AccuracyBandClass(IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : null)}`}>
+                                                            <Chip tone={AccuracyBandTone(IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : null)}>
                                                               {IsCompleted(Row) ? PercentValue(Row.accuracyPercentage) : "-"}
-                                                            </span>
+                                                            </Chip>
                                                           </div>
                                                           <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
                                                           <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{FormatDate(Row.assignedAt)}</div>

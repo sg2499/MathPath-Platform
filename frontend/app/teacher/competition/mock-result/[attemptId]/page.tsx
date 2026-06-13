@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { Chip } from "@/components/common/DetailWorkspaceViews";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
@@ -624,8 +625,8 @@ function ResultTabButton({
       onClick={onClick}
       className={
         active
-          ? "tc-dark-hover-tab inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#7a1f58] to-[#b76e79] px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[#7a1f58]/20 transition dark:shadow-rose-950/30"
-          : "tc-dark-hover-tab inline-flex items-center justify-center rounded-full border border-[#7a1f58]/20 bg-white px-5 py-2.5 text-sm font-black text-[#7a1f58] transition hover:border-[#7a1f58] hover:bg-[#7a1f58] hover:text-white hover:shadow-md hover:shadow-[#7a1f58]/10 dark:border-rose-300/25 dark:bg-slate-950/70 dark:text-rose-100 dark:hover:border-rose-100 dark:hover:bg-rose-500/35 dark:hover:text-white dark:hover:shadow-md dark:hover:shadow-rose-950/30 dark:focus:ring-rose-300/40"
+          ? "math-role-tab math-role-tab-active"
+          : "math-role-tab"
       }
     >
       {label}
@@ -710,9 +711,9 @@ function QuestionReviewTab({
                     {section.title}
                   </h3>
                 </div>
-                <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-xs font-black text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+                <Chip tone="slate">
                   {section.questions.length} Questions
-                </span>
+                </Chip>
               </div>
 
               <div className="space-y-5">
@@ -727,21 +728,17 @@ function QuestionReviewTab({
                           Question {question.questionNumber}
                         </h3>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[11px] font-black text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
-                            Section {question.sectionNumber || "-"}
-                          </span>
-                          <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[11px] font-black text-[#7a1f58] dark:border-slate-700 dark:bg-slate-950 dark:text-rose-100">
-                            {question.sectionTitle || "Competition Mock"}
-                          </span>
+                          <Chip tone="purple">Section {question.sectionNumber || "-"}</Chip>
+                          <Chip tone="slate">{question.sectionTitle || "Competition Mock"}</Chip>
                         </div>
                       </div>
-                      <span
-                        className={
+                      <Chip
+                        tone={
                           question.isUnanswered
-                            ? "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                            ? "slate"
                             : question.isCorrect
-                              ? "math-badge border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
-                              : "math-badge border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200"
+                              ? "green"
+                              : "red"
                         }
                       >
                         {question.isUnanswered
@@ -749,7 +746,7 @@ function QuestionReviewTab({
                           : question.isCorrect
                             ? "Correct"
                             : "Wrong"}
-                      </span>
+                      </Chip>
                     </div>
 
                     <div className="mt-5 rounded-[24px] bg-slate-50/90 p-5 dark:bg-slate-950/60">
@@ -860,9 +857,9 @@ function ResultAnalysisTab({
                   <span>
                     {item.correct}/{item.total} Correct
                   </span>
-                  <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+                  <Chip tone="slate">
                     {formatNumber(item.percentage)}%
-                  </span>
+                  </Chip>
                 </button>
               ))}
             </div>
@@ -885,14 +882,6 @@ function ResultAnalysisTab({
         />
       </div>
     </>
-  );
-}
-
-function Chip({ label }: { label: string }) {
-  return (
-    <span className="rounded-full border border-[#7a1f58]/20 bg-[#7a1f58]/5 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
-      {label}
-    </span>
   );
 }
 
