@@ -6923,18 +6923,6 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     text-align: center !important;
   }
 
-  html.dark .math-role-admin .math-student-history-table .math-table-chip-cell {
-    overflow: visible !important;
-    text-overflow: clip !important;
-  }
-
-  html.dark .math-role-admin .math-student-history-table .math-table-chip-cell .math-badge,
-  html.dark .math-role-admin .math-student-history-table .math-table-chip-cell .math-status-chip,
-  html.dark .math-role-admin .math-student-history-table .math-table-chip-cell .math-attempt-chip {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: auto !important;
   html.dark .math-student-history-table .math-table-chip-cell {
     overflow: visible !important;
     text-overflow: clip !important;
@@ -6997,8 +6985,8 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
   html.dark .math-student-history-table .math-badge.text-slate-600,
   html.dark .math-student-history-table .math-badge.text-slate-700,
   html.dark .math-student-history-table .math-badge.dark\:text-slate-200 {
-    color: #e2e8f0 !important;
-    -webkit-text-fill-color: #e2e8f0 !important;
+    color: #cbd5e1 !important;
+    -webkit-text-fill-color: #cbd5e1 !important;
     background: rgba(30, 41, 59, 0.92) !important;
     border-color: rgba(148, 163, 184, 0.42) !important;
   }
