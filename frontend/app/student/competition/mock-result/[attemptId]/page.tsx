@@ -56,6 +56,14 @@ function formatDate(value?: string | null) {
   });
 }
 
+function AccuracyChipClasses(value: number | null) {
+  if (value === null) return "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300";
+  if (value < 60) return "math-badge math-tone-danger";
+  if (value < 80) return "math-badge math-tone-warning";
+  if (value < 90) return "math-badge math-tone-purple";
+  return "math-badge math-tone-success";
+}
+
 type CompetitionMessage = {
   title: string;
   badge: string;
@@ -483,7 +491,7 @@ function CompetitionMessageBox({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="math-kicker">Competition Coach</p>
-              <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700">
+              <span className="math-badge border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] text-[var(--mp-role-readable)]">
                 {message.badge}
               </span>
             </div>
@@ -510,7 +518,7 @@ function CompetitionMessageBox({
                   key={area}
                   type="button"
                   onClick={() => onSectionSelect(area)}
-                  className="rounded-[16px] border border-orange-100 bg-orange-50/70 px-3 py-2.5 text-left text-sm font-black text-slate-900 transition hover:border-orange-400 hover:bg-orange-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-orange-900 dark:bg-orange-950/30 dark:text-white dark:hover:border-orange-500 dark:hover:bg-orange-600 dark:hover:text-white"
+                  className="rounded-[16px] border border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] px-3 py-2.5 text-left text-sm font-black text-slate-900 transition hover:border-[var(--mp-role-primary)] hover:bg-[var(--mp-role-primary)] hover:text-white focus:outline-none focus:ring-2 focus:ring-[var(--mp-role-primary)] dark:text-white dark:hover:bg-[var(--mp-role-primary)]"
                 >
                   {area}
                 </button>
@@ -544,11 +552,8 @@ function ResultTabButton({
     <button
       type="button"
       onClick={onClick}
-      className={
-        active
-          ? "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-orange-600 to-amber-500 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-orange-200 transition dark:shadow-orange-950/30"
-          : "inline-flex items-center justify-center rounded-full border border-orange-200 bg-white px-5 py-2.5 text-sm font-black text-orange-700 transition hover:border-orange-500 hover:bg-orange-600 hover:text-white hover:shadow-md hover:shadow-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-orange-200 dark:hover:border-orange-500 dark:hover:bg-orange-600 dark:hover:text-white"
-      }
+      data-active={active ? "true" : undefined}
+      className="math-role-tab-button"
     >
       {label}
     </button>
@@ -632,7 +637,7 @@ function QuestionReviewTab({
                     {section.title}
                   </h3>
                 </div>
-                <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">
+                <span className="math-badge border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] text-[var(--mp-role-readable)]">
                   {section.questions.length} Questions
                 </span>
               </div>
@@ -649,10 +654,10 @@ function QuestionReviewTab({
                           Question {question.questionNumber}
                         </h3>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-700">
+                          <span className="math-badge border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] text-[var(--mp-role-readable)]">
                             Section {question.sectionNumber || "-"}
                           </span>
-                          <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-black text-orange-700">
+                          <span className="math-badge border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] text-[var(--mp-role-readable)]">
                             {question.sectionTitle || "Competition Mock"}
                           </span>
                         </div>
@@ -660,10 +665,10 @@ function QuestionReviewTab({
                       <span
                         className={
                           question.isUnanswered
-                            ? "math-badge border-slate-200 bg-slate-50 text-slate-700"
+                            ? "math-badge border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
                             : question.isCorrect
-                              ? "math-badge border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "math-badge border-rose-200 bg-rose-50 text-rose-700"
+                              ? "math-badge math-tone-success"
+                              : "math-badge math-tone-danger"
                         }
                       >
                         {question.isUnanswered
@@ -776,13 +781,13 @@ function ResultAnalysisTab({
                   key={item.concept}
                   type="button"
                   onClick={() => onSectionSelect(item.concept)}
-                  className="grid w-full gap-2 p-4 text-left text-sm font-bold text-slate-800 transition hover:bg-orange-50 hover:text-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:text-slate-100 dark:hover:bg-orange-950/30 dark:hover:text-orange-100 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                  className="grid w-full gap-2 p-4 text-left text-sm font-bold text-slate-800 transition hover:bg-[var(--mp-role-softer)] hover:text-[var(--mp-role-readable)] focus:outline-none focus:ring-2 focus:ring-[var(--mp-role-primary)] dark:text-slate-100 dark:hover:bg-[var(--mp-role-softer)] dark:hover:text-[var(--mp-role-readable)] sm:grid-cols-[1fr_auto_auto] sm:items-center"
                 >
                   <span>{item.concept}</span>
-                  <span>
+                  <span className="text-slate-600 dark:text-slate-400">
                     {item.correct}/{item.total} Correct
                   </span>
-                  <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-orange-700">
+                  <span className={AccuracyChipClasses(item.percentage)}>
                     {formatNumber(item.percentage)}%
                   </span>
                 </button>
@@ -812,7 +817,7 @@ function ResultAnalysisTab({
 
 function Chip({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700">
+    <span className="math-badge border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] text-[var(--mp-role-readable)]">
       {label}
     </span>
   );
@@ -870,7 +875,7 @@ function InsightCard({
         {title}
       </h3>
       {items.length === 0 ? (
-        <p className="mt-4 rounded-[20px] border border-orange-100 bg-orange-50/50 p-4 text-sm font-bold text-slate-700 dark:border-orange-900 dark:bg-orange-950/20 dark:text-slate-300">
+        <p className="mt-4 rounded-[20px] border border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] p-4 text-sm font-bold text-slate-700 dark:text-slate-300">
           {empty}
         </p>
       ) : (
@@ -880,10 +885,10 @@ function InsightCard({
               key={item.concept}
               type="button"
               onClick={() => onSectionSelect(item.concept)}
-              className="flex w-full items-center justify-between rounded-[18px] border border-orange-100 bg-white/80 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-orange-500 dark:hover:bg-orange-950/30 dark:hover:text-orange-100"
+              className="flex w-full items-center justify-between rounded-[18px] border border-[var(--mp-role-border)] bg-white/80 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-[var(--mp-role-primary)] hover:bg-[var(--mp-role-softer)] hover:text-[var(--mp-role-readable)] focus:outline-none focus:ring-2 focus:ring-[var(--mp-role-primary)] dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-[var(--mp-role-primary)] dark:hover:bg-[var(--mp-role-softer)] dark:hover:text-[var(--mp-role-readable)]"
             >
               <span>{item.concept}</span>
-              <span>{formatNumber(item.percentage)}%</span>
+              <span className={AccuracyChipClasses(item.percentage)}>{formatNumber(item.percentage)}%</span>
             </button>
           ))}
         </div>
