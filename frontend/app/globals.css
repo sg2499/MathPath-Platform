@@ -6836,50 +6836,65 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.45) !important;
   }
 
-  html.dark .math-learning-performance-table .math-status-chip.text-rose-700,
-  html.dark .math-learning-performance-table .math-badge.math-tone-danger,
-  html.dark .math-learning-performance-table .math-badge.text-rose-700 {
+  /* === Global Semantic Dark Mode Chips === */
+  html.dark :is(.math-badge, .math-status-chip, span.rounded-full.border):is(.text-rose-700, .bg-rose-50, .math-tone-danger) {
     color: #fda4af !important;
     -webkit-text-fill-color: #fda4af !important;
     background: rgba(225, 29, 72, 0.16) !important;
     border-color: rgba(244, 63, 94, 0.24) !important;
   }
 
-  html.dark .math-learning-performance-table .math-status-chip.text-emerald-700,
-  html.dark .math-learning-performance-table .math-badge.math-tone-success,
-  html.dark .math-learning-performance-table .math-badge.text-emerald-700 {
+  html.dark :is(.math-badge, .math-status-chip, span.rounded-full.border):is(.text-emerald-700, .bg-emerald-50, .math-tone-success) {
     color: #6ee7b7 !important;
     -webkit-text-fill-color: #6ee7b7 !important;
     background: rgba(16, 185, 129, 0.16) !important;
     border-color: rgba(52, 211, 153, 0.24) !important;
   }
 
-  html.dark .math-learning-performance-table .math-status-chip.text-amber-700,
-  html.dark .math-learning-performance-table .math-badge.math-tone-warning,
-  html.dark .math-learning-performance-table .math-badge.text-amber-700 {
+  html.dark :is(.math-badge, .math-status-chip, span.rounded-full.border):is(.text-amber-700, .bg-amber-50, .math-tone-warning) {
     color: #fcd34d !important;
     -webkit-text-fill-color: #fcd34d !important;
     background: rgba(245, 158, 11, 0.16) !important;
     border-color: rgba(251, 191, 36, 0.24) !important;
   }
 
-  html.dark .math-learning-performance-table .math-attempt-chip,
-  html.dark .math-learning-performance-table .math-badge.text-blue-700 {
-    color: var(--mp-role-readable) !important;
-    -webkit-text-fill-color: var(--mp-role-readable) !important;
-    background: color-mix(in srgb, var(--mp-role-softer) 72%, rgba(15, 23, 42, 0.76)) !important;
-    border-color: color-mix(in srgb, var(--mp-role-border) 40%, rgba(255,255,255,0.1)) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+  html.dark :is(.math-badge, .math-status-chip, span.rounded-full.border):is(.text-orange-700, .bg-orange-50) {
+    color: #fdba74 !important;
+    -webkit-text-fill-color: #fdba74 !important;
+    background: rgba(234, 88, 12, 0.16) !important;
+    border-color: rgba(249, 115, 22, 0.24) !important;
   }
 
-  html.dark .math-learning-performance-table .math-badge.text-slate-600,
-  html.dark .math-learning-performance-table .math-badge.text-slate-700,
-  html.dark .math-learning-performance-table .math-badge.dark\:text-slate-200 {
+  html.dark :is(.math-badge, .math-status-chip, span.rounded-full.border):is(.text-violet-700, .text-purple-700, .bg-violet-50, .math-tone-purple) {
+    color: #c4b5fd !important;
+    -webkit-text-fill-color: #c4b5fd !important;
+    background: rgba(124, 58, 237, 0.16) !important;
+    border-color: rgba(139, 92, 246, 0.24) !important;
+  }
+
+  html.dark :is(.math-badge, .math-status-chip, span.rounded-full.border):is(.text-cyan-700, .bg-cyan-50) {
+    color: #67e8f9 !important;
+    -webkit-text-fill-color: #67e8f9 !important;
+    background: rgba(8, 145, 178, 0.16) !important;
+    border-color: rgba(6, 182, 212, 0.24) !important;
+  }
+
+  html.dark :is(.math-badge, .math-status-chip, span.rounded-full.border, .math-history-count-badge):is(.text-slate-600, .text-slate-700, .bg-slate-50, .bg-white, .dark\:text-slate-200) {
     color: #cbd5e1 !important;
     -webkit-text-fill-color: #cbd5e1 !important;
-    background: rgba(30,41,59,0.90) !important;
-    border-color: rgba(148,163,184,0.42) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+    background: rgba(71, 85, 105, 0.20) !important;
+    border-color: rgba(100, 116, 139, 0.30) !important;
+  }
+
+  /* Any default blue/generic chips adapt to the vibrant 16% Role Palette */
+  html.dark .math-role-admin :is(.math-badge, .math-status-chip, span.rounded-full.border, .math-attempt-chip):is(.text-blue-700, .bg-blue-50, .math-tone-info, .math-attempt-chip),
+  html.dark .math-role-teacher :is(.math-badge, .math-status-chip, span.rounded-full.border, .math-attempt-chip):is(.text-blue-700, .bg-blue-50, .math-tone-info, .math-attempt-chip),
+  html.dark .math-role-student :is(.math-badge, .math-status-chip, span.rounded-full.border, .math-attempt-chip):is(.text-blue-700, .bg-blue-50, .math-tone-info, .math-attempt-chip) {
+    color: var(--mp-role-readable) !important;
+    -webkit-text-fill-color: var(--mp-role-readable) !important;
+    background: color-mix(in srgb, var(--mp-role-primary) 16%, transparent) !important;
+    border-color: color-mix(in srgb, var(--mp-role-primary) 24%, transparent) !important;
+    box-shadow: none !important;
   }
 
   html.dark .math-role-admin .math-learning-performance-table .math-table-chip-cell:nth-child(5),
@@ -6945,51 +6960,6 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     line-height: 1.05 !important;
   }
 
-  html.dark .math-student-history-table .math-status-chip.text-rose-700,
-  html.dark .math-student-history-table .math-badge.text-rose-700,
-  html.dark .math-student-history-table .math-badge.math-tone-danger {
-    color: #fda4af !important;
-    -webkit-text-fill-color: #fda4af !important;
-    background: rgba(225, 29, 72, 0.16) !important;
-    border-color: rgba(244, 63, 94, 0.24) !important;
-  }
-
-  html.dark .math-student-history-table .math-status-chip.text-emerald-700,
-  html.dark .math-student-history-table .math-badge.text-emerald-700,
-  html.dark .math-student-history-table .math-badge.math-tone-success {
-    color: #6ee7b7 !important;
-    -webkit-text-fill-color: #6ee7b7 !important;
-    background: rgba(16, 185, 129, 0.16) !important;
-    border-color: rgba(52, 211, 153, 0.24) !important;
-  }
-
-  html.dark .math-student-history-table .math-status-chip.text-amber-700,
-  html.dark .math-student-history-table .math-badge.text-amber-700,
-  html.dark .math-student-history-table .math-badge.math-tone-warning {
-    color: #fcd34d !important;
-    -webkit-text-fill-color: #fcd34d !important;
-    background: rgba(245, 158, 11, 0.16) !important;
-    border-color: rgba(251, 191, 36, 0.24) !important;
-  }
-
-  html.dark .math-student-history-table .math-attempt-chip,
-  html.dark .math-student-history-table .math-badge.text-blue-700,
-  html.dark .math-student-history-table .math-history-count-badge {
-    color: var(--mp-role-readable) !important;
-    -webkit-text-fill-color: var(--mp-role-readable) !important;
-    background: color-mix(in srgb, var(--mp-role-softer) 72%, rgba(15, 23, 42, 0.76)) !important;
-    border-color: color-mix(in srgb, var(--mp-role-border) 40%, rgba(255,255,255,0.1)) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
-  }
-
-  html.dark .math-student-history-table .math-badge.text-slate-600,
-  html.dark .math-student-history-table .math-badge.text-slate-700,
-  html.dark .math-student-history-table .math-badge.dark\:text-slate-200 {
-    color: #cbd5e1 !important;
-    -webkit-text-fill-color: #cbd5e1 !important;
-    background: rgba(30, 41, 59, 0.92) !important;
-    border-color: rgba(148, 163, 184, 0.42) !important;
-  }
 }
 
 /* 26 May 2026 — Admin Dark Mode Palette Enforcement
