@@ -540,7 +540,7 @@ function MockRecordsTable({
   return (
     <div className="math-table overflow-x-auto border-t border-orange-100 dark:border-slate-700">
       <table className="min-w-full text-left text-sm">
-        <thead className="border-b border-slate-100 !bg-slate-50 !bg-none dark:border-slate-800 dark:!bg-slate-900">
+        <thead className="border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
           <tr>
             <StudentMockSortableHeader label="MOCK" sortKey="mock" sortConfig={sortConfig} onSort={handleSort} />
             <StudentMockSortableHeader label="MOCK CODE" sortKey="mockCode" sortConfig={sortConfig} onSort={handleSort} />
