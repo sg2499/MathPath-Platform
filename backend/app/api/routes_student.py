@@ -30,6 +30,7 @@ from app.services.competition_mock_attempt_service import (
     SaveCompetitionMockAnswer,
     SubmitCompetitionMockAttemptForStudent,
     GetCompetitionMockResultForStudent,
+    GetCompetitionMockProgressInsightsForStudent,
 )
 
 router = APIRouter(prefix="/api/student", tags=["student"])
@@ -235,6 +236,11 @@ def student_auto_submit_competition_mock_attempt(attempt_id: str, db: Session = 
 @router.get("/competition/mock-attempts/{attempt_id}/result")
 def student_get_competition_mock_result(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     return GetCompetitionMockResultForStudent(db, student, attempt_id)
+
+
+@router.get("/competition/progress/insights")
+def student_competition_progress_insights(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return GetCompetitionMockProgressInsightsForStudent(db, student)
 
 
 @router.get("/assignments")
