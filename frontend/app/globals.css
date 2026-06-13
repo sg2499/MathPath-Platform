@@ -3279,7 +3279,6 @@ html.dark .math-login-welcome-chip {
   }
 
   .math-role-admin .math-badge:not(.math-tone-success):not(.math-tone-warning):not(.math-tone-danger):not(.math-tone-purple):not(.math-tone-info),
-  .math-role-teacher .math-badge:not(.math-tone-success):not(.math-tone-warning):not(.math-tone-danger):not(.math-tone-purple):not(.math-tone-info),
   .math-role-student .math-badge:not(.math-tone-success):not(.math-tone-warning):not(.math-tone-danger):not(.math-tone-purple):not(.math-tone-info) {
     color: var(--mp-role-primary) !important;
     -webkit-text-fill-color: var(--mp-role-primary) !important;
@@ -3289,12 +3288,28 @@ html.dark .math-login-welcome-chip {
     box-shadow: none !important;
   }
 
+  .math-role-teacher .math-badge:not(.math-tone-success):not(.math-tone-warning):not(.math-tone-danger):not(.math-tone-purple):not(.math-tone-info) {
+    color: #020617 !important;
+    -webkit-text-fill-color: #020617 !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    border-color: color-mix(in srgb, var(--mp-role-primary) 35%, rgba(226, 232, 240, 0.8)) !important;
+    box-shadow: none !important;
+  }
 
   html.dark .math-role-admin .math-badge:not(.math-tone-success):not(.math-tone-warning):not(.math-tone-danger):not(.math-tone-purple):not(.math-tone-info),
-  html.dark .math-role-teacher .math-badge:not(.math-tone-success):not(.math-tone-warning):not(.math-tone-danger):not(.math-tone-purple):not(.math-tone-info),
   html.dark .math-role-student .math-badge:not(.math-tone-success):not(.math-tone-warning):not(.math-tone-danger):not(.math-tone-purple):not(.math-tone-info) {
     color: var(--mp-role-primary) !important;
     -webkit-text-fill-color: var(--mp-role-primary) !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    border-color: color-mix(in srgb, var(--mp-role-primary) 35%, rgba(226, 232, 240, 0.8)) !important;
+    box-shadow: none !important;
+  }
+
+  html.dark .math-role-teacher .math-badge:not(.math-tone-success):not(.math-tone-warning):not(.math-tone-danger):not(.math-tone-purple):not(.math-tone-info) {
+    color: #020617 !important;
+    -webkit-text-fill-color: #020617 !important;
     background-color: #ffffff !important;
     background: #ffffff !important;
     border-color: color-mix(in srgb, var(--mp-role-primary) 35%, rgba(226, 232, 240, 0.8)) !important;
@@ -6904,6 +6919,13 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     background: #ffffff !important;
     border-color: color-mix(in srgb, var(--mp-role-primary) 35%, rgba(226, 232, 240, 0.8)) !important;
     box-shadow: none !important;
+  }
+
+  /* TEACHER LOGIN ONLY: Match Student Name text color for Generic Chips */
+  html .math-role-teacher :is(.math-badge, .math-status-chip, span.rounded-full.border, .math-history-count-badge):is(.text-slate-600, .text-slate-700, .bg-slate-50, .bg-white, .dark\:text-slate-200),
+  html.dark .math-role-teacher :is(.math-badge, .math-status-chip, span.rounded-full.border, .math-history-count-badge):is(.text-slate-600, .text-slate-700, .bg-slate-50, .bg-white, .dark\:text-slate-200) {
+    color: #020617 !important;
+    -webkit-text-fill-color: #020617 !important;
   }
 
   /* Any default blue/generic chips adapt to the Light Mode Role Palette */
