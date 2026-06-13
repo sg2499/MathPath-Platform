@@ -1652,14 +1652,14 @@ function PracticeRowsTable({
             </div>
             <div>
               {isCompleted(Row) ? (
-                <Chip tone="blue">{scoreText(Row)}</Chip>
+                <Chip tone={isBelowBenchmark(Row) ? "red" : "green"}>{scoreText(Row)}</Chip>
               ) : (
                 <Chip tone="slate">—</Chip>
               )}
             </div>
             <div>
               {isCompleted(Row) ? (
-                <Chip tone={RowAccuracy >= 70 ? "green" : "red"}>
+                <Chip tone={isBelowBenchmark(Row) ? "red" : "green"}>
                   {RowAccuracy}%
                 </Chip>
               ) : (

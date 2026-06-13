@@ -2912,32 +2912,14 @@ function attemptTone(
 }
 
 function scoreTone(row: AnyRow): "slate" | "green" | "red" {
-  const MaxValue = Number(
-    row.totalMarks ??
-      row.maxScore ??
-      row.maximumMarks ??
-      row.totalScore ??
-      row.totalQuestions ??
-      row.maxMarks,
-  );
-  const ScoreValue = Number(
-    row.score ??
-      row.marksScored ??
-      row.attemptScore ??
-      row.latestAttemptScore ??
-      row.latestScore ??
-      row.bestScore,
-  );
-  if (!Number.isFinite(ScoreValue) || !Number.isFinite(MaxValue) || MaxValue <= 0) return "slate";
-  return (ScoreValue / MaxValue) * 100 >= 70 ? "green" : "red";
+  if (!isCompleted(row)) return "slate";
+  return isBelowBenchmark(row) ? "red" : "green";
 }
 
 export function accuracyTone(Value: AnyRow | number | string | null | undefined): "slate" | "green" | "red" {
   if (Value && typeof Value === "object") {
     if (!isCompleted(Value)) return "slate";
-    const AccuracyValue = accuracy(Value);
-    if (!Number.isFinite(AccuracyValue)) return "slate";
-    return AccuracyValue >= 70 ? "green" : "red";
+    return isBelowBenchmark(Value) ? "red" : "green";
   }
 
   const AccuracyValue = numberValue(Value, Number.NaN);
