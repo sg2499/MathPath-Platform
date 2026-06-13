@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 
 function classNames(...classes: (string | undefined | null | false)[]) {
@@ -52,22 +53,32 @@ function CompactProgressMetric({ label, value, icon }: { label: string; value: s
 }
 
 function ConceptRow({ concept, accuracy, isStrong }: { concept: string; accuracy: number; isStrong: boolean }) {
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setWidth(accuracy), 100);
+    return () => clearTimeout(timer);
+  }, [accuracy]);
+
   return (
     <div className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors dark:hover:bg-slate-800/50">
       <span className="text-sm font-semibold text-slate-700 truncate pr-4 dark:text-slate-300">
         {concept}
       </span>
       <div className="flex items-center gap-3 shrink-0">
-        <div className="hidden sm:block w-24 h-2 bg-slate-100 rounded-full overflow-hidden dark:bg-slate-800">
+        <div className="hidden sm:block w-24 h-2 bg-slate-100/80 rounded-full overflow-hidden shadow-inner dark:bg-slate-800">
           <div
             className={classNames(
-              "h-full rounded-full",
-              isStrong ? "bg-emerald-500 dark:bg-emerald-400" : "bg-rose-500 dark:bg-rose-400"
+              "h-full rounded-full transition-all duration-1000 ease-out",
+              isStrong ? "bg-gradient-to-r from-emerald-400 to-emerald-500 dark:from-emerald-600 dark:to-emerald-400" : "bg-gradient-to-r from-rose-400 to-rose-500 dark:from-rose-600 dark:to-rose-400"
             )}
-            style={{ width: `${accuracy}%` }}
+            style={{ width: `${width}%` }}
           />
         </div>
-        <span className="text-sm font-black tabular-nums w-12 text-right dark:text-white">
+        <span className={classNames(
+          "text-sm font-black tabular-nums w-12 text-right",
+          isStrong ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"
+        )}>
           {Math.round(accuracy)}%
         </span>
       </div>
