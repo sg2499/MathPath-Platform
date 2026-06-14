@@ -485,8 +485,10 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
     for question in questions:
         max_score += float(question.marks or 1)
         
-        # Group by exact question concept family, fallback to section title if missing
-        if question.concept_family and question.concept_family != "MM_UNSUPPORTED":
+        # Group by exact question concept tag, fallback to family or section title if missing
+        if question.concept_tag:
+            concept_key = question.concept_tag
+        elif question.concept_family and question.concept_family != "MM_UNSUPPORTED":
             concept_key = _format_concept_family(question.concept_family)
         else:
             concept_key = _competition_section_title(question)
@@ -921,7 +923,9 @@ def _repair_mock_summaries(db: Session):
         answers = {answer.mock_question_id: answer for answer in db.query(CompetitionMockAttemptAnswer).filter(CompetitionMockAttemptAnswer.mock_attempt_id == attempt.id).all()}
         concept_totals = {}
         for question in questions:
-            if question.concept_family and question.concept_family != "MM_UNSUPPORTED":
+            if question.concept_tag:
+                concept_key = question.concept_tag
+            elif question.concept_family and question.concept_family != "MM_UNSUPPORTED":
                 concept_key = _format_concept_family(question.concept_family)
             else:
                 concept_key = _competition_section_title(question)
