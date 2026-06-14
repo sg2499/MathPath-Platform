@@ -119,10 +119,7 @@ export default function StudentCompetitionProgressPage() {
           {/* Subtle Gamified Shimmer across the hero */}
           <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-60" style={{ animation: 'mathShimmer 6s infinite linear' }} />
           
-          <div 
-            className="inline-flex items-center gap-2 rounded-full border bg-white/40 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] shadow-sm backdrop-blur-md dark:bg-slate-900/40" 
-            style={{ color: 'var(--math-role-primary)', borderColor: 'var(--math-role-primary)' }}
-          >
+          <div className="inline-flex items-center gap-2 rounded-full border border-orange-200/80 bg-orange-50/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-orange-600 shadow-sm backdrop-blur-md dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400">
             <Sparkles size={13} strokeWidth={2.5} />
             <span>Progress Insights</span>
           </div>
