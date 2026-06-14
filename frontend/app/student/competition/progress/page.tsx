@@ -161,8 +161,8 @@ export default function StudentCompetitionProgressPage() {
 
           {query.data && query.data.totalMocksAttempted > 0 && (
             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <CompactProgressMetric label="Average Score" value={query.data.overallScore} icon={<TrendingUp size={20} strokeWidth={2.5} />} />
-              <CompactProgressMetric label="Average Accuracy" value={`${query.data.overallAccuracy}%`} icon={<Target size={20} strokeWidth={2.5} />} />
+              <CompactProgressMetric label="Average Score" value={Math.round(query.data.overallScore)} icon={<TrendingUp size={20} strokeWidth={2.5} />} />
+              <CompactProgressMetric label="Average Accuracy" value={`${Math.round(query.data.overallAccuracy)}%`} icon={<Target size={20} strokeWidth={2.5} />} />
               <CompactProgressMetric label="Total Attempts" value={query.data.totalMocksAttempted} icon={<Trophy size={20} strokeWidth={2.5} />} />
               <CompactProgressMetric label="Time / Question" value={FormatDuration(query.data.averageTimePerQuestion)} icon={<Clock size={20} strokeWidth={2.5} />} />
               <CompactProgressMetric label="Time Utilization" value={`${query.data.overallTimeUtilization}%`} icon={<Gauge size={20} strokeWidth={2.5} />} />
