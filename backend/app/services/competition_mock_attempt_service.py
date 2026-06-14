@@ -872,7 +872,8 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
                 
                 payload = {
                     "concept": concept,
-                    "accuracyPercentage": acc,
+                    "accuracy": acc,
+                    "totalQuestions": stats["total"],
                     "timePerQuestion": time_per_q
                 }
                 
@@ -880,6 +881,9 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
                     strong_concepts.append(payload)
                 else:
                     weak_concepts.append(payload)
+
+        strong_concepts.sort(key=lambda x: x["accuracy"], reverse=True)
+        weak_concepts.sort(key=lambda x: x["accuracy"])
 
         module_insights.append({
             "moduleId": module_id,
@@ -891,6 +895,9 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
             "strongConcepts": strong_concepts,
             "weakConcepts": weak_concepts
         })
+
+    # Sort by module code then level code
+    module_insights.sort(key=lambda x: (x["moduleCode"], x["levelCode"]))
 
     return {
         "overallScore": total_score,
