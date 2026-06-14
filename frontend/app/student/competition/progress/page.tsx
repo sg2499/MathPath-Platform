@@ -41,20 +41,16 @@ function FormatDuration(seconds?: number | null) {
 
 function CompactProgressMetric({ label, value, icon }: { label: string; value: string | number; icon: ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-[24px] border bg-white/40 p-5 shadow-lg backdrop-blur-2xl transition-all duration-300 group hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-slate-950/40" style={{ borderColor: 'var(--math-role-primary)' }}>
-      {/* Subtle shine effect on hover */}
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100 dark:via-white/10" />
-      
-      <div className="relative z-10 flex items-center gap-3">
-        <span 
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm border dark:bg-slate-900"
-          style={{ color: 'var(--math-role-primary)', borderColor: 'var(--math-role-primary)' }}
-        >
-          {icon}
-        </span>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{label}</p>
+    <div className="math-student-metric-card">
+      <div className="math-student-icon-chip">
+        {icon}
       </div>
-      <p className="relative z-10 mt-4 truncate text-3xl font-black tracking-tight text-slate-900 drop-shadow-sm dark:text-white">{value}</p>
+      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 dark:text-slate-100">
+        {label}
+      </p>
+      <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
+        {value}
+      </p>
     </div>
   );
 }
@@ -115,45 +111,29 @@ export default function StudentCompetitionProgressPage() {
     <AppShell title="Competition Progress">
       <section className="relative mx-auto w-full max-w-[1680px] space-y-6 px-4 pb-12 pt-6 sm:px-6 lg:px-8 2xl:px-10">
         
-        {/* Thematic Hero Header with Visual Magic */}
-        <div 
-          className="relative overflow-hidden rounded-[36px] border bg-white/60 p-6 shadow-2xl backdrop-blur-3xl transition duration-300 dark:border-slate-700/50 dark:bg-slate-900/60 sm:p-8"
-          style={{ borderColor: 'var(--math-role-primary)' }}
-        >
-          
-          {/* Animated Background Blobs */}
-          <div className="absolute -left-20 top-0 h-64 w-64 rounded-full opacity-20 blur-[80px]" style={{ animation: 'mathBlobPulse 8s infinite alternate', backgroundColor: 'var(--math-role-primary)' }} />
-          <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-amber-400 opacity-20 blur-[80px]" style={{ animation: 'mathBlobPulse 10s infinite alternate-reverse' }} />
-          
-          {/* CSS Noise Texture */}
-          <div className="math-noise-bg mix-blend-soft-light" />
-
-          <div className="relative z-10 mb-8">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-white/50 px-4 py-1.5 backdrop-blur-md" style={{ borderColor: 'var(--math-role-primary)', color: 'var(--math-role-primary)' }}>
-              <Sparkles size={14} />
-              <p className="text-[10px] font-black uppercase tracking-[0.24em]">Progress Insights</p>
-            </div>
-            <h1 
-              className="mt-4 text-6xl font-black tracking-tight drop-shadow-sm sm:text-7xl"
-              style={{ color: 'var(--ink)' }}
-            >
-              MOCK HISTORY
-            </h1>
-            <p className="mt-4 w-full text-base font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
-              Overview of your mock exam performance and concept mastery. Uncover your strengths and target your areas for improvement.
-            </p>
+        {/* Thematic Hero Header */}
+        <section className="math-hero">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--math-role-primary)]/30 bg-[var(--math-role-primary)]/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.2em]" style={{ color: 'var(--math-role-primary)' }}>
+            <Sparkles size={13} />
+            Progress Insights
           </div>
-          
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">
+            Mock History
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+            Overview of your mock exam performance and concept mastery. Uncover your strengths and target your areas for improvement.
+          </p>
+
           {query.data && query.data.totalMocksAttempted > 0 && (
-            <div className="relative z-10 grid grid-cols-2 gap-3 xl:grid-cols-5">
-              <CompactProgressMetric label="Average Score" value={query.data.overallScore} icon={<TrendingUp size={16} strokeWidth={2.5} />} />
-              <CompactProgressMetric label="Average Accuracy" value={`${query.data.overallAccuracy}%`} icon={<Target size={16} strokeWidth={2.5} />} />
-              <CompactProgressMetric label="Total Attempts" value={query.data.totalMocksAttempted} icon={<Trophy size={16} strokeWidth={2.5} />} />
-              <CompactProgressMetric label="Time / Question" value={FormatDuration(query.data.averageTimePerQuestion)} icon={<Clock size={16} strokeWidth={2.5} />} />
-              <CompactProgressMetric label="Time Utilization" value={`${query.data.overallTimeUtilization}%`} icon={<Gauge size={16} strokeWidth={2.5} />} />
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              <CompactProgressMetric label="Average Score" value={query.data.overallScore} icon={<TrendingUp size={20} strokeWidth={2.5} />} />
+              <CompactProgressMetric label="Average Accuracy" value={`${query.data.overallAccuracy}%`} icon={<Target size={20} strokeWidth={2.5} />} />
+              <CompactProgressMetric label="Total Attempts" value={query.data.totalMocksAttempted} icon={<Trophy size={20} strokeWidth={2.5} />} />
+              <CompactProgressMetric label="Time / Question" value={FormatDuration(query.data.averageTimePerQuestion)} icon={<Clock size={20} strokeWidth={2.5} />} />
+              <CompactProgressMetric label="Time Utilization" value={`${query.data.overallTimeUtilization}%`} icon={<Gauge size={20} strokeWidth={2.5} />} />
             </div>
           )}
-        </div>
+        </section>
 
         {!ready || query.isLoading ? (
           <LoadingState label="Conjuring your insights..." />
