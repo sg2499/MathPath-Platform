@@ -47,8 +47,8 @@ function CompactProgressMetric({ label, value, icon }: { label: string; value: s
       
       <div className="relative z-10 flex items-center gap-3">
         <span 
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 dark:bg-slate-900"
-          style={{ color: 'var(--math-role-primary)', ringColor: 'var(--math-role-primary)' }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm border dark:bg-slate-900"
+          style={{ color: 'var(--math-role-primary)', borderColor: 'var(--math-role-primary)' }}
         >
           {icon}
         </span>
