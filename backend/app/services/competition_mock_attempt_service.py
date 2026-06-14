@@ -869,15 +869,18 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
             if stats["total"] > 0:
                 acc = (stats["correct"] / stats["total"]) * 100
                 time_per_q = stats["time_taken"] / stats["total"]
-                item = {"concept": concept, "accuracy": acc, "totalQuestions": stats["total"], "timePerQuestion": time_per_q}
+                
+                payload = {
+                    "concept": concept,
+                    "accuracyPercentage": acc,
+                    "timePerQuestion": time_per_q
+                }
+                
                 if acc >= 70:
-                    strong_concepts.append(item)
+                    strong_concepts.append(payload)
                 else:
-                    weak_concepts.append(item)
+                    weak_concepts.append(payload)
 
-        strong_concepts.sort(key=lambda x: x["accuracy"], reverse=True)
-        weak_concepts.sort(key=lambda x: x["accuracy"])
-        
         module_insights.append({
             "moduleId": module_id,
             "moduleCode": module_code,
@@ -889,15 +892,52 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
             "weakConcepts": weak_concepts
         })
 
-    # Sort by module code then level code
-    module_insights.sort(key=lambda x: (x["moduleCode"], x["levelCode"]))
-
     return {
-        "overallScore": round(total_score / n, 1) if n > 0 else 0,
-        "overallAccuracy": round(total_accuracy / n, 1) if n > 0 else 0,
-        "overallTimeUtilization": round(total_time_utilization / n, 1) if n > 0 else 0,
+        "overallScore": total_score,
+        "overallAccuracy": round(total_accuracy / n, 2) if n > 0 else 0,
+        "overallTimeUtilization": round(total_time_utilization / n, 2) if n > 0 else 0,
         "totalMocksAttempted": n,
-        "averageTimePerQuestion": round(total_time_taken / total_questions, 1) if total_questions > 0 else 0,
+        "averageTimePerQuestion": round(total_time_taken / total_questions, 2) if total_questions > 0 else 0,
         "history": history,
         "moduleInsights": module_insights
     }
+
+def _repair_mock_summaries(db: Session):
+    print("Starting repair of historical mock summaries...")
+    attempts = db.query(CompetitionMockAttempt).filter(CompetitionMockAttempt.status.in_(COMPLETED_STATUSES)).all()
+    updated_count = 0
+    for attempt in attempts:
+        summary = db.query(CompetitionMockResultSummary).filter(CompetitionMockResultSummary.mock_attempt_id == attempt.id).first()
+        if not summary:
+            continue
+        questions = db.query(CompetitionMockQuestion).filter(CompetitionMockQuestion.mock_exam_id == attempt.mock_exam_id).all()
+        answers = {answer.mock_question_id: answer for answer in db.query(CompetitionMockAttemptAnswer).filter(CompetitionMockAttemptAnswer.mock_attempt_id == attempt.id).all()}
+        concept_totals = {}
+        for question in questions:
+            if question.concept_family and question.concept_family != "MM_UNSUPPORTED":
+                concept_key = _format_concept_family(question.concept_family)
+            else:
+                concept_key = _competition_section_title(question)
+            concept_totals.setdefault(concept_key, {"correct": 0, "total": 0})
+            concept_totals[concept_key]["total"] += 1
+            answer = answers.get(question.id)
+            if not answer or not answer.selected_option_id:
+                continue
+            option = db.get(CompetitionMockQuestionOption, answer.selected_option_id)
+            if option and option.is_correct:
+                concept_totals[concept_key]["correct"] += 1
+        import json
+        concept_performance, strengths, weaknesses = [], [], []
+        for concept, item in concept_totals.items():
+            total, correct_value = int(item["total"]), int(item["correct"])
+            percentage = round((correct_value / total) * 100, 2) if total else 0.0
+            concept_payload = {"concept": concept, "correct": correct_value, "total": total, "percentage": percentage}
+            concept_performance.append(concept_payload)
+            if percentage >= 75: strengths.append(concept_payload)
+            elif percentage < 60: weaknesses.append(concept_payload)
+        summary.concept_strengths_json = json.dumps(strengths)
+        summary.concept_weaknesses_json = json.dumps(weaknesses)
+        summary.concept_performance_json = json.dumps(concept_performance)
+        updated_count += 1
+    db.commit()
+    print(f"Repair complete! Successfully regenerated exact distinct concepts for {updated_count} historical summaries.")
