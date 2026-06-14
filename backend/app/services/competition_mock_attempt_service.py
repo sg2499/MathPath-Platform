@@ -448,6 +448,21 @@ def SaveCompetitionMockAnswer(db: Session, student: Student, attempt_id: str, qu
     }
 
 
+def _format_concept_family(concept: str | None) -> str:
+    if not concept or concept == "MM_UNSUPPORTED":
+        return "Mixed Concepts"
+    if concept == "BODMAS":
+        return "BODMAS"
+    if concept == "ADD_LESS":
+        return "Add/Less"
+    if concept == "DECIMAL_ADD_LESS":
+        return "Decimal Add/Less"
+    if concept == "PERCENTAGE_ADD_LESS":
+        return "Percentage Add/Less"
+    
+    words = concept.replace("_", " ").split()
+    return " ".join(word.capitalize() for word in words)
+
 def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, auto: bool = False) -> CompetitionMockAttempt:
     if attempt.status in COMPLETED_STATUSES:
         return attempt
@@ -469,7 +484,13 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
 
     for question in questions:
         max_score += float(question.marks or 1)
-        concept_key = _competition_section_title(question)
+        
+        # Group by exact question concept family, fallback to section title if missing
+        if question.concept_family and question.concept_family != "MM_UNSUPPORTED":
+            concept_key = _format_concept_family(question.concept_family)
+        else:
+            concept_key = _competition_section_title(question)
+            
         concept_totals.setdefault(concept_key, {"correct": 0, "total": 0})
         concept_totals[concept_key]["total"] += 1
         answer = answers.get(question.id)
