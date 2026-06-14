@@ -41,14 +41,17 @@ function FormatDuration(seconds?: number | null) {
 
 function CompactProgressMetric({ label, value, icon }: { label: string; value: string | number; icon: ReactNode }) {
   return (
-    <div className="math-student-metric-card">
-      <div className="math-student-icon-chip">
+    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
         {icon}
       </div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 dark:text-slate-100">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
         {label}
       </p>
-      <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
         {value}
       </p>
     </div>
@@ -64,8 +67,8 @@ function ConceptRow({ concept, accuracy, isStrong }: { concept: string; accuracy
   }, [accuracy]);
 
   return (
-    <div className="group relative flex items-center justify-between rounded-2xl p-3 transition-all duration-300 hover:bg-white/60 dark:hover:bg-slate-800/40">
-      <span className="relative z-10 truncate pr-4 text-sm font-bold text-slate-700 transition-colors group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-white">
+    <div className="group relative flex items-center justify-between rounded-2xl p-3 transition-all duration-300 hover:bg-white/80 dark:hover:bg-slate-800/60">
+      <span className="relative z-10 truncate pr-4 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:translate-x-1 group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-white">
         {concept}
       </span>
       <div className="relative z-10 flex shrink-0 items-center gap-4">
@@ -112,7 +115,10 @@ export default function StudentCompetitionProgressPage() {
       <section className="relative mx-auto w-full max-w-[1680px] space-y-6 px-4 pb-12 pt-6 sm:px-6 lg:px-8 2xl:px-10">
         
         {/* Thematic Hero Header */}
-        <section className="math-hero">
+        <section className="math-hero relative overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out" style={{ animationFillMode: 'both' }}>
+          {/* Subtle Gamified Shimmer across the hero */}
+          <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-60" style={{ animation: 'mathShimmer 6s infinite linear' }} />
+          
           <div className="inline-flex items-center gap-2 rounded-full border border-[var(--math-role-primary)]/30 bg-[var(--math-role-primary)]/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.2em]" style={{ color: 'var(--math-role-primary)' }}>
             <Sparkles size={13} />
             Progress Insights
@@ -157,7 +163,7 @@ export default function StudentCompetitionProgressPage() {
             {query.data.moduleInsights.map((insight) => (
               <div key={`${insight.moduleId}-${insight.levelId}`} className="relative space-y-6">
                 
-                <div className="flex flex-col border-l-4 border-[var(--math-role-primary)] pl-4">
+                <div className="flex flex-col border-l-4 border-[var(--math-role-primary)] pl-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150 ease-out" style={{ animationFillMode: 'both' }}>
                    <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
                      {insight.moduleCode} <span className="mx-1 text-slate-300 dark:text-slate-600">&bull;</span> {insight.moduleName}
                    </h3>
@@ -166,7 +172,7 @@ export default function StudentCompetitionProgressPage() {
                    </p>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-2">
+                <div className="grid gap-6 lg:grid-cols-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 ease-out" style={{ animationFillMode: 'both' }}>
                   {/* Strengths Card */}
                   <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-emerald-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-emerald-500/10 dark:border-emerald-500/10 dark:bg-slate-950/60 sm:p-8">
                     <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-400/10 blur-[60px] transition-all duration-500 group-hover:bg-emerald-400/20" />
