@@ -18,7 +18,7 @@ import {
   AlertTriangle,
   Sparkles
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 
 function classNames(...classes: (string | undefined | null | false)[]) {
@@ -110,6 +110,31 @@ export default function StudentCompetitionProgressPage() {
     enabled: ready,
   });
 
+  const groupedInsights = useMemo(() => {
+    if (!query.data?.moduleInsights) return [];
+    
+    const modulesMap = new Map<string, {
+      moduleId: string;
+      moduleCode: string;
+      moduleName: string;
+      levels: typeof query.data.moduleInsights;
+    }>();
+
+    for (const insight of query.data.moduleInsights) {
+      if (!modulesMap.has(insight.moduleId)) {
+        modulesMap.set(insight.moduleId, {
+          moduleId: insight.moduleId,
+          moduleCode: insight.moduleCode,
+          moduleName: insight.moduleName,
+          levels: []
+        });
+      }
+      modulesMap.get(insight.moduleId)!.levels.push(insight);
+    }
+
+    return Array.from(modulesMap.values());
+  }, [query.data?.moduleInsights]);
+
   return (
     <AppShell title="Competition Progress">
       <section className="relative mx-auto w-full max-w-[1680px] space-y-6 px-4 pb-12 pt-6 sm:px-6 lg:px-8 2xl:px-10">
@@ -159,79 +184,94 @@ export default function StudentCompetitionProgressPage() {
             </div>
           </div>
         ) : query.data ? (
-          <div className="space-y-12">
-            {query.data.moduleInsights.map((insight) => (
-              <div key={`${insight.moduleId}-${insight.levelId}`} className="relative space-y-6">
+          <div className="space-y-16">
+            {groupedInsights.map((moduleGroup, mIdx) => (
+              <div key={moduleGroup.moduleId} className="relative space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out" style={{ animationFillMode: 'both', animationDelay: `${mIdx * 150}ms` }}>
                 
-                <div className="flex flex-col border-l-4 border-[var(--math-role-primary)] pl-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150 ease-out" style={{ animationFillMode: 'both' }}>
-                   <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                     {insight.moduleCode} <span className="mx-1 text-slate-300 dark:text-slate-600">&bull;</span> {insight.moduleName}
-                   </h3>
-                   <p className="mt-1 text-xs font-black uppercase tracking-[0.25em] text-[var(--math-role-primary)]">
-                     Level: {insight.levelCode}
-                   </p>
+                {/* Module Header */}
+                <div className="flex flex-col border-l-4 border-slate-800 pl-4 dark:border-white">
+                   <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                     {moduleGroup.moduleCode} <span className="mx-1 text-slate-300 dark:text-slate-600">&bull;</span> {moduleGroup.moduleName}
+                   </h2>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 ease-out" style={{ animationFillMode: 'both' }}>
-                  {/* Strengths Card */}
-                  <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-emerald-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-emerald-500/10 dark:border-emerald-500/10 dark:bg-slate-950/60 sm:p-8">
-                    <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-400/10 blur-[60px] transition-all duration-500 group-hover:bg-emerald-400/20" />
-                    
-                    <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-emerald-100 pb-5 dark:border-emerald-900/30">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 shadow-sm ring-1 ring-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/40 dark:text-emerald-400 dark:ring-emerald-700/50">
-                        <CheckCircle2 size={24} strokeWidth={2.5} />
+                <div className="space-y-12 pl-0 sm:pl-6">
+                  {moduleGroup.levels.map((insight, lIdx) => (
+                    <div key={`${insight.moduleId}-${insight.levelId}`} className="relative space-y-6">
+                      
+                      {/* Level Header */}
+                      <div className="flex flex-col border-l-[3px] border-orange-500 pl-4 dark:border-orange-500">
+                        <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                          Level {insight.levelCode}
+                        </h3>
+                        <p className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-orange-600 dark:text-orange-400">
+                          Mock Insights
+                        </p>
                       </div>
-                      <div>
-                        <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Strengths</h3>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/70 dark:text-emerald-400/70">&ge; 70% Accuracy</p>
-                      </div>
-                    </div>
-                    
-                    <div className="relative z-10 flex min-h-[240px] flex-col gap-1">
-                      {insight.strongConcepts.length > 0 ? (
-                        insight.strongConcepts.map((c) => (
-                          <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={true} />
-                        ))
-                      ) : (
-                        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm font-semibold text-slate-400 dark:text-slate-500">
-                          <div className="flex flex-col items-center gap-2">
-                            <Sparkles className="opacity-20" size={32} />
-                            <p>No shining strengths identified yet. Keep practicing!</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Weaknesses Card */}
-                  <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-rose-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-rose-500/10 dark:border-rose-500/10 dark:bg-slate-950/60 sm:p-8">
-                    <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-rose-400/10 blur-[60px] transition-all duration-500 group-hover:bg-rose-400/20" />
-                    
-                    <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-rose-100 pb-5 dark:border-rose-900/30">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-gradient-to-br from-rose-50 to-rose-100 text-rose-600 shadow-sm ring-1 ring-rose-200 dark:from-rose-900/40 dark:to-rose-800/40 dark:text-rose-400 dark:ring-rose-700/50">
-                        <AlertTriangle size={24} strokeWidth={2.5} />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Areas to Improve</h3>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600/70 dark:text-rose-400/70">&lt; 70% Accuracy</p>
-                      </div>
-                    </div>
-                    
-                    <div className="relative z-10 flex min-h-[240px] flex-col gap-1">
-                      {insight.weakConcepts.length > 0 ? (
-                        insight.weakConcepts.map((c) => (
-                          <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={false} />
-                        ))
-                      ) : (
-                        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm font-semibold text-slate-400 dark:text-slate-500">
-                          <div className="flex flex-col items-center gap-2">
-                            <CheckCircle2 className="opacity-20" size={32} />
-                            <p>No major weak areas detected. You're doing amazing!</p>
+                      <div className="grid gap-6 lg:grid-cols-2 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out" style={{ animationFillMode: 'both', animationDelay: `${(mIdx * 150) + (lIdx * 150) + 150}ms` }}>
+                        {/* Strengths Card */}
+                        <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-emerald-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-emerald-500/10 dark:border-emerald-500/10 dark:bg-slate-950/60 sm:p-8">
+                          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-400/10 blur-[60px] transition-all duration-500 group-hover:bg-emerald-400/20" />
+                          
+                          <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-emerald-100 pb-5 dark:border-emerald-900/30">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 shadow-sm ring-1 ring-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/40 dark:text-emerald-400 dark:ring-emerald-700/50">
+                              <CheckCircle2 size={24} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Strengths</h3>
+                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/70 dark:text-emerald-400/70">&ge; 70% Accuracy</p>
+                            </div>
+                          </div>
+                          
+                          <div className="relative z-10 flex min-h-[240px] flex-col gap-1">
+                            {insight.strongConcepts.length > 0 ? (
+                              insight.strongConcepts.map((c) => (
+                                <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={true} />
+                              ))
+                            ) : (
+                              <div className="flex flex-1 items-center justify-center p-6 text-center text-sm font-semibold text-slate-400 dark:text-slate-500">
+                                <div className="flex flex-col items-center gap-2">
+                                  <Sparkles className="opacity-20" size={32} />
+                                  <p>No shining strengths identified yet. Keep practicing!</p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      )}
+
+                        {/* Weaknesses Card */}
+                        <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-rose-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-rose-500/10 dark:border-rose-500/10 dark:bg-slate-950/60 sm:p-8">
+                          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-rose-400/10 blur-[60px] transition-all duration-500 group-hover:bg-rose-400/20" />
+                          
+                          <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-rose-100 pb-5 dark:border-rose-900/30">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-gradient-to-br from-rose-50 to-rose-100 text-rose-600 shadow-sm ring-1 ring-rose-200 dark:from-rose-900/40 dark:to-rose-800/40 dark:text-rose-400 dark:ring-rose-700/50">
+                              <AlertTriangle size={24} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Areas to Improve</h3>
+                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600/70 dark:text-rose-400/70">&lt; 70% Accuracy</p>
+                            </div>
+                          </div>
+                          
+                          <div className="relative z-10 flex min-h-[240px] flex-col gap-1">
+                            {insight.weakConcepts.length > 0 ? (
+                              insight.weakConcepts.map((c) => (
+                                <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={false} />
+                              ))
+                            ) : (
+                              <div className="flex flex-1 items-center justify-center p-6 text-center text-sm font-semibold text-slate-400 dark:text-slate-500">
+                                <div className="flex flex-col items-center gap-2">
+                                  <CheckCircle2 className="opacity-20" size={32} />
+                                  <p>No major weak areas detected. You're doing amazing!</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             ))}
