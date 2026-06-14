@@ -14,7 +14,7 @@
 - Overhauled the Student Competition Progress Insights page (`student/competition/progress/page.tsx`).
 - Reverted the custom hero blocks to strictly match the global MathPath platform design system (`math-hero`, `math-student-metric-card`).
 - Elevated the page feel with gamified interactive animations built *on top* of the standard layout (hover glows, staggered entrance cascading, scale interactions, and shimmer effects).
-- Restructured the Mock Insights rendering to follow the global Module -> Level nested hierarchy.
+- Restructured the Mock Insights rendering to follow the global Module -> Level nested hierarchy, converting them exactly to the expandable `math-hierarchy-panel` Accordion standard shown in the Mock Library.
 
 ### In Progress / Next Immediate Tasks
 - *(Awaiting user's next objective for the Mock Exam and Competition Phase)*
