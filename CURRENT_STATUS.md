@@ -1,0 +1,20 @@
+# Current Platform Status
+
+**Last Updated:** 2026-06-14
+
+## Current Phase: Mock Exam and Competition Phase
+
+### State of the Platform
+- The platform is currently focused on the **Mock Exam and Competition** features.
+- **Backend:** Services handling mock exam generation, assignments, and attempts are in place (`competition_mock_generation_service.py`, `competition_mock_attempt_service.py`, etc.).
+- **Frontend:** Routes for Mock Studio, Mock Tracker, Student Attempts, and Results are actively being worked on across Admin, Teacher, and Student portals.
+- **Legacy Features:** The YLM Phase 1 (Lessons 1-8, 5 DPS) and the Assessment Builder improvements (expanding levels, enhanced results filtering) have been fully completed and are considered stable.
+
+### Recently Completed Tasks
+- *(Will be updated at the end of this session)*
+
+### In Progress / Next Immediate Tasks
+- *(Waiting for today's task list)*
+
+---
+> **Agent Directive:** This file is the single source of truth for the platform's current state. Read this file at the beginning of every session and update it comprehensively at the end of every session.
