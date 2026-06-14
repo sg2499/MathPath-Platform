@@ -49,12 +49,12 @@ export function QuestionCard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-5 xl:grid-cols-2 xl:items-center">
-        <div className="flex min-w-0 items-center justify-center rounded-[24px] bg-slate-50/90 p-3 dark:bg-slate-900/70 sm:p-4">
+      <div className="mt-4 flex flex-wrap items-center gap-5">
+        <div className="flex flex-auto lg:flex-1 min-w-[280px] max-w-full overflow-x-auto items-center justify-center rounded-[24px] bg-slate-50/90 p-3 dark:bg-slate-900/70 sm:p-4">
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:self-center">
+        <div className="flex-auto lg:flex-1 min-w-[280px] w-full lg:w-auto grid gap-3 sm:grid-cols-2">
           {question.options.map((option) => (
             <OptionButton
               key={option.optionId}
