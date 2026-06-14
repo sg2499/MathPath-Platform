@@ -12,8 +12,8 @@
 
 ### Recently Completed Tasks
 - Overhauled the Student Competition Progress Insights page (`student/competition/progress/page.tsx`).
-- Introduced dynamic magical CSS animations (`mathShimmer`, `mathBlobPulse`, `math-noise-bg`) to `globals.css`.
-- Fixed React style typing errors and Tailwind custom variable parsing for `var(--math-role-primary)` to ensure student palette colors properly render.
+- Reverted the custom hero blocks to strictly match the global MathPath platform design system (`math-hero`, `math-student-metric-card`).
+- Elevated the page feel with gamified interactive animations built *on top* of the standard layout (hover glows, staggered entrance cascading, scale interactions, and shimmer effects).
 
 ### In Progress / Next Immediate Tasks
 - *(Awaiting user's next objective for the Mock Exam and Competition Phase)*

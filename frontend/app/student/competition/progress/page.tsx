@@ -119,14 +119,17 @@ export default function StudentCompetitionProgressPage() {
           {/* Subtle Gamified Shimmer across the hero */}
           <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-60" style={{ animation: 'mathShimmer 6s infinite linear' }} />
           
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--math-role-primary)]/30 bg-[var(--math-role-primary)]/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.2em]" style={{ color: 'var(--math-role-primary)' }}>
-            <Sparkles size={13} />
-            Progress Insights
+          <div 
+            className="inline-flex items-center gap-2 rounded-full border bg-white/40 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] shadow-sm backdrop-blur-md dark:bg-slate-900/40" 
+            style={{ color: 'var(--math-role-primary)', borderColor: 'var(--math-role-primary)' }}
+          >
+            <Sparkles size={13} strokeWidth={2.5} />
+            <span>Progress Insights</span>
           </div>
           <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">
             Mock History
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+          <p className="mt-2 w-full text-sm leading-6 text-slate-600 dark:text-slate-300">
             Overview of your mock exam performance and concept mastery. Uncover your strengths and target your areas for improvement.
           </p>
 
