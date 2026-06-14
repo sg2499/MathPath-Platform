@@ -41,12 +41,15 @@ function FormatDuration(seconds?: number | null) {
 
 function CompactProgressMetric({ label, value, icon }: { label: string; value: string | number; icon: ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-[24px] border border-[var(--math-role-primary)]/20 bg-white/40 p-5 shadow-lg backdrop-blur-2xl transition-all duration-300 group hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-slate-950/40">
+    <div className="relative overflow-hidden rounded-[24px] border bg-white/40 p-5 shadow-lg backdrop-blur-2xl transition-all duration-300 group hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-slate-950/40" style={{ borderColor: 'var(--math-role-primary)' }}>
       {/* Subtle shine effect on hover */}
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100 dark:via-white/10" />
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100 dark:via-white/10" />
       
       <div className="relative z-10 flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-white to-[var(--math-role-primary)]/10 text-[var(--math-role-primary)] shadow-sm ring-1 ring-[var(--math-role-primary)]/20 dark:from-slate-900 dark:to-[var(--math-role-primary)]/20">
+        <span 
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 dark:bg-slate-900"
+          style={{ color: 'var(--math-role-primary)', ringColor: 'var(--math-role-primary)' }}
+        >
           {icon}
         </span>
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{label}</p>
@@ -113,31 +116,30 @@ export default function StudentCompetitionProgressPage() {
       <section className="relative mx-auto w-full max-w-[1680px] space-y-6 px-4 pb-12 pt-6 sm:px-6 lg:px-8 2xl:px-10">
         
         {/* Thematic Hero Header with Visual Magic */}
-        <div className="relative overflow-hidden rounded-[36px] border border-[var(--math-role-primary)]/30 bg-gradient-to-br from-[var(--math-role-primary)]/5 via-white/60 to-[var(--math-role-primary)]/10 p-6 shadow-2xl backdrop-blur-3xl transition duration-300 dark:border-slate-700/50 dark:from-slate-900/80 dark:via-slate-900/60 dark:to-[var(--math-role-primary)]/20 sm:p-8">
+        <div 
+          className="relative overflow-hidden rounded-[36px] border bg-white/60 p-6 shadow-2xl backdrop-blur-3xl transition duration-300 dark:border-slate-700/50 dark:bg-slate-900/60 sm:p-8"
+          style={{ borderColor: 'var(--math-role-primary)' }}
+        >
           
           {/* Animated Background Blobs */}
-          <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-[var(--math-role-primary)]/20 blur-[80px]" style={{ animation: 'mathBlobPulse 8s infinite alternate' }} />
-          <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-amber-400/20 blur-[80px]" style={{ animation: 'mathBlobPulse 10s infinite alternate-reverse' }} />
+          <div className="absolute -left-20 top-0 h-64 w-64 rounded-full opacity-20 blur-[80px]" style={{ animation: 'mathBlobPulse 8s infinite alternate', backgroundColor: 'var(--math-role-primary)' }} />
+          <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-amber-400 opacity-20 blur-[80px]" style={{ animation: 'mathBlobPulse 10s infinite alternate-reverse' }} />
           
           {/* CSS Noise Texture */}
           <div className="math-noise-bg mix-blend-soft-light" />
 
           <div className="relative z-10 mb-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--math-role-primary)]/30 bg-[var(--math-role-primary)]/10 px-4 py-1.5 backdrop-blur-md">
-              <Sparkles className="text-[var(--math-role-primary)]" size={14} />
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[var(--math-role-primary)]">Competition History</p>
+            <div className="inline-flex items-center gap-2 rounded-full border bg-white/50 px-4 py-1.5 backdrop-blur-md" style={{ borderColor: 'var(--math-role-primary)', color: 'var(--math-role-primary)' }}>
+              <Sparkles size={14} />
+              <p className="text-[10px] font-black uppercase tracking-[0.24em]">Progress Insights</p>
             </div>
             <h1 
-              className="mt-4 text-5xl font-black tracking-tight drop-shadow-sm sm:text-6xl"
-              style={{
-                background: `linear-gradient(135deg, var(--ink) 0%, var(--math-role-primary) 100%)`,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
+              className="mt-4 text-6xl font-black tracking-tight drop-shadow-sm sm:text-7xl"
+              style={{ color: 'var(--ink)' }}
             >
-              Progress Insights
+              MOCK HISTORY
             </h1>
-            <p className="mt-4 max-w-2xl text-base font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
+            <p className="mt-4 w-full text-base font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
               Overview of your mock exam performance and concept mastery. Uncover your strengths and target your areas for improvement.
             </p>
           </div>
