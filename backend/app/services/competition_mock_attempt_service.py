@@ -902,7 +902,7 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
     module_insights.sort(key=lambda x: (x["moduleCode"], x["levelCode"]))
 
     return {
-        "overallScore": total_score,
+        "overallScore": round(total_score / n, 1) if n > 0 else 0,
         "overallAccuracy": round(total_accuracy / n, 2) if n > 0 else 0,
         "overallTimeUtilization": round(total_time_utilization / n, 2) if n > 0 else 0,
         "totalMocksAttempted": n,
