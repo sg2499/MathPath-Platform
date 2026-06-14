@@ -303,6 +303,33 @@ html.dark {
 @keyframes mathFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes mathPopIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
+@keyframes mathShimmer {
+  0% { transform: translateX(-150%); }
+  50% { transform: translateX(150%); }
+  100% { transform: translateX(150%); }
+}
+
+@keyframes mathBlobPulse {
+  0% { transform: scale(1) translate(0, 0); opacity: 0.6; }
+  33% { transform: scale(1.08) translate(3%, 3%); opacity: 0.8; }
+  66% { transform: scale(0.95) translate(-2%, -2%); opacity: 0.5; }
+  100% { transform: scale(1) translate(0, 0); opacity: 0.6; }
+}
+
+.math-noise-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  z-index: 0;
+}
+
+html.dark .math-noise-bg {
+  opacity: 0.08;
+}
+
 @media (max-width: 640px) {
   .math-page { @apply px-3 pt-4; }
   .math-title { @apply text-3xl; }
