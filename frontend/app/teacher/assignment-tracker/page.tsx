@@ -1354,7 +1354,7 @@ function ActionQueueTab({
               <div className="min-w-0">
                 <button
                   type="button"
-                  className="truncate text-left text-sm font-black text-slate-950 transition hover:text-blue-700 dark:text-white"
+                  className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
                   onClick={() => OnOpenStudent(StudentCode)}
                 >
                   {studentNameOf(Row)}
@@ -1489,7 +1489,7 @@ function StudentReviewTab({
               <div className="min-w-0">
                 <button
                   type="button"
-                  className="truncate text-left text-sm font-black text-slate-950 transition hover:text-blue-700 dark:text-white"
+                  className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
                   onClick={() => OnOpenStudent(Student.studentCode)}
                 >
                   {Student.studentName}
