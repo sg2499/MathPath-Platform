@@ -89,7 +89,7 @@ export default function TeacherAttemptDetailPage() {
               icon={<UserRound size={20} />}
               label="Student"
               value={data.student?.studentName || "Student"}
-              subValue={`${data.student?.studentCode || "-"} · Class ${data.student?.className || "-"} ${data.student?.section || ""}`}
+              subValue={<><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{data.student?.studentCode || "-"}</span> · Class {data.student?.className || "-"} {data.student?.section || ""}</>}
             />
             <InfoCard
               icon={<BookOpenCheck size={20} />}
@@ -196,7 +196,7 @@ function SummaryMetric({ icon, label, value }: { icon: ReactNode; label: string;
   );
 }
 
-function InfoCard({ icon, label, value, subValue }: { icon: ReactNode; label: string; value: string; subValue: string }) {
+function InfoCard({ icon, label, value, subValue }: { icon: ReactNode; label: string; value: string; subValue: ReactNode }) {
   return (
     <div className="math-teacher-light-metric-card math-card border border-rose-200/70 p-5 ring-1 ring-rose-100/80 dark:border-slate-800 dark:ring-0">
       <div className="inline-flex rounded-2xl bg-blue-50 p-3 text-blue-700">{icon}</div>

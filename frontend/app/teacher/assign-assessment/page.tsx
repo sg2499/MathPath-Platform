@@ -383,7 +383,7 @@ export default function TeacherAssignAssessmentPage() {
                             <p className="font-black text-slate-950 dark:text-white">{Student.studentName}</p>
                             <StudentStatusPill Student={Student} />
                           </div>
-                          <p className="mt-1 text-xs font-bold text-slate-500">{Student.studentCode} · {Student.moduleCode || "Module"} · {Student.levelCode || "Level"}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{Student.studentCode}</span> · {Student.moduleCode || "Module"} · {Student.levelCode || "Level"}</p>
                           <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Student.canAssign ? (Student.approvedReattemptAccess ? "Admin-approved re-attempt access is available." : Student.testingOverrideApplied ? "Eligible through controlled assessment access." : Student.readinessBypassApplied ? "Assessment workflow verification is currently enabled." : "Ready for original assessment assignment.") : BlockReason}</p>
                         </div>
                       </div>

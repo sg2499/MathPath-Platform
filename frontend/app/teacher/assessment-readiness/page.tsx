@@ -354,7 +354,7 @@ export default function TeacherAssessmentReadinessPage() {
                 title={
                   <>
                     {row.studentName}{" "}
-                    <span className="text-slate-400">({row.studentCode})</span>
+                    <span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">({row.studentCode})</span>
                   </>
                 }
                 subtitle={undefined}
