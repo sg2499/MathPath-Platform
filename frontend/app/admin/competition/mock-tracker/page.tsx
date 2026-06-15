@@ -755,6 +755,7 @@ function AdminCompetitionMockTrackerContent() {
                 </div>
               </article>
             </div>
+          </>
         )}
 
         {AttemptToDelete && (
@@ -763,7 +764,7 @@ function AdminCompetitionMockTrackerContent() {
               <div className="px-6 py-6 sm:p-8">
                 <h3 className="text-xl font-black text-slate-950 dark:text-white">Delete Attempt</h3>
                 <p className="mt-2 text-sm font-bold text-slate-600 dark:text-slate-400">
-                  Are you sure you want to delete this attempt for {AttemptToDelete.mockCode}? This action cannot be undone.
+                  Are you sure you want to delete this attempt for {AttemptToDelete.mockExam?.mockCode}? This action cannot be undone.
                 </p>
                 <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                   <button
