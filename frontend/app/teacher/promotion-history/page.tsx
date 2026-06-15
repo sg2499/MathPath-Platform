@@ -249,7 +249,7 @@ function PromotionHistoryTable({
                   <p className="truncate text-sm font-black text-slate-950 dark:text-white">
                     {Group.StudentName}
                   </p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">
+                  <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
                     {Group.StudentCode}
                   </p>
                 </div>

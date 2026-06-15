@@ -237,7 +237,7 @@ export default function TeacherAssignDpsPage() {
                   <input type="checkbox" checked={selectedStudentIds.includes(student.studentId)} onChange={() => toggleStudent(student.studentId)} />
                   <div>
                     <p className="font-black text-slate-950">{student.studentName}</p>
-                    <p className="text-sm text-slate-500">{student.studentCode} · Class {student.className || "-"} {student.section || ""}</p>
+                    <p className="text-sm text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}</p>
                   </div>
                 </label>
               ))}

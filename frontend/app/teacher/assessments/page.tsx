@@ -927,7 +927,7 @@ function AssessmentRecordTable({
                   <p className="truncate text-left text-base font-black text-slate-950 dark:text-white">
                     {Student.StudentName}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-slate-500">
+                  <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
                     {Student.StudentCode}
                   </p>
                 </div>
