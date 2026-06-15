@@ -7,9 +7,9 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { StandardViewButton } from "@/components/common/DetailWorkspaceViews";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
-import { getAdminCompetitionMockTracker, type AdminCompetitionTrackerRow } from "@/lib/api/admin";
-import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
+import { getAdminCompetitionMockTracker, deleteAdminCompetitionMockAssignment, deleteAdminCompetitionMockStudent, type AdminCompetitionTrackerRow } from "@/lib/api/admin";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trash2, Trophy, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
@@ -356,6 +356,28 @@ function AdminCompetitionMockTrackerContent() {
   const [ExpandedLevels, SetExpandedLevels] = useState<Set<string>>(() => new Set());
   const [MockTableSort, SetMockTableSort] = useState<SortState>(null);
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const [AttemptToDelete, SetAttemptToDelete] = useState<AdminCompetitionTrackerRow | null>(null);
+  const [StudentToDelete, SetStudentToDelete] = useState<{ studentId: string; studentName: string; studentCode: string } | null>(null);
+  const [StudentDeleteConfirmText, SetStudentDeleteConfirmText] = useState("");
+
+  const deleteAssignmentMutation = useMutation({
+    mutationFn: deleteAdminCompetitionMockAssignment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "competition"] });
+      SetAttemptToDelete(null);
+    },
+  });
+
+  const deleteStudentMutation = useMutation({
+    mutationFn: deleteAdminCompetitionMockStudent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "competition"] });
+      SetStudentToDelete(null);
+      SetStudentDeleteConfirmText("");
+    },
+  });
 
   const Query = useQuery({ queryKey: ["admin", "competition", "mock-tracker"], queryFn: getAdminCompetitionMockTracker });
 
@@ -575,11 +597,26 @@ function AdminCompetitionMockTrackerContent() {
                                 <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{StudentGroup.student.studentCode}</p>
                               </div>
                             </div>
-                            <div className="flex flex-wrap gap-2 text-xs font-black">
+                            <div className="flex flex-wrap items-center gap-2 text-xs font-black">
                               {AverageAccuracyChip(StudentGroup.rows)}
                               <Chip tone="amber">{StudentGroup.rows.length} Mock{StudentGroup.rows.length === 1 ? "" : "s"}</Chip>
                               <Chip tone="green">{CompletedCount} Completed</Chip>
                               <Chip tone="amber">{PendingCountForStudent} Pending</Chip>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  SetStudentToDelete({
+                                    studentId: StudentGroup.student.studentId || "",
+                                    studentName: StudentGroup.student.studentName || "",
+                                    studentCode: StudentGroup.student.studentCode || "",
+                                  });
+                                }}
+                                className="ml-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-300"
+                                title="Delete entire student history"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
                           </button>
 
@@ -684,8 +721,16 @@ function AdminCompetitionMockTrackerContent() {
                                                           <div className="text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
                                                           <div className="text-sm font-bold text-slate-950 dark:text-white">{FormatDate(Row.assignedAt)}</div>
                                                           <div className="text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? FormatDate(Row.submittedAt) : "-"}</div>
-                                                          <div className="flex items-center">
+                                                          <div className="flex items-center gap-2">
                                                             <ReviewButton Row={Row} />
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => SetAttemptToDelete(Row)}
+                                                              className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-300"
+                                                              title="Delete this attempt"
+                                                            >
+                                                              <Trash2 size={14} />
+                                                            </button>
                                                           </div>
                                                         </div>
                                                       ))}
@@ -710,7 +755,83 @@ function AdminCompetitionMockTrackerContent() {
                 </div>
               </article>
             </div>
-          </>
+        )}
+
+        {AttemptToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+            <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900 ring-1 ring-slate-900/5 dark:ring-white/10">
+              <div className="px-6 py-6 sm:p-8">
+                <h3 className="text-xl font-black text-slate-950 dark:text-white">Delete Attempt</h3>
+                <p className="mt-2 text-sm font-bold text-slate-600 dark:text-slate-400">
+                  Are you sure you want to delete this attempt for {AttemptToDelete.mockCode}? This action cannot be undone.
+                </p>
+                <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => SetAttemptToDelete(null)}
+                    disabled={deleteAssignmentMutation.isPending}
+                    className="rounded-2xl px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-white/5"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteAssignmentMutation.mutate(AttemptToDelete.assignmentId)}
+                    disabled={deleteAssignmentMutation.isPending}
+                    className="flex items-center justify-center rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleteAssignmentMutation.isPending ? "Deleting..." : "Delete Attempt"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {StudentToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+            <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900 ring-1 ring-slate-900/5 dark:ring-white/10">
+              <div className="px-6 py-6 sm:p-8">
+                <h3 className="text-xl font-black text-slate-950 dark:text-white">Delete Student Records</h3>
+                <p className="mt-2 text-sm font-bold text-slate-600 dark:text-slate-400">
+                  You are about to delete all mock records for <span className="text-slate-950 dark:text-white">{StudentToDelete.studentName}</span>. This will remove their history entirely.
+                </p>
+                <div className="mt-6">
+                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Type "{StudentToDelete.studentCode}" to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={StudentDeleteConfirmText}
+                    onChange={(e) => SetStudentDeleteConfirmText(e.target.value)}
+                    placeholder={StudentToDelete.studentCode}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/20 dark:border-slate-800 dark:bg-slate-950/50 dark:text-white dark:focus:border-red-500"
+                  />
+                </div>
+                <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      SetStudentToDelete(null);
+                      SetStudentDeleteConfirmText("");
+                    }}
+                    disabled={deleteStudentMutation.isPending}
+                    className="rounded-2xl px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-white/5"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteStudentMutation.mutate(StudentToDelete.studentId)}
+                    disabled={deleteStudentMutation.isPending || StudentDeleteConfirmText !== StudentToDelete.studentCode}
+                    className="flex items-center justify-center rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleteStudentMutation.isPending ? "Deleting..." : "Delete All Records"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </section>
     </AppShell>
