@@ -795,15 +795,20 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
     from collections import defaultdict
     import json
     from sqlalchemy.orm import joinedload
-    from app.models.models import CompetitionMockResultSummary, CompetitionMockExam
+    from app.models.models import CompetitionMockResultSummary, CompetitionMockExam, CompetitionMockAttempt, CompetitionMockAssignment
 
     summaries = (
         db.query(CompetitionMockResultSummary)
+        .join(CompetitionMockAttempt, CompetitionMockResultSummary.mock_attempt_id == CompetitionMockAttempt.id)
+        .join(CompetitionMockAssignment, CompetitionMockAttempt.mock_assignment_id == CompetitionMockAssignment.id)
+        .filter(
+            CompetitionMockResultSummary.student_id == student.id,
+            CompetitionMockAssignment.is_active == True
+        )
         .options(
             joinedload(CompetitionMockResultSummary.mock_exam).joinedload(CompetitionMockExam.module),
             joinedload(CompetitionMockResultSummary.mock_exam).joinedload(CompetitionMockExam.level)
         )
-        .filter(CompetitionMockResultSummary.student_id == student.id)
         .order_by(CompetitionMockResultSummary.completed_at.asc())
         .all()
     )
