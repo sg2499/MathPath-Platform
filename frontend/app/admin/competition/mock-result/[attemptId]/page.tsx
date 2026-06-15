@@ -584,7 +584,7 @@ function CompetitionMessageBox({
               Focus Next
             </p>
             <div className="mt-3 grid gap-2">
-              {message.focusAreas.map((area) => (
+              {message.focusAreas.map((area: any) => (
                 <button
                   key={area}
                   type="button"
@@ -649,7 +649,7 @@ function QuestionReviewTab({
       questions: typeof questions;
     }> = [];
 
-    questions.forEach((question) => {
+    questions.forEach((question: any) => {
       const title =
         question.sectionTitle || question.concept || "Competition Mock";
       const key = sectionAnchorKey(title, question.sectionNumber);
@@ -693,7 +693,7 @@ function QuestionReviewTab({
         </p>
       ) : (
         <div className="space-y-6">
-          {groupedSections.map((section) => (
+          {groupedSections.map((section: any) => (
             <div
               key={section.key}
               id={section.key}
@@ -717,7 +717,7 @@ function QuestionReviewTab({
               </div>
 
               <div className="space-y-5">
-                {section.questions.map((question) => (
+                {section.questions.map((question: any) => (
                   <article
                     key={question.questionId}
                     className="rounded-[28px] border border-[#2563eb]/15 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70"
@@ -846,7 +846,7 @@ function ResultAnalysisTab({
             </div>
           ) : (
             <div className="divide-y divide-[#2563eb]/15 dark:divide-slate-700">
-              {result.conceptPerformance.map((item) => (
+              {result.conceptPerformance.map((item: any) => (
                 <button
                   key={item.concept}
                   type="button"
@@ -942,7 +942,7 @@ function InsightCard({
         </p>
       ) : (
         <div className="mt-4 grid gap-2">
-          {items.map((item) => (
+          {items.map((item: any) => (
             <button
               key={item.concept}
               type="button"
