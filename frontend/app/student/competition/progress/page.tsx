@@ -140,7 +140,7 @@ export default function StudentCompetitionProgressPage() {
   }, [query.data?.moduleInsights]);
 
   return (
-    <AppShell title="Competition Progress">
+    <AppShell title="Mock Performance Insights">
       <section className="relative mx-auto w-full max-w-[1680px] space-y-6 px-4 pb-12 pt-6 sm:px-6 lg:px-8 2xl:px-10">
         
         {/* Thematic Hero Header */}
@@ -153,7 +153,7 @@ export default function StudentCompetitionProgressPage() {
             <span>Progress Insights</span>
           </div>
           <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-            Mock History
+            Mock Performance Insights
           </h1>
           <p className="mt-2 w-full text-sm leading-6 text-slate-600 dark:text-slate-300">
             Overview of your mock exam performance and concept mastery. Uncover your strengths and target your areas for improvement.

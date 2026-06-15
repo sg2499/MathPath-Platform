@@ -526,8 +526,8 @@ export function AppShell({
           tooltip: "Attempt assigned competition mocks",
         },
         {
-          label: "Competition Progress",
-          shortLabel: "Progress",
+          label: "Mock Insights",
+          shortLabel: "Insights",
           href: "/student/competition/progress",
           icon: BarChart3,
           tooltip: "Track mock strengths and weak areas",
