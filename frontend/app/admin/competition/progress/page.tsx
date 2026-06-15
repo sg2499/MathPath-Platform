@@ -22,46 +22,43 @@ function classNames(...classes: (string | undefined | null | false)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-function ConceptRow({
-  concept,
-  accuracy,
-  type,
-}: {
-  concept: string;
-  accuracy: number;
-  type: "strength" | "weakness";
-}) {
-  const isStrength = type === "strength";
+function ConceptRow({ concept, accuracy, isStrong }: { concept: string; accuracy: number; isStrong: boolean }) {
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setWidth(accuracy), 100);
+    return () => clearTimeout(timer);
+  }, [accuracy]);
+
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white/40 p-4 transition-all duration-300 hover:scale-[1.02] hover:border-slate-300 hover:bg-white hover:shadow-lg dark:border-white/5 dark:bg-slate-900/40 dark:hover:border-white/10 dark:hover:bg-slate-900/80">
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-opacity duration-700 group-hover:animate-shimmer group-hover:opacity-100 dark:via-white/5" />
-      <div className="relative z-10 flex items-center justify-between gap-4">
-        <span className="truncate pr-4 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:translate-x-1 group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-white">
-          {concept}
-        </span>
-        <div className="flex shrink-0 items-center gap-3">
-          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-            <div
-              className={classNames(
-                "h-full rounded-full transition-all duration-1000 ease-out",
-                isStrength
-                  ? "bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-                  : "bg-gradient-to-r from-rose-400 to-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]"
-              )}
-              style={{ width: `${accuracy}%` }}
+    <div className="group relative flex items-center justify-between rounded-2xl p-3 transition-all duration-300 hover:bg-white/80 dark:hover:bg-slate-800/60">
+      <span className="relative z-10 truncate pr-4 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:translate-x-1 group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-white">
+        {concept}
+      </span>
+      <div className="relative z-10 flex shrink-0 items-center gap-4">
+        <div className="hidden h-2.5 w-28 overflow-hidden rounded-full bg-slate-200/50 shadow-inner dark:bg-slate-800 sm:block">
+          <div
+            className={classNames(
+              "relative h-full rounded-full transition-all duration-1000 ease-out",
+              isStrong ? "bg-gradient-to-r from-emerald-400 to-emerald-500 dark:from-emerald-500 dark:to-emerald-400" : "bg-gradient-to-r from-rose-400 to-rose-500 dark:from-rose-500 dark:to-rose-400"
+            )}
+            style={{ width: `${width}%` }}
+          >
+            <div 
+              className="absolute inset-0 w-full"
+              style={{
+                backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                animation: 'mathShimmer 2.5s infinite linear'
+              }}
             />
           </div>
-          <span
-            className={classNames(
-              "w-10 text-right text-sm font-black",
-              isStrength
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-rose-600 dark:text-rose-400"
-            )}
-          >
-            {accuracy}%
-          </span>
         </div>
+        <span className={classNames(
+          "w-12 text-right text-sm font-black tabular-nums tracking-tight",
+          isStrong ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+        )}>
+          {Math.round(accuracy)}%
+        </span>
       </div>
     </div>
   );
@@ -495,7 +492,7 @@ function AdminCompetitionProgressContent() {
             </div>
 
             <div className="grid gap-5">
-              <article className="math-card p-5 sm:p-6">
+              <div className="math-card overflow-hidden p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
                     <p className="math-kicker">Monitor</p>
@@ -505,8 +502,9 @@ function AdminCompetitionProgressContent() {
                     </p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_210px_180px_180px_180px] xl:w-[980px]">
-                    <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#2563eb] focus-within:border-[#2563eb] focus-within:ring-2 focus-within:ring-[#2563eb]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus-within:border-cyan-300 dark:focus-within:bg-cyan-500/20 dark:focus-within:ring-cyan-300/25">
-                      <Search size={16} className="text-[#2563eb] dark:text-cyan-100" />
+                    {/* The search and filters remain identical */}
+                    <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[var(--math-role-primary)] focus-within:border-[var(--math-role-primary)] focus-within:ring-2 focus-within:ring-[var(--math-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus-within:border-cyan-300 dark:focus-within:bg-cyan-500/20 dark:focus-within:ring-cyan-300/25">
+                      <Search size={16} className="text-[var(--math-role-primary)] dark:text-cyan-100" />
                       <input
                         value={SearchText}
                         onChange={(Event) => SetSearchText(Event.target.value)}
@@ -517,7 +515,7 @@ function AdminCompetitionProgressContent() {
                     <select
                       value={TeacherFilter}
                       onChange={(Event) => SetTeacherFilter(Event.target.value)}
-                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#2563eb] focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--math-role-primary)] focus:border-[var(--math-role-primary)] focus:ring-2 focus:ring-[var(--math-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
                     >
                       <option value="ALL">All Teachers</option>
                       {TeacherOptions.map(([Key, Label]) => (
@@ -530,7 +528,7 @@ function AdminCompetitionProgressContent() {
                         SetModuleFilter(Event.target.value);
                         SetLevelFilter("ALL");
                       }}
-                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#2563eb] focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--math-role-primary)] focus:border-[var(--math-role-primary)] focus:ring-2 focus:ring-[var(--math-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
                     >
                       <option value="ALL">All Modules</option>
                       {ModuleOptions.map((Module) => (
@@ -540,7 +538,7 @@ function AdminCompetitionProgressContent() {
                     <select
                       value={LevelFilter}
                       onChange={(Event) => SetLevelFilter(Event.target.value)}
-                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#2563eb] focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--math-role-primary)] focus:border-[var(--math-role-primary)] focus:ring-2 focus:ring-[var(--math-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
                     >
                       <option value="ALL">All Levels</option>
                       {LevelOptions.map((Level) => (
@@ -550,7 +548,7 @@ function AdminCompetitionProgressContent() {
                     <select
                       value={Status}
                       onChange={(Event) => SetStatus(Event.target.value as StatusFilter)}
-                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#2563eb] focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--math-role-primary)] focus:border-[var(--math-role-primary)] focus:ring-2 focus:ring-[var(--math-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
                     >
                       <option value="ALL">All Statuses</option>
                       <option value="PENDING">Pending</option>
@@ -559,144 +557,159 @@ function AdminCompetitionProgressContent() {
                   </div>
                 </div>
 
-                <div className="mt-5 space-y-3">
+                <div className="mt-5 space-y-4">
                   {GroupedRows.length === 0 ? (
                     <EmptyState title="No competition mock records" message="Assigned competition mock outcomes for your students will appear here." />
                   ) : (
-                    GroupedRows.map((StudentGroup) => {
+                    GroupedRows.map((StudentGroup, sIdx) => {
                       const StudentOpen = ExpandedStudents.has(StudentGroup.key);
-                      const CompletedCount = StudentGroup.rows.filter(IsCompleted).length;
-                      const PendingCountForStudent = StudentGroup.rows.length - CompletedCount;
                       return (
-                        <div key={StudentGroup.key} className="overflow-hidden rounded-3xl border border-[#2563eb]/15 bg-white shadow-sm ring-1 ring-cyan-100/70 dark:border-cyan-300/15 dark:bg-slate-950/35 dark:ring-white/10">
+                        <div key={StudentGroup.key} className="math-hierarchy-panel p-5 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out" style={{ animationFillMode: 'both', animationDelay: `${sIdx * 100}ms` }}>
                           <button
                             type="button"
+                            className="math-hierarchy-row flex-col gap-3 px-0 py-0 lg:flex-row lg:items-center lg:justify-between w-full"
                             onClick={() => ToggleExpanded(SetExpandedStudents, StudentGroup.key)}
-                            className="tc-dark-hover-surface group flex w-full flex-col gap-3 bg-[#2563eb]/[0.025] px-4 py-4 text-left transition hover:bg-[#2563eb]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-cyan-400/5 dark:hover:bg-cyan-500/25 dark:hover:shadow-lg dark:hover:shadow-cyan-950/30 dark:focus-visible:ring-2 dark:focus-visible:ring-cyan-300/30"
                           >
-                            <div className="flex min-w-0 items-center gap-3">
-                              <span className="tc-dark-hover-control inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#2563eb]/25 bg-white text-[#2563eb] shadow-sm ring-1 ring-[#2563eb]/10 transition group-hover:bg-[#2563eb]/5 dark:border-cyan-300/30 dark:bg-slate-950/50 dark:text-cyan-100 dark:ring-cyan-300/10 dark:group-hover:bg-cyan-500/25">
-                                {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
-                              </span>
-                              <div className="min-w-0">
-                                <h3 className="truncate text-lg font-black text-slate-950 dark:text-white">{StudentGroup.student.studentName}</h3>
-                                <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{StudentGroup.student.studentCode}</p>
-                              </div>
+                            <div className="text-left">
+                              <h3 className="text-xl font-black text-slate-950 dark:text-white">
+                                {StudentGroup.student.studentName}
+                              </h3>
+                              <p className="mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--math-role-primary)] dark:text-[var(--math-role-primary)]">
+                                {StudentGroup.student.studentCode}
+                              </p>
                             </div>
-                            <div className="flex flex-wrap gap-2 text-xs font-black">
-                              {AverageAccuracyChip(StudentGroup.rows)}
-                              <Chip tone="amber">{StudentGroup.rows.length} Mock{StudentGroup.rows.length === 1 ? "" : "s"}</Chip>
-                              <Chip tone="green">{CompletedCount} Completed</Chip>
-                              <Chip tone="amber">{PendingCountForStudent} Pending</Chip>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
+                                <ChevronDown className={StudentOpen ? "rotate-180 transition" : "transition"} size={18} />
+                              </span>
                             </div>
                           </button>
 
-                          {StudentOpen ? (
-                            <div className="space-y-3 border-t border-[#2563eb]/10 p-4 dark:border-cyan-300/10">
+                          {StudentOpen && (
+                            <div className="mt-4 grid gap-4">
                               {StudentGroup.modules.map((ModuleGroup) => {
                                 const ModuleOpen = ExpandedModules.has(ModuleGroup.key);
-                                const ModuleRows = ModuleGroup.levels.flatMap((Level) => Level.rows);
                                 return (
-                                  <div key={ModuleGroup.key} className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/60 dark:border-white/10 dark:bg-white/5">
+                                  <div key={ModuleGroup.key} className="math-hierarchy-panel-soft p-4 border border-slate-200/50 dark:border-white/5">
                                     <button
                                       type="button"
+                                      className="math-hierarchy-row flex-col gap-3 px-0 py-0 lg:flex-row lg:items-center lg:justify-between w-full"
                                       onClick={() => ToggleExpanded(SetExpandedModules, ModuleGroup.key)}
-                                      className="tc-dark-hover-soft flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#2563eb]/[0.045] dark:hover:bg-cyan-500/25 dark:hover:shadow-md dark:hover:shadow-cyan-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-cyan-300/30"
                                     >
-                                      <div className="flex min-w-0 items-center gap-3">
-                                        <span className="tc-dark-hover-control inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#2563eb]/20 bg-white text-[#2563eb] dark:border-cyan-300/30 dark:bg-slate-950/50 dark:text-cyan-100">
-                                          {ModuleOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                        </span>
-                                        <div>
-                                          <p className="text-[0.64rem] font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">Module</p>
-                                          <p className="text-sm font-black text-slate-950 dark:text-white">{ModuleGroup.label}</p>
-                                        </div>
+                                      <div className="text-left">
+                                        <p className="math-kicker">Module</p>
+                                        <h4 className="text-base font-black text-slate-950 dark:text-white">
+                                          {ModuleGroup.label}
+                                        </h4>
                                       </div>
-                                      <div className="flex flex-wrap justify-end gap-2 text-xs font-black">
-                                        {AverageAccuracyChip(ModuleRows)}
-                                        <Chip tone="amber">{ModuleRows.length} Mock{ModuleRows.length === 1 ? "" : "s"}</Chip>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="rounded-2xl bg-white p-2 text-slate-600 shadow-sm dark:bg-slate-950 dark:text-slate-300">
+                                          <ChevronDown className={ModuleOpen ? "rotate-180 transition" : "transition"} size={18} />
+                                        </span>
                                       </div>
                                     </button>
 
-                                    {ModuleOpen ? (
-                                      <div className="space-y-3 border-t border-slate-200 p-3 dark:border-white/10">
+                                    {ModuleOpen && (
+                                      <div className="mt-4 grid gap-4">
                                         {ModuleGroup.levels.map((LevelGroup) => {
                                           const LevelOpen = ExpandedLevels.has(LevelGroup.key);
-                                          const LevelCompleted = LevelGroup.rows.filter(IsCompleted).length;
                                           return (
-                                            <div key={LevelGroup.key} className="overflow-hidden rounded-2xl border border-white bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
+                                            <div key={LevelGroup.key} className="math-hierarchy-panel-soft bg-white/50 dark:bg-slate-950/50 p-4 border border-slate-200/50 dark:border-white/5">
                                               <button
                                                 type="button"
+                                                className="math-hierarchy-row flex-col gap-3 px-0 py-0 lg:flex-row lg:items-center lg:justify-between w-full"
                                                 onClick={() => ToggleExpanded(SetExpandedLevels, LevelGroup.key)}
-                                                className="tc-dark-hover-soft flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#2563eb]/[0.04] dark:hover:bg-cyan-500/25 dark:hover:shadow-md dark:hover:shadow-cyan-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-cyan-300/30"
                                               >
-                                                <div className="flex min-w-0 items-center gap-3">
-                                                  <span className="tc-dark-hover-control inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#2563eb]/20 bg-[#2563eb]/5 text-[#2563eb] dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-100">
-                                                    {LevelOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                                  </span>
-                                                  <div>
-                                                    <p className="text-[0.64rem] font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">Level</p>
-                                                    <p className="text-sm font-black text-slate-950 dark:text-white">{LevelGroup.label}</p>
-                                                  </div>
+                                                <div className="text-left">
+                                                  <p className="math-kicker">Level</p>
+                                                  <h5 className="text-base font-black text-slate-950 dark:text-white">
+                                                    {LevelGroup.label}
+                                                  </h5>
                                                 </div>
-                                                <div className="flex flex-wrap gap-2 text-xs font-black">
-                                                  {AverageAccuracyChip(LevelGroup.rows)}
-                                                  <Chip tone="amber">{LevelGroup.rows.length} Mock{LevelGroup.rows.length === 1 ? "" : "s"}</Chip>
-                                                  <Chip tone="green">{LevelCompleted} Completed</Chip>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                  <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
+                                                    <ChevronDown className={LevelOpen ? "rotate-180 transition" : "transition"} size={18} />
+                                                  </span>
                                                 </div>
                                               </button>
 
                                               {LevelOpen ? (
-                                                <div className="border-t border-slate-100 p-3 dark:border-white/10 space-y-4">
+                                                <div className="mt-6 border-t border-slate-100 pt-6 dark:border-white/10 space-y-4">
                                                   {(() => {
                                                     const insight = computeLevelInsights(LevelGroup.rows);
-                                                    if (insight.strongConcepts.length === 0 && insight.weakConcepts.length === 0) return null;
+                                                    if (insight.strongConcepts.length === 0 && insight.weakConcepts.length === 0) return (
+                                                        <div className="relative overflow-hidden rounded-[32px] border border-[var(--math-role-primary)]/20 bg-white/60 py-12 px-4 text-center shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:bg-slate-950/60">
+                                                          <div className="math-noise-bg mix-blend-overlay" />
+                                                          <p className="relative z-10 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                                                            No concept data available yet. Student must complete mock exams.
+                                                          </p>
+                                                        </div>
+                                                    );
                                                     return (
                                                       <div className="grid gap-6 lg:grid-cols-2 animate-in fade-in slide-in-from-top-4 duration-500 ease-out">
-                                                        {insight.strongConcepts.length > 0 && (
-                                                          <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-emerald-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-emerald-500/10 dark:border-emerald-500/10 dark:bg-slate-950/60 sm:p-8">
-                                                            <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-emerald-400/20" />
-                                                            <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-emerald-300/10 blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-emerald-300/20" />
-                                                            <div className="relative mb-6 flex items-center gap-4">
-                                                              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30">
-                                                                <CheckCircle2 size={28} className="drop-shadow-sm" />
-                                                              </div>
-                                                              <div>
-                                                                <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Strengths</h2>
-                                                                <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Excellent performance areas</p>
-                                                              </div>
+                                                        {/* Strengths Card */}
+                                                        <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-emerald-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-emerald-500/10 dark:border-emerald-500/10 dark:bg-slate-950/60 sm:p-8">
+                                                          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-400/10 blur-[60px] transition-all duration-500 group-hover:bg-emerald-400/20" />
+                                                          
+                                                          <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-emerald-100 pb-5 dark:border-emerald-900/30">
+                                                            <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 shadow-sm ring-1 ring-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/40 dark:text-emerald-400 dark:ring-emerald-700/50">
+                                                              <CheckCircle2 size={24} strokeWidth={2.5} />
                                                             </div>
-                                                            <div className="relative flex flex-col gap-3">
-                                                              {insight.strongConcepts.map((concept, idx) => (
-                                                                <div key={idx} className="animate-in slide-in-from-right-4 fade-in fill-mode-backwards" style={{ animationDelay: `${idx * 100}ms` }}>
-                                                                  <ConceptRow concept={concept.name} accuracy={concept.accuracy} type="strength" />
-                                                                </div>
-                                                              ))}
+                                                            <div>
+                                                              <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Strengths</h3>
+                                                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/70 dark:text-emerald-400/70">&ge; 70% Accuracy</p>
                                                             </div>
                                                           </div>
-                                                        )}
-                                                        {insight.weakConcepts.length > 0 && (
-                                                          <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-rose-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-rose-500/10 dark:border-rose-500/10 dark:bg-slate-950/60 sm:p-8">
-                                                            <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-rose-400/10 blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-rose-400/20" />
-                                                            <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-rose-300/10 blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-rose-300/20" />
-                                                            <div className="relative mb-6 flex items-center gap-4">
-                                                              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-400 to-rose-600 text-white shadow-lg shadow-rose-500/30">
-                                                                <AlertTriangle size={28} className="drop-shadow-sm" />
-                                                              </div>
-                                                              <div>
-                                                                <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Areas to Improve</h2>
-                                                                <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Concepts needing practice</p>
-                                                              </div>
-                                                            </div>
-                                                            <div className="relative flex flex-col gap-3">
-                                                              {insight.weakConcepts.map((concept, idx) => (
+                                                          
+                                                          <div className="relative z-10 flex min-h-[240px] flex-col gap-1">
+                                                            {insight.strongConcepts.length > 0 ? (
+                                                              insight.strongConcepts.map((concept, idx) => (
                                                                 <div key={idx} className="animate-in slide-in-from-right-4 fade-in fill-mode-backwards" style={{ animationDelay: `${idx * 100}ms` }}>
-                                                                  <ConceptRow concept={concept.name} accuracy={concept.accuracy} type="weakness" />
+                                                                  <ConceptRow concept={concept.name} accuracy={concept.accuracy} isStrong={true} />
                                                                 </div>
-                                                              ))}
+                                                              ))
+                                                            ) : (
+                                                              <div className="flex flex-1 items-center justify-center p-6 text-center text-sm font-semibold text-slate-400 dark:text-slate-500">
+                                                                <div className="flex flex-col items-center gap-2">
+                                                                  <Sparkles className="opacity-20" size={32} />
+                                                                  <p>No shining strengths identified yet.</p>
+                                                                </div>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        </div>
+
+                                                        {/* Weaknesses Card */}
+                                                        <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-rose-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-rose-500/10 dark:border-rose-500/10 dark:bg-slate-950/60 sm:p-8">
+                                                          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-rose-400/10 blur-[60px] transition-all duration-500 group-hover:bg-rose-400/20" />
+                                                          
+                                                          <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-rose-100 pb-5 dark:border-rose-900/30">
+                                                            <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-gradient-to-br from-rose-50 to-rose-100 text-rose-600 shadow-sm ring-1 ring-rose-200 dark:from-rose-900/40 dark:to-rose-800/40 dark:text-rose-400 dark:ring-rose-700/50">
+                                                              <AlertTriangle size={24} strokeWidth={2.5} />
+                                                            </div>
+                                                            <div>
+                                                              <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Areas to Improve</h3>
+                                                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600/70 dark:text-rose-400/70">&lt; 70% Accuracy</p>
                                                             </div>
                                                           </div>
-                                                        )}
+                                                          
+                                                          <div className="relative z-10 flex min-h-[240px] flex-col gap-1">
+                                                            {insight.weakConcepts.length > 0 ? (
+                                                              insight.weakConcepts.map((concept, idx) => (
+                                                                <div key={idx} className="animate-in slide-in-from-right-4 fade-in fill-mode-backwards" style={{ animationDelay: `${idx * 100}ms` }}>
+                                                                  <ConceptRow concept={concept.name} accuracy={concept.accuracy} isStrong={false} />
+                                                                </div>
+                                                              ))
+                                                            ) : (
+                                                              <div className="flex flex-1 items-center justify-center p-6 text-center text-sm font-semibold text-slate-400 dark:text-slate-500">
+                                                                <div className="flex flex-col items-center gap-2">
+                                                                  <CheckCircle2 className="opacity-20" size={32} />
+                                                                  <p>No major weak areas detected.</p>
+                                                                </div>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        </div>
                                                       </div>
                                                     );
                                                   })()}
@@ -706,18 +719,18 @@ function AdminCompetitionProgressContent() {
                                           );
                                         })}
                                       </div>
-                                    ) : null}
+                                    )}
                                   </div>
                                 );
                               })}
                             </div>
-                          ) : null}
+                          )}
                         </div>
                       );
                     })
                   )}
                 </div>
-              </article>
+              </div>
             </div>
           </>
         )}
