@@ -61,12 +61,7 @@ def on_startup():
         finally:
             db.close()
 
-    from app.services.competition_mock_attempt_service import _repair_mock_summaries
-    db = SessionLocal()
-    try:
-        _repair_mock_summaries(db)
-    finally:
-        db.close()
+
 
     # Always run the Master Module curriculum sync independently from demo/legacy seed flags.
     # This is idempotent: it only creates or completes MM -> MM-L1 -> Lessons 1-30 -> DPS 1-5.
