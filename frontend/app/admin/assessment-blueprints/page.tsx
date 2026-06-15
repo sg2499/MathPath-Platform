@@ -852,7 +852,7 @@ function DetailMetric({ icon, label, value, helper }: { icon: React.ReactNode; l
         <p className="text-xl font-black text-slate-950 dark:text-white">{value}</p>
       </div>
       <p className="relative z-10 mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="relative z-10 mt-0.5 text-[11px] font-semibold text-slate-500">{helper}</p>
+      <p className="relative z-10 mt-0.5 text-xs font-semibold text-slate-500">{helper}</p>
     </div>
   );
 }

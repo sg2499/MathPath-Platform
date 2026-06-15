@@ -1984,7 +1984,7 @@ function ModalFrame({
           style={{ borderColor: "var(--theme-border)" }}
         >
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-cyan-300">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-cyan-300">
               MathPath Account
             </p>
             <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 dark:text-white">

@@ -200,7 +200,7 @@ export function AssessmentFeedbackRemarkCard({
         <div className="flex gap-3">
           <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1 ${Config.IconClass}`}>{Config.Icon}</div>
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] opacity-70">{Config.Kicker}</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] opacity-70">{Config.Kicker}</p>
             <h2 className="mt-1 text-2xl font-black tracking-tight">Assessment Remarks</h2>
             <p className="mt-1 text-sm font-semibold opacity-75">
               {CanEdit ? "Share clear, supportive feedback for this assessment attempt." : "Your teacher has shared feedback for this assessment attempt."}

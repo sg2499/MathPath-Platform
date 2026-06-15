@@ -67,7 +67,7 @@ function Metric({
     <div className="math-teacher-light-metric-card rounded-[22px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-slate-800 dark:bg-slate-950/70 dark:ring-0">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-800 dark:text-slate-100">
+          <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-800 dark:text-slate-100">
             {Label}
           </p>
           <p className="mt-2 text-3xl font-black leading-none text-slate-950 dark:text-white">
@@ -133,7 +133,7 @@ function PromotionHistoryRecordTable({
 }) {
   return (
     <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-teacher-promotion-history-table-header grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="math-teacher-promotion-history-table-header grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <div>From Level</div>
         <div>To Level</div>
         <div>Assessment</div>

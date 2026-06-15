@@ -148,7 +148,7 @@ export default function AdminAssignmentDetailPage() {
                       <tr key={row.studentId}>
                         <td>
                           <p className="font-black text-slate-950">{row.studentName}</p>
-                          <p className="mt-0.5 text-[11px] font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{row.studentCode}</p>
+                          <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{row.studentCode}</p>
                         </td>
                         <td><SemanticChip Value={row.status} Tone={StatusTone(row.status, row.requiresAttention)} /></td>
                         <td><PerformanceChip Value={`${RoundedDisplay(row.score)} / ${RoundedDisplay(row.maxScore)}`} Tone={ScoreTone(row.score, row.maxScore)} /></td>

@@ -231,7 +231,7 @@ function Metric({
             {icon}
           </span>
         ) : null}
-        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 dark:text-slate-200">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:text-slate-200">
           {label}
         </p>
       </div>

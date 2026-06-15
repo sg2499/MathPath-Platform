@@ -2761,7 +2761,7 @@ function PromotionHistoryRecordTable({
 }) {
   return (
     <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-admin-assessment-control-table-header math-admin-assessment-promotion-history-header grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="math-admin-assessment-control-table-header math-admin-assessment-promotion-history-header grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <div>From Level</div>
         <div>To Level</div>
         <div>Assessment</div>
@@ -3775,7 +3775,7 @@ function ParentReportDeliveryStatusChip({ Status }: { Status: string }) {
 
   return (
     <span
-      className={`math-parent-report-delivery-status-chip math-parent-report-delivery-status-chip-${Tone} inline-flex w-fit items-center justify-center rounded-full border px-3 py-1 text-[11px] font-black uppercase leading-none tracking-[0.04em] ${ToneClass}`}
+      className={`math-parent-report-delivery-status-chip math-parent-report-delivery-status-chip-${Tone} inline-flex w-fit items-center justify-center rounded-full border px-3 py-1 text-xs font-black uppercase leading-none tracking-[0.04em] ${ToneClass}`}
     >
       {Label}
     </span>
@@ -4732,7 +4732,7 @@ function ParentReportDeliveryHistoryTable({
                 {[
                   [
                     "Student",
-                    <>{DeleteItem.studentName} <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({DeleteItem.studentCode})</span></>,
+                    <>{DeleteItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({DeleteItem.studentCode})</span></>,
                   ],
                   ["Report Level", DeleteItem.levelLabel],
                   [
@@ -4803,7 +4803,7 @@ function ParentReportDeliveryHistoryTable({
                 {[
                   [
                     "Student",
-                    <>{ResendItem.studentName} <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({ResendItem.studentCode})</span></>,
+                    <>{ResendItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({ResendItem.studentCode})</span></>,
                   ],
                   ["Module", ResendItem.moduleLabel],
                   ["Report Level", ResendItem.levelLabel],
@@ -5026,7 +5026,7 @@ function ApprovalQueueTable({
             {IsExpanded ? (
               <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
                 <div className="min-w-[1180px]">
-                  <div className="math-admin-assessment-control-table-header math-admin-assessment-reattempt-approvals-header grid grid-cols-[.68fr_.58fr_1fr_.56fr_.62fr_.82fr_.78fr_232px] gap-2 bg-slate-50 px-4 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
+                  <div className="math-admin-assessment-control-table-header math-admin-assessment-reattempt-approvals-header grid grid-cols-[.68fr_.58fr_1fr_.56fr_.62fr_.82fr_.78fr_232px] gap-2 bg-slate-50 px-4 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
                     <div>Teacher</div>
                     <div>Level</div>
                     <div>Failed Assessment</div>

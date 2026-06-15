@@ -727,7 +727,7 @@ function MockQuestionRenderer({ question, exam, compact = false }: { question: C
   return (
     <div className="mx-auto w-full max-w-md overflow-hidden rounded-[22px] border border-slate-200 bg-white text-center shadow-inner dark:border-slate-700 dark:bg-slate-950/70">
       <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
-        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">{PositionalPromptTitle}</p>
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">{PositionalPromptTitle}</p>
       </div>
       <div className="px-4 py-5">{RenderedQuestion}</div>
     </div>

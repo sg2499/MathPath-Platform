@@ -465,7 +465,7 @@ export default function TeacherCompetitionMockResultPage() {
               </p>
             </div>
             <div className="rounded-[24px] border border-[#7a1f58]/25 bg-[#7a1f58]/5 px-6 py-4 text-center dark:border-rose-300/30 dark:bg-rose-400/10">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#7a1f58] dark:text-rose-100">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7a1f58] dark:text-rose-100">
                 Score
               </p>
               <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
@@ -562,7 +562,7 @@ function CompetitionMessageBox({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="math-kicker">Competition Coach</p>
-              <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+              <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
                 {message.badge}
               </span>
             </div>
@@ -580,7 +580,7 @@ function CompetitionMessageBox({
 
         <div className="grid min-w-0 gap-3 lg:w-[360px]">
           <div className="rounded-[24px] border border-[#7a1f58]/20 bg-white/90 p-4 dark:border-rose-300/30 dark:bg-slate-950/70">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
               Focus Next
             </p>
             <div className="mt-3 grid gap-2">
@@ -597,7 +597,7 @@ function CompetitionMessageBox({
             </div>
           </div>
           <div className="rounded-[24px] border border-[#e6b8a2]/50 bg-[#e6b8a2]/15 p-4 dark:border-[#e6b8a2]/30 dark:bg-[#e6b8a2]/10">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
               Next Target
             </p>
             <p className="mt-2 text-base font-black leading-6 text-slate-950 dark:text-white">
@@ -701,7 +701,7 @@ function QuestionReviewTab({
             >
               <div className="mb-4 flex flex-col gap-2 rounded-[22px] border border-[#7a1f58]/15 bg-white/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
                     Section Review
                   </p>
                   <h3 className="text-lg font-black text-slate-950 dark:text-white">
@@ -901,7 +901,7 @@ function MetricCard({
       <div className="inline-flex rounded-2xl bg-[#7a1f58]/5 p-2 text-[#7a1f58] dark:bg-rose-400/10 dark:text-rose-100">
         {icon}
       </div>
-      <p className="mt-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:text-slate-300">
+      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 dark:text-slate-300">
         {label}
       </p>
       <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
