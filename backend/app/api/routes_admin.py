@@ -25,7 +25,7 @@ from app.core.config import (
 from app.core.security import hash_password
 from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
-from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam
+from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam, CompetitionMockAssignment
 from app.services.assignment_service import create_assignment
 from app.services.attempt_service import result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, ClearedConceptAttempts, CurrentOperationalAttempts, NeedsReattemptAttempts
