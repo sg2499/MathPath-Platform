@@ -1083,7 +1083,7 @@ export function StudentSummaryTable({
                   aria-label="Open student details"
                 >
                   {student.studentName}{" "}
-                  <span className="text-slate-400">
+                  <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[var(--math-role-primary)] dark:text-[var(--math-role-primary)]">
                     ({student.studentCode})
                   </span>
                 </button>

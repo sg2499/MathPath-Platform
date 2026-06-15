@@ -244,7 +244,7 @@ export function MasterDetailStudentLayout({
                     title="Open student details"
                     aria-label="Open student details"
                   >
-                    {student.studentName} <span className="text-slate-400">({student.studentCode})</span>
+                    {student.studentName} <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[var(--math-role-primary)] dark:text-[var(--math-role-primary)]">({student.studentCode})</span>
                   </button>
                   <p className="mt-1 text-sm font-semibold text-slate-500">{student.classLabel || "-"}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
