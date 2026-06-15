@@ -8,28 +8,94 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherCompetitionMockTracker, type TeacherCompetitionTrackerRow } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 
 type StatusFilter = "ALL" | "COMPLETED" | "PENDING";
 
-type SortKey = "mock" | "mockCode" | "status" | "score" | "accuracy" | "timeTaken" | "assignedDate" | "completionDate";
-type SortDirection = "asc" | "desc";
-type SortState = { key: SortKey; direction: SortDirection } | null;
 
-const MockTableColumns: Array<{ label: string; key?: SortKey; className?: string }> = [
-  { label: "MOCK", key: "mock" },
-  { label: "MOCK CODE", key: "mockCode" },
-  { label: "STATUS", key: "status" },
-  { label: "SCORE", key: "score" },
-  { label: "ACCURACY", key: "accuracy" },
-  { label: "TIME TAKEN", key: "timeTaken" },
-  { label: "ASSIGNED DATE", key: "assignedDate" },
-  { label: "COMPLETION DATE", key: "completionDate" },
-  { label: "REVIEW" },
-];
+
+function classNames(...classes: (string | undefined | null | false)[]) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function ConceptRow({
+  concept,
+  accuracy,
+  type,
+}: {
+  concept: string;
+  accuracy: number;
+  type: "strength" | "weakness";
+}) {
+  const isStrength = type === "strength";
+  return (
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white/40 p-4 transition-all duration-300 hover:scale-[1.02] hover:border-slate-300 hover:bg-white hover:shadow-lg dark:border-white/5 dark:bg-slate-900/40 dark:hover:border-white/10 dark:hover:bg-slate-900/80">
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-opacity duration-700 group-hover:animate-shimmer group-hover:opacity-100 dark:via-white/5" />
+      <div className="relative z-10 flex items-center justify-between gap-4">
+        <span className="truncate pr-4 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:translate-x-1 group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-white">
+          {concept}
+        </span>
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+            <div
+              className={classNames(
+                "h-full rounded-full transition-all duration-1000 ease-out",
+                isStrength
+                  ? "bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                  : "bg-gradient-to-r from-rose-400 to-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]"
+              )}
+              style={{ width: `${accuracy}%` }}
+            />
+          </div>
+          <span
+            className={classNames(
+              "w-10 text-right text-sm font-black",
+              isStrength
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400"
+            )}
+          >
+            {accuracy}%
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function computeLevelInsights(rows: any[]) {
+  const conceptStats = new Map<string, { total: number; correct: number }>();
+  for (const row of rows) {
+    if (String(row.status || "ASSIGNED").toUpperCase() !== "COMPLETED") continue;
+    if (!row.sectionPerformance || !Array.isArray(row.sectionPerformance)) continue;
+    for (const sec of row.sectionPerformance) {
+      if (!sec.conceptPerformance || !Array.isArray(sec.conceptPerformance)) continue;
+      for (const cp of sec.conceptPerformance) {
+        if (!cp.conceptName) continue;
+        const stats = conceptStats.get(cp.conceptName) || { total: 0, correct: 0 };
+        stats.total += Number(cp.totalQuestions || 0);
+        stats.correct += Number(cp.correctQuestions || 0);
+        conceptStats.set(cp.conceptName, stats);
+      }
+    }
+  }
+
+  const concepts: { name: string; accuracy: number; total: number }[] = [];
+  for (const [name, stats] of conceptStats.entries()) {
+    if (stats.total > 0) {
+      concepts.push({ name, accuracy: Math.round((stats.correct / stats.total) * 100), total: stats.total });
+    }
+  }
+
+  const strongConcepts = concepts.filter((c) => c.accuracy >= 70).sort((a, b) => b.accuracy - a.accuracy).slice(0, 5);
+  const weakConcepts = concepts.filter((c) => c.accuracy < 70).sort((a, b) => a.accuracy - b.accuracy).slice(0, 5);
+
+  return { strongConcepts, weakConcepts };
+}
+
 
 function FormatDate(Value?: string | null) {
   if (!Value) return "-";
@@ -155,75 +221,18 @@ function ToggleExpanded(Setter: Dispatch<SetStateAction<Set<string>>>, Key: stri
 }
 
 
-function SortValue(Row: TeacherCompetitionTrackerRow, Key: SortKey): string | number {
-  if (Key === "mock") return Row.mockExam.title || "";
-  if (Key === "mockCode") return Row.mockExam.mockCode || "";
-  if (Key === "status") return IsCompleted(Row) ? 1 : 0;
-  if (Key === "score") return ScorePercentage(Row) ?? -1;
-  if (Key === "accuracy") return IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : -1;
-  if (Key === "timeTaken") return IsCompleted(Row) && Row.timeTakenSeconds != null ? Number(Row.timeTakenSeconds) : -1;
-  if (Key === "assignedDate") {
-    const Time = Row.assignedAt ? new Date(Row.assignedAt).getTime() : 0;
-    return Number.isNaN(Time) ? 0 : Time;
-  }
-  if (Key === "completionDate") {
-    const Time = Row.submittedAt ? new Date(Row.submittedAt).getTime() : 0;
-    return Number.isNaN(Time) ? 0 : Time;
-  }
-  return "";
-}
+
 
 function ChronologicalSortValue(Row: TeacherCompetitionTrackerRow): number {
   const AssignedTime = Row.assignedAt ? new Date(Row.assignedAt).getTime() : 0;
   return Number.isNaN(AssignedTime) ? 0 : AssignedTime;
 }
 
-function SortRows(Rows: TeacherCompetitionTrackerRow[], Sort: SortState) {
-  const ChronologicalRows = [...Rows].sort((Left, Right) => {
-    const DateResult = ChronologicalSortValue(Left) - ChronologicalSortValue(Right);
-    if (DateResult !== 0) return DateResult;
 
-    const MockCodeResult = String(Left.mockExam.mockCode || "").localeCompare(String(Right.mockExam.mockCode || ""), undefined, {
-      numeric: true,
-      sensitivity: "base",
-    });
-    if (MockCodeResult !== 0) return MockCodeResult;
 
-    return String(Left.mockExam.title || "").localeCompare(String(Right.mockExam.title || ""), undefined, {
-      numeric: true,
-      sensitivity: "base",
-    });
-  });
 
-  if (!Sort) return ChronologicalRows;
 
-  return ChronologicalRows.sort((Left, Right) => {
-    const LeftValue = SortValue(Left, Sort.key);
-    const RightValue = SortValue(Right, Sort.key);
-    let Result = 0;
 
-    if (typeof LeftValue === "number" && typeof RightValue === "number") {
-      Result = LeftValue - RightValue;
-    } else {
-      Result = String(LeftValue).localeCompare(String(RightValue), undefined, { numeric: true, sensitivity: "base" });
-    }
-
-    return Sort.direction === "asc" ? Result : -Result;
-  });
-}
-
-function NextSortState(Current: SortState, Key: SortKey): SortState {
-  if (!Current || Current.key !== Key) return { key: Key, direction: "asc" };
-  if (Current.direction === "asc") return { key: Key, direction: "desc" };
-  return null;
-}
-
-function SortIndicator({ Sort, ColumnKey }: { Sort: SortState; ColumnKey: SortKey }) {
-  if (!Sort || Sort.key !== ColumnKey) {
-    return <span className="math-tc-mock-header-sort-inactive">↕</span>;
-  }
-  return <span className="math-tc-mock-header-sort-active">{Sort.direction === "asc" ? "↑" : "↓"}</span>;
-}
 
 type MockLevelGroup = {
   key: string;
@@ -339,7 +348,7 @@ function TeacherCompetitionDarkHoverStyles() {
   );
 }
 
-function TeacherCompetitionMockTrackerContent() {
+function TeacherCompetitionProgressContent() {
   useProtectedPage(["TEACHER"]);
   const [SearchText, SetSearchText] = useState("");
   const [ModuleFilter, SetModuleFilter] = useState("ALL");
@@ -348,10 +357,9 @@ function TeacherCompetitionMockTrackerContent() {
   const [ExpandedStudents, SetExpandedStudents] = useState<Set<string>>(() => new Set());
   const [ExpandedModules, SetExpandedModules] = useState<Set<string>>(() => new Set());
   const [ExpandedLevels, SetExpandedLevels] = useState<Set<string>>(() => new Set());
-  const [MockTableSort, SetMockTableSort] = useState<SortState>(null);
-  const router = useRouter();
+    const router = useRouter();
 
-  const Query = useQuery({ queryKey: ["teacher", "competition", "mock-tracker"], queryFn: getTeacherCompetitionMockTracker });
+  const Query = useQuery({ queryKey: ["teacher", "competition", "progress"], queryFn: getTeacherCompetitionMockTracker });
 
   const Rows = Query.data?.rows || [];
 
@@ -441,14 +449,14 @@ function TeacherCompetitionMockTrackerContent() {
 
 
   return (
-    <AppShell title="Competition Mock Tracker">
+    <AppShell title="Mock Performance Insights">
       <TeacherCompetitionDarkHoverStyles />
       <section className="teacher-competition-dark-hover-scope space-y-6">
         <div className="math-card p-6 sm:p-8">
           <p className="math-kicker">Competition</p>
-          <h1 className="math-title">Competition Mock Tracker</h1>
+          <h1 className="math-title">Mock Performance Insights</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
-            Monitor Admin-assigned mock exams, student completion, scores, accuracy, timing, strengths, and weak areas. Teachers review only; assignment remains Admin-controlled.
+            Monitor student performance, strengths, and areas to improve.
           </p>
         </div>
 
@@ -609,67 +617,59 @@ function TeacherCompetitionMockTrackerContent() {
                                               </button>
 
                                               {LevelOpen ? (
-                                                <div className="border-t border-slate-100 p-3 dark:border-white/10">
-                                                  <div className="overflow-hidden rounded-2xl border border-[#7a1f58]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
-                                                    <div className="math-tc-mock-header-row grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-0">
-                                                      {MockTableColumns.map((Column) => (
-                                                        <div key={Column.label} className="math-tc-mock-header-cell px-3 py-3">
-                                                          {Column.key ? (
-                                                            <button
-                                                              type="button"
-                                                              onClick={() => SetMockTableSort((Current) => NextSortState(Current, Column.key!))}
-                                                              className="math-tc-mock-header-sort-btn inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition focus:outline-none focus:ring-2"
-                                                              aria-label={`Sort by ${Column.label}`}
-                                                            >
-                                                              <span>{Column.label}</span>
-                                                              <SortIndicator Sort={MockTableSort} ColumnKey={Column.key} />
-                                                            </button>
-                                                          ) : (
-                                                            Column.label
-                                                          )}
-                                                        </div>
-                                                      ))}
-                                                    </div>
-                                                    <div className="divide-y divide-slate-100 dark:divide-white/10">
-                                                      {SortRows(LevelGroup.rows, MockTableSort).map((Row) => (
-                                                        <div
-                                                          key={Row.assignmentId}
-                                                          role={Row.attemptId ? "button" : undefined}
-                                                          tabIndex={Row.attemptId ? 0 : -1}
-                                                          onClick={() => Row.attemptId ? router.push(`/teacher/competition/mock-result/${Row.attemptId}`) : undefined}
-                                                          onKeyDown={(Event) => {
-                                                            if (Row.attemptId && (Event.key === "Enter" || Event.key === " ")) {
-                                                              Event.preventDefault();
-                                                              router.push(`/teacher/competition/mock-result/${Row.attemptId}`);
-                                                            }
-                                                          }}
-                                                          className={`tc-dark-hover-row group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
-                                                        >
-                                                          <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</div>
-                                                          <div className="px-3 py-4 text-xs font-black text-slate-950 dark:text-white">{Row.mockExam.mockCode || "-"}</div>
-                                                          <div className="px-3 py-4">
-                                                            <Chip tone={StatusTone(Row.status)}>{StatusLabel(Row.status)}</Chip>
+                                                <div className="border-t border-slate-100 p-3 dark:border-white/10 space-y-4">
+                                                  {(() => {
+                                                    const insight = computeLevelInsights(LevelGroup.rows);
+                                                    if (insight.strongConcepts.length === 0 && insight.weakConcepts.length === 0) return null;
+                                                    return (
+                                                      <div className="grid gap-6 lg:grid-cols-2 animate-in fade-in slide-in-from-top-4 duration-500 ease-out">
+                                                        {insight.strongConcepts.length > 0 && (
+                                                          <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-emerald-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-emerald-500/10 dark:border-emerald-500/10 dark:bg-slate-950/60 sm:p-8">
+                                                            <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-emerald-400/20" />
+                                                            <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-emerald-300/10 blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-emerald-300/20" />
+                                                            <div className="relative mb-6 flex items-center gap-4">
+                                                              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30">
+                                                                <CheckCircle2 size={28} className="drop-shadow-sm" />
+                                                              </div>
+                                                              <div>
+                                                                <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Strengths</h2>
+                                                                <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Excellent performance areas</p>
+                                                              </div>
+                                                            </div>
+                                                            <div className="relative flex flex-col gap-3">
+                                                              {insight.strongConcepts.map((concept, idx) => (
+                                                                <div key={idx} className="animate-in slide-in-from-right-4 fade-in fill-mode-backwards" style={{ animationDelay: `${idx * 100}ms` }}>
+                                                                  <ConceptRow concept={concept.name} accuracy={concept.accuracy} type="strength" />
+                                                                </div>
+                                                              ))}
+                                                            </div>
                                                           </div>
-                                                          <div className="px-3 py-4">
-                                                            <Chip tone={AccuracyBandTone(ScorePercentage(Row))}>
-                                                              {ScoreText(Row)}
-                                                            </Chip>
+                                                        )}
+                                                        {insight.weakConcepts.length > 0 && (
+                                                          <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-rose-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-rose-500/10 dark:border-rose-500/10 dark:bg-slate-950/60 sm:p-8">
+                                                            <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-rose-400/10 blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-rose-400/20" />
+                                                            <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-rose-300/10 blur-3xl transition-all duration-500 group-hover:scale-150 group-hover:bg-rose-300/20" />
+                                                            <div className="relative mb-6 flex items-center gap-4">
+                                                              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-400 to-rose-600 text-white shadow-lg shadow-rose-500/30">
+                                                                <AlertTriangle size={28} className="drop-shadow-sm" />
+                                                              </div>
+                                                              <div>
+                                                                <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Areas to Improve</h2>
+                                                                <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Concepts needing practice</p>
+                                                              </div>
+                                                            </div>
+                                                            <div className="relative flex flex-col gap-3">
+                                                              {insight.weakConcepts.map((concept, idx) => (
+                                                                <div key={idx} className="animate-in slide-in-from-right-4 fade-in fill-mode-backwards" style={{ animationDelay: `${idx * 100}ms` }}>
+                                                                  <ConceptRow concept={concept.name} accuracy={concept.accuracy} type="weakness" />
+                                                                </div>
+                                                              ))}
+                                                            </div>
                                                           </div>
-                                                          <div className="px-3 py-4">
-                                                            <Chip tone={AccuracyBandTone(IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : null)}>
-                                                              {IsCompleted(Row) ? PercentValue(Row.accuracyPercentage) : "-"}
-                                                            </Chip>
-                                                          </div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{FormatDate(Row.assignedAt)}</div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? FormatDate(Row.submittedAt) : "-"}</div>
-                                                          <div className="px-3 py-4">
-                                                            <ReviewButton Row={Row} />
-                                                          </div>
-                                                        </div>
-                                                      ))}
-                                                    </div>
-                                                  </div>
+                                                        )}
+                                                      </div>
+                                                    );
+                                                  })()}
                                                 </div>
                                               ) : null}
                                             </div>
@@ -706,6 +706,6 @@ function MiniMetric({ Label, Value }: { Label: string; Value: string | number })
 }
 
 
-export default function TeacherCompetitionMockTrackerPage() {
-  return <TeacherCompetitionMockTrackerContent />;
+export default function TeacherCompetitionProgressPage() {
+  return <TeacherCompetitionProgressContent />;
 }

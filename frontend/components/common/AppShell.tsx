@@ -375,6 +375,13 @@ export function AppShell({
           icon: BarChart3,
           tooltip: "Track competition mock performance",
         },
+        {
+          label: "Mock Performance Insights",
+          shortLabel: "Insights",
+          href: "/admin/competition/progress",
+          icon: BarChart3,
+          tooltip: "Track mock strengths and weak areas",
+        },
       ],
     },
     {
@@ -477,6 +484,13 @@ export function AppShell({
           href: "/teacher/competition/mock-tracker",
           icon: BarChart3,
           tooltip: "Review assigned mock exam performance",
+        },
+        {
+          label: "Mock Performance Insights",
+          shortLabel: "Insights",
+          href: "/teacher/competition/progress",
+          icon: BarChart3,
+          tooltip: "Track mock strengths and weak areas",
         },
       ],
     },
