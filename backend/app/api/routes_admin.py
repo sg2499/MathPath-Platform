@@ -5576,7 +5576,26 @@ def admin_competition_mock_tracker(db: Session = Depends(get_db), user: User = D
         "rows": rows,
     }
 
+
+@router.delete("/competition/mock-tracker/assignment/{assignment_id}")
+def admin_delete_competition_mock_assignment(assignment_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    assignment = db.get(CompetitionMockAssignment, assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Mock assignment not found.")
+    assignment.is_active = False
+    db.commit()
+    return {"status": "success", "message": "Assignment deleted successfully."}
+
+@router.delete("/competition/mock-tracker/student/{student_id}")
+def admin_delete_competition_mock_student(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    assignments = db.query(CompetitionMockAssignment).filter(CompetitionMockAssignment.student_id == student_id).all()
+    for assignment in assignments:
+        assignment.is_active = False
+    db.commit()
+    return {"status": "success", "message": f"Deleted {len(assignments)} assignments for student."}
+
 @router.get("/competition/mock-attempts/{attempt_id}/result")
+
 def admin_get_competition_mock_result(attempt_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return GetCompetitionMockResultForAdmin(db, attempt_id)
 

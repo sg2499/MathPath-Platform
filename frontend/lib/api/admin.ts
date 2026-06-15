@@ -1370,7 +1370,19 @@ export async function getAdminCompetitionMockTracker(): Promise<{ rows: AdminCom
   return data;
 }
 
+
+export async function deleteAdminCompetitionMockAssignment(assignmentId: string) {
+  const { data } = await api.delete(`/admin/competition/mock-tracker/assignment/${assignmentId}`);
+  return data;
+}
+
+export async function deleteAdminCompetitionMockStudent(studentId: string) {
+  const { data } = await api.delete(`/admin/competition/mock-tracker/student/${studentId}`);
+  return data;
+}
+
 export async function getAdminCompetitionMockResult(attemptId: string) {
+
   const { data } = await api.get(`/admin/competition/mock-attempts/${attemptId}/result`);
   return data;
 }
