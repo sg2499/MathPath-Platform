@@ -1105,8 +1105,8 @@ function ExcellenceHighlightsList({
                     <div className="min-w-0">
                       <p className="text-sm font-black text-slate-950 dark:text-white">
                         {studentNameOf(Row)}{" "}
-                        <span className="text-slate-400">
-                          ({studentCodeOf(Row)})
+                        <span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
+                          {studentCodeOf(Row)}
                         </span>
                       </p>
                       <p className="mt-1 text-xs font-bold text-slate-500">
@@ -1494,9 +1494,9 @@ function StudentReviewTab({
                 >
                   {Student.studentName}
                 </button>
-                <p className="mt-1 truncate text-xs font-semibold text-slate-500">
-                  {Student.studentCode}
-                </p>
+                <p className="mt-1 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
+                                {Student.studentCode}
+                              </p>
               </div>
               <div className="text-center text-sm font-bold text-slate-600">
                 {StudentPrimaryModule(Student)}

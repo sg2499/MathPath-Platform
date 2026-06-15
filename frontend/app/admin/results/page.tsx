@@ -1802,9 +1802,9 @@ function LearningPerformanceTable({
                   <p className="font-black">
                     {PickFirstString(Row, ["studentName"], "-")}
                   </p>
-                  <p className="text-xs text-slate-500">
-                    {PickFirstString(Row, ["studentCode"], "-")}
-                  </p>
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
+                                    {PickFirstString(Row, ["studentCode"], "-")}
+                                  </p>
                 </td>
                 <td>
                   <p className="font-black">
