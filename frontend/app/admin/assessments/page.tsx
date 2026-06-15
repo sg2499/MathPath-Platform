@@ -4732,7 +4732,7 @@ function ParentReportDeliveryHistoryTable({
                 {[
                   [
                     "Student",
-                    <>{DeleteItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({DeleteItem.studentCode})</span></>,
+                    <>{DeleteItem.studentName} <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({DeleteItem.studentCode})</span></>,
                   ],
                   ["Report Level", DeleteItem.levelLabel],
                   [
@@ -4803,7 +4803,7 @@ function ParentReportDeliveryHistoryTable({
                 {[
                   [
                     "Student",
-                    <>{ResendItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({ResendItem.studentCode})</span></>,
+                    <>{ResendItem.studentName} <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({ResendItem.studentCode})</span></>,
                   ],
                   ["Module", ResendItem.moduleLabel],
                   ["Report Level", ResendItem.levelLabel],

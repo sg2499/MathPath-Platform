@@ -133,7 +133,7 @@ export default function AdminAssessmentDetailPage() {
                       <tr key={row.studentId}>
                         <td>
                           <p className="font-black text-slate-950">{row.studentName}</p>
-                          <p className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{row.studentCode}</p>
+                          <p className="mt-0.5 text-[11px] font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{row.studentCode}</p>
                         </td>
                         <td>
                           <span className={`math-badge ${
