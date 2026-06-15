@@ -256,7 +256,7 @@ function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string
         <span className="tc-dark-hover-control inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[#7a1f58]/20 bg-[#7a1f58]/5 text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
           <Icon size={15} />
         </span>
-        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:text-rose-100">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:text-rose-100">
           {Label}
         </p>
       </div>

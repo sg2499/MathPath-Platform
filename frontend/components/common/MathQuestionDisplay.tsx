@@ -133,7 +133,7 @@ function FinancialTableQuestion({ operands, operators, questionText }: { operand
     <div className="mx-auto w-full max-w-2xl rounded-[24px] bg-white px-5 py-6 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-7">
       {questionText ? <p className="mb-4 text-center text-base font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200">{questionText}</p> : null}
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-        <div className="grid bg-slate-100 text-center text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs" style={GridTemplateColumns}>
+        <div className="grid bg-slate-100 text-center text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs" style={GridTemplateColumns}>
           {Array.from({ length: ColumnCount }).map((_, Index) => (
             <div key={`financial-label-${Index}`} className="border-r border-slate-200 px-3 py-3 last:border-r-0 dark:border-slate-700">
               {Labels[Index] || `Value ${Index + 1}`}
@@ -170,7 +170,7 @@ function CompactTwoColumnQuestion({
     <div className="mx-auto w-full max-w-md rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
       {questionText ? <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">{questionText}</p> : null}
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-        <div className="grid grid-cols-2 bg-slate-100 text-center text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
+        <div className="grid grid-cols-2 bg-slate-100 text-center text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
           <div className="border-r border-slate-200 px-4 py-3 dark:border-slate-700">{Labels[0] || "Value 1"}</div>
           <div className="px-4 py-3">{Labels[1] || "Value 2"}</div>
         </div>
@@ -259,7 +259,7 @@ function PositionNumberTableQuestion({
         {questionText?.trim() || "Write the Number from the Given Position"}
       </p>
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-        <div className="grid grid-cols-2 bg-slate-100 text-center text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
+        <div className="grid grid-cols-2 bg-slate-100 text-center text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
           <div className="border-r border-slate-200 px-4 py-3 dark:border-slate-700">{Labels[0] || "Position"}</div>
           <div className="px-4 py-3">{Labels[1] || "Number"}</div>
         </div>
@@ -290,7 +290,7 @@ function FirstNaturalNumberCardQuestion({ operands, questionText }: { operands: 
         {questionText?.trim() || "Find the position of the first natural number"}
       </p>
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-        <div className="bg-slate-100 px-4 py-3 text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
+        <div className="bg-slate-100 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
           Number
         </div>
         <div className="px-5 py-6 text-center font-mono text-3xl font-black leading-none sm:text-4xl">

@@ -188,7 +188,7 @@ function MockQuestionRenderer({ question, mock, compact = false }: { question: C
   return (
     <div className="mx-auto w-full max-w-md overflow-hidden rounded-[22px] border border-slate-200 bg-white text-center shadow-inner dark:border-slate-700 dark:bg-slate-950/70">
       <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
-        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">{positionalPromptTitle}</p>
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">{positionalPromptTitle}</p>
       </div>
       <div className="px-4 py-5">{renderedQuestion}</div>
     </div>
@@ -543,7 +543,7 @@ function DetailMetric({ icon, label, value, helper }: { icon: ReactNode; label: 
         <p className="text-xl font-black text-slate-950 dark:text-white">{value}</p>
       </div>
       <p className="relative z-10 mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">{label}</p>
-      <p className="relative z-10 mt-0.5 text-[11px] font-bold text-slate-800 dark:text-slate-200">{helper}</p>
+      <p className="relative z-10 mt-0.5 text-xs font-bold text-slate-800 dark:text-slate-200">{helper}</p>
     </div>
   );
 }

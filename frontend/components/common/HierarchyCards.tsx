@@ -213,7 +213,7 @@ export function LevelStrip({
 }) {
   return (
     <section className="math-level-strip rounded-[26px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-      {kicker ? <p className="text-[11px] font-black uppercase tracking-[0.18em] text-cyan-600">{kicker}</p> : null}
+      {kicker ? <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600">{kicker}</p> : null}
       <h3 className="mt-1 text-base font-black text-slate-950 dark:text-white">{title}</h3>
       {subtitle ? <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">{subtitle}</p> : null}
       {children ? <div className="mt-4 space-y-3">{children}</div> : null}

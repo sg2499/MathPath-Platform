@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 
 type AnyRow = Record<string, any>;
 
@@ -200,6 +201,8 @@ export function MasterDetailStudentLayout({
 }: MasterDetailProps) {
   const [selected, setSelected] = useState<StudentNode | null>(null);
   const [drawerTab, setDrawerTab] = useState<"overview" | "lessons" | "attempts" | "actions">("overview");
+  const pathname = usePathname();
+  const studentCodeColor = pathname?.startsWith("/admin") ? "text-[#2563eb] dark:text-cyan-100" : "text-[#7a1f58] dark:text-rose-100";
 
   const labels = mode.includes("assessment")
     ? {
@@ -218,7 +221,7 @@ export function MasterDetailStudentLayout({
   return (
     <>
       <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="grid grid-cols-[1.4fr_.65fr_.65fr_.65fr_.65fr_.75fr_150px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="grid grid-cols-[1.4fr_.65fr_.65fr_.65fr_.65fr_.75fr_150px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
           <div>Student</div>
           <div>{labels.total}</div>
           <div>Cleared</div>
@@ -244,7 +247,7 @@ export function MasterDetailStudentLayout({
                     title="Open student details"
                     aria-label="Open student details"
                   >
-                    {student.studentName} <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[var(--math-role-primary)] dark:text-[var(--math-role-primary)]">({student.studentCode})</span>
+                    {student.studentName} <span className={`text-xs font-black uppercase tracking-[0.12em] ${studentCodeColor}`}>({student.studentCode})</span>
                   </button>
                   <p className="mt-1 text-sm font-semibold text-slate-500">{student.classLabel || "-"}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -320,6 +323,9 @@ function StudentDetailDrawer({
 }) {
   const rows = flattenStudent(student);
   const stats = studentStats(student);
+  const [, setFilterSearch] = useState("");
+  const pathname = usePathname();
+  const studentCodeColor = pathname?.startsWith("/admin") ? "text-[#2563eb] dark:text-cyan-100" : "text-[#7a1f58] dark:text-rose-100";
 
   const lessons = useMemo(() => {
     const map = new Map<string, AnyRow[]>();

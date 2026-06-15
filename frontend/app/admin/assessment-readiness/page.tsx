@@ -602,7 +602,7 @@ export default function AdminAssessmentReadinessPage() {
                 title={
                   <>
                     {row.studentName}{" "}
-                    <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({row.studentCode})</span>
+                    <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({row.studentCode})</span>
                   </>
                 }
                 subtitle={undefined}
@@ -1364,7 +1364,7 @@ function TestingOverrideModal({
 
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Info label="Student" value={<>{row.studentName} <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({row.studentCode})</span></>} />
+            <Info label="Student" value={<>{row.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({row.studentCode})</span></>} />
             <Info label="Module" value={row.moduleName || row.moduleCode || "Module"} />
             <Info label="Level" value={`${row.levelCode || "Level"}${row.levelName ? ` - ${row.levelName}` : ""}`} />
             <Info label="Readiness" value={row.statusLabel} />

@@ -256,7 +256,7 @@ function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string
         <span className="tc-dark-hover-control inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[#2563eb]/20 bg-[#2563eb]/5 text-[#2563eb] dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-100">
           <Icon size={15} />
         </span>
-        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">
           {Label}
         </p>
       </div>
@@ -641,7 +641,7 @@ function AdminCompetitionMockTrackerContent() {
                                               {LevelOpen ? (
                                                 <div className="border-t border-slate-100 p-3 dark:border-white/10">
                                                   <div className="overflow-hidden rounded-2xl border border-[#2563eb]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
-                                                    <div className="math-admin-light-student-summary-header grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+                                                    <div className="math-admin-light-student-summary-header grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
                                                       {MockTableColumns.map((Column) => (
                                                         <div key={Column.label} className="flex items-center gap-1.5">
                                                           {Column.key ? (

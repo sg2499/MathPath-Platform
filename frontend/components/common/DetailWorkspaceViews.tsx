@@ -30,6 +30,7 @@ import {
   Trash2,
   TrendingUp,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -814,7 +815,7 @@ export function Metric({
             {icon}
           </span>
         ) : null}
-        <p className="text-[11px] font-black uppercase tracking-[0.14em]">
+        <p className="text-xs font-black uppercase tracking-[0.14em]">
           {label}
         </p>
       </div>
@@ -993,6 +994,8 @@ export function StudentSummaryTable({
   const [SortKey, SetSortKey] = useState<StudentSummarySortKey | null>(null);
   const [SortDirection, SetSortDirection] =
     useState<StudentSummarySortDirection>("asc");
+  const pathname = usePathname();
+  const studentCodeColor = pathname?.startsWith("/admin") ? "text-[#2563eb] dark:text-cyan-100" : "text-[#7a1f58] dark:text-rose-100";
 
   const SortedStudents = useMemo(() => {
     const DefaultSorted = [...students].sort((FirstStudent, SecondStudent) =>
@@ -1056,7 +1059,7 @@ export function StudentSummaryTable({
 
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-admin-light-student-summary-header grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="math-admin-light-student-summary-header grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <SortHeader label="Student" sortKey="student" />
         <SortHeader label="Assigned DPS" sortKey="assigned" />
         <SortHeader label="Cleared DPS" sortKey="completed" />
@@ -1083,7 +1086,7 @@ export function StudentSummaryTable({
                   aria-label="Open student details"
                 >
                   {student.studentName}{" "}
-                  <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[var(--math-role-primary)] dark:text-[var(--math-role-primary)]">
+                  <span className={`text-xs font-black uppercase tracking-[0.12em] ${studentCodeColor}`}>
                     ({student.studentCode})
                   </span>
                 </button>
