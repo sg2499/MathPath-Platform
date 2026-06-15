@@ -5508,3 +5508,47 @@ def admin_list_competition_mock_assignments(
         )
     }
 
+
+from app.api.routes_teacher import _teacher_competition_row_payload, _competition_duration_text
+from app.services.competition_mock_attempt_service import GetCompetitionMockResultForAdmin
+
+@router.get("/competition/mock-tracker")
+def admin_competition_mock_tracker(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    assignments = (
+        db.query(CompetitionMockAssignment)
+        .join(CompetitionMockExam, CompetitionMockAssignment.mock_exam_id == CompetitionMockExam.id)
+        .filter(
+            CompetitionMockAssignment.is_active == True,
+            CompetitionMockExam.is_active == True,
+            CompetitionMockExam.status != "ARCHIVED",
+        )
+        .order_by(CompetitionMockAssignment.assigned_at.desc())
+        .limit(1000)
+        .all()
+    )
+    rows = [row for row in (_teacher_competition_row_payload(db, assignment) for assignment in assignments) if row]
+    completed = [row for row in rows if row.get("status") == "COMPLETED"]
+    pending = [row for row in rows if row.get("status") in {"ASSIGNED", "PENDING"}]
+    in_progress = [row for row in rows if row.get("status") == "IN_PROGRESS"]
+    avg_score = round(sum(float(row.get("percentage") or 0) for row in completed) / len(completed), 2) if completed else 0
+    avg_accuracy = round(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed), 2) if completed else 0
+    time_values = [int(row.get("timeTakenSeconds") or 0) for row in completed if row.get("timeTakenSeconds") is not None]
+    avg_time = round(sum(time_values) / len(time_values)) if time_values else None
+    return {
+        "summary": {
+            "assignedCount": len(rows),
+            "completedCount": len(completed),
+            "pendingCount": len(pending),
+            "inProgressCount": len(in_progress),
+            "averageScore": avg_score,
+            "averageAccuracy": avg_accuracy,
+            "averageTimeTakenSeconds": avg_time,
+            "averageTimeTakenText": _competition_duration_text(avg_time),
+        },
+        "rows": rows,
+    }
+
+@router.get("/competition/mock-attempts/{attempt_id}/result")
+def admin_get_competition_mock_result(attempt_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GetCompetitionMockResultForAdmin(db, attempt_id)
+
