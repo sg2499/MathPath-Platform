@@ -20,4 +20,11 @@
 - *(Awaiting user's next objective for the Mock Exam and Competition Phase)*
 
 ---
-> **Agent Directive:** This file is the single source of truth for the platform's current state. Read this file at the beginning of every session and update it comprehensively at the end of every session.
+> **CRITICAL AGENT WAKE-UP DIRECTIVE:** This file is the single source of truth for the platform's current state. Read this file at the beginning of every session.
+> 
+> **UPON WAKING UP IN A NEW SESSION, YOU MUST IMMEDIATELY:**
+> 1. Read `.mathpath/STATE.yaml` to identify the `active_package`.
+> 2. Read the corresponding package markdown file from `.mathpath/packages/`.
+> 3. Read `.mathpath/rules/global.md` for strict stylistic and logical constraints.
+> 
+> *DO NOT ask the user for the package plan or rules. Read the MathPath Brain first.*
