@@ -5514,6 +5514,7 @@ from app.services.competition_mock_attempt_service import GetCompetitionMockResu
 
 @router.get("/competition/mock-tracker")
 def admin_competition_mock_tracker(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.api.routes_admin import clean_text
     assignments = (
         db.query(CompetitionMockAssignment)
         .join(CompetitionMockExam, CompetitionMockAssignment.mock_exam_id == CompetitionMockExam.id)
@@ -5526,7 +5527,34 @@ def admin_competition_mock_tracker(db: Session = Depends(get_db), user: User = D
         .limit(1000)
         .all()
     )
-    rows = [row for row in (_teacher_competition_row_payload(db, assignment) for assignment in assignments) if row]
+    rows = []
+    for assignment in assignments:
+        row = _teacher_competition_row_payload(db, assignment)
+        if not row:
+            continue
+        student = db.get(Student, assignment.student_id)
+        teacher_name = None
+        teacher_code = None
+        if student:
+            StoredTeacherName = clean_text(student.teacher) if hasattr(student, "teacher") else None
+            TargetTeacher = None
+            if hasattr(student, "teacher_id") and getattr(student, "teacher_id", None):
+                TargetTeacher = db.get(Teacher, getattr(student, "teacher_id"))
+            if not TargetTeacher and StoredTeacherName:
+                TargetTeacher = (
+                    db.query(Teacher)
+                    .join(User, Teacher.user_id == User.id)
+                    .filter(User.full_name == StoredTeacherName)
+                    .first()
+                )
+            TargetTeacherUser = db.get(User, TargetTeacher.user_id) if TargetTeacher else None
+            teacher_name = TargetTeacherUser.full_name if TargetTeacherUser else StoredTeacherName
+            teacher_code = TargetTeacher.teacher_code if TargetTeacher else None
+        
+        row["teacherName"] = teacher_name
+        row["teacherCode"] = teacher_code
+        rows.append(row)
+
     completed = [row for row in rows if row.get("status") == "COMPLETED"]
     pending = [row for row in rows if row.get("status") in {"ASSIGNED", "PENDING"}]
     in_progress = [row for row in rows if row.get("status") == "IN_PROGRESS"]
