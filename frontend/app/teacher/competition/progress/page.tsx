@@ -67,16 +67,15 @@ function computeLevelInsights(rows: any[]) {
   const conceptStats = new Map<string, { total: number; correct: number }>();
   for (const row of rows) {
     if (String(row.status || "ASSIGNED").toUpperCase() !== "COMPLETED") continue;
+    
+    // The backend returns sectionPerformance as a flat array of { concept, correct, total, percentage }
     if (!row.sectionPerformance || !Array.isArray(row.sectionPerformance)) continue;
-    for (const sec of row.sectionPerformance) {
-      if (!sec.conceptPerformance || !Array.isArray(sec.conceptPerformance)) continue;
-      for (const cp of sec.conceptPerformance) {
-        if (!cp.conceptName) continue;
-        const stats = conceptStats.get(cp.conceptName) || { total: 0, correct: 0 };
-        stats.total += Number(cp.totalQuestions || 0);
-        stats.correct += Number(cp.correctQuestions || 0);
-        conceptStats.set(cp.conceptName, stats);
-      }
+    for (const cp of row.sectionPerformance) {
+      if (!cp.concept) continue;
+      const stats = conceptStats.get(cp.concept) || { total: 0, correct: 0 };
+      stats.total += Number(cp.total || 0);
+      stats.correct += Number(cp.correct || 0);
+      conceptStats.set(cp.concept, stats);
     }
   }
 
