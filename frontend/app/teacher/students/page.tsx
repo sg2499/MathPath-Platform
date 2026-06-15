@@ -570,7 +570,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
           />
           <div>
             <p className="font-black text-slate-950 dark:text-white">{student.studentName}</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{student.studentCode}</p>
+            <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</p>
           </div>
         </div>
       </td>
