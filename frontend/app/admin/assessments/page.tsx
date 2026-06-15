@@ -2221,9 +2221,9 @@ function AdminAssessmentStudentTable({
                   <p className="truncate text-base font-black text-slate-950 dark:text-white">
                     {Student.studentName}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-slate-500">
-                    {Student.studentCode}
-                  </p>
+                  <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
+                      {Student.studentCode}
+                    </p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -4563,9 +4563,9 @@ function ParentReportDeliveryHistoryTable({
                       <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">
                         Student Code
                       </p>
-                      <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">
-                        {DetailItem.studentCode}
-                      </p>
+                      <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
+                                  {DetailItem.studentCode}
+                                </p>
                     </div>
                   </div>
                 </div>
@@ -4732,7 +4732,7 @@ function ParentReportDeliveryHistoryTable({
                 {[
                   [
                     "Student",
-                    `${DeleteItem.studentName} (${DeleteItem.studentCode})`,
+                    <>{DeleteItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({DeleteItem.studentCode})</span></>,
                   ],
                   ["Report Level", DeleteItem.levelLabel],
                   [
@@ -4743,9 +4743,12 @@ function ParentReportDeliveryHistoryTable({
                     "Status",
                     String(DeleteItem.status || "-").replace(/_/g, " "),
                   ],
-                ].map(([Label, Value]) => (
-                  <div
-                    key={Label}
+                ].map((item) => {
+                  const Label = item[0] as string;
+                  const Value = item[1] as React.ReactNode;
+                  return (
+                    <div
+                      key={Label}
                     className="math-confirm-summary-card"
                   >
                     <p className="math-confirm-label">
@@ -4755,7 +4758,8 @@ function ParentReportDeliveryHistoryTable({
                       {Value}
                     </p>
                   </div>
-                ))}
+                );
+                })}
               </div>
             </div>
             <div className="math-modal-footer">
@@ -4799,7 +4803,7 @@ function ParentReportDeliveryHistoryTable({
                 {[
                   [
                     "Student",
-                    `${ResendItem.studentName} (${ResendItem.studentCode})`,
+                    <>{ResendItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({ResendItem.studentCode})</span></>,
                   ],
                   ["Module", ResendItem.moduleLabel],
                   ["Report Level", ResendItem.levelLabel],
@@ -4811,9 +4815,12 @@ function ParentReportDeliveryHistoryTable({
                     "Original Status",
                     String(ResendItem.status || "-").replace(/_/g, " "),
                   ],
-                ].map(([Label, Value]) => (
-                  <div
-                    key={Label}
+                ].map((item) => {
+                  const Label = item[0] as string;
+                  const Value = item[1] as React.ReactNode;
+                  return (
+                    <div
+                      key={Label}
                     className="math-confirm-summary-card"
                   >
                     <p className="math-confirm-label">
@@ -4823,7 +4830,8 @@ function ParentReportDeliveryHistoryTable({
                       {Value}
                     </p>
                   </div>
-                ))}
+                );
+                })}
               </div>
               <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
                 <p className="text-[0.72rem] font-black uppercase tracking-[0.18em] text-slate-500">
@@ -5328,9 +5336,9 @@ function AssessmentManageTable({
                   <p className="truncate text-base font-black text-slate-950 dark:text-white">
                     {Student.studentName}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-slate-500">
-                    {Student.studentCode}
-                  </p>
+                  <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
+                      {Student.studentCode}
+                    </p>
                 </div>
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">

@@ -602,7 +602,7 @@ export default function AdminAssessmentReadinessPage() {
                 title={
                   <>
                     {row.studentName}{" "}
-                    <span className="text-slate-400">({row.studentCode})</span>
+                    <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{row.studentCode}</span>
                   </>
                 }
                 subtitle={undefined}
@@ -1364,7 +1364,7 @@ function TestingOverrideModal({
 
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Info label="Student" value={`${row.studentName} (${row.studentCode})`} />
+            <Info label="Student" value={<>{row.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({row.studentCode})</span></>} />
             <Info label="Module" value={row.moduleName || row.moduleCode || "Module"} />
             <Info label="Level" value={`${row.levelCode || "Level"}${row.levelName ? ` - ${row.levelName}` : ""}`} />
             <Info label="Readiness" value={row.statusLabel} />
@@ -1431,7 +1431,7 @@ function Metric({
   );
 }
 
-function Info({ label, value }: { label: string; value: string | number }) {
+function Info({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm transition dark:border-white/10 dark:bg-slate-900/80 dark:shadow-[0_18px_45px_rgba(2,6,23,0.28)]">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">

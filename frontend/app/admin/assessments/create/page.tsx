@@ -232,7 +232,7 @@ export default function CreateAssessmentPage() {
                 <SummaryItem
                   icon={assignedToType === "STUDENT" ? <UserRound size={18} /> : <UsersRound size={18} />}
                   label="Assigned To"
-                  value={assignedToType === "STUDENT" ? (selectedStudent ? `${selectedStudent.studentName} (${selectedStudent.studentCode})` : "Select student") : assignedToType === "LEVEL" ? (selectedLevel ? `${selectedLevel.levelCode} - Full Level` : "Selected level") : "Batch"}
+                  value={assignedToType === "STUDENT" ? (selectedStudent ? <>{selectedStudent.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({selectedStudent.studentCode})</span></> : "Select student") : assignedToType === "LEVEL" ? (selectedLevel ? `${selectedLevel.levelCode} - Full Level` : "Selected level") : "Batch"}
                 />
               </div>
 
@@ -270,7 +270,7 @@ function Field({ label, value, onChange, disabled = false, helperText }: { label
   );
 }
 
-function SummaryItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function SummaryItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-[22px] border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-900/60">
       <div className="flex items-start gap-3">
