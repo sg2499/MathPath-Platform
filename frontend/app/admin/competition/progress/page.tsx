@@ -573,7 +573,7 @@ function AdminCompetitionProgressContent() {
                               <h3 className="text-xl font-black text-slate-950 dark:text-white">
                                 {StudentGroup.student.studentName}
                               </h3>
-                              <p className="mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--math-role-primary)] dark:text-[var(--math-role-primary)]">
+                              <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
                                 {StudentGroup.student.studentCode}
                               </p>
                             </div>
