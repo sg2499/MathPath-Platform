@@ -86,8 +86,8 @@ function computeLevelInsights(rows: any[]) {
     }
   }
 
-  const strongConcepts = concepts.filter((c) => c.accuracy >= 70).sort((a, b) => b.accuracy - a.accuracy).slice(0, 5);
-  const weakConcepts = concepts.filter((c) => c.accuracy < 70).sort((a, b) => a.accuracy - b.accuracy).slice(0, 5);
+  const strongConcepts = concepts.filter((c) => c.accuracy >= 70).sort((a, b) => b.accuracy - a.accuracy);
+  const weakConcepts = concepts.filter((c) => c.accuracy < 70).sort((a, b) => a.accuracy - b.accuracy);
 
   return { strongConcepts, weakConcepts };
 }
