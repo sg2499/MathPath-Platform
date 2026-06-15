@@ -273,7 +273,7 @@ export default function StudentCompetitionMockExamsPage() {
           <MetricCard icon={<ClipboardPlus size={18} />} label="ASSIGNED" value={assignments.length} />
           <MetricCard icon={<PlayCircle size={18} />} label="PENDING" value={pendingCount} />
           <MetricCard icon={<CheckCircle2 size={18} />} label="COMPLETED" value={completedCount} />
-          <MetricCard icon={<Trophy size={18} />} label="AVG SCORE" value={avgScore === null ? "-" : FormatScore(avgScore, avgMaxScore)} />
+          <MetricCard icon={<Trophy size={18} />} label="AVG SCORE" value={avgScore === null ? "-" : FormatScore(avgScore)} />
           <MetricCard icon={<BarChart3 size={18} />} label="AVG ACCURACY" value={avgAccuracy === null ? "-" : `${FormatScore(avgAccuracy)}%`} />
         </div>
 
