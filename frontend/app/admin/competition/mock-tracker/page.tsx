@@ -4,6 +4,7 @@ import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { StandardViewButton } from "@/components/common/DetailWorkspaceViews";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAdminCompetitionMockTracker, type AdminCompetitionTrackerRow } from "@/lib/api/admin";
@@ -121,6 +122,7 @@ function ScoreText(Row: AdminCompetitionTrackerRow) {
 }
 
 function ReviewButton({ Row }: { Row: AdminCompetitionTrackerRow }) {
+  const router = useRouter();
   if (!Row.attemptId) {
     return (
       <Chip tone="slate">Pending</Chip>
@@ -128,9 +130,12 @@ function ReviewButton({ Row }: { Row: AdminCompetitionTrackerRow }) {
   }
 
   return (
-    <span className="tc-dark-hover-control inline-flex items-center justify-center gap-2 rounded-2xl border border-[#2563eb]/25 bg-white px-4 py-2 text-xs font-black text-[#2563eb] transition group-hover:border-[#2563eb] group-hover:bg-[#2563eb] group-hover:text-white dark:border-cyan-300/35 dark:bg-slate-950/40 dark:text-cyan-100 dark:group-hover:border-cyan-300 dark:group-hover:bg-cyan-500/30 dark:group-hover:text-rose-50">
-      <Eye size={14} /> Review
-    </span>
+    <StandardViewButton
+      label="View Details"
+      tooltip="View Mock Details"
+      onClick={() => router.push(`/admin/competition/mock-result/${Row.attemptId}`)}
+      compact
+    />
   );
 }
 
@@ -344,6 +349,7 @@ function AdminCompetitionMockTrackerContent() {
   const [SearchText, SetSearchText] = useState("");
   const [ModuleFilter, SetModuleFilter] = useState("ALL");
   const [LevelFilter, SetLevelFilter] = useState("ALL");
+  const [TeacherFilter, SetTeacherFilter] = useState("ALL");
   const [Status, SetStatus] = useState<StatusFilter>("ALL");
   const [ExpandedStudents, SetExpandedStudents] = useState<Set<string>>(() => new Set());
   const [ExpandedModules, SetExpandedModules] = useState<Set<string>>(() => new Set());
@@ -370,12 +376,24 @@ function AdminCompetitionMockTrackerContent() {
     return Array.from(Values).sort((Left, Right) => Left.localeCompare(Right, undefined, { numeric: true, sensitivity: "base" }));
   }, [Rows, ModuleFilter]);
 
+  const TeacherOptions = useMemo(() => {
+    const TeacherMap = new Map<string, string>();
+    Rows.forEach((Row) => {
+      const Key = String(Row.teacherCode || Row.teacherName || "Unassigned");
+      const Label = String(Row.teacherName || Row.teacherCode || "Unassigned Teacher");
+      if (!TeacherMap.has(Key)) TeacherMap.set(Key, Label);
+    });
+    return Array.from(TeacherMap.entries()).sort((Left, Right) => Left[1].localeCompare(Right[1]));
+  }, [Rows]);
+
   const FilteredRows = useMemo(() => {
     const Term = SearchText.trim().toLowerCase();
     return Rows.filter((Row) => {
       const RowStatus = String(Row.status || "ASSIGNED").toUpperCase();
+      const RowTeacherKey = String(Row.teacherCode || Row.teacherName || "Unassigned");
       if (ModuleFilter !== "ALL" && SafeModuleLabel(Row) !== ModuleFilter) return false;
       if (LevelFilter !== "ALL" && SafeLevelLabel(Row) !== LevelFilter) return false;
+      if (TeacherFilter !== "ALL" && RowTeacherKey !== TeacherFilter) return false;
       if (Status === "COMPLETED" && RowStatus !== "COMPLETED") return false;
       if (Status === "PENDING" && RowStatus === "COMPLETED") return false;
       if (!Term) return true;
@@ -386,10 +404,12 @@ function AdminCompetitionMockTrackerContent() {
         Row.mockExam.mockCode,
         Row.mockExam.levelCode,
         Row.mockExam.moduleCode,
+        Row.teacherName,
+        Row.teacherCode,
       ].join(" ").toLowerCase();
       return Haystack.includes(Term);
     });
-  }, [Rows, SearchText, ModuleFilter, LevelFilter, Status]);
+  }, [Rows, SearchText, ModuleFilter, LevelFilter, TeacherFilter, Status]);
 
   const FilteredSummary = useMemo(() => {
     const AssignedCount = FilteredRows.length;
@@ -476,7 +496,7 @@ function AdminCompetitionMockTrackerContent() {
                       Review completion status, score, accuracy, and time taken for your students.
                     </p>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_180px_180px_180px] xl:w-[820px]">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_210px_180px_180px_180px] xl:w-[980px]">
                     <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#2563eb] focus-within:border-[#2563eb] focus-within:ring-2 focus-within:ring-[#2563eb]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus-within:border-cyan-300 dark:focus-within:bg-cyan-500/20 dark:focus-within:ring-cyan-300/25">
                       <Search size={16} className="text-[#2563eb] dark:text-cyan-100" />
                       <input
@@ -486,6 +506,16 @@ function AdminCompetitionMockTrackerContent() {
                         className="w-full bg-transparent outline-none placeholder:text-slate-400"
                       />
                     </label>
+                    <select
+                      value={TeacherFilter}
+                      onChange={(Event) => SetTeacherFilter(Event.target.value)}
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[#2563eb] focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
+                    >
+                      <option value="ALL">All Teachers</option>
+                      {TeacherOptions.map(([Key, Label]) => (
+                        <option key={Key} value={Key}>{Label}</option>
+                      ))}
+                    </select>
                     <select
                       value={ModuleFilter}
                       onChange={(Event) => {
@@ -611,21 +641,21 @@ function AdminCompetitionMockTrackerContent() {
                                               {LevelOpen ? (
                                                 <div className="border-t border-slate-100 p-3 dark:border-white/10">
                                                   <div className="overflow-hidden rounded-2xl border border-[#2563eb]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
-                                                    <div className="math-tc-mock-header-row grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-0">
+                                                    <div className="math-admin-light-student-summary-header grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
                                                       {MockTableColumns.map((Column) => (
-                                                        <div key={Column.label} className="math-tc-mock-header-cell px-3 py-3">
+                                                        <div key={Column.label} className="flex items-center gap-1.5">
                                                           {Column.key ? (
                                                             <button
                                                               type="button"
                                                               onClick={() => SetMockTableSort((Current) => NextSortState(Current, Column.key!))}
-                                                              className="math-tc-mock-header-sort-btn inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition focus:outline-none focus:ring-2"
+                                                              className="inline-flex items-center gap-1.5 text-left font-black uppercase tracking-[0.14em] text-inherit transition hover:text-[#2563eb] focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:hover:text-cyan-400"
                                                               aria-label={`Sort by ${Column.label}`}
                                                             >
                                                               <span>{Column.label}</span>
                                                               <SortIndicator Sort={MockTableSort} ColumnKey={Column.key} />
                                                             </button>
                                                           ) : (
-                                                            Column.label
+                                                            <span>{Column.label}</span>
                                                           )}
                                                         </div>
                                                       ))}
@@ -634,36 +664,27 @@ function AdminCompetitionMockTrackerContent() {
                                                       {SortRows(LevelGroup.rows, MockTableSort).map((Row) => (
                                                         <div
                                                           key={Row.assignmentId}
-                                                          role={Row.attemptId ? "button" : undefined}
-                                                          tabIndex={Row.attemptId ? 0 : -1}
-                                                          onClick={() => Row.attemptId ? router.push(`/admin/competition/mock-result/${Row.attemptId}`) : undefined}
-                                                          onKeyDown={(Event) => {
-                                                            if (Row.attemptId && (Event.key === "Enter" || Event.key === " ")) {
-                                                              Event.preventDefault();
-                                                              router.push(`/admin/competition/mock-result/${Row.attemptId}`);
-                                                            }
-                                                          }}
-                                                          className={`tc-dark-hover-row group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#2563eb]/[0.035] dark:hover:bg-cyan-500/25 dark:hover:shadow-md dark:hover:shadow-cyan-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-cyan-300/30" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
+                                                          className="math-admin-light-student-summary-row group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-3 px-5 py-4 transition hover:bg-slate-50/50 dark:hover:bg-slate-800/40"
                                                         >
-                                                          <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</div>
-                                                          <div className="px-3 py-4 text-xs font-black text-slate-950 dark:text-white">{Row.mockExam.mockCode || "-"}</div>
-                                                          <div className="px-3 py-4">
+                                                          <div className="text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</div>
+                                                          <div className="text-xs font-black text-slate-950 dark:text-white">{Row.mockExam.mockCode || "-"}</div>
+                                                          <div>
                                                             <Chip tone={StatusTone(Row.status)}>{StatusLabel(Row.status)}</Chip>
                                                           </div>
-                                                          <div className="px-3 py-4">
+                                                          <div>
                                                             <Chip tone={AccuracyBandTone(ScorePercentage(Row))}>
                                                               {ScoreText(Row)}
                                                             </Chip>
                                                           </div>
-                                                          <div className="px-3 py-4">
+                                                          <div>
                                                             <Chip tone={AccuracyBandTone(IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : null)}>
                                                               {IsCompleted(Row) ? PercentValue(Row.accuracyPercentage) : "-"}
                                                             </Chip>
                                                           </div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{FormatDate(Row.assignedAt)}</div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? FormatDate(Row.submittedAt) : "-"}</div>
-                                                          <div className="px-3 py-4">
+                                                          <div className="text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
+                                                          <div className="text-sm font-bold text-slate-950 dark:text-white">{FormatDate(Row.assignedAt)}</div>
+                                                          <div className="text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? FormatDate(Row.submittedAt) : "-"}</div>
+                                                          <div className="flex items-center">
                                                             <ReviewButton Row={Row} />
                                                           </div>
                                                         </div>

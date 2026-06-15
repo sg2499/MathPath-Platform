@@ -1330,6 +1330,8 @@ export type AdminCompetitionTrackerRow = {
   assignedAt: string | null;
   dueAt: string | null;
   submittedAt: string | null;
+  teacherName: string | null;
+  teacherCode: string | null;
   student: {
     studentId: string;
     studentCode: string;
