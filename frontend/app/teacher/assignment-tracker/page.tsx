@@ -1012,7 +1012,7 @@ function CompactPracticeRow({
         <div className="min-w-0">
           <p className="text-sm font-black text-slate-950 dark:text-white">
             {studentNameOf(Row)}{" "}
-            <span className="text-slate-400">({StudentCode})</span>
+            <span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">({StudentCode})</span>
           </p>
           <p className="mt-1 text-xs font-bold text-slate-500">
             {moduleCodeOf(Row)} · {levelCodeOf(Row)} · {CompactLessonLabel(Row)}{" "}
@@ -1359,7 +1359,7 @@ function ActionQueueTab({
                 >
                   {studentNameOf(Row)}
                 </button>
-                <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
                   {StudentCode}
                 </p>
               </div>
