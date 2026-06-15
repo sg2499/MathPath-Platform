@@ -55,9 +55,13 @@ function RoundHalfUp(value: number) {
   return Math.floor(Number(value) + 0.5);
 }
 
-function FormatScore(value?: number | null) {
+function FormatScore(value?: number | null, maxScore?: number | null) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
-  return String(RoundHalfUp(Number(value)));
+  const formattedScore = String(RoundHalfUp(Number(value)));
+  if (maxScore !== null && maxScore !== undefined && !Number.isNaN(Number(maxScore))) {
+    return `${formattedScore}/${String(RoundHalfUp(Number(maxScore)))}`;
+  }
+  return formattedScore;
 }
 
 function IsCompleted(assignment: StudentCompetitionMockAssignment) {
@@ -81,6 +85,15 @@ function ScoreValue(assignment: StudentCompetitionMockAssignment) {
   if (!IsCompleted(assignment) || !result) return null;
   if (result.score === null || result.score === undefined || Number.isNaN(Number(result.score))) return null;
   return Number(result.score);
+}
+
+function MaxScoreValue(assignment: StudentCompetitionMockAssignment) {
+  const result = assignment.latestResult;
+  if (!IsCompleted(assignment)) return null;
+  if (result && result.maxScore !== null && result.maxScore !== undefined && !Number.isNaN(Number(result.maxScore))) {
+    return Number(result.maxScore);
+  }
+  return assignment.mockExam?.totalMarks ?? null;
 }
 
 function Average(values: Array<number | null | undefined>) {
@@ -223,6 +236,7 @@ export default function StudentCompetitionMockExamsPage() {
   const completedCount = filteredAssignments.filter(IsCompleted).length;
   const pendingCount = Math.max(0, filteredAssignments.length - completedCount);
   const avgScore = Average(filteredAssignments.map(ScoreValue));
+  const avgMaxScore = Average(filteredAssignments.map(MaxScoreValue));
   const avgAccuracy = Average(filteredAssignments.map(AccuracyValue));
   const hierarchy = BuildHierarchy(filteredAssignments);
 
@@ -259,7 +273,7 @@ export default function StudentCompetitionMockExamsPage() {
           <MetricCard icon={<ClipboardPlus size={18} />} label="ASSIGNED" value={assignments.length} />
           <MetricCard icon={<PlayCircle size={18} />} label="PENDING" value={pendingCount} />
           <MetricCard icon={<CheckCircle2 size={18} />} label="COMPLETED" value={completedCount} />
-          <MetricCard icon={<Trophy size={18} />} label="AVG SCORE" value={avgScore === null ? "-" : FormatScore(avgScore)} />
+          <MetricCard icon={<Trophy size={18} />} label="AVG SCORE" value={avgScore === null ? "-" : FormatScore(avgScore, avgMaxScore)} />
           <MetricCard icon={<BarChart3 size={18} />} label="AVG ACCURACY" value={avgAccuracy === null ? "-" : `${FormatScore(avgAccuracy)}%`} />
         </div>
 
@@ -560,6 +574,7 @@ function MockRecordsTable({
             const inProgress = IsInProgress(assignment);
             const result = assignment.latestResult;
             const score = ScoreValue(assignment);
+            const maxScore = MaxScoreValue(assignment);
             const accuracy = AccuracyValue(assignment);
             const actionLabel = completed ? "View Result" : inProgress ? "Continue Mock" : "Start Mock";
             return (
@@ -572,7 +587,7 @@ function MockRecordsTable({
                   </Chip>
                 </td>
                 <td className="px-4 py-4 font-black">
-                  <Chip tone={ScoreChipTone(accuracy)}>{score === null ? "-" : FormatScore(score)}</Chip>
+                  <Chip tone={ScoreChipTone(accuracy)}>{score === null ? "-" : FormatScore(score, maxScore)}</Chip>
                 </td>
                 <td className="px-4 py-4 font-black">
                   <Chip tone={AccuracyChipTone(accuracy)}>{accuracy === null ? "-" : `${FormatScore(accuracy)}%`}</Chip>
