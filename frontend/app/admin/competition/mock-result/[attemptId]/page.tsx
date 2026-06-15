@@ -240,10 +240,10 @@ function buildCompetitionMessage(
   const bandKey = competitionBandKey(percentage);
   const pool = competitionMessagePools[bandKey];
   const weaknesses = (result.conceptWeaknesses || [])
-    .map((item) => item.concept)
+    .map((item: any) => item.concept)
     .filter(Boolean);
   const strengths = (result.conceptStrengths || [])
-    .map((item) => item.concept)
+    .map((item: any) => item.concept)
     .filter(Boolean);
   const focusAreas =
     weaknesses.length > 0 ? weaknesses.slice(0, 3) : strengths.slice(0, 2);
