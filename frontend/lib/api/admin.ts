@@ -1319,3 +1319,57 @@ export async function listCompetitionMockAssignments(params: {
   const { data } = await api.get<{ assignments: CompetitionMockAssignment[] }>("/admin/competition/mock-assignments", { params });
   return data.assignments;
 }
+
+export type AdminCompetitionTrackerRow = {
+  assignmentId: string;
+  mockExamId: string;
+  attemptId: string | null;
+  status: string;
+  assignmentStatus: string;
+  attemptStatus: string | null;
+  assignedAt: string | null;
+  dueAt: string | null;
+  submittedAt: string | null;
+  student: {
+    studentId: string;
+    studentCode: string;
+    studentName: string;
+    className: string | null;
+    section: string | null;
+  };
+  mockExam: {
+    title: string;
+    mockCode: string | null;
+    moduleCode: string | null;
+    levelCode: string | null;
+    totalQuestions: number;
+    totalMarks: number;
+    marksPerQuestion: number;
+    durationSeconds: number;
+  };
+  score: number | null;
+  maxScore: number | null;
+  percentage: number | null;
+  accuracyPercentage: number | null;
+  correctCount: number | null;
+  wrongCount: number | null;
+  unansweredCount: number | null;
+  timeTakenSeconds: number | null;
+  timeTakenText: string | null;
+  timeUtilizationPercentage: number | null;
+  performanceBand: string | null;
+  sectionPerformance: any;
+  strengths: any;
+  weakAreas: any;
+};
+
+export async function getAdminCompetitionMockTracker(): Promise<{ rows: AdminCompetitionTrackerRow[] }> {
+  const { data } = await api.get<{ rows: AdminCompetitionTrackerRow[] }>("/admin/competition/mock-tracker");
+  return data;
+}
+
+export async function getAdminCompetitionMockResult(attemptId: string) {
+  const { data } = await api.get(`/admin/competition/mock-attempts/${attemptId}/result`);
+  return data;
+}
+

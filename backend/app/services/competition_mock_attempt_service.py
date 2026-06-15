@@ -783,6 +783,14 @@ def GetCompetitionMockResultForTeacher(db: Session, teacher: Teacher, attempt_id
     return _result_payload(db, attempt)
 
 
+def GetCompetitionMockResultForAdmin(db: Session, attempt_id: str) -> dict[str, Any]:
+    attempt = db.get(CompetitionMockAttempt, attempt_id)
+    if not attempt:
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+    attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
+    return _result_payload(db, attempt)
+
+
 def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) -> dict[str, Any]:
     from collections import defaultdict
     import json
