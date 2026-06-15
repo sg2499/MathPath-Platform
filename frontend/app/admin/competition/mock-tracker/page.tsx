@@ -9,10 +9,14 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAdminCompetitionMockTracker, type AdminCompetitionTrackerRow } from "@/lib/api/admin";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
+
+function classNames(...classes: (string | undefined | null | false)[]) {
+  return classes.filter(Boolean).join(" ");
+}
 
 type StatusFilter = "ALL" | "COMPLETED" | "PENDING";
 
@@ -157,6 +161,81 @@ function ToggleExpanded(Setter: Dispatch<SetStateAction<Set<string>>>, Key: stri
     }
     return Next;
   });
+}
+
+function ConceptRow({ concept, accuracy, isStrong }: { concept: string; accuracy: number; isStrong: boolean }) {
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setWidth(accuracy), 100);
+    return () => clearTimeout(timer);
+  }, [accuracy]);
+
+  return (
+    <div className="group relative flex items-center justify-between rounded-2xl p-3 transition-all duration-300 hover:bg-white/80 dark:hover:bg-slate-800/60">
+      <span className="relative z-10 truncate pr-4 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:translate-x-1 group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-white">
+        {concept}
+      </span>
+      <div className="relative z-10 flex shrink-0 items-center gap-4">
+        <div className="hidden h-2.5 w-28 overflow-hidden rounded-full bg-slate-200/50 shadow-inner dark:bg-slate-800 sm:block">
+          <div
+            className={classNames(
+              "relative h-full rounded-full transition-all duration-1000 ease-out",
+              isStrong ? "bg-gradient-to-r from-emerald-400 to-emerald-500 dark:from-emerald-500 dark:to-emerald-400" : "bg-gradient-to-r from-rose-400 to-rose-500 dark:from-rose-500 dark:to-rose-400"
+            )}
+            style={{ width: `${width}%` }}
+          >
+            <div 
+              className="absolute inset-0 w-full"
+              style={{
+                backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                animation: 'mathShimmer 2.5s infinite linear'
+              }}
+            />
+          </div>
+        </div>
+        <span className={classNames(
+          "w-12 text-right text-sm font-black tabular-nums tracking-tight",
+          isStrong ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+        )}>
+          {Math.round(accuracy)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function computeLevelInsights(rows: AdminCompetitionTrackerRow[]) {
+  const conceptStats: Record<string, { correct: number; total: number }> = {};
+  for (const row of rows) {
+    if (Array.isArray(row.sectionPerformance)) {
+      for (const perf of row.sectionPerformance) {
+        const concept = perf.concept || "Unknown";
+        if (!conceptStats[concept]) conceptStats[concept] = { correct: 0, total: 0 };
+        conceptStats[concept].correct += Number(perf.correct || 0);
+        conceptStats[concept].total += Number(perf.total || 0);
+      }
+    }
+  }
+
+  const strongConcepts = [];
+  const weakConcepts = [];
+
+  for (const [concept, stats] of Object.entries(conceptStats)) {
+    if (stats.total > 0) {
+      const accuracy = (stats.correct / stats.total) * 100;
+      if (accuracy >= 70) {
+        strongConcepts.push({ concept, accuracy });
+      } else {
+        weakConcepts.push({ concept, accuracy });
+      }
+    }
+  }
+
+  strongConcepts.sort((a, b) => b.accuracy - a.accuracy);
+  weakConcepts.sort((a, b) => a.accuracy - b.accuracy);
+
+  return { strongConcepts, weakConcepts };
 }
 
 
@@ -639,7 +718,68 @@ function AdminCompetitionMockTrackerContent() {
                                               </button>
 
                                               {LevelOpen ? (
-                                                <div className="border-t border-slate-100 p-3 dark:border-white/10">
+                                                <div className="border-t border-slate-100 p-3 dark:border-white/10 space-y-4">
+                                                  {(() => {
+                                                    const insight = computeLevelInsights(LevelGroup.rows);
+                                                    if (insight.strongConcepts.length === 0 && insight.weakConcepts.length === 0) return null;
+                                                    return (
+                                                      <div className="grid gap-6 lg:grid-cols-2 animate-in fade-in slide-in-from-top-4 duration-500 ease-out">
+                                                        <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-emerald-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-emerald-500/10 dark:border-emerald-500/10 dark:bg-slate-950/60 sm:p-8">
+                                                          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-400/10 blur-[60px] transition-all duration-500 group-hover:bg-emerald-400/20" />
+                                                          <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-emerald-100 pb-5 dark:border-emerald-900/30">
+                                                            <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 shadow-sm ring-1 ring-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/40 dark:text-emerald-400 dark:ring-emerald-700/50">
+                                                              <CheckCircle2 size={24} strokeWidth={2.5} />
+                                                            </div>
+                                                            <div>
+                                                              <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Strengths</h3>
+                                                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/70 dark:text-emerald-400/70">&ge; 70% Accuracy</p>
+                                                            </div>
+                                                          </div>
+                                                          <div className="relative z-10 flex min-h-[240px] flex-col gap-1">
+                                                            {insight.strongConcepts.length > 0 ? (
+                                                              insight.strongConcepts.map((c) => (
+                                                                <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={true} />
+                                                              ))
+                                                            ) : (
+                                                              <div className="flex flex-1 items-center justify-center p-6 text-center text-sm font-semibold text-slate-400 dark:text-slate-500">
+                                                                <div className="flex flex-col items-center gap-2">
+                                                                  <Sparkles className="opacity-20" size={32} />
+                                                                  <p>No shining strengths identified yet. Keep practicing!</p>
+                                                                </div>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        </div>
+
+                                                        <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-rose-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-rose-500/10 dark:border-rose-500/10 dark:bg-slate-950/60 sm:p-8">
+                                                          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-rose-400/10 blur-[60px] transition-all duration-500 group-hover:bg-rose-400/20" />
+                                                          <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-rose-100 pb-5 dark:border-rose-900/30">
+                                                            <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-gradient-to-br from-rose-50 to-rose-100 text-rose-600 shadow-sm ring-1 ring-rose-200 dark:from-rose-900/40 dark:to-rose-800/40 dark:text-rose-400 dark:ring-rose-700/50">
+                                                              <AlertTriangle size={24} strokeWidth={2.5} />
+                                                            </div>
+                                                            <div>
+                                                              <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Areas to Improve</h3>
+                                                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600/70 dark:text-rose-400/70">&lt; 70% Accuracy</p>
+                                                            </div>
+                                                          </div>
+                                                          <div className="relative z-10 flex min-h-[240px] flex-col gap-1">
+                                                            {insight.weakConcepts.length > 0 ? (
+                                                              insight.weakConcepts.map((c) => (
+                                                                <ConceptRow key={c.concept} concept={c.concept} accuracy={c.accuracy} isStrong={false} />
+                                                              ))
+                                                            ) : (
+                                                              <div className="flex flex-1 items-center justify-center p-6 text-center text-sm font-semibold text-slate-400 dark:text-slate-500">
+                                                                <div className="flex flex-col items-center gap-2">
+                                                                  <Sparkles className="opacity-20" size={32} />
+                                                                  <p>No critical weak areas identified. Great job!</p>
+                                                                </div>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        </div>
+                                                      </div>
+                                                    );
+                                                  })()}
                                                   <div className="overflow-hidden rounded-2xl border border-[#2563eb]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
                                                     <div className="math-admin-light-student-summary-header grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
                                                       {MockTableColumns.map((Column) => (
