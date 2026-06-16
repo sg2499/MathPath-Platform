@@ -214,13 +214,15 @@ def _BuildBorrowingAddLess(
         Operators: list[str] = []
         RunningTotal = Decimal(0)
 
-        FirstValue = Decimal(Rng.randrange(1000, 9001, 25))
+        Scale = Decimal(10) ** Places if _IsDecimalConcept(Config) else Decimal(1)
+
+        FirstValue = Decimal(Rng.randrange(1000, 9001, 25)) / Scale
         SignedOperands.append(FirstValue)
         Operators.append("")
         RunningTotal += FirstValue
 
         for RowIndex in range(1, RowCount - 1):
-            Value = Decimal(Rng.randrange(1000, 9001, 25))
+            Value = Decimal(Rng.randrange(1000, 9001, 25)) / Scale
             UseSubtraction = RowIndex % 3 == 0
             if UseSubtraction:
                 SignedOperands.append(-Value)
@@ -231,21 +233,26 @@ def _BuildBorrowingAddLess(
                 Operators.append("+")
                 RunningTotal += Value
 
-        FinalSubtraction = abs(RunningTotal) + Decimal(Rng.randrange(1000, 9001, 25))
-        if FinalSubtraction > Decimal(99999):
-            FinalSubtraction = Decimal(Rng.randrange(50000, 95001, 25))
+        FinalSubtraction = abs(RunningTotal) + Decimal(Rng.randrange(1000, 9001, 25)) / Scale
+        if FinalSubtraction > Decimal(99999) / Scale:
+            FinalSubtraction = Decimal(Rng.randrange(50000, 95001, 25)) / Scale
         SignedOperands.append(-FinalSubtraction)
         Operators.append("-")
         CorrectAnswer = sum(SignedOperands, Decimal(0))
 
         if CorrectAnswer >= 0:
-            ExtraNeeded = CorrectAnswer + Decimal(Rng.randrange(1000, 9001, 25))
-            Replacement = min(Decimal(99999), abs(SignedOperands[-1]) + ExtraNeeded)
+            ExtraNeeded = CorrectAnswer + Decimal(Rng.randrange(1000, 9001, 25)) / Scale
+            Replacement = min(Decimal(99999) / Scale, abs(SignedOperands[-1]) + ExtraNeeded)
             SignedOperands[-1] = -Replacement
             CorrectAnswer = sum(SignedOperands, Decimal(0))
 
-        return [_AsDisplayNumber(Value) for Value in SignedOperands], Operators, CorrectAnswer, {
-            "decimal_places": 0,
+        if _IsDecimalConcept(Config) and Places > 0:
+            DisplayOperands = [f"{abs(Value):.{Places}f}" for Value in SignedOperands]
+        else:
+            DisplayOperands = [_AsDisplayNumber(Value) for Value in SignedOperands]
+
+        return DisplayOperands, Operators, CorrectAnswer, {
+            "decimal_places": Places,
             "row_count": RowCount,
             "lesson_band": _LessonBand(Config),
             "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
@@ -329,7 +336,12 @@ def _BuildBorrowingAddLess(
         SignedOperands[0] = abs(SignedOperands[0])
         CorrectAnswer = _Quantize(sum(SignedOperands), Places)
 
-    return [_AsDisplayNumber(Value) for Value in SignedOperands], Operators, CorrectAnswer, {
+    if _IsDecimalConcept(Config) and Places > 0:
+        DisplayOperands = [f"{abs(Value):.{Places}f}" for Value in SignedOperands]
+    else:
+        DisplayOperands = [_AsDisplayNumber(Value) for Value in SignedOperands]
+
+    return DisplayOperands, Operators, CorrectAnswer, {
         "decimal_places": Places,
         "row_count": RowCount,
         "lesson_band": _LessonBand(Config),
@@ -390,7 +402,12 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
         Values[Index] if Operators[Index] == "+" else -Values[Index]
         for Index in range(1, len(Values))
     ]
-    return [_AsDisplayNumber(Value) for Value in SignedOperands], Operators, CorrectAnswer, {
+    if _IsDecimalConcept(Config) and Places > 0:
+        DisplayOperands = [f"{abs(Value):.{Places}f}" for Value in SignedOperands]
+    else:
+        DisplayOperands = [_AsDisplayNumber(Value) for Value in SignedOperands]
+
+    return DisplayOperands, Operators, CorrectAnswer, {
         "decimal_places": Places,
         "row_count": RowCount,
         "lesson_band": _LessonBand(Config),
