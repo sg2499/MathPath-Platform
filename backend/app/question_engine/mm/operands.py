@@ -247,7 +247,7 @@ def _BuildBorrowingAddLess(
             CorrectAnswer = sum(SignedOperands, Decimal(0))
 
         if _IsDecimalConcept(Config) and Places > 0:
-            DisplayOperands = [f"{abs(Value):.{Places}f}" for Value in SignedOperands]
+            DisplayOperands = [f"{Value:.{Places}f}" for Value in SignedOperands]
         else:
             DisplayOperands = [_AsDisplayNumber(Value) for Value in SignedOperands]
 
@@ -337,7 +337,7 @@ def _BuildBorrowingAddLess(
         CorrectAnswer = _Quantize(sum(SignedOperands), Places)
 
     if _IsDecimalConcept(Config) and Places > 0:
-        DisplayOperands = [f"{abs(Value):.{Places}f}" for Value in SignedOperands]
+        DisplayOperands = [f"{Value:.{Places}f}" for Value in SignedOperands]
     else:
         DisplayOperands = [_AsDisplayNumber(Value) for Value in SignedOperands]
 
@@ -403,7 +403,7 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
         for Index in range(1, len(Values))
     ]
     if _IsDecimalConcept(Config) and Places > 0:
-        DisplayOperands = [f"{abs(Value):.{Places}f}" for Value in SignedOperands]
+        DisplayOperands = [f"{Value:.{Places}f}" for Value in SignedOperands]
     else:
         DisplayOperands = [_AsDisplayNumber(Value) for Value in SignedOperands]
 

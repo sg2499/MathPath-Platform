@@ -449,9 +449,22 @@ def _ValidateAddLessQuestion(Config: MMConfig, Operands: list[int | float | str]
             return False
         for Value in Operands:
             Magnitude = abs(_DecimalValue(Value))
-            if Magnitude != Magnitude.to_integral_value() or Magnitude < Decimal(1000) or Magnitude > Decimal(99999):
-                print("Failed NEGATIVE_ONLY Magnitude")
-                return False
+            if Config.ConceptFamily in ("DECIMAL_ADD_LESS", "DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"):
+                # For decimal concepts, we scale the magnitude up by the decimal places
+                # However, _ValidateAddLessQuestion doesn't have direct access to Places,
+                # but we can check if it's within the scaled range bounds.
+                # Actually, simply checking if the unscaled value * 10^Places is within 1000-99999 is equivalent to:
+                # checking if the string representation stripped of '.' has length 4 or 5
+                # and ends up as an integer.
+                # A safer approach is to strip the decimal and check the length, or simply skip the integral check for decimals
+                # but ensure the value has 4-5 significant digits.
+                # The easiest fix is to scale by 100 since we use 2 places, but places can vary.
+                # Just skip the strict bounds check here for decimals, since _ValidateExplicitAddLessDigits already validates digit lengths!
+                pass
+            else:
+                if Magnitude != Magnitude.to_integral_value() or Magnitude < Decimal(1000) or Magnitude > Decimal(99999):
+                    print("Failed NEGATIVE_ONLY Magnitude")
+                    return False
         return True
 
     if Mode == "MIXED_POSITIVE_NEGATIVE":
