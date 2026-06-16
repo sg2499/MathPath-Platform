@@ -1,0 +1,48 @@
+# Master Module Mock Generator Rules
+
+Last updated: 2026-06-16
+
+## Defaults
+
+- Default questions: 100.
+- Default duration: 60 minutes.
+- Default section allocation: 10 questions in each of 10 sections.
+
+## Sections
+
+The MM mock generator has exactly 10 approved sections:
+
+1. Add/Less (Abacus)
+2. Add/Less (Visual)
+3. Multiplication
+4. Division
+5. Positional & Placement
+6. Squares and Square Roots
+7. Cubes and Cube Roots
+8. BODMAS, Solve Equation, Add/Less Percentage
+9. Profit/Loss, Simple Interest, Selling Price
+10. Skill Stacker, Concept Drill
+
+## Generation Rules
+
+- Sections are locked.
+- A section must only generate sums from its approved concept pool.
+- Concepts inside a section must be generated sequentially, not randomly interleaved.
+- The generated question metadata must include the exact competition concept name for review and coverage.
+- MM competition generation must bypass the normal lesson/DPS curriculum map when using the section-locked competition generator source.
+
+## Preview Rules
+
+- No question preview should require an inner scrollbar.
+- Positional cards must not duplicate their heading/prompt.
+- Existing saved mocks should render with the latest frontend cleanup without requiring regeneration.
+
+## Test Expectations
+
+Backend generator changes should preserve:
+
+- 100-question MM mock output.
+- 10 locked sections.
+- 10 questions per section by default.
+- No section-family leakage.
+- Concept block sequencing inside every section.

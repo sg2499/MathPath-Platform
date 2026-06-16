@@ -1,6 +1,6 @@
 # Current Platform Status
 
-**Last Updated:** 2026-06-14
+**Last Updated:** 2026-06-16
 
 ## Current Phase: Mock Exam and Competition Phase
 
@@ -16,9 +16,12 @@
 - Enforced gamified components and strict Light/Dark mode Teacher Text Overrides (`!text-slate-950 dark:!text-white`).
 - Validated a flawless Next.js Production Build.
 - Finalized MathPath AI Brain Context Machine for future epics.
+- Added the project-memory continuity system under `docs/project-memory/`.
+- Fixed MM mock generator defaults, section locking, concept sequencing, and preview rendering cleanup.
 
 ### In Progress / Next Immediate Tasks
-- *(Awaiting the next Epic or Phase from the user)*
+- Keep `docs/project-memory/DAILY_HANDOFF.md` and `docs/project-memory/DAILY_LOGS/` updated after every work session.
+- Await the user's next MathPath product or QA request.
 
 ---
 > **CRITICAL AGENT WAKE-UP DIRECTIVE:** This file is the single source of truth for the platform's current state. Read this file at the beginning of every session.
@@ -27,5 +30,9 @@
 > 1. Read `.mathpath/STATE.yaml` to identify the `active_package`.
 > 2. Read the corresponding package markdown file from `.mathpath/packages/`.
 > 3. Read `.mathpath/rules/global.md` for strict stylistic and logical constraints.
+> 4. Read `docs/project-memory/README.md`.
+> 5. Read `docs/project-memory/PROJECT_STATE.md`.
+> 6. Read `docs/project-memory/DAILY_HANDOFF.md`.
+> 7. Read the latest daily log in `docs/project-memory/DAILY_LOGS/`.
 > 
 > *DO NOT ask the user for the package plan or rules. Read the MathPath Brain first.*
