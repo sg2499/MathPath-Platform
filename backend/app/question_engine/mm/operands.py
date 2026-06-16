@@ -150,10 +150,15 @@ def _NormalisedPatternTitle(Config: MMConfig) -> str:
 
 
 def _ExtractMultiplicationDigits(Config: MMConfig) -> tuple[int, int] | None:
+    Digits = Config.GeneratorConfig.get("multiplicationDigits")
+    if Digits and len(Digits) == 2:
+        return Digits[0], Digits[1]
     return None
 
-
 def _ExtractDivisionDigits(Config: MMConfig) -> tuple[int, int] | None:
+    Digits = Config.GeneratorConfig.get("divisionDigits")
+    if Digits and len(Digits) == 2:
+        return Digits[0], Digits[1]
     return None
 
 
