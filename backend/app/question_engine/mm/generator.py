@@ -141,6 +141,7 @@ def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
                 Difficulty=str(Section.get("difficulty") or Config.Difficulty),
                 GeneratorConfig={
                     **Config.GeneratorConfig,
+                    **Section,
                     "sourceDpsTitle": Config.DpsTitle,
                     "sourceLessonTitle": Config.LessonTitle,
                     "activeSection": Section,

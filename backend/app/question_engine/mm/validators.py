@@ -167,6 +167,10 @@ def _NormalisedPatternTitle(Config: MMConfig) -> str:
 
 
 def _ExtractMultiplicationDigits(Config: MMConfig) -> tuple[int, int] | None:
+    Digits = Config.GeneratorConfig.get("multiplicationDigits")
+    if Digits and len(Digits) == 2:
+        return Digits[0], Digits[1]
+
     Title = _NormalisedPatternTitle(Config)
     for Pattern in [r"([1-6])D\s*X\s*([1-6])D", r"([1-6])D\s*MULTIPLICATION\s*(?:BY\s*)?([1-6])D"]:
         Match = re.search(Pattern, Title)
@@ -176,6 +180,10 @@ def _ExtractMultiplicationDigits(Config: MMConfig) -> tuple[int, int] | None:
 
 
 def _ExtractDivisionDigits(Config: MMConfig) -> tuple[int, int] | None:
+    Digits = Config.GeneratorConfig.get("divisionDigits")
+    if Digits and len(Digits) == 2:
+        return Digits[0], Digits[1]
+
     Title = _NormalisedPatternTitle(Config)
     for Pattern in [
         r"([1-6])D\s*DIVISION\s*([1-6])D",
