@@ -240,15 +240,31 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "2D × 2D and 4D ÷ 2D Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            }
+                "sectionTitle": "2D x 2D",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [2, 2],
+            },
+            {
+                "sectionTitle": "4D ÷ 2D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 2],
+            },
         ],
         3: [
             {
-                "sectionTitle": "3D × 2D and 5D ÷ 2D Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            }
+                "sectionTitle": "3D x 2D",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [3, 2],
+            },
+            {
+                "sectionTitle": "5D ÷ 2D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [5, 2],
+            },
         ],
         4: [
             {
@@ -292,7 +308,17 @@ MM_CURRICULUM_MAP = {
     },
     4: {
         1: [
-            {"sectionTitle": "Integers and 3D × 2D Visual", "conceptFamily": "INTEGERS"}
+            {
+                "sectionTitle": "Integers",
+                "conceptFamily": "INTEGERS",
+                "questionCount": 10,
+            },
+            {
+                "sectionTitle": "3D x 2D Visual",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [3, 2],
+            },
         ],
         2: [
             {
@@ -371,15 +397,30 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "4D ÷ 3D Visual and Skill Stacker",
+                "sectionTitle": "4D ÷ 3D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 3],
+            },
+            {
+                "sectionTitle": "Skill Stacker",
                 "conceptFamily": "SKILL_STACKER",
-            }
+                "questionCount": 5,
+            },
         ],
         3: [
             {
-                "sectionTitle": "2D × 2D and 4D ÷ 2D Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            }
+                "sectionTitle": "2D x 2D",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [2, 2],
+            },
+            {
+                "sectionTitle": "4D ÷ 2D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 2],
+            },
         ],
         4: [
             {
@@ -436,7 +477,19 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 5,
             },
         ],
-        3: [{"sectionTitle": "Squares and 4D ÷ 3D", "conceptFamily": "SQUARES"}],
+        3: [
+            {
+                "sectionTitle": "Squares",
+                "conceptFamily": "MIXED_SQUARE_CUBE",
+                "questionCount": 10,
+            },
+            {
+                "sectionTitle": "4D ÷ 3D",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 3],
+            },
+        ],
         4: [
             {
                 "sectionTitle": "Add-Less",
@@ -452,10 +505,17 @@ MM_CURRICULUM_MAP = {
     7: {
         1: [
             {
-                "sectionTitle": "4D ÷ 3D and 5D ÷ 2D Visual",
+                "sectionTitle": "4D ÷ 3D",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
                 "divisionDigits": [4, 3],
-            }
+            },
+            {
+                "sectionTitle": "5D ÷ 2D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [5, 2],
+            },
         ],
         2: [
             {
@@ -475,17 +535,31 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "2D × 2D and 4D ÷ 3D Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            }
+                "sectionTitle": "2D x 2D",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [2, 2],
+            },
+            {
+                "sectionTitle": "4D ÷ 3D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 3],
+            },
         ],
         4: [{"sectionTitle": "Integers", "conceptFamily": "INTEGERS"}],
         5: [
             {
-                "sectionTitle": "Decimal Multiplication and 4D ÷ 2D Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-                "mixedOperationGroup": "MULTIPLICATION",
-            }
+                "sectionTitle": "Decimal Multiplication",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
+                "questionCount": 10,
+            },
+            {
+                "sectionTitle": "4D ÷ 2D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 2],
+            },
         ],
     },
     8: {
@@ -527,25 +601,45 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "2D × 2D and 4D ÷ 3D Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            }
+                "sectionTitle": "2D x 2D",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [2, 2],
+            },
+            {
+                "sectionTitle": "4D ÷ 3D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 3],
+            },
         ],
         5: [
             {
-                "sectionTitle": "5D ÷ 2D and Decimal Multiplication Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-                "mixedOperationGroup": "MULTIPLICATION",
-            }
+                "sectionTitle": "5D ÷ 2D",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [5, 2],
+            },
+            {
+                "sectionTitle": "Decimal Multiplication Visual",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
+                "questionCount": 10,
+            },
         ],
     },
     9: {
         1: [
             {
-                "sectionTitle": "5D ÷ 2D and Decimal Multiplication Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-                "mixedOperationGroup": "MULTIPLICATION",
-            }
+                "sectionTitle": "5D ÷ 2D",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [5, 2],
+            },
+            {
+                "sectionTitle": "Decimal Multiplication Visual",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
+                "questionCount": 10,
+            },
         ],
         2: [
             {
@@ -561,10 +655,17 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "3D × 2D and 4D × 3D Visual",
+                "sectionTitle": "3D x 2D",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
                 "multiplicationDigits": [3, 2],
-            }
+            },
+            {
+                "sectionTitle": "4D ÷ 3D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 3],
+            },
         ],
         4: [
             {
@@ -603,7 +704,19 @@ MM_CURRICULUM_MAP = {
         ],
     },
     10: {
-        1: [{"sectionTitle": "Squares and 4D ÷ 3D", "conceptFamily": "SQUARES"}],
+        1: [
+            {
+                "sectionTitle": "Squares",
+                "conceptFamily": "MIXED_SQUARE_CUBE",
+                "questionCount": 10,
+            },
+            {
+                "sectionTitle": "4D ÷ 3D",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 3],
+            },
+        ],
         2: [
             {
                 "sectionTitle": "3 Digit Add-Less (Fast Visualisation)",
@@ -635,9 +748,17 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "5D ÷ 3D and 3D × 2D Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            }
+                "sectionTitle": "5D ÷ 3D",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [5, 3],
+            },
+            {
+                "sectionTitle": "3D x 2D Visual",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [3, 2],
+            },
         ],
         5: [
             {"sectionTitle": "Squares", "conceptFamily": "SQUARES"},
@@ -1044,9 +1165,17 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "3D × 3D and 4D ÷ 3D Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            }
+                "sectionTitle": "3D x 3D",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [3, 3],
+            },
+            {
+                "sectionTitle": "4D ÷ 3D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 3],
+            },
         ],
         5: [
             {
@@ -1449,10 +1578,17 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "4D × 2D and 3D × 3D Visual",
+                "sectionTitle": "4D ÷ 2D",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 2],
+            },
+            {
+                "sectionTitle": "3D x 3D Visual",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
-                "multiplicationDigits": [4, 2],
-            }
+                "questionCount": 10,
+                "multiplicationDigits": [3, 3],
+            },
         ],
         4: [{"sectionTitle": "Profit-Loss", "conceptFamily": "PROFIT_LOSS"}],
         5: [
@@ -1488,9 +1624,17 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "3D × 3D and 4D ÷ 3D Visual",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-            }
+                "sectionTitle": "3D x 3D",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [3, 3],
+            },
+            {
+                "sectionTitle": "4D ÷ 3D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 3],
+            },
         ],
         4: [{"sectionTitle": "Simple Interest", "conceptFamily": "SIMPLE_INTEREST"}],
         5: [
@@ -1557,10 +1701,16 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Multiplication by 3D and 5D × 2D",
+                "sectionTitle": "Multiplication by 3D",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
-                "multiplicationDigits": [5, 2],
-            }
+                "questionCount": 10,
+            },
+            {
+                "sectionTitle": "5D ÷ 2D",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [5, 2],
+            },
         ],
         3: [
             {
@@ -1578,10 +1728,17 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "5D ÷ 3D and 6D ÷ 3D Visual",
+                "sectionTitle": "5D ÷ 3D",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
                 "divisionDigits": [5, 3],
-            }
+            },
+            {
+                "sectionTitle": "6D ÷ 3D Visual",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [6, 3],
+            },
         ],
         5: [
             {
