@@ -90,9 +90,9 @@ function ExpressionQuestion({
   const IsAnswerPosition = mode === "ANSWER_POSITION";
 
   return (
-    <div className="mx-auto flex w-full max-w-full justify-center overflow-x-auto rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
+    <div className="mx-auto flex w-full max-w-full justify-center overflow-visible rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
       <div
-        className={`min-w-max max-w-none whitespace-nowrap text-center font-mono font-black leading-[1.4] tracking-tight ${
+        className={`max-w-full whitespace-normal break-words text-center font-mono font-black leading-[1.4] tracking-tight ${
           IsAnswerPosition ? "text-[16px] sm:text-[20px] lg:text-[24px]" : "text-[18px] sm:text-[22px] lg:text-[26px] xl:text-[28px]"
         }`}
       >
@@ -115,8 +115,8 @@ function CompactExpressionQuestion({
   const Expression = questionText?.trim() || BuildExpression(operands, operators);
 
   return (
-    <div className="mx-auto flex w-full max-w-full justify-center overflow-x-auto rounded-[18px] bg-white px-4 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
-      <div className="min-w-max max-w-none whitespace-nowrap text-center font-mono text-[18px] font-black leading-[1.4] tracking-tight sm:text-[22px] lg:text-[26px] xl:text-[28px]">
+    <div className="mx-auto flex w-full max-w-full justify-center overflow-visible rounded-[18px] bg-white px-4 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
+      <div className="max-w-full whitespace-normal break-words text-center font-mono text-[18px] font-black leading-[1.4] tracking-tight sm:text-[22px] lg:text-[26px] xl:text-[28px]">
         {RenderExpressionWithBlueQuestion(Expression)}
         <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
@@ -284,11 +284,15 @@ function IsFirstNaturalNumberCard(operators: string[]): boolean {
 }
 
 function FirstNaturalNumberCardQuestion({ operands, questionText }: { operands: Array<number | string>; questionText?: string | null }) {
+  const PromptText = questionText?.trim();
+
   return (
     <div className="mx-auto w-full max-w-sm rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
-      <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
-        {questionText?.trim() || "Find the position of the first natural number"}
-      </p>
+      {PromptText ? (
+        <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
+          {PromptText}
+        </p>
+      ) : null}
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
         <div className="bg-slate-100 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
           Number
