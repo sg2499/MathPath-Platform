@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Module, Level, Lesson
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
-from app.question_engine.mm import MMConfig, ClassifyMmConcept, GenerateMmQuestionSet, IsPackage1Supported, OperationFocusForConcept
+from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, IsPackage1Supported
 from app.core.errors import api_error
 
 def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
@@ -50,8 +50,8 @@ def build_mm_config_from_dps(db: Session, dps: DPS, seed: str) -> MMConfig:
 
     DpsTitle = getattr(dps, "dps_title", "") or GeneratorConfig.get("dpsTitle", "")
     LessonTitle = getattr(LessonRecord, "lesson_title", "") or GeneratorConfig.get("lessonTitle", "")
-    ConceptFamily = ClassifyMmConcept(DpsTitle, LessonTitle)
-    OperationFocus = OperationFocusForConcept(ConceptFamily)
+    ConceptFamily = getattr(SectionRecord, "concept_family", None) or GeneratorConfig.get("conceptFamily", "CONCEPT_DRILL")
+    OperationFocus = getattr(SectionRecord, "operation_focus", None) or "MIXED"
 
     return MMConfig(
         ModuleCode=getattr(ModuleRecord, "module_code", "MM") or "MM",
