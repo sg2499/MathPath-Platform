@@ -481,8 +481,9 @@ def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int)
             .first()
         )
         section_title = str(section_definition["sectionTitle"])
-        question_count = int(section_definition["questionCount"])
         concept_family = str(section_definition["conceptFamily"])
+        raw_count = int(section_definition.get("questionCount") or 10)
+        question_count = 5 if concept_family in {"SKILL_STACKER", "CONCEPT_DRILL"} else raw_count
         operation_focus = str(section_definition.get("operationFocus") or OperationFocusForConcept(concept_family))
 
         section_config = {
