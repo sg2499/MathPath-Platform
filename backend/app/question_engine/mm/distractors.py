@@ -151,3 +151,24 @@ def GenerateFinancialDistractors(CorrectAnswer: Decimal, Rng: random.Random, Met
     Rng.shuffle(Selected)
     return [_Display(Value) for Value in Selected[:3]] if len(Selected) >= 3 else GenerateMmDistractors(CorrectAnswer, Rng, False)
 
+
+def GenerateAnswerPositionDistractors(CorrectAnswer: Decimal, Rng: random.Random, ExtraMetadata: dict) -> list[str | int]:
+    SourceNumberStr = ExtraMetadata.get("source_number", "")
+    if not SourceNumberStr:
+        return GenerateMmDistractors(CorrectAnswer, Rng, False)
+
+    try:
+        SourceNumber = Decimal(SourceNumberStr)
+    except Exception:
+        return GenerateMmDistractors(CorrectAnswer, Rng, False)
+
+    Candidates: list[Decimal] = []
+    for Shift in [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]:
+        Candidate = SourceNumber.scaleb(Shift)
+        # Ensure it formats nicely and cleanly
+        if Candidate != CorrectAnswer and Candidate not in Candidates:
+            Candidates.append(Candidate)
+
+    Rng.shuffle(Candidates)
+    Selected = Candidates[:3]
+    return [_Display(C) for C in Selected]

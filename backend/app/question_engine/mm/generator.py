@@ -5,7 +5,7 @@ from decimal import Decimal
 from app.question_engine.option_utils import build_mcq_options, rebalance_correct_option_distribution
 from app.question_engine.mm.config import MMConfig, IsPackage1Supported, OperationFocusForConcept
 from app.question_engine.mm.curriculum_map import MM_CURRICULUM_MAP
-from app.question_engine.mm.distractors import GenerateFinancialDistractors, GenerateMmDistractors
+from app.question_engine.mm.distractors import GenerateFinancialDistractors, GenerateMmDistractors, GenerateAnswerPositionDistractors
 from app.question_engine.mm.operands import DifficultyStage, GeneratePackage1Question
 from app.question_engine.mm.validators import ValidateMmQuestion
 
@@ -66,6 +66,8 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
         AllowNegativeOptions = Config.ConceptFamily == "INTEGERS" or CorrectAnswer < 0
         if Config.ConceptFamily in {"PROFIT_LOSS", "FIND_SELLING_PRICE", "FIND_COST_PRICE", "SIMPLE_INTEREST"}:
             Distractors = GenerateFinancialDistractors(CorrectAnswer, Rng, ExtraMetadata)
+        elif ExtraMetadata.get("answer_position_mode") == "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE":
+            Distractors = GenerateAnswerPositionDistractors(CorrectAnswer, Rng, ExtraMetadata)
         else:
             Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
