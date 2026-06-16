@@ -162,6 +162,7 @@ function MockQuestionRenderer({ question, mock, compact = false }: { question: C
   const operands = normalisePreviewOperands(question.operands);
   const operators = question.operators || [];
   const positionalPromptTitle = isMmPositionalQuestion(question, mock) ? getMmPositionalPromptTitle(question) : null;
+  const questionTextForDisplay = positionalPromptTitle ? null : question.questionText;
 
   const renderedQuestion = isMmExpressionQuestion(question, mock) ? (() => {
     const expression = question.questionText?.trim() || buildMockExpression(operands, operators);
@@ -179,14 +180,14 @@ function MockQuestionRenderer({ question, mock, compact = false }: { question: C
       operands={operands}
       operators={operators}
       displayType={getMockDisplayType(question, mock)}
-      questionText={question.questionText}
+      questionText={questionTextForDisplay}
     />
   );
 
   if (!positionalPromptTitle) return renderedQuestion;
 
   return (
-    <div className="mx-auto w-full max-w-md overflow-hidden rounded-[22px] border border-slate-200 bg-white text-center shadow-inner dark:border-slate-700 dark:bg-slate-950/70">
+    <div className="mx-auto w-full max-w-md overflow-visible rounded-[22px] border border-slate-200 bg-white text-center shadow-inner dark:border-slate-700 dark:bg-slate-950/70">
       <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">{positionalPromptTitle}</p>
       </div>
@@ -391,7 +392,7 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
       </div>
 
       <div className="mt-4 space-y-4">
-        <div className="math-card overflow-hidden p-4 sm:p-5">
+        <div className="math-card overflow-visible p-4 sm:p-5">
           <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="math-kicker text-[10px]">Mock Preview</p>
@@ -413,8 +414,8 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
             )}
           </div>
 
-          <div className={`mt-5 grid gap-5 ${isMmExpressionQuestion(currentQuestion, mock) || isMmFinancialQuestion(currentQuestion, mock) ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,360px)_1fr] xl:items-center"}`}>
-            <div className={`${isMmExpressionQuestion(currentQuestion, mock) || isMmFinancialQuestion(currentQuestion, mock) ? "w-full" : ""} rounded-[26px] bg-slate-50/90 p-4 dark:bg-slate-900/70 sm:p-5`}>
+          <div className={`mt-5 grid gap-5 ${isMmExpressionQuestion(currentQuestion, mock) || isMmFinancialQuestion(currentQuestion, mock) ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,420px)_1fr] xl:items-center"}`}>
+            <div className={`${isMmExpressionQuestion(currentQuestion, mock) || isMmFinancialQuestion(currentQuestion, mock) ? "w-full" : ""} overflow-visible rounded-[26px] bg-slate-50/90 p-4 dark:bg-slate-900/70 sm:p-5`}>
               <MockQuestionRenderer question={currentQuestion} mock={mock} />
             </div>
 

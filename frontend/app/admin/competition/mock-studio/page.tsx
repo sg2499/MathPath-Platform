@@ -701,6 +701,7 @@ function MockQuestionRenderer({ question, exam, compact = false }: { question: C
   const Operands = NormalisePreviewOperands(question.operands);
   const Operators = question.operators || [];
   const PositionalPromptTitle = IsMmPositionalQuestion(question, exam) ? GetMmPositionalPromptTitle(question) : null;
+  const QuestionTextForDisplay = PositionalPromptTitle ? null : question.questionText;
 
   const RenderedQuestion = IsMmExpressionQuestion(question, exam) ? (() => {
     const ExpressionValue = question.questionText?.trim() || BuildMockExpression(Operands, Operators);
@@ -718,14 +719,14 @@ function MockQuestionRenderer({ question, exam, compact = false }: { question: C
       operands={Operands}
       operators={Operators}
       displayType={GetMockDisplayType(question, exam)}
-      questionText={question.questionText}
+      questionText={QuestionTextForDisplay}
     />
   );
 
   if (!PositionalPromptTitle) return RenderedQuestion;
 
   return (
-    <div className="mx-auto w-full max-w-md overflow-hidden rounded-[22px] border border-slate-200 bg-white text-center shadow-inner dark:border-slate-700 dark:bg-slate-950/70">
+    <div className="mx-auto w-full max-w-md overflow-visible rounded-[22px] border border-slate-200 bg-white text-center shadow-inner dark:border-slate-700 dark:bg-slate-950/70">
       <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">{PositionalPromptTitle}</p>
       </div>
@@ -791,8 +792,8 @@ function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
 
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {SampleQuestions.map((QuestionValue) => (
-                  <article key={QuestionValue.mockQuestionId} className={`grid gap-4 px-5 py-4 ${IsMmExpressionQuestion(QuestionValue, exam) || IsMmFinancialQuestion(QuestionValue, exam) ? "xl:grid-cols-1" : "xl:grid-cols-[280px_1fr] xl:items-center"}`}>
-                    <div className="rounded-[22px] border border-blue-100 bg-slate-50 px-4 py-5 dark:border-slate-800 dark:bg-slate-900/40">
+                  <article key={QuestionValue.mockQuestionId} className={`grid gap-4 px-5 py-4 ${IsMmExpressionQuestion(QuestionValue, exam) || IsMmFinancialQuestion(QuestionValue, exam) ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,340px)_1fr] xl:items-center"}`}>
+                    <div className="overflow-visible rounded-[22px] border border-blue-100 bg-slate-50 px-4 py-5 dark:border-slate-800 dark:bg-slate-900/40">
                       <MockQuestionRenderer question={QuestionValue} exam={exam} compact />
                     </div>
 
