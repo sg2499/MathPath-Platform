@@ -113,10 +113,18 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
 
 
 def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
-    SectionDefinitions = MM_CURRICULUM_MAP.get(Config.LessonNumber, {}).get(Config.DpsNumber, [])
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    IsCompetitionSectionLocked = GeneratorConfig.get("source") == "MM_COMPETITION_SECTION_LOCKED_GENERATOR"
+    SectionDefinitions = []
 
-    if not SectionDefinitions and isinstance(Config.GeneratorConfig, dict):
-        SectionDefinitions = Config.GeneratorConfig.get("dpsSections") or []
+    if IsCompetitionSectionLocked:
+        ActiveSection = GeneratorConfig.get("activeSection") if isinstance(GeneratorConfig.get("activeSection"), dict) else {}
+        SectionDefinitions = GeneratorConfig.get("dpsSections") or ([ActiveSection] if ActiveSection else [])
+    else:
+        SectionDefinitions = MM_CURRICULUM_MAP.get(Config.LessonNumber, {}).get(Config.DpsNumber, [])
+
+    if not SectionDefinitions:
+        SectionDefinitions = GeneratorConfig.get("dpsSections") or []
 
     if SectionDefinitions:
         Questions: list[dict] = []

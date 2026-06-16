@@ -365,8 +365,6 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
 
     IsMixedDigitAddLess = _IsMixedDigitAddLessConcept(Config)
     IsMmAddLessVisual = _IsMmAddLessVisualConcept(Config)
-    if Config.ConceptFamily == "ADD_LESS":
-        print(f"DEBUG: GenerateAddLess IsVisual={IsMmAddLessVisual}, title={Config.DpsTitle}")
     if IsMmAddLessVisual:
         InitialValue = _RandMmAddLessVisualValue(Rng)
     elif IsMixedDigitAddLess:
