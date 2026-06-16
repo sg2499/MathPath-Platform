@@ -22,9 +22,9 @@ export function QuestionCard({
   const SectionTitle = String(Metadata.section_title || Metadata.sectionTitle || "").trim();
   const SectionNumber = Metadata.section_number || Metadata.sectionNumber;
   const TotalSections = Number(Metadata.dps_total_sections || Metadata.dpsTotalSections || 0);
-  const ShowSectionLabel = Boolean(SectionTitle) && (TotalSections > 1 || Boolean(SectionNumber));
+  const ShowSectionLabel = Boolean(SectionTitle);
   const SectionLabel = ShowSectionLabel
-    ? `Section ${SectionNumber || 1} · ${SectionTitle}`
+    ? (TotalSections > 1 ? `Section ${SectionNumber || 1} · ${SectionTitle}` : SectionTitle)
     : "Practice Question";
 
   return (

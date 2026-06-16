@@ -626,17 +626,17 @@ function AdminCurriculumPageContent() {
           <div className="grid gap-6">
             {previewSections.map((Section, SectionIndex) => (
               <div key={Section.key} className="grid gap-4">
-                {previewSections.length > 1 ? (
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-5 py-4 text-slate-900 shadow-sm dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-50">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-5 py-4 text-slate-900 shadow-sm dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-50">
+                  {previewSections.length > 1 && (
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600 dark:text-cyan-200">
                       Section {SectionIndex + 1}
                     </p>
-                    <h3 className="mt-1 text-xl font-black">{Section.title}</h3>
-                    <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-cyan-100/80">
-                      {Section.questions.length} questions
-                    </p>
-                  </div>
-                ) : null}
+                  )}
+                  <h3 className="mt-1 text-xl font-black">{Section.title}</h3>
+                  <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-cyan-100/80">
+                    {Section.questions.length} questions
+                  </p>
+                </div>
 
                 {Section.questions.map((question, index) => (
                   <PreviewQuestionCard
