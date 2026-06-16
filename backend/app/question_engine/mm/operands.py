@@ -63,6 +63,8 @@ def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
 
 
 def _IsDecimalConcept(Config: MMConfig) -> bool:
+    if Config.ConceptFamily in ("DECIMAL_ADD_LESS", "DECIMAL_MULTIPLICATION", "DECIMAL_DIVISION"):
+        return True
     return bool(Config.GeneratorConfig.get("isDecimal", False))
 
 
