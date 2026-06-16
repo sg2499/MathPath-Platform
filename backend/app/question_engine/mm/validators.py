@@ -319,63 +319,46 @@ def _ValidatePercentageAddLess(Operands: list[int | float | str], Operators: lis
 
 
 def _BorrowingAnswerMode(Config: MMConfig) -> str:
-    Title = " ".join(
-        f" {Config.DpsTitle} {Config.LessonTitle} "
-        .upper()
-        .replace(",", " ")
-        .replace("-", " ")
-        .split()
-    )
-    if "BORROWING" not in Title:
-        return "STANDARD"
-    HasPositive = "POSITIVE" in Title
-    HasNegative = "NEGATIVE" in Title
-    if HasPositive and HasNegative:
-        return "MIXED_POSITIVE_NEGATIVE"
-    if HasNegative:
-        return "NEGATIVE_ONLY"
-    return "BORROWING_STANDARD"
-
-
+    return Config.GeneratorConfig.get("borrowingMode", "STANDARD")
 
 
 def _AddLessTitleText(Config: MMConfig) -> str:
-    return " ".join(
-        f" {Config.DpsTitle} "
-        .lower()
-        .replace("-", " ")
-        .replace("_", " ")
-        .split()
-    )
+    return ""
 
 
 def _IsMixedDigitAddLessConcept(Config: MMConfig) -> bool:
-    Text = _AddLessTitleText(Config)
-    return "mixed digit" in Text and "add less" in Text
+    return bool(Config.GeneratorConfig.get("isMixedDigitAddLess", False))
 
 
 def _IsFastVisualisationConcept(Config: MMConfig) -> bool:
-    Text = _AddLessTitleText(Config)
-    return "fast visualisation" in Text or "fast visualization" in Text
+    return bool(Config.GeneratorConfig.get("isFastVisualisation", False))
 
 
 def _IsMmAddLessVisualConcept(Config: MMConfig) -> bool:
-    Text = _AddLessTitleText(Config)
-    return (
-        "add less" in Text
-        and "visual" in Text
-        and "decimal" not in Text
-        and "borrowing" not in Text
-        and not _IsFastVisualisationConcept(Config)
-    )
+    return bool(Config.GeneratorConfig.get("isVisual", False))
 
 
 def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
-    Text = _AddLessTitleText(Config)
-    Match = re.search(r"\b([2-6])\s*digit(?:\s+number)?\s+add\s+less\b", Text)
-    if Match:
-        return int(Match.group(1))
-    return None
+    return Config.GeneratorConfig.get("explicitDigitCount")
+
+
+def _ValidateMmQuestion(Config: MMConfig, Question: dict, GenerateMode: bool = False, MaxTries: int = 500) -> bool:
+    Validations = [
+        (_ValidateAddLessQuestion, "_ValidateAddLessQuestion"),
+        (_ValidateMmAddLessVisual, "_ValidateMmAddLessVisual"),
+        (_ValidateDecimalQuestion, "_ValidateDecimalQuestion"),
+        (_ValidateBODMASQuestion, "_ValidateBODMASQuestion"),
+        (_ValidateEquationFormat, "_ValidateEquationFormat"),
+        (_ValidatePositionLimits, "_ValidatePositionLimits"),
+    ]
+    for Validator, Name in Validations:
+        try:
+            if not Validator(Question, Config):
+                print(f"Validation failed: {Name}")
+                return False
+        except Exception as e:
+            return False
+    return True
 
 
 def _ValidateMixedDigitAddLessDigits(Config: MMConfig, Operands: list[int | float | str]) -> bool:
@@ -410,32 +393,42 @@ def _ValidateMmAddLessVisual(Config: MMConfig, Operands: list[int | float | str]
     if not _IsMmAddLessVisualConcept(Config):
         return True
     if len(Operands) > 5:
+        print("Failed visual len")
         return False
     for Value in Operands:
         DecimalValue = abs(_DecimalValue(Value))
         if DecimalValue != DecimalValue.to_integral_value():
+            print(f"Failed visual integral: {DecimalValue}")
             return False
         if not (Decimal(100) <= DecimalValue <= Decimal(9999)):
+            print(f"Failed visual range: {DecimalValue}")
             return False
     return True
 
 
 def _ValidateAddLessQuestion(Config: MMConfig, Operands: list[int | float | str], Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if len(Operands) < 2 or len(Operands) != len(Operators) or Operators[0] != "":
+        print("Failed len")
         return False
     if any(Operator not in {"", "+", "-"} for Operator in Operators):
+        print("Failed operators")
         return False
     if any(not _IsNumeric(Value) for Value in Operands):
+        print("Failed isnumeric")
         return False
     if not _ValidateExplicitAddLessDigits(Config, Operands):
+        print("Failed _ValidateExplicitAddLessDigits")
         return False
     if not _ValidateMixedDigitAddLessDigits(Config, Operands):
+        print("Failed _ValidateMixedDigitAddLessDigits")
         return False
     if not _ValidateMmAddLessVisual(Config, Operands):
+        print("Failed _ValidateMmAddLessVisual")
         return False
 
     ExpectedAnswer = sum(Decimal(str(Value)) for Value in Operands)
     if CorrectAnswer != ExpectedAnswer:
+        print("Failed CorrectAnswer != ExpectedAnswer")
         return False
 
     Mode = _BorrowingAnswerMode(Config)
@@ -444,16 +437,20 @@ def _ValidateAddLessQuestion(Config: MMConfig, Operands: list[int | float | str]
 
     if Mode == "NEGATIVE_ONLY":
         if not (HasPositiveRow and HasNegativeRow and CorrectAnswer < 0):
+            print("Failed NEGATIVE_ONLY stack")
             return False
         for Value in Operands:
             Magnitude = abs(_DecimalValue(Value))
             if Magnitude != Magnitude.to_integral_value() or Magnitude < Decimal(1000) or Magnitude > Decimal(99999):
+                print("Failed NEGATIVE_ONLY Magnitude")
                 return False
         return True
 
     if Mode == "MIXED_POSITIVE_NEGATIVE":
+        if not (HasPositiveRow and HasNegativeRow): print("Failed MIXED_POSITIVE_NEGATIVE")
         return HasPositiveRow and HasNegativeRow
 
+    if CorrectAnswer < 0: print("Failed CorrectAnswer >= 0")
     return CorrectAnswer >= 0
 
 

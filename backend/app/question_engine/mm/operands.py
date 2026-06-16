@@ -43,51 +43,27 @@ def _ScaleRangeByLesson(Minimum: int, Maximum: int, Config: MMConfig) -> tuple[i
 
 
 def _AddLessTitleText(Config: MMConfig) -> str:
-    return " ".join(
-        f" {Config.DpsTitle} "
-        .lower()
-        .replace("-", " ")
-        .replace("_", " ")
-        .split()
-    )
+    return ""
 
 
 def _IsFastVisualisationConcept(Config: MMConfig) -> bool:
-    Text = _AddLessTitleText(Config)
-    return "fast visualisation" in Text or "fast visualization" in Text
+    return bool(Config.GeneratorConfig.get("isFastVisualisation", False))
 
 
 def _IsMixedDigitAddLessConcept(Config: MMConfig) -> bool:
-    Text = _AddLessTitleText(Config)
-    return "mixed digit" in Text and "add less" in Text
+    return bool(Config.GeneratorConfig.get("isMixedDigitAddLess", False))
 
 
 def _IsMmAddLessVisualConcept(Config: MMConfig) -> bool:
-    Text = _AddLessTitleText(Config)
-    return (
-        "add less" in Text
-        and "visual" in Text
-        and "decimal" not in Text
-        and "borrowing" not in Text
-        and not _IsFastVisualisationConcept(Config)
-    )
+    return bool(Config.GeneratorConfig.get("isVisual", False))
 
 
 def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
-    Text = _AddLessTitleText(Config)
-    Match = re.search(r"\b([2-6])\s*digit(?:\s+number)?\s+add\s+less\b", Text)
-    if Match:
-        return int(Match.group(1))
-    return None
+    return Config.GeneratorConfig.get("explicitDigitCount")
 
 
 def _IsDecimalConcept(Config: MMConfig) -> bool:
-    # Use the active DPS/section title, not the broader lesson title.
-    # Example: a section named "2 Digit Number Add-Less" inside a lesson that
-    # contains decimal concepts must remain a whole-number 2-digit stack.
-    if Config.ConceptFamily == "DECIMAL_ADD_LESS":
-        return True
-    return "decimal" in _AddLessTitleText(Config)
+    return bool(Config.GeneratorConfig.get("isDecimal", False))
 
 
 def _AddLessDecimalPlaces(Config: MMConfig, Stage: str) -> int:
@@ -170,106 +146,46 @@ def _DigitRange(Digits: int) -> tuple[int, int]:
 
 
 def _NormalisedPatternTitle(Config: MMConfig) -> str:
-    return " ".join(
-        f" {Config.DpsTitle} {Config.LessonTitle} "
-        .upper()
-        .replace("×", " X ")
-        .replace("*", " X ")
-        .replace("÷", " DIVISION ")
-        .replace("/", " DIVISION ")
-        .replace(":", " DIVISION ")
-        .replace("-", " ")
-        .split()
-    )
+    return ""
 
 
 def _ExtractMultiplicationDigits(Config: MMConfig) -> tuple[int, int] | None:
-    Title = _NormalisedPatternTitle(Config)
-    Patterns = [
-        r"([1-6])D\s*X\s*([1-6])D",
-        r"([1-6])D\s*MULTIPLICATION\s*(?:BY\s*)?([1-6])D",
-    ]
-    for Pattern in Patterns:
-        Match = re.search(Pattern, Title)
-        if Match:
-            return int(Match.group(1)), int(Match.group(2))
     return None
 
 
 def _ExtractDivisionDigits(Config: MMConfig) -> tuple[int, int] | None:
-    Title = _NormalisedPatternTitle(Config)
-    Patterns = [
-        r"([1-6])D\s*DIVISION\s*([1-6])D",
-        r"([1-6])D\s*DIVIDE\s*([1-6])D",
-        r"([1-6])D\s*DIVIDED\s*BY\s*([1-6])D",
-    ]
-    for Pattern in Patterns:
-        Match = re.search(Pattern, Title)
-        if Match:
-            return int(Match.group(1)), int(Match.group(2))
-    if "DIVISION BY 6D" in Title:
-        return 6, 3
-    if "DIVISION BY 3D" in Title:
-        return 4, 3
     return None
 
 
 def _MultiplicationDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
-    ExplicitDigits = _ExtractMultiplicationDigits(Config)
-    if ExplicitDigits is not None:
-        return ExplicitDigits
-    Title = _NormalisedPatternTitle(Config)
-    if "MULTIPLICATION BY 3D" in Title:
-        return 3, 3
-    if Stage == "WARM_UP":
-        return 2, 1
-    if Stage == "STANDARD":
-        return 2, 2
-    if Stage == "MIXED_STEP":
-        return 3, 2
-    if Stage == "ADVANCED":
-        return 3, 3
+    Digits = Config.GeneratorConfig.get("multiplicationDigits")
+    if Digits and len(Digits) == 2:
+        return Digits[0], Digits[1]
+    
+    # Fallback to defaults
+    if Stage == "WARM_UP": return 2, 1
+    if Stage == "STANDARD": return 2, 2
+    if Stage == "MIXED_STEP": return 3, 2
+    if Stage == "ADVANCED": return 3, 3
     return 4, 2
 
 
 def _DivisionDigits(Config: MMConfig, Stage: str) -> tuple[int, int]:
-    ExplicitDigits = _ExtractDivisionDigits(Config)
-    if ExplicitDigits is not None:
-        return ExplicitDigits
-    Title = _NormalisedPatternTitle(Config)
-    if "DIVISION BY 6D" in Title:
-        return 6, 3
-    if "DIVISION BY 3D" in Title:
-        return 4, 3
-    if Stage == "WARM_UP":
-        return 2, 1
-    if Stage == "STANDARD":
-        return 3, 1
-    if Stage == "MIXED_STEP":
-        return 4, 2
-    if Stage == "ADVANCED":
-        return 5, 2
+    Digits = Config.GeneratorConfig.get("divisionDigits")
+    if Digits and len(Digits) == 2:
+        return Digits[0], Digits[1]
+
+    # Fallback to defaults
+    if Stage == "WARM_UP": return 2, 1
+    if Stage == "STANDARD": return 3, 1
+    if Stage == "MIXED_STEP": return 4, 2
+    if Stage == "ADVANCED": return 5, 2
     return 5, 3
 
 
 
 def _BorrowingAnswerMode(Config: MMConfig) -> str:
-    Title = " ".join(
-        f" {Config.DpsTitle} {Config.LessonTitle} "
-        .upper()
-        .replace(",", " ")
-        .replace("-", " ")
-        .split()
-    )
-    if "BORROWING" not in Title:
-        return "STANDARD"
-    HasPositive = "POSITIVE" in Title
-    HasNegative = "NEGATIVE" in Title
-    if HasPositive and HasNegative:
-        return "MIXED_POSITIVE_NEGATIVE"
-    if HasNegative:
-        return "NEGATIVE_ONLY"
-    return "BORROWING_STANDARD"
+    return Config.GeneratorConfig.get("borrowingMode", "STANDARD")
 
 
 def _BuildBorrowingAddLess(
@@ -430,6 +346,8 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
 
     IsMixedDigitAddLess = _IsMixedDigitAddLessConcept(Config)
     IsMmAddLessVisual = _IsMmAddLessVisualConcept(Config)
+    if Config.ConceptFamily == "ADD_LESS":
+        print(f"DEBUG: GenerateAddLess IsVisual={IsMmAddLessVisual}, title={Config.DpsTitle}")
     if IsMmAddLessVisual:
         InitialValue = _RandMmAddLessVisualValue(Rng)
     elif IsMixedDigitAddLess:

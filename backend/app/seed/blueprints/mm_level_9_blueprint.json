@@ -1,0 +1,1749 @@
+{
+    "LESSON 1": {
+        "DPS_1": [
+            {
+                "title": "DECIMAL NUMBER  ADD/LESS (VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 16
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 14
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "BORROWING SUMS WITH NEGATIVE ANSWERS   (VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "3D X 2D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "INTEGERS",
+                "max_digits": 4,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "2 DIGIT NUMBER ADD/LESS (FAST VISUALISATION)",
+                "max_digits": 3,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 13
+            }
+        ]
+    },
+    "LESSON 2": {
+        "DPS_1": [
+            {
+                "title": "DECIMAL NUMBER  ADD/LESS (VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 16
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 14
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "BORROWING SUMS WITH NEGATIVE ANSWERS   (VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "3D X 2D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "INTEGERS",
+                "max_digits": 4,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "2 DIGIT NUMBER ADD/LESS (FAST VISUALISATION)",
+                "max_digits": 3,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 14
+            }
+        ]
+    },
+    "LESSON 3": {
+        "DPS_1": [
+            {
+                "title": "DECIMAL NUMBER  ADD/LESS (VISUAL)",
+                "max_digits": 2,
+                "decimal_places": 15
+            },
+            {
+                "title": "DECIMAL NUMBER  ADD/LESS (VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 16
+            },
+            {
+                "title": "SKILL STACKER (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 14
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 14
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "BORROWING SUMS WITH NEGATIVE ANSWERS   (VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "3D X 2D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "INTEGERS",
+                "max_digits": 4,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 14
+            },
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "2 DIGIT NUMBER ADD/LESS (FAST VISUALISATION)",
+                "max_digits": 3,
+                "decimal_places": 1
+            },
+            {
+                "title": "BORROWING SUMS WITH NEGATIVE ANSWERS   (VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 1
+            },
+            {
+                "title": "4D \u00f7 3D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ]
+    },
+    "Lesson 3": {
+        "DPS_1": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "3D X 2D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 2
+            }
+        ]
+    },
+    "LESSON 4": {
+        "DPS_1": [
+            {
+                "title": "3 DIGIT NUMBER ADD/LESS (FAST VISUALISATION)",
+                "max_digits": 4,
+                "decimal_places": 1
+            },
+            {
+                "title": "INTEGERS",
+                "max_digits": 4,
+                "decimal_places": 1
+            },
+            {
+                "title": "3D X 2D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "SKILL EXERCISE (ABACUS)",
+                "max_digits": 6,
+                "decimal_places": 1
+            },
+            {
+                "title": "2 DIGIT NUMBER ADD/LESS                               (FAST VISUALISATION)",
+                "max_digits": 3,
+                "decimal_places": 1
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "INTEGERS",
+                "max_digits": 4,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 13
+            },
+            {
+                "title": "CONCEPT DRILL (ABACUS)",
+                "max_digits": 4,
+                "decimal_places": 14
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "ACCUMULATIVE SKILL EXERCISE (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 1
+            },
+            {
+                "title": "CONCEPT DRILL (ABACUS)",
+                "max_digits": 4,
+                "decimal_places": 15
+            },
+            {
+                "title": "DECIMAL NUMBER  ADD/LESS (VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "BORROWING SUMS WITH POSITIVE / NEGATIVE ANSWERS   (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            },
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 12
+            }
+        ]
+    },
+    "LESSON 5": {
+        "DPS_1": [
+            {
+                "title": "BORROWING SUMS WITH NEGATIVE ANSWERS   (VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 1
+            },
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 14
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "4D \u00f7 3D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "4D \u00f7 3D (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "INTEGERS - VISUAL",
+                "max_digits": 4,
+                "decimal_places": 4
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "INTEGERS - VISUAL",
+                "max_digits": 2,
+                "decimal_places": 0
+            }
+        ]
+    },
+    "LESSON 6": {
+        "DPS_1": [
+            {
+                "title": "DECIMAL NUMBER  ADD/LESS (VISUAL)",
+                "max_digits": 2,
+                "decimal_places": 2
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 2,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 14
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 2
+            }
+        ]
+    },
+    "LESSON 7": {
+        "DPS_1": [
+            {
+                "title": "4D \u00f7 3D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 14
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "2D X 2D (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "INTEGERS",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "INTEGERS",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "DECIMAL MULTIPLICATION (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 20
+            }
+        ]
+    },
+    "LESSON 8": {
+        "DPS_1": [
+            {
+                "title": "2 DIGIT NUMBER ADD/LESS (FAST VISUALISATION)",
+                "max_digits": 3,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "2 DIGIT NUMBER ADD/LESS (FAST VISUALISATION)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "DECIMAL MULTIPLICATION (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 20
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "SKILL STACKER / CONCEPT DRILL (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "SKILL STACKER / CONCEPT DRILL (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "3D X 2D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "3D X 2D (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "5D \u00f7 2D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 18
+            }
+        ]
+    },
+    "LESSON 9": {
+        "DPS_1": [
+            {
+                "title": "5D \u00f7 2D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 18
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "CONCEPT DRILL (ABACUS)",
+                "max_digits": 6,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "CONCEPT DRILL (ABACUS)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "3D X 2D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "BORROWING SUMS WITH POSITIVE / NEGATIVE ANSWERS   (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 6
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "BORROWING SUMS WITH POSITIVE / NEGATIVE ANSWERS   (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 18
+            }
+        ]
+    },
+    "LESSON 10": {
+        "DPS_1": [
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "3 DIGIT  ADD/LESS (FAST VISUALISATION)",
+                "max_digits": 4,
+                "decimal_places": 1
+            },
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 14
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "DECIMAL MULTIPLICATION (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 20
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "DECIMAL MULTIPLICATION (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "5D \u00f7 3D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "5D \u00f7 3D (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 1
+            },
+            {
+                "title": "3",
+                "max_digits": 6,
+                "decimal_places": 15
+            }
+        ]
+    },
+    "LESSON 11": {
+        "DPS_1": [
+            {
+                "title": "DECIMAL MULTIPLICATION (VISUAL)",
+                "max_digits": 2,
+                "decimal_places": 20
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "DECIMAL MULTIPLICATION (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "DECIMAL MULTIPLICATION (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 19
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "DECIMAL MULTIPLICATION (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "MIXED PATTERN MULTIPLICATION (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "MIXED PATTERN MULTIPLICATION (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "BODMAS (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 16
+            }
+        ]
+    },
+    "Lesson12 R": {
+        "DPS_1": [
+            {
+                "title": "DIVISON OF DECIMAL NUMBERS",
+                "max_digits": 3,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 5,
+                "decimal_places": 17
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 2,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 2,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 2,
+                "decimal_places": 15
+            }
+        ]
+    },
+    "LESSON 13R": {
+        "DPS_1": [
+            {
+                "title": "DIVISON OF DECIMAL NUMBERS",
+                "max_digits": 3,
+                "decimal_places": 18
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 7,
+                "decimal_places": 14
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 2,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 2,
+                "decimal_places": 16
+            }
+        ]
+    },
+    "LESSON 14": {
+        "DPS_1": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 2,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 2,
+                "decimal_places": 17
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 4,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PRINCIPAL",
+                "max_digits": 5,
+                "decimal_places": 13
+            }
+        ]
+    },
+    "LESSON 15": {
+        "DPS_1": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 5,
+                "decimal_places": 14
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PRINCIPAL",
+                "max_digits": 5,
+                "decimal_places": 12
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 4,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PRINCIPAL",
+                "max_digits": 5,
+                "decimal_places": 13
+            }
+        ]
+    },
+    "LESSON 16": {
+        "DPS_1": [
+            {
+                "title": "INTEGERS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 2
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SQUARES",
+                "max_digits": 6,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "FIND PROFIT & PROFIT %",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "SL",
+                "max_digits": 6,
+                "decimal_places": 17
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "BODMAS",
+                "max_digits": 5,
+                "decimal_places": 1
+            },
+            {
+                "title": "CONCEPT DRILL WITH ABACUS",
+                "max_digits": 5,
+                "decimal_places": 15
+            }
+        ]
+    },
+    "Lesson 17": {
+        "DPS_1": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 17
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 2,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PRINCIPAL",
+                "max_digits": 5,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "PRINCIPAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "3D X 3D (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "CUBE ROOT",
+                "max_digits": 2,
+                "decimal_places": 15
+            }
+        ]
+    },
+    "LESSON 18": {
+        "DPS_1": [
+            {
+                "title": "CUBE ROOT OF 5 DIGIT NUMBERS",
+                "max_digits": 2,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "CUBE ROOT OF 6 DIGIT NUMBERS",
+                "max_digits": 2,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "CUBE ROOT OF MIXED DIGIT",
+                "max_digits": 3,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "CUBE ROOT OF MIXED DIGIT",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "DIVISON OF DECIMAL NUMBERS",
+                "max_digits": 3,
+                "decimal_places": 17
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 7,
+                "decimal_places": 15
+            }
+        ]
+    },
+    "LESSON 19": {
+        "DPS_1": [
+            {
+                "title": "SQUARES (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 1
+            },
+            {
+                "title": "SKILL STACKER (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 20
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "CUBE ROOT OF MIXED DIGIT",
+                "max_digits": 2,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "CUBE ROOT OF MIXED DIGIT",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 4,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "SL",
+                "max_digits": 2,
+                "decimal_places": 16
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 13
+            }
+        ]
+    },
+    "Lesson 20": {
+        "DPS_1": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 17
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SQUARES",
+                "max_digits": 6,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "SQUARES",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PRINCIPAL",
+                "max_digits": 5,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 6,
+                "decimal_places": 15
+            }
+        ]
+    },
+    "LESSON 21": {
+        "DPS_1": [
+            {
+                "title": "MIXED DIGIT ADD/LESS (VISUAL)",
+                "max_digits": 4,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 5,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 6,
+                "decimal_places": 13
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 18
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "BODMAS",
+                "max_digits": 4,
+                "decimal_places": 3
+            }
+        ]
+    },
+    "LESSON 22": {
+        "DPS_1": [
+            {
+                "title": "BODMAS",
+                "max_digits": 4,
+                "decimal_places": 12
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "BODMAS",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "DIVISON OF DECIMAL NUMBERS",
+                "max_digits": 4,
+                "decimal_places": 18
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "BORROWING SUMS WITH POSITIVE / NEGATIVE ANSWERS",
+                "max_digits": 5,
+                "decimal_places": 1
+            },
+            {
+                "title": "SKILL STACKER (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 6,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 17
+            }
+        ]
+    },
+    "LESSON 23": {
+        "DPS_1": [
+            {
+                "title": "CONCEPT DRILL (ABACUS)",
+                "max_digits": 6,
+                "decimal_places": 2
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "BODMAS",
+                "max_digits": 5,
+                "decimal_places": 13
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 6,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 4,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 7,
+                "decimal_places": 15
+            }
+        ]
+    },
+    "LESSON 24": {
+        "DPS_1": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PROFIT & LOSS - FIND SELLING PRICE",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 12
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PRINCIPAL",
+                "max_digits": 5,
+                "decimal_places": 12
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 6,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 19
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 3,
+                "decimal_places": 16
+            }
+        ]
+    },
+    "LESSON 25": {
+        "DPS_1": [
+            {
+                "title": "SQUARE ROOT  3 & 4 DIGIT NUMBER",
+                "max_digits": 2,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "SKILL STACKER (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "SL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "6D \u00f7 3D (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "6D \u00f7 3D (VISUAL)",
+                "max_digits": 5,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 7,
+                "decimal_places": 15
+            }
+        ]
+    },
+    "LESSON 26": {
+        "DPS_1": [
+            {
+                "title": "SQUARE ROOT -   4 DIGIT NUMBER",
+                "max_digits": 2,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 6,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "SL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "3D X 3D (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "3D X 3D (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 13
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PROFIT & LOSS - FIND SELLING PRICE",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 12
+            }
+        ]
+    },
+    "LESSON 27": {
+        "DPS_1": [
+            {
+                "title": "SQUARE ROOT -   5 DIGIT NUMBER",
+                "max_digits": 3,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PROFIT & LOSS - FIND SELLING PRICE",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 2
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 3,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "PROFIT & LOSS",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 4,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "BODMAS",
+                "max_digits": 5,
+                "decimal_places": 13
+            }
+        ]
+    },
+    "LESSON 28": {
+        "DPS_1": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 6,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "(VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "MULTIPLICATION - 3D x 2D",
+                "max_digits": 7,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 2,
+                "decimal_places": 15
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "5D \u00f7 3D (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 1
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "5D \u00f7 3D (VISUAL)",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "CONCEPT DRILL (ABACUS)",
+                "max_digits": 5,
+                "decimal_places": 14
+            },
+            {
+                "title": "SKILL STACKER (VISUAL)",
+                "max_digits": 6,
+                "decimal_places": 2
+            }
+        ]
+    },
+    "LESSON 29": {
+        "DPS_1": [
+            {
+                "title": "VISUAL",
+                "max_digits": 2,
+                "decimal_places": 17
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PROFIT & LOSS - FIND SELLING PRICE",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 13
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "VISUAL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "SL",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SIMPLE INTEREST",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "PRINCIPAL",
+                "max_digits": 5,
+                "decimal_places": 14
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "VISUAL",
+                "max_digits": 6,
+                "decimal_places": 0
+            }
+        ]
+    },
+    "LESSON 30": {
+        "DPS_1": [
+            {
+                "title": "PROFIT & LOSS",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SL",
+                "max_digits": 5,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_2": [
+            {
+                "title": "SQUARE ROOT -   5 DIGIT NUMBER",
+                "max_digits": 3,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_3": [
+            {
+                "title": "SQUARE ROOT -   6 DIGIT NUMBER",
+                "max_digits": 3,
+                "decimal_places": 0
+            }
+        ],
+        "DPS_4": [
+            {
+                "title": "SQUARE ROOT -   6 DIGIT NUMBER",
+                "max_digits": 0,
+                "decimal_places": 0
+            },
+            {
+                "title": "SQUARE ROOT -   6 DIGIT NUMBER",
+                "max_digits": 2,
+                "decimal_places": 16
+            }
+        ],
+        "DPS_5": [
+            {
+                "title": "SQUARE ROOT -   6 DIGIT NUMBER",
+                "max_digits": 6,
+                "decimal_places": 0
+            }
+        ]
+    }
+}
