@@ -502,16 +502,28 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Decimal Multiplication and Multiplication Mixed Pattern",
+                "sectionTitle": "Decimal Multiplication",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
+                "questionCount": 10,
+            },
+            {
+                "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "questionCount": 10,
                 "mixedOperationGroup": "MULTIPLICATION",
-            }
+            },
         ],
         3: [
             {
-                "sectionTitle": "Skill Stacker and Concept Drill",
+                "sectionTitle": "Skill Stacker",
+                "conceptFamily": "SKILL_STACKER",
+                "questionCount": 5,
+            },
+            {
+                "sectionTitle": "Concept Drill",
                 "conceptFamily": "CONCEPT_DRILL",
-            }
+                "questionCount": 5,
+            },
         ],
         4: [
             {
@@ -611,9 +623,15 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Decimal Multiplication and Write the Number from the Given Position",
+                "sectionTitle": "Decimal Multiplication",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
+                "questionCount": 10,
+            },
+            {
+                "sectionTitle": "Write the Number from the Given Position",
                 "conceptFamily": "ANSWER_POSITION",
-            }
+                "questionCount": 10,
+            },
         ],
         4: [
             {
@@ -650,15 +668,28 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Decimal Multiplication and Skill Stacker",
+                "sectionTitle": "Decimal Multiplication",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
+                "questionCount": 10,
+            },
+            {
+                "sectionTitle": "Skill Stacker",
                 "conceptFamily": "SKILL_STACKER",
-            }
+                "questionCount": 5,
+            },
         ],
         3: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern and Skill Stacker",
+                "sectionTitle": "Multiplication Mixed Pattern",
+                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
+            },
+            {
+                "sectionTitle": "Skill Stacker",
                 "conceptFamily": "SKILL_STACKER",
-            }
+                "questionCount": 5,
+            },
         ],
         4: [
             {"sectionTitle": "Squares", "conceptFamily": "SQUARES"},
