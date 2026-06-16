@@ -32,6 +32,8 @@ from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, OperationFoc
 DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 60
 DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 1800
 DEFAULT_COMPETITION_MARKS_PER_QUESTION = 1
+MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 100
+MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 3600
 
 
 MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
@@ -210,6 +212,45 @@ MM_COMPETITION_BATCH_SIZE = 5
 
 
 MM_COMPETITION_ORDERED_CONCEPT_GROUPS: dict[str, list[list[str]]] = {
+    "MM_ABACUS_ADD_LESS": [
+        ["Borrowing Sums with Positive and Negative Answers"],
+        ["Mixed Digit Add-Less"],
+        ["Decimal Add-Less"],
+        ["Integers Add-Less"],
+        ["4 Digit Number Add-Less"],
+        ["2 Digit Number Add-Less (Fast Visualisation)"],
+    ],
+    "MM_VISUAL_ADD_LESS": [
+        ["2 Digit Number Add-Less (Fast Visualisation)"],
+        ["Decimal Add-Less (Visual)"],
+        ["Integers Add-Less (Visual)"],
+        ["Borrowing Add-Less (Visual)"],
+        ["Mixed Digit Add-Less (Visual)"],
+    ],
+    "MM_MULTIPLICATION": [
+        ["2D × 2D Multiplication"],
+        ["3D × 2D Multiplication"],
+        ["3D × 3D Multiplication"],
+        ["4D × 2D Multiplication"],
+        ["4D × 3D Multiplication"],
+        ["5D × 2D Multiplication"],
+        ["2D × 2D Decimal Multiplication"],
+        ["3D × 2D Decimal Multiplication"],
+        ["3D × 3D Decimal Multiplication"],
+        ["4D × 2D Decimal Multiplication"],
+    ],
+    "MM_DIVISION": [
+        ["3D ÷ 2D Division"],
+        ["4D ÷ 2D Division"],
+        ["5D ÷ 2D Division"],
+        ["5D ÷ 3D Division"],
+        ["6D ÷ 3D Division"],
+        ["3D ÷ 2D Decimal Division"],
+        ["4D ÷ 2D Decimal Division"],
+        ["5D ÷ 2D Decimal Division"],
+        ["5D ÷ 3D Decimal Division"],
+        ["6D ÷ 3D Decimal Division"],
+    ],
     "MM_POSITIONAL_PLACEMENT": [
         ["Find Position of the First Natural Number"],
         ["Write Number From Given Position"],
@@ -217,21 +258,32 @@ MM_COMPETITION_ORDERED_CONCEPT_GROUPS: dict[str, list[list[str]]] = {
     ],
     "MM_SQUARES_ROOTS": [
         ["Squares"],
-        ["Square Root 5 Digit Number", "Square Root 4 Digit Number", "Square Root 3 & 4 Digit Number"],
+        ["Square Root 5 Digit Number"],
+        ["Square Root 4 Digit Number"],
+        ["Square Root 3 & 4 Digit Number"],
     ],
     "MM_CUBES_ROOTS": [
         ["Cubes"],
-        ["Cube Root 6 Digit Number", "Cube Root 5 Digit Number", "Cube Root 4 Digit Number"],
+        ["Cube Root 6 Digit Number"],
+        ["Cube Root 5 Digit Number"],
+        ["Cube Root 4 Digit Number"],
     ],
     "MM_BODMAS_PERCENTAGE": [
-        ["BODMAS Competition Challenge", "BODMAS Square Root Decimal Percentage Challenge"],
+        ["BODMAS Competition Challenge"],
+        ["BODMAS Square Root Decimal Percentage Challenge"],
         ["Solve Equation Competition Challenge"],
-        ["Add Percentage Challenge", "Less Percentage Challenge", "Add-Less Percentage Challenge"],
+        ["Add Percentage Challenge"],
+        ["Less Percentage Challenge"],
+        ["Add-Less Percentage Challenge"],
     ],
     "MM_FINANCIAL": [
-        ["Find Profit", "Find Loss", "Find Profit %", "Find Loss %"],
+        ["Find Profit"],
+        ["Find Loss"],
+        ["Find Profit %"],
+        ["Find Loss %"],
         ["Simple Interest"],
         ["Selling Price"],
+        ["Cost Price"],
     ],
     "MM_SKILL_DRILL": [
         ["Skill Stacker"],
@@ -695,6 +747,26 @@ def _MmSectionCountMap(TotalQuestionCount: int, SectionCountsOverride: dict[str,
     }
 
 
+def _MmCompetitionDigitConfig(ConceptTitle: str, ConceptFamily: str) -> dict[str, list[int]]:
+    TitleText = (
+        str(ConceptTitle or "")
+        .upper()
+        .replace("×", " X ")
+        .replace("Ã—", " X ")
+        .replace("÷", " DIVISION ")
+        .replace("Ã·", " DIVISION ")
+    )
+    Match = re.search(r"([1-9])D\s*(?:X|DIVISION)\s*([1-9])D", TitleText)
+    if not Match:
+        return {}
+    Digits = [int(Match.group(1)), int(Match.group(2))]
+    if ConceptFamily in {"WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION"}:
+        return {"multiplicationDigits": Digits}
+    if ConceptFamily in {"WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION"}:
+        return {"divisionDigits": Digits}
+    return {}
+
+
 def _GenerateMmCompetitionConceptBatch(
     *,
     ModuleRecord: Module,
@@ -708,6 +780,7 @@ def _GenerateMmCompetitionConceptBatch(
     ConceptFamily = str(ConceptSpec["conceptFamily"])
     ConceptTitle = str(ConceptSpec["title"])
     MixedOperationGroup = str(ConceptSpec.get("mixedOperationGroup") or "")
+    DigitConfig = _MmCompetitionDigitConfig(ConceptTitle, ConceptFamily)
     if SectionDefinition.get("key") == "MM_BODMAS_PERCENTAGE" and ConceptFamily == "BODMAS":
         return [
             _BuildMmCompetitionBodmasChallengeQuestion(
@@ -754,12 +827,14 @@ def _GenerateMmCompetitionConceptBatch(
             "competitionSectionNumber": SectionDefinition["number"],
             "competitionSectionTitle": SectionDefinition["title"],
             "mixedOperationGroup": MixedOperationGroup,
+            **DigitConfig,
             "activeSection": {
                 "sectionNumber": SectionDefinition["number"],
                 "sectionTitle": ConceptTitle,
                 "questionCount": max(RequiredCount, 1),
                 "conceptFamily": ConceptFamily,
                 "mixedOperationGroup": MixedOperationGroup,
+                **DigitConfig,
             },
         },
     )
@@ -825,7 +900,9 @@ def _CollectMmCompetitionSectionLockedQuestions(
                 Metadata = dict(Metadata)
                 Metadata.update({
                     "competitionConceptKey": ConceptSpec["title"],
+                    "competitionConceptName": ConceptSpec["title"],
                     "competitionAllowedConceptFamily": ConceptSpec["conceptFamily"],
+                    "conceptName": ConceptSpec["title"],
                     "competitionSectionKey": SectionKey,
                     "competitionSectionNumber": SectionDefinition["number"],
                     "competitionSectionTitle": SectionDefinition["title"],
@@ -894,8 +971,8 @@ def _CollectMmCompetitionSectionLockedQuestions(
 
 def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int | None = None) -> dict[str, Any]:
     ModuleRecord, LevelRecord, Lessons, DpsRows = _LevelRecords(db, LevelId)
-    RequestedQuestionCount = int(TotalQuestions or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
     if _IsMasterModule(ModuleRecord):
+        RequestedQuestionCount = int(TotalQuestions or MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
         Base = RequestedQuestionCount // len(MM_COMPETITION_SECTION_DEFINITIONS)
         Remainder = RequestedQuestionCount % len(MM_COMPETITION_SECTION_DEFINITIONS)
         Sections = []
@@ -905,7 +982,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
                 "sectionNumber": Section["number"],
                 "sectionTitle": Section["title"],
                 "questionCount": Base + (1 if Index < Remainder else 0),
-                "locked": False,
+                "locked": True,
             })
         return {
             "moduleId": ModuleRecord.id,
@@ -919,6 +996,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
             "sections": Sections,
         }
 
+    RequestedQuestionCount = int(TotalQuestions or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
     SectionsByDps = _ActiveSectionsByDps(db, DpsRows)
     UniqueSections: dict[str, dict[str, Any]] = {}
     for DpsRecord in DpsRows:
@@ -1563,13 +1641,16 @@ def GenerateCompetitionMockDraft(
 ) -> dict[str, Any]:
     ModuleRecord, LevelRecord, Lessons, DpsRows = _LevelRecords(db, LevelId)
     SectionCountsOverride = _NormalizeSectionCounts(SectionCounts)
-    RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+    IsMmMock = _IsMasterModule(ModuleRecord)
+    DefaultQuestionCount = MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsMmMock else DEFAULT_COMPETITION_MOCK_QUESTION_COUNT
+    DefaultDurationSeconds = MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsMmMock else DEFAULT_COMPETITION_MOCK_DURATION_SECONDS
+    RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)
     if RequestedQuestionCount < 10:
         api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams must contain at least 10 questions.")
     if RequestedQuestionCount > 150:
         api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams cannot exceed 150 questions in this package.")
 
-    RequestedDurationSeconds = int(DurationSeconds or DEFAULT_COMPETITION_MOCK_DURATION_SECONDS)
+    RequestedDurationSeconds = int(DurationSeconds or DefaultDurationSeconds)
     if RequestedDurationSeconds < 300:
         api_error(400, "INVALID_DURATION", "Competition mock duration must be at least 5 minutes.")
 
