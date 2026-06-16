@@ -484,6 +484,7 @@ MM_CURRICULUM_MAP = {
             {
                 "sectionTitle": "Decimal Multiplication and 4D ÷ 2D Visual",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "mixedOperationGroup": "MULTIPLICATION",
             }
         ],
     },
@@ -503,6 +504,7 @@ MM_CURRICULUM_MAP = {
             {
                 "sectionTitle": "Decimal Multiplication and Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "mixedOperationGroup": "MULTIPLICATION",
             }
         ],
         3: [
@@ -521,6 +523,7 @@ MM_CURRICULUM_MAP = {
             {
                 "sectionTitle": "5D ÷ 2D and Decimal Multiplication Visual",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "mixedOperationGroup": "MULTIPLICATION",
             }
         ],
     },
@@ -529,6 +532,7 @@ MM_CURRICULUM_MAP = {
             {
                 "sectionTitle": "5D ÷ 2D and Decimal Multiplication Visual",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "mixedOperationGroup": "MULTIPLICATION",
             }
         ],
         2: [
@@ -576,11 +580,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
     },
@@ -682,11 +688,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         2: [
@@ -694,11 +702,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         3: [
@@ -744,11 +754,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         2: [
@@ -756,11 +768,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         3: [
@@ -893,6 +907,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Division of Decimal Numbers",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
             {
                 "sectionTitle": "Less Percentage",
@@ -944,6 +959,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {"sectionTitle": "BODMAS", "conceptFamily": "BODMAS", "questionCount": 10},
         ],
@@ -962,11 +978,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         2: [
@@ -1025,11 +1043,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         5: [
@@ -1037,6 +1057,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Less Percentage",
@@ -1105,11 +1126,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         2: [
@@ -1207,6 +1230,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Division of Decimal Numbers",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         5: [{"sectionTitle": "BODMAS", "conceptFamily": "BODMAS"}],
@@ -1218,11 +1242,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         3: [
@@ -1260,6 +1286,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Division of Decimal Numbers",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
             {
                 "sectionTitle": "Cube Root",
@@ -1313,6 +1340,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Less Percentage",
@@ -1349,11 +1377,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         5: [
@@ -1399,11 +1429,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
     },
@@ -1504,11 +1536,13 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Multiplication Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
         ],
         4: [
@@ -1603,6 +1637,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Division of Decimal Numbers",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
+                "mixedOperationGroup": "DIVISION",
             },
             {
                 "sectionTitle": "Cube Root",
