@@ -69,7 +69,9 @@ export default function StudentCompetitionMockAttemptPage() {
     return { ...saved, ...localAnswers };
   }, [questions, localAnswers]);
 
-  const answeredNumbers = questions.filter((question) => selectedAnswers[question.questionId]).map((question) => question.questionNumber);
+  const answeredNumbers = questions
+    .filter((question) => selectedAnswers[question.questionId])
+    .map((question) => question.questionNumber);
 
   async function handleSelect(questionId: string, selectedOptionId: string) {
     if (!attempt || remainingSeconds <= 0) return;
@@ -131,40 +133,42 @@ export default function StudentCompetitionMockAttemptPage() {
 
   return (
     <AppShell title="Competition Mock Attempt">
-      <section className="math-slide-up rounded-[30px] border border-white/70 bg-gradient-to-br from-white/92 via-orange-50/80 to-amber-100/60 p-4 shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:from-slate-950/92 dark:via-slate-900/82 dark:to-orange-950/36 sm:p-5">
-        <div className="relative z-10 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <section className="math-slide-up sticky top-[132px] z-30 rounded-[26px] border border-white/70 bg-gradient-to-br from-white/95 via-orange-50/90 to-amber-100/75 p-3 shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:from-slate-950/95 dark:via-slate-900/90 dark:to-orange-950/50 sm:p-4">
+        <div className="relative z-10 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
               Question {currentQuestion.questionNumber} Of {questions.length}
             </p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.1rem]">
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[1.75rem]">
               {mockExam.title || "Competition Mock"}
             </h1>
-            <p className="mt-1.5 max-w-5xl text-sm font-semibold leading-5 text-slate-700 dark:text-slate-300">
-              {mockExam.mockCode ? `${mockExam.mockCode} · ` : ""}{mockExam.moduleCode || "Module"} · {mockExam.levelCode || "Level"}. Answer carefully. The mock auto-saves each response and submits when time expires.
+            <p className="mt-1 max-w-5xl text-xs font-semibold leading-5 text-slate-700 dark:text-slate-300 sm:text-sm">
+              {mockExam.mockCode ? `${mockExam.mockCode} · ` : ""}
+              {mockExam.moduleCode || "Module"} · {mockExam.levelCode || "Level"}. Answer carefully. The mock auto-saves each response and submits when time expires.
             </p>
           </div>
           <TestTimer remainingSeconds={remainingSeconds} />
         </div>
 
-        <div className="relative z-10 mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="relative z-10 mt-3 grid gap-2 sm:grid-cols-3">
           <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
           <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
           <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
         </div>
       </section>
 
-      <div className="mt-4 math-slide-up">
+      <div className="mt-3 math-slide-up pb-28">
         <QuestionCard
           question={currentQuestion}
           selectedOptionId={selectedAnswers[currentQuestion.questionId]}
           disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending || remainingSeconds <= 0}
           saving={savingQuestionId === currentQuestion.questionId}
+          compact
           onSelect={(optionId) => handleSelect(currentQuestion.questionId, optionId)}
         />
       </div>
 
-      <div className="mt-4 math-card p-4">
+      <div className="sticky bottom-0 z-20 mt-3 rounded-[26px] border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:bg-slate-950/95">
         <QuestionNavigator
           totalQuestions={questions.length}
           currentQuestionNumber={currentQuestion.questionNumber}
@@ -172,18 +176,17 @@ export default function StudentCompetitionMockAttemptPage() {
           onSelectQuestion={(number) => setCurrentIndex(number - 1)}
         />
 
-        <div className="mt-4 flex flex-wrap justify-between gap-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-[auto_1fr_auto] sm:items-center">
           <button className="math-button-secondary" disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}>
             Previous
+          </button>
+          <button className="math-button-primary w-full py-3" onClick={() => setShowConfirm(true)} disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}>
+            Submit Mock
           </button>
           <button className="math-button-secondary" disabled={currentIndex >= questions.length - 1} onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}>
             Next
           </button>
         </div>
-
-        <button className="math-button-primary mt-4 w-full py-3" onClick={() => setShowConfirm(true)} disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}>
-          Submit Mock
-        </button>
       </div>
 
       <ConfirmDialog
@@ -200,10 +203,12 @@ export default function StudentCompetitionMockAttemptPage() {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="rounded-[20px] bg-white/78 p-3 shadow-sm ring-1 ring-white/70 backdrop-blur-md transition hover:-translate-y-0.5 dark:bg-slate-900/60 dark:ring-slate-700">
+    <div className="flex items-center gap-3 rounded-[18px] bg-white/78 p-2.5 shadow-sm ring-1 ring-white/70 backdrop-blur-md transition hover:-translate-y-0.5 dark:bg-slate-900/60 dark:ring-slate-700">
       <div className="inline-flex rounded-xl bg-orange-50 p-1.5 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">{icon}</div>
-      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">{label}</p>
-      <p className="mt-1 text-2xl font-black leading-none text-slate-950 dark:text-white">{value}</p>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">{label}</p>
+        <p className="mt-0.5 text-xl font-black leading-none text-slate-950 dark:text-white">{value}</p>
+      </div>
     </div>
   );
 }

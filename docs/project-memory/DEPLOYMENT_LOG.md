@@ -4,6 +4,23 @@ Last updated: 2026-06-17
 
 ## 2026-06-17
 
+### Competition Mock Attempt Timer And Layout Fix
+
+Expected deployment:
+
+- Vercel frontend redeploy.
+
+Verification:
+
+- Frontend typecheck passed locally.
+- Frontend production build passed locally.
+
+Change summary:
+
+- Student mock timers now show a red pulsing warning from 5 minutes remaining.
+- Competition mock attempt header stays visible while answering.
+- Competition mock navigation and submit controls stay visible in a sticky bottom bar.
+
 ### Commit `a88007a`
 
 Title: `Scope mock assignments to eligible students`
