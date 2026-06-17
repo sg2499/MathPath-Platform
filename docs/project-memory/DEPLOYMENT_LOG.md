@@ -18,8 +18,8 @@ Verification:
 Change summary:
 
 - Student mock timers now show a red pulsing warning from 5 minutes remaining.
-- Competition mock attempt header stays visible while answering.
-- Competition mock navigation and submit controls stay visible in a sticky bottom bar.
+- Competition mock attempt was later rebuilt into a single desktop exam workspace.
+- Dense vertical sums now scale down automatically instead of clipping.
 
 ### Commit `a88007a`
 

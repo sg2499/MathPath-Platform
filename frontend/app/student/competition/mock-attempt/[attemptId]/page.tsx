@@ -4,7 +4,8 @@ import { AppShell } from "@/components/common/AppShell";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { QuestionCard } from "@/components/student/QuestionCard";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
+import { OptionButton } from "@/components/student/OptionButton";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
 import { useAttemptTimer } from "@/hooks/useAttemptTimer";
@@ -73,6 +74,15 @@ export default function StudentCompetitionMockAttemptPage() {
     .filter((question) => selectedAnswers[question.questionId])
     .map((question) => question.questionNumber);
 
+  const metadata = (currentQuestion as any)?.metadata || {};
+  const sectionTitle = String(metadata.section_title || metadata.sectionTitle || "").trim();
+  const sectionNumber = metadata.section_number || metadata.sectionNumber;
+  const totalSections = Number(metadata.dps_total_sections || metadata.dpsTotalSections || 0);
+  const showSectionLabel = Boolean(sectionTitle);
+  const sectionLabel = showSectionLabel
+    ? (totalSections > 1 ? `Section ${sectionNumber || 1} · ${sectionTitle}` : sectionTitle)
+    : "Competition Question";
+
   async function handleSelect(questionId: string, selectedOptionId: string) {
     if (!attempt || remainingSeconds <= 0) return;
     const selectedQuestionIndex = questions.findIndex((question) => question.questionId === questionId);
@@ -133,61 +143,99 @@ export default function StudentCompetitionMockAttemptPage() {
 
   return (
     <AppShell title="Competition Mock Attempt">
-      <section className="math-slide-up sticky top-[132px] z-30 rounded-[26px] border border-white/70 bg-gradient-to-br from-white/95 via-orange-50/90 to-amber-100/75 p-3 shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:from-slate-950/95 dark:via-slate-900/90 dark:to-orange-950/50 sm:p-4">
-        <div className="relative z-10 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <section className="math-slide-up math-card flex flex-col gap-4 overflow-visible p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
+        <div className="grid gap-4 rounded-[24px] border border-orange-100 bg-gradient-to-r from-white/98 via-orange-50/70 to-amber-100/55 p-4 shadow-sm dark:border-slate-800 dark:from-slate-950/96 dark:via-slate-900/88 dark:to-orange-950/36 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div>
-            <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
-              Question {currentQuestion.questionNumber} Of {questions.length}
-            </p>
-            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[1.75rem]">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
+                Question {currentQuestion.questionNumber} Of {questions.length}
+              </p>
+              <p className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200">
+                {sectionLabel}
+              </p>
+            </div>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[1.8rem]">
               {mockExam.title || "Competition Mock"}
             </h1>
-            <p className="mt-1 max-w-5xl text-xs font-semibold leading-5 text-slate-700 dark:text-slate-300 sm:text-sm">
+            <p className="mt-1 text-sm font-semibold leading-5 text-slate-700 dark:text-slate-300">
               {mockExam.mockCode ? `${mockExam.mockCode} · ` : ""}
               {mockExam.moduleCode || "Module"} · {mockExam.levelCode || "Level"}. Answer carefully. The mock auto-saves each response and submits when time expires.
             </p>
           </div>
-          <TestTimer remainingSeconds={remainingSeconds} />
+          <div className="justify-self-start lg:justify-self-end">
+            <TestTimer remainingSeconds={remainingSeconds} />
+          </div>
         </div>
 
-        <div className="relative z-10 mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-3">
           <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
           <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
           <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
         </div>
-      </section>
 
-      <div className="mt-3 math-slide-up pb-28">
-        <QuestionCard
-          question={currentQuestion}
-          selectedOptionId={selectedAnswers[currentQuestion.questionId]}
-          disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending || remainingSeconds <= 0}
-          saving={savingQuestionId === currentQuestion.questionId}
-          compact
-          onSelect={(optionId) => handleSelect(currentQuestion.questionId, optionId)}
-        />
-      </div>
+        <div className="grid flex-1 gap-4 xl:min-h-0 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] xl:items-stretch">
+          <div className="math-card flex flex-col overflow-visible border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
+              <div>
+                <p className="math-kicker">{sectionLabel}</p>
+                <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Question {currentQuestion.questionNumber}</h2>
+              </div>
+              <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${savingQuestionId === currentQuestion.questionId ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200" : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>
+                {savingQuestionId === currentQuestion.questionId ? "Saving..." : "Auto-saved"}
+              </div>
+            </div>
+            <div className="flex flex-1 items-center justify-center overflow-visible px-2 py-4 xl:min-h-0">
+              <div className="flex w-full justify-center overflow-visible rounded-[28px] bg-white/92 p-4 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/80 dark:ring-slate-700">
+                <MathQuestionDisplay
+                  operands={currentQuestion.operands}
+                  operators={currentQuestion.operators}
+                  displayType={(currentQuestion as any).displayType ?? (currentQuestion as any).display_type}
+                  questionText={(currentQuestion as any).questionText ?? (currentQuestion as any).question_text}
+                />
+              </div>
+            </div>
+          </div>
 
-      <div className="sticky bottom-0 z-20 mt-3 rounded-[26px] border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:bg-slate-950/95">
-        <QuestionNavigator
-          totalQuestions={questions.length}
-          currentQuestionNumber={currentQuestion.questionNumber}
-          answeredQuestionNumbers={answeredNumbers}
-          onSelectQuestion={(number) => setCurrentIndex(number - 1)}
-        />
-
-        <div className="mt-3 grid gap-3 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-          <button className="math-button-secondary" disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}>
-            Previous
-          </button>
-          <button className="math-button-primary w-full py-3" onClick={() => setShowConfirm(true)} disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}>
-            Submit Mock
-          </button>
-          <button className="math-button-secondary" disabled={currentIndex >= questions.length - 1} onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}>
-            Next
-          </button>
+          <div className="math-card flex flex-col border border-slate-200/80 bg-white/88 p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60">
+            <div className="border-b border-slate-200/80 pb-3 dark:border-slate-800">
+              <p className="math-kicker">Select Answer</p>
+              <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Choose the correct option</h2>
+            </div>
+            <div className="grid flex-1 content-center gap-3 py-4 sm:grid-cols-2 xl:min-h-0">
+              {currentQuestion.options.map((option) => (
+                <OptionButton
+                  key={option.optionId}
+                  option={option}
+                  selected={selectedAnswers[currentQuestion.questionId] === option.optionId}
+                  disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending || remainingSeconds <= 0}
+                  onClick={() => handleSelect(currentQuestion.questionId, option.optionId)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+
+        <div className="rounded-[24px] border border-slate-200 bg-white/92 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/85">
+          <QuestionNavigator
+            totalQuestions={questions.length}
+            currentQuestionNumber={currentQuestion.questionNumber}
+            answeredQuestionNumbers={answeredNumbers}
+            onSelectQuestion={(number) => setCurrentIndex(number - 1)}
+          />
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+            <button className="math-button-secondary" disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}>
+              Previous
+            </button>
+            <button className="math-button-primary w-full py-3" onClick={() => setShowConfirm(true)} disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}>
+              Submit Mock
+            </button>
+            <button className="math-button-secondary" disabled={currentIndex >= questions.length - 1} onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}>
+              Next
+            </button>
+          </div>
+        </div>
+      </section>
 
       <ConfirmDialog
         open={showConfirm}

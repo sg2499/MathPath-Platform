@@ -42,9 +42,9 @@ Also on 2026-06-17, Competition Mock Studio assignment scope was fixed:
 Also on 2026-06-17, the student competition mock attempt screen was improved:
 
 - The mock timer now switches into a red pulsing warning state at 5 minutes remaining.
-- The attempt header is sticky so the timer stays visible while students answer.
-- The bottom navigation and submit controls are sticky to reduce scroll friction.
-- The competition mock question card supports a compact attempt layout.
+- The attempt page was later rebuilt into a single structured exam workspace after a live screenshot showed clipping and continued scroll dependency.
+- Dense vertical sums now scale down automatically instead of being cut off.
+- The competition mock attempt no longer relies on layered sticky blocks to keep controls visible.
 - Frontend typecheck and production build passed locally.
 
 ## Current Product State
@@ -63,6 +63,7 @@ MM mock generator and preview behavior is now expected to be:
 - Multiplication/division mocks avoid easy place-shift operands and obvious low quotients.
 - Admin mock assignment only shows and assigns students eligible for the selected mock module and level.
 - Student competition mock attempts keep the timer visible and show a red pulsing low-time warning at 5 minutes remaining.
+- Student competition mock attempts use a denser full-workspace layout so long vertical sums remain visible on desktop.
 - Clean preview rendering with no duplicate positional prompt and no inner scrollbars.
 
 ## Next Recommended Work
