@@ -1,6 +1,6 @@
 # Master Module Mock Generator Rules
 
-Last updated: 2026-06-16
+Last updated: 2026-06-17
 
 ## Defaults
 
@@ -28,6 +28,10 @@ The MM mock generator has exactly 10 approved sections:
 - Sections are locked.
 - A section must only generate sums from its approved concept pool.
 - Concepts inside a section must be generated sequentially, not randomly interleaved.
+- A generated MM mock must not repeat the same question/sum inside the same mock.
+- A generated MM mock must avoid questions/sums already used in the previous 15 active MM mocks for the same level.
+- Reuse is acceptable only after that 15-mock freshness window has moved past the older mock.
+- If the generator cannot satisfy a section count without breaking the 15-mock freshness rule, it must fail clearly instead of silently repeating recent sums.
 - The generated question metadata must include the exact competition concept name for review and coverage.
 - MM competition generation must bypass the normal lesson/DPS curriculum map when using the section-locked competition generator source.
 
@@ -46,3 +50,4 @@ Backend generator changes should preserve:
 - 10 questions per section by default.
 - No section-family leakage.
 - Concept block sequencing inside every section.
+- Stable duplicate detection that ignores volatile fields such as seed, generated question number, and source DPS.

@@ -1,6 +1,6 @@
 # Current Platform Status
 
-**Last Updated:** 2026-06-16
+**Last Updated:** 2026-06-17
 
 ## Current Phase: Mock Exam and Competition Phase
 
@@ -18,9 +18,11 @@
 - Finalized MathPath AI Brain Context Machine for future epics.
 - Added the project-memory continuity system under `docs/project-memory/`.
 - Fixed MM mock generator defaults, section locking, concept sequencing, and preview rendering cleanup.
+- Added MM mock question freshness: no duplicate sums/questions inside a mock and no repeats from the previous 15 active same-level MM mocks.
 
 ### In Progress / Next Immediate Tasks
 - Keep `docs/project-memory/DAILY_HANDOFF.md` and `docs/project-memory/DAILY_LOGS/` updated after every work session.
+- Verify live MM mock draft generation after deploying the 15-mock freshness change.
 - Await the user's next MathPath product or QA request.
 
 ---

@@ -34,6 +34,7 @@ DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 1800
 DEFAULT_COMPETITION_MARKS_PER_QUESTION = 1
 MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 100
 MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 3600
+MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW = 15
 
 
 MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
@@ -848,11 +849,14 @@ def _CollectMmCompetitionSectionLockedQuestions(
     Lessons: list[Lesson],
     TargetQuestionCount: int,
     SectionCountsOverride: dict[str, int] | None = None,
+    ExcludedSignatures: set[str] | None = None,
+    FreshnessWindowMockCount: int = MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     SectionCounts = _MmSectionCountMap(TargetQuestionCount, SectionCountsOverride)
     Selected: list[dict[str, Any]] = []
     SectionCoverage: list[dict[str, Any]] = []
-    UsedSignatures: set[str] = set()
+    RecentSignatures = set(ExcludedSignatures or set())
+    UsedSignatures: set[str] = set(RecentSignatures)
     OrderedLessons = Lessons or [None]
 
     for SectionIndex, SectionDefinition in enumerate(MM_COMPETITION_SECTION_DEFINITIONS):
@@ -932,11 +936,13 @@ def _CollectMmCompetitionSectionLockedQuestions(
             api_error(
                 400,
                 "MM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                f"Could not generate the required {RequiredCount} questions for {SectionDefinition['title']}.",
+                f"Could not generate the required {RequiredCount} fresh questions for {SectionDefinition['title']} without repeating the recent mock window.",
                 {
                     "sectionKey": SectionKey,
                     "required": RequiredCount,
                     "generated": len(SectionQuestions),
+                    "freshnessWindowMockCount": FreshnessWindowMockCount,
+                    "recentBlockedSignatureCount": len(RecentSignatures),
                 },
             )
 
@@ -964,6 +970,8 @@ def _CollectMmCompetitionSectionLockedQuestions(
         "sectionCount": len(SectionCoverage),
         "sections": SectionCoverage,
         "generationErrors": [],
+        "freshnessWindowMockCount": FreshnessWindowMockCount,
+        "recentBlockedSignatureCount": len(RecentSignatures),
     }
     return Selected, CoveragePayload
 
@@ -1187,16 +1195,86 @@ def _MmCompetitionSectionKeys(Question: dict[str, Any], FallbackTitle: str) -> l
     return []
 
 
+def _NormalizeSignatureScalar(Value: Any) -> str:
+    RawText = _NormalizeText(Value)
+    if not RawText:
+        return ""
+    CollapsedText = re.sub(r"\s+", " ", RawText).strip().lower()
+    try:
+        DecimalValue = Decimal(CollapsedText)
+    except Exception:
+        return CollapsedText
+    return _PlainDecimalText(DecimalValue)
+
+
+def _NormalizeSignatureValue(Value: Any) -> Any:
+    if isinstance(Value, dict):
+        return {
+            _NormalizeSignatureScalar(Key): _NormalizeSignatureValue(Value[Key])
+            for Key in sorted(Value.keys(), key=lambda Item: _NormalizeSignatureScalar(Item))
+        }
+    if isinstance(Value, (list, tuple)):
+        return [_NormalizeSignatureValue(Item) for Item in Value]
+    return _NormalizeSignatureScalar(Value)
+
+
 def _QuestionSignature(Question: dict[str, Any]) -> str:
-    Metadata = _QuestionMetadata(Question)
-    return "|".join([
-        _NormalizeText(Metadata.get("sourceDpsId")),
-        _NormalizeText(Metadata.get("sourceQuestionNumber") or Question.get("question_number")),
-        _NormalizeText(Question.get("question_text")),
-        json.dumps(Question.get("operands") or [], sort_keys=True, default=str),
-        json.dumps(Question.get("operators") or [], sort_keys=True, default=str),
-        _NormalizeText(Question.get("correct_answer")),
-    ])
+    """Build a stable content signature for duplicate detection.
+
+    Volatile fields such as seed, generated question number, source DPS, and
+    mock id are intentionally excluded. The goal is to identify the same sum or
+    prompt even when it appears in a different mock paper.
+    """
+    SignaturePayload = {
+        "questionText": _NormalizeSignatureScalar(Question.get("question_text")),
+        "operands": _NormalizeSignatureValue(Question.get("operands") or []),
+        "operators": _NormalizeSignatureValue(Question.get("operators") or []),
+        "correctAnswer": _NormalizeSignatureScalar(Question.get("correct_answer")),
+    }
+    return json.dumps(SignaturePayload, sort_keys=True, separators=(",", ":"))
+
+
+def _StoredMockQuestionDict(QuestionRecord: CompetitionMockQuestion) -> dict[str, Any]:
+    return {
+        "question_text": QuestionRecord.question_text,
+        "operands": _SafeJsonLoads(QuestionRecord.operands_json, []),
+        "operators": _SafeJsonLoads(QuestionRecord.operators_json, []),
+        "correct_answer": QuestionRecord.correct_answer,
+        "metadata": _SafeJsonLoads(QuestionRecord.metadata_json, {}),
+    }
+
+
+def _RecentMmCompetitionQuestionSignatures(
+    db: Session,
+    *,
+    ModuleRecord: Module,
+    LevelRecord: Level,
+    WindowMockCount: int = MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
+) -> set[str]:
+    RecentMocks = (
+        db.query(CompetitionMockExam)
+        .filter(
+            CompetitionMockExam.module_id == ModuleRecord.id,
+            CompetitionMockExam.level_id == LevelRecord.id,
+            CompetitionMockExam.is_active == True,
+        )
+        .order_by(CompetitionMockExam.created_at.desc(), CompetitionMockExam.id.desc())
+        .limit(max(0, int(WindowMockCount or 0)))
+        .all()
+    )
+    MockIds = [MockRecord.id for MockRecord in RecentMocks]
+    if not MockIds:
+        return set()
+
+    RecentQuestions = (
+        db.query(CompetitionMockQuestion)
+        .filter(CompetitionMockQuestion.mock_exam_id.in_(MockIds))
+        .all()
+    )
+    return {
+        _QuestionSignature(_StoredMockQuestionDict(QuestionRecord))
+        for QuestionRecord in RecentQuestions
+    }
 
 
 def _AllocateCompetitionSectionCounts(TargetQuestionCount: int, AvailableBySection: dict[str, int]) -> dict[str, int]:
@@ -1413,14 +1491,22 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: L
     if IsMmMock:
         # MM competition papers are not allowed to inherit mixed/stale DPS section
         # titles and then classify later. Generate directly from the approved
-        # 8-section competition whitelist so every section receives only the
+        # 10-section competition whitelist so every section receives only the
         # concepts that belong to that section.
+        RecentSignatures = _RecentMmCompetitionQuestionSignatures(
+            db,
+            ModuleRecord=ModuleRecord,
+            LevelRecord=LevelRecord,
+            WindowMockCount=MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
+        )
         return _CollectMmCompetitionSectionLockedQuestions(
             ModuleRecord,
             LevelRecord,
             Lessons,
             TargetQuestionCount,
             SectionCountsOverride,
+            ExcludedSignatures=RecentSignatures,
+            FreshnessWindowMockCount=MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
         )
 
     if not GeneratedByConcept:
@@ -1683,6 +1769,8 @@ def GenerateCompetitionMockDraft(
             "source": "LEVEL_DPS_GENERATORS",
             "competitionStructure": CoveragePayload.get("competitionStructure", "BALANCED_CONCEPT_ROTATION"),
             "sectionCounts": SectionCountsOverride,
+            "freshnessWindowMockCount": CoveragePayload.get("freshnessWindowMockCount"),
+            "recentBlockedSignatureCount": CoveragePayload.get("recentBlockedSignatureCount"),
         }),
         created_by_user_id=CreatedBy.id if CreatedBy else None,
         is_active=True,

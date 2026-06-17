@@ -1,7 +1,14 @@
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+import json
 
-from app.models import Lesson, Level, Module
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.database import Base
+from app.models import CompetitionMockExam, CompetitionMockQuestion, Lesson, Level, Module
 from app.services.competition_mock_generation_service import (
+    MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
     MM_COMPETITION_SECTION_CONCEPT_POOLS,
     MM_COMPETITION_SECTION_DEFINITIONS,
     MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS,
@@ -9,6 +16,8 @@ from app.services.competition_mock_generation_service import (
     _CollectMmCompetitionSectionLockedQuestions,
     _MmCompetitionDigitConfig,
     _MmSectionCountMap,
+    _QuestionSignature,
+    _RecentMmCompetitionQuestionSignatures,
 )
 
 
@@ -114,3 +123,102 @@ def test_mm_competition_digit_config_respects_title_digit_patterns():
     assert _MmCompetitionDigitConfig("3D DIVISION 2D Division", "WHOLE_NUMBER_DIVISION") == {
         "divisionDigits": [3, 2]
     }
+
+
+def test_mm_question_signature_ignores_volatile_generation_fields():
+    first = {
+        "question_number": 1,
+        "question_text": "  12 + 3  ",
+        "operands": ["12.0", "3"],
+        "operators": ["+"],
+        "correct_answer": "15.00",
+        "seed": "seed-a",
+        "metadata": {"sourceDpsId": "dps-a", "sourceQuestionNumber": 1},
+    }
+    second = {
+        "question_number": 99,
+        "question_text": "12 + 3",
+        "operands": [12, 3],
+        "operators": ["+"],
+        "correct_answer": 15,
+        "seed": "seed-b",
+        "metadata": {"sourceDpsId": "dps-b", "sourceQuestionNumber": 99},
+    }
+
+    assert _QuestionSignature(first) == _QuestionSignature(second)
+
+
+def test_recent_mm_competition_signatures_only_use_last_15_same_level_mocks():
+    engine = create_engine("sqlite:///:memory:", future=True)
+    Base.metadata.create_all(engine)
+    TestingSession = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+    module = Module(id="module-mm", module_code="MM", module_name="Master Module")
+    level = Level(id="level-mm-9", module_id=module.id, level_code="MM-L9", level_name="Level - 9")
+    other_level = Level(id="level-mm-8", module_id=module.id, level_code="MM-L8", level_name="Level - 8")
+    base_time = datetime(2026, 6, 1, tzinfo=timezone.utc)
+
+    with TestingSession() as db:
+        db.add_all([module, level, other_level])
+        for index in range(MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW + 1):
+            exam = CompetitionMockExam(
+                id=f"mock-{index:02d}",
+                title=f"Mock {index}",
+                mock_code=f"MOCK-{index:02d}",
+                module_id=module.id,
+                level_id=level.id,
+                total_questions=1,
+                duration_seconds=3600,
+                created_at=base_time + timedelta(minutes=index),
+                is_active=True,
+            )
+            question = CompetitionMockQuestion(
+                id=f"question-{index:02d}",
+                mock_exam_id=exam.id,
+                section_number=1,
+                section_title="Section 1",
+                question_number=1,
+                display_type="VISUAL_STACK",
+                question_text="",
+                operands_json=json.dumps([index, 1]),
+                operators_json=json.dumps(["+"]),
+                correct_answer=str(index + 1),
+                metadata_json=json.dumps({"competitionSectionKey": "MM_ABACUS_ADD_LESS"}),
+            )
+            db.add_all([exam, question])
+
+        other_exam = CompetitionMockExam(
+            id="mock-other-level",
+            title="Other Level Mock",
+            mock_code="OTHER-LEVEL",
+            module_id=module.id,
+            level_id=other_level.id,
+            total_questions=1,
+            duration_seconds=3600,
+            created_at=base_time + timedelta(minutes=100),
+            is_active=True,
+        )
+        other_question = CompetitionMockQuestion(
+            id="question-other-level",
+            mock_exam_id=other_exam.id,
+            section_number=1,
+            section_title="Section 1",
+            question_number=1,
+            display_type="VISUAL_STACK",
+            operands_json=json.dumps([999, 1]),
+            operators_json=json.dumps(["+"]),
+            correct_answer="1000",
+        )
+        db.add_all([other_exam, other_question])
+        db.commit()
+
+        signatures = _RecentMmCompetitionQuestionSignatures(db, ModuleRecord=module, LevelRecord=level)
+
+    oldest_signature = _QuestionSignature({"operands": [0, 1], "operators": ["+"], "correct_answer": 1})
+    newest_signature = _QuestionSignature({"operands": [15, 1], "operators": ["+"], "correct_answer": 16})
+    other_level_signature = _QuestionSignature({"operands": [999, 1], "operators": ["+"], "correct_answer": 1000})
+
+    assert len(signatures) == MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW
+    assert newest_signature in signatures
+    assert oldest_signature not in signatures
+    assert other_level_signature not in signatures

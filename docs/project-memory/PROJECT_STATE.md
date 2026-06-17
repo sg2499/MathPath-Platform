@@ -1,6 +1,6 @@
 # MathPath Project State
 
-Last updated: 2026-06-16
+Last updated: 2026-06-17
 
 ## Product
 
@@ -29,6 +29,7 @@ The latest implemented state:
 - MM mock section plan has 10 locked sections.
 - Each section receives 10 questions by default for a 100-question mock.
 - MM mock generation is section-locked and concept-sequential.
+- MM mock generation now enforces stable question/sum uniqueness within each mock and avoids repeats from the previous 15 active same-level MM mocks.
 - Existing mock previews render cleanly without duplicated first-natural-number prompt text.
 - Question previews avoid inner scrollbars for expression-style displays.
 
@@ -47,6 +48,7 @@ This project-memory folder extends that system with daily continuity, deployment
 Recent verification commands that passed:
 
 - Backend: `.venv\Scripts\python.exe -m pytest tests`
+- Backend focused: `.venv\Scripts\python.exe -m pytest tests\test_mm_competition_mock_generator.py`
 - Frontend: `npm.cmd run typecheck`
 - Frontend: `npm.cmd run build`
 - Live API smoke: MM mock section plan returns 100 total questions, 10 locked sections, and 10 questions per section.
