@@ -4,7 +4,14 @@ Last updated: 2026-06-17
 
 ## 2026-06-17
 
-### Competition Mock Assignment Scope Fix
+### Commit `a88007a`
+
+Title: `Scope mock assignments to eligible students`
+
+Pushed to:
+
+- `main`
+- GitHub remote `origin`
 
 Expected deployment:
 
