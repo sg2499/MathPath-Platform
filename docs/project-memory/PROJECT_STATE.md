@@ -31,6 +31,7 @@ The latest implemented state:
 - MM mock generation is section-locked and concept-sequential.
 - MM mock generation now enforces stable question/sum uniqueness within each mock and avoids repeats from the previous 15 active same-level MM mocks.
 - Existing mock previews render cleanly without duplicated first-natural-number prompt text.
+- Admin mock assignment is scoped to active students in the selected mock module and level.
 - Question previews avoid inner scrollbars for expression-style displays.
 
 ## Existing Brain Context

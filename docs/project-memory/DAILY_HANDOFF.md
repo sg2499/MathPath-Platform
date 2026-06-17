@@ -31,6 +31,14 @@ Later on 2026-06-17, additional MM generator quality fixes were implemented loca
 - Multiplication and division generation now rejects shortcut scale operands such as `10`, `30`, `50`, `100`, and low/scale-like division answers.
 - Backend tests passed locally: 13 passed.
 
+Also on 2026-06-17, Competition Mock Studio assignment scope was fixed:
+
+- The admin assignment panel now derives student eligibility from the selected mock exam(s), not the manage-list level filter.
+- The displayed student list is restricted to active students matching the selected mock module and level.
+- The selected-student assign button can enable when a mock and eligible student are selected even if the manage level filter is set to `All Levels`.
+- Backend assignment now enforces the same module+level eligibility rule for assign-all and selected-student requests.
+- Verification passed: frontend typecheck/build and full backend pytest suite, 15 tests passed.
+
 ## Current Product State
 
 MM mock generator and preview behavior is now expected to be:
@@ -45,6 +53,7 @@ MM mock generator and preview behavior is now expected to be:
 - No repeated sums/questions from the previous 15 active same-level MM mocks.
 - Write Number From Given Position uses varied position prompts in competition mocks.
 - Multiplication/division mocks avoid easy place-shift operands and obvious low quotients.
+- Admin mock assignment only shows and assigns students eligible for the selected mock module and level.
 - Clean preview rendering with no duplicate positional prompt and no inner scrollbars.
 
 ## Next Recommended Work
