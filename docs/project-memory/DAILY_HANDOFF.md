@@ -14,13 +14,15 @@ Read:
 
 ## Latest Completed Work
 
-On 2026-06-17, the MM competition mock generator was updated locally to enforce recent-question freshness:
+On 2026-06-17, the MM competition mock generator was updated, pushed, and live-verified to enforce recent-question freshness:
 
 - Stable content signatures now detect duplicate MM sums/questions while ignoring volatile seed/source fields.
 - Each generated MM mock blocks duplicates within the same mock.
 - Each generated MM mock also blocks questions from the previous 15 active MM mocks for the same level.
 - The saved generation config and coverage payload include freshness-window audit metadata.
 - Backend focused and full test suites passed locally.
+- Commit `9ede198` was pushed to `main`.
+- Live Render smoke generated and deleted temporary mock `f21af651-0964-4975-a460-d0934a8e0afb`; response returned `freshnessWindow = 15`.
 
 ## Current Product State
 
@@ -38,10 +40,10 @@ MM mock generator and preview behavior is now expected to be:
 
 ## Next Recommended Work
 
-1. If this freshness change is pushed/deployed, verify a live MM mock draft can still generate successfully.
-2. Inspect the live Mock Studio after the user checks the latest deployment.
-3. If the user reports any remaining visual issue, use screenshots and browser inspection to patch the affected renderer.
-4. Add a Playwright regression around saved mock detail preview if the test harness is stable enough.
+1. Inspect the live Mock Studio after the user checks the latest deployment.
+2. If the user reports any remaining visual issue, use screenshots and browser inspection to patch the affected renderer.
+3. Add a Playwright regression around saved mock detail preview if the test harness is stable enough.
+4. Add an API/browser regression that creates repeated MM drafts and confirms signatures are not reused within the active 15-mock window.
 5. Continue improving project memory after every work session.
 
 ## Important Convention

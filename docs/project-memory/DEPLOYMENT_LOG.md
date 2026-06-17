@@ -1,6 +1,34 @@
 # Deployment Log
 
-Last updated: 2026-06-16
+Last updated: 2026-06-17
+
+## 2026-06-17
+
+### Commit `9ede198`
+
+Title: `Enforce MM mock question freshness`
+
+Pushed to:
+
+- `main`
+- GitHub remote `origin`
+
+Expected deployment:
+
+- Render backend redeploy.
+- Vercel frontend may redeploy from the same repo push, but the product change is backend-only.
+
+Verification:
+
+- Backend focused MM generator tests passed locally.
+- Full backend tests passed locally: 11 passed.
+- Live Render API generated and deleted a temporary MM mock:
+  - mock id `f21af651-0964-4975-a460-d0934a8e0afb`
+  - level `MM-L1`
+  - 10 generated questions
+  - `freshnessWindow` returned as `15`
+  - `recentBlocked` returned as `100`
+  - 10 questions deleted during cleanup
 
 ## 2026-06-16
 
