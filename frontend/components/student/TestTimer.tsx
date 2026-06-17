@@ -1,7 +1,7 @@
 import { formatSeconds } from "@/lib/utils";
 import { Clock3 } from "lucide-react";
 
-export function TestTimer({ remainingSeconds }: { remainingSeconds: number }) {
+export function TestTimer({ remainingSeconds, className = "" }: { remainingSeconds: number; className?: string }) {
   const urgent = remainingSeconds <= 300;
 
   return (
@@ -10,7 +10,7 @@ export function TestTimer({ remainingSeconds }: { remainingSeconds: number }) {
         urgent
           ? "math-timer-critical bg-rose-600 text-white ring-2 ring-rose-200 shadow-rose-500/30"
           : "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
-      }`}
+      } ${className}`}
       aria-live={urgent ? "assertive" : "polite"}
     >
       <Clock3 size={16} />
