@@ -78,6 +78,8 @@ export default function StudentCompetitionMockAttemptPage() {
   const sectionTitle = String(metadata.section_title || metadata.sectionTitle || "").trim();
   const sectionNumber = metadata.section_number || metadata.sectionNumber;
   const totalSections = Number(metadata.dps_total_sections || metadata.dpsTotalSections || 0);
+  const currentDisplayType = String((currentQuestion as any)?.displayType ?? (currentQuestion as any)?.display_type ?? "").toUpperCase();
+  const isExpressionQuestion = currentDisplayType === "EXPRESSION" || currentDisplayType === "EXPRESSION_WORKSHEET" || currentDisplayType === "COMPACT_EXPRESSION";
   const showSectionLabel = Boolean(sectionTitle);
   const sectionLabel = showSectionLabel
     ? (totalSections > 1 ? `Section ${sectionNumber || 1} · ${sectionTitle}` : sectionTitle)
@@ -171,7 +173,7 @@ export default function StudentCompetitionMockAttemptPage() {
           <TimerMetricCard remainingSeconds={remainingSeconds} />
         </div>
 
-        <div className="grid flex-1 gap-4 xl:min-h-0 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] xl:items-stretch">
+        <div className={`grid flex-1 gap-4 xl:min-h-0 xl:items-stretch ${isExpressionQuestion ? "xl:grid-cols-[minmax(0,1.22fr)_minmax(320px,0.78fr)]" : "xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]"}`}>
           <div className="math-card flex flex-col overflow-visible border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
               <div>
@@ -182,8 +184,8 @@ export default function StudentCompetitionMockAttemptPage() {
                 {savingQuestionId === currentQuestion.questionId ? "Saving..." : "Auto-saved"}
               </div>
             </div>
-            <div className="flex flex-1 items-center justify-center overflow-visible px-2 py-4 xl:min-h-0">
-              <div className="flex w-full justify-center overflow-visible rounded-[28px] bg-white/92 p-4 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/80 dark:ring-slate-700">
+            <div className={`flex flex-1 items-center justify-center overflow-visible px-2 py-4 xl:min-h-0 ${isExpressionQuestion ? "xl:px-1" : ""}`}>
+              <div className={`flex w-full justify-center overflow-visible rounded-[28px] bg-white/92 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/80 dark:ring-slate-700 ${isExpressionQuestion ? "p-3 xl:p-2.5" : "p-4"}`}>
                 <MathQuestionDisplay
                   operands={currentQuestion.operands}
                   operators={currentQuestion.operators}
@@ -194,12 +196,12 @@ export default function StudentCompetitionMockAttemptPage() {
             </div>
           </div>
 
-          <div className="math-card flex flex-col border border-slate-200/80 bg-white/88 p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60">
+          <div className={`math-card flex flex-col border border-slate-200/80 bg-white/88 p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60 ${isExpressionQuestion ? "xl:p-3.5" : ""}`}>
             <div className="border-b border-slate-200/80 pb-3 dark:border-slate-800">
               <p className="math-kicker">Select Answer</p>
               <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Choose the correct option</h2>
             </div>
-            <div className="grid flex-1 content-center gap-3 py-4 sm:grid-cols-2 xl:min-h-0">
+            <div className={`grid flex-1 content-center py-4 sm:grid-cols-2 xl:min-h-0 ${isExpressionQuestion ? "gap-2.5 xl:gap-2" : "gap-3"}`}>
               {currentQuestion.options.map((option) => (
                 <OptionButton
                   key={option.optionId}

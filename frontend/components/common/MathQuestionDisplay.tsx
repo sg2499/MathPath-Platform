@@ -88,13 +88,20 @@ function ExpressionQuestion({
   const Expression = questionText?.trim() || BuildExpression(operands, operators);
   const ExpressionAlreadyContainsPrompt = /[?？]/.test(Expression);
   const IsAnswerPosition = mode === "ANSWER_POSITION";
+  const CharacterCount = Expression.replace(/\s+/g, "").length;
+  const FontSizePx = IsAnswerPosition
+    ? Math.max(15, 28 - Math.max(0, CharacterCount - 20) * 0.32)
+    : Math.max(14, 34 - Math.max(0, CharacterCount - 18) * 0.4);
 
   return (
-    <div className="mx-auto flex w-full max-w-full justify-center overflow-visible rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
+    <div className="mx-auto flex w-full max-w-full justify-center overflow-hidden rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
       <div
-        className={`max-w-full whitespace-normal break-words text-center font-mono font-black leading-[1.4] tracking-tight ${
-          IsAnswerPosition ? "text-[16px] sm:text-[20px] lg:text-[24px]" : "text-[18px] sm:text-[22px] lg:text-[26px] xl:text-[28px]"
-        }`}
+        className="w-full overflow-hidden text-center font-mono font-black leading-none tracking-tight"
+        style={{
+          fontSize: `${FontSizePx}px`,
+          whiteSpace: "nowrap",
+          textWrap: "nowrap",
+        }}
       >
         {RenderExpressionWithBlueQuestion(Expression)}
         {!ExpressionAlreadyContainsPrompt ? <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span> : null}
