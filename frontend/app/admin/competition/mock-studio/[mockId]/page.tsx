@@ -119,7 +119,7 @@ function getMmQuestionConceptDisplayTitle(question: CompetitionMockQuestion, moc
 function getMmPositionalPromptTitle(question: CompetitionMockQuestion) {
   if (hasWriteNumberPositionShape(question)) return null;
   if (hasMultiplicationPlacementShape(question)) return "DECIMAL MULTIPLICATION ANSWER POSITION";
-  return "FIND POSITION OF FIRST NATURAL NUMBER";
+  return null;
 }
 
 function getMockDisplayType(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {

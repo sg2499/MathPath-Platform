@@ -284,15 +284,13 @@ function IsFirstNaturalNumberCard(operators: string[]): boolean {
 }
 
 function FirstNaturalNumberCardQuestion({ operands, questionText }: { operands: Array<number | string>; questionText?: string | null }) {
-  const PromptText = questionText?.trim();
+  const PromptText = questionText?.trim() || "Find the Position of the First Natural Number";
 
   return (
     <div className="mx-auto w-full max-w-sm rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
-      {PromptText ? (
-        <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
-          {PromptText}
-        </p>
-      ) : null}
+      <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
+        {PromptText}
+      </p>
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
         <div className="bg-slate-100 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
           Number
