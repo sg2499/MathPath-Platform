@@ -1,12 +1,22 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import json
+import random
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models import CompetitionMockExam, CompetitionMockQuestion, Lesson, Level, Module
+from app.question_engine.mm.config import MMConfig
+from app.question_engine.mm.operands import (
+    GenerateAnswerPosition,
+    GenerateDecimalDivision,
+    GenerateDecimalMultiplication,
+    GenerateWholeNumberDivision,
+    GenerateWholeNumberMultiplication,
+    _IsTrivialScaleOperand,
+)
 from app.services.competition_mock_generation_service import (
     MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
     MM_COMPETITION_SECTION_CONCEPT_POOLS,
@@ -55,6 +65,21 @@ def _question_family(question):
 def _competition_concept(question):
     metadata = question.get("metadata") or {}
     return str(metadata.get("competitionConceptName") or metadata.get("conceptName") or "")
+
+
+def _mm_config(concept_family: str, title: str, generator_config: dict | None = None) -> MMConfig:
+    return MMConfig(
+        ModuleCode="MM",
+        LevelCode="MM-L1",
+        LessonNumber=24,
+        DpsNumber=3,
+        DpsTitle=title,
+        LessonTitle="Lesson 24",
+        QuestionCount=10,
+        Seed="TEST-MM-SEED",
+        ConceptFamily=concept_family,
+        GeneratorConfig=generator_config or {},
+    )
 
 
 def _assert_concept_blocks_are_sequential(concept_names):
@@ -114,6 +139,14 @@ def test_mm_mock_generation_keeps_sections_locked_and_concepts_sequential():
         _assert_concept_blocks_are_sequential(
             [_competition_concept(question) for question in section_questions[section_key]]
         )
+
+    write_position_questions = [
+        question
+        for question in section_questions["MM_POSITIONAL_PLACEMENT"]
+        if _competition_concept(question) == "Write Number From Given Position"
+    ]
+    write_positions = [int((question.get("metadata") or {}).get("position")) for question in write_position_questions]
+    assert len(write_positions) == len(set(write_positions))
 
 
 def test_mm_competition_digit_config_respects_title_digit_patterns():
@@ -222,3 +255,58 @@ def test_recent_mm_competition_signatures_only_use_last_15_same_level_mocks():
     assert newest_signature in signatures
     assert oldest_signature not in signatures
     assert other_level_signature not in signatures
+
+
+def test_write_number_from_given_position_varies_competition_positions():
+    config = _mm_config(
+        "ANSWER_POSITION",
+        "Write Number From Given Position",
+        {"source": "MM_COMPETITION_SECTION_LOCKED_GENERATOR"},
+    )
+
+    positions = [
+        GenerateAnswerPosition(config, random.Random(f"write-position-{index}"), 5)[0][0]
+        for index in range(18)
+    ]
+
+    assert len(set(positions)) >= 4
+    assert positions.count(-1) < len(positions) // 2
+
+
+def test_mm_multiplication_and_division_avoid_trivial_scale_operands():
+    multiplication_config = _mm_config(
+        "WHOLE_NUMBER_MULTIPLICATION",
+        "5D x 2D Multiplication",
+        {"multiplicationDigits": [5, 2]},
+    )
+    decimal_multiplication_config = _mm_config(
+        "DECIMAL_MULTIPLICATION",
+        "4D x 2D Decimal Multiplication",
+        {"multiplicationDigits": [4, 2]},
+    )
+    division_config = _mm_config(
+        "WHOLE_NUMBER_DIVISION",
+        "6D division 3D Division",
+        {"divisionDigits": [6, 3]},
+    )
+    decimal_division_config = _mm_config(
+        "DECIMAL_DIVISION",
+        "6D division 3D Decimal Division",
+        {"divisionDigits": [6, 3]},
+    )
+
+    for index in range(25):
+        operands, _, _, _ = GenerateWholeNumberMultiplication(multiplication_config, random.Random(f"whole-mul-{index}"), 9)
+        assert not any(_IsTrivialScaleOperand(operand) for operand in operands)
+
+        operands, _, _, _ = GenerateDecimalMultiplication(decimal_multiplication_config, random.Random(f"decimal-mul-{index}"), 9)
+        assert not any(_IsTrivialScaleOperand(operand) for operand in operands)
+
+        operands, _, answer, _ = GenerateWholeNumberDivision(division_config, random.Random(f"whole-div-{index}"), 9)
+        assert not _IsTrivialScaleOperand(operands[1])
+        assert answer > 10
+        assert not _IsTrivialScaleOperand(answer)
+
+        operands, _, answer, _ = GenerateDecimalDivision(decimal_division_config, random.Random(f"decimal-div-{index}"), 9)
+        assert not _IsTrivialScaleOperand(operands[1])
+        assert not _IsTrivialScaleOperand(answer)

@@ -32,6 +32,9 @@ The MM mock generator has exactly 10 approved sections:
 - A generated MM mock must avoid questions/sums already used in the previous 15 active MM mocks for the same level.
 - Reuse is acceptable only after that 15-mock freshness window has moved past the older mock.
 - If the generator cannot satisfy a section count without breaking the 15-mock freshness rule, it must fail clearly instead of silently repeating recent sums.
+- Write Number From Given Position must vary the requested position values inside competition mocks; do not keep generating the same slot such as only `-1`.
+- Multiplication and division questions must avoid shortcut scale operands such as `1`, `10`, `20`, `50`, `100`, `1000`, and decimal equivalents that make the problem a place-shift instead of real calculation.
+- Division questions must avoid low or scale-like quotients where the answer is immediately obvious.
 - The generated question metadata must include the exact competition concept name for review and coverage.
 - MM competition generation must bypass the normal lesson/DPS curriculum map when using the section-locked competition generator source.
 

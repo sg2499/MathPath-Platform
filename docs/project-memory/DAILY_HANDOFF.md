@@ -24,6 +24,13 @@ On 2026-06-17, the MM competition mock generator was updated, pushed, and live-v
 - Commit `9ede198` was pushed to `main`.
 - Live Render smoke generated and deleted temporary mock `f21af651-0964-4975-a460-d0934a8e0afb`; response returned `freshnessWindow = 15`.
 
+Later on 2026-06-17, additional MM generator quality fixes were implemented locally:
+
+- Write Number From Given Position now varies position values instead of repeatedly producing only one slot such as `-1`.
+- Section-locked MM mocks avoid reusing write-position values while unused positions remain.
+- Multiplication and division generation now rejects shortcut scale operands such as `10`, `30`, `50`, `100`, and low/scale-like division answers.
+- Backend tests passed locally: 13 passed.
+
 ## Current Product State
 
 MM mock generator and preview behavior is now expected to be:
@@ -36,6 +43,8 @@ MM mock generator and preview behavior is now expected to be:
 - Concept-wise sequential question blocks within each section.
 - No repeated sums/questions inside the same mock.
 - No repeated sums/questions from the previous 15 active same-level MM mocks.
+- Write Number From Given Position uses varied position prompts in competition mocks.
+- Multiplication/division mocks avoid easy place-shift operands and obvious low quotients.
 - Clean preview rendering with no duplicate positional prompt and no inner scrollbars.
 
 ## Next Recommended Work

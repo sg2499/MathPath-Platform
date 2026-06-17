@@ -147,6 +147,35 @@ def _DigitRange(Digits: int) -> tuple[int, int]:
     return 10 ** (Digits - 1), (10 ** Digits) - 1
 
 
+def _IsTrivialScaleOperand(Value: int | float | str | Decimal) -> bool:
+    """Block operands that turn multiplication/division into place shifting.
+
+    For competition mocks, visible values such as 1, 10, 20, 50, 100, 1000,
+    and decimal equivalents like 0.10 are too easy because students can solve by
+    identity or zero shifting instead of calculation. Single digits 2-9 remain
+    valid for explicit 1D workbook patterns.
+    """
+    try:
+        DecimalValue = abs(Value if isinstance(Value, Decimal) else Decimal(str(Value).strip().replace(",", "")))
+    except Exception:
+        return False
+    if DecimalValue == 0:
+        return True
+    if DecimalValue == 1:
+        return True
+
+    NormalizedText = format(DecimalValue.normalize(), "f").replace(".", "").lstrip("0")
+    if not NormalizedText:
+        return True
+    if len(NormalizedText) <= 1:
+        return False
+    return NormalizedText[0] != "0" and set(NormalizedText[1:]) == {"0"}
+
+
+def _HasTrivialScaleOperand(Values: list[int | float | str | Decimal]) -> bool:
+    return any(_IsTrivialScaleOperand(Value) for Value in Values)
+
+
 def _NormalisedPatternTitle(Config: MMConfig) -> str:
     return ""
 
@@ -607,6 +636,8 @@ def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, Question
     for _Attempt in range(160):
         LeftWhole = _GeneratePatternWholeOperand(Rng, LeftDigits)
         RightWhole = _GeneratePatternWholeOperand(Rng, RightDigits)
+        if _HasTrivialScaleOperand([LeftWhole, RightWhole]):
+            continue
         WholeProduct = LeftWhole * RightWhole
         if WholeProduct >= 1000000:
             continue
@@ -624,6 +655,8 @@ def GenerateDecimalMultiplication(Config: MMConfig, Rng: random.Random, Question
 
         LeftOperand = _DisplayDecimalMultiplicationOperand(DisplayLeftWhole, DisplayLeftShift)
         RightOperand = _DisplayDecimalMultiplicationOperand(DisplayRightWhole, DisplayRightShift)
+        if _HasTrivialScaleOperand([LeftOperand, RightOperand]):
+            continue
         TotalDecimalPlaces = _DecimalPlacesInOperand(LeftOperand) + _DecimalPlacesInOperand(RightOperand)
         CorrectAnswer = _Quantize(Decimal(WholeProduct) / (Decimal(10) ** TotalDecimalPlaces), TotalDecimalPlaces)
 
@@ -692,15 +725,17 @@ def _GenerateDivisionBase(Rng: random.Random, DividendDigits: int, DivisorDigits
 
     for _Attempt in range(120):
         Divisor = Rng.randint(DivisorMin, DivisorMax)
-        if Divisor == 0:
+        if Divisor == 0 or _IsTrivialScaleOperand(Divisor):
             continue
 
-        MinQuotient = max(1, (DividendMin + Divisor - 1) // Divisor)
+        MinQuotient = max(11, (DividendMin + Divisor - 1) // Divisor)
         MaxQuotient = max(MinQuotient, DividendMax // Divisor)
         if MinQuotient > MaxQuotient:
             continue
 
         Quotient = Rng.randint(MinQuotient, MaxQuotient)
+        if Quotient <= 10 or _IsTrivialScaleOperand(Quotient):
+            continue
         Dividend = Divisor * Quotient
         if DividendMin <= Dividend <= DividendMax:
             return Dividend, Divisor, Quotient
@@ -840,6 +875,8 @@ def GenerateDecimalDivision(Config: MMConfig, Rng: random.Random, QuestionNumber
         CorrectAnswer = _Quantize(CorrectAnswer, AnswerPlaces)
         DividendOperand = _DisplayDecimalDivisionOperand(DividendWhole, DividendShift)
         DivisorOperand = _DisplayDecimalDivisionOperand(DivisorWhole, DivisorShift)
+        if _HasTrivialScaleOperand([DividendOperand, DivisorOperand]):
+            continue
 
         return [DividendOperand, DivisorOperand], ["", "÷"], CorrectAnswer, {
             "dividend_digits": DividendDigits,
@@ -854,17 +891,19 @@ def GenerateDecimalDivision(Config: MMConfig, Rng: random.Random, QuestionNumber
         }
 
     # Conservative fallback should almost never be used, but keeps preview generation safe.
-    DividendWhole, DivisorWhole, WholeQuotient = 21, 7, 3
+    DividendWhole, DivisorWhole, WholeQuotient = 156, 12, 13
+    UnderlyingDivisorWhole = DivisorWhole
     DividendOperand = _DisplayDecimalDivisionOperand(DividendWhole, 1)
-    CorrectAnswer = Decimal("0.3")
-    return [DividendOperand, DivisorWhole], ["", "÷"], CorrectAnswer, {
+    DivisorOperand = _DisplayDecimalDivisionOperand(DivisorWhole, 1)
+    CorrectAnswer = Decimal("13")
+    return [DividendOperand, DivisorOperand], ["", "÷"], CorrectAnswer, {
         "dividend_digits": 2,
         "divisor_digits": 1,
         "underlying_dividend": DividendWhole,
-        "underlying_divisor": DivisorWhole,
+        "underlying_divisor": UnderlyingDivisorWhole,
         "underlying_quotient": WholeQuotient,
         "dividend_decimal_places": 1,
-        "divisor_decimal_places": 0,
+        "divisor_decimal_places": 1,
         "decimal_pattern_rule": "DIGIT_COUNT_AFTER_DECIMAL_REMOVAL_AND_LEADING_ZERO_NORMALIZATION",
     }
 
@@ -879,6 +918,11 @@ def _GenerateWholeNumberMultiplicationByDigits(
     RightMin, RightMax = _DigitRange(RightDigits)
     Left = Rng.randint(LeftMin, LeftMax)
     Right = Rng.randint(RightMin, RightMax)
+    for _Attempt in range(120):
+        if not _HasTrivialScaleOperand([Left, Right]):
+            break
+        Left = Rng.randint(LeftMin, LeftMax)
+        Right = Rng.randint(RightMin, RightMax)
     CorrectAnswer = Decimal(Left * Right)
     Metadata = {"left_digits": LeftDigits, "right_digits": RightDigits}
     if MixedVariant:
@@ -901,14 +945,23 @@ def _GenerateWholeNumberDivisionByDigits(
 ) -> tuple[list[int | float], list[str], Decimal, dict]:
     DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
     DividendMin, DividendMax = _DigitRange(DividendDigits)
-    if MixedVariant:
-        # Mixed Division should remain challenging; division by 1 is excluded.
-        DivisorMin = max(DivisorMin, 2)
-    Divisor = Rng.randint(DivisorMin, DivisorMax)
-    MinQuotient = max(1, (DividendMin + Divisor - 1) // Divisor)
-    MaxQuotient = max(MinQuotient, DividendMax // Divisor)
-    Quotient = Rng.randint(MinQuotient, MaxQuotient)
+    Divisor = max(DivisorMin, 2)
+    Quotient = 11
     Dividend = Divisor * Quotient
+    for _Attempt in range(160):
+        Divisor = Rng.randint(DivisorMin, DivisorMax)
+        if _IsTrivialScaleOperand(Divisor):
+            continue
+        MinQuotient = max(11, (DividendMin + Divisor - 1) // Divisor)
+        MaxQuotient = max(MinQuotient, DividendMax // Divisor)
+        if MinQuotient > MaxQuotient:
+            continue
+        Quotient = Rng.randint(MinQuotient, MaxQuotient)
+        if Quotient <= 10 or _IsTrivialScaleOperand(Quotient):
+            continue
+        Dividend = Divisor * Quotient
+        if DividendMin <= Dividend <= DividendMax:
+            break
     CorrectAnswer = Decimal(Quotient)
     Metadata = {"dividend_digits": DividendDigits, "divisor_digits": DivisorDigits}
     if MixedVariant:
@@ -1845,10 +1898,11 @@ def GenerateAnswerPosition(Config: MMConfig, Rng: random.Random, QuestionNumber:
 
     if "write" in Title and "given position" in Title:
         PositionChoices = _WorkbookPositionChoices(Config, Stage)
-        # Use a deterministic workbook-style spread so one DPS naturally includes
-        # negative, zero, and positive positions instead of random-only patterns.
+        # Normal DPS sheets keep a workbook-style spread, but competition mocks
+        # repeatedly sample the challenge row from short batches. Use the seeded
+        # generator in that mode so mocks do not keep landing on one position.
         Position = PositionChoices[(QuestionNumber - 1) % len(PositionChoices)]
-        if Rng.random() < 0.35:
+        if Config.GeneratorConfig.get("source") == "MM_COMPETITION_SECTION_LOCKED_GENERATOR" or Rng.random() < 0.35:
             Position = Rng.choice(PositionChoices)
 
         NumberValue = _WorkbookPositionNumber(Config, Rng, Stage)
