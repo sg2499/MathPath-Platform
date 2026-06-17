@@ -866,6 +866,7 @@ def _CollectMmCompetitionSectionLockedQuestions(
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
         ConceptCoverageOrder: list[str] = []
+        UsedWriteNumberPositions: set[int] = set()
         OrderedConceptSchedule = _MmCompetitionOrderedConceptSchedule(SectionKey, ConceptPool, RequiredCount)
         Attempts = 0
         ChallengeLessons = _MmCompetitionChallengeLessons(Lessons, SectionKey) or OrderedLessons
@@ -896,11 +897,18 @@ def _CollectMmCompetitionSectionLockedQuestions(
                     ConceptTitle=str(ConceptSpec["title"]),
                     Seed=f"MM-COMPETITION-SHAPE-{SectionKey}-{ConceptSpec['title']}-{Attempts}-{uuid4().hex}",
                 )
+                Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+                if str(ConceptSpec.get("title") or "").lower() == "write number from given position":
+                    try:
+                        PositionValue = int(Metadata.get("position"))
+                    except Exception:
+                        PositionValue = None
+                    if PositionValue is not None and PositionValue in UsedWriteNumberPositions and len(UsedWriteNumberPositions) < 9:
+                        continue
                 Signature = _QuestionSignature(Question)
                 if Signature in UsedSignatures:
                     continue
                 UsedSignatures.add(Signature)
-                Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
                 Metadata = dict(Metadata)
                 Metadata.update({
                     "competitionConceptKey": ConceptSpec["title"],
@@ -920,6 +928,10 @@ def _CollectMmCompetitionSectionLockedQuestions(
                 QuestionCopy = dict(Question)
                 QuestionCopy["metadata"] = Metadata
                 SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition))
+                if str(ConceptSpec.get("title") or "").lower() == "write number from given position":
+                    PositionValue = Metadata.get("position")
+                    if isinstance(PositionValue, int):
+                        UsedWriteNumberPositions.add(PositionValue)
                 ConceptName = str(ConceptSpec["title"])
                 ConceptCoverage[ConceptName] += 1
                 if ConceptName not in ConceptCoverageOrder:
