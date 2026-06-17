@@ -96,7 +96,11 @@ def _StudentsForAssignment(
     if not LevelRecord or not LevelRecord.is_active:
         api_error(404, "LEVEL_NOT_FOUND", "The selected level was not found or is inactive.")
 
-    Query = db.query(Student).filter(Student.is_active == True, Student.current_level_id == LevelId)
+    Query = db.query(Student).filter(
+        Student.is_active == True,
+        Student.current_module_id == LevelRecord.module_id,
+        Student.current_level_id == LevelId,
+    )
     if AssignToAllInLevel:
         Students = Query.order_by(Student.student_code.asc()).all()
     else:
@@ -110,12 +114,12 @@ def _StudentsForAssignment(
             api_error(
                 400,
                 "INVALID_STUDENT_SELECTION",
-                "One or more selected students are inactive or not in the selected level.",
+                "One or more selected students are inactive or not eligible for the selected module and level.",
                 {"studentIds": MissingOrWrongLevelIds},
             )
 
     if not Students:
-        api_error(400, "NO_LEVEL_STUDENTS_FOUND", "No active students were found in the selected level.")
+        api_error(400, "NO_LEVEL_STUDENTS_FOUND", "No active students were found for the selected module and level.")
     return Students
 
 
@@ -132,12 +136,20 @@ def AssignCompetitionMockExams(
     Instructions: str | None = None,
 ) -> dict[str, Any]:
     Exams = _ValidatedMockExams(db, MockExamIds)
-    InvalidExamIds = [Exam.id for Exam in Exams if Exam.level_id != LevelId]
+    LevelRecord = db.get(Level, LevelId)
+    if not LevelRecord or not LevelRecord.is_active:
+        api_error(404, "LEVEL_NOT_FOUND", "The selected level was not found or is inactive.")
+
+    InvalidExamIds = [
+        Exam.id
+        for Exam in Exams
+        if Exam.level_id != LevelId or Exam.module_id != LevelRecord.module_id
+    ]
     if InvalidExamIds:
         api_error(
             400,
             "MOCK_LEVEL_MISMATCH",
-            "All selected mock exams must belong to the selected level.",
+            "All selected mock exams must belong to the selected module and level.",
             {"mockExamIds": InvalidExamIds},
         )
 
@@ -194,7 +206,6 @@ def AssignCompetitionMockExams(
     for AssignmentRecord in CreatedAssignments + ExistingAssignments:
         db.refresh(AssignmentRecord)
 
-    LevelRecord = db.get(Level, LevelId)
     ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
     return {
         "ok": True,

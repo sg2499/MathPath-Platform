@@ -4,6 +4,26 @@ Last updated: 2026-06-17
 
 ## 2026-06-17
 
+### Competition Mock Assignment Scope Fix
+
+Expected deployment:
+
+- Render backend redeploy.
+- Vercel frontend redeploy.
+
+Verification:
+
+- Frontend typecheck passed locally.
+- Frontend production build passed locally.
+- Focused backend assignment/MM generator tests passed locally.
+- Full backend pytest suite passed locally: 15 passed.
+
+Change summary:
+
+- Admin Mock Studio assignment scope now comes from selected mock exam(s).
+- Student list filters by selected mock module and level.
+- Backend assignment rejects selected students outside that module+level and assign-all only targets eligible students.
+
 ### Commit `918d38c`
 
 Title: `Improve MM mock question variety`

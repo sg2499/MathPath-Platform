@@ -150,13 +150,43 @@ export default function AdminCompetitionMockStudioPage() {
     SetSectionCounts((CurrentValue) => ({ ...CurrentValue, [SectionKey]: Value }));
   }
 
+  const SelectedMockExams = useMemo(
+    () => MockExams.filter((MockValue) => SelectedMockIds.includes(MockValue.mockExamId)),
+    [MockExams, SelectedMockIds],
+  );
+
+  const AssignmentScope = useMemo(() => {
+    if (!SelectedMockExams.length) return null;
+    const FirstMock = SelectedMockExams[0];
+    const SameScope = SelectedMockExams.every((MockValue) => (
+      MockValue.moduleId === FirstMock.moduleId && MockValue.levelId === FirstMock.levelId
+    ));
+    if (!SameScope) return null;
+    return {
+      moduleId: FirstMock.moduleId,
+      moduleCode: FirstMock.moduleCode,
+      levelId: FirstMock.levelId,
+      levelCode: FirstMock.levelCode,
+    };
+  }, [SelectedMockExams]);
+
   const LevelStudents = useMemo(() => {
     const SearchValue = StudentSearch.trim().toLowerCase();
-    return Students.filter((StudentValue) => StudentValue.isActive && (!SelectedLevelId || StudentValue.currentLevelId === SelectedLevelId)).filter((StudentValue) => {
+    return Students.filter((StudentValue) => (
+      StudentValue.isActive
+      && Boolean(AssignmentScope)
+      && StudentValue.currentModuleId === AssignmentScope?.moduleId
+      && StudentValue.currentLevelId === AssignmentScope?.levelId
+    )).filter((StudentValue) => {
       if (!SearchValue) return true;
-      return `${StudentValue.studentCode} ${StudentValue.studentName} ${StudentValue.currentLevelCode || ""}`.toLowerCase().includes(SearchValue);
+      return `${StudentValue.studentCode} ${StudentValue.studentName} ${StudentValue.currentModuleCode || ""} ${StudentValue.currentLevelCode || ""}`.toLowerCase().includes(SearchValue);
     });
-  }, [Students, SelectedLevelId, StudentSearch]);
+  }, [Students, AssignmentScope, StudentSearch]);
+
+  useEffect(() => {
+    const EligibleStudentIds = new Set(LevelStudents.map((StudentValue) => StudentValue.studentId));
+    SetSelectedStudentIds((CurrentValue) => CurrentValue.filter((StudentId) => EligibleStudentIds.has(StudentId)));
+  }, [LevelStudents]);
 
   const GenerateMutation = useMutation({
     mutationFn: () => generateCompetitionMockDraft({
@@ -181,7 +211,7 @@ export default function AdminCompetitionMockStudioPage() {
 
   const AssignMutation = useMutation({
     mutationFn: () => assignCompetitionMockExams({
-      levelId: SelectedLevelId,
+      levelId: AssignmentScope?.levelId || "",
       mockExamIds: SelectedMockIds,
       assignToAllInLevel: AssignToAll,
       studentIds: AssignToAll ? [] : SelectedStudentIds,
@@ -238,7 +268,7 @@ export default function AdminCompetitionMockStudioPage() {
   }
 
   const CanGenerate = Boolean(SelectedLevelId) && SectionCountTotal >= 10 && !GenerateMutation.isPending;
-  const CanAssign = Boolean(SelectedLevelId) && SelectedMockIds.length > 0 && (AssignToAll || SelectedStudentIds.length > 0) && !AssignMutation.isPending;
+  const CanAssign = Boolean(AssignmentScope) && SelectedMockIds.length > 0 && (AssignToAll || SelectedStudentIds.length > 0) && !AssignMutation.isPending;
 
   const FilteredMockExams = useMemo(() => {
     const SearchValue = ManageSearch.trim().toLowerCase();
@@ -466,6 +496,16 @@ export default function AdminCompetitionMockStudioPage() {
               <div className="math-card p-5">
                 <SectionTitle kicker="Assign" title="Assign Selected Mock Exams" description="Admin can assign selected mocks directly, without involving the teacher." />
                 <div className="mt-5 space-y-5">
+                  {SelectedMockIds.length > 0 && !AssignmentScope && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                      Select mock exams from one module and level at a time before assigning.
+                    </div>
+                  )}
+                  {AssignmentScope && (
+                    <p className="text-sm font-black text-slate-600 dark:text-slate-300">
+                      Assignment scope: {AssignmentScope.moduleCode || "Module"} &middot; {AssignmentScope.levelCode || "Level"}
+                    </p>
+                  )}
                   <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm font-black text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
                     <input type="checkbox" checked={AssignToAll} onChange={(EventValue) => SetAssignToAll(EventValue.target.checked)} className="h-4 w-4 accent-[var(--mp-role-primary)]" />
                     Assign selected mock exam(s) to all active students in this level
