@@ -39,6 +39,7 @@ The MM mock generator has exactly 10 approved sections:
 
 - No question preview should require an inner scrollbar.
 - Positional cards must not duplicate their heading/prompt.
+- Find the Position of the First Natural Number cards must always display the full task name in the question box, even when backend `question_text` is empty.
 - Existing saved mocks should render with the latest frontend cleanup without requiring regeneration.
 
 ## Test Expectations
