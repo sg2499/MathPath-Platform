@@ -640,8 +640,6 @@ def _MmCompetitionPadVisualAddLessRows(Question: dict[str, Any], *, SectionKey: 
     ConceptFamily = str(Metadata.get("conceptFamily") or Metadata.get("concept_family") or "").upper()
     IsTwoDigitFastVisualisation = "2 digit" in Text and ("fast visualisation" in Text or "fast visualization" in Text)
     IsDecimalVisualAddLess = ConceptFamily == "DECIMAL_ADD_LESS" or ("decimal" in Text and "add" in Text and "less" in Text)
-    TargetMin = 7 if IsTwoDigitFastVisualisation else 4
-    TargetMax = 7 if IsTwoDigitFastVisualisation else 5
     Rng = random.Random(Seed)
     DecimalPlaces = int(Metadata.get("decimal_places") or 0)
     if IsDecimalVisualAddLess and DecimalPlaces <= 0:
@@ -650,15 +648,37 @@ def _MmCompetitionPadVisualAddLessRows(Question: dict[str, Any], *, SectionKey: 
             default=2,
         )
 
+    def _WholeDigits(Value: Any) -> int | None:
+        TextValue = str(Value).strip()
+        if not TextValue:
+            return None
+        WholePart = TextValue.split(".", 1)[0].replace("-", "").lstrip("0")
+        return len(WholePart) if WholePart else 1
+
+    ExistingWholeDigits = [_WholeDigits(Operand) for Operand in Operands]
+    ExistingWholeDigits = [Digits for Digits in ExistingWholeDigits if Digits is not None]
+    HasAllFourDigitDecimalOperands = bool(ExistingWholeDigits) and all(Digits == 4 for Digits in ExistingWholeDigits)
+    TargetMin = 7 if IsTwoDigitFastVisualisation else (3 if (IsDecimalVisualAddLess and HasAllFourDigitDecimalOperands) else (5 if IsDecimalVisualAddLess else 4))
+    TargetMax = 7 if IsTwoDigitFastVisualisation else (4 if (IsDecimalVisualAddLess and HasAllFourDigitDecimalOperands) else (5 if IsDecimalVisualAddLess else 5))
+
     def _RandomVisualOperand() -> int | str:
         if IsTwoDigitFastVisualisation:
             return Rng.randint(21, 98)
         if IsDecimalVisualAddLess:
             Scale = 10 ** max(1, DecimalPlaces)
-            Raw = Rng.randint(10 * Scale, (9999 * Scale) + (Scale - 1))
+            if HasAllFourDigitDecimalOperands:
+                RequiredWholeDigits = 4
+            else:
+                MissingDigits = [Digits for Digits in (2, 3, 4) if Digits not in ExistingWholeDigits]
+                RequiredWholeDigits = MissingDigits[0] if MissingDigits else Rng.choice([2, 3, 4])
+            MinimumWhole = 10 ** (RequiredWholeDigits - 1)
+            MaximumWhole = (10 ** RequiredWholeDigits) - 1
+            Raw = Rng.randint(MinimumWhole * Scale, (MaximumWhole * Scale) + (Scale - 1))
             if Raw % Scale == 0:
                 Raw += Rng.randint(1, Scale - 1)
-            return f"{Decimal(Raw) / Decimal(Scale):.{max(1, DecimalPlaces)}f}"
+            Value = f"{Decimal(Raw) / Decimal(Scale):.{max(1, DecimalPlaces)}f}"
+            ExistingWholeDigits.append(RequiredWholeDigits)
+            return Value
         return Rng.randint(10, 9999)
 
     if len(Operands) > TargetMax:
@@ -785,6 +805,32 @@ def _MmCompetitionDigitConfig(ConceptTitle: str, ConceptFamily: str) -> dict[str
     return {}
 
 
+def _MmCompetitionAddLessConfig(SectionKey: str, ConceptTitle: str, ConceptFamily: str) -> dict[str, Any]:
+    Text = _NormalizedSearchText(ConceptTitle)
+    IsFastVisualisation = "2 digit" in Text and ("fast visualisation" in Text or "fast visualization" in Text)
+    IsVisualSection = SectionKey == "MM_VISUAL_ADD_LESS"
+    IsMixedDigit = "mixed digit" in Text
+
+    if "positive and negative answers" in Text:
+        BorrowingMode = "MIXED_POSITIVE_NEGATIVE"
+    elif "negative answers" in Text:
+        BorrowingMode = "NEGATIVE_ONLY"
+    elif "borrowing" in Text:
+        BorrowingMode = "BORROWING_STANDARD"
+    else:
+        BorrowingMode = "STANDARD"
+
+    Config: dict[str, Any] = {
+        "isVisual": IsVisualSection and not IsFastVisualisation and ConceptFamily != "DECIMAL_ADD_LESS",
+        "isFastVisualisation": IsFastVisualisation,
+        "borrowingMode": BorrowingMode,
+        "isMixedDigitAddLess": IsMixedDigit,
+    }
+    if IsFastVisualisation:
+        Config["explicitDigitCount"] = 2
+    return Config
+
+
 def _GenerateMmCompetitionConceptBatch(
     *,
     ModuleRecord: Module,
@@ -799,6 +845,7 @@ def _GenerateMmCompetitionConceptBatch(
     ConceptTitle = str(ConceptSpec["title"])
     MixedOperationGroup = str(ConceptSpec.get("mixedOperationGroup") or "")
     DigitConfig = _MmCompetitionDigitConfig(ConceptTitle, ConceptFamily)
+    AddLessConfig = _MmCompetitionAddLessConfig(SectionDefinition["key"], ConceptTitle, ConceptFamily) if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"} else {}
     if SectionDefinition.get("key") == "MM_BODMAS_PERCENTAGE" and ConceptFamily == "BODMAS":
         return [
             _BuildMmCompetitionBodmasChallengeQuestion(
@@ -846,6 +893,7 @@ def _GenerateMmCompetitionConceptBatch(
             "competitionSectionTitle": SectionDefinition["title"],
             "mixedOperationGroup": MixedOperationGroup,
             **DigitConfig,
+            **AddLessConfig,
             "activeSection": {
                 "sectionNumber": SectionDefinition["number"],
                 "sectionTitle": ConceptTitle,
@@ -853,6 +901,7 @@ def _GenerateMmCompetitionConceptBatch(
                 "conceptFamily": ConceptFamily,
                 "mixedOperationGroup": MixedOperationGroup,
                 **DigitConfig,
+                **AddLessConfig,
             },
         },
     )

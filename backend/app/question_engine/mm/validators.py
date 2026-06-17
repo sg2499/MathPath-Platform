@@ -331,7 +331,22 @@ def _BorrowingAnswerMode(Config: MMConfig) -> str:
 
 
 def _AddLessTitleText(Config: MMConfig) -> str:
-    return ""
+    Parts = [str(Config.DpsTitle or ""), str(Config.LessonTitle or "")]
+    if isinstance(Config.GeneratorConfig, dict):
+        ActiveSection = Config.GeneratorConfig.get("activeSection")
+        if isinstance(ActiveSection, dict):
+            Parts.extend([
+                str(ActiveSection.get("sectionTitle") or ""),
+                str(ActiveSection.get("title") or ""),
+            ])
+    return " ".join(
+        " ".join(Parts)
+        .lower()
+        .replace("-", " ")
+        .replace("_", " ")
+        .replace("&", " and ")
+        .split()
+    )
 
 
 def _IsMixedDigitAddLessConcept(Config: MMConfig) -> bool:
@@ -347,7 +362,7 @@ def _IsMmAddLessVisualConcept(Config: MMConfig) -> bool:
 
 
 def _IsDecimalVisualAddLessConcept(Config: MMConfig) -> bool:
-    return Config.ConceptFamily == "DECIMAL_ADD_LESS"
+    return Config.ConceptFamily == "DECIMAL_ADD_LESS" and "visual" in _AddLessTitleText(Config)
 
 
 def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
@@ -404,24 +419,46 @@ def _ValidateExplicitAddLessDigits(Config: MMConfig, Operands: list[int | float 
 def _ValidateMmAddLessVisual(Config: MMConfig, Operands: list[int | float | str]) -> bool:
     if not (_IsMmAddLessVisualConcept(Config) or _IsDecimalVisualAddLessConcept(Config)):
         return True
-    if len(Operands) < 4 or len(Operands) > 5:
-        print("Failed visual len")
-        return False
-    for Value in Operands:
-        DecimalValue = abs(_DecimalValue(Value))
-        if _IsDecimalVisualAddLessConcept(Config):
-            WholePart = str(DecimalValue).split(".", 1)[0]
-            WholeDigits = len(WholePart.lstrip("0")) if WholePart.lstrip("0") else 1
-            if WholeDigits < 2 or WholeDigits > 4:
-                print(f"Failed visual decimal range: {DecimalValue}")
-                return False
-        else:
+    if not _IsDecimalVisualAddLessConcept(Config):
+        if len(Operands) < 4 or len(Operands) > 5:
+            print("Failed visual len")
+            return False
+        for Value in Operands:
+            DecimalValue = abs(_DecimalValue(Value))
             if DecimalValue != DecimalValue.to_integral_value():
                 print(f"Failed visual integral: {DecimalValue}")
                 return False
             if not (Decimal(10) <= DecimalValue <= Decimal(9999)):
                 print(f"Failed visual range: {DecimalValue}")
                 return False
+        return True
+
+    if len(Operands) < 3 or len(Operands) > 5:
+        print("Failed visual decimal len")
+        return False
+
+    WholeDigitsList: list[int] = []
+    for Value in Operands:
+        DecimalValue = abs(_DecimalValue(Value))
+        WholePart = str(DecimalValue).split(".", 1)[0]
+        WholeDigits = len(WholePart.lstrip("0")) if WholePart.lstrip("0") else 1
+        if WholeDigits < 2 or WholeDigits > 4:
+            print(f"Failed visual decimal range: {DecimalValue}")
+            return False
+        WholeDigitsList.append(WholeDigits)
+
+    if all(Digits == 4 for Digits in WholeDigitsList):
+        if len(Operands) not in {3, 4}:
+            print("Failed all-4-digit decimal visual len")
+            return False
+        return True
+
+    if len(Operands) != 5:
+        print("Failed mixed decimal visual len")
+        return False
+    if not {2, 3, 4}.issubset(set(WholeDigitsList)):
+        print(f"Failed mixed decimal digit mix: {WholeDigitsList}")
+        return False
     return True
 
 

@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
+from app.services.competition_mock_generation_service import _MmCompetitionPadVisualAddLessRows
 from app.models import (
     CompetitionMockAssignment,
     CompetitionMockAttempt,
@@ -137,6 +138,18 @@ def _question_payload(
 ) -> dict[str, Any]:
     metadata = _json_loads(question.metadata_json, {})
     section_title = _competition_section_title(question)
+    shaped_question = _MmCompetitionPadVisualAddLessRows(
+        {
+            "question_text": question.question_text,
+            "operands": _json_loads(question.operands_json, []),
+            "operators": _json_loads(question.operators_json, []),
+            "metadata": metadata,
+        },
+        SectionKey=str(metadata.get("competitionSectionKey") or ("MM_VISUAL_ADD_LESS" if int(question.section_number or 0) == 2 else "")),
+        ConceptTitle=str(metadata.get("competitionConceptKey") or question.concept_tag or section_title),
+        Seed=f"ATTEMPT-VISUAL-NORMALIZE-{question.id}",
+    )
+    metadata = dict(shaped_question.get("metadata") if isinstance(shaped_question.get("metadata"), dict) else metadata)
     metadata.update({
         "section_number": question.section_number,
         "section_title": section_title,
@@ -150,8 +163,8 @@ def _question_payload(
         "questionNumber": question.question_number,
         "displayType": question.display_type,
         "questionText": question.question_text,
-        "operands": _json_loads(question.operands_json, []),
-        "operators": _json_loads(question.operators_json, []),
+        "operands": shaped_question.get("operands") or [],
+        "operators": shaped_question.get("operators") or [],
         "metadata": metadata,
         "options": [
             {

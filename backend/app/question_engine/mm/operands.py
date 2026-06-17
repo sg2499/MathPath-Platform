@@ -43,7 +43,22 @@ def _ScaleRangeByLesson(Minimum: int, Maximum: int, Config: MMConfig) -> tuple[i
 
 
 def _AddLessTitleText(Config: MMConfig) -> str:
-    return ""
+    Parts = [str(Config.DpsTitle or ""), str(Config.LessonTitle or "")]
+    if isinstance(Config.GeneratorConfig, dict):
+        ActiveSection = Config.GeneratorConfig.get("activeSection")
+        if isinstance(ActiveSection, dict):
+            Parts.extend([
+                str(ActiveSection.get("sectionTitle") or ""),
+                str(ActiveSection.get("title") or ""),
+            ])
+    return " ".join(
+        " ".join(Parts)
+        .lower()
+        .replace("-", " ")
+        .replace("_", " ")
+        .replace("&", " and ")
+        .split()
+    )
 
 
 def _IsFastVisualisationConcept(Config: MMConfig) -> bool:
@@ -59,7 +74,7 @@ def _IsMmAddLessVisualConcept(Config: MMConfig) -> bool:
 
 
 def _IsDecimalVisualAddLessConcept(Config: MMConfig) -> bool:
-    return Config.ConceptFamily == "DECIMAL_ADD_LESS"
+    return Config.ConceptFamily == "DECIMAL_ADD_LESS" and "visual" in _AddLessTitleText(Config)
 
 
 def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
@@ -106,12 +121,31 @@ def _RandMmAddLessVisualValue(Rng: random.Random) -> Decimal:
     return Decimal(Rng.randint(Minimum, Maximum))
 
 
+def _RandDecimalWithWholeDigits(Rng: random.Random, WholeDigits: int, Places: int) -> Decimal:
+    Minimum, Maximum = _DigitRange(max(2, min(4, WholeDigits)))
+    Scale = 10 ** max(1, Places)
+    Raw = Rng.randint(Minimum * Scale, (Maximum * Scale) + (Scale - 1))
+    if Raw % Scale == 0:
+        Raw += Rng.randint(1, Scale - 1)
+    return Decimal(Raw) / Decimal(Scale)
+
+
+def _DecimalVisualAddLessWholeDigitPlan(Rng: random.Random) -> list[int]:
+    if Rng.choice([True, False]):
+        RowCount = Rng.choice([3, 4])
+        return [4] * RowCount
+
+    Digits = [2, 3, 4, Rng.choice([2, 3, 4]), Rng.choice([2, 3, 4])]
+    Rng.shuffle(Digits)
+    return Digits
+
+
 def _AddLessRowCount(Config: MMConfig, Stage: str) -> int:
     if _IsFastVisualisationConcept(Config):
         return 7
 
     Band = _LessonBand(Config)
-    if _IsMmAddLessVisualConcept(Config) or _IsDecimalVisualAddLessConcept(Config):
+    if _IsMmAddLessVisualConcept(Config):
         return 4 if Stage in {"WARM_UP", "STANDARD"} or Band <= 3 else 5
 
     if Stage in {"WARM_UP", "STANDARD"}:
@@ -394,15 +428,16 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
     Stage = DifficultyStage(QuestionNumber - 1)
     Places = _AddLessDecimalPlaces(Config, Stage)
     Minimum, Maximum = _AddLessValueRange(Config, Stage)
-    RowCount = _AddLessRowCount(Config, Stage)
 
     IsMixedDigitAddLess = _IsMixedDigitAddLessConcept(Config)
     IsMmAddLessVisual = _IsMmAddLessVisualConcept(Config)
     IsDecimalVisualAddLess = _IsDecimalVisualAddLessConcept(Config)
+    DecimalVisualWholeDigits = _DecimalVisualAddLessWholeDigitPlan(Rng) if IsDecimalVisualAddLess else []
+    RowCount = len(DecimalVisualWholeDigits) if IsDecimalVisualAddLess else _AddLessRowCount(Config, Stage)
     if IsMmAddLessVisual:
         InitialValue = _RandMmAddLessVisualValue(Rng)
     elif IsDecimalVisualAddLess:
-        InitialValue = _RandDecimal(Rng, Minimum, Maximum, Places)
+        InitialValue = _RandDecimalWithWholeDigits(Rng, DecimalVisualWholeDigits[0], Places)
     elif IsMixedDigitAddLess:
         InitialValue = _RandMixedDigitAddLessValue(Rng)
     else:
@@ -416,7 +451,7 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
         if IsMmAddLessVisual:
             Value = _RandMmAddLessVisualValue(Rng)
         elif IsDecimalVisualAddLess:
-            Value = _RandDecimal(Rng, Minimum, Maximum, Places)
+            Value = _RandDecimalWithWholeDigits(Rng, DecimalVisualWholeDigits[RowIndex], Places)
         elif IsMixedDigitAddLess:
             Value = _RandMixedDigitAddLessValue(Rng)
         elif _ExplicitAddLessDigitCount(Config) is not None:

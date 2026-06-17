@@ -13,7 +13,13 @@ export function TestTimer({ remainingSeconds, className = "" }: { remainingSecon
       } ${className}`}
       aria-live={urgent ? "assertive" : "polite"}
     >
-      <Clock3 size={16} className="shrink-0" />
+      <span
+        className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+          urgent ? "bg-white/20 text-white" : "bg-white/80 text-blue-700"
+        }`}
+      >
+        <Clock3 size={14} className={urgent ? "text-white" : "text-blue-700"} strokeWidth={2.5} />
+      </span>
       {formatSeconds(remainingSeconds)} Remaining
     </div>
   );
