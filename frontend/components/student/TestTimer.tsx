@@ -15,10 +15,15 @@ export function TestTimer({ remainingSeconds, className = "" }: { remainingSecon
     >
       <span
         className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-          urgent ? "bg-white/20 text-white" : "bg-white/80 text-blue-700"
+          urgent ? "bg-white text-rose-600 shadow-sm ring-1 ring-white/90" : "bg-white/80 text-blue-700"
         }`}
       >
-        <Clock3 size={14} className={urgent ? "text-white" : "text-blue-700"} strokeWidth={2.5} />
+        <Clock3
+          size={14}
+          className={urgent ? "text-rose-600" : "text-blue-700"}
+          strokeWidth={2.75}
+          style={urgent ? { color: "#e11d48" } : undefined}
+        />
       </span>
       {formatSeconds(remainingSeconds)} Remaining
     </div>
