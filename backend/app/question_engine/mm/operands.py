@@ -58,6 +58,10 @@ def _IsMmAddLessVisualConcept(Config: MMConfig) -> bool:
     return bool(Config.GeneratorConfig.get("isVisual", False))
 
 
+def _IsDecimalVisualAddLessConcept(Config: MMConfig) -> bool:
+    return Config.ConceptFamily == "DECIMAL_ADD_LESS"
+
+
 def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
     return Config.GeneratorConfig.get("explicitDigitCount")
 
@@ -80,8 +84,8 @@ def _AddLessDecimalPlaces(Config: MMConfig, Stage: str) -> int:
 
 
 def _AddLessValueRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
-    if _IsMmAddLessVisualConcept(Config):
-        return _DigitRange(3)[0], _DigitRange(4)[1]
+    if _IsMmAddLessVisualConcept(Config) or _IsDecimalVisualAddLessConcept(Config):
+        return _DigitRange(2)[0], _DigitRange(4)[1]
     ExplicitDigits = _ExplicitAddLessDigitCount(Config)
     if ExplicitDigits is not None:
         return _DigitRange(ExplicitDigits)
@@ -97,16 +101,19 @@ def _RandMixedDigitAddLessValue(Rng: random.Random) -> Decimal:
 
 
 def _RandMmAddLessVisualValue(Rng: random.Random) -> Decimal:
-    Digits = Rng.choice([3, 4])
+    Digits = Rng.choice([2, 3, 4])
     Minimum, Maximum = _DigitRange(Digits)
     return Decimal(Rng.randint(Minimum, Maximum))
 
 
 def _AddLessRowCount(Config: MMConfig, Stage: str) -> int:
     if _IsFastVisualisationConcept(Config):
-        return 6 if Stage in {"WARM_UP", "STANDARD", "MIXED_STEP"} else 7
+        return 7
 
     Band = _LessonBand(Config)
+    if _IsMmAddLessVisualConcept(Config) or _IsDecimalVisualAddLessConcept(Config):
+        return 4 if Stage in {"WARM_UP", "STANDARD"} or Band <= 3 else 5
+
     if Stage in {"WARM_UP", "STANDARD"}:
         RowCount = 3
     elif Band <= 2:
@@ -115,9 +122,6 @@ def _AddLessRowCount(Config: MMConfig, Stage: str) -> int:
         RowCount = 5
     else:
         RowCount = 6
-
-    if _IsMmAddLessVisualConcept(Config):
-        return min(RowCount, 5)
     return RowCount
 
 
@@ -394,8 +398,11 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
 
     IsMixedDigitAddLess = _IsMixedDigitAddLessConcept(Config)
     IsMmAddLessVisual = _IsMmAddLessVisualConcept(Config)
+    IsDecimalVisualAddLess = _IsDecimalVisualAddLessConcept(Config)
     if IsMmAddLessVisual:
         InitialValue = _RandMmAddLessVisualValue(Rng)
+    elif IsDecimalVisualAddLess:
+        InitialValue = _RandDecimal(Rng, Minimum, Maximum, Places)
     elif IsMixedDigitAddLess:
         InitialValue = _RandMixedDigitAddLessValue(Rng)
     else:
@@ -408,6 +415,8 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
         Sign = Rng.choice(["+", "-"])
         if IsMmAddLessVisual:
             Value = _RandMmAddLessVisualValue(Rng)
+        elif IsDecimalVisualAddLess:
+            Value = _RandDecimal(Rng, Minimum, Maximum, Places)
         elif IsMixedDigitAddLess:
             Value = _RandMixedDigitAddLessValue(Rng)
         elif _ExplicitAddLessDigitCount(Config) is not None:
@@ -440,8 +449,9 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
         "lesson_band": _LessonBand(Config),
         "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
         "mixed_digit_range": "2D_TO_4D" if IsMixedDigitAddLess else None,
-        "mm_add_less_visual_operand_range": "3D_TO_4D" if IsMmAddLessVisual else None,
-        "mm_add_less_visual_max_rows": 5 if IsMmAddLessVisual else None,
+        "mm_add_less_visual_operand_range": "2D_TO_4D" if (IsMmAddLessVisual or IsDecimalVisualAddLess) else None,
+        "mm_add_less_visual_row_rule": "EXACTLY_7_ROWS" if _IsFastVisualisationConcept(Config) else ("FOUR_TO_FIVE_ROWS" if (IsMmAddLessVisual or IsDecimalVisualAddLess) else None),
+        "mm_add_less_visual_max_rows": 7 if _IsFastVisualisationConcept(Config) else (5 if (IsMmAddLessVisual or IsDecimalVisualAddLess) else None),
     }
 
 

@@ -346,6 +346,10 @@ def _IsMmAddLessVisualConcept(Config: MMConfig) -> bool:
     return bool(Config.GeneratorConfig.get("isVisual", False))
 
 
+def _IsDecimalVisualAddLessConcept(Config: MMConfig) -> bool:
+    return Config.ConceptFamily == "DECIMAL_ADD_LESS"
+
+
 def _ExplicitAddLessDigitCount(Config: MMConfig) -> int | None:
     return Config.GeneratorConfig.get("explicitDigitCount")
 
@@ -398,18 +402,42 @@ def _ValidateExplicitAddLessDigits(Config: MMConfig, Operands: list[int | float 
 
 
 def _ValidateMmAddLessVisual(Config: MMConfig, Operands: list[int | float | str]) -> bool:
-    if not _IsMmAddLessVisualConcept(Config):
+    if not (_IsMmAddLessVisualConcept(Config) or _IsDecimalVisualAddLessConcept(Config)):
         return True
-    if len(Operands) > 5:
+    if len(Operands) < 4 or len(Operands) > 5:
         print("Failed visual len")
         return False
     for Value in Operands:
         DecimalValue = abs(_DecimalValue(Value))
+        if _IsDecimalVisualAddLessConcept(Config):
+            WholePart = str(DecimalValue).split(".", 1)[0]
+            WholeDigits = len(WholePart.lstrip("0")) if WholePart.lstrip("0") else 1
+            if WholeDigits < 2 or WholeDigits > 4:
+                print(f"Failed visual decimal range: {DecimalValue}")
+                return False
+        else:
+            if DecimalValue != DecimalValue.to_integral_value():
+                print(f"Failed visual integral: {DecimalValue}")
+                return False
+            if not (Decimal(10) <= DecimalValue <= Decimal(9999)):
+                print(f"Failed visual range: {DecimalValue}")
+                return False
+    return True
+
+
+def _ValidateFastVisualisationAddLess(Config: MMConfig, Operands: list[int | float | str]) -> bool:
+    if not _IsFastVisualisationConcept(Config):
+        return True
+    if len(Operands) != 7:
+        print("Failed fast visual len")
+        return False
+    for Value in Operands:
+        DecimalValue = abs(_DecimalValue(Value))
         if DecimalValue != DecimalValue.to_integral_value():
-            print(f"Failed visual integral: {DecimalValue}")
+            print(f"Failed fast visual integral: {DecimalValue}")
             return False
-        if not (Decimal(100) <= DecimalValue <= Decimal(9999)):
-            print(f"Failed visual range: {DecimalValue}")
+        if not (Decimal(10) <= DecimalValue <= Decimal(99)):
+            print(f"Failed fast visual range: {DecimalValue}")
             return False
     return True
 
@@ -432,6 +460,9 @@ def _ValidateAddLessQuestion(Config: MMConfig, Operands: list[int | float | str]
         return False
     if not _ValidateMmAddLessVisual(Config, Operands):
         print("Failed _ValidateMmAddLessVisual")
+        return False
+    if not _ValidateFastVisualisationAddLess(Config, Operands):
+        print("Failed _ValidateFastVisualisationAddLess")
         return False
 
     ExpectedAnswer = sum(Decimal(str(Value)) for Value in Operands)

@@ -635,21 +635,38 @@ def _MmCompetitionPadVisualAddLessRows(Question: dict[str, Any], *, SectionKey: 
     Updated = dict(Question)
     Operands = list(Updated.get("operands") or [])
     Operators = list(Updated.get("operators") or [])
-    Text = _NormalizedSearchText(ConceptTitle, Updated.get("question_text"), _QuestionMetadata(Updated).get("competitionConceptKey"))
+    Metadata = _QuestionMetadata(Updated)
+    Text = _NormalizedSearchText(ConceptTitle, Updated.get("question_text"), Metadata.get("competitionConceptKey"))
+    ConceptFamily = str(Metadata.get("conceptFamily") or Metadata.get("concept_family") or "").upper()
     IsTwoDigitFastVisualisation = "2 digit" in Text and ("fast visualisation" in Text or "fast visualization" in Text)
+    IsDecimalVisualAddLess = ConceptFamily == "DECIMAL_ADD_LESS" or ("decimal" in Text and "add" in Text and "less" in Text)
     TargetMin = 7 if IsTwoDigitFastVisualisation else 4
     TargetMax = 7 if IsTwoDigitFastVisualisation else 5
     Rng = random.Random(Seed)
+    DecimalPlaces = int(Metadata.get("decimal_places") or 0)
+    if IsDecimalVisualAddLess and DecimalPlaces <= 0:
+        DecimalPlaces = max(
+            (len(str(Operand).split(".", 1)[1]) for Operand in Operands if "." in str(Operand)),
+            default=2,
+        )
+
+    def _RandomVisualOperand() -> int | str:
+        if IsTwoDigitFastVisualisation:
+            return Rng.randint(21, 98)
+        if IsDecimalVisualAddLess:
+            Scale = 10 ** max(1, DecimalPlaces)
+            Raw = Rng.randint(10 * Scale, (9999 * Scale) + (Scale - 1))
+            if Raw % Scale == 0:
+                Raw += Rng.randint(1, Scale - 1)
+            return f"{Decimal(Raw) / Decimal(Scale):.{max(1, DecimalPlaces)}f}"
+        return Rng.randint(10, 9999)
 
     if len(Operands) > TargetMax:
         Operands = Operands[:TargetMax]
         Operators = Operators[:TargetMax]
 
     while len(Operands) < TargetMin:
-        if IsTwoDigitFastVisualisation:
-            NewValue = Rng.randint(21, 98)
-        else:
-            NewValue = Rng.randint(300, 9999)
+        NewValue = _RandomVisualOperand()
         NewOperator = "-" if len(Operands) % 3 == 1 else "+"
         Operands.append(NewValue)
         Operators.append(NewOperator)
@@ -663,11 +680,11 @@ def _MmCompetitionPadVisualAddLessRows(Question: dict[str, Any], *, SectionKey: 
     Updated["operators"] = Operators
     Updated["correct_answer"] = _PlainDecimalText(CorrectAnswer)
     Updated["options"] = _MmCompetitionSmartNumericOptions(CorrectAnswer, Seed)
-    Metadata = Updated.get("metadata") if isinstance(Updated.get("metadata"), dict) else {}
     Metadata = dict(Metadata)
     Metadata.update({
         "competitionVisualRowRule": "EXACTLY_7_ROWS" if IsTwoDigitFastVisualisation else "FOUR_TO_FIVE_ROWS",
         "competitionVisualRowCount": len(Operands),
+        "mm_add_less_visual_operand_range": "2D_ONLY" if IsTwoDigitFastVisualisation else "2D_TO_4D",
     })
     Updated["metadata"] = Metadata
     return Updated
