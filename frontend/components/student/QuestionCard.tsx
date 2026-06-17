@@ -10,12 +10,14 @@ export function QuestionCard({
   selectedOptionId,
   disabled,
   saving,
+  compact = false,
   onSelect,
 }: {
   question: StudentQuestion;
   selectedOptionId?: string | null;
   disabled: boolean;
   saving: boolean;
+  compact?: boolean;
   onSelect: (optionId: string) => void;
 }) {
   const Metadata = question.metadata || {};
@@ -28,11 +30,11 @@ export function QuestionCard({
     : "Practice Question";
 
   return (
-    <div className="math-card overflow-hidden p-4 sm:p-5">
-      <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
+    <div className={`math-card overflow-hidden ${compact ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
+      <div className={`flex flex-col gap-3 border-b border-slate-100 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between ${compact ? "pb-2" : "pb-3"}`}>
         <div>
           <p className="math-kicker">{SectionLabel}</p>
-          <h2 className="mt-1.5 text-xl font-black text-slate-950 dark:text-white">
+          <h2 className={`${compact ? "mt-1 text-lg" : "mt-1.5 text-xl"} font-black text-slate-950 dark:text-white`}>
             Question {question.questionNumber}
           </h2>
         </div>
@@ -49,8 +51,8 @@ export function QuestionCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-5">
-        <div className="flex flex-auto lg:flex-1 min-w-[280px] max-w-full overflow-x-auto items-center justify-center rounded-[24px] bg-slate-50/90 p-3 dark:bg-slate-900/70 sm:p-4">
+      <div className={`${compact ? "mt-3 gap-4" : "mt-4 gap-5"} flex flex-wrap items-center`}>
+        <div className={`flex flex-auto lg:flex-1 min-w-[280px] max-w-full overflow-x-auto items-center justify-center rounded-[24px] bg-slate-50/90 dark:bg-slate-900/70 ${compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4"}`}>
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
 
