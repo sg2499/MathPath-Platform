@@ -88,14 +88,22 @@ export function VerticalQuestion({
 }) {
   const StackRows = BuildStackRows(operands || [], operators || []);
   const LongestValueLength = StackRows.reduce((Length, Row) => Math.max(Length, Row.value.length), 1);
+  const IsDenseStack = StackRows.length >= 6 || LongestValueLength >= 5;
+  const IsVeryDenseStack = StackRows.length >= 8 || LongestValueLength >= 7;
   const NumberColumnStyle = {
     minWidth: `${Math.max(LongestValueLength, 2)}ch`,
   };
   const PaddedQuestionMark = "?".padStart(Math.max(LongestValueLength, 1), " ");
+  const TextSizeClass = IsVeryDenseStack
+    ? "text-[20px] sm:text-[24px]"
+    : IsDenseStack
+      ? "text-[22px] sm:text-[28px]"
+      : "text-[26px] sm:text-[32px]";
+  const CardPaddingClass = IsVeryDenseStack ? "px-3 py-3.5 sm:px-4 sm:py-4" : "px-4 py-4 sm:px-5 sm:py-4";
 
   return (
-    <div className="mx-auto w-fit rounded-[20px] bg-white px-4 py-4 text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5 sm:py-4">
-      <div className="font-mono text-[26px] font-black leading-[1.18] sm:text-[32px]">
+    <div className={`mx-auto w-fit max-w-full rounded-[20px] bg-white text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 ${CardPaddingClass}`}>
+      <div className={`font-mono font-black leading-[1.18] ${TextSizeClass}`}>
         {StackRows.map((Row, Index) => (
           <div
             key={`${Row.operator}-${Row.value}-${Index}`}
@@ -113,7 +121,7 @@ export function VerticalQuestion({
       <div className="my-2.5 border-t-[3px] border-slate-800 dark:border-slate-200" />
 
       <div
-        className="grid items-baseline gap-1.5 text-right font-mono text-[26px] font-black text-blue-700 dark:text-cyan-300 sm:text-[32px]"
+        className={`grid items-baseline gap-1.5 text-right font-mono font-black text-blue-700 dark:text-cyan-300 ${TextSizeClass}`}
         style={{ gridTemplateColumns: "1.35rem max-content" }}
       >
         <span />
