@@ -19,7 +19,7 @@ import {
 } from "@/lib/api/student";
 import type { AttemptPayload } from "@/types/attempt";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ClipboardCheck, Gauge, Layers3 } from "lucide-react";
+import { ClipboardCheck, Clock3, Gauge, Layers3 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
@@ -144,7 +144,7 @@ export default function StudentCompetitionMockAttemptPage() {
   return (
     <AppShell title="Competition Mock Attempt">
       <section className="math-slide-up math-card flex flex-col gap-4 overflow-visible p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
-        <div className="grid gap-4 rounded-[24px] border border-orange-100 bg-gradient-to-r from-white/98 via-orange-50/70 to-amber-100/55 p-4 shadow-sm dark:border-slate-800 dark:from-slate-950/96 dark:via-slate-900/88 dark:to-orange-950/36 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="grid gap-4 rounded-[24px] border border-orange-100 bg-gradient-to-r from-white/98 via-orange-50/70 to-amber-100/55 p-4 shadow-sm dark:border-slate-800 dark:from-slate-950/96 dark:via-slate-900/88 dark:to-orange-950/36">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
@@ -162,15 +162,13 @@ export default function StudentCompetitionMockAttemptPage() {
               {mockExam.moduleCode || "Module"} · {mockExam.levelCode || "Level"}. Answer carefully. The mock auto-saves each response and submits when time expires.
             </p>
           </div>
-          <div className="justify-self-start lg:justify-self-end">
-            <TestTimer remainingSeconds={remainingSeconds} />
-          </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
           <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
           <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
+          <TimerMetricCard remainingSeconds={remainingSeconds} />
         </div>
 
         <div className="grid flex-1 gap-4 xl:min-h-0 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] xl:items-stretch">
@@ -251,12 +249,29 @@ export default function StudentCompetitionMockAttemptPage() {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="flex items-center gap-3 rounded-[18px] bg-white/78 p-2.5 shadow-sm ring-1 ring-white/70 backdrop-blur-md transition hover:-translate-y-0.5 dark:bg-slate-900/60 dark:ring-slate-700">
-      <div className="inline-flex rounded-xl bg-orange-50 p-1.5 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">{icon}</div>
+    <div className="math-student-metric-card flex min-h-[96px] items-center gap-3 rounded-[24px]">
+      <div className="math-student-icon-chip h-11 w-11 items-center justify-center rounded-2xl text-orange-700 dark:text-orange-300">{icon}</div>
       <div>
         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">{label}</p>
-        <p className="mt-0.5 text-xl font-black leading-none text-slate-950 dark:text-white">{value}</p>
+        <p className="mt-1 text-3xl font-black leading-none text-slate-950 dark:text-white">{value}</p>
       </div>
+    </div>
+  );
+}
+
+function TimerMetricCard({ remainingSeconds }: { remainingSeconds: number }) {
+  return (
+    <div className="math-student-metric-card flex min-h-[96px] items-center justify-between gap-3 rounded-[24px]">
+      <div className="flex items-center gap-3">
+        <div className="math-student-icon-chip flex h-11 w-11 items-center justify-center rounded-2xl text-orange-700 dark:text-orange-300">
+          <Clock3 size={16} />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">TIME LEFT</p>
+          <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Exam timer</p>
+        </div>
+      </div>
+      <TestTimer remainingSeconds={remainingSeconds} className="shrink-0" />
     </div>
   );
 }
