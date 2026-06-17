@@ -4,6 +4,30 @@ Last updated: 2026-06-17
 
 ## 2026-06-17
 
+### Commit `918d38c`
+
+Title: `Improve MM mock question variety`
+
+Pushed to:
+
+- `main`
+- GitHub remote `origin`
+
+Expected deployment:
+
+- Render backend redeploy.
+
+Verification:
+
+- Backend focused MM generator tests passed locally.
+- Full backend tests passed locally: 13 passed.
+- Live Render API generated and deleted a temporary 100-question MM mock:
+  - mock id `4c92384b-6951-4948-8fc8-5184c274c06b`
+  - write-position values: `-1,-2,0`
+  - unique write-position values: `-2,-1,0`
+  - trivial multiplication/division operand count: `0`
+  - 100 questions deleted during cleanup
+
 ### Commit `9ede198`
 
 Title: `Enforce MM mock question freshness`
