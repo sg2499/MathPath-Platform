@@ -1,0 +1,11 @@
+*
+!.gitignore
+!README.md
+!incoming/
+!incoming/.gitkeep
+!dps-images/
+!dps-images/.gitkeep
+!workbooks/
+!workbooks/.gitkeep
+!extracted/
+!extracted/.gitkeep

@@ -10,7 +10,8 @@ Read:
 2. `.mathpath/STATE.yaml`
 3. `.mathpath/rules/global.md`
 4. `docs/project-memory/PROJECT_STATE.md`
-5. Latest daily log under `docs/project-memory/DAILY_LOGS/`
+5. `docs/project-memory/SOURCE_ASSETS.md`
+6. Latest daily log under `docs/project-memory/DAILY_LOGS/`
 
 ## Latest Completed Work
 
@@ -26,6 +27,12 @@ On 2026-06-18, Admin Learning Path Studio preview generation for MM practice DPS
 - Commit `5bce2ed` was pushed to `main`.
 - Live Render smoke passed for `MM-L1`, Lesson 1, DPS 1: preview returned 30 questions.
 - Live Render smoke passed for `MM-L1`, Lesson 10, DPS 2: preview returned 15 questions for `3 Digit Add-Less (Fast Visualisation) & BODMAS`.
+
+On 2026-06-18, a durable source-asset intake system was added:
+
+- `docs/project-memory/SOURCE_ASSETS.md` is now the committed manifest for external DPS images, Excel workbooks, and future curriculum source materials.
+- `reference-assets/` is now the local-only drop folder for bulky source files that should remain readable across conversations without being pushed to git.
+- Future conversations must read `SOURCE_ASSETS.md` before changing generator/curriculum logic.
 
 The main product work landed on 2026-06-17 and includes:
 
@@ -70,9 +77,10 @@ MM mock generator and preview behavior is now expected to be:
 ## Next Recommended Work
 
 1. Ask the user to retry Admin Learning Path Studio for the same DPS in the browser.
-2. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
-3. Append explicit deployment verification for the late June 17 student-attempt commits if their live QA passes.
-4. Add an API/browser regression that creates repeated MM drafts and confirms signatures are not reused within the active 15-mock window.
+2. When the user provides the final 150 DPS images and 3 Excel workbooks, place or record them through `docs/project-memory/SOURCE_ASSETS.md`.
+3. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
+4. Append explicit deployment verification for the late June 17 student-attempt commits if their live QA passes.
+5. Add an API/browser regression that creates repeated MM drafts and confirms signatures are not reused within the active 15-mock window.
 
 ## Important Convention
 

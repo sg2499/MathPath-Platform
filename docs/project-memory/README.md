@@ -10,7 +10,8 @@ Every new agent or new conversation must read these files before planning or cha
 4. The active `.mathpath/packages/` file named in `.mathpath/STATE.yaml`.
 5. `docs/project-memory/PROJECT_STATE.md`.
 6. `docs/project-memory/DAILY_HANDOFF.md`.
-7. The latest file in `docs/project-memory/DAILY_LOGS/`.
+7. `docs/project-memory/SOURCE_ASSETS.md`.
+8. The latest file in `docs/project-memory/DAILY_LOGS/`.
 
 ## Purpose
 
@@ -28,6 +29,7 @@ At the end of every MathPath work session, update:
 - `DECISIONS.md` if a new durable decision was made
 - `DEPLOYMENT_LOG.md` if anything was pushed or deployed
 - `OPEN_ISSUES.md` if new risks, bugs, or pending work were discovered
+- `SOURCE_ASSETS.md` whenever the user provides images, workbooks, PDFs, extracted datasets, or source folders
 - Any focused rule file such as `MM_MOCK_GENERATOR_RULES.md`
 
 ## Resume Command

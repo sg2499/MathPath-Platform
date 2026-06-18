@@ -50,6 +50,18 @@ The repository already contains `.mathpath`, which remains authoritative for leg
 
 This project-memory folder extends that system with daily continuity, deployment evidence, and handoff notes.
 
+## Source Asset Continuity
+
+The project now has a durable source-asset manifest:
+
+- `docs/project-memory/SOURCE_ASSETS.md`
+
+Local-only drop location for bulky reference files:
+
+- `reference-assets/`
+
+Future conversations must read the source-asset manifest before changing DPS generation, curriculum maps, mock generation, or question rendering. When the user provides new source images, workbooks, PDFs, or extracted datasets, record the exact paths and coverage in `SOURCE_ASSETS.md` during the same session.
+
 ## Verification Baseline
 
 Recent verification commands that passed:
