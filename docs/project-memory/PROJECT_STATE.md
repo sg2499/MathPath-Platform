@@ -60,6 +60,8 @@ Recent verification commands that passed:
 - Frontend: `npm.cmd run typecheck` on 2026-06-18.
 - Frontend: `npm.cmd run build` on 2026-06-18.
 - Local DB-backed smoke: Admin DPS preview generation for `MM-L1`, Lesson 1, DPS 1 returned 30 questions.
+- Live Render smoke: Admin DPS preview generation for `MM-L1`, Lesson 1, DPS 1 returned 30 questions after commit `5bce2ed`.
+- Live Render smoke: Admin DPS preview generation for `MM-L1`, Lesson 10, DPS 2 returned 15 questions after commit `5bce2ed`.
 - Live API smoke: MM mock section plan returns 100 total questions, 10 locked sections, and 10 questions per section.
 - Live API smoke: temporary MM mock draft generated 100 questions, 3600 seconds, 10 locked sections, then was deleted.
 - Live Vercel smoke: Admin Mock Studio loads with live auth token and MM defaults are visible after module/level selection.
