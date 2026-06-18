@@ -35,6 +35,7 @@
 > 4. Read `docs/project-memory/README.md`.
 > 5. Read `docs/project-memory/PROJECT_STATE.md`.
 > 6. Read `docs/project-memory/DAILY_HANDOFF.md`.
-> 7. Read the latest daily log in `docs/project-memory/DAILY_LOGS/`.
+> 7. Read `docs/project-memory/SOURCE_ASSETS.md`.
+> 8. Read the latest daily log in `docs/project-memory/DAILY_LOGS/`.
 > 
 > *DO NOT ask the user for the package plan or rules. Read the MathPath Brain first.*
