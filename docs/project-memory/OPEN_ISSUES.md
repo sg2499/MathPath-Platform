@@ -4,9 +4,7 @@ Last updated: 2026-06-18
 
 ## Active
 
-- Push/deploy the Admin Learning Path MM DPS preview generation fix.
-- Live-QA `MM-L1`, Lesson 1, DPS 1 preview generation after deploy.
-- Live-QA one 3-digit fast visualisation DPS preview after deploy.
+- User should retry `MM-L1`, Lesson 1, DPS 1 in Admin Learning Path Studio browser UI after the backend deploy.
 - Live-QA the current student competition mock attempt page after the late 2026-06-17 layout and expression-polish commits.
 - Live-QA MM visual add/less generation after the latest fast-visual and decimal-visual constraint fixes.
 - Add automated browser or component regression coverage for student attempt expression rendering and no-clipping behavior.
@@ -32,3 +30,4 @@ Last updated: 2026-06-18
 - Live backend MM generator now varies Write Number From Given Position prompts and avoids trivial multiplication/division scale operands.
 - Local Admin Learning Path MM DPS preview generation no longer fails for `MM-L1`, Lesson 1, DPS 1.
 - Local generator sweep now verifies every mapped Master Module DPS plan generates a non-empty question set.
+- Live Render Admin DPS preview smoke passed for `MM-L1`, Lesson 1, DPS 1 and `MM-L1`, Lesson 10, DPS 2.

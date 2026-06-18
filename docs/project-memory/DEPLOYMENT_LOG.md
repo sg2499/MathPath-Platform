@@ -4,6 +4,42 @@ Last updated: 2026-06-18
 
 ## 2026-06-18
 
+### Commit `5bce2ed`
+
+Title: `Fix MM DPS preview generation`
+
+Pushed to:
+
+- `main`
+- GitHub remote `origin`
+
+Expected deployment:
+
+- Render backend redeploy.
+
+Verification:
+
+- Backend focused generator/MM tests passed locally: 10 passed.
+- Backend full pytest suite passed locally: 17 passed.
+- Local DB-backed preview generation for `MM-L1`, Lesson 1, DPS 1 returned 30 questions.
+- Live Render smoke for `MM-L1`, Lesson 1, DPS 1 returned 30 questions:
+  - dps id `2be668be-6fca-4bc4-a9a7-0528eb188b0a`
+  - first section `Decimal Number Add-Less (Visual)`
+  - sample operands `1902.1, 1742.5, -7867.6`
+  - sample answer `-4223`
+- Live Render smoke for `MM-L1`, Lesson 10, DPS 2 returned 15 questions:
+  - dps id `6f3f22bc-e677-4284-b4fe-063a24d7f215`
+  - title `3 Digit Add-Less (Fast Visualisation) & BODMAS`
+  - first section `3 Digit Add-Less (Fast Visualisation)`
+  - sample operands `415, 416, 364, -156, -988, 933, -666`
+  - sample answer `318`
+
+Change summary:
+
+- Negative-answer decimal visual add-less practice DPS generation now follows approved decimal visual row/digit rules.
+- Fast visualisation validation now honors the section's explicit digit count.
+- Regression coverage now checks the exact failed DPS and every mapped Master Module DPS plan.
+
 ### Main Branch Handoff Audit
 
 Observed state:

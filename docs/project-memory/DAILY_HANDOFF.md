@@ -23,6 +23,9 @@ On 2026-06-18, Admin Learning Path Studio preview generation for MM practice DPS
 - Regression coverage now checks the exact failing `MM-L1` Lesson 1 / DPS 1 plan and sweeps every mapped Master Module DPS plan.
 - Backend full pytest suite passed locally: 17 passed.
 - Local database-backed preview generation for the selected DPS returned 30 questions successfully.
+- Commit `5bce2ed` was pushed to `main`.
+- Live Render smoke passed for `MM-L1`, Lesson 1, DPS 1: preview returned 30 questions.
+- Live Render smoke passed for `MM-L1`, Lesson 10, DPS 2: preview returned 15 questions for `3 Digit Add-Less (Fast Visualisation) & BODMAS`.
 
 The main product work landed on 2026-06-17 and includes:
 
@@ -66,11 +69,10 @@ MM mock generator and preview behavior is now expected to be:
 
 ## Next Recommended Work
 
-1. Push and deploy the MM DPS preview generation fix.
-2. Live-QA Admin Learning Path Studio for `MM-L1`, Lesson 1, DPS 1 and at least one 3-digit fast visualisation DPS.
-3. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
-4. If live QA passes, append explicit deployment verification for the latest DPS generation fix and the late June 17 commits.
-5. Add an API/browser regression that creates repeated MM drafts and confirms signatures are not reused within the active 15-mock window.
+1. Ask the user to retry Admin Learning Path Studio for the same DPS in the browser.
+2. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
+3. Append explicit deployment verification for the late June 17 student-attempt commits if their live QA passes.
+4. Add an API/browser regression that creates repeated MM drafts and confirms signatures are not reused within the active 15-mock window.
 
 ## Important Convention
 
