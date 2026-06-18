@@ -48,10 +48,10 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Borrowing Sums with Negative Answers",
+                "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": False,
+                "isVisual": True,
                 "isFastVisualisation": False,
                 "borrowingMode": "NEGATIVE_ONLY",
                 "isMixedDigitAddLess": False,
@@ -154,10 +154,10 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Borrowing Sums with Negative Answers",
+                "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": False,
+                "isVisual": True,
                 "isFastVisualisation": False,
                 "borrowingMode": "NEGATIVE_ONLY",
                 "isMixedDigitAddLess": False,
@@ -237,6 +237,18 @@ MM_CURRICULUM_MAP = {
                 "conceptFamily": "CONCEPT_DRILL",
                 "questionCount": 5,
             },
+            {
+                "sectionTitle": "2D x 2D (Visual)",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [2, 2],
+            },
+            {
+                "sectionTitle": "4D ÷ 2D (Visual)",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 2],
+            },
         ],
         2: [
             {
@@ -254,7 +266,16 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "3D x 2D",
+                "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
+                "conceptFamily": "ADD_LESS",
+                "questionCount": 10,
+                "isVisual": True,
+                "isFastVisualisation": False,
+                "borrowingMode": "NEGATIVE_ONLY",
+                "isMixedDigitAddLess": False,
+            },
+            {
+                "sectionTitle": "3D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [3, 2],
@@ -264,6 +285,12 @@ MM_CURRICULUM_MAP = {
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [5, 2],
+            },
+            {
+                "sectionTitle": "4D ÷ 3D (Visual)",
+                "conceptFamily": "WHOLE_NUMBER_DIVISION",
+                "questionCount": 10,
+                "divisionDigits": [4, 3],
             },
         ],
         4: [
@@ -290,12 +317,22 @@ MM_CURRICULUM_MAP = {
         ],
         5: [
             {
-                "sectionTitle": "Borrowing Sums with Negative Answers",
+                "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
+                "conceptFamily": "ADD_LESS",
+                "questionCount": 10,
+                "isVisual": True,
+                "isFastVisualisation": False,
+                "borrowingMode": "NEGATIVE_ONLY",
+                "isMixedDigitAddLess": False,
+            },
+            {
+                "sectionTitle": "2 Digit Number Add-Less (Fast Visualisation)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
                 "isVisual": False,
-                "isFastVisualisation": False,
-                "borrowingMode": "NEGATIVE_ONLY",
+                "isFastVisualisation": True,
+                "borrowingMode": "BORROWING_STANDARD",
+                "explicitDigitCount": 2,
                 "isMixedDigitAddLess": False,
             },
             {
@@ -304,10 +341,25 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
                 "divisionDigits": [4, 3],
             },
+            {
+                "sectionTitle": "BODMAS (Visual)",
+                "conceptFamily": "BODMAS",
+                "questionCount": 5,
+            },
         ],
     },
     4: {
         1: [
+            {
+                "sectionTitle": "3 Digit Add-Less (Fast Visualisation)",
+                "conceptFamily": "ADD_LESS",
+                "questionCount": 10,
+                "isVisual": False,
+                "isFastVisualisation": True,
+                "borrowingMode": "STANDARD",
+                "explicitDigitCount": 3,
+                "isMixedDigitAddLess": False,
+            },
             {
                 "sectionTitle": "Integers",
                 "conceptFamily": "INTEGERS",
@@ -362,6 +414,15 @@ MM_CURRICULUM_MAP = {
         ],
         5: [
             {
+                "sectionTitle": "Borrowing Sums with Positive / Negative Answers (Visual)",
+                "conceptFamily": "ADD_LESS",
+                "questionCount": 10,
+                "isVisual": True,
+                "isFastVisualisation": False,
+                "borrowingMode": "MIXED_POSITIVE_NEGATIVE",
+                "isMixedDigitAddLess": False,
+            },
+            {
                 "sectionTitle": "BODMAS (Visual)",
                 "conceptFamily": "BODMAS",
                 "questionCount": 5,
@@ -381,10 +442,10 @@ MM_CURRICULUM_MAP = {
     5: {
         1: [
             {
-                "sectionTitle": "Borrowing Sums with Negative Answers",
+                "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": False,
+                "isVisual": True,
                 "isFastVisualisation": False,
                 "borrowingMode": "NEGATIVE_ONLY",
                 "isMixedDigitAddLess": False,
@@ -601,10 +662,10 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "2D x 2D",
+                "sectionTitle": "3D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
-                "multiplicationDigits": [2, 2],
+                "multiplicationDigits": [3, 2],
             },
             {
                 "sectionTitle": "4D ÷ 3D (Visual)",
@@ -669,10 +730,10 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Borrowing Sums with Positive / Negative Answers",
+                "sectionTitle": "Borrowing Sums with Positive / Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": False,
+                "isVisual": True,
                 "isFastVisualisation": False,
                 "borrowingMode": "MIXED_POSITIVE_NEGATIVE",
                 "isMixedDigitAddLess": False,
@@ -837,10 +898,9 @@ MM_CURRICULUM_MAP = {
     12: {
         1: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Decimal Multiplication (Visual)",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
-                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
@@ -903,10 +963,9 @@ MM_CURRICULUM_MAP = {
     13: {
         1: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Decimal Multiplication (Visual)",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
-                "mixedOperationGroup": "MULTIPLICATION",
             },
             {
                 "sectionTitle": "Division Mixed Pattern",
@@ -1127,16 +1186,15 @@ MM_CURRICULUM_MAP = {
     17: {
         1: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Division of Decimal Numbers (Visual)",
+                "conceptFamily": "DECIMAL_DIVISION",
                 "questionCount": 10,
-                "mixedOperationGroup": "MULTIPLICATION",
+                "divisionDigits": [5, 3],
             },
             {
-                "sectionTitle": "Division Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Decimal Multiplication (Visual)",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
-                "mixedOperationGroup": "DIVISION",
             },
         ],
         2: [
@@ -1200,16 +1258,15 @@ MM_CURRICULUM_MAP = {
         3: [{"sectionTitle": "Cube Root of Mixed Digit", "conceptFamily": "CUBE_ROOT"}],
         4: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Division of Decimal Numbers",
+                "conceptFamily": "DECIMAL_DIVISION",
                 "questionCount": 10,
-                "mixedOperationGroup": "MULTIPLICATION",
+                "divisionDigits": [5, 3],
             },
             {
-                "sectionTitle": "Division Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Decimal Multiplication (Visual)",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
-                "mixedOperationGroup": "DIVISION",
             },
         ],
         5: [
@@ -1283,16 +1340,15 @@ MM_CURRICULUM_MAP = {
     20: {
         1: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Division of Decimal Numbers (Visual)",
+                "conceptFamily": "DECIMAL_DIVISION",
                 "questionCount": 10,
-                "mixedOperationGroup": "MULTIPLICATION",
+                "divisionDigits": [5, 3],
             },
             {
-                "sectionTitle": "Division Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Decimal Multiplication (Visual)",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
-                "mixedOperationGroup": "DIVISION",
             },
         ],
         2: [
@@ -1344,9 +1400,9 @@ MM_CURRICULUM_MAP = {
     21: {
         1: [
             {
-                "sectionTitle": "Mixed Digit Add-Less",
+                "sectionTitle": "Mixed Digit Add-Less (Visual)",
                 "conceptFamily": "ADD_LESS",
-                "isVisual": False,
+                "isVisual": True,
                 "isFastVisualisation": False,
                 "borrowingMode": "STANDARD",
                 "isMixedDigitAddLess": True,
@@ -1354,10 +1410,10 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "4D × 3D",
+                "sectionTitle": "3D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
-                "multiplicationDigits": [4, 3],
+                "multiplicationDigits": [3, 2],
             },
             {
                 "sectionTitle": "5D ÷ 3D",
@@ -1368,16 +1424,16 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "5D × 3D",
+                "sectionTitle": "3D x 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
-                "multiplicationDigits": [5, 3],
+                "multiplicationDigits": [3, 3],
             },
             {
-                "sectionTitle": "4D ÷ 2D",
+                "sectionTitle": "5D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
-                "divisionDigits": [4, 2],
+                "divisionDigits": [5, 3],
             },
         ],
         4: [
@@ -1399,16 +1455,20 @@ MM_CURRICULUM_MAP = {
         1: [{"sectionTitle": "BODMAS", "conceptFamily": "BODMAS"}],
         2: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
-                "questionCount": 10,
-                "mixedOperationGroup": "MULTIPLICATION",
+                "sectionTitle": "BODMAS",
+                "conceptFamily": "BODMAS",
+                "questionCount": 5,
             },
             {
-                "sectionTitle": "Division Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Division of Decimal Numbers",
+                "conceptFamily": "DECIMAL_DIVISION",
                 "questionCount": 10,
-                "mixedOperationGroup": "DIVISION",
+                "divisionDigits": [5, 3],
+            },
+            {
+                "sectionTitle": "Decimal Multiplication (Visual)",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
+                "questionCount": 10,
             },
         ],
         3: [
@@ -1534,16 +1594,15 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Division of Decimal Numbers (Visual)",
+                "conceptFamily": "DECIMAL_DIVISION",
                 "questionCount": 10,
-                "mixedOperationGroup": "MULTIPLICATION",
+                "divisionDigits": [5, 3],
             },
             {
-                "sectionTitle": "Division Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Decimal Multiplication (Visual)",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
-                "mixedOperationGroup": "DIVISION",
             },
         ],
         5: [
@@ -1578,10 +1637,10 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "4D ÷ 2D",
+                "sectionTitle": "6D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
-                "divisionDigits": [4, 2],
+                "divisionDigits": [6, 3],
             },
             {
                 "sectionTitle": "3D x 3D (Visual)",
@@ -1701,9 +1760,16 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Multiplication by 3D",
+                "sectionTitle": "3D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
+                "multiplicationDigits": [3, 2],
+            },
+            {
+                "sectionTitle": "5D x 2D (Visual)",
+                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
+                "questionCount": 10,
+                "multiplicationDigits": [5, 2],
             },
             {
                 "sectionTitle": "5D ÷ 2D",
@@ -1714,16 +1780,15 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Division of Decimal Numbers (Visual)",
+                "conceptFamily": "DECIMAL_DIVISION",
                 "questionCount": 10,
-                "mixedOperationGroup": "MULTIPLICATION",
+                "divisionDigits": [5, 3],
             },
             {
-                "sectionTitle": "Division Mixed Pattern",
-                "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
+                "sectionTitle": "Decimal Multiplication (Visual)",
+                "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
-                "mixedOperationGroup": "DIVISION",
             },
         ],
         4: [

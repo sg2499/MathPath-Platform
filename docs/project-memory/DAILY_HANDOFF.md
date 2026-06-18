@@ -36,6 +36,17 @@ On 2026-06-18, a durable source-asset intake system was added:
 - The authoritative Master Module source folder is recorded as `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Modules\MM\Level - 9`.
 - That folder is verified to contain 30 lesson folders, 150 `.png` DPS images, and 3 `.xlsx` workbooks.
 
+On 2026-06-18, the recorded Master Module source workbooks were audited against Learning Path Studio visual concept mappings:
+
+- 150 DPS sheets were audited from the authoritative `Level - 9` source folder.
+- 84 DPS contained explicit workbook `VISUAL` / `FAST VISUALISATION` concept labels.
+- The initial audit found 23 DPS with missing platform visual mappings or missing visual flags.
+- `backend/app/question_engine/mm/curriculum_map.py` was updated so the workbook visual concepts are mapped with `Concept Name (Visual)` display titles where applicable.
+- `backend/app/seed/seed_master_module.py` was updated so seeded DPS titles also show the corrected visual concepts.
+- Visual negative-borrowing Add-Less generation now uses 4-digit visual operands so it satisfies both visual Add-Less constraints and negative-borrowing validation.
+- Workbook-to-platform visual audit passed after the mapping fix: 0 mismatches.
+- Backend generator verification passed: `PYTHONPATH=backend pytest backend\tests\test_generator.py backend\tests\test_mm_competition_mock_generator.py` returned 10 passed.
+
 The main product work landed on 2026-06-17 and includes:
 
 - MM mock freshness enforcement across the previous 15 active same-level mocks.
@@ -70,6 +81,8 @@ MM mock generator and preview behavior is now expected to be:
 - Multiplication/division mocks avoid easy place-shift operands and obvious low quotients.
 - MM visual add/less fast visualisation questions stay at 7 rows using the section's explicit digit count.
 - MM decimal visual add/less questions must follow explicit approved row/digit patterns instead of arbitrary decimal row mixes.
+- MM practice DPS section titles must preserve workbook visual-method concepts with the display convention `Concept Name (Visual)`.
+- MM visual negative-borrowing Add-Less practice questions use 4-digit operands so the visual range and negative-borrowing rules both hold.
 - Admin mock assignment only shows and assigns students eligible for the selected mock module and level.
 - Student competition mock attempts keep the timer visible inside the metric card area and show a red pulsing low-time warning at 5 minutes remaining.
 - Student competition mock attempts use a denser full-workspace layout so long vertical sums remain visible on desktop.
@@ -78,11 +91,11 @@ MM mock generator and preview behavior is now expected to be:
 
 ## Next Recommended Work
 
-1. Ask the user to retry Admin Learning Path Studio for the same DPS in the browser.
-2. Use `SOURCE_ASSETS.md` and the recorded `Level - 9` source folder for any Master Module DPS image/workbook reference work.
-3. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
-4. Append explicit deployment verification for the late June 17 student-attempt commits if their live QA passes.
-5. Add an API/browser regression that creates repeated MM drafts and confirms signatures are not reused within the active 15-mock window.
+1. Push/deploy the MM visual concept mapping fix if it has not already been pushed.
+2. Reseed/sync the live backend curriculum if the deployment does not automatically update existing DPS section rows.
+3. Open live Admin Learning Path Studio and verify corrected visual section titles for the affected Master Module DPS.
+4. Ask the user to retry Admin Learning Path Studio for the originally failing DPS in the browser.
+5. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
 
 ## Important Convention
 

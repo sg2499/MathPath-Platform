@@ -340,6 +340,59 @@ def _BuildBorrowingAddLess(
             "mm_add_less_visual_max_rows": 5,
         }
 
+    if RequireNegativeAnswer and _IsMmAddLessVisualConcept(Config):
+        RowCount = max(4, min(5, RowCount))
+        SignedOperands: list[Decimal] = []
+        Operators: list[str] = []
+        RunningTotal = Decimal(0)
+
+        def _RandNegativeBorrowingVisualValue() -> Decimal:
+            return Decimal(Rng.randrange(1000, 2601, 25))
+
+        FirstValue = _RandNegativeBorrowingVisualValue()
+        SignedOperands.append(FirstValue)
+        Operators.append("")
+        RunningTotal += FirstValue
+
+        for RowIndex in range(1, RowCount - 1):
+            Value = _RandNegativeBorrowingVisualValue()
+            UseSubtraction = RowIndex % 3 == 0
+            if UseSubtraction:
+                SignedOperands.append(-Value)
+                Operators.append("-")
+                RunningTotal -= Value
+            else:
+                SignedOperands.append(Value)
+                Operators.append("+")
+                RunningTotal += Value
+
+        FinalSubtraction = min(Decimal(9999), abs(RunningTotal) + _RandNegativeBorrowingVisualValue())
+        SignedOperands.append(-FinalSubtraction)
+        Operators.append("-")
+        CorrectAnswer = sum(SignedOperands, Decimal(0))
+
+        if CorrectAnswer >= 0:
+            SignedOperands[-1] = -min(Decimal(9999), RunningTotal + Decimal(Rng.randrange(1200, 2601, 25)))
+            CorrectAnswer = sum(SignedOperands, Decimal(0))
+
+        if CorrectAnswer >= 0:
+            SignedOperands[0] = Decimal(1000)
+            CorrectAnswer = sum(SignedOperands, Decimal(0))
+
+        DisplayOperands = [_AsDisplayNumber(Value) for Value in SignedOperands]
+        return DisplayOperands, Operators, CorrectAnswer, {
+            "decimal_places": Places,
+            "row_count": RowCount,
+            "lesson_band": _LessonBand(Config),
+            "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
+            "borrowing_answer_mode": "NEGATIVE",
+            "borrowing_negative_answer_required": True,
+            "borrowing_stack_not_all_negative": True,
+            "mm_add_less_visual_operand_range": "2D_TO_4D",
+            "mm_add_less_visual_row_rule": "FOUR_TO_FIVE_ROWS",
+            "mm_add_less_visual_max_rows": 5,
+        }
+
     if RequireNegativeAnswer:
         # Master Module negative borrowing sheets must use only 4-digit/5-digit
         # operands while preserving a mixed stack and a negative final answer.
