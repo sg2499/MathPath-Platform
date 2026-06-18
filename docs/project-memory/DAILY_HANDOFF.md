@@ -56,6 +56,9 @@ On 2026-06-18, a stricter live Learning Path Studio sweep was run for the full M
 - Commit `6f96201 Align MM visual labels with workbooks` fixes those remaining display mismatches and removes extra `(Visual)` labels where the workbook did not mark the concept visual.
 - Local strict workbook-vs-platform audit after the fix returned missing `0`, extra `0`.
 - Backend full pytest suite passed after the fix: `PYTHONPATH=backend pytest backend\tests` returned 17 passed.
+- Commits `6f96201` and `ec00920` were pushed to `main`.
+- Live Admin Learning Path Studio MM was fetched again after push: 30 lessons, 150 DPS.
+- Live strict workbook-vs-platform audit passed after normalizing the live API's `×`/`÷` encoding: missing `0`, extra `0`.
 
 The main product work landed on 2026-06-17 and includes:
 
@@ -101,12 +104,10 @@ MM mock generator and preview behavior is now expected to be:
 
 ## Next Recommended Work
 
-1. Push commit `6f96201` and the updated project-memory docs to `main`.
-2. Wait for Render/Vercel redeploys to finish.
-3. Reseed/sync the live backend curriculum if existing DPS section rows do not update automatically from code deploy.
-4. Fetch live Admin Learning Path Studio MM again and confirm strict workbook-vs-platform visual audit returns missing `0`, extra `0`.
-5. Ask the user to retry Admin Learning Path Studio for the originally failing DPS in the browser.
-6. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
+1. Ask the user to retry Admin Learning Path Studio for the originally failing DPS in the browser.
+2. Spot-check the live Learning Path Studio UI for MM visual labels, especially Lesson 10 DPS 5 and Lesson 22/23 multiplication-division visual sheets.
+3. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
+4. If any Learning Path Studio row still appears stale in the browser, rerun the live API sweep first; only reseed/sync if the API also shows stale rows.
 
 ## Important Convention
 
