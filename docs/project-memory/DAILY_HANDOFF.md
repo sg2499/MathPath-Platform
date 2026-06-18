@@ -15,7 +15,7 @@ Read:
 
 ## Latest Completed Work
 
-The current `main` branch and `origin/main` both point to commit `aae8814`.
+The current `main` branch and `origin/main` both point to commit `47523b5`.
 
 On 2026-06-18, Admin Learning Path Studio preview generation for MM practice DPS was fixed locally after the live screenshot showed a generic server error for `MM-L1`, Lesson 1, DPS 1:
 
@@ -46,6 +46,8 @@ On 2026-06-18, the recorded Master Module source workbooks were audited against 
 - Visual negative-borrowing Add-Less generation now uses 4-digit visual operands so it satisfies both visual Add-Less constraints and negative-borrowing validation.
 - Workbook-to-platform visual audit passed after the mapping fix: 0 mismatches.
 - Backend generator verification passed: `PYTHONPATH=backend pytest backend\tests\test_generator.py backend\tests\test_mm_competition_mock_generator.py` returned 10 passed.
+- Commit `47523b5 Fix MM visual concept mappings` was pushed to `main`.
+- Live backend read-only smoke after push succeeded for the Admin module/levels API: module `MM`, levels returned `1`.
 
 The main product work landed on 2026-06-17 and includes:
 
@@ -91,8 +93,8 @@ MM mock generator and preview behavior is now expected to be:
 
 ## Next Recommended Work
 
-1. Push/deploy the MM visual concept mapping fix if it has not already been pushed.
-2. Reseed/sync the live backend curriculum if the deployment does not automatically update existing DPS section rows.
+1. Wait for Render to finish redeploying commit `47523b5`.
+2. Reseed/sync the live backend curriculum if existing DPS section rows do not update automatically from code deploy.
 3. Open live Admin Learning Path Studio and verify corrected visual section titles for the affected Master Module DPS.
 4. Ask the user to retry Admin Learning Path Studio for the originally failing DPS in the browser.
 5. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.

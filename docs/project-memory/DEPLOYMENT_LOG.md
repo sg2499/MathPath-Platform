@@ -4,6 +4,42 @@ Last updated: 2026-06-18
 
 ## 2026-06-18
 
+### Commit `47523b5`
+
+Title: `Fix MM visual concept mappings`
+
+Pushed to:
+
+- `main`
+- GitHub remote `origin`
+
+Expected deployment:
+
+- Render backend redeploy.
+- Vercel frontend redeploy may be triggered by the monorepo push, although this change is backend/project-memory focused.
+
+Verification:
+
+- Workbook-to-platform visual audit passed locally after the curriculum-map fix: 0 mismatches.
+- Backend generator/MM tests passed locally: `PYTHONPATH=backend pytest backend\tests\test_generator.py backend\tests\test_mm_competition_mock_generator.py` returned 10 passed.
+- Backend full pytest suite passed locally: `PYTHONPATH=backend pytest backend\tests` returned 17 passed.
+- Live backend read-only smoke after push succeeded:
+  - endpoint family: Admin module/levels API
+  - module `MM`
+  - levels returned `1`
+
+Change summary:
+
+- Master Module practice DPS visual concepts were aligned to the authoritative Level 9 workbook labels.
+- Affected visual concepts now follow the display convention `Concept Name (Visual)`.
+- Seeded DPS titles were updated so Learning Path Studio cards expose the corrected visual concepts.
+- Visual negative-borrowing Add-Less generation now uses 4-digit operands so visual and negative-borrowing validators both pass.
+
+Remaining:
+
+- Verify live Learning Path Studio section titles after Render finishes redeploying.
+- Reseed/sync the live backend curriculum if existing DPS rows do not update automatically from code deploy.
+
 ### Commit `5bce2ed`
 
 Title: `Fix MM DPS preview generation`
