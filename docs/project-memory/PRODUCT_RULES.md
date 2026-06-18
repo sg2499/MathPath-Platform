@@ -21,6 +21,8 @@ Last updated: 2026-06-18
 ## Generator Standards
 
 - Practice/DPS generation must remain workbook-faithful.
+- Master Module practice concepts that require the visual method must be mapped and displayed as `Concept Name (Visual)`.
+- Master Module visual section titles, seeded DPS titles, and generator flags must stay aligned with the authoritative source workbook/image labels.
 - Mock generation must follow the finalized section and concept conventions.
 - Do not let competition mock generation inherit stale or unrelated DPS section mappings.
 

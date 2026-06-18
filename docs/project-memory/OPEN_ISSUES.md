@@ -6,7 +6,8 @@ Last updated: 2026-06-18
 
 - User should retry `MM-L1`, Lesson 1, DPS 1 in Admin Learning Path Studio browser UI after the backend deploy.
 - Live-QA the current student competition mock attempt page after the late 2026-06-17 layout and expression-polish commits.
-- Live-QA MM visual add/less generation after the latest fast-visual and decimal-visual constraint fixes.
+- Push/deploy the MM visual concept mapping fix and verify the corrected section titles in live Admin Learning Path Studio.
+- Reseed/sync the live backend curriculum if existing DPS section rows do not update automatically after deployment.
 - Add automated browser or component regression coverage for student attempt expression rendering and no-clipping behavior.
 - Add an API/browser regression that creates repeated MM drafts and confirms question signatures are not reused within the same-level 15-mock window.
 
@@ -32,3 +33,5 @@ Last updated: 2026-06-18
 - Local generator sweep now verifies every mapped Master Module DPS plan generates a non-empty question set.
 - Live Render Admin DPS preview smoke passed for `MM-L1`, Lesson 1, DPS 1 and `MM-L1`, Lesson 10, DPS 2.
 - Authoritative Master Module Level 9 source folder is recorded in `SOURCE_ASSETS.md`.
+- Local workbook-to-platform audit for MM visual concepts reached 0 mismatches after the curriculum map fix.
+- Local backend generator tests passed after the MM visual concept mapping fix.
