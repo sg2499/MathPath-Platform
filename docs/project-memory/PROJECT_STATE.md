@@ -33,7 +33,7 @@ The latest implemented state:
 - MM visual add/less generation now enforces explicit fast-visual and decimal-visual row/digit constraints.
 - MM practice DPS preview generation now handles negative-answer decimal visual add-less and 2-digit/3-digit fast visualisation concepts without generator/validator contract failures.
 - MM practice DPS visual concepts have been audited against the authoritative Level 9 workbooks; mapped visual concepts now follow `Concept Name (Visual)`.
-- The stricter MM workbook-vs-platform audit now checks both missing and extra visual labels and passed locally with missing `0`, extra `0` after commit `6f96201`.
+- The corrected MM workbook-vs-platform audit now handles DPS-level `VISUAL` markers, percentage visual concepts, and missing display markers; it recognizes 102 workbook visual/fast-visualisation DPS and passes locally with mismatch/flag issue count `0`.
 - MM visual negative-borrowing Add-Less generation now uses 4-digit operands so visual and negative-borrowing validation both pass.
 - Existing mock previews render cleanly without duplicated first-natural-number prompt text.
 - Admin mock assignment is scoped to active students in the selected mock module and level.
@@ -76,6 +76,8 @@ Recent verification commands that passed:
 - Backend full: `PYTHONPATH=backend pytest backend\tests` on 2026-06-18, 17 passed after the strict MM visual label sweep fix.
 - Local strict workbook-vs-platform visual audit on 2026-06-18: missing workbook visual labels `0`, extra platform visual labels `0`.
 - Live strict Admin Learning Path Studio MM visual audit on 2026-06-18: 150 DPS fetched, 84 workbook visual/fast-visualisation DPS checked, missing `0`, extra `0` after normalizing live API `×`/`÷` encoding.
+- Corrected local workbook audit on 2026-06-18: 150 DPS audited, 102 workbook visual/fast-visualisation DPS recognized, mismatch/flag issue count `0`.
+- Backend full: `PYTHONPATH=backend pytest backend\tests` on 2026-06-18, 20 passed after adding visual curriculum mapping regression tests.
 - Frontend: `npm.cmd run typecheck` on 2026-06-18.
 - Frontend: `npm.cmd run build` on 2026-06-18.
 - Local DB-backed smoke: Admin DPS preview generation for `MM-L1`, Lesson 1, DPS 1 returned 30 questions.
