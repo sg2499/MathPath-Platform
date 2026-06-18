@@ -35,9 +35,14 @@ Change summary:
 
 Remaining:
 
-- Wait for Render/Vercel redeploys.
-- Re-run live Admin Learning Path Studio MM sweep after deploy.
-- Reseed/sync live curriculum if deployed code does not update existing DPS rows automatically.
+- Live Admin Learning Path Studio MM sweep passed after push:
+  - 30 lessons fetched.
+  - 150 DPS fetched.
+  - 84 workbook visual/fast-visualisation DPS checked.
+  - missing workbook visual labels: `0`
+  - extra platform visual labels: `0`
+- No reseed/sync was required for the API-level verification.
+- Browser UI spot-check is still recommended for visual confirmation.
 
 ### Commit `47523b5`
 

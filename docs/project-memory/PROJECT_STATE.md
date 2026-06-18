@@ -75,6 +75,7 @@ Recent verification commands that passed:
 - Backend focused: `PYTHONPATH=backend pytest backend\tests\test_generator.py backend\tests\test_mm_competition_mock_generator.py` on 2026-06-18, 10 passed after the MM visual concept mapping fix.
 - Backend full: `PYTHONPATH=backend pytest backend\tests` on 2026-06-18, 17 passed after the strict MM visual label sweep fix.
 - Local strict workbook-vs-platform visual audit on 2026-06-18: missing workbook visual labels `0`, extra platform visual labels `0`.
+- Live strict Admin Learning Path Studio MM visual audit on 2026-06-18: 150 DPS fetched, 84 workbook visual/fast-visualisation DPS checked, missing `0`, extra `0` after normalizing live API `×`/`÷` encoding.
 - Frontend: `npm.cmd run typecheck` on 2026-06-18.
 - Frontend: `npm.cmd run build` on 2026-06-18.
 - Local DB-backed smoke: Admin DPS preview generation for `MM-L1`, Lesson 1, DPS 1 returned 30 questions.
