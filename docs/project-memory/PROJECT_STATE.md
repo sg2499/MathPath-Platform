@@ -32,7 +32,8 @@ The latest implemented state:
 - MM mock generation now enforces stable question/sum uniqueness within each mock and avoids repeats from the previous 15 active same-level MM mocks.
 - MM visual add/less generation now enforces explicit fast-visual and decimal-visual row/digit constraints.
 - MM practice DPS preview generation now handles negative-answer decimal visual add-less and 2-digit/3-digit fast visualisation concepts without generator/validator contract failures.
-- MM practice DPS visual concepts have been audited against the authoritative Level 9 workbooks; mapped visual concepts now follow `Concept Name (Visual)` and the audit reached 0 mismatches locally.
+- MM practice DPS visual concepts have been audited against the authoritative Level 9 workbooks; mapped visual concepts now follow `Concept Name (Visual)`.
+- The stricter MM workbook-vs-platform audit now checks both missing and extra visual labels and passed locally with missing `0`, extra `0` after commit `6f96201`.
 - MM visual negative-borrowing Add-Less generation now uses 4-digit operands so visual and negative-borrowing validation both pass.
 - Existing mock previews render cleanly without duplicated first-natural-number prompt text.
 - Admin mock assignment is scoped to active students in the selected mock module and level.
@@ -72,6 +73,8 @@ Recent verification commands that passed:
 - Backend focused: `.venv\Scripts\python.exe -m pytest tests\test_mm_competition_mock_generator.py`
 - Backend focused: `.venv\Scripts\python.exe -m pytest tests\test_generator.py tests\test_mm_competition_mock_generator.py` on 2026-06-18, 10 passed.
 - Backend focused: `PYTHONPATH=backend pytest backend\tests\test_generator.py backend\tests\test_mm_competition_mock_generator.py` on 2026-06-18, 10 passed after the MM visual concept mapping fix.
+- Backend full: `PYTHONPATH=backend pytest backend\tests` on 2026-06-18, 17 passed after the strict MM visual label sweep fix.
+- Local strict workbook-vs-platform visual audit on 2026-06-18: missing workbook visual labels `0`, extra platform visual labels `0`.
 - Frontend: `npm.cmd run typecheck` on 2026-06-18.
 - Frontend: `npm.cmd run build` on 2026-06-18.
 - Local DB-backed smoke: Admin DPS preview generation for `MM-L1`, Lesson 1, DPS 1 returned 30 questions.

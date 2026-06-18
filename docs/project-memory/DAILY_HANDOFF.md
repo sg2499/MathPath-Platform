@@ -15,7 +15,7 @@ Read:
 
 ## Latest Completed Work
 
-The current `main` branch and `origin/main` both point to commit `47523b5`.
+After the current push, `main` and `origin/main` should point to commit `6f96201`.
 
 On 2026-06-18, Admin Learning Path Studio preview generation for MM practice DPS was fixed locally after the live screenshot showed a generic server error for `MM-L1`, Lesson 1, DPS 1:
 
@@ -48,6 +48,14 @@ On 2026-06-18, the recorded Master Module source workbooks were audited against 
 - Backend generator verification passed: `PYTHONPATH=backend pytest backend\tests\test_generator.py backend\tests\test_mm_competition_mock_generator.py` returned 10 passed.
 - Commit `47523b5 Fix MM visual concept mappings` was pushed to `main`.
 - Live backend read-only smoke after push succeeded for the Admin module/levels API: module `MM`, levels returned `1`.
+
+On 2026-06-18, a stricter live Learning Path Studio sweep was run for the full MM module:
+
+- Live Admin Learning Path Studio payload was fetched for all 30 lessons and 150 DPS.
+- The live sweep found no completely missing workbook visual concepts, but 50 DPS still had one or more visual concepts displayed without `Concept Name (Visual)`.
+- Commit `6f96201 Align MM visual labels with workbooks` fixes those remaining display mismatches and removes extra `(Visual)` labels where the workbook did not mark the concept visual.
+- Local strict workbook-vs-platform audit after the fix returned missing `0`, extra `0`.
+- Backend full pytest suite passed after the fix: `PYTHONPATH=backend pytest backend\tests` returned 17 passed.
 
 The main product work landed on 2026-06-17 and includes:
 
@@ -93,11 +101,12 @@ MM mock generator and preview behavior is now expected to be:
 
 ## Next Recommended Work
 
-1. Wait for Render to finish redeploying commit `47523b5`.
-2. Reseed/sync the live backend curriculum if existing DPS section rows do not update automatically from code deploy.
-3. Open live Admin Learning Path Studio and verify corrected visual section titles for the affected Master Module DPS.
-4. Ask the user to retry Admin Learning Path Studio for the originally failing DPS in the browser.
-5. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
+1. Push commit `6f96201` and the updated project-memory docs to `main`.
+2. Wait for Render/Vercel redeploys to finish.
+3. Reseed/sync the live backend curriculum if existing DPS section rows do not update automatically from code deploy.
+4. Fetch live Admin Learning Path Studio MM again and confirm strict workbook-vs-platform visual audit returns missing `0`, extra `0`.
+5. Ask the user to retry Admin Learning Path Studio for the originally failing DPS in the browser.
+6. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
 
 ## Important Convention
 
