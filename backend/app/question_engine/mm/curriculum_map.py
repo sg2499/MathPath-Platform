@@ -28,7 +28,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Add-Less",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": True,
+                "isVisual": False,
                 "isFastVisualisation": False,
                 "borrowingMode": "BORROWING_STANDARD",
                 "isMixedDigitAddLess": False,
@@ -51,7 +51,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": False,
+                "isVisual": True,
                 "isFastVisualisation": False,
                 "borrowingMode": "NEGATIVE_ONLY",
                 "isMixedDigitAddLess": False,
@@ -134,7 +134,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Add-Less",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": True,
+                "isVisual": False,
                 "isFastVisualisation": False,
                 "borrowingMode": "BORROWING_STANDARD",
                 "isMixedDigitAddLess": False,
@@ -157,7 +157,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": False,
+                "isVisual": True,
                 "isFastVisualisation": False,
                 "borrowingMode": "NEGATIVE_ONLY",
                 "isMixedDigitAddLess": False,
@@ -320,7 +320,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": False,
+                "isVisual": True,
                 "isFastVisualisation": False,
                 "borrowingMode": "NEGATIVE_ONLY",
                 "isMixedDigitAddLess": False,
@@ -925,36 +925,36 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
         ],
         4: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
         ],
         5: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -990,36 +990,36 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
         ],
         4: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
         ],
         5: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1028,48 +1028,48 @@ MM_CURRICULUM_MAP = {
     14: {
         1: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
         ],
         2: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
         ],
         3: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
         ],
         4: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1081,7 +1081,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1090,24 +1090,24 @@ MM_CURRICULUM_MAP = {
     15: {
         1: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
         ],
         2: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1121,7 +1121,7 @@ MM_CURRICULUM_MAP = {
                 "mixedOperationGroup": "DIVISION",
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1277,7 +1277,7 @@ MM_CURRICULUM_MAP = {
                 "mixedOperationGroup": "MULTIPLICATION",
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1300,12 +1300,12 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1353,12 +1353,12 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1545,12 +1545,12 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1563,7 +1563,7 @@ MM_CURRICULUM_MAP = {
                 "mixedOperationGroup": "MULTIPLICATION",
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1730,12 +1730,12 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
@@ -1821,12 +1821,12 @@ MM_CURRICULUM_MAP = {
     29: {
         1: [
             {
-                "sectionTitle": "Add Percentage",
+                "sectionTitle": "Add Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Less Percentage",
+                "sectionTitle": "Less Percentage (Visual)",
                 "conceptFamily": "PERCENTAGE_ADD_LESS",
                 "questionCount": 10,
             },
