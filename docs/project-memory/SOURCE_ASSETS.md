@@ -47,22 +47,43 @@ The files in `reference-assets/` are intentionally local-only. The manifest and 
 
 ## Known Source Asset Locations
 
-### Candidate MM Module Folder
+### Authoritative Master Module Level 9 Source Folder
 
 Path:
 
-- `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Modules\MM`
+- `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Modules\MM\Level - 9`
 
-Observed on 2026-06-18:
+Confirmed on 2026-06-18:
 
-- folder `Level - 9`
-- workbook `MM-L19 DPS 3.xlsx`
-- temporary Excel lock file `~$MASTER MODULE.xlsx`
+- 30 lesson folders: `Lesson - 1` through `Lesson - 30`.
+- 150 DPS image files: 5 `.png` files under each lesson folder.
+- 3 Excel workbooks at the folder root:
+  - `LESSON 1.xlsx`
+  - `LESSON 2.xlsx`
+  - `MASTER MODULE.xlsx`
+
+Coverage:
+
+- Module: Master Module.
+- Level/source label: Level 9 source folder.
+- Lessons: 1-30.
+- DPS images: 5 per lesson, 150 total.
+- Workbooks: 3 files covering the 30 lessons according to the user.
+
+Authority:
+
+- Authoritative source for Master Module DPS image/workbook reference unless the user explicitly supersedes it.
+- Future generator, curriculum-map, and question-rendering work must consult this folder before changing Master Module practice DPS behavior.
+
+Agent rule:
+
+- Do not ask the user to provide this path again.
+- If the path is inaccessible, first report that the recorded source path is unavailable and verify whether the folder moved.
+- When new source files are added under this folder, update this manifest in the same session.
 
 Status:
 
-- Candidate source location only.
-- Not yet confirmed as the full 150 DPS image set or the 3 authoritative workbooks.
+- Confirmed and retained in project memory.
 
 ### Downloads Screenshot
 
@@ -80,15 +101,7 @@ Status:
 
 ## Expected Missing Assets
 
-The user has referenced these original materials, but exact durable paths are not yet recorded:
-
-- 150 DPS images
-- 3 Excel workbooks
-
-Status:
-
-- Awaiting final one-time asset handoff.
-- Once provided, record paths and coverage here immediately.
+None for the current Master Module Level 9 source set. The 150 DPS images and 3 Excel workbooks are recorded above.
 
 ## Ingestion Log
 
@@ -96,4 +109,5 @@ Status:
 
 - Created source asset manifest and local vault convention.
 - Found candidate folder `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Modules\MM`.
-- Did not confirm the full 150 DPS image set or 3 Excel workbooks.
+- User confirmed authoritative source folder `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Modules\MM\Level - 9`.
+- Verified 30 lesson folders, 150 `.png` DPS images, and 3 `.xlsx` workbooks.
