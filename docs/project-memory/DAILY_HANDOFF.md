@@ -1,6 +1,6 @@
 # Daily Handoff
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 ## Resume First
 
@@ -14,38 +14,33 @@ Read:
 
 ## Latest Completed Work
 
-On 2026-06-17, the MM competition mock generator was updated, pushed, and live-verified to enforce recent-question freshness:
+The current `main` branch and `origin/main` both point to commit `aae8814`.
 
-- Stable content signatures now detect duplicate MM sums/questions while ignoring volatile seed/source fields.
-- Each generated MM mock blocks duplicates within the same mock.
-- Each generated MM mock also blocks questions from the previous 15 active MM mocks for the same level.
-- The saved generation config and coverage payload include freshness-window audit metadata.
-- Backend focused and full test suites passed locally.
-- Commit `9ede198` was pushed to `main`.
-- Live Render smoke generated and deleted temporary mock `f21af651-0964-4975-a460-d0934a8e0afb`; response returned `freshnessWindow = 15`.
+On 2026-06-18, Admin Learning Path Studio preview generation for MM practice DPS was fixed locally after the live screenshot showed a generic server error for `MM-L1`, Lesson 1, DPS 1:
 
-Later on 2026-06-17, additional MM generator quality fixes were implemented locally:
+- Negative-answer decimal visual add-less now generates stacks that satisfy the approved decimal visual row/digit rules.
+- Fast visualisation validation now respects the section's explicit digit count, so both 2-digit and 3-digit fast visualisation sheets can generate.
+- Regression coverage now checks the exact failing `MM-L1` Lesson 1 / DPS 1 plan and sweeps every mapped Master Module DPS plan.
+- Backend full pytest suite passed locally: 17 passed.
+- Local database-backed preview generation for the selected DPS returned 30 questions successfully.
 
-- Write Number From Given Position now varies position values instead of repeatedly producing only one slot such as `-1`.
-- Section-locked MM mocks avoid reusing write-position values while unused positions remain.
-- Multiplication and division generation now rejects shortcut scale operands such as `10`, `30`, `50`, `100`, and low/scale-like division answers.
-- Backend tests passed locally: 13 passed.
+The main product work landed on 2026-06-17 and includes:
 
-Also on 2026-06-17, Competition Mock Studio assignment scope was fixed:
+- MM mock freshness enforcement across the previous 15 active same-level mocks.
+- MM generator quality fixes for write-position variety and non-trivial multiplication/division questions.
+- Competition Mock Studio assignment scope fixes so student eligibility comes from the selected mock module and level.
+- Student competition mock attempt layout changes so the timer, status, question, and choices sit in one coherent exam workspace.
+- Student attempt metric polish that moved the live timer into the metric card grid.
+- MM visual add/less tightening so fast visualisation and decimal visual questions follow explicit row-count and digit-shape rules.
+- Expression-question layout polish so long prompts get more horizontal room and shrink to fit instead of clipping.
 
-- The admin assignment panel now derives student eligibility from the selected mock exam(s), not the manage-list level filter.
-- The displayed student list is restricted to active students matching the selected mock module and level.
-- The selected-student assign button can enable when a mock and eligible student are selected even if the manage level filter is set to `All Levels`.
-- Backend assignment now enforces the same module+level eligibility rule for assign-all and selected-student requests.
-- Verification passed: frontend typecheck/build and full backend pytest suite, 15 tests passed.
+On 2026-06-18, this handoff audit re-verified the current branch locally:
 
-Also on 2026-06-17, the student competition mock attempt screen was improved:
+- Backend full pytest suite passed: 15 passed.
+- Frontend `npm.cmd run typecheck` passed.
+- Frontend `npm.cmd run build` passed.
 
-- The mock timer now switches into a red pulsing warning state at 5 minutes remaining.
-- The attempt page was later rebuilt into a single structured exam workspace after a live screenshot showed clipping and continued scroll dependency.
-- Dense vertical sums now scale down automatically instead of being cut off.
-- The competition mock attempt no longer relies on layered sticky blocks to keep controls visible.
-- Frontend typecheck and production build passed locally.
+Recorded live verification in repo memory currently stops at the earlier 2026-06-17 deployment entries for freshness, MM generator quality, and mock assignment scope. There is no recorded live Render/Vercel smoke yet for the later commits `8642be7`, `f6c5f6e`, `9d5a268`, or `aae8814`.
 
 ## Current Product State
 
@@ -61,18 +56,21 @@ MM mock generator and preview behavior is now expected to be:
 - No repeated sums/questions from the previous 15 active same-level MM mocks.
 - Write Number From Given Position uses varied position prompts in competition mocks.
 - Multiplication/division mocks avoid easy place-shift operands and obvious low quotients.
+- MM visual add/less fast visualisation questions stay at 7 rows using the section's explicit digit count.
+- MM decimal visual add/less questions must follow explicit approved row/digit patterns instead of arbitrary decimal row mixes.
 - Admin mock assignment only shows and assigns students eligible for the selected mock module and level.
-- Student competition mock attempts keep the timer visible and show a red pulsing low-time warning at 5 minutes remaining.
+- Student competition mock attempts keep the timer visible inside the metric card area and show a red pulsing low-time warning at 5 minutes remaining.
 - Student competition mock attempts use a denser full-workspace layout so long vertical sums remain visible on desktop.
+- Long expression questions in student mock attempts widen the prompt panel and shrink text to stay visible instead of clipping or wrapping awkwardly.
 - Clean preview rendering with no duplicate positional prompt and no inner scrollbars.
 
 ## Next Recommended Work
 
-1. Inspect the live Mock Studio after the user checks the latest deployment.
-2. If the user reports any remaining visual issue, use screenshots and browser inspection to patch the affected renderer.
-3. Add a Playwright regression around saved mock detail preview if the test harness is stable enough.
-4. Add an API/browser regression that creates repeated MM drafts and confirms signatures are not reused within the active 15-mock window.
-5. Continue improving project memory after every work session.
+1. Push and deploy the MM DPS preview generation fix.
+2. Live-QA Admin Learning Path Studio for `MM-L1`, Lesson 1, DPS 1 and at least one 3-digit fast visualisation DPS.
+3. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
+4. If live QA passes, append explicit deployment verification for the latest DPS generation fix and the late June 17 commits.
+5. Add an API/browser regression that creates repeated MM drafts and confirms signatures are not reused within the active 15-mock window.
 
 ## Important Convention
 

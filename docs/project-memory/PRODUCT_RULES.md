@@ -1,6 +1,6 @@
 # Product Rules
 
-Last updated: 2026-06-16
+Last updated: 2026-06-18
 
 ## Platform Standards
 
@@ -13,6 +13,8 @@ Last updated: 2026-06-16
 
 - Question previews must be fully visible without inner scrolling.
 - Question cards must not duplicate concept names or prompt text.
+- Student attempt/exam workspaces must keep timing and answer context visible without relying on awkward nested scrolling.
+- Long expression-style questions must stay readable by shrinking to fit before clipping.
 - Existing MathPath design system classes should be preferred.
 - Role-based admin, teacher, and student surfaces must remain visually consistent.
 

@@ -468,12 +468,14 @@ def _ValidateFastVisualisationAddLess(Config: MMConfig, Operands: list[int | flo
     if len(Operands) != 7:
         print("Failed fast visual len")
         return False
+    DigitCount = _ExplicitAddLessDigitCount(Config) or 2
+    Minimum, Maximum = (10 ** (DigitCount - 1), (10 ** DigitCount) - 1)
     for Value in Operands:
         DecimalValue = abs(_DecimalValue(Value))
         if DecimalValue != DecimalValue.to_integral_value():
             print(f"Failed fast visual integral: {DecimalValue}")
             return False
-        if not (Decimal(10) <= DecimalValue <= Decimal(99)):
+        if not (Decimal(Minimum) <= DecimalValue <= Decimal(Maximum)):
             print(f"Failed fast visual range: {DecimalValue}")
             return False
     return True

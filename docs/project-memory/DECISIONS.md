@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-06-16
+Last updated: 2026-06-18
 
 ## Project Continuity
 
@@ -39,3 +39,21 @@ Reason:
 
 - Existing saved mocks should benefit without regeneration.
 - The issue is display convention, not data correctness.
+
+## Student Mock Attempt Workspace
+
+Decision: Competition mock attempts should use one coherent exam workspace with timer/status surfaced inside the metrics area rather than relying on separated sticky timer blocks.
+
+Reason:
+
+- Students need persistent timing and progress context without losing horizontal room for the active question.
+- The structured workspace reduces awkward scroll behavior and leaves more room for long questions and answer options.
+
+## MM Visual Add/Less Constraints
+
+Decision: MM visual add/less generation should enforce explicit row-count and digit-shape rules for fast visualisation and decimal visual questions.
+
+Reason:
+
+- Generic add/less ranges were allowing malformed or overly easy visual questions.
+- Competition mocks need consistent visual difficulty and valid operand patterns across saved and live-generated mocks.
