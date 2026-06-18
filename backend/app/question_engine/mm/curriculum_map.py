@@ -25,7 +25,7 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Add-Less (Visual)",
+                "sectionTitle": "Add-Less",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
                 "isVisual": True,
@@ -51,7 +51,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": True,
+                "isVisual": False,
                 "isFastVisualisation": False,
                 "borrowingMode": "NEGATIVE_ONLY",
                 "isMixedDigitAddLess": False,
@@ -76,7 +76,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Squares",
+                "sectionTitle": "Squares (Visual)",
                 "conceptFamily": "SQUARES",
                 "questionCount": 10,
             },
@@ -131,7 +131,7 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Add-Less (Visual)",
+                "sectionTitle": "Add-Less",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
                 "isVisual": True,
@@ -157,7 +157,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": True,
+                "isVisual": False,
                 "isFastVisualisation": False,
                 "borrowingMode": "NEGATIVE_ONLY",
                 "isMixedDigitAddLess": False,
@@ -182,7 +182,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Squares",
+                "sectionTitle": "Squares (Visual)",
                 "conceptFamily": "SQUARES",
                 "questionCount": 10,
             },
@@ -228,7 +228,7 @@ MM_CURRICULUM_MAP = {
                 "isMixedDigitAddLess": False,
             },
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
@@ -252,7 +252,7 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "2D x 2D",
+                "sectionTitle": "2D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [2, 2],
@@ -295,7 +295,7 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Add-Less (Visual)",
+                "sectionTitle": "Add-Less",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
                 "isVisual": True,
@@ -304,7 +304,7 @@ MM_CURRICULUM_MAP = {
                 "isMixedDigitAddLess": False,
             },
             {
-                "sectionTitle": "Squares",
+                "sectionTitle": "Squares (Visual)",
                 "conceptFamily": "SQUARES",
                 "questionCount": 10,
             },
@@ -320,7 +320,7 @@ MM_CURRICULUM_MAP = {
                 "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": True,
+                "isVisual": False,
                 "isFastVisualisation": False,
                 "borrowingMode": "NEGATIVE_ONLY",
                 "isMixedDigitAddLess": False,
@@ -404,7 +404,7 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Decimal Number Add-Less",
+                "sectionTitle": "Decimal Number Add-Less (Visual)",
                 "conceptFamily": "DECIMAL_ADD_LESS",
                 "isVisual": False,
                 "isFastVisualisation": False,
@@ -464,14 +464,14 @@ MM_CURRICULUM_MAP = {
                 "divisionDigits": [4, 3],
             },
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
         ],
         3: [
             {
-                "sectionTitle": "2D x 2D",
+                "sectionTitle": "2D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [2, 2],
@@ -540,7 +540,7 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Squares",
+                "sectionTitle": "Squares (Visual)",
                 "conceptFamily": "MIXED_SQUARE_CUBE",
                 "questionCount": 10,
             },
@@ -561,12 +561,12 @@ MM_CURRICULUM_MAP = {
                 "isMixedDigitAddLess": False,
             }
         ],
-        5: [{"sectionTitle": "BODMAS", "conceptFamily": "BODMAS"}],
+        5: [{"sectionTitle": "BODMAS (Visual)", "conceptFamily": "BODMAS"}],
     },
     7: {
         1: [
             {
-                "sectionTitle": "4D ÷ 3D",
+                "sectionTitle": "4D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [4, 3],
@@ -580,10 +580,10 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Add-Less (Visual)",
+                "sectionTitle": "Add-Less",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
-                "isVisual": True,
+                "isVisual": False,
                 "isFastVisualisation": False,
                 "borrowingMode": "STANDARD",
                 "isMixedDigitAddLess": False,
@@ -596,7 +596,7 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "2D x 2D",
+                "sectionTitle": "2D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [2, 2],
@@ -611,7 +611,7 @@ MM_CURRICULUM_MAP = {
         4: [{"sectionTitle": "Integers", "conceptFamily": "INTEGERS"}],
         5: [
             {
-                "sectionTitle": "Decimal Multiplication",
+                "sectionTitle": "Decimal Multiplication (Visual)",
                 "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
             },
@@ -637,7 +637,7 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Decimal Multiplication",
+                "sectionTitle": "Decimal Multiplication (Visual)",
                 "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
             },
@@ -650,7 +650,7 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
@@ -676,7 +676,7 @@ MM_CURRICULUM_MAP = {
         ],
         5: [
             {
-                "sectionTitle": "5D ÷ 2D",
+                "sectionTitle": "5D ÷ 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [5, 2],
@@ -691,7 +691,7 @@ MM_CURRICULUM_MAP = {
     9: {
         1: [
             {
-                "sectionTitle": "5D ÷ 2D",
+                "sectionTitle": "5D ÷ 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [5, 2],
@@ -716,7 +716,7 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "3D x 2D",
+                "sectionTitle": "3D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [3, 2],
@@ -767,7 +767,7 @@ MM_CURRICULUM_MAP = {
     10: {
         1: [
             {
-                "sectionTitle": "Squares",
+                "sectionTitle": "Squares (Visual)",
                 "conceptFamily": "MIXED_SQUARE_CUBE",
                 "questionCount": 10,
             },
@@ -797,7 +797,7 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Decimal Multiplication",
+                "sectionTitle": "Decimal Multiplication (Visual)",
                 "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
             },
@@ -809,7 +809,7 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "5D ÷ 3D",
+                "sectionTitle": "5D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [5, 3],
@@ -822,9 +822,9 @@ MM_CURRICULUM_MAP = {
             },
         ],
         5: [
-            {"sectionTitle": "Squares", "conceptFamily": "SQUARES"},
+            {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES"},
             {
-                "sectionTitle": "Skill Stacker and Concept Drill",
+                "sectionTitle": "Skill Stacker (Visual) and Concept Drill (Visual)",
                 "conceptFamily": "CONCEPT_DRILL",
             },
         ],
@@ -842,7 +842,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 5,
             },
             {
-                "sectionTitle": "Decimal Multiplication",
+                "sectionTitle": "Decimal Multiplication (Visual)",
                 "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [4, 2],
@@ -850,31 +850,31 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Decimal Multiplication",
+                "sectionTitle": "Decimal Multiplication (Visual)",
                 "conceptFamily": "DECIMAL_MULTIPLICATION",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
         ],
         3: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
+                "sectionTitle": "Multiplication Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "MULTIPLICATION",
             },
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
         ],
         4: [
-            {"sectionTitle": "Squares", "conceptFamily": "SQUARES"},
+            {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES"},
             {
                 "sectionTitle": "5D ÷ 2D and 5D ÷ 3D",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
@@ -911,13 +911,13 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
+                "sectionTitle": "Multiplication Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "MULTIPLICATION",
             },
             {
-                "sectionTitle": "Division Mixed Pattern",
+                "sectionTitle": "Division Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "DIVISION",
@@ -976,13 +976,13 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
+                "sectionTitle": "Multiplication Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "MULTIPLICATION",
             },
             {
-                "sectionTitle": "Division Mixed Pattern",
+                "sectionTitle": "Division Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "DIVISION",
@@ -1115,7 +1115,7 @@ MM_CURRICULUM_MAP = {
         3: [{"sectionTitle": "Simple Interest", "conceptFamily": "SIMPLE_INTEREST"}],
         4: [
             {
-                "sectionTitle": "Division of Decimal Numbers",
+                "sectionTitle": "Division of Decimal Numbers (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "DIVISION",
@@ -1143,7 +1143,7 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Squares",
+                "sectionTitle": "Squares (Visual)",
                 "conceptFamily": "MIXED_SQUARE_CUBE",
                 "questionCount": 10,
             },
@@ -1160,7 +1160,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
@@ -1223,7 +1223,7 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "3D x 3D",
+                "sectionTitle": "3D x 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [3, 3],
@@ -1271,7 +1271,7 @@ MM_CURRICULUM_MAP = {
         ],
         5: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
+                "sectionTitle": "Multiplication Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "MULTIPLICATION",
@@ -1285,10 +1285,10 @@ MM_CURRICULUM_MAP = {
     },
     19: {
         1: [
-            {"sectionTitle": "Squares", "conceptFamily": "SQUARES", "questionCount": 5},
+            {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
             {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
@@ -1365,7 +1365,7 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Squares",
+                "sectionTitle": "Squares (Visual)",
                 "conceptFamily": "MIXED_SQUARE_CUBE",
                 "questionCount": 10,
             },
@@ -1389,9 +1389,9 @@ MM_CURRICULUM_MAP = {
         ],
         5: [
             {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
-            {"sectionTitle": "Squares", "conceptFamily": "SQUARES", "questionCount": 5},
+            {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
             {
-                "sectionTitle": "Cube Root",
+                "sectionTitle": "Cube Root (Visual)",
                 "conceptFamily": "CUBE_ROOT",
                 "questionCount": 5,
             },
@@ -1416,7 +1416,7 @@ MM_CURRICULUM_MAP = {
                 "multiplicationDigits": [3, 2],
             },
             {
-                "sectionTitle": "5D ÷ 3D",
+                "sectionTitle": "5D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [5, 3],
@@ -1482,20 +1482,20 @@ MM_CURRICULUM_MAP = {
                 "isMixedDigitAddLess": False,
             },
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
         ],
         4: [
             {
-                "sectionTitle": "3D × 3D",
+                "sectionTitle": "3D × 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [3, 3],
             },
             {
-                "sectionTitle": "6D ÷ 3D",
+                "sectionTitle": "6D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [6, 3],
@@ -1531,13 +1531,13 @@ MM_CURRICULUM_MAP = {
         2: [{"sectionTitle": "BODMAS", "conceptFamily": "BODMAS"}],
         3: [
             {
-                "sectionTitle": "3D × 3D",
+                "sectionTitle": "3D × 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [3, 3],
             },
             {
-                "sectionTitle": "6D ÷ 3D",
+                "sectionTitle": "6D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [6, 3],
@@ -1557,7 +1557,7 @@ MM_CURRICULUM_MAP = {
         ],
         5: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
+                "sectionTitle": "Multiplication Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "MULTIPLICATION",
@@ -1585,9 +1585,9 @@ MM_CURRICULUM_MAP = {
         2: [{"sectionTitle": "Simple Interest", "conceptFamily": "SIMPLE_INTEREST"}],
         3: [
             {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
-            {"sectionTitle": "Squares", "conceptFamily": "SQUARES", "questionCount": 5},
+            {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
             {
-                "sectionTitle": "Cube Root",
+                "sectionTitle": "Cube Root (Visual)",
                 "conceptFamily": "CUBE_ROOT",
                 "questionCount": 5,
             },
@@ -1630,7 +1630,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
@@ -1652,13 +1652,13 @@ MM_CURRICULUM_MAP = {
         4: [{"sectionTitle": "Profit-Loss", "conceptFamily": "PROFIT_LOSS"}],
         5: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
+                "sectionTitle": "Multiplication Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "MULTIPLICATION",
             },
             {
-                "sectionTitle": "Division Mixed Pattern",
+                "sectionTitle": "Division Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "DIVISION",
@@ -1674,16 +1674,16 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
-            {"sectionTitle": "Squares", "conceptFamily": "SQUARES", "questionCount": 5},
+            {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
             {
-                "sectionTitle": "Cube Root",
+                "sectionTitle": "Cube Root (Visual)",
                 "conceptFamily": "CUBE_ROOT",
                 "questionCount": 5,
             },
         ],
         3: [
             {
-                "sectionTitle": "3D x 3D",
+                "sectionTitle": "3D x 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [3, 3],
@@ -1746,7 +1746,7 @@ MM_CURRICULUM_MAP = {
     28: {
         1: [
             {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
-            {"sectionTitle": "Squares", "conceptFamily": "SQUARES", "questionCount": 5},
+            {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
             {
                 "sectionTitle": "Cube Root",
                 "conceptFamily": "CUBE_ROOT",
@@ -1793,7 +1793,7 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "5D ÷ 3D",
+                "sectionTitle": "5D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [5, 3],
@@ -1812,7 +1812,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 5,
             },
             {
-                "sectionTitle": "Skill Stacker",
+                "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
@@ -1858,13 +1858,13 @@ MM_CURRICULUM_MAP = {
         ],
         5: [
             {
-                "sectionTitle": "3D × 3D",
+                "sectionTitle": "3D × 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [3, 3],
             },
             {
-                "sectionTitle": "6D ÷ 3D",
+                "sectionTitle": "6D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [6, 3],
