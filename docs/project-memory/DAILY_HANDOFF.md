@@ -67,6 +67,10 @@ Important correction later on 2026-06-18:
 - The corrected local workbook audit now recognizes 102 DPS with workbook visual/fast-visualisation labels, not 84.
 - The corrected audit currently passes locally with mismatch/flag issue count `0`.
 - Backend tests now include `backend/tests/test_mm_visual_curriculum_mapping.py` and the full backend suite passes with 20 tests.
+- Commit `18bf3a4 Fix MM percentage visual mappings` was pushed to `main`.
+- Live Admin Learning Path Studio MM was fetched after deployment: 30 lessons and 150 DPS.
+- Live Lesson 12 DPS 3 now shows `Add Percentage (Visual) & Less Percentage (Visual)`.
+- Full live comparison against the corrected 102-DPS workbook visual audit passed with missing `0`, extra `0`.
 
 The main product work landed on 2026-06-17 and includes:
 
@@ -112,11 +116,9 @@ MM mock generator and preview behavior is now expected to be:
 
 ## Next Recommended Work
 
-1. Commit and push the corrected DPS-level percentage visual mapping fix.
-2. Re-run the live Admin Learning Path Studio MM sweep with the corrected audit logic after Render redeploys.
-3. Browser spot-check Lesson 12 DPS 3; it should show `Add Percentage (Visual) & Less Percentage (Visual)`.
-4. Ask the user to retry Admin Learning Path Studio for the originally failing DPS in the browser.
-5. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
+1. Browser spot-check Lesson 12 DPS 3; it should show `Add Percentage (Visual) & Less Percentage (Visual)`.
+2. Ask the user to retry Admin Learning Path Studio for the originally failing DPS in the browser.
+3. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
 
 ## Important Convention
 

@@ -7,7 +7,7 @@ Last updated: 2026-06-18
 - User should retry `MM-L1`, Lesson 1, DPS 1 in Admin Learning Path Studio browser UI after the backend deploy.
 - Live-QA the current student competition mock attempt page after the late 2026-06-17 layout and expression-polish commits.
 - Browser spot-check the corrected MM Learning Path Studio visual labels after the strict live API sweep passed.
-- Push/deploy the corrected DPS-level percentage visual mapping fix and live-verify Lesson 12 DPS 3.
+- Browser spot-check Lesson 12 DPS 3 after live API verification passed.
 - Reseed/sync the live backend curriculum if existing DPS section rows do not update automatically after deployment.
 - Add automated browser or component regression coverage for student attempt expression rendering and no-clipping behavior.
 - Add an API/browser regression that creates repeated MM drafts and confirms question signatures are not reused within the same-level 15-mock window.
@@ -37,3 +37,4 @@ Last updated: 2026-06-18
 - Local workbook-to-platform audit for MM visual concepts reached 0 mismatches after the curriculum map fix.
 - Local backend generator tests passed after the MM visual concept mapping fix.
 - Live strict MM workbook-vs-platform visual label sweep passed after commit `6f96201`: 150 DPS fetched, missing `0`, extra `0`.
+- Corrected live MM workbook-vs-platform visual label sweep passed after commit `18bf3a4`: 150 DPS fetched, 102 workbook visual/fast-visualisation DPS checked, missing `0`, extra `0`.

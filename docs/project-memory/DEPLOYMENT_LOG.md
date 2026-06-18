@@ -4,6 +4,44 @@ Last updated: 2026-06-18
 
 ## 2026-06-18
 
+### Commit `18bf3a4`
+
+Title: `Fix MM percentage visual mappings`
+
+Pushed to:
+
+- `main`
+- GitHub remote `origin`
+
+Expected deployment:
+
+- Render backend redeploy.
+- Vercel frontend redeploy may be triggered by the monorepo push, although this change is backend/project-memory focused.
+
+Verification:
+
+- Corrected local workbook audit passed:
+  - 150 DPS audited.
+  - 102 workbook visual/fast-visualisation DPS recognized.
+  - mismatch/flag issue count: `0`
+- Backend full pytest suite passed locally: `PYTHONPATH=backend pytest backend\tests` returned 20 passed.
+- Live Admin Learning Path Studio MM fetch after push returned 30 lessons and 150 DPS.
+- Live Lesson 12 DPS 3 returned `Add Percentage (Visual) & Less Percentage (Visual)` with matching corrected sections.
+- Full live comparison against the corrected workbook audit passed:
+  - missing visual labels: `0`
+  - extra visual labels: `0`
+
+Change summary:
+
+- Fixed workbook DPS-level `VISUAL` markers that apply to percentage concept rows.
+- Added missing `Add Percentage (Visual)` / `Less Percentage (Visual)` section and seed titles across affected MM DPS.
+- Set workbook-visual negative-borrowing Add-Less sections to `isVisual=True`.
+- Added regression coverage for percentage visual mappings and visual borrowing flags.
+
+Remaining:
+
+- Browser spot-check Lesson 12 DPS 3 in Learning Path Studio.
+
 ### Commit `6f96201`
 
 Title: `Align MM visual labels with workbooks`
