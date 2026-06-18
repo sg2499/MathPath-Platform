@@ -4,7 +4,6 @@ Last updated: 2026-06-18
 
 ## Active
 
-- Record the final 150 DPS images and 3 Excel workbook paths in `SOURCE_ASSETS.md` when the user provides them.
 - User should retry `MM-L1`, Lesson 1, DPS 1 in Admin Learning Path Studio browser UI after the backend deploy.
 - Live-QA the current student competition mock attempt page after the late 2026-06-17 layout and expression-polish commits.
 - Live-QA MM visual add/less generation after the latest fast-visual and decimal-visual constraint fixes.
@@ -32,3 +31,4 @@ Last updated: 2026-06-18
 - Local Admin Learning Path MM DPS preview generation no longer fails for `MM-L1`, Lesson 1, DPS 1.
 - Local generator sweep now verifies every mapped Master Module DPS plan generates a non-empty question set.
 - Live Render Admin DPS preview smoke passed for `MM-L1`, Lesson 1, DPS 1 and `MM-L1`, Lesson 10, DPS 2.
+- Authoritative Master Module Level 9 source folder is recorded in `SOURCE_ASSETS.md`.

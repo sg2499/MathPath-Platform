@@ -33,6 +33,8 @@ On 2026-06-18, a durable source-asset intake system was added:
 - `docs/project-memory/SOURCE_ASSETS.md` is now the committed manifest for external DPS images, Excel workbooks, and future curriculum source materials.
 - `reference-assets/` is now the local-only drop folder for bulky source files that should remain readable across conversations without being pushed to git.
 - Future conversations must read `SOURCE_ASSETS.md` before changing generator/curriculum logic.
+- The authoritative Master Module source folder is recorded as `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Modules\MM\Level - 9`.
+- That folder is verified to contain 30 lesson folders, 150 `.png` DPS images, and 3 `.xlsx` workbooks.
 
 The main product work landed on 2026-06-17 and includes:
 
@@ -77,7 +79,7 @@ MM mock generator and preview behavior is now expected to be:
 ## Next Recommended Work
 
 1. Ask the user to retry Admin Learning Path Studio for the same DPS in the browser.
-2. When the user provides the final 150 DPS images and 3 Excel workbooks, place or record them through `docs/project-memory/SOURCE_ASSETS.md`.
+2. Use `SOURCE_ASSETS.md` and the recorded `Level - 9` source folder for any Master Module DPS image/workbook reference work.
 3. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
 4. Append explicit deployment verification for the late June 17 student-attempt commits if their live QA passes.
 5. Add an API/browser regression that creates repeated MM drafts and confirms signatures are not reused within the active 15-mock window.
