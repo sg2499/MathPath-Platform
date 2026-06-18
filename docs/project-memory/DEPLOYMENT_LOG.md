@@ -4,6 +4,41 @@ Last updated: 2026-06-18
 
 ## 2026-06-18
 
+### Commit `6f96201`
+
+Title: `Align MM visual labels with workbooks`
+
+Pushed to:
+
+- `main`
+- GitHub remote `origin`
+
+Expected deployment:
+
+- Render backend redeploy.
+- Vercel frontend redeploy may be triggered by the monorepo push, although this change is backend/project-memory focused.
+
+Verification:
+
+- Live Admin Learning Path Studio MM payload was swept before the fix: 30 lessons, 150 DPS, 84 workbook visual/fast-visualisation DPS, 50 DPS with display-only visual label mismatches.
+- Strict local workbook-vs-platform audit after the fix passed:
+  - missing workbook visual labels: `0`
+  - extra platform visual labels: `0`
+- Backend full pytest suite passed locally: `PYTHONPATH=backend pytest backend\tests` returned 17 passed.
+
+Change summary:
+
+- Remaining MM visual-method concepts now use `Concept Name (Visual)` in the section map.
+- Seeded Learning Path Studio DPS card titles were aligned to the same workbook visual labels.
+- Extra `(Visual)` labels were removed where the workbook did not classify that concept as visual.
+- `Fast Visualisation` remains a separate naming convention.
+
+Remaining:
+
+- Wait for Render/Vercel redeploys.
+- Re-run live Admin Learning Path Studio MM sweep after deploy.
+- Reseed/sync live curriculum if deployed code does not update existing DPS rows automatically.
+
 ### Commit `47523b5`
 
 Title: `Fix MM visual concept mappings`
