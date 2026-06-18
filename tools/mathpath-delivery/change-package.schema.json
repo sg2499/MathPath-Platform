@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mathpath.local/change-package.schema.json",
+  "title": "MathPath Change Package",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "description",
+    "repository",
+    "baseline_sha",
+    "change_type",
+    "merge_policy",
+    "validation_profile",
+    "deployment_required",
+    "commit_message",
+    "files"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 5
+    },
+    "description": {
+      "type": "string",
+      "minLength": 10
+    },
+    "repository": {
+      "const": "sg2499/MathPath-Platform"
+    },
+    "baseline_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "change_type": {
+      "enum": [
+        "runtime",
+        "docs",
+        "tests",
+        "automation"
+      ]
+    },
+    "merge_policy": {
+      "enum": [
+        "manual",
+        "auto"
+      ]
+    },
+    "validation_profile": {
+      "enum": [
+        "docs",
+        "automation",
+        "backend",
+        "backend-mm",
+        "frontend",
+        "full"
+      ]
+    },
+    "deployment_required": {
+      "type": "boolean"
+    },
+    "commit_message": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 120
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "action"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "create",
+              "replace",
+              "delete"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "expected_before_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "action": {
+                  "enum": [
+                    "create",
+                    "replace"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "source",
+                "sha256"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "action": {
+                  "enum": [
+                    "replace",
+                    "delete"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "expected_before_sha256"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
