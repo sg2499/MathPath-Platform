@@ -130,6 +130,27 @@ def _RandDecimalWithWholeDigits(Rng: random.Random, WholeDigits: int, Places: in
     return Decimal(Raw) / Decimal(Scale)
 
 
+def _RandDecimalWithWholeDigitWindow(
+    Rng: random.Random,
+    WholeDigits: int,
+    Places: int,
+    MinimumWhole: int | None = None,
+    MaximumWhole: int | None = None,
+) -> Decimal:
+    Minimum, Maximum = _DigitRange(max(2, min(4, WholeDigits)))
+    if MinimumWhole is not None:
+        Minimum = max(Minimum, MinimumWhole)
+    if MaximumWhole is not None:
+        Maximum = min(Maximum, MaximumWhole)
+    if Minimum > Maximum:
+        Minimum, Maximum = _DigitRange(max(2, min(4, WholeDigits)))
+    Scale = 10 ** max(1, Places)
+    Raw = Rng.randint(Minimum * Scale, (Maximum * Scale) + (Scale - 1))
+    if Raw % Scale == 0:
+        Raw += Rng.randint(1, Scale - 1)
+    return Decimal(Raw) / Decimal(Scale)
+
+
 def _DecimalVisualAddLessWholeDigitPlan(Rng: random.Random) -> list[int]:
     if Rng.choice([True, False]):
         RowCount = Rng.choice([3, 4])
@@ -272,6 +293,52 @@ def _BuildBorrowingAddLess(
     Places = _AddLessDecimalPlaces(Config, Stage)
     Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
     RowCount = _AddLessRowCount(Config, Stage)
+
+    if RequireNegativeAnswer and _IsDecimalVisualAddLessConcept(Config):
+        Plan = _DecimalVisualAddLessWholeDigitPlan(Rng)
+        if not all(Digits == 4 for Digits in Plan):
+            LastFourIndex = max(Index for Index, Digits in enumerate(Plan) if Digits == 4)
+            Plan.append(Plan.pop(LastFourIndex))
+        RowCount = len(Plan)
+        SignedOperands: list[Decimal] = []
+        Operators: list[str] = []
+        RunningTotal = Decimal(0)
+
+        for RowIndex, WholeDigits in enumerate(Plan[:-1]):
+            MaximumWhole = 2400 if WholeDigits == 4 else None
+            Value = _RandDecimalWithWholeDigitWindow(Rng, WholeDigits, Places, MaximumWhole=MaximumWhole)
+            if RowIndex == 0 or RowIndex % 3 != 0:
+                SignedOperands.append(Value)
+                Operators.append("" if RowIndex == 0 else "+")
+                RunningTotal += Value
+            else:
+                SignedOperands.append(-Value)
+                Operators.append("-")
+                RunningTotal -= Value
+
+        FinalSubtraction = _RandDecimalWithWholeDigitWindow(Rng, Plan[-1], Places, MinimumWhole=7000)
+        SignedOperands.append(-FinalSubtraction)
+        Operators.append("-")
+        CorrectAnswer = _Quantize(sum(SignedOperands, Decimal(0)), Places)
+
+        if CorrectAnswer >= 0:
+            FinalSubtraction = _RandDecimalWithWholeDigitWindow(Rng, 4, Places, MinimumWhole=9000)
+            SignedOperands[-1] = -FinalSubtraction
+            CorrectAnswer = _Quantize(sum(SignedOperands, Decimal(0)), Places)
+
+        DisplayOperands = [f"{Value:.{Places}f}" for Value in SignedOperands]
+        return DisplayOperands, Operators, CorrectAnswer, {
+            "decimal_places": Places,
+            "row_count": RowCount,
+            "lesson_band": _LessonBand(Config),
+            "add_less_layout": "LEFT_MINUS_OPERATOR_ONLY",
+            "borrowing_answer_mode": "NEGATIVE",
+            "borrowing_negative_answer_required": True,
+            "borrowing_stack_not_all_negative": True,
+            "mm_add_less_visual_operand_range": "2D_TO_4D",
+            "mm_add_less_visual_row_rule": "DECIMAL_VISUAL_APPROVED_PATTERN",
+            "mm_add_less_visual_max_rows": 5,
+        }
 
     if RequireNegativeAnswer:
         # Master Module negative borrowing sheets must use only 4-digit/5-digit

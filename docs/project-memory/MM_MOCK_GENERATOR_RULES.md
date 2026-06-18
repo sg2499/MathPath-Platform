@@ -1,6 +1,6 @@
 # Master Module Mock Generator Rules
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 ## Defaults
 
@@ -35,6 +35,10 @@ The MM mock generator has exactly 10 approved sections:
 - Write Number From Given Position must vary the requested position values inside competition mocks; do not keep generating the same slot such as only `-1`.
 - Multiplication and division questions must avoid shortcut scale operands such as `1`, `10`, `20`, `50`, `100`, `1000`, and decimal equivalents that make the problem a place-shift instead of real calculation.
 - Division questions must avoid low or scale-like quotients where the answer is immediately obvious.
+- Fast visualisation add/less must use exactly 7 rows and must honor the section's explicit digit count, including 2-digit and 3-digit fast visualisation sheets.
+- Standard visual add/less must stay within its approved whole-number row range instead of inheriting arbitrary add/less row counts.
+- Decimal visual add/less must use approved decimal row patterns: either 3-4 rows of 4-digit whole parts or a 5-row mix that covers 2-digit, 3-digit, and 4-digit whole parts.
+- Visual add/less validation must fail clearly if row-count or digit-shape rules are broken.
 - The generated question metadata must include the exact competition concept name for review and coverage.
 - MM competition generation must bypass the normal lesson/DPS curriculum map when using the section-locked competition generator source.
 
@@ -55,3 +59,6 @@ Backend generator changes should preserve:
 - No section-family leakage.
 - Concept block sequencing inside every section.
 - Stable duplicate detection that ignores volatile fields such as seed, generated question number, and source DPS.
+- Fast visualisation questions remain 7 rows with operands matching the section's explicit digit count.
+- Decimal visual add/less questions preserve the approved row-count and whole-digit coverage rules.
+- Every mapped Master Module DPS plan should generate a non-empty question set in backend regression tests.
