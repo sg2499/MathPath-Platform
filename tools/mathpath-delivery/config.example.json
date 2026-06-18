@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "repo_path": "C:\\Users\\shail\\OneDrive\\Shailesh\\Work\\Math Path\\Platform\\MathPath_Platform_Live",
+  "repository": "sg2499/MathPath-Platform",
+  "base_branch": "main",
+  "gh_path": "C:\\Users\\shail\\AppData\\Local\\MathPathDelivery\\bin\\gh.exe",
+  "frontend_url": "https://math-path-platform.vercel.app/",
+  "backend_health_url": "https://mathpath-backend.onrender.com/api/health",
+  "deployment_timeout_minutes": 15
+}
