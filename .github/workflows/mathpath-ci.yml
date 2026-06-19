@@ -22,11 +22,10 @@ jobs:
     name: governance-audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: pip
@@ -82,7 +81,7 @@ jobs:
           done
       - name: Upload governance evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: governance-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts
@@ -93,10 +92,9 @@ jobs:
     name: repository-safety
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
       - name: Validate diff and secret-bearing paths
         shell: bash
         run: |
@@ -129,7 +127,7 @@ jobs:
           } | tee ci-artifacts/repository-safety.md >> "$GITHUB_STEP_SUMMARY"
       - name: Upload repository safety evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: repository-safety-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts
@@ -140,9 +138,8 @@ jobs:
     name: delivery-console-lint
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
-          persist-credentials: false
       - name: Parse MathPath PowerShell automation
         shell: powershell
         run: |
@@ -172,7 +169,7 @@ jobs:
           "## Delivery console lint`n`n- PowerShell parser: passed`n- Console JSON files: passed" | Add-Content $env:GITHUB_STEP_SUMMARY
       - name: Upload console lint evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: delivery-console-lint-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts
@@ -189,10 +186,9 @@ jobs:
       DATABASE_URL: sqlite:///./mathpath_ci.db
       SEED_ON_STARTUP: 'false'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: pip
@@ -213,7 +209,7 @@ jobs:
           tail -n 20 ../ci-artifacts/backend-tests.txt >> "$GITHUB_STEP_SUMMARY" || true
       - name: Upload backend evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: backend-tests-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts/backend-tests.txt
@@ -230,10 +226,9 @@ jobs:
       DATABASE_URL: sqlite:///./mathpath_generator_ci.db
       SEED_ON_STARTUP: 'false'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: pip
@@ -266,7 +261,7 @@ jobs:
           tail -n 20 ../ci-artifacts/generator-validation.txt >> "$GITHUB_STEP_SUMMARY" || true
       - name: Upload generator evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: generator-validation-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts/generator-validation.txt
@@ -280,15 +275,13 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
-          persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-          package-manager-cache: false
       - run: npm ci --no-audit --no-fund
       - name: Run frontend typecheck
         shell: bash
@@ -298,7 +291,7 @@ jobs:
           npm run typecheck 2>&1 | tee ../ci-artifacts/frontend-typecheck.txt
       - name: Upload typecheck evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-typecheck-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts/frontend-typecheck.txt
@@ -312,15 +305,13 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
-          persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-          package-manager-cache: false
       - run: npm ci --no-audit --no-fund
       - name: Run frontend production build
         shell: bash
@@ -330,7 +321,7 @@ jobs:
           npm run build 2>&1 | tee ../ci-artifacts/frontend-build.txt
       - name: Upload frontend build evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts/frontend-build.txt
