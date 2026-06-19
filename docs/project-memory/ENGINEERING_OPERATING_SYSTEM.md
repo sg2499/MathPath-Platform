@@ -30,6 +30,45 @@ Explicitly unchanged surfaces:
 - Vercel and Render dashboard settings
 - login, roles, permissions, practice, assessments, competition, and reports
 
+
+## Engineering Package 2 boundary
+
+Engineering Package 2 introduces conservative smart CI test selection without changing any application runtime surface.
+
+Changed surfaces:
+
+- changed-file classification and test-plan generation
+- GitHub Actions orchestration for heavy backend, generator, typecheck, and build steps
+- classifier regression tests
+- engineering documentation
+
+Explicitly unchanged surfaces:
+
+- `frontend/` product code
+- `backend/` product code
+- database schema and production data
+- curriculum generators and renderers
+- authentication and permissions
+- `render.yaml`
+- Vercel and Render dashboard settings
+- protected check names and the `MathPath Main Protection` ruleset
+
+## Conservative smart test-selection policy
+
+Every protected check context continues to run and complete. When a heavy suite is not required, that job records an explicit successful no-op result instead of disappearing or becoming skipped.
+
+Selection rules:
+
+- documentation-only changes run no heavy runtime suite;
+- ordinary frontend-only changes run frontend typecheck and production build;
+- ordinary backend-only changes run the backend test suite;
+- generator or curriculum-engine changes run backend tests and focused generator validation;
+- CI, governance, delivery-console, dependency, deployment, shared-component, data-model, authentication, permission, migration, mixed-surface, high-risk, and unknown changes run the complete suite;
+- manual workflow dispatch always runs the complete suite;
+- if classification or governance planning is unavailable, every heavy suite runs as a fail-safe.
+
+The always-on checks remain governance audit, repository safety, delivery-console lint, and the final CI summary.
+
 ## Delivery lifecycle
 
 ```text
@@ -63,7 +102,7 @@ The ruleset configurator:
 
 ## Governance audit behaviour
 
-Package 1 does not skip tests. Change classification is informational until Package 2 introduces conservative smart test selection.
+Engineering Package 2 activates conservative smart test selection. Classification produces an auditable JSON/Markdown test plan and GitHub job outputs. It never removes a protected check context, and uncertainty always expands to the full suite.
 
 Configuration drift is report-only. In particular, differences between committed `render.yaml`, established operating conventions, and live Render dashboard overrides must be investigated before any correction is proposed.
 
