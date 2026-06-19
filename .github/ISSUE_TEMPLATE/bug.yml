@@ -1,0 +1,43 @@
+name: Bug report
+description: Report a reproducible MathPath defect
+title: "[Bug] "
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Expected business outcome
+      description: What should the user have been able to complete?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Include role, page, module/level/lesson/DPS, and exact actions.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role
+      options: [Admin, Teacher, Student, Public/Login, System/Deployment]
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Screenshots, console output, request ID, attempt ID, or safe logs. Do not include passwords or tokens.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: No credentials, tokens, passwords, or student-sensitive data are included.
+          required: true

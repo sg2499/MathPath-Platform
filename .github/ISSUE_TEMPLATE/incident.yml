@@ -1,0 +1,39 @@
+name: Production incident
+description: Record a live-platform outage or material degradation
+title: "[Incident] "
+body:
+  - type: input
+    id: started
+    attributes:
+      label: First observed time with timezone
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options: [SEV-1 Full outage/data risk, SEV-2 Major workflow blocked, SEV-3 Partial degradation, SEV-4 Minor operational issue]
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: User and business impact
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Safe evidence
+      description: Include deployment SHA, URLs, request IDs, and redacted logs only.
+  - type: textarea
+    id: containment
+    attributes:
+      label: Containment or rollback action
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: No passwords, tokens, database credentials, or student-sensitive data are included.
+          required: true

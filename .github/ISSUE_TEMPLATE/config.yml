@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: MathPath operational support
+    url: https://math-path-platform.vercel.app/
+    about: Use the governed templates above for engineering work. Do not submit credentials or student-sensitive data.
