@@ -1,45 +1,21 @@
-# MathPath Local Delivery Console v1.3
+# MathPath Local Delivery Console
 
-This console converts a validated MathPath change package into an isolated branch, tested commit, GitHub pull request, controlled merge, deployment smoke check, and recorded rollback point.
+The console converts a validated MathPath change package into an isolated branch, tested commit, GitHub pull request, controlled merge, deployment verification, and recorded rollback point.
 
-## One-time setup
+## Core guarantees
 
-Run:
+- The active day-to-day repository is never checked out, reset, stashed, cleaned, or overwritten.
+- Every delivery runs in an isolated worktree created from current `origin/main`.
+- Every package is baseline-locked, checksum-locked, and exact-file-scope locked.
+- Replace/delete verification compares Git canonical blob identity, preventing false LF/CRLF mismatches while still rejecting real target changes.
+- Runtime changes require explicit `MERGE` confirmation.
+- Every run records state under `%LOCALAPPDATA%\MathPathDelivery\runs`.
+- Every delivery creates a backup branch before the feature branch is pushed.
+- Failed production smoke verification prepares a rollback pull request instead of resetting `main`.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/mathpath-delivery/Setup-MathPathDelivery.ps1 -CreateDesktopShortcut
-```
+## Validation profiles
 
-The setup stores machine-local configuration and a durable console copy under `%LOCALAPPDATA%\MathPathDelivery`, installs a local Git pre-push guard, checks GitHub CLI authentication, stores the resolved portable gh.exe path, and optionally creates a desktop shortcut.
-
-The configured MathPath working folder is treated as read-only operational context. It may contain uncommitted work or inaccessible pytest-cache folders; those are preserved and excluded from delivery operations.
-
-## Normal use
-
-1. Download a MathPath change package.
-2. Drag the ZIP onto `MathPathDelivery.bat`, or open the desktop console and choose **Ship**.
-3. The console validates the package, current Git baseline, checksums, exact file scope, tests, typecheck, and build according to the fixed validation profile.
-4. It creates and pushes a feature branch and opens a pull request.
-5. Runtime changes require a final `MERGE` confirmation after GitHub checks pass. Documentation, test-only, and automation packages may opt into automatic merge.
-
-## Fail-closed guarantees
-
-The console stops before merge when:
-
-- `origin/main` cannot be fetched;
-- the package baseline SHA is stale;
-- an isolated worktree cannot be created cleanly from `origin/main`;
-- a package path is unsafe;
-- a create target already exists;
-- a replacement or deletion checksum no longer matches;
-- changed files differ from the manifest;
-- validation fails;
-- GitHub Actions fails;
-- deployment smoke verification fails.
-
-## Change package rules
-
-Packages cannot supply arbitrary shell commands. They select one fixed profile:
+Packages cannot inject commands. They select a fixed profile:
 
 - `docs`
 - `automation`
@@ -48,32 +24,45 @@ Packages cannot supply arbitrary shell commands. They select one fixed profile:
 - `frontend`
 - `full`
 
-Every payload file has a SHA-256 checksum. Replacements and deletions also require the SHA-256 of the expected current repository file.
+## Repository governance
 
-## Recovery
+Package 1 adds `Configure-RepositoryGovernance.ps1`. It is intentionally separate from normal package shipping because repository rules are GitHub settings rather than repository files.
 
-Every run records state under `%LOCALAPPDATA%\MathPathDelivery\runs`. A backup branch is created from the exact baseline before any feature branch is pushed. `Rollback-MathPathChange.ps1` prepares a tested revert pull request.
+After Package 1 has merged, run:
 
-## Desktop console options
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/mathpath-delivery/Configure-RepositoryGovernance.ps1
+```
 
-The single desktop shortcut provides Ship, Approve, Rollback, and Setup/Repair actions. Runtime changes can remain open after validation and be merged later through **Approve**.
+The default mode is audit-only. To apply the reviewed ruleset:
 
-## Independent CI checks
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/mathpath-delivery/Configure-RepositoryGovernance.ps1 -Apply
+```
+
+The script is idempotent, saves the previous ruleset locally, refuses to assume enforcement for a private GitHub Free repository, requires pull requests, requires the complete MathPath CI check set, blocks force pushes and deletion of `main`, permits squash merges only, and retains an owner recovery path through pull requests only.
+
+## Redacted diagnostics
+
+Run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/mathpath-delivery/Collect-Diagnostics.ps1
+```
+
+The resulting ZIP includes repository state, tool versions, workflow metadata, ruleset metadata, and redacted delivery-run state. It excludes credentials, `.env` files, database exports, student records, and raw application data.
+
+## CI v2
 
 Every pull request and every merge to `main` runs:
 
+- `governance-audit`
 - `repository-safety`
 - `delivery-console-lint`
 - `backend-tests`
 - `mathpath-generator-validation`
 - `frontend-typecheck`
 - `frontend-build`
+- `ci-summary`
 
-Non-runtime squash merges include `[skip render]` in the actual merge subject so the backend is not restarted for documentation or automation-only changes.
-
-
-## Active working-folder isolation
-
-The console never checks out, resets, stashes, cleans, or overwrites the configured day-to-day MathPath folder. All package application, validation, commits, rebases, rollback preparation, and GitHub pushes run in dedicated worktrees created from the latest `origin/main`.
-
-This allows the active folder to retain unfinished work without contaminating or blocking controlled deliveries.
+Governance evidence and test logs are uploaded as short-retention workflow artifacts. Configuration drift and repository exposure findings are report-only in Package 1; they do not change production settings or product runtime behaviour.

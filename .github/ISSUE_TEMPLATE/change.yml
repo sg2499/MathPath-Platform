@@ -1,0 +1,33 @@
+name: Product or engineering change
+description: Propose a scoped MathPath change
+title: "[Change] "
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Business objective
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: target
+    attributes:
+      label: Required behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Known affected and unaffected surfaces
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Expected risk class
+      options: [Documentation only, Automation only, Frontend, Backend, Curriculum/Generator, Permissions/Security, Database, Cross-platform]
+    validations:
+      required: true

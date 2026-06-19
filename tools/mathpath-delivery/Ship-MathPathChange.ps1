@@ -51,6 +51,36 @@ function Ensure-GitHubAuthentication {
 }
 
 function Get-Sha256([string]$Path) { (Get-FileHash -Algorithm SHA256 -Path $Path).Hash.ToLowerInvariant() }
+
+function Assert-TargetMatchesBaseline {
+    param(
+        [Parameter(Mandatory)][string]$RepoPath,
+        [Parameter(Mandatory)][string]$WorktreePath,
+        [Parameter(Mandatory)][string]$BaseSha,
+        [Parameter(Mandatory)][string]$RepositoryPath,
+        [Parameter(Mandatory)][string]$TargetPath
+    )
+
+    # Compare Git's canonical blob identity rather than raw worktree bytes.
+    # This preserves integrity while avoiding false mismatches caused by
+    # Windows CRLF checkout conversion of LF files stored in Git.
+    $baselineObject = "$($BaseSha):$RepositoryPath"
+    $expectedBlob = @(& git -C $RepoPath rev-parse --verify $baselineObject 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $expectedBlob.Count -ne 1) {
+        throw "Unable to resolve baseline Git blob: $RepositoryPath"
+    }
+    $expectedBlob = $expectedBlob[0].Trim()
+
+    $actualBlob = @(& git -C $WorktreePath hash-object "--path=$RepositoryPath" -- $TargetPath 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $actualBlob.Count -ne 1) {
+        throw "Unable to calculate canonical target blob: $RepositoryPath"
+    }
+    $actualBlob = $actualBlob[0].Trim()
+
+    if ($expectedBlob -ne $actualBlob) {
+        throw "Target changed since package creation: $RepositoryPath"
+    }
+}
 function Safe-RelativePath([string]$Path) {
     if ([System.IO.Path]::IsPathRooted($Path) -or $Path -match '(^|[\\/])\.\.([\\/]|$)') { throw "Unsafe relative path: $Path" }
     return $Path.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
@@ -169,17 +199,19 @@ try {
         } elseif ($action -eq 'replace') {
             if (-not (Test-Path $target)) { throw "Replace target does not exist: $($entry.path)" }
             if (-not $entry.expected_before_sha256) { throw "Replacement requires expected_before_sha256: $($entry.path)" }
-            if ((Get-Sha256 $target) -ne $entry.expected_before_sha256.ToLowerInvariant()) { throw "Target changed since package creation: $($entry.path)" }
+            Assert-TargetMatchesBaseline -RepoPath $repo -WorktreePath $worktree -BaseSha $baseSha -RepositoryPath $normalizedPath -TargetPath $target
             Copy-Item $source $target -Force
         } elseif ($action -eq 'delete') {
             if (-not (Test-Path $target)) { throw "Delete target does not exist: $($entry.path)" }
             if (-not $entry.expected_before_sha256) { throw "Deletion requires expected_before_sha256: $($entry.path)" }
-            if ((Get-Sha256 $target) -ne $entry.expected_before_sha256.ToLowerInvariant()) { throw "Delete target changed since package creation: $($entry.path)" }
+            Assert-TargetMatchesBaseline -RepoPath $repo -WorktreePath $worktree -BaseSha $baseSha -RepositoryPath $normalizedPath -TargetPath $target
             Remove-Item $target -Force
         } else { throw "Unsupported action '$action' for $($entry.path)" }
     }
 
-    $actual = @(& git -C $worktree status --porcelain | ForEach-Object { ($_ -replace '^.. ','').Trim() -replace '\\','/' }) | Sort-Object -Unique
+    $trackedChanges = @(& git -C $worktree diff --name-only -- | ForEach-Object { $_.Trim() -replace '\\','/' })
+    $untrackedChanges = @(& git -C $worktree ls-files --others --exclude-standard -- | ForEach-Object { $_.Trim() -replace '\\','/' })
+    $actual = @($trackedChanges + $untrackedChanges) | Where-Object { $_ } | Sort-Object -Unique
     $expected = @($declared) | Sort-Object -Unique
     if ($expected.Count -ne $manifest.files.Count) { throw 'Manifest contains duplicate file paths.' }
     $touchesBackend = @($expected | Where-Object { $_ -like 'backend/*' }).Count -gt 0

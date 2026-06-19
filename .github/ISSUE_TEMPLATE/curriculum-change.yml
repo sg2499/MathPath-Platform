@@ -1,0 +1,41 @@
+name: Curriculum or generator change
+description: Propose workbook-governed curriculum behaviour
+title: "[Curriculum] "
+body:
+  - type: input
+    id: module
+    attributes:
+      label: Module, level, lesson, and DPS
+      placeholder: "MM / MM-L1 / Lesson 12 / DPS 2"
+    validations:
+      required: true
+  - type: textarea
+    id: workbook
+    attributes:
+      label: Workbook source-of-truth rule
+      description: State the exact concept mechanism, progression, ranges, display mode, and answer rule.
+    validations:
+      required: true
+  - type: textarea
+    id: mismatch
+    attributes:
+      label: Current mismatch
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Valid and invalid examples
+    validations:
+      required: true
+  - type: checkboxes
+    id: integrity
+    attributes:
+      label: Required validation
+      options:
+        - label: Correct answers must be mathematically validated.
+          required: true
+        - label: MCQ options must remain plausible, randomized, unique, relevant, and pattern-proof.
+          required: true
+        - label: Workbook behaviour must not be broadened by generic fallbacks.
+          required: true
