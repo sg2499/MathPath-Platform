@@ -237,18 +237,6 @@ MM_CURRICULUM_MAP = {
                 "conceptFamily": "CONCEPT_DRILL",
                 "questionCount": 5,
             },
-            {
-                "sectionTitle": "2D x 2D (Visual)",
-                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
-                "questionCount": 10,
-                "multiplicationDigits": [2, 2],
-            },
-            {
-                "sectionTitle": "4D ÷ 2D (Visual)",
-                "conceptFamily": "WHOLE_NUMBER_DIVISION",
-                "questionCount": 10,
-                "divisionDigits": [4, 2],
-            },
         ],
         2: [
             {
@@ -266,15 +254,6 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
-                "conceptFamily": "ADD_LESS",
-                "questionCount": 10,
-                "isVisual": True,
-                "isFastVisualisation": False,
-                "borrowingMode": "NEGATIVE_ONLY",
-                "isMixedDigitAddLess": False,
-            },
-            {
                 "sectionTitle": "3D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
@@ -285,12 +264,6 @@ MM_CURRICULUM_MAP = {
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [5, 2],
-            },
-            {
-                "sectionTitle": "4D ÷ 3D (Visual)",
-                "conceptFamily": "WHOLE_NUMBER_DIVISION",
-                "questionCount": 10,
-                "divisionDigits": [4, 3],
             },
         ],
         4: [
@@ -326,40 +299,15 @@ MM_CURRICULUM_MAP = {
                 "isMixedDigitAddLess": False,
             },
             {
-                "sectionTitle": "2 Digit Number Add-Less (Fast Visualisation)",
-                "conceptFamily": "ADD_LESS",
-                "questionCount": 10,
-                "isVisual": False,
-                "isFastVisualisation": True,
-                "borrowingMode": "BORROWING_STANDARD",
-                "explicitDigitCount": 2,
-                "isMixedDigitAddLess": False,
-            },
-            {
                 "sectionTitle": "4D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [4, 3],
             },
-            {
-                "sectionTitle": "BODMAS (Visual)",
-                "conceptFamily": "BODMAS",
-                "questionCount": 5,
-            },
         ],
     },
     4: {
         1: [
-            {
-                "sectionTitle": "3 Digit Add-Less (Fast Visualisation)",
-                "conceptFamily": "ADD_LESS",
-                "questionCount": 10,
-                "isVisual": False,
-                "isFastVisualisation": True,
-                "borrowingMode": "STANDARD",
-                "explicitDigitCount": 3,
-                "isMixedDigitAddLess": False,
-            },
             {
                 "sectionTitle": "Integers",
                 "conceptFamily": "INTEGERS",
@@ -413,15 +361,6 @@ MM_CURRICULUM_MAP = {
             }
         ],
         5: [
-            {
-                "sectionTitle": "Borrowing Sums with Positive / Negative Answers (Visual)",
-                "conceptFamily": "ADD_LESS",
-                "questionCount": 10,
-                "isVisual": True,
-                "isFastVisualisation": False,
-                "borrowingMode": "MIXED_POSITIVE_NEGATIVE",
-                "isMixedDigitAddLess": False,
-            },
             {
                 "sectionTitle": "BODMAS (Visual)",
                 "conceptFamily": "BODMAS",
@@ -1292,11 +1231,6 @@ MM_CURRICULUM_MAP = {
                 "conceptFamily": "SKILL_STACKER",
                 "questionCount": 5,
             },
-            {
-                "sectionTitle": "Concept Drill",
-                "conceptFamily": "CONCEPT_DRILL",
-                "questionCount": 5,
-            },
         ],
         2: [
             {
@@ -1454,11 +1388,6 @@ MM_CURRICULUM_MAP = {
     22: {
         1: [{"sectionTitle": "BODMAS", "conceptFamily": "BODMAS"}],
         2: [
-            {
-                "sectionTitle": "BODMAS",
-                "conceptFamily": "BODMAS",
-                "questionCount": 5,
-            },
             {
                 "sectionTitle": "Division of Decimal Numbers",
                 "conceptFamily": "DECIMAL_DIVISION",
@@ -1770,12 +1699,6 @@ MM_CURRICULUM_MAP = {
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
                 "multiplicationDigits": [5, 2],
-            },
-            {
-                "sectionTitle": "5D ÷ 2D",
-                "conceptFamily": "WHOLE_NUMBER_DIVISION",
-                "questionCount": 10,
-                "divisionDigits": [5, 2],
             },
         ],
         3: [
