@@ -655,8 +655,11 @@ def _ValidatePackage5Special(Config: MMConfig, Operands: list[int | float | str]
             return False
         if FromValue < 1000 or FromValue > 99999 or LessValue <= 0:
             return False
-        ExpectedAnswer = FromValue - (LessValue * Decimal(10))
-        if ExpectedAnswer <= 0:
+        StepCount = int(FromValue // LessValue)
+        if StepCount < 10 or StepCount > 17:
+            return False
+        ExpectedAnswer = FromValue % LessValue
+        if ExpectedAnswer < 0:
             return False
         return CorrectAnswer == ExpectedAnswer
 
