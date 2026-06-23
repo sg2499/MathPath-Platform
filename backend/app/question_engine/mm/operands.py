@@ -1825,7 +1825,7 @@ def _ConceptDrillRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], 
     """Return MM-wide Concept Drill ranges.
 
     Concept Drill is an abacus repeated-less drill. FROM must remain 4D–5D,
-    and every generated pair must support exactly 10 repeated LESS steps.
+    and every generated pair must support between 10 to 17 repeated LESS steps.
     """
     FromRange = (1000, 99999)
     LessRanges = {
@@ -1838,15 +1838,14 @@ def _ConceptDrillRanges(Config: MMConfig, Stage: str) -> tuple[tuple[int, int], 
     return FromRange, LessRanges.get(Stage, (150, 900))
 
 
-def _ConceptDrillUniquePair(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[int, int]:
-    """Return a workbook-safe FROM/LESS pair for exactly 10 steps.
+def _ConceptDrillUniquePair(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[int, int, int]:
+    """Return a workbook-safe FROM/LESS pair and StepCount for 10-17 steps.
 
     Hard rules:
     - FROM is always 4D–5D.
     - LESS is positive.
-    - Answer is FROM - (LESS × 10).
-    - The answer remains positive, which means the drill has exactly ten
-      complete LESS steps.
+    - Answer is the remainder: FROM % LESS.
+    - Number of subtraction steps is exactly StepCount (between 10 and 17).
     """
     Stage = DifficultyStage(QuestionNumber - 1)
     (FromMin, FromMax), (LessMin, LessMax) = _ConceptDrillRanges(Config, Stage)
@@ -1857,39 +1856,41 @@ def _ConceptDrillUniquePair(Config: MMConfig, Rng: random.Random, QuestionNumber
     WorkbookSlot = ((LessonNumber - 1) * 25) + ((DpsNumber - 1) * 5) + (NormalizedQuestionNumber - 1)
 
     for Attempt in range(80):
+        StepCount = Rng.randint(10, 17)
         LessValue = Rng.randint(LessMin, LessMax)
-        LessValue = max(1, min(LessValue, (FromMax - 1) // 10))
+        LessValue = max(1, min(LessValue, (FromMax - 1) // StepCount))
 
-        MinimumAnswer = max(100, FromMin - (LessValue * 10))
-        MaximumAnswer = min(9999, FromMax - (LessValue * 10))
+        MinimumAnswer = max(0, FromMin - (LessValue * StepCount))
+        MaximumAnswer = min(LessValue - 1, FromMax - (LessValue * StepCount))
         if MaximumAnswer < MinimumAnswer:
             continue
 
         AnswerSpan = MaximumAnswer - MinimumAnswer + 1
         AnswerValue = MinimumAnswer + ((WorkbookSlot * 97 + Attempt * 31 + Rng.randint(0, max(0, AnswerSpan - 1))) % AnswerSpan)
-        FromValue = (LessValue * 10) + AnswerValue
-        if 1000 <= FromValue <= 99999 and AnswerValue > 0:
-            return FromValue, LessValue
+        FromValue = (LessValue * StepCount) + AnswerValue
+        if 1000 <= FromValue <= 99999 and 0 <= AnswerValue < LessValue:
+            return FromValue, LessValue, StepCount
 
+    SafeStepCount = 10 + ((WorkbookSlot * 13) % 8)
     SafeLessValue = 300 + ((WorkbookSlot * 37) % 700)
-    SafeAnswerValue = 100 + ((WorkbookSlot * 53) % 900)
-    SafeFromValue = (SafeLessValue * 10) + SafeAnswerValue
+    SafeAnswerValue = 0 + ((WorkbookSlot * 53) % SafeLessValue)
+    SafeFromValue = (SafeLessValue * SafeStepCount) + SafeAnswerValue
     if SafeFromValue < 1000:
         SafeFromValue += 1000
     if SafeFromValue > 99999:
         SafeFromValue = 99999
-        SafeLessValue = 9000
-        SafeAnswerValue = SafeFromValue - (SafeLessValue * 10)
-    return SafeFromValue, SafeLessValue
+        SafeLessValue = 99999 // SafeStepCount
+        SafeAnswerValue = SafeFromValue - (SafeLessValue * SafeStepCount)
+    return SafeFromValue, SafeLessValue, SafeStepCount
 
 
 def GenerateConceptDrill(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    FromValue, LessValue = _ConceptDrillUniquePair(Config, Rng, QuestionNumber)
-    CorrectAnswer = Decimal(FromValue - (LessValue * 10))
+    FromValue, LessValue, StepCount = _ConceptDrillUniquePair(Config, Rng, QuestionNumber)
+    CorrectAnswer = Decimal(FromValue % LessValue)
     return [FromValue, LessValue], ["From", "Less"], CorrectAnswer, {
         "question_text": "Concept Drill",
-        "concept_drill_mode": "EXACT_TEN_STEP_REPEATED_SUBTRACTION",
-        "concept_drill_step_count": 10,
+        "concept_drill_mode": "VARIABLE_STEP_REPEATED_SUBTRACTION",
+        "concept_drill_step_count": StepCount,
     }
 
 
