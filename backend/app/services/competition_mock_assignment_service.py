@@ -211,7 +211,8 @@ def AssignCompetitionMockExams(
 
     for AssignmentRecord in CreatedAssignments + ExistingAssignments:
         Exam = next((e for e in Exams if e.id == AssignmentRecord.mock_exam_id), None)
-        StudentUser = db.get(User, AssignmentRecord.student_id)
+        StudentRecord = db.get(Student, AssignmentRecord.student_id)
+        StudentUser = db.get(User, StudentRecord.user_id) if StudentRecord else None
         if Exam and StudentUser:
             CreateNotification(
                 db,
@@ -233,8 +234,8 @@ def AssignCompetitionMockExams(
                 }
             )
             if AssignmentRecord.teacher_id:
-                TeacherUser = db.get(User, AssignmentRecord.teacher_id)
-                StudentRecord = db.get(Student, AssignmentRecord.student_id)
+                TeacherRecord = db.get(Teacher, AssignmentRecord.teacher_id)
+                TeacherUser = db.get(User, TeacherRecord.user_id) if TeacherRecord else None
                 if TeacherUser and StudentRecord:
                     CreateNotification(
                         db,
