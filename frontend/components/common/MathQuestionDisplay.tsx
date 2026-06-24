@@ -96,7 +96,7 @@ function ExpressionQuestion({
   return (
     <div className="mx-auto flex w-full max-w-full justify-center overflow-hidden rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
       <div
-        className="w-full overflow-hidden text-center font-mono font-black leading-none tracking-tight"
+        className="w-full overflow-hidden text-center font-mono font-black leading-[1.2] py-1 tracking-tight"
         style={{
           fontSize: `${FontSizePx}px`,
           whiteSpace: "nowrap",
