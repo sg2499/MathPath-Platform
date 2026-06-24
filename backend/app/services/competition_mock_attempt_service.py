@@ -22,6 +22,7 @@ from app.models import (
     Teacher,
     User,
 )
+from app.services.notification_service import CreateNotification
 
 COMPLETED_STATUSES = {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED", "EXPIRED", "LOCKED"}
 ACTIVE_STATUS = "IN_PROGRESS"
@@ -592,6 +593,87 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
     if not attempt or attempt.student_id != student.id:
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition mock attempt not found.")
     attempt = SubmitCompetitionMockAttempt(db, attempt, auto=auto)
+
+    exam = db.get(CompetitionMockExam, attempt.mock_exam_id)
+    module = db.get(Module, exam.module_id) if exam else None
+    level = db.get(Level, exam.level_id) if exam else None
+    assignment = db.get(CompetitionMockAssignment, attempt.assignment_id)
+
+    if exam and assignment:
+        # Notify Student
+        CreateNotification(
+            db,
+            recipient_user_id=student.id,
+            recipient_role="STUDENT",
+            type="MOCK_SUBMITTED",
+            category="COMPETITION_MOCK",
+            title="Mock Exam Submitted",
+            message=f"You successfully submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
+            actor_user_id=student.id,
+            actor_role="STUDENT",
+            student_id=student.id,
+            teacher_id=student.teacher_id,
+            attempt_id=attempt.id,
+            color_variant="indigo",
+            metadata={
+                "event": "MOCK_SUBMITTED",
+                "moduleCode": module.module_code if module else None,
+                "levelCode": level.level_code if level else None,
+            }
+        )
+
+        teacher_name = "No Teacher"
+        if student.teacher_id:
+            teacher_user = db.get(User, student.teacher_id)
+            teacher_record = db.get(Teacher, student.teacher_id)
+            if teacher_user and teacher_record:
+                teacher_name = f"{teacher_record.first_name} {teacher_record.last_name}"
+                CreateNotification(
+                    db,
+                    recipient_user_id=teacher_user.id,
+                    recipient_role="TEACHER",
+                    type="STUDENT_MOCK_SUBMITTED",
+                    category="COMPETITION_MOCK",
+                    title="Student Mock Submitted",
+                    message=f"{student.first_name} {student.last_name} submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
+                    actor_user_id=student.id,
+                    actor_role="STUDENT",
+                    student_id=student.id,
+                    teacher_id=student.teacher_id,
+                    attempt_id=attempt.id,
+                    color_variant="purple",
+                    metadata={
+                        "event": "STUDENT_MOCK_SUBMITTED",
+                        "moduleCode": module.module_code if module else None,
+                        "levelCode": level.level_code if level else None,
+                    }
+                )
+
+        admins = db.query(User).filter(User.role == "ADMIN", User.is_active == True).all()
+        for admin in admins:
+            CreateNotification(
+                db,
+                recipient_user_id=admin.id,
+                recipient_role="ADMIN",
+                type="STUDENT_MOCK_SUBMITTED",
+                category="COMPETITION_MOCK",
+                title="Student Mock Submitted",
+                message=f"{student.first_name} {student.last_name} (Teacher: {teacher_name}) submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
+                actor_user_id=student.id,
+                actor_role="STUDENT",
+                student_id=student.id,
+                teacher_id=student.teacher_id,
+                attempt_id=attempt.id,
+                color_variant="indigo",
+                metadata={
+                    "event": "STUDENT_MOCK_SUBMITTED",
+                    "moduleCode": module.module_code if module else None,
+                    "levelCode": level.level_code if level else None,
+                }
+            )
+
+        db.commit()
+
     return {
         "attemptId": attempt.id,
         "status": attempt.status,

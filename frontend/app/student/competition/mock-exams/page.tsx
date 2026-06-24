@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/student";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Chip } from "@/components/common/DetailWorkspaceViews";
+import { Suspense } from "react";
 import {
   BarChart3,
   CalendarClock,
@@ -27,8 +28,8 @@ import {
   Target,
   Trophy,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState, useEffect } from "react";
 
 function FormatDuration(seconds?: number | null) {
   if (seconds === null || seconds === undefined) return "-";
@@ -166,15 +167,32 @@ function BuildHierarchy(assignments: StudentCompetitionMockAssignment[]): Module
   });
 }
 
-export default function StudentCompetitionMockExamsPage() {
+function StudentCompetitionMockExamsContent() {
   const ready = useProtectedPage(["STUDENT"]);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const targetModuleCode = searchParams.get("moduleCode");
+  const targetLevelCode = searchParams.get("levelCode");
+
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedLevels, setExpandedLevels] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [moduleFilter, setModuleFilter] = useState("ALL");
   const [levelFilter, setLevelFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  useEffect(() => {
+    if (targetModuleCode) {
+      setModuleFilter(targetModuleCode);
+      setExpandedModules((prev) => ({ ...prev, [targetModuleCode]: true }));
+    }
+    if (targetLevelCode) {
+      setLevelFilter(targetLevelCode);
+      if (targetModuleCode) {
+        setExpandedLevels((prev) => ({ ...prev, [`${targetModuleCode}-${targetLevelCode}`]: true }));
+      }
+    }
+  }, [targetModuleCode, targetLevelCode]);
 
   const query = useQuery({
     queryKey: ["student-competition-mock-assignments"],
@@ -611,5 +629,13 @@ function MockRecordsTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+export default function StudentCompetitionMockExamsPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <StudentCompetitionMockExamsContent />
+    </Suspense>
   );
 }
