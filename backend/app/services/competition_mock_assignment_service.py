@@ -244,7 +244,7 @@ def AssignCompetitionMockExams(
                         type="STUDENT_MOCK_ASSIGNED",
                         category="COMPETITION_MOCK",
                         title="Student Mock Assigned",
-                        message=f"{StudentRecord.first_name} {StudentRecord.last_name} was assigned a mock exam: {Exam.title or Exam.mock_code}",
+                        message=f"{StudentUser.full_name} was assigned a mock exam: {Exam.title or Exam.mock_code}",
                         actor_user_id=AssignedBy.id if AssignedBy else None,
                         actor_role=AssignedBy.role if AssignedBy else None,
                         student_id=AssignmentRecord.student_id,
