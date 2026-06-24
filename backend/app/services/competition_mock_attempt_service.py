@@ -657,7 +657,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
                     )
 
             admins = db.query(User).filter(User.role.in_(["ADMIN", "SUPER_ADMIN"]), User.is_active == True).all()
-            
+
             for admin in admins:
                 CreateNotification(
                     db,
