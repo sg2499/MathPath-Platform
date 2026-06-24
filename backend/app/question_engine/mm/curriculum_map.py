@@ -1111,7 +1111,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
                 "mixedOperationGroup": "MULTIPLICATION",
             },
-            {"sectionTitle": "BODMAS (Visual)", "conceptFamily": "BODMAS (Visual)", "questionCount": 10},
+            {"sectionTitle": "BODMAS (Visual)", "conceptFamily": "BODMAS", "questionCount": 10},
         ],
         5: [
             {"sectionTitle": "BODMAS", "conceptFamily": "BODMAS", "questionCount": 5},
