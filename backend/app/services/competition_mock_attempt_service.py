@@ -473,7 +473,7 @@ def _format_concept_family(concept: str | None) -> str:
         return "Decimal Add/Less"
     if concept == "PERCENTAGE_ADD_LESS":
         return "Percentage Add/Less"
-    
+
     words = concept.replace("_", " ").split()
     return " ".join(word.capitalize() for word in words)
 
@@ -498,7 +498,7 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
 
     for question in questions:
         max_score += float(question.marks or 1)
-        
+
         # Group by exact question concept tag, fallback to family or section title if missing
         if question.concept_tag:
             concept_key = question.concept_tag
@@ -506,7 +506,7 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
             concept_key = _format_concept_family(question.concept_family)
         else:
             concept_key = _competition_section_title(question)
-            
+
         concept_totals.setdefault(concept_key, {"correct": 0, "total": 0})
         concept_totals[concept_key]["total"] += 1
         answer = answers.get(question.id)
@@ -606,7 +606,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
 
         try:
             safe_teacher_id = student.teacher_id if student.teacher_id else None
-            
+
             # Notify Student
             CreateNotification(
                 db,
@@ -937,7 +937,7 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
     total_questions = 0
 
     history = []
-    
+
     # Structure: module_level_key -> concept -> stats
     # module_level_key = (module.id, level.id, module.module_code, level.level_code, module.module_name, level.level_name)
     concept_stats_by_level = defaultdict(lambda: defaultdict(lambda: {"correct": 0, "total": 0, "time_taken": 0}))
@@ -954,10 +954,10 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
 
         total_score += s.score
         total_accuracy += s.accuracy_percentage
-        
+
         if s.time_utilization_percentage:
             total_time_utilization += s.time_utilization_percentage
-            
+
         if s.time_taken_seconds:
             total_time_taken += s.time_taken_seconds
 
@@ -978,26 +978,26 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
                 pass
 
     n = len(summaries)
-    
+
     module_insights = []
-    
+
     for level_key, concept_stats in concept_stats_by_level.items():
         module_id, level_id, module_code, level_code, module_name, level_name = level_key
         strong_concepts = []
         weak_concepts = []
-        
+
         for concept, stats in concept_stats.items():
             if stats["total"] > 0:
                 acc = (stats["correct"] / stats["total"]) * 100
                 time_per_q = stats["time_taken"] / stats["total"]
-                
+
                 payload = {
                     "concept": concept,
                     "accuracy": acc,
                     "totalQuestions": stats["total"],
                     "timePerQuestion": time_per_q
                 }
-                
+
                 if acc >= 70:
                     strong_concepts.append(payload)
                 else:
