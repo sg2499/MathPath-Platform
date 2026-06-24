@@ -603,7 +603,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
         student_user = db.get(User, student.user_id)
         if not student_user:
             return
-        
+
         # Notify Student
         CreateNotification(
             db,
