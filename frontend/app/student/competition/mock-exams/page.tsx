@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/student";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Chip } from "@/components/common/DetailWorkspaceViews";
+import { Suspense } from "react";
 import {
   BarChart3,
   CalendarClock,
@@ -166,7 +167,7 @@ function BuildHierarchy(assignments: StudentCompetitionMockAssignment[]): Module
   });
 }
 
-export default function StudentCompetitionMockExamsPage() {
+function StudentCompetitionMockExamsContent() {
   const ready = useProtectedPage(["STUDENT"]);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -628,5 +629,13 @@ function MockRecordsTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+export default function StudentCompetitionMockExamsPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <StudentCompetitionMockExamsContent />
+    </Suspense>
   );
 }

@@ -9,7 +9,7 @@ import { apiErrorMessage } from "@/lib/api";
 import { getTeacherCompetitionMockTracker, type TeacherCompetitionTrackerRow } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, Suspense } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -730,5 +730,9 @@ function MiniMetric({ Label, Value }: { Label: string; Value: string | number })
 
 
 export default function TeacherCompetitionMockTrackerPage() {
-  return <TeacherCompetitionMockTrackerContent />;
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <TeacherCompetitionMockTrackerContent />
+    </Suspense>
+  );
 }
