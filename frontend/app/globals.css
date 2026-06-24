@@ -4676,6 +4676,7 @@ html.dark .math-login-welcome-chip {
     align-items: center;
     justify-content: center;
     min-height: 2.35rem;
+    border-width: 1px;
     border-radius: 1rem;
     padding: 0.55rem 1rem;
     font-size: 0.875rem;
