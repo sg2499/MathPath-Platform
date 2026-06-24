@@ -337,14 +337,14 @@ export default function AdminCompetitionMockStudioPage() {
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Module
                     <select value={SelectedModuleId} onChange={(EventValue) => HandleModuleChange(EventValue.target.value)} className="math-input">
-                      <option value="">Select module</option>
+                      <option value="">Select Module</option>
                       {Modules.map((ModuleValue: ModuleItem) => <option key={ModuleValue.moduleId} value={ModuleValue.moduleId}>{ModuleValue.moduleCode} · {ModuleValue.moduleName}</option>)}
                     </select>
                   </label>
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Level
                     <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetPreviewMockId(null); SetDeleteMockId(null); SetArchiveMockId(null); SetSectionCounts({}); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
-                      <option value="">Select level</option>
+                      <option value="">Select Level</option>
                       {Levels.map((LevelValue: LevelItem) => <option key={LevelValue.levelId} value={LevelValue.levelId}>{LevelValue.levelCode} · {LevelValue.levelName}</option>)}
                     </select>
                   </label>
@@ -375,7 +375,7 @@ export default function AdminCompetitionMockStudioPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                       Total Questions
-                      <input value={QuestionCount} onChange={(EventValue) => SetQuestionCount(EventValue.target.value)} type="number" min={10} max={150} className="math-input" />
+                      <input value={QuestionCount} onChange={(EventValue) => SetQuestionCount(EventValue.target.value)} type="number" min={10} max={300} className="math-input" />
                     </label>
                     <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                       Duration Minutes
@@ -420,7 +420,7 @@ export default function AdminCompetitionMockStudioPage() {
                             onChange={(EventValue) => UpdateSectionCount(SectionValue.sectionKey, EventValue.target.value)}
                             type="number"
                             min={0}
-                            max={150}
+                            max={300}
                             className="math-input text-center font-black"
                             aria-label={`${SectionValue.sectionTitle} question count`}
                           />
