@@ -974,7 +974,7 @@ def _CollectMmCompetitionSectionLockedQuestions(
                 Signature = _QuestionSignature(Question)
                 if Signature in UsedSignatures:
                     continue
-                if Signature in RecentSignatures and Attempts < max(RequiredCount * 8, 32):
+                if Signature in RecentSignatures and Attempts < max(RequiredCount * 4, 16):
                     continue
                 UsedSignatures.add(Signature)
                 Metadata = dict(Metadata)
@@ -1008,8 +1008,6 @@ def _CollectMmCompetitionSectionLockedQuestions(
                 break
             Attempts += 1
             if len(SectionQuestions) >= RequiredCount:
-                break
-            if not AcceptedFromThisTurn and Attempts > max(RequiredCount * 6, 24):
                 break
 
         if len(SectionQuestions) < RequiredCount:
