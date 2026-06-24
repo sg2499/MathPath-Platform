@@ -459,7 +459,7 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
     if (IsCompetitionMockNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       if (AttemptId) {
-        return { Route: `/student/competition/mock-attempt/${encodeURIComponent(AttemptId)}`, TargetTab: "", TargetSubTab: "" };
+        return { Route: `/student/competition/mock-result/${encodeURIComponent(AttemptId)}`, TargetTab: "", TargetSubTab: "" };
       }
       return { Route: "/student/competition/mock-exams", TargetTab: "", TargetSubTab: "" };
     }
