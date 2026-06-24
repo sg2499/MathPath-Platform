@@ -208,7 +208,7 @@ def AssignCompetitionMockExams(
         db.refresh(AssignmentRecord)
 
     ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
-    
+
     for AssignmentRecord in CreatedAssignments + ExistingAssignments:
         Exam = next((e for e in Exams if e.id == AssignmentRecord.mock_exam_id), None)
         StudentUser = db.get(User, AssignmentRecord.student_id)
