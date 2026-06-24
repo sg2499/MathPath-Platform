@@ -89,11 +89,11 @@ DPS_TITLES = {
         5: 'Borrowing Sums with Negative Answers (Visual), 2 Digit Number Add-Less (Fast Visualisation), 4D ÷ 3D (Visual) & BODMAS (Visual)',
     },
     4: {
-        1: '3 Digit Add-Less (Fast Visualisation), Integers & 3D × 2D (Visual)',
+        1: 'Integers & 3D × 2D (Visual)',
         2: '2 Digit Number Add-Less (Fast Visualisation) & 2D × 2D (Visual)',
         3: 'BODMAS & Concept Drill',
         4: 'Decimal Number Add-Less',
-        5: 'Borrowing Sums with Positive / Negative Answers (Visual), BODMAS (Visual), Solve Equation & Write the Number from the Given Position',
+        5: 'BODMAS (Visual), Solve Equation & Write the Number from the Given Position',
     },
     5: {
         1: 'Borrowing Sums with Negative Answers (Visual) & BODMAS (Visual)',
@@ -127,7 +127,7 @@ DPS_TITLES = {
         1: '5D ÷ 2D (Visual) & Decimal Multiplication (Visual)',
         2: 'Skill Stacker & Concept Drill',
         3: '3D × 2D (Visual) & 4D × 3D (Visual)',
-        4: 'Borrowing Sums with Positive / Negative Answers (Visual), Find the Position of the First Natural Number & Solve Equation',
+        4: 'Borrowing Sums with Positive / Negative Answers (Visual)',
         5: 'Multiplication & Division Mixed Pattern',
     },
     10: {
@@ -138,7 +138,7 @@ DPS_TITLES = {
         5: 'Squares (Visual), Skill Stacker (Visual) & Concept Drill (Visual)',
     },
     11: {
-        1: 'Find the Position of the First Natural Number, Solve Equation & Decimal Multiplication (Visual)',
+        1: 'Decimal Multiplication (Visual)',
         2: 'Decimal Multiplication (Visual) & Skill Stacker (Visual)',
         3: 'Multiplication Mixed Pattern (Visual) & Skill Stacker (Visual)',
         4: 'Squares (Visual), 5D ÷ 2D & 5D ÷ 3D',
@@ -194,7 +194,7 @@ DPS_TITLES = {
         5: 'Multiplication Mixed Pattern (Visual) & Less Percentage (Visual)',
     },
     19: {
-        1: 'Squares (Visual), Cubes, Skill Stacker (Visual) & Concept Drill',
+        1: 'Squares (Visual), Cubes & Skill Stacker (Visual)',
         2: 'Add Percentage (Visual) & Less Percentage (Visual)',
         3: 'Cube Root of Mixed Digit',
         4: 'BODMAS & Concept Drill',
@@ -205,7 +205,7 @@ DPS_TITLES = {
         2: 'Add Percentage (Visual) & Less Percentage (Visual)',
         3: 'Squares (Visual) & Cubes',
         4: 'Simple Interest & Profit-Loss',
-        5: 'Cubes, Squares (Visual) & Cube Root (Visual)',
+        5: 'Cubes & Squares (Visual)',
     },
     21: {
         1: 'Mixed Digit Add-Less (Visual)',
@@ -216,7 +216,7 @@ DPS_TITLES = {
     },
     22: {
         1: 'BODMAS',
-        2: 'BODMAS, Division of Decimal Numbers & Decimal Multiplication (Visual)',
+        2: 'Division of Decimal Numbers & Decimal Multiplication (Visual)',
         3: 'Borrowing Sums with Positive / Negative Answers & Skill Stacker (Visual)',
         4: '3D × 3D (Visual) & 6D ÷ 3D (Visual)',
         5: 'Division of Decimal Numbers & 6 Digit Number Cube Root',
@@ -231,7 +231,7 @@ DPS_TITLES = {
     24: {
         1: 'Profit-Loss & Selling Price',
         2: 'Simple Interest',
-        3: 'Cubes, Squares (Visual) & Cube Root (Visual)',
+        3: 'Cubes & Squares (Visual)',
         4: 'Division of Decimal Numbers (Visual) & Decimal Multiplication (Visual)',
         5: 'Add-Less',
     },
@@ -244,7 +244,7 @@ DPS_TITLES = {
     },
     26: {
         1: 'Square Root - 4 Digit Number',
-        2: 'Cubes, Squares (Visual) & Cube Root (Visual)',
+        2: 'Cubes & Squares (Visual)',
         3: '3D × 3D (Visual) & 4D ÷ 3D (Visual)',
         4: 'Simple Interest',
         5: 'Profit-Loss & Selling Price',
@@ -258,7 +258,7 @@ DPS_TITLES = {
     },
     28: {
         1: 'Cubes, Squares (Visual), Cube Root & Square Root',
-        2: '3D × 2D (Visual), 5D × 2D (Visual) & 5D ÷ 2D',
+        2: '3D × 2D (Visual) & 5D × 2D (Visual)',
         3: 'Division of Decimal Numbers (Visual) & Decimal Multiplication (Visual)',
         4: '5D ÷ 3D (Visual) & 6D ÷ 3D (Visual)',
         5: 'Concept Drill & Skill Stacker (Visual)',
