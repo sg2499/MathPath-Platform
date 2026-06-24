@@ -292,6 +292,7 @@ function AppendDeepLinkParams(
   });
 
   const StudentCode = NotificationIdentityParam(Notification, "studentCode");
+  const StudentId = NotificationIdentityParam(Notification, "studentId", Notification.studentId);
   const ModuleCode = NotificationIdentityParam(Notification, "moduleCode");
   const LevelCode = NotificationIdentityParam(Notification, "levelCode");
   const LessonId = NotificationIdentityParam(
@@ -331,6 +332,7 @@ function AppendDeepLinkParams(
       : NotificationIdentityParam(Notification, "targetAction");
 
   if (StudentCode) Params.set("studentCode", StudentCode);
+  if (StudentId) Params.set("studentId", StudentId);
   if (ModuleCode) Params.set("moduleCode", ModuleCode);
   if (LevelCode) Params.set("levelCode", LevelCode);
   if (LessonId) Params.set("lessonId", LessonId);
