@@ -211,7 +211,7 @@ DPS_TITLES = {
         1: 'Mixed Digit Add-Less (Visual)',
         2: '3D × 2D (Visual) & 5D ÷ 3D (Visual)',
         3: '3D × 3D (Visual) & 5D ÷ 3D (Visual)',
-        4: 'Simple Interest (Visual) & Decimal Division',
+        4: 'Simple Interest (Visual) & Decimal Division (Visual)',
         5: 'BODMAS',
     },
     22: {
@@ -229,7 +229,7 @@ DPS_TITLES = {
         5: 'Multiplication Mixed Pattern (Visual) & Less Percentage (Visual)',
     },
     24: {
-        1: 'Profit-Loss & Selling Price',
+        1: 'Profit-Loss & Selling Price (Visual)',
         2: 'Simple Interest (Visual)',
         3: 'Cubes (Visual), Squares (Visual) & Cube Root (Visual)',
         4: 'Division of Decimal Numbers (Visual) & Decimal Multiplication (Visual)',
@@ -247,11 +247,11 @@ DPS_TITLES = {
         2: 'Cubes (Visual), Squares (Visual) & Cube Root (Visual)',
         3: '3D × 3D (Visual) & 4D ÷ 3D (Visual)',
         4: 'Simple Interest',
-        5: 'Profit-Loss (Visual) & Selling Price',
+        5: 'Profit-Loss (Visual) & Selling Price (Visual)',
     },
     27: {
         1: 'Square Root - 5 Digit Number',
-        2: 'Profit-Loss (Visual) & Selling Price',
+        2: 'Profit-Loss (Visual) & Selling Price (Visual)',
         3: 'Add Percentage (Visual) & Less Percentage (Visual)',
         4: 'Profit & Loss',
         5: 'BODMAS',
@@ -265,8 +265,8 @@ DPS_TITLES = {
     },
     29: {
         1: 'Add Percentage (Visual) & Less Percentage (Visual)',
-        2: 'Profit-Loss (Visual) & Selling Price',
-        3: 'Profit & Loss',
+        2: 'Profit-Loss (Visual) & Selling Price (Visual)',
+        3: 'Profit & Loss (Visual)',
         4: 'Simple Interest & Profit-Loss',
         5: '3D × 3D (Visual) & 6D ÷ 3D (Visual)',
     },
