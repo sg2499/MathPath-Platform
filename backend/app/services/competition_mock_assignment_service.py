@@ -16,6 +16,7 @@ from app.models import (
     User,
 )
 from app.services.competition_mock_generation_service import CompetitionMockExamPayload
+from app.services.notification_service import CreateNotification
 
 
 def _IsoDateTime(Value: Any) -> datetime | None:
@@ -205,6 +206,56 @@ def AssignCompetitionMockExams(
     db.commit()
     for AssignmentRecord in CreatedAssignments + ExistingAssignments:
         db.refresh(AssignmentRecord)
+
+    ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
+
+    for AssignmentRecord in CreatedAssignments + ExistingAssignments:
+        Exam = next((e for e in Exams if e.id == AssignmentRecord.mock_exam_id), None)
+        StudentUser = db.get(User, AssignmentRecord.student_id)
+        if Exam and StudentUser:
+            CreateNotification(
+                db,
+                recipient_user_id=StudentUser.id,
+                recipient_role="STUDENT",
+                type="MOCK_ASSIGNED",
+                category="COMPETITION_MOCK",
+                title="Mock Exam Assigned",
+                message=f"You have been assigned a new mock exam: {Exam.title or Exam.mock_code}",
+                actor_user_id=AssignedBy.id if AssignedBy else None,
+                actor_role=AssignedBy.role if AssignedBy else None,
+                student_id=AssignmentRecord.student_id,
+                teacher_id=AssignmentRecord.teacher_id,
+                color_variant="indigo",
+                metadata={
+                    "event": "MOCK_ASSIGNED",
+                    "moduleCode": ModuleRecord.module_code if ModuleRecord else None,
+                    "levelCode": LevelRecord.level_code if LevelRecord else None,
+                }
+            )
+            if AssignmentRecord.teacher_id:
+                TeacherUser = db.get(User, AssignmentRecord.teacher_id)
+                StudentRecord = db.get(Student, AssignmentRecord.student_id)
+                if TeacherUser and StudentRecord:
+                    CreateNotification(
+                        db,
+                        recipient_user_id=TeacherUser.id,
+                        recipient_role="TEACHER",
+                        type="STUDENT_MOCK_ASSIGNED",
+                        category="COMPETITION_MOCK",
+                        title="Student Mock Assigned",
+                        message=f"{StudentRecord.first_name} {StudentRecord.last_name} was assigned a mock exam: {Exam.title or Exam.mock_code}",
+                        actor_user_id=AssignedBy.id if AssignedBy else None,
+                        actor_role=AssignedBy.role if AssignedBy else None,
+                        student_id=AssignmentRecord.student_id,
+                        teacher_id=AssignmentRecord.teacher_id,
+                        color_variant="purple",
+                        metadata={
+                            "event": "STUDENT_MOCK_ASSIGNED",
+                            "moduleCode": ModuleRecord.module_code if ModuleRecord else None,
+                            "levelCode": LevelRecord.level_code if LevelRecord else None,
+                        }
+                    )
+    db.commit()
 
     ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
     return {
