@@ -922,7 +922,7 @@ def _CollectMmCompetitionSectionLockedQuestions(
     Selected: list[dict[str, Any]] = []
     SectionCoverage: list[dict[str, Any]] = []
     RecentSignatures = set(ExcludedSignatures or set())
-    UsedSignatures: set[str] = set(RecentSignatures)
+    UsedSignatures: set[str] = set()
     OrderedLessons = Lessons or [None]
 
     for SectionIndex, SectionDefinition in enumerate(MM_COMPETITION_SECTION_DEFINITIONS):
@@ -974,6 +974,8 @@ def _CollectMmCompetitionSectionLockedQuestions(
                 Signature = _QuestionSignature(Question)
                 if Signature in UsedSignatures:
                     continue
+                if Signature in RecentSignatures and Attempts < max(RequiredCount * 4, 16):
+                    continue
                 UsedSignatures.add(Signature)
                 Metadata = dict(Metadata)
                 Metadata.update({
@@ -1006,8 +1008,6 @@ def _CollectMmCompetitionSectionLockedQuestions(
                 break
             Attempts += 1
             if len(SectionQuestions) >= RequiredCount:
-                break
-            if not AcceptedFromThisTurn and Attempts > max(RequiredCount * 6, 24):
                 break
 
         if len(SectionQuestions) < RequiredCount:
