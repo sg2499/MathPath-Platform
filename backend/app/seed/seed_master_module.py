@@ -82,11 +82,11 @@ DPS_TITLES = {
         5: '2 Digit Number Add-Less (Fast Visualisation), BODMAS & Solve Equation',
     },
     3: {
-        1: 'Decimal Number Add-Less (Visual), Skill Stacker (Visual), Concept Drill, 2D × 2D (Visual) & 4D ÷ 2D (Visual)',
+        1: 'Decimal Number Add-Less (Visual), Skill Stacker (Visual) & Concept Drill',
         2: '2D × 2D (Visual) & 4D ÷ 2D (Visual)',
-        3: 'Borrowing Sums with Negative Answers (Visual), 3D × 2D (Visual), 5D ÷ 2D (Visual) & 4D ÷ 3D (Visual)',
+        3: '3D × 2D (Visual) & 5D ÷ 2D (Visual)',
         4: 'Add-Less, Squares (Visual) & 4D ÷ 3D (Visual)',
-        5: 'Borrowing Sums with Negative Answers (Visual), 2 Digit Number Add-Less (Fast Visualisation), 4D ÷ 3D (Visual) & BODMAS (Visual)',
+        5: 'Borrowing Sums with Negative Answers (Visual) & 4D ÷ 3D (Visual)',
     },
     4: {
         1: 'Integers & 3D × 2D (Visual)',

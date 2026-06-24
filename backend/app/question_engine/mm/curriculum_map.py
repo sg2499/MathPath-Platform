@@ -237,18 +237,6 @@ MM_CURRICULUM_MAP = {
                 "conceptFamily": "CONCEPT_DRILL",
                 "questionCount": 5,
             },
-            {
-                "sectionTitle": "2D x 2D (Visual)",
-                "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
-                "questionCount": 10,
-                "multiplicationDigits": [2, 2],
-            },
-            {
-                "sectionTitle": "4D ÷ 2D (Visual)",
-                "conceptFamily": "WHOLE_NUMBER_DIVISION",
-                "questionCount": 10,
-                "divisionDigits": [4, 2],
-            },
         ],
         2: [
             {
@@ -266,15 +254,6 @@ MM_CURRICULUM_MAP = {
         ],
         3: [
             {
-                "sectionTitle": "Borrowing Sums with Negative Answers (Visual)",
-                "conceptFamily": "ADD_LESS",
-                "questionCount": 10,
-                "isVisual": True,
-                "isFastVisualisation": False,
-                "borrowingMode": "NEGATIVE_ONLY",
-                "isMixedDigitAddLess": False,
-            },
-            {
                 "sectionTitle": "3D x 2D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION",
                 "questionCount": 10,
@@ -285,12 +264,6 @@ MM_CURRICULUM_MAP = {
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [5, 2],
-            },
-            {
-                "sectionTitle": "4D ÷ 3D (Visual)",
-                "conceptFamily": "WHOLE_NUMBER_DIVISION",
-                "questionCount": 10,
-                "divisionDigits": [4, 3],
             },
         ],
         4: [
@@ -326,25 +299,10 @@ MM_CURRICULUM_MAP = {
                 "isMixedDigitAddLess": False,
             },
             {
-                "sectionTitle": "2 Digit Number Add-Less (Fast Visualisation)",
-                "conceptFamily": "ADD_LESS",
-                "questionCount": 10,
-                "isVisual": False,
-                "isFastVisualisation": True,
-                "borrowingMode": "BORROWING_STANDARD",
-                "explicitDigitCount": 2,
-                "isMixedDigitAddLess": False,
-            },
-            {
                 "sectionTitle": "4D ÷ 3D (Visual)",
                 "conceptFamily": "WHOLE_NUMBER_DIVISION",
                 "questionCount": 10,
                 "divisionDigits": [4, 3],
-            },
-            {
-                "sectionTitle": "BODMAS (Visual)",
-                "conceptFamily": "BODMAS",
-                "questionCount": 5,
             },
         ],
     },
