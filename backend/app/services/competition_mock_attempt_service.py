@@ -624,8 +624,8 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
 
         teacher_name = "No Teacher"
         if student.teacher_id:
-            teacher_user = db.get(User, student.teacher_id)
             teacher_record = db.get(Teacher, student.teacher_id)
+            teacher_user = db.get(User, teacher_record.user_id) if teacher_record else None
             if teacher_user and teacher_record:
                 teacher_name = f"{teacher_record.first_name} {teacher_record.last_name}"
                 CreateNotification(
