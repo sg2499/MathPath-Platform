@@ -11,7 +11,8 @@ import { useQuery } from "@tanstack/react-query";
 import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 type StatusFilter = "ALL" | "COMPLETED" | "PENDING";
 
@@ -350,6 +351,28 @@ function TeacherCompetitionMockTrackerContent() {
   const [ExpandedLevels, SetExpandedLevels] = useState<Set<string>>(() => new Set());
   const [MockTableSort, SetMockTableSort] = useState<SortState>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const targetModuleCode = searchParams.get("moduleCode");
+  const targetLevelCode = searchParams.get("levelCode");
+  const targetStudentId = searchParams.get("studentId");
+
+  useEffect(() => {
+    if (targetModuleCode) {
+      SetModuleFilter(targetModuleCode);
+    }
+    if (targetLevelCode) {
+      SetLevelFilter(targetLevelCode);
+    }
+    if (targetStudentId) {
+      SetExpandedStudents((prev) => new Set(prev).add(targetStudentId));
+      if (targetModuleCode) {
+        SetExpandedModules((prev) => new Set(prev).add(`${targetStudentId}::${targetModuleCode}`));
+        if (targetLevelCode) {
+          SetExpandedLevels((prev) => new Set(prev).add(`${targetStudentId}::${targetModuleCode}::${targetLevelCode}`));
+        }
+      }
+    }
+  }, [targetModuleCode, targetLevelCode, targetStudentId]);
 
   const Query = useQuery({ queryKey: ["teacher", "competition", "mock-tracker"], queryFn: getTeacherCompetitionMockTracker });
 

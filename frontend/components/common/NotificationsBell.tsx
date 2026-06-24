@@ -21,6 +21,7 @@ import {
   MessageSquareText,
   RotateCcw,
   Sparkles,
+  Target,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -58,6 +59,7 @@ function NormalizeTone(Notification: NotificationRecord): NotificationTone {
   if (Color === "INDIGO" || Category === "PROMOTION") return "indigo";
   if (Color === "TEAL" || Category === "PARENT_REPORT") return "teal";
   if (Color === "BLUE" || Category === "PRACTICE") return "blue";
+  if (Category === "COMPETITION_MOCK") return "indigo";
   return "gray";
 }
 
@@ -102,6 +104,8 @@ function IconFor(Notification: NotificationRecord) {
     return <ClipboardList size={16} />;
   if (Category === "PRACTICE" || Type.includes("DPS"))
     return <ClipboardPlus size={16} />;
+  if (Category === "COMPETITION_MOCK")
+    return <Target size={16} />;
   return <Sparkles size={16} />;
 }
 
@@ -198,7 +202,11 @@ function IsPracticeNotification(Notification: NotificationRecord) {
 
 function IsAssessmentFeedbackNotification(Notification: NotificationRecord) {
   const { Category, Type } = NotificationText(Notification);
-  return Category === "ASSESSMENT_FEEDBACK" || Type.includes("ASSESSMENT_FEEDBACK");
+  return Category === "ASSESSMENT_FEEDBACK" || Type.includes("FEEDBACK");
+}
+
+function IsCompetitionMockNotification(Notification: NotificationRecord) {
+  return NotificationText(Notification).Category === "COMPETITION_MOCK";
 }
 
 function IsAssessmentNotification(Notification: NotificationRecord) {
@@ -344,6 +352,13 @@ function AppendDeepLinkParams(
 
 function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   if (Role === "teacher") {
+    if (IsCompetitionMockNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      if (AttemptId) {
+        return { Route: `/teacher/competition/mock-result/${encodeURIComponent(AttemptId)}?viewer=TEACHER`, TargetTab: "", TargetSubTab: "" };
+      }
+      return { Route: "/teacher/competition/mock-tracker", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsPracticeNotification(Notification)) {
       const StudentCode = MetadataString(Notification, "studentCode");
       const Route = StudentCode
@@ -386,6 +401,13 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   }
 
   if (Role === "admin") {
+    if (IsCompetitionMockNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      if (AttemptId) {
+        return { Route: `/admin/competition/mock-result/${encodeURIComponent(AttemptId)}?viewer=ADMIN`, TargetTab: "", TargetSubTab: "" };
+      }
+      return { Route: "/admin/competition/mock-assignments", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsPracticeNotification(Notification)) {
       const StudentCode = MetadataString(Notification, "studentCode");
       const Route = StudentCode
@@ -432,6 +454,13 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   }
 
   if (Role === "student") {
+    if (IsCompetitionMockNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      if (AttemptId) {
+        return { Route: `/student/competition/mock-attempt/${encodeURIComponent(AttemptId)}`, TargetTab: "", TargetSubTab: "" };
+      }
+      return { Route: "/student/competition/mock-exams", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsPromotionNotification(Notification))
       return { Route: "/student/results", TargetTab: "", TargetSubTab: "" };
     if (IsPracticeNotification(Notification)) {
