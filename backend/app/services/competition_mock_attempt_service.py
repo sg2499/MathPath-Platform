@@ -600,16 +600,20 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
     assignment = db.get(CompetitionMockAssignment, attempt.assignment_id)
 
     if exam and assignment:
+        student_user = db.get(User, student.user_id)
+        if not student_user:
+            return
+
         # Notify Student
         CreateNotification(
             db,
-            recipient_user_id=student.id,
+            recipient_user_id=student_user.id,
             recipient_role="STUDENT",
             type="MOCK_SUBMITTED",
             category="COMPETITION_MOCK",
             title="Mock Exam Submitted",
             message=f"You successfully submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
-            actor_user_id=student.id,
+            actor_user_id=student_user.id,
             actor_role="STUDENT",
             student_id=student.id,
             teacher_id=student.teacher_id,
@@ -627,7 +631,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
             teacher_record = db.get(Teacher, student.teacher_id)
             teacher_user = db.get(User, teacher_record.user_id) if teacher_record else None
             if teacher_user and teacher_record:
-                teacher_name = f"{teacher_record.first_name} {teacher_record.last_name}"
+                teacher_name = teacher_user.full_name
                 CreateNotification(
                     db,
                     recipient_user_id=teacher_user.id,
@@ -635,8 +639,8 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
                     type="STUDENT_MOCK_SUBMITTED",
                     category="COMPETITION_MOCK",
                     title="Student Mock Submitted",
-                    message=f"{student.first_name} {student.last_name} submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
-                    actor_user_id=student.id,
+                    message=f"{student_user.full_name} submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
+                    actor_user_id=student_user.id,
                     actor_role="STUDENT",
                     student_id=student.id,
                     teacher_id=student.teacher_id,
