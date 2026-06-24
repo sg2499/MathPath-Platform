@@ -473,7 +473,7 @@ def _format_concept_family(concept: str | None) -> str:
         return "Decimal Add/Less"
     if concept == "PERCENTAGE_ADD_LESS":
         return "Percentage Add/Less"
-    
+
     words = concept.replace("_", " ").split()
     return " ".join(word.capitalize() for word in words)
 
@@ -498,7 +498,7 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
 
     for question in questions:
         max_score += float(question.marks or 1)
-        
+
         # Group by exact question concept tag, fallback to family or section title if missing
         if question.concept_tag:
             concept_key = question.concept_tag
@@ -506,7 +506,7 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
             concept_key = _format_concept_family(question.concept_family)
         else:
             concept_key = _competition_section_title(question)
-            
+
         concept_totals.setdefault(concept_key, {"correct": 0, "total": 0})
         concept_totals[concept_key]["total"] += 1
         answer = answers.get(question.id)
@@ -597,55 +597,81 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
     exam = db.get(CompetitionMockExam, attempt.mock_exam_id)
     module = db.get(Module, exam.module_id) if exam else None
     level = db.get(Level, exam.level_id) if exam else None
-    assignment = db.get(CompetitionMockAssignment, attempt.assignment_id)
+    assignment = db.get(CompetitionMockAssignment, attempt.mock_assignment_id)
 
     if exam and assignment:
         student_user = db.get(User, student.user_id)
         if not student_user:
             return
 
-        # Notify Student
-        CreateNotification(
-            db,
-            recipient_user_id=student_user.id,
-            recipient_role="STUDENT",
-            type="MOCK_SUBMITTED",
-            category="COMPETITION_MOCK",
-            title="Mock Exam Submitted",
-            message=f"You successfully submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
-            actor_user_id=student_user.id,
-            actor_role="STUDENT",
-            student_id=student.id,
-            teacher_id=student.teacher_id,
-            attempt_id=attempt.id,
-            color_variant="indigo",
-            metadata={
-                "event": "MOCK_SUBMITTED",
-                "moduleCode": module.module_code if module else None,
-                "levelCode": level.level_code if level else None,
-            }
-        )
+        try:
+            safe_teacher_id = student.teacher_id if student.teacher_id else None
 
-        teacher_name = "No Teacher"
-        if student.teacher_id:
-            teacher_record = db.get(Teacher, student.teacher_id)
-            teacher_user = db.get(User, teacher_record.user_id) if teacher_record else None
-            if teacher_user and teacher_record:
-                teacher_name = teacher_user.full_name
+            # Notify Student
+            CreateNotification(
+                db,
+                recipient_user_id=student_user.id,
+                recipient_role="STUDENT",
+                type="MOCK_SUBMITTED",
+                category="COMPETITION_MOCK",
+                title="Mock Exam Submitted",
+                message=f"You successfully submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
+                actor_user_id=student_user.id,
+                actor_role="STUDENT",
+                student_id=student.id,
+                teacher_id=safe_teacher_id,
+                attempt_id=attempt.id,
+                color_variant="indigo",
+                metadata={
+                    "event": "MOCK_SUBMITTED",
+                    "moduleCode": module.module_code if module else None,
+                    "levelCode": level.level_code if level else None,
+                }
+            )
+
+            teacher_name = "No Teacher"
+            if safe_teacher_id:
+                teacher_record = db.get(Teacher, safe_teacher_id)
+                teacher_user = db.get(User, teacher_record.user_id) if teacher_record else None
+                if teacher_user and teacher_record:
+                    teacher_name = teacher_user.full_name
+                    CreateNotification(
+                        db,
+                        recipient_user_id=teacher_user.id,
+                        recipient_role="TEACHER",
+                        type="STUDENT_MOCK_SUBMITTED",
+                        category="COMPETITION_MOCK",
+                        title="Student Mock Submitted",
+                        message=f"{student_user.full_name} submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
+                        actor_user_id=student_user.id,
+                        actor_role="STUDENT",
+                        student_id=student.id,
+                        teacher_id=safe_teacher_id,
+                        attempt_id=attempt.id,
+                        color_variant="purple",
+                        metadata={
+                            "event": "STUDENT_MOCK_SUBMITTED",
+                            "moduleCode": module.module_code if module else None,
+                            "levelCode": level.level_code if level else None,
+                        }
+                    )
+
+            admins = db.query(User).filter(User.role == "ADMIN", User.is_active == True).all()
+            for admin in admins:
                 CreateNotification(
                     db,
-                    recipient_user_id=teacher_user.id,
-                    recipient_role="TEACHER",
+                    recipient_user_id=admin.id,
+                    recipient_role="ADMIN",
                     type="STUDENT_MOCK_SUBMITTED",
                     category="COMPETITION_MOCK",
                     title="Student Mock Submitted",
-                    message=f"{student_user.full_name} submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
+                    message=f"{student_user.full_name} (Teacher: {teacher_name}) submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
                     actor_user_id=student_user.id,
                     actor_role="STUDENT",
                     student_id=student.id,
-                    teacher_id=student.teacher_id,
+                    teacher_id=safe_teacher_id,
                     attempt_id=attempt.id,
-                    color_variant="purple",
+                    color_variant="indigo",
                     metadata={
                         "event": "STUDENT_MOCK_SUBMITTED",
                         "moduleCode": module.module_code if module else None,
@@ -653,30 +679,11 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
                     }
                 )
 
-        admins = db.query(User).filter(User.role == "ADMIN", User.is_active == True).all()
-        for admin in admins:
-            CreateNotification(
-                db,
-                recipient_user_id=admin.id,
-                recipient_role="ADMIN",
-                type="STUDENT_MOCK_SUBMITTED",
-                category="COMPETITION_MOCK",
-                title="Student Mock Submitted",
-                message=f"{student_user.full_name} (Teacher: {teacher_name}) submitted {exam.title or exam.mock_code}. Score: {attempt.total_score}/{attempt.max_score} ({attempt.percentage}%)",
-                actor_user_id=student_user.id,
-                actor_role="STUDENT",
-                student_id=student.id,
-                teacher_id=student.teacher_id,
-                attempt_id=attempt.id,
-                color_variant="indigo",
-                metadata={
-                    "event": "STUDENT_MOCK_SUBMITTED",
-                    "moduleCode": module.module_code if module else None,
-                    "levelCode": level.level_code if level else None,
-                }
-            )
-
-        db.commit()
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            import logging
+            logging.error(f"Failed to generate notifications for mock submission {attempt.id}: {e}")
 
     return {
         "attemptId": attempt.id,
@@ -930,7 +937,7 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
     total_questions = 0
 
     history = []
-    
+
     # Structure: module_level_key -> concept -> stats
     # module_level_key = (module.id, level.id, module.module_code, level.level_code, module.module_name, level.level_name)
     concept_stats_by_level = defaultdict(lambda: defaultdict(lambda: {"correct": 0, "total": 0, "time_taken": 0}))
@@ -947,10 +954,10 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
 
         total_score += s.score
         total_accuracy += s.accuracy_percentage
-        
+
         if s.time_utilization_percentage:
             total_time_utilization += s.time_utilization_percentage
-            
+
         if s.time_taken_seconds:
             total_time_taken += s.time_taken_seconds
 
@@ -971,26 +978,26 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
                 pass
 
     n = len(summaries)
-    
+
     module_insights = []
-    
+
     for level_key, concept_stats in concept_stats_by_level.items():
         module_id, level_id, module_code, level_code, module_name, level_name = level_key
         strong_concepts = []
         weak_concepts = []
-        
+
         for concept, stats in concept_stats.items():
             if stats["total"] > 0:
                 acc = (stats["correct"] / stats["total"]) * 100
                 time_per_q = stats["time_taken"] / stats["total"]
-                
+
                 payload = {
                     "concept": concept,
                     "accuracy": acc,
                     "totalQuestions": stats["total"],
                     "timePerQuestion": time_per_q
                 }
-                
+
                 if acc >= 70:
                     strong_concepts.append(payload)
                 else:
