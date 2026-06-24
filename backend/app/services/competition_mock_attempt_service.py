@@ -606,7 +606,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
 
         try:
             safe_teacher_id = student.teacher_id if student.teacher_id else None
-            
+
             # Notify Student
             CreateNotification(
                 db,
@@ -628,6 +628,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
                     "levelCode": level.level_code if level else None,
                 }
             )
+
             teacher_name = "No Teacher"
             if safe_teacher_id:
                 teacher_record = db.get(Teacher, safe_teacher_id)
@@ -656,6 +657,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
                     )
 
             admins = db.query(User).filter(User.role.in_(["ADMIN", "SUPER_ADMIN"]), User.is_active == True).all()
+            
             for admin in admins:
                 CreateNotification(
                     db,
