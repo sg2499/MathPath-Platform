@@ -25,7 +25,7 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Add-Less",
+                "sectionTitle": "Add-Less (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
                 "isVisual": False,
@@ -131,7 +131,7 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Add-Less",
+                "sectionTitle": "Add-Less (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
                 "isVisual": False,
@@ -268,7 +268,7 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Add-Less",
+                "sectionTitle": "Add-Less (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
                 "isVisual": True,
@@ -424,7 +424,7 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Integers",
+                "sectionTitle": "Integers (Visual)",
                 "conceptFamily": "INTEGERS",
                 "questionCount": 10,
             },
@@ -492,7 +492,7 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Add-Less",
+                "sectionTitle": "Add-Less (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "isVisual": False,
                 "isFastVisualisation": False,
@@ -519,7 +519,7 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Add-Less",
+                "sectionTitle": "Add-Less (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "questionCount": 10,
                 "isVisual": False,
@@ -594,7 +594,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 5,
             },
             {
-                "sectionTitle": "Concept Drill",
+                "sectionTitle": "Concept Drill (Visual)",
                 "conceptFamily": "CONCEPT_DRILL",
                 "questionCount": 5,
             },
@@ -1015,7 +1015,7 @@ MM_CURRICULUM_MAP = {
         ],
         5: [
             {
-                "sectionTitle": "Simple Interest",
+                "sectionTitle": "Simple Interest (Visual)",
                 "conceptFamily": "SIMPLE_INTEREST",
                 "questionCount": 10,
             },
@@ -1051,7 +1051,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
             },
         ],
-        3: [{"sectionTitle": "Simple Interest", "conceptFamily": "SIMPLE_INTEREST"}],
+        3: [{"sectionTitle": "Simple Interest (Visual)", "conceptFamily": "SIMPLE_INTEREST"}],
         4: [
             {
                 "sectionTitle": "Division of Decimal Numbers (Visual)",
@@ -1065,17 +1065,17 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
             },
         ],
-        5: [{"sectionTitle": "Simple Interest", "conceptFamily": "SIMPLE_INTEREST"}],
+        5: [{"sectionTitle": "Simple Interest (Visual)", "conceptFamily": "SIMPLE_INTEREST"}],
     },
     16: {
         1: [
             {
-                "sectionTitle": "Integers",
+                "sectionTitle": "Integers (Visual)",
                 "conceptFamily": "INTEGERS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Concept Drill",
+                "sectionTitle": "Concept Drill (Visual)",
                 "conceptFamily": "CONCEPT_DRILL",
                 "questionCount": 5,
             },
@@ -1106,12 +1106,12 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Multiplication Mixed Pattern",
+                "sectionTitle": "Multiplication Mixed Pattern (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "MULTIPLICATION",
             },
-            {"sectionTitle": "BODMAS", "conceptFamily": "BODMAS", "questionCount": 10},
+            {"sectionTitle": "BODMAS (Visual)", "conceptFamily": "BODMAS", "questionCount": 10},
         ],
         5: [
             {"sectionTitle": "BODMAS", "conceptFamily": "BODMAS", "questionCount": 5},
@@ -1225,7 +1225,7 @@ MM_CURRICULUM_MAP = {
     19: {
         1: [
             {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
-            {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
+            {"sectionTitle": "Cubes (Visual)", "conceptFamily": "CUBES", "questionCount": 5},
             {
                 "sectionTitle": "Skill Stacker (Visual)",
                 "conceptFamily": "SKILL_STACKER",
@@ -1304,7 +1304,7 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Cubes",
+                "sectionTitle": "Cubes (Visual)",
                 "conceptFamily": "MIXED_SQUARE_CUBE",
                 "questionCount": 10,
             },
@@ -1322,7 +1322,7 @@ MM_CURRICULUM_MAP = {
             },
         ],
         5: [
-            {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
+            {"sectionTitle": "Cubes (Visual)", "conceptFamily": "CUBES", "questionCount": 5},
             {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
             {
                 "sectionTitle": "Cube Root (Visual)",
@@ -1372,12 +1372,12 @@ MM_CURRICULUM_MAP = {
         ],
         4: [
             {
-                "sectionTitle": "Simple Interest",
+                "sectionTitle": "Simple Interest (Visual)",
                 "conceptFamily": "SIMPLE_INTEREST",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Division of Decimal Numbers",
+                "sectionTitle": "Division of Decimal Numbers (Visual)",
                 "conceptFamily": "MULTIPLICATION_DIVISION_MIXED",
                 "questionCount": 10,
                 "mixedOperationGroup": "DIVISION",
@@ -1506,14 +1506,14 @@ MM_CURRICULUM_MAP = {
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Find Selling Price",
+                "sectionTitle": "Find Selling Price (Visual)",
                 "conceptFamily": "FIND_SELLING_PRICE",
                 "questionCount": 10,
             },
         ],
-        2: [{"sectionTitle": "Simple Interest", "conceptFamily": "SIMPLE_INTEREST"}],
+        2: [{"sectionTitle": "Simple Interest (Visual)", "conceptFamily": "SIMPLE_INTEREST"}],
         3: [
-            {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
+            {"sectionTitle": "Cubes (Visual)", "conceptFamily": "CUBES", "questionCount": 5},
             {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
             {
                 "sectionTitle": "Cube Root (Visual)",
@@ -1536,7 +1536,7 @@ MM_CURRICULUM_MAP = {
         ],
         5: [
             {
-                "sectionTitle": "Add-Less",
+                "sectionTitle": "Add-Less (Visual)",
                 "conceptFamily": "ADD_LESS",
                 "isVisual": False,
                 "isFastVisualisation": False,
@@ -1602,7 +1602,7 @@ MM_CURRICULUM_MAP = {
             }
         ],
         2: [
-            {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
+            {"sectionTitle": "Cubes (Visual)", "conceptFamily": "CUBES", "questionCount": 5},
             {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
             {
                 "sectionTitle": "Cube Root (Visual)",
@@ -1627,12 +1627,12 @@ MM_CURRICULUM_MAP = {
         4: [{"sectionTitle": "Simple Interest", "conceptFamily": "SIMPLE_INTEREST"}],
         5: [
             {
-                "sectionTitle": "Profit-Loss",
+                "sectionTitle": "Profit-Loss (Visual)",
                 "conceptFamily": "PROFIT_LOSS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Find Selling Price",
+                "sectionTitle": "Find Selling Price (Visual)",
                 "conceptFamily": "FIND_SELLING_PRICE",
                 "questionCount": 10,
             },
@@ -1647,12 +1647,12 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Profit-Loss",
+                "sectionTitle": "Profit-Loss (Visual)",
                 "conceptFamily": "PROFIT_LOSS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Find Selling Price",
+                "sectionTitle": "Find Selling Price (Visual)",
                 "conceptFamily": "FIND_SELLING_PRICE",
                 "questionCount": 10,
             },
@@ -1674,15 +1674,15 @@ MM_CURRICULUM_MAP = {
     },
     28: {
         1: [
-            {"sectionTitle": "Cubes", "conceptFamily": "CUBES", "questionCount": 5},
+            {"sectionTitle": "Cubes (Visual)", "conceptFamily": "CUBES", "questionCount": 5},
             {"sectionTitle": "Squares (Visual)", "conceptFamily": "SQUARES", "questionCount": 5},
             {
-                "sectionTitle": "Cube Root",
+                "sectionTitle": "Cube Root (Visual)",
                 "conceptFamily": "CUBE_ROOT",
                 "questionCount": 5,
             },
             {
-                "sectionTitle": "Square Root",
+                "sectionTitle": "Square Root (Visual)",
                 "conceptFamily": "SQUARE_ROOT",
                 "questionCount": 5,
             },
@@ -1756,17 +1756,17 @@ MM_CURRICULUM_MAP = {
         ],
         2: [
             {
-                "sectionTitle": "Profit-Loss",
+                "sectionTitle": "Profit-Loss (Visual)",
                 "conceptFamily": "PROFIT_LOSS",
                 "questionCount": 10,
             },
             {
-                "sectionTitle": "Find Selling Price",
+                "sectionTitle": "Find Selling Price (Visual)",
                 "conceptFamily": "FIND_SELLING_PRICE",
                 "questionCount": 10,
             },
         ],
-        3: [{"sectionTitle": "Profit-Loss", "conceptFamily": "PROFIT_LOSS"}],
+        3: [{"sectionTitle": "Profit-Loss (Visual)", "conceptFamily": "PROFIT_LOSS"}],
         4: [
             {
                 "sectionTitle": "Simple Interest",
