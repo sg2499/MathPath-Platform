@@ -1811,8 +1811,8 @@ def GenerateCompetitionMockDraft(
     RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)
     if RequestedQuestionCount < 10:
         api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams must contain at least 10 questions.")
-    if RequestedQuestionCount > 150:
-        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams cannot exceed 150 questions in this package.")
+    if RequestedQuestionCount > 300:
+        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams cannot exceed 300 questions in this package.")
 
     RequestedDurationSeconds = int(DurationSeconds or DefaultDurationSeconds)
     if RequestedDurationSeconds < 300:

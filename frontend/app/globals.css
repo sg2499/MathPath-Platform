@@ -4695,7 +4695,13 @@ html.dark .math-login-welcome-chip {
   .math-role-action-button:active,
   .math-role-icon-button:hover,
   .math-role-icon-button:focus-visible,
-  .math-role-icon-button:active,
+  .math-role-icon-button:active {
+    color: #ffffff !important;
+    background: var(--mp-role-action-bg) !important;
+    border-color: color-mix(in srgb, var(--mp-role-border-strong) 70%, rgba(255,255,255,0.32)) !important;
+    box-shadow: 0 18px 44px color-mix(in srgb, var(--mp-role-shadow) 62%, transparent), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+  }
+
   .math-role-tab:hover,
   .math-role-tab:focus-visible,
   .math-role-tab-active,
@@ -4703,9 +4709,9 @@ html.dark .math-login-welcome-chip {
   .math-role-tab-card:focus-visible,
   .math-role-tab-card-active {
     color: #ffffff !important;
-    background: var(--mp-role-action-bg) !important;
-    border-color: color-mix(in srgb, var(--mp-role-border-strong) 70%, rgba(255,255,255,0.32)) !important;
-    box-shadow: 0 18px 44px color-mix(in srgb, var(--mp-role-shadow) 62%, transparent), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+    background: var(--mp-role-primary) !important;
+    border-color: color-mix(in srgb, var(--mp-role-primary) 85%, #000) !important;
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--mp-role-primary) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.15) !important;
   }
 
   .math-role-action-button:hover,
