@@ -10,9 +10,9 @@ import { apiErrorMessage } from "@/lib/api";
 import { getAdminCompetitionMockTracker, deleteAdminCompetitionMockAssignment, deleteAdminCompetitionMockStudent, type AdminCompetitionTrackerRow } from "@/lib/api/admin";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trash2, Trophy, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type StatusFilter = "ALL" | "COMPLETED" | "PENDING";
 
@@ -356,7 +356,26 @@ function AdminCompetitionMockTrackerContent() {
   const [ExpandedLevels, SetExpandedLevels] = useState<Set<string>>(() => new Set());
   const [MockTableSort, SetMockTableSort] = useState<SortState>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+
+  const targetStudentId = searchParams.get("studentId");
+  const targetModuleCode = searchParams.get("moduleCode");
+  const targetLevelCode = searchParams.get("levelCode");
+
+  useEffect(() => {
+    if (targetStudentId) {
+      SetExpandedStudents((prev) => new Set([...prev, targetStudentId]));
+    }
+    if (targetStudentId && targetModuleCode) {
+      SetModuleFilter(targetModuleCode);
+      SetExpandedModules((prev) => new Set([...prev, `${targetStudentId}::${targetModuleCode}`]));
+    }
+    if (targetStudentId && targetModuleCode && targetLevelCode) {
+      SetLevelFilter(targetLevelCode);
+      SetExpandedLevels((prev) => new Set([...prev, `${targetStudentId}::${targetModuleCode}::${targetLevelCode}`]));
+    }
+  }, [targetStudentId, targetModuleCode, targetLevelCode]);
 
   const [AttemptToDelete, SetAttemptToDelete] = useState<AdminCompetitionTrackerRow | null>(null);
   const [StudentToDelete, SetStudentToDelete] = useState<{ studentId: string; studentName: string; studentCode: string } | null>(null);
