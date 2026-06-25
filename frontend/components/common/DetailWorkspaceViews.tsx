@@ -1587,6 +1587,7 @@ export function RecordWorkspace({
                           hideLessonColumn
                           showAttemptColumn
                           useStrongSemanticChips={false}
+                          role={role}
                         />
                       </div>
                     ) : null}
@@ -1727,6 +1728,7 @@ export function RecordWorkspace({
                                               hideLessonColumn
                                               showAttemptColumn
                                               useStrongSemanticChips={role === "admin"}
+                                              role={role}
                                             />
                                           </div>
                                         ) : null}
@@ -1754,6 +1756,7 @@ export function RecordWorkspace({
             viewLabel={viewLabel}
             viewTip={viewTip}
             useStrongSemanticChips={role === "admin"}
+            role={role}
           />
         ) : null}
 
@@ -3017,6 +3020,7 @@ export function CompactRecordTable({
   hideLessonColumn = false,
   showAttemptColumn = false,
   useStrongSemanticChips = false,
+  role,
 }: {
   rows: AnyRow[];
   onView?: (row: AnyRow) => void;
@@ -3026,6 +3030,7 @@ export function CompactRecordTable({
   hideLessonColumn?: boolean;
   showAttemptColumn?: boolean;
   useStrongSemanticChips?: boolean;
+  role?: "admin" | "teacher" | "student";
 }) {
   const SourceRows = showAttemptColumn ? ExpandAttemptHistoryRows(rows) : rows;
   const [SortKey, SetSortKey] = useState<CompactRecordSortKey | null>(null);
@@ -3171,15 +3176,33 @@ export function CompactRecordTable({
                   (() => {
                     const Issue = issueLabel(row);
                     const isPendingPractice = Issue.label === "Pending" || Issue.label === "Re-Attempt Pending";
-                    const actualViewLabel = isPendingPractice ? "Start Practice" : viewLabel;
-                    const actualViewTip = isPendingPractice ? "Start your practice attempt" : viewTip;
-                    const buttonIcon = isPendingPractice ? <PlayCircle size={16} className="shrink-0" /> : undefined;
+                    
+                    if (isPendingPractice) {
+                      if (role === "student") {
+                        return (
+                          <StandardViewButton
+                            label="Start Practice"
+                            tooltip="Start your practice attempt"
+                            icon={<PlayCircle size={16} className="shrink-0" />}
+                            onClick={() => onView(row)}
+                            compact
+                          />
+                        );
+                      } else if (role === "teacher") {
+                        return (
+                          <div className="flex h-full items-center">
+                            <SemanticChipComponent tone="amber">
+                              Pending
+                            </SemanticChipComponent>
+                          </div>
+                        );
+                      }
+                    }
                     
                     return (
                       <StandardViewButton
-                        label={actualViewLabel}
-                        tooltip={actualViewTip}
-                        icon={buttonIcon}
+                        label={viewLabel}
+                        tooltip={viewTip}
                         onClick={() => onView(row)}
                         compact
                       />
