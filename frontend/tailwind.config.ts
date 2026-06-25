@@ -10,7 +10,23 @@ const config: Config = {
     "./types/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontSize: {
+        xs: ['var(--text-xs, 0.75rem)', { lineHeight: 'var(--lh-xs, 1rem)' }],
+        sm: ['var(--text-sm, 0.875rem)', { lineHeight: 'var(--lh-sm, 1.25rem)' }],
+        base: ['var(--text-base, 1rem)', { lineHeight: 'var(--lh-base, 1.5rem)' }],
+        lg: ['var(--text-lg, 1.125rem)', { lineHeight: 'var(--lh-lg, 1.75rem)' }],
+        xl: ['var(--text-xl, 1.25rem)', { lineHeight: 'var(--lh-xl, 1.75rem)' }],
+        '2xl': ['var(--text-2xl, 1.5rem)', { lineHeight: 'var(--lh-2xl, 2rem)' }],
+        '3xl': ['var(--text-3xl, 1.875rem)', { lineHeight: 'var(--lh-3xl, 2.25rem)' }],
+        '4xl': ['var(--text-4xl, 2.25rem)', { lineHeight: 'var(--lh-4xl, 2.5rem)' }],
+        '5xl': ['var(--text-5xl, 3rem)', { lineHeight: 'var(--lh-5xl, 1)' }],
+        '6xl': ['var(--text-6xl, 3.75rem)', { lineHeight: 'var(--lh-6xl, 1)' }],
+        '7xl': ['var(--text-7xl, 4.5rem)', { lineHeight: 'var(--lh-7xl, 1)' }],
+        '8xl': ['var(--text-8xl, 6rem)', { lineHeight: 'var(--lh-8xl, 1)' }],
+        '9xl': ['var(--text-9xl, 8rem)', { lineHeight: 'var(--lh-9xl, 1)' }],
+      },
+    },
   },
   plugins: [],
 };
