@@ -125,7 +125,7 @@ function ReviewButton({ Row }: { Row: AdminCompetitionTrackerRow }) {
   const router = useRouter();
   if (!Row.attemptId) {
     return (
-      <Chip tone="slate">Pending</Chip>
+      <Chip tone="amber">Pending</Chip>
     );
   }
 
