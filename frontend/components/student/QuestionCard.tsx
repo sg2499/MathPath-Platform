@@ -51,8 +51,8 @@ export function QuestionCard({
         </div>
       </div>
 
-      <div className={`${compact ? "mt-3 gap-4" : "mt-4 gap-5"} flex flex-wrap items-center`}>
-        <div className={`flex flex-auto lg:flex-1 min-w-[280px] max-w-full overflow-x-auto items-center justify-center rounded-[24px] bg-slate-50/90 dark:bg-slate-900/70 ${compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4"}`}>
+      <div className={`${compact ? "mt-3 gap-4" : "mt-4 gap-5"} flex flex-wrap items-stretch`}>
+        <div className={`flex flex-auto lg:flex-1 min-w-[280px] h-full min-h-[300px] max-w-full overflow-x-auto items-center justify-center rounded-[24px] bg-slate-50/90 dark:bg-slate-900/70 ${compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4"}`}>
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
 
