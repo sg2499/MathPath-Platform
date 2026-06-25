@@ -346,6 +346,11 @@ export async function getStudentCompetitionMockAssignments(): Promise<StudentCom
   return data.assignments;
 }
 
+export async function getStudentCompetitionMockInstructions(assignmentId: string): Promise<any> {
+  const { data } = await api.get(`/student/competition/mock-assignments/${assignmentId}/instructions`);
+  return data;
+}
+
 export async function startCompetitionMockAttempt(payload: { assignmentId: string }): Promise<AttemptPayload> {
   const { data } = await api.post<AttemptPayload>("/student/competition/mock-attempts/start", payload);
   return data;

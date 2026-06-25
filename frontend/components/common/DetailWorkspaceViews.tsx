@@ -24,6 +24,7 @@ import {
   Clock3,
   Eye,
   Layers3,
+  PlayCircle,
   RotateCcw,
   Search,
   Target,
@@ -893,11 +894,13 @@ export function StandardViewButton({
   tooltip,
   onClick,
   compact = false,
+  icon,
 }: {
   label: string;
   tooltip: string;
   onClick: () => void;
   compact?: boolean;
+  icon?: React.ReactNode;
 }) {
   return (
     <button
@@ -909,7 +912,7 @@ export function StandardViewButton({
       title={tooltip}
       aria-label={tooltip}
     >
-      <Eye size={compact ? 14 : 16} />
+      {icon || <Eye size={compact ? 14 : 16} />}
       {label}
     </button>
   );
@@ -1901,11 +1904,21 @@ export function RecordWorkspace({
                                                   </div>
                                                   <div className="flex shrink-0 flex-wrap items-center gap-2">
                                                     {onView ? (
-                                                      <StandardViewButton
-                                                        label={viewLabel}
-                                                        tooltip={viewTip}
-                                                        onClick={() => onView(row)}
-                                                      />
+                                                      (() => {
+                                                        const isPendingPractice = role === "student" && (row.status === "Pending" || row.status === "Re-Attempt Pending");
+                                                        const actualViewLabel = isPendingPractice ? "Start Practice" : viewLabel;
+                                                        const actualViewTip = isPendingPractice ? "Start your practice attempt" : viewTip;
+                                                        const buttonIcon = isPendingPractice ? <PlayCircle size={16} className="shrink-0" /> : undefined;
+                                                        
+                                                        return (
+                                                          <StandardViewButton
+                                                            label={actualViewLabel}
+                                                            tooltip={actualViewTip}
+                                                            icon={buttonIcon}
+                                                            onClick={() => onView(row)}
+                                                          />
+                                                        );
+                                                      })()
                                                     ) : null}
                                                     {onArchive && !archived ? (
                                                       <button

@@ -413,7 +413,7 @@ function StudentCompetitionMockExamsContent() {
                                   <MockRecordsTable
                                     assignments={levelGroup.assignments}
                                     starting={startMutation.isPending}
-                                    onStart={(assignment) => startMutation.mutate(assignment.assignmentId)}
+                                    onStart={(assignment) => router.push(`/student/competition/mock-instructions/${assignment.assignmentId}`)}
                                     onResume={(assignment) => assignment.latestAttemptId && router.push(`/student/competition/mock-attempt/${assignment.latestAttemptId}`)}
                                     onViewResult={(assignment) => assignment.latestAttemptId && router.push(`/student/competition/mock-result/${assignment.latestAttemptId}`)}
                                   />
