@@ -78,6 +78,7 @@ Recent verification commands that passed:
 - Live strict Admin Learning Path Studio MM visual audit on 2026-06-18: 150 DPS fetched, 84 workbook visual/fast-visualisation DPS checked, missing `0`, extra `0` after normalizing live API `×`/`÷` encoding.
 - Corrected local workbook audit on 2026-06-18: 150 DPS audited, 102 workbook visual/fast-visualisation DPS recognized, mismatch/flag issue count `0`.
 - Backend full: `PYTHONPATH=backend pytest backend\tests` on 2026-06-18, 20 passed after adding visual curriculum mapping regression tests.
+- Live corrected workbook-vs-platform audit after commit `18bf3a4`: 150 DPS fetched, 102 workbook visual/fast-visualisation DPS checked, missing `0`, extra `0`.
 - Frontend: `npm.cmd run typecheck` on 2026-06-18.
 - Frontend: `npm.cmd run build` on 2026-06-18.
 - Local DB-backed smoke: Admin DPS preview generation for `MM-L1`, Lesson 1, DPS 1 returned 30 questions.

@@ -209,13 +209,25 @@ function IsCompetitionMockNotification(Notification: NotificationRecord) {
   return NotificationText(Notification).Category === "COMPETITION_MOCK";
 }
 
+function IsMockNotification(Notification: NotificationRecord) {
+  const { Category, Type, Title, Route } = NotificationText(Notification);
+  return (
+    Category === "COMPETITION_MOCK" ||
+    Type.includes("MOCK") ||
+    Title.includes("MOCK") ||
+    Route.includes("mock-result") ||
+    Route.includes("mock-attempt")
+  );
+}
+
 function IsAssessmentNotification(Notification: NotificationRecord) {
   const { Category, Type, Title, Route } = NotificationText(Notification);
 
   if (
     IsPromotionNotification(Notification) ||
     IsPracticeNotification(Notification) ||
-    IsParentReportNotification(Notification)
+    IsParentReportNotification(Notification) ||
+    IsMockNotification(Notification)
   )
     return false;
 
@@ -384,6 +396,14 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       return { Route: AttemptId ? `/assessment-result/${encodeURIComponent(AttemptId)}?viewer=TEACHER&feedback=1` : "/teacher/assessments", TargetTab: "", TargetSubTab: "" };
     }
+    if (IsMockNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      const { Type, Title } = NotificationText(Notification);
+      if (Type.includes("SUBMITTED") || Title.includes("SUBMITTED")) {
+        return { Route: AttemptId ? `/teacher/competition/mock-result/${encodeURIComponent(AttemptId)}` : "/teacher/competition/mock-tracker", TargetTab: "", TargetSubTab: "" };
+      }
+      return { Route: "/teacher/competition/mock-tracker", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsAssessmentNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       const TargetAction = MetadataString(Notification, "targetAction").toLowerCase();
@@ -451,6 +471,14 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       return { Route: AttemptId ? `/assessment-result/${encodeURIComponent(AttemptId)}?viewer=ADMIN&feedback=1` : "/admin/assessments", TargetTab: "", TargetSubTab: "" };
     }
+    if (IsMockNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      const { Type, Title } = NotificationText(Notification);
+      if (Type.includes("SUBMITTED") || Title.includes("SUBMITTED")) {
+        return { Route: AttemptId ? `/admin/competition/mock-result/${encodeURIComponent(AttemptId)}` : "/admin/competition/mock-tracker", TargetTab: "", TargetSubTab: "" };
+      }
+      return { Route: "/admin/competition/mock-tracker", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsAssessmentNotification(Notification))
       return { Route: "/admin/assessments", TargetTab: "", TargetSubTab: "" };
   }
@@ -475,6 +503,14 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
     if (IsAssessmentFeedbackNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       return { Route: AttemptId ? `/assessment-result/${encodeURIComponent(AttemptId)}?viewer=STUDENT&feedback=1` : "/student/assessments", TargetTab: "", TargetSubTab: "" };
+    }
+    if (IsMockNotification(Notification)) {
+      const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      const { Type, Title } = NotificationText(Notification);
+      if (Type.includes("SUBMITTED") || Title.includes("SUBMITTED")) {
+        return { Route: AttemptId ? `/student/competition/mock-result/${encodeURIComponent(AttemptId)}` : "/student/competition/mock-exams", TargetTab: "", TargetSubTab: "" };
+      }
+      return { Route: "/student/competition/mock-exams", TargetTab: "", TargetSubTab: "" };
     }
     if (IsAssessmentNotification(Notification)) {
       const StoredRoute = Notification.targetRoute || "";
