@@ -612,3 +612,34 @@ def ensure_competition_mock_tables() -> None:
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_assignments_exam ON competition_mock_assignments (mock_exam_id)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_attempts_student ON competition_mock_attempts (student_id, submitted_at)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_results_student ON competition_mock_result_summaries (student_id, completed_at)"))
+
+def ensure_mock_notifications_fixed() -> None:
+    import re
+    from app.database import SessionLocal
+    from app.models.models import Notification
+    
+    db = SessionLocal()
+    try:
+        notifications = db.query(Notification).filter(Notification.message.like('%Score:%')).all()
+        pattern = re.compile(r"Score: (\d+(?:\.\d+)?)/(\d+(?:\.\d+)?) \((\d+(?:\.\d+)?)%\)")
+        
+        updated_count = 0
+        for n in notifications:
+            def replacer(match):
+                score = int(round(float(match.group(1))))
+                max_score = int(round(float(match.group(2))))
+                pct = int(round(float(match.group(3))))
+                return f"Score: {score}/{max_score} ({pct}%)"
+            
+            new_message, num_subs = pattern.subn(replacer, n.message)
+            if num_subs > 0 and new_message != n.message:
+                n.message = new_message
+                updated_count += 1
+                
+        if updated_count > 0:
+            db.commit()
+            print(f"Fixed {updated_count} mock notifications.")
+    except Exception as e:
+        print(f"Error fixing mock notifications: {e}")
+    finally:
+        db.close()
