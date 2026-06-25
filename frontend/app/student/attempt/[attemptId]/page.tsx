@@ -171,7 +171,7 @@ export default function AttemptPage() {
           </div>
         </div>
 
-        <div className="sticky top-[84px] z-[90] mt-4 grid gap-3 rounded-3xl bg-white/60 p-2 shadow-sm backdrop-blur-xl ring-1 ring-slate-200/50 dark:bg-slate-950/60 dark:ring-slate-800/50 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="sticky top-[104px] z-[90] mt-4 grid gap-3 rounded-3xl bg-white/60 p-2 shadow-sm backdrop-blur-xl ring-1 ring-slate-200/50 dark:bg-slate-950/60 dark:ring-slate-800/50 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             icon={<ClipboardCheck size={16} />}
             label="ANSWERED"
