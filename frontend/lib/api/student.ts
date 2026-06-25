@@ -374,6 +374,7 @@ export async function autoSubmitCompetitionMockAttempt(attemptId: string) {
 
 export type StudentCompetitionMockResult = {
   attemptId: string;
+  studentId?: string;
   assignmentId: string;
   mockExamId: string;
   status: string;
