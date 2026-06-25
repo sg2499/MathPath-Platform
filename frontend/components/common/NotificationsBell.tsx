@@ -433,8 +433,7 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
     }
   }
 
-<<<<<<< HEAD
-  if (Role === "admin") {
+  if (Role === "admin" || Role === "super_admin") {
     if (IsCompetitionMockNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       if (AttemptId) {
@@ -442,9 +441,6 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
       }
       return { Route: "/admin/competition/mock-assignments", TargetTab: "", TargetSubTab: "" };
     }
-=======
-  if (Role === "admin" || Role === "super_admin") {
->>>>>>> 904dd0c (fix(notifications): properly route mock exam notifications to results view for super_admin)
     if (IsPracticeNotification(Notification)) {
       const StudentCode = MetadataString(Notification, "studentCode");
       const Route = StudentCode
