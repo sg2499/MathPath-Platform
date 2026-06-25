@@ -1905,7 +1905,7 @@ export function RecordWorkspace({
                                                   <div className="flex shrink-0 flex-wrap items-center gap-2">
                                                     {onView ? (
                                                       (() => {
-                                                        const isPendingPractice = role === "student" && (row.status === "Pending" || row.status === "Re-Attempt Pending");
+                                                        const isPendingPractice = row.status === "Pending" || row.status === "Re-Attempt Pending";
                                                         const actualViewLabel = isPendingPractice ? "Start Practice" : viewLabel;
                                                         const actualViewTip = isPendingPractice ? "Start your practice attempt" : viewTip;
                                                         const buttonIcon = isPendingPractice ? <PlayCircle size={16} className="shrink-0" /> : undefined;
@@ -3168,12 +3168,22 @@ export function CompactRecordTable({
               </div>
               <div className="flex justify-start">
                 {onView ? (
-                  <StandardViewButton
-                    label={viewLabel}
-                    tooltip={viewTip}
-                    onClick={() => onView(row)}
-                    compact
-                  />
+                  (() => {
+                    const isPendingPractice = row.status === "Pending" || row.status === "Re-Attempt Pending";
+                    const actualViewLabel = isPendingPractice ? "Start Practice" : viewLabel;
+                    const actualViewTip = isPendingPractice ? "Start your practice attempt" : viewTip;
+                    const buttonIcon = isPendingPractice ? <PlayCircle size={16} className="shrink-0" /> : undefined;
+                    
+                    return (
+                      <StandardViewButton
+                        label={actualViewLabel}
+                        tooltip={actualViewTip}
+                        icon={buttonIcon}
+                        onClick={() => onView(row)}
+                        compact
+                      />
+                    );
+                  })()
                 ) : null}
               </div>
             </div>
