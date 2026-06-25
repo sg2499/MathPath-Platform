@@ -18,7 +18,7 @@ import {
 } from "@/lib/api/student";
 import type { AttemptPayload } from "@/types/attempt";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ClipboardCheck, Gauge, Layers3 } from "lucide-react";
+import { ClipboardCheck, Gauge, Layers3, Clock3 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
@@ -169,11 +169,9 @@ export default function AttemptPage() {
               Answer with focus and move through each question using the navigator.
             </p>
           </div>
-
-          <TestTimer remainingSeconds={remainingSeconds} />
         </div>
 
-        <div className="relative z-10 mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="sticky top-[84px] z-[90] mt-4 grid gap-3 rounded-3xl bg-white/60 p-2 shadow-sm backdrop-blur-xl ring-1 ring-slate-200/50 dark:bg-slate-950/60 dark:ring-slate-800/50 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             icon={<ClipboardCheck size={16} />}
             label="ANSWERED"
@@ -189,6 +187,7 @@ export default function AttemptPage() {
             label="CURRENT"
             value={`Q${currentQuestion.questionNumber}`}
           />
+          <TimerMetricCard remainingSeconds={remainingSeconds} />
         </div>
       </section>
 
@@ -257,26 +256,37 @@ export default function AttemptPage() {
   );
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-}) {
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="rounded-[20px] bg-white/78 p-3 shadow-sm ring-1 ring-white/70 backdrop-blur-md transition hover:-translate-y-0.5 dark:bg-slate-900/60 dark:ring-slate-700">
-      <div className="inline-flex rounded-xl bg-blue-50 p-1.5 text-blue-700 dark:bg-cyan-950/50 dark:text-cyan-300">
+    <div className="math-student-metric-card flex min-h-[96px] items-center gap-3 rounded-[24px]">
+      <div className="math-student-icon-chip h-11 w-11 items-center justify-center rounded-2xl text-cyan-700 dark:text-cyan-300">
         {icon}
       </div>
-      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">
-        {label}
-      </p>
-      <p className="mt-1 text-2xl font-black leading-none text-slate-950 dark:text-white">
-        {value}
-      </p>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">
+          {label}
+        </p>
+        <p className="mt-1 text-3xl font-black leading-none text-slate-950 dark:text-white">
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TimerMetricCard({ remainingSeconds }: { remainingSeconds: number }) {
+  return (
+    <div className="math-student-metric-card flex min-h-[96px] items-center justify-between gap-3 rounded-[24px]">
+      <div className="flex items-center gap-3">
+        <div className="math-student-icon-chip flex h-11 w-11 items-center justify-center rounded-2xl text-cyan-700 dark:text-cyan-300">
+          <Clock3 size={16} />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">TIME LEFT</p>
+          <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Practice timer</p>
+        </div>
+      </div>
+      <TestTimer remainingSeconds={remainingSeconds} className="shrink-0" />
     </div>
   );
 }
