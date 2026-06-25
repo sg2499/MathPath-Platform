@@ -220,6 +220,17 @@ function IsMockNotification(Notification: NotificationRecord) {
   );
 }
 
+function IsMockNotification(Notification: NotificationRecord) {
+  const { Category, Type, Title, Route } = NotificationText(Notification);
+  return (
+    Category === "COMPETITION_MOCK" ||
+    Type.includes("MOCK") ||
+    Title.includes("MOCK") ||
+    Route.includes("mock-result") ||
+    Route.includes("mock-attempt")
+  );
+}
+
 function IsAssessmentNotification(Notification: NotificationRecord) {
   const { Category, Type, Title, Route } = NotificationText(Notification);
 
@@ -422,7 +433,7 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
     }
   }
 
-  if (Role === "admin") {
+  if (Role === "admin" || Role === "super_admin") {
     if (IsCompetitionMockNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       if (AttemptId) {
