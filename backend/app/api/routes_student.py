@@ -208,6 +208,57 @@ def student_competition_mock_assignments(db: Session = Depends(get_db), student:
     return {"assignments": ListStudentCompetitionMockAssignmentsForAttempt(db, student)}
 
 
+@router.get("/competition/mock-assignments/{assignment_id}/instructions")
+def student_competition_mock_instructions(assignment_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    from app.models.models import CompetitionMockAssignment, CompetitionMockExam, CompetitionMockQuestion
+    from fastapi import HTTPException
+    
+    assignment = db.query(CompetitionMockAssignment).filter_by(id=assignment_id, student_id=student.id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Mock assignment not found.")
+        
+    exam = db.query(CompetitionMockExam).filter_by(id=assignment.mock_exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Mock exam not found.")
+        
+    questions = db.query(CompetitionMockQuestion).filter_by(mock_exam_id=exam.id).order_by(CompetitionMockQuestion.section_number, CompetitionMockQuestion.question_number).all()
+    
+    sections_map = {}
+    for q in questions:
+        sec_num = q.section_number or 1
+        if sec_num not in sections_map:
+            sections_map[sec_num] = {
+                "sectionNumber": sec_num,
+                "sectionTitle": q.section_title or "General Section",
+                "conceptFamily": q.concept_family or "Mixed Concepts",
+                "questionCount": 0
+            }
+        sections_map[sec_num]["questionCount"] += 1
+        
+    sections_list = [sections_map[k] for k in sorted(sections_map.keys())]
+    
+    return {
+        "assignmentId": assignment.id,
+        "mockExamId": exam.id,
+        "title": exam.title,
+        "mockCode": exam.mock_code,
+        "totalQuestions": exam.total_questions,
+        "durationSeconds": exam.duration_seconds,
+        "lessonNumber": "Mock",
+        "dpsNumber": "Exam",
+        "concept": {
+            "sections": sections_list
+        },
+        "instructions": [
+            "The exam is timed.",
+            "Each question typically has 4 options.",
+            "Choose the most appropriate answer.",
+            "The exam will auto-submit when the time expires.",
+            "Click Start Mock below when you are ready to begin."
+        ]
+    }
+
+
 @router.post("/competition/mock-attempts/start")
 def student_start_competition_mock_attempt(payload: StartCompetitionMockRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     return StartCompetitionMockAttempt(db, student, payload.assignmentId)

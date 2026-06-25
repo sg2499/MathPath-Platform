@@ -107,7 +107,16 @@ function StudentModuleProgressWorkspacePageContent() {
           role="student"
           initialTab={(SearchParams.get("tab") === "lesson-insights" || SearchParams.get("tab") === "lessons") ? "lessons" : "overview"}
           focusTarget={FocusTarget}
-          onView={(Row) => Row.attemptId && Router.push(`/student/result/${Row.attemptId}`)}
+          onView={(Row) => {
+            if (Row.status === "Pending" || Row.status === "Re-Attempt Pending") {
+              const assignmentId = Row.assignmentId || "";
+              if (Row.dpsId || Row.dps_id) {
+                Router.push(`/student/dps/${Row.dpsId || Row.dps_id}?assignmentId=${assignmentId}`);
+              }
+            } else if (Row.attemptId) {
+              Router.push(`/student/result/${Row.attemptId}`);
+            }
+          }}
         />
       ) : (
         <section className="w-full">
