@@ -220,16 +220,7 @@ function IsMockNotification(Notification: NotificationRecord) {
   );
 }
 
-function IsMockNotification(Notification: NotificationRecord) {
-  const { Category, Type, Title, Route } = NotificationText(Notification);
-  return (
-    Category === "COMPETITION_MOCK" ||
-    Type.includes("MOCK") ||
-    Title.includes("MOCK") ||
-    Route.includes("mock-result") ||
-    Route.includes("mock-attempt")
-  );
-}
+
 
 function IsAssessmentNotification(Notification: NotificationRecord) {
   const { Category, Type, Title, Route } = NotificationText(Notification);
