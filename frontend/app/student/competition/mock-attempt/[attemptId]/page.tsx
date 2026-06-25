@@ -166,7 +166,7 @@ export default function StudentCompetitionMockAttemptPage() {
           </div>
         </div>
 
-        <div className="sticky top-[104px] z-[90] grid gap-3 rounded-3xl bg-white/60 p-2 shadow-sm backdrop-blur-xl ring-1 ring-slate-200/50 dark:bg-slate-950/60 dark:ring-slate-800/50 md:grid-cols-2 xl:grid-cols-4">
+        <div className="sticky top-[120px] z-[90] grid gap-3 rounded-3xl bg-white/60 p-2 shadow-sm backdrop-blur-xl ring-1 ring-slate-200/50 dark:bg-slate-950/60 dark:ring-slate-800/50 md:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
           <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
           <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
