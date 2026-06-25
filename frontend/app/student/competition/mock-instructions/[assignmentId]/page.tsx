@@ -18,6 +18,26 @@ type ConceptSection = {
   questionCount?: number | null;
 };
 
+function getFocusText(sectionTitle: string, rawFamily: string, mockCode: string) {
+  if (!mockCode.startsWith("MM")) {
+    if (!rawFamily) return null;
+    return rawFamily.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  }
+  
+  const title = sectionTitle.toLowerCase();
+  if (title.includes("add/less") || title.includes("add / less")) return "All Patterns of Add/Less Sums.";
+  if (title.includes("multiplication")) return "All Multiplication Patterns.";
+  if (title.includes("division")) return "All Division Patterns.";
+  if (title.includes("positional") || title.includes("placement")) return "All Positional Pattern Sums.";
+  
+  if (title.includes("square") || title.includes("cube") || title.includes("bodmas") || title.includes("profit") || title.includes("interest") || title.includes("selling price") || title.includes("skill stacker") || title.includes("concept drill")) {
+    return null;
+  }
+  
+  if (!rawFamily) return null;
+  return rawFamily.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export default function MockInstructionPage() {
   return (
     <Suspense fallback={null}>
@@ -92,8 +112,11 @@ function MockInstructionPageContent() {
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
                             <div>
-                              <span>Section {SectionNumber} - {SectionTitle}</span>
-                              {ConceptFamily ? <span className="block mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">Focus: {ConceptFamily}</span> : null}
+                              <span>{SectionTitle}</span>
+                              {(() => {
+                                const focusText = getFocusText(SectionTitle, ConceptFamily, Query.data.mockCode || "");
+                                return focusText ? <span className="block mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">Focus: {focusText}</span> : null;
+                              })()}
                             </div>
                             <span className="text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 px-2 py-1 rounded-lg w-fit">
                               {Item.questionCount || 0} Questions
@@ -120,12 +143,30 @@ function MockInstructionPageContent() {
             </div>
 
             <aside className="grid gap-4">
-              <div className="rounded-[32px] border border-white/70 bg-white/92 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
-                <h3 className="text-xl font-black text-slate-950 dark:text-white">Exam Details</h3>
-                <div className="mt-4 grid gap-3">
-                  <InfoCard icon={<ClipboardList size={17} />} label="Questions" value={Query.data.totalQuestions || 0} />
-                  <InfoCard icon={<Clock3 size={17} />} label="Time" value={`${Math.floor((Query.data.durationSeconds || 1800) / 60)} Mins`} />
-                  <InfoCard icon={<Brain size={17} />} label="Type" value="MCQ" />
+              <div className="rounded-[32px] border border-white/70 bg-white/92 p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
+                <h3 className="text-xl font-black text-slate-950 dark:text-white mb-6">Exam Details</h3>
+                <div className="grid gap-6">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+                      <ClipboardList size={20} className="text-blue-500" />
+                      <span className="font-bold">Total Questions</span>
+                    </div>
+                    <span className="text-xl font-black text-slate-900 dark:text-white">{Query.data.totalQuestions || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+                      <Clock3 size={20} className="text-amber-500" />
+                      <span className="font-bold">Duration</span>
+                    </div>
+                    <span className="text-xl font-black text-slate-900 dark:text-white">{Math.floor((Query.data.durationSeconds || 1800) / 60)} Mins</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+                      <Brain size={20} className="text-emerald-500" />
+                      <span className="font-bold">Format</span>
+                    </div>
+                    <span className="text-xl font-black text-slate-900 dark:text-white">MCQ</span>
+                  </div>
                 </div>
               </div>
 
@@ -145,14 +186,5 @@ function MockInstructionPageContent() {
         </section>
       ) : null}
     </AppShell>
-  );
-}
-
-function InfoCard({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
-  return (
-    <div className="rounded-[22px] bg-slate-50/90 p-4 dark:bg-slate-900/70">
-      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">{icon}{label}</div>
-      <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{value}</p>
-    </div>
   );
 }
