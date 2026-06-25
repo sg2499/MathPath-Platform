@@ -444,7 +444,7 @@ export default function AdminCompetitionMockResultPage() {
         <div className="math-card p-6">
           <button
             className="math-button-secondary mb-4 px-4 py-2 text-sm"
-            onClick={() => router.push("/admin/competition/mock-tracker")}
+            onClick={() => router.push(`/admin/competition/mock-tracker?studentId=${result.studentId || ""}&moduleCode=${mock.moduleCode || ""}&levelCode=${mock.levelCode || ""}`)}
           >
             Back To Mock Tracker
           </button>
