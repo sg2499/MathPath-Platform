@@ -124,7 +124,7 @@ function ScoreText(Row: TeacherCompetitionTrackerRow) {
 function ReviewButton({ Row }: { Row: TeacherCompetitionTrackerRow }) {
   if (!Row.attemptId) {
     return (
-      <Chip tone="slate">Pending</Chip>
+      <Chip tone="amber">Pending</Chip>
     );
   }
 

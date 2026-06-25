@@ -1239,12 +1239,16 @@ function CompactPracticeRow({
             {accuracy(Row)}%
           </Chip>
         ) : null}
-        <StandardViewButton
-          label="View Details"
-          tooltip="Open attempt detail"
-          onClick={() => OnView(Row)}
-          compact
-        />
+        {!isCompleted(Row) ? (
+          <Chip tone="amber">Pending</Chip>
+        ) : (
+          <StandardViewButton
+            label="View Details"
+            tooltip="Open attempt detail"
+            onClick={() => OnView(Row)}
+            compact
+          />
+        )}
       </div>
     </div>
   );
@@ -1688,12 +1692,16 @@ function PracticeRowsTable({
               {isCompleted(Row) ? completedText(Row) : "Pending"}
             </div>
             <div className="flex justify-start">
-              <StandardViewButton
-                label="View Details"
-                tooltip="Open attempt detail"
-                onClick={() => OnView(Row)}
-                compact
-              />
+              {!isCompleted(Row) ? (
+                <Chip tone="amber">Pending</Chip>
+              ) : (
+                <StandardViewButton
+                  label="View Details"
+                  tooltip="Open attempt detail"
+                  onClick={() => OnView(Row)}
+                  compact
+                />
+              )}
             </div>
           </div>
         );
