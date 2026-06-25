@@ -25,14 +25,15 @@ function getFocusText(sectionTitle: string, rawFamily: string, mockCode: string)
   }
   
   const title = sectionTitle.toLowerCase();
-  if (title.includes("add/less") || title.includes("add / less")) return "All Patterns of Add/Less Sums.";
-  if (title.includes("multiplication")) return "All Multiplication Patterns.";
-  if (title.includes("division")) return "All Division Patterns.";
-  if (title.includes("positional") || title.includes("placement")) return "All Positional Pattern Sums.";
   
   if (title.includes("square") || title.includes("cube") || title.includes("bodmas") || title.includes("profit") || title.includes("interest") || title.includes("selling price") || title.includes("skill stacker") || title.includes("concept drill")) {
     return null;
   }
+
+  if (title.includes("add/less") || title.includes("add / less")) return "All Patterns of Add/Less Sums.";
+  if (title.includes("multiplication")) return "All Multiplication Patterns.";
+  if (title.includes("division")) return "All Division Patterns.";
+  if (title.includes("positional") || title.includes("placement")) return "All Positional Pattern Sums.";
   
   if (!rawFamily) return null;
   return rawFamily.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -142,44 +143,47 @@ function MockInstructionPageContent() {
               </div>
             </div>
 
-            <aside className="grid gap-4">
+            <aside className="grid items-start gap-4 h-fit">
               <div className="rounded-[32px] border border-white/70 bg-white/92 p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
                 <h3 className="text-xl font-black text-slate-950 dark:text-white mb-6">Exam Details</h3>
-                <div className="grid gap-6">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
-                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                      <ClipboardList size={20} className="text-blue-500" />
-                      <span className="font-bold">Total Questions</span>
-                    </div>
-                    <span className="text-xl font-black text-slate-900 dark:text-white">{Query.data.totalQuestions || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
-                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                      <Clock3 size={20} className="text-amber-500" />
-                      <span className="font-bold">Duration</span>
-                    </div>
-                    <span className="text-xl font-black text-slate-900 dark:text-white">{Math.floor((Query.data.durationSeconds || 1800) / 60)} Mins</span>
-                  </div>
+                
+                <div className="grid gap-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                      <Brain size={20} className="text-emerald-500" />
-                      <span className="font-bold">Format</span>
+                      <ClipboardList size={18} className="text-blue-500" />
+                      <span className="font-semibold text-sm">Total Questions</span>
                     </div>
-                    <span className="text-xl font-black text-slate-900 dark:text-white">MCQ</span>
+                    <span className="text-lg font-black text-slate-900 dark:text-white">{Query.data.totalQuestions || 0}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+                      <Clock3 size={18} className="text-amber-500" />
+                      <span className="font-semibold text-sm">Duration</span>
+                    </div>
+                    <span className="text-lg font-black text-slate-900 dark:text-white">{Math.floor((Query.data.durationSeconds || 1800) / 60)} Mins</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+                      <Brain size={18} className="text-emerald-500" />
+                      <span className="font-semibold text-sm">Format</span>
+                    </div>
+                    <span className="text-lg font-black text-slate-900 dark:text-white">MCQ</span>
                   </div>
                 </div>
-              </div>
 
-              <div className="rounded-[32px] border border-white/70 bg-white/92 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
-                <p className="text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
-                  Start when ready. Your answers will auto-save during the attempt.
-                </p>
-                <button className="math-button-primary mt-4 w-full" disabled={Mutation.isPending || !AssignmentId} onClick={() => Mutation.mutate()}>
-                  <PlayCircle size={18} />
-                  {Mutation.isPending ? "Starting..." : "Start Mock"}
-                </button>
-                {Mutation.error ? <div className="mt-4"><ErrorState message={apiErrorMessage(Mutation.error)} /></div> : null}
-                {!AssignmentId ? <p className="mt-3 text-sm font-semibold text-amber-600">Missing assignment ID.</p> : null}
+                <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+                  <p className="text-xs font-semibold leading-relaxed text-slate-500 dark:text-slate-400 mb-4">
+                    Ready to begin? Your answers will be automatically saved during the attempt.
+                  </p>
+                  <button className="math-button-primary w-full shadow-lg shadow-orange-500/20" disabled={Mutation.isPending || !AssignmentId} onClick={() => Mutation.mutate()}>
+                    <PlayCircle size={18} />
+                    {Mutation.isPending ? "Starting..." : "Start Mock"}
+                  </button>
+                  {Mutation.error ? <div className="mt-4"><ErrorState message={apiErrorMessage(Mutation.error)} /></div> : null}
+                  {!AssignmentId ? <p className="mt-3 text-sm font-semibold text-amber-600">Missing assignment ID.</p> : null}
+                </div>
               </div>
             </aside>
           </div>
