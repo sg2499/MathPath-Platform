@@ -138,7 +138,7 @@ export default function StudentAssessmentAttemptPage() {
           </div>
         </div>
 
-        <div className="sticky top-[120px] z-[90] mt-4 grid gap-3 rounded-3xl bg-white/60 p-2 shadow-sm backdrop-blur-xl ring-1 ring-slate-200/50 dark:bg-slate-950/60 dark:ring-slate-800/50 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="sticky top-[80px] sm:top-[104px] 2xl:top-[144px] z-[90] mt-4 grid gap-3 rounded-3xl bg-white/60 p-2 shadow-sm backdrop-blur-xl ring-1 ring-slate-200/50 dark:bg-slate-950/60 dark:ring-slate-800/50 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={AnsweredNumbers.length} />
           <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={Questions.length - AnsweredNumbers.length} />
           <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${CurrentQuestion.questionNumber}`} />
