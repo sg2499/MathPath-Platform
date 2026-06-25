@@ -10,7 +10,7 @@ import { apiErrorMessage } from "@/lib/api";
 import { getAdminCompetitionMockTracker, deleteAdminCompetitionMockAssignment, deleteAdminCompetitionMockStudent, type AdminCompetitionTrackerRow } from "@/lib/api/admin";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trash2, Trophy, UsersRound } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, Suspense } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -869,6 +869,10 @@ function MiniMetric({ Label, Value }: { Label: string; Value: string | number })
 
 
 export default function AdminCompetitionMockTrackerPage() {
-  return <AdminCompetitionMockTrackerContent />;
+  return (
+    <Suspense fallback={<LoadingState label="Loading tracker..." />}>
+      <AdminCompetitionMockTrackerContent />
+    </Suspense>
+  );
 }
 
