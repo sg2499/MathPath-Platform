@@ -2336,6 +2336,35 @@ html.dark .math-login-welcome-chip {
     --mp-role-shadow: rgba(249, 115, 22, 0.25);
   }
 
+  /* Scaled typography for Student and Teacher */
+  .math-dashboard-teacher,
+  .math-login-role-teacher,
+  .math-dashboard-student,
+  .math-login-role-student,
+  .math-role-teacher,
+  .math-role-student {
+    --text-xs: 0.875rem;
+    --lh-xs: 1.25rem;
+    --text-sm: 1rem;
+    --lh-sm: 1.5rem;
+    --text-base: 1.125rem;
+    --lh-base: 1.75rem;
+    --text-lg: 1.25rem;
+    --lh-lg: 1.75rem;
+    --text-xl: 1.5rem;
+    --lh-xl: 2rem;
+    --text-2xl: 1.875rem;
+    --lh-2xl: 2.25rem;
+    --text-3xl: 2.25rem;
+    --lh-3xl: 2.5rem;
+    --text-4xl: 3rem;
+    --lh-4xl: 1;
+    --text-5xl: 3.75rem;
+    --lh-5xl: 1;
+    --text-6xl: 4.5rem;
+    --lh-6xl: 1;
+  }
+
   .math-dashboard-page .math-dashboard-hero {
     background:
       linear-gradient(145deg, rgba(255,255,255,0.96), rgba(248,250,252,0.78)),
