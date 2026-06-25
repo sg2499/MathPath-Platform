@@ -3169,7 +3169,8 @@ export function CompactRecordTable({
               <div className="flex justify-start">
                 {onView ? (
                   (() => {
-                    const isPendingPractice = row.status === "Pending" || row.status === "Re-Attempt Pending";
+                    const Issue = issueLabel(row);
+                    const isPendingPractice = Issue.label === "Pending" || Issue.label === "Re-Attempt Pending";
                     const actualViewLabel = isPendingPractice ? "Start Practice" : viewLabel;
                     const actualViewTip = isPendingPractice ? "Start your practice attempt" : viewTip;
                     const buttonIcon = isPendingPractice ? <PlayCircle size={16} className="shrink-0" /> : undefined;
