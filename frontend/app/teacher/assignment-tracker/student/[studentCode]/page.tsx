@@ -10,6 +10,7 @@ import {
   Chip,
   CompactDpsLabel,
   CompactLessonLabel,
+  CompactModuleLevelLabel,
   NaturalCompare,
   SortRowsByCurriculum,
   StandardViewButton,
@@ -85,17 +86,20 @@ function SortableHeader<Key extends string>({
   SortKey,
   SortState,
   OnSort,
+  align = "left",
 }: {
   Label: string;
   SortKey: Key;
   SortState: SortState<Key>;
   OnSort: (Key: Key) => void;
+  align?: "left" | "center" | "right";
 }) {
+  const justifyClass = align === "center" ? "justify-center text-center" : align === "right" ? "justify-end text-right" : "justify-start text-left";
   return (
     <button
       type="button"
       onClick={() => OnSort(SortKey)}
-      className="inline-flex items-center justify-start gap-1 text-left font-black uppercase tracking-[0.14em] transition hover:text-[#7a1f58] dark:hover:text-rose-100"
+      className={`inline-flex items-center gap-1 font-black uppercase tracking-[0.14em] transition hover:text-[#7a1f58] dark:hover:text-rose-100 ${justifyClass}`}
     >
       <span>{Label}</span>
       <SortIndicator SortState={SortState} SortKey={SortKey} />
@@ -618,7 +622,7 @@ function TeacherStudentTrackerWorkspacePageContent() {
               levelCodeOf(Row),
               CompactLessonLabel(Row),
               CompactDpsLabel(Row),
-              dpsLabel(Row),
+              CompactModuleLevelLabel(Row),
               DisplayStatus(Row),
               scoreText(Row),
               accuracy(Row),
@@ -1220,7 +1224,7 @@ function CompactPracticeRow({
     <div className="flex flex-col gap-3 rounded-[20px] bg-slate-50/80 p-4 dark:bg-slate-900/70 xl:flex-row xl:items-center xl:justify-between">
       <div>
         <p className="text-sm font-black text-slate-950 dark:text-white">
-          {CompactLessonLabel(Row)} · {CompactDpsLabel(Row)}
+          {CompactDpsLabel(Row)}
         </p>
         <p className="mt-1 text-xs font-bold text-slate-500">
           {moduleCodeOf(Row)} · {levelCodeOf(Row)}
@@ -1610,14 +1614,14 @@ function PracticeRowsTable({
         className={`math-teacher-practice-lesson-insights-table-header grid ${GridColumns} gap-3 bg-slate-50 px-5 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70`}
       >
         <SortableHeader Label="DPS" SortKey="dps" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Attempt" SortKey="attempt" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Status" SortKey="status" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Score" SortKey="score" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} />
-        {ShowBenchmark ? <SortableHeader Label="Benchmark" SortKey="benchmark" SortState={SortStateValue} OnSort={HandleSort} /> : null}
+        <SortableHeader Label="Attempt" SortKey="attempt" SortState={SortStateValue} OnSort={HandleSort} align="center" />
+        <SortableHeader Label="Status" SortKey="status" SortState={SortStateValue} OnSort={HandleSort} align="center" />
+        <SortableHeader Label="Score" SortKey="score" SortState={SortStateValue} OnSort={HandleSort} align="center" />
+        <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} align="center" />
+        {ShowBenchmark ? <SortableHeader Label="Benchmark" SortKey="benchmark" SortState={SortStateValue} OnSort={HandleSort} align="center" /> : null}
         <SortableHeader Label="Time Taken" SortKey="timeTaken" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Completion Date" SortKey="completionDate" SortState={SortStateValue} OnSort={HandleSort} />
-        <div>Review</div>
+        <div className="text-center">Review</div>
       </div>
       {DisplayRows.map((Row, Index) => {
         const RowAccuracy = accuracy(Row);
@@ -1647,25 +1651,25 @@ function PracticeRowsTable({
                 {CompactDpsLabel(Row)}
               </p>
               <p className="text-xs font-semibold text-slate-500">
-                {dpsLabel(Row)}
+                {CompactModuleLevelLabel(Row)}
               </p>
             </div>
-            <div>
+            <div className="flex justify-center">
               <Chip tone="blue">
                 {AttemptType}
               </Chip>
             </div>
-            <div>
+            <div className="flex justify-center">
               <Chip tone={StatusTone}>{DisplayStatus}</Chip>
             </div>
-            <div>
+            <div className="flex justify-center">
               {isCompleted(Row) ? (
                 <Chip tone={isBelowBenchmark(Row) ? "red" : "green"}>{scoreText(Row)}</Chip>
               ) : (
                 <Chip tone="slate">—</Chip>
               )}
             </div>
-            <div>
+            <div className="flex justify-center">
               {isCompleted(Row) ? (
                 <Chip tone={isBelowBenchmark(Row) ? "red" : "green"}>
                   {RowAccuracy}%
@@ -1675,7 +1679,7 @@ function PracticeRowsTable({
               )}
             </div>
             {ShowBenchmark ? (
-              <div>
+              <div className="flex justify-center">
                 <Chip
                   tone={
                     BenchmarkText === "Benchmark Met"

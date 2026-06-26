@@ -190,15 +190,18 @@ export default function StudentAssessmentAttemptPage() {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="math-student-metric-card flex min-h-[96px] items-center gap-3 rounded-[24px]">
-      <div className="math-student-icon-chip h-11 w-11 items-center justify-center rounded-2xl text-cyan-700 dark:text-cyan-300">
+    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex min-h-[96px] items-center gap-3 rounded-[24px]" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md h-11 w-11 flex items-center justify-center rounded-2xl text-cyan-700 dark:text-cyan-300">
         {icon}
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">
+        <p className="relative z-10 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
           {label}
         </p>
-        <p className="mt-1 text-3xl font-black leading-none text-slate-950 dark:text-white">
+        <p className="relative z-10 mt-1 origin-left text-3xl font-black leading-none text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
           {value}
         </p>
       </div>

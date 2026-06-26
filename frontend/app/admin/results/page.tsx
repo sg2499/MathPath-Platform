@@ -2620,9 +2620,9 @@ function PromotionHistoryRecordsTable({ Rows }: { Rows: AnyRecord[] }) {
             <th><SortableHeader active={SortKey === "fromLevel"} direction={SortDirectionValue} onClick={() => ToggleSort("fromLevel")}>From Level</SortableHeader></th>
             <th><SortableHeader active={SortKey === "toLevel"} direction={SortDirectionValue} onClick={() => ToggleSort("toLevel")}>To Level</SortableHeader></th>
             <th><SortableHeader active={SortKey === "assessment"} direction={SortDirectionValue} onClick={() => ToggleSort("assessment")}>Assessment</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "score"} direction={SortDirectionValue} onClick={() => ToggleSort("score")}>Score</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "score"} direction={SortDirectionValue} onClick={() => ToggleSort("score")} align="center">Score</SortableHeader></th>
             <th><SortableHeader active={SortKey === "percentage"} direction={SortDirectionValue} onClick={() => ToggleSort("percentage")}>Percentage</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "status"} direction={SortDirectionValue} onClick={() => ToggleSort("status")}>Status</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "status"} direction={SortDirectionValue} onClick={() => ToggleSort("status")} align="center">Status</SortableHeader></th>
             <th><SortableHeader active={SortKey === "promotionDate"} direction={SortDirectionValue} onClick={() => ToggleSort("promotionDate")}>Promotion Date</SortableHeader></th>
             <th><SortableHeader active={SortKey === "promotedBy"} direction={SortDirectionValue} onClick={() => ToggleSort("promotedBy")}>Promoted By</SortableHeader></th>
           </tr>
@@ -2785,11 +2785,11 @@ function DpsAttemptRecordsTable({
           <tr>
             <th><SortableHeader active={SortKey === "dps"} direction={SortDirectionValue} onClick={() => ToggleSort("dps")}>DPS</SortableHeader></th>
             <th><SortableHeader active={SortKey === "teacher"} direction={SortDirectionValue} onClick={() => ToggleSort("teacher")}>Teacher</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "attempt"} direction={SortDirectionValue} onClick={() => ToggleSort("attempt")}>Attempt</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "status"} direction={SortDirectionValue} onClick={() => ToggleSort("status")}>Status</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "score"} direction={SortDirectionValue} onClick={() => ToggleSort("score")}>Score</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "accuracy"} direction={SortDirectionValue} onClick={() => ToggleSort("accuracy")}>Accuracy</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "benchmark"} direction={SortDirectionValue} onClick={() => ToggleSort("benchmark")}>Benchmark</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "attempt"} direction={SortDirectionValue} onClick={() => ToggleSort("attempt")} align="center">Attempt</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "status"} direction={SortDirectionValue} onClick={() => ToggleSort("status")} align="center">Status</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "score"} direction={SortDirectionValue} onClick={() => ToggleSort("score")} align="center">Score</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "accuracy"} direction={SortDirectionValue} onClick={() => ToggleSort("accuracy")} align="center">Accuracy</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "benchmark"} direction={SortDirectionValue} onClick={() => ToggleSort("benchmark")} align="center">Benchmark</SortableHeader></th>
             <th><SortableHeader active={SortKey === "completedDate"} direction={SortDirectionValue} onClick={() => ToggleSort("completedDate")}>Completion Date</SortableHeader></th>
             <th><SortableHeader active={SortKey === "timeTaken"} direction={SortDirectionValue} onClick={() => ToggleSort("timeTaken")}><span className="math-table-header-label-wrap">Time<br />Taken</span></SortableHeader></th>
             <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
@@ -2811,11 +2811,11 @@ function DpsAttemptRecordsTable({
                     <p className="text-xs text-slate-500">{PickFirstString(Row, ["teacherCode"], "")}</p>
                   ) : null}
                 </td>
-                <td className="math-table-chip-cell"><AttemptChip Label={AttemptLabel(Row)} /></td>
-                <td className="math-table-chip-cell"><StatusChip Label={AttemptDisplayStatus(Row)} /></td>
-                <td className="math-table-chip-cell"><ScoreValueChip Score={Score} MaxScore={MaxScore} /></td>
-                <td className="math-table-chip-cell"><AccuracyValueChip Accuracy={Accuracy} /></td>
-                <td className="math-table-chip-cell">
+                <td className="math-table-chip-cell text-center"><AttemptChip Label={AttemptLabel(Row)} /></td>
+                <td className="math-table-chip-cell text-center"><StatusChip Label={AttemptDisplayStatus(Row)} /></td>
+                <td className="math-table-chip-cell text-center"><ScoreValueChip Score={Score} MaxScore={MaxScore} /></td>
+                <td className="math-table-chip-cell text-center"><AccuracyValueChip Accuracy={Accuracy} /></td>
+                <td className="math-table-chip-cell text-center">
                   <BenchmarkBadge
                     status={PickFirstString(Row, ["benchmarkStatus"], "PENDING")}
                     requiresAttention={RequiresAttention}
@@ -2889,10 +2889,10 @@ function AssessmentAttemptRecordsTable({
         <thead>
           <tr>
             <th><SortableHeader active={SortKey === "assessment"} direction={SortDirectionValue} onClick={() => ToggleSort("assessment")}>Assessment</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "attempt"} direction={SortDirectionValue} onClick={() => ToggleSort("attempt")}>Attempt</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "status"} direction={SortDirectionValue} onClick={() => ToggleSort("status")}>Status</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "score"} direction={SortDirectionValue} onClick={() => ToggleSort("score")}>Score</SortableHeader></th>
-            <th><SortableHeader active={SortKey === "accuracy"} direction={SortDirectionValue} onClick={() => ToggleSort("accuracy")}>Accuracy</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "attempt"} direction={SortDirectionValue} onClick={() => ToggleSort("attempt")} align="center">Attempt</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "status"} direction={SortDirectionValue} onClick={() => ToggleSort("status")} align="center">Status</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "score"} direction={SortDirectionValue} onClick={() => ToggleSort("score")} align="center">Score</SortableHeader></th>
+            <th><SortableHeader active={SortKey === "accuracy"} direction={SortDirectionValue} onClick={() => ToggleSort("accuracy")} align="center">Accuracy</SortableHeader></th>
             <th><SortableHeader active={SortKey === "completedDate"} direction={SortDirectionValue} onClick={() => ToggleSort("completedDate")}>Completion Date</SortableHeader></th>
             <th><SortableHeader active={SortKey === "timeTaken"} direction={SortDirectionValue} onClick={() => ToggleSort("timeTaken")}><span className="math-table-header-label-wrap">Time<br />Taken</span></SortableHeader></th>
             <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
@@ -2910,10 +2910,10 @@ function AssessmentAttemptRecordsTable({
                   <p className="font-black">{PickFirstString(Row, ["assessmentTitle", "assignmentTitle"], "Assessment")}</p>
                   <p className="text-xs text-slate-500">{PickFirstString(Row, ["moduleCode"], "-")} → {PickFirstString(Row, ["levelCode"], "-")}</p>
                 </td>
-                <td className="math-table-chip-cell"><AttemptChip Label={AttemptLabel(Row)} /></td>
-                <td className="math-table-chip-cell"><StatusChip Label={AttemptDisplayStatus(Row)} /></td>
-                <td className="math-table-chip-cell"><ScoreValueChip Score={Score} MaxScore={MaxScore} /></td>
-                <td className="math-table-chip-cell"><AccuracyValueChip Accuracy={Accuracy} /></td>
+                <td className="math-table-chip-cell text-center"><AttemptChip Label={AttemptLabel(Row)} /></td>
+                <td className="math-table-chip-cell text-center"><StatusChip Label={AttemptDisplayStatus(Row)} /></td>
+                <td className="math-table-chip-cell text-center"><ScoreValueChip Score={Score} MaxScore={MaxScore} /></td>
+                <td className="math-table-chip-cell text-center"><AccuracyValueChip Accuracy={Accuracy} /></td>
                 <td className="math-history-date-cell">{FormatDate(PickFirstString(Row, ["completedDate", "submittedAt"], "-"))}</td>
                 <td>{FormatTimeTaken(PickFirstNumber(Row, ["timeTakenSeconds", "durationSeconds", "timeTaken"], Number.NaN))}</td>
                 <td>
