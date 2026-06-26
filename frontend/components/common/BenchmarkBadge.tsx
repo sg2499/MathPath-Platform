@@ -17,7 +17,7 @@ export function BenchmarkBadge({
   const Label = IsPending ? "Pending" : IsBelow ? "Benchmark Not Met" : "Benchmark Met";
   const ToneClass = IsPending ? "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200" : IsBelow ? "math-tone-danger" : "math-tone-success";
 
-  return <span className={`math-badge ${ToneClass}`}>{Label}</span>;
+  return <span className={`math-badge whitespace-nowrap ${ToneClass}`}>{Label}</span>;
 }
 
 export function BenchmarkAlert({ show, message }: { show?: boolean | null; message?: string | null }) {
