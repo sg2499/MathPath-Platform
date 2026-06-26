@@ -908,17 +908,17 @@ function StrongSemanticChip({
   tone?: "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple";
 }) {
   const tones = {
-    slate: "border-slate-200 bg-slate-50 text-slate-700 shadow-sm",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm",
-    red: "border-rose-200 bg-rose-50 text-rose-700 shadow-sm",
-    amber: "border-amber-200 bg-amber-50 text-amber-700 shadow-sm",
-    blue: "border-blue-200 bg-blue-50 text-blue-700 shadow-sm",
-    cyan: "border-cyan-200 bg-cyan-50 text-cyan-700 shadow-sm",
-    purple: "border-violet-200 bg-violet-50 text-violet-700 shadow-sm",
+    slate: "border-slate-200 bg-slate-50 text-slate-700",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    red: "border-rose-200 bg-rose-50 text-rose-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+    blue: "border-blue-200 bg-blue-50 text-blue-700",
+    cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
+    purple: "border-violet-200 bg-violet-50 text-violet-700",
   };
   return (
     <span
-      className={`inline-flex whitespace-nowrap items-center rounded-full border px-2.5 py-1 text-xs font-black leading-none ${tones[tone]}`}
+      className={`inline-flex whitespace-nowrap items-center rounded-full border px-3 py-1 text-xs font-black leading-none ${tones[tone]}`}
     >
       {children}
     </span>
@@ -3084,14 +3084,14 @@ export function CompactRecordTable({
       compareCompactRecordRows(FirstRow, SecondRow, SortKey, SortDirection),
     );
   }, [SourceRows, SortDirection, SortKey]);
-  const SemanticChipComponent = useStrongSemanticChips ? StrongSemanticChip : Chip;
+  const SemanticChipComponent = StrongSemanticChip;
   const GridColumns = hideLessonColumn
     ? showAttemptColumn
-      ? "grid-cols-[minmax(150px,1fr)_minmax(104px,.54fr)_minmax(122px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
-      : "grid-cols-[minmax(150px,1fr)_minmax(122px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
+      ? "grid-cols-[minmax(150px,1fr)_minmax(104px,.54fr)_minmax(122px,.6fr)_minmax(170px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(175px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
+      : "grid-cols-[minmax(150px,1fr)_minmax(122px,.6fr)_minmax(170px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(175px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
     : showAttemptColumn
-      ? "grid-cols-[minmax(132px,.74fr)_minmax(150px,1fr)_minmax(104px,.54fr)_minmax(122px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
-      : "grid-cols-[minmax(132px,.74fr)_minmax(150px,1fr)_minmax(122px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]";
+      ? "grid-cols-[minmax(132px,.74fr)_minmax(150px,1fr)_minmax(104px,.54fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(175px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
+      : "grid-cols-[minmax(132px,.74fr)_minmax(150px,1fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(175px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]";
 
   const ToggleSort = (Key: CompactRecordSortKey) => {
     if (SortKey !== Key) {
@@ -3184,7 +3184,7 @@ export function CompactRecordTable({
               </div>
               {showAttemptColumn ? (
                 <div className="flex justify-center">
-                  <Chip tone={attemptTone(row)}>{attemptLabel(row)}</Chip>
+                  <SemanticChipComponent tone={attemptTone(row)}>{attemptLabel(row)}</SemanticChipComponent>
                 </div>
               ) : null}
               <div className="flex justify-center">
