@@ -1060,7 +1060,7 @@ export function AppShell({
                         </button>
 
                         {dropdownOpen ? (
-                          <div className="absolute left-1/2 top-full z-[140] w-[340px] -translate-x-1/2 pt-4">
+                          <div className="absolute left-1/2 top-full z-[140] w-[360px] -translate-x-1/2 pt-4">
                             <div className="math-dropdown-arrow" />
                             <div className="math-dropdown-panel">
                               <div className="math-dropdown-header">
@@ -1071,7 +1071,7 @@ export function AppShell({
                                 >
                                   {group.label}
                                 </p>
-                                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                                   {group.tooltip}
                                 </p>
                               </div>
@@ -1141,11 +1141,11 @@ export function AppShell({
                                         />
                                       </span>
                                       <span className="min-w-0 flex-1">
-                                        <span className="block truncate">
+                                        <span className="block">
                                           {child.label}
                                         </span>
                                         <span
-                                          className={`math-dropdown-option-subtitle mt-0.5 block truncate text-xs font-semibold ${
+                                          className={`math-dropdown-option-subtitle mt-0.5 block text-xs font-medium ${
                                             childActive
                                               ? "text-white/80 dark:text-slate-800"
                                               : StudentCompetitionChildLight

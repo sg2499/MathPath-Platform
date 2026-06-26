@@ -185,7 +185,7 @@ html.dark {
   .math-badge { @apply inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-black tracking-wide; }
   .math-kicker { @apply text-sm font-black uppercase tracking-[0.24em]; color: #06b6d4; }
   .math-title { @apply mt-3 text-4xl font-black tracking-tight sm:text-[2.55rem]; color: var(--ink); }
-  .math-subtitle { @apply mt-3 max-w-3xl text-sm font-semibold leading-6 sm:text-base; color: var(--ink-soft); }
+  .math-subtitle { @apply mt-3 max-w-none text-sm font-medium leading-6 sm:text-base; color: var(--ink-soft); }
 
   .math-hero {
     @apply relative overflow-hidden rounded-[36px] border p-5 backdrop-blur-2xl transition duration-300 sm:p-6;
@@ -234,7 +234,7 @@ html.dark {
     @apply inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-700 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-200;
   }
   .math-hero .math-title { @apply mt-3 text-4xl font-black tracking-tight sm:text-[2.55rem]; }
-  .math-hero .math-subtitle { @apply mt-3 max-w-4xl text-sm font-semibold leading-6 sm:text-base; }
+  .math-hero .math-subtitle { @apply mt-3 max-w-none text-sm font-medium leading-6 sm:text-base; }
 
   .math-metric { @apply relative overflow-hidden border border-white/70 bg-white/85 p-4 shadow-md backdrop-blur-2xl transition duration-300 hover:-translate-y-0.5 hover:shadow-xl dark:border-slate-800 dark:bg-slate-950/80; border-radius: 24px; }
   .math-metric::after {
