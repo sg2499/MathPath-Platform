@@ -366,7 +366,7 @@ export default function TeacherPromotionHistoryPage() {
           <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
             Promotion History
           </h1>
-          <p className="mt-3 max-w-3xl text-base font-semibold text-slate-600 dark:text-slate-300">
+          <p className="math-subtitle">
             Review completed level promotions for your assigned students without
             changing admin-controlled progression records.
           </p>

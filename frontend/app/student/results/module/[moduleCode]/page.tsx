@@ -88,8 +88,8 @@ function StudentModuleProgressWorkspacePageContent() {
   );
   const Title = ModuleRows[0] ? moduleTitle(ModuleRows[0]) : ModuleCode;
   const Subtitle = SelectedLevel
-    ? `Module Code: ${ModuleCode} • Level: ${SelectedLevel} • Review lesson-wise progress and attempt history.`
-    : `Module Code: ${ModuleCode} • Review lesson-wise progress and attempt history for this module.`;
+    ? `Review completed work, pending practice, scores, lesson progress, and result history for this level.`
+    : `Review completed work, pending practice, scores, lesson progress, and result history for this module.`;
 
   if (!Ready || Query.isLoading) return <LoadingState label="Loading progress details..." />;
   if (Query.isError) return <ErrorState message={apiErrorMessage(Query.error)} />;

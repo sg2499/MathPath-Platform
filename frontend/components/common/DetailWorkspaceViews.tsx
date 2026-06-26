@@ -1407,7 +1407,7 @@ export function RecordWorkspace({
         : "Student Assignment Profile";
   const overviewDescription =
     role === "student"
-      ? "Review completed work, pending practice, scores, lesson progress, and result history for this module."
+      ? "Review completed work, pending practice, scores, lesson progress, and result history for this level."
       : role === "teacher"
         ? "Review assigned practice, completion date, and support needs for this student."
         : "Review assigned practice, completion date, and administrative actions for this student.";

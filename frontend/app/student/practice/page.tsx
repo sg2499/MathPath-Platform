@@ -326,8 +326,8 @@ function StudentPracticePageContent() {
             <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white">
               Current DPS Assignments
             </h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Your active DPS cards are listed below. Start with the highlighted card when you come from a notification.
+            <p className="math-subtitle">
+              Review and begin your assigned practice work below. Start with the highlighted assignment to continue your structured learning journey.
             </p>
           </div>
         </section>
