@@ -225,14 +225,19 @@ function RowsForLevelScope(Rows: AnyRow[], LevelCode: string) {
 
 function CompactProgressMetric({ label, value, icon }: { label: string; value: string | number; icon: ReactNode }) {
   return (
-    <div className="math-student-metric-card p-3">
-      <div className="flex items-center gap-2">
-        <span className="math-student-icon-chip h-8 w-8 items-center justify-center rounded-xl">
-          {icon}
-        </span>
-        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-950 dark:text-white">{label}</p>
+    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
+        {icon}
       </div>
-      <p className="mt-2 truncate text-xl font-black text-slate-950 dark:text-white">{value}</p>
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
+        {label}
+      </p>
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+        {value}
+      </p>
     </div>
   );
 }

@@ -163,7 +163,7 @@ export default function StudentDashboardPage() {
               <h1 className="mt-3 max-w-4xl text-3xl font-black tracking-[-0.035em] text-slate-950 dark:text-white sm:text-[2.35rem] lg:whitespace-nowrap">
                 My Learning Dashboard
               </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+              <p className="math-subtitle">
                 Practice, assessments, and progress in one bright learning space.
               </p>
               <div className="mt-4 flex flex-wrap gap-2.5">
@@ -211,7 +211,7 @@ export default function StudentDashboardPage() {
                 <h2 className="mt-1.5 text-xl font-black tracking-tight text-slate-950 dark:text-white">
                   {ActiveAssignments.length > 0 ? "Continue Assigned Practice" : "Review Learning Progress"}
                 </h2>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                <p className="math-subtitle">
                   {ActiveAssignments.length > 0
                     ? "Complete assigned DPS, then check readiness for your next step."
                     : "Review attempts, scores, progress, and readiness."}
@@ -277,7 +277,7 @@ function ProgressionJourneyCard({ State, onClick }: { State: ReturnType<typeof B
               <span className={`rounded-full border px-3 py-1 text-[11px] font-black shadow-sm ${ToneClass}`}>{State.Label}</span>
             </div>
             <h2 className="mt-2 text-xl font-black tracking-tight text-slate-950 dark:text-white">{State.Title}</h2>
-            <p className="mt-1.5 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300">{State.Message}</p>
+            <p className="math-subtitle">{State.Message}</p>
           </div>
         </div>
         <button type="button" onClick={onClick} className="math-dashboard-primary-action shrink-0">

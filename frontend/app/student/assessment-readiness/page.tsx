@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Clock3,
   GraduationCap,
+  Layers3,
   ListChecks,
   Maximize2,
   Minimize2,
@@ -474,10 +475,10 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
-        <Info label="Required DPS" value={row.requiredDpsCount} />
-        <Info label="Cleared DPS" value={row.completedDpsCount} />
-        <Info label="Pending DPS" value={pendingCount} />
-        <Info label="Needs Re-Attempt" value={needsReattemptCount} />
+        <Info label="Required DPS" value={row.requiredDpsCount} icon={<Layers3 size={18} />} />
+        <Info label="Cleared DPS" value={row.completedDpsCount} icon={<CheckCircle2 size={18} />} />
+        <Info label="Pending DPS" value={pendingCount} icon={<Clock3 size={18} />} />
+        <Info label="Needs Re-Attempt" value={needsReattemptCount} icon={<AlertTriangle size={18} />} />
       </div>
 
       <div className="mt-5 h-3 math-role-progress-track">
@@ -582,12 +583,12 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
                         }
                         className="grid gap-3 border-b border-slate-100 p-4 last:border-b-0 lg:grid-cols-[1fr_96px_160px_170px] lg:items-center dark:border-slate-800"
                       >
-                        <div className="min-w-0">
-                          <div className="flex items-start gap-3">
+                        <div className="min-w-0 w-full">
+                          <div className="flex w-full items-start gap-3">
                             <span
                               className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${sheetDot(sheet)}`}
                             />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-black text-slate-950 dark:text-white">
                                 {dpsLabel(sheet)}
                               </p>
@@ -606,7 +607,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
                                   ? `${sheet.latestAccuracy}%`
                                   : "-"}
                               </p>
-                              <div className="mt-2 h-2 math-role-progress-track">
+                              <div className="mt-2 h-2 w-full math-role-progress-track">
                                 <div
                                   className="h-full rounded-full math-role-progress-fill"
                                   style={{ width: `${sheetProgress(sheet)}%` }}
@@ -797,35 +798,21 @@ function SheetFilterChip({
   );
 }
 
-function Info({ label, value }: { label: string; value: string | number }) {
+function Info({ label, value, icon }: { label: string; value: string | number; icon?: React.ReactNode }) {
   return (
-    <div className="math-student-inner-metric-card rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      {icon && (
+        <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
+          {icon}
+        </div>
+      )}
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function Metric({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="rounded-[24px] bg-slate-50 p-4 dark:bg-slate-900">
-      <div className="text-blue-600">{icon}</div>
-      <p className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
         {value}
       </p>
     </div>
