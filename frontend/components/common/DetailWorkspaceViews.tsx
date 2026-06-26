@@ -343,9 +343,11 @@ export function numberValue(value: unknown, fallback = 0) {
 }
 
 export function accuracy(row: AnyRow) {
-  return numberValue(
-    row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy,
-    0,
+  return Math.round(
+    numberValue(
+      row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy,
+      0,
+    ),
   );
 }
 
