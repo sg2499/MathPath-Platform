@@ -11402,6 +11402,10 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   html:not(.dark) .math-role-student :is(
     .math-admin-light-compact-record-header,
     .math-student-assessments-table-header
+  ) > button,
+  html:not(.dark) .math-role-student :is(
+    .math-admin-light-compact-record-header,
+    .math-student-assessments-table-header
   ) :is(.math-sortable-header, .math-sortable-header-label, .math-sortable-header-icon) {
     color: #c2410c !important;
     -webkit-text-fill-color: #c2410c !important;
@@ -11414,7 +11418,11 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
   html:not(.dark) .math-role-student :is(
     .math-admin-light-compact-record-header,
     .math-student-assessments-table-header
-  ) > div:not(:last-child) {
+  ) > div:not(:last-child),
+  html:not(.dark) .math-role-student :is(
+    .math-admin-light-compact-record-header,
+    .math-student-assessments-table-header
+  ) > button:not(:last-child) {
     border-right: 1px solid rgba(249, 115, 22, 0.14) !important;
   }
 
@@ -11447,6 +11455,10 @@ html.dark .math-role-admin .math-assignment-detail-table .math-assignment-semant
     .math-admin-light-compact-record-header,
     .math-student-assessments-table-header
   ) > div,
+  html:not(.dark) .math-role-student :is(
+    .math-admin-light-compact-record-header,
+    .math-student-assessments-table-header
+  ) > button,
   html:not(.dark) .math-role-student :is(
     .math-admin-light-compact-record-header,
     .math-student-assessments-table-header
