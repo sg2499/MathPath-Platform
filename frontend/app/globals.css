@@ -182,7 +182,7 @@ html.dark {
   .math-textarea::placeholder { color: var(--muted); }
   .math-label { @apply text-sm font-black; color: var(--ink-soft); }
   .math-helper { @apply mt-1.5 text-xs; color: var(--muted); }
-  .math-badge { @apply inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full border px-3 py-1 text-xs font-black tracking-wide; }
+  .math-badge { @apply inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full border px-3 py-1 text-xs font-black tracking-wide; white-space: nowrap !important; }
   .math-kicker { @apply text-sm font-black uppercase tracking-[0.24em]; color: #06b6d4; }
   .math-title { @apply mt-3 text-4xl font-black tracking-tight sm:text-[2.55rem]; color: var(--ink); }
   .math-subtitle { @apply mt-3 max-w-none text-sm font-medium leading-6 sm:text-base; color: var(--ink-soft); }
@@ -259,7 +259,7 @@ html.dark {
   .math-table td { @apply px-4 py-4 align-middle; }
   .math-table .math-table-chip-cell { @apply text-center align-middle; }
   .math-table .math-table-chip-cell > span,
-  .math-table .math-table-chip-cell > .math-badge { @apply inline-flex justify-center; }
+  .math-table .math-table-chip-cell > .math-badge { @apply inline-flex justify-center whitespace-nowrap; }
   .math-table tbody tr { @apply border-t transition; border-color: var(--line); }
   .math-table tbody tr:hover { background: rgba(37, 99, 235, 0.05); }
   html.dark .math-table tbody tr:hover { background: rgba(6, 182, 212, 0.06); }
