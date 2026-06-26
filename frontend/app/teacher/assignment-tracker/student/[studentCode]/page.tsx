@@ -1605,8 +1605,8 @@ function PracticeRowsTable({
   }, []);
   const DpsAttemptCounts = new Map<string, number>();
   const GridColumns = ShowBenchmark
-    ? "grid-cols-[minmax(142px,.96fr)_minmax(100px,.5fr)_minmax(170px,.58fr)_minmax(82px,.4fr)_minmax(90px,.44fr)_minmax(175px,.58fr)_minmax(100px,.48fr)_minmax(142px,.66fr)_136px]"
-    : "grid-cols-[minmax(142px,1fr)_minmax(100px,.52fr)_minmax(170px,.62fr)_minmax(82px,.42fr)_minmax(90px,.46fr)_minmax(100px,.5fr)_minmax(142px,.7fr)_136px]";
+    ? "grid-cols-[minmax(142px,.96fr)_minmax(100px,.5fr)_minmax(170px,.58fr)_minmax(82px,.4fr)_minmax(90px,.44fr)_minmax(240px,.84fr)_minmax(136px,.64fr)_minmax(146px,.68fr)_136px]"
+    : "grid-cols-[minmax(142px,1fr)_minmax(100px,.52fr)_minmax(170px,.62fr)_minmax(82px,.42fr)_minmax(90px,.46fr)_minmax(136px,.64fr)_minmax(146px,.68fr)_136px]";
 
   return (
     <div className="math-teacher-practice-lesson-insights-table mt-4 overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-800">
