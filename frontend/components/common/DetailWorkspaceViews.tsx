@@ -343,12 +343,25 @@ export function numberValue(value: unknown, fallback = 0) {
 }
 
 export function accuracy(row: AnyRow) {
-  return Math.round(
-    numberValue(
-      row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy,
-      0,
-    ),
+  const numValue = Number(
+    row.accuracy ??
+      row.accuracyPercent ??
+      row.accuracyPercentage ??
+      row.attemptAccuracy ??
+      row.attemptAccuracyPercent ??
+      row.attemptAccuracyPercentage ??
+      row.averageAccuracy,
   );
+  if (Number.isFinite(numValue)) return Math.round(numValue);
+  
+  if (
+    Number.isFinite(row.correctCount) &&
+    Number.isFinite(row.totalQuestionCount) &&
+    row.totalQuestionCount > 0
+  ) {
+    return Math.round((row.correctCount / row.totalQuestionCount) * 100);
+  }
+  return 0;
 }
 
 export function averageAccuracy(rows: AnyRow[]) {
