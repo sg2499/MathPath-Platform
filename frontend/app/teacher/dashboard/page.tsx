@@ -44,7 +44,7 @@ export default function TeacherDashboardPage() {
               <h1 className="mt-3 max-w-4xl text-3xl font-black tracking-[-0.035em] text-slate-950 dark:text-white sm:text-[2.35rem] lg:whitespace-nowrap">
                 Teaching Workspace
               </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+              <p className="mt-2 math-subtitle">
                 Guide practice, readiness, and assessments for every assigned learner.
               </p>
               <div className="mt-4 flex flex-wrap gap-2.5">
@@ -80,7 +80,7 @@ export default function TeacherDashboardPage() {
             <h2 className="mt-1.5 text-xl font-black tracking-tight text-slate-950 dark:text-white">
               Review Practice Before Assessment
             </h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+            <p className="mt-1 math-subtitle">
               Start with practice activity, then confirm readiness and assessment records.
             </p>
           </div>

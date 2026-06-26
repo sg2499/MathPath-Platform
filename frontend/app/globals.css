@@ -1011,6 +1011,16 @@ html.dark {
     background: rgba(34,211,238,0.12);
   }
 
+  .math-teacher-icon-chip {
+    @apply inline-flex rounded-2xl items-center justify-center h-11 w-11 text-rose-700;
+    background: rgba(255,241,242,0.95);
+  }
+
+  html.dark .math-teacher-icon-chip {
+    color: #fda4af;
+    background: rgba(244,63,94,0.12);
+  }
+
   .math-student-focus-card {
     @apply relative overflow-hidden rounded-[30px] border p-[1px] shadow-[0_18px_55px_rgba(79,70,229,0.12)] backdrop-blur-xl;
     background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(238,242,255,0.94), rgba(236,254,255,0.86));

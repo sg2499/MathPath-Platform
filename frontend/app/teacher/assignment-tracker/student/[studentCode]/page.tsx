@@ -224,18 +224,19 @@ function Metric({
   icon?: ReactNode;
 }) {
   return (
-    <div className="rounded-[24px] border border-[#ead7e2] bg-white/90 p-4 shadow-[0_18px_42px_rgba(100,40,80,0.10)] ring-1 ring-[#f4e7ef] dark:border dark:border-white/15 dark:bg-slate-950/70 dark:shadow-[0_18px_45px_rgba(2,6,23,0.36)] dark:ring-1 dark:ring-rose-200/10">
-      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-100">
-        {icon ? (
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 dark:border dark:border-rose-200/15 dark:bg-rose-400/10 dark:text-rose-100">
-            {icon}
-          </span>
-        ) : null}
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:text-slate-200">
-          {label}
-        </p>
-      </div>
-      <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+    <div className="math-teacher-light-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      {icon && (
+        <div className="math-teacher-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
+          {icon}
+        </div>
+      )}
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+        {label}
+      </p>
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
         {value}
       </p>
     </div>
@@ -1148,14 +1149,11 @@ function MiniMetric({
     red: "bg-white/80 text-rose-700 shadow-sm ring-1 ring-rose-200 dark:bg-slate-950/40 dark:text-rose-200 dark:ring-rose-900",
   };
   return (
-    <div className={`rounded-[22px] border p-4 ${Tones[Tone]}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.14em] opacity-75">
-            {Title}
-          </p>
-          <p className="mt-2 text-2xl font-black">{Value}</p>
-        </div>
+    <div className={`group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl rounded-[22px] border p-4 ${Tones[Tone]}`}>
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      <div className="relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
         <div
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${IconTones[Tone]}`}
           aria-hidden="true"
@@ -1163,6 +1161,12 @@ function MiniMetric({
           {Icon}
         </div>
       </div>
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] opacity-75 transition-colors duration-300 group-hover:text-[var(--math-role-primary)]">
+        {Title}
+      </p>
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)]">
+        {Value}
+      </p>
     </div>
   );
 }

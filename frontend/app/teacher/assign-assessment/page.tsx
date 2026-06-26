@@ -19,15 +19,26 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 function Metric({ label, value, helper, icon }: { label: string; value: string | number; helper?: string; icon?: ReactNode }) {
   return (
-    <div className="math-teacher-light-metric-card rounded-[22px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-slate-800 dark:bg-slate-950/70 dark:ring-0">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">{label}</p>
-          <p className="mt-1.5 text-3xl font-black leading-none text-slate-950 dark:text-white">{value}</p>
-          {helper ? <p className="mt-2 text-xs font-extrabold text-slate-600 dark:text-slate-300">{helper}</p> : null}
+    <div className="math-teacher-light-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      {icon && (
+        <div className="math-teacher-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
+          {icon}
         </div>
-        {icon ? <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[var(--mp-role-soft)] text-[var(--mp-role-readable)] dark:bg-[var(--mp-role-softer)]">{icon}</span> : null}
-      </div>
+      )}
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+        {label}
+      </p>
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+        {value}
+      </p>
+      {helper && (
+        <p className="relative z-10 mt-2 text-xs font-extrabold text-slate-600 dark:text-slate-300">
+          {helper}
+        </p>
+      )}
     </div>
   );
 }
