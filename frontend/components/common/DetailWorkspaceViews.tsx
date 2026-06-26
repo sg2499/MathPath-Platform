@@ -878,7 +878,7 @@ export function Chip({
   const toneCssClass = toneMap[tone] ?? "";
   return (
     <span
-      className={`math-badge ${toneCssClass} inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black ${lightColors[tone]}`}
+      className={`math-badge ${toneCssClass} whitespace-nowrap inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black ${lightColors[tone]}`}
     >
       {children ?? label}
     </span>
@@ -903,7 +903,7 @@ function StrongSemanticChip({
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black leading-none ${tones[tone]}`}
+      className={`inline-flex whitespace-nowrap items-center rounded-full border px-2.5 py-1 text-xs font-black leading-none ${tones[tone]}`}
     >
       {children}
     </span>
