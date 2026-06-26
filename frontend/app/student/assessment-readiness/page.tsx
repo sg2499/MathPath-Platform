@@ -389,7 +389,7 @@ function sheetProgress(sheet: SheetRow) {
 }
 
 function dpsLabel(sheet: SheetRow) {
-  return sheet.dpsNumber ? `DPS-${sheet.dpsNumber}` : "DPS";
+  return `${sheet.dpsNumber ? `DPS ${sheet.dpsNumber}` : "DPS"}`;
 }
 
 function groupSheetsByLesson(sheets: SheetRow[]) {
@@ -592,11 +592,9 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
                               <p className="truncate text-sm font-black text-slate-950 dark:text-white">
                                 {dpsLabel(sheet)}
                               </p>
-                              {sheet.dpsTitle ? (
-                                <p className="mt-1 truncate text-xs font-semibold text-slate-500">
-                                  {sheet.dpsTitle}
-                                </p>
-                              ) : null}
+                              <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                                {row.moduleCode || "Module"} · {row.levelCode || "Level"}
+                              </p>
                               <p className="mt-1 text-xs font-semibold text-slate-500">
                                 Best:{" "}
                                 {sheet.bestAccuracy !== null

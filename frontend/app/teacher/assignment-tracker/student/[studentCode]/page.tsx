@@ -1224,7 +1224,7 @@ function CompactPracticeRow({
     <div className="flex flex-col gap-3 rounded-[20px] bg-slate-50/80 p-4 dark:bg-slate-900/70 xl:flex-row xl:items-center xl:justify-between">
       <div>
         <p className="text-sm font-black text-slate-950 dark:text-white">
-          {CompactLessonLabel(Row)} · {CompactDpsLabel(Row)}
+          {CompactDpsLabel(Row)}
         </p>
         <p className="mt-1 text-xs font-bold text-slate-500">
           {moduleCodeOf(Row)} · {levelCodeOf(Row)}

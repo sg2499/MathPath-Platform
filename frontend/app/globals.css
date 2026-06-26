@@ -257,7 +257,7 @@ html.dark {
   .math-table thead { color: var(--muted); background: var(--surface-muted); }
   .math-table th { @apply px-4 py-3 text-xs font-black uppercase tracking-[0.15em]; }
   .math-table td { @apply px-4 py-4 align-middle; }
-  .math-table .math-table-chip-cell { @apply text-left align-middle; }
+  .math-table .math-table-chip-cell { @apply text-center align-middle; }
   .math-table .math-table-chip-cell > span,
   .math-table .math-table-chip-cell > .math-badge { @apply inline-flex justify-center; }
   .math-table tbody tr { @apply border-t transition; border-color: var(--line); }

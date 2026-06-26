@@ -911,7 +911,7 @@ export default function AdminStudentsPage() {
                   <th><SortableHeader active={sortKey === "teacher"} direction={sortDirection} onClick={() => toggleSort("teacher")}>Teacher</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "level"} direction={sortDirection} onClick={() => toggleSort("level")}>Level</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "fatherMobile"} direction={sortDirection} onClick={() => toggleSort("fatherMobile")}>Father Mobile</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => toggleSort("status")}>Status</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => toggleSort("status")} align="center">Status</SortableHeader></th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -949,7 +949,7 @@ export default function AdminStudentsPage() {
                       <td>{s.teacher || "-"}</td>
                       <td>{s.currentLevelCode || "-"}</td>
                       <td>{s.fatherMobile || "-"}</td>
-                      <td>
+                      <td className="text-center">
                         <span
                           className={`math-badge math-admin-directory-status-chip ${
                             s.isActive
