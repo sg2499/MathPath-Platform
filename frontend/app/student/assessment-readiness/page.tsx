@@ -598,11 +598,11 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
                               <p className="mt-1 text-xs font-semibold text-slate-500">
                                 Best:{" "}
                                 {sheet.bestAccuracy !== null
-                                  ? `${sheet.bestAccuracy}%`
+                                  ? `${Math.round(sheet.bestAccuracy)}%`
                                   : "-"}{" "}
                                 · Latest:{" "}
                                 {sheet.latestAccuracy !== null
-                                  ? `${sheet.latestAccuracy}%`
+                                  ? `${Math.round(sheet.latestAccuracy)}%`
                                   : "-"}
                               </p>
                               <div className="mt-2 h-2 w-full math-role-progress-track">
