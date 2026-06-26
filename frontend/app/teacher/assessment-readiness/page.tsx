@@ -704,7 +704,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: TeacherAssessmentEligi
                             <span
                               className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${sheetDot(sheet)}`}
                             />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-black text-slate-950 dark:text-white">
                                 {dpsLabel(sheet)}
                               </p>
@@ -723,7 +723,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: TeacherAssessmentEligi
                                   ? `${sheet.latestAccuracy}%`
                                   : "-"}
                               </p>
-                              <div className="mt-2 h-2 math-role-progress-track">
+                              <div className="mt-2 h-2 w-full math-role-progress-track">
                                 <div
                                   className="h-full rounded-full math-role-progress-fill"
                                   style={{ width: `${sheetProgress(sheet)}%` }}
@@ -918,14 +918,19 @@ function Metric({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="math-teacher-light-metric-card rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border dark:border-white/15 dark:bg-slate-950/70 dark:shadow-[0_18px_45px_rgba(2,6,23,0.36)] dark:ring-1 dark:ring-rose-200/10">
-      <div className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 dark:border dark:border-rose-200/15 dark:bg-rose-400/10 dark:text-rose-100">
-        {icon}
-      </div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-200">
+    <div className="math-teacher-light-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      {icon && (
+        <div className="math-teacher-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
+          {icon}
+        </div>
+      )}
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
         {label}
       </p>
-      <p className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
         {value}
       </p>
     </div>
