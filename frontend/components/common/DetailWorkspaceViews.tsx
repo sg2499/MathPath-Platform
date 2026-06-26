@@ -3087,8 +3087,8 @@ export function CompactRecordTable({
   const SemanticChipComponent = StrongSemanticChip;
   const GridColumns = hideLessonColumn
     ? showAttemptColumn
-      ? "grid-cols-[minmax(150px,1fr)_minmax(104px,.54fr)_minmax(122px,.6fr)_minmax(170px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(175px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
-      : "grid-cols-[minmax(150px,1fr)_minmax(122px,.6fr)_minmax(170px,.42fr)_minmax(94px,.48fr)_minmax(136px,.66fr)_minmax(175px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
+      ? "grid-cols-[minmax(150px,1fr)_minmax(104px,.54fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(175px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
+      : "grid-cols-[minmax(150px,1fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(175px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
     : showAttemptColumn
       ? "grid-cols-[minmax(132px,.74fr)_minmax(150px,1fr)_minmax(104px,.54fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(175px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]"
       : "grid-cols-[minmax(132px,.74fr)_minmax(150px,1fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(175px,.66fr)_minmax(122px,.58fr)_minmax(146px,.68fr)_minmax(118px,.54fr)]";
