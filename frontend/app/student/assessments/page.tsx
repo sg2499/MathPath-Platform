@@ -668,10 +668,10 @@ function StudentAssessmentsPageContent() {
                             <div className="overflow-hidden rounded-[22px] border border-slate-200 dark:border-slate-800">
                               <div className="math-student-assessments-table-header grid grid-cols-[1.08fr_.54fr_.68fr_.5fr_.5fr_.78fr_.78fr_164px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
                                 <div>Assessment</div>
-                                <div>Attempt</div>
-                                <div>Status</div>
-                                <div>Score</div>
-                                <div>Accuracy</div>
+                                <div className="text-center">Attempt</div>
+                                <div className="text-center">Status</div>
+                                <div className="text-center">Score</div>
+                                <div className="text-center">Accuracy</div>
                                 <div>Assigned Date</div>
                                 <div>Completion Date</div>
                                 <div className="text-right pr-2">Action</div>
@@ -739,10 +739,10 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
         <p className="font-black text-slate-950 dark:text-white">{title}</p>
         <p className="mt-1 text-xs font-semibold text-slate-500">{scopeText(row) || "Level Assessment"}</p>
       </div>
-      <div><span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{attemptLabel(row)}</span></div>
-      <div><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(row.status)}`}>{status}</span></div>
-      <div><PerformanceValueChip Value={recordScore(row)} Tone={recordScore(row) === "—" ? "slate" : "blue"} /></div>
-      <div><PerformanceValueChip Value={recordAccuracy(row)} Tone={AccuracyTone(row)} /></div>
+      <div className="flex justify-center"><span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{attemptLabel(row)}</span></div>
+      <div className="flex justify-center"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(row.status)}`}>{status}</span></div>
+      <div className="flex justify-center"><PerformanceValueChip Value={recordScore(row)} Tone={recordScore(row) === "—" ? "slate" : "blue"} /></div>
+      <div className="flex justify-center"><PerformanceValueChip Value={recordAccuracy(row)} Tone={AccuracyTone(row)} /></div>
       <div className="text-xs font-bold text-slate-500">{assignedDate(row)}</div>
       <div className="text-xs font-bold text-slate-500">{completionDate(row)}</div>
       <div className="flex min-w-[156px] justify-end pr-1">
@@ -756,10 +756,13 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
 
 function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="math-student-metric-card rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/60">
-      <div className="inline-flex rounded-2xl bg-blue-50 p-2 text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300">{icon}</div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-800 dark:text-slate-100">{label}</p>
-      <p className="mt-2 text-3xl font-black text-slate-950 dark:text-white">{value}</p>
+    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/60" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      <div className="inline-flex relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md rounded-2xl bg-blue-50 p-2 text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300">{icon}</div>
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">{label}</p>
+      <p className="relative z-10 mt-2 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">{value}</p>
     </div>
   );
 }

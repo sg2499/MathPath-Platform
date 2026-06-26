@@ -784,11 +784,11 @@ function PerformanceAttemptTable({
               </p>
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold">
+              <p className="truncate text-sm font-bold text-slate-950 dark:text-white">
                 {CompactDpsLabel(Row)}
               </p>
-              <p className="mt-1 truncate text-xs text-slate-500">
-                {CompletedText(Row)}
+              <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                {ModuleCodeOf(Row)} · {LevelCodeOf(Row)}
               </p>
             </div>
             <div>

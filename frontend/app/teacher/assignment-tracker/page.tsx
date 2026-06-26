@@ -129,13 +129,19 @@ function SortableHeader<Key extends string>({
   SortKey: Key;
   SortState: SortState<Key>;
   OnSort: (Key: Key) => void;
-  Align?: "left" | "right";
+  Align?: "left" | "center" | "right";
 }) {
   return (
     <button
       type="button"
       onClick={() => OnSort(SortKey)}
-      className={`inline-flex items-center gap-1 font-black uppercase tracking-[0.14em] transition hover:text-[#7a1f58] dark:hover:text-rose-100 ${Align === "right" ? "justify-end text-right" : "justify-start text-left"}`}
+      className={`inline-flex items-center gap-1 font-black uppercase tracking-[0.14em] transition hover:text-[#7a1f58] dark:hover:text-rose-100 ${
+        Align === "center"
+          ? "justify-center text-center"
+          : Align === "right"
+            ? "justify-end text-right"
+            : "justify-start text-left"
+      }`}
     >
       <span>{Label}</span>
       <SortIndicator SortState={SortState} SortKey={SortKey} />
@@ -1331,14 +1337,11 @@ function ActionQueueTab({
     );
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-teacher-practice-record-table-header grid grid-cols-[1.1fr_.55fr_.55fr_.5fr_.5fr_.55fr_.7fr_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="math-teacher-practice-record-table-header grid grid-cols-[1.5fr_1.5fr_.8fr_.8fr_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Module" SortKey="module" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Level" SortKey="level" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Lesson" SortKey="lesson" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="DPS" SortKey="dps" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Status" SortKey="status" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} Align="center" />
+        <SortableHeader Label="Status" SortKey="status" SortState={SortStateValue} OnSort={HandleSort} Align="center" />
         <div className="text-right">Review</div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1349,7 +1352,7 @@ function ActionQueueTab({
           return (
             <div
               key={`${Row.attemptId || Row.assignmentId || Row.id || Index}`}
-              className="grid grid-cols-[1.1fr_.55fr_.55fr_.5fr_.5fr_.55fr_.7fr_120px] items-center gap-3 px-5 py-4 transition hover:bg-rose-50/40 dark:hover:bg-slate-900/70"
+              className="grid grid-cols-[1.5fr_1.5fr_.8fr_.8fr_120px] items-center gap-3 px-5 py-4 transition hover:bg-rose-50/40 dark:hover:bg-slate-900/70"
             >
               <div className="min-w-0">
                 <button
@@ -1363,19 +1366,15 @@ function ActionQueueTab({
                   {StudentCode}
                 </p>
               </div>
-              <div className="text-sm font-bold text-slate-600">
-                {moduleCodeOf(Row)}
+              <div className="min-w-0">
+                <p className="font-black text-slate-950 dark:text-white">
+                  {CompactDpsLabel(Row)}
+                </p>
+                <p className="text-xs font-semibold text-slate-500">
+                  {moduleCodeOf(Row)} · {levelCodeOf(Row)}
+                </p>
               </div>
-              <div className="text-sm font-bold text-slate-600">
-                {levelCodeOf(Row)}
-              </div>
-              <div>
-                <Chip tone="slate">{CompactLessonLabel(Row)}</Chip>
-              </div>
-              <div>
-                <Chip tone="slate">{CompactDpsLabel(Row)}</Chip>
-              </div>
-              <div>
+              <div className="flex items-center justify-center">
                 <Chip
                   tone={
                     RowCompleted && accuracy(Row) >= 70
@@ -1388,7 +1387,7 @@ function ActionQueueTab({
                   {RowCompleted ? `${accuracy(Row)}%` : "—"}
                 </Chip>
               </div>
-              <div>
+              <div className="flex items-center justify-center">
                 <Chip
                   tone={
                     StatusText === "Cleared"

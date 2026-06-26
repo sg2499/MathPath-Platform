@@ -3094,13 +3094,14 @@ export function CompactRecordTable({
     SetSortDirection("asc");
   };
 
-  const CompactHeaderTextClass = "inline-flex min-w-0 items-center gap-1.5 text-left text-xs font-black uppercase leading-[1.16] tracking-[0.13em] text-slate-500 dark:text-slate-400";
+  const CompactHeaderTextClass = "inline-flex min-w-0 items-center gap-1.5 text-xs font-black uppercase leading-[1.16] tracking-[0.13em] text-slate-500 dark:text-slate-400";
   const CompactHeaderLabelClass = "min-w-0 font-black";
 
-  const SortHeader = ({ label, sortKey }: { label: string; sortKey: CompactRecordSortKey }) => {
+  const SortHeader = ({ label, sortKey, align = "left" }: { label: string; sortKey: CompactRecordSortKey; align?: "left" | "center" | "right" }) => {
     const IsActive = SortKey === sortKey;
     const Icon = !IsActive ? ArrowUpDown : SortDirection === "asc" ? ArrowUp : ArrowDown;
     const NextDirection = !IsActive ? "Ascending" : SortDirection === "asc" ? "Descending" : "Default";
+    const justifyClass = align === "center" ? "justify-center text-center" : align === "right" ? "justify-end text-right" : "justify-start text-left";
 
     return (
       <button
@@ -3108,7 +3109,7 @@ export function CompactRecordTable({
         onClick={() => ToggleSort(sortKey)}
         title={`Sort ${label} ${NextDirection}`}
         aria-label={`Sort ${label} ${NextDirection}`}
-        className={`${CompactHeaderTextClass} transition hover:text-slate-800 focus-visible:outline-none focus-visible:text-slate-800 dark:hover:text-white dark:focus-visible:text-white`}
+        className={`${CompactHeaderTextClass} ${justifyClass} transition hover:text-slate-800 focus-visible:outline-none focus-visible:text-slate-800 dark:hover:text-white dark:focus-visible:text-white`}
       >
         <span className={CompactHeaderLabelClass}>{label}</span>
         <Icon className={IsActive ? "h-3 w-3 shrink-0 opacity-100" : "h-3 w-3 shrink-0 opacity-45"} />
@@ -3129,14 +3130,16 @@ export function CompactRecordTable({
       >
         {hideLessonColumn ? null : <SortHeader label="Lesson" sortKey="lesson" />}
         <SortHeader label="DPS" sortKey="dps" />
-        {showAttemptColumn ? <SortHeader label="Attempt" sortKey="attempt" /> : null}
-        <SortHeader label="Status" sortKey="status" />
-        <SortHeader label="Score" sortKey="score" />
-        <SortHeader label="Accuracy" sortKey="accuracy" />
-        <SortHeader label="Benchmark" sortKey="benchmark" />
+        {showAttemptColumn ? <SortHeader label="Attempt" sortKey="attempt" align="center" /> : null}
+        <SortHeader label="Status" sortKey="status" align="center" />
+        <SortHeader label="Score" sortKey="score" align="center" />
+        <SortHeader label="Accuracy" sortKey="accuracy" align="center" />
+        <SortHeader label="Benchmark" sortKey="benchmark" align="center" />
         <SortHeader label="Time Taken" sortKey="timeTaken" />
         <SortHeader label="Completion Date" sortKey="completion" />
-        <StaticHeader label="Review" />
+        <div className={`${CompactHeaderTextClass} justify-center text-center`}>
+          <span className={CompactHeaderLabelClass}>Review</span>
+        </div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {DisplayRows.map((row, index) => {
@@ -3165,19 +3168,19 @@ export function CompactRecordTable({
                 </p>
               </div>
               {showAttemptColumn ? (
-                <div>
+                <div className="flex justify-center">
                   <Chip tone={attemptTone(row)}>{attemptLabel(row)}</Chip>
                 </div>
               ) : null}
-              <div>
+              <div className="flex justify-center">
                 <SemanticChipComponent tone={Issue.tone}>{Issue.label}</SemanticChipComponent>
               </div>
-              <div>
+              <div className="flex justify-center">
                 <SemanticChipComponent tone={scoreText(row) === "—" ? "slate" : scoreTone(row)}>
                   {scoreText(row)}
                 </SemanticChipComponent>
               </div>
-              <div>
+              <div className="flex justify-center">
                 {isCompleted(row) ? (
                   <SemanticChipComponent tone={accuracyTone(row)}>
                     {accuracy(row)}%
@@ -3186,7 +3189,7 @@ export function CompactRecordTable({
                   <SemanticChipComponent tone="slate">—</SemanticChipComponent>
                 )}
               </div>
-              <div>
+              <div className="flex justify-center">
                 {(() => {
                   const Benchmark = benchmarkLabel(row);
                   return <SemanticChipComponent tone={Benchmark.tone}>{Benchmark.label}</SemanticChipComponent>;
@@ -3198,7 +3201,7 @@ export function CompactRecordTable({
               <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                 {completedText(row)}
               </div>
-              <div className="flex justify-start">
+              <div className="flex justify-center">
                 {onView ? (
                   (() => {
                     const Issue = issueLabel(row);

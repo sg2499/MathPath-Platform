@@ -238,10 +238,13 @@ export default function StudentAssessmentResultPage() {
 
 function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="math-student-metric-card">
-      <div className="math-student-icon-chip">{icon}</div>
-      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">{label}</p>
-      <p className="mt-1 text-lg font-black leading-tight text-slate-950 dark:text-white">{value}</p>
+    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">{icon}</div>
+      <p className="relative z-10 mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">{label}</p>
+      <p className="relative z-10 mt-1 origin-left text-lg font-black leading-tight text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">{value}</p>
     </div>
   );
 }

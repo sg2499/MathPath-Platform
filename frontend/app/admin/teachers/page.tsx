@@ -468,7 +468,7 @@ export default function AdminTeachersPage() {
                   <th><SortableHeader active={sortKey === "contact"} direction={sortDirection} onClick={() => toggleSort("contact")}>Contact</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "specialization"} direction={sortDirection} onClick={() => toggleSort("specialization")}>Specialization</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "students"} direction={sortDirection} onClick={() => toggleSort("students")}>Students</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => toggleSort("status")}>Status</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => toggleSort("status")} align="center">Status</SortableHeader></th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -501,7 +501,7 @@ export default function AdminTeachersPage() {
                         <span className="font-black">{teacher.studentCount}</span>
                         <span className="ml-2 text-xs text-slate-500">({teacher.activeStudentCount} active)</span>
                       </td>
-                      <td>
+                      <td className="text-center">
                         <span className={`math-badge math-admin-directory-status-chip ${teacher.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
                           {teacher.isActive ? "ACTIVE" : "INACTIVE"}
                         </span>
