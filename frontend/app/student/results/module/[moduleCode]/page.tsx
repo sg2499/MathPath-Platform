@@ -87,9 +87,6 @@ function StudentModuleProgressWorkspacePageContent() {
     [ModuleRows, SelectedLevel]
   );
   const Title = ModuleRows[0] ? moduleTitle(ModuleRows[0]) : ModuleCode;
-  const Subtitle = SelectedLevel
-    ? `Review completed work, pending practice, scores, lesson progress, and result history for this level.`
-    : `Review completed work, pending practice, scores, lesson progress, and result history for this module.`;
 
   if (!Ready || Query.isLoading) return <LoadingState label="Loading progress details..." />;
   if (Query.isError) return <ErrorState message={apiErrorMessage(Query.error)} />;
@@ -99,7 +96,6 @@ function StudentModuleProgressWorkspacePageContent() {
       {VisibleRows.length ? (
         <RecordWorkspace
           title={SelectedLevel ? `${Title} · ${SelectedLevel}` : Title}
-          subtitle={Subtitle}
           backLabel="Back to Progress"
           onBack={() => Router.push("/student/results")}
           rows={VisibleRows}

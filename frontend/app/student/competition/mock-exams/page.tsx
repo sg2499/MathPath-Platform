@@ -437,11 +437,20 @@ function StudentCompetitionMockExamsContent() {
 
 function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <article className="math-card p-5">
-      <div className="inline-flex rounded-2xl bg-[var(--mp-role-softer)] p-2 text-[var(--mp-role-readable)]">{icon}</div>
-      <p className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--mp-role-readable)]">{label}</p>
-      <p className="mt-2 text-3xl font-black text-slate-950 dark:text-white">{value}</p>
-    </article>
+    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
+        {icon}
+      </div>
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
+        {label}
+      </p>
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+        {value}
+      </p>
+    </div>
   );
 }
 

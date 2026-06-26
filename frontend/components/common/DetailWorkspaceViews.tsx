@@ -802,12 +802,32 @@ export function Metric({
   value,
   icon,
   className = "",
+  role,
 }: {
   label: string;
   value: string | number;
   icon?: ReactNode;
   className?: string;
+  role?: string;
 }) {
+  if (role === "student") {
+    return (
+      <div className={`math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${className}`} style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
+        {/* Gamified hover shine */}
+        <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+        
+        <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
+          {icon}
+        </div>
+        <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
+          {label}
+        </p>
+        <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+          {value}
+        </p>
+      </div>
+    );
+  }
   return (
     <div className={`math-teacher-light-metric-card rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10 ${className}`}>
       <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
@@ -1164,7 +1184,7 @@ export function RecordWorkspace({
   focusTarget,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   backLabel?: string;
   onBack: () => void;
   rows: AnyRow[];
@@ -1428,33 +1448,39 @@ export function RecordWorkspace({
             label={role === "student" ? "Total DPS" : "Assigned DPS"}
             value={role === "admin" ? stats.assigned : stats.total}
             icon={<Layers3 size={15} />}
+            role={role}
           />
           {role === "student" ? (
             <Metric
               label="Assigned DPS"
               value={stats.assigned}
               icon={<ClipboardList size={15} />}
+              role={role}
             />
           ) : null}
           <Metric
             label="Cleared DPS"
             value={stats.completed}
             icon={<CheckCircle2 size={15} />}
+            role={role}
           />
           <Metric
             label="Pending DPS"
             value={stats.pending}
             icon={<Clock3 size={15} />}
+            role={role}
           />
           <Metric
             label="Needs Re-Attempt"
             value={stats.below}
             icon={<AlertTriangle size={15} />}
+            role={role}
           />
           <Metric
             label="Average Accuracy"
             value={`${stats.avg}%`}
             icon={<TrendingUp size={15} />}
+            role={role}
           />
         </div>
       </div>

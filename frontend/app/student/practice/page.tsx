@@ -279,7 +279,7 @@ function StudentPracticePageContent() {
           <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">
             Assigned Practice
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+          <p className="math-subtitle">
             Open active DPS work, continue timed attempts, and complete the
             practice assigned by your teacher.
           </p>
@@ -393,14 +393,17 @@ function MetricCard({
   Value: string | number;
 }) {
   return (
-    <div className="math-student-metric-card">
-      <div className="math-student-icon-chip">
+    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
         {Icon}
       </div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 dark:text-slate-100">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
         {Label}
       </p>
-      <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
         {Value}
       </p>
     </div>
