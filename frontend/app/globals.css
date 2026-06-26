@@ -182,7 +182,7 @@ html.dark {
   .math-textarea::placeholder { color: var(--muted); }
   .math-label { @apply text-sm font-black; color: var(--ink-soft); }
   .math-helper { @apply mt-1.5 text-xs; color: var(--muted); }
-  .math-badge { @apply inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-black tracking-wide; }
+  .math-badge { @apply inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full border px-3 py-1 text-xs font-black tracking-wide; }
   .math-kicker { @apply text-sm font-black uppercase tracking-[0.24em]; color: #06b6d4; }
   .math-title { @apply mt-3 text-4xl font-black tracking-tight sm:text-[2.55rem]; color: var(--ink); }
   .math-subtitle { @apply mt-3 max-w-none text-sm font-medium leading-6 sm:text-base; color: var(--ink-soft); }
