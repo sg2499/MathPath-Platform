@@ -282,7 +282,7 @@ function StudentCompetitionMockExamsContent() {
         <div className="math-card p-6">
           <p className="math-kicker">Competition</p>
           <h1 className="math-title">Mock Exams</h1>
-          <p className="mt-3 max-w-5xl text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
+          <p className="math-subtitle">
             Attempt Admin-assigned mock exams for your current level. Mock preparation is independent from regular Practice, Assessment Readiness, and Promotion.
           </p>
         </div>
