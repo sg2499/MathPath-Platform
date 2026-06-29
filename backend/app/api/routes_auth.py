@@ -177,6 +177,8 @@ def change_password(
     if not verify_password(CurrentPassword, user.password_hash):
         api_error(400, "INVALID_PASSWORD", "Current password is incorrect.")
 
+    from sqlalchemy.sql import func
     user.password_hash = hash_password(NewPassword)
+    user.password_changed_at = func.now()
     db.commit()
     return {"updated": True, "message": "Password updated successfully."}
