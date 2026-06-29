@@ -494,7 +494,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
       <section className="mt-5 rounded-[26px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="math-kicker text-[10px]">Sheet Breakdown</p>
+            <div className="math-block-header mb-2"><ListChecks size={14} /> Sheet Breakdown</div>
             <h3 className="text-lg font-black text-slate-950 dark:text-white">
               DPS Clearance Tracker
             </h3>
