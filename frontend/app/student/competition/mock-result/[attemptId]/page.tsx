@@ -380,7 +380,7 @@ export default function StudentCompetitionMockResultPage() {
           </button>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="math-kicker">Mock Result</p>
+              <div className="math-block-header mb-2"><Trophy size={14} /> Mock Result</div>
               <h1 className="math-title">{mock.title || "Mock Result"}</h1>
               <div className="mt-3 flex flex-wrap gap-2">
                 {mock.mockCode ? <Chip label={mock.mockCode} /> : null}

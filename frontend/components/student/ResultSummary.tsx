@@ -1,6 +1,6 @@
 import type { AttemptResult } from "@/types/result";
 import { formatSeconds, resultMessage } from "@/lib/utils";
-import { Award, BookOpenCheck, CheckCircle2, Clock3, Target, XCircle, AlertTriangle } from "lucide-react";
+import { Award, BookOpenCheck, CheckCircle2, Clock3, Target, XCircle, AlertTriangle, ClipboardCheck } from "lucide-react";
 import { StudentPerformanceFeedback } from "@/components/common/PerformanceFeedback";
 import type { ReactNode } from "react";
 
@@ -74,9 +74,9 @@ export function ResultSummary({ result }: { result: AttemptResult }) {
     <div className="math-card overflow-hidden p-6 sm:p-7">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="math-kicker">Result Overview</p>
+          <div className="math-block-header mb-2"><ClipboardCheck size={14} /> Result Overview</div>
           <h1 className="mt-3 text-4xl font-black text-slate-950 dark:text-white">Score: {s.score} / {s.maxScore}</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
+          <p className="math-subtitle">
             {result.message || resultMessage(s.accuracyPercentage)}
           </p>
         </div>
