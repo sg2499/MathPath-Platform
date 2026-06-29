@@ -17,7 +17,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  Layers3,
+  Route
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
@@ -148,8 +150,8 @@ export default function StudentCompetitionProgressPage() {
           {/* Subtle Gamified Shimmer across the hero */}
           <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-60" style={{ animation: 'mathShimmer 6s infinite linear' }} />
           
-          <div className="inline-flex items-center gap-2 rounded-full border border-orange-200/80 bg-orange-50/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-orange-600 shadow-sm backdrop-blur-md dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400">
-            <Sparkles size={13} strokeWidth={2.5} />
+          <div className="math-block-header">
+            <TrendingUp size={14} />
             <span>Progress Insights</span>
           </div>
           <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">
@@ -191,7 +193,7 @@ export default function StudentCompetitionProgressPage() {
           <div className="math-card overflow-hidden p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="math-kicker">Mock Insights</p>
+                <div className="math-block-header mb-2"><BarChart3 size={14} /> Mock Insights</div>
                 <h2 className="text-xl font-black text-slate-950 dark:text-white">Competition Mock Performance</h2>
               </div>
             </div>
@@ -208,7 +210,7 @@ export default function StudentCompetitionProgressPage() {
                       onClick={() => setExpandedModules((prev) => ({ ...prev, [moduleGroup.moduleId]: !moduleOpen }))}
                     >
                       <div className="text-left">
-                        <p className="math-kicker">Module</p>
+                        <div className="math-block-header mb-2"><Layers3 size={14} /> Module Insights</div>
                         <h3 className="text-xl font-black text-slate-950 dark:text-white">
                           {moduleGroup.moduleCode}
                         </h3>
@@ -234,7 +236,7 @@ export default function StudentCompetitionProgressPage() {
                                 onClick={() => setExpandedLevels((prev) => ({ ...prev, [levelKey]: !levelOpen }))}
                               >
                                 <div className="text-left">
-                                  <p className="math-kicker">Level</p>
+                                  <div className="math-block-header mb-2"><Route size={14} /> Level Insights</div>
                                   <h4 className="text-base font-black text-slate-950 dark:text-white">
                                     {insight.levelCode}
                                   </h4>

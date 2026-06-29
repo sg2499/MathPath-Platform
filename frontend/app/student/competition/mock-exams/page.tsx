@@ -27,6 +27,8 @@ import {
   Search,
   Target,
   Trophy,
+  Swords,
+  Route,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
@@ -280,7 +282,7 @@ function StudentCompetitionMockExamsContent() {
     <AppShell title="Competition Mock Exams">
       <section className="space-y-6">
         <div className="math-card p-6">
-          <p className="math-kicker">Competition</p>
+          <div className="math-block-header mb-2"><Swords size={14} /> Mock Exams</div>
           <h1 className="math-title">Mock Exams</h1>
           <p className="math-subtitle">
             Attempt Admin-assigned mock exams for your current level. Mock preparation is independent from regular Practice, Assessment Readiness, and Promotion.
@@ -298,7 +300,7 @@ function StudentCompetitionMockExamsContent() {
         <div className="math-card overflow-hidden p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="math-kicker">Assigned Mocks</p>
+              <div className="math-block-header mb-2"><ClipboardPlus size={14} /> Assigned Mocks</div>
               <h2 className="text-xl font-black text-slate-950 dark:text-white">Competition Mock Library</h2>
             </div>
             <div className="grid w-full gap-3 lg:w-auto lg:grid-cols-[minmax(220px,1fr)_160px_160px_160px]">
@@ -364,7 +366,7 @@ function StudentCompetitionMockExamsContent() {
                       title={moduleOpen ? "Collapse module" : "Expand module"}
                     >
                       <div>
-                        <p className="math-kicker">Module</p>
+                        <div className="math-block-header mb-2"><Layers3 size={14} /> Mock Module</div>
                         <h3 className="text-xl font-black text-slate-950 dark:text-white">
                           {moduleGroup.moduleCode}
                         </h3>
@@ -392,7 +394,7 @@ function StudentCompetitionMockExamsContent() {
                                 title={levelOpen ? "Collapse level" : "Expand level"}
                               >
                                 <div>
-                                  <p className="math-kicker">Level</p>
+                                  <div className="math-block-header mb-2"><Route size={14} /> Mock Level</div>
                                   <h4 className="text-base font-black text-slate-950 dark:text-white">
                                     {levelGroup.levelCode}
                                   </h4>

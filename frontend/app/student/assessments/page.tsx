@@ -11,7 +11,7 @@ import {
   getFirstMathPathTimestamp,
 } from "@/lib/date";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
-import { AlertTriangle, BarChart3, ChevronDown, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Sparkles, Trophy } from "lucide-react";
+import { AlertTriangle, BarChart3, ChevronDown, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Sparkles, Trophy, Radio, Milestone } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -587,7 +587,10 @@ function StudentAssessmentsPageContent() {
     <AppShell>
       <section className="math-hero">
         <div className="relative z-10">
-          <p className="math-kicker">Student Assessments</p>
+          <div className="math-block-header mb-2">
+            <Radio size={14} />
+            Live Assessments
+          </div>
           <h1 className="math-title">Assessments</h1>
           <p className="math-subtitle">Open assigned level assessments and review your assessment status.</p>
 
@@ -638,7 +641,7 @@ function StudentAssessmentsPageContent() {
               <section key={moduleGroup.key} className="math-card p-5 sm:p-6">
                 <button type="button" className="mb-4 flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between" onClick={() => setOpenModules((Current) => ({ ...Current, [moduleGroup.key]: !(Current[moduleGroup.key] ?? false) }))} aria-expanded={isModuleOpen} title={isModuleOpen ? "Collapse assessment module" : "Expand assessment module"}>
                   <div>
-                    <p className="math-kicker">Assessment Module</p>
+                    <div className="math-block-header mb-2"><Radio size={14} /> Assessment Module</div>
                     <h2 className="text-2xl font-black text-slate-950 dark:text-white">{moduleGroup.label}</h2>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -656,7 +659,7 @@ function StudentAssessmentsPageContent() {
                         <div key={levelGroup.key} className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                           <button type="button" className="mb-4 flex w-full flex-col gap-2 text-left sm:flex-row sm:items-center sm:justify-between" onClick={() => setOpenLevels((Current) => ({ ...Current, [LevelKey]: !(Current[LevelKey] ?? false) }))} aria-expanded={isLevelOpen} title={isLevelOpen ? "Collapse level assessment" : "Expand level assessment"}>
                             <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-600">Level Assessment</p>
+                              <div className="math-block-header mb-2"><Radio size={14} /> Level Assessment</div>
                               <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">{levelGroup.label}</h3>
                             </div>
                             <div className="flex items-center gap-2">
@@ -708,7 +711,7 @@ function StudentProgressionBanner({ State }: { State: ReturnType<typeof progress
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">Next Level Journey</p>
+              <div className="math-block-header"><Milestone size={14} /> Next Level Journey</div>
               <span className={`rounded-full border px-3.5 py-1.5 text-[11px] font-black shadow-sm ${ToneClass}`}>{State.label}</span>
             </div>
             <h2 className="mt-2.5 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[1.65rem]">{State.title}</h2>
