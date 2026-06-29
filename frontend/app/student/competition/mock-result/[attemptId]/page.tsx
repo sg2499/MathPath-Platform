@@ -388,7 +388,7 @@ export default function StudentCompetitionMockResultPage() {
                   label={`${mock.moduleCode || "Module"} · ${mock.levelCode || "Level"}`}
                 />
               </div>
-              <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300">
+              <p className="math-subtitle">
                 Submitted {formatDate(result.completedAt || result.submittedAt)}
                 . Review your mock answers, correct solutions, and section
                 performance below.
