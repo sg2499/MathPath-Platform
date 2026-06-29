@@ -1,7 +1,7 @@
 "use client";
 
 import type { StudentQuestion } from "@/types/question";
-import { CheckCircle2, Save } from "lucide-react";
+import { CheckCircle2, Save, Layers3 } from "lucide-react";
 import { OptionButton } from "./OptionButton";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 
@@ -33,7 +33,7 @@ export function QuestionCard({
     <div className={`math-card overflow-hidden ${compact ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
       <div className={`flex flex-col gap-3 border-b border-slate-100 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between ${compact ? "pb-2" : "pb-3"}`}>
         <div>
-          <p className="math-kicker">{SectionLabel}</p>
+          <div className="math-block-header mb-2"><Layers3 size={14} /> {SectionLabel}</div>
           <h2 className={`${compact ? "mt-1 text-lg" : "mt-1.5 text-xl"} font-black text-slate-950 dark:text-white`}>
             Question {question.questionNumber}
           </h2>

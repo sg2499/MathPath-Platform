@@ -149,7 +149,7 @@ export default function StudentAssessmentAttemptPage() {
       <div className="mt-4 math-card overflow-hidden p-4 sm:p-5">
         <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="math-kicker">{SectionLabel}</p>
+            <div className="math-block-header mb-2"><Layers3 size={14} /> {SectionLabel}</div>
             <h2 className="mt-1.5 text-xl font-black text-slate-950 dark:text-white">Question {CurrentQuestion.questionNumber}</h2>
           </div>
           <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${SavingQuestionId === CurrentQuestion.questionId ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
