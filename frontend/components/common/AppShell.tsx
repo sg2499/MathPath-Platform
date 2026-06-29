@@ -728,10 +728,10 @@ export function AppShell({
               >
                 <LogoMark compact />
                 <div className="min-w-0">
-                  <p className="truncate text-xl font-black tracking-tight text-slate-950 dark:text-white">
+                  <p className="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white">
                     MathPath
                   </p>
-                  <p className="hidden truncate text-xs font-semibold text-slate-500 dark:text-slate-300 sm:block">
+                  <p className="hidden truncate text-xs font-semibold text-slate-500 dark:text-slate-300 sm:block mt-0.5">
                     {isDetailWorkspace
                       ? "Focused view"
                       : "Navigation hidden for focus"}
@@ -868,20 +868,10 @@ export function AppShell({
                 aria-label="Open MathPath Website"
               >
                 <LogoMark />
-                <div className="min-w-0">
-                  <p className="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                <div className="min-w-0 flex items-center">
+                  <p className="truncate text-3xl font-black tracking-tight text-slate-950 dark:text-white">
                     MathPath
                   </p>
-                  <div className="mt-0.5 flex items-start gap-2 text-xs leading-5 text-slate-500 dark:text-slate-300">
-                    <Sparkles
-                      size={14}
-                      className="math-role-text mt-0.5 shrink-0"
-                    />
-                    <span className="hidden 2xl:block">{PLATFORM_TAGLINE}</span>
-                    <span className="hidden sm:block 2xl:hidden">
-                      Visual Abacus Mastery
-                    </span>
-                  </div>
                 </div>
               </a>
 
@@ -1508,13 +1498,13 @@ function IconButton({
 
 function LogoMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`math-logo-shell ${compact ? "h-11 w-11" : "h-12 w-12"}`}>
+    <div className={`math-logo-shell ${compact ? "h-12 w-12" : "h-[56px] w-[56px]"}`}>
       <Image
         src="/mathpath-logo.png"
         alt="MathPath logo"
-        width={compact ? 54 : 58}
-        height={compact ? 54 : 58}
-        className={`${compact ? "h-9" : "h-10"} w-auto object-contain`}
+        width={compact ? 58 : 64}
+        height={compact ? 58 : 64}
+        className={`${compact ? "h-10" : "h-12"} w-auto object-contain`}
         priority
       />
     </div>
