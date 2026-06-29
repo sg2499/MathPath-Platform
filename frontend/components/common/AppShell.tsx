@@ -727,16 +727,13 @@ export function AppShell({
                 aria-label="Open MathPath Website"
               >
                 <LogoMark compact />
-                <div className="min-w-0">
-                  <p className="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white">
-                    MathPath
-                  </p>
-                  <p className="hidden truncate text-xs font-semibold text-slate-500 dark:text-slate-300 sm:block mt-0.5">
-                    {isDetailWorkspace
-                      ? "Focused view"
-                      : "Navigation hidden for focus"}
-                  </p>
-                </div>
+                {isDetailWorkspace && (
+                  <div className="min-w-0 ml-1">
+                    <p className="hidden truncate text-xs font-semibold text-slate-500 dark:text-slate-300 sm:block">
+                      Focused view
+                    </p>
+                  </div>
+                )}
               </a>
 
               <button
@@ -860,7 +857,7 @@ export function AppShell({
           ) : (
             <div className="flex min-w-0 items-center gap-3">
               <a
-                className="math-brand-button group flex w-[230px] shrink-0 items-center gap-3 text-left 2xl:w-[285px]"
+                className="math-brand-button group flex w-[230px] shrink-0 items-center text-left 2xl:w-[285px]"
                 href={MATHPATH_WEBSITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -868,11 +865,6 @@ export function AppShell({
                 aria-label="Open MathPath Website"
               >
                 <LogoMark />
-                <div className="min-w-0 flex items-center">
-                  <p className="truncate text-3xl font-black tracking-tight text-slate-950 dark:text-white">
-                    MathPath
-                  </p>
-                </div>
               </a>
 
               <nav
@@ -1498,12 +1490,12 @@ function IconButton({
 
 function LogoMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`math-logo-shell ${compact ? "h-12 w-12" : "h-[56px] w-[56px]"}`}>
+    <div className={`flex items-center ${compact ? "h-12" : "h-[56px]"}`}>
       <Image
         src="/mathpath-logo.png"
         alt="MathPath logo"
-        width={compact ? 58 : 64}
-        height={compact ? 58 : 64}
+        width={compact ? 200 : 250}
+        height={compact ? 48 : 56}
         className={`${compact ? "h-10" : "h-12"} w-auto object-contain`}
         priority
       />
