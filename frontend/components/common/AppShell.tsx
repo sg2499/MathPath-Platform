@@ -719,7 +719,7 @@ export function AppShell({
           {effectiveNavCollapsed ? (
             <div className="flex min-w-0 items-center justify-between gap-3">
               <a
-                className="math-brand-button group flex min-w-0 items-center gap-3 text-left"
+                className="math-brand-button group flex min-w-0 w-fit px-1 items-center gap-3 text-left"
                 href={MATHPATH_WEBSITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -857,7 +857,7 @@ export function AppShell({
           ) : (
             <div className="flex min-w-0 items-center gap-3">
               <a
-                className="math-brand-button group flex w-[230px] shrink-0 items-center text-left 2xl:w-[285px]"
+                className="math-brand-button group flex w-fit px-1 shrink-0 items-center text-left"
                 href={MATHPATH_WEBSITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -1490,13 +1490,13 @@ function IconButton({
 
 function LogoMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`flex items-center ${compact ? "h-12" : "h-[56px]"}`}>
+    <div className={`flex items-center ${compact ? "h-[56px]" : "h-[64px]"}`}>
       <Image
         src="/mathpath-logo.png"
         alt="MathPath logo"
-        width={compact ? 200 : 250}
-        height={compact ? 48 : 56}
-        className={`${compact ? "h-10" : "h-12"} w-auto object-contain`}
+        width={compact ? 220 : 280}
+        height={compact ? 56 : 64}
+        className={`${compact ? "h-12" : "h-[56px]"} w-auto object-contain`}
         priority
       />
     </div>
