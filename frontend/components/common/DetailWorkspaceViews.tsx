@@ -1452,7 +1452,11 @@ export function RecordWorkspace({
     <div className="w-full space-y-6">
       <div className="math-hero">
         <div>
-          <p className="math-kicker">{heroKicker}</p>
+          {role === "student" ? (
+            <div className="math-block-header mb-2"><TrendingUp size={14} /> {heroKicker}</div>
+          ) : (
+            <p className="math-kicker">{heroKicker}</p>
+          )}
           <h1 className="math-title">{title}</h1>
           <p className="math-subtitle">{overviewDescription}</p>
           {subtitle ? (
