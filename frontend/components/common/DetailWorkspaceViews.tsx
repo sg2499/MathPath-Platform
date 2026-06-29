@@ -3223,10 +3223,10 @@ export function CompactRecordTable({
                   return <SemanticChipComponent tone={Benchmark.tone}>{Benchmark.label}</SemanticChipComponent>;
                 })()}
               </div>
-              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              <div className={role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}>
                 {timeTakenText(row)}
               </div>
-              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              <div className={role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}>
                 {completedText(row)}
               </div>
               <div className="flex justify-center">
