@@ -7,7 +7,7 @@ import { getStudentCompetitionMockInstructions, startCompetitionMockAttempt } fr
 import { apiErrorMessage } from "@/lib/api";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Brain, ClipboardList, Clock3, PlayCircle, ShieldCheck } from "lucide-react";
+import { Brain, ClipboardList, Clock3, PlayCircle, ShieldCheck, Trophy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
@@ -77,11 +77,11 @@ function MockInstructionPageContent() {
           <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-sky-50 to-cyan-100 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10">
-              <p className="math-kicker">Mock Exam · {Query.data.mockCode || "General"}</p>
+              <div className="math-block-header mb-2"><Trophy size={14} /> Mock Exam · {Query.data.mockCode || "General"}</div>
               <h1 className="mt-2 max-w-5xl text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
                 {Query.data.title}
               </h1>
-              <p className="mt-2 max-w-3xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+              <p className="math-subtitle !mt-2 max-w-3xl">
                 Review the mock details, read the instructions, and begin when ready.
               </p>
             </div>
@@ -89,14 +89,9 @@ function MockInstructionPageContent() {
 
           <div className="grid min-h-0 gap-4 xl:grid-cols-[1fr_420px]">
             <div className="rounded-[32px] border border-white/70 bg-white/92 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
-                  <Brain size={20} />
-                </div>
-                <div>
-                  <p className="math-kicker">Exam Focus</p>
-                  <h2 className="text-2xl font-black text-slate-950 dark:text-white">What You Will Encounter</h2>
-                </div>
+              <div>
+                <div className="math-block-header mb-2"><Brain size={14} /> Exam Focus</div>
+                <h2 className="text-2xl font-black text-slate-950 dark:text-white">What You Will Encounter</h2>
               </div>
 
               <div className="mt-4 rounded-[22px] bg-slate-50/90 p-4 text-sm font-semibold leading-6 text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">

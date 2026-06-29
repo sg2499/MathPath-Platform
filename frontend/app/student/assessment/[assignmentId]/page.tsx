@@ -7,7 +7,7 @@ import { apiErrorMessage } from "@/lib/api";
 import { getStudentAssessmentDetail, startAssessmentAttempt } from "@/lib/api/student";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Award, BookOpenCheck, ClipboardList, Clock3, PlayCircle, ShieldCheck, Target } from "lucide-react";
+import { Award, BookOpenCheck, ClipboardList, Clock3, PlayCircle, ShieldCheck, Target, BookOpen } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -41,11 +41,11 @@ export default function StudentAssessmentStartPage() {
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="math-kicker">{Query.data.moduleCode || "Module"} · {Query.data.levelCode || "Level"}</p>
+                <div className="math-block-header mb-2"><BookOpen size={14} /> {Query.data.moduleCode || "Module"} · {Query.data.levelCode || "Level"}</div>
                 <h1 className="mt-2 max-w-5xl text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
                   {Query.data.title}
                 </h1>
-                <p className="mt-2 max-w-3xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                <p className="math-subtitle !mt-2 max-w-3xl">
                   Review the assessment details and begin when ready.
                 </p>
               </div>
@@ -58,14 +58,9 @@ export default function StudentAssessmentStartPage() {
 
           <div className="grid min-h-0 gap-4 xl:grid-cols-[1fr_420px]">
             <div className="rounded-[32px] border border-white/70 bg-white/92 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
-                  <Target size={20} />
-                </div>
-                <div>
-                  <p className="math-kicker">Assessment Focus</p>
-                  <h2 className="text-2xl font-black text-slate-950 dark:text-white">Level Assessment</h2>
-                </div>
+              <div>
+                <div className="math-block-header mb-2"><Target size={14} /> Assessment Focus</div>
+                <h2 className="text-2xl font-black text-slate-950 dark:text-white">Level Assessment</h2>
               </div>
 
               <div className="mt-4 rounded-[22px] bg-slate-50/90 p-4 text-sm font-semibold leading-6 text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
