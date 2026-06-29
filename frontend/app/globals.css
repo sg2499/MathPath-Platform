@@ -43,9 +43,15 @@ html.dark {
 
 @layer base {
   * { @apply border-transparent; }
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     min-height: 100vh;
+    overflow-x: hidden;
     color: var(--ink);
     background:
       radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.16), transparent 28%),
@@ -105,10 +111,36 @@ html.dark {
     border-color: rgba(148, 163, 184, 0.16) !important;
     --tw-ring-color: rgba(148, 163, 184, 0.16) !important;
   }
+
+  img, svg, video, canvas, audio, iframe, embed, object {
+    @apply max-w-full h-auto;
+  }
 }
 
 @layer components {
-  .math-page { @apply mx-auto w-full max-w-[1680px] px-4 pb-10 pt-6 sm:px-6 lg:px-8 2xl:px-10; }
+  .math-page {
+    @apply mx-auto w-full max-w-[1680px] px-4 pb-10 pt-6 sm:px-6 lg:px-8 2xl:px-10;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  @media (min-width: 640px) {
+    .math-page {
+      padding-left: max(1.5rem, env(safe-area-inset-left));
+      padding-right: max(1.5rem, env(safe-area-inset-right));
+    }
+  }
+  @media (min-width: 1024px) {
+    .math-page {
+      padding-left: max(2rem, env(safe-area-inset-left));
+      padding-right: max(2rem, env(safe-area-inset-right));
+    }
+  }
+  @media (min-width: 1536px) {
+    .math-page {
+      padding-left: max(2.5rem, env(safe-area-inset-left));
+      padding-right: max(2.5rem, env(safe-area-inset-right));
+    }
+  }
 
   .premium-backdrop {
     position: fixed;
@@ -248,6 +280,7 @@ html.dark {
 
   .math-table {
     @apply overflow-x-auto rounded-[28px] border backdrop-blur-2xl transition duration-300;
+    -webkit-overflow-scrolling: touch;
     color: var(--ink);
     background: var(--surface);
     border-color: var(--line);
