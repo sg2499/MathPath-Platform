@@ -15,6 +15,9 @@ import {
   Sparkles,
   Target,
   Trophy,
+  Laptop,
+  Zap,
+  Milestone,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -156,8 +159,8 @@ export default function StudentDashboardPage() {
           <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-pink-300/16 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <div className="math-dashboard-kicker">
-                <Target size={13} />
+              <div className="math-block-header">
+                <Laptop size={14} />
                 Student Workspace
               </div>
               <h1 className="mt-3 max-w-4xl text-3xl font-black tracking-[-0.035em] text-slate-950 dark:text-white sm:text-[2.35rem] lg:whitespace-nowrap">
@@ -207,7 +210,10 @@ export default function StudentDashboardPage() {
 
             <section className="math-dashboard-priority-panel">
               <div>
-                <p className="math-dashboard-section-label">Learning Priority</p>
+                <div className="math-block-header">
+                  <Zap size={14} />
+                  Learning Priority
+                </div>
                 <h2 className="mt-1.5 text-xl font-black tracking-tight text-slate-950 dark:text-white">
                   {ActiveAssignments.length > 0 ? "Continue Assigned Practice" : "Review Learning Progress"}
                 </h2>
@@ -273,7 +279,9 @@ function ProgressionJourneyCard({ State, onClick }: { State: ReturnType<typeof B
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300">Next Level Journey</p>
+              <div className="math-block-header">
+                <Milestone size={14} /> Next Level Journey
+              </div>
               <span className={`rounded-full border px-3 py-1 text-[11px] font-black shadow-sm ${ToneClass}`}>{State.Label}</span>
             </div>
             <h2 className="mt-2 text-xl font-black tracking-tight text-slate-950 dark:text-white">{State.Title}</h2>

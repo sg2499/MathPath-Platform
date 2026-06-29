@@ -24,6 +24,7 @@ import {
   ListChecks,
   Maximize2,
   Minimize2,
+  Radar,
   RefreshCcw,
   Search,
   ShieldCheck,
@@ -148,7 +149,7 @@ export default function StudentAssessmentReadinessPage() {
     <AppShell>
       <section className="math-hero">
         <div className="relative z-10">
-          <p className="math-kicker">Assessment Readiness</p>
+          <div className="math-block-header mb-2"><Radar size={14} /> Readiness Overview</div>
           <h1 className="math-title">Am I Ready for Assessment?</h1>
           <p className="math-subtitle">
             Track your level readiness and remaining practice work.

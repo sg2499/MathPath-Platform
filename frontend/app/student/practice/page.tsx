@@ -29,6 +29,8 @@ import {
   ClipboardList,
   FileText,
   Target,
+  Laptop,
+  BookOpenCheck,
 } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -272,8 +274,8 @@ function StudentPracticePageContent() {
     <AppShell>
       <main className="w-full space-y-5">
         <section className="math-hero">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200/80 bg-cyan-50/80 px-3 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-cyan-700 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-200">
-            <Target size={13} />
+          <div className="math-block-header">
+            <Laptop size={14} />
             Student Practice
           </div>
           <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">
@@ -320,9 +322,9 @@ function StudentPracticePageContent() {
 
         <section className="rounded-[30px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/72">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300">
-              Practice Work
-            </p>
+            <div className="math-block-header mb-2">
+              <BookOpenCheck size={14} /> Practice Work
+            </div>
             <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white">
               Current DPS Assignments
             </h2>
