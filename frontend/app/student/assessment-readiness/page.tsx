@@ -498,7 +498,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
             <h3 className="text-lg font-black text-slate-950 dark:text-white">
               DPS Clearance Tracker
             </h3>
-            <p className="mt-1 text-xs font-semibold text-slate-500">
+            <p className="math-subtitle !mt-1">
               Review pending, cleared, and re-attempt sheets for this level.
             </p>
           </div>

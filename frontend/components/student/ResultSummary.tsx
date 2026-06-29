@@ -58,8 +58,8 @@ function RetryWorkflowCard({ result }: { result: AttemptResult }) {
               </span>
             ) : null}
           </div>
-          <p className="mt-2 text-sm font-bold leading-6 opacity-95">{Message}</p>
-          <p className="mt-1 text-sm font-semibold leading-6 opacity-85">{Guidance}</p>
+          <p className="mt-2 text-sm font-medium leading-6 sm:text-base opacity-95">{Message}</p>
+          <p className="mt-1 text-sm font-medium leading-6 sm:text-base opacity-85">{Guidance}</p>
         </div>
       </div>
     </div>
