@@ -9,7 +9,7 @@ import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
 import { getAssessmentAttemptResult } from "@/lib/api/student";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target } from "lucide-react";
+import { ArrowLeft, Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target, ClipboardCheck } from "lucide-react";
 import { PremiumResultFeedbackCard } from "@/components/common/PerformanceFeedback";
 import { useParams, useRouter } from "next/navigation";
 
@@ -159,9 +159,9 @@ export default function StudentAssessmentResultPage() {
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="math-kicker">Assessment Result</p>
+                <div className="math-block-header mb-2"><ClipboardCheck size={14} /> Assessment Result</div>
                 <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">Score: {CleanNumber(CappedScore(Query.data.score, Query.data.maxScore))} / {CleanNumber(Query.data.maxScore)}</h1>
-                <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Query.data.assignmentTitle}</p>
+                <p className="math-subtitle !mt-2">{Query.data.assignmentTitle}</p>
               </div>
               <div className={`rounded-2xl px-4 py-3 text-right shadow-sm ring-1 ${Query.data.status === "CLEARED" ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-rose-50 text-rose-800 ring-rose-200"}`}>
                 <p className="text-[10px] font-black uppercase tracking-[0.16em]">{Query.data.status === "CLEARED" ? "Cleared" : "Needs Re-Attempt"}</p>

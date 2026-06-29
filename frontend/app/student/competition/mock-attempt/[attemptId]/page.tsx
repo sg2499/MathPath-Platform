@@ -19,7 +19,7 @@ import {
 } from "@/lib/api/student";
 import type { AttemptPayload } from "@/types/attempt";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ClipboardCheck, Clock3, Gauge, Layers3 } from "lucide-react";
+import { ClipboardCheck, Clock3, Gauge, Layers3, Trophy, CheckCircle2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
@@ -123,7 +123,7 @@ export default function StudentCompetitionMockAttemptPage() {
     return (
       <AppShell title="Competition Mock Attempt">
         <div className="math-card p-6">
-          <p className="math-kicker">Competition Mock</p>
+          <div className="math-block-header mb-2"><Trophy size={14} /> Competition Mock</div>
           <h1 className="text-2xl font-black text-slate-950 dark:text-white">{query.data.message || "Mock attempt closed."}</h1>
           <button className="math-role-action-button mt-5 px-4 py-2.5 text-sm" onClick={() => router.push("/student/competition/mock-exams")}>
             Back To Mock Exams
@@ -177,7 +177,7 @@ export default function StudentCompetitionMockAttemptPage() {
           <div className="math-card flex flex-col h-[450px] sm:h-[500px] overflow-hidden border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
             <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
               <div>
-                <p className="math-kicker">{sectionLabel}</p>
+                <div className="math-block-header mb-2"><Layers3 size={14} /> {sectionLabel}</div>
                 <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Question {currentQuestion.questionNumber}</h2>
               </div>
               <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${savingQuestionId === currentQuestion.questionId ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200" : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>
@@ -198,7 +198,7 @@ export default function StudentCompetitionMockAttemptPage() {
 
           <div className={`math-card flex flex-col h-[450px] sm:h-[500px] overflow-hidden border border-slate-200/80 bg-white/88 p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60 ${isExpressionQuestion ? "xl:p-3.5" : ""}`}>
             <div className="shrink-0 border-b border-slate-200/80 pb-3 dark:border-slate-800">
-              <p className="math-kicker">Select Answer</p>
+              <div className="math-block-header mb-2"><CheckCircle2 size={14} /> Select Answer</div>
               <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Choose the correct option</h2>
             </div>
             <div className={`grid flex-1 overflow-y-auto content-center py-4 sm:grid-cols-2 xl:min-h-0 ${isExpressionQuestion ? "gap-2.5 xl:gap-2" : "gap-3"}`}>

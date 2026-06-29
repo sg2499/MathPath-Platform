@@ -30,6 +30,15 @@ import {
   Target,
   Trash2,
   TrendingUp,
+  Route,
+  Settings,
+  Sliders,
+  BarChart3,
+  Lightbulb,
+  ListOrdered,
+  Clock,
+  Activity,
+  FileCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -1455,7 +1464,7 @@ export function RecordWorkspace({
           {role === "student" ? (
             <div className="math-block-header mb-2"><TrendingUp size={14} /> {heroKicker}</div>
           ) : (
-            <p className="math-kicker">{heroKicker}</p>
+            <div className="math-block-header mb-2"><Activity size={14} /> {heroKicker}</div>
           )}
           <h1 className="math-title">{title}</h1>
           <p className="math-subtitle">{overviewDescription}</p>
@@ -1599,7 +1608,7 @@ export function RecordWorkspace({
                       title={IsOpen ? "Collapse lesson insight" : "Expand lesson insight"}
                     >
                       <div>
-                        <p className="math-kicker">Lesson</p>
+                        <div className="math-block-header mb-2"><BookOpen size={14} /> Lesson</div>
                         <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
                           {CompactLessonLabel(lesson.sample)}
                         </h3>
@@ -1659,7 +1668,7 @@ export function RecordWorkspace({
                       title={IsModuleOpen ? "Collapse module" : "Expand module"}
                     >
                       <div>
-                        <p className="math-kicker">Module</p>
+                        <div className="math-block-header mb-2"><Layers3 size={14} /> Module</div>
                         <h3 className="text-xl font-black text-slate-950 dark:text-white">
                           {moduleTitle(ModuleGroup.Sample)}
                         </h3>
@@ -1698,7 +1707,7 @@ export function RecordWorkspace({
                                 title={IsLevelOpen ? "Collapse level" : "Expand level"}
                               >
                                 <div>
-                                  <p className="math-kicker">Level</p>
+                                  <div className="math-block-header mb-2"><Route size={14} /> Level</div>
                                   <h4 className="text-lg font-black text-slate-950 dark:text-white">
                                     {levelLabel(LevelGroup.Sample)}
                                   </h4>
@@ -1825,7 +1834,7 @@ export function RecordWorkspace({
                       title={IsModuleOpen ? "Collapse module actions" : "Expand module actions"}
                     >
                       <div>
-                        <p className="math-kicker">Module</p>
+                        <div className="math-block-header mb-2"><Layers3 size={14} /> Module</div>
                         <h3 className="text-xl font-black text-slate-950 dark:text-white">
                           {moduleTitle(ModuleGroup.Sample)}
                         </h3>
@@ -1859,7 +1868,7 @@ export function RecordWorkspace({
                                 title={IsLevelOpen ? "Collapse level actions" : "Expand level actions"}
                               >
                                 <div>
-                                  <p className="math-kicker">Level</p>
+                                  <div className="math-block-header mb-2"><Route size={14} /> Level</div>
                                   <h4 className="text-lg font-black text-slate-950 dark:text-white">
                                     {levelLabel(LevelGroup.Sample)}
                                   </h4>
@@ -2102,11 +2111,11 @@ function AdminAssignmentOverview({
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.15fr]">
       <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <p className="math-kicker">Assignment Control Summary</p>
+        <div className="math-block-header mb-2"><Settings size={14} /> Assignment Control Summary</div>
         <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
           Administrative Snapshot
         </h2>
-        <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+        <p className="math-subtitle !mt-2">
           Review assigned practice, completion date, and administrative actions.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -2184,11 +2193,11 @@ function TeacherPracticeOverview({
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.15fr]">
       <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <p className="math-kicker">Practice Control</p>
+        <div className="math-block-header mb-2"><Sliders size={14} /> Practice Control</div>
         <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
           What Needs Attention Now?
         </h2>
-        <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+        <p className="math-subtitle !mt-2">
           Review assigned practice, completion date, and support needs.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -2289,11 +2298,11 @@ function StudentProgressOverview({
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.15fr]">
       <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <p className="math-kicker">Progress Dashboard</p>
+        <div className="math-block-header mb-2"><BarChart3 size={14} /> Progress Dashboard</div>
         <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
           Current Level Journey
         </h2>
-        <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+        <p className="math-subtitle !mt-2">
           Overview shows milestone progress. Lesson Insights keeps lesson-wise
           practice and attempt history.
         </p>
@@ -2341,11 +2350,11 @@ function StudentProgressOverview({
         <div className="mt-5 rounded-[24px] border border-slate-100 bg-slate-50/75 p-4 dark:border-slate-800 dark:bg-slate-900/70">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="math-kicker">Lesson Insights</p>
+              <div className="math-block-header mb-2"><Lightbulb size={14} /> Lesson Insights</div>
               <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">
                 Strength And Growth By Lesson
               </h3>
-              <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+              <p className="math-subtitle !mt-1">
                 Expand a lesson to review strength and practice focus.
               </p>
             </div>
@@ -2543,7 +2552,7 @@ function PriorityQueueCard({
           <AlertTriangle size={20} />
         </div>
         <div>
-          <p className="math-kicker">Priority Queue</p>
+          <div className="math-block-header mb-2"><ListOrdered size={14} /> Priority Queue</div>
           <h3 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
             {title}
           </h3>
@@ -2648,7 +2657,7 @@ function RecentActivityCard({
           <CalendarClock size={20} />
         </div>
         <div>
-          <p className="math-kicker">Recent Activity</p>
+          <div className="math-block-header mb-2"><Clock size={14} /> Recent Activity</div>
           <h3 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
             Recent Practice
           </h3>
@@ -2769,13 +2778,13 @@ function NextMilestoneCard({
           <ClipboardCheck size={20} />
         </div>
         <div>
-          <p className="math-kicker">Next Milestone</p>
+          <div className="math-block-header mb-2"><Target size={14} /> Next Milestone</div>
           <h3 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
             {ready
               ? "Ready For Assessment Review"
               : `${pending} DPS Left In This Level`}
           </h3>
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+          <p className="math-subtitle !mt-2">
             {ready
               ? "All required DPS are cleared for this level. Readiness rules can now decide assessment eligibility."
               : `Complete ${pending} more DPS to move from ${completed}/${required} toward level readiness.`}

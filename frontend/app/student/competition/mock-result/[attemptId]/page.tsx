@@ -491,7 +491,7 @@ function CompetitionMessageBox({
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="math-kicker">Competition Coach</p>
+              <div className="math-block-header mb-2"><Rocket size={14} /> Competition Coach</div>
               <span className="math-badge border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] text-[var(--mp-role-readable)]">
                 {message.badge}
               </span>
@@ -598,20 +598,15 @@ function QuestionReviewTab({
 
   return (
     <section className="math-card p-5">
-      <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
-          <BookOpenCheck size={22} />
-        </div>
-        <div>
-          <p className="math-kicker">Question Review</p>
-          <h2 className="text-2xl font-black text-slate-950 dark:text-white">
-            Questions, Student Answers And Correct Answers
-          </h2>
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Review every mock question with the selected answer and the correct
-            answer.
-          </p>
-        </div>
+      <div className="mb-5">
+        <div className="math-block-header mb-2"><BookOpenCheck size={14} /> Question Review</div>
+        <h2 className="text-2xl font-black text-slate-950 dark:text-white">
+          Questions, Student Answers And Correct Answers
+        </h2>
+        <p className="math-subtitle !mt-1">
+          Review every mock question with the selected answer and the correct
+          answer.
+        </p>
       </div>
 
       {questions.length === 0 ? (
@@ -764,7 +759,7 @@ function ResultAnalysisTab({
       <div className="math-card overflow-hidden p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="math-kicker">Concept Analysis</p>
+            <div className="math-block-header mb-2"><Flame size={14} /> Concept Analysis</div>
             <h2 className="text-xl font-black text-slate-950 dark:text-white">
               Section Performance
             </h2>
@@ -874,7 +869,7 @@ function InsightCard({
 }) {
   return (
     <article className="math-card p-5">
-      <p className="math-kicker">Result Insight</p>
+      <div className="math-block-header mb-2"><Sparkles size={14} /> Result Insight</div>
       <h3 className="text-lg font-black text-slate-950 dark:text-white">
         {title}
       </h3>
