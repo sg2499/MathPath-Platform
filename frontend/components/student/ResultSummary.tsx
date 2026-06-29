@@ -118,10 +118,19 @@ export function ResultSummary({ result }: { result: AttemptResult }) {
 
 function Metric({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
   return (
-    <div className="rounded-[24px] border border-slate-100 bg-slate-50/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] dark:border-slate-800 dark:bg-slate-900/70">
-      <div className="inline-flex rounded-2xl bg-white p-2 text-[color:var(--mp-role-readable)] shadow-sm dark:bg-slate-950">{icon}</div>
-      <p className="mt-3 text-xs font-extrabold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{value}</p>
+    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+      {/* Gamified hover shine */}
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
+      
+      <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
+        {icon}
+      </div>
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
+        {label}
+      </p>
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+        {value}
+      </p>
     </div>
   );
 }
