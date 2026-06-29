@@ -20,9 +20,18 @@ def get_current_user(
     if not payload:
         api_error(401, "UNAUTHORIZED", "Invalid or expired token.")
 
+    from datetime import datetime, timezone
     user = db.get(User, payload.get("sub"))
     if not user or not user.is_active:
         api_error(401, "UNAUTHORIZED", "User not found or inactive.")
+
+    iat = payload.get("iat")
+    if iat and user.password_changed_at:
+        try:
+            if datetime.fromtimestamp(iat, tz=timezone.utc) < user.password_changed_at:
+                api_error(401, "UNAUTHORIZED", "Session expired due to password change.")
+        except Exception:
+            pass
 
     return user
 

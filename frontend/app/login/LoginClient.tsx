@@ -12,6 +12,8 @@ import {
   BarChart3,
   BookOpenCheck,
   ClipboardPlus,
+  Eye,
+  EyeOff,
   GraduationCap,
   LayoutDashboard,
   Moon,
@@ -264,6 +266,7 @@ export default function LoginClient({
   const [ConnectionStatus, SetConnectionStatus] = useState<"preparing" | "ready" | "working">("preparing");
   const [Identifier, SetIdentifier] = useState("");
   const [Password, SetPassword] = useState("");
+  const [ShowPassword, SetShowPassword] = useState(false);
   const [Error, SetError] = useState("");
   const [Loading, SetLoading] = useState(false);
   const [Theme, SetTheme] = useState<ThemeMode>("light");
@@ -325,6 +328,7 @@ export default function LoginClient({
     SetError("");
     SetIdentifier(ReadRememberedLoginIdentifier(Tab));
     SetPassword("");
+    SetShowPassword(false);
   }
 
   async function HandleSubmit(Event: React.FormEvent) {
@@ -548,16 +552,26 @@ export default function LoginClient({
 
               <div>
                 <label className="math-label">Password</label>
-                <input
-                  className="math-input mt-2 min-h-12"
-                  type="password"
-                  value={Password}
-                  onChange={(Event) => SetPassword(Event.target.value)}
-                  placeholder="Enter your password"
-                  autoComplete={`${AutoCompleteSection(ActiveTab)} current-password`}
-                  name={`mathpath-${ActiveTab.toLowerCase()}-password`}
-                  required
-                />
+                <div className="relative mt-2">
+                  <input
+                    className="math-input min-h-12 w-full pr-12"
+                    type={ShowPassword ? "text" : "password"}
+                    value={Password}
+                    onChange={(Event) => SetPassword(Event.target.value)}
+                    placeholder="Enter your password"
+                    autoComplete={`${AutoCompleteSection(ActiveTab)} current-password`}
+                    name={`mathpath-${ActiveTab.toLowerCase()}-password`}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => SetShowPassword(!ShowPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none"
+                    aria-label={ShowPassword ? "Hide password" : "Show password"}
+                  >
+                    {ShowPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               {Error ? (
@@ -569,6 +583,17 @@ export default function LoginClient({
               <button className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
                 {Loading ? "Logging In..." : Active.ButtonText}
               </button>
+
+              <div className="pt-2 text-center">
+                <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
+                  Forgot Password?{" "}
+                  <span className="text-slate-700 dark:text-slate-300">
+                    {ActiveTab === "STUDENT" 
+                      ? "Contact your teacher to reset it." 
+                      : "Contact your platform administrator."}
+                  </span>
+                </p>
+              </div>
             </form>
 
             <div className="math-login-promise mt-3 rounded-[22px] p-3.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
