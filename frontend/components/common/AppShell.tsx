@@ -1490,13 +1490,13 @@ function IconButton({
 
 function LogoMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`flex items-center ${compact ? "h-[56px]" : "h-[64px]"}`}>
+    <div className={`flex items-center ${compact ? "h-[64px]" : "h-[80px]"}`}>
       <Image
         src="/mathpath-logo.png"
         alt="MathPath logo"
-        width={compact ? 220 : 280}
-        height={compact ? 56 : 64}
-        className={`${compact ? "h-12" : "h-[56px]"} w-auto object-contain`}
+        width={compact ? 260 : 340}
+        height={compact ? 64 : 80}
+        className={`${compact ? "h-[56px]" : "h-[72px]"} w-auto object-contain`}
         priority
       />
     </div>
