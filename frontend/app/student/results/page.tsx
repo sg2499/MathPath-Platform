@@ -310,7 +310,7 @@ export default function StudentResultsPage() {
             <h1 className="math-title">My Progress</h1>
             <p className="math-subtitle">Track your module journey, active levels, completed practice, accuracy, and learning history.</p>
           </div>
-          <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
             <CompactProgressMetric label="Modules" value={TotalModules} icon={<Layers3 size={14} />} />
             <CompactProgressMetric label="Total Levels" value={TotalLevels} icon={<Route size={14} />} />
             <CompactProgressMetric label="Active Level" value={ActiveLevelLabel} icon={<Trophy size={14} />} />
