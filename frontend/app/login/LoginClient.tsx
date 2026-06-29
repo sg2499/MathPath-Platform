@@ -362,11 +362,9 @@ export default function LoginClient({
       Router.refresh();
 
       if (typeof window !== "undefined") {
-        window.setTimeout(() => {
-          if (window.location.pathname !== TargetRoute) {
-            window.location.assign(TargetRoute);
-          }
-        }, 1_200);
+        if (window.location.pathname !== TargetRoute) {
+          window.location.assign(TargetRoute);
+        }
       }
     } catch (Err) {
       SetConnectionStatus("working");
@@ -568,16 +566,8 @@ export default function LoginClient({
                 </div>
               ) : null}
 
-              {ConnectionStatus !== "ready" || Loading ? (
-                <div className="rounded-[22px] border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-sky-700 dark:border-sky-300/25 dark:bg-sky-400/10 dark:text-sky-200">
-                  {Loading
-                    ? "Connecting securely and preparing your workspace..."
-                    : "Preparing secure login connection..."}
-                </div>
-              ) : null}
-
               <button className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
-                {Loading ? "Connecting Securely..." : Active.ButtonText}
+                {Loading ? "Logging In..." : Active.ButtonText}
               </button>
             </form>
 
