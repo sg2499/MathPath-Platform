@@ -3,6 +3,9 @@ from app.database import engine
 
 USER_COLUMNS = {
     "photo_url": "TEXT",
+    "failed_login_attempts": "INTEGER DEFAULT 0 NOT NULL",
+    "locked_until": "TIMESTAMP",
+    "password_changed_at": "TIMESTAMP",
 }
 
 
