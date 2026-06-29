@@ -32,6 +32,7 @@ import {
   Route,
   Search,
   Trophy,
+  TrendingUp,
 } from "lucide-react";
 
 function IsLevelProgressRow(Row: AnyRow) {
@@ -305,7 +306,7 @@ export default function StudentResultsPage() {
       <section className="w-full space-y-5">
         <div className="math-hero">
           <div>
-            <p className="math-kicker">Performance History</p>
+            <div className="math-block-header mb-2"><TrendingUp size={14} /> Progress Overview</div>
             <h1 className="math-title">My Progress</h1>
             <p className="math-subtitle">Track your module journey, active levels, completed practice, accuracy, and learning history.</p>
           </div>
@@ -386,7 +387,7 @@ export default function StudentResultsPage() {
                       <ChevronRight className={IsExpanded ? "rotate-90 transition" : "transition"} size={16} />
                     </span>
                     <div>
-                      <p className="math-kicker">Module Progress</p>
+                      <div className="math-block-header mb-2"><Layers3 size={14} /> Module Progress</div>
                       <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{ModuleItem.moduleTitle}</h2>
                       <p className="mt-2 text-sm font-semibold text-slate-500">
                         Current Level: <span className="font-black text-slate-800 dark:text-slate-200">{ActiveLevel}</span>
@@ -441,7 +442,7 @@ export default function StudentResultsPage() {
                         >
                           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-600">Level</p>
+                              <div className="math-block-header mb-2"><Route size={14} /> Level</div>
                               <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">{LevelTitleFromRows(LevelCode, LevelRows)}</h3>
                             </div>
                             <div className="flex flex-wrap gap-2">
