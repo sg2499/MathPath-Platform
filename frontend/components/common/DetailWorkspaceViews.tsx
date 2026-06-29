@@ -1463,7 +1463,7 @@ export function RecordWorkspace({
             <p className="mt-2 text-sm font-bold text-slate-500">{subtitle}</p>
           ) : null}
         </div>
-        <div className={`grid gap-3 sm:grid-cols-2 ${role === "student" ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
+        <div className={`mt-6 grid gap-4 sm:grid-cols-2 ${role === "student" ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
           <Metric
             label={role === "student" ? "Total DPS" : "Assigned DPS"}
             value={role === "admin" ? stats.assigned : stats.total}

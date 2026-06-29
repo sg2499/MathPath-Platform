@@ -594,7 +594,7 @@ function StudentAssessmentsPageContent() {
           <h1 className="math-title">Assessments</h1>
           <p className="math-subtitle">Open assigned level assessments and review your assessment status.</p>
 
-          <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <Metric icon={<GraduationCap size={19} />} label="Assigned Assessments" value={state.rows.length} />
             <Metric icon={<ShieldCheck size={19} />} label="Cleared Assessments" value={clearedCount} />
             <Metric icon={<Clock3 size={19} />} label="Pending Assessments" value={pendingCount} />
