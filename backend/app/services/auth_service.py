@@ -76,14 +76,14 @@ def user_payload(db: Session, user: User) -> dict:
 
 def login(db: Session, identifier: str, password: str) -> dict:
     cleaned_identifier = identifier.strip() if identifier else ""
-    user = db.query(User).filter((User.email == cleaned_identifier) | (User.phone == cleaned_identifier)).first()
+    user = db.query(User).filter((User.email.ilike(cleaned_identifier)) | (User.phone == cleaned_identifier)).first()
 
     if not user:
-        student = db.query(Student).filter(Student.student_code == cleaned_identifier).first()
+        student = db.query(Student).filter(Student.student_code.ilike(cleaned_identifier)).first()
         user = student.user if student else None
 
     if not user:
-        teacher = db.query(Teacher).filter(Teacher.teacher_code == cleaned_identifier).first()
+        teacher = db.query(Teacher).filter(Teacher.teacher_code.ilike(cleaned_identifier)).first()
         user = teacher.user if teacher else None
 
     if not user or not verify_password(password, user.password_hash):
