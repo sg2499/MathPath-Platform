@@ -6,6 +6,15 @@ import { api } from "@/lib/api";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useRouter } from "next/navigation";
 
+function getInitials(name: string) {
+  if (!name) return "";
+  const parts = name.trim().split(" ").filter(Boolean);
+  if (parts.length > 1) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
 export default function MockLeaderboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -82,7 +91,7 @@ export default function MockLeaderboardPage() {
     <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">
       <button 
         onClick={() => router.back()}
-        className="flex items-center gap-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors font-medium text-sm w-fit"
+        className="math-role-action-button px-4 py-2 text-sm w-fit inline-flex items-center gap-2 shadow-sm hover:shadow"
       >
         <ArrowLeft className="w-4 h-4" />
         Back
@@ -135,13 +144,13 @@ export default function MockLeaderboardPage() {
                     {top3[1].photoUrl ? (
                       <img src={top3[1].photoUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-500 font-black text-xl">{top3[1].name[0]}</div>
+                      <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-500 font-black text-xl">{getInitials(top3[1].name)}</div>
                     )}
                   </div>
-                  <div className="absolute -bottom-3 -right-2 bg-slate-400 text-white text-xs font-black px-2 py-0.5 rounded-full border-2 border-white">2ND</div>
+                  <div className="absolute -bottom-3 -right-2 bg-slate-500 text-white text-xs font-black px-2 py-0.5 rounded-full border-2 border-white shadow-sm">2ND</div>
                 </div>
                 <div className="text-center mb-4">
-                  <p className="font-bold text-slate-800 dark:text-white truncate max-w-[100px] text-sm">{top3[1].name}</p>
+                  <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[1].name}</p>
                   <p className="text-xs font-black text-slate-500">{top3[1].percentage}%</p>
                 </div>
                 <div className="w-24 md:w-32 h-32 bg-gradient-to-t from-slate-300 to-slate-200 rounded-t-lg shadow-lg flex items-center justify-center">
@@ -161,13 +170,13 @@ export default function MockLeaderboardPage() {
                     {top3[0].photoUrl ? (
                       <img src={top3[0].photoUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-yellow-100 text-yellow-600 font-black text-3xl">{top3[0].name[0]}</div>
+                      <div className="w-full h-full flex items-center justify-center bg-yellow-100 text-yellow-600 font-black text-3xl">{getInitials(top3[0].name)}</div>
                     )}
                   </div>
                   <div className="absolute -bottom-3 -right-2 bg-yellow-500 text-white text-sm font-black px-3 py-0.5 rounded-full border-2 border-white shadow-md">1ST</div>
                 </div>
                 <div className="text-center mb-4">
-                  <p className="font-black text-lg text-slate-800 dark:text-white truncate max-w-[120px]">{top3[0].name}</p>
+                  <p className="font-black text-lg text-slate-800 dark:text-white max-w-[140px] leading-tight break-words">{top3[0].name}</p>
                   <p className="text-sm font-black text-yellow-600">{top3[0].percentage}%</p>
                 </div>
                 <div className="w-28 md:w-40 h-44 bg-gradient-to-t from-yellow-500 to-yellow-300 rounded-t-lg shadow-2xl flex items-center justify-center">
@@ -184,13 +193,13 @@ export default function MockLeaderboardPage() {
                     {top3[2].photoUrl ? (
                       <img src={top3[2].photoUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-600 font-black text-xl">{top3[2].name[0]}</div>
+                      <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-600 font-black text-xl">{getInitials(top3[2].name)}</div>
                     )}
                   </div>
-                  <div className="absolute -bottom-3 -right-2 bg-orange-500 text-white text-xs font-black px-2 py-0.5 rounded-full border-2 border-white">3RD</div>
+                  <div className="absolute -bottom-3 -right-2 bg-orange-500 text-white text-xs font-black px-2 py-0.5 rounded-full border-2 border-white shadow-sm">3RD</div>
                 </div>
                 <div className="text-center mb-4">
-                  <p className="font-bold text-slate-800 dark:text-white truncate max-w-[100px] text-sm">{top3[2].name}</p>
+                  <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[2].name}</p>
                   <p className="text-xs font-black text-orange-500">{top3[2].percentage}%</p>
                 </div>
                 <div className="w-24 md:w-32 h-24 bg-gradient-to-t from-orange-400 to-orange-300 rounded-t-lg shadow-lg flex items-center justify-center">
@@ -208,7 +217,7 @@ export default function MockLeaderboardPage() {
                   <tr>
                     <th className="px-6 py-4">Rank</th>
                     <th className="px-6 py-4">Student</th>
-                    <th className="px-6 py-4 text-right">Score</th>
+                    <th className="px-6 py-4 text-right">Accuracy</th>
                     <th className="px-6 py-4 text-right hidden sm:table-cell">Time</th>
                   </tr>
                 </thead>
@@ -221,7 +230,7 @@ export default function MockLeaderboardPage() {
                           {r.photoUrl ? (
                             <img src={r.photoUrl} alt="avatar" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xs font-black text-slate-500">{r.name[0]}</div>
+                            <div className="w-full h-full flex items-center justify-center text-xs font-black text-slate-500">{getInitials(r.name)}</div>
                           )}
                         </div>
                         <span className={`font-bold ${r.isCurrent ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}`}>
