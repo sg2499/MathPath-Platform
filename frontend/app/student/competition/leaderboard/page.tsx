@@ -41,14 +41,38 @@ const router = useRouter();
       try {
         const response = await api.get(`/student/competition/hierarchy`);
         const data = response.data;
-        setModules(data.modules || []);
-        setLevels(data.levels || []);
-        setExams(data.exams || []);
+        const fetchedModules = data.modules || [];
+        const fetchedLevels = data.levels || [];
+        const fetchedExams = data.exams || [];
+        setModules(fetchedModules);
+        setLevels(fetchedLevels);
+        setExams(fetchedExams);
         
-        // Auto-select first available if possible
-        if (data.modules && data.modules.length > 0) {
-            setSelectedModuleId(data.modules[0].id);
+        let targetModuleId = null;
+        let targetLevelId = null;
+        let targetExamId = null;
+
+        if (data.currentModuleId) {
+            targetModuleId = data.currentModuleId;
+        } else if (fetchedModules.length > 0) {
+            targetModuleId = fetchedModules[0].id;
         }
+
+        if (data.currentLevelId) {
+            targetLevelId = data.currentLevelId;
+        } else if (targetModuleId) {
+            const modLevels = fetchedLevels.filter((l: any) => l.moduleId === targetModuleId);
+            if (modLevels.length > 0) targetLevelId = modLevels[0].id;
+        }
+
+        if (targetLevelId) {
+            const lvlExams = fetchedExams.filter((e: any) => e.levelId === targetLevelId);
+            if (lvlExams.length > 0) targetExamId = lvlExams[0].id;
+        }
+
+        setSelectedModuleId(targetModuleId);
+        setSelectedLevelId(targetLevelId);
+        setSelectedExamId(targetExamId);
       } catch (err: any) {
         setError(err.message || "Failed to load hierarchy");
       } finally {
@@ -58,29 +82,25 @@ const router = useRouter();
     loadHierarchy();
   }, []);
 
-  // When module changes, auto-select first level
-  useEffect(() => {
-      if (selectedModuleId) {
-          const availableLevels = levels.filter(l => l.moduleId === selectedModuleId);
-          if (availableLevels.length > 0) {
-              setSelectedLevelId(availableLevels[0].id);
-          } else {
-              setSelectedLevelId(null);
-          }
+  const handleModuleChange = (moduleId: string) => {
+      setSelectedModuleId(moduleId);
+      const modLevels = levels.filter(l => l.moduleId === moduleId);
+      if (modLevels.length > 0) {
+          const firstLevelId = modLevels[0].id;
+          setSelectedLevelId(firstLevelId);
+          const lvlExams = exams.filter(e => e.levelId === firstLevelId);
+          setSelectedExamId(lvlExams.length > 0 ? lvlExams[0].id : null);
+      } else {
+          setSelectedLevelId(null);
+          setSelectedExamId(null);
       }
-  }, [selectedModuleId, levels]);
+  };
 
-  // When level changes, auto-select first exam
-  useEffect(() => {
-      if (selectedLevelId) {
-          const availableExams = exams.filter(e => e.levelId === selectedLevelId);
-          if (availableExams.length > 0) {
-              setSelectedExamId(availableExams[0].id);
-          } else {
-              setSelectedExamId(null);
-          }
-      }
-  }, [selectedLevelId, exams]);
+  const handleLevelChange = (levelId: string) => {
+      setSelectedLevelId(levelId);
+      const lvlExams = exams.filter(e => e.levelId === levelId);
+      setSelectedExamId(lvlExams.length > 0 ? lvlExams[0].id : null);
+  };
 
   // Load leaderboard data when filters change
   useEffect(() => {
@@ -171,7 +191,7 @@ const router = useRouter();
             <div className="relative">
               <select
                 value={selectedModuleId || ""}
-                onChange={(e) => setSelectedModuleId(e.target.value)}
+                onChange={(e) => handleModuleChange(e.target.value)}
                 className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
               >
                 {modules.map(m => (
@@ -188,7 +208,7 @@ const router = useRouter();
             <div className="relative">
               <select
                 value={selectedLevelId || ""}
-                onChange={(e) => setSelectedLevelId(e.target.value)}
+                onChange={(e) => handleLevelChange(e.target.value)}
                 className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
               >
                 {availableLevels.map(l => (
