@@ -910,3 +910,39 @@ class ParentReportDeliveryEvent(Base):
 
     delivery_log = relationship("ParentReportEmailLog")
 
+
+class AchievementBadge(Base):
+    __tablename__ = "achievement_badges"
+    id = Column(String, primary_key=True, default=uuid_str)
+    code = Column(String(50), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=False)
+    icon_name = Column(String(50), nullable=False)
+    tier = Column(String(30), nullable=False, default="BASE")
+    required_count = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class StudentBadge(Base):
+    __tablename__ = "student_badges"
+    id = Column(String, primary_key=True, default=uuid_str)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    badge_id = Column(String, ForeignKey("achievement_badges.id", ondelete="CASCADE"), nullable=False)
+    unlocked_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    student = relationship("Student")
+    badge = relationship("AchievementBadge")
+
+    __table_args__ = (UniqueConstraint("student_id", "badge_id", name="uq_student_badge"),)
+
+class StudentAchievementStat(Base):
+    __tablename__ = "student_achievement_stats"
+    id = Column(String, primary_key=True, default=uuid_str)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    stat_name = Column(String(50), nullable=False)
+    stat_value = Column(Integer, default=0, nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    student = relationship("Student")
+
+    __table_args__ = (UniqueConstraint("student_id", "stat_name", name="uq_student_achievement_stat"),)
+

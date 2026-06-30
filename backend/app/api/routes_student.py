@@ -878,3 +878,102 @@ def student_assessment_eligibility(db: Session = Depends(get_db), student: Stude
 @router.get("/assessment-readiness")
 def student_assessment_readiness(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     return assessment_eligibility_payload(db, student, student.current_level_id)
+
+@router.get("/competition/mock-exams/{exam_id}/leaderboard")
+def get_mock_exam_leaderboard(
+    exam_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    student = db.query(Student).filter(Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=403, detail="Not a student")
+    
+    from app.models.models import CompetitionMockResultSummary, Student, User
+    results = (
+        db.query(CompetitionMockResultSummary, Student, User)
+        .join(Student, CompetitionMockResultSummary.student_id == Student.id)
+        .join(User, Student.user_id == User.id)
+        .filter(CompetitionMockResultSummary.mock_exam_id == exam_id)
+        .filter(Student.level_id == student.level_id)
+        .order_by(
+            CompetitionMockResultSummary.percentage.desc(),
+            CompetitionMockResultSummary.time_taken_seconds.asc()
+        )
+        .all()
+    )
+
+    leaderboard = []
+    current_student_rank = None
+    for idx, (res, st, user) in enumerate(results):
+        rank = idx + 1
+        is_current = st.id == student.id
+        if is_current:
+            current_student_rank = rank
+            
+        if rank <= 10 or is_current:
+            leaderboard.append({
+                "rank": rank,
+                "studentId": st.id,
+                "name": f"{user.first_name} {user.last_name}",
+                "photoUrl": user.photo_url or st.photo_url,
+                "percentage": res.percentage,
+                "timeTakenSeconds": res.time_taken_seconds,
+                "isCurrent": is_current
+            })
+            
+    return {
+        "leaderboard": [entry for entry in leaderboard if entry["rank"] <= 10],
+        "currentStudentRank": current_student_rank,
+        "currentStudentEntry": next((e for e in leaderboard if e["isCurrent"]), None),
+        "totalParticipants": len(results)
+    }
+
+@router.get("/achievements")
+def get_student_achievements(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    student = db.query(Student).filter(Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=403, detail="Not a student")
+
+    from app.models.models import StudentBadge, AchievementBadge, StudentAchievementStat
+    
+    all_badges = db.query(AchievementBadge).all()
+    earned_badges = db.query(StudentBadge).filter(StudentBadge.student_id == student.id).all()
+    earned_ids = {eb.badge_id: eb.unlocked_at for eb in earned_badges}
+    
+    stats = db.query(StudentAchievementStat).filter(StudentAchievementStat.student_id == student.id).all()
+    stats_map = {s.stat_name: s.stat_value for s in stats}
+    
+    badge_progress_map = {
+        "perfectionist": "perfect_mock_scores",
+        "speed_demon": "speed_demon_scores",
+        "competitor": "mock_exams_completed",
+        "unstoppable_streak": "unstoppable_mock_streak",
+        "early_bird": "early_bird_mocks",
+        "comeback_kid": "comeback_kid_mocks",
+    }
+
+    result = []
+    for badge in all_badges:
+        stat_name = badge_progress_map.get(badge.code)
+        current_progress = stats_map.get(stat_name, 0) if stat_name else 0
+        
+        is_unlocked = badge.id in earned_ids
+        result.append({
+            "id": badge.id,
+            "code": badge.code,
+            "name": badge.name,
+            "description": badge.description,
+            "iconName": badge.icon_name,
+            "tier": badge.tier,
+            "requiredCount": badge.required_count,
+            "currentProgress": current_progress,
+            "isUnlocked": is_unlocked,
+            "unlockedAt": earned_ids.get(badge.id)
+        })
+
+    return {"achievements": result}
+
