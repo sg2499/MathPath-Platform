@@ -98,17 +98,18 @@ export default function MockLeaderboardPage() {
         Back
       </button>
 
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-            <Trophy className="text-yellow-500 h-8 w-8" />
-            Mock Exam Leaderboard
-          </h1>
-          <p className="text-slate-500 mt-1">See how you stack up against other students in your level.</p>
+      <div className="math-card p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+        <div className="relative z-10">
+          <div className="math-block-header mb-3"><Trophy size={16} className="text-yellow-500" /> Leaderboard</div>
+          <h1 className="math-title mb-2">Mock Exam Leaderboard</h1>
+          <p className="math-subtitle">
+            See how you stack up against other students in your level. Compete for the top spot!
+          </p>
         </div>
         
-        <div className="relative min-w-[250px]">
-          <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Select Exam</label>
+        <div className="relative min-w-[250px] z-10">
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Select Exam</label>
           <div className="relative">
             <select
               value={selectedExamId || ""}
@@ -136,79 +137,83 @@ export default function MockLeaderboardPage() {
       {!loading && leaderboard.length > 0 && (
         <>
           {/* Podium Component */}
-          <div className="pt-16 pb-12 flex items-end justify-center gap-4 md:gap-8 relative">
-            {/* Ambient Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-indigo-500/10 blur-[100px] pointer-events-none rounded-full" />
+          <div className="pt-24 pb-16 flex items-end justify-center gap-2 md:gap-8 relative mt-6">
+            {/* Ambient Background Glow / Stage */}
+            <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-64 bg-indigo-500/10 blur-[100px] pointer-events-none rounded-[100%]" />
+            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-2xl h-8 bg-slate-900/5 dark:bg-black/30 blur-xl pointer-events-none rounded-[100%]" />
             
             {/* Silver (Rank 2) */}
             {top3[1] && (
-              <div className="flex flex-col items-center animate-[slideUp_0.5s_ease-out] z-10 hover:-translate-y-2 transition-transform duration-300">
-                <div className="relative mb-5">
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-slate-300 bg-slate-100 overflow-hidden">
+              <div className="flex flex-col items-center animate-[slideUp_0.5s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
+                <div className="relative mb-6">
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-slate-300 bg-slate-100 overflow-hidden shadow-lg group-hover:shadow-slate-400/30 transition-shadow">
                     {top3[1].photoUrl ? (
                       <img src={top3[1].photoUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-500 font-black text-xl">{getInitials(top3[1].name)}</div>
                     )}
                   </div>
-                  <div className="absolute -bottom-3 -right-2 bg-slate-500 text-white text-xs font-black px-2 py-0.5 rounded-full border-2 border-white shadow-sm">2ND</div>
+                  <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-slate-400 to-slate-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider">2nd</div>
                 </div>
-                <div className="text-center mb-4">
+                <div className="text-center mb-5">
                   <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[1].name}</p>
-                  <p className="text-sm font-black text-slate-500">{top3[1].percentage}%</p>
+                  <p className="text-sm font-black text-slate-500 mt-1">{top3[1].percentage}%</p>
                 </div>
-                <div className="w-28 md:w-36 h-36 bg-gradient-to-t from-slate-300 to-slate-100 rounded-t-2xl shadow-xl flex items-center justify-center border-t border-white/50 backdrop-blur-sm">
-                  <span className="text-5xl font-black text-slate-400 opacity-40">2</span>
+                <div className="w-28 md:w-36 h-40 bg-gradient-to-t from-slate-300/80 to-slate-100/90 rounded-t-2xl shadow-[0_0_30px_rgba(148,163,184,0.2)] flex items-center justify-center border-t border-slate-200 backdrop-blur-md relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
+                  <span className="text-6xl font-black text-slate-400/50 drop-shadow-sm">2</span>
                 </div>
               </div>
             )}
 
             {/* Gold (Rank 1) */}
             {top3[0] && (
-              <div className="flex flex-col items-center z-20 animate-[slideUp_0.6s_ease-out] hover:-translate-y-3 transition-transform duration-300">
-                <div className="relative mb-5">
-                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 drop-shadow-lg">
+              <div className="flex flex-col items-center z-20 animate-[slideUp_0.6s_ease-out] hover:-translate-y-4 transition-transform duration-300 group">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-yellow-400/40 blur-2xl rounded-full scale-110 group-hover:scale-150 group-hover:bg-yellow-400/60 transition-all duration-500" />
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 drop-shadow-[0_4px_10px_rgba(250,204,21,0.5)] scale-[1.3] z-20 animate-bounce">
                     <CrownIcon />
                   </div>
-                  <div className="w-20 h-20 md:w-28 md:h-28 rounded-full border-4 border-yellow-400 bg-yellow-50 overflow-hidden shadow-xl shadow-yellow-500/20">
+                  <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-yellow-400 bg-yellow-50 overflow-hidden shadow-[0_0_40px_rgba(250,204,21,0.3)] z-10 group-hover:border-yellow-300 transition-colors">
                     {top3[0].photoUrl ? (
                       <img src={top3[0].photoUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-yellow-100 text-yellow-600 font-black text-3xl">{getInitials(top3[0].name)}</div>
                     )}
                   </div>
-                  <div className="absolute -bottom-3 -right-2 bg-yellow-500 text-white text-sm font-black px-3 py-0.5 rounded-full border-2 border-white shadow-md">1ST</div>
+                  <div className="absolute -bottom-4 -right-2 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white text-xs md:text-sm font-black px-3.5 py-1.5 rounded-full border-2 border-white shadow-lg uppercase tracking-wider z-20">1st</div>
                 </div>
-                <div className="text-center mb-4">
-                  <p className="font-black text-lg text-slate-800 dark:text-white max-w-[140px] leading-tight break-words">{top3[0].name}</p>
-                  <p className="text-base font-black text-yellow-600">{top3[0].percentage}%</p>
+                <div className="text-center mb-5 relative z-20">
+                  <p className="font-black text-lg md:text-xl text-slate-900 dark:text-white max-w-[150px] leading-tight break-words drop-shadow-sm">{top3[0].name}</p>
+                  <p className="text-base font-black text-yellow-600 mt-1">{top3[0].percentage}%</p>
                 </div>
-                <div className="w-32 md:w-44 h-48 bg-gradient-to-t from-yellow-500 via-yellow-400 to-yellow-200 rounded-t-2xl shadow-2xl flex items-center justify-center border-t-2 border-white/60 backdrop-blur-sm relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 translate-x-[-100%] animate-[shimmer_2s_infinite]" />
-                  <span className="text-7xl font-black text-yellow-700 opacity-30">1</span>
+                <div className="w-32 md:w-44 h-52 bg-gradient-to-t from-yellow-500 via-yellow-400 to-yellow-200 rounded-t-2xl shadow-[0_10px_40px_rgba(250,204,21,0.3)] flex items-center justify-center border-t-[3px] border-yellow-100 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/50 to-white/0 translate-x-[-100%] animate-[shimmer_2.5s_infinite]" />
+                  <span className="text-8xl font-black text-yellow-600/40 drop-shadow-md">1</span>
                 </div>
               </div>
             )}
 
             {/* Bronze (Rank 3) */}
             {top3[2] && (
-              <div className="flex flex-col items-center animate-[slideUp_0.4s_ease-out] z-10 hover:-translate-y-2 transition-transform duration-300">
-                <div className="relative mb-5">
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-orange-400 bg-orange-50 overflow-hidden">
+              <div className="flex flex-col items-center animate-[slideUp_0.4s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
+                <div className="relative mb-6">
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-orange-400 bg-orange-50 overflow-hidden shadow-lg group-hover:shadow-orange-400/30 transition-shadow">
                     {top3[2].photoUrl ? (
                       <img src={top3[2].photoUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-600 font-black text-xl">{getInitials(top3[2].name)}</div>
                     )}
                   </div>
-                  <div className="absolute -bottom-3 -right-2 bg-orange-500 text-white text-xs font-black px-2 py-0.5 rounded-full border-2 border-white shadow-sm">3RD</div>
+                  <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-orange-400 to-orange-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider">3rd</div>
                 </div>
-                <div className="text-center mb-4">
+                <div className="text-center mb-5">
                   <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[2].name}</p>
-                  <p className="text-sm font-black text-orange-500">{top3[2].percentage}%</p>
+                  <p className="text-sm font-black text-orange-500 mt-1">{top3[2].percentage}%</p>
                 </div>
-                <div className="w-28 md:w-36 h-28 bg-gradient-to-t from-orange-400 to-orange-200 rounded-t-2xl shadow-xl flex items-center justify-center border-t border-white/50 backdrop-blur-sm">
-                  <span className="text-5xl font-black text-orange-700 opacity-30">3</span>
+                <div className="w-28 md:w-36 h-32 bg-gradient-to-t from-orange-400/90 to-orange-200/90 rounded-t-2xl shadow-[0_0_30px_rgba(249,115,22,0.2)] flex items-center justify-center border-t border-orange-200 backdrop-blur-md relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
+                  <span className="text-6xl font-black text-orange-700/30 drop-shadow-sm">3</span>
                 </div>
               </div>
             )}
@@ -216,9 +221,9 @@ export default function MockLeaderboardPage() {
 
           {/* List for 4-10 */}
           {rest.length > 0 && (
-            <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-3xl border border-white/50 dark:border-slate-800 overflow-hidden shadow-2xl shadow-indigo-500/5">
+            <div className="math-card rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] mt-8">
               <table className="w-full text-left">
-                <thead className="bg-slate-50/50 dark:bg-slate-800/50 text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                <thead className="bg-slate-50/80 dark:bg-slate-800/80 text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                   <tr>
                     <th className="px-6 py-5">Rank</th>
                     <th className="px-6 py-5">Student</th>
@@ -226,12 +231,12 @@ export default function MockLeaderboardPage() {
                     <th className="px-6 py-5 text-right hidden sm:table-cell">Time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                   {rest.map((r: any) => (
-                    <tr key={r.rank} className={`transition-all duration-200 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md hover:scale-[1.01] hover:z-10 relative cursor-default ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40' : ''}`}>
+                    <tr key={r.rank} className={`transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:shadow-lg hover:scale-[1.01] hover:z-10 relative cursor-default ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-1 ring-inset ring-indigo-500/30 z-10' : ''}`}>
                       <td className="px-6 py-5 font-black text-slate-500 text-base">#{r.rank}</td>
                       <td className="px-6 py-5 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden flex-shrink-0 shadow-sm">
+                        <div className={`w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden flex-shrink-0 shadow-sm ${r.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}`}>
                           {r.photoUrl ? (
                             <img src={r.photoUrl} alt="avatar" className="w-full h-full object-cover" />
                           ) : (
@@ -239,7 +244,7 @@ export default function MockLeaderboardPage() {
                           )}
                         </div>
                         <span className={`font-bold text-base ${r.isCurrent ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                          {r.name} {r.isCurrent && <span className="ml-2 text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full uppercase tracking-wider">You</span>}
+                          {r.name} {r.isCurrent && <span className="ml-3 text-[10px] bg-indigo-600 text-white font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-md shadow-indigo-500/30">You</span>}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{r.percentage}%</td>
