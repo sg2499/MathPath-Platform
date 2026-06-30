@@ -646,3 +646,13 @@ def ensure_mock_notifications_fixed() -> None:
         print(f"Error fixing mock notifications: {e}")
     finally:
         db.close()
+
+def ensure_mock_gamification_tables() -> None:
+    from app.models.models import AchievementBadge, StudentBadge, StudentAchievementStat
+    from app.database import engine
+    AchievementBadge.metadata.create_all(bind=engine, tables=[
+        AchievementBadge.__table__,
+        StudentBadge.__table__,
+        StudentAchievementStat.__table__
+    ])
+

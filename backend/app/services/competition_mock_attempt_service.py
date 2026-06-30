@@ -686,6 +686,18 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
             import logging
             logging.error(f"Failed to generate notifications for mock submission {attempt.id}: {e}")
 
+    # --- Gamification Hook ---
+    unlocked_badges = []
+    try:
+        from app.services.achievements import AchievementEngine
+        from app.models.models import CompetitionMockResultSummary
+        summary = db.query(CompetitionMockResultSummary).filter_by(mock_attempt_id=attempt.id).first()
+        if summary:
+            unlocked_badges = AchievementEngine.evaluate_mock_exam_submission(db, student.id, summary)
+    except Exception as e:
+        import logging
+        logging.error(f"Gamification engine failed for attempt {attempt.id}: {e}")
+
     return {
         "attemptId": attempt.id,
         "status": attempt.status,
@@ -696,6 +708,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
         "wrong": attempt.wrong_count,
         "unanswered": attempt.unanswered_count,
         "timeTakenSeconds": attempt.time_taken_seconds,
+        "unlockedBadges": unlocked_badges,
     }
 
 
