@@ -1030,6 +1030,7 @@ def get_cumulative_leaderboard(
     results = (
         db.query(
             Student.id.label('student_id'),
+            Student.photo_url.label('student_photo'),
             User.full_name,
             User.photo_url,
             func.sum(CompetitionMockResultSummary.score).label('total_score'),
@@ -1041,7 +1042,7 @@ def get_cumulative_leaderboard(
         .join(User, Student.user_id == User.id)
         .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
         .filter(CompetitionMockExam.level_id == level_id)
-        .group_by(Student.id, User.full_name, User.photo_url)
+        .group_by(Student.id, Student.photo_url, User.full_name, User.photo_url)
         .all()
     )
 
@@ -1052,7 +1053,7 @@ def get_cumulative_leaderboard(
         processed_results.append({
             "studentId": r.student_id,
             "name": r.full_name,
-            "photoUrl": r.photo_url,
+            "photoUrl": r.photo_url or r.student_photo,
             "percentage": round(percentage, 2),
             "score": round(r.total_score or 0, 2),
             "accuracy": round(r.avg_accuracy or 0, 2),

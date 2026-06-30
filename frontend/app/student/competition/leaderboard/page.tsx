@@ -145,13 +145,14 @@ const router = useRouter();
   const availableExams = exams.filter(e => e.levelId === selectedLevelId);
 
   return (
-    <div className="math-role-student math-page w-full min-h-screen bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 overflow-hidden relative">
+    <div className="math-role-student math-page w-full min-h-screen bg-gradient-to-br from-indigo-100/50 via-white to-purple-100/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 overflow-hidden relative">
       {/* Background Pattern */}
-      <div className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, #000 2px, transparent 2px)', backgroundSize: '32px 32px' }} />
+      <div className="absolute inset-0 z-0 opacity-[0.04] dark:opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, #000 2px, transparent 2px)', backgroundSize: '32px 32px' }} />
       
       {/* Ambient background glows */}
-      <div className="absolute top-0 right-[10%] w-[500px] h-[500px] bg-indigo-500/20 dark:bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none z-0" />
-      <div className="absolute bottom-[20%] left-[-10%] w-[600px] h-[600px] bg-purple-500/20 dark:bg-purple-600/20 blur-[150px] rounded-full pointer-events-none z-0" />
+      <div className="absolute top-0 right-[10%] w-[600px] h-[600px] bg-indigo-500/30 dark:bg-indigo-600/30 blur-[150px] rounded-full pointer-events-none z-0" />
+      <div className="absolute bottom-[20%] left-[-10%] w-[700px] h-[700px] bg-purple-500/30 dark:bg-purple-600/30 blur-[180px] rounded-full pointer-events-none z-0" />
+      <div className="absolute top-[40%] left-[20%] w-[400px] h-[400px] bg-amber-500/20 dark:bg-amber-500/10 blur-[100px] rounded-full pointer-events-none z-0" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
         <button 
@@ -174,13 +175,13 @@ const router = useRouter();
           <div className="mt-6 flex gap-3 w-fit">
             <button
               onClick={() => setViewMode("CUMULATIVE")}
-              className={`math-role-action-button px-4 py-2 text-sm transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "ring-2 ring-indigo-500 shadow-md" : "opacity-80 hover:opacity-100"}`}
+              className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
             >
               Overall Journey
             </button>
             <button
               onClick={() => setViewMode("INDIVIDUAL")}
-              className={`math-role-action-button px-4 py-2 text-sm transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "ring-2 ring-indigo-500 shadow-md" : "opacity-80 hover:opacity-100"}`}
+              className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
             >
               Specific Exam
             </button>
@@ -277,6 +278,7 @@ const router = useRouter();
             {top3[1] && (
               <div className="flex flex-col items-center animate-[slideUp_0.5s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
                 <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-slate-400/40 blur-2xl rounded-full scale-110 group-hover:scale-150 group-hover:bg-slate-400/60 transition-all duration-500" />
                   <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-slate-300 bg-slate-100 overflow-hidden shadow-[0_0_15px_rgba(148,163,184,0.1)] group-hover:shadow-[0_0_25px_rgba(148,163,184,0.4)] group-hover:border-slate-400 transition-all z-10 relative">
                     {top3[1].photoUrl ? (
                       <img src={top3[1].photoUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -329,6 +331,7 @@ const router = useRouter();
             {top3[2] && (
               <div className="flex flex-col items-center animate-[slideUp_0.4s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
                 <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-orange-400/40 blur-2xl rounded-full scale-110 group-hover:scale-150 group-hover:bg-orange-400/60 transition-all duration-500" />
                   <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-orange-400 bg-orange-50 overflow-hidden shadow-[0_0_15px_rgba(249,115,22,0.1)] group-hover:shadow-[0_0_25px_rgba(249,115,22,0.4)] group-hover:border-orange-500 transition-all z-10 relative">
                     {top3[2].photoUrl ? (
                       <img src={top3[2].photoUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -379,9 +382,9 @@ const router = useRouter();
                           {r.name} {r.isCurrent && <span className="ml-3 text-[10px] bg-indigo-600 text-white font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-md shadow-indigo-500/30">You</span>}
                         </span>
                       </td>
-                      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{Math.round(r.percentage)}%</td>
+                      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{Math.round(r.score)}</td>
                       <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{Math.round(r.accuracy ?? r.percentage)}%</td>
-                      <td className="px-6 py-5 text-right font-bold text-slate-700 dark:text-slate-300 hidden sm:table-cell text-sm">{Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s</td>
+                      <td className="px-6 py-5 text-right font-black text-slate-700 dark:text-slate-300 hidden sm:table-cell text-base">{Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s</td>
                     </tr>
                   ))}
                 </tbody>
