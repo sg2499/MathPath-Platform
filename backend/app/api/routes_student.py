@@ -891,7 +891,7 @@ def get_mock_exam_leaderboard(
         .join(Student, CompetitionMockResultSummary.student_id == Student.id)
         .join(User, Student.user_id == User.id)
         .filter(CompetitionMockResultSummary.mock_exam_id == exam_id)
-        .filter(Student.level_id == student.level_id)
+        .filter(Student.current_level_id == student.current_level_id)
         .order_by(
             CompetitionMockResultSummary.percentage.desc(),
             CompetitionMockResultSummary.time_taken_seconds.asc()
