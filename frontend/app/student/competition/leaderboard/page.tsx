@@ -88,9 +88,10 @@ export default function MockLeaderboardPage() {
   const rest = leaderboard.slice(3);
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">
-      <button 
-        onClick={() => router.back()}
+    <div className="math-role-student w-full min-h-screen bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30">
+      <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-8">
+        <button 
+          onClick={() => router.back()}
         className="math-role-action-button px-4 py-2 text-sm w-fit inline-flex items-center gap-2 shadow-sm hover:shadow"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -135,11 +136,14 @@ export default function MockLeaderboardPage() {
       {!loading && leaderboard.length > 0 && (
         <>
           {/* Podium Component */}
-          <div className="pt-12 pb-8 flex items-end justify-center gap-2 md:gap-6">
+          <div className="pt-16 pb-12 flex items-end justify-center gap-4 md:gap-8 relative">
+            {/* Ambient Background Glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-indigo-500/10 blur-[100px] pointer-events-none rounded-full" />
+            
             {/* Silver (Rank 2) */}
             {top3[1] && (
-              <div className="flex flex-col items-center animate-[slideUp_0.5s_ease-out]">
-                <div className="relative mb-4">
+              <div className="flex flex-col items-center animate-[slideUp_0.5s_ease-out] z-10 hover:-translate-y-2 transition-transform duration-300">
+                <div className="relative mb-5">
                   <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-slate-300 bg-slate-100 overflow-hidden">
                     {top3[1].photoUrl ? (
                       <img src={top3[1].photoUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -151,19 +155,19 @@ export default function MockLeaderboardPage() {
                 </div>
                 <div className="text-center mb-4">
                   <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[1].name}</p>
-                  <p className="text-xs font-black text-slate-500">{top3[1].percentage}%</p>
+                  <p className="text-sm font-black text-slate-500">{top3[1].percentage}%</p>
                 </div>
-                <div className="w-24 md:w-32 h-32 bg-gradient-to-t from-slate-300 to-slate-200 rounded-t-lg shadow-lg flex items-center justify-center">
-                  <span className="text-4xl font-black text-slate-400 opacity-50">2</span>
+                <div className="w-28 md:w-36 h-36 bg-gradient-to-t from-slate-300 to-slate-100 rounded-t-2xl shadow-xl flex items-center justify-center border-t border-white/50 backdrop-blur-sm">
+                  <span className="text-5xl font-black text-slate-400 opacity-40">2</span>
                 </div>
               </div>
             )}
 
             {/* Gold (Rank 1) */}
             {top3[0] && (
-              <div className="flex flex-col items-center z-10 animate-[slideUp_0.6s_ease-out]">
-                <div className="relative mb-4">
-                  <div className="absolute -top-6 left-1/2 -translate-x-1/2">
+              <div className="flex flex-col items-center z-20 animate-[slideUp_0.6s_ease-out] hover:-translate-y-3 transition-transform duration-300">
+                <div className="relative mb-5">
+                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 drop-shadow-lg">
                     <CrownIcon />
                   </div>
                   <div className="w-20 h-20 md:w-28 md:h-28 rounded-full border-4 border-yellow-400 bg-yellow-50 overflow-hidden shadow-xl shadow-yellow-500/20">
@@ -177,18 +181,19 @@ export default function MockLeaderboardPage() {
                 </div>
                 <div className="text-center mb-4">
                   <p className="font-black text-lg text-slate-800 dark:text-white max-w-[140px] leading-tight break-words">{top3[0].name}</p>
-                  <p className="text-sm font-black text-yellow-600">{top3[0].percentage}%</p>
+                  <p className="text-base font-black text-yellow-600">{top3[0].percentage}%</p>
                 </div>
-                <div className="w-28 md:w-40 h-44 bg-gradient-to-t from-yellow-500 to-yellow-300 rounded-t-lg shadow-2xl flex items-center justify-center">
-                  <span className="text-6xl font-black text-yellow-600 opacity-30">1</span>
+                <div className="w-32 md:w-44 h-48 bg-gradient-to-t from-yellow-500 via-yellow-400 to-yellow-200 rounded-t-2xl shadow-2xl flex items-center justify-center border-t-2 border-white/60 backdrop-blur-sm relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 translate-x-[-100%] animate-[shimmer_2s_infinite]" />
+                  <span className="text-7xl font-black text-yellow-700 opacity-30">1</span>
                 </div>
               </div>
             )}
 
             {/* Bronze (Rank 3) */}
             {top3[2] && (
-              <div className="flex flex-col items-center animate-[slideUp_0.4s_ease-out]">
-                <div className="relative mb-4">
+              <div className="flex flex-col items-center animate-[slideUp_0.4s_ease-out] z-10 hover:-translate-y-2 transition-transform duration-300">
+                <div className="relative mb-5">
                   <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-orange-400 bg-orange-50 overflow-hidden">
                     {top3[2].photoUrl ? (
                       <img src={top3[2].photoUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -200,10 +205,10 @@ export default function MockLeaderboardPage() {
                 </div>
                 <div className="text-center mb-4">
                   <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[2].name}</p>
-                  <p className="text-xs font-black text-orange-500">{top3[2].percentage}%</p>
+                  <p className="text-sm font-black text-orange-500">{top3[2].percentage}%</p>
                 </div>
-                <div className="w-24 md:w-32 h-24 bg-gradient-to-t from-orange-400 to-orange-300 rounded-t-lg shadow-lg flex items-center justify-center">
-                  <span className="text-4xl font-black text-orange-600 opacity-30">3</span>
+                <div className="w-28 md:w-36 h-28 bg-gradient-to-t from-orange-400 to-orange-200 rounded-t-2xl shadow-xl flex items-center justify-center border-t border-white/50 backdrop-blur-sm">
+                  <span className="text-5xl font-black text-orange-700 opacity-30">3</span>
                 </div>
               </div>
             )}
@@ -211,34 +216,34 @@ export default function MockLeaderboardPage() {
 
           {/* List for 4-10 */}
           {rest.length > 0 && (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
+            <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-3xl border border-white/50 dark:border-slate-800 overflow-hidden shadow-2xl shadow-indigo-500/5">
               <table className="w-full text-left">
-                <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs font-black text-slate-400 uppercase tracking-wider">
+                <thead className="bg-slate-50/50 dark:bg-slate-800/50 text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                   <tr>
-                    <th className="px-6 py-4">Rank</th>
-                    <th className="px-6 py-4">Student</th>
-                    <th className="px-6 py-4 text-right">Accuracy</th>
-                    <th className="px-6 py-4 text-right hidden sm:table-cell">Time</th>
+                    <th className="px-6 py-5">Rank</th>
+                    <th className="px-6 py-5">Student</th>
+                    <th className="px-6 py-5 text-center">Accuracy</th>
+                    <th className="px-6 py-5 text-right hidden sm:table-cell">Time</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {rest.map((r: any) => (
-                    <tr key={r.rank} className={`transition hover:bg-slate-50 dark:hover:bg-slate-800/50 ${r.isCurrent ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}>
-                      <td className="px-6 py-4 font-black text-slate-500">#{r.rank}</td>
-                      <td className="px-6 py-4 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden flex-shrink-0">
+                    <tr key={r.rank} className={`transition-all duration-200 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md hover:scale-[1.01] hover:z-10 relative cursor-default ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40' : ''}`}>
+                      <td className="px-6 py-5 font-black text-slate-500 text-base">#{r.rank}</td>
+                      <td className="px-6 py-5 flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden flex-shrink-0 shadow-sm">
                           {r.photoUrl ? (
                             <img src={r.photoUrl} alt="avatar" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xs font-black text-slate-500">{getInitials(r.name)}</div>
+                            <div className="w-full h-full flex items-center justify-center text-sm font-black text-slate-500">{getInitials(r.name)}</div>
                           )}
                         </div>
-                        <span className={`font-bold ${r.isCurrent ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                          {r.name} {r.isCurrent && <span className="ml-2 text-[10px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full uppercase">You</span>}
+                        <span className={`font-bold text-base ${r.isCurrent ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                          {r.name} {r.isCurrent && <span className="ml-2 text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full uppercase tracking-wider">You</span>}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-black text-slate-700 dark:text-slate-300">{r.percentage}%</td>
-                      <td className="px-6 py-4 text-right font-bold text-slate-400 hidden sm:table-cell">{Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s</td>
+                      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{r.percentage}%</td>
+                      <td className="px-6 py-5 text-right font-bold text-slate-400 hidden sm:table-cell text-sm">{Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s</td>
                     </tr>
                   ))}
                 </tbody>
@@ -265,6 +270,7 @@ export default function MockLeaderboardPage() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }
