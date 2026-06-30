@@ -975,16 +975,40 @@ def get_competition_hierarchy(
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student)
 ):
-    from app.models.models import Module, Level, CompetitionMockExam
+    from app.models.models import Module, Level, CompetitionMockExam, CompetitionMockAssignment
     
-    modules = db.query(Module).filter(Module.is_active == True).order_by(Module.display_order).all()
-    levels = db.query(Level).filter(Level.is_active == True).order_by(Level.display_order).all()
-    exams = db.query(CompetitionMockExam).filter(CompetitionMockExam.status == "PUBLISHED").all()
+    # Get all published exams that are assigned to the student
+    assigned_exams = (
+        db.query(CompetitionMockExam)
+        .join(CompetitionMockAssignment, CompetitionMockAssignment.mock_exam_id == CompetitionMockExam.id)
+        .filter(
+            CompetitionMockAssignment.student_id == student.id,
+            CompetitionMockAssignment.is_active == True,
+            CompetitionMockExam.status == "PUBLISHED"
+        )
+        .all()
+    )
+    
+    if not assigned_exams:
+        return {
+            "modules": [],
+            "levels": [],
+            "exams": [],
+            "currentLevelId": student.current_level_id,
+            "currentModuleId": None
+        }
+
+    assigned_exam_ids = {e.id for e in assigned_exams}
+    assigned_level_ids = {e.level_id for e in assigned_exams}
+    assigned_module_ids = {e.module_id for e in assigned_exams}
+    
+    modules = db.query(Module).filter(Module.id.in_(assigned_module_ids), Module.is_active == True).order_by(Module.display_order).all()
+    levels = db.query(Level).filter(Level.id.in_(assigned_level_ids), Level.is_active == True).order_by(Level.display_order).all()
     
     return {
         "modules": [{"id": m.id, "name": m.module_name, "code": m.module_code} for m in modules],
         "levels": [{"id": l.id, "moduleId": l.module_id, "name": l.level_name, "code": l.level_code} for l in levels],
-        "exams": [{"id": e.id, "levelId": e.level_id, "moduleId": e.module_id, "title": e.title} for e in exams],
+        "exams": [{"id": e.id, "levelId": e.level_id, "moduleId": e.module_id, "title": e.title} for e in assigned_exams],
         "currentLevelId": student.current_level_id,
         "currentModuleId": next((l.module_id for l in levels if l.id == student.current_level_id), None)
     }
