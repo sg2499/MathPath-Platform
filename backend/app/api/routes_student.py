@@ -984,7 +984,9 @@ def get_competition_hierarchy(
     return {
         "modules": [{"id": m.id, "name": m.module_name, "code": m.module_code} for m in modules],
         "levels": [{"id": l.id, "moduleId": l.module_id, "name": l.level_name, "code": l.level_code} for l in levels],
-        "exams": [{"id": e.id, "levelId": e.level_id, "moduleId": e.module_id, "title": e.title} for e in exams]
+        "exams": [{"id": e.id, "levelId": e.level_id, "moduleId": e.module_id, "title": e.title} for e in exams],
+        "currentLevelId": student.current_level_id,
+        "currentModuleId": next((l.module_id for l in levels if l.id == student.current_level_id), None)
     }
 
 @router.get("/competition/mock-exams/cumulative-leaderboard")
