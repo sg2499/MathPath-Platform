@@ -171,16 +171,16 @@ const router = useRouter();
             See how you stack up against other students in your level. Compete for the top spot!
           </p>
           
-          <div className="mt-6 flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl w-fit">
+          <div className="mt-6 flex gap-3 w-fit">
             <button
               onClick={() => setViewMode("CUMULATIVE")}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === "CUMULATIVE" ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"}`}
+              className={`math-role-action-button px-4 py-2 text-sm transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "ring-2 ring-indigo-500 shadow-md" : "opacity-80 hover:opacity-100"}`}
             >
               Overall Journey
             </button>
             <button
               onClick={() => setViewMode("INDIVIDUAL")}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === "INDIVIDUAL" ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"}`}
+              className={`math-role-action-button px-4 py-2 text-sm transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "ring-2 ring-indigo-500 shadow-md" : "opacity-80 hover:opacity-100"}`}
             >
               Specific Exam
             </button>
@@ -277,22 +277,22 @@ const router = useRouter();
             {top3[1] && (
               <div className="flex flex-col items-center animate-[slideUp_0.5s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
                 <div className="relative mb-6">
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-slate-300 bg-slate-100 overflow-hidden shadow-lg group-hover:shadow-slate-400/30 transition-shadow">
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-slate-300 bg-slate-100 overflow-hidden shadow-[0_0_15px_rgba(148,163,184,0.1)] group-hover:shadow-[0_0_25px_rgba(148,163,184,0.4)] group-hover:border-slate-400 transition-all z-10 relative">
                     {top3[1].photoUrl ? (
                       <img src={top3[1].photoUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-500 font-black text-xl">{getInitials(top3[1].name)}</div>
                     )}
                   </div>
-                  <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-slate-400 to-slate-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider">2nd</div>
+                  <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-slate-400 to-slate-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider z-20">2nd</div>
                 </div>
-                <div className="text-center mb-5">
+                <div className="text-center mb-5 relative z-20">
                   <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[1].name}</p>
-                  <p className="text-sm font-black text-slate-500 mt-1">{top3[1].percentage}%</p>
+                  <p className="text-sm font-black text-slate-500 mt-1">{Math.round(top3[1].percentage)}%</p>
                 </div>
-                <div className="w-28 md:w-36 h-40 bg-gradient-to-t from-slate-300/80 to-slate-100/90 rounded-t-2xl shadow-[0_0_30px_rgba(148,163,184,0.2)] flex items-center justify-center border-t border-slate-200 backdrop-blur-md relative overflow-hidden">
+                <div className="w-28 md:w-36 h-40 bg-gradient-to-t from-slate-300/80 to-slate-100/90 rounded-t-2xl shadow-[0_0_30px_rgba(148,163,184,0.2)] flex items-center justify-center border-t border-slate-200 backdrop-blur-md relative overflow-hidden group-hover:from-slate-400/80 group-hover:to-slate-200/90 transition-colors duration-500">
                   <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
-                  <span className="text-6xl font-black text-slate-400/50 drop-shadow-sm">2</span>
+                  <span className="text-6xl font-black text-slate-400/50 drop-shadow-sm group-hover:text-slate-500/60 transition-colors">2</span>
                 </div>
               </div>
             )}
@@ -316,7 +316,7 @@ const router = useRouter();
                 </div>
                 <div className="text-center mb-5 relative z-20">
                   <p className="font-black text-lg md:text-xl text-slate-900 dark:text-white max-w-[150px] leading-tight break-words drop-shadow-sm">{top3[0].name}</p>
-                  <p className="text-base font-black text-yellow-600 mt-1">{top3[0].percentage}%</p>
+                  <p className="text-base font-black text-yellow-600 mt-1">{Math.round(top3[0].percentage)}%</p>
                 </div>
                 <div className="w-32 md:w-44 h-52 bg-gradient-to-t from-yellow-500 via-yellow-400 to-yellow-200 rounded-t-2xl shadow-[0_10px_40px_rgba(250,204,21,0.3)] flex items-center justify-center border-t-[3px] border-yellow-100 relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/50 to-white/0 translate-x-[-100%] animate-[shimmer_2.5s_infinite]" />
@@ -329,22 +329,22 @@ const router = useRouter();
             {top3[2] && (
               <div className="flex flex-col items-center animate-[slideUp_0.4s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
                 <div className="relative mb-6">
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-orange-400 bg-orange-50 overflow-hidden shadow-lg group-hover:shadow-orange-400/30 transition-shadow">
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-orange-400 bg-orange-50 overflow-hidden shadow-[0_0_15px_rgba(249,115,22,0.1)] group-hover:shadow-[0_0_25px_rgba(249,115,22,0.4)] group-hover:border-orange-500 transition-all z-10 relative">
                     {top3[2].photoUrl ? (
                       <img src={top3[2].photoUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-600 font-black text-xl">{getInitials(top3[2].name)}</div>
                     )}
                   </div>
-                  <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-orange-400 to-orange-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider">3rd</div>
+                  <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-orange-400 to-orange-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider z-20">3rd</div>
                 </div>
-                <div className="text-center mb-5">
+                <div className="text-center mb-5 relative z-20">
                   <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[2].name}</p>
-                  <p className="text-sm font-black text-orange-500 mt-1">{top3[2].percentage}%</p>
+                  <p className="text-sm font-black text-orange-500 mt-1">{Math.round(top3[2].percentage)}%</p>
                 </div>
-                <div className="w-28 md:w-36 h-32 bg-gradient-to-t from-orange-400/90 to-orange-200/90 rounded-t-2xl shadow-[0_0_30px_rgba(249,115,22,0.2)] flex items-center justify-center border-t border-orange-200 backdrop-blur-md relative overflow-hidden">
+                <div className="w-28 md:w-36 h-32 bg-gradient-to-t from-orange-400/90 to-orange-200/90 rounded-t-2xl shadow-[0_0_30px_rgba(249,115,22,0.2)] flex items-center justify-center border-t border-orange-200 backdrop-blur-md relative overflow-hidden group-hover:from-orange-500/90 group-hover:to-orange-300/90 transition-colors duration-500">
                   <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
-                  <span className="text-6xl font-black text-orange-700/30 drop-shadow-sm">3</span>
+                  <span className="text-6xl font-black text-orange-700/30 drop-shadow-sm group-hover:text-orange-700/50 transition-colors">3</span>
                 </div>
               </div>
             )}
@@ -358,8 +358,9 @@ const router = useRouter();
                   <tr>
                     <th className="px-6 py-5">Rank</th>
                     <th className="px-6 py-5">Student</th>
-                    <th className="px-6 py-5 text-center">Accuracy</th>
-                    <th className="px-6 py-5 text-right hidden sm:table-cell">Time</th>
+                    <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Score" : "Score"}</th>
+                    <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Accuracy" : "Accuracy"}</th>
+                    <th className="px-6 py-5 text-right hidden sm:table-cell">{viewMode === "CUMULATIVE" ? "Avg Time Taken" : "Time Taken"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -378,7 +379,8 @@ const router = useRouter();
                           {r.name} {r.isCurrent && <span className="ml-3 text-[10px] bg-indigo-600 text-white font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-md shadow-indigo-500/30">You</span>}
                         </span>
                       </td>
-                      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{r.percentage}%</td>
+                      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{Math.round(r.percentage)}%</td>
+                      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{Math.round(r.accuracy ?? r.percentage)}%</td>
                       <td className="px-6 py-5 text-right font-bold text-slate-700 dark:text-slate-300 hidden sm:table-cell text-sm">{Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s</td>
                     </tr>
                   ))}
@@ -400,7 +402,7 @@ const router = useRouter();
                 </div>
               </div>
               <div className="text-right">
-                <p className="font-black text-xl">{leaderboardData.currentStudentEntry?.percentage}%</p>
+                <p className="font-black text-xl">{Math.round(leaderboardData.currentStudentEntry?.percentage || 0)}%</p>
               </div>
             </div>
           )}
