@@ -911,7 +911,7 @@ def get_mock_exam_leaderboard(
             leaderboard.append({
                 "rank": rank,
                 "studentId": st.id,
-                "name": f"{user.first_name} {user.last_name}",
+                "name": user.full_name,
                 "photoUrl": user.photo_url or st.photo_url,
                 "percentage": res.percentage,
                 "timeTakenSeconds": res.time_taken_seconds,
