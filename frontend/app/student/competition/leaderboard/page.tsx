@@ -21,7 +21,7 @@ export default function MockLeaderboardPage() {
           const completed = data.assignments.filter((a: any) => a.status === "COMPLETED");
           setAssignments(completed);
           if (completed.length > 0) {
-            setSelectedExamId(completed[0].mockExam.id);
+            setSelectedExamId(completed[0].mockExam.mockExamId);
           }
         }
       } catch (err: any) {
@@ -96,7 +96,7 @@ export default function MockLeaderboardPage() {
               className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
             >
               {assignments.map(a => (
-                <option key={a.mockExam.id} value={a.mockExam.id}>{a.mockExam.title}</option>
+                <option key={a.mockExam.mockExamId} value={a.mockExam.mockExamId}>{a.mockExam.title}</option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
