@@ -16,42 +16,86 @@ function getInitials(name: string) {
 }
 
 export default function MockLeaderboardPage() {
-  const router = useRouter();
+const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [assignments, setAssignments] = useState<any[]>([]);
+  
+  // Hierarchy Data
+  const [modules, setModules] = useState<any[]>([]);
+  const [levels, setLevels] = useState<any[]>([]);
+  const [exams, setExams] = useState<any[]>([]);
+  
+  // Selections
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+  const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  
+  // View Mode
+  const [viewMode, setViewMode] = useState<"CUMULATIVE" | "INDIVIDUAL">("CUMULATIVE");
+  
   const [leaderboardData, setLeaderboardData] = useState<any>(null);
 
+  // Load Hierarchy on mount
   useEffect(() => {
-    async function loadExams() {
+    async function loadHierarchy() {
       try {
-        const response = await api.get(`/student/competition/mock-assignments`);
+        const response = await api.get(`/student/competition/hierarchy`);
         const data = response.data;
-        if (data.assignments && data.assignments.length > 0) {
-          const completed = data.assignments.filter((a: any) => a.status === "COMPLETED");
-          setAssignments(completed);
-          if (completed.length > 0) {
-            setSelectedExamId(completed[0].mockExam.mockExamId);
-          }
+        setModules(data.modules || []);
+        setLevels(data.levels || []);
+        setExams(data.exams || []);
+        
+        // Auto-select first available if possible
+        if (data.modules && data.modules.length > 0) {
+            setSelectedModuleId(data.modules[0].id);
         }
       } catch (err: any) {
-        setError(err.message || "Failed to load mock exams");
+        setError(err.message || "Failed to load hierarchy");
       } finally {
         setLoading(false);
       }
     }
-    loadExams();
+    loadHierarchy();
   }, []);
 
+  // When module changes, auto-select first level
   useEffect(() => {
-    if (!selectedExamId) return;
+      if (selectedModuleId) {
+          const availableLevels = levels.filter(l => l.moduleId === selectedModuleId);
+          if (availableLevels.length > 0) {
+              setSelectedLevelId(availableLevels[0].id);
+          } else {
+              setSelectedLevelId(null);
+          }
+      }
+  }, [selectedModuleId, levels]);
+
+  // When level changes, auto-select first exam
+  useEffect(() => {
+      if (selectedLevelId) {
+          const availableExams = exams.filter(e => e.levelId === selectedLevelId);
+          if (availableExams.length > 0) {
+              setSelectedExamId(availableExams[0].id);
+          } else {
+              setSelectedExamId(null);
+          }
+      }
+  }, [selectedLevelId, exams]);
+
+  // Load leaderboard data when filters change
+  useEffect(() => {
+    if (!selectedLevelId) return;
+    if (viewMode === "INDIVIDUAL" && !selectedExamId) return;
+
     async function loadLeaderboard() {
       setLoading(true);
       try {
-        const response = await api.get(`/student/competition/mock-exams/${selectedExamId}/leaderboard`);
-        const data = response.data;
-        setLeaderboardData(data);
+        const endpoint = viewMode === "CUMULATIVE" 
+            ? `/student/competition/mock-exams/cumulative-leaderboard?level_id=${selectedLevelId}`
+            : `/student/competition/mock-exams/${selectedExamId}/leaderboard`;
+            
+        const response = await api.get(endpoint);
+        setLeaderboardData(response.data);
       } catch (err: any) {
         setError(err.message || "Failed to load leaderboard");
       } finally {
@@ -59,9 +103,9 @@ export default function MockLeaderboardPage() {
       }
     }
     loadLeaderboard();
-  }, [selectedExamId]);
+  }, [selectedLevelId, selectedExamId, viewMode]);
 
-  if (loading && !leaderboardData) return <LoadingState />;
+  if (loading && !leaderboardData && modules.length === 0) return <LoadingState />;
 
   if (error) {
     return (
@@ -73,22 +117,19 @@ export default function MockLeaderboardPage() {
     );
   }
 
-  if (assignments.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 text-center">
-        <Trophy className="h-16 w-16 text-slate-300 dark:text-slate-700 mb-4" />
-        <h2 className="text-xl font-bold text-slate-800 dark:text-white">No Mock Exams Completed</h2>
-        <p className="text-slate-500 mt-2">Complete a mock exam to view the leaderboard.</p>
-      </div>
-    );
-  }
-
   const { leaderboard = [], currentStudentRank, totalParticipants } = leaderboardData || {};
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
+  
+  const availableLevels = levels.filter(l => l.moduleId === selectedModuleId);
+  const availableExams = exams.filter(e => e.levelId === selectedLevelId);
 
   return (
-    <div className="math-role-student w-full min-h-screen bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30">
+    <div className="math-role-student math-page w-full min-h-screen premium-backdrop bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 overflow-hidden relative">
+      {/* Ambient background glows */}
+      <div className="absolute top-0 right-[10%] w-[500px] h-[500px] bg-indigo-400/10 dark:bg-indigo-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
+      <div className="absolute bottom-[20%] left-[-10%] w-[600px] h-[600px] bg-purple-400/10 dark:bg-purple-600/10 blur-[150px] rounded-full pointer-events-none -z-10" />
+
       <div className="w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
         <button 
           onClick={() => router.back()}
@@ -98,32 +139,87 @@ export default function MockLeaderboardPage() {
         Back
       </button>
 
-      <div className="math-card p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
+<div className="math-card p-6 md:p-8 flex flex-col xl:flex-row xl:items-start justify-between gap-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-        <div className="relative z-10">
+        <div className="relative z-10 xl:max-w-md">
           <div className="math-block-header mb-3"><Trophy size={16} className="text-yellow-500" /> Leaderboard</div>
           <h1 className="math-title mb-2">Mock Exam Leaderboard</h1>
           <p className="math-subtitle">
             See how you stack up against other students in your level. Compete for the top spot!
           </p>
+          
+          <div className="mt-6 flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl w-fit">
+            <button
+              onClick={() => setViewMode("CUMULATIVE")}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === "CUMULATIVE" ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+            >
+              Overall Journey
+            </button>
+            <button
+              onClick={() => setViewMode("INDIVIDUAL")}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === "INDIVIDUAL" ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+            >
+              Specific Exam
+            </button>
+          </div>
         </div>
         
-        <div className="relative min-w-[250px] z-10">
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Select Exam</label>
-          <div className="relative">
-            <select
-              value={selectedExamId || ""}
-              onChange={(e) => setSelectedExamId(e.target.value)}
-              className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
-            >
-              {assignments.map(a => (
-                <option key={a.mockExam.mockExamId} value={a.mockExam.mockExamId}>{a.mockExam.title}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+        <div className="relative z-10 flex flex-col sm:flex-row gap-4 xl:items-end w-full xl:w-auto">
+          {/* Module Filter */}
+          <div className="relative min-w-[180px] flex-1 xl:flex-none">
+            <label className="block text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-2">Module</label>
+            <div className="relative">
+              <select
+                value={selectedModuleId || ""}
+                onChange={(e) => setSelectedModuleId(e.target.value)}
+                className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
+              >
+                {modules.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Level Filter */}
+          <div className="relative min-w-[180px] flex-1 xl:flex-none">
+            <label className="block text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-2">Level</label>
+            <div className="relative">
+              <select
+                value={selectedLevelId || ""}
+                onChange={(e) => setSelectedLevelId(e.target.value)}
+                className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
+              >
+                {availableLevels.map(l => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Exam Filter */}
+          <div className={`relative min-w-[200px] flex-1 xl:flex-none transition-all duration-300 ${viewMode === "CUMULATIVE" ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
+            <label className="block text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-2">Mock Exam</label>
+            <div className="relative">
+              <select
+                value={selectedExamId || ""}
+                onChange={(e) => setSelectedExamId(e.target.value)}
+                disabled={viewMode === "CUMULATIVE"}
+                className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition disabled:bg-slate-50 disabled:text-slate-400"
+              >
+                {availableExams.map(e => (
+                  <option key={e.id} value={e.id}>{e.title}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>
+        
+
 
       {loading && <div className="animate-pulse h-96 bg-slate-100 rounded-3xl" />}
 
@@ -221,8 +317,8 @@ export default function MockLeaderboardPage() {
 
           {/* List for 4-10 */}
           {rest.length > 0 && (
-            <div className="math-card rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] mt-8">
-              <table className="w-full text-left">
+            <div className="math-card rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] mt-8 border border-slate-100 dark:border-slate-800 relative isolation-auto">
+              <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50/80 dark:bg-slate-800/80 text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                   <tr>
                     <th className="px-6 py-5">Rank</th>
@@ -233,7 +329,7 @@ export default function MockLeaderboardPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                   {rest.map((r: any) => (
-                    <tr key={r.rank} className={`transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:shadow-lg hover:scale-[1.01] hover:z-10 relative cursor-default ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-1 ring-inset ring-indigo-500/30 z-10' : ''}`}>
+                    <tr key={r.rank} className={`transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:shadow-lg hover:scale-[1.01] hover:z-10 relative cursor-default last:border-none ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-1 ring-inset ring-indigo-500/30 z-10' : ''}`}>
                       <td className="px-6 py-5 font-black text-slate-700 dark:text-slate-300 text-base">#{r.rank}</td>
                       <td className="px-6 py-5 flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 overflow-hidden flex-shrink-0 shadow-sm ${r.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}`}>
