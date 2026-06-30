@@ -650,6 +650,28 @@ def ensure_mock_notifications_fixed() -> None:
 def ensure_mock_gamification_tables() -> None:
     from app.models.models import AchievementBadge, StudentBadge, StudentAchievementStat
     from app.database import engine
+    from sqlalchemy import text
+    
+    with engine.begin() as connection:
+        if engine.dialect.name == "sqlite":
+            # For local SQLite, we just drop and recreate the tables because ALTER TABLE DROP CONSTRAINT is not supported
+            # and this is a brand new feature.
+            try:
+                # Check if the bad constraint exists by checking if there's only 1 row or something,
+                # actually it's easier to just recreate if the table exists but doesn't have the uix_badge_code_tier
+                res = connection.execute(text("PRAGMA index_list('achievement_badges')")).fetchall()
+                if not any("uix_badge_code_tier" in str(r) for r in res):
+                    connection.execute(text("DROP TABLE IF EXISTS student_badges"))
+                    connection.execute(text("DROP TABLE IF EXISTS achievement_badges"))
+            except Exception:
+                pass
+        else:
+            # Safely drop the old unique constraint if it exists (for PostgreSQL)
+            try:
+                connection.execute(text("ALTER TABLE achievement_badges DROP CONSTRAINT IF EXISTS achievement_badges_code_key CASCADE"))
+            except Exception:
+                pass
+            
     AchievementBadge.metadata.create_all(bind=engine, tables=[
         AchievementBadge.__table__,
         StudentBadge.__table__,
