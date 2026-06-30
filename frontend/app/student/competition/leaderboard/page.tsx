@@ -89,7 +89,7 @@ export default function MockLeaderboardPage() {
 
   return (
     <div className="math-role-student w-full min-h-screen bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30">
-      <div className="w-full max-w-7xl mx-auto p-4 md:p-8 space-y-8">
+      <div className="w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
         <button 
           onClick={() => router.back()}
         className="math-role-action-button px-4 py-2 text-sm w-fit inline-flex items-center gap-2 shadow-sm hover:shadow"
