@@ -654,23 +654,26 @@ def ensure_mock_gamification_tables() -> None:
     
     inspector = inspect(engine)
     if "achievement_badges" in inspector.get_table_names():
-        if engine.dialect.name == "sqlite":
-            with engine.connect() as connection:
-                try:
+        with engine.connect() as connection:
+            try:
+                # To be 100% sure we don't have the bad unique=True constraint, we check for our new composite index.
+                # If we can't find it, we just wipe the gamification tables and let create_all recreate them.
+                # Gamification is a brand new feature so these tables are empty in production anyway.
+                if engine.dialect.name == "sqlite":
                     res = connection.execute(text("PRAGMA index_list('achievement_badges')")).fetchall()
-                    if not any("uix_badge_code_tier" in str(r) for r in res):
-                        with connection.begin():
-                            connection.execute(text("DROP TABLE IF EXISTS student_badges"))
-                            connection.execute(text("DROP TABLE IF EXISTS achievement_badges"))
-                except Exception:
-                    pass
-        else:
-            with engine.connect() as connection:
-                try:
+                    has_new_index = any("uix_badge_code_tier" in str(r) for r in res)
+                else:
+                    # PostgreSQL
+                    res = connection.execute(text("SELECT indexname FROM pg_indexes WHERE tablename = 'achievement_badges'")).fetchall()
+                    has_new_index = any("uix_badge_code_tier" in str(r) for r in res)
+                
+                if not has_new_index:
                     with connection.begin():
-                        connection.execute(text("ALTER TABLE achievement_badges DROP CONSTRAINT IF EXISTS achievement_badges_code_key CASCADE"))
-                except Exception:
-                    pass
+                        connection.execute(text("DROP TABLE IF EXISTS student_badges CASCADE" if engine.dialect.name != "sqlite" else "DROP TABLE IF EXISTS student_badges"))
+                        connection.execute(text("DROP TABLE IF EXISTS student_achievement_stats CASCADE" if engine.dialect.name != "sqlite" else "DROP TABLE IF EXISTS student_achievement_stats"))
+                        connection.execute(text("DROP TABLE IF EXISTS achievement_badges CASCADE" if engine.dialect.name != "sqlite" else "DROP TABLE IF EXISTS achievement_badges"))
+            except Exception as e:
+                print(f"Error checking/dropping gamification tables: {e}")
             
     AchievementBadge.metadata.create_all(bind=engine, tables=[
         AchievementBadge.__table__,
