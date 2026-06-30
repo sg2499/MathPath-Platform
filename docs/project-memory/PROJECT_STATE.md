@@ -1,6 +1,6 @@
 # MathPath Project State
 
-Last updated: 2026-06-18
+Last updated: 2026-06-29
 
 ## Product
 
@@ -10,7 +10,7 @@ MathPath is a role-based abacus and mental math learning platform for Admin, Tea
 - DPS practice generation and publishing.
 - Student practice and result workflows.
 - Assessment creation, assignment, readiness, attempts, and results.
-- Competition mock generation, assignment, attempts, tracking, and results.
+- Competition mock generation, assignment, attempts, tracking, notifications, and results.
 - Master Module and Young Learners Module support.
 
 ## Live URLs
@@ -19,29 +19,43 @@ MathPath is a role-based abacus and mental math learning platform for Admin, Tea
 - Backend: https://mathpath-backend.onrender.com
 - GitHub remote: https://github.com/sg2499/MathPath-Platform.git
 
+## Current Branch State
+
+- `main` and `origin/main` currently match at `c4d2ddf`.
+- The repo has uncommitted local frontend work in:
+  - `frontend/app/globals.css`
+  - `frontend/app/student/assessment-readiness/page.tsx`
+  - `frontend/app/student/assessments/page.tsx`
+  - `frontend/app/student/dashboard/page.tsx`
+  - `frontend/app/student/practice/page.tsx`
+- Existing local untracked/nested items intentionally remain untouched:
+  - `MathPath-Platform`
+  - `copy_titles.py`
+  - `old_seed.py`
+  - `seed_function.py`
+
 ## Current Focus
 
-The current active product area is the Master Module competition mock workflow, especially MM visual add/less quality and student attempt rendering QA.
+The active product area has shifted from the 2026-06-18 MM generator fixes to broader frontend polish and auth stability:
 
-The latest implemented state:
+- Student-facing typography, hero blocks, metric cards, and result surfaces are being standardized.
+- Header branding is now converging on a larger image-only LogoMark treatment.
+- Login flow is being streamlined and hardened across Admin, Teacher, and Student roles.
+- Global responsive behavior is being normalized to avoid horizontal wobble and mobile safe-area issues.
+- Recent backend auth/schema fixes still need deployment confirmation.
 
-- MM mock defaults are 100 questions and 60 minutes.
-- MM mock section plan has 10 locked sections.
-- Each section receives 10 questions by default for a 100-question mock.
-- MM mock generation is section-locked and concept-sequential.
-- MM mock generation now enforces stable question/sum uniqueness within each mock and avoids repeats from the previous 15 active same-level MM mocks.
-- MM visual add/less generation now enforces explicit fast-visual and decimal-visual row/digit constraints.
-- MM practice DPS preview generation now handles negative-answer decimal visual add-less and 2-digit/3-digit fast visualisation concepts without generator/validator contract failures.
-- MM practice DPS visual concepts have been audited against the authoritative Level 9 workbooks; mapped visual concepts now follow `Concept Name (Visual)`.
-- The corrected MM workbook-vs-platform audit now handles DPS-level `VISUAL` markers, percentage visual concepts, and missing display markers; it recognizes 102 workbook visual/fast-visualisation DPS and passes locally with mismatch/flag issue count `0`.
-- MM visual negative-borrowing Add-Less generation now uses 4-digit operands so visual and negative-borrowing validation both pass.
-- Existing mock previews render cleanly without duplicated first-natural-number prompt text.
-- Admin mock assignment is scoped to active students in the selected mock module and level.
-- Student competition mock attempts now keep timer/navigation visible in a single structured exam workspace.
-- Student competition mock attempts also scale dense vertical sums down to reduce clipping in desktop exam view.
-- Student competition mock attempts surface the live timer inside the metric card grid.
-- Long expression-style attempt questions widen the question panel and shrink text to stay visible.
-- Question previews avoid inner scrollbars for expression-style displays.
+## Latest Implemented State
+
+- Competition mock notifications and deep-link routing were added and then stabilized across Admin, Teacher, and Student result flows.
+- Student competition mock entry now includes direct start-practice flows and a dedicated instructions screen.
+- Student assessment/mock attempt pages use sticky metric bars and more uniform question block sizing.
+- Teacher and student dashboards/readiness/results surfaces were moved toward a shared `math-kicker` / `math-block-header` / `math-subtitle` convention.
+- Student metric cards and result summary cards were standardized around the gamified compact metric-card style.
+- Login no longer waits on an artificial post-submit delay and no longer shows verbose connection-status banners.
+- The app now applies global responsive safeguards including viewport controls, safe-area padding, `overflow-x-hidden`, and localized horizontal swiping for wide tables.
+- Backend auth was hardened in `4502bdd`, and `7f92d7d` adds a schema migration to backfill missing user security columns.
+- The header now uses the refreshed high-resolution MathPath logo with a larger image-only LogoMark and no redundant wordmark/tagline.
+- The 2026-06-18 MM workbook-faithful visual-labeling and generator fixes remain the latest detailed backend curriculum verification baseline.
 
 ## Existing Brain Context
 
@@ -67,33 +81,16 @@ Future conversations must read the source-asset manifest before changing DPS gen
 
 ## Verification Baseline
 
-Recent verification commands that passed:
+Recent verification evidence recorded in repo memory:
 
-- Backend: `.venv\Scripts\python.exe -m pytest tests` on 2026-06-18, 17 passed.
-- Backend focused: `.venv\Scripts\python.exe -m pytest tests\test_mm_competition_mock_generator.py`
-- Backend focused: `.venv\Scripts\python.exe -m pytest tests\test_generator.py tests\test_mm_competition_mock_generator.py` on 2026-06-18, 10 passed.
-- Backend focused: `PYTHONPATH=backend pytest backend\tests\test_generator.py backend\tests\test_mm_competition_mock_generator.py` on 2026-06-18, 10 passed after the MM visual concept mapping fix.
-- Backend full: `PYTHONPATH=backend pytest backend\tests` on 2026-06-18, 17 passed after the strict MM visual label sweep fix.
-- Local strict workbook-vs-platform visual audit on 2026-06-18: missing workbook visual labels `0`, extra platform visual labels `0`.
-- Live strict Admin Learning Path Studio MM visual audit on 2026-06-18: 150 DPS fetched, 84 workbook visual/fast-visualisation DPS checked, missing `0`, extra `0` after normalizing live API `×`/`÷` encoding.
-- Corrected local workbook audit on 2026-06-18: 150 DPS audited, 102 workbook visual/fast-visualisation DPS recognized, mismatch/flag issue count `0`.
-- Backend full: `PYTHONPATH=backend pytest backend\tests` on 2026-06-18, 20 passed after adding visual curriculum mapping regression tests.
-- Live corrected workbook-vs-platform audit after commit `18bf3a4`: 150 DPS fetched, 102 workbook visual/fast-visualisation DPS checked, missing `0`, extra `0`.
-- Frontend: `npm.cmd run typecheck` on 2026-06-18.
-- Frontend: `npm.cmd run build` on 2026-06-18.
-- Local DB-backed smoke: Admin DPS preview generation for `MM-L1`, Lesson 1, DPS 1 returned 30 questions.
-- Live Render smoke: Admin DPS preview generation for `MM-L1`, Lesson 1, DPS 1 returned 30 questions after commit `5bce2ed`.
-- Live Render smoke: Admin DPS preview generation for `MM-L1`, Lesson 10, DPS 2 returned 15 questions after commit `5bce2ed`.
-- Live API smoke: MM mock section plan returns 100 total questions, 10 locked sections, and 10 questions per section.
-- Live API smoke: temporary MM mock draft generated 100 questions, 3600 seconds, 10 locked sections, then was deleted.
-- Live Vercel smoke: Admin Mock Studio loads with live auth token and MM defaults are visible after module/level selection.
-- No live verification is currently recorded for the latest Admin Learning Path MM DPS preview fix, the post-assignment student-attempt commits, or the MM visual add/less commits.
+- Backend full: `PYTHONPATH=backend pytest backend\tests` on 2026-06-18, 20 passed after the MM visual curriculum mapping regressions were added.
+- Live corrected MM workbook-vs-platform audit after commit `18bf3a4`: 150 DPS fetched, 102 workbook visual/fast-visualisation DPS checked, missing `0`, extra `0`.
+- 2026-06-26 daily log records the teacher/student UI cleanup sequence as typechecked, built, and merged via automated PRs `#40` through `#43`.
+- 2026-06-29 daily log records login UX commit `590e1dc` as typechecked, built, and merged via PR `#59`.
+- 2026-06-29 daily log records responsive layout commit `fdc0aab` as compiled, tested, and merged via PR `#61`.
 
-## Known Local Unrelated Items
+Verification gaps that still need evidence:
 
-These were present and intentionally left untouched:
-
-- `MathPath-Platform`
-- `copy_titles.py`
-- `old_seed.py`
-- `seed_function.py`
+- No recorded local test/build output yet for commits `4502bdd`, `7f92d7d`, or `d091e7b` through `c4d2ddf`.
+- No recorded browser smoke yet for the 2026-06-29 login changes, responsive layout changes, or latest header-logo behavior.
+- No recorded deployed-environment confirmation yet that the backend user security-column migration in `7f92d7d` executed successfully.
