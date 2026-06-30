@@ -163,8 +163,8 @@ export default function StudentDashboardPage() {
                 <Laptop size={14} />
                 Student Workspace
               </div>
-              <h1 className="mt-3 max-w-4xl text-3xl font-black tracking-[-0.035em] text-slate-950 dark:text-white sm:text-[2.35rem] lg:whitespace-nowrap">
-                My Learning Dashboard
+              <h1 className="mt-3 flex items-center gap-3 max-w-4xl text-3xl font-black tracking-[-0.035em] text-slate-950 dark:text-white sm:text-[2.35rem] lg:whitespace-nowrap">
+                My Learning Dashboard <span className="inline-block origin-[70%_70%] animate-[wave_2.5s_ease-in-out_infinite]">👋</span>
               </h1>
               <p className="math-subtitle">
                 Practice, assessments, and progress in one bright learning space.
@@ -299,7 +299,7 @@ function ProgressionJourneyCard({ State, onClick }: { State: ReturnType<typeof B
 
 function QuickAccessCard({ Icon, Label, onClick }: { Icon: ReactNode; Label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="group math-dashboard-quick-card text-left">
+    <button type="button" onClick={onClick} className="group math-dashboard-quick-card text-left transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-95 active:translate-y-0.5">
       <span className="math-dashboard-quick-icon">{Icon}</span>
       <span className="block min-w-0 flex-1 text-base font-black text-slate-950 dark:text-white">{Label}</span>
     </button>

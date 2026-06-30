@@ -1,6 +1,6 @@
 # Daily Handoff
 
-Last updated: 2026-06-18
+Last updated: 2026-06-29
 
 ## Resume First
 
@@ -10,125 +10,59 @@ Read:
 2. `.mathpath/STATE.yaml`
 3. `.mathpath/rules/global.md`
 4. `docs/project-memory/PROJECT_STATE.md`
-5. `docs/project-memory/SOURCE_ASSETS.md`
-6. Latest daily log under `docs/project-memory/DAILY_LOGS/`
+5. `docs/project-memory/DEPLOYMENT_LOG.md`
+6. `docs/project-memory/OPEN_ISSUES.md`
+7. Latest daily log under `docs/project-memory/DAILY_LOGS/`
 
 ## Latest Completed Work
 
-After the current push, `main` and `origin/main` should point to commit `6f96201`.
+Current branch alignment:
 
-On 2026-06-18, Admin Learning Path Studio preview generation for MM practice DPS was fixed locally after the live screenshot showed a generic server error for `MM-L1`, Lesson 1, DPS 1:
+- `main` and `origin/main` both point to `c4d2ddf` (`style(frontend): remove pill hover from LogoMark and increase dimensions again (#79)`).
+- The recent pushed sequence spans notification/deep-link fixes on 2026-06-24, student mock entry and sticky-workspace polish on 2026-06-25, broad teacher/student UI standardization on 2026-06-26, and login/responsive/branding work on 2026-06-29.
 
-- Negative-answer decimal visual add-less now generates stacks that satisfy the approved decimal visual row/digit rules.
-- Fast visualisation validation now respects the section's explicit digit count, so both 2-digit and 3-digit fast visualisation sheets can generate.
-- Regression coverage now checks the exact failing `MM-L1` Lesson 1 / DPS 1 plan and sweeps every mapped Master Module DPS plan.
-- Backend full pytest suite passed locally: 17 passed.
-- Local database-backed preview generation for the selected DPS returned 30 questions successfully.
-- Commit `5bce2ed` was pushed to `main`.
-- Live Render smoke passed for `MM-L1`, Lesson 1, DPS 1: preview returned 30 questions.
-- Live Render smoke passed for `MM-L1`, Lesson 10, DPS 2: preview returned 15 questions for `3 Digit Add-Less (Fast Visualisation) & BODMAS`.
+Recent shipped work now reflected in repo history:
 
-On 2026-06-18, a durable source-asset intake system was added:
+- 2026-06-24: competition mock notifications, deep-linking, mock submission/routing fixes, and remaining MM visual seed mappings landed across commits `5561d34` through `7cfb74a`.
+- 2026-06-25: student mock instructions, start-practice entry points, sticky metric bars, and question block sizing landed across commits `3d59b32` through `495e821`.
+- 2026-06-26: teacher/student table spacing, chip wrapping, metric-card gamification, and typography cleanup landed across commits `abddcd0` through `a04ed53`; the daily log records typecheck/build evidence and an explicit Vercel production deploy trigger.
+- 2026-06-29: login UX streamlining (`590e1dc`), global responsive safeguards (`fdc0aab`), login hardening (`4502bdd`), backend security-column schema migration (`7f92d7d`), student hero/result typography cleanup (`d091e7b` through `bbffb96`), and a larger image-only header logo sequence (`416bf88` through `c4d2ddf`) landed on `main`.
 
-- `docs/project-memory/SOURCE_ASSETS.md` is now the committed manifest for external DPS images, Excel workbooks, and future curriculum source materials.
-- `reference-assets/` is now the local-only drop folder for bulky source files that should remain readable across conversations without being pushed to git.
-- Future conversations must read `SOURCE_ASSETS.md` before changing generator/curriculum logic.
-- The authoritative Master Module source folder is recorded as `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Modules\MM\Level - 9`.
-- That folder is verified to contain 30 lesson folders, 150 `.png` DPS images, and 3 `.xlsx` workbooks.
+This audit refreshed stale project memory that was still anchored to 2026-06-18 MM generator work.
 
-On 2026-06-18, the recorded Master Module source workbooks were audited against Learning Path Studio visual concept mappings:
+## Current Repository State
 
-- 150 DPS sheets were audited from the authoritative `Level - 9` source folder.
-- 84 DPS contained explicit workbook `VISUAL` / `FAST VISUALISATION` concept labels.
-- The initial audit found 23 DPS with missing platform visual mappings or missing visual flags.
-- `backend/app/question_engine/mm/curriculum_map.py` was updated so the workbook visual concepts are mapped with `Concept Name (Visual)` display titles where applicable.
-- `backend/app/seed/seed_master_module.py` was updated so seeded DPS titles also show the corrected visual concepts.
-- Visual negative-borrowing Add-Less generation now uses 4-digit visual operands so it satisfies both visual Add-Less constraints and negative-borrowing validation.
-- Workbook-to-platform visual audit passed after the mapping fix: 0 mismatches.
-- Backend generator verification passed: `PYTHONPATH=backend pytest backend\tests\test_generator.py backend\tests\test_mm_competition_mock_generator.py` returned 10 passed.
-- Commit `47523b5 Fix MM visual concept mappings` was pushed to `main`.
-- Live backend read-only smoke after push succeeded for the Admin module/levels API: module `MM`, levels returned `1`.
+Local working tree is dirty and not yet pushed:
 
-On 2026-06-18, a stricter live Learning Path Studio sweep was run for the full MM module:
+- `frontend/app/globals.css`
+- `frontend/app/student/assessment-readiness/page.tsx`
+- `frontend/app/student/assessments/page.tsx`
+- `frontend/app/student/dashboard/page.tsx`
+- `frontend/app/student/practice/page.tsx`
 
-- Live Admin Learning Path Studio payload was fetched for all 30 lessons and 150 DPS.
-- The live sweep found no completely missing workbook visual concepts, but 50 DPS still had one or more visual concepts displayed without `Concept Name (Visual)`.
-- Commit `6f96201 Align MM visual labels with workbooks` fixes those remaining display mismatches and removes extra `(Visual)` labels where the workbook did not mark the concept visual.
-- Local strict workbook-vs-platform audit after the fix returned missing `0`, extra `0`.
-- Backend full pytest suite passed after the fix: `PYTHONPATH=backend pytest backend\tests` returned 17 passed.
-- Commits `6f96201` and `ec00920` were pushed to `main`.
-- Live Admin Learning Path Studio MM was fetched again after push: 30 lessons, 150 DPS.
-- Live strict workbook-vs-platform audit passed after normalizing the live API's `×`/`÷` encoding: missing `0`, extra `0`.
+These local edits appear to continue the student-page typography/layout cleanup after commit `c4d2ddf`. Treat them as in-progress user work until they are reviewed, tested, and committed.
 
-Important correction later on 2026-06-18:
+## Verification Snapshot
 
-- The user found that Lesson 12 DPS 3 still showed `Add Percentage & Less Percentage` without visual labels, despite the workbook having a DPS-level `VISUAL` marker.
-- The previous audit was incomplete: it missed DPS-level visual markers over percentage concept rows and allowed plain titles to match visual workbook concepts.
-- The corrected local workbook audit now recognizes 102 DPS with workbook visual/fast-visualisation labels, not 84.
-- The corrected audit currently passes locally with mismatch/flag issue count `0`.
-- Backend tests now include `backend/tests/test_mm_visual_curriculum_mapping.py` and the full backend suite passes with 20 tests.
-- Commit `18bf3a4 Fix MM percentage visual mappings` was pushed to `main`.
-- Live Admin Learning Path Studio MM was fetched after deployment: 30 lessons and 150 DPS.
-- Live Lesson 12 DPS 3 now shows `Add Percentage (Visual) & Less Percentage (Visual)`.
-- Full live comparison against the corrected 102-DPS workbook visual audit passed with missing `0`, extra `0`.
+Recorded evidence currently available in repo memory:
 
-The main product work landed on 2026-06-17 and includes:
+- 2026-06-18 MM backend/product verification remains the last detailed live API/test evidence for the Master Module fixes.
+- 2026-06-26 daily log records the UI styling sequence as typechecked, built, and merged via automated PRs `#40` through `#43`.
+- 2026-06-29 daily log records login UX commit `590e1dc` as typechecked, built, and merged via PR `#59`.
+- 2026-06-29 daily log records responsive layout commit `fdc0aab` as compiled, tested, and merged via PR `#61`.
 
-- MM mock freshness enforcement across the previous 15 active same-level mocks.
-- MM generator quality fixes for write-position variety and non-trivial multiplication/division questions.
-- Competition Mock Studio assignment scope fixes so student eligibility comes from the selected mock module and level.
-- Student competition mock attempt layout changes so the timer, status, question, and choices sit in one coherent exam workspace.
-- Student attempt metric polish that moved the live timer into the metric card grid.
-- MM visual add/less tightening so fast visualisation and decimal visual questions follow explicit row-count and digit-shape rules.
-- Expression-question layout polish so long prompts get more horizontal room and shrink to fit instead of clipping.
+Evidence still missing from repo memory:
 
-On 2026-06-18, this handoff audit re-verified the current branch locally:
+- No recorded local test/build output yet for commits `4502bdd`, `7f92d7d`, or the student-page/logo sequence `d091e7b` through `c4d2ddf`.
+- No recorded live browser smoke yet for the 2026-06-29 login, responsive, or header-branding changes.
+- No recorded deployment confirmation yet that the backend schema migration in `7f92d7d` ran successfully in the deployed environment.
 
-- Backend full pytest suite passed: 15 passed.
-- Frontend `npm.cmd run typecheck` passed.
-- Frontend `npm.cmd run build` passed.
-
-Recorded live verification in repo memory currently stops at the earlier 2026-06-17 deployment entries for freshness, MM generator quality, and mock assignment scope. There is no recorded live Render/Vercel smoke yet for the later commits `8642be7`, `f6c5f6e`, `9d5a268`, or `aae8814`.
-
-## Current Product State
-
-MM mock generator and preview behavior is now expected to be:
-
-- Default MM mock question count: 100.
-- Default MM mock duration: 60 minutes.
-- 10 locked MM sections.
-- 10 questions per section by default.
-- Section-only generation, meaning each section generates only its approved concept families.
-- Concept-wise sequential question blocks within each section.
-- No repeated sums/questions inside the same mock.
-- No repeated sums/questions from the previous 15 active same-level MM mocks.
-- Write Number From Given Position uses varied position prompts in competition mocks.
-- Multiplication/division mocks avoid easy place-shift operands and obvious low quotients.
-- MM visual add/less fast visualisation questions stay at 7 rows using the section's explicit digit count.
-- MM decimal visual add/less questions must follow explicit approved row/digit patterns instead of arbitrary decimal row mixes.
-- MM practice DPS section titles must preserve workbook visual-method concepts with the display convention `Concept Name (Visual)`.
-- MM visual negative-borrowing Add-Less practice questions use 4-digit operands so the visual range and negative-borrowing rules both hold.
-- Admin mock assignment only shows and assigns students eligible for the selected mock module and level.
-- Student competition mock attempts keep the timer visible inside the metric card area and show a red pulsing low-time warning at 5 minutes remaining.
-- Student competition mock attempts use a denser full-workspace layout so long vertical sums remain visible on desktop.
-- Long expression questions in student mock attempts widen the prompt panel and shrink text to stay visible instead of clipping or wrapping awkwardly.
-- Clean preview rendering with no duplicate positional prompt and no inner scrollbars.
+No new tests or live checks were run during this handoff audit itself.
 
 ## Next Recommended Work
 
-1. Browser spot-check Lesson 12 DPS 3; it should show `Add Percentage (Visual) & Less Percentage (Visual)`.
-2. Ask the user to retry Admin Learning Path Studio for the originally failing DPS in the browser.
-3. Live-QA the current student competition mock attempt page on Vercel using long expression, dense vertical-sum, and visual add/less questions.
-
-## Important Convention
-
-Do not push any code that has not passed relevant local checks. For frontend changes, run at least:
-
-- `npm.cmd run typecheck`
-- `npm.cmd run build`
-
-For backend generator changes, run:
-
-- `.venv\Scripts\python.exe -m pytest tests`
-
-When live deployment matters, verify Render and Vercel after push.
+1. Inspect and finish the local dirty frontend edits, then run `npm.cmd run typecheck` and `npm.cmd run build`.
+2. Browser-QA Admin, Teacher, and Student login flows after `590e1dc` and `4502bdd`.
+3. Browser-QA the responsive student pages and header branding after `fdc0aab` through `c4d2ddf`, especially mobile width, safe-area spacing, and logo hover behavior.
+4. Verify the deployed backend after `7f92d7d` by exercising auth flows that depend on the added security columns.
+5. If the above checks pass, record deployment evidence in `DEPLOYMENT_LOG.md` and clear the related open issues.

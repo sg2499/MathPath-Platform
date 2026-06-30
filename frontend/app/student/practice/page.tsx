@@ -408,6 +408,14 @@ function MetricCard({
       <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
         {Value}
       </p>
+      {Label === "Average Accuracy" && typeof Value === "string" && Value.endsWith("%") && (
+        <div className="relative z-10 mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-orange-400 to-emerald-400 transition-all duration-1000 ease-out"
+            style={{ width: Value }}
+          />
+        </div>
+      )}
     </div>
   );
 }

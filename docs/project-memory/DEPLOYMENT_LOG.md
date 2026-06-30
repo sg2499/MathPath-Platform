@@ -1,6 +1,67 @@
 # Deployment Log
 
-Last updated: 2026-06-18
+Last updated: 2026-06-29
+
+## 2026-06-29
+
+### Branch audit through commit `c4d2ddf`
+
+Observed state:
+
+- `main` and `origin/main` both point to `c4d2ddf`.
+- The 2026-06-29 pushed stack includes:
+  - `590e1dc` login UX streamline
+  - `fdc0aab` global responsive layout fixes
+  - `4502bdd` student login hardening
+  - `7f92d7d` backend user security-column schema migration
+  - `d091e7b` through `bbffb96` student typography/result standardization
+  - `416bf88` through `c4d2ddf` header/logo cleanup and enlarged image-only branding
+
+Expected deployment:
+
+- Vercel frontend redeploys for the frontend commits above.
+- Render backend redeploys for `4502bdd` and `7f92d7d`.
+
+Verification recorded in repo memory:
+
+- `590e1dc`: daily log says the login UX changes were typechecked, built, and merged via PR `#59`.
+- `fdc0aab`: daily log says the responsive-layout changes were compiled, tested, and merged via PR `#61`.
+
+Evidence gap:
+
+- No recorded local test/build output yet for `4502bdd`, `7f92d7d`, or the later student-page/header sequence.
+- No recorded live browser smoke yet for role login, responsive student pages, or the latest logo/header behavior.
+- No recorded deployed-environment confirmation yet that the schema migration in `7f92d7d` ran successfully.
+
+Remaining:
+
+- Run `npm.cmd run typecheck` and `npm.cmd run build` after the current local frontend edits are settled.
+- Browser-QA Admin/Teacher/Student login and the latest responsive/header behavior on live or preview.
+- Verify auth flows that depend on the backfilled security columns after the backend deploy.
+
+## 2026-06-24 to 2026-06-26
+
+### Notifications, mock entry, and UI standardization sequence
+
+Observed pushed work:
+
+- 2026-06-24: commits `5561d34` through `7cfb74a` added and stabilized competition mock notifications, deep links, result routing, mock submission fixes, and remaining MM visual seed cleanup.
+- 2026-06-25: commits `3d59b32` through `495e821` added student mock instructions/start-practice flows and polished sticky metric bars and question block sizing.
+- 2026-06-26: commits `abddcd0` through `a04ed53` standardized teacher/student metrics, tables, hero copy, typography, and explicitly triggered a Vercel production deploy.
+
+Expected deployment:
+
+- Vercel redeploys for the frontend-heavy UI sequence.
+- Render redeploys for the notification/routing backend changes.
+
+Verification recorded in repo memory:
+
+- 2026-06-26 daily log says the UI styling sequence was typechecked, built, and merged via automated PRs `#40` through `#43`.
+
+Evidence gap:
+
+- Repo memory does not currently contain precise live smoke results for the 2026-06-24 through 2026-06-26 notification, start-practice, and table/layout fixes.
+- Repo memory does not currently capture a consolidated backend test log for the 2026-06-24 routing/notification sequence.
 
 ## 2026-06-18
 

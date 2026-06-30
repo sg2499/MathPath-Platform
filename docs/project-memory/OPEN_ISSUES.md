@@ -1,40 +1,33 @@
 # Open Issues
 
-Last updated: 2026-06-18
+Last updated: 2026-06-29
 
 ## Active
 
-- User should retry `MM-L1`, Lesson 1, DPS 1 in Admin Learning Path Studio browser UI after the backend deploy.
-- Live-QA the current student competition mock attempt page after the late 2026-06-17 layout and expression-polish commits.
-- Browser spot-check the corrected MM Learning Path Studio visual labels after the strict live API sweep passed.
-- Browser spot-check Lesson 12 DPS 3 after live API verification passed.
-- Reseed/sync the live backend curriculum if existing DPS section rows do not update automatically after deployment.
-- Add automated browser or component regression coverage for student attempt expression rendering and no-clipping behavior.
-- Add an API/browser regression that creates repeated MM drafts and confirms question signatures are not reused within the same-level 15-mock window.
+- Finish or discard the current local frontend edits in `frontend/app/globals.css`, `frontend/app/student/assessment-readiness/page.tsx`, `frontend/app/student/assessments/page.tsx`, `frontend/app/student/dashboard/page.tsx`, and `frontend/app/student/practice/page.tsx`; then run frontend typecheck and build.
+- Browser-QA Admin, Teacher, and Student login flows after `590e1dc` and `4502bdd`.
+- Browser-QA responsive behavior after `fdc0aab` and the later student-page/header cleanup, especially mobile width, safe-area spacing, and header/logo rendering.
+- Verify that deployed backend auth works after schema-migration commit `7f92d7d`, and confirm the missing security columns self-heal in the target environment.
+- Add deployment evidence for the recent pushed stack from `4502bdd` through `c4d2ddf`.
+- Historical MM browser confirmations are still not explicitly recorded in repo memory for:
+  - the originally failing Admin Learning Path Studio preview for `MM-L1`, Lesson 1, DPS 1
+  - Lesson 12 DPS 3 visual labels in browser UI after the successful live API verification
 
 ## Watch List
 
-- Existing local untracked files and nested folder remain untouched:
+- Existing local untracked/nested items remain intentionally untouched:
   - `MathPath-Platform`
   - `copy_titles.py`
   - `old_seed.py`
   - `seed_function.py`
-- The local Next dev server did not stay alive reliably through hidden background PowerShell launches, although `npm.cmd run dev -- -p 3000` starts correctly in foreground.
+- The recent frontend changes are heavily style-driven; visual regressions are more likely than type-level regressions, so browser QA remains important even after a clean build.
 
 ## Resolved Recently
 
-- MM mock default was corrected from older non-MM defaults to 100 questions and 60 minutes.
-- Section leakage in MM mock generation was fixed.
-- Positional prompt duplication in mock preview was fixed.
-- Empty first-natural-number prompts now render the full task label in mock cards.
-- Inner scrollbar convention issue was addressed in frontend renderers.
-- Local backend MM generator now blocks duplicate sums/questions inside a mock and across the previous 15 active same-level MM mocks.
-- Live backend MM generator now varies Write Number From Given Position prompts and avoids trivial multiplication/division scale operands.
-- Local Admin Learning Path MM DPS preview generation no longer fails for `MM-L1`, Lesson 1, DPS 1.
-- Local generator sweep now verifies every mapped Master Module DPS plan generates a non-empty question set.
-- Live Render Admin DPS preview smoke passed for `MM-L1`, Lesson 1, DPS 1 and `MM-L1`, Lesson 10, DPS 2.
-- Authoritative Master Module Level 9 source folder is recorded in `SOURCE_ASSETS.md`.
-- Local workbook-to-platform audit for MM visual concepts reached 0 mismatches after the curriculum map fix.
-- Local backend generator tests passed after the MM visual concept mapping fix.
-- Live strict MM workbook-vs-platform visual label sweep passed after commit `6f96201`: 150 DPS fetched, missing `0`, extra `0`.
-- Corrected live MM workbook-vs-platform visual label sweep passed after commit `18bf3a4`: 150 DPS fetched, 102 workbook visual/fast-visualisation DPS checked, missing `0`, extra `0`.
+- Competition mock notifications and deep-link routing were stabilized across Admin, Teacher, and Student result flows.
+- Student mock instructions and start-practice entry points were added.
+- Sticky metric bars and question block sizing were cleaned up across student attempt pages.
+- Teacher/student table spacing, chip wrapping, and metric-card presentation were standardized across the late 2026-06-25 and 2026-06-26 commits.
+- Login no longer waits on an artificial post-submit delay or shows verbose connection banners.
+- Global responsive layout safeguards were added for viewport handling, safe-area spacing, and horizontal overflow control.
+- The app shell now uses the refreshed larger image-only MathPath logo treatment.
