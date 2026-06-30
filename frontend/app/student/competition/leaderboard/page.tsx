@@ -162,7 +162,7 @@ const router = useRouter();
 
 <div className="math-card p-6 md:p-8 flex flex-col xl:flex-row xl:items-start justify-between gap-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-        <div className="relative z-10 xl:max-w-2xl">
+        <div className="relative z-10 flex-1 pr-8">
           <div className="math-block-header mb-3"><Trophy size={16} className="text-yellow-500" /> Leaderboard</div>
           <h1 className="math-title mb-2">Mock Exam Leaderboard</h1>
           <p className="math-subtitle">

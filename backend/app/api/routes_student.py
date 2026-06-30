@@ -989,21 +989,22 @@ def get_competition_hierarchy(
         .all()
     )
     
-    if not assigned_exams:
-        return {
-            "modules": [],
-            "levels": [],
-            "exams": [],
-            "currentLevelId": student.current_level_id,
-            "currentModuleId": None
-        }
-
     assigned_exam_ids = {e.id for e in assigned_exams}
     assigned_level_ids = {e.level_id for e in assigned_exams}
     assigned_module_ids = {e.module_id for e in assigned_exams}
     
-    modules = db.query(Module).filter(Module.id.in_(assigned_module_ids), Module.is_active == True).order_by(Module.display_order).all()
-    levels = db.query(Level).filter(Level.id.in_(assigned_level_ids), Level.is_active == True).order_by(Level.display_order).all()
+    if student.current_level_id:
+        assigned_level_ids.add(student.current_level_id)
+        current_level = db.query(Level).filter(Level.id == student.current_level_id).first()
+        if current_level:
+            assigned_module_ids.add(current_level.module_id)
+
+    if not assigned_module_ids:
+        modules = db.query(Module).filter(Module.is_active == True).order_by(Module.display_order).all()
+        levels = db.query(Level).filter(Level.is_active == True).order_by(Level.display_order).all()
+    else:
+        modules = db.query(Module).filter(Module.id.in_(assigned_module_ids), Module.is_active == True).order_by(Module.display_order).all()
+        levels = db.query(Level).filter(Level.id.in_(assigned_level_ids), Level.is_active == True).order_by(Level.display_order).all()
     
     return {
         "modules": [{"id": m.id, "name": m.module_name, "code": m.module_code} for m in modules],
