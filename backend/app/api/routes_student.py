@@ -969,3 +969,81 @@ def get_student_achievements(
 
     return {"achievements": result}
 
+
+@router.get("/competition/hierarchy")
+def get_competition_hierarchy(
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student)
+):
+    from app.models.models import Module, Level, CompetitionMockExam
+    
+    modules = db.query(Module).filter(Module.is_active == True).order_by(Module.display_order).all()
+    levels = db.query(Level).filter(Level.is_active == True).order_by(Level.display_order).all()
+    exams = db.query(CompetitionMockExam).filter(CompetitionMockExam.status == "PUBLISHED").all()
+    
+    return {
+        "modules": [{"id": m.id, "name": m.module_name, "code": m.module_code} for m in modules],
+        "levels": [{"id": l.id, "moduleId": l.module_id, "name": l.level_name, "code": l.level_code} for l in levels],
+        "exams": [{"id": e.id, "levelId": e.level_id, "moduleId": e.module_id, "title": e.title} for e in exams]
+    }
+
+@router.get("/competition/mock-exams/cumulative-leaderboard")
+def get_cumulative_leaderboard(
+    level_id: str,
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student)
+):
+    from app.models.models import CompetitionMockResultSummary, Student, User, CompetitionMockExam
+    from sqlalchemy import func
+    
+    # We want to aggregate the scores and times for all mock exams in the given level
+    results = (
+        db.query(
+            Student.id.label('student_id'),
+            User.full_name,
+            User.photo_url,
+            func.sum(CompetitionMockResultSummary.score).label('total_score'),
+            func.sum(CompetitionMockResultSummary.max_score).label('total_max_score'),
+            func.sum(CompetitionMockResultSummary.time_taken_seconds).label('total_time')
+        )
+        .join(Student, CompetitionMockResultSummary.student_id == Student.id)
+        .join(User, Student.user_id == User.id)
+        .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
+        .filter(CompetitionMockExam.level_id == level_id)
+        .group_by(Student.id, User.full_name, User.photo_url)
+        .all()
+    )
+
+    # Calculate percentage and sort
+    processed_results = []
+    for r in results:
+        percentage = (r.total_score / r.total_max_score * 100) if r.total_max_score > 0 else 0
+        processed_results.append({
+            "studentId": r.student_id,
+            "name": r.full_name,
+            "photoUrl": r.photo_url,
+            "percentage": round(percentage, 2),
+            "timeTakenSeconds": r.total_time or 0,
+            "isCurrent": r.student_id == student.id
+        })
+        
+    # Sort by percentage desc, time asc
+    processed_results.sort(key=lambda x: (-x['percentage'], x['timeTakenSeconds']))
+
+    leaderboard = []
+    current_student_rank = None
+    for idx, r in enumerate(processed_results):
+        rank = idx + 1
+        r['rank'] = rank
+        if r['isCurrent']:
+            current_student_rank = rank
+            
+        if rank <= 10 or r['isCurrent']:
+            leaderboard.append(r)
+            
+    return {
+        "leaderboard": [entry for entry in leaderboard if entry["rank"] <= 10],
+        "currentStudentRank": current_student_rank,
+        "currentStudentEntry": next((e for e in leaderboard if e["isCurrent"]), None),
+        "totalParticipants": len(processed_results)
+    }
