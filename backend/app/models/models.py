@@ -914,13 +914,17 @@ class ParentReportDeliveryEvent(Base):
 class AchievementBadge(Base):
     __tablename__ = "achievement_badges"
     id = Column(String, primary_key=True, default=uuid_str)
-    code = Column(String(50), unique=True, nullable=False)
+    code = Column(String(50), nullable=False)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=False)
     icon_name = Column(String(50), nullable=False)
     tier = Column(String(30), nullable=False, default="BASE")
     required_count = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('code', 'tier', name='uix_badge_code_tier'),
+    )
 
 class StudentBadge(Base):
     __tablename__ = "student_badges"
