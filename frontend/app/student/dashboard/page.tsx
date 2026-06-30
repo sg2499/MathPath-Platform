@@ -18,6 +18,10 @@ import {
   Laptop,
   Zap,
   Milestone,
+  PlayCircle,
+  Eye,
+  ArrowRight,
+  Award,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -121,6 +125,8 @@ const QuickLinks = [
   { Icon: <GraduationCap size={16} />, Label: "Assessments", Route: "/student/assessments" },
   { Icon: <ShieldCheck size={16} />, Label: "Assessment Readiness", Route: "/student/assessment-readiness" },
   { Icon: <BarChart3 size={16} />, Label: "Progress", Route: "/student/results" },
+  { Icon: <Trophy size={16} />, Label: "Mock Leaderboard", Route: "/student/competition/leaderboard" },
+  { Icon: <Award size={16} />, Label: "Trophy Room", Route: "/student/achievements" },
 ];
 
 export default function StudentDashboardPage() {
