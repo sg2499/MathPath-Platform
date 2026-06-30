@@ -146,12 +146,14 @@ const router = useRouter();
 
   return (
     <div className="math-role-student math-page w-full min-h-screen bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 overflow-hidden relative">
-      <div className="premium-backdrop" />
+      {/* Background Pattern */}
+      <div className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, #000 2px, transparent 2px)', backgroundSize: '32px 32px' }} />
+      
       {/* Ambient background glows */}
-      <div className="absolute top-0 right-[10%] w-[500px] h-[500px] bg-indigo-400/10 dark:bg-indigo-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
-      <div className="absolute bottom-[20%] left-[-10%] w-[600px] h-[600px] bg-purple-400/10 dark:bg-purple-600/10 blur-[150px] rounded-full pointer-events-none -z-10" />
+      <div className="absolute top-0 right-[10%] w-[500px] h-[500px] bg-indigo-500/20 dark:bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none z-0" />
+      <div className="absolute bottom-[20%] left-[-10%] w-[600px] h-[600px] bg-purple-500/20 dark:bg-purple-600/20 blur-[150px] rounded-full pointer-events-none z-0" />
 
-      <div className="w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
+      <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
         <button 
           onClick={() => router.back()}
         className="math-role-action-button px-4 py-2 text-sm w-fit inline-flex items-center gap-2 shadow-sm hover:shadow"
@@ -172,13 +174,13 @@ const router = useRouter();
           <div className="mt-6 flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl w-fit">
             <button
               onClick={() => setViewMode("CUMULATIVE")}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === "CUMULATIVE" ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === "CUMULATIVE" ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"}`}
             >
               Overall Journey
             </button>
             <button
               onClick={() => setViewMode("INDIVIDUAL")}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === "INDIVIDUAL" ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === "INDIVIDUAL" ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"}`}
             >
               Specific Exam
             </button>
@@ -195,9 +197,13 @@ const router = useRouter();
                 onChange={(e) => handleModuleChange(e.target.value)}
                 className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
               >
-                {modules.map(m => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
+                {modules.length > 0 ? (
+                  modules.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))
+                ) : (
+                  <option disabled value="">No modules available</option>
+                )}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
             </div>
@@ -212,9 +218,13 @@ const router = useRouter();
                 onChange={(e) => handleLevelChange(e.target.value)}
                 className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
               >
-                {availableLevels.map(l => (
-                  <option key={l.id} value={l.id}>{l.name}</option>
-                ))}
+                {availableLevels.length > 0 ? (
+                  availableLevels.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))
+                ) : (
+                  <option disabled value="">No levels available</option>
+                )}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
             </div>
@@ -230,9 +240,13 @@ const router = useRouter();
                 disabled={viewMode === "CUMULATIVE"}
                 className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition disabled:bg-slate-50 disabled:text-slate-400"
               >
-                {availableExams.map(e => (
-                  <option key={e.id} value={e.id}>{e.title}</option>
-                ))}
+                {availableExams.length > 0 ? (
+                  availableExams.map(e => (
+                    <option key={e.id} value={e.id}>{e.title}</option>
+                  ))
+                ) : (
+                  <option disabled value="">No exams available</option>
+                )}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
             </div>
