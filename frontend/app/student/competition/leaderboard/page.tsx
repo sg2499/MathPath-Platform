@@ -145,7 +145,8 @@ const router = useRouter();
   const availableExams = exams.filter(e => e.levelId === selectedLevelId);
 
   return (
-    <div className="math-role-student math-page w-full min-h-screen premium-backdrop bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 overflow-hidden relative">
+    <div className="math-role-student math-page w-full min-h-screen bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 overflow-hidden relative">
+      <div className="premium-backdrop" />
       {/* Ambient background glows */}
       <div className="absolute top-0 right-[10%] w-[500px] h-[500px] bg-indigo-400/10 dark:bg-indigo-600/10 blur-[120px] rounded-full pointer-events-none -z-10" />
       <div className="absolute bottom-[20%] left-[-10%] w-[600px] h-[600px] bg-purple-400/10 dark:bg-purple-600/10 blur-[150px] rounded-full pointer-events-none -z-10" />
@@ -161,7 +162,7 @@ const router = useRouter();
 
 <div className="math-card p-6 md:p-8 flex flex-col xl:flex-row xl:items-start justify-between gap-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-        <div className="relative z-10 xl:max-w-md">
+        <div className="relative z-10 xl:max-w-2xl">
           <div className="math-block-header mb-3"><Trophy size={16} className="text-yellow-500" /> Leaderboard</div>
           <h1 className="math-title mb-2">Mock Exam Leaderboard</h1>
           <p className="math-subtitle">
