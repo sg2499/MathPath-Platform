@@ -977,14 +977,15 @@ def get_competition_hierarchy(
 ):
     from app.models.models import Module, Level, CompetitionMockExam, CompetitionMockAssignment
     
-    # Get all published exams that are assigned to the student
+    # Get all exams that are assigned to the student (not archived)
     assigned_exams = (
         db.query(CompetitionMockExam)
         .join(CompetitionMockAssignment, CompetitionMockAssignment.mock_exam_id == CompetitionMockExam.id)
         .filter(
             CompetitionMockAssignment.student_id == student.id,
             CompetitionMockAssignment.is_active == True,
-            CompetitionMockExam.status == "PUBLISHED"
+            CompetitionMockExam.is_active == True,
+            CompetitionMockExam.status != "ARCHIVED"
         )
         .all()
     )
