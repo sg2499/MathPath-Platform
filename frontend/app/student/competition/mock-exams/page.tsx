@@ -281,12 +281,14 @@ function StudentCompetitionMockExamsContent() {
   return (
     <AppShell title="Competition Mock Exams">
       <section className="space-y-6">
-        <div className="math-card p-6">
-          <div className="math-block-header mb-2"><Swords size={14} /> Mock Exams</div>
-          <h1 className="math-title">Mock Exams</h1>
-          <p className="math-subtitle">
-            Attempt Admin-assigned mock exams for your current level. Mock preparation is independent from regular Practice, Assessment Readiness, and Promotion.
-          </p>
+        <div className="math-card p-6 flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
+          <div className="flex-1 pr-8">
+            <div className="math-block-header mb-2"><Swords size={14} /> Mock Exams</div>
+            <h1 className="math-title">Mock Exams</h1>
+            <p className="math-subtitle max-w-none">
+              Attempt Admin-assigned mock exams for your current level. Mock preparation is independent from regular Practice, Assessment Readiness, and Promotion.
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
