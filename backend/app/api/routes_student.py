@@ -883,12 +883,8 @@ def student_assessment_readiness(db: Session = Depends(get_db), student: Student
 def get_mock_exam_leaderboard(
     exam_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    student: Student = Depends(get_current_student)
 ):
-    student = db.query(Student).filter(Student.user_id == current_user.id).first()
-    if not student:
-        raise HTTPException(status_code=403, detail="Not a student")
-    
     from app.models.models import CompetitionMockResultSummary, Student, User
     results = (
         db.query(CompetitionMockResultSummary, Student, User)
@@ -932,12 +928,8 @@ def get_mock_exam_leaderboard(
 @router.get("/achievements")
 def get_student_achievements(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    student: Student = Depends(get_current_student)
 ):
-    student = db.query(Student).filter(Student.user_id == current_user.id).first()
-    if not student:
-        raise HTTPException(status_code=403, detail="Not a student")
-
     from app.models.models import StudentBadge, AchievementBadge, StudentAchievementStat
     
     all_badges = db.query(AchievementBadge).all()
