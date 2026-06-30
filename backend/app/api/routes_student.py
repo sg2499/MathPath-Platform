@@ -914,6 +914,8 @@ def get_mock_exam_leaderboard(
                 "name": user.full_name,
                 "photoUrl": user.photo_url or st.photo_url,
                 "percentage": res.percentage,
+                "score": res.score,
+                "accuracy": res.accuracy_percentage,
                 "timeTakenSeconds": res.time_taken_seconds,
                 "isCurrent": is_current
             })
@@ -1032,7 +1034,8 @@ def get_cumulative_leaderboard(
             User.photo_url,
             func.sum(CompetitionMockResultSummary.score).label('total_score'),
             func.sum(CompetitionMockResultSummary.max_score).label('total_max_score'),
-            func.sum(CompetitionMockResultSummary.time_taken_seconds).label('total_time')
+            func.sum(CompetitionMockResultSummary.time_taken_seconds).label('total_time'),
+            func.avg(CompetitionMockResultSummary.accuracy_percentage).label('avg_accuracy')
         )
         .join(Student, CompetitionMockResultSummary.student_id == Student.id)
         .join(User, Student.user_id == User.id)
@@ -1051,6 +1054,8 @@ def get_cumulative_leaderboard(
             "name": r.full_name,
             "photoUrl": r.photo_url,
             "percentage": round(percentage, 2),
+            "score": round(r.total_score or 0, 2),
+            "accuracy": round(r.avg_accuracy or 0, 2),
             "timeTakenSeconds": r.total_time or 0,
             "isCurrent": r.student_id == student.id
         })
