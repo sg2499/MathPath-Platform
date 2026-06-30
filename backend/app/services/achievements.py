@@ -146,8 +146,12 @@ class AchievementEngine:
         ]
 
         for code, tier, name, desc, icon, req in badges_data:
-            existing = db.query(AchievementBadge).filter_by(code=code, tier=tier).first()
-            if not existing:
-                b = AchievementBadge(code=code, tier=tier, name=name, description=desc, icon_name=icon, required_count=req)
-                db.add(b)
-        db.commit()
+            try:
+                existing = db.query(AchievementBadge).filter_by(code=code, tier=tier).first()
+                if not existing:
+                    b = AchievementBadge(code=code, tier=tier, name=name, description=desc, icon_name=icon, required_count=req)
+                    db.add(b)
+                    db.commit()
+            except Exception as e:
+                db.rollback()
+                print(f"Failed to seed badge {code}-{tier}: {e}")
