@@ -585,7 +585,8 @@ function StudentAssessmentsPageContent() {
 
   return (
     <AppShell>
-      <section className="math-hero">
+      <section className="math-hero relative overflow-hidden bg-gradient-to-br from-indigo-50/40 via-blue-50/30 to-slate-50/50 dark:from-indigo-950/20 dark:via-blue-950/10 dark:to-slate-950/30">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-indigo-300/10 blur-3xl" />
         <div className="relative z-10">
           <div className="math-block-header mb-2">
             <Radio size={14} />
@@ -745,7 +746,16 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
       <div className="flex justify-center"><span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{attemptLabel(row)}</span></div>
       <div className="flex justify-center"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(row.status)}`}>{status}</span></div>
       <div className="flex justify-center"><PerformanceValueChip Value={recordScore(row)} Tone={recordScore(row) === "—" ? "slate" : "blue"} /></div>
-      <div className="flex justify-center"><PerformanceValueChip Value={recordAccuracy(row)} Tone={AccuracyTone(row)} /></div>
+      <div className="flex justify-center">
+        <div className="flex items-center gap-1.5">
+          {Number.isFinite(parseFloat(recordAccuracy(row))) && parseFloat(recordAccuracy(row)) >= 90 ? (
+            <span title="Gold Badge (Excellent)" className="text-yellow-500 drop-shadow-sm">⭐</span>
+          ) : Number.isFinite(parseFloat(recordAccuracy(row))) && parseFloat(recordAccuracy(row)) >= 75 ? (
+            <span title="Silver Badge (Good)" className="text-slate-400 drop-shadow-sm">🥈</span>
+          ) : null}
+          <PerformanceValueChip Value={recordAccuracy(row)} Tone={AccuracyTone(row)} />
+        </div>
+      </div>
       <div className="text-xs font-bold text-slate-500">{assignedDate(row)}</div>
       <div className="text-xs font-bold text-slate-500">{completionDate(row)}</div>
       <div className="flex min-w-[156px] justify-end pr-1">

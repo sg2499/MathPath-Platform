@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-06-18
+Last updated: 2026-06-29
 
 ## Project Continuity
 
@@ -57,3 +57,30 @@ Reason:
 
 - Generic add/less ranges were allowing malformed or overly easy visual questions.
 - Competition mocks need consistent visual difficulty and valid operand patterns across saved and live-generated mocks.
+
+## Student UI Conventions
+
+Decision: Student-facing hero blocks and metric cards should converge on shared design-system conventions instead of page-specific typography and sizing.
+
+Reason:
+
+- The 2026-06-26 and 2026-06-29 UI cleanup work repeatedly had to remove one-off hero spacing, subtitle widths, and card styling differences.
+- A shared `math-kicker` / `math-block-header` / `math-subtitle` treatment plus the gamified compact metric-card pattern reduces drift and makes future UI edits safer.
+
+## Header Branding
+
+Decision: The authenticated app shell should use the refreshed image logo as the primary brand mark and avoid redundant wordmark/tagline text.
+
+Reason:
+
+- The upscaled logo asset now carries the branding more cleanly than the previous mixed image-plus-text treatment.
+- The repeated 2026-06-29 header adjustments converged on a larger image-only LogoMark for clarity and consistency.
+
+## Login UX
+
+Decision: Login should redirect immediately after success without artificial delay or verbose transient status banners.
+
+Reason:
+
+- The old timed delay made the app feel slower without improving correctness.
+- The cleaner loading state keeps the flow standard and reduces unnecessary UI noise.

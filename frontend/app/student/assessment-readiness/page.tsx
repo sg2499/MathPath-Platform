@@ -266,7 +266,16 @@ export default function StudentAssessmentReadinessPage() {
                 onToggle={() => toggle(levelKey(visibleRow))}
                 onExpand={() => setBranch(levelKey(visibleRow), true)}
                 onCollapse={() => setBranch(levelKey(visibleRow), false)}
-                title={`${visibleRow.levelCode || "Level"}${visibleRow.levelName ? ` - ${visibleRow.levelName}` : ""}`}
+                title={
+                  <span className="flex items-center gap-2">
+                    {`${visibleRow.levelCode || "Level"}${visibleRow.levelName ? ` - ${visibleRow.levelName}` : ""}`}
+                    {visibleRow.eligible && (
+                      <span title="Level Unlocked!" className="animate-pulse text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">
+                        🔓
+                      </span>
+                    )}
+                  </span>
+                }
                 subtitle="Level"
                 chips={
                   <>
