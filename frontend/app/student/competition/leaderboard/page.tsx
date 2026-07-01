@@ -145,14 +145,27 @@ const router = useRouter();
   const availableExams = exams.filter(e => e.levelId === selectedLevelId);
 
   return (
-    <div className="math-role-student math-page w-full min-h-screen bg-slate-50/50 dark:bg-[#0B1121] overflow-hidden relative transition-colors duration-500">
-      {/* Premium Background Mesh */}
-      <div className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-[0.06] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, #000 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }} />
+    <div className="math-role-student math-page w-full min-h-screen bg-[#F8FAFC] dark:bg-[#060913] overflow-hidden relative transition-colors duration-500">
       
-      {/* Ambient background glows - Clean, premium, cool tones for contrast */}
-      <div className="absolute top-[-10%] right-[-5%] w-[800px] h-[800px] bg-indigo-500/10 dark:bg-indigo-600/15 blur-[120px] rounded-full pointer-events-none z-0 mix-blend-multiply dark:mix-blend-screen" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[800px] h-[800px] bg-violet-500/10 dark:bg-violet-600/15 blur-[150px] rounded-full pointer-events-none z-0 mix-blend-multiply dark:mix-blend-screen" />
-      <div className="absolute top-[30%] left-[10%] w-[600px] h-[600px] bg-blue-400/5 dark:bg-blue-500/10 blur-[100px] rounded-full pointer-events-none z-0 mix-blend-multiply dark:mix-blend-screen" />
+      {/* 1. Infinite 3D Grid with Radial Depth */}
+      <div className="absolute inset-0 z-0 opacity-[0.15] dark:opacity-[0.1] pointer-events-none" 
+           style={{ 
+             backgroundImage: 'linear-gradient(to right, #64748b 1px, transparent 1px), linear-gradient(to bottom, #64748b 1px, transparent 1px)', 
+             backgroundSize: '3rem 3rem',
+             maskImage: 'radial-gradient(circle at 50% 60%, black 20%, transparent 80%)',
+             WebkitMaskImage: 'radial-gradient(circle at 50% 60%, black 20%, transparent 80%)'
+           }} 
+      />
+      
+      {/* 2. Frosted Aurora Gradients (Framing the edges, leaving the center clear) */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[70%] bg-blue-500/10 dark:bg-blue-600/20 blur-[150px] rounded-full pointer-events-none z-0" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[70%] bg-indigo-500/10 dark:bg-indigo-600/20 blur-[150px] rounded-full pointer-events-none z-0" />
+      
+      {/* 3. Deep Contrast Backdrop for the podium to make the Gold/Bronze glows POP absolutely perfectly */}
+      <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-slate-900/5 dark:bg-black/60 blur-[100px] pointer-events-none rounded-[100%] z-0" />
+
+      {/* 4. Volumetric Spotlight from above */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-white/60 dark:from-white/5 to-transparent blur-[50px] pointer-events-none z-0" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
         <button 
@@ -270,9 +283,8 @@ const router = useRouter();
         <>
           {/* Podium Component */}
           <div className="pt-24 pb-16 flex items-end justify-center gap-2 md:gap-8 relative mt-6">
-            {/* Ambient Background Glow / Stage */}
-            <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] max-w-4xl h-80 bg-slate-300/20 dark:bg-slate-800/30 blur-[80px] pointer-events-none rounded-[100%]" />
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[80%] max-w-3xl h-12 bg-slate-900/10 dark:bg-black/50 blur-[20px] pointer-events-none rounded-[100%]" />
+            {/* Glossy Floor Reflection for Stage */}
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[100%] max-w-4xl h-16 bg-gradient-to-t from-slate-900/10 dark:from-black/60 to-transparent blur-[10px] pointer-events-none rounded-[100%]" />
             
             {/* Silver (Rank 2) */}
             {top3[1] && (
