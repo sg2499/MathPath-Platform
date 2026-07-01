@@ -1,6 +1,6 @@
 # MathPath Project State
 
-Last updated: 2026-06-29
+Last updated: 2026-07-01
 
 ## Product
 
@@ -21,7 +21,7 @@ MathPath is a role-based abacus and mental math learning platform for Admin, Tea
 
 ## Current Branch State
 
-- `main` and `origin/main` currently match at `c4d2ddf`.
+- `main` is at `f179099` and `origin/main` is currently at `3cdf4e8` (awaiting manual push).
 - The repo has uncommitted local frontend work in:
   - `frontend/app/globals.css`
   - `frontend/app/student/assessment-readiness/page.tsx`
@@ -88,6 +88,7 @@ Recent verification evidence recorded in repo memory:
 - 2026-06-26 daily log records the teacher/student UI cleanup sequence as typechecked, built, and merged via automated PRs `#40` through `#43`.
 - 2026-06-29 daily log records login UX commit `590e1dc` as typechecked, built, and merged via PR `#59`.
 - 2026-06-29 daily log records responsive layout commit `fdc0aab` as compiled, tested, and merged via PR `#61`.
+- 2026-06-30 and 2026-07-01 daily logs record Mock Leaderboard UI upgrades as successfully built via `npm run build` with 0 errors (commit `f179099`).
 
 Verification gaps that still need evidence:
 

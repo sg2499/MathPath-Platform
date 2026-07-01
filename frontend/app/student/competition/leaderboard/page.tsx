@@ -145,14 +145,14 @@ const router = useRouter();
   const availableExams = exams.filter(e => e.levelId === selectedLevelId);
 
   return (
-    <div className="math-role-student math-page w-full min-h-screen bg-gradient-to-br from-indigo-100/50 via-white to-purple-100/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 overflow-hidden relative">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 z-0 opacity-[0.04] dark:opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, #000 2px, transparent 2px)', backgroundSize: '32px 32px' }} />
+    <div className="math-role-student math-page w-full min-h-screen bg-slate-50/50 dark:bg-[#0B1121] overflow-hidden relative transition-colors duration-500">
+      {/* Premium Background Mesh */}
+      <div className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-[0.06] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, #000 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }} />
       
-      {/* Ambient background glows */}
-      <div className="absolute top-0 right-[10%] w-[600px] h-[600px] bg-indigo-500/30 dark:bg-indigo-600/30 blur-[150px] rounded-full pointer-events-none z-0" />
-      <div className="absolute bottom-[20%] left-[-10%] w-[700px] h-[700px] bg-purple-500/30 dark:bg-purple-600/30 blur-[180px] rounded-full pointer-events-none z-0" />
-      <div className="absolute top-[40%] left-[20%] w-[400px] h-[400px] bg-amber-500/20 dark:bg-amber-500/10 blur-[100px] rounded-full pointer-events-none z-0" />
+      {/* Ambient background glows - Clean, premium, cool tones for contrast */}
+      <div className="absolute top-[-10%] right-[-5%] w-[800px] h-[800px] bg-indigo-500/10 dark:bg-indigo-600/15 blur-[120px] rounded-full pointer-events-none z-0 mix-blend-multiply dark:mix-blend-screen" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[800px] h-[800px] bg-violet-500/10 dark:bg-violet-600/15 blur-[150px] rounded-full pointer-events-none z-0 mix-blend-multiply dark:mix-blend-screen" />
+      <div className="absolute top-[30%] left-[10%] w-[600px] h-[600px] bg-blue-400/5 dark:bg-blue-500/10 blur-[100px] rounded-full pointer-events-none z-0 mix-blend-multiply dark:mix-blend-screen" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
         <button 
@@ -271,20 +271,22 @@ const router = useRouter();
           {/* Podium Component */}
           <div className="pt-24 pb-16 flex items-end justify-center gap-2 md:gap-8 relative mt-6">
             {/* Ambient Background Glow / Stage */}
-            <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-64 bg-indigo-500/10 blur-[100px] pointer-events-none rounded-[100%]" />
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-2xl h-8 bg-slate-900/5 dark:bg-black/30 blur-xl pointer-events-none rounded-[100%]" />
+            <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] max-w-4xl h-80 bg-slate-300/20 dark:bg-slate-800/30 blur-[80px] pointer-events-none rounded-[100%]" />
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[80%] max-w-3xl h-12 bg-slate-900/10 dark:bg-black/50 blur-[20px] pointer-events-none rounded-[100%]" />
             
             {/* Silver (Rank 2) */}
             {top3[1] && (
               <div className="flex flex-col items-center animate-[slideUp_0.5s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
                 <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-slate-400/40 blur-2xl rounded-full scale-110 group-hover:scale-150 group-hover:bg-slate-400/60 transition-all duration-500" />
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-slate-300 bg-slate-100 overflow-hidden shadow-[0_0_15px_rgba(148,163,184,0.1)] group-hover:shadow-[0_0_25px_rgba(148,163,184,0.4)] group-hover:border-slate-400 transition-all z-10 relative">
-                    {top3[1].photoUrl ? (
-                      <img src={top3[1].photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-500 font-black text-xl">{getInitials(top3[1].name)}</div>
-                    )}
+                  <div className="absolute inset-0 bg-slate-400/50 dark:bg-slate-400/30 blur-[25px] rounded-full scale-125 group-hover:scale-150 group-hover:bg-slate-400/60 transition-all duration-700" />
+                  <div className="relative w-16 h-16 md:w-20 md:h-20 p-[3px] rounded-full bg-gradient-to-b from-slate-200 to-slate-400 shadow-[0_0_20px_rgba(148,163,184,0.3)] z-10 group-hover:shadow-[0_0_30px_rgba(148,163,184,0.5)] transition-all">
+                    <div className="w-full h-full rounded-full border-[3px] border-white dark:border-slate-900 bg-slate-100 overflow-hidden relative">
+                      {top3[1].photoUrl ? (
+                        <img src={top3[1].photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-500 font-black text-xl">{getInitials(top3[1].name)}</div>
+                      )}
+                    </div>
                   </div>
                   <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-slate-400 to-slate-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider z-20">2nd</div>
                 </div>
@@ -303,16 +305,18 @@ const router = useRouter();
             {top3[0] && (
               <div className="flex flex-col items-center z-20 animate-[slideUp_0.6s_ease-out] hover:-translate-y-4 transition-transform duration-300 group">
                 <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-yellow-400/40 blur-2xl rounded-full scale-110 group-hover:scale-150 group-hover:bg-yellow-400/60 transition-all duration-500" />
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 drop-shadow-[0_4px_10px_rgba(250,204,21,0.5)] scale-[1.3] z-20 animate-bounce">
+                  <div className="absolute inset-0 bg-yellow-400/50 dark:bg-yellow-400/30 blur-[30px] rounded-full scale-125 group-hover:scale-150 group-hover:bg-yellow-400/60 transition-all duration-700" />
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 drop-shadow-[0_4px_10px_rgba(250,204,21,0.6)] scale-[1.3] z-20 animate-bounce">
                     <CrownIcon />
                   </div>
-                  <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-yellow-400 bg-yellow-50 overflow-hidden shadow-[0_0_40px_rgba(250,204,21,0.3)] z-10 group-hover:border-yellow-300 transition-colors">
-                    {top3[0].photoUrl ? (
-                      <img src={top3[0].photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-yellow-100 text-yellow-600 font-black text-3xl">{getInitials(top3[0].name)}</div>
-                    )}
+                  <div className="relative w-24 h-24 md:w-32 md:h-32 p-[4px] rounded-full bg-gradient-to-b from-yellow-300 to-yellow-500 shadow-[0_0_40px_rgba(250,204,21,0.4)] z-10 group-hover:shadow-[0_0_60px_rgba(250,204,21,0.6)] transition-all">
+                    <div className="w-full h-full rounded-full border-4 border-white dark:border-slate-900 bg-yellow-50 overflow-hidden relative">
+                      {top3[0].photoUrl ? (
+                        <img src={top3[0].photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-yellow-100 text-yellow-600 font-black text-3xl">{getInitials(top3[0].name)}</div>
+                      )}
+                    </div>
                   </div>
                   <div className="absolute -bottom-4 -right-2 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white text-xs md:text-sm font-black px-3.5 py-1.5 rounded-full border-2 border-white shadow-lg uppercase tracking-wider z-20">1st</div>
                 </div>
@@ -331,13 +335,15 @@ const router = useRouter();
             {top3[2] && (
               <div className="flex flex-col items-center animate-[slideUp_0.4s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
                 <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-orange-400/40 blur-2xl rounded-full scale-110 group-hover:scale-150 group-hover:bg-orange-400/60 transition-all duration-500" />
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-orange-400 bg-orange-50 overflow-hidden shadow-[0_0_15px_rgba(249,115,22,0.1)] group-hover:shadow-[0_0_25px_rgba(249,115,22,0.4)] group-hover:border-orange-500 transition-all z-10 relative">
-                    {top3[2].photoUrl ? (
-                      <img src={top3[2].photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-600 font-black text-xl">{getInitials(top3[2].name)}</div>
-                    )}
+                  <div className="absolute inset-0 bg-orange-400/50 dark:bg-orange-400/30 blur-[25px] rounded-full scale-125 group-hover:scale-150 group-hover:bg-orange-400/60 transition-all duration-700" />
+                  <div className="relative w-16 h-16 md:w-20 md:h-20 p-[3px] rounded-full bg-gradient-to-b from-orange-300 to-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.3)] z-10 group-hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] transition-all">
+                    <div className="w-full h-full rounded-full border-[3px] border-white dark:border-slate-900 bg-orange-50 overflow-hidden relative">
+                      {top3[2].photoUrl ? (
+                        <img src={top3[2].photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-600 font-black text-xl">{getInitials(top3[2].name)}</div>
+                      )}
+                    </div>
                   </div>
                   <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-orange-400 to-orange-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider z-20">3rd</div>
                 </div>
