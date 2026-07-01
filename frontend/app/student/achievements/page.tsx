@@ -57,7 +57,18 @@ export default function TrophyRoomPage() {
           <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-pink-300/16 blur-3xl" />
           
           <div className="relative flex flex-col gap-5">
-            <div className="math-block-header">
+            <div className="flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="math-dashboard-secondary-action w-fit"
+              >
+                <ChevronLeft size={15} />
+                Back
+              </button>
+            </div>
+
+            <div className="math-block-header w-fit">
               <Award size={14} />
               Student Achievements
             </div>
@@ -70,17 +81,6 @@ export default function TrophyRoomPage() {
                 Complete challenges, maintain streaks, and dominate Mock Exams to unlock exclusive badges.
               </p>
             </div>
-
-            <div className="mt-2 flex flex-wrap gap-2.5">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                className="math-dashboard-secondary-action"
-              >
-                <ChevronLeft size={15} />
-                Back
-              </button>
-            </div>
           </div>
         </section>
 
@@ -91,7 +91,7 @@ export default function TrophyRoomPage() {
             className={`px-8 py-3 rounded-full font-bold transition-all ${
               activeTab === "mock" 
                 ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
-                : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"
+                : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500"
             }`}
           >
             Mock Exams
@@ -101,7 +101,7 @@ export default function TrophyRoomPage() {
             className={`px-8 py-3 rounded-full font-bold transition-all ${
               activeTab === "dps" 
                 ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
-                : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"
+                : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500"
             }`}
           >
             DPS Sheets
