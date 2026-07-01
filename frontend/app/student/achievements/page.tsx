@@ -56,31 +56,31 @@ export default function TrophyRoomPage() {
           <div className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-orange-300/18 blur-3xl" />
           <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-pink-300/16 blur-3xl" />
           
-          <div className="relative flex flex-col gap-5">
-            <div className="flex flex-wrap gap-2.5">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                className="math-dashboard-secondary-action w-fit"
-              >
-                <ChevronLeft size={15} />
-                Back
-              </button>
+          <div className="relative flex items-start justify-between gap-5">
+            <div className="flex flex-col gap-5">
+              <div className="math-block-header w-fit">
+                <Award size={14} />
+                Student Achievements
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem]">
+                  The Trophy Room
+                </h1>
+                <p className="math-subtitle max-w-4xl lg:whitespace-nowrap">
+                  Complete challenges, maintain streaks, and dominate Mock Exams to unlock exclusive badges.
+                </p>
+              </div>
             </div>
 
-            <div className="math-block-header w-fit">
-              <Award size={14} />
-              Student Achievements
-            </div>
-            
-            <div className="flex flex-col gap-3">
-              <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem]">
-                The Trophy Room
-              </h1>
-              <p className="math-subtitle max-w-4xl lg:whitespace-nowrap">
-                Complete challenges, maintain streaks, and dominate Mock Exams to unlock exclusive badges.
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="math-dashboard-secondary-action shrink-0"
+            >
+              <ChevronLeft size={15} />
+              Back
+            </button>
           </div>
         </section>
 
@@ -188,17 +188,34 @@ function BadgeCard({ badge }: { badge: any }) {
   // Progress logic
   const progressPercent = Math.min(100, Math.round((badge.currentProgress / badge.requiredCount) * 100));
 
+  // Unique shapes based on icon name
+  const getShapeClasses = (iconName: string) => {
+    switch (iconName) {
+      case "Target": return "rounded-full"; // Classic circle
+      case "Zap": return "rounded-2xl rotate-3 group-hover:rotate-6 transition-transform"; // Playful squircle
+      case "Medal": return "rounded-[2rem] rounded-tr-md rounded-bl-md"; // Asymmetric modern
+      case "Flame": return "rounded-t-full rounded-b-xl"; // Flame shape
+      case "Clock": return "rounded-xl"; // Standard rounded square
+      case "TrendingUp": return "rounded-br-3xl rounded-tl-3xl rounded-tr-md rounded-bl-md"; // Leaf shape
+      case "Trophy": return "rounded-b-[2rem] rounded-t-xl"; // Chalice shape
+      case "Crown": return "rounded-t-sm rounded-b-[2.5rem]"; // Crown base
+      case "Award": return "rounded-tr-3xl rounded-bl-3xl rounded-tl-xl rounded-br-xl"; // Hex-like
+      default: return "rounded-2xl";
+    }
+  };
+  const shapeClass = getShapeClasses(badge.iconName);
+
   return (
-    <div className={`relative group flex flex-col items-center text-center p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-transform ${isUnlocked ? 'hover:-translate-y-1 hover:shadow-md' : 'opacity-60 grayscale'}`}>
-      <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center mb-4 transition-all ${config.unlockedBg} ${isUnlocked ? 'shadow-lg' : ''}`}>
-        <Icon size={40} className={config.iconColor} />
+    <div className={`relative group flex flex-col items-center text-center p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-all duration-300 h-full ${isUnlocked ? 'hover:-translate-y-2 hover:shadow-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer' : 'opacity-60 grayscale'}`}>
+      <div className={`w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-5 transition-all duration-500 ${shapeClass} ${config.unlockedBg} ${isUnlocked ? 'shadow-md group-hover:scale-110 group-hover:shadow-2xl' : ''}`}>
+        <Icon size={40} className={`${config.iconColor} transition-transform duration-500 ${isUnlocked ? 'group-hover:scale-110 group-hover:rotate-6' : ''}`} />
       </div>
       
-      <h3 className={`font-black text-sm mb-1 line-clamp-1 ${isUnlocked ? config.badgeText : 'text-slate-400 dark:text-slate-600'}`}>
+      <h3 className={`font-black text-sm mb-2 ${isUnlocked ? config.badgeText : 'text-slate-400 dark:text-slate-600'}`}>
         {badge.name}
       </h3>
       
-      <p className="text-[10px] md:text-xs text-slate-500 mb-3 h-8 line-clamp-2">
+      <p className="text-[10px] md:text-xs text-slate-500 mb-4 min-h-[2.5rem] flex-grow">
         {badge.description}
       </p>
 
