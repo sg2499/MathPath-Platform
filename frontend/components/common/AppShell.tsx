@@ -16,6 +16,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   AlertCircle,
+  Award,
   BarChart3,
   BookOpen,
   ChevronDown,
@@ -555,6 +556,13 @@ export function AppShell({
           href: "/student/competition/leaderboard",
           icon: Trophy,
           tooltip: "View competition mock rankings",
+        },
+        {
+          label: "Trophy Room",
+          shortLabel: "Trophies",
+          href: "/student/achievements",
+          icon: Award,
+          tooltip: "View your earned badges and achievements",
         },
       ],
     },

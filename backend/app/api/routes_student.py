@@ -885,7 +885,12 @@ def get_mock_exam_leaderboard(
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student)
 ):
-    from app.models.models import CompetitionMockResultSummary, Student, User
+    from app.models.models import CompetitionMockResultSummary, Student, User, StudentBadge, AchievementBadge
+    
+    # Pre-fetch all legendary and super badges for performance
+    all_badges = db.query(AchievementBadge).all()
+    badge_map = {b.id: {"id": b.id, "name": b.name, "tier": b.tier, "iconName": b.icon_name} for b in all_badges}
+
     results = (
         db.query(CompetitionMockResultSummary, Student, User)
         .join(Student, CompetitionMockResultSummary.student_id == Student.id)
@@ -908,6 +913,15 @@ def get_mock_exam_leaderboard(
             current_student_rank = rank
             
         if rank <= 10 or is_current:
+            # Get top 3 badges for this student (Legendary first, then Super)
+            student_badges = db.query(StudentBadge).filter(StudentBadge.student_id == st.id).all()
+            mapped_badges = [badge_map[sb.badge_id] for sb in student_badges if sb.badge_id in badge_map]
+            
+            # Sort by tier (LEGENDARY > SUPER > BASE)
+            tier_score = {"LEGENDARY": 3, "SUPER": 2, "BASE": 1}
+            mapped_badges.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
+            top_badges = mapped_badges[:3]
+
             leaderboard.append({
                 "rank": rank,
                 "studentId": st.id,
@@ -917,7 +931,8 @@ def get_mock_exam_leaderboard(
                 "score": res.score,
                 "accuracy": res.accuracy_percentage,
                 "timeTakenSeconds": res.time_taken_seconds,
-                "isCurrent": is_current
+                "isCurrent": is_current,
+                "topBadges": top_badges
             })
             
     return {
@@ -948,6 +963,9 @@ def get_student_achievements(
         "unstoppable_streak": "unstoppable_mock_streak",
         "early_bird": "early_bird_mocks",
         "comeback_kid": "comeback_kid_mocks",
+        "sharpshooter": "sharpshooter_mocks",
+        "underdog": "underdog_mocks",
+        "polymath": "polymath_count",
     }
 
     result = []

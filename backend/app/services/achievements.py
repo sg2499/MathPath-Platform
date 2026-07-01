@@ -95,6 +95,48 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "comeback_kid", "BASE", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "comeback_kid", "SUPER", count, newly_unlocked)
 
+        # 7. The Sharpshooter
+        if result_summary.percentage == 100 and result_summary.time_utilization_percentage and result_summary.time_utilization_percentage > 90:
+            count = cls._increment_stat(db, student_id, "sharpshooter_mocks")
+            cls._award_badge_if_qualified(db, student_id, "sharpshooter", "BASE", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "sharpshooter", "SUPER", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "sharpshooter", "LEGENDARY", count, newly_unlocked)
+
+        # 8. The Underdog
+        if previous_summary and previous_summary.percentage < 50 and result_summary.percentage > 80:
+            count = cls._increment_stat(db, student_id, "underdog_mocks")
+            cls._award_badge_if_qualified(db, student_id, "underdog", "BASE", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "underdog", "SUPER", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "underdog", "LEGENDARY", count, newly_unlocked)
+
+        # 9. The Polymath (Broad Mastery)
+        if result_summary.percentage > 80 and result_summary.mock_assignment:
+            level_id = result_summary.mock_assignment.level_id
+            from app.models.models import MasterModuleLevel
+            level = db.query(MasterModuleLevel).filter_by(id=level_id).first()
+            if level:
+                master_module_id = level.master_module_id
+                stat_name = f"polymath_mod_{master_module_id}"
+                
+                # Check if this module is already recorded
+                existing_stat = db.query(StudentAchievementStat).filter_by(student_id=student_id, stat_name=stat_name).first()
+                if not existing_stat:
+                    # Record this module as passed
+                    cls._set_stat(db, student_id, stat_name, 1)
+                    
+                    # Count how many unique modules they have passed
+                    polymath_count = db.query(StudentAchievementStat).filter(
+                        StudentAchievementStat.student_id == student_id,
+                        StudentAchievementStat.stat_name.like("polymath_mod_%")
+                    ).count()
+                    
+                    # Also update a master count for the frontend to easily fetch progress
+                    cls._set_stat(db, student_id, "polymath_count", polymath_count)
+                    
+                    cls._award_badge_if_qualified(db, student_id, "polymath", "BASE", polymath_count, newly_unlocked)
+                    cls._award_badge_if_qualified(db, student_id, "polymath", "SUPER", polymath_count, newly_unlocked)
+                    cls._award_badge_if_qualified(db, student_id, "polymath", "LEGENDARY", polymath_count, newly_unlocked)
+
         db.commit()
 
         # Format output
@@ -143,6 +185,21 @@ class AchievementEngine:
             ("podium_finisher", "BASE", "Podium Finisher", "Rank in the Top 3 of any Mock Exam", "Trophy", 1),
             ("podium_finisher", "SUPER", "Super Podium Finisher", "Rank in the Top 3 for 5 Mock Exams", "Trophy", 5),
             ("podium_finisher", "LEGENDARY", "The Champion", "Rank 1st Place on 5 Mock Exams", "Crown", 5),
+
+            # The Sharpshooter
+            ("sharpshooter", "BASE", "The Sharpshooter", "Score 100% accuracy while using > 90% of your time", "Target", 1),
+            ("sharpshooter", "SUPER", "Super Sharpshooter", "Achieve Sharpshooter 3 times", "Target", 3),
+            ("sharpshooter", "LEGENDARY", "Legendary Sharpshooter", "Achieve Sharpshooter 10 times", "Target", 10),
+
+            # The Underdog
+            ("underdog", "BASE", "The Underdog", "Score > 80% on an exam immediately after scoring < 50%", "TrendingUp", 1),
+            ("underdog", "SUPER", "Super Underdog", "Achieve Underdog 3 times", "TrendingUp", 3),
+            ("underdog", "LEGENDARY", "Legendary Underdog", "Achieve Underdog 5 times", "TrendingUp", 5),
+
+            # The Polymath
+            ("polymath", "BASE", "The Polymath", "Score > 80% across 3 different Master Modules", "Award", 3),
+            ("polymath", "SUPER", "Super Polymath", "Score > 80% across 5 different Master Modules", "Award", 5),
+            ("polymath", "LEGENDARY", "Legendary Polymath", "Score > 80% across 10 different Master Modules", "Award", 10),
         ]
 
         for code, tier, name, desc, icon, req in badges_data:
