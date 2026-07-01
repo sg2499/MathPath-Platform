@@ -21,7 +21,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { triggerShockwave, triggerGoldRush, triggerStarfall } from "@/lib/utils/particles";
 
 function formatDuration(seconds?: number | null) {
   if (seconds === null || seconds === undefined) return "-";
@@ -322,12 +323,26 @@ export default function StudentCompetitionMockResultPage() {
   const router = useRouter();
   const attemptId = params.attemptId;
   const [activeTab, setActiveTab] = useState<ResultTab>("questions");
+  const hasExploded = useRef(false);
 
   const query = useQuery({
     queryKey: ["student-competition-mock-result", attemptId],
     queryFn: () => getCompetitionMockResult(attemptId),
     enabled: ready && Boolean(attemptId),
   });
+
+  useEffect(() => {
+    if (query.data && !hasExploded.current) {
+      hasExploded.current = true;
+      const score = query.data.score || 0;
+      if (score >= 80) {
+        triggerShockwave();
+        triggerGoldRush();
+      } else {
+        triggerStarfall();
+      }
+    }
+  }, [query.data]);
 
   if (!ready) return null;
 
