@@ -9,6 +9,14 @@ const config: Config = {
     "./lib/**/*.{js,ts,jsx,tsx,mdx}",
     "./types/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: [
+    {
+      pattern: /^(bg|border|text|from|to|shadow)-(emerald|cyan|blue|red|orange|indigo|yellow|pink|fuchsia|teal|slate|zinc|violet|rose|lime)-(50|100|200|300|400|500|600|700|800|900)$/,
+    },
+    {
+      pattern: /^(shadow)-(emerald|cyan|blue|red|orange|indigo|yellow|pink|fuchsia|teal|slate|zinc|violet|rose|lime)-500\/(20|30|40)$/,
+    }
+  ],
   theme: {
     extend: {
       keyframes: {
