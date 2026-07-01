@@ -359,7 +359,7 @@ const router = useRouter();
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-black text-xl">{Math.round(leaderboardData.currentStudentEntry?.percentage || 0)}%</p>
+                  <p className="font-black text-xl">{Math.round(leaderboardData?.currentStudentEntry?.percentage || 0)}%</p>
                 </div>
               </div>
             )}
