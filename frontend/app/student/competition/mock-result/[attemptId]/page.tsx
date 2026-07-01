@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { triggerShockwave, triggerGoldRush, triggerStarfall } from "@/lib/utils/particles";
+import { triggerShockwave, triggerGoldRush } from "@/lib/utils/particles";
 
 function formatDuration(seconds?: number | null) {
   if (seconds === null || seconds === undefined) return "-";
@@ -334,12 +334,10 @@ export default function StudentCompetitionMockResultPage() {
   useEffect(() => {
     if (query.data && !hasExploded.current) {
       hasExploded.current = true;
-      const score = query.data.score || 0;
-      if (score >= 80) {
+      const accuracy = query.data.accuracyPercentage || 0;
+      if (accuracy >= 80) {
         triggerShockwave();
         triggerGoldRush();
-      } else {
-        triggerStarfall();
       }
     }
   }, [query.data]);
