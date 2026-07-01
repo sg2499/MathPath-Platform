@@ -173,9 +173,8 @@ function BadgeCard({ badge }: { badge: any }) {
   const Icon = IconMap[badge.iconName] || Target;
   const isUnlocked = badge.isUnlocked;
 
-  // Track mouse for 3D physics
-  const [rotate, setRotate] = useState({ x: 0, y: 0 });
-  const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 });
+  // Track mouse for AAA 3D physics and Parallax
+  const [physics, setPhysics] = useState({ rx: 0, ry: 0, px: 0, py: 0, gx: 50, gy: 50, opacity: 0 });
   const cardRef = React.useRef<HTMLDivElement>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -184,17 +183,24 @@ function BadgeCard({ badge }: { badge: any }) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    const rotateY = ((x / rect.width) - 0.5) * 30; // Max 15deg
-    const rotateX = ((0.5 - (y / rect.height))) * 30; // Max 15deg
+    // Rotate (Max 25deg)
+    const ry = ((x / rect.width) - 0.5) * 50; 
+    const rx = ((0.5 - (y / rect.height))) * 50; 
     
-    setRotate({ x: rotateX, y: rotateY });
-    setGlare({ x: (x / rect.width) * 100, y: (y / rect.height) * 100, opacity: 1 });
+    // Parallax (Max 20px opposite direction)
+    const px = ((x / rect.width) - 0.5) * -40;
+    const py = ((y / rect.height) - 0.5) * -40;
+
+    // Glare % (0 to 100)
+    const gx = (x / rect.width) * 100;
+    const gy = (y / rect.height) * 100;
+    
+    setPhysics({ rx, ry, px, py, gx, gy, opacity: 1 });
   };
 
   const handleMouseLeave = () => {
     if (!isUnlocked) return;
-    setRotate({ x: 0, y: 0 });
-    setGlare({ x: 50, y: 50, opacity: 0 });
+    setPhysics({ rx: 0, ry: 0, px: 0, py: 0, gx: 50, gy: 50, opacity: 0 });
   };
 
   // Visual variants based on tier
@@ -203,16 +209,22 @@ function BadgeCard({ badge }: { badge: any }) {
       unlockedBg: "bg-gradient-to-br from-amber-400 to-orange-500 shadow-orange-500/20",
       iconColor: "text-white",
       badgeText: "text-orange-600 dark:text-orange-400",
+      bloomColor: "rgba(251, 146, 60, 0.6)",
+      glitch: false,
     },
     SUPER: {
       unlockedBg: "bg-gradient-to-br from-slate-300 to-slate-500 shadow-slate-500/30 border-2 border-white",
-      iconColor: "text-white drop-shadow-md",
+      iconColor: "text-white",
       badgeText: "text-slate-600 dark:text-slate-400",
+      bloomColor: "rgba(255, 255, 255, 0.8)",
+      glitch: true,
     },
     LEGENDARY: {
-      unlockedBg: "bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600 shadow-yellow-500/40 border-4 border-yellow-200 animate-[pulse_3s_ease-in-out_infinite]",
-      iconColor: "text-yellow-100 drop-shadow-lg",
+      unlockedBg: "bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600 shadow-yellow-500/40 border-4 border-yellow-200",
+      iconColor: "text-yellow-50",
       badgeText: "text-yellow-600 dark:text-yellow-500",
+      bloomColor: "rgba(253, 224, 71, 0.9)",
+      glitch: true,
     }
   };
 
@@ -266,29 +278,29 @@ function BadgeCard({ badge }: { badge: any }) {
       <div 
         className={`relative flex flex-col items-center text-center p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-full transition-transform duration-200 ease-out transform-gpu overflow-hidden`}
         style={{
-          transform: isUnlocked && glare.opacity > 0 ? `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale(1.05)` : 'rotateX(0deg) rotateY(0deg) scale(1)',
-          boxShadow: isUnlocked && glare.opacity > 0 ? (badge.tier === 'LEGENDARY' ? '0 30px 60px -12px rgba(234, 179, 8, 0.4)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)') : ''
+          transform: isUnlocked && physics.opacity > 0 ? `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg) scale(1.05)` : 'rotateX(0deg) rotateY(0deg) scale(1)',
+          boxShadow: isUnlocked && physics.opacity > 0 ? (badge.tier === 'LEGENDARY' ? '0 30px 60px -12px rgba(234, 179, 8, 0.5)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)') : ''
         }}
       >
         
-        {/* Dynamic Glare Layer */}
+        {/* AAA Sci-Fi Light Sweep (Hard Sheen) */}
         {isUnlocked && (
           <div 
-            className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-300"
+            className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-300 mix-blend-overlay"
             style={{
-              background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 60%)`,
-              opacity: glare.opacity
+              background: `linear-gradient(105deg, transparent ${physics.gx - 25}%, rgba(255,255,255,1) ${physics.gx}%, transparent ${physics.gx + 25}%)`,
+              opacity: physics.opacity
             }}
           />
         )}
 
-        {/* Legendary Conic Sweep & Particles */}
+        {/* Legendary Conic Sweep & High-Velocity Sparks */}
         {isUnlocked && badge.tier === "LEGENDARY" && (
            <>
-             <div className="absolute inset-[-100%] animate-[spin_6s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,rgba(234,179,8,0.15)_360deg)] z-0 pointer-events-none" />
+             <div className="absolute inset-[-100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,rgba(234,179,8,0.3)_360deg)] z-0 pointer-events-none mix-blend-color-dodge" />
              <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-                {[...Array(6)].map((_, i) => (
-                   <div key={i} className={`absolute w-1 h-1 bg-yellow-400 rounded-full animate-ping`} style={{ top: `${20 + Math.random()*60}%`, left: `${20 + Math.random()*60}%`, animationDuration: `${1+Math.random()*2}s`, animationDelay: `${Math.random()*2}s` }} />
+                {[...Array(8)].map((_, i) => (
+                   <div key={i} className={`absolute w-8 h-[1px] bg-white rounded-full animate-pulse rotate-45 blur-[0.5px] shadow-[0_0_5px_rgba(255,255,255,1)]`} style={{ top: `${10 + Math.random()*80}%`, left: `${10 + Math.random()*80}%`, animationDuration: `${0.2+Math.random()*0.5}s`, animationDelay: `${Math.random()*1}s` }} />
                 ))}
              </div>
            </>
@@ -296,10 +308,10 @@ function BadgeCard({ badge }: { badge: any }) {
 
         {/* The Badge Graphic (Clipped Polygon + Drop Shadow) */}
         <div 
-          className={`relative flex items-center justify-center mb-5 transition-all duration-500 ${shape.w} ${shape.h} z-20`} 
+          className={`relative flex items-center justify-center mb-5 transition-all duration-300 ${shape.w} ${shape.h} z-20`} 
           style={{ 
-            filter: isUnlocked && glare.opacity > 0 ? 'drop-shadow(0 0 15px rgba(251,146,60,0.6))' : (isUnlocked ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.15))' : 'none'),
-            transform: isUnlocked && glare.opacity > 0 ? 'scale(1.1) translateZ(30px)' : 'scale(1) translateZ(0)' 
+            filter: isUnlocked && physics.opacity > 0 ? `drop-shadow(0 0 25px ${config.bloomColor}) drop-shadow(0 15px 15px rgba(0,0,0,0.5))` : (isUnlocked ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.15))' : 'none'),
+            transform: isUnlocked && physics.opacity > 0 ? `scale(1.1) translateZ(40px) translateX(${physics.px}px) translateY(${physics.py}px)` : 'scale(1) translateZ(0) translateX(0) translateY(0)' 
           }}
         >
           {/* Clipped Background Geometry */}
@@ -307,11 +319,20 @@ function BadgeCard({ badge }: { badge: any }) {
             className={`absolute inset-0 transition-all duration-500 ${config.unlockedBg}`} 
             style={{ clipPath: shape.clipPath }} 
           />
-          {/* Icon */}
-          <Icon size={32} className={`relative z-10 ${config.iconColor} transition-all duration-500`} style={{ transform: isUnlocked && glare.opacity > 0 ? 'scale(1.15) rotate(12deg)' : 'scale(1) rotate(0deg)' }} />
+
+          {/* HDR Bloom Under-layer (Legendary) */}
+          {isUnlocked && badge.tier === "LEGENDARY" && physics.opacity > 0 && (
+             <Icon size={40} className={`absolute z-0 text-yellow-300 transition-all duration-300 blur-md`} style={{ transform: `scale(1.2) rotate(12deg)` }} />
+          )}
+
+          {/* Icon with Chromatic Aberration/Glitch */}
+          <Icon size={32} className={`relative z-10 ${config.iconColor} transition-all duration-300`} style={{ 
+            transform: isUnlocked && physics.opacity > 0 ? 'scale(1.15) rotate(12deg)' : 'scale(1) rotate(0deg)',
+            filter: isUnlocked && config.glitch && physics.opacity > 0 ? 'drop-shadow(-3px 0px 0px rgba(255,0,0,0.8)) drop-shadow(3px 0px 0px rgba(0,255,255,0.8))' : 'none'
+          }} />
         </div>
         
-        <h3 className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? config.badgeText : 'text-slate-400 dark:text-slate-600'}`} style={{ transform: isUnlocked && glare.opacity > 0 ? 'translateZ(20px)' : 'translateZ(0)' }}>
+        <h3 className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? config.badgeText : 'text-slate-400 dark:text-slate-600'}`} style={{ transform: isUnlocked && physics.opacity > 0 ? 'translateZ(20px)' : 'translateZ(0)' }}>
           {badge.name}
         </h3>
         
