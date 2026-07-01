@@ -204,46 +204,75 @@ function BadgeCard({ badge }: { badge: any }) {
     setPhysics({ rx: 0, ry: 0, px: 0, py: 0, gx: 50, gy: 50, opacity: 0 });
   };
 
+  // 30 Unique Colors based on Badge Code and Tier
+  const badgeColorConfig: Record<string, any> = {
+    // Perfectionist
+    "perfectionist_BASE": { unlockedBg: "bg-gradient-to-br from-emerald-300 to-emerald-500 shadow-emerald-500/20", iconColor: "text-white", badgeText: "text-emerald-600 dark:text-emerald-400", bloomColor: "rgba(16, 185, 129, 0.6)", glitch: false, burst: ["#6ee7b7", "#34d399", "#10b981"] },
+    "perfectionist_SUPER": { unlockedBg: "bg-gradient-to-br from-emerald-400 to-teal-600 shadow-teal-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-teal-600 dark:text-teal-400", bloomColor: "rgba(20, 184, 166, 0.8)", glitch: true, burst: ["#34d399", "#14b8a6", "#ffffff"] },
+    "perfectionist_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-teal-400 to-cyan-600 shadow-cyan-500/40 border-4 border-teal-200", iconColor: "text-cyan-50", badgeText: "text-cyan-600 dark:text-cyan-500", bloomColor: "rgba(6, 182, 212, 0.9)", glitch: true, burst: ["#2dd4bf", "#06b6d4", "#cffafe", "#ffffff"] },
+    
+    // Speed Demon
+    "speed_demon_BASE": { unlockedBg: "bg-gradient-to-br from-yellow-300 to-yellow-500 shadow-yellow-500/20", iconColor: "text-white", badgeText: "text-yellow-600 dark:text-yellow-400", bloomColor: "rgba(234, 179, 8, 0.6)", glitch: false, burst: ["#fde047", "#facc15", "#eab308"] },
+    "speed_demon_SUPER": { unlockedBg: "bg-gradient-to-br from-orange-400 to-red-500 shadow-orange-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-orange-600 dark:text-orange-400", bloomColor: "rgba(249, 115, 22, 0.8)", glitch: true, burst: ["#fb923c", "#ef4444", "#ffffff"] },
+    "speed_demon_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-red-500 to-pink-600 shadow-pink-500/40 border-4 border-red-200", iconColor: "text-pink-50", badgeText: "text-pink-600 dark:text-pink-500", bloomColor: "rgba(219, 39, 119, 0.9)", glitch: true, burst: ["#ef4444", "#db2777", "#fce7f3", "#ffffff"] },
+    
+    // Competitor
+    "competitor_BASE": { unlockedBg: "bg-gradient-to-br from-sky-300 to-sky-500 shadow-sky-500/20", iconColor: "text-white", badgeText: "text-sky-600 dark:text-sky-400", bloomColor: "rgba(14, 165, 233, 0.6)", glitch: false, burst: ["#7dd3fc", "#38bdf8", "#0ea5e9"] },
+    "competitor_SUPER": { unlockedBg: "bg-gradient-to-br from-blue-400 to-indigo-600 shadow-blue-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-blue-600 dark:text-blue-400", bloomColor: "rgba(59, 130, 246, 0.8)", glitch: true, burst: ["#60a5fa", "#4f46e5", "#ffffff"] },
+    "competitor_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-indigo-500 to-purple-700 shadow-purple-500/40 border-4 border-indigo-200", iconColor: "text-purple-50", badgeText: "text-purple-600 dark:text-purple-500", bloomColor: "rgba(126, 34, 206, 0.9)", glitch: true, burst: ["#6366f1", "#7e22ce", "#e0e7ff", "#ffffff"] },
+    
+    // Unstoppable Streak
+    "unstoppable_streak_BASE": { unlockedBg: "bg-gradient-to-br from-orange-300 to-orange-500 shadow-orange-500/20", iconColor: "text-white", badgeText: "text-orange-600 dark:text-orange-400", bloomColor: "rgba(249, 115, 22, 0.6)", glitch: false, burst: ["#fdba74", "#f97316", "#ea580c"] },
+    "unstoppable_streak_SUPER": { unlockedBg: "bg-gradient-to-br from-rose-400 to-red-600 shadow-rose-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-rose-600 dark:text-rose-400", bloomColor: "rgba(244, 63, 94, 0.8)", glitch: true, burst: ["#fb7185", "#e11d48", "#ffffff"] },
+    "unstoppable_streak_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-red-600 to-orange-600 shadow-red-500/40 border-4 border-rose-200", iconColor: "text-red-50", badgeText: "text-red-600 dark:text-red-500", bloomColor: "rgba(220, 38, 38, 0.9)", glitch: true, burst: ["#dc2626", "#ea580c", "#fee2e2", "#ffffff"] },
+
+    // Early Bird
+    "early_bird_BASE": { unlockedBg: "bg-gradient-to-br from-yellow-200 to-amber-400 shadow-amber-500/20", iconColor: "text-white", badgeText: "text-amber-600 dark:text-amber-400", bloomColor: "rgba(251, 191, 36, 0.6)", glitch: false, burst: ["#fef08a", "#fbbf24", "#f59e0b"] },
+    "early_bird_SUPER": { unlockedBg: "bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-amber-700 dark:text-amber-500", bloomColor: "rgba(245, 158, 11, 0.8)", glitch: true, burst: ["#fbbf24", "#f97316", "#ffffff"] },
+    "early_bird_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-orange-500 to-rose-500 shadow-orange-500/40 border-4 border-amber-200", iconColor: "text-orange-50", badgeText: "text-orange-600 dark:text-orange-500", bloomColor: "rgba(249, 115, 22, 0.9)", glitch: true, burst: ["#f97316", "#f43f5e", "#ffedd5", "#ffffff"] },
+
+    // Comeback Kid
+    "comeback_kid_BASE": { unlockedBg: "bg-gradient-to-br from-lime-300 to-lime-500 shadow-lime-500/20", iconColor: "text-white", badgeText: "text-lime-600 dark:text-lime-400", bloomColor: "rgba(132, 204, 22, 0.6)", glitch: false, burst: ["#bef264", "#84cc16", "#65a30d"] },
+    "comeback_kid_SUPER": { unlockedBg: "bg-gradient-to-br from-green-400 to-emerald-600 shadow-green-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-green-600 dark:text-green-400", bloomColor: "rgba(34, 197, 94, 0.8)", glitch: true, burst: ["#4ade80", "#10b981", "#ffffff"] },
+    "comeback_kid_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-emerald-500 to-cyan-600 shadow-emerald-500/40 border-4 border-green-200", iconColor: "text-emerald-50", badgeText: "text-emerald-600 dark:text-emerald-500", bloomColor: "rgba(16, 185, 129, 0.9)", glitch: true, burst: ["#10b981", "#0891b2", "#d1fae5", "#ffffff"] },
+
+    // Podium Finisher
+    "podium_finisher_BASE": { unlockedBg: "bg-gradient-to-br from-orange-300 to-amber-700 shadow-amber-700/20", iconColor: "text-white", badgeText: "text-amber-800 dark:text-amber-600", bloomColor: "rgba(180, 83, 9, 0.6)", glitch: false, burst: ["#fdba74", "#b45309", "#78350f"] },
+    "podium_finisher_SUPER": { unlockedBg: "bg-gradient-to-br from-slate-300 to-slate-500 shadow-slate-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-slate-600 dark:text-slate-400", bloomColor: "rgba(100, 116, 139, 0.8)", glitch: true, burst: ["#cbd5e1", "#64748b", "#ffffff"] },
+    "podium_finisher_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-yellow-300 to-yellow-600 shadow-yellow-500/40 border-4 border-yellow-200", iconColor: "text-yellow-50", badgeText: "text-yellow-600 dark:text-yellow-500", bloomColor: "rgba(234, 179, 8, 0.9)", glitch: true, burst: ["#fde047", "#ca8a04", "#fef9c3", "#ffffff"] },
+
+    // Sharpshooter
+    "sharpshooter_BASE": { unlockedBg: "bg-gradient-to-br from-slate-300 to-slate-500 shadow-slate-500/20", iconColor: "text-white", badgeText: "text-slate-600 dark:text-slate-400", bloomColor: "rgba(100, 116, 139, 0.6)", glitch: false, burst: ["#cbd5e1", "#64748b", "#475569"] },
+    "sharpshooter_SUPER": { unlockedBg: "bg-gradient-to-br from-gray-400 to-gray-600 shadow-gray-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-gray-700 dark:text-gray-400", bloomColor: "rgba(75, 85, 99, 0.8)", glitch: true, burst: ["#9ca3af", "#4b5563", "#ffffff"] },
+    "sharpshooter_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-zinc-600 to-zinc-900 shadow-zinc-800/40 border-4 border-gray-400", iconColor: "text-zinc-50", badgeText: "text-zinc-800 dark:text-zinc-400", bloomColor: "rgba(39, 39, 42, 0.9)", glitch: true, burst: ["#52525b", "#18181b", "#e4e4e7", "#ffffff"] },
+
+    // Underdog
+    "underdog_BASE": { unlockedBg: "bg-gradient-to-br from-purple-300 to-purple-500 shadow-purple-500/20", iconColor: "text-white", badgeText: "text-purple-600 dark:text-purple-400", bloomColor: "rgba(168, 85, 247, 0.6)", glitch: false, burst: ["#d8b4fe", "#a855f7", "#7e22ce"] },
+    "underdog_SUPER": { unlockedBg: "bg-gradient-to-br from-violet-400 to-violet-600 shadow-violet-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-violet-600 dark:text-violet-400", bloomColor: "rgba(139, 92, 246, 0.8)", glitch: true, burst: ["#a78bfa", "#7c3aed", "#ffffff"] },
+    "underdog_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-fuchsia-500 to-purple-700 shadow-fuchsia-500/40 border-4 border-purple-300", iconColor: "text-fuchsia-50", badgeText: "text-fuchsia-700 dark:text-fuchsia-400", bloomColor: "rgba(217, 70, 239, 0.9)", glitch: true, burst: ["#d946ef", "#7e22ce", "#fae8ff", "#ffffff"] },
+
+    // Polymath
+    "polymath_BASE": { unlockedBg: "bg-gradient-to-br from-pink-300 to-pink-500 shadow-pink-500/20", iconColor: "text-white", badgeText: "text-pink-600 dark:text-pink-400", bloomColor: "rgba(236, 72, 153, 0.6)", glitch: false, burst: ["#f9a8d4", "#ec4899", "#be185d"] },
+    "polymath_SUPER": { unlockedBg: "bg-gradient-to-br from-fuchsia-400 to-pink-600 shadow-fuchsia-500/30 border-2 border-white/50", iconColor: "text-white", badgeText: "text-fuchsia-600 dark:text-fuchsia-400", bloomColor: "rgba(232, 121, 249, 0.8)", glitch: true, burst: ["#e879f9", "#db2777", "#ffffff"] },
+    "polymath_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-fuchsia-500 to-indigo-600 shadow-indigo-500/40 border-4 border-fuchsia-300", iconColor: "text-indigo-50", badgeText: "text-indigo-600 dark:text-indigo-400", bloomColor: "rgba(99, 102, 241, 0.9)", glitch: true, burst: ["#d946ef", "#4f46e5", "#e0e7ff", "#ffffff"] },
+  };
+
+  // Fallback Config just in case a badge is missing
+  const fallbackConfig: Record<string, any> = {
+    BASE: { unlockedBg: "bg-gradient-to-br from-amber-400 to-orange-500 shadow-orange-500/20", iconColor: "text-white", badgeText: "text-orange-600 dark:text-orange-400", bloomColor: "rgba(251, 146, 60, 0.6)", glitch: false, burst: ["#f97316", "#f59e0b", "#fbbf24"] },
+    SUPER: { unlockedBg: "bg-gradient-to-br from-slate-300 to-slate-500 shadow-slate-500/30 border-2 border-white", iconColor: "text-white", badgeText: "text-slate-600 dark:text-slate-400", bloomColor: "rgba(255, 255, 255, 0.8)", glitch: true, burst: ["#94a3b8", "#cbd5e1", "#ffffff"] },
+    LEGENDARY: { unlockedBg: "bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600 shadow-yellow-500/40 border-4 border-yellow-200", iconColor: "text-yellow-50", badgeText: "text-yellow-600 dark:text-yellow-500", bloomColor: "rgba(253, 224, 71, 0.9)", glitch: true, burst: ["#eab308", "#facc15", "#c084fc", "#ffffff"] }
+  };
+
+  const configKey = badge.code ? `${badge.code}_${badge.tier}` : "";
+  const config = badgeColorConfig[configKey] || fallbackConfig[badge.tier as keyof typeof fallbackConfig] || fallbackConfig.BASE;
+
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isUnlocked) return;
-    
-    // Determine colors based on tier
-    let burstColors = ["#f97316", "#f59e0b", "#fbbf24"]; // Base (Orange/Amber)
-    if (badge.tier === "SUPER") burstColors = ["#94a3b8", "#cbd5e1", "#ffffff"]; // Super (Silver/White)
-    if (badge.tier === "LEGENDARY") burstColors = ["#eab308", "#facc15", "#c084fc", "#ffffff"]; // Legendary (Gold/Purple)
-
     const x = e.clientX / window.innerWidth;
     const y = e.clientY / window.innerHeight;
-    
-    triggerMicroBurst(x, y, burstColors);
+    triggerMicroBurst(x, y, config.burst);
   };
-
-  // Visual variants based on tier
-  const tierConfig = {
-    BASE: {
-      unlockedBg: "bg-gradient-to-br from-amber-400 to-orange-500 shadow-orange-500/20",
-      iconColor: "text-white",
-      badgeText: "text-orange-600 dark:text-orange-400",
-      bloomColor: "rgba(251, 146, 60, 0.6)",
-      glitch: false,
-    },
-    SUPER: {
-      unlockedBg: "bg-gradient-to-br from-slate-300 to-slate-500 shadow-slate-500/30 border-2 border-white",
-      iconColor: "text-white",
-      badgeText: "text-slate-600 dark:text-slate-400",
-      bloomColor: "rgba(255, 255, 255, 0.8)",
-      glitch: true,
-    },
-    LEGENDARY: {
-      unlockedBg: "bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600 shadow-yellow-500/40 border-4 border-yellow-200",
-      iconColor: "text-yellow-50",
-      badgeText: "text-yellow-600 dark:text-yellow-500",
-      bloomColor: "rgba(253, 224, 71, 0.9)",
-      glitch: true,
-    }
-  };
-
-  const config = tierConfig[badge.tier as keyof typeof tierConfig] || tierConfig.BASE;
   const progressPercent = Math.min(100, Math.round((badge.currentProgress / badge.requiredCount) * 100));
 
   const getShapeStyles = (iconName: string) => {
