@@ -12,6 +12,16 @@ from app.api.routes_admin import router as admin_router
 from app.api.routes_student import router as student_router
 from app.api.routes_teacher import router as teacher_router
 from app.api.routes_notifications import router as notifications_router
+import os
+import sentry_sdk
+
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
 
 app = FastAPI(title="MathPath Backend v1", version="1.0.0")
 
