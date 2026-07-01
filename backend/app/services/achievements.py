@@ -156,50 +156,53 @@ class AchievementEngine:
         badges_data = [
             # Perfectionist
             ("perfectionist", "BASE", "The Perfectionist", "Score 100% on a Mock Exam", "Target", 1),
-            ("perfectionist", "SUPER", "Super Perfectionist", "Score 100% on 5 Mock Exams", "Target", 5),
-            ("perfectionist", "LEGENDARY", "Legendary Perfectionist", "Score 100% on 10 Mock Exams", "Target", 10),
+            ("perfectionist", "SUPER", "Super Perfectionist", "Score 100% on 5 Mock Exams", "Focus", 5),
+            ("perfectionist", "LEGENDARY", "Legendary Perfectionist", "Score 100% on 10 Mock Exams", "Scan", 10),
             
             # Speed Demon
             ("speed_demon", "BASE", "Speed Demon", "Finish under 50% time with > 80% accuracy", "Zap", 1),
-            ("speed_demon", "SUPER", "Super Speed Demon", "Achieve Speed Demon 5 times", "Zap", 5),
-            ("speed_demon", "LEGENDARY", "Legendary Speed Demon", "Achieve Speed Demon 15 times", "Zap", 15),
+            ("speed_demon", "SUPER", "Super Speed Demon", "Achieve Speed Demon 5 times", "FastForward", 5),
+            ("speed_demon", "LEGENDARY", "Legendary Speed Demon", "Achieve Speed Demon 15 times", "Rocket", 15),
 
             # Competitor
             ("competitor", "BASE", "The Competitor", "Complete your 1st Mock Exam", "Medal", 1),
-            ("competitor", "SUPER", "Super Competitor", "Complete 10 Mock Exams", "Medal", 10),
-            ("competitor", "LEGENDARY", "Legendary Competitor", "Complete 50 Mock Exams", "Medal", 50),
+            ("competitor", "SUPER", "Super Competitor", "Complete 10 Mock Exams", "Flag", 10),
+            ("competitor", "LEGENDARY", "Legendary Competitor", "Complete 50 Mock Exams", "Crown", 50),
 
             # Unstoppable Streak
             ("unstoppable_streak", "BASE", "Unstoppable Streak", "Score > 90% on 2 consecutive Mock Exams", "Flame", 2),
-            ("unstoppable_streak", "SUPER", "Super Unstoppable Streak", "Score > 90% on 5 consecutive Mock Exams", "Flame", 5),
+            ("unstoppable_streak", "SUPER", "Super Unstoppable Streak", "Score > 90% on 5 consecutive Mock Exams", "Activity", 5),
+            ("unstoppable_streak", "LEGENDARY", "Legendary Streak", "Score > 90% on 10 consecutive Mock Exams", "Infinity", 10),
 
             # Early Bird
             ("early_bird", "BASE", "Early Bird", "Submit a Mock Exam within 24 hours of assignment", "Clock", 1),
-            ("early_bird", "SUPER", "Super Early Bird", "Submit early 5 times", "Clock", 5),
+            ("early_bird", "SUPER", "Super Early Bird", "Submit early 5 times", "Sun", 5),
+            ("early_bird", "LEGENDARY", "Legendary Early Bird", "Submit early 10 times", "AlarmClock", 10),
 
             # Comeback Kid
             ("comeback_kid", "BASE", "The Comeback Kid", "Improve your score by > 20% compared to previous exam", "TrendingUp", 1),
-            ("comeback_kid", "SUPER", "Super Comeback Kid", "Achieve 3 comeback improvements", "TrendingUp", 3),
+            ("comeback_kid", "SUPER", "Super Comeback Kid", "Achieve 3 comeback improvements", "ArrowUpRight", 3),
+            ("comeback_kid", "LEGENDARY", "Legendary Comeback Kid", "Achieve 5 comeback improvements", "ChevronsUp", 5),
 
-            # Podium Finisher (Handled separately when leaderboard is generated or periodically, or we can just leave it to be evaluated later)
+            # Podium Finisher
             ("podium_finisher", "BASE", "Podium Finisher", "Rank in the Top 3 of any Mock Exam", "Trophy", 1),
-            ("podium_finisher", "SUPER", "Super Podium Finisher", "Rank in the Top 3 for 5 Mock Exams", "Trophy", 5),
-            ("podium_finisher", "LEGENDARY", "The Champion", "Rank 1st Place on 5 Mock Exams", "Crown", 5),
+            ("podium_finisher", "SUPER", "Super Podium Finisher", "Rank in the Top 3 for 5 Mock Exams", "Star", 5),
+            ("podium_finisher", "LEGENDARY", "The Champion", "Rank 1st Place on 5 Mock Exams", "Sparkles", 5),
 
             # The Sharpshooter
             ("sharpshooter", "BASE", "The Sharpshooter", "Score 100% accuracy while using > 90% of your time", "Crosshair", 1),
-            ("sharpshooter", "SUPER", "Super Sharpshooter", "Achieve Sharpshooter 3 times", "Crosshair", 3),
-            ("sharpshooter", "LEGENDARY", "Legendary Sharpshooter", "Achieve Sharpshooter 10 times", "Crosshair", 10),
+            ("sharpshooter", "SUPER", "Super Sharpshooter", "Achieve Sharpshooter 3 times", "Aperture", 3),
+            ("sharpshooter", "LEGENDARY", "Legendary Sharpshooter", "Achieve Sharpshooter 10 times", "Radar", 10),
 
             # The Underdog
             ("underdog", "BASE", "The Underdog", "Score > 80% on an exam immediately after scoring < 50%", "Shield", 1),
-            ("underdog", "SUPER", "Super Underdog", "Achieve Underdog 3 times", "Shield", 3),
-            ("underdog", "LEGENDARY", "Legendary Underdog", "Achieve Underdog 5 times", "Shield", 5),
+            ("underdog", "SUPER", "Super Underdog", "Achieve Underdog 3 times", "Anchor", 3),
+            ("underdog", "LEGENDARY", "Legendary Underdog", "Achieve Underdog 5 times", "Mountain", 5),
 
             # The Polymath
             ("polymath", "BASE", "The Polymath", "Score > 80% across 3 different Master Modules", "Brain", 3),
-            ("polymath", "SUPER", "Super Polymath", "Score > 80% across 5 different Master Modules", "Brain", 5),
-            ("polymath", "LEGENDARY", "Legendary Polymath", "Score > 80% across 10 different Master Modules", "Brain", 10),
+            ("polymath", "SUPER", "Super Polymath", "Score > 80% across 5 different Master Modules", "Lightbulb", 5),
+            ("polymath", "LEGENDARY", "Legendary Polymath", "Score > 80% across 10 different Master Modules", "Library", 10),
         ]
 
         for code, tier, name, desc, icon, req in badges_data:

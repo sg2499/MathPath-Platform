@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Award, Target, Zap, Medal, Flame, Clock, TrendingUp, Trophy, Crown, Lock, ChevronLeft, Crosshair, Shield, Brain } from "lucide-react";
+import { 
+  Target, Focus, Scan, Zap, FastForward, Rocket, 
+  Medal, Flag, Crown, Flame, Activity, Infinity, 
+  Clock, Sun, AlarmClock, TrendingUp, ArrowUpRight, ChevronsUp, 
+  Trophy, Star, Sparkles, Crosshair, Aperture, Radar, 
+  Shield, Anchor, Mountain, Brain, Lightbulb, Library,
+  Lock, ChevronLeft, Award
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { AppShell } from "@/components/common/AppShell";
 import { useRouter } from "next/navigation";
@@ -9,17 +16,16 @@ import { LoadingState } from "@/components/common/LoadingState";
 
 // Map our backend icon names to Lucide icons
 const IconMap: Record<string, any> = {
-  "Target": Target,
-  "Zap": Zap,
-  "Medal": Medal,
-  "Flame": Flame,
-  "Clock": Clock,
-  "TrendingUp": TrendingUp,
-  "Trophy": Trophy,
-  "Crown": Crown,
-  "Crosshair": Crosshair,
-  "Shield": Shield,
-  "Brain": Brain,
+  "Target": Target, "Focus": Focus, "Scan": Scan,
+  "Zap": Zap, "FastForward": FastForward, "Rocket": Rocket,
+  "Medal": Medal, "Flag": Flag, "Crown": Crown,
+  "Flame": Flame, "Activity": Activity, "Infinity": Infinity,
+  "Clock": Clock, "Sun": Sun, "AlarmClock": AlarmClock,
+  "TrendingUp": TrendingUp, "ArrowUpRight": ArrowUpRight, "ChevronsUp": ChevronsUp,
+  "Trophy": Trophy, "Star": Star, "Sparkles": Sparkles,
+  "Crosshair": Crosshair, "Aperture": Aperture, "Radar": Radar,
+  "Shield": Shield, "Anchor": Anchor, "Mountain": Mountain,
+  "Brain": Brain, "Lightbulb": Lightbulb, "Library": Library
 };
 
 export default function TrophyRoomPage() {
@@ -164,8 +170,32 @@ function Shelf({ title, badges, tier }: { title: string, badges: any[], tier: st
 }
 
 function BadgeCard({ badge }: { badge: any }) {
-  const Icon = IconMap[badge.iconName] || Award;
+  const Icon = IconMap[badge.iconName] || Target;
   const isUnlocked = badge.isUnlocked;
+
+  // Track mouse for 3D physics
+  const [rotate, setRotate] = useState({ x: 0, y: 0 });
+  const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 });
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isUnlocked || !cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const rotateY = ((x / rect.width) - 0.5) * 30; // Max 15deg
+    const rotateX = ((0.5 - (y / rect.height))) * 30; // Max 15deg
+    
+    setRotate({ x: rotateX, y: rotateY });
+    setGlare({ x: (x / rect.width) * 100, y: (y / rect.height) * 100, opacity: 1 });
+  };
+
+  const handleMouseLeave = () => {
+    if (!isUnlocked) return;
+    setRotate({ x: 0, y: 0 });
+    setGlare({ x: 50, y: 50, opacity: 0 });
+  };
 
   // Visual variants based on tier
   const tierConfig = {
@@ -187,44 +217,73 @@ function BadgeCard({ badge }: { badge: any }) {
   };
 
   const config = tierConfig[badge.tier as keyof typeof tierConfig] || tierConfig.BASE;
-
-  // Progress logic
   const progressPercent = Math.min(100, Math.round((badge.currentProgress / badge.requiredCount) * 100));
 
-  // Unique shapes based on icon name
   const getShapeClasses = (iconName: string) => {
-    switch (iconName) {
-      case "Target": return "rounded-full"; // Classic circle
-      case "Crosshair": return "rounded-[2.5rem] rounded-tl-md rounded-br-md"; // Tactical sight shape
-      case "Zap": return "rounded-2xl rotate-3 group-hover:rotate-6 transition-transform"; // Playful squircle
-      case "Medal": return "rounded-[2rem] rounded-tr-md rounded-bl-md"; // Asymmetric modern
-      case "Flame": return "rounded-t-full rounded-b-xl"; // Flame shape
-      case "Clock": return "rounded-xl"; // Standard rounded square
-      case "TrendingUp": return "rounded-br-3xl rounded-tl-3xl rounded-tr-md rounded-bl-md"; // Leaf shape
-      case "Shield": return "rounded-b-[2.5rem] rounded-t-lg"; // Defensive shield
-      case "Trophy": return "rounded-b-[2rem] rounded-t-xl"; // Chalice shape
-      case "Crown": return "rounded-t-sm rounded-b-[2.5rem]"; // Crown base
-      case "Award": return "rounded-tr-3xl rounded-bl-3xl rounded-tl-xl rounded-br-xl"; // Hex-like
-      case "Brain": return "rounded-[2rem]"; // Organic brain-like
-      default: return "rounded-2xl";
-    }
+    const shapes: Record<string, string> = {
+      // Base
+      "Target": "rounded-full", "Zap": "rounded-[2rem] rotate-3", "Medal": "rounded-[2rem] rounded-tr-md rounded-bl-md",
+      "Flame": "rounded-t-full rounded-b-xl", "Clock": "rounded-xl", "TrendingUp": "rounded-br-3xl rounded-tl-3xl rounded-tr-md rounded-bl-md",
+      "Trophy": "rounded-b-[2rem] rounded-t-xl", "Crosshair": "rounded-[2.5rem] rounded-tl-md rounded-br-md",
+      "Shield": "rounded-b-[2.5rem] rounded-t-lg", "Brain": "rounded-[2rem]",
+      // Super
+      "Focus": "rounded-full border-2 border-dashed border-white/30", "FastForward": "rounded-[2rem] -rotate-3",
+      "Flag": "rounded-[2rem] rounded-tl-md rounded-br-md", "Activity": "rounded-t-3xl rounded-b-3xl",
+      "Sun": "rounded-full", "ArrowUpRight": "rounded-tr-3xl rounded-bl-3xl", "Star": "rounded-[2rem] rounded-t-md",
+      "Aperture": "rounded-full", "Anchor": "rounded-b-[2.5rem]", "Lightbulb": "rounded-t-full rounded-b-2xl",
+      // Legendary
+      "Scan": "rounded-xl border-4 border-double border-white/20", "Rocket": "rounded-[2.5rem] rounded-tr-md rotate-6",
+      "Crown": "rounded-t-sm rounded-b-[2.5rem]", "Infinity": "rounded-[3rem] rounded-tl-md rounded-br-md",
+      "AlarmClock": "rounded-full", "ChevronsUp": "rounded-t-[3rem] rounded-b-md", "Sparkles": "rounded-[2.5rem]",
+      "Radar": "rounded-full", "Mountain": "rounded-b-sm rounded-t-[3rem]", "Library": "rounded-lg"
+    };
+    return shapes[iconName] || "rounded-2xl";
   };
   const shapeClass = getShapeClasses(badge.iconName);
 
   return (
-    <div className={`relative group [perspective:1000px] h-full ${isUnlocked ? 'cursor-pointer' : 'opacity-60 grayscale'}`}>
-      <div className={`relative flex flex-col items-center text-center p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-full transition-all duration-500 ease-out transform-gpu overflow-hidden ${isUnlocked ? 'group-hover:[transform:rotateX(6deg)_rotateY(-6deg)_scale(1.03)] group-hover:shadow-2xl group-hover:border-orange-500/30' : ''}`}>
+    <div 
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className={`relative group [perspective:1000px] h-full ${isUnlocked ? 'cursor-pointer' : 'opacity-60 grayscale'}`}
+    >
+      <div 
+        className={`relative flex flex-col items-center text-center p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-full transition-transform duration-200 ease-out transform-gpu overflow-hidden`}
+        style={{
+          transform: isUnlocked && glare.opacity > 0 ? `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale(1.05)` : 'rotateX(0deg) rotateY(0deg) scale(1)',
+          boxShadow: isUnlocked && glare.opacity > 0 ? (badge.tier === 'LEGENDARY' ? '0 30px 60px -12px rgba(234, 179, 8, 0.4)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)') : ''
+        }}
+      >
         
-        {/* Holographic Sweep Effect */}
+        {/* Dynamic Glare Layer */}
         {isUnlocked && (
-          <div className="absolute inset-0 -left-[100%] group-hover:left-[100%] transition-all duration-[1200ms] ease-in-out bg-gradient-to-r from-transparent via-white/40 dark:via-white/10 to-transparent skew-x-12 pointer-events-none z-10" />
+          <div 
+            className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-300"
+            style={{
+              background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 60%)`,
+              opacity: glare.opacity
+            }}
+          />
         )}
 
-        <div className={`relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-5 transition-all duration-500 ${shapeClass} ${config.unlockedBg} ${isUnlocked ? 'shadow-md group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(251,146,60,0.5)]' : ''} z-20`}>
-          <Icon size={40} className={`${config.iconColor} transition-all duration-500 ${isUnlocked ? 'group-hover:scale-110 group-hover:rotate-12 group-hover:drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]' : ''}`} />
+        {/* Legendary Conic Sweep & Particles */}
+        {isUnlocked && badge.tier === "LEGENDARY" && (
+           <>
+             <div className="absolute inset-[-100%] animate-[spin_6s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,rgba(234,179,8,0.15)_360deg)] z-0 pointer-events-none" />
+             <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                {[...Array(6)].map((_, i) => (
+                   <div key={i} className={`absolute w-1 h-1 bg-yellow-400 rounded-full animate-ping`} style={{ top: `${20 + Math.random()*60}%`, left: `${20 + Math.random()*60}%`, animationDuration: `${1+Math.random()*2}s`, animationDelay: `${Math.random()*2}s` }} />
+                ))}
+             </div>
+           </>
+        )}
+
+        <div className={`relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-5 transition-all duration-500 ${shapeClass} ${config.unlockedBg} ${isUnlocked ? 'shadow-md group-hover:shadow-[0_0_30px_rgba(251,146,60,0.5)]' : ''} z-20`} style={{ transform: isUnlocked && glare.opacity > 0 ? 'scale(1.1) translateZ(30px)' : 'scale(1) translateZ(0)' }}>
+          <Icon size={40} className={`${config.iconColor} transition-all duration-500`} style={{ transform: isUnlocked && glare.opacity > 0 ? 'scale(1.1) rotate(12deg)' : 'scale(1) rotate(0deg)' }} />
         </div>
         
-        <h3 className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? config.badgeText : 'text-slate-400 dark:text-slate-600'}`}>
+        <h3 className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? config.badgeText : 'text-slate-400 dark:text-slate-600'}`} style={{ transform: isUnlocked && glare.opacity > 0 ? 'translateZ(20px)' : 'translateZ(0)' }}>
           {badge.name}
         </h3>
         
@@ -233,7 +292,7 @@ function BadgeCard({ badge }: { badge: any }) {
         </p>
 
         {!isUnlocked && badge.requiredCount > 1 && (
-          <div className="w-full mt-auto">
+          <div className="w-full mt-auto z-20">
             <div className="flex justify-between text-[9px] font-bold text-slate-400 mb-1">
               <span>Progress</span>
               <span>{badge.currentProgress} / {badge.requiredCount}</span>
