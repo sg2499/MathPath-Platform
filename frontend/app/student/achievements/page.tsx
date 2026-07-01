@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Award, Target, Zap, Medal, Flame, Clock, TrendingUp, Trophy, Crown, Lock, ChevronLeft } from "lucide-react";
+import { Award, Target, Zap, Medal, Flame, Clock, TrendingUp, Trophy, Crown, Lock, ChevronLeft, Crosshair, Shield, Brain } from "lucide-react";
 import { api } from "@/lib/api";
 import { AppShell } from "@/components/common/AppShell";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,9 @@ const IconMap: Record<string, any> = {
   "TrendingUp": TrendingUp,
   "Trophy": Trophy,
   "Crown": Crown,
+  "Crosshair": Crosshair,
+  "Shield": Shield,
+  "Brain": Brain,
 };
 
 export default function TrophyRoomPage() {
@@ -192,52 +195,63 @@ function BadgeCard({ badge }: { badge: any }) {
   const getShapeClasses = (iconName: string) => {
     switch (iconName) {
       case "Target": return "rounded-full"; // Classic circle
+      case "Crosshair": return "rounded-[2.5rem] rounded-tl-md rounded-br-md"; // Tactical sight shape
       case "Zap": return "rounded-2xl rotate-3 group-hover:rotate-6 transition-transform"; // Playful squircle
       case "Medal": return "rounded-[2rem] rounded-tr-md rounded-bl-md"; // Asymmetric modern
       case "Flame": return "rounded-t-full rounded-b-xl"; // Flame shape
       case "Clock": return "rounded-xl"; // Standard rounded square
       case "TrendingUp": return "rounded-br-3xl rounded-tl-3xl rounded-tr-md rounded-bl-md"; // Leaf shape
+      case "Shield": return "rounded-b-[2.5rem] rounded-t-lg"; // Defensive shield
       case "Trophy": return "rounded-b-[2rem] rounded-t-xl"; // Chalice shape
       case "Crown": return "rounded-t-sm rounded-b-[2.5rem]"; // Crown base
       case "Award": return "rounded-tr-3xl rounded-bl-3xl rounded-tl-xl rounded-br-xl"; // Hex-like
+      case "Brain": return "rounded-[2rem]"; // Organic brain-like
       default: return "rounded-2xl";
     }
   };
   const shapeClass = getShapeClasses(badge.iconName);
 
   return (
-    <div className={`relative group flex flex-col items-center text-center p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-all duration-300 h-full ${isUnlocked ? 'hover:-translate-y-2 hover:shadow-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer' : 'opacity-60 grayscale'}`}>
-      <div className={`w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-5 transition-all duration-500 ${shapeClass} ${config.unlockedBg} ${isUnlocked ? 'shadow-md group-hover:scale-110 group-hover:shadow-2xl' : ''}`}>
-        <Icon size={40} className={`${config.iconColor} transition-transform duration-500 ${isUnlocked ? 'group-hover:scale-110 group-hover:rotate-6' : ''}`} />
-      </div>
-      
-      <h3 className={`font-black text-sm mb-2 ${isUnlocked ? config.badgeText : 'text-slate-400 dark:text-slate-600'}`}>
-        {badge.name}
-      </h3>
-      
-      <p className="text-[10px] md:text-xs text-slate-500 mb-4 min-h-[2.5rem] flex-grow">
-        {badge.description}
-      </p>
+    <div className={`relative group [perspective:1000px] h-full ${isUnlocked ? 'cursor-pointer' : 'opacity-60 grayscale'}`}>
+      <div className={`relative flex flex-col items-center text-center p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-full transition-all duration-500 ease-out transform-gpu overflow-hidden ${isUnlocked ? 'group-hover:[transform:rotateX(6deg)_rotateY(-6deg)_scale(1.03)] group-hover:shadow-2xl group-hover:border-orange-500/30' : ''}`}>
+        
+        {/* Holographic Sweep Effect */}
+        {isUnlocked && (
+          <div className="absolute inset-0 -left-[100%] group-hover:left-[100%] transition-all duration-[1200ms] ease-in-out bg-gradient-to-r from-transparent via-white/40 dark:via-white/10 to-transparent skew-x-12 pointer-events-none z-10" />
+        )}
 
-      {!isUnlocked && badge.requiredCount > 1 && (
-        <div className="w-full mt-auto">
-          <div className="flex justify-between text-[9px] font-bold text-slate-400 mb-1">
-            <span>Progress</span>
-            <span>{badge.currentProgress} / {badge.requiredCount}</span>
-          </div>
-          <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full bg-slate-400 rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
-          </div>
+        <div className={`relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-5 transition-all duration-500 ${shapeClass} ${config.unlockedBg} ${isUnlocked ? 'shadow-md group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(251,146,60,0.5)]' : ''} z-20`}>
+          <Icon size={40} className={`${config.iconColor} transition-all duration-500 ${isUnlocked ? 'group-hover:scale-110 group-hover:rotate-12 group-hover:drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]' : ''}`} />
         </div>
-      )}
-      
-      {isUnlocked && (
-        <div className="w-full mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-            Unlocked
-          </p>
-        </div>
-      )}
+        
+        <h3 className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? config.badgeText : 'text-slate-400 dark:text-slate-600'}`}>
+          {badge.name}
+        </h3>
+        
+        <p className="relative text-[10px] md:text-xs text-slate-500 mb-4 min-h-[2.5rem] flex-grow z-20">
+          {badge.description}
+        </p>
+
+        {!isUnlocked && badge.requiredCount > 1 && (
+          <div className="w-full mt-auto">
+            <div className="flex justify-between text-[9px] font-bold text-slate-400 mb-1">
+              <span>Progress</span>
+              <span>{badge.currentProgress} / {badge.requiredCount}</span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-slate-400 rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
+            </div>
+          </div>
+        )}
+        
+        {isUnlocked && (
+          <div className="relative w-full mt-auto pt-2 border-t border-slate-100 dark:border-slate-800 z-20">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+              Unlocked
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
