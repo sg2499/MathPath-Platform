@@ -6,3 +6,9 @@ The master external assets for MathPath (including the 150 DPS sheet images acro
 
 **CRITICAL INSTRUCTION FOR ALL AGENTS:**
 Do not ask the user to upload these sheets or images. Whenever you need to read or parse the master excel sheets or reference the DPS sheet images, ALWAYS access them directly from the absolute path above.
+
+# EdTech Platform Robustness Guidelines
+1. **Data Normalization**: Backend must act as the single source of truth. Metrics like standardized scores and time utililization must be computed precisely once in the backend, avoiding frontend logic fragmentation.
+2. **Testing**: Enforce automated testing (Jest, Playwright) and block PRs on failure.
+3. **Type Safety**: Strictly validate schemas (Zod/Pydantic) to enforce API contracts.
+4. **CI/CD**: Require preview environments for review before merging to production.
