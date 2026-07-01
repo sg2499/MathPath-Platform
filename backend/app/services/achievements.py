@@ -1,8 +1,15 @@
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 from app.models.models import Student, CompetitionMockResultSummary, AchievementBadge, StudentBadge, StudentAchievementStat
 from sqlalchemy import or_
+
+def _make_aware(dt: datetime | None) -> datetime | None:
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 class AchievementEngine:
     @staticmethod
@@ -76,11 +83,14 @@ class AchievementEngine:
         # 5. Early Bird
         # If difference between assigned_at and completed_at < 24 hours
         if result_summary.mock_assignment and result_summary.completed_at and result_summary.mock_assignment.assigned_at:
-            delta = result_summary.completed_at - result_summary.mock_assignment.assigned_at
-            if delta.total_seconds() <= 86400:
-                count = cls._increment_stat(db, student_id, "early_bird_mocks")
-                cls._award_badge_if_qualified(db, student_id, "early_bird", "BASE", count, newly_unlocked)
-                cls._award_badge_if_qualified(db, student_id, "early_bird", "SUPER", count, newly_unlocked)
+            aware_completed = _make_aware(result_summary.completed_at)
+            aware_assigned = _make_aware(result_summary.mock_assignment.assigned_at)
+            if aware_completed and aware_assigned:
+                delta = aware_completed - aware_assigned
+                if delta.total_seconds() <= 86400:
+                    count = cls._increment_stat(db, student_id, "early_bird_mocks")
+                    cls._award_badge_if_qualified(db, student_id, "early_bird", "BASE", count, newly_unlocked)
+                    cls._award_badge_if_qualified(db, student_id, "early_bird", "SUPER", count, newly_unlocked)
 
         # The Comeback Kid (improvement)
         # Fetch previous attempt
