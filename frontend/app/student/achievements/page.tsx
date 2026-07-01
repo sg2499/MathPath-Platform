@@ -219,27 +219,42 @@ function BadgeCard({ badge }: { badge: any }) {
   const config = tierConfig[badge.tier as keyof typeof tierConfig] || tierConfig.BASE;
   const progressPercent = Math.min(100, Math.round((badge.currentProgress / badge.requiredCount) * 100));
 
-  const getShapeClasses = (iconName: string) => {
-    const shapes: Record<string, string> = {
-      // Base
-      "Target": "rounded-full", "Zap": "rounded-[2rem] rotate-3", "Medal": "rounded-[2rem] rounded-tr-md rounded-bl-md",
-      "Flame": "rounded-t-full rounded-b-xl", "Clock": "rounded-xl", "TrendingUp": "rounded-br-3xl rounded-tl-3xl rounded-tr-md rounded-bl-md",
-      "Trophy": "rounded-b-[2rem] rounded-t-xl", "Crosshair": "rounded-[2.5rem] rounded-tl-md rounded-br-md",
-      "Shield": "rounded-b-[2.5rem] rounded-t-lg", "Brain": "rounded-[2rem]",
-      // Super
-      "Focus": "rounded-full border-2 border-dashed border-white/30", "FastForward": "rounded-[2rem] -rotate-3",
-      "Flag": "rounded-[2rem] rounded-tl-md rounded-br-md", "Activity": "rounded-t-3xl rounded-b-3xl",
-      "Sun": "rounded-full", "ArrowUpRight": "rounded-tr-3xl rounded-bl-3xl", "Star": "rounded-[2rem] rounded-t-md",
-      "Aperture": "rounded-full", "Anchor": "rounded-b-[2.5rem]", "Lightbulb": "rounded-t-full rounded-b-2xl",
-      // Legendary
-      "Scan": "rounded-xl border-4 border-double border-white/20", "Rocket": "rounded-[2.5rem] rounded-tr-md rotate-6",
-      "Crown": "rounded-t-sm rounded-b-[2.5rem]", "Infinity": "rounded-[3rem] rounded-tl-md rounded-br-md",
-      "AlarmClock": "rounded-full", "ChevronsUp": "rounded-t-[3rem] rounded-b-md", "Sparkles": "rounded-[2.5rem]",
-      "Radar": "rounded-full", "Mountain": "rounded-b-sm rounded-t-[3rem]", "Library": "rounded-lg"
+  const getShapeStyles = (iconName: string) => {
+    const shapes: Record<string, { clipPath: string, w: string, h: string }> = {
+      "Target": { clipPath: "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)", w: "w-20 md:w-24", h: "h-20 md:h-24" },
+      "Focus": { clipPath: "polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%)", w: "w-20 md:w-24", h: "h-20 md:h-24" },
+      "Scan": { clipPath: "polygon(50% 0%, 65% 25%, 100% 25%, 75% 50%, 85% 90%, 50% 70%, 15% 90%, 25% 50%, 0% 25%, 35% 25%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "Zap": { clipPath: "polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%)", w: "w-24 md:w-28", h: "h-16 md:h-20" },
+      "FastForward": { clipPath: "polygon(0% 20%, 60% 20%, 60% 0%, 100% 50%, 60% 100%, 60% 80%, 0% 80%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      "Rocket": { clipPath: "polygon(50% 0%, 100% 40%, 80% 100%, 50% 80%, 20% 100%, 0% 40%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "Medal": { clipPath: "polygon(0% 0%, 100% 0%, 100% 70%, 50% 100%, 0% 70%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "Flag": { clipPath: "polygon(0% 0%, 100% 0%, 80% 50%, 100% 100%, 0% 100%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "Crown": { clipPath: "polygon(0% 0%, 25% 30%, 50% 0%, 75% 30%, 100% 0%, 90% 100%, 10% 100%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      "Flame": { clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)", w: "w-20 md:w-24", h: "h-20 md:h-24" },
+      "Activity": { clipPath: "polygon(50% 0%, 100% 30%, 100% 70%, 50% 100%, 0% 70%, 0% 30%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "Infinity": { clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      "Clock": { clipPath: "polygon(15% 0%, 85% 0%, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0% 85%, 0% 15%)", w: "w-20 md:w-24", h: "h-20 md:h-24" },
+      "Sun": { clipPath: "polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%)", w: "w-24 md:w-28", h: "h-16 md:h-20" },
+      "AlarmClock": { clipPath: "polygon(30% 0%, 70% 0%, 100% 20%, 100% 80%, 70% 100%, 30% 100%, 0% 80%, 0% 20%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "TrendingUp": { clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)", w: "w-20 md:w-24", h: "h-20 md:h-24" },
+      "ArrowUpRight": { clipPath: "polygon(50% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)", w: "w-20 md:w-24", h: "h-20 md:h-24" },
+      "ChevronsUp": { clipPath: "polygon(50% 0%, 100% 40%, 70% 40%, 70% 100%, 30% 100%, 30% 40%, 0% 40%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "Trophy": { clipPath: "polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      "Star": { clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "Sparkles": { clipPath: "polygon(50% 0%, 55% 45%, 100% 50%, 55% 55%, 50% 100%, 45% 55%, 0% 50%, 45% 45%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "Crosshair": { clipPath: "polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%)", w: "w-20 md:w-24", h: "h-20 md:h-24" },
+      "Aperture": { clipPath: "polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      "Radar": { clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "Shield": { clipPath: "polygon(0% 10%, 100% 10%, 100% 60%, 50% 100%, 0% 60%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "Anchor": { clipPath: "polygon(10% 0%, 90% 0%, 100% 50%, 50% 100%, 0% 50%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "Mountain": { clipPath: "polygon(50% 0%, 100% 20%, 90% 80%, 50% 100%, 10% 80%, 0% 20%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "Brain": { clipPath: "polygon(20% 20%, 80% 20%, 100% 80%, 0% 80%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      "Lightbulb": { clipPath: "polygon(30% 0%, 70% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "Library": { clipPath: "polygon(0% 0%, 100% 0%, 90% 50%, 100% 100%, 0% 100%, 10% 50%)", w: "w-20 md:w-24", h: "h-24 md:h-28" }
     };
-    return shapes[iconName] || "rounded-2xl";
+    return shapes[iconName] || shapes["Target"];
   };
-  const shapeClass = getShapeClasses(badge.iconName);
+  const shape = getShapeStyles(badge.iconName);
 
   return (
     <div 
@@ -279,8 +294,21 @@ function BadgeCard({ badge }: { badge: any }) {
            </>
         )}
 
-        <div className={`relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-5 transition-all duration-500 ${shapeClass} ${config.unlockedBg} ${isUnlocked ? 'shadow-md group-hover:shadow-[0_0_30px_rgba(251,146,60,0.5)]' : ''} z-20`} style={{ transform: isUnlocked && glare.opacity > 0 ? 'scale(1.1) translateZ(30px)' : 'scale(1) translateZ(0)' }}>
-          <Icon size={40} className={`${config.iconColor} transition-all duration-500`} style={{ transform: isUnlocked && glare.opacity > 0 ? 'scale(1.1) rotate(12deg)' : 'scale(1) rotate(0deg)' }} />
+        {/* The Badge Graphic (Clipped Polygon + Drop Shadow) */}
+        <div 
+          className={`relative flex items-center justify-center mb-5 transition-all duration-500 ${shape.w} ${shape.h} z-20`} 
+          style={{ 
+            filter: isUnlocked && glare.opacity > 0 ? 'drop-shadow(0 0 15px rgba(251,146,60,0.6))' : (isUnlocked ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.15))' : 'none'),
+            transform: isUnlocked && glare.opacity > 0 ? 'scale(1.1) translateZ(30px)' : 'scale(1) translateZ(0)' 
+          }}
+        >
+          {/* Clipped Background Geometry */}
+          <div 
+            className={`absolute inset-0 transition-all duration-500 ${config.unlockedBg}`} 
+            style={{ clipPath: shape.clipPath }} 
+          />
+          {/* Icon */}
+          <Icon size={32} className={`relative z-10 ${config.iconColor} transition-all duration-500`} style={{ transform: isUnlocked && glare.opacity > 0 ? 'scale(1.15) rotate(12deg)' : 'scale(1) rotate(0deg)' }} />
         </div>
         
         <h3 className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? config.badgeText : 'text-slate-400 dark:text-slate-600'}`} style={{ transform: isUnlocked && glare.opacity > 0 ? 'translateZ(20px)' : 'translateZ(0)' }}>
