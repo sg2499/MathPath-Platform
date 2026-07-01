@@ -187,19 +187,19 @@ class AchievementEngine:
             ("podium_finisher", "LEGENDARY", "The Champion", "Rank 1st Place on 5 Mock Exams", "Crown", 5),
 
             # The Sharpshooter
-            ("sharpshooter", "BASE", "The Sharpshooter", "Score 100% accuracy while using > 90% of your time", "Target", 1),
-            ("sharpshooter", "SUPER", "Super Sharpshooter", "Achieve Sharpshooter 3 times", "Target", 3),
-            ("sharpshooter", "LEGENDARY", "Legendary Sharpshooter", "Achieve Sharpshooter 10 times", "Target", 10),
+            ("sharpshooter", "BASE", "The Sharpshooter", "Score 100% accuracy while using > 90% of your time", "Crosshair", 1),
+            ("sharpshooter", "SUPER", "Super Sharpshooter", "Achieve Sharpshooter 3 times", "Crosshair", 3),
+            ("sharpshooter", "LEGENDARY", "Legendary Sharpshooter", "Achieve Sharpshooter 10 times", "Crosshair", 10),
 
             # The Underdog
-            ("underdog", "BASE", "The Underdog", "Score > 80% on an exam immediately after scoring < 50%", "TrendingUp", 1),
-            ("underdog", "SUPER", "Super Underdog", "Achieve Underdog 3 times", "TrendingUp", 3),
-            ("underdog", "LEGENDARY", "Legendary Underdog", "Achieve Underdog 5 times", "TrendingUp", 5),
+            ("underdog", "BASE", "The Underdog", "Score > 80% on an exam immediately after scoring < 50%", "Shield", 1),
+            ("underdog", "SUPER", "Super Underdog", "Achieve Underdog 3 times", "Shield", 3),
+            ("underdog", "LEGENDARY", "Legendary Underdog", "Achieve Underdog 5 times", "Shield", 5),
 
             # The Polymath
-            ("polymath", "BASE", "The Polymath", "Score > 80% across 3 different Master Modules", "Award", 3),
-            ("polymath", "SUPER", "Super Polymath", "Score > 80% across 5 different Master Modules", "Award", 5),
-            ("polymath", "LEGENDARY", "Legendary Polymath", "Score > 80% across 10 different Master Modules", "Award", 10),
+            ("polymath", "BASE", "The Polymath", "Score > 80% across 3 different Master Modules", "Brain", 3),
+            ("polymath", "SUPER", "Super Polymath", "Score > 80% across 5 different Master Modules", "Brain", 5),
+            ("polymath", "LEGENDARY", "Legendary Polymath", "Score > 80% across 10 different Master Modules", "Brain", 10),
         ]
 
         for code, tier, name, desc, icon, req in badges_data:
@@ -208,7 +208,9 @@ class AchievementEngine:
                 if not existing:
                     b = AchievementBadge(code=code, tier=tier, name=name, description=desc, icon_name=icon, required_count=req)
                     db.add(b)
-                    db.commit()
+                else:
+                    existing.icon_name = icon
+                db.commit()
             except Exception as e:
                 db.rollback()
                 print(f"Failed to seed badge {code}-{tier}: {e}")
