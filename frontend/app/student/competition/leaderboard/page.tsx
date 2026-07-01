@@ -168,267 +168,343 @@ const router = useRouter();
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-white/60 dark:from-white/5 to-transparent blur-[50px] pointer-events-none z-0" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
-        <button 
-          onClick={() => router.back()}
-        className="math-role-action-button px-4 py-2 text-sm w-fit inline-flex items-center gap-2 shadow-sm hover:shadow"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </button>
-
-<div className="math-card p-6 md:p-8 flex flex-col xl:flex-row xl:items-start justify-between gap-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-        <div className="relative z-10 flex-1 pr-8">
-          <div className="math-block-header mb-3"><Trophy size={16} className="text-yellow-500" /> Leaderboard</div>
-          <h1 className="math-title mb-2">Mock Exam Leaderboard</h1>
-          <p className="math-subtitle">
-            See how you stack up against other students in your level. Compete for the top spot!
-          </p>
+        
+        {/* AAA Header Block */}
+        <div className="math-card p-6 md:p-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
           
-          <div className="mt-6 flex gap-3 w-fit">
-            <button
-              onClick={() => setViewMode("CUMULATIVE")}
-              className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
-            >
-              Overall Journey
-            </button>
-            <button
-              onClick={() => setViewMode("INDIVIDUAL")}
-              className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
-            >
-              Specific Exam
-            </button>
+          <button 
+            onClick={() => router.back()}
+            className="math-role-action-button absolute top-6 right-6 px-4 py-2 text-sm inline-flex items-center gap-2 shadow-sm hover:shadow z-20"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+
+          <div className="relative z-10 pr-24">
+            <div className="math-block-header mb-3"><Trophy size={16} className="text-yellow-500" /> Leaderboard</div>
+            <h1 className="math-title mb-2">Mock Exam Leaderboard</h1>
+            <p className="math-subtitle">
+              See how you stack up against other students in your level. Compete for the top spot!
+            </p>
+          </div>
+          
+          <div className="mt-8 flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10 border-t border-slate-100 dark:border-slate-800 pt-6">
+            <div className="flex gap-3 w-fit">
+              <button
+                onClick={() => setViewMode("CUMULATIVE")}
+                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
+              >
+                Overall Journey
+              </button>
+              <button
+                onClick={() => setViewMode("INDIVIDUAL")}
+                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
+              >
+                Specific Exam
+              </button>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
+              <div className="relative min-w-[180px] flex-1 xl:flex-none">
+                <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Module</label>
+                <div className="relative">
+                  <select
+                    value={selectedModuleId || ""}
+                    onChange={(e) => handleModuleChange(e.target.value)}
+                    className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
+                  >
+                    {modules.length > 0 ? (
+                      modules.map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))
+                    ) : (
+                      <option disabled value="">No modules available</option>
+                    )}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="relative min-w-[180px] flex-1 xl:flex-none">
+                <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Level</label>
+                <div className="relative">
+                  <select
+                    value={selectedLevelId || ""}
+                    onChange={(e) => handleLevelChange(e.target.value)}
+                    className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
+                  >
+                    {availableLevels.length > 0 ? (
+                      availableLevels.map(l => (
+                        <option key={l.id} value={l.id}>{l.name}</option>
+                      ))
+                    ) : (
+                      <option disabled value="">No levels available</option>
+                    )}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className={`relative min-w-[200px] flex-1 xl:flex-none transition-all duration-300 ${viewMode === "CUMULATIVE" ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
+                <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Mock Exam</label>
+                <div className="relative">
+                  <select
+                    value={selectedExamId || ""}
+                    onChange={(e) => setSelectedExamId(e.target.value)}
+                    disabled={viewMode === "CUMULATIVE"}
+                    className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    {availableExams.length > 0 ? (
+                      availableExams.map(e => (
+                        <option key={e.id} value={e.id}>{e.title}</option>
+                      ))
+                    ) : (
+                      <option disabled value="">No exams available</option>
+                    )}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
-        <div className="relative z-10 flex flex-col sm:flex-row gap-4 xl:items-end w-full xl:w-auto">
-          {/* Module Filter */}
-          <div className="relative min-w-[180px] flex-1 xl:flex-none">
-            <label className="block text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-2">Module</label>
-            <div className="relative">
-              <select
-                value={selectedModuleId || ""}
-                onChange={(e) => handleModuleChange(e.target.value)}
-                className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
-              >
-                {modules.length > 0 ? (
-                  modules.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))
-                ) : (
-                  <option disabled value="">No modules available</option>
-                )}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
+        {loading && <div className="animate-pulse h-96 bg-slate-100 rounded-3xl" />}
 
-          {/* Level Filter */}
-          <div className="relative min-w-[180px] flex-1 xl:flex-none">
-            <label className="block text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-2">Level</label>
-            <div className="relative">
-              <select
-                value={selectedLevelId || ""}
-                onChange={(e) => handleLevelChange(e.target.value)}
-                className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
-              >
-                {availableLevels.length > 0 ? (
-                  availableLevels.map(l => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))
-                ) : (
-                  <option disabled value="">No levels available</option>
-                )}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-            </div>
+        {!loading && leaderboard.length === 0 && (
+          <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-100 dark:border-slate-800">
+            <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+            <p className="text-lg font-bold text-slate-500">No participants yet</p>
           </div>
+        )}
 
-          {/* Exam Filter */}
-          <div className={`relative min-w-[200px] flex-1 xl:flex-none transition-all duration-300 ${viewMode === "CUMULATIVE" ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
-            <label className="block text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-2">Mock Exam</label>
-            <div className="relative">
-              <select
-                value={selectedExamId || ""}
-                onChange={(e) => setSelectedExamId(e.target.value)}
-                disabled={viewMode === "CUMULATIVE"}
-                className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 pr-10 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition disabled:bg-slate-50 disabled:text-slate-400"
-              >
-                {availableExams.length > 0 ? (
-                  availableExams.map(e => (
-                    <option key={e.id} value={e.id}>{e.title}</option>
-                  ))
-                ) : (
-                  <option disabled value="">No exams available</option>
-                )}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+        {!loading && leaderboard.length > 0 && (
+          <>
+            {/* AAA Podium */}
+            <div className="pt-28 pb-16 flex items-end justify-center gap-4 md:gap-12 relative mt-10">
+              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[100%] max-w-5xl h-16 bg-gradient-to-t from-slate-900/10 dark:from-black/80 to-transparent blur-[10px] pointer-events-none rounded-[100%]" />
+              
+              {/* Silver (Rank 2) */}
+              {top3[1] && <PodiumCard student={top3[1]} rank={2} />}
+              {/* Gold (Rank 1) */}
+              {top3[0] && <PodiumCard student={top3[0]} rank={1} />}
+              {/* Bronze (Rank 3) */}
+              {top3[2] && <PodiumCard student={top3[2]} rank={3} />}
             </div>
+
+            {/* AAA High-Velocity List for 4-10 */}
+            {rest.length > 0 && (
+              <div className="math-card rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] mt-8 border border-slate-100 dark:border-slate-800 relative isolation-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50/80 dark:bg-slate-800/80 text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                    <tr>
+                      <th className="px-6 py-5">Rank</th>
+                      <th className="px-6 py-5">Student</th>
+                      <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Score" : "Score"}</th>
+                      <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Accuracy" : "Accuracy"}</th>
+                      <th className="px-6 py-5 text-right hidden sm:table-cell">{viewMode === "CUMULATIVE" ? "Avg Time" : "Time"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                    {rest.map((r: any) => (
+                      <tr key={r.rank} className={`group transition-all duration-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-2xl hover:shadow-indigo-500/10 hover:scale-[1.01] hover:z-20 relative cursor-default overflow-hidden ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}>
+                        {/* AAA Sweep Effect */}
+                        <td className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0 border-none p-0">
+                          <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent skew-x-[-30deg] group-hover:animate-[shimmer_1s_ease-out]" />
+                        </td>
+
+                        <td className="px-6 py-5 font-black text-slate-400 group-hover:text-indigo-500 transition-colors text-base relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">#{r.rank}</td>
+                        <td className="px-6 py-5 flex items-center gap-4 relative z-10">
+                          <div className={`w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 overflow-hidden flex-shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 ${r.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}`}>
+                            {r.photoUrl ? (
+                              <img src={r.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-sm font-black text-indigo-600 dark:text-indigo-400">{getInitials(r.name)}</div>
+                            )}
+                          </div>
+                          <span className={`font-bold text-base transition-colors duration-300 ${r.isCurrent ? 'text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700' : 'text-slate-800 dark:text-slate-200 group-hover:text-indigo-600'}`}>
+                            {r.name} {r.isCurrent && <span className="ml-3 text-[10px] bg-indigo-600 text-white font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-md shadow-indigo-500/30">You</span>}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">{Math.round(r.score)}</td>
+                        <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">{Math.round(r.accuracy ?? r.percentage)}%</td>
+                        <td className="px-6 py-5 text-right font-black text-slate-700 dark:text-slate-300 hidden sm:table-cell text-base relative z-10 transition-transform duration-300 group-hover:scale-105">{Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Current Student Pinned (if outside top 10) */}
+            {currentStudentRank && currentStudentRank > 10 && (
+              <div className="sticky bottom-4 bg-indigo-600 text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-[slideUp_0.3s_ease-out] z-30">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center font-black text-xl">
+                    #{currentStudentRank}
+                  </div>
+                  <div>
+                    <p className="font-bold">Your Current Rank</p>
+                    <p className="text-indigo-200 text-sm">Keep practicing to reach the Top 10!</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-black text-xl">{Math.round(leaderboardData.currentStudentEntry?.percentage || 0)}%</p>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// AAA Parallax Podium Card
+// ============================================================================
+function PodiumCard({ student, rank }: { student: any, rank: number }) {
+  const [physics, setPhysics] = useState({ rx: 0, ry: 0, px: 0, py: 0, opacity: 0 });
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Rotate (Max 20deg)
+    const ry = ((x / rect.width) - 0.5) * 40; 
+    const rx = ((0.5 - (y / rect.height))) * 40; 
+    
+    // Parallax (Max 15px opposite direction)
+    const px = ((x / rect.width) - 0.5) * -30;
+    const py = ((y / rect.height) - 0.5) * -30;
+    
+    setPhysics({ rx, ry, px, py, opacity: 1 });
+  };
+
+  const handleMouseLeave = () => {
+    setPhysics({ rx: 0, ry: 0, px: 0, py: 0, opacity: 0 });
+  };
+
+  // Configure colors and geometries based on rank
+  const config = rank === 1 
+    ? {
+        color: "yellow",
+        shadow: "rgba(250,204,21,0.6)",
+        gradient: "from-yellow-300 to-yellow-600",
+        pedestalGradient: "from-yellow-500 via-yellow-400 to-yellow-200",
+        label: "1st",
+        height: "h-52 md:h-64",
+        shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", // Trapezoid Pedestal
+        bloom: "rgba(250,204,21,0.6)",
+        delay: "0.6s"
+      }
+    : rank === 2 
+    ? {
+        color: "slate",
+        shadow: "rgba(148,163,184,0.5)",
+        gradient: "from-slate-200 to-slate-400",
+        pedestalGradient: "from-slate-300 to-slate-100",
+        label: "2nd",
+        height: "h-40 md:h-48",
+        shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)",
+        bloom: "rgba(148,163,184,0.4)",
+        delay: "0.5s"
+      }
+    : {
+        color: "orange",
+        shadow: "rgba(249,115,22,0.5)",
+        gradient: "from-orange-300 to-orange-500",
+        pedestalGradient: "from-orange-400 to-orange-200",
+        label: "3rd",
+        height: "h-32 md:h-40",
+        shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)",
+        bloom: "rgba(249,115,22,0.4)",
+        delay: "0.4s"
+      };
+
+  return (
+    <div 
+      className={`flex flex-col items-center relative z-10 [perspective:1000px] animate-[slideUp_${config.delay}_ease-out]`}
+      style={{ zIndex: rank === 1 ? 20 : 10 }}
+    >
+      <div 
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="relative mb-6 cursor-pointer transform-gpu transition-transform duration-200 ease-out group"
+        style={{
+          transform: `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg) scale(${physics.opacity > 0 ? 1.05 : 1})`,
+        }}
+      >
+        {/* Massive Hover Bloom */}
+        <div 
+          className="absolute inset-0 rounded-full blur-[25px] transition-all duration-300 z-0 pointer-events-none"
+          style={{ 
+            backgroundColor: config.bloom,
+            opacity: physics.opacity > 0 ? 1 : 0.4,
+            transform: physics.opacity > 0 ? 'scale(1.5)' : 'scale(1.2)'
+          }}
+        />
+
+        {/* 1st Place Crown */}
+        {rank === 1 && (
+          <div 
+             className="absolute -top-12 left-1/2 drop-shadow-[0_0_20px_rgba(250,204,21,1)] z-20 transition-transform duration-500 pointer-events-none"
+             style={{ 
+               transform: `translateX(-50%) translateY(${Math.sin(Date.now() / 500) * 5}px) scale(${physics.opacity > 0 ? 1.2 : 1})`,
+             }}
+          >
+             <CrownIcon />
           </div>
+        )}
+
+        {/* Parallax Avatar Ring */}
+        <div 
+          className={`relative w-20 h-20 md:w-28 md:h-28 p-[4px] rounded-full bg-gradient-to-b ${config.gradient} shadow-[0_0_30px_${config.shadow}] z-10 transition-transform duration-200 ease-out`}
+          style={{ transform: physics.opacity > 0 ? `translateZ(40px) translateX(${physics.px}px) translateY(${physics.py}px)` : 'translateZ(0)' }}
+        >
+          <div className={`w-full h-full rounded-full border-[3px] border-white dark:border-slate-900 overflow-hidden bg-${config.color}-50 relative`}>
+             {student.photoUrl ? (
+                <img src={student.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+             ) : (
+                <div className={`w-full h-full flex items-center justify-center font-black text-2xl text-${config.color}-600 bg-${config.color}-100`}>
+                   {getInitials(student.name)}
+                </div>
+             )}
+          </div>
+        </div>
+
+        {/* Rank Label */}
+        <div 
+          className={`absolute -bottom-3 -right-2 bg-gradient-to-br ${config.gradient} text-white text-[10px] md:text-xs font-black px-2.5 md:px-3 py-1 md:py-1.5 rounded-full border-2 border-white shadow-lg uppercase tracking-wider z-20 transition-transform duration-200`}
+          style={{ transform: physics.opacity > 0 ? 'translateZ(60px)' : 'translateZ(0)' }}
+        >
+           {config.label}
         </div>
       </div>
+
+      <div className="text-center mb-5 relative z-20 drop-shadow-md">
+        <p className={`font-black text-sm md:text-lg text-slate-800 dark:text-white max-w-[120px] md:max-w-[150px] leading-tight break-words ${rank === 1 ? 'drop-shadow-[0_0_10px_rgba(255,255,255,1)]' : ''}`}>{student.name}</p>
+        <p className={`text-sm md:text-base font-black text-${config.color}-500 mt-1 drop-shadow-sm`}>{Math.round(student.percentage)}%</p>
+      </div>
+
+      {/* AAA Geometric Pedestal */}
+      <div 
+        className={`w-32 md:w-44 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-6 md:pb-8 border-b-[6px] border-white/30`}
+        style={{ 
+           clipPath: config.shape,
+           filter: `drop-shadow(0 -10px 30px ${config.shadow})` 
+        }}
+      >
+        {/* Animated Internal Energy */}
+        <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-500" style={{ opacity: physics.opacity > 0 ? 0.4 : 0 }} />
+        <div className="absolute bottom-0 left-0 w-full h-[200%] bg-gradient-to-t from-transparent via-white/30 to-transparent translate-y-[100%] transition-transform duration-1000" style={{ transform: physics.opacity > 0 ? 'translateY(-100%)' : 'translateY(100%)' }} />
         
-
-
-      {loading && <div className="animate-pulse h-96 bg-slate-100 rounded-3xl" />}
-
-      {!loading && leaderboard.length === 0 && (
-        <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-100 dark:border-slate-800">
-          <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-          <p className="text-lg font-bold text-slate-500">No participants yet</p>
-        </div>
-      )}
-
-      {!loading && leaderboard.length > 0 && (
-        <>
-          {/* Podium Component */}
-          <div className="pt-24 pb-16 flex items-end justify-center gap-2 md:gap-8 relative mt-6">
-            {/* Glossy Floor Reflection for Stage */}
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[100%] max-w-4xl h-16 bg-gradient-to-t from-slate-900/10 dark:from-black/60 to-transparent blur-[10px] pointer-events-none rounded-[100%]" />
-            
-            {/* Silver (Rank 2) */}
-            {top3[1] && (
-              <div className="flex flex-col items-center animate-[slideUp_0.5s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-slate-400/50 dark:bg-slate-400/30 blur-[25px] rounded-full scale-125 group-hover:scale-150 group-hover:bg-slate-400/60 transition-all duration-700" />
-                  <div className="relative w-16 h-16 md:w-20 md:h-20 p-[3px] rounded-full bg-gradient-to-b from-slate-200 to-slate-400 shadow-[0_0_20px_rgba(148,163,184,0.3)] z-10 group-hover:shadow-[0_0_30px_rgba(148,163,184,0.5)] transition-all">
-                    <div className="w-full h-full rounded-full border-[3px] border-white dark:border-slate-900 bg-slate-100 overflow-hidden relative">
-                      {top3[1].photoUrl ? (
-                        <img src={top3[1].photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-500 font-black text-xl">{getInitials(top3[1].name)}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-slate-400 to-slate-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider z-20">2nd</div>
-                </div>
-                <div className="text-center mb-5 relative z-20">
-                  <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[1].name}</p>
-                  <p className="text-sm font-black text-slate-500 mt-1">{Math.round(top3[1].percentage)}%</p>
-                </div>
-                <div className="w-28 md:w-36 h-40 bg-gradient-to-t from-slate-300/80 to-slate-100/90 rounded-t-2xl shadow-[0_0_30px_rgba(148,163,184,0.2)] flex items-center justify-center border-t border-slate-200 backdrop-blur-md relative overflow-hidden group-hover:from-slate-400/80 group-hover:to-slate-200/90 transition-colors duration-500">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
-                  <span className="text-6xl font-black text-slate-400/50 drop-shadow-sm group-hover:text-slate-500/60 transition-colors">2</span>
-                </div>
-              </div>
-            )}
-
-            {/* Gold (Rank 1) */}
-            {top3[0] && (
-              <div className="flex flex-col items-center z-20 animate-[slideUp_0.6s_ease-out] hover:-translate-y-4 transition-transform duration-300 group">
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-yellow-400/50 dark:bg-yellow-400/30 blur-[30px] rounded-full scale-125 group-hover:scale-150 group-hover:bg-yellow-400/60 transition-all duration-700" />
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 drop-shadow-[0_4px_10px_rgba(250,204,21,0.6)] scale-[1.3] z-20 animate-bounce">
-                    <CrownIcon />
-                  </div>
-                  <div className="relative w-24 h-24 md:w-32 md:h-32 p-[4px] rounded-full bg-gradient-to-b from-yellow-300 to-yellow-500 shadow-[0_0_40px_rgba(250,204,21,0.4)] z-10 group-hover:shadow-[0_0_60px_rgba(250,204,21,0.6)] transition-all">
-                    <div className="w-full h-full rounded-full border-4 border-white dark:border-slate-900 bg-yellow-50 overflow-hidden relative">
-                      {top3[0].photoUrl ? (
-                        <img src={top3[0].photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-yellow-100 text-yellow-600 font-black text-3xl">{getInitials(top3[0].name)}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="absolute -bottom-4 -right-2 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white text-xs md:text-sm font-black px-3.5 py-1.5 rounded-full border-2 border-white shadow-lg uppercase tracking-wider z-20">1st</div>
-                </div>
-                <div className="text-center mb-5 relative z-20">
-                  <p className="font-black text-lg md:text-xl text-slate-900 dark:text-white max-w-[150px] leading-tight break-words drop-shadow-sm">{top3[0].name}</p>
-                  <p className="text-base font-black text-yellow-600 mt-1">{Math.round(top3[0].percentage)}%</p>
-                </div>
-                <div className="w-32 md:w-44 h-52 bg-gradient-to-t from-yellow-500 via-yellow-400 to-yellow-200 rounded-t-2xl shadow-[0_10px_40px_rgba(250,204,21,0.3)] flex items-center justify-center border-t-[3px] border-yellow-100 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/50 to-white/0 translate-x-[-100%] animate-[shimmer_2.5s_infinite]" />
-                  <span className="text-8xl font-black text-yellow-600/40 drop-shadow-md">1</span>
-                </div>
-              </div>
-            )}
-
-            {/* Bronze (Rank 3) */}
-            {top3[2] && (
-              <div className="flex flex-col items-center animate-[slideUp_0.4s_ease-out] z-10 hover:-translate-y-3 transition-transform duration-300 group">
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-orange-400/50 dark:bg-orange-400/30 blur-[25px] rounded-full scale-125 group-hover:scale-150 group-hover:bg-orange-400/60 transition-all duration-700" />
-                  <div className="relative w-16 h-16 md:w-20 md:h-20 p-[3px] rounded-full bg-gradient-to-b from-orange-300 to-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.3)] z-10 group-hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] transition-all">
-                    <div className="w-full h-full rounded-full border-[3px] border-white dark:border-slate-900 bg-orange-50 overflow-hidden relative">
-                      {top3[2].photoUrl ? (
-                        <img src={top3[2].photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-600 font-black text-xl">{getInitials(top3[2].name)}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="absolute -bottom-3 -right-2 bg-gradient-to-br from-orange-400 to-orange-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full border-2 border-white shadow-md uppercase tracking-wider z-20">3rd</div>
-                </div>
-                <div className="text-center mb-5 relative z-20">
-                  <p className="font-bold text-slate-800 dark:text-white max-w-[120px] text-sm leading-tight break-words">{top3[2].name}</p>
-                  <p className="text-sm font-black text-orange-500 mt-1">{Math.round(top3[2].percentage)}%</p>
-                </div>
-                <div className="w-28 md:w-36 h-32 bg-gradient-to-t from-orange-400/90 to-orange-200/90 rounded-t-2xl shadow-[0_0_30px_rgba(249,115,22,0.2)] flex items-center justify-center border-t border-orange-200 backdrop-blur-md relative overflow-hidden group-hover:from-orange-500/90 group-hover:to-orange-300/90 transition-colors duration-500">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
-                  <span className="text-6xl font-black text-orange-700/30 drop-shadow-sm group-hover:text-orange-700/50 transition-colors">3</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* List for 4-10 */}
-          {rest.length > 0 && (
-            <div className="math-card rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] mt-8 border border-slate-100 dark:border-slate-800 relative isolation-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50/80 dark:bg-slate-800/80 text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                  <tr>
-                    <th className="px-6 py-5">Rank</th>
-                    <th className="px-6 py-5">Student</th>
-                    <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Score" : "Score"}</th>
-                    <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Accuracy" : "Accuracy"}</th>
-                    <th className="px-6 py-5 text-right hidden sm:table-cell">{viewMode === "CUMULATIVE" ? "Avg Time Taken" : "Time Taken"}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                  {rest.map((r: any) => (
-                    <tr key={r.rank} className={`transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:shadow-lg hover:scale-[1.01] hover:z-10 relative cursor-default last:border-none ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-1 ring-inset ring-indigo-500/30 z-10' : ''}`}>
-                      <td className="px-6 py-5 font-black text-slate-700 dark:text-slate-300 text-base">#{r.rank}</td>
-                      <td className="px-6 py-5 flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 overflow-hidden flex-shrink-0 shadow-sm ${r.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}`}>
-                          {r.photoUrl ? (
-                            <img src={r.photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-sm font-black text-indigo-600 dark:text-indigo-400">{getInitials(r.name)}</div>
-                          )}
-                        </div>
-                        <span className={`font-bold text-base ${r.isCurrent ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                          {r.name} {r.isCurrent && <span className="ml-3 text-[10px] bg-indigo-600 text-white font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-md shadow-indigo-500/30">You</span>}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{Math.round(r.score)}</td>
-                      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base">{Math.round(r.accuracy ?? r.percentage)}%</td>
-                      <td className="px-6 py-5 text-right font-black text-slate-700 dark:text-slate-300 hidden sm:table-cell text-base">{Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Current Student Pinned (if outside top 10) */}
-          {currentStudentRank && currentStudentRank > 10 && (
-            <div className="sticky bottom-4 bg-indigo-600 text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-[slideUp_0.3s_ease-out]">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center font-black text-xl">
-                  #{currentStudentRank}
-                </div>
-                <div>
-                  <p className="font-bold">Your Current Rank</p>
-                  <p className="text-indigo-200 text-sm">Keep practicing to reach the Top 10!</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-black text-xl">{Math.round(leaderboardData.currentStudentEntry?.percentage || 0)}%</p>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+        <span className={`text-7xl md:text-8xl font-black text-${config.color}-600/30 drop-shadow-sm transition-transform duration-300`} style={{ transform: physics.opacity > 0 ? 'scale(1.1) translateY(-10px)' : 'scale(1)' }}>{rank}</span>
       </div>
     </div>
   );
