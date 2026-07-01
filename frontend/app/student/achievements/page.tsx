@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Award, Target, Zap, Medal, Flame, Clock, TrendingUp, Trophy, Crown, Lock } from "lucide-react";
+import { Award, Target, Zap, Medal, Flame, Clock, TrendingUp, Trophy, Crown, Lock, ChevronLeft } from "lucide-react";
 import { api } from "@/lib/api";
+import { AppShell } from "@/components/common/AppShell";
+import { useRouter } from "next/navigation";
 import { LoadingState } from "@/components/common/LoadingState";
 
 // Map our backend icon names to Lucide icons
@@ -18,6 +20,7 @@ const IconMap: Record<string, any> = {
 };
 
 export default function TrophyRoomPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [badges, setBadges] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"mock" | "dps">("mock");
@@ -47,38 +50,63 @@ export default function TrophyRoomPage() {
   const legendaryBadges = badges.filter(b => b.tier === "LEGENDARY");
 
   return (
-    <div className="w-full h-full p-6 md:p-8 space-y-12">
-      <div className="max-w-4xl mb-12">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 mb-6">
-          <Award size={32} />
-        </div>
-        <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">The Trophy Room</h1>
-        <p className="text-lg font-medium text-slate-500 max-w-3xl">Complete challenges, maintain streaks, and dominate Mock Exams to unlock exclusive badges.</p>
-      </div>
+    <AppShell>
+      <main className="math-dashboard-page math-dashboard-student w-full space-y-5">
+        <section className="math-dashboard-hero math-dashboard-hero-student math-dashboard-hero-clean">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-orange-300/18 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-pink-300/16 blur-3xl" />
+          
+          <div className="relative flex flex-col gap-5">
+            <div className="math-block-header">
+              <Award size={14} />
+              Student Achievements
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem]">
+                The Trophy Room
+              </h1>
+              <p className="math-subtitle max-w-4xl lg:whitespace-nowrap">
+                Complete challenges, maintain streaks, and dominate Mock Exams to unlock exclusive badges.
+              </p>
+            </div>
 
-      {/* Tabs */}
-      <div className="flex items-center space-x-2 mb-12">
-        <button 
-          onClick={() => setActiveTab("mock")}
-          className={`px-8 py-3 rounded-full font-bold transition-all ${
-            activeTab === "mock" 
-              ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md scale-105" 
-              : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
-          }`}
-        >
-          Mock Exams
-        </button>
-        <button 
-          onClick={() => setActiveTab("dps")}
-          className={`px-8 py-3 rounded-full font-bold transition-all ${
-            activeTab === "dps" 
-              ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md scale-105" 
-              : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
-          }`}
-        >
-          DPS Sheets
-        </button>
-      </div>
+            <div className="mt-2 flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="math-dashboard-secondary-action"
+              >
+                <ChevronLeft size={15} />
+                Back
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Tabs */}
+        <div className="flex items-center space-x-4 mb-8">
+          <button 
+            onClick={() => setActiveTab("mock")}
+            className={`px-8 py-3 rounded-full font-bold transition-all ${
+              activeTab === "mock" 
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
+                : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"
+            }`}
+          >
+            Mock Exams
+          </button>
+          <button 
+            onClick={() => setActiveTab("dps")}
+            className={`px-8 py-3 rounded-full font-bold transition-all ${
+              activeTab === "dps" 
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
+                : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"
+            }`}
+          >
+            DPS Sheets
+          </button>
+        </div>
 
       {activeTab === "mock" ? (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -100,7 +128,8 @@ export default function TrophyRoomPage() {
           <p className="text-slate-500">Daily practice streak and mastery badges are currently being forged.</p>
         </div>
       )}
-    </div>
+      </main>
+    </AppShell>
   );
 }
 
