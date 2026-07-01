@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { triggerMicroBurst } from "@/lib/utils/particles";
 import { 
   Target, Focus, Scan, Zap, FastForward, Rocket, 
   Medal, Flag, Crown, Flame, Activity, Infinity, 
@@ -203,6 +204,20 @@ function BadgeCard({ badge }: { badge: any }) {
     setPhysics({ rx: 0, ry: 0, px: 0, py: 0, gx: 50, gy: 50, opacity: 0 });
   };
 
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isUnlocked) return;
+    
+    // Determine colors based on tier
+    let burstColors = ["#f97316", "#f59e0b", "#fbbf24"]; // Base (Orange/Amber)
+    if (badge.tier === "SUPER") burstColors = ["#94a3b8", "#cbd5e1", "#ffffff"]; // Super (Silver/White)
+    if (badge.tier === "LEGENDARY") burstColors = ["#eab308", "#facc15", "#c084fc", "#ffffff"]; // Legendary (Gold/Purple)
+
+    const x = e.clientX / window.innerWidth;
+    const y = e.clientY / window.innerHeight;
+    
+    triggerMicroBurst(x, y, burstColors);
+  };
+
   // Visual variants based on tier
   const tierConfig = {
     BASE: {
@@ -273,6 +288,7 @@ function BadgeCard({ badge }: { badge: any }) {
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
       className={`relative group [perspective:1000px] h-full ${isUnlocked ? 'cursor-pointer' : 'opacity-60 grayscale'}`}
     >
       <div 

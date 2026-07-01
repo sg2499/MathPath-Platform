@@ -11,6 +11,20 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      keyframes: {
+        shake: {
+          '0%, 100%': { transform: 'translate3d(0, 0, 0)' },
+          '10%, 30%, 50%, 70%, 90%': { transform: 'translate3d(-4px, 0, 0)' },
+          '20%, 40%, 60%, 80%': { transform: 'translate3d(4px, 0, 0)' },
+        },
+        shimmer: {
+          '100%': { left: '100%' },
+        }
+      },
+      animation: {
+        shake: 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+        shimmer: 'shimmer 1s ease-out infinite'
+      },
       fontSize: {
         xs: ['var(--text-xs, 0.75rem)', { lineHeight: 'var(--lh-xs, 1rem)' }],
         sm: ['var(--text-sm, 0.875rem)', { lineHeight: 'var(--lh-sm, 1.25rem)' }],
