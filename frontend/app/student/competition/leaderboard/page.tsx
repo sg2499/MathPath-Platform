@@ -309,12 +309,13 @@ const router = useRouter();
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {rest.map((r: any) => (
                       <tr key={r.rank} className={`group transition-all duration-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-2xl hover:shadow-indigo-500/10 hover:scale-[1.01] hover:z-20 relative cursor-default overflow-hidden ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}>
-                        {/* AAA Sweep Effect */}
-                        <td className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0 border-none p-0">
-                          <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent skew-x-[-30deg] group-hover:animate-[shimmer_1s_ease-out]" />
+                        <td className="px-6 py-5 font-black text-slate-400 group-hover:text-indigo-500 transition-colors text-base group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">
+                          {/* AAA Sweep Effect */}
+                          <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0">
+                            <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent skew-x-[-30deg] group-hover:animate-[shimmer_1s_ease-out]" />
+                          </div>
+                          <span className="relative z-10">#{r.rank}</span>
                         </td>
-
-                        <td className="px-6 py-5 font-black text-slate-400 group-hover:text-indigo-500 transition-colors text-base relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">#{r.rank}</td>
                         <td className="px-6 py-5 flex items-center gap-4 relative z-10">
                           <div className={`w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 overflow-hidden flex-shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 ${r.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}`}>
                             {r.photoUrl ? (
