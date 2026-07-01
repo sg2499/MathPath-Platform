@@ -922,15 +922,18 @@ def get_mock_exam_leaderboard(
             mapped_badges.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
             top_badges = mapped_badges[:3]
 
+            time_util = res.time_utilization_percentage or 0
+            standardized_time_seconds = (time_util / 100.0) * 3600
+
             leaderboard.append({
                 "rank": rank,
                 "studentId": st.id,
                 "name": user.full_name,
                 "photoUrl": user.photo_url or st.photo_url,
                 "percentage": res.percentage,
-                "score": res.score,
+                "score": res.percentage, # Normalized to 100 max
                 "accuracy": res.accuracy_percentage,
-                "timeTakenSeconds": res.time_taken_seconds,
+                "timeTakenSeconds": int(standardized_time_seconds),
                 "isCurrent": is_current,
                 "topBadges": top_badges
             })
@@ -1053,7 +1056,7 @@ def get_cumulative_leaderboard(
             User.photo_url,
             func.sum(CompetitionMockResultSummary.score).label('total_score'),
             func.sum(CompetitionMockResultSummary.max_score).label('total_max_score'),
-            func.sum(CompetitionMockResultSummary.time_taken_seconds).label('total_time'),
+            func.avg(CompetitionMockResultSummary.time_utilization_percentage).label('avg_time_util'),
             func.avg(CompetitionMockResultSummary.accuracy_percentage).label('avg_accuracy')
         )
         .join(Student, CompetitionMockResultSummary.student_id == Student.id)
@@ -1067,15 +1070,18 @@ def get_cumulative_leaderboard(
     # Calculate percentage and sort
     processed_results = []
     for r in results:
-        percentage = (r.total_score / r.total_max_score * 100) if r.total_max_score > 0 else 0
+        percentage = (r.total_score / r.total_max_score * 100) if r.total_max_score and r.total_max_score > 0 else 0
+        avg_time_util = r.avg_time_util or 0
+        standardized_time_seconds = (avg_time_util / 100.0) * 3600
+        
         processed_results.append({
             "studentId": r.student_id,
             "name": r.full_name,
             "photoUrl": r.photo_url or r.student_photo,
             "percentage": round(percentage, 2),
-            "score": round(r.total_score or 0, 2),
+            "score": round(percentage, 2),  # Normalized to 100 max
             "accuracy": round(r.avg_accuracy or 0, 2),
-            "timeTakenSeconds": r.total_time or 0,
+            "timeTakenSeconds": int(standardized_time_seconds),
             "isCurrent": r.student_id == student.id
         })
         
