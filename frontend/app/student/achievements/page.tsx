@@ -20,6 +20,7 @@ const IconMap: Record<string, any> = {
 export default function TrophyRoomPage() {
   const [loading, setLoading] = useState(true);
   const [badges, setBadges] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"mock" | "dps">("mock");
 
   useEffect(() => {
     async function loadAchievements() {
@@ -55,14 +56,50 @@ export default function TrophyRoomPage() {
         <p className="text-lg text-slate-500">Complete challenges, maintain streaks, and dominate Mock Exams to unlock exclusive badges.</p>
       </div>
 
-      {/* Legendary Tier Shelf */}
-      <Shelf title="Legendary Badges" badges={legendaryBadges} tier="LEGENDARY" />
-      
-      {/* Super Tier Shelf */}
-      <Shelf title="Super Badges" badges={superBadges} tier="SUPER" />
-      
-      {/* Base Tier Shelf */}
-      <Shelf title="Base Badges" badges={baseBadges} tier="BASE" />
+      {/* Tabs */}
+      <div className="flex items-center justify-center space-x-2 mb-12">
+        <button 
+          onClick={() => setActiveTab("mock")}
+          className={`px-8 py-3 rounded-full font-bold transition-all ${
+            activeTab === "mock" 
+              ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md scale-105" 
+              : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+          }`}
+        >
+          Mock Exams
+        </button>
+        <button 
+          onClick={() => setActiveTab("dps")}
+          className={`px-8 py-3 rounded-full font-bold transition-all ${
+            activeTab === "dps" 
+              ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md scale-105" 
+              : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+          }`}
+        >
+          DPS Sheets
+        </button>
+      </div>
+
+      {activeTab === "mock" ? (
+        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Legendary Tier Shelf */}
+          <Shelf title="Legendary Badges" badges={legendaryBadges} tier="LEGENDARY" />
+          
+          {/* Super Tier Shelf */}
+          <Shelf title="Super Badges" badges={superBadges} tier="SUPER" />
+          
+          {/* Base Tier Shelf */}
+          <Shelf title="Base Badges" badges={baseBadges} tier="BASE" />
+        </div>
+      ) : (
+        <div className="text-center py-24 animate-in fade-in duration-500">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mb-4">
+            <Lock size={32} />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">DPS Badges Coming Soon</h2>
+          <p className="text-slate-500">Daily practice streak and mastery badges are currently being forged.</p>
+        </div>
+      )}
     </div>
   );
 }
