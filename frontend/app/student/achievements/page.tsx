@@ -211,54 +211,54 @@ function BadgeCard({ badge }: { badge: any }) {
   // 30 Unique Colors based on Badge Code and Tier (Distinct Spectrum)
   const badgeColorConfig: Record<string, any> = {
     // Perfectionist (Emerald)
-    "perfectionist_BASE": { unlockedBg: "bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/20", iconColor: "text-white", bloomColor: "rgba(16, 185, 129, 0.6)", glitch: false, burst: ["#34d399", "#10b981", "#059669"] },
-    "perfectionist_SUPER": { unlockedBg: "bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-emerald-500/30 border-2 border-white/70", iconColor: "text-emerald-50", bloomColor: "rgba(5, 150, 105, 0.8)", glitch: true, burst: ["#10b981", "#059669", "#ffffff"] },
-    "perfectionist_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-emerald-600 to-emerald-800 shadow-emerald-500/40 border-4 border-emerald-200", iconColor: "text-emerald-50", bloomColor: "rgba(4, 120, 87, 0.9)", glitch: true, burst: ["#059669", "#047857", "#d1fae5", "#ffffff"] },
+    "perfectionist_BASE": { customBg: "linear-gradient(to bottom right, #34d399, #059669)", customShadow: "0 10px 15px -3px rgba(16, 185, 129, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(16, 185, 129, 0.6)", glitch: false, burst: ["#34d399", "#10b981", "#059669"] },
+    "perfectionist_SUPER": { customBg: "linear-gradient(to bottom right, #10b981, #047857)", customShadow: "0 10px 15px -3px rgba(16, 185, 129, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#ecfdf5", bloomColor: "rgba(5, 150, 105, 0.8)", glitch: true, burst: ["#10b981", "#059669", "#ffffff"] },
+    "perfectionist_LEGENDARY": { customBg: "linear-gradient(to bottom right, #059669, #065f46)", customShadow: "0 10px 15px -3px rgba(16, 185, 129, 0.4)", customBorder: "4px solid #a7f3d0", iconColorHex: "#ecfdf5", bloomColor: "rgba(4, 120, 87, 0.9)", glitch: true, burst: ["#059669", "#047857", "#d1fae5", "#ffffff"] },
     
     // Speed Demon (Cyan)
-    "speed_demon_BASE": { unlockedBg: "bg-gradient-to-br from-cyan-400 to-cyan-600 shadow-cyan-500/20", iconColor: "text-white", bloomColor: "rgba(6, 182, 212, 0.6)", glitch: false, burst: ["#22d3ee", "#06b6d4", "#0891b2"] },
-    "speed_demon_SUPER": { unlockedBg: "bg-gradient-to-br from-cyan-500 to-cyan-700 shadow-cyan-500/30 border-2 border-white/70", iconColor: "text-cyan-50", bloomColor: "rgba(8, 145, 178, 0.8)", glitch: true, burst: ["#06b6d4", "#0891b2", "#ffffff"] },
-    "speed_demon_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-cyan-600 to-cyan-800 shadow-cyan-500/40 border-4 border-cyan-200", iconColor: "text-cyan-50", bloomColor: "rgba(14, 116, 144, 0.9)", glitch: true, burst: ["#0891b2", "#0e7490", "#cffafe", "#ffffff"] },
+    "speed_demon_BASE": { customBg: "linear-gradient(to bottom right, #22d3ee, #0891b2)", customShadow: "0 10px 15px -3px rgba(6, 182, 212, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(6, 182, 212, 0.6)", glitch: false, burst: ["#22d3ee", "#06b6d4", "#0891b2"] },
+    "speed_demon_SUPER": { customBg: "linear-gradient(to bottom right, #06b6d4, #0e7490)", customShadow: "0 10px 15px -3px rgba(6, 182, 212, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#ecfeff", bloomColor: "rgba(8, 145, 178, 0.8)", glitch: true, burst: ["#06b6d4", "#0891b2", "#ffffff"] },
+    "speed_demon_LEGENDARY": { customBg: "linear-gradient(to bottom right, #0891b2, #155e75)", customShadow: "0 10px 15px -3px rgba(6, 182, 212, 0.4)", customBorder: "4px solid #a5f3fc", iconColorHex: "#ecfeff", bloomColor: "rgba(14, 116, 144, 0.9)", glitch: true, burst: ["#0891b2", "#0e7490", "#cffafe", "#ffffff"] },
     
     // Competitor (Blue)
-    "competitor_BASE": { unlockedBg: "bg-gradient-to-br from-blue-500 to-blue-700 shadow-blue-500/20", iconColor: "text-white", bloomColor: "rgba(59, 130, 246, 0.6)", glitch: false, burst: ["#60a5fa", "#3b82f6", "#2563eb"] },
-    "competitor_SUPER": { unlockedBg: "bg-gradient-to-br from-blue-600 to-blue-800 shadow-blue-500/30 border-2 border-white/70", iconColor: "text-blue-50", bloomColor: "rgba(37, 99, 235, 0.8)", glitch: true, burst: ["#3b82f6", "#2563eb", "#ffffff"] },
-    "competitor_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-blue-700 to-blue-900 shadow-blue-500/40 border-4 border-blue-200", iconColor: "text-blue-50", bloomColor: "rgba(29, 78, 216, 0.9)", glitch: true, burst: ["#2563eb", "#1d4ed8", "#dbeafe", "#ffffff"] },
+    "competitor_BASE": { customBg: "linear-gradient(to bottom right, #3b82f6, #1d4ed8)", customShadow: "0 10px 15px -3px rgba(59, 130, 246, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(59, 130, 246, 0.6)", glitch: false, burst: ["#60a5fa", "#3b82f6", "#2563eb"] },
+    "competitor_SUPER": { customBg: "linear-gradient(to bottom right, #2563eb, #1e40af)", customShadow: "0 10px 15px -3px rgba(59, 130, 246, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#eff6ff", bloomColor: "rgba(37, 99, 235, 0.8)", glitch: true, burst: ["#3b82f6", "#2563eb", "#ffffff"] },
+    "competitor_LEGENDARY": { customBg: "linear-gradient(to bottom right, #1d4ed8, #1e3a8a)", customShadow: "0 10px 15px -3px rgba(59, 130, 246, 0.4)", customBorder: "4px solid #bfdbfe", iconColorHex: "#eff6ff", bloomColor: "rgba(29, 78, 216, 0.9)", glitch: true, burst: ["#2563eb", "#1d4ed8", "#dbeafe", "#ffffff"] },
     
     // Unstoppable Streak (Red)
-    "unstoppable_streak_BASE": { unlockedBg: "bg-gradient-to-br from-red-500 to-red-700 shadow-red-500/20", iconColor: "text-white", bloomColor: "rgba(239, 68, 68, 0.6)", glitch: false, burst: ["#f87171", "#ef4444", "#dc2626"] },
-    "unstoppable_streak_SUPER": { unlockedBg: "bg-gradient-to-br from-red-600 to-red-800 shadow-red-500/30 border-2 border-white/70", iconColor: "text-red-50", bloomColor: "rgba(220, 38, 38, 0.8)", glitch: true, burst: ["#ef4444", "#dc2626", "#ffffff"] },
-    "unstoppable_streak_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-red-700 to-red-900 shadow-red-500/40 border-4 border-red-200", iconColor: "text-red-50", bloomColor: "rgba(185, 28, 28, 0.9)", glitch: true, burst: ["#dc2626", "#b91c1c", "#fee2e2", "#ffffff"] },
+    "unstoppable_streak_BASE": { customBg: "linear-gradient(to bottom right, #ef4444, #b91c1c)", customShadow: "0 10px 15px -3px rgba(239, 68, 68, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(239, 68, 68, 0.6)", glitch: false, burst: ["#f87171", "#ef4444", "#dc2626"] },
+    "unstoppable_streak_SUPER": { customBg: "linear-gradient(to bottom right, #dc2626, #991b1b)", customShadow: "0 10px 15px -3px rgba(239, 68, 68, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#fef2f2", bloomColor: "rgba(220, 38, 38, 0.8)", glitch: true, burst: ["#ef4444", "#dc2626", "#ffffff"] },
+    "unstoppable_streak_LEGENDARY": { customBg: "linear-gradient(to bottom right, #b91c1c, #7f1d1d)", customShadow: "0 10px 15px -3px rgba(239, 68, 68, 0.4)", customBorder: "4px solid #fecaca", iconColorHex: "#fef2f2", bloomColor: "rgba(185, 28, 28, 0.9)", glitch: true, burst: ["#dc2626", "#b91c1c", "#fee2e2", "#ffffff"] },
 
     // Early Bird (Orange)
-    "early_bird_BASE": { unlockedBg: "bg-gradient-to-br from-orange-400 to-orange-600 shadow-orange-500/20", iconColor: "text-white", bloomColor: "rgba(249, 115, 22, 0.6)", glitch: false, burst: ["#fb923c", "#f97316", "#ea580c"] },
-    "early_bird_SUPER": { unlockedBg: "bg-gradient-to-br from-orange-500 to-orange-700 shadow-orange-500/30 border-2 border-white/70", iconColor: "text-orange-50", bloomColor: "rgba(234, 88, 12, 0.8)", glitch: true, burst: ["#f97316", "#ea580c", "#ffffff"] },
-    "early_bird_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-orange-600 to-orange-800 shadow-orange-500/40 border-4 border-orange-200", iconColor: "text-orange-50", bloomColor: "rgba(194, 65, 12, 0.9)", glitch: true, burst: ["#ea580c", "#c2410c", "#ffedd5", "#ffffff"] },
+    "early_bird_BASE": { customBg: "linear-gradient(to bottom right, #fb923c, #ea580c)", customShadow: "0 10px 15px -3px rgba(249, 115, 22, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(249, 115, 22, 0.6)", glitch: false, burst: ["#fb923c", "#f97316", "#ea580c"] },
+    "early_bird_SUPER": { customBg: "linear-gradient(to bottom right, #f97316, #c2410c)", customShadow: "0 10px 15px -3px rgba(249, 115, 22, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#fff7ed", bloomColor: "rgba(234, 88, 12, 0.8)", glitch: true, burst: ["#f97316", "#ea580c", "#ffffff"] },
+    "early_bird_LEGENDARY": { customBg: "linear-gradient(to bottom right, #ea580c, #9a3412)", customShadow: "0 10px 15px -3px rgba(249, 115, 22, 0.4)", customBorder: "4px solid #fed7aa", iconColorHex: "#fff7ed", bloomColor: "rgba(194, 65, 12, 0.9)", glitch: true, burst: ["#ea580c", "#c2410c", "#ffedd5", "#ffffff"] },
 
     // Comeback Kid (Indigo)
-    "comeback_kid_BASE": { unlockedBg: "bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-indigo-500/20", iconColor: "text-white", bloomColor: "rgba(99, 102, 241, 0.6)", glitch: false, burst: ["#818cf8", "#6366f1", "#4f46e5"] },
-    "comeback_kid_SUPER": { unlockedBg: "bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-indigo-500/30 border-2 border-white/70", iconColor: "text-indigo-50", bloomColor: "rgba(79, 70, 229, 0.8)", glitch: true, burst: ["#6366f1", "#4f46e5", "#ffffff"] },
-    "comeback_kid_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-indigo-600 to-indigo-800 shadow-indigo-500/40 border-4 border-indigo-200", iconColor: "text-indigo-50", bloomColor: "rgba(67, 56, 202, 0.9)", glitch: true, burst: ["#4f46e5", "#4338ca", "#e0e7ff", "#ffffff"] },
+    "comeback_kid_BASE": { customBg: "linear-gradient(to bottom right, #818cf8, #4f46e5)", customShadow: "0 10px 15px -3px rgba(99, 102, 241, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(99, 102, 241, 0.6)", glitch: false, burst: ["#818cf8", "#6366f1", "#4f46e5"] },
+    "comeback_kid_SUPER": { customBg: "linear-gradient(to bottom right, #6366f1, #4338ca)", customShadow: "0 10px 15px -3px rgba(99, 102, 241, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#eef2ff", bloomColor: "rgba(79, 70, 229, 0.8)", glitch: true, burst: ["#6366f1", "#4f46e5", "#ffffff"] },
+    "comeback_kid_LEGENDARY": { customBg: "linear-gradient(to bottom right, #4f46e5, #3730a3)", customShadow: "0 10px 15px -3px rgba(99, 102, 241, 0.4)", customBorder: "4px solid #c7d2fe", iconColorHex: "#eef2ff", bloomColor: "rgba(67, 56, 202, 0.9)", glitch: true, burst: ["#4f46e5", "#4338ca", "#e0e7ff", "#ffffff"] },
 
     // Podium Finisher (Gold/Yellow)
-    "podium_finisher_BASE": { unlockedBg: "bg-gradient-to-br from-yellow-400 to-yellow-600 shadow-yellow-500/20", iconColor: "text-white", bloomColor: "rgba(234, 179, 8, 0.6)", glitch: false, burst: ["#facc15", "#eab308", "#ca8a04"] },
-    "podium_finisher_SUPER": { unlockedBg: "bg-gradient-to-br from-yellow-500 to-yellow-700 shadow-yellow-500/30 border-2 border-white/70", iconColor: "text-yellow-50", bloomColor: "rgba(202, 138, 4, 0.8)", glitch: true, burst: ["#eab308", "#ca8a04", "#ffffff"] },
-    "podium_finisher_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-yellow-600 to-yellow-800 shadow-yellow-500/40 border-4 border-yellow-200", iconColor: "text-yellow-50", bloomColor: "rgba(161, 98, 7, 0.9)", glitch: true, burst: ["#ca8a04", "#a16207", "#fef9c3", "#ffffff"] },
+    "podium_finisher_BASE": { customBg: "linear-gradient(to bottom right, #facc15, #ca8a04)", customShadow: "0 10px 15px -3px rgba(234, 179, 8, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(234, 179, 8, 0.6)", glitch: false, burst: ["#facc15", "#eab308", "#ca8a04"] },
+    "podium_finisher_SUPER": { customBg: "linear-gradient(to bottom right, #eab308, #a16207)", customShadow: "0 10px 15px -3px rgba(234, 179, 8, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#fefce8", bloomColor: "rgba(202, 138, 4, 0.8)", glitch: true, burst: ["#eab308", "#ca8a04", "#ffffff"] },
+    "podium_finisher_LEGENDARY": { customBg: "linear-gradient(to bottom right, #ca8a04, #854d0e)", customShadow: "0 10px 15px -3px rgba(234, 179, 8, 0.4)", customBorder: "4px solid #fef08a", iconColorHex: "#fefce8", bloomColor: "rgba(161, 98, 7, 0.9)", glitch: true, burst: ["#ca8a04", "#a16207", "#fef9c3", "#ffffff"] },
 
     // Sharpshooter (Pink)
-    "sharpshooter_BASE": { unlockedBg: "bg-gradient-to-br from-pink-500 to-pink-700 shadow-pink-500/20", iconColor: "text-white", bloomColor: "rgba(236, 72, 153, 0.6)", glitch: false, burst: ["#f472b6", "#ec4899", "#db2777"] },
-    "sharpshooter_SUPER": { unlockedBg: "bg-gradient-to-br from-pink-600 to-pink-800 shadow-pink-500/30 border-2 border-white/70", iconColor: "text-pink-50", bloomColor: "rgba(219, 39, 119, 0.8)", glitch: true, burst: ["#ec4899", "#db2777", "#ffffff"] },
-    "sharpshooter_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-pink-700 to-pink-900 shadow-pink-500/40 border-4 border-pink-200", iconColor: "text-pink-50", bloomColor: "rgba(190, 24, 93, 0.9)", glitch: true, burst: ["#db2777", "#be185d", "#fce7f3", "#ffffff"] },
+    "sharpshooter_BASE": { customBg: "linear-gradient(to bottom right, #ec4899, #be185d)", customShadow: "0 10px 15px -3px rgba(236, 72, 153, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(236, 72, 153, 0.6)", glitch: false, burst: ["#f472b6", "#ec4899", "#db2777"] },
+    "sharpshooter_SUPER": { customBg: "linear-gradient(to bottom right, #db2777, #9d174d)", customShadow: "0 10px 15px -3px rgba(236, 72, 153, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#fdf2f8", bloomColor: "rgba(219, 39, 119, 0.8)", glitch: true, burst: ["#ec4899", "#db2777", "#ffffff"] },
+    "sharpshooter_LEGENDARY": { customBg: "linear-gradient(to bottom right, #be185d, #831843)", customShadow: "0 10px 15px -3px rgba(236, 72, 153, 0.4)", customBorder: "4px solid #fbcfe8", iconColorHex: "#fdf2f8", bloomColor: "rgba(190, 24, 93, 0.9)", glitch: true, burst: ["#db2777", "#be185d", "#fce7f3", "#ffffff"] },
 
     // Underdog (Fuchsia/Violet)
-    "underdog_BASE": { unlockedBg: "bg-gradient-to-br from-fuchsia-500 to-violet-600 shadow-fuchsia-500/20", iconColor: "text-white", bloomColor: "rgba(217, 70, 239, 0.6)", glitch: false, burst: ["#e879f9", "#d946ef", "#c026d3"] },
-    "underdog_SUPER": { unlockedBg: "bg-gradient-to-br from-fuchsia-600 to-violet-700 shadow-fuchsia-500/30 border-2 border-white/70", iconColor: "text-fuchsia-50", bloomColor: "rgba(192, 38, 211, 0.8)", glitch: true, burst: ["#d946ef", "#c026d3", "#ffffff"] },
-    "underdog_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-fuchsia-700 to-violet-800 shadow-fuchsia-500/40 border-4 border-fuchsia-200", iconColor: "text-fuchsia-50", bloomColor: "rgba(162, 28, 175, 0.9)", glitch: true, burst: ["#c026d3", "#a21caf", "#fae8ff", "#ffffff"] },
+    "underdog_BASE": { customBg: "linear-gradient(to bottom right, #d946ef, #7c3aed)", customShadow: "0 10px 15px -3px rgba(217, 70, 239, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(217, 70, 239, 0.6)", glitch: false, burst: ["#e879f9", "#d946ef", "#c026d3"] },
+    "underdog_SUPER": { customBg: "linear-gradient(to bottom right, #c026d3, #6d28d9)", customShadow: "0 10px 15px -3px rgba(217, 70, 239, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#fdf4ff", bloomColor: "rgba(192, 38, 211, 0.8)", glitch: true, burst: ["#d946ef", "#c026d3", "#ffffff"] },
+    "underdog_LEGENDARY": { customBg: "linear-gradient(to bottom right, #a21caf, #5b21b6)", customShadow: "0 10px 15px -3px rgba(217, 70, 239, 0.4)", customBorder: "4px solid #f5d0fe", iconColorHex: "#fdf4ff", bloomColor: "rgba(162, 28, 175, 0.9)", glitch: true, burst: ["#c026d3", "#a21caf", "#fae8ff", "#ffffff"] },
 
     // Polymath (Teal)
-    "polymath_BASE": { unlockedBg: "bg-gradient-to-br from-teal-400 to-teal-600 shadow-teal-500/20", iconColor: "text-white", bloomColor: "rgba(20, 184, 166, 0.6)", glitch: false, burst: ["#2dd4bf", "#14b8a6", "#0d9488"] },
-    "polymath_SUPER": { unlockedBg: "bg-gradient-to-br from-teal-500 to-teal-700 shadow-teal-500/30 border-2 border-white/70", iconColor: "text-teal-50", bloomColor: "rgba(13, 148, 136, 0.8)", glitch: true, burst: ["#14b8a6", "#0d9488", "#ffffff"] },
-    "polymath_LEGENDARY": { unlockedBg: "bg-gradient-to-br from-teal-600 to-teal-800 shadow-teal-500/40 border-4 border-teal-200", iconColor: "text-teal-50", bloomColor: "rgba(15, 118, 110, 0.9)", glitch: true, burst: ["#0d9488", "#0f766e", "#ccfbf1", "#ffffff"] },
+    "polymath_BASE": { customBg: "linear-gradient(to bottom right, #2dd4bf, #0d9488)", customShadow: "0 10px 15px -3px rgba(20, 184, 166, 0.2)", customBorder: "none", iconColorHex: "#ffffff", bloomColor: "rgba(20, 184, 166, 0.6)", glitch: false, burst: ["#2dd4bf", "#14b8a6", "#0d9488"] },
+    "polymath_SUPER": { customBg: "linear-gradient(to bottom right, #14b8a6, #0f766e)", customShadow: "0 10px 15px -3px rgba(20, 184, 166, 0.3)", customBorder: "2px solid rgba(255,255,255,0.7)", iconColorHex: "#f0fdfa", bloomColor: "rgba(13, 148, 136, 0.8)", glitch: true, burst: ["#14b8a6", "#0d9488", "#ffffff"] },
+    "polymath_LEGENDARY": { customBg: "linear-gradient(to bottom right, #0d9488, #115e59)", customShadow: "0 10px 15px -3px rgba(20, 184, 166, 0.4)", customBorder: "4px solid #99f6e4", iconColorHex: "#f0fdfa", bloomColor: "rgba(15, 118, 110, 0.9)", glitch: true, burst: ["#0d9488", "#0f766e", "#ccfbf1", "#ffffff"] },
   };
 
   // Fallback Config just in case a badge is missing
@@ -365,8 +365,8 @@ function BadgeCard({ badge }: { badge: any }) {
         >
           {/* Clipped Background Geometry */}
           <div 
-            className={`absolute inset-0 transition-all duration-500 ${isUnlocked ? config.unlockedBg : 'bg-slate-200 dark:bg-slate-800 shadow-inner'}`} 
-            style={{ clipPath: shape.clipPath }} 
+            className={`absolute inset-0 transition-all duration-500 ${!isUnlocked ? 'bg-slate-200 dark:bg-slate-800 shadow-inner' : ''}`} 
+            style={{ clipPath: shape.clipPath, ...(isUnlocked ? { background: config.customBg, boxShadow: config.customShadow, border: config.customBorder } : {}) }} 
           />
 
           {/* HDR Bloom Under-layer (Legendary) */}
@@ -375,8 +375,9 @@ function BadgeCard({ badge }: { badge: any }) {
           )}
 
           {/* Icon with Chromatic Aberration/Glitch */}
-          <Icon size={32} className={`relative z-10 ${isUnlocked ? config.iconColor : 'text-slate-400 dark:text-slate-600'} transition-all duration-300`} style={{ 
+          <Icon size={32} className={`relative z-10 ${!isUnlocked ? 'text-slate-400 dark:text-slate-600' : ''} transition-all duration-300`} style={{ 
             transform: isUnlocked && physics.opacity > 0 ? 'scale(1.15) rotate(12deg)' : 'scale(1) rotate(0deg)',
+            color: isUnlocked ? config.iconColorHex : undefined,
             filter: isUnlocked && config.glitch && physics.opacity > 0 ? 'drop-shadow(-3px 0px 0px rgba(255,0,0,0.8)) drop-shadow(3px 0px 0px rgba(0,255,255,0.8))' : 'none'
           }} />
         </div>
