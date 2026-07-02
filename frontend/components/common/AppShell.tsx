@@ -561,7 +561,7 @@ export function AppShell({
     },
     {
       label: "Achievements",
-      icon: Award,
+      icon: Sparkles,
       tooltip: "View your achievements",
       children: [
         {
