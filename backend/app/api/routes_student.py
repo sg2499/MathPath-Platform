@@ -972,11 +972,17 @@ def get_student_achievements(
         "sharpshooter": "sharpshooter_mocks",
         "underdog": "underdog_mocks",
         "polymath": "polymath_count",
+        "podium_finisher": "podium_finisher_mocks",
     }
 
     result = []
     for badge in all_badges:
         stat_name = badge_progress_map.get(badge.code)
+        
+        # Override stat name for Legendary Podium Finisher (The Champion)
+        if badge.code == "podium_finisher" and badge.tier == "LEGENDARY":
+            stat_name = "champion_mocks"
+            
         current_progress = stats_map.get(stat_name, 0) if stat_name else 0
         
         is_unlocked = badge.id in earned_ids
