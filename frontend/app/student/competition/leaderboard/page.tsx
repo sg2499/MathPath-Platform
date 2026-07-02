@@ -15,6 +15,7 @@ import type {
   ExamSchema 
 } from "@/lib/schemas/leaderboard";
 import { z } from "zod";
+import { PodiumHeroAnimation } from "./PodiumHeroAnimation";
 
 // --- COUNT UP HOOK ---
 function useCountUp(end: number, duration: number = 2) {
@@ -64,6 +65,8 @@ const router = useRouter();
   const [viewMode, setViewMode] = useState<"CUMULATIVE" | "INDIVIDUAL">("CUMULATIVE");
   
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardResponse | null>(null);
+  
+  const [activeHeroRank, setActiveHeroRank] = useState<1 | 2 | 3 | null>(null);
 
   // Load Hierarchy on mount
   useEffect(() => {
@@ -198,6 +201,7 @@ const router = useRouter();
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-white/60 dark:from-white/5 to-transparent blur-[50px] pointer-events-none z-0" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
+        <PodiumHeroAnimation rank={activeHeroRank} onComplete={() => setActiveHeroRank(null)} />
         
         {/* AAA Header Block */}
         <div className="math-card p-6 md:p-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
@@ -312,15 +316,15 @@ const router = useRouter();
         {!loading && leaderboard.length > 0 && (
           <>
             {/* AAA Podium */}
-            <div className="pt-28 pb-16 flex items-end justify-center gap-4 md:gap-12 relative mt-10">
+            <div className="pt-32 pb-16 flex items-end justify-center gap-4 md:gap-12 relative mt-16">
               <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[100%] max-w-5xl h-16 bg-gradient-to-t from-slate-900/10 dark:from-black/80 to-transparent blur-[10px] pointer-events-none rounded-[100%]" />
               
               {/* Silver (Rank 2) */}
-              {top3[1] && <PodiumCard student={top3[1]} rank={2} />}
+              {top3[1] && <PodiumCard student={top3[1]} rank={2} onActivateHero={() => setActiveHeroRank(2)} />}
               {/* Gold (Rank 1) */}
-              {top3[0] && <PodiumCard student={top3[0]} rank={1} />}
+              {top3[0] && <PodiumCard student={top3[0]} rank={1} onActivateHero={() => setActiveHeroRank(1)} />}
               {/* Bronze (Rank 3) */}
-              {top3[2] && <PodiumCard student={top3[2]} rank={3} />}
+              {top3[2] && <PodiumCard student={top3[2]} rank={3} onActivateHero={() => setActiveHeroRank(3)} />}
             </div>
 
             {/* AAA High-Velocity List for 4-10 */}
@@ -379,7 +383,7 @@ const router = useRouter();
 // ============================================================================
 // AAA Parallax Podium Card
 // ============================================================================
-function PodiumCard({ student, rank }: { student: any, rank: number }) {
+function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: number, onActivateHero?: () => void }) {
   const [physics, setPhysics] = useState({ rx: 0, ry: 0, px: 0, py: 0, opacity: 0 });
   const cardRef = React.useRef<HTMLDivElement>(null);
 
@@ -408,6 +412,10 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
     if (rank === 1) triggerMythic();
     else if (rank === 2) triggerSurge();
     else if (rank === 3) triggerBlaze();
+    
+    if (onActivateHero) {
+      onActivateHero();
+    }
   };
 
   // Configure colors and geometries based on rank
@@ -418,7 +426,9 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
         gradient: "from-yellow-300 to-yellow-600",
         pedestalGradient: "from-yellow-500 via-yellow-400 to-yellow-200",
         label: "1st",
-        height: "h-52 md:h-64",
+        height: "h-[300px]",
+        avatarSize: "w-28 h-28 md:w-36 md:h-36",
+        translateY: "translate-y-0",
         shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", // Trapezoid Pedestal
         bloom: "rgba(250,204,21,0.6)",
         delay: 0.6
@@ -430,7 +440,9 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
         gradient: "from-slate-200 to-slate-400",
         pedestalGradient: "from-slate-300 to-slate-100",
         label: "2nd",
-        height: "h-40 md:h-48",
+        height: "h-[220px]",
+        avatarSize: "w-20 h-20 md:w-28 md:h-28",
+        translateY: "translate-y-12",
         shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)",
         bloom: "rgba(148,163,184,0.4)",
         delay: 0.5
@@ -441,7 +453,9 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
         gradient: "from-orange-300 to-orange-500",
         pedestalGradient: "from-orange-400 to-orange-200",
         label: "3rd",
-        height: "h-32 md:h-40",
+        height: "h-[140px]",
+        avatarSize: "w-16 h-16 md:w-24 md:h-24",
+        translateY: "translate-y-24",
         shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)",
         bloom: "rgba(249,115,22,0.4)",
         delay: 0.4
@@ -452,7 +466,7 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
       initial={{ opacity: 0, y: 100 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 200, damping: 20, delay: config.delay }}
-      className="flex flex-col items-center relative z-10 [perspective:1000px]"
+      className={`flex flex-col items-center relative z-10 [perspective:1000px] ${config.translateY}`}
       style={{ zIndex: rank === 1 ? 20 : 10 }}
     >
       <div 
@@ -498,7 +512,7 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
 
         {/* Parallax Avatar Ring */}
         <div 
-          className={`relative w-20 h-20 md:w-28 md:h-28 p-[4px] rounded-full bg-gradient-to-b ${config.gradient} shadow-[0_0_30px_${config.shadow}] z-10 transition-transform duration-200 ease-out`}
+          className={`relative ${config.avatarSize} p-[4px] rounded-full bg-gradient-to-b ${config.gradient} shadow-[0_0_30px_${config.shadow}] z-10 transition-transform duration-200 ease-out`}
           style={{ transform: physics.opacity > 0 ? `translateZ(40px) translateX(${physics.px}px) translateY(${physics.py}px)` : 'translateZ(0)' }}
         >
           <div className={`w-full h-full rounded-full border-[3px] border-white dark:border-slate-900 overflow-hidden bg-${config.color}-50 relative`}>
