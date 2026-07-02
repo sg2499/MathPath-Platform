@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { triggerBlaze, triggerSurge, triggerCrystal, triggerMythic } from "@/lib/utils/particles";
 
@@ -13,44 +13,207 @@ const Tiers = [
   {
     min: 96,
     max: 100,
+    id: "APEX",
     text: "APEX FLAWLESS",
-    gradient: "from-amber-200 via-yellow-400 to-amber-600",
     shadowColor: "rgba(251,191,36,0.8)",
     extrusionColor: "#b45309",
     trigger: triggerMythic,
-    duration: 5500,
+    duration: 6500,
   },
   {
     min: 91,
     max: 95,
+    id: "IMMORTAL",
     text: "IMMORTAL",
-    gradient: "from-fuchsia-300 via-purple-500 to-indigo-600",
     shadowColor: "rgba(168,85,247,0.8)",
     extrusionColor: "#581c87",
     trigger: triggerCrystal,
-    duration: 4000,
+    duration: 5000,
   },
   {
     min: 86,
     max: 90,
+    id: "ASCENDANT",
     text: "ASCENDANT",
-    gradient: "from-cyan-200 via-blue-500 to-blue-700",
     shadowColor: "rgba(56,189,248,0.8)",
     extrusionColor: "#0369a1",
     trigger: triggerSurge,
-    duration: 3500,
+    duration: 4500,
   },
   {
     min: 80,
     max: 85,
+    id: "DOMINATING",
     text: "DOMINATING",
-    gradient: "from-orange-300 via-red-500 to-rose-700",
     shadowColor: "rgba(239,68,68,0.8)",
     extrusionColor: "#991b1b",
     trigger: triggerBlaze,
-    duration: 3500,
+    duration: 4500,
   },
 ];
+
+// --- TEXT RENDERERS ---
+
+// Base text styles for extreme readability
+const TextBaseClass = "text-6xl md:text-8xl lg:text-9xl font-black italic tracking-tighter uppercase text-white select-none relative z-20";
+const TextStrokeStyle = { WebkitTextStroke: "2px rgba(0,0,0,0.5)" };
+
+// Generates the 3D block extrusion
+const generate3DShadow = (color: string) => {
+  return Array.from({ length: 12 })
+    .map((_, i) => `-${i + 1}px ${i + 1}px 0px ${color}`)
+    .join(", ");
+};
+
+// 1. APEX FLAWLESS: Shattered Convergence
+function ConvergeText({ text, extrusionColor }: { text: string; extrusionColor: string }) {
+  const letters = text.split("");
+  
+  return (
+    <motion.div
+      initial={{ scale: 1.1 }}
+      animate={{ scale: [1.1, 0.98, 1] }}
+      transition={{ delay: 1.8, duration: 0.4, type: "spring", bounce: 0.6 }} // The final screen shake when they snap
+      className="flex flex-row flex-wrap justify-center p-8"
+      style={{ textShadow: generate3DShadow(extrusionColor) }}
+    >
+      {letters.map((char, i) => {
+        // Random starting positions far off screen
+        const startX = (Math.random() - 0.5) * 1000;
+        const startY = (Math.random() - 0.5) * 1000;
+        const startRotate = (Math.random() - 0.5) * 180;
+        
+        return (
+          <motion.span
+            key={i}
+            initial={{ x: startX, y: startY, rotate: startRotate, opacity: 0, scale: 3, filter: "blur(10px)" }}
+            animate={{ x: 0, y: 0, rotate: 0, opacity: 1, scale: 1, filter: "blur(0px)" }}
+            transition={{
+              duration: 1.8,
+              ease: "anticipate", // Pulls back slowly then snaps hard
+            }}
+            className={TextBaseClass}
+            style={TextStrokeStyle}
+          >
+            {char === " " ? "\u00A0" : char}
+          </motion.span>
+        );
+      })}
+    </motion.div>
+  );
+}
+
+// 2. IMMORTAL: Void Materialization
+function RiseText({ text, extrusionColor }: { text: string; extrusionColor: string }) {
+  const letters = text.split("");
+
+  return (
+    <div className="flex flex-row p-8" style={{ textShadow: generate3DShadow(extrusionColor) }}>
+      {letters.map((char, i) => (
+        <motion.span
+          key={i}
+          initial={{ y: 150, opacity: 0, filter: "blur(20px)", scale: 0.8 }}
+          animate={{ y: 0, opacity: 1, filter: "blur(0px)", scale: 1 }}
+          transition={{ duration: 0.8, delay: i * 0.1, ease: "easeOut" }}
+          className={TextBaseClass}
+          style={TextStrokeStyle}
+        >
+          {char === " " ? "\u00A0" : char}
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
+// 3. ASCENDANT: Cybernetic Decrypt
+function DecryptText({ text, extrusionColor }: { text: string; extrusionColor: string }) {
+  const [displayText, setDisplayText] = useState(text.replace(/./g, "█"));
+  const [isDecrypted, setIsDecrypted] = useState(false);
+
+  useEffect(() => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+0123456789";
+    let iterations = 0;
+    
+    const interval = setInterval(() => {
+      setDisplayText((prev) => 
+        prev.split("").map((letter, index) => {
+          if (index < iterations / 2) return text[index];
+          return text[index] === " " ? " " : chars[Math.floor(Math.random() * chars.length)];
+        }).join("")
+      );
+      
+      if (iterations >= text.length * 2) {
+        clearInterval(interval);
+        setIsDecrypted(true);
+      }
+      
+      iterations++;
+    }, 40); // Fast scrambling
+
+    return () => clearInterval(interval);
+  }, [text]);
+
+  return (
+    <div className="relative p-8" style={{ textShadow: generate3DShadow(extrusionColor) }}>
+      <motion.h1 
+        className={`${TextBaseClass} ${isDecrypted ? "" : "text-cyan-200 drop-shadow-[0_0_10px_#22d3ee]"}`}
+        style={TextStrokeStyle}
+      >
+        {displayText}
+      </motion.h1>
+      
+      {/* Glitch flash on successful decrypt */}
+      {isDecrypted && (
+        <>
+           <motion.div
+            animate={{ x: [-10, 10, -10, 0], opacity: [0, 0.9, 0] }}
+            transition={{ duration: 0.2, repeat: 2 }}
+            className={`absolute top-8 left-8 ${TextBaseClass} text-cyan-400 translate-x-3 mix-blend-screen pointer-events-none`}
+          >
+            {text}
+          </motion.div>
+          <motion.div
+            animate={{ x: [10, -10, 10, 0], opacity: [0, 0.9, 0] }}
+            transition={{ duration: 0.2, repeat: 2 }}
+            className={`absolute top-8 left-8 ${TextBaseClass} text-fuchsia-500 -translate-x-3 mix-blend-screen pointer-events-none`}
+          >
+            {text}
+          </motion.div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// 4. DOMINATING: Meteor Stomp
+function MeteorText({ text, extrusionColor }: { text: string; extrusionColor: string }) {
+  const letters = text.split("");
+
+  return (
+    <div className="flex flex-row p-8" style={{ textShadow: generate3DShadow(extrusionColor) }}>
+      {letters.map((char, i) => (
+        <motion.span
+          key={i}
+          initial={{ y: -300, opacity: 0, scale: 2 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          transition={{ 
+            duration: 0.5, 
+            delay: i * 0.1, 
+            type: "spring", 
+            bounce: 0.5 // Heavy bounce when hitting the floor
+          }}
+          className={TextBaseClass}
+          style={TextStrokeStyle}
+        >
+          {char === " " ? "\u00A0" : char}
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
+
+// --- MAIN CELEBRATION COMPONENT ---
 
 export function EpicCelebration({ accuracy, onComplete }: EpicCelebrationProps) {
   const tier = Tiers.find((t) => accuracy >= t.min && accuracy <= t.max);
@@ -64,13 +227,7 @@ export function EpicCelebration({ accuracy, onComplete }: EpicCelebrationProps) 
 
   if (!tier) return null;
 
-  const isFlawless = tier.min === 96;
-  const isAscendant = tier.min === 86;
-
-  // 3D Extrusion Generator
-  const textShadow3D = Array.from({ length: 12 })
-    .map((_, i) => `-${i + 1}px ${i + 1}px 0px ${tier.extrusionColor}`)
-    .join(", ");
+  const isFlawless = tier.id === "APEX";
 
   return (
     <motion.div
@@ -116,87 +273,23 @@ export function EpicCelebration({ accuracy, onComplete }: EpicCelebrationProps) 
         <motion.div
           animate={{ filter: [`drop-shadow(0px 0px 30px ${tier.shadowColor})`, `drop-shadow(0px 0px 80px ${tier.shadowColor})`, `drop-shadow(0px 0px 30px ${tier.shadowColor})`] }}
           transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+          className="relative flex flex-col items-center"
         >
-          {/* Main Text Container with Screen Shake & Motion Blur */}
-          <motion.div
-            initial={{ scale: 4, opacity: 0, y: -200, filter: "blur(20px)" }}
-            animate={
-              isFlawless 
-                ? { scale: [4, 1, 1.05], opacity: 1, y: 0, filter: ["blur(20px)", "blur(0px)", "blur(0px)"] } 
-                : { scale: [4, 0.9, 1], opacity: 1, y: 0, filter: ["blur(20px)", "blur(0px)", "blur(0px)"] }
-            }
-            transition={
-              isFlawless 
-                ? { duration: 2.5, ease: "easeOut", times: [0, 0.8, 1] } 
-                : { duration: 0.6, type: "spring", bounce: 0.6 }
-            }
-            className="relative flex flex-col items-center"
-          >
-            {/* Ghost Echo Expansion */}
-            <motion.div
-              initial={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
-              animate={{ scale: 3, opacity: 0, filter: "blur(10px)" }}
-              transition={{ duration: 1.5, delay: isFlawless ? 2.0 : 0.3, ease: "easeOut" }}
-              className="absolute text-6xl md:text-8xl lg:text-9xl font-black italic tracking-tighter uppercase text-transparent bg-clip-text select-none"
-              style={{ backgroundImage: `linear-gradient(to bottom, var(--tw-gradient-stops))` }}
-              /* Need to rely on classes for gradients or apply them inline if needed. We use tailwind classes via the tiers. */
-            >
-              <span className={`bg-gradient-to-b ${tier.gradient} bg-clip-text text-transparent`}>
-                {tier.text}
-              </span>
-            </motion.div>
-
-            {/* Glitch Effect for Ascendant */}
-            {isAscendant && (
-              <>
-                <motion.div
-                  animate={{ x: [-8, 8, -8, 0], opacity: [0, 0.9, 0] }}
-                  transition={{ duration: 0.2, delay: 0.5, repeat: 4 }}
-                  className="absolute text-6xl md:text-8xl lg:text-9xl font-black italic tracking-tighter uppercase text-cyan-400 select-none translate-x-3 translate-y-1 mix-blend-screen"
-                >
-                  {tier.text}
-                </motion.div>
-                <motion.div
-                  animate={{ x: [8, -8, 8, 0], opacity: [0, 0.9, 0] }}
-                  transition={{ duration: 0.2, delay: 0.5, repeat: 4 }}
-                  className="absolute text-6xl md:text-8xl lg:text-9xl font-black italic tracking-tighter uppercase text-fuchsia-500 select-none -translate-x-3 -translate-y-1 mix-blend-screen"
-                >
-                  {tier.text}
-                </motion.div>
-              </>
-            )}
-
-            {/* Primary Text Layer with 3D Extrusion */}
-            <div className="relative overflow-hidden p-8">
-              <h1 
-                className="text-6xl md:text-8xl lg:text-9xl font-black italic tracking-tighter uppercase text-white select-none relative z-10"
-                style={{ textShadow: textShadow3D }}
-              >
-                <span className={`bg-gradient-to-b ${tier.gradient} bg-clip-text text-transparent block relative z-20`}>
-                  {tier.text}
-                </span>
-                {/* Fallback to render the white text for the shadow to attach to if clip-text acts up, handled natively by CSS but we ensure it works. */}
-              </h1>
-              
-              {/* Diagonal Light Sweep over the text surface */}
-              <motion.div
-                initial={{ x: "-100%", skewX: -30 }}
-                animate={{ x: "200%" }}
-                transition={{ duration: 0.8, delay: isFlawless ? 2.0 : 0.5, ease: "easeInOut" }}
-                className="absolute top-0 bottom-0 w-1/3 bg-gradient-to-r from-transparent via-white to-transparent opacity-60 mix-blend-overlay z-30"
-              />
-            </div>
+            {/* Render the specific Text Mechanic for this Tier */}
+            {tier.id === "APEX" && <ConvergeText text={tier.text} extrusionColor={tier.extrusionColor} />}
+            {tier.id === "IMMORTAL" && <RiseText text={tier.text} extrusionColor={tier.extrusionColor} />}
+            {tier.id === "ASCENDANT" && <DecryptText text={tier.text} extrusionColor={tier.extrusionColor} />}
+            {tier.id === "DOMINATING" && <MeteorText text={tier.text} extrusionColor={tier.extrusionColor} />}
             
             {/* Subtitle */}
             <motion.p 
               initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{ delay: isFlawless ? 2.5 : 0.8 }}
+              transition={{ delay: 2.2 }}
               className="text-white font-black tracking-[0.3em] mt-4 uppercase text-lg md:text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
             >
               {accuracy}% Accuracy
             </motion.p>
-          </motion.div>
         </motion.div>
       </div>
     </motion.div>
