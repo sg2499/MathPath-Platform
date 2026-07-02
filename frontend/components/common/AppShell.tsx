@@ -557,6 +557,13 @@ export function AppShell({
           icon: Trophy,
           tooltip: "View competition mock rankings",
         },
+      ],
+    },
+    {
+      label: "Achievements",
+      icon: Award,
+      tooltip: "View your achievements",
+      children: [
         {
           label: "Trophy Room",
           shortLabel: "Trophies",
