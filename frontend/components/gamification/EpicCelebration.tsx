@@ -7,6 +7,7 @@ import { triggerBlaze, triggerSurge, triggerCrystal, triggerMythic } from "@/lib
 interface EpicCelebrationProps {
   accuracy: number;
   onComplete: () => void;
+  allowSkip?: boolean;
 }
 
 const Tiers = [
@@ -215,7 +216,7 @@ function MeteorText({ text, extrusionColor }: { text: string; extrusionColor: st
 
 // --- MAIN CELEBRATION COMPONENT ---
 
-export function EpicCelebration({ accuracy, onComplete }: EpicCelebrationProps) {
+export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebrationProps) {
   const tier = Tiers.find((t) => accuracy >= t.min && accuracy <= t.max);
 
   useEffect(() => {
@@ -224,6 +225,18 @@ export function EpicCelebration({ accuracy, onComplete }: EpicCelebrationProps) 
     const timer = setTimeout(onComplete, tier.duration);
     return () => clearTimeout(timer);
   }, [tier, onComplete]);
+
+  useEffect(() => {
+    if (!allowSkip) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.key === " ") {
+        e.preventDefault();
+        onComplete();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [allowSkip, onComplete]);
 
   if (!tier) return null;
 
@@ -292,6 +305,21 @@ export function EpicCelebration({ accuracy, onComplete }: EpicCelebrationProps) 
             </motion.p>
         </motion.div>
       </div>
+
+      {/* Skip Button */}
+      {allowSkip && (
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 0.6, y: 0 }}
+          whileHover={{ opacity: 1, scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          transition={{ delay: 1, duration: 0.5 }}
+          onClick={onComplete}
+          className="absolute bottom-8 right-8 z-50 text-white/50 hover:text-white font-medium text-sm tracking-widest uppercase pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm transition-colors hover:bg-white/10"
+        >
+          Press Space to Skip <span className="text-xs opacity-50">⏭</span>
+        </motion.button>
+      )}
     </motion.div>
   );
 }

@@ -170,6 +170,7 @@ class AchievementEngine:
         for b in newly_unlocked:
             unlocked_list.append({
                 "id": b.id,
+                "code": b.code,
                 "name": b.name,
                 "description": b.description,
                 "icon_name": b.icon_name,
