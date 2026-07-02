@@ -17,3 +17,5 @@ sentry-sdk[fastapi]==2.19.2
 gunicorn
 
 slowapi
+
+cachetools
