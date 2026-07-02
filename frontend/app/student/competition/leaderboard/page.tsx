@@ -5,6 +5,8 @@ import { Award, Clock, Star, Trophy, Users, AlertCircle, ChevronDown, ArrowLeft 
 import { LeaderboardAPI } from "@/lib/api-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { triggerMythic, triggerSurge, triggerBlaze } from "@/lib/utils/particles";
 import type { 
   HierarchyResponse, 
   LeaderboardResponse, 
@@ -13,6 +15,26 @@ import type {
   ExamSchema 
 } from "@/lib/schemas/leaderboard";
 import { z } from "zod";
+
+// --- COUNT UP HOOK ---
+function useCountUp(end: number, duration: number = 2) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let startTimestamp: number | null = null;
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / (duration * 1000), 1);
+      // easeOutExpo
+      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setCount(Math.floor(easeProgress * end));
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+    requestAnimationFrame(step);
+  }, [end, duration]);
+  return count;
+}
 
 function getInitials(name: string) {
   if (!name) return "";
@@ -166,8 +188,8 @@ const router = useRouter();
       />
       
       {/* 2. Frosted Aurora Gradients (Framing the edges, leaving the center clear) */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[70%] bg-blue-500/10 dark:bg-blue-600/20 blur-[150px] rounded-full pointer-events-none z-0" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[70%] bg-indigo-500/10 dark:bg-indigo-600/20 blur-[150px] rounded-full pointer-events-none z-0" />
+      <div className={`absolute top-[-10%] left-[-10%] w-[50%] h-[70%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${viewMode === 'CUMULATIVE' ? 'bg-blue-500/10 dark:bg-blue-600/20' : 'bg-orange-500/10 dark:bg-orange-600/20'}`} />
+      <div className={`absolute bottom-[-10%] right-[-10%] w-[50%] h-[70%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${viewMode === 'CUMULATIVE' ? 'bg-indigo-500/10 dark:bg-indigo-600/20' : 'bg-fuchsia-500/10 dark:bg-fuchsia-600/20'}`} />
       
       {/* 3. Deep Contrast Backdrop for the podium to make the Gold/Bronze glows POP absolutely perfectly */}
       <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-slate-900/5 dark:bg-black/60 blur-[100px] pointer-events-none rounded-[100%] z-0" />
@@ -315,32 +337,11 @@ const router = useRouter();
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                    {rest.map((r: any) => (
-                      <tr key={r.rank} className={`group transition-all duration-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-2xl hover:shadow-indigo-500/10 hover:scale-[1.01] hover:z-20 relative cursor-default overflow-hidden ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}>
-                        <td className="px-6 py-5 font-black text-slate-400 group-hover:text-indigo-500 transition-colors text-base group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">
-                          {/* AAA Sweep Effect */}
-                          <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0">
-                            <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent skew-x-[-30deg] group-hover:animate-[shimmer_1s_ease-out]" />
-                          </div>
-                          <span className="relative z-10">#{r.rank}</span>
-                        </td>
-                        <td className="px-6 py-5 flex items-center gap-4 relative z-10">
-                          <div className={`w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 overflow-hidden flex-shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 ${r.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}`}>
-                            {r.photoUrl ? (
-                              <img src={r.photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-sm font-black text-indigo-600 dark:text-indigo-400">{getInitials(r.name)}</div>
-                            )}
-                          </div>
-                          <span className={`font-bold text-base transition-colors duration-300 ${r.isCurrent ? 'text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700' : 'text-slate-800 dark:text-slate-200 group-hover:text-indigo-600'}`}>
-                            {r.name} {r.isCurrent && <span className="ml-3 text-[10px] bg-indigo-600 text-white font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-md shadow-indigo-500/30">You</span>}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">{Math.round(r.score)}</td>
-                        <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">{Math.round(r.accuracy ?? r.percentage)}%</td>
-                        <td className="px-6 py-5 text-right font-black text-slate-700 dark:text-slate-300 hidden sm:table-cell text-base relative z-10 transition-transform duration-300 group-hover:scale-105">{Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s</td>
-                      </tr>
-                    ))}
+                    <AnimatePresence>
+                      {rest.map((r: any, idx: number) => (
+                        <TableRow key={r.rank} row={r} delay={idx * 0.1} />
+                      ))}
+                    </AnimatePresence>
                   </tbody>
                 </table>
               </div>
@@ -348,7 +349,12 @@ const router = useRouter();
 
             {/* Current Student Pinned (if outside top 10) */}
             {currentStudentRank && currentStudentRank > 10 && (
-              <div className="sticky bottom-4 bg-indigo-600 text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-[slideUp_0.3s_ease-out] z-30">
+              <motion.div 
+                initial={{ y: 50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="sticky bottom-4 bg-indigo-600 text-white p-4 rounded-2xl shadow-xl flex items-center justify-between z-30"
+              >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center font-black text-xl">
                     #{currentStudentRank}
@@ -361,7 +367,7 @@ const router = useRouter();
                 <div className="text-right">
                   <p className="font-black text-xl">{Math.round(leaderboardData?.currentStudentEntry?.percentage || 0)}%</p>
                 </div>
-              </div>
+              </motion.div>
             )}
           </>
         )}
@@ -398,6 +404,12 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
     setPhysics({ rx: 0, ry: 0, px: 0, py: 0, opacity: 0 });
   };
 
+  const handlePodiumClick = () => {
+    if (rank === 1) triggerMythic();
+    else if (rank === 2) triggerSurge();
+    else if (rank === 3) triggerBlaze();
+  };
+
   // Configure colors and geometries based on rank
   const config = rank === 1 
     ? {
@@ -409,7 +421,7 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
         height: "h-52 md:h-64",
         shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", // Trapezoid Pedestal
         bloom: "rgba(250,204,21,0.6)",
-        delay: "0.6s"
+        delay: 0.6
       }
     : rank === 2 
     ? {
@@ -421,7 +433,7 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
         height: "h-40 md:h-48",
         shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)",
         bloom: "rgba(148,163,184,0.4)",
-        delay: "0.5s"
+        delay: 0.5
       }
     : {
         color: "orange",
@@ -432,18 +444,22 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
         height: "h-32 md:h-40",
         shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)",
         bloom: "rgba(249,115,22,0.4)",
-        delay: "0.4s"
+        delay: 0.4
       };
 
   return (
-    <div 
-      className={`flex flex-col items-center relative z-10 [perspective:1000px] animate-[slideUp_${config.delay}_ease-out]`}
+    <motion.div 
+      initial={{ opacity: 0, y: 100 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 200, damping: 20, delay: config.delay }}
+      className="flex flex-col items-center relative z-10 [perspective:1000px]"
       style={{ zIndex: rank === 1 ? 20 : 10 }}
     >
       <div 
         ref={cardRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onClick={handlePodiumClick}
         className="relative mb-6 cursor-pointer transform-gpu transition-transform duration-200 ease-out group"
         style={{
           transform: `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg) scale(${physics.opacity > 0 ? 1.05 : 1})`,
@@ -468,6 +484,15 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
              }}
           >
              <CrownIcon />
+          </div>
+        )}
+
+        {/* 1st Place Apex Aura */}
+        {rank === 1 && (
+          <div className="absolute inset-0 z-0 pointer-events-none scale-[2.5] opacity-60 animate-[spin_20s_linear_infinite]">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-xl text-yellow-500/30 fill-current">
+              <path d="M100 0 L105 45 L150 20 L130 60 L185 65 L145 90 L195 125 L145 130 L165 175 L120 150 L110 195 L90 155 L45 185 L65 145 L10 140 L50 115 L0 80 L50 75 L30 30 L75 55 Z" />
+            </svg>
           </div>
         )}
 
@@ -502,20 +527,24 @@ function PodiumCard({ student, rank }: { student: any, rank: number }) {
       </div>
 
       {/* AAA Geometric Pedestal */}
-      <div 
-        className={`w-32 md:w-44 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-6 md:pb-8 border-b-[6px] border-white/30`}
+      <motion.div 
+        initial={{ height: 0, opacity: 0 }}
+        animate={{ height: "100%", opacity: 1 }}
+        transition={{ type: "spring", stiffness: 100, damping: 15, delay: config.delay }}
+        className={`w-32 md:w-44 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-6 md:pb-8 border-b-[6px] border-white/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.4)] cursor-pointer`}
         style={{ 
            clipPath: config.shape,
            filter: `drop-shadow(0 -10px 30px ${config.shadow})` 
         }}
+        onClick={handlePodiumClick}
       >
         {/* Animated Internal Energy */}
         <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-500" style={{ opacity: physics.opacity > 0 ? 0.4 : 0 }} />
         <div className="absolute bottom-0 left-0 w-full h-[200%] bg-gradient-to-t from-transparent via-white/30 to-transparent translate-y-[100%] transition-transform duration-1000" style={{ transform: physics.opacity > 0 ? 'translateY(-100%)' : 'translateY(100%)' }} />
         
         <span className={`text-7xl md:text-8xl font-black text-${config.color}-600/30 drop-shadow-sm transition-transform duration-300`} style={{ transform: physics.opacity > 0 ? 'scale(1.1) translateY(-10px)' : 'scale(1)' }}>{rank}</span>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -524,5 +553,51 @@ function CrownIcon() {
     <svg width="40" height="40" viewBox="0 0 24 24" fill="#EAB308" xmlns="http://www.w3.org/2000/svg">
       <path d="M2 22H22V20H2V22ZM21.6 6.3L17.2 13.5L12.5 4.5C12.3 4.2 11.7 4.2 11.5 4.5L6.8 13.5L2.4 6.3C2.1 5.9 1.4 6 1.3 6.5L3 18H21L22.7 6.5C22.6 6 21.9 5.9 21.6 6.3Z" fill="currentColor"/>
     </svg>
+  );
+}
+
+// ============================================================================
+// AAA Table Row (Staggered Entry & CountUp)
+// ============================================================================
+function TableRow({ row: r, delay }: { row: any; delay: number }) {
+  const animatedScore = useCountUp(Math.round(r.score));
+  const animatedAccuracy = useCountUp(Math.round(r.accuracy ?? r.percentage));
+  
+  return (
+    <motion.tr 
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay, duration: 0.4, ease: "easeOut" }}
+      className={`group transition-all duration-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-2xl hover:shadow-indigo-500/10 hover:scale-[1.01] hover:z-20 relative cursor-default overflow-hidden ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}
+    >
+      <td className="px-6 py-5 font-black text-slate-400 group-hover:text-indigo-500 transition-colors text-base group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">
+        {/* AAA Sweep Effect */}
+        <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent skew-x-[-30deg] group-hover:animate-[shimmer_1s_ease-out]" />
+        </div>
+        <span className="relative z-10">#{r.rank}</span>
+      </td>
+      <td className="px-6 py-5 flex items-center gap-4 relative z-10">
+        <div className={`w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 overflow-hidden flex-shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 ${r.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}`}>
+          {r.photoUrl ? (
+            <img src={r.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-sm font-black text-indigo-600 dark:text-indigo-400">{getInitials(r.name)}</div>
+          )}
+        </div>
+        <span className={`font-bold text-base transition-colors duration-300 ${r.isCurrent ? 'text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700' : 'text-slate-800 dark:text-slate-200 group-hover:text-indigo-600'}`}>
+          {r.name} {r.isCurrent && <span className="ml-3 text-[10px] bg-indigo-600 text-white font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-md shadow-indigo-500/30 animate-[pulse_2s_infinite]">You</span>}
+        </span>
+      </td>
+      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">
+        {animatedScore}
+      </td>
+      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">
+        {animatedAccuracy}%
+      </td>
+      <td className="px-6 py-5 text-right font-black text-slate-700 dark:text-slate-300 hidden sm:table-cell text-base relative z-10 transition-transform duration-300 group-hover:scale-105">
+        {Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s
+      </td>
+    </motion.tr>
   );
 }
