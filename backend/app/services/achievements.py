@@ -77,6 +77,7 @@ class AchievementEngine:
             streak = cls._increment_stat(db, student_id, "unstoppable_mock_streak")
             cls._award_badge_if_qualified(db, student_id, "unstoppable_streak", "BASE", streak, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "unstoppable_streak", "SUPER", streak, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "unstoppable_streak", "LEGENDARY", streak, newly_unlocked)
         else:
             cls._set_stat(db, student_id, "unstoppable_mock_streak", 0)
 
@@ -91,6 +92,7 @@ class AchievementEngine:
                     count = cls._increment_stat(db, student_id, "early_bird_mocks")
                     cls._award_badge_if_qualified(db, student_id, "early_bird", "BASE", count, newly_unlocked)
                     cls._award_badge_if_qualified(db, student_id, "early_bird", "SUPER", count, newly_unlocked)
+                    cls._award_badge_if_qualified(db, student_id, "early_bird", "LEGENDARY", count, newly_unlocked)
 
         # The Comeback Kid (improvement)
         # Fetch previous attempt
@@ -104,6 +106,39 @@ class AchievementEngine:
             count = cls._increment_stat(db, student_id, "comeback_kid_mocks")
             cls._award_badge_if_qualified(db, student_id, "comeback_kid", "BASE", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "comeback_kid", "SUPER", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "comeback_kid", "LEGENDARY", count, newly_unlocked)
+
+        # 6. Podium Finisher
+        # Calculate rank dynamically against peers in the same level
+        from app.models.models import Student
+        student_model = db.query(Student).filter_by(id=student_id).first()
+        if student_model:
+            all_summaries = (
+                db.query(CompetitionMockResultSummary)
+                .join(Student, CompetitionMockResultSummary.student_id == Student.id)
+                .filter(CompetitionMockResultSummary.mock_exam_id == result_summary.mock_exam_id)
+                .filter(Student.current_level_id == student_model.current_level_id)
+                .order_by(
+                    CompetitionMockResultSummary.percentage.desc(),
+                    CompetitionMockResultSummary.time_taken_seconds.asc()
+                )
+                .all()
+            )
+            
+            rank = None
+            for idx, summ in enumerate(all_summaries):
+                if summ.id == result_summary.id:
+                    rank = idx + 1
+                    break
+            
+            if rank and rank <= 3:
+                count = cls._increment_stat(db, student_id, "podium_finisher_mocks")
+                cls._award_badge_if_qualified(db, student_id, "podium_finisher", "BASE", count, newly_unlocked)
+                cls._award_badge_if_qualified(db, student_id, "podium_finisher", "SUPER", count, newly_unlocked)
+                
+                if rank == 1:
+                    champ_count = cls._increment_stat(db, student_id, "champion_mocks")
+                    cls._award_badge_if_qualified(db, student_id, "podium_finisher", "LEGENDARY", champ_count, newly_unlocked)
 
         # 7. The Sharpshooter
         if result_summary.percentage == 100 and result_summary.time_utilization_percentage and result_summary.time_utilization_percentage > 90:
