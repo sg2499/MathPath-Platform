@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -14,6 +14,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Student, Teacher, User
 from app.services.auth_service import login, user_payload
+from app.core.rate_limit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -35,7 +36,8 @@ class ChangePasswordRequest(BaseModel):
 
 
 @router.post("/login")
-def login_route(payload: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login_route(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
     return login(db, payload.identifier, payload.password)
 
 
