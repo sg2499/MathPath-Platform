@@ -29,14 +29,14 @@ class Student(Base):
 
     # MathPath login and assignment mapping
     student_code = Column(String(50), unique=True, nullable=False)
-    current_module_id = Column(index=True, String, ForeignKey("modules.id"), nullable=True)
-    current_level_id = Column(index=True, String, ForeignKey("levels.id"), nullable=True)
+    current_module_id = Column(String, ForeignKey("modules.id"), nullable=True, index=True)
+    current_level_id = Column(String, ForeignKey("levels.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Student profile information
     custom_id = Column(String(80), unique=True, nullable=True)
     teacher = Column(String(150), nullable=True)
-    teacher_id = Column(index=True, String, ForeignKey("teachers.id", ondelete="SET NULL"), nullable=True)
+    teacher_id = Column(String, ForeignKey("teachers.id", ondelete="SET NULL"), nullable=True, index=True)
     admission_date = Column(String(30), nullable=True)
     dob = Column(String(30), nullable=True)
     gender = Column(String(30), nullable=True)
@@ -93,14 +93,14 @@ class Batch(Base):
     id = Column(String, primary_key=True, default=uuid_str)
     batch_name = Column(String(150), nullable=False)
     batch_code = Column(String(50), unique=True)
-    teacher_id = Column(index=True, String, ForeignKey("teachers.id"), nullable=True)
+    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
 class StudentBatch(Base):
     __tablename__ = "student_batches"
     id = Column(String, primary_key=True, default=uuid_str)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    batch_id = Column(index=True, String, ForeignKey("batches.id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    batch_id = Column(String, ForeignKey("batches.id", ondelete="CASCADE"), nullable=False, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     __table_args__ = (UniqueConstraint("student_id", "batch_id", name="uq_student_batch"),)
 
@@ -116,7 +116,7 @@ class Module(Base):
 class Level(Base):
     __tablename__ = "levels"
     id = Column(String, primary_key=True, default=uuid_str)
-    module_id = Column(index=True, String, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False)
+    module_id = Column(String, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False, index=True)
     level_code = Column(String(50), nullable=False)
     level_name = Column(String(150), nullable=False)
     internal_level_number = Column(Integer)
@@ -128,7 +128,7 @@ class Level(Base):
 class Lesson(Base):
     __tablename__ = "lessons"
     id = Column(String, primary_key=True, default=uuid_str)
-    level_id = Column(index=True, String, ForeignKey("levels.id", ondelete="CASCADE"), nullable=False)
+    level_id = Column(String, ForeignKey("levels.id", ondelete="CASCADE"), nullable=False, index=True)
     lesson_number = Column(Integer, nullable=False)
     lesson_title = Column(String(255), nullable=False)
     description = Column(Text)
@@ -140,7 +140,7 @@ class Lesson(Base):
 class DPS(Base):
     __tablename__ = "dps"
     id = Column(String, primary_key=True, default=uuid_str)
-    lesson_id = Column(index=True, String, ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False)
+    lesson_id = Column(String, ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False, index=True)
     dps_number = Column(Integer, nullable=False)
     dps_title = Column(String(255), nullable=False)
     default_question_count = Column(Integer, default=10, nullable=False)
@@ -154,7 +154,7 @@ class DPS(Base):
     last_preview_seed = Column(Text, nullable=True)
     published_seed = Column(Text, nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
-    published_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    published_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     lesson = relationship("Lesson")
     __table_args__ = (UniqueConstraint("lesson_id", "dps_number", name="uq_lesson_dps"),)
@@ -162,7 +162,7 @@ class DPS(Base):
 class DPSSection(Base):
     __tablename__ = "dps_sections"
     id = Column(String, primary_key=True, default=uuid_str)
-    dps_id = Column(index=True, String, ForeignKey("dps.id", ondelete="CASCADE"), nullable=False)
+    dps_id = Column(String, ForeignKey("dps.id", ondelete="CASCADE"), nullable=False, index=True)
     section_number = Column(Integer, default=1, nullable=False)
     section_title = Column(String(255))
     question_count = Column(Integer, default=10, nullable=False)
@@ -187,8 +187,8 @@ class CompetitionMockExam(Base):
     id = Column(String, primary_key=True, default=uuid_str)
     title = Column(String(255), nullable=False)
     mock_code = Column(String(80), nullable=True)
-    module_id = Column(index=True, String, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False)
-    level_id = Column(index=True, String, ForeignKey("levels.id", ondelete="CASCADE"), nullable=False)
+    module_id = Column(String, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False, index=True)
+    level_id = Column(String, ForeignKey("levels.id", ondelete="CASCADE"), nullable=False, index=True)
     competition_scope = Column(String(50), default="GENERAL", nullable=False)
     difficulty_band = Column(String(50), default="COMPETITION", nullable=False)
     total_questions = Column(Integer, nullable=False)
@@ -199,8 +199,8 @@ class CompetitionMockExam(Base):
     instructions = Column(Text, nullable=True)
     syllabus_coverage_json = Column(Text, nullable=True)
     generation_config_json = Column(Text, nullable=True)
-    created_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
-    published_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    published_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -218,7 +218,7 @@ class CompetitionMockExam(Base):
 class CompetitionMockQuestion(Base):
     __tablename__ = "competition_mock_questions"
     id = Column(String, primary_key=True, default=uuid_str)
-    mock_exam_id = Column(index=True, String, ForeignKey("competition_mock_exams.id", ondelete="CASCADE"), nullable=False)
+    mock_exam_id = Column(String, ForeignKey("competition_mock_exams.id", ondelete="CASCADE"), nullable=False, index=True)
     section_number = Column(Integer, default=1, nullable=False)
     section_title = Column(String(255), nullable=True)
     question_number = Column(Integer, nullable=False)
@@ -246,7 +246,7 @@ class CompetitionMockQuestion(Base):
 class CompetitionMockQuestionOption(Base):
     __tablename__ = "competition_mock_question_options"
     id = Column(String, primary_key=True, default=uuid_str)
-    mock_question_id = Column(index=True, String, ForeignKey("competition_mock_questions.id", ondelete="CASCADE"), nullable=False)
+    mock_question_id = Column(String, ForeignKey("competition_mock_questions.id", ondelete="CASCADE"), nullable=False, index=True)
     option_label = Column(String(1), nullable=False)
     option_value = Column(Text, nullable=False)
     is_correct = Column(Boolean, default=False, nullable=False)
@@ -260,10 +260,10 @@ class CompetitionMockQuestionOption(Base):
 class CompetitionMockAssignment(Base):
     __tablename__ = "competition_mock_assignments"
     id = Column(String, primary_key=True, default=uuid_str)
-    mock_exam_id = Column(index=True, String, ForeignKey("competition_mock_exams.id"), nullable=False)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    teacher_id = Column(index=True, String, ForeignKey("teachers.id"), nullable=True)
-    assigned_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    mock_exam_id = Column(String, ForeignKey("competition_mock_exams.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=True, index=True)
+    assigned_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     status = Column(String(30), default="ASSIGNED", nullable=False)
     current_attempt_number = Column(Integer, default=0, nullable=False)
     max_attempts = Column(Integer, default=1, nullable=False)
@@ -283,9 +283,9 @@ class CompetitionMockAssignment(Base):
 class CompetitionMockAttempt(Base):
     __tablename__ = "competition_mock_attempts"
     id = Column(String, primary_key=True, default=uuid_str)
-    mock_assignment_id = Column(index=True, String, ForeignKey("competition_mock_assignments.id", ondelete="CASCADE"), nullable=False)
-    mock_exam_id = Column(index=True, String, ForeignKey("competition_mock_exams.id"), nullable=False)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    mock_assignment_id = Column(String, ForeignKey("competition_mock_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    mock_exam_id = Column(String, ForeignKey("competition_mock_exams.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     attempt_number = Column(Integer, nullable=False)
     status = Column(String(30), default="IN_PROGRESS", nullable=False)
     started_at = Column(DateTime(timezone=True), nullable=False)
@@ -314,9 +314,9 @@ class CompetitionMockAttempt(Base):
 class CompetitionMockAttemptAnswer(Base):
     __tablename__ = "competition_mock_attempt_answers"
     id = Column(String, primary_key=True, default=uuid_str)
-    mock_attempt_id = Column(index=True, String, ForeignKey("competition_mock_attempts.id", ondelete="CASCADE"), nullable=False)
-    mock_question_id = Column(index=True, String, ForeignKey("competition_mock_questions.id", ondelete="CASCADE"), nullable=False)
-    selected_option_id = Column(index=True, String, ForeignKey("competition_mock_question_options.id"), nullable=True)
+    mock_attempt_id = Column(String, ForeignKey("competition_mock_attempts.id", ondelete="CASCADE"), nullable=False, index=True)
+    mock_question_id = Column(String, ForeignKey("competition_mock_questions.id", ondelete="CASCADE"), nullable=False, index=True)
+    selected_option_id = Column(String, ForeignKey("competition_mock_question_options.id"), nullable=True, index=True)
     selected_value = Column(Text, nullable=True)
     is_correct = Column(Boolean, nullable=True)
     marks_awarded = Column(Float, default=0, nullable=False)
@@ -334,9 +334,9 @@ class CompetitionMockResultSummary(Base):
     __tablename__ = "competition_mock_result_summaries"
     id = Column(String, primary_key=True, default=uuid_str)
     mock_attempt_id = Column(String, ForeignKey("competition_mock_attempts.id", ondelete="CASCADE"), unique=True, nullable=False)
-    mock_assignment_id = Column(index=True, String, ForeignKey("competition_mock_assignments.id"), nullable=False)
-    mock_exam_id = Column(index=True, String, ForeignKey("competition_mock_exams.id"), nullable=False)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    mock_assignment_id = Column(String, ForeignKey("competition_mock_assignments.id"), nullable=False, index=True)
+    mock_exam_id = Column(String, ForeignKey("competition_mock_exams.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     score = Column(Float, default=0, nullable=False)
     max_score = Column(Float, default=100, nullable=False)
     percentage = Column(Float, default=0, nullable=False)
@@ -361,8 +361,8 @@ class AssessmentBlueprint(Base):
     __tablename__ = "assessment_blueprints"
     id = Column(String, primary_key=True, default=uuid_str)
     title = Column(String(255), nullable=False)
-    module_id = Column(index=True, String, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False)
-    level_id = Column(index=True, String, ForeignKey("levels.id", ondelete="CASCADE"), nullable=False)
+    module_id = Column(String, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False, index=True)
+    level_id = Column(String, ForeignKey("levels.id", ondelete="CASCADE"), nullable=False, index=True)
     total_questions = Column(Integer, nullable=False)
     total_marks = Column(Float, default=100, nullable=False)
     marks_per_question = Column(Float, nullable=False)
@@ -370,7 +370,7 @@ class AssessmentBlueprint(Base):
     passing_percentage = Column(Float, default=70, nullable=False)
     instructions = Column(Text, nullable=True)
     status = Column(String(30), default="DRAFT", nullable=False)
-    created_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -385,8 +385,8 @@ class AssessmentBlueprint(Base):
 class AssessmentBlueprintLesson(Base):
     __tablename__ = "assessment_blueprint_lessons"
     id = Column(String, primary_key=True, default=uuid_str)
-    blueprint_id = Column(index=True, String, ForeignKey("assessment_blueprints.id", ondelete="CASCADE"), nullable=False)
-    lesson_id = Column(index=True, String, ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False)
+    blueprint_id = Column(String, ForeignKey("assessment_blueprints.id", ondelete="CASCADE"), nullable=False, index=True)
+    lesson_id = Column(String, ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False, index=True)
     question_count = Column(Integer, nullable=False)
     display_order = Column(Integer, default=0, nullable=False)
     concept_rule_json = Column(Text, nullable=True)
@@ -402,7 +402,7 @@ class AssessmentBlueprintLesson(Base):
 class AssessmentVersion(Base):
     __tablename__ = "assessment_versions"
     id = Column(String, primary_key=True, default=uuid_str)
-    blueprint_id = Column(index=True, String, ForeignKey("assessment_blueprints.id", ondelete="CASCADE"), nullable=False)
+    blueprint_id = Column(String, ForeignKey("assessment_blueprints.id", ondelete="CASCADE"), nullable=False, index=True)
     version_number = Column(Integer, nullable=False)
     status = Column(String(30), default="DRAFT", nullable=False)
     generation_mode = Column(String(50), default="BLUEPRINT_LOCKED", nullable=False)
@@ -411,8 +411,8 @@ class AssessmentVersion(Base):
     total_marks = Column(Float, default=100, nullable=False)
     marks_per_question = Column(Float, nullable=False)
     duration_seconds = Column(Integer, nullable=False)
-    generated_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
-    published_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    generated_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    published_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     generated_at = Column(DateTime(timezone=True), nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=True)
@@ -430,8 +430,8 @@ class AssessmentVersion(Base):
 class AssessmentQuestion(Base):
     __tablename__ = "assessment_questions"
     id = Column(String, primary_key=True, default=uuid_str)
-    assessment_version_id = Column(index=True, String, ForeignKey("assessment_versions.id", ondelete="CASCADE"), nullable=False)
-    lesson_id = Column(index=True, String, ForeignKey("lessons.id"), nullable=False)
+    assessment_version_id = Column(String, ForeignKey("assessment_versions.id", ondelete="CASCADE"), nullable=False, index=True)
+    lesson_id = Column(String, ForeignKey("lessons.id"), nullable=False, index=True)
     question_number = Column(Integer, nullable=False)
     lesson_question_number = Column(Integer, nullable=False)
     display_type = Column(String(50), default="VERTICAL", nullable=False)
@@ -457,7 +457,7 @@ class AssessmentQuestion(Base):
 class AssessmentQuestionOption(Base):
     __tablename__ = "assessment_question_options"
     id = Column(String, primary_key=True, default=uuid_str)
-    assessment_question_id = Column(index=True, String, ForeignKey("assessment_questions.id", ondelete="CASCADE"), nullable=False)
+    assessment_question_id = Column(String, ForeignKey("assessment_questions.id", ondelete="CASCADE"), nullable=False, index=True)
     option_label = Column(String(1), nullable=False)
     option_value = Column(Text, nullable=False)
     is_correct = Column(Boolean, default=False, nullable=False)
@@ -471,14 +471,14 @@ class AssessmentQuestionOption(Base):
 class AssessmentAssignment(Base):
     __tablename__ = "assessment_assignments"
     id = Column(String, primary_key=True, default=uuid_str)
-    assessment_version_id = Column(index=True, String, ForeignKey("assessment_versions.id"), nullable=False)
-    blueprint_id = Column(index=True, String, ForeignKey("assessment_blueprints.id"), nullable=False)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    teacher_id = Column(index=True, String, ForeignKey("teachers.id"), nullable=True)
-    assigned_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    assessment_version_id = Column(String, ForeignKey("assessment_versions.id"), nullable=False, index=True)
+    blueprint_id = Column(String, ForeignKey("assessment_blueprints.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=True, index=True)
+    assigned_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     status = Column(String(30), default="ASSIGNED", nullable=False)
     assessment_assignment_type = Column(String(30), default="ORIGINAL", nullable=False)
-    source_assignment_id = Column(index=True, String, ForeignKey("assessment_assignments.id"), nullable=True)
+    source_assignment_id = Column(String, ForeignKey("assessment_assignments.id"), nullable=True, index=True)
     reattempt_approval_id = Column(String, nullable=True)
     current_attempt_number = Column(Integer, default=0, nullable=False)
     max_attempts = Column(Integer, default=1, nullable=False)
@@ -500,9 +500,9 @@ class AssessmentAssignment(Base):
 class AssessmentAttempt(Base):
     __tablename__ = "assessment_attempts"
     id = Column(String, primary_key=True, default=uuid_str)
-    assessment_assignment_id = Column(index=True, String, ForeignKey("assessment_assignments.id", ondelete="CASCADE"), nullable=False)
-    assessment_version_id = Column(index=True, String, ForeignKey("assessment_versions.id"), nullable=False)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    assessment_assignment_id = Column(String, ForeignKey("assessment_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    assessment_version_id = Column(String, ForeignKey("assessment_versions.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     attempt_number = Column(Integer, nullable=False)
     attempt_type = Column(String(30), default="ORIGINAL", nullable=False)
     status = Column(String(30), default="IN_PROGRESS", nullable=False)
@@ -532,9 +532,9 @@ class AssessmentAttempt(Base):
 class AssessmentAttemptAnswer(Base):
     __tablename__ = "assessment_attempt_answers"
     id = Column(String, primary_key=True, default=uuid_str)
-    assessment_attempt_id = Column(index=True, String, ForeignKey("assessment_attempts.id", ondelete="CASCADE"), nullable=False)
-    assessment_question_id = Column(index=True, String, ForeignKey("assessment_questions.id", ondelete="CASCADE"), nullable=False)
-    selected_option_id = Column(index=True, String, ForeignKey("assessment_question_options.id"), nullable=True)
+    assessment_attempt_id = Column(String, ForeignKey("assessment_attempts.id", ondelete="CASCADE"), nullable=False, index=True)
+    assessment_question_id = Column(String, ForeignKey("assessment_questions.id", ondelete="CASCADE"), nullable=False, index=True)
+    selected_option_id = Column(String, ForeignKey("assessment_question_options.id"), nullable=True, index=True)
     selected_value = Column(Text, nullable=True)
     is_correct = Column(Boolean, nullable=True)
     marks_awarded = Column(Float, default=0, nullable=False)
@@ -552,10 +552,10 @@ class AssessmentResult(Base):
     __tablename__ = "assessment_results"
     id = Column(String, primary_key=True, default=uuid_str)
     assessment_attempt_id = Column(String, ForeignKey("assessment_attempts.id", ondelete="CASCADE"), unique=True, nullable=False)
-    assessment_assignment_id = Column(index=True, String, ForeignKey("assessment_assignments.id"), nullable=False)
-    assessment_version_id = Column(index=True, String, ForeignKey("assessment_versions.id"), nullable=False)
-    blueprint_id = Column(index=True, String, ForeignKey("assessment_blueprints.id"), nullable=False)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    assessment_assignment_id = Column(String, ForeignKey("assessment_assignments.id"), nullable=False, index=True)
+    assessment_version_id = Column(String, ForeignKey("assessment_versions.id"), nullable=False, index=True)
+    blueprint_id = Column(String, ForeignKey("assessment_blueprints.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     score = Column(Float, default=0, nullable=False)
     max_score = Column(Float, default=100, nullable=False)
     percentage = Column(Float, default=0, nullable=False)
@@ -577,16 +577,16 @@ class AssessmentResult(Base):
 class AssessmentAttemptRemark(Base):
     __tablename__ = "assessment_attempt_remarks"
     id = Column(String, primary_key=True, default=uuid_str)
-    assessment_attempt_id = Column(index=True, String, ForeignKey("assessment_attempts.id", ondelete="CASCADE"), nullable=False)
+    assessment_attempt_id = Column(String, ForeignKey("assessment_attempts.id", ondelete="CASCADE"), nullable=False, index=True)
     remark_text = Column(Text, nullable=False)
     feedback_category = Column(String(80), nullable=False)
     feedback_variant = Column(String(80), nullable=False)
     feedback_tone = Column(String(80), nullable=False)
     score_band = Column(String(80), nullable=True)
-    created_by_user_id = Column(index=True, String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_by_role = Column(String(30), nullable=False)
-    updated_by_user_id = Column(index=True, String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    deleted_by_user_id = Column(index=True, String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    deleted_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -602,24 +602,24 @@ class AssessmentAttemptRemark(Base):
 class StudentLevelPromotion(Base):
     __tablename__ = "student_level_promotions"
     id = Column(String, primary_key=True, default=uuid_str)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     student_code = Column(String(50), nullable=True)
-    from_module_id = Column(index=True, String, ForeignKey("modules.id"), nullable=True)
+    from_module_id = Column(String, ForeignKey("modules.id"), nullable=True, index=True)
     from_module_code = Column(String(20), nullable=True)
-    from_level_id = Column(index=True, String, ForeignKey("levels.id"), nullable=False)
+    from_level_id = Column(String, ForeignKey("levels.id"), nullable=False, index=True)
     from_level_code = Column(String(50), nullable=True)
-    to_module_id = Column(index=True, String, ForeignKey("modules.id"), nullable=True)
+    to_module_id = Column(String, ForeignKey("modules.id"), nullable=True, index=True)
     to_module_code = Column(String(20), nullable=True)
-    to_level_id = Column(index=True, String, ForeignKey("levels.id"), nullable=False)
+    to_level_id = Column(String, ForeignKey("levels.id"), nullable=False, index=True)
     to_level_code = Column(String(50), nullable=True)
-    assessment_assignment_id = Column(index=True, String, ForeignKey("assessment_assignments.id", ondelete="CASCADE"), nullable=False)
-    assessment_attempt_id = Column(index=True, String, ForeignKey("assessment_attempts.id", ondelete="SET NULL"), nullable=True)
-    assessment_result_id = Column(index=True, String, ForeignKey("assessment_results.id", ondelete="SET NULL"), nullable=True)
+    assessment_assignment_id = Column(String, ForeignKey("assessment_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    assessment_attempt_id = Column(String, ForeignKey("assessment_attempts.id", ondelete="SET NULL"), nullable=True, index=True)
+    assessment_result_id = Column(String, ForeignKey("assessment_results.id", ondelete="SET NULL"), nullable=True, index=True)
     score = Column(Float, nullable=True)
     max_score = Column(Float, nullable=True)
     percentage = Column(Float, nullable=True)
     status = Column(String(30), default="PROMOTED", nullable=False)
-    promoted_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    promoted_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     promoted_at = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -639,11 +639,11 @@ class StudentLevelPromotion(Base):
 class AssessmentReattemptApproval(Base):
     __tablename__ = "assessment_reattempt_approvals"
     id = Column(String, primary_key=True, default=uuid_str)
-    assessment_assignment_id = Column(index=True, String, ForeignKey("assessment_assignments.id", ondelete="CASCADE"), nullable=False)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    assessment_attempt_id = Column(index=True, String, ForeignKey("assessment_attempts.id"), nullable=True)
-    requested_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
-    approved_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    assessment_assignment_id = Column(String, ForeignKey("assessment_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    assessment_attempt_id = Column(String, ForeignKey("assessment_attempts.id"), nullable=True, index=True)
+    requested_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    approved_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     status = Column(String(30), default="PENDING", nullable=False)
     reason = Column(Text, nullable=True)
     admin_note = Column(Text, nullable=True)
@@ -663,8 +663,8 @@ class Assignment(Base):
     __tablename__ = "assignments"
     id = Column(String, primary_key=True, default=uuid_str)
     assignment_type = Column(String(30), nullable=False)
-    dps_id = Column(index=True, String, ForeignKey("dps.id", ondelete="CASCADE"), nullable=False)
-    assigned_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    dps_id = Column(String, ForeignKey("dps.id", ondelete="CASCADE"), nullable=False, index=True)
+    assigned_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     assigned_to_type = Column(String(30), nullable=False)
     assigned_to_id = Column(String, nullable=False)
     title = Column(String(255), nullable=False)
@@ -675,7 +675,7 @@ class Assignment(Base):
     show_result_immediately = Column(Boolean, default=True, nullable=False)
     show_correct_answers_after_submit = Column(Boolean, default=True, nullable=False)
     attempt_group_id = Column(String, nullable=True, index=True)
-    source_assignment_id = Column(index=True, String, ForeignKey("assignments.id", ondelete="SET NULL"), nullable=True)
+    source_assignment_id = Column(String, ForeignKey("assignments.id", ondelete="SET NULL"), nullable=True, index=True)
     retry_attempt_number = Column(Integer, default=0, nullable=False)
     assignment_source = Column(String(30), default="ORIGINAL", nullable=False)
     auto_retry_limit = Column(Integer, default=2, nullable=False)
@@ -690,13 +690,13 @@ class Assignment(Base):
 class AssignmentReattemptPermission(Base):
     __tablename__ = "assignment_reattempt_permissions"
     id = Column(String, primary_key=True, default=uuid_str)
-    assignment_id = Column(index=True, String, ForeignKey("assignments.id", ondelete="CASCADE"), nullable=False)
-    dps_id = Column(index=True, String, ForeignKey("dps.id", ondelete="CASCADE"), nullable=False)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    allowed_by_user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
+    assignment_id = Column(String, ForeignKey("assignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    dps_id = Column(String, ForeignKey("dps.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    allowed_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     reason = Column(Text, nullable=True)
     status = Column(String(30), default="APPROVED", nullable=False)
-    used_assignment_id = Column(index=True, String, ForeignKey("assignments.id"), nullable=True)
+    used_assignment_id = Column(String, ForeignKey("assignments.id"), nullable=True, index=True)
     allowed_at = Column(DateTime(timezone=True), server_default=func.now())
     used_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -704,9 +704,9 @@ class AssignmentReattemptPermission(Base):
 class GeneratedQuestionSet(Base):
     __tablename__ = "generated_question_sets"
     id = Column(String, primary_key=True, default=uuid_str)
-    assignment_id = Column(index=True, String, ForeignKey("assignments.id"), nullable=True)
-    dps_id = Column(index=True, String, ForeignKey("dps.id"), nullable=False)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    assignment_id = Column(String, ForeignKey("assignments.id"), nullable=True, index=True)
+    dps_id = Column(String, ForeignKey("dps.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     mode = Column(String(30), nullable=False)
     seed = Column(Text, nullable=False)
     generated_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -714,8 +714,8 @@ class GeneratedQuestionSet(Base):
 class GeneratedQuestion(Base):
     __tablename__ = "generated_questions"
     id = Column(String, primary_key=True, default=uuid_str)
-    question_set_id = Column(index=True, String, ForeignKey("generated_question_sets.id", ondelete="CASCADE"), nullable=False)
-    dps_section_id = Column(index=True, String, ForeignKey("dps_sections.id"), nullable=True)
+    question_set_id = Column(String, ForeignKey("generated_question_sets.id", ondelete="CASCADE"), nullable=False, index=True)
+    dps_section_id = Column(String, ForeignKey("dps_sections.id"), nullable=True, index=True)
     question_number = Column(Integer, nullable=False)
     display_type = Column(String(50), default="VERTICAL", nullable=False)
     question_text = Column(Text)
@@ -729,7 +729,7 @@ class GeneratedQuestion(Base):
 class QuestionOption(Base):
     __tablename__ = "question_options"
     id = Column(String, primary_key=True, default=uuid_str)
-    question_id = Column(index=True, String, ForeignKey("generated_questions.id", ondelete="CASCADE"), nullable=False)
+    question_id = Column(String, ForeignKey("generated_questions.id", ondelete="CASCADE"), nullable=False, index=True)
     option_label = Column(String(1), nullable=False)
     option_value = Column(Text, nullable=False)
     is_correct = Column(Boolean, default=False, nullable=False)
@@ -739,10 +739,10 @@ class QuestionOption(Base):
 class Attempt(Base):
     __tablename__ = "attempts"
     id = Column(String, primary_key=True, default=uuid_str)
-    assignment_id = Column(index=True, String, ForeignKey("assignments.id"), nullable=True)
-    dps_id = Column(index=True, String, ForeignKey("dps.id", ondelete="CASCADE"), nullable=False)
+    assignment_id = Column(String, ForeignKey("assignments.id"), nullable=True, index=True)
+    dps_id = Column(String, ForeignKey("dps.id", ondelete="CASCADE"), nullable=False, index=True)
     question_set_id = Column(String, ForeignKey("generated_question_sets.id"), unique=True, nullable=True)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     mode = Column(String(30), nullable=False)
     status = Column(String(30), default="IN_PROGRESS", nullable=False)
     attempt_group_id = Column(String, nullable=True, index=True)
@@ -768,9 +768,9 @@ class Attempt(Base):
 class AttemptAnswer(Base):
     __tablename__ = "attempt_answers"
     id = Column(String, primary_key=True, default=uuid_str)
-    attempt_id = Column(index=True, String, ForeignKey("attempts.id", ondelete="CASCADE"), nullable=False)
-    question_id = Column(index=True, String, ForeignKey("generated_questions.id", ondelete="CASCADE"), nullable=False)
-    selected_option_id = Column(index=True, String, ForeignKey("question_options.id"), nullable=True)
+    attempt_id = Column(String, ForeignKey("attempts.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_id = Column(String, ForeignKey("generated_questions.id", ondelete="CASCADE"), nullable=False, index=True)
+    selected_option_id = Column(String, ForeignKey("question_options.id"), nullable=True, index=True)
     selected_value = Column(Text)
     is_correct = Column(Boolean, nullable=True)
     marks_awarded = Column(Float, default=0, nullable=False)
@@ -781,9 +781,9 @@ class AttemptAnswer(Base):
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id = Column(String, primary_key=True, default=uuid_str)
-    user_id = Column(index=True, String, ForeignKey("users.id"), nullable=True)
-    student_id = Column(index=True, String, ForeignKey("students.id"), nullable=True)
-    attempt_id = Column(index=True, String, ForeignKey("attempts.id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    student_id = Column(String, ForeignKey("students.id"), nullable=True, index=True)
+    attempt_id = Column(String, ForeignKey("attempts.id"), nullable=True, index=True)
     event_type = Column(String(100), nullable=False)
     event_data_json = Column(Text)
     ip_address = Column(String(100))
@@ -793,21 +793,21 @@ class AuditLog(Base):
 class AssessmentReadinessTestingOverride(Base):
     __tablename__ = "assessment_readiness_testing_overrides"
     id = Column(String, primary_key=True, default=uuid_str)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     student_code = Column(String(50), nullable=True)
-    module_id = Column(index=True, String, ForeignKey("modules.id", ondelete="SET NULL"), nullable=True)
+    module_id = Column(String, ForeignKey("modules.id", ondelete="SET NULL"), nullable=True, index=True)
     module_code = Column(String(50), nullable=True)
     module_name = Column(String(150), nullable=True)
-    level_id = Column(index=True, String, ForeignKey("levels.id", ondelete="SET NULL"), nullable=False)
+    level_id = Column(String, ForeignKey("levels.id", ondelete="SET NULL"), nullable=False, index=True)
     level_code = Column(String(50), nullable=True)
     level_name = Column(String(150), nullable=True)
     status = Column(String(30), default="ACTIVE", nullable=False)
     reason = Column(Text, nullable=True)
-    enabled_by_user_id = Column(index=True, String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    enabled_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     enabled_at = Column(DateTime(timezone=True), server_default=func.now())
-    disabled_by_user_id = Column(index=True, String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    disabled_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     disabled_at = Column(DateTime(timezone=True), nullable=True)
-    used_for_assessment_assignment_id = Column(index=True, String, ForeignKey("assessment_assignments.id", ondelete="SET NULL"), nullable=True)
+    used_for_assessment_assignment_id = Column(String, ForeignKey("assessment_assignments.id", ondelete="SET NULL"), nullable=True, index=True)
     used_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -823,17 +823,17 @@ class Notification(Base):
     __tablename__ = "notifications"
     id = Column(String, primary_key=True, default=uuid_str)
 
-    recipient_user_id = Column(index=True, String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    recipient_user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     recipient_role = Column(String(30), nullable=False)
-    actor_user_id = Column(index=True, String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    actor_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     actor_role = Column(String(30), nullable=True)
 
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="SET NULL"), nullable=True)
-    teacher_id = Column(index=True, String, ForeignKey("teachers.id", ondelete="SET NULL"), nullable=True)
-    module_id = Column(index=True, String, ForeignKey("modules.id", ondelete="SET NULL"), nullable=True)
-    level_id = Column(index=True, String, ForeignKey("levels.id", ondelete="SET NULL"), nullable=True)
-    lesson_id = Column(index=True, String, ForeignKey("lessons.id", ondelete="SET NULL"), nullable=True)
-    dps_id = Column(index=True, String, ForeignKey("dps.id", ondelete="SET NULL"), nullable=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="SET NULL"), nullable=True, index=True)
+    teacher_id = Column(String, ForeignKey("teachers.id", ondelete="SET NULL"), nullable=True, index=True)
+    module_id = Column(String, ForeignKey("modules.id", ondelete="SET NULL"), nullable=True, index=True)
+    level_id = Column(String, ForeignKey("levels.id", ondelete="SET NULL"), nullable=True, index=True)
+    lesson_id = Column(String, ForeignKey("lessons.id", ondelete="SET NULL"), nullable=True, index=True)
+    dps_id = Column(String, ForeignKey("dps.id", ondelete="SET NULL"), nullable=True, index=True)
 
     assessment_id = Column(String, nullable=True)
     attempt_id = Column(String, nullable=True)
@@ -869,7 +869,7 @@ class Notification(Base):
 class ParentReportEmailLog(Base):
     __tablename__ = "parent_report_email_logs"
     id = Column(String, primary_key=True, default=uuid_str)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="SET NULL"), nullable=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="SET NULL"), nullable=True, index=True)
     student_code = Column(String(50), nullable=True)
     module_code = Column(String(50), nullable=True)
     level_code = Column(String(50), nullable=True)
@@ -882,7 +882,7 @@ class ParentReportEmailLog(Base):
     provider_message_id = Column(String(255), nullable=True)
     provider_response = Column(Text, nullable=True)
     attempt_count = Column(Integer, default=0, nullable=False)
-    sent_by_user_id = Column(index=True, String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    sent_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
     last_attempt_at = Column(DateTime(timezone=True), nullable=True)
     delivered_at = Column(DateTime(timezone=True), nullable=True)
@@ -898,7 +898,7 @@ class ParentReportEmailLog(Base):
 class ParentReportDeliveryEvent(Base):
     __tablename__ = "parent_report_delivery_events"
     id = Column(String, primary_key=True, default=uuid_str)
-    delivery_log_id = Column(index=True, String, ForeignKey("parent_report_email_logs.id", ondelete="CASCADE"), nullable=False)
+    delivery_log_id = Column(String, ForeignKey("parent_report_email_logs.id", ondelete="CASCADE"), nullable=False, index=True)
     event_type = Column(String(50), nullable=False)
     status = Column(String(30), nullable=False)
     provider = Column(String(50), nullable=True)
@@ -929,8 +929,8 @@ class AchievementBadge(Base):
 class StudentBadge(Base):
     __tablename__ = "student_badges"
     id = Column(String, primary_key=True, default=uuid_str)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    badge_id = Column(index=True, String, ForeignKey("achievement_badges.id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    badge_id = Column(String, ForeignKey("achievement_badges.id", ondelete="CASCADE"), nullable=False, index=True)
     unlocked_at = Column(DateTime(timezone=True), server_default=func.now())
 
     student = relationship("Student")
@@ -941,7 +941,7 @@ class StudentBadge(Base):
 class StudentAchievementStat(Base):
     __tablename__ = "student_achievement_stats"
     id = Column(String, primary_key=True, default=uuid_str)
-    student_id = Column(index=True, String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     stat_name = Column(String(50), nullable=False)
     stat_value = Column(Integer, default=0, nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
