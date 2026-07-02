@@ -157,10 +157,10 @@ class AchievementEngine:
         # 9. The Polymath (Broad Mastery)
         if result_summary.percentage > 80 and result_summary.mock_exam:
             level_id = result_summary.mock_exam.level_id
-            from app.models.models import MasterModuleLevel
-            level = db.query(MasterModuleLevel).filter_by(id=level_id).first()
+            from app.models.models import Level
+            level = db.query(Level).filter_by(id=level_id).first()
             if level:
-                master_module_id = level.master_module_id
+                master_module_id = level.module_id
                 stat_name = f"polymath_mod_{master_module_id}"
                 
                 # Check if this module is already recorded
