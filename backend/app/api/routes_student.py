@@ -32,6 +32,7 @@ from app.services.competition_mock_attempt_service import (
     GetCompetitionMockResultForStudent,
     GetCompetitionMockProgressInsightsForStudent,
 )
+from app.core.cache import cache_by_user_id
 
 router = APIRouter(prefix="/api/student", tags=["student"])
 
@@ -295,6 +296,7 @@ def student_competition_progress_insights(db: Session = Depends(get_db), student
 
 
 @router.get("/assignments")
+@cache_by_user_id()
 def assignments(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     rows = [a for a in get_student_assignments(db, student) if a.assignment_type != "ASSESSMENT"]
     payload = []
@@ -597,6 +599,7 @@ def student_level_progress_rows(db: Session, student: Student):
 
 
 @router.get("/results")
+@cache_by_user_id()
 def student_results(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     attempts = (
         db.query(Attempt)
