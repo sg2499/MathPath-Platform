@@ -182,6 +182,7 @@ export default function StudentCompetitionMockResultPage() {
   const attemptId = params.attemptId;
   const [activeTab, setActiveTab] = useState<ResultTab>("questions");
   const [showCelebration, setShowCelebration] = useState(false);
+  const [allowSkip, setAllowSkip] = useState(false);
   const hasExploded = useRef(false);
 
   const query = useQuery({
@@ -195,10 +196,30 @@ export default function StudentCompetitionMockResultPage() {
       hasExploded.current = true;
       const accuracy = query.data.accuracyPercentage || 0;
       if (accuracy >= 80) {
+        try {
+          const viewed = JSON.parse(localStorage.getItem("viewed_celebrations") || "[]");
+          if (viewed.includes(attemptId)) {
+            setAllowSkip(true);
+          }
+        } catch (e) {
+          console.error("Failed to parse viewed_celebrations from localStorage", e);
+        }
         setShowCelebration(true);
       }
     }
-  }, [query.data]);
+  }, [query.data, attemptId]);
+
+  const handleCelebrationComplete = () => {
+    setShowCelebration(false);
+    try {
+      const viewed = JSON.parse(localStorage.getItem("viewed_celebrations") || "[]");
+      if (!viewed.includes(attemptId)) {
+        localStorage.setItem("viewed_celebrations", JSON.stringify([...viewed, attemptId]));
+      }
+    } catch (e) {
+      console.error("Failed to save viewed_celebrations to localStorage", e);
+    }
+  };
 
   if (!ready) return null;
 
@@ -245,7 +266,8 @@ export default function StudentCompetitionMockResultPage() {
         {showCelebration && (
           <EpicCelebration
             accuracy={result.accuracyPercentage || 0}
-            onComplete={() => setShowCelebration(false)}
+            onComplete={handleCelebrationComplete}
+            allowSkip={allowSkip}
           />
         )}
       </AnimatePresence>
