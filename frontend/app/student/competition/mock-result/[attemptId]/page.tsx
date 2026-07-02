@@ -24,6 +24,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { EpicCelebration } from "@/components/gamification/EpicCelebration";
 import { AnimatePresence } from "framer-motion";
+import { CompetitionMessage, competitionMessagePools } from "@/lib/utils/competitionMessages";
 
 function formatDuration(seconds?: number | null) {
   if (seconds === null || seconds === undefined) return "-";
@@ -67,16 +68,6 @@ function AccuracyChipTone(value: number | null): "slate" | "green" | "red" | "am
   return "green";
 }
 
-type CompetitionMessage = {
-  title: string;
-  badge: string;
-  message: string;
-  coachNote: string;
-  focusAreas: string[];
-  nextTarget: string;
-  icon: "trophy" | "rocket" | "flame" | "sparkles";
-};
-
 function stableHash(value: string) {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -90,176 +81,7 @@ function pickFrom<T>(pool: T[], seed: number, offset = 0): T {
   return pool[(seed + offset) % pool.length];
 }
 
-const competitionMessagePools = {
-  perfect: {
-    titles: [
-      "Absolute Perfection",
-      "Flawless Victory",
-      "Perfect Score",
-      "Mastery Achieved",
-      "Unbeatable Form",
-      "Maximum Potential",
-    ],
-    messages: [
-      "An absolutely flawless performance! You have demonstrated total mastery over every concept in this mock.",
-      "Incredible work! You scored 100% with zero mistakes. This is the gold standard of competition readiness.",
-      "Perfection achieved. You tackled every challenge perfectly without leaving any marks behind.",
-      "Flawless execution! You showed exactly what it means to be fully prepared. Carry this exact momentum forward.",
-      "A perfect attempt. Your hard work has culminated in an unbeatable score. Maintain this incredible form.",
-      "You couldn't have done any better. Phenomenal focus, perfect accuracy, and elite execution.",
-    ],
-    notes: [
-      "Keep setting the standard for perfection.",
-      "Outstanding focus. Carry this exact mindset into the next challenge.",
-      "Celebrate this win, then come back just as sharp.",
-      "Your accuracy is fully locked in.",
-      "Maintain this rhythm. You are fully ready.",
-      "Absolutely brilliant work today.",
-    ],
-    badge: "Perfect Score",
-    icon: "trophy" as const,
-  },
-  champion: {
-    titles: [
-      "Champion Zone",
-      "Elite Competition Control",
-      "Top-Tier Finish",
-      "Ceiling Chaser",
-      "Mock Mastery Mode",
-      "Podium-Level Attempt",
-    ],
-    messages: [
-      "This is a powerful competition attempt. You showed control across the paper, and now the goal is to turn excellence into repeatable dominance.",
-      "You are operating close to the ceiling. Keep sharpening speed, accuracy, and calm decision-making so this level becomes your normal standard.",
-      "This score shows serious readiness. Your next step is not just getting marks; it is protecting every mark under time pressure.",
-      "Outstanding work. You have built a strong competition base, and the next challenge is to reduce the few remaining avoidable slips.",
-      "This attempt has the quality of a strong competitor. Keep training for consistency so your best performance is available on competition day.",
-      "Excellent control. The target from here is precision under pressure: clean attempts, faster decisions, and no careless leakage.",
-    ],
-    notes: [
-      "Train like you are defending a top rank.",
-      "Your next gains will come from polishing the smallest errors.",
-      "Use this result as your benchmark, not your limit.",
-      "Now focus on consistency across multiple mocks.",
-      "Push for accuracy that survives speed.",
-      "Your ceiling is higher than this score. Keep climbing.",
-    ],
-    badge: "Champion Zone",
-    icon: "trophy" as const,
-  },
-  strong: {
-    titles: [
-      "Strong Contender",
-      "Competition Ready Push",
-      "Sharp Progress",
-      "Rank Builder",
-      "Strong Base Formed",
-      "Next-Level Chase",
-    ],
-    messages: [
-      "This is a strong mock attempt. You have clear scoring strength, and the next jump will come from converting weaker sections into reliable marks.",
-      "You are in a promising competition zone. A few cleaner decisions and stronger section control can quickly push this score higher.",
-      "Good momentum. Your foundation is visible, and now the target is to remove the sections where marks are still slipping away.",
-      "This attempt shows that you can compete. The next stage is to tighten accuracy and make your strong sections even faster.",
-      "You handled a large part of the paper well. Focused practice on the low-scoring sections can move you into the next band.",
-      "This is a solid performance with clear upside. Keep the strong areas steady and attack the sections that cost marks.",
-    ],
-    notes: [
-      "You are close to a higher band. Push one section at a time.",
-      "The next 10 percent will come from focused correction, not random practice.",
-      "Strong competitors review mistakes quickly and train them immediately.",
-      "Keep your speed, but protect accuracy first.",
-      "Turn your weak areas into scoring opportunities.",
-      "This is the stage where disciplined revision creates rank movement.",
-    ],
-    badge: "Strong Contender",
-    icon: "rocket" as const,
-  },
-  momentum: {
-    titles: [
-      "Building Momentum",
-      "Good Fight",
-      "Growth Round",
-      "Rising Competitor",
-      "Training Gain",
-      "Score Builder",
-    ],
-    messages: [
-      "This attempt shows useful progress. You have scoring areas already, and the next goal is to make more sections dependable.",
-      "You are building competition stamina. Keep reviewing mistakes section-wise and your score can climb quickly.",
-      "There is a good base here. Now focus on reducing wrong answers and making your strong sections more automatic.",
-      "This is a workable score with clear improvement routes. Target the weakest sections first and protect the marks you already know how to score.",
-      "You are moving in the right direction. A structured review of this mock will help you turn effort into better competition results.",
-      "The performance has promise. Your next mock should aim for cleaner accuracy and stronger section confidence.",
-    ],
-    notes: [
-      "Momentum grows when every mistake becomes a practice target.",
-      "Do not chase the full paper at once. Fix the highest-loss sections first.",
-      "A few more correct answers can change the entire result band.",
-      "Keep your review sharp and your next mock will feel different.",
-      "Consistency is built section by section.",
-      "This is the point where smart practice beats more practice.",
-    ],
-    badge: "Building Momentum",
-    icon: "flame" as const,
-  },
-  practice: {
-    titles: [
-      "Practice Push",
-      "Reset And Build",
-      "Focus Round",
-      "Comeback Setup",
-      "Training Mode",
-      "Foundation Builder",
-    ],
-    messages: [
-      "This mock gives you a clear practice map. The result is not the finish line; it shows exactly where the next improvement should begin.",
-      "You now know which sections need attention. Start with the weakest areas, build confidence, and come back stronger in the next mock.",
-      "Every competitor has practice rounds like this. Use the result to plan your next steps instead of judging your ability.",
-      "This attempt has valuable information. Fix the highest-loss sections first and your score can move up faster than you think.",
-      "The path is clear: strengthen the basics, reduce avoidable errors, and rebuild speed after accuracy improves.",
-      "This score is a starting point for a comeback. Review carefully, train the weak sections, and aim for a visible jump next time.",
-    ],
-    notes: [
-      "One corrected section can change the next result.",
-      "Focus beats pressure. Review first, then retry.",
-      "Small improvements across sections create big score jumps.",
-      "Your next mock should be about cleaner attempts, not rushing.",
-      "Build accuracy first. Speed will follow.",
-      "This result is feedback. Use it like a training plan.",
-    ],
-    badge: "Practice Push",
-    icon: "sparkles" as const,
-  },
-  restart: {
-    titles: [
-      "Restart And Rise",
-      "First Step Forward",
-      "Bounce Back Round",
-      "Fresh Start",
-      "Growth Begins Here",
-      "Fight Back Mode",
-    ],
-    messages: [
-      "This mock is a starting signal, not a stop sign. Begin with the sections shown below and build your score one step at a time.",
-      "The result shows where practice is needed most. Stay calm, review the paper, and use the next mock to prove your improvement.",
-      "Competition preparation is built through repeated correction. This attempt gives you the exact sections to work on first.",
-      "Do not let this score define you. Use it to choose your next practice targets and come back with stronger control.",
-      "Every high performer has a rebuilding round. Start with the basics, reduce unanswered or rushed mistakes, and rise steadily.",
-      "This is your reset point. The goal now is simple: understand the mistakes, train the weak sections, and improve the next score.",
-    ],
-    notes: [
-      "Start small, but start immediately.",
-      "Your next win is one section becoming stronger.",
-      "Review calmly. Improvement begins with clarity.",
-      "The next mock is a new chance to climb.",
-      "Do not rush the comeback. Build it correctly.",
-      "One focused practice session can change your next attempt.",
-    ],
-    badge: "Restart And Rise",
-    icon: "sparkles" as const,
-  },
-};
+
 
 function competitionBandKey(percentage: number) {
   if (percentage >= 100) return "perfect";
@@ -336,7 +158,7 @@ function buildCompetitionMessage(
         ? focusAreas
         : ["Review the question paper section by section"],
     nextTarget: nextBandTarget,
-    icon: pool.icon,
+    icon: pool.icon as any,
   };
 }
 
