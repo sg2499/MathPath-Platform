@@ -109,7 +109,6 @@ function AccuracyChipTone(value: number | null): "slate" | "green" | "red" | "am
   if (value === null) return "slate";
   if (value < 60) return "red";
   if (value < 80) return "amber";
-  if (value < 90) return "purple";
   return "green";
 }
 
