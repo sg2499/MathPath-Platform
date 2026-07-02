@@ -154,33 +154,14 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "underdog", "SUPER", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "underdog", "LEGENDARY", count, newly_unlocked)
 
-        # 9. The Polymath (Broad Mastery)
+        # 9. The High Achiever (formerly Polymath)
         if result_summary.percentage > 80 and result_summary.mock_exam:
-            level_id = result_summary.mock_exam.level_id
-            from app.models.models import Level
-            level = db.query(Level).filter_by(id=level_id).first()
-            if level:
-                master_module_id = level.module_id
-                stat_name = f"polymath_mod_{master_module_id}"
-                
-                # Check if this module is already recorded
-                existing_stat = db.query(StudentAchievementStat).filter_by(student_id=student_id, stat_name=stat_name).first()
-                if not existing_stat:
-                    # Record this module as passed
-                    cls._set_stat(db, student_id, stat_name, 1)
-                    
-                    # Count how many unique modules they have passed
-                    polymath_count = db.query(StudentAchievementStat).filter(
-                        StudentAchievementStat.student_id == student_id,
-                        StudentAchievementStat.stat_name.like("polymath_mod_%")
-                    ).count()
-                    
-                    # Also update a master count for the frontend to easily fetch progress
-                    cls._set_stat(db, student_id, "polymath_count", polymath_count)
-                    
-                    cls._award_badge_if_qualified(db, student_id, "polymath", "BASE", polymath_count, newly_unlocked)
-                    cls._award_badge_if_qualified(db, student_id, "polymath", "SUPER", polymath_count, newly_unlocked)
-                    cls._award_badge_if_qualified(db, student_id, "polymath", "LEGENDARY", polymath_count, newly_unlocked)
+            # Just increment the count for scoring > 80% on any mock exam
+            count = cls._increment_stat(db, student_id, "polymath_count")
+            
+            cls._award_badge_if_qualified(db, student_id, "polymath", "BASE", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "polymath", "SUPER", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "polymath", "LEGENDARY", count, newly_unlocked)
 
         db.commit()
 
@@ -244,10 +225,10 @@ class AchievementEngine:
             ("underdog", "SUPER", "Super Underdog", "Achieve Underdog 3 times", "Anchor", 3),
             ("underdog", "LEGENDARY", "Legendary Underdog", "Achieve Underdog 5 times", "Mountain", 5),
 
-            # The Polymath
-            ("polymath", "BASE", "The Polymath", "Score > 80% across 3 different Master Modules", "Brain", 3),
-            ("polymath", "SUPER", "Super Polymath", "Score > 80% across 5 different Master Modules", "Lightbulb", 5),
-            ("polymath", "LEGENDARY", "Legendary Polymath", "Score > 80% across 10 different Master Modules", "Library", 10),
+            # The High Achiever (formerly Polymath)
+            ("polymath", "BASE", "The High Achiever", "Score > 80% on 3 Mock Exams", "Brain", 3),
+            ("polymath", "SUPER", "Super Achiever", "Score > 80% on 15 Mock Exams", "Lightbulb", 15),
+            ("polymath", "LEGENDARY", "Legendary Achiever", "Score > 80% on 30 Mock Exams", "Library", 30),
         ]
 
         for code, tier, name, desc, icon, req in badges_data:
@@ -257,7 +238,10 @@ class AchievementEngine:
                     b = AchievementBadge(code=code, tier=tier, name=name, description=desc, icon_name=icon, required_count=req)
                     db.add(b)
                 else:
+                    existing.name = name
+                    existing.description = desc
                     existing.icon_name = icon
+                    existing.required_count = req
                 db.commit()
             except Exception as e:
                 db.rollback()
