@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { triggerBlaze, triggerSurge, triggerCrystal, triggerMythic } from "@/lib/utils/particles";
+import { triggerBlaze, triggerSurge, triggerCrystal, triggerMythic, resetParticles } from "@/lib/utils/particles";
 
 interface EpicCelebrationProps {
   accuracy: number;
@@ -226,17 +226,22 @@ export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebra
     return () => clearTimeout(timer);
   }, [tier, onComplete]);
 
+  const handleSkip = React.useCallback(() => {
+    resetParticles();
+    onComplete();
+  }, [onComplete]);
+
   useEffect(() => {
     if (!allowSkip) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === " ") {
         e.preventDefault();
-        onComplete();
+        handleSkip();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [allowSkip, onComplete]);
+  }, [allowSkip, handleSkip]);
 
   if (!tier) return null;
 
@@ -310,14 +315,14 @@ export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebra
       {allowSkip && (
         <motion.button
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 0.6, y: 0 }}
-          whileHover={{ opacity: 1, scale: 1.05 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           transition={{ delay: 1, duration: 0.5 }}
-          onClick={onComplete}
-          className="absolute bottom-8 right-8 z-50 text-white/50 hover:text-white font-medium text-sm tracking-widest uppercase pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm transition-colors hover:bg-white/10"
+          onClick={handleSkip}
+          className="absolute bottom-12 right-12 z-[10000] text-white font-bold text-lg tracking-widest uppercase pointer-events-auto flex items-center gap-3 px-8 py-4 rounded-xl border-2 border-white/40 bg-white/10 backdrop-blur-md shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-white/20 hover:border-white/60 hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] transition-all"
         >
-          Press Space to Skip <span className="text-xs opacity-50">⏭</span>
+          Skip Celebration <span className="text-xl">⏭</span>
         </motion.button>
       )}
     </motion.div>

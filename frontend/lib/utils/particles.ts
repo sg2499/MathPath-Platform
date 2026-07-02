@@ -81,3 +81,7 @@ export const triggerStarfall = triggerSurge;
 export const triggerMicroBurst = (x: number, y: number, colors: string[]) => {
   confetti({ particleCount: 40, spread: 60, origin: { x, y }, colors, gravity: 1, scalar: 0.7, ticks: 150, shapes: ["star", "circle"] as any, zIndex: 9999 });
 };
+
+export const resetParticles = () => {
+  confetti.reset();
+};
