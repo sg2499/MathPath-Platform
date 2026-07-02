@@ -155,8 +155,8 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "underdog", "LEGENDARY", count, newly_unlocked)
 
         # 9. The Polymath (Broad Mastery)
-        if result_summary.percentage > 80 and result_summary.mock_assignment:
-            level_id = result_summary.mock_assignment.level_id
+        if result_summary.percentage > 80 and result_summary.mock_exam:
+            level_id = result_summary.mock_exam.level_id
             from app.models.models import MasterModuleLevel
             level = db.query(MasterModuleLevel).filter_by(id=level_id).first()
             if level:

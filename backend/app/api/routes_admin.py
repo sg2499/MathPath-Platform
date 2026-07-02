@@ -5599,3 +5599,31 @@ def admin_delete_competition_mock_student(student_id: str, db: Session = Depends
 def admin_get_competition_mock_result(attempt_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return GetCompetitionMockResultForAdmin(db, attempt_id)
 
+@router.post("/gamification/sync-all")
+def gamification_sync_all(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.achievements import AchievementEngine
+    from app.models.models import CompetitionMockResultSummary, StudentAchievementStat, StudentBadge
+    try:
+        # Clear stats and student badges
+        db.query(StudentBadge).delete()
+        db.query(StudentAchievementStat).delete()
+        db.commit()
+
+        # Seed badges
+        AchievementEngine.seed_badges(db)
+
+        # Iterate all results and evaluate
+        summaries = db.query(CompetitionMockResultSummary).order_by(CompetitionMockResultSummary.completed_at.asc()).all()
+        for s in summaries:
+            try:
+                AchievementEngine.evaluate_mock_exam_submission(db, s.student_id, s)
+            except Exception as e:
+                db.rollback()
+                import logging
+                logging.error(f"Error evaluating {s.id}: {e}")
+        return {"status": "success", "synced_count": len(summaries)}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "detail": str(e)}
+
+
