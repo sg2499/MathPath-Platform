@@ -2,9 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { Award, Clock, Star, Trophy, Users, AlertCircle, ChevronDown, ArrowLeft } from "lucide-react";
-import { api } from "@/lib/api";
+import { LeaderboardAPI } from "@/lib/api-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useRouter } from "next/navigation";
+import type { 
+  HierarchyResponse, 
+  LeaderboardResponse, 
+  ModuleSchema, 
+  LevelSchema, 
+  ExamSchema 
+} from "@/lib/schemas/leaderboard";
+import { z } from "zod";
 
 function getInitials(name: string) {
   if (!name) return "";
@@ -21,9 +29,9 @@ const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   
   // Hierarchy Data
-  const [modules, setModules] = useState<any[]>([]);
-  const [levels, setLevels] = useState<any[]>([]);
-  const [exams, setExams] = useState<any[]>([]);
+  const [modules, setModules] = useState<z.infer<typeof ModuleSchema>[]>([]);
+  const [levels, setLevels] = useState<z.infer<typeof LevelSchema>[]>([]);
+  const [exams, setExams] = useState<z.infer<typeof ExamSchema>[]>([]);
   
   // Selections
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
@@ -33,14 +41,13 @@ const router = useRouter();
   // View Mode
   const [viewMode, setViewMode] = useState<"CUMULATIVE" | "INDIVIDUAL">("CUMULATIVE");
   
-  const [leaderboardData, setLeaderboardData] = useState<any>(null);
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardResponse | null>(null);
 
   // Load Hierarchy on mount
   useEffect(() => {
     async function loadHierarchy() {
       try {
-        const response = await api.get(`/student/competition/hierarchy`);
-        const data = response.data;
+        const data = await LeaderboardAPI.getHierarchy();
         const fetchedModules = data.modules || [];
         const fetchedLevels = data.levels || [];
         const fetchedExams = data.exams || [];
@@ -61,12 +68,12 @@ const router = useRouter();
         if (data.currentLevelId) {
             targetLevelId = data.currentLevelId;
         } else if (targetModuleId) {
-            const modLevels = fetchedLevels.filter((l: any) => l.moduleId === targetModuleId);
+            const modLevels = fetchedLevels.filter(l => l.moduleId === targetModuleId);
             if (modLevels.length > 0) targetLevelId = modLevels[0].id;
         }
 
         if (targetLevelId) {
-            const lvlExams = fetchedExams.filter((e: any) => e.levelId === targetLevelId);
+            const lvlExams = fetchedExams.filter(e => e.levelId === targetLevelId);
             if (lvlExams.length > 0) targetExamId = lvlExams[0].id;
         }
 
@@ -109,15 +116,16 @@ const router = useRouter();
 
     async function loadLeaderboard() {
       setLoading(true);
+      setError(null);
       try {
-        const endpoint = viewMode === "CUMULATIVE" 
-            ? `/student/competition/mock-exams/cumulative-leaderboard?level_id=${selectedLevelId}`
-            : `/student/competition/mock-exams/${selectedExamId}/leaderboard`;
+        const data = viewMode === "CUMULATIVE" 
+            ? await LeaderboardAPI.getCumulativeLeaderboard(selectedLevelId as string)
+            : await LeaderboardAPI.getSpecificLeaderboard(selectedExamId as string);
             
-        const response = await api.get(endpoint);
-        setLeaderboardData(response.data);
+        setLeaderboardData(data);
       } catch (err: any) {
-        setError(err.message || "Failed to load leaderboard");
+        console.error("Leaderboard fetch error:", err);
+        setError("Failed to load leaderboard. Our engineers have been notified.");
       } finally {
         setLoading(false);
       }
@@ -131,7 +139,7 @@ const router = useRouter();
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center">
         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Something went wrong</h2>
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Data Error</h2>
         <p className="text-slate-500 mt-2">{error}</p>
       </div>
     );
@@ -351,7 +359,7 @@ const router = useRouter();
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-black text-xl">{Math.round(leaderboardData.currentStudentEntry?.percentage || 0)}%</p>
+                  <p className="font-black text-xl">{Math.round(leaderboardData?.currentStudentEntry?.percentage || 0)}%</p>
                 </div>
               </div>
             )}
