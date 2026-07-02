@@ -1088,7 +1088,6 @@ export function AppShell({
                                   const ChildIcon = child.icon;
                                   const childActive = isRouteActive(child.href);
                                   const StudentChildLight = IsStudent && theme === "light";
-                                  const StudentCompetitionChildLight = StudentChildLight && group.label === "Competition";
 
                                   return (
                                     <button
@@ -1097,17 +1096,14 @@ export function AppShell({
                                       onClick={() => navigateTo(child.href)}
                                       data-teacher-nav-child={IsTeacher && theme === "light" ? "true" : undefined}
                                       data-student-nav-child={IsStudent && theme === "light" ? "true" : undefined}
-                                      data-student-competition-nav-child={StudentCompetitionChildLight ? "true" : undefined}
                                       className={`math-dropdown-option group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
                                         childActive
                                           ? StudentChildLight
                                             ? "math-dropdown-option-active bg-gradient-to-r from-orange-900 via-orange-500 to-rose-400 text-white shadow-lg"
                                             : "math-dropdown-option-active bg-slate-950 text-white shadow-lg dark:bg-white dark:text-slate-950"
-                                          : StudentCompetitionChildLight
+                                          : StudentChildLight
                                             ? "text-slate-700 hover:bg-gradient-to-r hover:from-orange-900 hover:via-orange-500 hover:to-yellow-400 hover:text-white focus-visible:bg-gradient-to-r focus-visible:from-orange-900 focus-visible:via-orange-500 focus-visible:to-yellow-400 focus-visible:text-white dark:text-slate-200 dark:hover:bg-slate-900"
-                                            : StudentChildLight
-                                              ? "text-slate-700 hover:bg-orange-50 hover:text-orange-700 focus-visible:bg-orange-50 focus-visible:text-orange-700 dark:text-slate-200 dark:hover:bg-slate-900"
-                                              : "text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-900"
+                                            : "text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-900"
                                       }`}
                                       title={child.tooltip}
                                       aria-label={child.tooltip}
@@ -1115,15 +1111,12 @@ export function AppShell({
                                       <span
                                         data-teacher-nav-child-icon={IsTeacher && theme === "light" ? "true" : undefined}
                                         data-student-nav-child-icon={IsStudent && theme === "light" ? "true" : undefined}
-                                        data-student-competition-nav-child-icon={StudentCompetitionChildLight ? "true" : undefined}
                                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
                                           childActive
                                             ? "bg-white/15 text-white dark:bg-slate-950/10"
-                                            : StudentCompetitionChildLight
+                                            : StudentChildLight
                                               ? "bg-orange-50 text-orange-600 group-hover:bg-white/20 group-hover:text-white"
-                                              : StudentChildLight
-                                                ? "bg-orange-50 text-orange-600 group-hover:bg-white group-hover:text-orange-700"
-                                                : "bg-slate-50 text-blue-600 dark:bg-slate-900"
+                                              : "bg-slate-50 text-blue-600 dark:bg-slate-900"
                                         }`}
                                       >
                                         <ChildIcon
@@ -1155,11 +1148,9 @@ export function AppShell({
                                           className={`math-dropdown-option-subtitle mt-0.5 block text-xs font-medium ${
                                             childActive
                                               ? "text-white/80 dark:text-slate-800"
-                                              : StudentCompetitionChildLight
+                                              : StudentChildLight
                                                 ? "text-slate-400 group-hover:text-white/85 dark:text-slate-300"
-                                                : StudentChildLight
-                                                  ? "text-slate-400 group-hover:text-orange-500 dark:text-slate-300"
-                                                  : "text-slate-400 dark:text-slate-300"
+                                                : "text-slate-400 dark:text-slate-300"
                                           }`}
                                         >
                                           {child.tooltip}
