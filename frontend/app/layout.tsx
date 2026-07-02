@@ -11,6 +11,29 @@ export const metadata: Metadata = {
   },
   description:
     "MathPath is a premium abacus, visualisation, DPS practice, and competition platform for confident mathematical learning.",
+  keywords: ["Math", "Abacus", "Mental Math", "Competition", "Education", "EdTech"],
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://mathpath.app",
+    title: "MathPath | Confident Mathematical Learning",
+    description: "Premium abacus, visualisation, and practice platform.",
+    siteName: "MathPath",
+    images: [
+      {
+        url: "/mathpath-logo.png",
+        width: 1200,
+        height: 630,
+        alt: "MathPath Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MathPath | Confident Mathematical Learning",
+    description: "Premium abacus, visualisation, and practice platform.",
+    images: ["/mathpath-logo.png"],
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },
