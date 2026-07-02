@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { AppShell } from "@/components/common/AppShell";
 import { useRouter } from "next/navigation";
 import { LoadingState } from "@/components/common/LoadingState";
+import { BadgeInspectionModal } from "@/components/gamification/BadgeInspectionModal";
 
 // FORCE TAILWIND TO COMPILE THESE EXACT CLASSES DURING HOT-RELOAD
 // Without this, Next.js dev server may not pick up tailwind.config.ts changes until a full restart
@@ -38,6 +39,7 @@ export default function TrophyRoomPage() {
   const [loading, setLoading] = useState(true);
   const [badges, setBadges] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"mock" | "dps">("mock");
+  const [selectedBadge, setSelectedBadge] = useState<{ badge: any, config: any } | null>(null);
 
   useEffect(() => {
     async function loadAchievements() {
@@ -125,13 +127,13 @@ export default function TrophyRoomPage() {
       {activeTab === "mock" ? (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Base Tier Shelf */}
-          <Shelf title="Base Badges" badges={baseBadges} tier="BASE" />
+          <Shelf title="Base Badges" badges={baseBadges} tier="BASE" onSelectBadge={setSelectedBadge} />
           
           {/* Super Tier Shelf */}
-          <Shelf title="Super Badges" badges={superBadges} tier="SUPER" />
+          <Shelf title="Super Badges" badges={superBadges} tier="SUPER" onSelectBadge={setSelectedBadge} />
           
           {/* Legendary Tier Shelf */}
-          <Shelf title="Legendary Badges" badges={legendaryBadges} tier="LEGENDARY" />
+          <Shelf title="Legendary Badges" badges={legendaryBadges} tier="LEGENDARY" onSelectBadge={setSelectedBadge} />
         </div>
       ) : (
         <div className="text-center py-24 animate-in fade-in duration-500">
@@ -143,11 +145,20 @@ export default function TrophyRoomPage() {
         </div>
       )}
       </main>
+
+      {/* Epic Badge Inspection Modal */}
+      {selectedBadge && (
+        <BadgeInspectionModal 
+          badge={selectedBadge.badge} 
+          config={selectedBadge.config} 
+          onClose={() => setSelectedBadge(null)} 
+        />
+      )}
     </AppShell>
   );
 }
 
-function Shelf({ title, badges, tier }: { title: string, badges: any[], tier: string }) {
+function Shelf({ title, badges, tier, onSelectBadge }: { title: string, badges: any[], tier: string, onSelectBadge: (b: any) => void }) {
   if (badges.length === 0) return null;
 
   const bgStyles = {
@@ -167,14 +178,14 @@ function Shelf({ title, badges, tier }: { title: string, badges: any[], tier: st
       <h2 className={`text-2xl font-black ${textStyles[tier as keyof typeof textStyles]}`}>{title}</h2>
       <div className={`grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 p-6 md:p-8 rounded-3xl border-2 ${bgStyles[tier as keyof typeof bgStyles]}`}>
         {badges.map(b => (
-          <BadgeCard key={b.id} badge={b} />
+          <BadgeCard key={b.id} badge={b} onSelectBadge={onSelectBadge} />
         ))}
       </div>
     </div>
   );
 }
 
-function BadgeCard({ badge }: { badge: any }) {
+function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data: { badge: any, config: any }) => void }) {
   const Icon = IconMap[badge.iconName] || Target;
   const isUnlocked = badge.isUnlocked;
 
@@ -276,6 +287,7 @@ function BadgeCard({ badge }: { badge: any }) {
     const x = e.clientX / window.innerWidth;
     const y = e.clientY / window.innerHeight;
     triggerMicroBurst(x, y, config.burst);
+    onSelectBadge({ badge, config });
   };
   const progressPercent = Math.min(100, Math.round((badge.currentProgress / badge.requiredCount) * 100));
 
