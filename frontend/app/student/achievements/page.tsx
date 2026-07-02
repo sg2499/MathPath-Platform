@@ -424,4 +424,4 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
       </div>
     </div>
   );
-}
+}// force trigger deploy
