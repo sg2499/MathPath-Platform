@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { triggerShockwave, triggerGoldRush } from "@/lib/utils/particles";
+import { EpicCelebration } from "@/components/gamification/EpicCelebration";
+import { AnimatePresence } from "framer-motion";
 
 function formatDuration(seconds?: number | null) {
   if (seconds === null || seconds === undefined) return "-";
@@ -323,6 +324,7 @@ export default function StudentCompetitionMockResultPage() {
   const router = useRouter();
   const attemptId = params.attemptId;
   const [activeTab, setActiveTab] = useState<ResultTab>("questions");
+  const [showCelebration, setShowCelebration] = useState(false);
   const hasExploded = useRef(false);
 
   const query = useQuery({
@@ -336,8 +338,7 @@ export default function StudentCompetitionMockResultPage() {
       hasExploded.current = true;
       const accuracy = query.data.accuracyPercentage || 0;
       if (accuracy >= 80) {
-        triggerShockwave();
-        triggerGoldRush();
+        setShowCelebration(true);
       }
     }
   }, [query.data]);
@@ -382,7 +383,16 @@ export default function StudentCompetitionMockResultPage() {
   };
 
   return (
-    <AppShell title="Competition Mock Result">
+    <>
+      <AnimatePresence>
+        {showCelebration && (
+          <EpicCelebration
+            accuracy={result.accuracyPercentage || 0}
+            onComplete={() => setShowCelebration(false)}
+          />
+        )}
+      </AnimatePresence>
+      <AppShell title="Competition Mock Result">
       <section className="space-y-5">
         <div className="math-card p-6">
           <button
@@ -475,7 +485,8 @@ export default function StudentCompetitionMockResultPage() {
           <ResultAnalysisTab result={result} onSectionSelect={jumpToSection} />
         ) : null}
       </section>
-    </AppShell>
+      </AppShell>
+    </>
   );
 }
 
