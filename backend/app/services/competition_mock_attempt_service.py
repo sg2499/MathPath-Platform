@@ -694,6 +694,30 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
         summary = db.query(CompetitionMockResultSummary).filter_by(mock_attempt_id=attempt.id).first()
         if summary:
             unlocked_badges = AchievementEngine.evaluate_mock_exam_submission(db, student.id, summary)
+
+            for b in unlocked_badges:
+                try:
+                    badge_id = b.get("id")
+                    code = b.get("code")
+                    tier = b.get("tier")
+                    name = b.get("name")
+                    description = b.get("description")
+                    CreateNotification(
+                        db,
+                        recipient_user_id=student.user_id,
+                        recipient_role="STUDENT",
+                        type="BADGE_UNLOCKED",
+                        category="GAMIFICATION",
+                        title=f"New Badge Unlocked: {name}",
+                        message=f"You unlocked the {tier} tier '{name}' badge for: {description}!",
+                        target_route=f"/student/achievements?badge={code}_{tier}",
+                        color_variant="PURPLE",
+                        metadata={"badgeId": badge_id, "tier": tier, "code": code}
+                    )
+                except Exception as ne:
+                    import logging
+                    logging.error(f"Failed to create badge notification for {b.get('name')}: {ne}")
+
     except Exception as e:
         import logging
         logging.error(f"Gamification engine failed for attempt {attempt.id}: {e}")
