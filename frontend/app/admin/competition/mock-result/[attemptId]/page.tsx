@@ -81,6 +81,34 @@ function pickFrom<T>(pool: T[], seed: number, offset = 0): T {
 }
 
 const competitionMessagePools = {
+  perfect: {
+    titles: [
+      "Absolute Perfection",
+      "Flawless Victory",
+      "Perfect Score",
+      "Mastery Achieved",
+      "Unbeatable Form",
+      "Maximum Potential",
+    ],
+    messages: [
+      "An absolutely flawless performance! You have demonstrated total mastery over every concept in this mock.",
+      "Incredible work! You scored 100% with zero mistakes. This is the gold standard of competition readiness.",
+      "Perfection achieved. You tackled every challenge perfectly without leaving any marks behind.",
+      "Flawless execution! You showed exactly what it means to be fully prepared. Carry this exact momentum forward.",
+      "A perfect attempt. Your hard work has culminated in an unbeatable score. Maintain this incredible form.",
+      "You couldn't have done any better. Phenomenal focus, perfect accuracy, and elite execution.",
+    ],
+    notes: [
+      "Keep setting the standard for perfection.",
+      "Outstanding focus. Carry this exact mindset into the next challenge.",
+      "Celebrate this win, then come back just as sharp.",
+      "Your accuracy is fully locked in.",
+      "Maintain this rhythm. You are fully ready.",
+      "Absolutely brilliant work today.",
+    ],
+    badge: "Perfect Score",
+    icon: "trophy" as const,
+  },
   champion: {
     titles: [
       "Champion Zone",
@@ -224,6 +252,7 @@ const competitionMessagePools = {
 };
 
 function competitionBandKey(percentage: number) {
+  if (percentage >= 100) return "perfect";
   if (percentage >= 90) return "champion";
   if (percentage >= 75) return "strong";
   if (percentage >= 60) return "momentum";
@@ -246,7 +275,11 @@ function buildCompetitionMessage(
     .map((item: any) => item.concept)
     .filter(Boolean);
   const focusAreas =
-    weaknesses.length > 0 ? weaknesses.slice(0, 3) : strengths.slice(0, 2);
+    percentage >= 100
+      ? ["Maintain your perfect form and consistency"]
+      : weaknesses.length > 0
+        ? weaknesses.slice(0, 3)
+        : strengths.slice(0, 2);
   const seed = stableHash(
     [
       result.attemptId,
@@ -261,8 +294,10 @@ function buildCompetitionMessage(
     ].join("-"),
   );
   const nextBandTarget =
-    percentage >= 90
-      ? "Aim for 95%+ with zero careless errors."
+    percentage >= 100
+      ? "Maintain 100% accuracy and keep setting the standard."
+      : percentage >= 90
+        ? "Aim for 95%+ with zero careless errors."
       : percentage >= 75
         ? "Push into the 90% Champion Zone."
         : percentage >= 60
@@ -282,7 +317,7 @@ function buildCompetitionMessage(
         : " Your time usage gives you room to balance speed with accuracy.";
 
   return {
-    title: `${pickFrom(pool.titles, seed)} ${bandKey === "champion" ? "🏆" : bandKey === "strong" ? "🚀" : bandKey === "momentum" ? "🔥" : bandKey === "practice" ? "✨" : "🌱"}`,
+    title: `${pickFrom(pool.titles, seed)} ${bandKey === "perfect" ? "🌟" : bandKey === "champion" ? "🏆" : bandKey === "strong" ? "🚀" : bandKey === "momentum" ? "🔥" : bandKey === "practice" ? "✨" : "🌱"}`,
     badge: pool.badge,
     message: `${pickFrom(pool.messages, seed, 3)}${unansweredNote}`,
     coachNote: `${pickFrom(pool.notes, seed, 7)}${timeNote}`,
