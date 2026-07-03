@@ -331,22 +331,22 @@ const router = useRouter();
 
         {!loading && leaderboard.length > 0 && (
           <>
-            {/* True 3D Isometric Podium */}
-            <div className="pt-32 pb-16 flex items-end justify-center gap-0 md:gap-4 relative mt-16 [perspective:2000px] [transform-style:preserve-3d]">
+            {/* Pure 2D Flexbox Podium */}
+            <div className="pt-32 pb-16 flex items-end justify-center gap-1 md:gap-4 relative mt-16 z-10">
               <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[150%] max-w-5xl h-32 bg-gradient-to-t from-slate-900/20 dark:from-black/90 to-transparent blur-[20px] pointer-events-none rounded-[100%] transform rotateX(60deg)" />
               
-              {/* Silver (Rank 2) - Pushed Back */}
-              <div className="transform translate-z-[-100px] translate-x-[20px] opacity-90 hover:opacity-100 hover:translate-z-[-50px] transition-all duration-500">
+              {/* Silver (Rank 2) */}
+              <div className="z-10 hover:z-40 transition-all duration-300">
                 {top3[1] && <PodiumCard student={top3[1]} rank={2} onActivateHero={() => setActiveHeroRank(2)} />}
               </div>
               
-              {/* Gold (Rank 1) - Pushed Forward and Higher */}
-              <div className="transform translate-z-[150px] scale-110 z-30 hover:scale-[1.15] transition-all duration-500">
+              {/* Gold (Rank 1) */}
+              <div className="z-30 hover:z-40 transition-all duration-300">
                 {top3[0] && <PodiumCard student={top3[0]} rank={1} onActivateHero={() => setActiveHeroRank(1)} />}
               </div>
               
-              {/* Bronze (Rank 3) - Pushed Back Further */}
-              <div className="transform translate-z-[-150px] translate-x-[-20px] opacity-80 hover:opacity-100 hover:translate-z-[-50px] transition-all duration-500">
+              {/* Bronze (Rank 3) */}
+              <div className="z-0 hover:z-40 transition-all duration-300">
                 {top3[2] && <PodiumCard student={top3[2]} rank={3} onActivateHero={() => setActiveHeroRank(3)} />}
               </div>
             </div>
@@ -468,11 +468,11 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 150, rotateX: 20 }}
-      animate={{ opacity: 1, y: 0, rotateX: 0 }}
+      initial={{ opacity: 0, y: 150 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 150, damping: 20, delay: config.delay }}
-      className={`flex flex-col items-center relative z-10 [perspective:1200px] ${config.translateY}`}
-      style={{ zIndex: rank === 1 ? 20 : 10 }}
+      className={`flex flex-col items-center relative z-10 ${config.translateY}`}
+      style={{ zIndex: rank === 1 ? 20 : rank === 2 ? 10 : 5 }}
     >
       <div 
         ref={cardRef}
@@ -533,9 +533,9 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         </div>
       </div>
 
-      <div className="text-center mb-4 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-xl border border-white/10">
-        <p className={`font-black text-base md:text-xl text-white max-w-[140px] md:max-w-[180px] leading-tight break-words ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
-        <p className={`text-base md:text-lg font-black text-${config.color}-400 mt-0.5 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
+      <div className="text-center mb-4 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 max-w-[90px] md:max-w-[120px] w-full mx-auto overflow-hidden">
+        <p className={`font-black text-sm md:text-base text-white truncate ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
+        <p className={`text-xs md:text-sm font-black text-${config.color}-400 mt-0.5 drop-shadow-md truncate`}>{Math.round(student.percentage)}%</p>
       </div>
 
       {/* AAA Geometric Pedestal with Glass Foil Glare */}
@@ -583,15 +583,10 @@ function TableRow({ row: r, delay }: { row: any; delay: number }) {
       <tr 
         key={r.rank} 
         onClick={() => router.push(`/student/competition/mock-result/${r.id}`)}
-        className={`group transition-all duration-300 hover:-translate-y-[2px] hover:bg-slate-900/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-transparent hover:border-indigo-500/50 hover:z-20 relative cursor-pointer overflow-hidden ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}
+        className={`group transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:shadow-[inset_0_0_20px_rgba(99,102,241,0.05)] relative cursor-pointer ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}
       >
-      <td className="px-6 py-5 font-black text-slate-400 group-hover:text-indigo-500 transition-colors text-base group-hover:drop-shadow-[0_0_12px_rgba(99,102,241,0.8)]">
-        {/* AAA Foil Sweep & Click Ripple Effect Container */}
-        <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0">
-          <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent skew-x-[-45deg] transition-all duration-700 ease-in-out group-hover:left-[200%]" />
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 group-active:bg-indigo-500/30 transition-all duration-300" />
-        </div>
-        <span className="relative z-10">#{r.rank}</span>
+      <td className="px-6 py-5 font-black text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors text-base relative z-10">
+        #{r.rank}
       </td>
       <td className="px-6 py-5 flex items-center gap-4 relative z-10">
         <div className={`w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 overflow-hidden flex-shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 ${r.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}`}>
