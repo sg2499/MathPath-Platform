@@ -45,7 +45,7 @@ function useDarkMode() {
 
 // --- GLOBAL R3F BACKGROUNDS ---
 
-function FloatingDataNodes({ count, color }: { count: number, color: string }) {
+function FloatingDataNodes({ count, color, wireframe = true, opacity = 0.3 }: { count: number, color: string, wireframe?: boolean, opacity?: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -87,7 +87,11 @@ function FloatingDataNodes({ count, color }: { count: number, color: string }) {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <icosahedronGeometry args={[0.2, 0]} />
-      <meshBasicMaterial color={color} wireframe transparent opacity={0.3} />
+      {wireframe ? (
+        <meshBasicMaterial color={color} wireframe transparent opacity={opacity} />
+      ) : (
+        <meshStandardMaterial color={color} transparent opacity={opacity} roughness={0.2} metalness={0.6} />
+      )}
     </instancedMesh>
   );
 }
@@ -98,7 +102,7 @@ function GlobalDarkConstellation() {
       <ambientLight intensity={0.2} />
       <Stars radius={50} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
       <DreiSparkles count={300} scale={100} size={4} speed={0.2} opacity={0.3} color="#8b5cf6" />
-      <FloatingDataNodes count={150} color="#c084fc" />
+      <FloatingDataNodes count={150} color="#c084fc" wireframe={true} opacity={0.3} />
       <EffectComposer multisampling={4}>
          <Bloom luminanceThreshold={0.2} mipmapBlur intensity={1.5} />
       </EffectComposer>
@@ -110,9 +114,10 @@ function GlobalLightDataWave() {
   return (
     <>
       <ambientLight intensity={1.5} color="#ffffff" />
-      <directionalLight position={[10, 10, 5]} intensity={2} color="#fcd34d" />
-      <DreiSparkles count={250} scale={100} size={6} speed={0.4} opacity={0.5} color="#fb923c" />
-      <FloatingDataNodes count={100} color="#f97316" />
+      <directionalLight position={[10, 10, 5]} intensity={3} color="#ea580c" />
+      <directionalLight position={[-10, -10, -5]} intensity={1} color="#fcd34d" />
+      <DreiSparkles count={400} scale={100} size={8} speed={0.4} opacity={0.8} color="#ea580c" />
+      <FloatingDataNodes count={200} color="#ea580c" wireframe={false} opacity={0.7} />
     </>
   );
 }
@@ -310,7 +315,7 @@ export default function StudentDashboardPage() {
                    <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] dark:opacity-10 mix-blend-overlay" />
                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
                    
-                   <div className="absolute top-5 left-6 flex items-center gap-2 z-20">
+                   <div className="px-6 sm:px-10 pt-5 flex items-center gap-2 z-20 shrink-0">
                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                      <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Live Intel Feed</span>
                    </div>
@@ -321,7 +326,7 @@ export default function StudentDashboardPage() {
                            key="slide-0"
                            onClick={() => Router.push("/student/achievements")}
                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
-                           className="relative z-10 w-full h-full px-6 sm:px-10 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
+                           className="relative z-10 w-full h-full px-6 sm:px-10 pb-5 pt-2 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
                          >
                             <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-700 p-[3px] shadow-[0_0_30px_rgba(99,102,241,0.3)]">
                                <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center">
@@ -347,7 +352,7 @@ export default function StudentDashboardPage() {
                            key="slide-1" 
                            onClick={() => Router.push("/student/practice")}
                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
-                           className="relative z-10 w-full h-full px-6 sm:px-10 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
+                           className="relative z-10 w-full h-full px-6 sm:px-10 pb-5 pt-2 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
                          >
                             <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl border-2 border-dashed border-amber-500 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.2)]">
                                <Crosshair size={36} className="text-amber-500" />
@@ -371,7 +376,7 @@ export default function StudentDashboardPage() {
                            key="slide-2" 
                            onClick={() => Router.push("/student/competition/mock-exams")}
                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
-                           className="relative z-10 w-full h-full px-6 sm:px-10 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
+                           className="relative z-10 w-full h-full px-6 sm:px-10 pb-5 pt-2 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
                          >
                             <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-[0_0_30px_rgba(52,211,153,0.3)]">
                                <Swords size={36} className="text-white" />
@@ -395,7 +400,7 @@ export default function StudentDashboardPage() {
                            key="slide-3" 
                            onClick={() => Router.push("/student/competition/leaderboard")}
                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
-                           className="relative z-10 w-full h-full px-6 sm:px-10 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
+                           className="relative z-10 w-full h-full px-6 sm:px-10 pb-5 pt-2 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
                          >
                             <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-rose-400 to-red-600 flex items-center justify-center shadow-[0_0_30px_rgba(244,63,94,0.3)]">
                                <Medal size={36} className="text-white" />
@@ -494,11 +499,11 @@ export default function StudentDashboardPage() {
             <div className="lg:col-span-4 grid grid-cols-2 gap-3 h-full">
               {QuickLinks.map((LinkItem) => (
                 <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full min-h-[135px]">
-                  <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-3xl border border-black/5 dark:border-white/5 shadow-md hover:shadow-2xl transition-all duration-300">
-                    <span className="math-dashboard-quick-icon mb-3 p-3 rounded-2xl shadow-inner transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-[0_0_20px_var(--mp-role-shadow)]">
+                  <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-3xl border border-black/10 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-md hover:shadow-2xl transition-all duration-300">
+                    <span className="math-dashboard-quick-icon mb-3 p-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-[0_0_20px_var(--mp-role-shadow)]">
                       {LinkItem.Icon}
                     </span>
-                    <span className="block w-full px-2 text-xs font-black uppercase tracking-tight text-slate-900 dark:text-white/90 drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors">
+                    <span className="block w-full px-2 text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors">
                       {LinkItem.Label}
                     </span>
                   </div>
