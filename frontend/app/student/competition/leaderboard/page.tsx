@@ -449,20 +449,20 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
     ? {
         color: "yellow", shadow: "rgba(250,204,21,0.6)", gradient: "from-yellow-300 to-yellow-600",
         pedestalGradient: "from-yellow-500 via-yellow-400 to-yellow-200", label: "1st",
-        height: "h-[320px]", avatarSize: "w-32 h-32 md:w-40 md:h-40", translateY: "translate-y-0",
+        height: "h-[350px] md:h-[400px]", avatarSize: "w-32 h-32 md:w-40 md:h-40", translateY: "translate-y-0",
         shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", bloom: "rgba(250,204,21,0.8)", delay: 0.6
       }
     : rank === 2 
     ? {
         color: "slate", shadow: "rgba(148,163,184,0.5)", gradient: "from-slate-200 to-slate-400",
         pedestalGradient: "from-slate-300 to-slate-100", label: "2nd",
-        height: "h-[240px]", avatarSize: "w-24 h-24 md:w-32 md:h-32", translateY: "translate-y-8",
+        height: "h-[220px] md:h-[280px]", avatarSize: "w-24 h-24 md:w-32 md:h-32", translateY: "translate-y-0",
         shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)", bloom: "rgba(148,163,184,0.6)", delay: 0.5
       }
     : {
         color: "orange", shadow: "rgba(249,115,22,0.5)", gradient: "from-orange-300 to-orange-500",
         pedestalGradient: "from-orange-400 to-orange-200", label: "3rd",
-        height: "h-[160px]", avatarSize: "w-20 h-20 md:w-28 md:h-28", translateY: "translate-y-16",
+        height: "h-[140px] md:h-[180px]", avatarSize: "w-20 h-20 md:w-28 md:h-28", translateY: "translate-y-0",
         shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)", bloom: "rgba(249,115,22,0.6)", delay: 0.4
       };
 
@@ -497,10 +497,10 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
           </div>
         )}
 
-        {/* 1st Place Apex Aura */}
+        {/* 1st Place Apex Aura - Constrained to prevent bleeding */}
         {rank === 1 && (
-          <div className="absolute inset-0 z-0 pointer-events-none scale-[2.5] opacity-60 animate-[spin_20s_linear_infinite]">
-            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-2xl text-yellow-500/50 fill-current">
+          <div className="absolute inset-0 z-[-1] pointer-events-none scale-[1.6] opacity-80 animate-[spin_20s_linear_infinite] flex items-center justify-center">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-[0_0_20px_rgba(250,204,21,0.8)] text-yellow-500/80 fill-current">
               <path d="M100 0 L105 45 L150 20 L130 60 L185 65 L145 90 L195 125 L145 130 L165 175 L120 150 L110 195 L90 155 L45 185 L65 145 L10 140 L50 115 L0 80 L50 75 L30 30 L75 55 Z" />
             </svg>
           </div>
@@ -533,9 +533,9 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         </div>
       </div>
 
-      <div className="text-center mb-6 relative z-30 drop-shadow-lg">
-        <p className={`font-black text-base md:text-xl text-slate-800 dark:text-white max-w-[140px] md:max-w-[180px] leading-tight break-words ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(255,255,255,1)]' : ''}`}>{student.name}</p>
-        <p className={`text-base md:text-lg font-black text-${config.color}-500 mt-1 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
+      <div className="text-center mb-4 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-xl border border-white/10">
+        <p className={`font-black text-base md:text-xl text-white max-w-[140px] md:max-w-[180px] leading-tight break-words ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
+        <p className={`text-base md:text-lg font-black text-${config.color}-400 mt-0.5 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
       </div>
 
       {/* AAA Geometric Pedestal with Glass Foil Glare */}
@@ -575,16 +575,16 @@ function CrownIcon() {
 // AAA Table Row (Staggered Entry & CountUp)
 // ============================================================================
 function TableRow({ row: r, delay }: { row: any; delay: number }) {
+  const router = useRouter();
   const animatedScore = useCountUp(Math.round(r.score));
   const animatedAccuracy = useCountUp(Math.round(r.accuracy ?? r.percentage));
   
   return (
-    <motion.tr 
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay, duration: 0.4, ease: "easeOut" }}
-      className={`group transition-all duration-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-2xl hover:shadow-indigo-500/10 hover:scale-[1.01] hover:z-20 relative cursor-default overflow-hidden ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}
-    >
+      <tr 
+        key={r.rank} 
+        onClick={() => router.push(`/student/competition/mock-result/${r.id}`)}
+        className={`group transition-all duration-300 hover:-translate-y-[2px] hover:bg-slate-900/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-transparent hover:border-indigo-500/50 hover:z-20 relative cursor-pointer overflow-hidden ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}
+      >
       <td className="px-6 py-5 font-black text-slate-400 group-hover:text-indigo-500 transition-colors text-base group-hover:drop-shadow-[0_0_12px_rgba(99,102,241,0.8)]">
         {/* AAA Foil Sweep & Click Ripple Effect Container */}
         <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0">
@@ -614,6 +614,6 @@ function TableRow({ row: r, delay }: { row: any; delay: number }) {
       <td className="px-6 py-5 text-right font-black text-slate-700 dark:text-slate-300 hidden sm:table-cell text-base relative z-10 transition-transform duration-300 group-hover:scale-105">
         {Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s
       </td>
-    </motion.tr>
+    </tr>
   );
 }
