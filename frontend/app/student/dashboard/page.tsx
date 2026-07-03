@@ -467,7 +467,14 @@ export default function StudentDashboardPage() {
                                 </motion.div>
 
                                 <div className="z-10 text-center w-full max-w-4xl flex flex-col items-center">
-                                  <h3 className={`text-[clamp(1.5rem,4vw,3rem)] ${activeStyle.textClass} leading-[1.2] text-balance break-words`}>
+                                  <h3 
+                                    className={`
+                                      ${activeStyle.textClass} text-balance break-words
+                                      ${activeQuote.text.length < 60 ? "text-3xl md:text-5xl lg:text-[3.5rem] leading-[1.1] font-black" : 
+                                        activeQuote.text.length < 120 ? "text-2xl md:text-4xl lg:text-[2.75rem] leading-[1.2] font-extrabold" : 
+                                        "text-xl md:text-2xl lg:text-3xl leading-[1.35] font-bold"}
+                                    `}
+                                  >
                                      "{activeQuote.text}"
                                   </h3>
                                   {activeQuote.author && (
