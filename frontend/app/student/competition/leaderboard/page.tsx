@@ -180,25 +180,41 @@ const router = useRouter();
   return (
     <div className="math-role-student math-page w-full min-h-screen bg-[#F8FAFC] dark:bg-[#060913] overflow-hidden relative transition-colors duration-500">
       
-      {/* 1. Infinite 3D Grid with Radial Depth */}
-      <div className="absolute inset-0 z-0 opacity-[0.15] dark:opacity-[0.1] pointer-events-none" 
-           style={{ 
-             backgroundImage: 'linear-gradient(to right, #64748b 1px, transparent 1px), linear-gradient(to bottom, #64748b 1px, transparent 1px)', 
-             backgroundSize: '3rem 3rem',
-             maskImage: 'radial-gradient(circle at 50% 60%, black 20%, transparent 80%)',
-             WebkitMaskImage: 'radial-gradient(circle at 50% 60%, black 20%, transparent 80%)'
-           }} 
-      />
+      {/* 1. Animated Hyperspace Grid */}
+      <div className="absolute inset-0 z-0 opacity-[0.15] dark:opacity-[0.2] pointer-events-none overflow-hidden" style={{ perspective: '1000px' }}>
+         <div className="absolute inset-[-100%] animate-[spin_120s_linear_infinite]" 
+              style={{ 
+                backgroundImage: 'linear-gradient(to right, #64748b 2px, transparent 2px), linear-gradient(to bottom, #64748b 2px, transparent 2px)', 
+                backgroundSize: '4rem 4rem',
+                transform: 'rotateX(60deg) translateZ(-200px)',
+                maskImage: 'radial-gradient(circle at 50% 50%, black 10%, transparent 60%)',
+                WebkitMaskImage: 'radial-gradient(circle at 50% 50%, black 10%, transparent 60%)'
+              }} 
+         />
+      </div>
+
+      {/* 1.5 Floating Stardust Engine */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden mix-blend-screen">
+        {[...Array(40)].map((_, i) => (
+           <motion.div key={i}
+             initial={{ y: "100vh", x: Math.random() * 100 + "vw", opacity: 0 }}
+             animate={{ y: "-10vh", opacity: [0, Math.random(), 0] }}
+             transition={{ duration: 10 + Math.random() * 20, repeat: Infinity, delay: Math.random() * 10 }}
+             className="absolute w-1 h-1 bg-white rounded-full shadow-[0_0_10px_#fff]"
+             style={{ filter: `blur(${Math.random() * 2}px)` }}
+           />
+        ))}
+      </div>
       
-      {/* 2. Frosted Aurora Gradients (Framing the edges, leaving the center clear) */}
-      <div className={`absolute top-[-10%] left-[-10%] w-[50%] h-[70%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${viewMode === 'CUMULATIVE' ? 'bg-blue-500/10 dark:bg-blue-600/20' : 'bg-orange-500/10 dark:bg-orange-600/20'}`} />
-      <div className={`absolute bottom-[-10%] right-[-10%] w-[50%] h-[70%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${viewMode === 'CUMULATIVE' ? 'bg-indigo-500/10 dark:bg-indigo-600/20' : 'bg-fuchsia-500/10 dark:bg-fuchsia-600/20'}`} />
+      {/* 2. Dynamic Aurora Gradients reacting to Hover States */}
+      <div className={`absolute top-[-10%] left-[-10%] w-[60%] h-[80%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'CUMULATIVE' ? 'bg-blue-500/10 dark:bg-blue-600/20' : 'bg-orange-500/10 dark:bg-orange-600/20'}`} />
+      <div className={`absolute bottom-[-10%] right-[-10%] w-[60%] h-[80%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'CUMULATIVE' ? 'bg-indigo-500/10 dark:bg-indigo-600/20' : 'bg-fuchsia-500/10 dark:bg-fuchsia-600/20'}`} />
       
       {/* 3. Deep Contrast Backdrop for the podium to make the Gold/Bronze glows POP absolutely perfectly */}
-      <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-slate-900/5 dark:bg-black/60 blur-[100px] pointer-events-none rounded-[100%] z-0" />
+      <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px] bg-slate-900/10 dark:bg-black/80 blur-[120px] pointer-events-none rounded-[100%] z-0" />
 
       {/* 4. Volumetric Spotlight from above */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-white/60 dark:from-white/5 to-transparent blur-[50px] pointer-events-none z-0" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-white/60 dark:from-white/10 to-transparent blur-[80px] pointer-events-none z-0" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
         <PodiumHeroAnimation rank={activeHeroRank} onComplete={() => setActiveHeroRank(null)} />
@@ -315,16 +331,24 @@ const router = useRouter();
 
         {!loading && leaderboard.length > 0 && (
           <>
-            {/* AAA Podium */}
-            <div className="pt-32 pb-16 flex items-end justify-center gap-4 md:gap-12 relative mt-16">
-              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[100%] max-w-5xl h-16 bg-gradient-to-t from-slate-900/10 dark:from-black/80 to-transparent blur-[10px] pointer-events-none rounded-[100%]" />
+            {/* True 3D Isometric Podium */}
+            <div className="pt-32 pb-16 flex items-end justify-center gap-0 md:gap-4 relative mt-16 [perspective:2000px] [transform-style:preserve-3d]">
+              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[150%] max-w-5xl h-32 bg-gradient-to-t from-slate-900/20 dark:from-black/90 to-transparent blur-[20px] pointer-events-none rounded-[100%] transform rotateX(60deg)" />
               
-              {/* Silver (Rank 2) */}
-              {top3[1] && <PodiumCard student={top3[1]} rank={2} onActivateHero={() => setActiveHeroRank(2)} />}
-              {/* Gold (Rank 1) */}
-              {top3[0] && <PodiumCard student={top3[0]} rank={1} onActivateHero={() => setActiveHeroRank(1)} />}
-              {/* Bronze (Rank 3) */}
-              {top3[2] && <PodiumCard student={top3[2]} rank={3} onActivateHero={() => setActiveHeroRank(3)} />}
+              {/* Silver (Rank 2) - Pushed Back */}
+              <div className="transform translate-z-[-100px] translate-x-[20px] opacity-90 hover:opacity-100 hover:translate-z-[-50px] transition-all duration-500">
+                {top3[1] && <PodiumCard student={top3[1]} rank={2} onActivateHero={() => setActiveHeroRank(2)} />}
+              </div>
+              
+              {/* Gold (Rank 1) - Pushed Forward and Higher */}
+              <div className="transform translate-z-[150px] scale-110 z-30 hover:scale-[1.15] transition-all duration-500">
+                {top3[0] && <PodiumCard student={top3[0]} rank={1} onActivateHero={() => setActiveHeroRank(1)} />}
+              </div>
+              
+              {/* Bronze (Rank 3) - Pushed Back Further */}
+              <div className="transform translate-z-[-150px] translate-x-[-20px] opacity-80 hover:opacity-100 hover:translate-z-[-50px] transition-all duration-500">
+                {top3[2] && <PodiumCard student={top3[2]} rank={3} onActivateHero={() => setActiveHeroRank(3)} />}
+              </div>
             </div>
 
             {/* AAA High-Velocity List for 4-10 */}
@@ -381,10 +405,11 @@ const router = useRouter();
 }
 
 // ============================================================================
-// AAA Parallax Podium Card
+// AAA Parallax Podium Card with Glass Foil & Gyroscope Hover
 // ============================================================================
 function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: number, onActivateHero?: () => void }) {
   const [physics, setPhysics] = useState({ rx: 0, ry: 0, px: 0, py: 0, opacity: 0 });
+  const [isHovered, setIsHovered] = useState(false);
   const cardRef = React.useRef<HTMLDivElement>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -404,7 +429,9 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
     setPhysics({ rx, ry, px, py, opacity: 1 });
   };
 
+  const handleMouseEnter = () => setIsHovered(true);
   const handleMouseLeave = () => {
+    setIsHovered(false);
     setPhysics({ rx: 0, ry: 0, px: 0, py: 0, opacity: 0 });
   };
 
@@ -418,85 +445,54 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
     }
   };
 
-  // Configure colors and geometries based on rank
   const config = rank === 1 
     ? {
-        color: "yellow",
-        shadow: "rgba(250,204,21,0.6)",
-        gradient: "from-yellow-300 to-yellow-600",
-        pedestalGradient: "from-yellow-500 via-yellow-400 to-yellow-200",
-        label: "1st",
-        height: "h-[300px]",
-        avatarSize: "w-28 h-28 md:w-36 md:h-36",
-        translateY: "translate-y-0",
-        shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", // Trapezoid Pedestal
-        bloom: "rgba(250,204,21,0.6)",
-        delay: 0.6
+        color: "yellow", shadow: "rgba(250,204,21,0.6)", gradient: "from-yellow-300 to-yellow-600",
+        pedestalGradient: "from-yellow-500 via-yellow-400 to-yellow-200", label: "1st",
+        height: "h-[320px]", avatarSize: "w-32 h-32 md:w-40 md:h-40", translateY: "translate-y-0",
+        shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", bloom: "rgba(250,204,21,0.8)", delay: 0.6
       }
     : rank === 2 
     ? {
-        color: "slate",
-        shadow: "rgba(148,163,184,0.5)",
-        gradient: "from-slate-200 to-slate-400",
-        pedestalGradient: "from-slate-300 to-slate-100",
-        label: "2nd",
-        height: "h-[220px]",
-        avatarSize: "w-20 h-20 md:w-28 md:h-28",
-        translateY: "translate-y-12",
-        shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)",
-        bloom: "rgba(148,163,184,0.4)",
-        delay: 0.5
+        color: "slate", shadow: "rgba(148,163,184,0.5)", gradient: "from-slate-200 to-slate-400",
+        pedestalGradient: "from-slate-300 to-slate-100", label: "2nd",
+        height: "h-[240px]", avatarSize: "w-24 h-24 md:w-32 md:h-32", translateY: "translate-y-8",
+        shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)", bloom: "rgba(148,163,184,0.6)", delay: 0.5
       }
     : {
-        color: "orange",
-        shadow: "rgba(249,115,22,0.5)",
-        gradient: "from-orange-300 to-orange-500",
-        pedestalGradient: "from-orange-400 to-orange-200",
-        label: "3rd",
-        height: "h-[140px]",
-        avatarSize: "w-16 h-16 md:w-24 md:h-24",
-        translateY: "translate-y-24",
-        shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)",
-        bloom: "rgba(249,115,22,0.4)",
-        delay: 0.4
+        color: "orange", shadow: "rgba(249,115,22,0.5)", gradient: "from-orange-300 to-orange-500",
+        pedestalGradient: "from-orange-400 to-orange-200", label: "3rd",
+        height: "h-[160px]", avatarSize: "w-20 h-20 md:w-28 md:h-28", translateY: "translate-y-16",
+        shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)", bloom: "rgba(249,115,22,0.6)", delay: 0.4
       };
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 100 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 200, damping: 20, delay: config.delay }}
-      className={`flex flex-col items-center relative z-10 [perspective:1000px] ${config.translateY}`}
+      initial={{ opacity: 0, y: 150, rotateX: 20 }}
+      animate={{ opacity: 1, y: 0, rotateX: 0 }}
+      transition={{ type: "spring", stiffness: 150, damping: 20, delay: config.delay }}
+      className={`flex flex-col items-center relative z-10 [perspective:1200px] ${config.translateY}`}
       style={{ zIndex: rank === 1 ? 20 : 10 }}
     >
       <div 
         ref={cardRef}
+        onMouseEnter={handleMouseEnter}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handlePodiumClick}
-        className="relative mb-6 cursor-pointer transform-gpu transition-transform duration-200 ease-out group"
-        style={{
-          transform: `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg) scale(${physics.opacity > 0 ? 1.05 : 1})`,
-        }}
+        className="relative mb-8 cursor-pointer transform-gpu transition-transform duration-300 ease-out group"
+        style={{ transform: `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg) scale(${isHovered ? 1.08 : 1})` }}
       >
         {/* Massive Hover Bloom */}
         <div 
-          className="absolute inset-0 rounded-full blur-[25px] transition-all duration-300 z-0 pointer-events-none"
-          style={{ 
-            backgroundColor: config.bloom,
-            opacity: physics.opacity > 0 ? 1 : 0.4,
-            transform: physics.opacity > 0 ? 'scale(1.5)' : 'scale(1.2)'
-          }}
+          className="absolute inset-0 rounded-full blur-[30px] transition-all duration-500 z-0 pointer-events-none"
+          style={{ backgroundColor: config.bloom, opacity: isHovered ? 1 : 0.2, transform: isHovered ? 'scale(1.8)' : 'scale(1.2)' }}
         />
 
         {/* 1st Place Crown */}
         {rank === 1 && (
-          <div 
-             className="absolute -top-12 left-1/2 drop-shadow-[0_0_20px_rgba(250,204,21,1)] z-20 transition-transform duration-500 pointer-events-none"
-             style={{ 
-               transform: `translateX(-50%) translateY(${Math.sin(Date.now() / 500) * 5}px) scale(${physics.opacity > 0 ? 1.2 : 1})`,
-             }}
-          >
+          <div className="absolute -top-12 left-1/2 drop-shadow-[0_0_30px_rgba(250,204,21,1)] z-30 pointer-events-none"
+               style={{ transform: `translateX(-50%) translateY(${Math.sin(Date.now() / 300) * 8}px) scale(${isHovered ? 1.3 : 1})` }}>
              <CrownIcon />
           </div>
         )}
@@ -504,59 +500,64 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         {/* 1st Place Apex Aura */}
         {rank === 1 && (
           <div className="absolute inset-0 z-0 pointer-events-none scale-[2.5] opacity-60 animate-[spin_20s_linear_infinite]">
-            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-xl text-yellow-500/30 fill-current">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-2xl text-yellow-500/50 fill-current">
               <path d="M100 0 L105 45 L150 20 L130 60 L185 65 L145 90 L195 125 L145 130 L165 175 L120 150 L110 195 L90 155 L45 185 L65 145 L10 140 L50 115 L0 80 L50 75 L30 30 L75 55 Z" />
             </svg>
           </div>
         )}
 
-        {/* Parallax Avatar Ring */}
-        <div 
-          className={`relative ${config.avatarSize} p-[4px] rounded-full bg-gradient-to-b ${config.gradient} shadow-[0_0_30px_${config.shadow}] z-10 transition-transform duration-200 ease-out`}
-          style={{ transform: physics.opacity > 0 ? `translateZ(40px) translateX(${physics.px}px) translateY(${physics.py}px)` : 'translateZ(0)' }}
-        >
-          <div className={`w-full h-full rounded-full border-[3px] border-white dark:border-slate-900 overflow-hidden bg-${config.color}-50 relative`}>
+        {/* Gyroscopic Avatar Rings */}
+        <div className={`relative ${config.avatarSize} z-10 transition-transform duration-300 ease-out`}
+             style={{ transform: isHovered ? `translateZ(60px) translateX(${physics.px}px) translateY(${physics.py}px)` : 'translateZ(0)' }}>
+          
+          {/* Inner Avatar */}
+          <div className={`w-full h-full rounded-full border-[4px] border-white dark:border-slate-900 overflow-hidden bg-${config.color}-50 relative z-20 shadow-[0_0_40px_${config.shadow}]`}>
              {student.photoUrl ? (
                 <img src={student.photoUrl} alt="avatar" className="w-full h-full object-cover" />
              ) : (
-                <div className={`w-full h-full flex items-center justify-center font-black text-2xl text-${config.color}-600 bg-${config.color}-100`}>
+                <div className={`w-full h-full flex items-center justify-center font-black text-3xl text-${config.color}-600 bg-${config.color}-100`}>
                    {getInitials(student.name)}
                 </div>
              )}
           </div>
+
+          {/* Gyroscopic Rings (Visible on Hover) */}
+          <div className={`absolute inset-[-15%] rounded-full border-2 border-dashed border-${config.color}-400/50 z-10 transition-all duration-700 ${isHovered ? 'opacity-100 animate-[spin_4s_linear_infinite]' : 'opacity-0 scale-50'}`} style={{ transformStyle: 'preserve-3d', transform: 'rotateX(45deg)' }} />
+          <div className={`absolute inset-[-25%] rounded-full border-2 border-solid border-${config.color}-300/30 z-10 transition-all duration-1000 ${isHovered ? 'opacity-100 animate-[spin_6s_linear_infinite_reverse]' : 'opacity-0 scale-50'}`} style={{ transformStyle: 'preserve-3d', transform: 'rotateY(45deg)' }} />
         </div>
 
         {/* Rank Label */}
-        <div 
-          className={`absolute -bottom-3 -right-2 bg-gradient-to-br ${config.gradient} text-white text-[10px] md:text-xs font-black px-2.5 md:px-3 py-1 md:py-1.5 rounded-full border-2 border-white shadow-lg uppercase tracking-wider z-20 transition-transform duration-200`}
-          style={{ transform: physics.opacity > 0 ? 'translateZ(60px)' : 'translateZ(0)' }}
-        >
+        <div className={`absolute -bottom-4 -right-2 bg-gradient-to-br ${config.gradient} text-white text-[12px] md:text-sm font-black px-3 py-1.5 rounded-full border-2 border-white shadow-[0_10px_20px_rgba(0,0,0,0.3)] uppercase tracking-widest z-30 transition-transform duration-300`}
+             style={{ transform: isHovered ? 'translateZ(80px) scale(1.1)' : 'translateZ(0)' }}>
            {config.label}
         </div>
       </div>
 
-      <div className="text-center mb-5 relative z-20 drop-shadow-md">
-        <p className={`font-black text-sm md:text-lg text-slate-800 dark:text-white max-w-[120px] md:max-w-[150px] leading-tight break-words ${rank === 1 ? 'drop-shadow-[0_0_10px_rgba(255,255,255,1)]' : ''}`}>{student.name}</p>
-        <p className={`text-sm md:text-base font-black text-${config.color}-500 mt-1 drop-shadow-sm`}>{Math.round(student.percentage)}%</p>
+      <div className="text-center mb-6 relative z-30 drop-shadow-lg">
+        <p className={`font-black text-base md:text-xl text-slate-800 dark:text-white max-w-[140px] md:max-w-[180px] leading-tight break-words ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(255,255,255,1)]' : ''}`}>{student.name}</p>
+        <p className={`text-base md:text-lg font-black text-${config.color}-500 mt-1 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
       </div>
 
-      {/* AAA Geometric Pedestal */}
+      {/* AAA Geometric Pedestal with Glass Foil Glare */}
       <motion.div 
         initial={{ height: 0, opacity: 0 }}
         animate={{ height: "100%", opacity: 1 }}
         transition={{ type: "spring", stiffness: 100, damping: 15, delay: config.delay }}
-        className={`w-32 md:w-44 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-6 md:pb-8 border-b-[6px] border-white/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.4)] cursor-pointer`}
-        style={{ 
-           clipPath: config.shape,
-           filter: `drop-shadow(0 -10px 30px ${config.shadow})` 
-        }}
+        className={`w-36 md:w-52 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-8 border-b-[8px] border-white/40 shadow-[inset_0_0_30px_rgba(255,255,255,0.5)] cursor-pointer group`}
+        style={{ clipPath: config.shape, filter: `drop-shadow(0 -10px 40px ${config.shadow})` }}
         onClick={handlePodiumClick}
       >
-        {/* Animated Internal Energy */}
-        <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-500" style={{ opacity: physics.opacity > 0 ? 0.4 : 0 }} />
-        <div className="absolute bottom-0 left-0 w-full h-[200%] bg-gradient-to-t from-transparent via-white/30 to-transparent translate-y-[100%] transition-transform duration-1000" style={{ transform: physics.opacity > 0 ? 'translateY(-100%)' : 'translateY(100%)' }} />
+        {/* Animated Foil Glare (Sweeps on Hover) */}
+        <div className="absolute top-0 -left-[100%] w-1/2 h-[200%] bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-[-45deg] transition-all duration-700 ease-in-out group-hover:left-[200%] z-10" />
         
-        <span className={`text-7xl md:text-8xl font-black text-${config.color}-600/30 drop-shadow-sm transition-transform duration-300`} style={{ transform: physics.opacity > 0 ? 'scale(1.1) translateY(-10px)' : 'scale(1)' }}>{rank}</span>
+        {/* Ambient Pedestal Energy */}
+        <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-500 z-0" style={{ opacity: isHovered ? 0.5 : 0 }} />
+        
+        {/* Rank Number Levitation */}
+        <span className={`text-8xl md:text-9xl font-black text-${config.color}-700/20 drop-shadow-md transition-all duration-500 z-20`} 
+              style={{ transform: isHovered ? 'scale(1.2) translateY(-20px)' : 'scale(1)', textShadow: isHovered ? `0 0 30px ${config.shadow}` : 'none' }}>
+          {rank}
+        </span>
       </motion.div>
     </motion.div>
   );
@@ -584,10 +585,11 @@ function TableRow({ row: r, delay }: { row: any; delay: number }) {
       transition={{ delay, duration: 0.4, ease: "easeOut" }}
       className={`group transition-all duration-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-2xl hover:shadow-indigo-500/10 hover:scale-[1.01] hover:z-20 relative cursor-default overflow-hidden ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}
     >
-      <td className="px-6 py-5 font-black text-slate-400 group-hover:text-indigo-500 transition-colors text-base group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">
-        {/* AAA Sweep Effect */}
+      <td className="px-6 py-5 font-black text-slate-400 group-hover:text-indigo-500 transition-colors text-base group-hover:drop-shadow-[0_0_12px_rgba(99,102,241,0.8)]">
+        {/* AAA Foil Sweep & Click Ripple Effect Container */}
         <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0">
-          <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent skew-x-[-30deg] group-hover:animate-[shimmer_1s_ease-out]" />
+          <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent skew-x-[-45deg] transition-all duration-700 ease-in-out group-hover:left-[200%]" />
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 group-active:bg-indigo-500/30 transition-all duration-300" />
         </div>
         <span className="relative z-10">#{r.rank}</span>
       </td>
