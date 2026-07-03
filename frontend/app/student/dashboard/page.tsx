@@ -4,7 +4,7 @@ import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
-import { apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { getStudentAssignments, getStudentAssessments } from "@/lib/api/student";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -12,128 +12,25 @@ import {
   BookOpenCheck,
   GraduationCap,
   ShieldCheck,
-  Sparkles,
-  Target,
   Trophy,
   Laptop,
-  Zap,
-  Milestone,
-  PlayCircle,
-  Eye,
-  ArrowRight,
   Award,
+  Swords,
+  Coins,
+  Cpu,
+  RadioTower,
+  Lock,
+  ChevronRight
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import React, { useRef } from "react";
-import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate } from "framer-motion";
+import React, { useRef, useState, useEffect } from "react";
+import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate, AnimatePresence } from "framer-motion";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, Sparkles as DreiSparkles, MeshDistortMaterial } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
-
-type ProgressionTone = "success" | "ready" | "focus" | "steady";
-
-function NormalizeStatus(Value: unknown) {
-  return String(Value ?? "").toUpperCase();
-}
-
-function MessageIndex(Seed: unknown, Count: number) {
-  if (Count <= 1) return 0;
-  const Text = String(Seed || "MathPath Journey");
-  const Total = Array.from(Text).reduce((Sum, Character) => Sum + Character.charCodeAt(0), 0);
-  return Total % Count;
-}
-
-function PickMessage(Seed: unknown, Messages: string[]) {
-  return Messages[MessageIndex(Seed, Messages.length)] || Messages[0];
-}
-
-function HasStartedPromotedLevel(Row: Record<string, any>, Assignments: Array<Record<string, any>>) {
-  if (Row?.hasStartedPromotedLevel) return true;
-  const ToLevelCode = NormalizeStatus(Row?.toLevelCode);
-  if (!ToLevelCode) return false;
-  return Assignments.some((Assignment) => {
-    const SameLevel = NormalizeStatus(Assignment?.levelCode) === ToLevelCode;
-    const AssignmentStatus = NormalizeStatus(Assignment?.status);
-    return SameLevel && (Boolean(Assignment?.attemptId) || !["", "PENDING", "NOT_STARTED"].includes(AssignmentStatus));
-  });
-}
-
-function BuildStudentProgressionMessage(Assessments: Array<Record<string, any>>, Assignments: Array<Record<string, any>>) {
-  const Promoted = Assessments.find((Row) => (Row?.isPromoted || NormalizeStatus(Row?.progressionStatus) === "PROMOTED") && !HasStartedPromotedLevel(Row, Assignments));
-  if (Promoted) {
-    return {
-      Tone: "success" as ProgressionTone,
-      Label: "Promoted",
-      Title: "Your Next Level Is Ready",
-      Message: PickMessage(Promoted?.attemptId || Promoted?.assignmentId || Promoted?.assessmentTitle, [
-        "Amazing work! Your new level is ready. Keep building speed, accuracy, and confidence one step at a time.",
-        "You have moved forward in your MathPath journey. Stay curious, stay focused, and enjoy the next challenge.",
-        "Wonderful progress! Your next learning path is open, and your steady practice has helped you reach this milestone.",
-      ]),
-      ActionLabel: "Open Progress",
-      ActionRoute: "/student/results",
-    };
-  }
-
-  const Ready = Assessments.find((Row) => Row?.isReadyForNextLevel || NormalizeStatus(Row?.progressionStatus) === "READY_FOR_NEXT_LEVEL");
-  if (Ready) {
-    return {
-      Tone: "ready" as ProgressionTone,
-      Label: "Ready For Next Level",
-      Title: "You Are Ready For The Next Level",
-      Message: PickMessage(Ready?.attemptId || Ready?.assignmentId || Ready?.assessmentTitle, [
-        "Fantastic progress! You cleared your level assessment, and your next learning milestone is now within reach.",
-        "Great work completing this level assessment. Your teacher will guide the next step so your journey continues smoothly.",
-        "You have shown strong focus and steady effort. Keep your confidence high as you prepare for the next level.",
-      ]),
-      ActionLabel: "Review Assessments",
-      ActionRoute: "/student/assessments",
-    };
-  }
-
-  const NeedsReattempt = Assessments.find((Row) => {
-    const Status = NormalizeStatus(Row?.status);
-    return Status === "REATTEMPT_AVAILABLE" || Status === "NEEDS_RE_ATTEMPT" || Status === "NEEDS_REATTEMPT";
-  });
-  if (NeedsReattempt) {
-    return {
-      Tone: "focus" as ProgressionTone,
-      Label: "Focused Practice",
-      Title: "You Are Getting Closer",
-      Message: PickMessage(NeedsReattempt?.attemptId || NeedsReattempt?.assignmentId || NeedsReattempt?.assessmentTitle, [
-        "Every mistake is a clue. Review calmly, practise again, and your next attempt can be stronger.",
-        "You are still building this skill. Step-by-step practice will help your confidence and accuracy grow.",
-        "Stay steady. A little focused revision will help you move closer to clearing this level.",
-      ]),
-      ActionLabel: "Review Assessments",
-      ActionRoute: "/student/assessments",
-    };
-  }
-
-  return {
-    Tone: "steady" as ProgressionTone,
-    Label: "Learning Journey",
-    Title: "Keep Building Your Skills",
-    Message: PickMessage(Assessments[0]?.assessmentTitle || Assessments.length, [
-      "Complete your assigned practice and assessments step by step. Every focused session brings you closer to your next milestone.",
-      "Keep learning with patience and focus. Small daily wins will build strong number confidence.",
-      "Your MathPath journey grows with every attempt. Stay curious and keep moving forward.",
-    ]),
-    ActionLabel: "Continue Learning",
-    ActionRoute: Assessments.length > 0 ? "/student/assessments" : "/student/practice",
-  };
-}
-
-const QuickLinks = [
-  { Icon: <BookOpenCheck size={18} />, Label: "Practice", Route: "/student/practice" },
-  { Icon: <GraduationCap size={18} />, Label: "Assessments", Route: "/student/assessments" },
-  { Icon: <ShieldCheck size={18} />, Label: "Assessment Readiness", Route: "/student/assessment-readiness" },
-  { Icon: <BarChart3 size={18} />, Label: "Progress", Route: "/student/results" },
-  { Icon: <Trophy size={18} />, Label: "Mock Leaderboard", Route: "/student/competition/leaderboard" },
-  { Icon: <Award size={18} />, Label: "Trophy Room", Route: "/student/achievements" },
-];
+import { GAMER_MOTIVATIONS, POP_ART_STYLES } from "./quotes";
 
 // --- R3F HERO ENVIRONMENT ---
 function LiquidCore() {
@@ -173,10 +70,8 @@ function HeroEnvironment() {
       
       <LiquidCore />
       
-      {/* Magical dust matching the theme */}
       <DreiSparkles count={150} scale={20} size={4} speed={0.4} opacity={0.6} color="#fb7185" />
 
-      {/* Subtle bloom so it doesn't wash out the underlying CSS gradient */}
       <EffectComposer multisampling={4}>
          <Bloom luminanceThreshold={0.5} mipmapBlur intensity={1.2} />
       </EffectComposer>
@@ -185,22 +80,18 @@ function HeroEnvironment() {
 }
 
 // --- 3D FRAMER MOTION TILT CARD ---
-// We wrap native CSS classes with this physics engine.
 function TiltCard({ children, className, onClick }: { children: ReactNode, className?: string, onClick?: () => void }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
 
-  // Smooth, weighted spring for premium feel
   const springConfig = { damping: 25, stiffness: 120, mass: 1 };
   const mouseXSpring = useSpring(x, springConfig);
   const mouseYSpring = useSpring(y, springConfig);
 
-  // Subtle 3D tilt
   const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], [6, -6]);
   const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], [-6, 6]);
 
-  // Dynamic light glare that follows the mouse
   const glareX = useTransform(mouseXSpring, [-0.5, 0.5], [0, 100]);
   const glareY = useTransform(mouseYSpring, [-0.5, 0.5], [0, 100]);
   const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.15) 0%, transparent 60%)`;
@@ -228,12 +119,10 @@ function TiltCard({ children, className, onClick }: { children: ReactNode, class
       style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
       className={`relative cursor-pointer transition-all duration-300 transform-gpu z-10 hover:z-20 ${className}`}
     >
-      {/* Glare Overlay */}
       <motion.div 
         className="absolute inset-0 z-50 pointer-events-none rounded-[inherit] mix-blend-overlay transition-opacity duration-300 opacity-0 group-hover:opacity-100"
         style={{ background: glareBackground }}
       />
-      {/* Elevate children off the card base for parallax */}
       <div style={{ transform: "translateZ(20px)", transformStyle: "preserve-3d" }} className="h-full w-full">
          {children}
       </div>
@@ -241,9 +130,23 @@ function TiltCard({ children, className, onClick }: { children: ReactNode, class
   );
 }
 
+// --- CONSTANTS ---
+const QuickLinks = [
+  { Icon: <BookOpenCheck size={18} />, Label: "Practice", Route: "/student/practice" },
+  { Icon: <GraduationCap size={18} />, Label: "Assessments", Route: "/student/assessments" },
+  { Icon: <ShieldCheck size={18} />, Label: "Assessment Readiness", Route: "/student/assessment-readiness" },
+  { Icon: <BarChart3 size={18} />, Label: "Progress", Route: "/student/results" },
+  { Icon: <Trophy size={18} />, Label: "Mock Leaderboard", Route: "/student/competition/leaderboard" },
+  { Icon: <Award size={18} />, Label: "Trophy Room", Route: "/student/achievements" },
+];
+
 export default function StudentDashboardPage() {
   const Ready = useProtectedPage(["STUDENT"]);
   const Router = useRouter();
+  
+  // Game State Hooks
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  const [intelIndex, setIntelIndex] = useState(0);
 
   const AssignmentQuery = useQuery({
     queryKey: ["student-assignments"],
@@ -257,27 +160,57 @@ export default function StudentDashboardPage() {
     enabled: Ready,
   });
 
+  // Fetch Badges for Intel Slider
+  const AchievementQuery = useQuery({
+    queryKey: ["student-achievements"],
+    queryFn: async () => {
+      const res = await api.get(`/student/achievements`);
+      return res.data.achievements || [];
+    },
+    enabled: Ready,
+  });
+
+  // Intel Slider Timer
+  useEffect(() => {
+    const intelTimer = setInterval(() => {
+      setIntelIndex((prev) => (prev + 1) % 3); // 3 slides total
+    }, 6000);
+    return () => clearInterval(intelTimer);
+  }, []);
+
+  // Quotes Timer
+  useEffect(() => {
+    const quoteTimer = setInterval(() => {
+      setQuoteIndex((prev) => (prev + 1) % GAMER_MOTIVATIONS.length);
+    }, 8000);
+    return () => clearInterval(quoteTimer);
+  }, []);
+
   if (!Ready) return null;
 
   const Assignments = AssignmentQuery.data ?? [];
   const Assessments = AssessmentQuery.data ?? [];
-  const ProgressionMessage = BuildStudentProgressionMessage(Assessments as Array<Record<string, any>>, Assignments as Array<Record<string, any>>);
-  const ActiveAssignments = Assignments.filter(
-    (Assignment) =>
-      Assignment.status === "NOT_STARTED" ||
-      Assignment.status === "IN_PROGRESS" ||
-      Assignment.status === "REATTEMPT_AVAILABLE"
-  );
+  const Badges = AchievementQuery.data ?? [];
+
+  // Calculate Mock XP System
+  const completedAssignments = Assignments.filter((a: any) => a.status === 'COMPLETED').length;
+  const completedAssessments = Assessments.filter((a: any) => a.status === 'COMPLETED' || a.status === 'PASSED').length;
+  const totalXP = (completedAssignments * 50) + (completedAssessments * 150) + (Badges.length * 200);
+  const currentLevel = Math.floor(totalXP / 1000) + 1;
+  const xpIntoLevel = totalXP % 1000;
+  const mathCoins = Math.floor(totalXP / 10);
+
+  // Intel Slides Data
+  const recentBadge = Badges.length > 0 ? Badges[0] : null;
 
   return (
     <AppShell>
-      {/* We restore the exact native math-dashboard-page wrappers to perfectly hook into globals.css theme variables */}
       <main className="math-dashboard-page math-dashboard-student w-full space-y-5">
         
-        {/* HERO SECTION (Row 1 of the Bento Grid) */}
-        <section className="math-dashboard-hero math-dashboard-hero-student relative overflow-hidden flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between !p-8 md:!p-10 rounded-[2rem] border border-black/5 dark:border-white/10 shadow-2xl">
+        {/* ROW 1: HERO & HUD */}
+        <section className="math-dashboard-hero math-dashboard-hero-student relative overflow-hidden flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between !p-8 md:!p-10 rounded-[2rem] border border-black/5 dark:border-white/10 shadow-2xl">
           
-          {/* R3F Canvas - Absolute positioned behind the text, with alpha=true so the native gradient shows through! */}
+          {/* R3F Canvas */}
           <div className="absolute inset-0 z-0 pointer-events-none opacity-50 dark:opacity-70 mix-blend-screen dark:mix-blend-lighten">
              <Canvas camera={{ position: [0, 0, 10], fov: 45 }} gl={{ antialias: true, alpha: true }}>
                 <HeroEnvironment />
@@ -286,132 +219,193 @@ export default function StudentDashboardPage() {
 
           <div className="relative z-10 min-w-0">
             <div className="math-block-header inline-flex items-center gap-2 mb-3 bg-white/50 dark:bg-black/20 backdrop-blur-md px-4 py-1.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm">
-              <Laptop size={14} className="text-[var(--mp-role-primary)]" />
-              <span className="font-bold tracking-widest text-[var(--mp-role-primary)]">Student Workspace</span>
+              <Swords size={14} className="text-[var(--mp-role-primary)]" />
+              <span className="font-bold tracking-widest text-[var(--mp-role-primary)] uppercase text-xs">Apex Lobby</span>
             </div>
-            <h1 className="flex items-center gap-3 text-4xl sm:text-5xl lg:text-[3rem] font-black tracking-[-0.04em] text-slate-950 dark:text-white drop-shadow-sm">
-              My Learning Dashboard
+            <h1 className="text-4xl sm:text-5xl lg:text-[3rem] font-black tracking-[-0.04em] text-slate-950 dark:text-white drop-shadow-sm">
+              Command Center
             </h1>
-            <p className="math-subtitle mt-3 max-w-2xl text-lg font-medium opacity-90">
-              Practice, assessments, and progress in one vibrant learning space.
+            <p className="math-subtitle mt-3 max-w-xl text-lg font-medium opacity-90">
+              Welcome back, Player. Your XP and intel feeds are live.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => Router.push(ActiveAssignments.length > 0 ? "/student/practice" : ProgressionMessage.ActionRoute)}
-                className="math-dashboard-primary-action px-8 py-3.5 rounded-xl font-bold tracking-wide transition-transform hover:scale-105 active:scale-95 shadow-xl"
-              >
-                <Sparkles size={16} className="inline-block mr-2 -mt-0.5" />
-                {ActiveAssignments.length > 0 ? "Continue Practice" : ProgressionMessage.ActionLabel}
-              </button>
-              <button
-                type="button"
-                onClick={() => Router.push("/student/results")}
-                className="math-dashboard-secondary-action px-8 py-3.5 rounded-xl font-bold tracking-wide transition-transform hover:scale-105 active:scale-95 shadow-sm"
-              >
-                <BarChart3 size={16} className="inline-block mr-2 -mt-0.5" />
-                Open Progress
-              </button>
-            </div>
           </div>
           
-          <div className="math-dashboard-readable-pulse math-dashboard-readable-pulse-student relative z-10 !rounded-2xl border border-white/20 dark:border-white/10 backdrop-blur-xl">
-            <p className="math-dashboard-pulse-eyebrow font-bold tracking-widest mb-1 text-xs uppercase">Learning Pulse</p>
-            <h2 className="text-2xl font-black mb-1 drop-shadow-sm text-white">Next Step</h2>
-            <p className="font-medium opacity-90 leading-relaxed text-sm text-white/90">
-              {ActiveAssignments.length > 0
-                ? "Continue your assigned DPS from Practice."
-                : "Review progress or readiness for your next step."}
-            </p>
+          {/* RPG HUD (Level, XP, Currency) */}
+          <div className="relative z-10 flex flex-col sm:flex-row gap-4 items-center">
+             
+             {/* Level & XP Bar */}
+             <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-black/10 dark:border-white/10 p-4 rounded-2xl shadow-xl min-w-[200px]">
+                <div className="flex justify-between items-center mb-2">
+                   <span className="font-black text-slate-900 dark:text-white uppercase tracking-widest text-xs">Level {currentLevel}</span>
+                   <span className="font-bold text-[var(--mp-role-primary)] text-xs">{xpIntoLevel} / 1000 XP</span>
+                </div>
+                <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                   <motion.div 
+                     initial={{ width: 0 }}
+                     animate={{ width: `${(xpIntoLevel / 1000) * 100}%` }}
+                     transition={{ duration: 1.5, ease: "easeOut" }}
+                     className="h-full bg-gradient-to-r from-[var(--mp-role-primary)] to-[var(--mp-role-accent)] shadow-[0_0_10px_var(--mp-role-primary)]"
+                   />
+                </div>
+             </div>
+
+             {/* Currency / Shards (Seed for Marketplace) */}
+             <div className="flex items-center gap-3 bg-[var(--mp-role-soft)] backdrop-blur-xl border border-[var(--mp-role-primary)]/30 p-4 rounded-2xl shadow-xl">
+                <div className="p-2 bg-[var(--mp-role-primary)] text-white rounded-xl shadow-[0_0_15px_var(--mp-role-primary)]">
+                   <Coins size={20} />
+                </div>
+                <div>
+                   <p className="text-[10px] font-black uppercase tracking-widest text-[var(--mp-role-primary)]">Math Coins</p>
+                   <p className="text-xl font-black text-slate-900 dark:text-white">{mathCoins.toLocaleString()}</p>
+                </div>
+             </div>
+
           </div>
         </section>
 
-        {AssignmentQuery.isLoading || AssessmentQuery.isLoading ? <LoadingState label="Loading your universe..." /> : null}
+        {AssignmentQuery.isLoading || AssessmentQuery.isLoading ? <LoadingState label="Syncing Lobby Data..." /> : null}
         {AssignmentQuery.error ? <ErrorState message={apiErrorMessage(AssignmentQuery.error)} /> : null}
         {AssessmentQuery.error ? <ErrorState message={apiErrorMessage(AssessmentQuery.error)} /> : null}
 
         {!AssignmentQuery.isLoading && !AssessmentQuery.isLoading && !AssignmentQuery.error && !AssessmentQuery.error ? (
           
-          /* BENTO GRID LAYOUT (Row 2) - No Scrolling Needed */
+          /* ROW 2: THE BENTO GRID */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
             
-            {/* LEFT COLUMN: Journey & Priority (Spans 8 cols) */}
+            {/* LEFT COLUMN: Intel Slider & Transmission Block (Spans 8 cols) */}
             <div className="lg:col-span-8 flex flex-col gap-5 h-full">
                
-               {/* 1. Journey Card (Wrapped in TiltCard for physics, but retains native CSS) */}
-               <TiltCard onClick={() => Router.push(ProgressionMessage.ActionRoute)} className="group w-full h-full">
-                 <div className="math-dashboard-journey-card flex flex-col h-full justify-center gap-4 sm:flex-row sm:items-center sm:justify-between !rounded-3xl border border-black/5 dark:border-white/5 shadow-xl transition-colors hover:border-[var(--mp-role-primary)]/30">
-                   <div className="flex min-w-0 gap-5 items-center">
-                     <span className={`inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.25rem] border shadow-inner bg-white dark:bg-black/20 ${
-                        ProgressionMessage.Tone === 'success' ? 'border-emerald-200 text-emerald-600 dark:border-emerald-500/30 dark:text-emerald-400' :
-                        ProgressionMessage.Tone === 'ready' ? 'border-violet-200 text-violet-600 dark:border-violet-500/30 dark:text-violet-400' :
-                        ProgressionMessage.Tone === 'focus' ? 'border-amber-200 text-amber-600 dark:border-amber-500/30 dark:text-amber-400' :
-                        'border-blue-200 text-blue-600 dark:border-blue-500/30 dark:text-blue-400'
-                     }`}>
-                       <Trophy size={28} className="drop-shadow-sm" />
-                     </span>
-                     <div className="min-w-0">
-                       <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                         <div className="math-block-header !mb-0 !bg-transparent !p-0">
-                           <Milestone size={14} /> Next Level Journey
-                         </div>
-                         <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest shadow-sm ${
-                            ProgressionMessage.Tone === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300' :
-                            ProgressionMessage.Tone === 'ready' ? 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-300' :
-                            ProgressionMessage.Tone === 'focus' ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300' :
-                            'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300'
-                         }`}>
-                           {ProgressionMessage.Label}
-                         </span>
-                       </div>
-                       <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-950 dark:text-white drop-shadow-sm">{ProgressionMessage.Title}</h2>
-                       <p className="math-subtitle !mt-1 max-w-lg">{ProgressionMessage.Message}</p>
-                     </div>
+               {/* 1. The Intel Carousel (Replaces Journey Card) */}
+               <TiltCard className="group w-full h-[220px]">
+                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-3xl border border-black/5 dark:border-white/5 shadow-xl bg-gradient-to-br from-slate-900 to-slate-950 text-white">
+                   {/* Tech Grid Background */}
+                   <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
+                   <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20" />
+                   
+                   {/* Carousel Header */}
+                   <div className="absolute top-5 left-6 flex items-center gap-2 z-20">
+                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Live Intel Feed</span>
                    </div>
-                   <div className="shrink-0">
-                     <button type="button" className="math-dashboard-primary-action px-6 py-3 rounded-xl font-bold transition-transform group-hover:scale-105 shadow-lg">
-                       <Sparkles size={15} className="inline-block mr-1.5 -mt-0.5" />
-                       {ProgressionMessage.ActionLabel}
-                     </button>
+
+                   <AnimatePresence mode="wait">
+                      {intelIndex === 0 && (
+                         <motion.div 
+                           key="slide-1" 
+                           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }}
+                           className="relative z-10 px-6 sm:px-10 flex items-center gap-6"
+                         >
+                            <div className="w-24 h-24 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-700 p-[3px] shadow-[0_0_30px_rgba(99,102,241,0.5)]">
+                               <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
+                                  {recentBadge ? <Award size={32} className="text-indigo-400" /> : <ShieldCheck size={32} className="text-indigo-400" />}
+                               </div>
+                            </div>
+                            <div>
+                               <h2 className="text-xl sm:text-3xl font-black italic tracking-tight mb-2">
+                                  {recentBadge ? "LATEST UNLOCK" : "NO RECENT UNLOCKS"}
+                               </h2>
+                               <p className="text-slate-400 font-medium">
+                                  {recentBadge ? `You acquired the ${recentBadge.title} badge. Check the Trophy Room.` : "Keep grinding practice sheets to unlock your first achievement."}
+                               </p>
+                               <button onClick={() => Router.push("/student/achievements")} className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-400 hover:text-indigo-300">
+                                  View Trophy Room <ChevronRight size={14} />
+                               </button>
+                            </div>
+                         </motion.div>
+                      )}
+                      
+                      {intelIndex === 1 && (
+                         <motion.div 
+                           key="slide-2" 
+                           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }}
+                           className="relative z-10 px-6 sm:px-10 flex items-center gap-6"
+                         >
+                            <div className="w-24 h-24 shrink-0 rounded-2xl border-2 border-dashed border-slate-600 bg-slate-800/50 flex items-center justify-center">
+                               <Lock size={32} className="text-slate-500" />
+                            </div>
+                            <div>
+                               <h2 className="text-xl sm:text-3xl font-black italic tracking-tight text-amber-500 mb-2 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]">
+                                  NEXT OBJECTIVE
+                               </h2>
+                               <p className="text-slate-400 font-medium">
+                                  Clear your pending assessments to unlock the <span className="text-white font-bold">Unstoppable Streak</span> achievement.
+                               </p>
+                               <button onClick={() => Router.push("/student/assessments")} className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-500 hover:text-amber-400">
+                                  View Assessments <ChevronRight size={14} />
+                               </button>
+                            </div>
+                         </motion.div>
+                      )}
+
+                      {intelIndex === 2 && (
+                         <motion.div 
+                           key="slide-3" 
+                           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }}
+                           className="relative z-10 px-6 sm:px-10 flex items-center gap-6"
+                         >
+                            <div className="w-24 h-24 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-[0_0_30px_rgba(52,211,153,0.4)]">
+                               <BarChart3 size={36} className="text-white" />
+                            </div>
+                            <div>
+                               <h2 className="text-xl sm:text-3xl font-black tracking-tight mb-2">
+                                  COMPETITIVE STANDING
+                               </h2>
+                               <p className="text-emerald-100 font-medium">
+                                  You are gaining ground. Compete in the next Mock Exam to solidify your rank on the Leaderboard.
+                               </p>
+                               <button onClick={() => Router.push("/student/competition/leaderboard")} className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-400 hover:text-emerald-300">
+                                  View Leaderboard <ChevronRight size={14} />
+                               </button>
+                            </div>
+                         </motion.div>
+                      )}
+                   </AnimatePresence>
+
+                   {/* Carousel Indicators */}
+                   <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
+                      {[0, 1, 2].map(i => (
+                         <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === intelIndex ? 'w-6 bg-white' : 'w-2 bg-white/30'}`} />
+                      ))}
                    </div>
                  </div>
                </TiltCard>
 
-               {/* 2. Priority Panel */}
-               <TiltCard className="group w-full h-full">
-                 <div className="math-dashboard-priority-panel flex flex-col justify-between h-full !rounded-3xl border border-black/5 dark:border-white/5 shadow-xl transition-colors hover:border-[var(--mp-role-primary)]/30">
-                   <div>
-                     <div className="math-block-header inline-flex items-center gap-2 mb-3 bg-[var(--mp-role-soft)] backdrop-blur-md px-3 py-1 rounded-full border border-[var(--mp-role-shadow)]">
-                       <Zap size={14} className="text-[var(--mp-role-primary)]" />
-                       <span className="font-bold tracking-widest text-[var(--mp-role-primary)]">Learning Priority</span>
-                     </div>
-                     <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-950 dark:text-white drop-shadow-sm">
-                       {ActiveAssignments.length > 0 ? "Continue Assigned Practice" : "Review Learning Progress"}
-                     </h2>
-                     <p className="math-subtitle mt-2 max-w-xl">
-                       {ActiveAssignments.length > 0
-                         ? "Complete assigned DPS, then check readiness for your next step."
-                         : "Review attempts, scores, progress, and readiness."}
-                     </p>
+               {/* 2. Transmission Block (Pop Art Motivations replacing Priority Panel) */}
+               <TiltCard className="group w-full h-[200px]">
+                 <div className="relative overflow-hidden h-full flex flex-col justify-center p-8 !rounded-3xl bg-white dark:bg-slate-900 border border-black/5 dark:border-white/5 shadow-xl transition-colors hover:border-[var(--mp-role-primary)]/30">
+                   <div className="absolute top-4 left-6 flex items-center gap-2">
+                     <RadioTower size={14} className="text-slate-400" />
+                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Incoming Transmission</span>
                    </div>
-                   <div className="mt-6 flex flex-wrap gap-3">
-                     <button
-                       type="button"
-                       onClick={(e) => { e.stopPropagation(); Router.push(ActiveAssignments.length > 0 ? "/student/practice" : "/student/results"); }}
-                       className="math-dashboard-primary-action px-7 py-3 rounded-xl font-bold transition-transform hover:scale-105 active:scale-95 shadow-lg"
-                     >
-                       <Sparkles size={15} className="inline-block mr-1.5 -mt-0.5" />
-                       {ActiveAssignments.length > 0 ? "Practice Review" : "Progress Review"}
-                     </button>
-                     <button
-                       type="button"
-                       onClick={(e) => { e.stopPropagation(); Router.push("/student/assessment-readiness"); }}
-                       className="math-dashboard-secondary-action px-7 py-3 rounded-xl font-bold transition-transform hover:scale-105 active:scale-95 shadow-sm"
-                     >
-                       <ShieldCheck size={15} className="inline-block mr-1.5 -mt-0.5" />
-                       Assessment Readiness
-                     </button>
-                   </div>
+                   
+                   <AnimatePresence mode="wait">
+                      <motion.div 
+                        key={quoteIndex}
+                        initial={{ opacity: 0, x: -20, filter: "blur(10px)" }} 
+                        animate={{ opacity: 1, x: 0, filter: "blur(0px)" }} 
+                        exit={{ opacity: 0, x: 20, filter: "blur(10px)" }} 
+                        transition={{ duration: 0.6 }}
+                        className="mt-4"
+                      >
+                         {(() => {
+                           const activeQuote = GAMER_MOTIVATIONS[quoteIndex];
+                           const activeStyle = POP_ART_STYLES[activeQuote.style];
+                           return (
+                             <div className={`relative p-6 rounded-2xl ${activeStyle.bg} ${activeStyle.border} ${activeStyle.glow} transition-all duration-500`}>
+                                <div className={`absolute -top-4 -left-4 w-8 h-8 rounded-full flex items-center justify-center ${activeStyle.icon}`}>
+                                   <Cpu size={16} />
+                                </div>
+                                <h3 className={`text-xl sm:text-2xl ${activeStyle.text} ${activeStyle.font} leading-tight`}>
+                                   "{activeQuote.text}"
+                                </h3>
+                                <p className={`mt-2 text-xs font-bold uppercase tracking-widest ${activeStyle.text} opacity-80`}>
+                                   - {activeQuote.author}
+                                </p>
+                             </div>
+                           );
+                         })()}
+                      </motion.div>
+                   </AnimatePresence>
                  </div>
                </TiltCard>
 
@@ -420,12 +414,12 @@ export default function StudentDashboardPage() {
             {/* RIGHT COLUMN: Quick Links Bento Grid (Spans 4 cols) */}
             <div className="lg:col-span-4 grid grid-cols-2 gap-3 h-full">
               {QuickLinks.map((LinkItem) => (
-                <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full min-h-[140px]">
+                <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full min-h-[135px]">
                   <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-3xl border border-black/5 dark:border-white/5 shadow-md hover:shadow-2xl transition-all duration-300">
                     <span className="math-dashboard-quick-icon mb-3 p-3 rounded-2xl shadow-inner transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-[0_0_20px_var(--mp-role-shadow)]">
                       {LinkItem.Icon}
                     </span>
-                    <span className="block w-full px-2 text-sm font-black tracking-tight text-slate-900 dark:text-white/90 drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors">
+                    <span className="block w-full px-2 text-xs font-black uppercase tracking-tight text-slate-900 dark:text-white/90 drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors">
                       {LinkItem.Label}
                     </span>
                   </div>
