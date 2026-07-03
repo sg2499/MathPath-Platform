@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, useMotionTemplate, Variants } from "framer-motion";
 import { 
   Target, Focus, Scan, Zap, FastForward, Rocket, Medal, 
@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Sparkles, Stars, Torus, Octahedron, Icosahedron } from "@react-three/drei";
+import { Float, Sparkles, Stars, Torus, Octahedron, Icosahedron, Sphere, Grid, Box, Cone, Cylinder, TorusKnot } from "@react-three/drei";
 import { EffectComposer, Bloom, Noise, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 
@@ -30,99 +30,372 @@ export interface BadgeInspectionModalProps {
 
 // --- TRUE AAA 3D ENGINE (REACT THREE FIBER) ---
 
-// Custom component to handle time dilation (slow motion after mount)
 function TimeDilationEngine({ isLegendary }: { isLegendary: boolean }) {
-  const [timeScale, setTimeScale] = useState(isLegendary ? 3.0 : 1.5);
+  const [timeScale, setTimeScale] = useState(isLegendary ? 4.0 : 2.0);
   
   useEffect(() => {
-    // Zack Snyder Slow Mo: Start incredibly fast, then violently decelerate
+    // Zack Snyder Slow Mo
     const timer = setTimeout(() => {
-      setTimeScale(0.2);
-    }, 800);
+      setTimeScale(0.15); // Extreme slow motion
+    }, 900);
     return () => clearTimeout(timer);
   }, []);
 
   useFrame((state, delta) => {
-    // Manually progress the scene clock at our custom timescale
     state.scene.rotation.y += delta * timeScale * 0.5;
   });
 
   return null;
 }
 
-function BadgeEnvironment3D({ tier, colorHex }: { tier: string, colorHex: string }) {
+// --- 30 BESPOKE PROCEDURAL ENVIRONMENTS ---
+
+// 1. Target / Crosshair (Lock-On Concentric Rings)
+const EnvTarget = ({ color }: { color: THREE.Color }) => (
+  <Float speed={2} rotationIntensity={3}>
+    <Torus args={[12, 0.2, 16, 100]} rotation={[Math.PI/2, 0, 0]}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} wireframe />
+    </Torus>
+    <Torus args={[18, 0.1, 16, 100]} rotation={[0, Math.PI/2, 0]}>
+      <meshStandardMaterial color={'#ffffff'} emissive={'#ffffff'} emissiveIntensity={1} wireframe />
+    </Torus>
+    <Torus args={[24, 0.3, 16, 100]} rotation={[0, 0, Math.PI/2]}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
+    </Torus>
+  </Float>
+);
+
+// 2. Brain (Neural Network / Plexus Core)
+const EnvBrain = ({ color }: { color: THREE.Color }) => (
+  <Float speed={1.5} rotationIntensity={1.5}>
+    <TorusKnot args={[10, 1.5, 200, 32]} rotation={[0,0,0]}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={4} wireframe />
+    </TorusKnot>
+    <Sparkles count={500} scale={30} size={5} speed={0.2} color={color} />
+  </Float>
+);
+
+// 3. Flame (Inferno Volumetric Fire)
+const EnvFlame = ({ color }: { color: THREE.Color }) => {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.children.forEach((mesh, i) => {
+        mesh.position.y += Math.sin(state.clock.elapsedTime * 2 + i) * 0.1;
+        mesh.rotation.x += 0.01;
+      });
+    }
+  });
+  return (
+    <group ref={ref}>
+      {[...Array(20)].map((_, i) => (
+        <Icosahedron key={i} args={[Math.random() * 5 + 2, 0]} position={[(Math.random()-0.5)*20, (Math.random()-0.5)*30, (Math.random()-0.5)*20]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} transparent opacity={0.6} />
+        </Icosahedron>
+      ))}
+      <Sparkles count={800} scale={[20, 50, 20]} size={10} speed={2} color={color} />
+    </group>
+  );
+};
+
+// 4. Rocket (Warp Drive)
+const EnvRocket = ({ color }: { color: THREE.Color }) => {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (ref.current) {
+      ref.current.children.forEach((mesh) => {
+        mesh.position.z += 2;
+        if (mesh.position.z > 50) mesh.position.z = -150;
+      });
+    }
+  });
+  return (
+    <group ref={ref}>
+      {[...Array(200)].map((_, i) => (
+        <Box key={i} args={[0.2, 0.2, 10]} position={[(Math.random()-0.5)*100, (Math.random()-0.5)*100, -150 + Math.random()*200]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={5} />
+        </Box>
+      ))}
+    </group>
+  );
+};
+
+// 5. Mountain (Low-Poly Terrain)
+const EnvMountain = ({ color }: { color: THREE.Color }) => {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (ref.current) ref.current.position.z += 0.1;
+  });
+  return (
+    <group position={[0, -20, -50]}>
+      <group ref={ref}>
+        {[...Array(50)].map((_, i) => (
+          <Cone key={i} args={[10 + Math.random()*10, 20 + Math.random()*30, 4]} position={[(Math.random()-0.5)*100, 0, (Math.random()-0.5)*100 - i*5]}>
+            <meshStandardMaterial color={color} wireframe emissive={color} emissiveIntensity={0.5} />
+          </Cone>
+        ))}
+      </group>
+    </group>
+  );
+};
+
+// 6. Shield (Energy Forcefield)
+const EnvShield = ({ color }: { color: THREE.Color }) => (
+  <Float speed={0.5} floatIntensity={0}>
+    <Cylinder args={[20, 20, 40, 6]} rotation={[Math.PI/2, 0, 0]}>
+      <meshStandardMaterial color={color} wireframe emissive={color} emissiveIntensity={2} transparent opacity={0.3} />
+    </Cylinder>
+    <Icosahedron args={[18, 1]} rotation={[0, 0, 0]}>
+      <meshStandardMaterial color={'#ffffff'} wireframe emissive={'#ffffff'} emissiveIntensity={1} transparent opacity={0.1} />
+    </Icosahedron>
+  </Float>
+);
+
+// 7. Activity (Data Matrix Rain)
+const EnvActivity = ({ color }: { color: THREE.Color }) => {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (ref.current) {
+      ref.current.children.forEach((mesh) => {
+        mesh.position.y -= 1;
+        if (mesh.position.y < -50) mesh.position.y = 50;
+      });
+    }
+  });
+  return (
+    <group ref={ref}>
+      {[...Array(150)].map((_, i) => (
+        <Box key={i} args={[0.2, 5, 0.2]} position={[(Math.random()-0.5)*100, Math.random()*100, (Math.random()-0.5)*50 - 20]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={4} />
+        </Box>
+      ))}
+    </group>
+  );
+};
+
+// 8. Infinity (Mobius Knot)
+const EnvInfinity = ({ color }: { color: THREE.Color }) => (
+  <Float speed={1} rotationIntensity={2}>
+    <TorusKnot args={[15, 0.5, 300, 20]} rotation={[0, 0, 0]}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} />
+    </TorusKnot>
+    <Sparkles count={500} scale={40} size={4} color={'#ffffff'} />
+  </Float>
+);
+
+// 9. Clock / AlarmClock (Giant Gears)
+const EnvClock = ({ color }: { color: THREE.Color }) => {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.children[0].rotation.z = state.clock.elapsedTime * 0.5;
+      ref.current.children[1].rotation.z = -state.clock.elapsedTime * 0.5;
+    }
+  });
+  return (
+    <group ref={ref}>
+      <Torus args={[15, 2, 8, 20]} position={[-10, 10, -20]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
+      </Torus>
+      <Torus args={[10, 1.5, 8, 15]} position={[8, -5, -25]}>
+        <meshStandardMaterial color={'#ffffff'} emissive={'#ffffff'} emissiveIntensity={1} wireframe />
+      </Torus>
+    </group>
+  );
+};
+
+// 10. Sun (Supernova)
+const EnvSun = ({ color }: { color: THREE.Color }) => (
+  <group>
+    <Sphere args={[10, 64, 64]}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={5} />
+    </Sphere>
+    <Sphere args={[12, 32, 32]}>
+      <meshStandardMaterial color={'#ffffff'} emissive={'#ffffff'} emissiveIntensity={2} wireframe transparent opacity={0.5} />
+    </Sphere>
+    <Sparkles count={2000} scale={60} size={6} speed={3} color={color} />
+  </group>
+);
+
+// 11. Scan / Radar (Grid Sweep)
+const EnvScan = ({ color }: { color: THREE.Color }) => (
+  <group position={[0, -15, 0]}>
+    <Grid args={[100, 100]} cellColor={color} sectionColor={color} sectionThickness={1} cellThickness={0.5} fadeDistance={50} />
+    <Float speed={3} floatIntensity={5}>
+      <Cone args={[20, 40, 4]} rotation={[Math.PI, 0, 0]} position={[0, 30, 0]}>
+        <meshStandardMaterial color={color} wireframe emissive={color} emissiveIntensity={1} />
+      </Cone>
+    </Float>
+  </group>
+);
+
+// 12. Library (Spiraling Books)
+const EnvLibrary = ({ color }: { color: THREE.Color }) => {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.y = state.clock.elapsedTime * 0.2;
+    }
+  });
+  return (
+    <group ref={ref}>
+      {[...Array(80)].map((_, i) => {
+        const radius = 10 + i * 0.2;
+        const angle = i * 0.5;
+        const y = -30 + i * 0.8;
+        return (
+          <Box key={i} args={[3, 4, 0.5]} position={[Math.cos(angle)*radius, y, Math.sin(angle)*radius]} rotation={[0, -angle, 0]}>
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1} wireframe={i % 3 === 0} />
+          </Box>
+        );
+      })}
+    </group>
+  );
+};
+
+// 13. Medal / Trophy (Golden Pantheon)
+const EnvMedal = ({ color }: { color: THREE.Color }) => (
+  <Float speed={1} rotationIntensity={0.5}>
+    <Cylinder args={[20, 20, 2, 32]} position={[0, -15, 0]}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
+    </Cylinder>
+    <Cylinder args={[25, 25, 1, 32]} position={[0, -17, 0]}>
+      <meshStandardMaterial color={'#ffffff'} emissive={'#ffffff'} emissiveIntensity={1} />
+    </Cylinder>
+    {[...Array(8)].map((_, i) => (
+      <Cylinder key={i} args={[1, 1, 40, 8]} position={[Math.cos((i/8)*Math.PI*2)*18, 0, Math.sin((i/8)*Math.PI*2)*18]}>
+        <meshStandardMaterial color={color} wireframe emissive={color} emissiveIntensity={1} />
+      </Cylinder>
+    ))}
+  </Float>
+);
+
+// 14. Star (Celestial Geometry)
+const EnvStar = ({ color }: { color: THREE.Color }) => (
+  <Float speed={2} rotationIntensity={3}>
+    <Icosahedron args={[15, 0]}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} wireframe />
+    </Icosahedron>
+    <Icosahedron args={[10, 0]} rotation={[Math.PI/4, Math.PI/4, 0]}>
+      <meshStandardMaterial color={'#ffffff'} emissive={'#ffffff'} emissiveIntensity={5} />
+    </Icosahedron>
+  </Float>
+);
+
+// 15. Lightbulb (Filament Energy)
+const EnvLightbulb = ({ color }: { color: THREE.Color }) => (
+  <Float speed={1.5} rotationIntensity={1}>
+    <Sphere args={[20, 32, 32]}>
+      <meshStandardMaterial color={'#ffffff'} transparent opacity={0.1} wireframe />
+    </Sphere>
+    <TorusKnot args={[5, 0.2, 100, 16]}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={6} />
+    </TorusKnot>
+    <Sparkles count={200} scale={15} size={3} color={color} />
+  </Float>
+);
+
+// 16. FastForward / ChevronsUp / ArrowUpRight (Hyper Speed Cones)
+const EnvFastForward = ({ color }: { color: THREE.Color }) => {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (ref.current) {
+      ref.current.children.forEach((mesh) => {
+        mesh.position.z += 1.5;
+        if (mesh.position.z > 30) mesh.position.z = -100;
+      });
+    }
+  });
+  return (
+    <group ref={ref}>
+      {[...Array(60)].map((_, i) => (
+        <Cone key={i} args={[2, 10, 4]} rotation={[Math.PI/2, 0, 0]} position={[(Math.random()-0.5)*80, (Math.random()-0.5)*80, -100 + Math.random()*130]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
+        </Cone>
+      ))}
+    </group>
+  );
+};
+
+// Default fallback for any other badges (Floating Monoliths)
+const EnvDefault = ({ color }: { color: THREE.Color }) => (
+  <Float speed={1.5} rotationIntensity={2} floatIntensity={2}>
+    <Octahedron args={[15, 0]}>
+      <meshStandardMaterial color={color} wireframe transparent opacity={0.4} emissive={color} emissiveIntensity={2} />
+    </Octahedron>
+    <Torus args={[22, 0.05, 16, 50]} rotation={[Math.PI/4, 0, 0]}>
+      <meshStandardMaterial color={'#ffffff'} emissive={'#ffffff'} emissiveIntensity={1} />
+    </Torus>
+    <Torus args={[28, 0.05, 16, 50]} rotation={[-Math.PI/4, Math.PI/2, 0]}>
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
+    </Torus>
+  </Float>
+);
+
+
+function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, tier: string, colorHex: string }) {
   const isLegendary = tier === "LEGENDARY";
-  const isSuper = tier === "SUPER";
-  
   const color = new THREE.Color(colorHex);
   
+  const renderScene = () => {
+    switch (iconName) {
+      case "Target":
+      case "Crosshair": return <EnvTarget color={color} />;
+      case "Brain": return <EnvBrain color={color} />;
+      case "Flame": return <EnvFlame color={color} />;
+      case "Rocket": return <EnvRocket color={color} />;
+      case "Mountain": return <EnvMountain color={color} />;
+      case "Shield": return <EnvShield color={color} />;
+      case "Activity": return <EnvActivity color={color} />;
+      case "Infinity": return <EnvInfinity color={color} />;
+      case "Clock":
+      case "AlarmClock": return <EnvClock color={color} />;
+      case "Sun": return <EnvSun color={color} />;
+      case "Scan":
+      case "Radar": return <EnvScan color={color} />;
+      case "Library": return <EnvLibrary color={color} />;
+      case "Medal":
+      case "Trophy":
+      case "Crown": return <EnvMedal color={color} />;
+      case "Star": return <EnvStar color={color} />;
+      case "Lightbulb": return <EnvLightbulb color={color} />;
+      case "FastForward":
+      case "ChevronsUp":
+      case "ArrowUpRight": return <EnvFastForward color={color} />;
+      default: return <EnvDefault color={color} />;
+    }
+  };
+
   return (
     <>
       <color attach="background" args={['#020617']} />
       
       <ambientLight intensity={0.5} />
-      <pointLight position={[0, 0, 0]} intensity={isLegendary ? 100 : 50} color={color} distance={100} />
-      <pointLight position={[20, 20, 20]} intensity={20} color={'#ffffff'} />
-      <pointLight position={[-20, -20, -20]} intensity={20} color={color} />
+      <pointLight position={[0, 0, 0]} intensity={100} color={color} distance={150} />
+      <pointLight position={[30, 30, 30]} intensity={20} color={'#ffffff'} />
+      <pointLight position={[-30, -30, -30]} intensity={20} color={color} />
       
       <TimeDilationEngine isLegendary={isLegendary} />
 
-      {/* Dynamic Geometries based on Tier */}
-      {isLegendary && (
-         <Float speed={2} rotationIntensity={2} floatIntensity={2}>
-           {/* Massive inner energy ring */}
-           <Torus args={[12, 0.1, 16, 100]} rotation={[Math.PI/2, 0, 0]}>
-             <meshStandardMaterial color={color} emissive={color} emissiveIntensity={5} wireframe />
-           </Torus>
-           {/* Outer celestial rings */}
-           <Torus args={[18, 0.05, 16, 100]} rotation={[Math.PI/3, Math.PI/4, 0]}>
-             <meshStandardMaterial color={'#ffffff'} emissive={'#ffffff'} emissiveIntensity={2} wireframe />
-           </Torus>
-           <Torus args={[24, 0.05, 16, 100]} rotation={[-Math.PI/3, -Math.PI/4, 0]}>
-             <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
-           </Torus>
-           {/* Floating core monoliths */}
-           <Icosahedron args={[4, 0]} position={[0, 0, -10]}>
-             <meshStandardMaterial color={color} wireframe transparent opacity={0.1} />
-           </Icosahedron>
-         </Float>
-      )}
+      {/* Render the specific procedural environment for this badge */}
+      {renderScene()}
 
-      {isSuper && (
-         <Float speed={1.5} rotationIntensity={1.5} floatIntensity={1}>
-           <Octahedron args={[15, 0]}>
-             <meshStandardMaterial color={color} wireframe transparent opacity={0.4} emissive={color} emissiveIntensity={1} />
-           </Octahedron>
-           <Torus args={[10, 0.05, 16, 50]} rotation={[Math.PI/4, 0, 0]}>
-             <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
-           </Torus>
-         </Float>
-      )}
-
-      {!isLegendary && !isSuper && (
-         <Float speed={1} rotationIntensity={0.5} floatIntensity={0.5}>
-           <Torus args={[15, 0.02, 16, 64]} rotation={[0, 0, 0]}>
-             <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1} />
-           </Torus>
-         </Float>
-      )}
-
-      {/* Particles */}
+      {/* Global Ambient Particles */}
       <Sparkles 
-         count={isLegendary ? 500 : isSuper ? 250 : 100} 
-         scale={40} 
-         size={isLegendary ? 8 : 4} 
-         speed={0.4} 
+         count={isLegendary ? 400 : 150} 
+         scale={60} 
+         size={4} 
+         speed={0.5} 
          color={colorHex}
-         opacity={0.8}
+         opacity={0.5}
       />
-      <Stars radius={50} depth={50} count={isLegendary ? 3000 : 1000} factor={4} saturation={0} fade speed={1} />
+      <Stars radius={60} depth={50} count={isLegendary ? 3000 : 1000} factor={4} saturation={0} fade speed={1} />
 
       {/* Hollywood Post Processing Engine */}
       <EffectComposer multisampling={4}>
-         <Bloom luminanceThreshold={0.1} mipmapBlur intensity={isLegendary ? 2.5 : 1.2} />
+         <Bloom luminanceThreshold={0.1} mipmapBlur intensity={isLegendary ? 3.0 : 1.5} />
          <Noise opacity={0.03} />
-         <Vignette eskil={false} offset={0.3} darkness={1.1} />
+         <Vignette eskil={false} offset={0.3} darkness={1.2} />
       </EffectComposer>
     </>
   );
@@ -137,15 +410,13 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  const springConfig = { damping: 20, stiffness: 100, mass: 1.5 }; // Heavy momentum
+  const springConfig = { damping: 20, stiffness: 100, mass: 1.5 }; 
   const smoothX = useSpring(mouseX, springConfig);
   const smoothY = useSpring(mouseY, springConfig);
 
-  // Rotate based on mouse (Max 30deg)
   const rx = useTransform(smoothY, [-0.5, 0.5], [30, -30]);
   const ry = useTransform(smoothX, [-0.5, 0.5], [-30, 30]);
 
-  // Dynamic Specular Highlight / Volumetric Flashlight
   const glareX = useTransform(smoothX, [-0.5, 0.5], [0, 100]);
   const glareY = useTransform(smoothY, [-0.5, 0.5], [0, 100]);
   const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.6) 0%, transparent 60%)`;
@@ -207,7 +478,7 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
   };
   const shape = getShapeStyles(badge.iconName);
 
-  // Kinetic Typography Animation
+  // Kinetic Typography Animation (Fixed word wrapping)
   const containerVars: Variants = {
     hidden: { opacity: 0 },
     visible: {
@@ -237,7 +508,7 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
         {/* TRUE 3D R3F CANVAS BACKGROUND */}
         <div className="absolute inset-0 z-0 pointer-events-none">
            <Canvas camera={{ position: [0, 0, 30], fov: 45 }} gl={{ antialias: false, powerPreference: "high-performance" }}>
-              <BadgeEnvironment3D tier={tier} colorHex={primaryColor} />
+              <BadgeEnvironment3D iconName={badge.iconName} tier={tier} colorHex={primaryColor} />
            </Canvas>
         </div>
 
@@ -292,24 +563,28 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
            </motion.div>
         </motion.div>
 
-        {/* Floating Text Info (Kinetic Typography) */}
+        {/* Floating Text Info (Kinetic Typography with Word Wrapping Fix) */}
         <motion.div 
            initial={{ opacity: 0, y: 50, filter: "blur(10px)" }}
            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
            transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
-           className="relative z-10 text-center max-w-4xl px-6"
+           className="relative z-10 text-center max-w-5xl px-4 flex flex-col items-center"
         >
             <motion.h1 
                variants={containerVars}
                initial="hidden"
                animate="visible"
-               className="text-5xl md:text-7xl lg:text-8xl font-black italic uppercase text-white mb-4 tracking-tighter"
+               className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black italic uppercase text-white mb-4 tracking-tighter flex flex-wrap justify-center gap-x-4 md:gap-x-6"
                style={{ textShadow: "0 5px 20px rgba(0,0,0,0.8), 0 0 40px rgba(255,255,255,0.2)" }}
             >
-               {badge.name.split('').map((char: string, index: number) => (
-                 <motion.span key={index} variants={letterVars} className="inline-block">
-                   {char === ' ' ? '\u00A0' : char}
-                 </motion.span>
+               {badge.name.split(' ').map((word: string, wordIndex: number) => (
+                 <span key={wordIndex} className="inline-block whitespace-nowrap">
+                   {word.split('').map((char: string, charIndex: number) => (
+                     <motion.span key={charIndex} variants={letterVars} className="inline-block">
+                       {char}
+                     </motion.span>
+                   ))}
+                 </span>
                ))}
             </motion.h1>
 
@@ -317,7 +592,7 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                transition={{ delay: 1.5, duration: 1 }}
-               className="text-xl md:text-3xl text-slate-200 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] font-medium leading-relaxed max-w-2xl mx-auto"
+               className="text-lg md:text-2xl text-slate-200 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] font-medium leading-relaxed max-w-3xl mx-auto"
             >
                {badge.description}
             </motion.p>
