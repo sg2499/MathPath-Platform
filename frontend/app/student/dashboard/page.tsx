@@ -268,32 +268,30 @@ export default function StudentDashboardPage() {
               </h1>
             </div>
 
-            <div className="flex flex-wrap gap-3 items-center shrink-0">
-               <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-black/10 dark:border-white/10 px-4 py-2.5 rounded-2xl shadow-lg min-w-[160px] flex flex-col justify-center">
-                  <div className="flex justify-between items-center mb-1.5">
-                     <span className="font-black text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">Level {currentLevel}</span>
-                     <span className="font-bold text-[var(--mp-role-primary)] text-[10px]">{xpIntoLevel} / 1000 XP</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                     <motion.div 
+            {/* RIGHT SIDE: Level & Coins */}
+            <div className="flex flex-wrap gap-4 items-center shrink-0 relative z-20">
+               {/* Level Chip */}
+               <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-md transition-transform hover:scale-105 cursor-pointer">
+                 <span className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">Level {currentLevel}</span>
+                 <div className="w-24 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
+                   <motion.div 
                        initial={{ width: 0 }}
                        animate={{ width: `${(xpIntoLevel / 1000) * 100}%` }}
                        transition={{ duration: 1.5, ease: "easeOut" }}
-                       className="h-full bg-gradient-to-r from-[var(--mp-role-primary)] to-[var(--mp-role-accent)] shadow-[0_0_10px_var(--mp-role-primary)]"
-                     />
-                  </div>
+                       className="h-full bg-[var(--mp-role-primary)] w-[0%]" 
+                   />
+                 </div>
+                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{xpIntoLevel} / 1000 XP</span>
                </div>
 
-               <div className="flex items-center gap-3 bg-[var(--mp-role-soft)] backdrop-blur-xl border border-[var(--mp-role-primary)]/30 px-4 py-2.5 rounded-2xl shadow-lg">
-                  <div className="p-1.5 bg-[var(--mp-role-primary)] text-white rounded-lg shadow-[0_0_10px_var(--mp-role-primary)]">
-                     <Coins size={18} />
-                  </div>
-                  <div className="flex flex-col justify-center leading-none">
-                     <span className="text-[9px] font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-0.5">Coins</span>
-                     <span className="text-sm font-black text-slate-900 dark:text-white">{mathCoins.toLocaleString()}</span>
-                  </div>
+               {/* Coins Chip */}
+               <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-100 to-orange-50 dark:from-orange-900/40 dark:to-orange-800/20 border-2 border-orange-200 dark:border-orange-500/30 shadow-md transition-transform hover:scale-105 cursor-pointer">
+                 <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center shadow-inner">
+                    <Coins size={18} className="text-white drop-shadow-sm" />
+                 </div>
+                 <span className="text-lg font-black text-orange-900 dark:text-orange-400">{mathCoins.toLocaleString()}</span>
                </div>
-            </div>
+             </div>
 
           </div>
         </section>
