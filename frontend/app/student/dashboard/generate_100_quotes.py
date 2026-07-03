@@ -1,7 +1,7 @@
 import random
+import itertools
 
 NUM_STYLES = 100
-NUM_QUOTES = 600
 
 # Base textures
 TEXTURES = [
@@ -39,16 +39,15 @@ THEMES_LIGHT_TEXT = [
 ]
 
 FONTS = ["font-sans", "font-mono", "font-serif"]
-WEIGHTS = ["font-medium", "font-bold", "font-black", "font-light"]
+WEIGHTS = ["font-medium", "font-bold", "font-black"]
 STYLES_TEXT = ["italic", "uppercase", "normal-case"]
 TRACKING = ["tracking-tight", "tracking-normal", "tracking-widest", "tracking-tighter"]
 
-# Generate 100 unique templates
+# Generate exactly 100 unique templates
 templates_data = {}
 for i in range(1, NUM_STYLES + 1):
     style_name = f"style_{i}"
     
-    # 50/50 light text vs dark text theme to ensure absolute contrast
     is_dark = random.choice([True, False])
     theme = random.choice(THEMES_DARK_TEXT) if not is_dark else random.choice(THEMES_LIGHT_TEXT)
     
@@ -58,10 +57,9 @@ for i in range(1, NUM_STYLES + 1):
     t_style = random.choice(STYLES_TEXT)
     tracking = random.choice(TRACKING)
     
-    containerClass = f"{theme['bg']} {theme['border']} {theme['shadow']} {texture} opacity-100 relative overflow-hidden"
-    textClass = f"{theme['text']} {theme['textShadow']} {font} {weight} {t_style} {tracking} relative z-10"
+    containerClass = f"{theme['bg']} {theme['border']} {theme['shadow']} {texture} opacity-100 relative overflow-hidden flex flex-col justify-center"
+    textClass = f"{theme['text']} {theme['textShadow']} {font} {weight} {t_style} {tracking} relative z-10 transition-all duration-300"
     
-    # randomly rotate author badge for pop art feel
     rot = random.choice(["", "rotate-[-2deg]", "rotate-[2deg]", "rotate-[-1deg]", "rotate-[1deg]"])
     authorClass = f"{theme['accentBg']} {theme['accentText']} {font} font-bold px-3 py-1 {rot} uppercase tracking-wider relative z-10"
     
@@ -74,96 +72,71 @@ for i in range(1, NUM_STYLES + 1):
         "iconBoxClass": iconBoxClass
     }
 
-AUTHORS = {
-    "stoic": ["Marcus Aurelius", "Seneca", "Epictetus", "Socrates", "Aristotle", "Zeno"],
-    "math": ["Albert Einstein", "Isaac Newton", "Richard Feynman", "Carl Friedrich Gauss", "Leonhard Euler", "Ada Lovelace", "Alan Turing", "John von Neumann", "Pythagoras", "Euclid", "Pascal", "Tesla"],
-    "gaming": ["Sun Tzu", "Miyamoto Musashi", "David Goggins", "Bruce Lee", "Kobe Bryant", "Michael Jordan", "John Carmack", "Hideo Kojima", "Daigo Umehara", "Faker"],
-    "modern": ["Steve Jobs", "Elon Musk", "Naval Ravikant", "Sam Altman", "Paul Graham", "Peter Thiel"]
-}
-
-BASE_QUOTES = [
-    "The difference between a master and a beginner is that the master has failed more times than the beginner has even tried.",
-    "A flawless run isn't luck. It's a thousand invisible mistakes corrected.",
-    "Precision beats power. Timing beats speed.",
-    "The obstacle is the way.",
-    "What stands in the way becomes the way.",
-    "You have power over your mind - not outside events.",
-    "The more you sweat in practice, the less you bleed in battle.",
-    "Do not pray for an easy life, pray for the strength to endure a difficult one.",
-    "I fear not the man who has practiced 10,000 kicks once, but I fear the man who has practiced one kick 10,000 times.",
-    "There is no elevator to success, you have to take the stairs.",
-    "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-    "In the middle of difficulty lies opportunity.",
-    "Pure mathematics is, in its way, the poetry of logical ideas.",
-    "Truth is ever to be found in simplicity, and not in the multiplicity and confusion of things.",
-    "Genius is 1% talent and 99% hard work.",
-    "It's not that I'm so smart, it's just that I stay with problems longer.",
-    "Every strike brings me closer to the next home run.",
-    "I have not failed. I've just found 10,000 ways that won't work.",
-    "Focus is a matter of deciding what things you're not going to do.",
-    "Stay hungry, stay foolish.",
-    "You miss 100% of the shots you don't take.",
-    "Talent wins games, but teamwork and intelligence win championships.",
-    "If you're afraid to fail, then you're probably going to fail.",
-    "Float like a butterfly, sting like a bee.",
-    "He who is not courageous enough to take risks will accomplish nothing in life.",
-    "Quality is not an act, it is a habit.",
-    "Well done is better than well said.",
-    "The secret of getting ahead is getting started.",
-    "Our greatest glory is not in never falling, but in rising every time we fall.",
-    "We are what we repeatedly do. Excellence, then, is not an act, but a habit.",
-    "First, master the fundamentals.",
-    "The mind is everything. What you think you become.",
-    "Happiness depends upon ourselves.",
-    "Patience is bitter, but its fruit is sweet.",
-    "The only true wisdom is in knowing you know nothing.",
-    "Learning never exhausts the mind.",
-    "Nothing is impossible for him who will try.",
-    "The roots of education are bitter, but the fruit is sweet.",
-    "He who has overcome his fears will truly be free.",
-    "We make war that we may live in peace.",
-    "Difficulties strengthen the mind, as labor does the body.",
-    "A journey of a thousand miles begins with a single step.",
-    "Knowing others is intelligence; knowing yourself is true wisdom.",
-    "Mastering others is strength; mastering yourself is true power.",
-    "When you are content to be simply yourself and don't compare or compete, everybody will respect you.",
-    "Anticipate the difficult by managing the easy.",
-    "Silence is a source of great strength.",
-    "Life is a series of natural and spontaneous changes.",
-    "Do the difficult things while they are easy and do the great things while they are small.",
-    "If you correct your mind, the rest of your life will fall into place.",
-    "Simplicity is the ultimate sophistication.",
-    "Experience never errs; it is only your judgments that err.",
-    "He who loves practice without theory is like the sailor who boards ship without a rudder and compass.",
-    "Intellectual passion drives out sensuality."
+# TRUE ACCURATE QUOTES - Zero randomization of authors here.
+ACCURATE_QUOTES = [
+    {"text": "The obstacle is the way.", "author": "Marcus Aurelius"},
+    {"text": "You have power over your mind - not outside events.", "author": "Marcus Aurelius"},
+    {"text": "What stands in the way becomes the way.", "author": "Marcus Aurelius"},
+    {"text": "The more you sweat in practice, the less you bleed in battle.", "author": "Richard Marcinko"},
+    {"text": "Do not pray for an easy life, pray for the strength to endure a difficult one.", "author": "Bruce Lee"},
+    {"text": "I fear not the man who has practiced 10,000 kicks once, but I fear the man who has practiced one kick 10,000 times.", "author": "Bruce Lee"},
+    {"text": "Success is not final, failure is not fatal: it is the courage to continue that counts.", "author": "Winston Churchill"},
+    {"text": "In the middle of difficulty lies opportunity.", "author": "Albert Einstein"},
+    {"text": "Pure mathematics is, in its way, the poetry of logical ideas.", "author": "Albert Einstein"},
+    {"text": "Genius is 1% talent and 99% hard work.", "author": "Thomas Edison"},
+    {"text": "I have not failed. I've just found 10,000 ways that won't work.", "author": "Thomas Edison"},
+    {"text": "Stay hungry, stay foolish.", "author": "Steve Jobs"},
+    {"text": "You miss 100% of the shots you don't take.", "author": "Wayne Gretzky"},
+    {"text": "Float like a butterfly, sting like a bee.", "author": "Muhammad Ali"},
+    {"text": "He who is not courageous enough to take risks will accomplish nothing in life.", "author": "Muhammad Ali"},
+    {"text": "Quality is not an act, it is a habit.", "author": "Aristotle"},
+    {"text": "We are what we repeatedly do. Excellence, then, is not an act, but a habit.", "author": "Will Durant"},
+    {"text": "The mind is everything. What you think you become.", "author": "Buddha"},
+    {"text": "A journey of a thousand miles begins with a single step.", "author": "Lao Tzu"},
+    {"text": "Simplicity is the ultimate sophistication.", "author": "Leonardo da Vinci"}
 ]
 
-def generate_algorithmic_quotes(count):
-    prefixes = ["In the arena of logic,", "When variables align,", "Beyond the infinite,", "Through relentless focus,", "Where chaos meets order,", "To conquer the unknown,", "In the architecture of mind,", "Against impossible odds,", "In the silence of mastery,", "When the pressure mounts,"]
-    subjects = ["a true master", "the apex scholar", "the silent observer", "a calculated mind", "the relentless student", "the architect of fate", "the unwavering spirit", "the visionary"]
-    actions = ["finds clarity in the noise.", "strikes with absolute precision.", "rewrites the rules of the game.", "sees what others miss.", "calculates the perfect victory.", "turns failure into data.", "bends reality to their will.", "transcends the ordinary.", "embraces the grind.", "emerges victorious."]
-    
-    generated = []
-    for _ in range(count):
-        q = f"{random.choice(prefixes)} {random.choice(subjects)} {random.choice(actions)}"
-        generated.append(q)
-    return generated
+# PROCEDURAL QUOTES (NO AUTHOR)
+# We generate a massive list of algorithmic combinations and set author = null.
+PREFIXES = ["In the arena of logic,", "When variables align,", "Beyond the infinite,", "Through relentless focus,", "Where chaos meets order,", "To conquer the unknown,", "In the architecture of mind,", "Against impossible odds,", "In the silence of mastery,", "When the pressure mounts,", "Every calculated move,", "Before the final strike,", "Within the deep systems,", "As the clock ticks down,"]
+SUBJECTS = ["a true master", "the apex scholar", "the silent observer", "a calculated mind", "the relentless student", "the architect of fate", "the unwavering spirit", "the visionary", "the disciplined learner", "a focused mind"]
+ACTIONS = ["finds clarity in the noise.", "strikes with absolute precision.", "rewrites the rules of the game.", "sees what others miss.", "calculates the perfect victory.", "turns failure into data.", "bends reality to their will.", "transcends the ordinary.", "embraces the grind.", "emerges victorious.", "shatters the plateau.", "locks onto the target.", "achieves absolute flow.", "defies expectation."]
+CONNECTORS = ["And so,", "Thus,", "In return,", "Because", "For this reason,", "Therefore,"]
+OUTCOMES = ["the legacy is built.", "the challenge is conquered.", "victory is inevitable.", "the mind expands.", "the system bows.", "greatness is achieved.", "weakness is eradicated.", "the next level unlocks."]
+
+algo_quotes = []
+# Generate simple 3-part quotes
+for p in PREFIXES:
+    for s in SUBJECTS:
+        for a in ACTIONS:
+            algo_quotes.append(f"{p} {s} {a}")
+
+# Generate complex 5-part quotes
+for p in PREFIXES[:5]:
+    for s in SUBJECTS[:5]:
+        for a in ACTIONS[:5]:
+            for c in CONNECTORS[:3]:
+                for o in OUTCOMES[:5]:
+                    algo_quotes.append(f"{p} {s} {a} {c} {o}")
+
+algo_quotes = list(set(algo_quotes)) # ensure unique
+random.shuffle(algo_quotes)
 
 quotes_list = []
-# Ensure base quotes are there multiple times with different styles
-for _ in range(8):
-    for t in BASE_QUOTES:
-        author = random.choice(AUTHORS[random.choice(list(AUTHORS.keys()))])
+# Add accurate quotes multiple times with different styles
+for _ in range(5):
+    for q in ACCURATE_QUOTES:
         style = f"style_{random.randint(1, NUM_STYLES)}"
-        quotes_list.append({"text": t, "author": author, "style": style})
+        quotes_list.append({"text": q["text"], "author": q["author"], "style": style})
 
-algo_quotes = generate_algorithmic_quotes(200)
+# Add algorithmic quotes (author=null)
 for q in algo_quotes:
     style = f"style_{random.randint(1, NUM_STYLES)}"
-    quotes_list.append({"text": q, "author": "Apex Intelligence", "style": style})
+    quotes_list.append({"text": q, "author": None, "style": style})
 
 random.shuffle(quotes_list)
-quotes_list = quotes_list[:NUM_QUOTES]
+# We want AT LEAST 600, let's take up to 800
+quotes_list = quotes_list[:800]
 
 ts_content = f"export type PopArtStyle = \n"
 style_keys = [f"'style_{i}'" for i in range(1, NUM_STYLES + 1)]
@@ -195,12 +168,13 @@ export const GAMER_MOTIVATIONS: MotivationQuote[] = [
 
 for i, q in enumerate(quotes_list):
     text = q["text"].replace('"', '\\"')
-    author = q["author"].replace('"', '\\"')
-    ts_content += f'  {{ id: "{i}", text: "{text}", author: "{author}", style: "{q["style"]}" }},\n'
+    
+    author_val = f'"{q["author"]}"' if q["author"] else "null"
+    ts_content += f'  {{ id: "{i}", text: "{text}", author: {author_val}, style: "{q["style"]}" }},\n'
 
 ts_content += "];\n"
 
 with open("quotes.ts", "w", encoding="utf-8") as f:
     f.write(ts_content)
 
-print("Generated 100 styles and 600 quotes in quotes.ts successfully.")
+print(f"Generated 100 styles and {len(quotes_list)} quotes (with accurate/null authors) successfully.")
