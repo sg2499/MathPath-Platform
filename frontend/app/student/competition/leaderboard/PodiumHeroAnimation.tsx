@@ -478,6 +478,19 @@ export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, on
               </motion.div>
             </div>
           </motion.div>
+
+          {/* ============================================================== */}
+          {/* SKIP BUTTON                                                    */}
+          {/* ============================================================== */}
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.5 }}
+            whileHover={{ opacity: 1, scale: 1.05 }}
+            onClick={() => onComplete()}
+            className="absolute bottom-6 right-6 z-[200] text-white/50 hover:text-white uppercase tracking-widest text-xs font-bold px-4 py-2 rounded-full border border-white/20 hover:border-white/50 backdrop-blur-md transition-all duration-300 pointer-events-auto"
+          >
+            Skip Animation ⏭
+          </motion.button>
         </motion.div>
       )}
     </AnimatePresence>
