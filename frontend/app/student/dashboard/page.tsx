@@ -10,23 +10,23 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3, BookOpenCheck, GraduationCap, ShieldCheck, Trophy, Laptop, Award,
   Coins, Cpu, RadioTower, Lock, ChevronRight, CheckCircle, Target, Focus, Scan, Zap,
-  FastForward, Rocket, Medal, Flag, Crown, Flame, Activity, Infinity, Clock, Sun,
+  FastForward, Rocket, Medal, Flag, Crown, Flame, Activity, Infinity as InfinityIcon, Clock, Sun,
   AlarmClock, TrendingUp, ArrowUpRight, ChevronsUp, Star, Sparkles, Crosshair,
-  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library
+  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate, AnimatePresence } from "framer-motion";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Sparkles as DreiSparkles, MeshDistortMaterial, MeshTransmissionMaterial } from "@react-three/drei";
+import { Float, Sparkles as DreiSparkles, Stars, MeshDistortMaterial } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { GAMER_MOTIVATIONS, POP_ART_STYLES } from "./quotes";
 
 const IconMap: Record<string, any> = {
   Target, Focus, Scan, Zap, FastForward, Rocket, Medal, Flag, Crown, Flame,
-  Activity, Infinity, Clock, Sun, AlarmClock, TrendingUp, ArrowUpRight, ChevronsUp,
+  Activity, Infinity: InfinityIcon, Clock, Sun, AlarmClock, TrendingUp, ArrowUpRight, ChevronsUp,
   Trophy, Star, Sparkles, Crosshair, Aperture, Radar, Shield, Anchor, Mountain,
   Brain, Lightbulb, Library, Award
 };
@@ -43,42 +43,62 @@ function useDarkMode() {
   return isDark;
 }
 
-// --- R3F DARK ENVIRONMENT (Singularity) ---
-function SingularityCore() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const wireRef = useRef<THREE.Mesh>(null);
+// --- GLOBAL R3F BACKGROUNDS ---
+
+function FloatingDataNodes({ count, color }: { count: number, color: string }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
   
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.elapsedTime * 0.1;
-      meshRef.current.rotation.y = state.clock.elapsedTime * 0.15;
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const particles = useMemo(() => {
+    const temp = [];
+    for (let i = 0; i < count; i++) {
+      const t = Math.random() * 100;
+      const factor = 20 + Math.random() * 100;
+      const speed = 0.01 + Math.random() / 200;
+      const xFactor = -50 + Math.random() * 100;
+      const yFactor = -50 + Math.random() * 100;
+      const zFactor = -50 + Math.random() * 100;
+      temp.push({ t, factor, speed, xFactor, yFactor, zFactor, mx: 0, my: 0 });
     }
-    if (wireRef.current) {
-      wireRef.current.rotation.x = -state.clock.elapsedTime * 0.2;
-      wireRef.current.rotation.y = -state.clock.elapsedTime * 0.3;
-    }
+    return temp;
+  }, [count]);
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+    particles.forEach((particle, i) => {
+      let { t, factor, speed, xFactor, yFactor, zFactor } = particle;
+      t = particle.t += speed / 2;
+      const a = Math.cos(t) + Math.sin(t * 1) / 10;
+      const b = Math.sin(t) + Math.cos(t * 2) / 10;
+      const s = Math.cos(t);
+      dummy.position.set(
+        (particle.mx / 10) * a + xFactor + Math.cos((t / 10) * factor) + (Math.sin(t * 1) * factor) / 10,
+        (particle.my / 10) * b + yFactor + Math.sin((t / 10) * factor) + (Math.cos(t * 2) * factor) / 10,
+        (particle.my / 10) * b + zFactor + Math.cos((t / 10) * factor) + (Math.sin(t * 3) * factor) / 10
+      );
+      dummy.scale.set(s, s, s);
+      dummy.rotation.set(s * 5, s * 5, s * 5);
+      dummy.updateMatrix();
+      meshRef.current!.setMatrixAt(i, dummy.matrix);
+    });
+    meshRef.current.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <Float speed={1.5} rotationIntensity={0.5} floatIntensity={1}>
-      <mesh ref={meshRef} position={[6, 0, -2]} scale={1.2}>
-        <sphereGeometry args={[2, 64, 64]} />
-        <MeshDistortMaterial color="#000000" emissive="#4c1d95" emissiveIntensity={0.5} distort={0.6} speed={3} roughness={0} metalness={1} />
-      </mesh>
-      <mesh ref={wireRef} position={[6, 0, -2]} scale={1.4}>
-        <torusKnotGeometry args={[1.5, 0.4, 128, 16]} />
-        <meshBasicMaterial color="#a855f7" wireframe transparent opacity={0.3} />
-      </mesh>
-    </Float>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
+      <icosahedronGeometry args={[0.2, 0]} />
+      <meshBasicMaterial color={color} wireframe transparent opacity={0.3} />
+    </instancedMesh>
   );
 }
 
-function DarkEnvironment() {
+function GlobalDarkConstellation() {
   return (
     <>
       <ambientLight intensity={0.2} />
-      <SingularityCore />
-      <DreiSparkles count={200} scale={25} size={3} speed={0.2} opacity={0.4} color="#c084fc" />
+      <Stars radius={50} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
+      <DreiSparkles count={300} scale={100} size={4} speed={0.2} opacity={0.3} color="#8b5cf6" />
+      <FloatingDataNodes count={150} color="#c084fc" />
       <EffectComposer multisampling={4}>
          <Bloom luminanceThreshold={0.2} mipmapBlur intensity={1.5} />
       </EffectComposer>
@@ -86,48 +106,13 @@ function DarkEnvironment() {
   );
 }
 
-// --- R3F LIGHT ENVIRONMENT (Crystalline) ---
-function CrystallineCore() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.elapsedTime * 0.15;
-      meshRef.current.rotation.y = state.clock.elapsedTime * 0.2;
-    }
-  });
-
-  return (
-    <Float speed={2.5} rotationIntensity={1} floatIntensity={1.5}>
-      <mesh ref={meshRef} position={[6, 0, -2]} scale={1.8}>
-        <icosahedronGeometry args={[1.5, 0]} />
-        <MeshTransmissionMaterial 
-          backside
-          samples={4}
-          thickness={1.5}
-          chromaticAberration={0.05}
-          anisotropy={0.1}
-          distortion={0.2}
-          distortionScale={0.3}
-          temporalDistortion={0.1}
-          clearcoat={1}
-          attenuationDistance={0.5}
-          attenuationColor="#fb923c"
-          color="#fff7ed"
-        />
-      </mesh>
-    </Float>
-  );
-}
-
-function LightEnvironment() {
+function GlobalLightDataWave() {
   return (
     <>
       <ambientLight intensity={1.5} color="#ffffff" />
-      <directionalLight position={[10, 10, 5]} intensity={3} color="#fcd34d" />
-      <pointLight position={[4, -2, 2]} intensity={2} color="#f472b6" />
-      <CrystallineCore />
-      <DreiSparkles count={100} scale={20} size={5} speed={0.5} opacity={0.6} color="#fb923c" />
+      <directionalLight position={[10, 10, 5]} intensity={2} color="#fcd34d" />
+      <DreiSparkles count={250} scale={100} size={6} speed={0.4} opacity={0.5} color="#fb923c" />
+      <FloatingDataNodes count={100} color="#f97316" />
     </>
   );
 }
@@ -142,12 +127,12 @@ function TiltCard({ children, className, onClick }: { children: ReactNode, class
   const mouseXSpring = useSpring(x, springConfig);
   const mouseYSpring = useSpring(y, springConfig);
 
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], [6, -6]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], [-6, 6]);
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], [4, -4]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], [-4, 4]);
 
   const glareX = useTransform(mouseXSpring, [-0.5, 0.5], [0, 100]);
   const glareY = useTransform(mouseYSpring, [-0.5, 0.5], [0, 100]);
-  const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.15) 0%, transparent 60%)`;
+  const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.1) 0%, transparent 60%)`;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
@@ -176,7 +161,7 @@ function TiltCard({ children, className, onClick }: { children: ReactNode, class
         className="absolute inset-0 z-50 pointer-events-none rounded-[inherit] mix-blend-overlay transition-opacity duration-300 opacity-0 group-hover:opacity-100"
         style={{ background: glareBackground }}
       />
-      <div style={{ transform: "translateZ(20px)", transformStyle: "preserve-3d" }} className="h-full w-full">
+      <div style={{ transform: "translateZ(10px)", transformStyle: "preserve-3d" }} className="h-full w-full">
          {children}
       </div>
     </motion.div>
@@ -255,54 +240,56 @@ export default function StudentDashboardPage() {
 
   return (
     <AppShell>
-      <main className="math-dashboard-page math-dashboard-student w-full space-y-5">
+      {/* GLOBAL R3F VFX BACKGROUND */}
+      <div className="fixed inset-0 z-[0] pointer-events-none opacity-40 dark:opacity-60 transition-opacity duration-1000">
+         <Canvas camera={{ position: [0, 0, 30], fov: 60 }} gl={{ antialias: true, alpha: true }}>
+            {isDark ? <GlobalDarkConstellation /> : <GlobalLightDataWave />}
+         </Canvas>
+      </div>
+
+      <main className="math-dashboard-page math-dashboard-student w-full space-y-5 relative z-10">
         
-        {/* ROW 1: HERO & HUD */}
-        <section className="math-dashboard-hero math-dashboard-hero-student relative overflow-hidden h-[180px] rounded-[2rem] border border-black/5 dark:border-white/10 shadow-2xl flex items-center p-6 sm:p-8">
-          <div className="absolute inset-0 z-0 pointer-events-none opacity-80 dark:opacity-100 mix-blend-normal">
-             <Canvas camera={{ position: [0, 0, 10], fov: 45 }} gl={{ antialias: true, alpha: true }}>
-                {isDark ? <DarkEnvironment /> : <LightEnvironment />}
-             </Canvas>
-          </div>
-
-          <div className="absolute top-6 left-6 z-10">
-            <div className="math-block-header inline-flex items-center gap-2 bg-white/70 dark:bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm">
-              <Laptop size={14} className="text-[var(--mp-role-primary)]" />
-              <span className="font-bold tracking-widest text-[var(--mp-role-primary)] uppercase text-xs">MATHPATH LOBBY</span>
+        {/* ROW 1: HERO & HUD - Restored to Standard Conventions */}
+        <section className="math-dashboard-hero math-dashboard-hero-student relative overflow-hidden rounded-[2rem] border border-black/5 dark:border-white/10 shadow-2xl p-6 sm:p-8 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between w-full">
+            
+            <div className="flex flex-col gap-3">
+              <div className="math-block-header inline-flex items-center gap-2 w-fit bg-white/70 dark:bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm">
+                <Laptop size={14} className="text-[var(--mp-role-primary)]" />
+                <span className="font-bold tracking-widest text-[var(--mp-role-primary)] uppercase text-xs">MATHPATH LOBBY</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black tracking-[-0.03em] text-slate-950 dark:text-white drop-shadow-sm leading-tight">
+                My Learning Workspace
+              </h1>
             </div>
-          </div>
 
-          <div className="absolute top-6 right-6 z-10 flex gap-3">
-             <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-black/10 dark:border-white/10 px-4 py-2 rounded-2xl shadow-xl min-w-[180px] flex flex-col justify-center">
-                <div className="flex justify-between items-center mb-1.5">
-                   <span className="font-black text-slate-900 dark:text-white uppercase tracking-widest text-xs">Level {currentLevel}</span>
-                   <span className="font-bold text-[var(--mp-role-primary)] text-[10px]">{xpIntoLevel} / 1000 XP</span>
-                </div>
-                <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                   <motion.div 
-                     initial={{ width: 0 }}
-                     animate={{ width: `${(xpIntoLevel / 1000) * 100}%` }}
-                     transition={{ duration: 1.5, ease: "easeOut" }}
-                     className="h-full bg-gradient-to-r from-[var(--mp-role-primary)] to-[var(--mp-role-accent)] shadow-[0_0_10px_var(--mp-role-primary)]"
-                   />
-                </div>
-             </div>
+            <div className="flex flex-wrap gap-3 items-center shrink-0">
+               <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-black/10 dark:border-white/10 px-4 py-2.5 rounded-2xl shadow-lg min-w-[160px] flex flex-col justify-center">
+                  <div className="flex justify-between items-center mb-1.5">
+                     <span className="font-black text-slate-900 dark:text-white uppercase tracking-widest text-[11px]">Level {currentLevel}</span>
+                     <span className="font-bold text-[var(--mp-role-primary)] text-[10px]">{xpIntoLevel} / 1000 XP</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                     <motion.div 
+                       initial={{ width: 0 }}
+                       animate={{ width: `${(xpIntoLevel / 1000) * 100}%` }}
+                       transition={{ duration: 1.5, ease: "easeOut" }}
+                       className="h-full bg-gradient-to-r from-[var(--mp-role-primary)] to-[var(--mp-role-accent)] shadow-[0_0_10px_var(--mp-role-primary)]"
+                     />
+                  </div>
+               </div>
 
-             <div className="flex items-center gap-2 bg-[var(--mp-role-soft)] backdrop-blur-xl border border-[var(--mp-role-primary)]/30 px-4 py-2 rounded-2xl shadow-xl">
-                <div className="p-1.5 bg-[var(--mp-role-primary)] text-white rounded-lg shadow-[0_0_10px_var(--mp-role-primary)]">
-                   <Coins size={16} />
-                </div>
-                <div className="flex flex-col justify-center leading-none">
-                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-0.5">Coins</span>
-                   <span className="text-sm font-black text-slate-900 dark:text-white">{mathCoins.toLocaleString()}</span>
-                </div>
-             </div>
-          </div>
+               <div className="flex items-center gap-3 bg-[var(--mp-role-soft)] backdrop-blur-xl border border-[var(--mp-role-primary)]/30 px-4 py-2.5 rounded-2xl shadow-lg">
+                  <div className="p-1.5 bg-[var(--mp-role-primary)] text-white rounded-lg shadow-[0_0_10px_var(--mp-role-primary)]">
+                     <Coins size={18} />
+                  </div>
+                  <div className="flex flex-col justify-center leading-none">
+                     <span className="text-[9px] font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-0.5">Coins</span>
+                     <span className="text-sm font-black text-slate-900 dark:text-white">{mathCoins.toLocaleString()}</span>
+                  </div>
+               </div>
+            </div>
 
-          <div className="relative z-10 w-full text-center mt-12">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-[-0.04em] text-slate-900 dark:text-white drop-shadow-md">
-              My Learning Workspace
-            </h1>
           </div>
         </section>
 
@@ -319,7 +306,7 @@ export default function StudentDashboardPage() {
                
                {/* 1. The Intel Carousel */}
                <TiltCard className="group w-full h-[220px]">
-                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-3xl border border-black/10 dark:border-white/10 shadow-xl bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors">
+                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-3xl border border-black/10 dark:border-white/10 shadow-xl bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-xl text-slate-900 dark:text-white transition-colors">
                    <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] dark:opacity-10 mix-blend-overlay" />
                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
                    
@@ -336,7 +323,7 @@ export default function StudentDashboardPage() {
                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
                            className="relative z-10 w-full h-full px-6 sm:px-10 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
                          >
-                            <div className="w-24 h-24 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-700 p-[3px] shadow-[0_0_30px_rgba(99,102,241,0.3)]">
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-700 p-[3px] shadow-[0_0_30px_rgba(99,102,241,0.3)]">
                                <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center">
                                   <RecentBadgeIcon size={32} className="text-indigo-500 dark:text-indigo-400" />
                                </div>
@@ -345,7 +332,7 @@ export default function StudentDashboardPage() {
                                <h2 className="text-xl sm:text-3xl font-black italic tracking-tight mb-2 text-indigo-600 dark:text-indigo-400">
                                   {recentBadge ? "LATEST UNLOCK" : "NO RECENT UNLOCKS"}
                                </h2>
-                               <p className="text-slate-600 dark:text-slate-300 font-medium">
+                               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
                                   {recentBadge ? `You acquired the ${recentBadge.name} badge. View Trophy Room.` : "Keep grinding practice sheets to unlock your first achievement."}
                                </p>
                                <span className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
@@ -362,14 +349,14 @@ export default function StudentDashboardPage() {
                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
                            className="relative z-10 w-full h-full px-6 sm:px-10 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
                          >
-                            <div className="w-24 h-24 shrink-0 rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
-                               <CheckCircle size={32} className="text-amber-500" />
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl border-2 border-dashed border-amber-500 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                               <Crosshair size={36} className="text-amber-500" />
                             </div>
                             <div>
                                <h2 className="text-xl sm:text-3xl font-black italic tracking-tight text-amber-600 dark:text-amber-500 mb-2">
                                   DAILY OBJECTIVE
                                </h2>
-                               <p className="text-slate-600 dark:text-slate-300 font-medium">
+                               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
                                   Complete your assigned <span className="font-bold text-amber-600 dark:text-amber-400">DPS Sheets</span> to build speed, accuracy, and earn MathCoins.
                                </p>
                                <span className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-500">
@@ -386,14 +373,14 @@ export default function StudentDashboardPage() {
                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
                            className="relative z-10 w-full h-full px-6 sm:px-10 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
                          >
-                            <div className="w-24 h-24 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-[0_0_30px_rgba(52,211,153,0.3)]">
-                               <ShieldCheck size={36} className="text-white" />
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-[0_0_30px_rgba(52,211,153,0.3)]">
+                               <Swords size={36} className="text-white" />
                             </div>
                             <div>
                                <h2 className="text-xl sm:text-3xl font-black tracking-tight mb-2 text-emerald-600 dark:text-emerald-400">
                                   MOCK READINESS
                                </h2>
-                               <p className="text-slate-600 dark:text-slate-300 font-medium">
+                               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
                                   Challenge yourself with the next Mock Exam to test your readiness and secure your rank.
                                </p>
                                <span className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
@@ -410,14 +397,14 @@ export default function StudentDashboardPage() {
                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
                            className="relative z-10 w-full h-full px-6 sm:px-10 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
                          >
-                            <div className="w-24 h-24 shrink-0 rounded-2xl bg-gradient-to-br from-rose-400 to-red-600 flex items-center justify-center shadow-[0_0_30px_rgba(244,63,94,0.3)]">
-                               <Crown size={36} className="text-white" />
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-rose-400 to-red-600 flex items-center justify-center shadow-[0_0_30px_rgba(244,63,94,0.3)]">
+                               <Medal size={36} className="text-white" />
                             </div>
                             <div>
                                <h2 className="text-xl sm:text-3xl font-black tracking-tight mb-2 text-rose-600 dark:text-rose-400">
                                   LEADERBOARD RANKING
                                </h2>
-                               <p className="text-slate-600 dark:text-slate-300 font-medium">
+                               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
                                   Check the live competitive standings and see how you match up against the top scholars.
                                </p>
                                <span className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-rose-600 dark:text-rose-500">
@@ -442,17 +429,17 @@ export default function StudentDashboardPage() {
                  </div>
                </TiltCard>
 
-               {/* 2. Massive Pop-Art Transmission Canvas */}
-               <TiltCard className="group w-full h-[280px]">
+               {/* 2. Massive Pop-Art Transmission Canvas (Dynamic Height) */}
+               <TiltCard className="group w-full h-full min-h-[250px]">
                  <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-3xl shadow-2xl transition-all duration-700 bg-slate-900">
                    <AnimatePresence mode="wait">
                       <motion.div 
                         key={quoteIndex}
-                        initial={{ opacity: 0, scale: 0.9, rotate: -2 }} 
-                        animate={{ opacity: 1, scale: 1, rotate: 0 }} 
-                        exit={{ opacity: 0, scale: 1.1, rotate: 2 }} 
+                        initial={{ opacity: 0, scale: 0.95 }} 
+                        animate={{ opacity: 1, scale: 1 }} 
+                        exit={{ opacity: 0, scale: 1.05 }} 
                         transition={{ duration: 0.6, type: "spring" }}
-                        className="absolute inset-0 flex items-center justify-center"
+                        className="absolute inset-0 flex items-stretch justify-stretch"
                       >
                          {(() => {
                            const activeQuote = GAMER_MOTIVATIONS[quoteIndex];
@@ -463,21 +450,21 @@ export default function StudentDashboardPage() {
                                 <motion.div 
                                   animate={{ y: [-10, 10, -10], rotate: [0, 5, -5, 0] }} 
                                   transition={{ repeat: Number.POSITIVE_INFINITY, duration: 6, ease: "easeInOut" }}
-                                  className={`absolute top-8 left-8 w-16 h-16 rounded-2xl flex items-center justify-center opacity-30 blur-sm ${activeStyle.iconBoxClass}`}
+                                  className={`absolute top-8 left-8 w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center opacity-30 blur-sm ${activeStyle.iconBoxClass}`}
                                 >
-                                   <Cpu size={32} />
+                                   <Cpu size={28} />
                                 </motion.div>
 
                                 <motion.div 
                                   animate={{ y: [10, -10, 10], rotate: [0, -5, 5, 0] }} 
                                   transition={{ repeat: Number.POSITIVE_INFINITY, duration: 5, ease: "easeInOut" }}
-                                  className={`absolute bottom-8 right-8 w-12 h-12 rounded-full flex items-center justify-center opacity-40 blur-[2px] ${activeStyle.iconBoxClass}`}
+                                  className={`absolute bottom-8 right-8 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center opacity-40 blur-[2px] ${activeStyle.iconBoxClass}`}
                                 >
-                                   <Zap size={24} />
+                                   <Zap size={20} />
                                 </motion.div>
 
-                                <div className="z-10 text-center max-w-3xl">
-                                  <h3 className={`text-2xl sm:text-4xl md:text-5xl ${activeStyle.textClass} leading-tight`}>
+                                <div className="z-10 text-center w-full max-w-4xl flex flex-col items-center">
+                                  <h3 className={`text-[clamp(1.5rem,4vw,3rem)] ${activeStyle.textClass} leading-[1.2] text-balance break-words`}>
                                      "{activeQuote.text}"
                                   </h3>
                                   {activeQuote.author && (
@@ -485,9 +472,9 @@ export default function StudentDashboardPage() {
                                       initial={{ opacity: 0, y: 10 }}
                                       animate={{ opacity: 1, y: 0 }}
                                       transition={{ delay: 0.3 }}
-                                      className="mt-6"
+                                      className="mt-6 shrink-0"
                                      >
-                                       <span className={`${activeStyle.authorClass} text-lg md:text-xl`}>
+                                       <span className={`${activeStyle.authorClass} text-sm md:text-lg`}>
                                           - {activeQuote.author}
                                        </span>
                                      </motion.div>
