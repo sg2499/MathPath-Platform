@@ -217,7 +217,7 @@ const router = useRouter();
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-white/60 dark:from-white/10 to-transparent blur-[80px] pointer-events-none z-0" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
-        <PodiumHeroAnimation rank={activeHeroRank} onComplete={() => setActiveHeroRank(null)} />
+        <PodiumHeroAnimation rank={activeHeroRank} viewMode={viewMode} onComplete={() => setActiveHeroRank(null)} />
         
         {/* AAA Header Block */}
         <div className="math-card p-6 md:p-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
