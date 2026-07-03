@@ -428,8 +428,8 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
         >
           {/* Clipped Background Geometry */}
           <div 
-            className={`absolute inset-0 transition-all duration-500 ${!isUnlocked ? 'bg-slate-200 dark:bg-slate-800 shadow-[inset_0_4px_4px_rgba(0,0,0,0.1)]' : 'shadow-[inset_0_4px_4px_rgba(255,255,255,0.4)]'}`} 
-            style={{ clipPath: shape.clipPath, ...(isUnlocked ? { background: config.customBg, border: config.customBorder } : {}) }} 
+            className={`absolute inset-0 transition-all duration-500 ${!isUnlocked ? 'bg-slate-200 dark:bg-slate-800 shadow-[inset_0_4px_4px_rgba(0,0,0,0.1)]' : 'shadow-[inset_0_8px_16px_rgba(255,255,255,0.4)]'}`} 
+            style={{ clipPath: shape.clipPath, ...(isUnlocked ? { background: config.customBg } : {}) }} 
           />
 
           {/* Icon with Chromatic Aberration/Glitch */}
