@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, useMotionTemplate, Variants } from "framer-motion";
 import { 
   Target, Focus, Scan, Zap, FastForward, Rocket, Medal, 
   Flag, Crown, Flame, Activity, Infinity as InfinityIcon, Clock, Sun, 
@@ -430,35 +430,43 @@ function PolymathEnv({ tier }: { tier: string }) {
 // --- MAIN MODAL COMPONENT ---
 
 export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspectionModalProps) {
-  // Setup 3D Mouse Physics inside the modal
-  const [physics, setPhysics] = useState({ rx: 0, ry: 0, gx: 50, gy: 50 });
   const cardRef = React.useRef<HTMLDivElement>(null);
+
+  // High-performance Framer Motion Values
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const springConfig = { damping: 20, stiffness: 100, mass: 1.5 }; // Heavy momentum for the massive modal badge
+  const smoothX = useSpring(mouseX, springConfig);
+  const smoothY = useSpring(mouseY, springConfig);
+
+  // Rotate based on mouse (Max 30deg)
+  const rx = useTransform(smoothY, [-0.5, 0.5], [30, -30]);
+  const ry = useTransform(smoothX, [-0.5, 0.5], [-30, 30]);
+
+  // Dynamic Specular Highlight / Volumetric Flashlight
+  const glareX = useTransform(smoothX, [-0.5, 0.5], [0, 100]);
+  const glareY = useTransform(smoothY, [-0.5, 0.5], [0, 100]);
+  const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.5) 0%, transparent 50%)`;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
     
-    // Rotate (Max 25deg)
-    const ry = ((x / rect.width) - 0.5) * 50; 
-    const rx = ((0.5 - (y / rect.height))) * 50; 
-
-    // Glare % (0 to 100)
-    const gx = (x / rect.width) * 100;
-    const gy = (y / rect.height) * 100;
-    
-    setPhysics({ rx, ry, gx, gy });
+    mouseX.set(x);
+    mouseY.set(y);
   };
 
   const handleMouseLeave = () => {
-    setPhysics({ rx: 0, ry: 0, gx: 50, gy: 50 });
+    mouseX.set(0);
+    mouseY.set(0);
   };
 
   const tier = badge.tier;
   const isLegendary = tier === "LEGENDARY";
-
-  const Icon = IconMap[badge.iconName] || Target;
+  const Icon = (IconMap[badge.iconName] || Target) as any;
 
   const getShapeStyles = (iconName: string) => {
     const shapes: Record<string, { clipPath: string, w: string, h: string }> = {
@@ -497,6 +505,24 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
   };
   const shape = getShapeStyles(badge.iconName);
 
+  // Kinetic Typography Animation
+  const containerVars: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.05, delayChildren: 0.8 }
+    }
+  };
+  const letterVars: Variants = {
+    hidden: { opacity: 0, x: -20, filter: "blur(10px)" },
+    visible: { 
+      opacity: 1, 
+      x: 0, 
+      filter: "blur(0px)",
+      transition: { type: "spring", damping: 12, stiffness: 200 }
+    }
+  };
+
   return (
     <AnimatePresence>
       <motion.div
@@ -507,10 +533,11 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
       >
         <AAAFilters />
 
-        {/* Dynamic Screen Shake for Legendary */}
+        {/* Dynamic Screen Shake for Legendary with Time Dilation context implicit */}
         <motion.div 
-          animate={isLegendary ? { x: [-3, 3, -3, 3, 0], y: [-3, 3, -3, 3, 0] } : {}}
-          transition={isLegendary ? { duration: 0.5, repeat: Infinity, ease: "linear" } : {}}
+          initial={{ x: 0, y: 0, scale: 1.1 }}
+          animate={isLegendary ? { x: [-10, 10, -5, 5, -2, 2, 0], y: [-10, 10, -5, 5, -2, 2, 0], scale: 1 } : { scale: 1 }}
+          transition={isLegendary ? { duration: 1, ease: "easeOut", scale: { duration: 2, ease: "circOut" } } : { duration: 1 }}
           className="absolute inset-0 z-0 pointer-events-none"
         >
           {badge.code === "perfectionist" && <PerfectionistEnv tier={tier} />}
@@ -525,77 +552,100 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
           {badge.code === "polymath" && <PolymathEnv tier={tier} />}
         </motion.div>
 
+        {/* Heavy Vignette Mask for Text Legibility (Crucial for AAA polish) */}
+        <div className="absolute inset-0 z-[5] pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(2,6,23,0.8)_100%)]" />
+        <div className="absolute bottom-0 w-full h-[40vh] z-[5] pointer-events-none bg-gradient-to-t from-slate-950 to-transparent" />
+
         {/* 3D Interactive Badge Container */}
         <motion.div 
-           initial={{ scale: 0.5, y: 100, rotateY: -180 }}
+           initial={{ scale: 0.2, y: 200, rotateY: -180 }}
            animate={{ scale: 1, y: 0, rotateY: 0 }}
-           transition={{ type: "spring", bounce: 0.5, duration: 1 }}
+           transition={{ type: "spring", bounce: 0.3, duration: 1.5 }} // Heavy mass
            className="relative z-10 [perspective:2000px] flex flex-col items-center justify-center mb-8"
         >
-           <div 
+           <motion.div 
              ref={cardRef}
              onMouseMove={handleMouseMove}
              onMouseLeave={handleMouseLeave}
              className="relative flex items-center justify-center cursor-pointer transition-transform duration-100 ease-out transform-gpu"
              style={{
-                transform: `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg)`,
-                filter: `drop-shadow(0 40px 60px ${config.bloomColor})`
+                rotateX: rx,
+                rotateY: ry,
+                filter: `drop-shadow(0 60px 80px ${config.bloomColor}) drop-shadow(0 20px 40px rgba(0,0,0,0.8))`
              }}
            >
-              {/* Giant Clipped Polygon */}
+              {/* Giant Clipped Polygon (Frosted Glass simulation) */}
               <div 
-                className={`relative flex items-center justify-center ${shape.w} ${shape.h}`} 
+                className={`relative flex items-center justify-center ${shape.w} ${shape.h} shadow-[inset_0_4px_4px_rgba(255,255,255,0.4)]`} 
                 style={{ clipPath: shape.clipPath, background: config.customBg || config.unlockedBg, border: config.customBorder }}
               >
-                 {React.createElement(Icon as any, { size: 120, style: { color: config.iconColorHex }, className: `drop-shadow-lg ${config.glitch ? 'animate-pulse' : ''}` })}
+                 <Icon size={120} style={{ color: config.iconColorHex }} className={`drop-shadow-2xl z-20 relative ${config.glitch ? 'animate-pulse' : ''}`} />
                  
-                 {/* Internal AAA Glare */}
-                 <div 
-                    className="absolute inset-0 pointer-events-none z-10 mix-blend-overlay"
-                    style={{
-                       background: `linear-gradient(105deg, transparent ${physics.gx - 20}%, rgba(255,255,255,1) ${physics.gx}%, transparent ${physics.gx + 20}%)`,
-                    }}
+                 {/* Internal AAA Glare tracking mouse */}
+                 <motion.div 
+                    className="absolute inset-0 pointer-events-none z-30 mix-blend-overlay"
+                    style={{ background: glareBackground }}
                   />
               </div>
 
               {/* Legendary Conic Ring Wrapper inside the 3D card */}
               {isLegendary && (
-                 <div className="absolute inset-[-40%] animate-[spin_5s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,rgba(255,255,255,0.4)_360deg)] z-[-1] rounded-full pointer-events-none mix-blend-color-dodge blur-[2px]" />
+                 <div className="absolute inset-[-60%] animate-[spin_5s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,rgba(255,255,255,0.5)_360deg)] z-[-1] rounded-full pointer-events-none mix-blend-color-dodge blur-[4px]" />
               )}
-           </div>
+           </motion.div>
         </motion.div>
 
-        {/* Floating Text Info */}
+        {/* Floating Text Info (Kinetic Typography) */}
         <motion.div 
-           initial={{ opacity: 0, y: 50 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ delay: 0.5, duration: 0.5 }}
-           className="relative z-10 text-center max-w-2xl px-6"
+           initial={{ opacity: 0, y: 50, filter: "blur(10px)" }}
+           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+           transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
+           className="relative z-10 text-center max-w-3xl px-6"
         >
-            <h1 className="text-5xl md:text-7xl font-black italic uppercase text-white mb-4 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] tracking-tight">
-               {badge.name}
-            </h1>
-            <p className="text-xl md:text-3xl text-slate-200/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-medium">
+            <motion.h1 
+               variants={containerVars}
+               initial="hidden"
+               animate="visible"
+               className="text-5xl md:text-8xl font-black italic uppercase text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-500 mb-4 drop-shadow-[0_5px_15px_rgba(0,0,0,1)] tracking-tighter"
+            >
+               {badge.name.split('').map((char: string, index: number) => (
+                 <motion.span key={index} variants={letterVars} className="inline-block">
+                   {char === ' ' ? '\u00A0' : char}
+                 </motion.span>
+               ))}
+            </motion.h1>
+
+            <motion.p 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               transition={{ delay: 1.5, duration: 1 }}
+               className="text-xl md:text-3xl text-slate-300 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] font-medium leading-relaxed max-w-2xl mx-auto"
+            >
                {badge.description}
-            </p>
-            <div className="mt-8 flex items-center justify-center space-x-2">
-               <span className={`px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest bg-slate-900/50 backdrop-blur-md border ${tier === 'LEGENDARY' ? 'text-yellow-400 border-yellow-400/50' : tier === 'SUPER' ? 'text-indigo-400 border-indigo-400/50' : 'text-slate-300 border-slate-500/50'}`}>
+            </motion.p>
+            
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.8 }}
+               animate={{ opacity: 1, scale: 1 }}
+               transition={{ delay: 1.8, type: "spring" }}
+               className="mt-8 flex items-center justify-center space-x-3"
+            >
+               <span className={`px-5 py-2 rounded-full text-sm md:text-base font-black uppercase tracking-[0.2em] bg-slate-900/80 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] border ${tier === 'LEGENDARY' ? 'text-yellow-400 border-yellow-400/50 shadow-[0_0_15px_rgba(250,204,21,0.2)]' : tier === 'SUPER' ? 'text-indigo-400 border-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'text-slate-300 border-slate-500/50'}`}>
                  {tier} TIER
                </span>
-               <span className="px-4 py-1.5 rounded-full text-sm font-black text-emerald-400 uppercase tracking-widest bg-emerald-950/50 backdrop-blur-md border border-emerald-500/50">
+               <span className="px-5 py-2 rounded-full text-sm md:text-base font-black text-emerald-400 uppercase tracking-[0.2em] bg-emerald-950/80 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_0_15px_rgba(16,185,129,0.2)] border border-emerald-500/50">
                  UNLOCKED
                </span>
-            </div>
+            </motion.div>
         </motion.div>
 
         {/* Close Button */}
         <button 
            onClick={onClose}
-           className="absolute top-8 right-8 z-50 text-slate-400 hover:text-white bg-slate-900/50 hover:bg-slate-800 rounded-full p-3 transition-colors backdrop-blur-md border border-slate-700"
+           className="absolute top-8 right-8 z-50 text-slate-400 hover:text-white bg-slate-900/50 hover:bg-slate-800 rounded-full p-4 transition-all duration-300 backdrop-blur-md border border-slate-700/50 hover:border-slate-500 hover:scale-110 active:scale-95"
         >
-           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
-
       </motion.div>
     </AnimatePresence>
   );

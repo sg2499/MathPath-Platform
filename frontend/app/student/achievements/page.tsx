@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate } from "framer-motion";
 import { triggerMicroBurst } from "@/lib/utils/particles";
 import { 
   Target, Focus, Scan, Zap, FastForward, Rocket, 
@@ -264,37 +265,51 @@ function Shelf({ title, badges, tier, onSelectBadge }: { title: string, badges: 
 }
 
 function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data: { badge: any, config: any }) => void }) {
-  const Icon = IconMap[badge.iconName] || Target;
+  const Icon = (IconMap[badge.iconName] || Target) as any;
   const isUnlocked = badge.isUnlocked;
-
-  // Track mouse for AAA 3D physics and Parallax
-  const [physics, setPhysics] = useState({ rx: 0, ry: 0, px: 0, py: 0, gx: 50, gy: 50, opacity: 0 });
+  
   const cardRef = React.useRef<HTMLDivElement>(null);
+  
+  // High-performance Framer Motion Values
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const opacity = useMotionValue(0);
+
+  const springConfig = { damping: 20, stiffness: 150, mass: 0.5 };
+  
+  const smoothX = useSpring(mouseX, springConfig);
+  const smoothY = useSpring(mouseY, springConfig);
+  const smoothOpacity = useSpring(opacity, { damping: 20, stiffness: 100 });
+
+  // Rotate based on mouse (Max 25deg)
+  const rx = useTransform(smoothY, [-0.5, 0.5], [25, -25]);
+  const ry = useTransform(smoothX, [-0.5, 0.5], [-25, 25]);
+  
+  // Parallax (Max 20px)
+  const px = useTransform(smoothX, [-0.5, 0.5], [-20, 20]);
+  const py = useTransform(smoothY, [-0.5, 0.5], [-20, 20]);
+  
+  // Dynamic Specular Highlight / Volumetric Flashlight
+  const glareX = useTransform(smoothX, [-0.5, 0.5], [0, 100]);
+  const glareY = useTransform(smoothY, [-0.5, 0.5], [0, 100]);
+  const background = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.4) 0%, transparent 60%)`;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isUnlocked || !cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
     
-    // Rotate (Max 25deg)
-    const ry = ((x / rect.width) - 0.5) * 50; 
-    const rx = ((0.5 - (y / rect.height))) * 50; 
-    
-    // Parallax (Max 20px opposite direction)
-    const px = ((x / rect.width) - 0.5) * -40;
-    const py = ((y / rect.height) - 0.5) * -40;
-
-    // Glare % (0 to 100)
-    const gx = (x / rect.width) * 100;
-    const gy = (y / rect.height) * 100;
-    
-    setPhysics({ rx, ry, px, py, gx, gy, opacity: 1 });
+    mouseX.set(x);
+    mouseY.set(y);
+    opacity.set(1);
   };
 
   const handleMouseLeave = () => {
     if (!isUnlocked) return;
-    setPhysics({ rx: 0, ry: 0, px: 0, py: 0, gx: 50, gy: 50, opacity: 0 });
+    mouseX.set(0);
+    mouseY.set(0);
+    opacity.set(0);
   };
 
   const configKey = badge.code ? `${badge.code}_${badge.tier}` : "";
@@ -305,8 +320,12 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
     const x = e.clientX / window.innerWidth;
     const y = e.clientY / window.innerHeight;
     triggerMicroBurst(x, y, config.burst);
-    onSelectBadge({ badge, config });
+    // Slight delay so the violent click animation runs before mounting modal
+    setTimeout(() => {
+      onSelectBadge({ badge, config });
+    }, 150);
   };
+  
   const progressPercent = Math.min(100, Math.round((badge.currentProgress / badge.requiredCount) * 100));
 
   const getShapeStyles = (iconName: string) => {
@@ -347,35 +366,47 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
   const shape = getShapeStyles(badge.iconName);
 
   return (
-    <div 
+    <motion.div 
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      whileHover={isUnlocked ? { scale: 1.05 } : {}}
+      whileTap={isUnlocked ? { scale: 0.85 } : {}}
       className={`relative group [perspective:1000px] h-full ${isUnlocked ? 'cursor-pointer' : ''}`}
     >
-      <div 
-        className={`relative flex flex-col items-center text-center p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-full transition-transform duration-200 ease-out transform-gpu overflow-hidden`}
+      <motion.div 
+        className={`relative flex flex-col items-center text-center p-5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] border border-slate-100/50 dark:border-slate-800/50 h-full overflow-hidden`}
         style={{
-          transform: isUnlocked && physics.opacity > 0 ? `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg) scale(1.05)` : 'rotateX(0deg) rotateY(0deg) scale(1)',
-          boxShadow: isUnlocked && physics.opacity > 0 ? (badge.tier === 'LEGENDARY' ? '0 30px 60px -12px rgba(234, 179, 8, 0.5)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)') : ''
+          rotateX: isUnlocked ? rx : 0,
+          rotateY: isUnlocked ? ry : 0,
+          boxShadow: isUnlocked ? (badge.tier === 'LEGENDARY' ? '0 30px 60px -12px rgba(234, 179, 8, 0.5)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)') : ''
         }}
       >
         
-        {/* AAA Sci-Fi Light Sweep (Hard Sheen) */}
+        {/* Dynamic Volumetric Flashlight */}
         {isUnlocked && (
-          <div 
-            className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-300 mix-blend-overlay"
+          <motion.div 
+            className="absolute inset-0 pointer-events-none z-10 mix-blend-overlay"
             style={{
-              background: `linear-gradient(105deg, transparent ${physics.gx - 25}%, rgba(255,255,255,1) ${physics.gx}%, transparent ${physics.gx + 25}%)`,
-              opacity: physics.opacity
+              background,
+              opacity: smoothOpacity
             }}
           />
         )}
 
-        {/* Legendary Conic Sweep & High-Velocity Sparks */}
+        {/* Legendary Foil Sweep & Sparks */}
         {isUnlocked && badge.tier === "LEGENDARY" && (
            <>
+             {/* Holographic foil sweep tied to rotation */}
+             <motion.div 
+                className="absolute inset-[-100%] z-0 pointer-events-none mix-blend-color-dodge opacity-50" 
+                style={{ 
+                   background: "linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.8) 50%, transparent 60%)",
+                   x: px, 
+                   y: py 
+                }}
+             />
              <div className="absolute inset-[-100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,rgba(234,179,8,0.3)_360deg)] z-0 pointer-events-none mix-blend-color-dodge" />
              <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
                 {[...Array(8)].map((_, i) => (
@@ -386,35 +417,35 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
         )}
 
         {/* The Badge Graphic (Clipped Polygon + Drop Shadow) */}
-        <div 
+        <motion.div 
           className={`relative flex items-center justify-center mb-5 transition-all duration-300 ${shape.w} ${shape.h} z-20`} 
           style={{ 
-            filter: isUnlocked && physics.opacity > 0 ? `drop-shadow(0 0 25px ${config.bloomColor}) drop-shadow(0 15px 15px rgba(0,0,0,0.5))` : (isUnlocked ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.15))' : 'none'),
-            transform: isUnlocked && physics.opacity > 0 ? `scale(1.1) translateZ(40px) translateX(${physics.px}px) translateY(${physics.py}px)` : 'scale(1) translateZ(0) translateX(0) translateY(0)' 
+            filter: isUnlocked ? `drop-shadow(0 0 25px ${config.bloomColor}) drop-shadow(0 15px 15px rgba(0,0,0,0.5))` : 'none',
+            x: isUnlocked ? px : 0,
+            y: isUnlocked ? py : 0,
+            z: isUnlocked ? 40 : 0
           }}
         >
           {/* Clipped Background Geometry */}
           <div 
-            className={`absolute inset-0 transition-all duration-500 ${!isUnlocked ? 'bg-slate-200 dark:bg-slate-800 shadow-inner' : ''}`} 
-            style={{ clipPath: shape.clipPath, ...(isUnlocked ? { background: config.customBg, boxShadow: config.customShadow, border: config.customBorder } : {}) }} 
+            className={`absolute inset-0 transition-all duration-500 ${!isUnlocked ? 'bg-slate-200 dark:bg-slate-800 shadow-[inset_0_4px_4px_rgba(0,0,0,0.1)]' : 'shadow-[inset_0_4px_4px_rgba(255,255,255,0.4)]'}`} 
+            style={{ clipPath: shape.clipPath, ...(isUnlocked ? { background: config.customBg, border: config.customBorder } : {}) }} 
           />
-
-          {/* HDR Bloom Under-layer (Legendary) */}
-          {isUnlocked && badge.tier === "LEGENDARY" && physics.opacity > 0 && (
-             <Icon size={40} className={`absolute z-0 text-yellow-300 transition-all duration-300 blur-md`} style={{ transform: `scale(1.2) rotate(12deg)` }} />
-          )}
 
           {/* Icon with Chromatic Aberration/Glitch */}
           <Icon size={32} className={`relative z-10 ${!isUnlocked ? 'text-slate-400 dark:text-slate-600' : ''} transition-all duration-300`} style={{ 
-            transform: isUnlocked && physics.opacity > 0 ? 'scale(1.15) rotate(12deg)' : 'scale(1) rotate(0deg)',
+            transform: isUnlocked ? 'scale(1.15) rotate(12deg)' : 'scale(1) rotate(0deg)',
             color: isUnlocked ? config.iconColorHex : undefined,
-            filter: isUnlocked && config.glitch && physics.opacity > 0 ? 'drop-shadow(-3px 0px 0px rgba(255,0,0,0.8)) drop-shadow(3px 0px 0px rgba(0,255,255,0.8))' : 'none'
+            filter: isUnlocked && config.glitch ? 'drop-shadow(-3px 0px 0px rgba(255,0,0,0.8)) drop-shadow(3px 0px 0px rgba(0,255,255,0.8))' : 'none'
           }} />
-        </div>
+        </motion.div>
         
-        <h3 className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-600'}`} style={{ transform: isUnlocked && physics.opacity > 0 ? 'translateZ(20px)' : 'translateZ(0)' }}>
+        <motion.h3 
+          className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-600'}`} 
+          style={{ z: isUnlocked ? 20 : 0 }}
+        >
           {badge.name}
-        </h3>
+        </motion.h3>
         
         <p className="relative text-[10px] md:text-xs text-slate-500 mb-4 min-h-[2.5rem] flex-grow z-20">
           {badge.description}
@@ -426,7 +457,7 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
               <span>Progress</span>
               <span>{badge.currentProgress} / {badge.requiredCount}</span>
             </div>
-            <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
               <div className="h-full bg-slate-400 rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
             </div>
           </div>
@@ -439,7 +470,7 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
             </p>
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
-}// force trigger deploy
+}
