@@ -533,9 +533,9 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         </div>
       </div>
 
-      <div className="text-center mb-4 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 max-w-[90px] md:max-w-[120px] w-full mx-auto overflow-hidden">
-        <p className={`font-black text-sm md:text-base text-white truncate ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
-        <p className={`text-xs md:text-sm font-black text-${config.color}-400 mt-0.5 drop-shadow-md truncate`}>{Math.round(student.percentage)}%</p>
+      <div className="text-center mb-4 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-max min-w-[100px] mx-auto whitespace-nowrap">
+        <p className={`font-black text-sm md:text-base text-white ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
+        <p className={`text-xs md:text-sm font-black text-${config.color}-400 mt-0.5 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
       </div>
 
       {/* AAA Geometric Pedestal with Glass Foil Glare */}
@@ -543,7 +543,7 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         initial={{ height: 0, opacity: 0 }}
         animate={{ height: "100%", opacity: 1 }}
         transition={{ type: "spring", stiffness: 100, damping: 15, delay: config.delay }}
-        className={`w-36 md:w-52 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-8 border-b-[8px] border-white/40 shadow-[inset_0_0_30px_rgba(255,255,255,0.5)] cursor-pointer group`}
+        className={`w-36 md:w-52 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-2 md:pb-4 border-b-[8px] border-white/40 shadow-[inset_0_0_30px_rgba(255,255,255,0.5)] cursor-pointer group`}
         style={{ clipPath: config.shape, filter: `drop-shadow(0 -10px 40px ${config.shadow})` }}
         onClick={handlePodiumClick}
       >
@@ -554,8 +554,8 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-500 z-0" style={{ opacity: isHovered ? 0.5 : 0 }} />
         
         {/* Rank Number Levitation */}
-        <span className={`text-8xl md:text-9xl font-black text-${config.color}-700/20 drop-shadow-md transition-all duration-500 z-20`} 
-              style={{ transform: isHovered ? 'scale(1.2) translateY(-20px)' : 'scale(1)', textShadow: isHovered ? `0 0 30px ${config.shadow}` : 'none' }}>
+        <span className={`text-7xl md:text-8xl font-black text-${config.color}-700/30 drop-shadow-md transition-all duration-500 z-20`} 
+              style={{ transform: isHovered ? 'scale(1.1) translateY(-10px)' : 'scale(1)', textShadow: isHovered ? `0 0 30px ${config.shadow}` : 'none' }}>
           {rank}
         </span>
       </motion.div>
@@ -582,8 +582,7 @@ function TableRow({ row: r, delay }: { row: any; delay: number }) {
   return (
       <tr 
         key={r.rank} 
-        onClick={() => router.push(`/student/competition/mock-result/${r.id}`)}
-        className={`group transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:shadow-[inset_0_0_20px_rgba(99,102,241,0.05)] relative cursor-pointer ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}
+        className={`group transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:shadow-[inset_0_0_20px_rgba(99,102,241,0.05)] relative ${r.isCurrent ? 'bg-indigo-50/80 dark:bg-indigo-900/40 ring-2 ring-inset ring-indigo-500 z-10' : 'bg-transparent'}`}
       >
       <td className="px-6 py-5 font-black text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors text-base relative z-10">
         #{r.rank}
