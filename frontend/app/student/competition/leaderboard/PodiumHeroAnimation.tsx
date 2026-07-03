@@ -318,6 +318,18 @@ export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, on
     }
   }, [rank, onComplete]);
 
+  // Add keyboard listener for skipping
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onComplete();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onComplete]);
+
   if (!mounted) return null;
 
   return (
@@ -484,10 +496,10 @@ export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, on
           {/* ============================================================== */}
           <motion.button
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
-            whileHover={{ opacity: 1, scale: 1.05 }}
+            animate={{ opacity: 1 }}
+            whileHover={{ scale: 1.05 }}
             onClick={() => onComplete()}
-            className="absolute bottom-6 right-6 z-[200] text-white/50 hover:text-white uppercase tracking-widest text-xs font-bold px-4 py-2 rounded-full border border-white/20 hover:border-white/50 backdrop-blur-md transition-all duration-300 pointer-events-auto"
+            className="absolute bottom-6 right-6 z-[200] text-white hover:text-white uppercase tracking-widest text-xs font-bold px-4 py-2 rounded-full border border-white/50 hover:border-white backdrop-blur-md transition-all duration-300 pointer-events-auto"
           >
             Skip Animation ⏭
           </motion.button>
