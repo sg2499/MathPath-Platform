@@ -547,7 +547,7 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
                 className={`relative flex items-center justify-center ${shape.w} ${shape.h}`} 
                 style={{ clipPath: shape.clipPath, background: config.customBg || config.unlockedBg, border: config.customBorder }}
               >
-                 <Icon size={120} style={{ color: config.iconColorHex }} className={`drop-shadow-lg ${config.glitch ? 'animate-pulse' : ''}`} />
+                 {React.createElement(Icon as any, { size: 120, style: { color: config.iconColorHex }, className: `drop-shadow-lg ${config.glitch ? 'animate-pulse' : ''}` })}
                  
                  {/* Internal AAA Glare */}
                  <div 
