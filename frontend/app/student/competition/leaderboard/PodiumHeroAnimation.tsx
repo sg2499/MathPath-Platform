@@ -2,10 +2,33 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Lottie from 'lottie-react';
 
 interface PodiumHeroAnimationProps {
   rank: 1 | 2 | 3 | null;
   onComplete: () => void;
+}
+
+// A robust component to fetch and render Lottie JSON from a URL
+function RemoteLottie({ url, className }: { url: string, className?: string }) {
+  const [animationData, setAnimationData] = useState<any>(null);
+
+  useEffect(() => {
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => setAnimationData(data))
+      .catch((err) => console.error("Lottie fetch failed:", err));
+  }, [url]);
+
+  if (!animationData) {
+    return (
+       <div className={`flex items-center justify-center ${className}`}>
+         <div className="w-32 h-32 border-4 border-t-transparent border-white rounded-full animate-spin opacity-50" />
+       </div>
+    );
+  }
+
+  return <Lottie animationData={animationData} loop={true} autoplay={true} className={className} />;
 }
 
 export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationProps) {
@@ -13,10 +36,17 @@ export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationPro
     if (rank !== null) {
       const timer = setTimeout(() => {
         onComplete();
-      }, 4000); // Extended slightly for full cinematic sequences
+      }, 5000); // 5 seconds for full Lottie cutscene
       return () => clearTimeout(timer);
     }
   }, [rank, onComplete]);
+
+  // Replace these URLs with the exact Spartan/Ninja/Titan Lottie files your team prefers
+  const LOTTIE_URLS = {
+    1: "https://assets9.lottiefiles.com/packages/lf20_x62chJ.json", // Grandmaster / Spartan
+    2: "https://assets3.lottiefiles.com/packages/lf20_jR229r.json", // Phantom / Ninja
+    3: "https://assets2.lottiefiles.com/packages/lf20_bXEGle.json", // Titan / Gladiator
+  };
 
   return (
     <AnimatePresence>
@@ -31,11 +61,11 @@ export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationPro
           <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" />
           <motion.div 
             initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.5 }}
-            className="absolute top-0 w-full h-[15vh] bg-black z-0" 
+            className="absolute top-0 w-full h-[15vh] bg-black z-0 border-b border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.8)]" 
           />
           <motion.div 
             initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ duration: 0.5 }}
-            className="absolute bottom-0 w-full h-[15vh] bg-black z-0" 
+            className="absolute bottom-0 w-full h-[15vh] bg-black z-0 border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.8)]" 
           />
 
           {/* ============================================================== */}
@@ -46,9 +76,9 @@ export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationPro
               {/* Massive Golden Teleport Pillar */}
               <motion.div
                 initial={{ scaleY: 0, scaleX: 3, opacity: 0 }}
-                animate={{ scaleY: 1, scaleX: 1, opacity: [0, 1, 0] }}
-                transition={{ duration: 0.8, times: [0, 0.2, 1], ease: "easeOut" }}
-                className="absolute w-[400px] h-[200vh] bg-yellow-300/80 blur-3xl mix-blend-screen"
+                animate={{ scaleY: 1, scaleX: 1, opacity: [0, 1, 0.5, 0] }}
+                transition={{ duration: 1.5, times: [0, 0.2, 0.8, 1], ease: "easeOut" }}
+                className="absolute w-[400px] h-[200vh] bg-yellow-300/80 blur-3xl mix-blend-screen z-0"
               />
 
               {/* Nuclear Golden Shockwave */}
@@ -56,7 +86,7 @@ export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationPro
                 initial={{ scale: 0, opacity: 1, rotate: 0 }}
                 animate={{ scale: 8, opacity: 0, rotate: 90 }}
                 transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
-                className="absolute w-[300px] h-[300px] rounded-full border-[30px] border-yellow-400/80 mix-blend-screen"
+                className="absolute w-[300px] h-[300px] rounded-full border-[30px] border-yellow-400/80 mix-blend-screen z-0"
               />
 
               {/* Orbiting Abacus Beads */}
@@ -72,15 +102,15 @@ export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationPro
                     y: Math.sin((i * 30) * Math.PI / 180) * 400
                   }}
                   transition={{ duration: 2.5, delay: 0.3, ease: "easeOut" }}
-                  className="absolute w-8 h-8 rounded-full bg-yellow-400 shadow-[0_0_20px_#facc15] blur-[1px]"
+                  className="absolute w-8 h-8 rounded-full bg-yellow-400 shadow-[0_0_20px_#facc15] blur-[1px] z-20"
                 />
               ))}
 
-              {/* Grandmaster Reveal & Screen Shake */}
+              {/* Lottie Character Reveal & Screen Shake */}
               <motion.div
                 initial={{ scale: 0, y: -200, opacity: 0 }}
                 animate={{ 
-                  scale: 1, 
+                  scale: 1.2, 
                   opacity: 1,
                   x: [0, -30, 30, -20, 20, -10, 10, 0],
                   y: [0, -30, 30, -20, 20, -10, 10, 0]
@@ -90,20 +120,16 @@ export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationPro
                   x: { delay: 0.2, duration: 0.5, ease: "easeInOut" },
                   y: { delay: 0.2, duration: 0.5, ease: "easeInOut" },
                 }}
-                className="relative z-10 w-[900px] h-[900px] flex items-center justify-center mix-blend-screen"
+                className="relative z-10 w-[800px] h-[800px] flex items-center justify-center drop-shadow-[0_0_80px_rgba(250,204,21,1)]"
               >
-                <img 
-                  src="/assets/gamification/grandmaster.png" 
-                  alt="Abacus Grandmaster" 
-                  className="w-full h-full object-contain drop-shadow-[0_0_80px_rgba(250,204,21,1)]"
-                />
+                <RemoteLottie url={LOTTIE_URLS[1]} className="w-full h-full" />
               </motion.div>
               
               {/* Cinematic Title Text */}
               <motion.div
                  initial={{ opacity: 0, scale: 1.5, filter: "blur(20px)" }}
                  animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                 transition={{ delay: 0.6, type: "spring", bounce: 0.5 }}
+                 transition={{ delay: 0.8, type: "spring", bounce: 0.5 }}
                  className="absolute bottom-[20vh] z-20"
               >
                 <h1 className="text-7xl md:text-8xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-yellow-100 via-yellow-400 to-yellow-600 drop-shadow-[0_0_30px_rgba(250,204,21,1)] uppercase">
@@ -125,54 +151,32 @@ export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationPro
                   initial={{ scaleX: 0, x: "-100vw", opacity: 1 }}
                   animate={{ scaleX: 1, x: "100vw", opacity: 0 }}
                   transition={{ duration: 0.3, delay: i * 0.1, ease: "linear" }}
-                  className={`absolute h-[2px] bg-cyan-400 blur-sm w-[150vw] rotate-[-15deg] top-[${20 + i * 15}%]`}
+                  className={`absolute h-[2px] bg-cyan-400 blur-sm w-[150vw] rotate-[-15deg] top-[${20 + i * 15}%] z-20`}
                 />
               ))}
 
-              {/* Triple Dash Afterimages */}
+              {/* Lottie Phantom Reveal with Time Freeze Effect */}
               <motion.div
-                initial={{ x: -1000, skewX: -40, opacity: 0 }}
-                animate={{ x: -150, skewX: -20, opacity: [0, 0.4, 0] }}
-                transition={{ duration: 0.2, delay: 0.1 }}
-                className="absolute z-0 w-[800px] h-[800px] mix-blend-screen filter saturate-200 hue-rotate-15"
-              >
-                <img src="/assets/gamification/phantom.png" className="w-full h-full object-contain" />
-              </motion.div>
-              <motion.div
-                initial={{ x: 1000, skewX: 40, opacity: 0 }}
-                animate={{ x: 150, skewX: 20, opacity: [0, 0.6, 0] }}
-                transition={{ duration: 0.2, delay: 0.2 }}
-                className="absolute z-0 w-[800px] h-[800px] mix-blend-screen filter saturate-200 -hue-rotate-15"
-              >
-                <img src="/assets/gamification/phantom.png" className="w-full h-full object-contain" />
-              </motion.div>
-
-              {/* Final Phantom Time Freeze */}
-              <motion.div
-                initial={{ scale: 1.5, opacity: 0, filter: 'blur(20px)' }}
-                animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
-                transition={{ duration: 0.2, delay: 0.3 }}
-                className="relative z-10 w-[800px] h-[800px] flex items-center justify-center mix-blend-screen"
+                initial={{ scale: 1.5, opacity: 0, filter: 'blur(20px)', x: -1000, skewX: -30 }}
+                animate={{ scale: 1.2, opacity: 1, filter: 'blur(0px)', x: 0, skewX: 0 }}
+                transition={{ duration: 0.5, type: "spring", bounce: 0.4 }}
+                className="relative z-10 w-[800px] h-[800px] flex items-center justify-center drop-shadow-[0_0_60px_rgba(34,211,238,0.9)]"
               >
                 {/* Time Freeze Core Blast */}
                 <motion.div 
                    initial={{ scale: 0, opacity: 1 }}
                    animate={{ scale: 5, opacity: 0 }}
                    transition={{ duration: 1.2, delay: 0.3 }}
-                   className="absolute w-64 h-64 bg-cyan-400 rounded-full blur-[100px]"
+                   className="absolute w-64 h-64 bg-cyan-400 rounded-full blur-[100px] z-[-1]"
                 />
-                <img 
-                  src="/assets/gamification/phantom.png" 
-                  alt="Speed Math Phantom" 
-                  className="w-full h-full object-contain drop-shadow-[0_0_60px_rgba(34,211,238,0.9)]"
-                />
+                <RemoteLottie url={LOTTIE_URLS[2]} className="w-full h-full" />
               </motion.div>
 
               {/* Text */}
               <motion.div
                  initial={{ opacity: 0, x: -300, skewX: -30 }}
                  animate={{ opacity: 1, x: 0, skewX: 0 }}
-                 transition={{ delay: 0.5, type: "spring", bounce: 0.6 }}
+                 transition={{ delay: 0.8, type: "spring", bounce: 0.6 }}
                  className="absolute bottom-[20vh] z-20"
               >
                 <h1 className="text-7xl md:text-8xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-cyan-100 via-cyan-400 to-cyan-600 drop-shadow-[0_0_30px_rgba(34,211,238,1)] uppercase">
@@ -216,24 +220,20 @@ export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationPro
                     rotate: Math.random() * 720
                   }}
                   transition={{ duration: 1.5, delay: 0.4, ease: "easeOut" }}
-                  className="absolute w-4 h-4 bg-orange-500 rounded-sm shadow-[0_0_20px_#f97316]"
+                  className="absolute w-4 h-4 bg-orange-500 rounded-sm shadow-[0_0_20px_#f97316] z-20"
                 />
               ))}
 
-              {/* Titan Drop */}
+              {/* Lottie Titan Drop */}
               <motion.div
                 initial={{ y: -1500, scale: 1.5, opacity: 0 }}
                 animate={{ 
-                  y: 0, scale: 1, opacity: 1 
+                  y: 0, scale: 1.2, opacity: 1 
                 }}
                 transition={{ y: { type: "spring", bounce: 0, duration: 0.5, ease: "easeIn" }, opacity: { duration: 0.1 } }}
-                className="relative z-10 w-[900px] h-[900px] flex items-center justify-center mix-blend-screen"
+                className="relative z-10 w-[800px] h-[800px] flex items-center justify-center drop-shadow-[0_0_80px_rgba(249,115,22,0.9)]"
               >
-                <img 
-                  src="/assets/gamification/titan.png" 
-                  alt="Logic Titan" 
-                  className="w-full h-full object-contain drop-shadow-[0_0_80px_rgba(249,115,22,0.9)]"
-                />
+                <RemoteLottie url={LOTTIE_URLS[3]} className="w-full h-full" />
                 
                 {/* Secondary Shake triggered instantly after landing */}
                 <motion.div
@@ -247,7 +247,7 @@ export function PodiumHeroAnimation({ rank, onComplete }: PodiumHeroAnimationPro
               <motion.div
                  initial={{ opacity: 0, scale: 3, y: -100 }}
                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                 transition={{ delay: 0.5, type: "spring", bounce: 0.6 }}
+                 transition={{ delay: 0.8, type: "spring", bounce: 0.6 }}
                  className="absolute bottom-[20vh] z-20"
               >
                 <h1 className="text-7xl md:text-8xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-orange-200 via-orange-500 to-red-600 drop-shadow-[0_0_30px_rgba(239,68,68,1)] uppercase">
