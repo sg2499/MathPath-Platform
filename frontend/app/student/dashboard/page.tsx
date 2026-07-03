@@ -25,11 +25,11 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import React from "react";
-import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate, AnimatePresence } from "framer-motion";
-import { Canvas } from "@react-three/fiber";
-import { Float, Sparkles as DreiSparkles, TorusKnot, Icosahedron } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
+import React, { useRef } from "react";
+import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate } from "framer-motion";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Float, Sparkles as DreiSparkles, MeshDistortMaterial } from "@react-three/drei";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 
 type ProgressionTone = "success" | "ready" | "focus" | "steady";
@@ -74,7 +74,6 @@ function BuildStudentProgressionMessage(Assessments: Array<Record<string, any>>,
       ]),
       ActionLabel: "Open Progress",
       ActionRoute: "/student/results",
-      ColorHex: "#10b981" // Emerald
     };
   }
 
@@ -91,7 +90,6 @@ function BuildStudentProgressionMessage(Assessments: Array<Record<string, any>>,
       ]),
       ActionLabel: "Review Assessments",
       ActionRoute: "/student/assessments",
-      ColorHex: "#8b5cf6" // Violet
     };
   }
 
@@ -111,7 +109,6 @@ function BuildStudentProgressionMessage(Assessments: Array<Record<string, any>>,
       ]),
       ActionLabel: "Review Assessments",
       ActionRoute: "/student/assessments",
-      ColorHex: "#f59e0b" // Amber
     };
   }
 
@@ -126,75 +123,95 @@ function BuildStudentProgressionMessage(Assessments: Array<Record<string, any>>,
     ]),
     ActionLabel: "Continue Learning",
     ActionRoute: Assessments.length > 0 ? "/student/assessments" : "/student/practice",
-    ColorHex: "#3b82f6" // Blue
   };
 }
 
 const QuickLinks = [
-  { Icon: <BookOpenCheck size={20} />, Label: "Practice", Route: "/student/practice", Color: "from-blue-500/20 to-blue-900/20", BorderColor: "border-blue-500/30", GlowColor: "rgba(59,130,246,0.5)" },
-  { Icon: <GraduationCap size={20} />, Label: "Assessments", Route: "/student/assessments", Color: "from-purple-500/20 to-purple-900/20", BorderColor: "border-purple-500/30", GlowColor: "rgba(168,85,247,0.5)" },
-  { Icon: <ShieldCheck size={20} />, Label: "Assessment Readiness", Route: "/student/assessment-readiness", Color: "from-emerald-500/20 to-emerald-900/20", BorderColor: "border-emerald-500/30", GlowColor: "rgba(16,185,129,0.5)" },
-  { Icon: <BarChart3 size={20} />, Label: "Progress", Route: "/student/results", Color: "from-amber-500/20 to-amber-900/20", BorderColor: "border-amber-500/30", GlowColor: "rgba(245,158,11,0.5)" },
-  { Icon: <Trophy size={20} />, Label: "Mock Leaderboard", Route: "/student/competition/leaderboard", Color: "from-rose-500/20 to-rose-900/20", BorderColor: "border-rose-500/30", GlowColor: "rgba(244,63,94,0.5)" },
-  { Icon: <Award size={20} />, Label: "Trophy Room", Route: "/student/achievements", Color: "from-yellow-500/20 to-yellow-900/20", BorderColor: "border-yellow-500/30", GlowColor: "rgba(234,179,8,0.5)" },
+  { Icon: <BookOpenCheck size={18} />, Label: "Practice", Route: "/student/practice" },
+  { Icon: <GraduationCap size={18} />, Label: "Assessments", Route: "/student/assessments" },
+  { Icon: <ShieldCheck size={18} />, Label: "Assessment Readiness", Route: "/student/assessment-readiness" },
+  { Icon: <BarChart3 size={18} />, Label: "Progress", Route: "/student/results" },
+  { Icon: <Trophy size={18} />, Label: "Mock Leaderboard", Route: "/student/competition/leaderboard" },
+  { Icon: <Award size={18} />, Label: "Trophy Room", Route: "/student/achievements" },
 ];
 
-// --- 3D ENVIRONMENT FOR DASHBOARD ---
+// --- R3F HERO ENVIRONMENT ---
+function LiquidCore() {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x = state.clock.elapsedTime * 0.2;
+      meshRef.current.rotation.y = state.clock.elapsedTime * 0.3;
+    }
+  });
+
+  return (
+    <Float speed={2} rotationIntensity={1} floatIntensity={2}>
+      <mesh ref={meshRef} position={[6, 0, -2]} scale={1.5}>
+        <sphereGeometry args={[2, 64, 64]} />
+        <MeshDistortMaterial 
+          color="#f97316" // Orange base to match Student Theme
+          emissive="#f43f5e" // Rose/Pink accent
+          emissiveIntensity={1}
+          distort={0.4} 
+          speed={2} 
+          roughness={0.2} 
+          metalness={0.8} 
+          transparent
+          opacity={0.8}
+        />
+      </mesh>
+    </Float>
+  );
+}
+
 function HeroEnvironment() {
   return (
     <>
       <ambientLight intensity={0.5} />
-      <pointLight position={[10, 10, 10]} intensity={50} color="#3b82f6" distance={50} />
-      <pointLight position={[-10, -10, -10]} intensity={30} color="#8b5cf6" distance={50} />
+      <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" />
       
-      <Float speed={2} rotationIntensity={1} floatIntensity={1}>
-        <Icosahedron args={[3, 0]} position={[6, 0, -5]}>
-          <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={1} wireframe />
-        </Icosahedron>
-        <TorusKnot args={[2, 0.1, 100, 16]} position={[-8, 2, -10]} rotation={[Math.PI/4, 0, 0]}>
-          <meshStandardMaterial color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={2} wireframe />
-        </TorusKnot>
-      </Float>
+      <LiquidCore />
+      
+      {/* Magical dust matching the theme */}
+      <DreiSparkles count={150} scale={20} size={4} speed={0.4} opacity={0.6} color="#fb7185" />
 
-      <DreiSparkles count={200} scale={30} size={3} speed={0.5} color="#c084fc" />
-
+      {/* Subtle bloom so it doesn't wash out the underlying CSS gradient */}
       <EffectComposer multisampling={4}>
-         <Bloom luminanceThreshold={0.2} mipmapBlur intensity={1.5} />
+         <Bloom luminanceThreshold={0.5} mipmapBlur intensity={1.2} />
       </EffectComposer>
     </>
   );
 }
 
-
-// --- 3D GAMIFIED TILT CARD WRAPPER ---
-function TiltCard({ children, className, onClick, glowColor }: { children: ReactNode, className?: string, onClick?: () => void, glowColor?: string }) {
-  const cardRef = React.useRef<HTMLDivElement>(null);
+// --- 3D FRAMER MOTION TILT CARD ---
+// We wrap native CSS classes with this physics engine.
+function TiltCard({ children, className, onClick }: { children: ReactNode, className?: string, onClick?: () => void }) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
 
-  const springConfig = { damping: 20, stiffness: 150, mass: 1 };
+  // Smooth, weighted spring for premium feel
+  const springConfig = { damping: 25, stiffness: 120, mass: 1 };
   const mouseXSpring = useSpring(x, springConfig);
   const mouseYSpring = useSpring(y, springConfig);
 
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], [10, -10]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], [-10, 10]);
+  // Subtle 3D tilt
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], [6, -6]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], [-6, 6]);
 
+  // Dynamic light glare that follows the mouse
   const glareX = useTransform(mouseXSpring, [-0.5, 0.5], [0, 100]);
   const glareY = useTransform(mouseYSpring, [-0.5, 0.5], [0, 100]);
-  const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.2) 0%, transparent 50%)`;
-  const hoverGlow = useMotionTemplate`drop-shadow(0 0 20px ${glowColor || 'rgba(59,130,246,0.3)'})`;
+  const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.15) 0%, transparent 60%)`;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    const xPct = mouseX / width - 0.5;
-    const yPct = mouseY / height - 0.5;
-    x.set(xPct);
-    y.set(yPct);
+    x.set(mouseX / rect.width - 0.5);
+    y.set(mouseY / rect.height - 0.5);
   };
 
   const handleMouseLeave = () => {
@@ -208,20 +225,21 @@ function TiltCard({ children, className, onClick, glowColor }: { children: React
       onClick={onClick}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      style={{ rotateX, rotateY, transformStyle: "preserve-3d", filter: x.get() !== 0 ? hoverGlow : "none" }}
-      className={`relative cursor-pointer transition-all duration-200 transform-gpu ${className}`}
+      style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+      className={`relative cursor-pointer transition-all duration-300 transform-gpu z-10 hover:z-20 ${className}`}
     >
+      {/* Glare Overlay */}
       <motion.div 
-        className="absolute inset-0 z-10 pointer-events-none rounded-[inherit] mix-blend-overlay"
+        className="absolute inset-0 z-50 pointer-events-none rounded-[inherit] mix-blend-overlay transition-opacity duration-300 opacity-0 group-hover:opacity-100"
         style={{ background: glareBackground }}
       />
-      <div style={{ transform: "translateZ(30px)", transformStyle: "preserve-3d" }} className="h-full w-full">
+      {/* Elevate children off the card base for parallax */}
+      <div style={{ transform: "translateZ(20px)", transformStyle: "preserve-3d" }} className="h-full w-full">
          {children}
       </div>
     </motion.div>
   );
 }
-
 
 export default function StudentDashboardPage() {
   const Ready = useProtectedPage(["STUDENT"]);
@@ -253,199 +271,171 @@ export default function StudentDashboardPage() {
 
   return (
     <AppShell>
-      {/* Global AAA Animated Background */}
-      <div className="fixed inset-0 z-[-1] bg-slate-950 overflow-hidden">
-         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-900/30 blur-[120px] animate-pulse" />
-         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-900/20 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
-         <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay" />
-      </div>
-
-      <main className="relative w-full max-w-7xl mx-auto space-y-8 p-4 md:p-8 text-slate-200">
+      {/* We restore the exact native math-dashboard-page wrappers to perfectly hook into globals.css theme variables */}
+      <main className="math-dashboard-page math-dashboard-student w-full space-y-5">
         
-        {/* HUD HERO SECTION */}
-        <section className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-slate-900/40 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+        {/* HERO SECTION (Row 1 of the Bento Grid) */}
+        <section className="math-dashboard-hero math-dashboard-hero-student relative overflow-hidden flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between !p-8 md:!p-10 rounded-[2rem] border border-black/5 dark:border-white/10 shadow-2xl">
           
-          {/* R3F Canvas strictly scoped to Hero Background */}
-          <div className="absolute inset-0 z-0 pointer-events-none opacity-60">
-             <Canvas camera={{ position: [0, 0, 15], fov: 45 }} gl={{ antialias: false }}>
+          {/* R3F Canvas - Absolute positioned behind the text, with alpha=true so the native gradient shows through! */}
+          <div className="absolute inset-0 z-0 pointer-events-none opacity-50 dark:opacity-70 mix-blend-screen dark:mix-blend-lighten">
+             <Canvas camera={{ position: [0, 0, 10], fov: 45 }} gl={{ antialias: true, alpha: true }}>
                 <HeroEnvironment />
              </Canvas>
           </div>
 
-          <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between p-8 md:p-12">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-blue-400 mb-4">
-                <Laptop size={16} />
-                Student Workspace
-              </div>
-              
-              {/* Kinetic Typography Title */}
-              <h1 className="mt-2 flex flex-wrap items-center gap-4 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]">
-                My Learning Dashboard <span className="inline-block origin-[70%_70%] animate-[wave_2.5s_ease-in-out_infinite]">👋</span>
-              </h1>
-              
-              <p className="mt-4 text-lg text-slate-300 max-w-2xl font-medium leading-relaxed">
-                Practice, assessments, and progress in one bright learning space.
-              </p>
-              
-              <div className="mt-8 flex flex-wrap gap-4">
-                <button
-                  type="button"
-                  onClick={() => Router.push(ActiveAssignments.length > 0 ? "/student/practice" : ProgressionMessage.ActionRoute)}
-                  className="flex items-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-wider shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] transition-all duration-300 hover:scale-105 active:scale-95"
-                >
-                  <Sparkles size={18} />
-                  {ActiveAssignments.length > 0 ? "Continue Practice" : ProgressionMessage.ActionLabel}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => Router.push("/student/results")}
-                  className="flex items-center gap-2 px-8 py-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-white font-black uppercase tracking-wider border border-slate-600/50 backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95"
-                >
-                  <BarChart3 size={18} />
-                  Open Progress
-                </button>
-              </div>
+          <div className="relative z-10 min-w-0">
+            <div className="math-block-header inline-flex items-center gap-2 mb-3 bg-white/50 dark:bg-black/20 backdrop-blur-md px-4 py-1.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm">
+              <Laptop size={14} className="text-[var(--mp-role-primary)]" />
+              <span className="font-bold tracking-widest text-[var(--mp-role-primary)]">Student Workspace</span>
             </div>
-            
-            <div className="relative p-6 rounded-2xl bg-slate-900/60 border border-slate-700/50 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] lg:min-w-[300px]">
-              <div className="absolute -top-3 -right-3 h-6 w-6 rounded-full bg-blue-500 animate-ping opacity-75" />
-              <div className="absolute -top-3 -right-3 h-6 w-6 rounded-full bg-blue-500 border-2 border-slate-900" />
-              
-              <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Learning Pulse</p>
-              <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Next Step</h2>
-              <p className="text-sm text-slate-300 font-medium leading-relaxed">
-                {ActiveAssignments.length > 0
-                  ? "Continue your assigned DPS from Practice."
-                  : "Review progress or readiness for your next step."}
-              </p>
+            <h1 className="flex items-center gap-3 text-4xl sm:text-5xl lg:text-[3rem] font-black tracking-[-0.04em] text-slate-950 dark:text-white drop-shadow-sm">
+              My Learning Dashboard
+            </h1>
+            <p className="math-subtitle mt-3 max-w-2xl text-lg font-medium opacity-90">
+              Practice, assessments, and progress in one vibrant learning space.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => Router.push(ActiveAssignments.length > 0 ? "/student/practice" : ProgressionMessage.ActionRoute)}
+                className="math-dashboard-primary-action px-8 py-3.5 rounded-xl font-bold tracking-wide transition-transform hover:scale-105 active:scale-95 shadow-xl"
+              >
+                <Sparkles size={16} className="inline-block mr-2 -mt-0.5" />
+                {ActiveAssignments.length > 0 ? "Continue Practice" : ProgressionMessage.ActionLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => Router.push("/student/results")}
+                className="math-dashboard-secondary-action px-8 py-3.5 rounded-xl font-bold tracking-wide transition-transform hover:scale-105 active:scale-95 shadow-sm"
+              >
+                <BarChart3 size={16} className="inline-block mr-2 -mt-0.5" />
+                Open Progress
+              </button>
             </div>
+          </div>
+          
+          <div className="math-dashboard-readable-pulse math-dashboard-readable-pulse-student relative z-10 !rounded-2xl border border-white/20 dark:border-white/10 backdrop-blur-xl">
+            <p className="math-dashboard-pulse-eyebrow font-bold tracking-widest mb-1 text-xs uppercase">Learning Pulse</p>
+            <h2 className="text-2xl font-black mb-1 drop-shadow-sm text-white">Next Step</h2>
+            <p className="font-medium opacity-90 leading-relaxed text-sm text-white/90">
+              {ActiveAssignments.length > 0
+                ? "Continue your assigned DPS from Practice."
+                : "Review progress or readiness for your next step."}
+            </p>
           </div>
         </section>
 
-        {AssignmentQuery.isLoading || AssessmentQuery.isLoading ? <LoadingState label="Initializing HUD Data..." /> : null}
+        {AssignmentQuery.isLoading || AssessmentQuery.isLoading ? <LoadingState label="Loading your universe..." /> : null}
         {AssignmentQuery.error ? <ErrorState message={apiErrorMessage(AssignmentQuery.error)} /> : null}
         {AssessmentQuery.error ? <ErrorState message={apiErrorMessage(AssessmentQuery.error)} /> : null}
 
         {!AssignmentQuery.isLoading && !AssessmentQuery.isLoading && !AssignmentQuery.error && !AssessmentQuery.error ? (
-          <div className="space-y-8">
-            <TiltCard glowColor={ProgressionMessage.ColorHex} onClick={() => Router.push(ProgressionMessage.ActionRoute)} className="w-full">
-               <ProgressionJourneyCard State={ProgressionMessage} />
-            </TiltCard>
-
-            <section className="grid lg:grid-cols-[1fr_300px] gap-8 items-stretch">
+          
+          /* BENTO GRID LAYOUT (Row 2) - No Scrolling Needed */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+            
+            {/* LEFT COLUMN: Journey & Priority (Spans 8 cols) */}
+            <div className="lg:col-span-8 flex flex-col gap-5 h-full">
                
-               {/* Priority Panel */}
-               <TiltCard glowColor="rgba(59,130,246,0.5)" className="h-full">
-                 <div className="h-full flex flex-col justify-between p-8 rounded-3xl bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                   <div>
-                     <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-amber-400 mb-4">
-                       <Zap size={16} />
-                       Learning Priority
+               {/* 1. Journey Card (Wrapped in TiltCard for physics, but retains native CSS) */}
+               <TiltCard onClick={() => Router.push(ProgressionMessage.ActionRoute)} className="group w-full h-full">
+                 <div className="math-dashboard-journey-card flex flex-col h-full justify-center gap-4 sm:flex-row sm:items-center sm:justify-between !rounded-3xl border border-black/5 dark:border-white/5 shadow-xl transition-colors hover:border-[var(--mp-role-primary)]/30">
+                   <div className="flex min-w-0 gap-5 items-center">
+                     <span className={`inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.25rem] border shadow-inner bg-white dark:bg-black/20 ${
+                        ProgressionMessage.Tone === 'success' ? 'border-emerald-200 text-emerald-600 dark:border-emerald-500/30 dark:text-emerald-400' :
+                        ProgressionMessage.Tone === 'ready' ? 'border-violet-200 text-violet-600 dark:border-violet-500/30 dark:text-violet-400' :
+                        ProgressionMessage.Tone === 'focus' ? 'border-amber-200 text-amber-600 dark:border-amber-500/30 dark:text-amber-400' :
+                        'border-blue-200 text-blue-600 dark:border-blue-500/30 dark:text-blue-400'
+                     }`}>
+                       <Trophy size={28} className="drop-shadow-sm" />
+                     </span>
+                     <div className="min-w-0">
+                       <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                         <div className="math-block-header !mb-0 !bg-transparent !p-0">
+                           <Milestone size={14} /> Next Level Journey
+                         </div>
+                         <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest shadow-sm ${
+                            ProgressionMessage.Tone === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300' :
+                            ProgressionMessage.Tone === 'ready' ? 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-300' :
+                            ProgressionMessage.Tone === 'focus' ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300' :
+                            'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300'
+                         }`}>
+                           {ProgressionMessage.Label}
+                         </span>
+                       </div>
+                       <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-950 dark:text-white drop-shadow-sm">{ProgressionMessage.Title}</h2>
+                       <p className="math-subtitle !mt-1 max-w-lg">{ProgressionMessage.Message}</p>
                      </div>
-                     <h2 className="text-3xl font-black tracking-tight text-white mb-3">
+                   </div>
+                   <div className="shrink-0">
+                     <button type="button" className="math-dashboard-primary-action px-6 py-3 rounded-xl font-bold transition-transform group-hover:scale-105 shadow-lg">
+                       <Sparkles size={15} className="inline-block mr-1.5 -mt-0.5" />
+                       {ProgressionMessage.ActionLabel}
+                     </button>
+                   </div>
+                 </div>
+               </TiltCard>
+
+               {/* 2. Priority Panel */}
+               <TiltCard className="group w-full h-full">
+                 <div className="math-dashboard-priority-panel flex flex-col justify-between h-full !rounded-3xl border border-black/5 dark:border-white/5 shadow-xl transition-colors hover:border-[var(--mp-role-primary)]/30">
+                   <div>
+                     <div className="math-block-header inline-flex items-center gap-2 mb-3 bg-[var(--mp-role-soft)] backdrop-blur-md px-3 py-1 rounded-full border border-[var(--mp-role-shadow)]">
+                       <Zap size={14} className="text-[var(--mp-role-primary)]" />
+                       <span className="font-bold tracking-widest text-[var(--mp-role-primary)]">Learning Priority</span>
+                     </div>
+                     <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-950 dark:text-white drop-shadow-sm">
                        {ActiveAssignments.length > 0 ? "Continue Assigned Practice" : "Review Learning Progress"}
                      </h2>
-                     <p className="text-slate-300 font-medium leading-relaxed max-w-lg">
+                     <p className="math-subtitle mt-2 max-w-xl">
                        {ActiveAssignments.length > 0
                          ? "Complete assigned DPS, then check readiness for your next step."
                          : "Review attempts, scores, progress, and readiness."}
                      </p>
                    </div>
-                   
-                   <div className="mt-8 flex flex-wrap gap-4">
+                   <div className="mt-6 flex flex-wrap gap-3">
                      <button
                        type="button"
                        onClick={(e) => { e.stopPropagation(); Router.push(ActiveAssignments.length > 0 ? "/student/practice" : "/student/results"); }}
-                       className="flex items-center gap-2 px-6 py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_0_15px_rgba(245,158,11,0.4)] hover:shadow-[0_0_25px_rgba(245,158,11,0.6)] transition-all duration-300"
+                       className="math-dashboard-primary-action px-7 py-3 rounded-xl font-bold transition-transform hover:scale-105 active:scale-95 shadow-lg"
                      >
-                       <Sparkles size={16} />
+                       <Sparkles size={15} className="inline-block mr-1.5 -mt-0.5" />
                        {ActiveAssignments.length > 0 ? "Practice Review" : "Progress Review"}
                      </button>
                      <button
                        type="button"
                        onClick={(e) => { e.stopPropagation(); Router.push("/student/assessment-readiness"); }}
-                       className="flex items-center gap-2 px-6 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-black uppercase tracking-wider border border-slate-600 transition-all duration-300"
+                       className="math-dashboard-secondary-action px-7 py-3 rounded-xl font-bold transition-transform hover:scale-105 active:scale-95 shadow-sm"
                      >
-                       <ShieldCheck size={16} />
+                       <ShieldCheck size={15} className="inline-block mr-1.5 -mt-0.5" />
                        Assessment Readiness
                      </button>
                    </div>
                  </div>
                </TiltCard>
 
-               {/* Quick Access Grid */}
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 {QuickLinks.map((LinkItem) => (
-                   <TiltCard key={LinkItem.Route} glowColor={LinkItem.GlowColor} onClick={() => Router.push(LinkItem.Route)}>
-                     <QuickAccessCard
-                       Icon={LinkItem.Icon}
-                       Label={LinkItem.Label}
-                       ColorClass={LinkItem.Color}
-                       BorderClass={LinkItem.BorderColor}
-                     />
-                   </TiltCard>
-                 ))}
-               </div>
-            </section>
+            </div>
+
+            {/* RIGHT COLUMN: Quick Links Bento Grid (Spans 4 cols) */}
+            <div className="lg:col-span-4 grid grid-cols-2 gap-3 h-full">
+              {QuickLinks.map((LinkItem) => (
+                <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full min-h-[140px]">
+                  <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-3xl border border-black/5 dark:border-white/5 shadow-md hover:shadow-2xl transition-all duration-300">
+                    <span className="math-dashboard-quick-icon mb-3 p-3 rounded-2xl shadow-inner transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-[0_0_20px_var(--mp-role-shadow)]">
+                      {LinkItem.Icon}
+                    </span>
+                    <span className="block w-full px-2 text-sm font-black tracking-tight text-slate-900 dark:text-white/90 drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors">
+                      {LinkItem.Label}
+                    </span>
+                  </div>
+                </TiltCard>
+              ))}
+            </div>
+
           </div>
         ) : null}
       </main>
     </AppShell>
-  );
-}
-
-function ProgressionJourneyCard({ State }: { State: ReturnType<typeof BuildStudentProgressionMessage> }) {
-  const ToneColor = 
-    State.Tone === "success" ? "text-emerald-400 border-emerald-500/50 bg-emerald-950/50 shadow-[0_0_20px_rgba(16,185,129,0.3)]" :
-    State.Tone === "ready" ? "text-violet-400 border-violet-500/50 bg-violet-950/50 shadow-[0_0_20px_rgba(139,92,246,0.3)]" :
-    State.Tone === "focus" ? "text-amber-400 border-amber-500/50 bg-amber-950/50 shadow-[0_0_20px_rgba(245,158,11,0.3)]" :
-    "text-blue-400 border-blue-500/50 bg-blue-950/50 shadow-[0_0_20px_rgba(59,130,246,0.3)]";
-
-  const IconBg = 
-    State.Tone === "success" ? "bg-emerald-500/20 text-emerald-300" :
-    State.Tone === "ready" ? "bg-violet-500/20 text-violet-300" :
-    State.Tone === "focus" ? "bg-amber-500/20 text-amber-300" :
-    "bg-blue-500/20 text-blue-300";
-
-  return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-8 rounded-3xl bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-      <div className="flex items-start md:items-center gap-6">
-        <div className={`shrink-0 flex items-center justify-center w-16 h-16 rounded-2xl border ${ToneColor}`}>
-          <Trophy size={28} />
-        </div>
-        <div>
-          <div className="flex flex-wrap items-center gap-3 mb-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">
-              <Milestone size={14} /> Next Level Journey
-            </div>
-            <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border ${ToneColor}`}>
-              {State.Label}
-            </span>
-          </div>
-          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white mb-2">{State.Title}</h2>
-          <p className="text-slate-300 font-medium leading-relaxed max-w-3xl">{State.Message}</p>
-        </div>
-      </div>
-      <div className="shrink-0">
-         <span className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-wider backdrop-blur-md border border-white/10 transition-colors">
-            <Sparkles size={16} />
-            {State.ActionLabel}
-         </span>
-      </div>
-    </div>
-  );
-}
-
-function QuickAccessCard({ Icon, Label, ColorClass, BorderClass }: { Icon: ReactNode; Label: string; ColorClass: string; BorderClass: string }) {
-  return (
-    <div className={`h-full flex flex-col items-center justify-center p-6 text-center rounded-2xl bg-gradient-to-br ${ColorClass} backdrop-blur-md border ${BorderClass} shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] group-hover:border-white/50 transition-all`}>
-      <div className="mb-3 text-white opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300">
-         {Icon}
-      </div>
-      <span className="text-sm font-black uppercase tracking-wider text-white drop-shadow-md">
-         {Label}
-      </span>
-    </div>
   );
 }
