@@ -217,7 +217,7 @@ const router = useRouter();
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-white/60 dark:from-white/10 to-transparent blur-[80px] pointer-events-none z-0" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
-        <PodiumHeroAnimation rank={activeHeroRank} viewMode={viewMode} onComplete={() => setActiveHeroRank(null)} />
+        <PodiumHeroAnimation rank={activeHeroRank} viewMode={viewMode} student={activeHeroRank ? top3[activeHeroRank - 1] : undefined} onComplete={() => setActiveHeroRank(null)} />
         
         {/* AAA Header Block */}
         <div className="math-card p-6 md:p-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl">
@@ -450,20 +450,20 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         color: "yellow", shadow: "rgba(250,204,21,0.6)", gradient: "from-yellow-300 to-yellow-600",
         pedestalGradient: "from-yellow-500 via-yellow-400 to-yellow-200", label: "1st",
         height: "h-[350px] md:h-[400px]", avatarSize: "w-32 h-32 md:w-40 md:h-40", translateY: "translate-y-0",
-        shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", bloom: "rgba(250,204,21,0.8)", delay: 0.6
+        shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", bloom: "rgba(250,204,21,0.8)", delay: 0.6, textColor: "text-yellow-400"
       }
     : rank === 2 
     ? {
         color: "slate", shadow: "rgba(148,163,184,0.5)", gradient: "from-slate-200 to-slate-400",
         pedestalGradient: "from-slate-300 to-slate-100", label: "2nd",
         height: "h-[220px] md:h-[280px]", avatarSize: "w-24 h-24 md:w-32 md:h-32", translateY: "translate-y-0",
-        shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)", bloom: "rgba(148,163,184,0.6)", delay: 0.5
+        shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)", bloom: "rgba(148,163,184,0.6)", delay: 0.5, textColor: "text-slate-200"
       }
     : {
         color: "orange", shadow: "rgba(249,115,22,0.5)", gradient: "from-orange-300 to-orange-500",
         pedestalGradient: "from-orange-400 to-orange-200", label: "3rd",
         height: "h-[140px] md:h-[180px]", avatarSize: "w-20 h-20 md:w-28 md:h-28", translateY: "translate-y-0",
-        shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)", bloom: "rgba(249,115,22,0.6)", delay: 0.4
+        shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)", bloom: "rgba(249,115,22,0.6)", delay: 0.4, textColor: "text-orange-400"
       };
 
   return (
@@ -535,7 +535,7 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
 
       <div className="text-center mb-4 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-max min-w-[100px] mx-auto whitespace-nowrap">
         <p className={`font-black text-sm md:text-base text-white ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
-        <p className={`text-xs md:text-sm font-black text-${config.color}-400 mt-0.5 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
+        <p className={`text-xs md:text-sm font-black ${config.textColor} mt-0.5 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
       </div>
 
       {/* AAA Geometric Pedestal with Glass Foil Glare */}
