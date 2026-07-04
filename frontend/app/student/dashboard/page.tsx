@@ -555,7 +555,7 @@ export default function StudentDashboardPage() {
             <div className="lg:col-span-4 grid grid-cols-2 gap-4 h-full">
               {QuickLinks.map((LinkItem) => {
                 const renderIcon = () => {
-                  const props = { size: 36, strokeWidth: 2.5, className: "text-slate-800 dark:text-slate-100 group-hover:text-[var(--mp-role-primary)] transition-colors duration-300" };
+                  const props = { size: 30, strokeWidth: 2 };
                   switch (LinkItem.id) {
                     case "practice": return <BookOpenCheck {...props} />;
                     case "assessments": return <GraduationCap {...props} />;
@@ -572,7 +572,7 @@ export default function StudentDashboardPage() {
                     <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-[24px] border border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl shadow-md hover:shadow-2xl hover:bg-white/60 dark:hover:bg-slate-800/60 transition-all duration-500 relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                       
-                      <div className="math-dashboard-quick-icon flex items-center justify-center mb-4 w-[72px] h-[72px] rounded-[22px] bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-white/80 dark:border-slate-700 shadow-sm transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-1 group-hover:shadow-[0_10px_30px_var(--mp-role-shadow)] z-10 text-slate-800 dark:text-slate-100 group-hover:text-[var(--mp-role-primary)]">
+                      <div className="math-dashboard-quick-icon flex items-center justify-center mb-4 w-14 h-14 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-white/80 dark:border-slate-700 shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_15px_var(--mp-role-shadow)] z-10 text-slate-700 dark:text-slate-200 group-hover:text-[var(--mp-role-primary)]">
                         {renderIcon()}
                       </div>
                       
