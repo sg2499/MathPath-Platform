@@ -110,16 +110,61 @@ function GlobalDarkConstellation() {
   );
 }
 
-function GlobalLightDataWave() {
+function GlobalLightAuroraMesh() {
   return (
-    <>
-      <ambientLight intensity={1.5} color="#ffffff" />
-      <directionalLight position={[10, 10, 5]} intensity={3} color="#ea580c" />
-      <directionalLight position={[-10, -10, -5]} intensity={1} color="#fcd34d" />
-      <DreiSparkles count={400} scale={100} size={8} speed={0.4} opacity={0.8} color="#ea580c" />
-      <FloatingDataNodes count={200} color="#ea580c" wireframe={false} opacity={0.7} />
-    </>
+    <div className="fixed inset-0 z-[-10] overflow-hidden bg-slate-50 pointer-events-none">
+      <div className="absolute inset-0 opacity-40 mix-blend-soft-light bg-[url('/noise.png')]"></div>
+      
+      {/* Aurora Orbs - Slow CSS Animations */}
+      <motion.div 
+        animate={{ 
+          x: ['0%', '10%', '-10%', '0%'],
+          y: ['0%', '-10%', '10%', '0%'],
+          scale: [1, 1.1, 0.9, 1]
+        }}
+        transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] rounded-full bg-orange-300/40 blur-[120px]"
+      />
+      
+      <motion.div 
+        animate={{ 
+          x: ['0%', '-15%', '5%', '0%'],
+          y: ['0%', '15%', '-5%', '0%'],
+          scale: [1, 0.9, 1.1, 1]
+        }}
+        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        className="absolute top-[20%] right-[10%] w-[50%] h-[70%] rounded-full bg-sky-300/40 blur-[120px]"
+      />
+
+      <motion.div 
+        animate={{ 
+          x: ['0%', '5%', '-15%', '0%'],
+          y: ['0%', '-5%', '15%', '0%'],
+          scale: [1, 1.2, 0.8, 1]
+        }}
+        transition={{ duration: 35, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+        className="absolute -bottom-[20%] left-[20%] w-[70%] h-[60%] rounded-full bg-violet-300/40 blur-[140px]"
+      />
+    </div>
   );
+}
+
+// --- PROCEDURAL GOD-TIER TEMPLATES ---
+function generateGodTierStyle(index: number, isDark: boolean) {
+  // Golden ratio hue shifting ensures every index gets a unique, pleasant color pair
+  const hue1 = Math.floor((index * 137.5) % 360);
+  const hue2 = Math.floor((hue1 + 45 + (index * 15) % 90) % 360);
+  
+  const fonts = ["font-serif", "font-sans", "font-mono"];
+  const fontFamily = fonts[index % 3];
+
+  return {
+    bg: isDark ? `linear-gradient(135deg, hsla(${hue1}, 50%, 8%, 0.8), hsla(${hue2}, 50%, 4%, 0.9))`
+               : `linear-gradient(135deg, hsla(${hue1}, 70%, 98%, 0.8), hsla(${hue2}, 70%, 94%, 0.9))`,
+    orb1: `hsla(${hue1}, 80%, 50%, ${isDark ? 0.15 : 0.25})`,
+    orb2: `hsla(${hue2}, 80%, 50%, ${isDark ? 0.15 : 0.25})`,
+    fontFamily
+  };
 }
 
 // --- 3D FRAMER MOTION TILT CARD ---
@@ -174,12 +219,12 @@ function TiltCard({ children, className, onClick }: { children: ReactNode, class
 }
 
 const QuickLinks = [
-  { Icon: <BookOpenCheck size={18} />, Label: "Practice", Route: "/student/practice" },
-  { Icon: <GraduationCap size={18} />, Label: "Assessments", Route: "/student/assessments" },
-  { Icon: <ShieldCheck size={18} />, Label: "Assessment Readiness", Route: "/student/assessment-readiness" },
-  { Icon: <BarChart3 size={18} />, Label: "Progress", Route: "/student/results" },
-  { Icon: <Trophy size={18} />, Label: "Mock Leaderboard", Route: "/student/competition/leaderboard" },
-  { Icon: <Award size={18} />, Label: "Trophy Room", Route: "/student/achievements" },
+  { Icon: <BookOpenCheck size={32} strokeWidth={2.5} />, Label: "Practice", Route: "/student/practice" },
+  { Icon: <GraduationCap size={32} strokeWidth={2.5} />, Label: "Assessments", Route: "/student/assessments" },
+  { Icon: <ShieldCheck size={32} strokeWidth={2.5} />, Label: "Assessment Readiness", Route: "/student/assessment-readiness" },
+  { Icon: <BarChart3 size={32} strokeWidth={2.5} />, Label: "Progress", Route: "/student/results" },
+  { Icon: <Trophy size={32} strokeWidth={2.5} />, Label: "Mock Leaderboard", Route: "/student/competition/leaderboard" },
+  { Icon: <Award size={32} strokeWidth={2.5} />, Label: "Trophy Room", Route: "/student/achievements" },
 ];
 
 export default function StudentDashboardPage() {
@@ -248,7 +293,7 @@ export default function StudentDashboardPage() {
       {/* GLOBAL R3F VFX BACKGROUND */}
       <div className="fixed inset-0 z-[0] pointer-events-none opacity-40 dark:opacity-60 transition-opacity duration-1000">
          <Canvas camera={{ position: [0, 0, 30], fov: 60 }} gl={{ antialias: true, alpha: true }}>
-            {isDark ? <GlobalDarkConstellation /> : <GlobalLightDataWave />}
+            {isDark ? <GlobalDarkConstellation /> : <GlobalLightAuroraMesh />}
          </Canvas>
       </div>
 
@@ -446,8 +491,8 @@ export default function StudentDashboardPage() {
 
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
                <TiltCard className="group w-full h-full min-h-[250px]">
-                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 bg-gradient-to-br from-slate-50 to-slate-200/80 dark:from-slate-900 dark:to-[#09090b] backdrop-blur-3xl">
-                   <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none" />
+                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl">
+                   <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
                    
                    <AnimatePresence mode="wait">
                       <motion.div 
@@ -460,15 +505,16 @@ export default function StudentDashboardPage() {
                       >
                          {(() => {
                            const activeQuote = GAMER_MOTIVATIONS[quoteIndex];
+                           const style = generateGodTierStyle(quoteIndex, isDark);
                            return (
-                             <div className="w-full h-full flex flex-col justify-center items-center relative p-8 sm:p-12 transition-all duration-700">
+                             <div className="w-full h-full flex flex-col justify-center items-center relative p-8 sm:p-12 transition-all duration-700" style={{ background: style.bg }}>
                                 {/* Ambient Glow Orbs */}
-                                <div className="absolute -top-32 -left-32 w-80 h-80 bg-blue-400/20 dark:bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none" />
-                                <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-teal-400/20 dark:bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
+                                <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb1 }} />
+                                <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb2 }} />
 
-                                <div className="z-10 text-center w-full max-w-4xl flex flex-col items-center">
+                                <div className="z-20 text-center w-full max-w-4xl flex flex-col items-center">
                                   <h3 
-                                    className={`text-slate-800 dark:text-white drop-shadow-sm text-balance break-words font-serif tracking-tight
+                                    className={`text-slate-900 dark:text-white drop-shadow-sm text-balance break-words tracking-tight ${style.fontFamily}
                                       ${activeQuote.text.length < 60 ? "text-3xl md:text-5xl lg:text-[3.25rem] leading-[1.15]" : 
                                         activeQuote.text.length < 120 ? "text-2xl md:text-4xl lg:text-[2.5rem] leading-[1.25]" : 
                                         "text-xl md:text-2xl lg:text-3xl leading-[1.4]"}
@@ -483,7 +529,7 @@ export default function StudentDashboardPage() {
                                       transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
                                       className="mt-8 shrink-0"
                                      >
-                                       <span className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.25em] text-xs md:text-sm">
+                                       <span className="text-slate-600 dark:text-slate-300 font-bold uppercase tracking-[0.25em] text-xs md:text-sm">
                                           — {activeQuote.author}
                                        </span>
                                      </motion.div>
@@ -505,7 +551,7 @@ export default function StudentDashboardPage() {
                 <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full min-h-[145px]">
                   <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-[24px] border border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl shadow-md hover:shadow-2xl hover:bg-white/60 dark:hover:bg-slate-800/60 transition-all duration-500 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                    <span className="math-dashboard-quick-icon mb-4 p-3.5 rounded-[18px] bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-white/80 dark:border-slate-700 shadow-sm transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-1 group-hover:shadow-[0_0_20px_var(--mp-role-shadow)] z-10 text-slate-600 dark:text-slate-300 group-hover:text-[var(--mp-role-primary)]">
+                    <span className="math-dashboard-quick-icon mb-4 p-5 rounded-[22px] bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-white/80 dark:border-slate-700 shadow-sm transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-1 group-hover:shadow-[0_10px_30px_var(--mp-role-shadow)] z-10 text-slate-600 dark:text-slate-300 group-hover:text-[var(--mp-role-primary)]">
                       {LinkItem.Icon}
                     </span>
                     <span className="block w-full px-2 text-sm font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors z-10">
