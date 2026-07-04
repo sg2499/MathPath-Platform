@@ -184,8 +184,6 @@ export default function StudentDashboardPage() {
     return () => clearInterval(quoteTimer);
   }, [quoteIsFlipped]);
 
-  if (!Ready) return null;
-
   const Assignments = AssignmentQuery.data ?? [];
   const Assessments = AssessmentQuery.data ?? [];
   const Badges = AchievementQuery.data ?? [];
@@ -194,13 +192,13 @@ export default function StudentDashboardPage() {
 
   const pendingPractice = useMemo(() => {
     return Assignments.find(
-      (a: any) => a.status === "NOT_STARTED" || a.status === "IN_PROGRESS" || a.status === "REATTEMPT_AVAILABLE"
+      (a: any) => a && (a.status === "NOT_STARTED" || a.status === "IN_PROGRESS" || a.status === "REATTEMPT_AVAILABLE")
     );
   }, [Assignments]);
 
   const pendingMock = useMemo(() => {
     return MockAssignments.find(
-      (a: any) => a.status === "ASSIGNED" || a.status === "NOT_STARTED" || a.status === "IN_PROGRESS"
+      (a: any) => a && (a.status === "ASSIGNED" || a.status === "NOT_STARTED" || a.status === "IN_PROGRESS")
     );
   }, [MockAssignments]);
 
@@ -243,6 +241,7 @@ export default function StudentDashboardPage() {
       const dateStr = d.toISOString().split("T")[0]; // YYYY-MM-DD
       
       const count = Results.filter((r: any) => {
+        if (!r) return false;
         if (!r.completedDate && !r.submittedAt) return false;
         const compDate = (r.completedDate || r.submittedAt || "").split("T")[0];
         return compDate === dateStr;
@@ -257,8 +256,8 @@ export default function StudentDashboardPage() {
     return Math.max(...grindData.map(d => d.count), 1);
   }, [grindData]);
 
-  const completedAssignments = Assignments.filter((a: any) => a.status === 'COMPLETED').length;
-  const completedAssessments = Assessments.filter((a: any) => a.status === 'COMPLETED' || a.status === 'PASSED').length;
+  const completedAssignments = Assignments.filter((a: any) => a && a.status === 'COMPLETED').length;
+  const completedAssessments = Assessments.filter((a: any) => a && (a.status === 'COMPLETED' || a.status === 'PASSED')).length;
   const totalXP = (completedAssignments * 50) + (completedAssessments * 150) + (Badges.length * 200);
   const currentLevel = Math.floor(totalXP / 1000) + 1;
   const xpIntoLevel = totalXP % 1000;
@@ -266,6 +265,8 @@ export default function StudentDashboardPage() {
 
   const recentBadge = Badges.length > 0 ? Badges[0] : null;
   const RecentBadgeIcon = recentBadge && IconMap[recentBadge.icon] ? IconMap[recentBadge.icon] : Medal;
+
+  if (!Ready) return null;
 
   return (
     <AppShell>
