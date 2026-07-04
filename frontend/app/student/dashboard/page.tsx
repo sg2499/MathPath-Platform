@@ -322,7 +322,7 @@ export default function StudentDashboardPage() {
             {/* RIGHT SIDE: Level & Coins */}
             <div className="flex flex-wrap gap-4 items-center shrink-0 relative z-20">
                {/* Level Chip */}
-               <div className="group flex items-center gap-3 px-5 py-2.5 rounded-2xl border border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-sm hover:shadow-[0_10px_30px_rgba(56,189,248,0.3)] transition-all duration-500 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative">
+               <div className="group flex items-center gap-3 px-5 py-2.5 rounded-2xl border border-cyan-200/80 dark:border-cyan-500/20 bg-gradient-to-br from-white to-cyan-50/60 dark:from-slate-800/60 dark:to-slate-900/40 backdrop-blur-md shadow-sm hover:shadow-[0_10px_30px_rgba(56,189,248,0.3)] transition-all duration-500 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative">
                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-400/10 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                  <span className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white relative z-10">Level {currentLevel}</span>
                  <div className="w-24 h-2 bg-slate-200/60 dark:bg-slate-700/60 rounded-full overflow-hidden shadow-inner relative z-10 group-hover:ring-2 group-hover:ring-cyan-400/50 transition-all duration-500">
