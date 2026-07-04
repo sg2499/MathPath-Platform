@@ -51,10 +51,10 @@ function generateGodTierStyle(index: number, isDark: boolean) {
   const fontFamily = fonts[index % 3];
 
   return {
-    bg: isDark ? `linear-gradient(135deg, hsla(${hue1}, 50%, 8%, 0.8), hsla(${hue2}, 50%, 4%, 0.9))`
+    bg: isDark ? `linear-gradient(135deg, hsla(${hue1}, 40%, 20%, 0.85), hsla(${hue2}, 40%, 14%, 0.9))`
                : `linear-gradient(135deg, hsla(${hue1}, 70%, 98%, 0.8), hsla(${hue2}, 70%, 94%, 0.9))`,
-    orb1: `hsla(${hue1}, 80%, 50%, ${isDark ? 0.15 : 0.25})`,
-    orb2: `hsla(${hue2}, 80%, 50%, ${isDark ? 0.15 : 0.25})`,
+    orb1: `hsla(${hue1}, 80%, 50%, ${isDark ? 0.3 : 0.25})`,
+    orb2: `hsla(${hue2}, 80%, 50%, ${isDark ? 0.3 : 0.25})`,
     fontFamily
   };
 }
