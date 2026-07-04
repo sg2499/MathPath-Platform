@@ -527,6 +527,11 @@ jobs:
           set -euo pipefail
           mkdir -p ../ci-artifacts
           npm run verify:mathpath 2>&1 | tee ../ci-artifacts/frontend-e2e-tests.txt
+      - name: Run Student Login Responsive Matrix
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm run verify:student-login-responsive 2>&1 | tee ../ci-artifacts/student-login-responsive.txt
       - name: Upload Playwright Artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -549,7 +554,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-e2e-tests-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ci-artifacts/frontend-e2e-tests.txt
+          path: |
+            ci-artifacts/frontend-e2e-tests.txt
+            ci-artifacts/student-login-responsive.txt
           if-no-files-found: warn
           retention-days: ${{ env.CI_ARTIFACT_RETENTION_DAYS }}
 
