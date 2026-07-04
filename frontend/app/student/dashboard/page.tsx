@@ -254,16 +254,16 @@ export default function StudentDashboardPage() {
 
       <main className="math-dashboard-page math-dashboard-student w-full space-y-5 relative z-10">
         
-        {/* ROW 1: HERO & HUD - Restored to Standard Conventions */}
-        <section className="math-dashboard-hero math-dashboard-hero-student relative overflow-hidden rounded-[2rem] border border-black/5 dark:border-white/10 shadow-2xl p-6 sm:p-8 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
+        {/* ROW 1: HERO & HUD - Premium Glassmorphism */}
+        <section className="math-dashboard-hero math-dashboard-hero-student relative overflow-hidden rounded-[2rem] border border-white/40 dark:border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-6 sm:p-8 bg-white/30 dark:bg-slate-900/30 backdrop-blur-2xl">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between w-full">
             
             <div className="flex flex-col gap-3">
-              <div className="math-block-header inline-flex items-center gap-2 w-fit bg-white/70 dark:bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm">
-                <Laptop size={14} className="text-[var(--mp-role-primary)]" />
+              <div className="math-block-header inline-flex items-center gap-2 w-fit bg-white/70 dark:bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/50 dark:border-white/10 shadow-sm">
+                <Laptop size={14} className="text-[var(--mp-role-primary)] drop-shadow-sm" />
                 <span className="font-bold tracking-widest text-[var(--mp-role-primary)] uppercase text-xs">MATHPATH LOBBY</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black tracking-[-0.03em] text-slate-950 dark:text-white drop-shadow-sm leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black tracking-[-0.03em] text-slate-950 dark:text-white drop-shadow-md leading-tight">
                 My Learning Workspace
               </h1>
             </div>
@@ -271,25 +271,26 @@ export default function StudentDashboardPage() {
             {/* RIGHT SIDE: Level & Coins */}
             <div className="flex flex-wrap gap-4 items-center shrink-0 relative z-20">
                {/* Level Chip */}
-               <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-md transition-transform hover:scale-105 cursor-pointer">
+               <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl border border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-lg transition-transform hover:scale-105 cursor-pointer">
                  <span className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">Level {currentLevel}</span>
-                 <div className="w-24 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
+                 <div className="w-24 h-2 bg-slate-200/60 dark:bg-slate-700/60 rounded-full overflow-hidden shadow-inner relative">
                    <motion.div 
                        initial={{ width: 0 }}
                        animate={{ width: `${(xpIntoLevel / 1000) * 100}%` }}
                        transition={{ duration: 1.5, ease: "easeOut" }}
-                       className="h-full bg-[var(--mp-role-primary)] w-[0%]" 
+                       className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 absolute top-0 left-0" 
                    />
+                   <div className="absolute top-0 left-0 h-full w-[200%] bg-gradient-to-r from-transparent via-white/40 to-transparent animate-[mathShimmer_2s_infinite]" />
                  </div>
-                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{xpIntoLevel} / 1000 XP</span>
+                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{xpIntoLevel} / 1000 XP</span>
                </div>
 
                {/* Coins Chip */}
-               <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-100 to-orange-50 dark:from-orange-900/40 dark:to-orange-800/20 border-2 border-orange-200 dark:border-orange-500/30 shadow-md transition-transform hover:scale-105 cursor-pointer">
-                 <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center shadow-inner">
-                    <Coins size={18} className="text-white drop-shadow-sm" />
+               <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/50 dark:from-orange-900/60 dark:to-orange-800/40 border border-orange-200/60 dark:border-orange-500/30 shadow-lg transition-transform hover:scale-105 cursor-pointer backdrop-blur-md">
+                 <div className="w-8 h-8 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),0_0_15px_rgba(249,115,22,0.4)]">
+                    <Coins size={18} className="text-white drop-shadow-md" />
                  </div>
-                 <span className="text-lg font-black text-orange-900 dark:text-orange-400">{mathCoins.toLocaleString()}</span>
+                 <span className="text-lg font-black text-orange-900 dark:text-orange-400 drop-shadow-sm">{mathCoins.toLocaleString()}</span>
                </div>
              </div>
 
@@ -309,13 +310,24 @@ export default function StudentDashboardPage() {
                
                {/* 1. The Intel Carousel */}
                <TiltCard className="group w-full h-[220px]">
-                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-3xl border border-black/10 dark:border-white/10 shadow-xl bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-xl text-slate-900 dark:text-white transition-colors">
-                   <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] dark:opacity-10 mix-blend-overlay" />
-                   <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-3xl text-slate-900 dark:text-white transition-all duration-500">
+                   <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.02] dark:opacity-[0.05] mix-blend-overlay pointer-events-none" />
+                   
+                   {/* Holographic Grid */}
+                   <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.05)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(129,140,248,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(129,140,248,0.05)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+                   
+                   {/* Sweeping HUD Scanline */}
+                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden">
+                     <motion.div 
+                       animate={{ y: [-100, 300] }} 
+                       transition={{ repeat: Number.POSITIVE_INFINITY, duration: 3, ease: "linear" }}
+                       className="w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent shadow-[0_0_10px_rgba(34,211,238,0.5)]" 
+                     />
+                   </div>
                    
                    <div className="px-6 sm:px-10 pt-5 flex items-center gap-2 z-20 shrink-0">
-                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                     <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Live Intel Feed</span>
+                     <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-[mathBlobPulse_2s_infinite] shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
+                     <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400 drop-shadow-sm">Live Intel Feed</span>
                    </div>
 
                    <AnimatePresence mode="wait">
@@ -432,60 +444,47 @@ export default function StudentDashboardPage() {
                  </div>
                </TiltCard>
 
-               {/* 2. Massive Pop-Art Transmission Canvas (Dynamic Height) */}
+               {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
                <TiltCard className="group w-full h-full min-h-[250px]">
-                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-3xl shadow-2xl transition-all duration-700 bg-slate-900">
+                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 bg-gradient-to-br from-slate-50 to-slate-200/80 dark:from-slate-900 dark:to-[#09090b] backdrop-blur-3xl">
+                   <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none" />
+                   
                    <AnimatePresence mode="wait">
                       <motion.div 
                         key={quoteIndex}
-                        initial={{ opacity: 0, scale: 0.95 }} 
-                        animate={{ opacity: 1, scale: 1 }} 
-                        exit={{ opacity: 0, scale: 1.05 }} 
-                        transition={{ duration: 0.6, type: "spring" }}
+                        initial={{ opacity: 0, filter: 'blur(12px)', scale: 0.97 }} 
+                        animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }} 
+                        exit={{ opacity: 0, filter: 'blur(12px)', scale: 1.03 }} 
+                        transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
                         className="absolute inset-0 flex items-stretch justify-stretch"
                       >
                          {(() => {
                            const activeQuote = GAMER_MOTIVATIONS[quoteIndex];
-                           const activeStyle = POP_ART_STYLES[activeQuote.style];
                            return (
-                             <div className={`w-full h-full flex flex-col justify-center items-center relative p-8 sm:p-12 ${activeStyle.containerClass} transition-all duration-700`}>
-                                {/* Floating Background Physics Placeholder */}
-                                <motion.div 
-                                  animate={{ y: [-10, 10, -10], rotate: [0, 5, -5, 0] }} 
-                                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 6, ease: "easeInOut" }}
-                                  className={`absolute top-8 left-8 w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center opacity-30 blur-sm ${activeStyle.iconBoxClass}`}
-                                >
-                                   <Cpu size={28} />
-                                </motion.div>
-
-                                <motion.div 
-                                  animate={{ y: [10, -10, 10], rotate: [0, -5, 5, 0] }} 
-                                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 5, ease: "easeInOut" }}
-                                  className={`absolute bottom-8 right-8 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center opacity-40 blur-[2px] ${activeStyle.iconBoxClass}`}
-                                >
-                                   <Zap size={20} />
-                                </motion.div>
+                             <div className="w-full h-full flex flex-col justify-center items-center relative p-8 sm:p-12 transition-all duration-700">
+                                {/* Ambient Glow Orbs */}
+                                <div className="absolute -top-32 -left-32 w-80 h-80 bg-blue-400/20 dark:bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none" />
+                                <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-teal-400/20 dark:bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
 
                                 <div className="z-10 text-center w-full max-w-4xl flex flex-col items-center">
                                   <h3 
-                                    className={`
-                                      ${activeStyle.textClass} text-balance break-words
-                                      ${activeQuote.text.length < 60 ? "text-3xl md:text-5xl lg:text-[3.5rem] leading-[1.1] font-black" : 
-                                        activeQuote.text.length < 120 ? "text-2xl md:text-4xl lg:text-[2.75rem] leading-[1.2] font-extrabold" : 
-                                        "text-xl md:text-2xl lg:text-3xl leading-[1.35] font-bold"}
+                                    className={`text-slate-800 dark:text-white drop-shadow-sm text-balance break-words font-serif tracking-tight
+                                      ${activeQuote.text.length < 60 ? "text-3xl md:text-5xl lg:text-[3.25rem] leading-[1.15]" : 
+                                        activeQuote.text.length < 120 ? "text-2xl md:text-4xl lg:text-[2.5rem] leading-[1.25]" : 
+                                        "text-xl md:text-2xl lg:text-3xl leading-[1.4]"}
                                     `}
                                   >
                                      "{activeQuote.text}"
                                   </h3>
                                   {activeQuote.author && (
                                      <motion.div 
-                                      initial={{ opacity: 0, y: 10 }}
+                                      initial={{ opacity: 0, y: 15 }}
                                       animate={{ opacity: 1, y: 0 }}
-                                      transition={{ delay: 0.3 }}
-                                      className="mt-6 shrink-0"
+                                      transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
+                                      className="mt-8 shrink-0"
                                      >
-                                       <span className={`${activeStyle.authorClass} text-sm md:text-lg`}>
-                                          - {activeQuote.author}
+                                       <span className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.25em] text-xs md:text-sm">
+                                          — {activeQuote.author}
                                        </span>
                                      </motion.div>
                                   )}
@@ -501,14 +500,15 @@ export default function StudentDashboardPage() {
             </div>
 
             {/* RIGHT COLUMN: Quick Links Bento Grid */}
-            <div className="lg:col-span-4 grid grid-cols-2 gap-3 h-full">
+            <div className="lg:col-span-4 grid grid-cols-2 gap-4 h-full">
               {QuickLinks.map((LinkItem) => (
-                <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full min-h-[135px]">
-                  <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-3xl border border-black/10 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-md hover:shadow-2xl transition-all duration-300">
-                    <span className="math-dashboard-quick-icon mb-3 p-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-[0_0_20px_var(--mp-role-shadow)]">
+                <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full min-h-[145px]">
+                  <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-[24px] border border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl shadow-md hover:shadow-2xl hover:bg-white/60 dark:hover:bg-slate-800/60 transition-all duration-500 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    <span className="math-dashboard-quick-icon mb-4 p-3.5 rounded-[18px] bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-white/80 dark:border-slate-700 shadow-sm transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-1 group-hover:shadow-[0_0_20px_var(--mp-role-shadow)] z-10 text-slate-600 dark:text-slate-300 group-hover:text-[var(--mp-role-primary)]">
                       {LinkItem.Icon}
                     </span>
-                    <span className="block w-full px-2 text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors">
+                    <span className="block w-full px-2 text-sm font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors z-10">
                       {LinkItem.Label}
                     </span>
                   </div>
