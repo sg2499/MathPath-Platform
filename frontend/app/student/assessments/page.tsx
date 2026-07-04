@@ -585,7 +585,7 @@ function StudentAssessmentsPageContent() {
 
   return (
     <AppShell>
-      <section className="math-hero relative overflow-hidden bg-gradient-to-br from-indigo-50/40 via-blue-50/30 to-slate-50/50 dark:from-indigo-950/20 dark:via-blue-950/10 dark:to-slate-950/30">
+      <section className="math-hero relative overflow-hidden rounded-[36px] bg-gradient-to-r from-white/70 to-white/40 dark:from-slate-900/80 dark:to-slate-800/40 backdrop-blur-[32px] border border-white/40 dark:border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] p-8 xl:p-12 mb-8">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-indigo-300/10 blur-3xl" />
         <div className="relative z-10">
           <div className="math-block-header mb-2">

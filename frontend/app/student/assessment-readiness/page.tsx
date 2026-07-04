@@ -460,7 +460,8 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
   const grouped = groupSheetsByLesson(visibleSheets);
 
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-950/70">
+    <div className="rounded-[28px] bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 relative overflow-hidden group">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-3">
