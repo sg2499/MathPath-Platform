@@ -589,90 +589,92 @@ export default function StudentDashboardPage() {
                        </div>
 
                        <div className="z-20 h-full flex flex-col sm:flex-row gap-6 relative items-center">
-                         {/* LEFT: Grind Heatmap */}
-                         <div className="flex-1 flex flex-col justify-center w-full">
-                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-1.5 leading-none">
-                              {heatmapMonthYearLabel}
-                            </span>
-                            <h4 className="text-xs font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-4 flex items-center gap-2 drop-shadow-sm">
-                               <Activity size={16} /> Grind Heatmap (Last 7 Days)
-                            </h4>
-                            <div className="flex items-end justify-between gap-2.5 h-20 w-full max-w-xs px-2">
-                               {grindData.map((d, i) => {
-                                 const pct = d.count > 0 ? (d.count / maxGrindCount) * 80 + 20 : 10;
-                                 return (
-                                   <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group/bar relative">
-                                     {/* Tooltip on hover */}
-                                     <div className="absolute -top-8 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-[10px] px-2.5 py-1 rounded-md font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30 shadow-lg border border-white/10">
-                                       {d.count} DPS completed
-                                     </div>
-                                     <div 
-                                       style={{ height: `${pct}%` }}
-                                       className={`w-full rounded-t-[4px] transition-all duration-300 hover:scale-y-105
-                                         ${d.count > 0 
-                                            ? 'bg-[var(--mp-role-primary)] shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]' 
-                                            : 'bg-slate-300 dark:bg-white/10'}`} 
-                                     />
-                                     <div className="flex flex-col items-center gap-0.5">
-                                       <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">{d.day}</span>
-                                       <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 leading-none">{parseInt(d.date.split("-")[2], 10)}</span>
-                                     </div>
-                                   </div>
-                                 );
-                               })}
-                            </div>
-                            <p className="text-[11px] sm:text-xs font-black text-slate-500 dark:text-slate-400 mt-5 uppercase tracking-[0.2em] leading-none">
-                               Consistency: Top 5% this week.
-                            </p>
-                         </div>
+                          {/* LEFT: Grind Heatmap */}
+                          <div className="flex-1 flex flex-col justify-between w-full h-full py-1">
+                             <div>
+                               <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 block leading-none">
+                                 {heatmapMonthYearLabel}
+                               </span>
+                               <h4 className="text-sm font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-5 flex items-center gap-2.5 drop-shadow-sm">
+                                  <Activity size={18} /> Grind Heatmap (Last 7 Days)
+                               </h4>
+                             </div>
+                             <div className="flex items-end justify-between gap-3 h-28 w-full max-w-sm px-2">
+                                {grindData.map((d, i) => {
+                                  const pct = d.count > 0 ? (d.count / maxGrindCount) * 80 + 20 : 10;
+                                  return (
+                                    <div key={i} className="flex-1 flex flex-col items-center gap-2 group/bar relative">
+                                      {/* Tooltip on hover */}
+                                      <div className="absolute -top-8 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-[10px] px-2.5 py-1 rounded-md font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30 shadow-lg border border-white/10">
+                                        {d.count} DPS completed
+                                      </div>
+                                      <div 
+                                        style={{ height: `${pct}%` }}
+                                        className={`w-full rounded-t-[4px] transition-all duration-300 hover:scale-y-105
+                                          ${d.count > 0 
+                                             ? 'bg-[var(--mp-role-primary)] shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]' 
+                                             : 'bg-slate-300 dark:bg-white/10'}`} 
+                                      />
+                                      <div className="flex flex-col items-center gap-1 mt-2">
+                                        <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">{d.day}</span>
+                                        <span className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200 leading-none">{parseInt(d.date.split("-")[2], 10)}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                             </div>
+                             <p className="text-[11px] sm:text-xs font-black text-slate-500 dark:text-slate-400 mt-6 uppercase tracking-[0.25em] leading-none">
+                                Consistency: Top 5% this week.
+                             </p>
+                          </div>
 
-                         {/* RIGHT: Next Conquest */}
-                         <div className="flex-1 flex flex-col justify-center border-t sm:border-t-0 sm:border-l border-slate-300 dark:border-white/10 pt-6 sm:pt-0 sm:pl-8 w-full">
-                            <div className="flex items-center justify-between w-full mb-3">
-                              <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white flex items-center gap-2">
-                                 <Target size={16} className="text-red-500" /> Next Conquest {conquests.length > 1 && `(${conquestIndex + 1}/${conquests.length})`}
-                              </h4>
-                              {conquests.length > 1 && (
-                                <div className="flex items-center gap-1 relative z-35">
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setConquestIndex((prev) => (prev - 1 + conquests.length) % conquests.length);
-                                    }}
-                                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
-                                  >
-                                    <ChevronLeft size={14} />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setConquestIndex((prev) => (prev + 1) % conquests.length);
-                                    }}
-                                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
-                                  >
-                                    <ChevronRight size={14} />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            <div className="mb-6 h-[50px] flex flex-col justify-center">
-                              <h5 className="text-slate-900 dark:text-white text-sm font-black tracking-wide truncate mb-1">
-                                {activeConquest.title}
-                              </h5>
-                              <p className="text-slate-600 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                                {activeConquest.detail}
-                              </p>
-                            </div>
-                            <button 
-                               onClick={(e) => { 
-                                 e.stopPropagation(); 
-                                 Router.push(activeConquest.route); 
-                               }}
-                               className="bg-slate-950 dark:bg-white/10 text-white dark:text-white font-bold uppercase tracking-widest text-[10px] sm:text-xs px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 w-fit shadow-xl group/btn border border-transparent dark:border-white/20 dark:hover:bg-white/20"
-                            >
-                               {activeConquest.buttonText} <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                            </button>
-                         </div>
+                          {/* RIGHT: Next Conquest */}
+                          <div className="flex-1 flex flex-col justify-between border-t sm:border-t-0 sm:border-l border-slate-300 dark:border-white/10 pt-6 sm:pt-0 sm:pl-8 w-full h-full py-1">
+                             <div className="flex items-center justify-between w-full mb-4">
+                               <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white flex items-center gap-2.5">
+                                  <Target size={18} className="text-red-500" /> Next Conquest {conquests.length > 1 && `(${conquestIndex + 1}/${conquests.length})`}
+                               </h4>
+                               {conquests.length > 1 && (
+                                 <div className="flex items-center gap-1 relative z-35">
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       setConquestIndex((prev) => (prev - 1 + conquests.length) % conquests.length);
+                                     }}
+                                     className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
+                                   >
+                                     <ChevronLeft size={14} />
+                                   </button>
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       setConquestIndex((prev) => (prev + 1) % conquests.length);
+                                     }}
+                                     className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
+                                   >
+                                     <ChevronRight size={14} />
+                                   </button>
+                                 </div>
+                               )}
+                             </div>
+                             <div className="mb-6 h-[50px] flex flex-col justify-center">
+                               <h5 className="text-slate-900 dark:text-white text-sm font-black tracking-wide truncate mb-1">
+                                 {activeConquest.title}
+                               </h5>
+                               <p className="text-slate-600 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                                 {activeConquest.detail}
+                               </p>
+                             </div>
+                             <button 
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  Router.push(activeConquest.route); 
+                                }}
+                                className="bg-slate-950 dark:bg-white/10 text-white dark:text-white font-bold uppercase tracking-widest text-[10px] sm:text-xs px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 w-fit shadow-xl group/btn border border-transparent dark:border-white/20 dark:hover:bg-white/20"
+                             >
+                                {activeConquest.buttonText} <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                             </button>
+                          </div>
                        </div>
                      </div>
                    </div>
