@@ -438,7 +438,7 @@ html.dark {
 
 @layer components {
   .math-shell-header {
-    @apply sticky top-0 z-[100] border-b backdrop-blur-2xl transition duration-300;
+    @apply sticky top-0 z-[100] border-b backdrop-blur-3xl transition duration-300;
     background: var(--theme-header);
     border-color: var(--theme-header-line);
     box-shadow: var(--theme-shadow-sm);
@@ -515,11 +515,15 @@ html.dark {
   }
 
   .math-logo-shell {
-    @apply flex shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-lg ring-1 transition group-hover:-translate-y-0.5;
-    background: rgba(255, 255, 255, 0.94);
-    --tw-ring-color: rgba(148, 163, 184, 0.18);
+    @apply flex shrink-0 items-center justify-center overflow-hidden rounded-[18px] shadow-lg ring-1 transition duration-500 group-hover:-translate-y-1 group-hover:shadow-[0_10px_30px_rgba(37,99,235,0.15)];
+    background: rgba(255, 255, 255, 1);
+    --tw-ring-color: rgba(148, 163, 184, 0.3);
   }
-  html.dark .math-logo-shell { background: rgba(248, 250, 252, 0.96); --tw-ring-color: rgba(255, 255, 255, 0.16); }
+  html.dark .math-logo-shell { 
+    background: rgba(255, 255, 255, 1); 
+    --tw-ring-color: rgba(255, 255, 255, 0.4); 
+    box-shadow: 0 4px 20px rgba(255,255,255,0.15);
+  }
 
   .math-button-primary {
     background: linear-gradient(135deg, var(--theme-accent-primary) 0%, #1685ff 48%, var(--theme-accent-secondary) 100%);
@@ -540,7 +544,14 @@ html.dark {
   }
   .premium-nav-item { color: var(--theme-text-secondary); }
   .premium-nav-item:hover { background: var(--theme-elevated-strong); color: var(--theme-text-primary); }
-  .premium-nav-item-active { background: var(--theme-nav-active-bg); color: var(--theme-nav-active-text); }
+  .premium-nav-item-active { 
+    background: var(--theme-nav-active-bg); 
+    color: var(--theme-nav-active-text); 
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  }
+  html.dark .premium-nav-item-active {
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  }
 }
 
 @layer components {
