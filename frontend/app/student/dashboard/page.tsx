@@ -113,9 +113,9 @@ function TiltCard({ children, className, onClick }: { children: ReactNode, class
 const QuickLinks = [
   { id: "practice", Label: "Practice", Route: "/student/practice" },
   { id: "assessments", Label: "Assessments", Route: "/student/assessments" },
-  { id: "readiness", Label: "Assessment Readiness", Route: "/student/assessment-readiness" },
+  { id: "mock-exams", Label: "Mock Exams", Route: "/student/competition/mock-exams" },
   { id: "progress", Label: "Progress", Route: "/student/results" },
-  { id: "leaderboard", Label: "Mock Leaderboard", Route: "/student/competition/leaderboard" },
+  { id: "leaderboard", Label: "Leaderboard", Route: "/student/competition/leaderboard" },
   { id: "achievements", Label: "Trophy Room", Route: "/student/achievements" },
 ];
 
@@ -178,7 +178,7 @@ export default function StudentDashboardPage() {
   const mathCoins = Math.floor(totalXP / 10);
 
   const recentBadge = Badges.length > 0 ? Badges[0] : null;
-  const RecentBadgeIcon = recentBadge && IconMap[recentBadge.icon] ? IconMap[recentBadge.icon] : Award;
+  const RecentBadgeIcon = recentBadge && IconMap[recentBadge.icon] ? IconMap[recentBadge.icon] : Medal;
 
   return (
     <AppShell>
@@ -189,9 +189,9 @@ export default function StudentDashboardPage() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between w-full">
             
             <div className="flex flex-col gap-3">
-              <div className="math-block-header inline-flex items-center gap-2 w-fit bg-white/70 dark:bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/50 dark:border-white/10 shadow-sm">
-                <Laptop size={14} className="text-[var(--mp-role-primary)] drop-shadow-sm" />
-                <span className="font-bold tracking-widest text-[var(--mp-role-primary)] uppercase text-xs">MATHPATH LOBBY</span>
+              <div className="math-block-header">
+                <Laptop size={14} />
+                MATHPATH LOBBY
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black tracking-[-0.03em] text-slate-950 dark:text-white drop-shadow-md leading-tight">
                 My Learning Workspace
@@ -440,9 +440,9 @@ export default function StudentDashboardPage() {
                   switch (LinkItem.Label) {
                     case "Practice": return <BookOpenCheck {...props} />;
                     case "Assessments": return <GraduationCap {...props} />;
-                    case "Assessment Readiness": return <ShieldCheck {...props} />;
+                    case "Mock Exams": return <Target {...props} />;
                     case "Progress": return <BarChart3 {...props} />;
-                    case "Mock Leaderboard": return <Trophy {...props} />;
+                    case "Leaderboard": return <Trophy {...props} />;
                     case "Trophy Room": return <Award {...props} />;
                     default: return <BookOpenCheck {...props} />;
                   }
