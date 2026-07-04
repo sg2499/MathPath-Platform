@@ -45,7 +45,8 @@
     "verify:demo-qa-sweep:full": "node scripts/run-final-demo-qa-sweep.mjs --full",
     "verify:dps-auto-reattempt-e2e": "node scripts/run-dps-auto-reattempt-regression.mjs",
     "verify:dps-auto-reattempt-e2e:headed": "node scripts/run-dps-auto-reattempt-regression.mjs --headed",
-    "verify:dps-auto-reattempt-e2e:ui": "node scripts/run-dps-auto-reattempt-regression.mjs --ui"
+    "verify:dps-auto-reattempt-e2e:ui": "node scripts/run-dps-auto-reattempt-regression.mjs --ui",
+    "verify:student-login-responsive": "playwright test tests/mathpath-student-login-responsive.spec.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

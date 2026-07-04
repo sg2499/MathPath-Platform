@@ -380,7 +380,10 @@ export default function LoginClient({
   }
 
   return (
-    <main className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative flex min-h-[100svh] items-center justify-center overflow-hidden px-4 py-4 text-slate-950 sm:px-5 sm:py-5 xl:px-6 xl:py-6`}>
+    <main
+      className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative flex min-h-[100svh] items-center justify-center px-4 py-4 text-slate-950 sm:px-5 sm:py-5 xl:px-6 xl:py-6`}
+      data-testid="login-shell"
+    >
       <div className="absolute inset-0 math-grid-dots opacity-55 dark:opacity-35" />
       <div className="math-login-aura math-login-aura-one" />
       <div className="math-login-aura math-login-aura-two" />
@@ -388,7 +391,10 @@ export default function LoginClient({
       <div className="math-login-orbit left-[6%] top-[14%] hidden lg:block" />
       <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
 
-      <div className="math-login-frame relative z-10 mx-auto grid h-[calc(100svh-2rem)] max-h-[890px] min-h-[720px] w-full max-w-[1820px] overflow-hidden sm:h-[calc(100svh-2.5rem)] xl:h-[calc(100svh-3rem)] lg:grid-cols-[1.04fr_0.96fr]">
+      <div
+        className="math-login-frame relative z-10 mx-auto grid w-full max-w-[1820px] lg:grid-cols-[1.04fr_0.96fr]"
+        data-testid="login-frame"
+      >
         <section
           className={`math-login-story relative hidden min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
         >
@@ -461,11 +467,15 @@ export default function LoginClient({
           </div>
         </section>
 
-        <section className="math-login-form-zone relative flex h-full min-h-0 items-center overflow-hidden px-5 py-6 sm:px-8 lg:px-10 xl:px-12 2xl:px-14">
+        <section
+          className="math-login-form-zone relative flex h-full min-h-0 items-center px-5 py-6 sm:px-8 lg:px-10 xl:px-12 2xl:px-14"
+          data-testid="login-form-zone"
+          aria-labelledby="mathpath-login-heading"
+        >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.10),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.45),rgba(255,255,255,0.15))] dark:bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.12),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(124,58,237,0.10),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.28),rgba(2,6,23,0.58))]" />
 
           <div className="relative z-10 mx-auto w-full max-w-[34.5rem]">
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="math-login-mobile-header mb-3 flex items-center justify-between gap-3">
               <a
                 href={MATHPATH_WEBSITE_URL}
                 target="_blank"
@@ -500,7 +510,12 @@ export default function LoginClient({
               </button>
             </div>
 
-            <div className="math-login-tabs mb-3 grid grid-cols-3 gap-2 rounded-[24px] p-1.5">
+            <div
+              className="math-login-tabs mb-3 grid grid-cols-3 gap-2 rounded-[24px] p-1.5"
+              role="tablist"
+              aria-label="Choose login role"
+              data-testid="login-role-tabs"
+            >
               {OrderedTabs.map((Tab) => {
                 const TabData = RoleContent[Tab];
                 const ActiveState = ActiveTab === Tab;
@@ -509,15 +524,18 @@ export default function LoginClient({
                     key={Tab}
                     type="button"
                     onClick={() => ChangeTab(Tab)}
+                    role="tab"
+                    id={`mathpath-login-tab-${Tab.toLowerCase()}`}
+                    aria-selected={ActiveState}
+                    aria-controls="mathpath-login-panel"
                     className={`math-login-tab math-login-tab-${Tab.toLowerCase()} flex min-h-11 items-center justify-center gap-2 rounded-[18px] px-3 py-2.5 text-sm font-black transition duration-200 ${
                       ActiveState
                         ? "math-login-tab-active text-white shadow-xl shadow-slate-900/20 dark:text-white"
                         : "text-slate-600 dark:text-slate-300"
                     }`}
                   >
-                    {TabData.Icon}
-                    <span className="hidden sm:inline">{RoleLabel(Tab)}</span>
-                    <span className="sm:hidden">{RoleLabel(Tab).slice(0, 1)}</span>
+                    <span className="math-login-tab-icon" aria-hidden="true">{TabData.Icon}</span>
+                    <span className="math-login-tab-label">{RoleLabel(Tab)}</span>
                   </button>
                 );
               })}
@@ -528,7 +546,10 @@ export default function LoginClient({
               Welcome Back
             </div>
 
-            <h2 className="mt-2.5 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl">
+            <h2
+              id="mathpath-login-heading"
+              className="math-login-form-heading mt-2.5 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl"
+            >
               {RoleLabel(ActiveTab)} Login
             </h2>
 
@@ -536,24 +557,37 @@ export default function LoginClient({
               {Active.Promise}
             </p>
 
-            <form className="math-login-card mt-3.5 space-y-3" onSubmit={HandleSubmit}>
+            <form
+              id="mathpath-login-panel"
+              role="tabpanel"
+              aria-labelledby={`mathpath-login-tab-${ActiveTab.toLowerCase()}`}
+              className="math-login-card mt-3.5 space-y-3"
+              onSubmit={HandleSubmit}
+              data-testid="student-login-form"
+            >
               <div>
-                <label className="math-label">{Active.IdentifierLabel}</label>
+                <label className="math-label" htmlFor="mathpath-login-identifier">{Active.IdentifierLabel}</label>
                 <input
+                  id="mathpath-login-identifier"
                   className="math-input mt-2 min-h-12"
+                  type="text"
                   value={Identifier}
                   onChange={(Event) => SetIdentifier(Event.target.value)}
                   placeholder={Active.IdentifierPlaceholder}
                   autoComplete={`${AutoCompleteSection(ActiveTab)} username`}
                   name={`mathpath-${ActiveTab.toLowerCase()}-identifier`}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
                 />
               </div>
 
               <div>
-                <label className="math-label">Password</label>
+                <label className="math-label" htmlFor="mathpath-login-password">Password</label>
                 <div className="relative mt-2">
                   <input
+                    id="mathpath-login-password"
                     className="math-input min-h-12 w-full pr-12"
                     type={ShowPassword ? "text" : "password"}
                     value={Password}
@@ -575,12 +609,12 @@ export default function LoginClient({
               </div>
 
               {Error ? (
-                <div className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
+                <div role="alert" aria-live="polite" className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
                   {Error}
                 </div>
               ) : null}
 
-              <button className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
+              <button type="submit" className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
                 {Loading ? "Logging In..." : Active.ButtonText}
               </button>
 
@@ -603,7 +637,7 @@ export default function LoginClient({
               Speed, Accuracy, Confidence, and Joyful Mathematical Thinking.
             </div>
 
-            <div className="mt-2.5 grid gap-3 sm:grid-cols-3">
+            <div className="math-login-mini-grid mt-2.5 grid gap-3 sm:grid-cols-3">
               <MiniCard Icon={<LayoutDashboard size={16} />} Label="Role-Based" />
               <MiniCard Icon={<ShieldCheck size={16} />} Label="Secure Access" />
               <MiniCard Icon={<Sparkles size={16} />} Label="Premium Flow" />
