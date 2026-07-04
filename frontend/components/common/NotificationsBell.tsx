@@ -64,21 +64,21 @@ function NormalizeTone(Notification: NotificationRecord): NotificationTone {
 }
 
 function ToneClasses(Tone: NotificationTone, IsRead: boolean) {
-  const Base = IsRead ? "opacity-75" : "shadow-md hover:shadow-lg";
+  const Base = IsRead ? "opacity-75" : "shadow-md hover:shadow-xl";
   const Classes: Record<NotificationTone, string> = {
-    blue: "border-blue-200/60 bg-blue-50/60 text-blue-950 hover:border-blue-300/80 hover:bg-blue-100/60 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-50 dark:hover:bg-blue-500/20",
-    purple: "border-violet-200/60 bg-violet-50/60 text-violet-950 hover:border-violet-300/80 hover:bg-violet-100/60 dark:border-violet-400/20 dark:bg-violet-500/10 dark:text-violet-50 dark:hover:bg-violet-500/20",
-    green: "border-emerald-200/60 bg-emerald-50/60 text-emerald-950 hover:border-emerald-300/80 hover:bg-emerald-100/60 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-50 dark:hover:bg-emerald-500/20",
-    amber: "border-amber-200/60 bg-amber-50/60 text-amber-950 hover:border-amber-300/80 hover:bg-amber-100/60 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-50 dark:hover:bg-amber-500/20",
-    indigo: "border-indigo-200/60 bg-indigo-50/60 text-indigo-950 hover:border-indigo-300/80 hover:bg-indigo-100/60 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-50 dark:hover:bg-indigo-500/20",
-    teal: "border-teal-200/60 bg-teal-50/60 text-teal-950 hover:border-teal-300/80 hover:bg-teal-100/60 dark:border-teal-400/20 dark:bg-teal-500/10 dark:text-teal-50 dark:hover:bg-teal-500/20",
-    red: "border-rose-200/60 bg-rose-50/60 text-rose-950 hover:border-rose-300/80 hover:bg-rose-100/60 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-50 dark:hover:bg-rose-500/20",
-    gray: "border-white/60 bg-white/60 text-slate-950 hover:border-white/80 hover:bg-white/80 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10",
-    feedbackExcellent: "border-emerald-200/60 bg-gradient-to-br from-emerald-50/60 via-white/40 to-amber-50/60 text-emerald-950 hover:border-emerald-300/80 dark:border-emerald-400/20 dark:from-emerald-400/10 dark:via-slate-900/40 dark:to-amber-400/10 dark:text-emerald-50",
-    feedbackMastery: "border-cyan-200/60 bg-gradient-to-br from-cyan-50/60 via-white/40 to-emerald-50/60 text-cyan-950 hover:border-cyan-300/80 dark:border-cyan-400/20 dark:from-cyan-400/10 dark:via-slate-900/40 dark:to-emerald-400/10 dark:text-cyan-50",
-    feedbackGuidance: "border-fuchsia-200/60 bg-gradient-to-br from-fuchsia-50/60 via-white/40 to-slate-50/60 text-fuchsia-950 hover:border-fuchsia-300/80 dark:border-fuchsia-400/20 dark:from-fuchsia-400/10 dark:via-slate-900/40 dark:to-white/5 dark:text-fuchsia-50",
-    feedbackPractice: "border-amber-200/60 bg-gradient-to-br from-amber-50/60 via-white/40 to-orange-50/60 text-amber-950 hover:border-amber-300/80 dark:border-amber-400/20 dark:from-amber-400/10 dark:via-slate-900/40 dark:to-orange-400/10 dark:text-amber-50",
-    feedbackRevision: "border-orange-200/60 bg-gradient-to-br from-orange-50/60 via-white/40 to-rose-50/60 text-orange-950 hover:border-orange-300/80 dark:border-orange-400/20 dark:from-orange-400/10 dark:via-slate-900/40 dark:to-rose-400/10 dark:text-orange-50",
+    blue: "border-blue-200/80 bg-gradient-to-br from-white to-blue-50/80 text-blue-950 hover:border-blue-300 hover:from-blue-50 hover:to-blue-100/80 dark:border-blue-500/30 dark:from-slate-900 dark:to-blue-900/20 dark:text-blue-50",
+    purple: "border-violet-200/80 bg-gradient-to-br from-white to-violet-50/80 text-violet-950 hover:border-violet-300 hover:from-violet-50 hover:to-violet-100/80 dark:border-violet-500/30 dark:from-slate-900 dark:to-violet-900/20 dark:text-violet-50",
+    green: "border-emerald-200/80 bg-gradient-to-br from-white to-emerald-50/80 text-emerald-950 hover:border-emerald-300 hover:from-emerald-50 hover:to-emerald-100/80 dark:border-emerald-500/30 dark:from-slate-900 dark:to-emerald-900/20 dark:text-emerald-50",
+    amber: "border-amber-200/80 bg-gradient-to-br from-white to-amber-50/80 text-amber-950 hover:border-amber-300 hover:from-amber-50 hover:to-amber-100/80 dark:border-amber-500/30 dark:from-slate-900 dark:to-amber-900/20 dark:text-amber-50",
+    indigo: "border-indigo-200/80 bg-gradient-to-br from-white to-indigo-50/80 text-indigo-950 hover:border-indigo-300 hover:from-indigo-50 hover:to-indigo-100/80 dark:border-indigo-500/30 dark:from-slate-900 dark:to-indigo-900/20 dark:text-indigo-50",
+    teal: "border-teal-200/80 bg-gradient-to-br from-white to-teal-50/80 text-teal-950 hover:border-teal-300 hover:from-teal-50 hover:to-teal-100/80 dark:border-teal-500/30 dark:from-slate-900 dark:to-teal-900/20 dark:text-teal-50",
+    red: "border-rose-200/80 bg-gradient-to-br from-white to-rose-50/80 text-rose-950 hover:border-rose-300 hover:from-rose-50 hover:to-rose-100/80 dark:border-rose-500/30 dark:from-slate-900 dark:to-rose-900/20 dark:text-rose-50",
+    gray: "border-slate-200/80 bg-gradient-to-br from-white to-slate-50/80 text-slate-950 hover:border-slate-300 hover:from-slate-50 hover:to-slate-100/80 dark:border-slate-700/50 dark:from-slate-900 dark:to-slate-800/50 dark:text-slate-50",
+    feedbackExcellent: "border-emerald-300/80 bg-gradient-to-br from-emerald-50 via-white to-amber-50 text-emerald-950 hover:border-emerald-400 dark:border-emerald-500/40 dark:from-emerald-900/30 dark:via-slate-900 dark:to-amber-900/20 dark:text-emerald-50",
+    feedbackMastery: "border-cyan-300/80 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 text-cyan-950 hover:border-cyan-400 dark:border-cyan-500/40 dark:from-cyan-900/30 dark:via-slate-900 dark:to-emerald-900/20 dark:text-cyan-50",
+    feedbackGuidance: "border-fuchsia-300/80 bg-gradient-to-br from-fuchsia-50 via-white to-slate-50 text-fuchsia-950 hover:border-fuchsia-400 dark:border-fuchsia-500/40 dark:from-fuchsia-900/30 dark:via-slate-900 dark:to-slate-800/50 dark:text-fuchsia-50",
+    feedbackPractice: "border-amber-300/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 text-amber-950 hover:border-amber-400 dark:border-amber-500/40 dark:from-amber-900/30 dark:via-slate-900 dark:to-orange-900/20 dark:text-amber-50",
+    feedbackRevision: "border-orange-300/80 bg-gradient-to-br from-orange-50 via-white to-rose-50 text-orange-950 hover:border-orange-400 dark:border-orange-500/40 dark:from-orange-900/30 dark:via-slate-900 dark:to-rose-900/20 dark:text-orange-50",
   };
   return `${Base} ${Classes[Tone]}`;
 }
@@ -729,8 +729,8 @@ export function NotificationsBell() {
       </button>
 
       {Open ? (
-        <div className="absolute right-0 top-14 z-[80] w-[min(460px,calc(100vw-24px))] overflow-hidden p-0 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] rounded-[24px] border border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl transition-all duration-300">
-          <div className="flex items-start justify-between gap-3 border-b border-white/40 bg-white/30 px-4 py-4 dark:border-white/10 dark:bg-slate-950/40 backdrop-blur-md">
+        <div className="absolute right-0 top-14 z-[80] w-[min(460px,calc(100vw-24px))] overflow-hidden p-0 shadow-[0_30px_80px_-15px_rgba(0,0,0,0.3)] rounded-[24px] border border-white/80 dark:border-white/20 bg-white/90 dark:bg-slate-950/90 backdrop-blur-[32px] transition-all duration-300 ring-1 ring-black/5 dark:ring-white/10">
+          <div className="flex items-start justify-between gap-3 border-b border-black/5 bg-white/80 px-5 py-4 dark:border-white/10 dark:bg-slate-900/80 backdrop-blur-md">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600">
                 Notifications
@@ -777,7 +777,7 @@ export function NotificationsBell() {
                 return (
                   <button
                     key={Notification.id}
-                    className={`w-full rounded-[22px] border p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 dark:focus-visible:ring-cyan-300/15 ${ToneClasses(Tone, Notification.isRead)} backdrop-blur-md relative overflow-hidden group`}
+                    className={`w-full rounded-[22px] border p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 dark:focus-visible:ring-cyan-300/15 ${ToneClasses(Tone, Notification.isRead)} relative overflow-hidden group`}
                     onClick={() => HandleNotificationClick(Notification)}
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
