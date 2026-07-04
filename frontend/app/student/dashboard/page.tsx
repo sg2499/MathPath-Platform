@@ -9,7 +9,7 @@ import { getStudentAssignments, getStudentAssessments, getStudentResults, getStu
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3, BookOpenCheck, GraduationCap, ShieldCheck, Trophy, Laptop, Award,
-  Coins, Cpu, RadioTower, Lock, ChevronRight, CheckCircle, Target, Focus, Scan, Zap,
+  Coins, Cpu, RadioTower, Lock, ChevronLeft, ChevronRight, CheckCircle, Target, Focus, Scan, Zap,
   FastForward, Rocket, Medal, Flag, Crown, Flame, Activity, Infinity as InfinityIcon, Clock, Sun,
   AlarmClock, TrendingUp, ArrowUpRight, ChevronsUp, Star, Sparkles, Crosshair,
   Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords, ArrowRight
@@ -134,6 +134,7 @@ export default function StudentDashboardPage() {
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [quoteIsFlipped, setQuoteIsFlipped] = useState(false);
   const [intelIndex, setIntelIndex] = useState(0);
+  const [conquestIndex, setConquestIndex] = useState(0);
 
   const AssignmentQuery = useQuery({
     queryKey: ["student-assignments"],
@@ -202,33 +203,41 @@ export default function StudentDashboardPage() {
     );
   }, [MockAssignments]);
 
-  const nextConquest = useMemo(() => {
+  const conquests = useMemo(() => {
+    const list = [];
     if (pendingPractice) {
-      return {
+      list.push({
         type: "PRACTICE",
         title: `DPS ${pendingPractice.dpsNumber || pendingPractice.lessonNumber || ''}: ${pendingPractice.dpsTitle || pendingPractice.title}`,
         detail: `Level ${pendingPractice.levelCode} • Lesson ${pendingPractice.lessonNumber}`,
         buttonText: "Engage Practice",
         route: `/student/practice?assignmentId=${pendingPractice.assignmentId}&dpsId=${pendingPractice.dpsId}`
-      };
-    } else if (pendingMock) {
-      return {
+      });
+    }
+    if (pendingMock) {
+      list.push({
         type: "MOCK_EXAM",
         title: pendingMock.mockExam?.title || "Assigned Mock Exam",
         detail: `Level ${pendingMock.mockExam?.levelCode || ''} Mock Exam • ${pendingMock.mockExam?.totalQuestions || 0} Questions`,
         buttonText: "Launch Mock Exam",
         route: "/student/competition/mock-exams"
-      };
-    } else {
-      return {
+      });
+    }
+    if (list.length === 0) {
+      list.push({
         type: "COMPLETED",
         title: "All Conquests Secured!",
         detail: "You've successfully completed all assigned Practice Sheets and Mock Exams.",
         buttonText: "Explore Practice",
         route: "/student/practice"
-      };
+      });
     }
+    return list;
   }, [pendingPractice, pendingMock]);
+
+  const activeConquest = useMemo(() => {
+    return conquests[conquestIndex] || conquests[0];
+  }, [conquests, conquestIndex]);
 
   const grindData = useMemo(() => {
     const data = [];
@@ -256,6 +265,28 @@ export default function StudentDashboardPage() {
     return Math.max(...grindData.map(d => d.count), 1);
   }, [grindData]);
 
+  const heatmapMonthYearLabel = useMemo(() => {
+    if (grindData.length === 0) return "";
+    const firstDate = new Date(grindData[0].date);
+    const lastDate = new Date(grindData[grindData.length - 1].date);
+    const monthNames = [
+      "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+      "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+    ];
+    const firstMonth = monthNames[firstDate.getMonth()];
+    const lastMonth = monthNames[lastDate.getMonth()];
+    const firstYear = firstDate.getFullYear();
+    const lastYear = lastDate.getFullYear();
+
+    if (firstYear !== lastYear) {
+      return `${firstMonth} ${firstYear} - ${lastMonth} ${lastYear}`;
+    }
+    if (firstMonth !== lastMonth) {
+      return `${firstMonth} - ${lastMonth} ${lastYear}`;
+    }
+    return `${lastMonth} ${lastYear}`;
+  }, [grindData]);
+
   const completedAssignments = Assignments.filter((a: any) => a && a.status === 'COMPLETED').length;
   const completedAssessments = Assessments.filter((a: any) => a && (a.status === 'COMPLETED' || a.status === 'PASSED')).length;
   const totalXP = (completedAssignments * 50) + (completedAssessments * 150) + (Badges.length * 200);
@@ -265,6 +296,15 @@ export default function StudentDashboardPage() {
 
   const recentBadge = Badges.length > 0 ? Badges[0] : null;
   const RecentBadgeIcon = recentBadge && IconMap[recentBadge.icon] ? IconMap[recentBadge.icon] : Medal;
+
+  // Auto-slideshow for multiple conquests
+  useEffect(() => {
+    if (!quoteIsFlipped || conquests.length <= 1) return;
+    const conquestTimer = setInterval(() => {
+      setConquestIndex((prev) => (prev + 1) % conquests.length);
+    }, 5000);
+    return () => clearInterval(conquestTimer);
+  }, [quoteIsFlipped, conquests.length]);
 
   if (!Ready) return null;
 
@@ -482,9 +522,9 @@ export default function StudentDashboardPage() {
                      <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl bg-white/10 dark:bg-black/10 cursor-pointer">
                        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
                        
-                       <div className="absolute bottom-4 right-6 z-30 flex items-center gap-2 opacity-45 hover:opacity-100 transition-opacity">
-                         <span className="text-[10px] uppercase tracking-widest font-bold text-slate-800 dark:text-white">Reveal Conquest</span>
-                         <Sparkles size={14} className="text-slate-800 dark:text-white animate-pulse" />
+                       <div className="absolute bottom-4 right-6 z-30 flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
+                         <span className="text-[11px] sm:text-xs uppercase tracking-widest font-black text-slate-900 dark:text-slate-200">Reveal Conquest</span>
+                         <Sparkles size={14} className="text-slate-900 dark:text-slate-200 animate-pulse" />
                        </div>
 
                        <AnimatePresence mode="wait">
@@ -541,16 +581,19 @@ export default function StudentDashboardPage() {
                      className="absolute inset-0" 
                      style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
                    >
-                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-[var(--mp-role-primary)]/20 shadow-2xl transition-all duration-700 bg-white/90 dark:bg-black/85 backdrop-blur-3xl p-6 sm:p-8 cursor-pointer">
+                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-[var(--mp-role-primary)]/20 shadow-2xl transition-all duration-700 bg-white/95 dark:bg-black/85 backdrop-blur-3xl p-6 sm:p-8 cursor-pointer">
                        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
                        
-                       <div className="absolute top-4 right-6 z-30 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
-                         <span className="text-[10px] uppercase tracking-widest font-bold text-slate-800 dark:text-white">Back to Inspiration</span>
+                       <div className="absolute top-4 right-6 z-30 flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
+                         <span className="text-[11px] sm:text-xs uppercase tracking-widest font-black text-slate-900 dark:text-slate-200">Back to Inspiration</span>
                        </div>
 
                        <div className="z-20 h-full flex flex-col sm:flex-row gap-6 relative items-center">
                          {/* LEFT: Grind Heatmap */}
                          <div className="flex-1 flex flex-col justify-center w-full">
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-1.5 leading-none">
+                              {heatmapMonthYearLabel}
+                            </span>
                             <h4 className="text-xs font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-4 flex items-center gap-2 drop-shadow-sm">
                                <Activity size={16} /> Grind Heatmap (Last 7 Days)
                             </h4>
@@ -570,37 +613,64 @@ export default function StudentDashboardPage() {
                                             ? 'bg-[var(--mp-role-primary)] shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]' 
                                             : 'bg-slate-300 dark:bg-white/10'}`} 
                                      />
-                                     <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">{d.day}</span>
+                                     <div className="flex flex-col items-center gap-0.5">
+                                       <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">{d.day}</span>
+                                       <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 leading-none">{parseInt(d.date.split("-")[2], 10)}</span>
+                                     </div>
                                    </div>
                                  );
                                })}
                             </div>
-                            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-4 uppercase tracking-[0.2em]">
+                            <p className="text-[11px] sm:text-xs font-black text-slate-500 dark:text-slate-400 mt-5 uppercase tracking-[0.2em] leading-none">
                                Consistency: Top 5% this week.
                             </p>
                          </div>
 
                          {/* RIGHT: Next Conquest */}
                          <div className="flex-1 flex flex-col justify-center border-t sm:border-t-0 sm:border-l border-slate-300 dark:border-white/10 pt-6 sm:pt-0 sm:pl-8 w-full">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                               <Target size={16} className="text-red-500" /> Next Conquest
-                            </h4>
-                            <div className="mb-6">
+                            <div className="flex items-center justify-between w-full mb-3">
+                              <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white flex items-center gap-2">
+                                 <Target size={16} className="text-red-500" /> Next Conquest {conquests.length > 1 && `(${conquestIndex + 1}/${conquests.length})`}
+                              </h4>
+                              {conquests.length > 1 && (
+                                <div className="flex items-center gap-1 relative z-35">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConquestIndex((prev) => (prev - 1 + conquests.length) % conquests.length);
+                                    }}
+                                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
+                                  >
+                                    <ChevronLeft size={14} />
+                                  </button>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConquestIndex((prev) => (prev + 1) % conquests.length);
+                                    }}
+                                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
+                                  >
+                                    <ChevronRight size={14} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="mb-6 h-[50px] flex flex-col justify-center">
                               <h5 className="text-slate-900 dark:text-white text-sm font-black tracking-wide truncate mb-1">
-                                {nextConquest.title}
+                                {activeConquest.title}
                               </h5>
                               <p className="text-slate-600 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                                {nextConquest.detail}
+                                {activeConquest.detail}
                               </p>
                             </div>
                             <button 
                                onClick={(e) => { 
                                  e.stopPropagation(); 
-                                 Router.push(nextConquest.route); 
+                                 Router.push(activeConquest.route); 
                                }}
-                               className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold uppercase tracking-widest text-[10px] sm:text-xs px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 w-fit shadow-xl group/btn border border-transparent dark:hover:border-white/50"
+                               className="bg-slate-950 dark:bg-white/10 text-white dark:text-white font-bold uppercase tracking-widest text-[10px] sm:text-xs px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 w-fit shadow-xl group/btn border border-transparent dark:border-white/20 dark:hover:bg-white/20"
                             >
-                               {nextConquest.buttonText} <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                               {activeConquest.buttonText} <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                             </button>
                          </div>
                        </div>
