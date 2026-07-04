@@ -64,25 +64,21 @@ function NormalizeTone(Notification: NotificationRecord): NotificationTone {
 }
 
 function ToneClasses(Tone: NotificationTone, IsRead: boolean) {
-  const Base = IsRead ? "opacity-80" : "shadow-sm";
+  const Base = IsRead ? "opacity-75" : "shadow-md hover:shadow-lg";
   const Classes: Record<NotificationTone, string> = {
-    blue: "border-blue-200 bg-blue-50 text-blue-950 hover:border-blue-300 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-50",
-    purple:
-      "border-violet-200 bg-violet-50 text-violet-950 hover:border-violet-300 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-50",
-    green:
-      "border-emerald-200 bg-emerald-50 text-emerald-950 hover:border-emerald-300 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-50",
-    amber:
-      "border-amber-200 bg-amber-50 text-amber-950 hover:border-amber-300 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-50",
-    indigo:
-      "border-indigo-200 bg-indigo-50 text-indigo-950 hover:border-indigo-300 dark:border-indigo-400/20 dark:bg-indigo-400/10 dark:text-indigo-50",
-    teal: "border-teal-200 bg-teal-50 text-teal-950 hover:border-teal-300 dark:border-teal-400/20 dark:bg-teal-400/10 dark:text-teal-50",
-    red: "border-rose-200 bg-rose-50 text-rose-950 hover:border-rose-300 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-50",
-    gray: "border-slate-200 bg-slate-50 text-slate-950 hover:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-white",
-    feedbackExcellent: "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-amber-50 text-emerald-950 hover:border-emerald-300 dark:border-emerald-400/20 dark:from-emerald-400/10 dark:via-slate-950 dark:to-amber-400/10 dark:text-emerald-50",
-    feedbackMastery: "border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 text-cyan-950 hover:border-cyan-300 dark:border-cyan-400/20 dark:from-cyan-400/10 dark:via-slate-950 dark:to-emerald-400/10 dark:text-cyan-50",
-    feedbackGuidance: "border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-slate-50 text-fuchsia-950 hover:border-fuchsia-300 dark:border-fuchsia-400/20 dark:from-fuchsia-400/10 dark:via-slate-950 dark:to-white/5 dark:text-fuchsia-50",
-    feedbackPractice: "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 text-amber-950 hover:border-amber-300 dark:border-amber-400/20 dark:from-amber-400/10 dark:via-slate-950 dark:to-orange-400/10 dark:text-amber-50",
-    feedbackRevision: "border-orange-200 bg-gradient-to-br from-orange-50 via-white to-rose-50 text-orange-950 hover:border-orange-300 dark:border-orange-400/20 dark:from-orange-400/10 dark:via-slate-950 dark:to-rose-400/10 dark:text-orange-50",
+    blue: "border-blue-200/60 bg-blue-50/60 text-blue-950 hover:border-blue-300/80 hover:bg-blue-100/60 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-50 dark:hover:bg-blue-500/20",
+    purple: "border-violet-200/60 bg-violet-50/60 text-violet-950 hover:border-violet-300/80 hover:bg-violet-100/60 dark:border-violet-400/20 dark:bg-violet-500/10 dark:text-violet-50 dark:hover:bg-violet-500/20",
+    green: "border-emerald-200/60 bg-emerald-50/60 text-emerald-950 hover:border-emerald-300/80 hover:bg-emerald-100/60 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-50 dark:hover:bg-emerald-500/20",
+    amber: "border-amber-200/60 bg-amber-50/60 text-amber-950 hover:border-amber-300/80 hover:bg-amber-100/60 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-50 dark:hover:bg-amber-500/20",
+    indigo: "border-indigo-200/60 bg-indigo-50/60 text-indigo-950 hover:border-indigo-300/80 hover:bg-indigo-100/60 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-50 dark:hover:bg-indigo-500/20",
+    teal: "border-teal-200/60 bg-teal-50/60 text-teal-950 hover:border-teal-300/80 hover:bg-teal-100/60 dark:border-teal-400/20 dark:bg-teal-500/10 dark:text-teal-50 dark:hover:bg-teal-500/20",
+    red: "border-rose-200/60 bg-rose-50/60 text-rose-950 hover:border-rose-300/80 hover:bg-rose-100/60 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-50 dark:hover:bg-rose-500/20",
+    gray: "border-white/60 bg-white/60 text-slate-950 hover:border-white/80 hover:bg-white/80 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10",
+    feedbackExcellent: "border-emerald-200/60 bg-gradient-to-br from-emerald-50/60 via-white/40 to-amber-50/60 text-emerald-950 hover:border-emerald-300/80 dark:border-emerald-400/20 dark:from-emerald-400/10 dark:via-slate-900/40 dark:to-amber-400/10 dark:text-emerald-50",
+    feedbackMastery: "border-cyan-200/60 bg-gradient-to-br from-cyan-50/60 via-white/40 to-emerald-50/60 text-cyan-950 hover:border-cyan-300/80 dark:border-cyan-400/20 dark:from-cyan-400/10 dark:via-slate-900/40 dark:to-emerald-400/10 dark:text-cyan-50",
+    feedbackGuidance: "border-fuchsia-200/60 bg-gradient-to-br from-fuchsia-50/60 via-white/40 to-slate-50/60 text-fuchsia-950 hover:border-fuchsia-300/80 dark:border-fuchsia-400/20 dark:from-fuchsia-400/10 dark:via-slate-900/40 dark:to-white/5 dark:text-fuchsia-50",
+    feedbackPractice: "border-amber-200/60 bg-gradient-to-br from-amber-50/60 via-white/40 to-orange-50/60 text-amber-950 hover:border-amber-300/80 dark:border-amber-400/20 dark:from-amber-400/10 dark:via-slate-900/40 dark:to-orange-400/10 dark:text-amber-50",
+    feedbackRevision: "border-orange-200/60 bg-gradient-to-br from-orange-50/60 via-white/40 to-rose-50/60 text-orange-950 hover:border-orange-300/80 dark:border-orange-400/20 dark:from-orange-400/10 dark:via-slate-900/40 dark:to-rose-400/10 dark:text-orange-50",
   };
   return `${Base} ${Classes[Tone]}`;
 }
@@ -733,8 +729,8 @@ export function NotificationsBell() {
       </button>
 
       {Open ? (
-        <div className="math-panel absolute right-0 top-14 z-[80] w-[min(460px,calc(100vw-24px))] overflow-hidden p-0 shadow-2xl">
-          <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-4 dark:border-white/10 dark:bg-slate-950/95">
+        <div className="absolute right-0 top-14 z-[80] w-[min(460px,calc(100vw-24px))] overflow-hidden p-0 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] rounded-[24px] border border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl transition-all duration-300">
+          <div className="flex items-start justify-between gap-3 border-b border-white/40 bg-white/30 px-4 py-4 dark:border-white/10 dark:bg-slate-950/40 backdrop-blur-md">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600">
                 Notifications
@@ -781,11 +777,12 @@ export function NotificationsBell() {
                 return (
                   <button
                     key={Notification.id}
-                    className={`w-full rounded-[22px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 dark:focus-visible:ring-cyan-300/15 ${ToneClasses(Tone, Notification.isRead)}`}
+                    className={`w-full rounded-[22px] border p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 dark:focus-visible:ring-cyan-300/15 ${ToneClasses(Tone, Notification.isRead)} backdrop-blur-md relative overflow-hidden group`}
                     onClick={() => HandleNotificationClick(Notification)}
                   >
-                    <div className="flex gap-3">
-                      <div className="mt-0.5 shrink-0 rounded-2xl border border-current/10 bg-white/70 p-2 shadow-sm dark:bg-white/10">
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    <div className="flex gap-3 relative z-10">
+                      <div className="mt-0.5 shrink-0 rounded-2xl border border-current/10 bg-white/60 p-2 shadow-sm dark:bg-white/10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
                         {IconFor(Notification)}
                       </div>
                       <div className="min-w-0 flex-1">
