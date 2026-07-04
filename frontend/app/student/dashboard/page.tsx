@@ -218,17 +218,13 @@ function TiltCard({ children, className, onClick }: { children: ReactNode, class
   );
 }
 
-const GridIconMap: Record<string, any> = {
-  BookOpenCheck, GraduationCap, ShieldCheck, BarChart3, Trophy, Award
-};
-
 const QuickLinks = [
-  { iconName: "BookOpenCheck", Label: "Practice", Route: "/student/practice" },
-  { iconName: "GraduationCap", Label: "Assessments", Route: "/student/assessments" },
-  { iconName: "ShieldCheck", Label: "Assessment Readiness", Route: "/student/assessment-readiness" },
-  { iconName: "BarChart3", Label: "Progress", Route: "/student/results" },
-  { iconName: "Trophy", Label: "Mock Leaderboard", Route: "/student/competition/leaderboard" },
-  { iconName: "Award", Label: "Trophy Room", Route: "/student/achievements" },
+  { id: "practice", Label: "Practice", Route: "/student/practice" },
+  { id: "assessments", Label: "Assessments", Route: "/student/assessments" },
+  { id: "readiness", Label: "Assessment Readiness", Route: "/student/assessment-readiness" },
+  { id: "progress", Label: "Progress", Route: "/student/results" },
+  { id: "leaderboard", Label: "Mock Leaderboard", Route: "/student/competition/leaderboard" },
+  { id: "achievements", Label: "Trophy Room", Route: "/student/achievements" },
 ];
 
 export default function StudentDashboardPage() {
@@ -558,14 +554,28 @@ export default function StudentDashboardPage() {
             {/* RIGHT COLUMN: Quick Links Bento Grid */}
             <div className="lg:col-span-4 grid grid-cols-2 gap-4 h-full">
               {QuickLinks.map((LinkItem) => {
-                const IconCmp = GridIconMap[LinkItem.iconName];
+                const renderIcon = () => {
+                  const props = { size: 36, strokeWidth: 2.5, className: "text-slate-800 dark:text-slate-100 group-hover:text-[var(--mp-role-primary)] transition-colors duration-300" };
+                  switch (LinkItem.id) {
+                    case "practice": return <BookOpenCheck {...props} />;
+                    case "assessments": return <GraduationCap {...props} />;
+                    case "readiness": return <ShieldCheck {...props} />;
+                    case "progress": return <BarChart3 {...props} />;
+                    case "leaderboard": return <Trophy {...props} />;
+                    case "achievements": return <Award {...props} />;
+                    default: return <BookOpenCheck {...props} />;
+                  }
+                };
+                
                 return (
                   <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full min-h-[145px]">
                     <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-[24px] border border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl shadow-md hover:shadow-2xl hover:bg-white/60 dark:hover:bg-slate-800/60 transition-all duration-500 relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                      <div className="math-dashboard-quick-icon flex items-center justify-center mb-4 p-5 rounded-[22px] bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-white/80 dark:border-slate-700 shadow-sm transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-1 group-hover:shadow-[0_10px_30px_var(--mp-role-shadow)] z-10 text-slate-600 dark:text-slate-300 group-hover:text-[var(--mp-role-primary)]">
-                        {IconCmp && <IconCmp size={36} strokeWidth={2.5} className="text-slate-600 dark:text-slate-300 group-hover:text-[var(--mp-role-primary)] transition-colors" />}
+                      
+                      <div className="math-dashboard-quick-icon flex items-center justify-center mb-4 w-[72px] h-[72px] rounded-[22px] bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-white/80 dark:border-slate-700 shadow-sm transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-1 group-hover:shadow-[0_10px_30px_var(--mp-role-shadow)] z-10 text-slate-800 dark:text-slate-100 group-hover:text-[var(--mp-role-primary)]">
+                        {renderIcon()}
                       </div>
+                      
                       <span className="block w-full px-2 text-sm font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors z-10">
                         {LinkItem.Label}
                       </span>
