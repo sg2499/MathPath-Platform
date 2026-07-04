@@ -249,20 +249,25 @@ export default function StudentDashboardPage() {
       const dayName = days[d.getDay()];
       const dateStr = d.toISOString().split("T")[0]; // YYYY-MM-DD
       
-      const count = Results.filter((r: any) => {
+      const dayResults = Results.filter((r: any) => {
         if (!r) return false;
         if (!r.completedDate && !r.submittedAt) return false;
         const compDate = (r.completedDate || r.submittedAt || "").split("T")[0];
         return compDate === dateStr;
-      }).length;
+      });
 
-      data.push({ day: dayName, date: dateStr, count });
+      const count = dayResults.length;
+      const totalSeconds = dayResults.reduce((acc: number, r: any) => acc + (r.timeTakenSeconds || 0), 0);
+      const rawTimeSpent = Math.round(totalSeconds / 60);
+      const timeSpent = count > 0 ? Math.max(rawTimeSpent, 2) : 0; // minimum 2 mins credit if completed
+
+      data.push({ day: dayName, date: dateStr, count, timeSpent });
     }
     return data;
   }, [Results]);
 
   const maxGrindCount = useMemo(() => {
-    return Math.max(...grindData.map(d => d.count), 1);
+    return Math.max(...grindData.map(d => d.timeSpent), 10); // scale up to at least 10 minutes
   }, [grindData]);
 
   const heatmapMonthYearLabel = useMemo(() => {
@@ -601,17 +606,17 @@ export default function StudentDashboardPage() {
                              </div>
                              <div className="flex items-end justify-between gap-3 h-28 w-full max-w-sm px-2">
                                 {grindData.map((d, i) => {
-                                  const pct = d.count > 0 ? (d.count / maxGrindCount) * 80 + 20 : 10;
+                                  const pct = d.timeSpent > 0 ? (d.timeSpent / maxGrindCount) * 80 + 20 : 10;
                                   return (
                                     <div key={i} className="flex-1 flex flex-col items-center gap-2 group/bar relative">
                                       {/* Tooltip on hover */}
                                       <div className="absolute -top-8 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-[10px] px-2.5 py-1 rounded-md font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30 shadow-lg border border-white/10">
-                                        {d.count} DPS completed
+                                        {d.count} sheet(s) • {d.timeSpent}m spent
                                       </div>
                                       <div 
                                         style={{ height: `${pct}%` }}
                                         className={`w-full rounded-t-[4px] transition-all duration-300 hover:scale-y-105
-                                          ${d.count > 0 
+                                          ${d.timeSpent > 0
                                              ? 'bg-[var(--mp-role-primary)] shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]' 
                                              : 'bg-slate-300 dark:bg-white/10'}`} 
                                       />
