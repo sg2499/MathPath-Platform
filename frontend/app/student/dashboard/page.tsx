@@ -12,7 +12,7 @@ import {
   Coins, Cpu, RadioTower, Lock, ChevronRight, CheckCircle, Target, Focus, Scan, Zap,
   FastForward, Rocket, Medal, Flag, Crown, Flame, Activity, Infinity as InfinityIcon, Clock, Sun,
   AlarmClock, TrendingUp, ArrowUpRight, ChevronsUp, Star, Sparkles, Crosshair,
-  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords
+  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords, ArrowRight
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -122,9 +122,9 @@ const QuickLinks = [
 export default function StudentDashboardPage() {
   const Ready = useProtectedPage(["STUDENT"]);
   const Router = useRouter();
-  const isDark = useDarkMode();
-  
+  const [isDark, setIsDark] = useState(true);
   const [quoteIndex, setQuoteIndex] = useState(0);
+  const [quoteIsFlipped, setQuoteIsFlipped] = useState(false);
   const [intelIndex, setIntelIndex] = useState(0);
 
   const AssignmentQuery = useQuery({
@@ -377,56 +377,124 @@ export default function StudentDashboardPage() {
                </TiltCard>
 
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
-               <TiltCard className="group w-full h-full min-h-[250px]">
-                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl">
-                   <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
-                   
-                   <AnimatePresence mode="wait">
-                      <motion.div 
-                        key={quoteIndex}
-                        initial={{ opacity: 0, filter: 'blur(12px)', scale: 0.97 }} 
-                        animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }} 
-                        exit={{ opacity: 0, filter: 'blur(12px)', scale: 1.03 }} 
-                        transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-                        className="absolute inset-0 flex items-stretch justify-stretch"
-                      >
-                         {(() => {
-                           const activeQuote = GAMER_MOTIVATIONS[quoteIndex];
-                           const style = generateGodTierStyle(quoteIndex, isDark);
-                           return (
-                             <div className="w-full h-full flex flex-col justify-center items-center relative p-8 sm:p-12 transition-all duration-700" style={{ background: style.bg }}>
-                                {/* Ambient Glow Orbs */}
-                                <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb1 }} />
-                                <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb2 }} />
+               {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
+               <TiltCard className="group w-full h-full min-h-[250px] perspective-1000">
+                 <div 
+                   className="relative w-full h-full [transform-style:preserve-3d] transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer"
+                   style={{ transform: quoteIsFlipped ? 'rotateY(180deg) translateZ(10px)' : 'rotateY(0deg) translateZ(10px)' }}
+                   onClick={() => setQuoteIsFlipped(!quoteIsFlipped)}
+                 >
+                   {/* FRONT FACE (Inspiration) */}
+                   <div className="absolute inset-0 [backface-visibility:hidden]">
+                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl bg-white/10 dark:bg-black/10">
+                       <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
+                       
+                       <div className="absolute bottom-4 right-6 z-30 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
+                         <span className="text-[10px] uppercase tracking-widest font-bold text-slate-800 dark:text-white">Reveal Conquest</span>
+                         <Sparkles size={14} className="text-slate-800 dark:text-white" />
+                       </div>
 
-                                <div className="z-20 text-center w-full max-w-4xl flex flex-col items-center">
-                                  <h3 
-                                    className={`text-slate-900 dark:text-white drop-shadow-sm text-balance break-words tracking-tight ${style.fontFamily}
-                                      ${activeQuote.text.length < 60 ? "text-3xl md:text-5xl lg:text-[3.25rem] leading-[1.15]" : 
-                                        activeQuote.text.length < 120 ? "text-2xl md:text-4xl lg:text-[2.5rem] leading-[1.25]" : 
-                                        "text-xl md:text-2xl lg:text-3xl leading-[1.4]"}
-                                    `}
-                                  >
-                                     "{activeQuote.text}"
-                                  </h3>
-                                  {activeQuote.author && (
-                                     <motion.div 
-                                      initial={{ opacity: 0, y: 15 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
-                                      className="mt-8 shrink-0"
-                                     >
-                                       <span className="text-slate-600 dark:text-slate-300 font-bold uppercase tracking-[0.25em] text-xs md:text-sm">
-                                          — {activeQuote.author}
-                                       </span>
-                                     </motion.div>
-                                  )}
-                                </div>
-                             </div>
-                           );
-                         })()}
-                      </motion.div>
-                   </AnimatePresence>
+                       <AnimatePresence mode="wait">
+                          <motion.div 
+                            key={quoteIndex}
+                            initial={{ opacity: 0, filter: 'blur(12px)', scale: 0.97 }} 
+                            animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }} 
+                            exit={{ opacity: 0, filter: 'blur(12px)', scale: 1.03 }} 
+                            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="absolute inset-0 flex items-stretch justify-stretch"
+                          >
+                             {(() => {
+                               const activeQuote = GAMER_MOTIVATIONS[quoteIndex];
+                               const style = generateGodTierStyle(quoteIndex, isDark);
+                               return (
+                                 <div className="w-full h-full flex flex-col justify-center items-center relative p-8 sm:p-12 transition-all duration-700" style={{ background: style.bg }}>
+                                    {/* Ambient Glow Orbs */}
+                                    <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb1 }} />
+                                    <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb2 }} />
+
+                                    <div className="z-20 text-center w-full max-w-4xl flex flex-col items-center">
+                                      <h3 
+                                        className={`text-slate-900 dark:text-white drop-shadow-sm text-balance break-words tracking-tight ${style.fontFamily}
+                                          ${activeQuote.text.length < 60 ? "text-3xl md:text-5xl lg:text-[3.25rem] leading-[1.15]" : 
+                                            activeQuote.text.length < 120 ? "text-2xl md:text-4xl lg:text-[2.5rem] leading-[1.25]" : 
+                                            "text-xl md:text-2xl lg:text-3xl leading-[1.4]"}
+                                        `}
+                                      >
+                                         "{activeQuote.text}"
+                                      </h3>
+                                      {activeQuote.author && (
+                                         <motion.div 
+                                          initial={{ opacity: 0, y: 15 }}
+                                          animate={{ opacity: 1, y: 0 }}
+                                          transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
+                                          className="mt-8 shrink-0"
+                                         >
+                                           <span className="text-slate-600 dark:text-slate-300 font-bold uppercase tracking-[0.25em] text-xs md:text-sm">
+                                              — {activeQuote.author}
+                                           </span>
+                                         </motion.div>
+                                      )}
+                                    </div>
+                                 </div>
+                               );
+                             })()}
+                          </motion.div>
+                       </AnimatePresence>
+                     </div>
+                   </div>
+
+                   {/* BACK FACE (Conquest Matrix) */}
+                   <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-[var(--mp-role-primary)]/20 shadow-2xl transition-all duration-700 bg-white/70 dark:bg-black/60 backdrop-blur-3xl p-6 sm:p-8">
+                       <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
+                       
+                       <div className="absolute top-4 right-6 z-30 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
+                         <span className="text-[10px] uppercase tracking-widest font-bold text-slate-800 dark:text-white">Back to Inspiration</span>
+                       </div>
+
+                       <div className="z-20 h-full flex flex-col sm:flex-row gap-6 relative items-center">
+                         {/* LEFT: Grind Heatmap */}
+                         <div className="flex-1 flex flex-col justify-center w-full">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-4 flex items-center gap-2 drop-shadow-sm">
+                               <Activity size={16} /> Relentless Grind
+                            </h4>
+                            <div className="flex items-end gap-1.5 h-16 w-full max-w-sm">
+                               {[...Array(14)].map((_, i) => (
+                                 <div 
+                                   key={i} 
+                                   className={`flex-1 rounded-sm transition-all duration-500 hover:scale-110 cursor-crosshair
+                                     ${[2, 4, 5, 7, 8, 9, 10, 12, 13].includes(i) 
+                                        ? 'bg-[var(--mp-role-primary)] h-full shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]' 
+                                        : 'bg-slate-300 dark:bg-white/10 h-1/4'}`} 
+                                 />
+                               ))}
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-4 uppercase tracking-[0.2em]">
+                               Consistency: Top 5% this week.
+                            </p>
+                         </div>
+
+                         {/* RIGHT: Next Conquest */}
+                         <div className="flex-1 flex flex-col justify-center border-t sm:border-t-0 sm:border-l border-slate-300 dark:border-white/10 pt-6 sm:pt-0 sm:pl-8 w-full">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                               <Target size={16} className="text-red-500" /> Next Conquest
+                            </h4>
+                            <p className="text-slate-600 dark:text-slate-300 text-sm font-medium mb-6 text-balance leading-relaxed">
+                               Your mastery is incomplete. Conquer <strong className="text-slate-900 dark:text-white">DPS 7.3: Advanced Operations</strong> to secure your rank.
+                            </p>
+                            <button 
+                               onClick={(e) => { 
+                                 e.stopPropagation(); 
+                                 Router.push('/student/practice'); 
+                               }}
+                               className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold uppercase tracking-widest text-[10px] sm:text-xs px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 w-fit shadow-xl group/btn border border-transparent dark:hover:border-white/50"
+                            >
+                               Engage Practice <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                            </button>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
                  </div>
                </TiltCard>
 
