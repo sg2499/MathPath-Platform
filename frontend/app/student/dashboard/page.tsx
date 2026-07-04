@@ -22,7 +22,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, Sparkles as DreiSparkles, Stars, MeshDistortMaterial } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { GAMER_MOTIVATIONS, POP_ART_STYLES } from "./quotes";
+import { GAMER_MOTIVATIONS } from "./quotes";
 
 const IconMap: Record<string, any> = {
   Target, Focus, Scan, Zap, FastForward, Rocket, Medal, Flag, Crown, Flame,
@@ -290,12 +290,18 @@ export default function StudentDashboardPage() {
 
   return (
     <AppShell>
-      {/* GLOBAL R3F VFX BACKGROUND */}
-      <div className="fixed inset-0 z-[0] pointer-events-none opacity-40 dark:opacity-60 transition-opacity duration-1000">
-         <Canvas camera={{ position: [0, 0, 30], fov: 60 }} gl={{ antialias: true, alpha: true }}>
-            {isDark ? <GlobalDarkConstellation /> : <GlobalLightAuroraMesh />}
-         </Canvas>
-      </div>
+      {/* GLOBAL VFX BACKGROUNDS */}
+      {isDark ? (
+        <div className="fixed inset-0 z-[0] pointer-events-none opacity-60 transition-opacity duration-1000">
+           <Canvas camera={{ position: [0, 0, 30], fov: 60 }} gl={{ antialias: true, alpha: true }}>
+              <GlobalDarkConstellation />
+           </Canvas>
+        </div>
+      ) : (
+        <div className="fixed inset-0 z-[0] pointer-events-none transition-opacity duration-1000">
+           <GlobalLightAuroraMesh />
+        </div>
+      )}
 
       <main className="math-dashboard-page math-dashboard-student w-full space-y-5 relative z-10">
         
