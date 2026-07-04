@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { api, apiErrorMessage } from "@/lib/api";
-import { getStudentAssignments, getStudentAssessments } from "@/lib/api/student";
+import { getStudentAssignments, getStudentAssessments, getStudentResults, getStudentCompetitionMockAssignments } from "@/lib/api/student";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3, BookOpenCheck, GraduationCap, ShieldCheck, Trophy, Laptop, Award,
@@ -60,7 +60,7 @@ function generateGodTierStyle(index: number, isDark: boolean) {
 }
 
 // --- 3D FRAMER MOTION TILT CARD ---
-function TiltCard({ children, className, onClick }: { children: ReactNode, className?: string, onClick?: () => void }) {
+function TiltCard({ children, className, onClick, isFlipped = false }: { children: ReactNode, className?: string, onClick?: () => void, isFlipped?: boolean }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -77,6 +77,7 @@ function TiltCard({ children, className, onClick }: { children: ReactNode, class
   const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.1) 0%, transparent 60%)`;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isFlipped) return;
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -89,6 +90,13 @@ function TiltCard({ children, className, onClick }: { children: ReactNode, class
     x.set(0);
     y.set(0);
   };
+
+  useEffect(() => {
+    if (isFlipped) {
+      x.set(0);
+      y.set(0);
+    }
+  }, [isFlipped, x, y]);
 
   return (
     <motion.div
@@ -122,7 +130,7 @@ const QuickLinks = [
 export default function StudentDashboardPage() {
   const Ready = useProtectedPage(["STUDENT"]);
   const Router = useRouter();
-  const [isDark, setIsDark] = useState(true);
+  const isDark = useDarkMode();
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [quoteIsFlipped, setQuoteIsFlipped] = useState(false);
   const [intelIndex, setIntelIndex] = useState(0);
@@ -148,6 +156,18 @@ export default function StudentDashboardPage() {
     enabled: Ready,
   });
 
+  const MockAssignmentsQuery = useQuery({
+    queryKey: ["student-mock-assignments"],
+    queryFn: getStudentCompetitionMockAssignments,
+    enabled: Ready,
+  });
+
+  const ResultsQuery = useQuery({
+    queryKey: ["student-results"],
+    queryFn: getStudentResults,
+    enabled: Ready,
+  });
+
   // Timers
   useEffect(() => {
     const intelTimer = setInterval(() => {
@@ -157,19 +177,86 @@ export default function StudentDashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (quoteIsFlipped) return;
     const quoteTimer = setInterval(() => {
       setQuoteIndex((prev) => (prev + 1) % GAMER_MOTIVATIONS.length);
     }, 8000);
     return () => clearInterval(quoteTimer);
-  }, []);
+  }, [quoteIsFlipped]);
 
   if (!Ready) return null;
 
   const Assignments = AssignmentQuery.data ?? [];
   const Assessments = AssessmentQuery.data ?? [];
   const Badges = AchievementQuery.data ?? [];
+  const MockAssignments = MockAssignmentsQuery.data ?? [];
+  const Results = ResultsQuery.data ?? [];
 
-  // Mock XP Calculation Logic
+  const pendingPractice = useMemo(() => {
+    return Assignments.find(
+      (a: any) => a.status === "NOT_STARTED" || a.status === "IN_PROGRESS" || a.status === "REATTEMPT_AVAILABLE"
+    );
+  }, [Assignments]);
+
+  const pendingMock = useMemo(() => {
+    return MockAssignments.find(
+      (a: any) => a.status === "ASSIGNED" || a.status === "NOT_STARTED" || a.status === "IN_PROGRESS"
+    );
+  }, [MockAssignments]);
+
+  const nextConquest = useMemo(() => {
+    if (pendingPractice) {
+      return {
+        type: "PRACTICE",
+        title: `DPS ${pendingPractice.dpsNumber || pendingPractice.lessonNumber || ''}: ${pendingPractice.dpsTitle || pendingPractice.title}`,
+        detail: `Level ${pendingPractice.levelCode} • Lesson ${pendingPractice.lessonNumber}`,
+        buttonText: "Engage Practice",
+        route: `/student/practice?assignmentId=${pendingPractice.assignmentId}&dpsId=${pendingPractice.dpsId}`
+      };
+    } else if (pendingMock) {
+      return {
+        type: "MOCK_EXAM",
+        title: pendingMock.mockExam?.title || "Assigned Mock Exam",
+        detail: `Level ${pendingMock.mockExam?.levelCode || ''} Mock Exam • ${pendingMock.mockExam?.totalQuestions || 0} Questions`,
+        buttonText: "Launch Mock Exam",
+        route: "/student/competition/mock-exams"
+      };
+    } else {
+      return {
+        type: "COMPLETED",
+        title: "All Conquests Secured!",
+        detail: "You've successfully completed all assigned Practice Sheets and Mock Exams.",
+        buttonText: "Explore Practice",
+        route: "/student/practice"
+      };
+    }
+  }, [pendingPractice, pendingMock]);
+
+  const grindData = useMemo(() => {
+    const data = [];
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    // Get last 7 days (including today)
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayName = days[d.getDay()];
+      const dateStr = d.toISOString().split("T")[0]; // YYYY-MM-DD
+      
+      const count = Results.filter((r: any) => {
+        if (!r.completedDate && !r.submittedAt) return false;
+        const compDate = (r.completedDate || r.submittedAt || "").split("T")[0];
+        return compDate === dateStr;
+      }).length;
+
+      data.push({ day: dayName, date: dateStr, count });
+    }
+    return data;
+  }, [Results]);
+
+  const maxGrindCount = useMemo(() => {
+    return Math.max(...grindData.map(d => d.count), 1);
+  }, [grindData]);
+
   const completedAssignments = Assignments.filter((a: any) => a.status === 'COMPLETED').length;
   const completedAssessments = Assessments.filter((a: any) => a.status === 'COMPLETED' || a.status === 'PASSED').length;
   const totalXP = (completedAssignments * 50) + (completedAssessments * 150) + (Badges.length * 200);
@@ -378,20 +465,25 @@ export default function StudentDashboardPage() {
 
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
-               <TiltCard className="group w-full h-full min-h-[250px] perspective-1000">
-                 <div 
-                   className="relative w-full h-full [transform-style:preserve-3d] transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer"
-                   style={{ transform: quoteIsFlipped ? 'rotateY(180deg) translateZ(10px)' : 'rotateY(0deg) translateZ(10px)' }}
+               <TiltCard className="group w-full h-full min-h-[250px] perspective-1000" isFlipped={quoteIsFlipped}>
+                 <motion.div 
+                   className="relative w-full h-full"
+                   style={{ transformStyle: "preserve-3d" }}
+                   animate={{ rotateY: quoteIsFlipped ? 180 : 0 }}
+                   transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
                    onClick={() => setQuoteIsFlipped(!quoteIsFlipped)}
                  >
                    {/* FRONT FACE (Inspiration) */}
-                   <div className="absolute inset-0 [backface-visibility:hidden]">
-                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl bg-white/10 dark:bg-black/10">
+                   <div 
+                     className="absolute inset-0" 
+                     style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                   >
+                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl bg-white/10 dark:bg-black/10 cursor-pointer">
                        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
                        
-                       <div className="absolute bottom-4 right-6 z-30 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
+                       <div className="absolute bottom-4 right-6 z-30 flex items-center gap-2 opacity-45 hover:opacity-100 transition-opacity">
                          <span className="text-[10px] uppercase tracking-widest font-bold text-slate-800 dark:text-white">Reveal Conquest</span>
-                         <Sparkles size={14} className="text-slate-800 dark:text-white" />
+                         <Sparkles size={14} className="text-slate-800 dark:text-white animate-pulse" />
                        </div>
 
                        <AnimatePresence mode="wait">
@@ -444,8 +536,11 @@ export default function StudentDashboardPage() {
                    </div>
 
                    {/* BACK FACE (Conquest Matrix) */}
-                   <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
-                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-[var(--mp-role-primary)]/20 shadow-2xl transition-all duration-700 bg-white/70 dark:bg-black/60 backdrop-blur-3xl p-6 sm:p-8">
+                   <div 
+                     className="absolute inset-0" 
+                     style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+                   >
+                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-[var(--mp-role-primary)]/20 shadow-2xl transition-all duration-700 bg-white/90 dark:bg-black/85 backdrop-blur-3xl p-6 sm:p-8 cursor-pointer">
                        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
                        
                        <div className="absolute top-4 right-6 z-30 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
@@ -456,18 +551,28 @@ export default function StudentDashboardPage() {
                          {/* LEFT: Grind Heatmap */}
                          <div className="flex-1 flex flex-col justify-center w-full">
                             <h4 className="text-xs font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-4 flex items-center gap-2 drop-shadow-sm">
-                               <Activity size={16} /> Relentless Grind
+                               <Activity size={16} /> Grind Heatmap (Last 7 Days)
                             </h4>
-                            <div className="flex items-end gap-1.5 h-16 w-full max-w-sm">
-                               {[...Array(14)].map((_, i) => (
-                                 <div 
-                                   key={i} 
-                                   className={`flex-1 rounded-sm transition-all duration-500 hover:scale-110 cursor-crosshair
-                                     ${[2, 4, 5, 7, 8, 9, 10, 12, 13].includes(i) 
-                                        ? 'bg-[var(--mp-role-primary)] h-full shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]' 
-                                        : 'bg-slate-300 dark:bg-white/10 h-1/4'}`} 
-                                 />
-                               ))}
+                            <div className="flex items-end justify-between gap-2.5 h-20 w-full max-w-xs px-2">
+                               {grindData.map((d, i) => {
+                                 const pct = d.count > 0 ? (d.count / maxGrindCount) * 80 + 20 : 10;
+                                 return (
+                                   <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group/bar relative">
+                                     {/* Tooltip on hover */}
+                                     <div className="absolute -top-8 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-[10px] px-2.5 py-1 rounded-md font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30 shadow-lg border border-white/10">
+                                       {d.count} DPS completed
+                                     </div>
+                                     <div 
+                                       style={{ height: `${pct}%` }}
+                                       className={`w-full rounded-t-[4px] transition-all duration-300 hover:scale-y-105
+                                         ${d.count > 0 
+                                            ? 'bg-[var(--mp-role-primary)] shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]' 
+                                            : 'bg-slate-300 dark:bg-white/10'}`} 
+                                     />
+                                     <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">{d.day}</span>
+                                   </div>
+                                 );
+                               })}
                             </div>
                             <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-4 uppercase tracking-[0.2em]">
                                Consistency: Top 5% this week.
@@ -479,17 +584,22 @@ export default function StudentDashboardPage() {
                             <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-2 flex items-center gap-2">
                                <Target size={16} className="text-red-500" /> Next Conquest
                             </h4>
-                            <p className="text-slate-600 dark:text-slate-300 text-sm font-medium mb-6 text-balance leading-relaxed">
-                               Your mastery is incomplete. Conquer <strong className="text-slate-900 dark:text-white">DPS 7.3: Advanced Operations</strong> to secure your rank.
-                            </p>
+                            <div className="mb-6">
+                              <h5 className="text-slate-900 dark:text-white text-sm font-black tracking-wide truncate mb-1">
+                                {nextConquest.title}
+                              </h5>
+                              <p className="text-slate-600 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                                {nextConquest.detail}
+                              </p>
+                            </div>
                             <button 
                                onClick={(e) => { 
                                  e.stopPropagation(); 
-                                 Router.push('/student/practice'); 
+                                 Router.push(nextConquest.route); 
                                }}
                                className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold uppercase tracking-widest text-[10px] sm:text-xs px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 w-fit shadow-xl group/btn border border-transparent dark:hover:border-white/50"
                             >
-                               Engage Practice <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                               {nextConquest.buttonText} <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                             </button>
                          </div>
                        </div>
