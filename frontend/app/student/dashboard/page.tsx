@@ -605,7 +605,7 @@ export default function StudentDashboardPage() {
                        </div>
                      </div>
                    </div>
-                 </div>
+                 </motion.div>
                </TiltCard>
 
             </div>
