@@ -72,8 +72,9 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
   }
 
   return (
-    <div className="math-card math-card-hover overflow-hidden p-5 sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="math-card math-card-hover overflow-hidden p-5 sm:p-6 bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all duration-500 relative group hover:-translate-y-1">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700">
             <Sparkles size={12} />
@@ -98,8 +99,8 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
         </span>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl bg-slate-50/90 p-4 dark:bg-slate-900/70">
+      <div className="mt-5 grid gap-3 sm:grid-cols-3 relative z-10">
+        <div className="rounded-2xl bg-white/60 p-4 dark:bg-slate-900/70 border border-white/50 dark:border-white/5 shadow-sm">
           <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
             <ClipboardList size={16} /> Questions
           </span>
@@ -108,7 +109,7 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-slate-50/90 p-4 dark:bg-slate-900/70">
+        <div className="rounded-2xl bg-white/60 p-4 dark:bg-slate-900/70 border border-white/50 dark:border-white/5 shadow-sm">
           <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
             <Clock3 size={16} /> Duration
           </span>
@@ -117,7 +118,7 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-slate-50/90 p-4 dark:bg-slate-900/70">
+        <div className="rounded-2xl bg-white/60 p-4 dark:bg-slate-900/70 border border-white/50 dark:border-white/5 shadow-sm">
           <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
             <Sparkles size={16} /> Level
           </span>
@@ -137,6 +138,7 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
         }`}
         onClick={handleClick}
         disabled={action.disabled}
+        style={{ position: 'relative', zIndex: 10 }}
       >
         <ActionIcon size={18} />
         {action.label}
