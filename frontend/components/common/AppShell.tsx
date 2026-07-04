@@ -14,6 +14,9 @@ import {
 import type { UserRole } from "@/types/auth";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
+const StudentGlobalBackground = dynamic(() => import("@/components/student/StudentGlobalBackground"), { ssr: false });
 import {
   AlertCircle,
   Award,
@@ -735,6 +738,7 @@ export function AppShell({
 
   return (
     <div className={`min-h-screen ${RoleShellClass}`}>
+      {RoleShellClass.includes("math-role-student") && <StudentGlobalBackground />}
       <div className="premium-backdrop" />
 
       <header className="math-shell-header">
