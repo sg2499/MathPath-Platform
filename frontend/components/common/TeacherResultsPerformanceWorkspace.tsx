@@ -59,20 +59,20 @@ function LowestAccuracy(Rows: AnyRow[]) {
 function BenchmarkLabel(Row: AnyRow) {
   if (IsBelowBenchmark(Row)) return "Benchmark Not Met";
   if (Accuracy(Row) >= 90) return "Excellence Zone";
-  if (Accuracy(Row) >= 70) return "Benchmark Met";
+  if (Accuracy(Row) >= 75) return "Benchmark Met";
   return "Benchmark Not Met";
 }
 
 function BenchmarkTone(Row: AnyRow): Tone {
   if (IsBelowBenchmark(Row)) return "red";
   if (Accuracy(Row) >= 90) return "green";
-  if (Accuracy(Row) >= 70) return "blue";
+  if (Accuracy(Row) >= 75) return "blue";
   return "amber";
 }
 
 function PerformanceBand(Rows: AnyRow[]) {
   const Avg = AverageAccuracy(Rows);
-  if (Avg < 70) {
+  if (Avg < 75) {
     return {
       Label: "Needs Re-Attempt",
       Tone: "red" as const,
@@ -99,7 +99,7 @@ function PerformanceBand(Rows: AnyRow[]) {
 function LessonInsight(Rows: AnyRow[]) {
   const Avg = AverageAccuracy(Rows);
   const Below = uniqueNeedsReattemptCount(Rows);
-  if (Below > 0 || Avg < 70) {
+  if (Below > 0 || Avg < 75) {
     return {
       Label: "Suggested Focus",
       Text: "Revisit concept rules and plan improvement practice.",
@@ -281,11 +281,11 @@ export function TeacherResultsPerformanceWorkspace({
           RowAccuracy >= 90 &&
           !IsBelowBenchmark(Row)) ||
         (StatusFilter === "BENCHMARK" &&
-          RowAccuracy >= 70 &&
+          RowAccuracy >= 75 &&
           RowAccuracy < 90 &&
           !IsBelowBenchmark(Row)) ||
         (StatusFilter === "SUPPORT" &&
-          (IsBelowBenchmark(Row) || RowAccuracy < 70));
+          (IsBelowBenchmark(Row) || RowAccuracy < 75));
       const SearchOk = !Query || SearchText(Row).includes(Query);
       return LevelOk && LessonOk && StatusOk && SearchOk;
     });
@@ -303,7 +303,7 @@ export function TeacherResultsPerformanceWorkspace({
     (Row) => Accuracy(Row) >= 90 && !IsBelowBenchmark(Row),
   ).length;
   const SupportCount = FilteredRows.filter(
-    (Row) => IsBelowBenchmark(Row) || Accuracy(Row) < 70,
+    (Row) => IsBelowBenchmark(Row) || Accuracy(Row) < 75,
   ).length;
 
   const ToggleOverviewLesson = (Key: string) =>
@@ -368,7 +368,7 @@ export function TeacherResultsPerformanceWorkspace({
           title="Improvement Focus"
           value={`${LowestAccuracy(FilteredRows)}%`}
           description="Lowest reviewed accuracy for the selected filters."
-          tone={LowestAccuracy(FilteredRows) < 70 ? "red" : "blue"}
+          tone={LowestAccuracy(FilteredRows) < 75 ? "red" : "blue"}
           icon={<Lightbulb size={20} />}
         />
       </div>
@@ -646,7 +646,7 @@ function StudentPerformanceQueues({
 }) {
   const Source = Rows.length ? SortedAttemptRows(Rows) : [];
   const BelowRows = Source.filter(
-    (Row) => IsBelowBenchmark(Row) || Accuracy(Row) < 70,
+    (Row) => IsBelowBenchmark(Row) || Accuracy(Row) < 75,
   ).slice(0, 4);
   const RecentRows = [...Source]
     .sort(
@@ -797,7 +797,7 @@ function PerformanceAttemptTable({
               </Chip>
             </div>
             <div>
-              <Chip tone={Accuracy(Row) >= 70 ? "green" : "red"}>
+              <Chip tone={Accuracy(Row) >= 75 ? "green" : "red"}>
                 {Accuracy(Row)}%
               </Chip>
             </div>

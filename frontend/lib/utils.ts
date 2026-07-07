@@ -7,7 +7,7 @@ export function formatSeconds(totalSeconds: number): string {
 
 export function resultMessage(accuracy: number): string {
   if (accuracy >= 90) return "Excellent work! You are doing great.";
-  if (accuracy >= 70) return "Good effort. Keep practicing to get even better.";
+  if (accuracy >= 75) return "Good effort. Keep practicing to get even better.";
   if (accuracy >= 50) return "Nice try. A little more practice will help.";
   return "Keep going. Practice makes you stronger.";
 }
