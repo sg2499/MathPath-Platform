@@ -652,10 +652,10 @@ export default function StudentDashboardPage() {
                                   return (
                                     <div key={i} className="flex-1 flex flex-col items-center gap-2 group/bar relative">
                                       {/* Tooltip on hover */}
-                                      <div className="absolute -top-[90px] left-1/2 -translate-x-1/2 bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[11px] p-3 rounded-xl font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-2xl border border-white/10 dark:border-slate-200 w-48 flex flex-col gap-1.5">
-                                        <div className="flex justify-between items-center border-b border-white/10 dark:border-slate-200 pb-1 font-black text-rose-500 dark:text-rose-600 text-[12px] uppercase">
-                                          <span>{d.count > 0 ? `${d.flowState}% ${d.tier}` : 'REST DAY'}</span>
-                                          <span className="text-[9px] opacity-60 font-semibold">{d.day}</span>
+                                      <div className="absolute -top-[100px] left-1/2 -translate-x-1/2 bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[12px] p-3.5 rounded-2xl font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-2xl border border-white/10 dark:border-slate-200 w-56 flex flex-col gap-1.5">
+                                        <div className="flex justify-between items-center border-b border-white/10 dark:border-slate-200 pb-1.5 font-black text-[13px] uppercase">
+                                          <span className="text-rose-500 dark:text-rose-600 drop-shadow-sm">{d.count > 0 ? `${d.flowState}% ${d.tier}` : 'REST DAY'}</span>
+                                          <span className="text-[10px] text-slate-300 dark:text-slate-500 opacity-90 font-black tracking-wider">{d.day}</span>
                                         </div>
                                         {d.count > 0 ? (
                                           <>
@@ -663,12 +663,12 @@ export default function StudentDashboardPage() {
                                               <span className="opacity-80">Accuracy: <span className="opacity-100 text-emerald-400 dark:text-emerald-600">{d.accuracy}%</span></span>
                                               <span className="opacity-80">Time: <span className="opacity-100">{d.timeSpent}m</span></span>
                                             </div>
-                                            <p className="text-[10px] opacity-90 leading-tight text-center border-t border-white/10 dark:border-slate-300 pt-1.5 font-semibold italic whitespace-normal mt-0.5">
+                                            <p className="text-[11px] opacity-90 leading-tight text-center border-t border-white/10 dark:border-slate-300 pt-2 font-semibold italic whitespace-normal mt-1">
                                               "{d.insight}"
                                             </p>
                                           </>
                                         ) : (
-                                          <span className="text-[11px] opacity-70 text-center py-1">No conquests attempted</span>
+                                          <span className="text-[12px] opacity-70 text-center py-2">No conquests attempted</span>
                                         )}
                                       </div>
                                       <div 
