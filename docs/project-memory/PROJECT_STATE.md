@@ -1,6 +1,6 @@
 # MathPath Project State
 
-Last updated: 2026-07-01
+Last updated: 2026-07-06
 
 ## Product
 
@@ -21,40 +21,30 @@ MathPath is a role-based abacus and mental math learning platform for Admin, Tea
 
 ## Current Branch State
 
-- `main` is at `f179099` and `origin/main` is currently at `3cdf4e8` (awaiting manual push).
-- The repo has uncommitted local frontend work in:
-  - `frontend/app/globals.css`
-  - `frontend/app/student/assessment-readiness/page.tsx`
-  - `frontend/app/student/assessments/page.tsx`
-  - `frontend/app/student/dashboard/page.tsx`
-  - `frontend/app/student/practice/page.tsx`
-- Existing local untracked/nested items intentionally remain untouched:
-  - `MathPath-Platform`
-  - `copy_titles.py`
-  - `old_seed.py`
-  - `seed_function.py`
+- `main` and `origin/main` both point to `4ecd510`.
+- No newer product commits were found in this audit.
+- The only current local worktree changes are the project-memory docs updated by this handoff.
 
 ## Current Focus
 
-The active product area has shifted from the 2026-06-18 MM generator fixes to broader frontend polish and auth stability:
+The active product area is currently centered on the student-facing frontend and its verification trail:
 
-- Student-facing typography, hero blocks, metric cards, and result surfaces are being standardized.
-- Header branding is now converging on a larger image-only LogoMark treatment.
-- Login flow is being streamlined and hardened across Admin, Teacher, and Student roles.
-- Global responsive behavior is being normalized to avoid horizontal wobble and mobile safe-area issues.
-- Recent backend auth/schema fixes still need deployment confirmation.
+- Student dashboard polish around Conquest Matrix cards, slideshow behavior, and the grind heatmap.
+- Shared login resiliency across phones, tablets, landscape, browser zoom, and short-screen layouts.
+- Capturing durable verification/deployment evidence for the recent frontend-only stack.
+- Making the frontend verification flow predictable when `tsconfig.json` depends on generated `.next/types`.
+- Keeping the older backend auth/schema deployment confirmation (`7f92d7d`) on the watch list.
 
 ## Latest Implemented State
 
-- Competition mock notifications and deep-link routing were added and then stabilized across Admin, Teacher, and Student result flows.
-- Student competition mock entry now includes direct start-practice flows and a dedicated instructions screen.
-- Student assessment/mock attempt pages use sticky metric bars and more uniform question block sizing.
-- Teacher and student dashboards/readiness/results surfaces were moved toward a shared `math-kicker` / `math-block-header` / `math-subtitle` convention.
-- Student metric cards and result summary cards were standardized around the gamified compact metric-card style.
-- Login no longer waits on an artificial post-submit delay and no longer shows verbose connection-status banners.
-- The app now applies global responsive safeguards including viewport controls, safe-area padding, `overflow-x-hidden`, and localized horizontal swiping for wide tables.
+- Competition mock notifications, deep-link routing, start-practice flows, sticky attempt metrics, and leaderboard/library UI remain shipped from the late June stack.
+- The student competition leaderboard keeps the premium July 1 glassmorphism/podium styling overhaul from `f179099`.
+- Student dashboards now include the newer Conquest Matrix work: real assignments/results, interactive card flips, improved calendar date layout, and mock slideshow support.
+- The student dashboard grind heatmap now visualizes minutes spent per day rather than raw completed-sheet count, with a minimum credit for completed work.
+- The student dashboard compile regression (`134eeb2`) and hydration regression (`8979bfc`) are fixed on `main`.
+- The shared login surface now keeps browser zoom enabled, adds better safe-area and overflow handling, improves accessibility/test hooks, and is guarded by a dedicated 60-case Playwright responsive matrix wired into CI (`4ecd510`).
+- Playwright config now includes Chromium, Firefox, and WebKit desktop projects so the responsive login matrix runs across all three engines in CI.
 - Backend auth was hardened in `4502bdd`, and `7f92d7d` adds a schema migration to backfill missing user security columns.
-- The header now uses the refreshed high-resolution MathPath logo with a larger image-only LogoMark and no redundant wordmark/tagline.
 - The 2026-06-18 MM workbook-faithful visual-labeling and generator fixes remain the latest detailed backend curriculum verification baseline.
 
 ## Existing Brain Context
@@ -88,10 +78,14 @@ Recent verification evidence recorded in repo memory:
 - 2026-06-26 daily log records the teacher/student UI cleanup sequence as typechecked, built, and merged via automated PRs `#40` through `#43`.
 - 2026-06-29 daily log records login UX commit `590e1dc` as typechecked, built, and merged via PR `#59`.
 - 2026-06-29 daily log records responsive layout commit `fdc0aab` as compiled, tested, and merged via PR `#61`.
-- 2026-06-30 and 2026-07-01 daily logs record Mock Leaderboard UI upgrades as successfully built via `npm run build` with 0 errors (commit `f179099`).
+- 2026-06-30 and 2026-07-01 daily logs record Mock Leaderboard UI upgrades as successfully built via `npm run build`.
+- 2026-07-06 local frontend production build passed: `npm.cmd run build`.
+- 2026-07-06 local frontend typecheck passed after the build regenerated `.next/types`: `npm.cmd run typecheck`.
 
 Verification gaps that still need evidence:
 
-- No recorded local test/build output yet for commits `4502bdd`, `7f92d7d`, or `d091e7b` through `c4d2ddf`.
-- No recorded browser smoke yet for the 2026-06-29 login changes, responsive layout changes, or latest header-logo behavior.
+- `npm.cmd run typecheck` is not currently standalone-reliable on this checkout before generated `.next/types` exist; the pre-build run on 2026-07-06 failed with missing `.next/types` references from `tsconfig.json`.
+- No successful browser-executed evidence is recorded yet for the new responsive login matrix in `4ecd510`; the local attempt on 2026-07-05 failed before page execution because Playwright browser launches were blocked with `spawn EPERM`.
+- No recorded live browser smoke yet for the 2026-07-04 student login/dashboard sequence, especially narrow-width login behavior and the updated Conquest Matrix/grind heatmap surfaces.
+- Current frontend builds still emit Sentry Next.js instrumentation warnings and missing-`metadataBase` warnings.
 - No recorded deployed-environment confirmation yet that the backend user security-column migration in `7f92d7d` executed successfully.

@@ -261,14 +261,48 @@ export default function StudentDashboardPage() {
       const rawTimeSpent = Math.round(totalSeconds / 60);
       const timeSpent = count > 0 ? Math.max(rawTimeSpent, 2) : 0; // minimum 2 mins credit if completed
 
-      data.push({ day: dayName, date: dateStr, count, timeSpent });
+      const avgAccuracy = count > 0 
+        ? Math.round(dayResults.reduce((acc: number, r: any) => acc + (r.accuracyPercentage || 0), 0) / count)
+        : 0;
+
+      // Estimate total questions (since we might not have it directly in the basic result payload)
+      // Fallback: estimate 5 questions per sheet if unknown
+      const questionsCount = dayResults.reduce((acc: number, r: any) => acc + (r.totalQuestions || 5), 0);
+      
+      // Speed (Questions per Minute)
+      const timeMinsForSpeed = (totalSeconds / 60) > 0.1 ? (totalSeconds / 60) : 5; 
+      const speed = count > 0 ? questionsCount / timeMinsForSpeed : 0;
+
+      // Flow State: 0 to 100%
+      const flowState = count > 0
+        ? Math.min(Math.round(avgAccuracy * 0.7 + Math.min(speed * 6, 30)), 100)
+        : 0;
+
+      let tier = "REST";
+      let insight = "Rest Day. No conquests attempted.";
+      if (count > 0) {
+        if (flowState >= 90) {
+          tier = "S-TIER";
+          insight = "Peak Focus! Absolute flow state.";
+        } else if (flowState >= 80) {
+          tier = "A-TIER";
+          insight = "Exceptional speed and precision.";
+        } else if (flowState >= 70) {
+          tier = "B-TIER";
+          insight = "Solid execution. Steady progress.";
+        } else if (flowState >= 50) {
+          tier = "C-TIER";
+          insight = "Keep grinding. Focus is building.";
+        } else {
+          tier = "D-TIER";
+          insight = "Analyze mistakes & try again.";
+        }
+      }
+
+      data.push({ day: dayName, date: dateStr, count, timeSpent, accuracy: avgAccuracy, speed, flowState, tier, insight });
     }
     return data;
   }, [Results]);
-
-  const maxGrindCount = useMemo(() => {
-    return Math.max(...grindData.map(d => d.timeSpent), 10); // scale up to at least 10 minutes
-  }, [grindData]);
 
   const heatmapMonthYearLabel = useMemo(() => {
     if (grindData.length === 0) return "";
@@ -606,12 +640,28 @@ export default function StudentDashboardPage() {
                              </div>
                              <div className="flex items-end justify-between gap-3 h-28 w-full max-w-sm px-2">
                                 {grindData.map((d, i) => {
-                                  const pct = d.timeSpent > 0 ? (d.timeSpent / maxGrindCount) * 80 + 20 : 10;
+                                  const pct = d.count > 0 ? (d.flowState / 100) * 80 + 20 : 10;
                                   return (
                                     <div key={i} className="flex-1 flex flex-col items-center gap-2 group/bar relative">
                                       {/* Tooltip on hover */}
-                                      <div className="absolute -top-8 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-[10px] px-2.5 py-1 rounded-md font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30 shadow-lg border border-white/10">
-                                        {d.count} sheet(s) • {d.timeSpent}m spent
+                                      <div className="absolute -top-[64px] left-1/2 -translate-x-1/2 bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[9px] p-2 rounded-lg font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-35 shadow-xl border border-white/10 dark:border-slate-200 w-36 flex flex-col gap-0.5">
+                                        <div className="flex justify-between items-center border-b border-white/10 dark:border-slate-200 pb-0.5 font-black text-rose-500 dark:text-rose-600 text-[10px]">
+                                          <span>{d.count > 0 ? `${d.flowState}% ${d.tier}` : 'REST DAY'}</span>
+                                          <span className="text-[7px] opacity-60 font-semibold">{d.day}</span>
+                                        </div>
+                                        {d.count > 0 ? (
+                                          <>
+                                            <div className="flex justify-between leading-none text-[8px] mt-0.5">
+                                              <span>Accuracy: {d.accuracy}%</span>
+                                              <span>Time: {d.timeSpent}m</span>
+                                            </div>
+                                            <p className="text-[7.5px] opacity-80 leading-tight text-center border-t border-white/5 dark:border-slate-100 pt-0.5 font-semibold italic whitespace-normal">
+                                              {d.insight}
+                                            </p>
+                                          </>
+                                        ) : (
+                                          <span className="text-[7.5px] opacity-60 text-center py-0.5">No conquests attempted</span>
+                                        )}
                                       </div>
                                       <div 
                                         style={{ height: `${pct}%` }}

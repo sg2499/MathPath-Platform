@@ -1,6 +1,6 @@
 # Daily Handoff
 
-Last updated: 2026-07-01
+Last updated: 2026-07-06
 
 ## Resume First
 
@@ -18,35 +18,42 @@ Read:
 
 Current branch alignment:
 
-- `main` points to `f179099` (premium styling overhaul for mock leaderboard). `origin/main` is currently at `3cdf4e8` (push requires manual authentication).
-- The recent pushed sequence spans notification/deep-link fixes on 2026-06-24, student mock entry and sticky-workspace polish on 2026-06-25, broad teacher/student UI standardization on 2026-06-26, login/responsive/branding work on 2026-06-29, Student Leaderboard UI deployment on 2026-06-30, and premium styling overhauls on 2026-07-01.
+- `main` and `origin/main` both point to `4ecd510` (`Harden student login responsive rendering`) dated 2026-07-04.
+- No newer product commits were found in this audit.
 
 Recent shipped work now reflected in repo history:
 
-- 2026-06-24: competition mock notifications, deep-linking, mock submission/routing fixes, and remaining MM visual seed mappings landed across commits `5561d34` through `7cfb74a`.
-- 2026-06-25: student mock instructions, start-practice entry points, sticky metric bars, and question block sizing landed across commits `3d59b32` through `495e821`.
-- 2026-06-26: teacher/student table spacing, chip wrapping, metric-card gamification, and typography cleanup landed across commits `abddcd0` through `a04ed53`.
-- 2026-06-29: login UX streamlining (`590e1dc`), global responsive safeguards (`fdc0aab`), login hardening (`4502bdd`), backend security-column schema migration (`7f92d7d`), student hero/result typography cleanup (`d091e7b` through `bbffb96`), and a larger image-only header logo sequence (`416bf88` through `c4d2ddf`) landed on `main`.
-- 2026-06-30: **Student Mock Leaderboard** and **Mock Exams Library** UI deployed. Built backend routes for Individual/Cumulative leaderboards (`get_mock_exam_leaderboard`, `get_cumulative_leaderboard`). Added top 3 interactive podium glow animations, accurate formatting (score, time taken, no decimals), and resolved profile avatar grouping across cumulative logic. Landed across commits `1ddce28` to `3cdf4e8`.
-- 2026-07-01: **Premium Styling Overhaul** applied to the Mock Leaderboard, upgrading the background blurs to a mesmerizing deep/cool mix-blend glassmorphism aesthetic and drastically scaling up the glow and contrast of the podium elements. Landed in commit `f179099` (awaiting manual push).
+- 2026-06-30 to 2026-07-01: the mock leaderboard/library premium UI sequence remains shipped through `f179099`.
+- 2026-07-04 student dashboard and login hardening sequence:
+  - `134eeb2` fixed a JSX closing-tag compile break on the student dashboard.
+  - `8979bfc` moved hooks above a conditional return to stop a React hydration crash.
+  - `303b004` refined Conquest Matrix calendar-date layout and added mock slideshow support.
+  - `c6abde6` enlarged the grind heatmap, tightened dashboard card layouts, and changed the heatmap to use time spent per day.
+  - `4ecd510` hardened the shared login surface for narrow phones, tablets, landscape, browser zoom, and short screens; removed the forced no-zoom viewport restriction; and added a 60-case Playwright responsive matrix to CI.
 
-This audit ensures the project memory remains aligned with the latest live production state.
+This audit refreshes project-memory to match the current repository and verification state.
 
 ## Current Repository State
 
-Local working tree is perfectly clean. The student Mock Leaderboard and Library components are thoroughly completed, QA tested, typechecked, and merged to main.
+`main` is synchronized with `origin/main` at `4ecd510`, and this audit found no outstanding local product-code changes to reconcile. The only current worktree changes are the project-memory docs updated for continuity.
 
 ## Verification Snapshot
 
 Recorded evidence currently available in repo memory:
 
-- 2026-06-26 daily log records the UI styling sequence as typechecked, built, and merged.
-- 2026-06-29 daily log records login UX and responsive layouts as typechecked, built, and merged.
-- 2026-06-30 daily log records full build, typecheck, and live browser QA completion for the Mock Exam Library and Leaderboard UI refactors. All rendering errors and incorrect backend groupings are definitively resolved and checked on live data.
-- **2026-07-01** daily log records successful production build (`npm run build`) passing perfectly after applying premium background and podium styling to the leaderboard.
+- 2026-07-06 local frontend `npm.cmd run typecheck` initially failed because `frontend/tsconfig.json` includes `.next/types/**/*.ts` and the current checkout did not have a complete generated `.next/types` tree yet.
+- 2026-07-06 local frontend production build passed: `npm.cmd run build`.
+- 2026-07-06 local frontend `npm.cmd run typecheck` passed immediately after the build regenerated the required `.next/types` files.
+- 2026-07-05 local responsive login verification was attempted against a local `next start`, but all 60 Playwright cases failed before page execution because Chromium/Firefox/WebKit launches were blocked in this environment with `spawn EPERM`.
+- Build warnings observed during the successful build:
+  - Sentry Next.js setup still warns that `sentry.server.config.ts` and `sentry.edge.config.ts` should move into `instrumentation.ts`.
+  - Next.js warns that `metadataBase` is not set for social image resolution.
+- Earlier MM/backend verification evidence from 2026-06-18 remains the latest detailed curriculum/generator baseline.
 
 ## Next Recommended Work
 
-1. Begin tackling the next MathPath Phase or Epics required by the user.
-2. Verify the podium sizing and spacing on specific smaller mobile breakpoints if explicitly requested.
-3. Keep the `docs/project-memory/DAILY_LOGS/` updated!
+1. Decide whether to make `npm.cmd run typecheck` standalone on a clean checkout, or formally document that it must follow `npm.cmd run build`, because the current `tsconfig.json` depends on generated `.next/types`.
+2. Re-run `npm.cmd run verify:student-login-responsive` in GitHub Actions or another environment that can launch Playwright browsers, then archive the artifact output as deployment evidence for `4ecd510`.
+3. Browser-QA the live or preview student login page at 320px, phone landscape, and tablet widths in both themes, specifically checking tab readability, brand/theme-toggle overlap, and scroll/zoom behavior.
+4. Browser-QA the student dashboard changes from `303b004` and `c6abde6`, especially Conquest Matrix date layout, slideshow behavior, and whether the new time-spent grind heatmap matches product expectations.
+5. Decide whether to clean the current build warnings now and keep the 2026-06-29 backend auth migration (`7f92d7d`) on the watch list until deployed-environment confirmation is recorded.

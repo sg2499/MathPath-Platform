@@ -1,6 +1,78 @@
 # Deployment Log
 
-Last updated: 2026-06-29
+Last updated: 2026-07-06
+
+## 2026-07-06
+
+### Continuity audit through commit `4ecd510`
+
+Observed state:
+
+- `main` and `origin/main` still both point to `4ecd510`.
+- No newer pushed commits or deployment events were identified in this audit.
+
+Verification recorded in repo memory:
+
+- 2026-07-06 local `npm.cmd run typecheck` failed before the build because `frontend/tsconfig.json` includes `.next/types/**/*.ts` and the generated type files were not fully present in the current checkout state.
+- 2026-07-06 local frontend production build passed: `npm.cmd run build`.
+- 2026-07-06 local `npm.cmd run typecheck` passed immediately after the build regenerated the required `.next/types` tree.
+- The successful build still emitted warnings, not failures:
+  - Sentry Next.js instrumentation still expects `sentry.server.config.ts` / `sentry.edge.config.ts` to move into `instrumentation.ts`.
+  - Next.js warns that `metadataBase` is not set for social image resolution.
+- The latest responsive login matrix evidence is still the 2026-07-05 local blocked run: Playwright could not launch Chromium, Firefox, or WebKit in this environment (`spawn EPERM`).
+
+Change summary:
+
+- No product code changed in this audit.
+- Project memory was refreshed to reflect that the latest local verification path is now `build` first, then `typecheck`, on this checkout.
+
+Remaining:
+
+- Decide whether to make `npm.cmd run typecheck` independent of pre-generated `.next/types`, or explicitly document the required build-first order.
+- Collect a successful responsive login matrix run from GitHub Actions or another browser-capable environment.
+- Browser-smoke the live or preview login page and the updated student dashboard surfaces.
+- Verify deployed auth flows that depend on the backend security-column migration in `7f92d7d`.
+
+## 2026-07-04 to 2026-07-05
+
+### Branch audit through commit `4ecd510`
+
+Observed state:
+
+- `main` and `origin/main` both point to `4ecd510`.
+- The 2026-07-04 pushed frontend stack includes:
+  - `134eeb2` student dashboard JSX closing-tag compile fix
+  - `8979bfc` hook-order hydration fix
+  - `303b004` Conquest Matrix date-layout and mock-slideshow polish
+  - `c6abde6` grind-heatmap and card-layout refinement
+  - `4ecd510` student login responsive hardening and CI responsive-matrix wiring
+
+Expected deployment:
+
+- Vercel frontend redeploys for the full 2026-07-04 stack.
+- No backend deploy is required for this sequence.
+
+Verification recorded in repo memory:
+
+- 2026-07-05 local frontend typecheck passed: `npm.cmd run typecheck`.
+- 2026-07-05 local frontend production build passed: `npm.cmd run build`.
+- The successful build emitted warnings, not failures:
+  - Sentry Next.js instrumentation still expects `sentry.server.config.ts` / `sentry.edge.config.ts` to move into `instrumentation.ts`.
+  - Next.js warns that `metadataBase` is not set for social image resolution.
+- 2026-07-05 local `npm.cmd run verify:student-login-responsive` was attempted against a local `next start`, but all 60 cases failed before page assertions because Playwright could not launch Chromium, Firefox, or WebKit in this environment (`spawn EPERM`).
+
+Change summary:
+
+- Fixed the student dashboard compile break and hydration crash.
+- Refined Conquest Matrix date rendering and mock slideshow support.
+- Changed the dashboard grind heatmap to scale by time spent rather than only completion count.
+- Hardened the shared login page for mobile/landscape/zoom use cases and added responsive regression coverage to CI.
+
+Remaining:
+
+- Collect a successful responsive login matrix run from GitHub Actions or another browser-capable environment.
+- Browser-smoke the live or preview login page and the updated student dashboard surfaces.
+- Decide whether to clean the current Sentry instrumentation and `metadataBase` build warnings now.
 
 ## 2026-06-29
 
