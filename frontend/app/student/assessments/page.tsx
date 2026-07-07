@@ -670,18 +670,22 @@ function StudentAssessmentsPageContent() {
                           </button>
                           {isLevelOpen ? (
                             <div className="overflow-hidden rounded-[22px] border border-slate-200 dark:border-slate-800">
-                              <div className="math-student-assessments-table-header grid grid-cols-[1.08fr_.54fr_.68fr_.5fr_.5fr_.78fr_.78fr_164px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
-                                <div>Assessment</div>
-                                <div className="text-center">Attempt</div>
-                                <div className="text-center">Status</div>
-                                <div className="text-center">Score</div>
-                                <div className="text-center">Accuracy</div>
-                                <div>Assigned Date</div>
-                                <div>Completion Date</div>
-                                <div className="text-right pr-2">Action</div>
-                              </div>
-                              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {levelGroup.rows.map((row, index) => <StudentAssessmentRecordRow key={String(value(row, ["assignmentId", "assessmentAssignmentId", "assessmentId", "id"], String(index)))} row={row} FocusTarget={DeepLinkTarget} />)}
+                              <div className="w-full overflow-x-auto">
+                                <div className="min-w-[850px] xl:min-w-0">
+                                  <div className="math-student-assessments-table-header grid grid-cols-[1.08fr_.54fr_.68fr_.5fr_.5fr_.78fr_.78fr_164px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70">
+                                    <div>Assessment</div>
+                                    <div className="text-center">Attempt</div>
+                                    <div className="text-center">Status</div>
+                                    <div className="text-center">Score</div>
+                                    <div className="text-center">Accuracy</div>
+                                    <div>Assigned Date</div>
+                                    <div>Completion Date</div>
+                                    <div className="text-right pr-2">Action</div>
+                                  </div>
+                                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                                    {levelGroup.rows.map((row, index) => <StudentAssessmentRecordRow key={String(value(row, ["assignmentId", "assessmentAssignmentId", "assessmentId", "id"], String(index)))} row={row} FocusTarget={DeepLinkTarget} />)}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ) : null}

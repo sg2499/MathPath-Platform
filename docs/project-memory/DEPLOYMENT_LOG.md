@@ -1,6 +1,46 @@
 # Deployment Log
 
-Last updated: 2026-07-06
+Last updated: 2026-07-07
+
+## 2026-07-07
+
+### Branch audit through commit `dd9938e`
+
+Observed state:
+
+- `main` and `origin/main` both point to `dd9938e`.
+- The 2026-07-07 pushed frontend stack includes:
+  - `ec9d041` dynamic `flowState` scoring, tier labels, accuracy/time/insight tooltip content, and fallback question-count estimation
+  - `7e4212b` current-week Sunday-to-Saturday heatmap alignment and larger tooltip layout
+  - `dd9938e` tooltip text color inheritance fix and additional tooltip sizing polish
+
+Expected deployment:
+
+- Vercel frontend redeploys for the full 2026-07-07 dashboard sequence.
+- No backend deploy is required for this sequence.
+
+Verification recorded in repo memory:
+
+- 2026-07-07 local frontend typecheck passed from `frontend/`: `npm.cmd run typecheck`.
+- 2026-07-07 local frontend production build passed from `frontend/`: `npm.cmd run build`.
+- The successful build still emitted warnings, not failures:
+  - Sentry Next.js instrumentation still expects `sentry.server.config.ts` / `sentry.edge.config.ts` to move into `instrumentation.ts`.
+  - Next.js warns that `metadataBase` is not set for social image resolution.
+- No browser-executed verification was recorded in this audit for the new tooltip stack.
+- No new CI artifact or live Vercel smoke result is recorded in repo memory yet for `ec9d041` through `dd9938e`.
+
+Change summary:
+
+- The student dashboard grind heatmap moved from a rolling window to the current calendar week.
+- Heatmap bars now communicate a derived daily flow score rather than only time-spent magnitude.
+- Tooltip presentation now includes tier copy, accuracy/time context, and color/readability fixes.
+
+Remaining:
+
+- Browser-QA the current-week grind heatmap and tooltip behavior on live or preview in both themes.
+- Confirm whether the `flowState` formula should keep estimating `5` questions per sheet when `totalQuestions` is absent.
+- Add deployment/live-smoke evidence for the pushed July 7 frontend stack.
+- Re-run the responsive login matrix in a browser-capable environment so the July 4 login hardening still has browser-backed evidence.
 
 ## 2026-07-06
 

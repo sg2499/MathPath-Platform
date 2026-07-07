@@ -1337,80 +1337,84 @@ function ActionQueueTab({
     );
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-teacher-practice-record-table-header grid grid-cols-[1.5fr_1.5fr_.8fr_.8fr_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
-        <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="DPS" SortKey="dps" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} Align="center" />
-        <SortableHeader Label="Status" SortKey="status" SortState={SortStateValue} OnSort={HandleSort} Align="center" />
-        <div className="text-right">Review</div>
-      </div>
-      <div className="divide-y divide-slate-100 dark:divide-slate-800">
-        {SortedRows.map((Row, Index) => {
-          const StudentCode = studentCodeOf(Row);
-          const RowCompleted = isCompleted(Row);
-          const StatusText = DisplayStatus(Row);
-          return (
-            <div
-              key={`${Row.attemptId || Row.assignmentId || Row.id || Index}`}
-              className="grid grid-cols-[1.5fr_1.5fr_.8fr_.8fr_120px] items-center gap-3 px-5 py-4 transition hover:bg-rose-50/40 dark:hover:bg-slate-900/70"
-            >
-              <div className="min-w-0">
-                <button
-                  type="button"
-                  className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
-                  onClick={() => OnOpenStudent(StudentCode)}
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-[800px] xl:min-w-0">
+          <div className="math-teacher-practice-record-table-header grid grid-cols-[1.5fr_1.5fr_.8fr_.8fr_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+            <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
+            <SortableHeader Label="DPS" SortKey="dps" SortState={SortStateValue} OnSort={HandleSort} />
+            <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} Align="center" />
+            <SortableHeader Label="Status" SortKey="status" SortState={SortStateValue} OnSort={HandleSort} Align="center" />
+            <div className="text-right">Review</div>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {SortedRows.map((Row, Index) => {
+              const StudentCode = studentCodeOf(Row);
+              const RowCompleted = isCompleted(Row);
+              const StatusText = DisplayStatus(Row);
+              return (
+                <div
+                  key={`${Row.attemptId || Row.assignmentId || Row.id || Index}`}
+                  className="grid grid-cols-[1.5fr_1.5fr_.8fr_.8fr_120px] items-center gap-3 px-5 py-4 transition hover:bg-rose-50/40 dark:hover:bg-slate-900/70"
                 >
-                  {studentNameOf(Row)}
-                </button>
-                <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
-                  {StudentCode}
-                </p>
-              </div>
-              <div className="min-w-0">
-                <p className="font-black text-slate-950 dark:text-white">
-                  {CompactDpsLabel(Row)}
-                </p>
-                <p className="text-xs font-semibold text-slate-500">
-                  {moduleCodeOf(Row)} · {levelCodeOf(Row)}
-                </p>
-              </div>
-              <div className="flex items-center justify-center">
-                <Chip
-                  tone={
-                    RowCompleted && accuracy(Row) >= 70
-                      ? "green"
-                      : RowCompleted
-                        ? "red"
-                        : "slate"
-                  }
-                >
-                  {RowCompleted ? `${accuracy(Row)}%` : "—"}
-                </Chip>
-              </div>
-              <div className="flex items-center justify-center">
-                <Chip
-                  tone={
-                    StatusText === "Cleared"
-                      ? "green"
-                      : StatusText === "Pending"
-                        ? "amber"
-                        : "red"
-                  }
-                >
-                  {StatusText}
-                </Chip>
-              </div>
-              <div className="flex justify-end">
-                <StandardViewButton
-                  label="Review"
-                  tooltip="Open student practice review"
-                  onClick={() => OnOpenStudent(StudentCode)}
-                  compact
-                />
-              </div>
-            </div>
-          );
-        })}
+                  <div className="min-w-0">
+                    <button
+                      type="button"
+                      className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
+                      onClick={() => OnOpenStudent(StudentCode)}
+                    >
+                      {studentNameOf(Row)}
+                    </button>
+                    <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
+                      {StudentCode}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-black text-slate-950 dark:text-white">
+                      {CompactDpsLabel(Row)}
+                    </p>
+                    <p className="text-xs font-semibold text-slate-500">
+                      {moduleCodeOf(Row)} · {levelCodeOf(Row)}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <Chip
+                      tone={
+                        RowCompleted && accuracy(Row) >= 70
+                          ? "green"
+                          : RowCompleted
+                            ? "red"
+                            : "slate"
+                      }
+                    >
+                      {RowCompleted ? `${accuracy(Row)}%` : "—"}
+                    </Chip>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <Chip
+                      tone={
+                        StatusText === "Cleared"
+                          ? "green"
+                          : StatusText === "Pending"
+                            ? "amber"
+                            : "red"
+                      }
+                    >
+                      {StatusText}
+                    </Chip>
+                  </div>
+                  <div className="flex justify-end">
+                    <StandardViewButton
+                      label="Review"
+                      tooltip="Open student practice review"
+                      onClick={() => OnOpenStudent(StudentCode)}
+                      compact
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1463,84 +1467,88 @@ function StudentReviewTab({
     );
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-teacher-practice-record-table-header grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-4 text-[10px] font-black uppercase tracking-[0.07em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
-        <StudentReviewHeader SortKey="student">Student</StudentReviewHeader>
-        <StudentReviewHeader SortKey="module" Align="center">Module</StudentReviewHeader>
-        <StudentReviewHeader SortKey="level" Align="center">Level</StudentReviewHeader>
-        <StudentReviewHeader SortKey="assigned" Align="center">Assigned<br />DPS</StudentReviewHeader>
-        <StudentReviewHeader SortKey="cleared" Align="center">Cleared<br />DPS</StudentReviewHeader>
-        <StudentReviewHeader SortKey="pending" Align="center">Pending<br />DPS</StudentReviewHeader>
-        <StudentReviewHeader SortKey="needsReattempt" Align="center">Needs<br />Re-Attempt</StudentReviewHeader>
-        <StudentReviewHeader SortKey="average" Align="center">Average<br />Accuracy</StudentReviewHeader>
-        <StudentReviewHeader SortKey="performance" Align="center">Performance</StudentReviewHeader>
-        <StudentReviewHeader SortKey="lastActivity" Align="center">Last<br />Activity</StudentReviewHeader>
-        <div className="text-right font-black uppercase leading-[1.15] tracking-[0.07em]">Review</div>
-      </div>
-      <div className="divide-y divide-slate-100 dark:divide-slate-800">
-        {SortedStudents.map((Student) => {
-          const Stats = StudentOperationalStats(Student.rows);
-          const Band = PerformanceBand(Student.rows);
-          return (
-            <div
-              key={Student.key}
-              className="grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 px-3 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
-            >
-              <div className="min-w-0">
-                <button
-                  type="button"
-                  className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
-                  onClick={() => OnOpenStudent(Student.studentCode)}
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-[1100px] xl:min-w-0">
+          <div className="math-teacher-practice-record-table-header grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-4 text-[10px] font-black uppercase tracking-[0.07em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+            <StudentReviewHeader SortKey="student">Student</StudentReviewHeader>
+            <StudentReviewHeader SortKey="module" Align="center">Module</StudentReviewHeader>
+            <StudentReviewHeader SortKey="level" Align="center">Level</StudentReviewHeader>
+            <StudentReviewHeader SortKey="assigned" Align="center">Assigned<br />DPS</StudentReviewHeader>
+            <StudentReviewHeader SortKey="cleared" Align="center">Cleared<br />DPS</StudentReviewHeader>
+            <StudentReviewHeader SortKey="pending" Align="center">Pending<br />DPS</StudentReviewHeader>
+            <StudentReviewHeader SortKey="needsReattempt" Align="center">Needs<br />Re-Attempt</StudentReviewHeader>
+            <StudentReviewHeader SortKey="average" Align="center">Average<br />Accuracy</StudentReviewHeader>
+            <StudentReviewHeader SortKey="performance" Align="center">Performance</StudentReviewHeader>
+            <StudentReviewHeader SortKey="lastActivity" Align="center">Last<br />Activity</StudentReviewHeader>
+            <div className="text-right font-black uppercase leading-[1.15] tracking-[0.07em]">Review</div>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {SortedStudents.map((Student) => {
+              const Stats = StudentOperationalStats(Student.rows);
+              const Band = PerformanceBand(Student.rows);
+              return (
+                <div
+                  key={Student.key}
+                  className="grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 px-3 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
                 >
-                  {Student.studentName}
-                </button>
-                <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
-                                {Student.studentCode}
-                              </p>
-              </div>
-              <div className="text-center text-sm font-bold text-slate-600">
-                {StudentPrimaryModule(Student)}
-              </div>
-              <div className="text-center text-sm font-bold text-slate-600">
-                {StudentPrimaryLevel(Student)}
-              </div>
-              <div className="flex justify-center">
-                <Chip tone="blue">{Stats.Assigned}</Chip>
-              </div>
-              <div className="flex justify-center">
-                <Chip tone="green">{Stats.Cleared}</Chip>
-              </div>
-              <div className="flex justify-center">
-                <Chip tone="amber">
-                  {Stats.Pending}
-                </Chip>
-              </div>
-              <div className="flex justify-center">
-                <Chip tone="red">
-                  {Stats.NeedsReattempt}
-                </Chip>
-              </div>
-              <div className="flex justify-center">
-                <Chip tone={accuracyTone(Stats.Average)}>
-                  {Stats.Average}%
-                </Chip>
-              </div>
-              <div className="flex justify-center">
-                <Chip tone={Band.Tone}>{Band.Label}</Chip>
-              </div>
-              <div className="text-center text-xs font-bold leading-snug text-slate-600">
-                {Stats.Last}
-              </div>
-              <div className="flex justify-end">
-                <StandardViewButton
-                  label="Review"
-                  tooltip="Open student practice review"
-                  onClick={() => OnOpenStudent(Student.studentCode)}
-                  compact
-                />
-              </div>
-            </div>
-          );
-        })}
+                  <div className="min-w-0">
+                    <button
+                      type="button"
+                      className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
+                      onClick={() => OnOpenStudent(Student.studentCode)}
+                    >
+                      {Student.studentName}
+                    </button>
+                    <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
+                                    {Student.studentCode}
+                                  </p>
+                  </div>
+                  <div className="text-center text-sm font-bold text-slate-600">
+                    {StudentPrimaryModule(Student)}
+                  </div>
+                  <div className="text-center text-sm font-bold text-slate-600">
+                    {StudentPrimaryLevel(Student)}
+                  </div>
+                  <div className="flex justify-center">
+                    <Chip tone="blue">{Stats.Assigned}</Chip>
+                  </div>
+                  <div className="flex justify-center">
+                    <Chip tone="green">{Stats.Cleared}</Chip>
+                  </div>
+                  <div className="flex justify-center">
+                    <Chip tone="amber">
+                      {Stats.Pending}
+                    </Chip>
+                  </div>
+                  <div className="flex justify-center">
+                    <Chip tone="red">
+                      {Stats.NeedsReattempt}
+                    </Chip>
+                  </div>
+                  <div className="flex justify-center">
+                    <Chip tone={accuracyTone(Stats.Average)}>
+                      {Stats.Average}%
+                    </Chip>
+                  </div>
+                  <div className="flex justify-center">
+                    <Chip tone={Band.Tone}>{Band.Label}</Chip>
+                  </div>
+                  <div className="text-center text-xs font-bold leading-snug text-slate-600">
+                    {Stats.Last}
+                  </div>
+                  <div className="flex justify-end">
+                    <StandardViewButton
+                      label="Review"
+                      tooltip="Open student practice review"
+                      onClick={() => OnOpenStudent(Student.studentCode)}
+                      compact
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
