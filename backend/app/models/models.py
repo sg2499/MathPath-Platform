@@ -950,3 +950,52 @@ class StudentAchievementStat(Base):
 
     __table_args__ = (UniqueConstraint("student_id", "stat_name", name="uq_student_achievement_stat"),)
 
+
+class UserEconomy(Base):
+    __tablename__ = "user_economy"
+    id = Column(String, primary_key=True, default=uuid_str)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+    current_xp = Column(Integer, default=0, nullable=False)
+    current_rank_tier = Column(String(50), default="COPPER_V", nullable=False)
+    coin_balance = Column(Integer, default=0, nullable=False)
+    lifetime_coins_earned = Column(Integer, default=0, nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class EconomyTransaction(Base):
+    __tablename__ = "economy_transactions"
+    id = Column(String, primary_key=True, default=uuid_str)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    transaction_type = Column(String(50), nullable=False) # EARN, SPEND, REFUND
+    amount_xp = Column(Integer, default=0, nullable=False)
+    amount_coins = Column(Integer, default=0, nullable=False)
+    source_action = Column(String(100), nullable=False) # DAILY_LOGIN, DPS_COMPLETE, MOCK_EXAM, LOOT_DROP
+    reference_id = Column(String, nullable=True, index=True) # E.g., Assessment ID to prevent dupe rewarding
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
+class CollectiblesDictionary(Base):
+    __tablename__ = "collectibles_dictionary"
+    id = Column(String, primary_key=True, default=uuid_str)
+    name = Column(String(150), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    rarity = Column(String(50), nullable=False) # COMMON, UNCOMMON, RARE, EPIC, LEGENDARY
+    model_3d_url = Column(Text, nullable=True)
+    image_url = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserCollectibles(Base):
+    __tablename__ = "user_collectibles"
+    id = Column(String, primary_key=True, default=uuid_str)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    collectible_id = Column(String, ForeignKey("collectibles_dictionary.id", ondelete="CASCADE"), nullable=False, index=True)
+    acquired_via = Column(String(100), nullable=True) # E.g., 'LEGENDARY_ALPHA_PACK'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    collectible = relationship("CollectiblesDictionary")
