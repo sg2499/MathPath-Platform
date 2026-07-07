@@ -116,7 +116,8 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
         }}
         className={cn(
           "flex flex-col sm:flex-row items-center gap-6 p-5 rounded-3xl transition-all duration-300 select-none",
-          "bg-slate-950/85 dark:bg-slate-950/90 border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] hover:border-slate-700/80",
+          "bg-slate-950/90 light:bg-slate-950/85 border border-slate-800/80 dark:border-indigo-500/30",
+          "shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] dark:shadow-[0_0_50px_rgba(99,102,241,0.15)] hover:border-slate-700 dark:hover:border-indigo-400/50",
           className
         )}
       >
@@ -128,8 +129,8 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           style={{ transform: "translateZ(30px)" }}
         >
           {/* Neon energy rings around badge */}
-          <div className="absolute w-28 h-28 border-2 border-indigo-500/20 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="absolute w-24 h-24 border border-purple-500/30 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute w-28 h-28 border-2 border-indigo-500/30 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute w-24 h-24 border border-purple-500/40 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
           
           <RankBadge 
             tier={resolvedRankTier} 
