@@ -551,9 +551,9 @@ export default function StudentDashboardPage() {
 
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
-               <TiltCard className="group w-full h-full min-h-[250px] perspective-1000" isFlipped={quoteIsFlipped}>
+               <TiltCard className="group w-full h-full perspective-1000" isFlipped={quoteIsFlipped}>
                  <motion.div 
-                   className="relative w-full h-full"
+                   className="grid w-full h-full"
                    style={{ transformStyle: "preserve-3d" }}
                    animate={{ rotateY: quoteIsFlipped ? 180 : 0 }}
                    transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
@@ -561,10 +561,10 @@ export default function StudentDashboardPage() {
                  >
                    {/* FRONT FACE (Inspiration) */}
                    <div 
-                     className="absolute inset-0" 
+                     className="col-start-1 row-start-1 w-full h-full" 
                      style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
                    >
-                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl bg-white/10 dark:bg-black/10 cursor-pointer">
+                     <div className="relative overflow-hidden h-full flex flex-col justify-center min-h-[250px] sm:min-h-[300px] !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl bg-white/10 dark:bg-black/10 cursor-pointer">
                        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
                        
                        <div className="absolute bottom-4 right-6 z-30 flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
@@ -623,7 +623,7 @@ export default function StudentDashboardPage() {
 
                    {/* BACK FACE (Conquest Matrix) */}
                    <div 
-                     className="absolute inset-0" 
+                     className="col-start-1 row-start-1 w-full h-full" 
                      style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
                    >
                      <div className="relative overflow-visible h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-[var(--mp-role-primary)]/20 shadow-2xl transition-all duration-700 bg-white/95 dark:bg-black/85 backdrop-blur-3xl p-6 sm:p-8 cursor-pointer">
