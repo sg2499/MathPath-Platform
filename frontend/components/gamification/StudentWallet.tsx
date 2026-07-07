@@ -86,8 +86,8 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
   const x = useMotionValue(0);
   const y = useMotionValue(0);
 
-  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [10, -10]), { stiffness: 300, damping: 20 });
-  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-10, 10]), { stiffness: 300, damping: 20 });
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [8, -8]), { stiffness: 300, damping: 20 });
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-8, 8]), { stiffness: 300, damping: 20 });
 
   function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -115,9 +115,9 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           transformStyle: "preserve-3d",
         }}
         className={cn(
-          "flex flex-col sm:flex-row items-center gap-6 p-5 rounded-3xl transition-all duration-300 select-none",
-          "bg-slate-950/90 light:bg-slate-950/85 border border-slate-800/80 dark:border-indigo-500/30",
-          "shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] dark:shadow-[0_0_50px_rgba(99,102,241,0.15)] hover:border-slate-700 dark:hover:border-indigo-400/50",
+          "flex flex-col sm:flex-row items-center gap-6 md:gap-10 p-6 md:p-8 rounded-[2rem] transition-all duration-300 select-none",
+          "bg-white dark:bg-slate-950/90 border border-slate-200 dark:border-indigo-500/30",
+          "shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] hover:border-indigo-300 dark:hover:border-indigo-400/50",
           className
         )}
       >
@@ -126,72 +126,70 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
         <div 
           onClick={() => setIsModalOpen(true)}
           className="relative flex items-center justify-center group cursor-pointer"
-          style={{ transform: "translateZ(30px)" }}
+          style={{ transform: "translateZ(40px)" }}
         >
           {/* Neon energy rings around badge */}
-          <div className="absolute w-28 h-28 border-2 border-indigo-500/30 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="absolute w-24 h-24 border border-purple-500/40 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute w-32 h-32 border-2 border-indigo-500/40 dark:border-indigo-500/60 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute w-28 h-28 border border-purple-500/50 dark:border-purple-500/70 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
           
           <RankBadge 
             tier={resolvedRankTier} 
             size="lg" 
-            className="drop-shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-transform duration-500 group-hover:scale-110" 
+            className="transition-transform duration-500 group-hover:scale-110" 
           />
-          
-          {/* Micro-interaction label */}
-          <div className="absolute -bottom-2 px-2 py-0.5 bg-indigo-600 rounded text-[8px] font-black uppercase tracking-widest text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-            INSPECT
-          </div>
         </div>
 
         {/* Center: HUD XP Bar info */}
         <div 
-          className="flex flex-col gap-3 flex-1 min-w-[220px] w-full"
-          style={{ transform: "translateZ(15px)" }}
+          className="flex flex-col gap-4 flex-1 min-w-[280px] w-full"
+          style={{ transform: "translateZ(20px)" }}
         >
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">DIVISION LEVEL</span>
-              <span className="text-xl font-black uppercase text-white tracking-tighter drop-shadow-sm mt-1.5">{rankDisplayName}</span>
+              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">DIVISION LEVEL</span>
+              <span className="text-2xl font-black uppercase text-slate-900 dark:text-white tracking-tighter drop-shadow-sm mt-1">{rankDisplayName}</span>
             </div>
             <div className="flex flex-col items-end">
-              <div className="flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="text-xs font-black text-indigo-400">XP METRIC</span>
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 tracking-wide">XP METRIC</span>
               </div>
-              <span className="text-[10px] font-black text-slate-400 mt-1.5">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
+              <span className="text-xs font-black text-slate-600 dark:text-slate-300 mt-1">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
             </div>
           </div>
 
           {/* Heavy Chiseled Shimmering Progress Bar */}
-          <div className="relative w-full h-4 bg-slate-900 rounded-full overflow-hidden border border-slate-800 shadow-inner group hover:ring-2 hover:ring-indigo-500/40 transition-all">
+          <div className="relative w-full h-6 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800 shadow-inner group hover:ring-2 hover:ring-indigo-500/40 transition-all">
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 1.5, ease: 'easeOut' }}
-              className="h-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 rounded-full relative"
+              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-400 dark:from-indigo-600 dark:via-purple-600 dark:to-indigo-500 rounded-full relative"
             >
               {/* Animated glass shine */}
-              <div className="absolute inset-0 w-[200%] bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[mathShimmer_2.5s_infinite]" />
+              <div className="absolute inset-0 w-[200%] bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[mathShimmer_2s_infinite]" />
+              
+              {/* Internal diagonal stripes for game-like texture */}
+              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.2) 10px, rgba(0,0,0,0.2) 20px)' }} />
             </motion.div>
           </div>
         </div>
 
         {/* Right Side: Game Ledger Coins Chip */}
         <div 
-          className="group flex items-center gap-4 px-6 py-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700/60 shadow-lg hover:shadow-[0_15px_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[160px]"
-          style={{ transform: "translateZ(20px)" }}
+          className="group flex flex-col md:flex-row items-center gap-4 px-6 md:px-8 py-4 md:py-5 rounded-[1.5rem] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/60 shadow-md hover:shadow-[0_15px_30px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[180px]"
+          style={{ transform: "translateZ(30px)" }}
         >
           {/* Shiny overlay sweep */}
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-400/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-400/10 dark:via-amber-400/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
           
-          <div className="w-11 h-11 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),0_4px_10px_rgba(249,115,22,0.4)] group-hover:rotate-[360deg] transition-transform duration-700">
-             <Coins className="w-6 h-6 text-white drop-shadow-md" />
+          <div className="w-14 h-14 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_6px_12px_rgba(249,115,22,0.4)] group-hover:rotate-[360deg] transition-transform duration-700 shrink-0">
+             <Coins className="w-8 h-8 text-white drop-shadow-md" />
           </div>
 
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none">MATHCOINS</span>
-            <span className="text-2xl font-black text-white mt-1.5 drop-shadow-sm tracking-tight">{coinBalance.toLocaleString()}</span>
+          <div className="flex flex-col items-center md:items-start">
+            <span className="text-[10px] font-black text-orange-600 dark:text-orange-500 uppercase tracking-widest leading-none">MATHCOINS</span>
+            <span className="text-3xl font-black text-slate-900 dark:text-white mt-1 drop-shadow-sm tracking-tight">{coinBalance.toLocaleString()}</span>
           </div>
         </div>
         
@@ -199,10 +197,10 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
 
       {/* Cinematic Modal Overlay */}
       <RankInspectionModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        currentXp={currentXp} 
-        currentRankTier={resolvedRankTier} 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        currentXp={currentXp}
+        currentRankTier={resolvedRankTier}
       />
     </>
   );
