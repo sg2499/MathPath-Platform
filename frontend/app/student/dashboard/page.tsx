@@ -698,7 +698,7 @@ export default function StudentDashboardPage() {
                                   <Target size={18} className="text-red-500" /> Next Conquest {conquests.length > 1 && `(${conquestIndex + 1}/${conquests.length})`}
                                </h4>
                                {conquests.length > 1 && (
-                                 <div className="flex items-center gap-1 relative z-35">
+                                 <div className="flex items-center gap-1 relative z-40">
                                    <button 
                                      onClick={(e) => {
                                        e.stopPropagation();

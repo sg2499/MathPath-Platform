@@ -729,7 +729,7 @@ export function NotificationsBell() {
       </button>
 
       {Open ? (
-        <div className="absolute right-0 top-14 z-[80] w-[min(460px,calc(100vw-24px))] overflow-hidden p-0 shadow-[0_30px_80px_-15px_rgba(0,0,0,0.3)] rounded-[24px] border border-white/80 dark:border-white/20 bg-white/90 dark:bg-slate-950/90 backdrop-blur-[32px] transition-all duration-300 ring-1 ring-black/5 dark:ring-white/10">
+        <div className="absolute right-0 top-14 z-[999] w-[min(460px,calc(100vw-24px))] overflow-hidden p-0 shadow-[0_30px_80px_-15px_rgba(0,0,0,0.3)] rounded-[24px] border border-white/80 dark:border-white/20 bg-white/90 dark:bg-slate-950/90 backdrop-blur-[32px] transition-all duration-300 ring-1 ring-black/5 dark:ring-white/10">
           <div className="flex items-start justify-between gap-3 border-b border-black/5 bg-white/80 px-5 py-4 dark:border-white/10 dark:bg-slate-900/80 backdrop-blur-md">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600">
