@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-06-29
+Last updated: 2026-07-05
 
 ## Project Continuity
 
@@ -84,3 +84,21 @@ Reason:
 
 - The old timed delay made the app feel slower without improving correctness.
 - The cleaner loading state keeps the flow standard and reduces unnecessary UI noise.
+
+## Student Login Accessibility
+
+Decision: The shared login surface must remain zoom-friendly and responsive across narrow phones, tablets, landscape, and short screens, and regressions should be guarded by an explicit Playwright matrix.
+
+Reason:
+
+- The earlier viewport lock (`maximumScale: 1`, `userScalable: false`) masked mobile usability problems instead of solving them.
+- The 2026-07-04 hardening work added real layout safeguards and CI coverage, so future edits should preserve user zoom and measurable responsive behavior.
+
+## Dashboard Grind Metric
+
+Decision: The student dashboard grind heatmap should reflect time spent per day, with a minimum 2-minute credit for any completed sheet, instead of raw completed-sheet count alone.
+
+Reason:
+
+- Pure completion counts flattened the visualization and understated longer work sessions.
+- A small minimum credit keeps quick completions visible while still allowing heavier sessions to stand out.
