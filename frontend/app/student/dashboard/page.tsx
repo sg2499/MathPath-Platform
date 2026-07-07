@@ -374,7 +374,7 @@ export default function StudentDashboardPage() {
 
             {/* RIGHT SIDE: Gamification Wallet */}
             <div className="flex flex-wrap gap-4 items-center shrink-0 relative z-20">
-              <StudentWallet currentXp={26600} currentRankTier="GOLD_I" coinBalance={12450} className="scale-110 sm:scale-125 origin-right" />
+              <StudentWallet currentXp={totalXP} coinBalance={mathCoins} className="scale-110 sm:scale-125 origin-right" />
             </div>
           </div>
         </section>
