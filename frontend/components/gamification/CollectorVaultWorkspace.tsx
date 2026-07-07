@@ -7,8 +7,8 @@ import { AlphaPackUnboxCinematic } from './AlphaPackUnboxCinematic';
 import { cn } from '@/lib/utils';
 
 interface VaultItem {
-  id: str;
-  name: str;
+  id: string;
+  name: string;
   rarity: 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
   isUnopenedPack?: boolean;
 }
