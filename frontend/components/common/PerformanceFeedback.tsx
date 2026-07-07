@@ -46,9 +46,9 @@ function stableIndex(seed: string, size: number) {
   return Hash % size;
 }
 
-export function performanceBand(accuracy?: number | null): PerformanceBand {
+export function performanceBand(accuracy: number | string | null | undefined): PerformanceBand {
   if (accuracy === null || accuracy === undefined || Number.isNaN(Number(accuracy))) return "PENDING";
-  if (Number(accuracy) < 70) return "NEEDS_PRACTICE";
+  if (Number(accuracy) < 75) return "NEEDS_PRACTICE";
   if (Number(accuracy) < 90) return "GOOD_PROGRESS";
   return "EXCELLENT";
 }

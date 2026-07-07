@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 function RetryWorkflowCard({ result }: { result: AttemptResult }) {
   const Workflow = result.retryWorkflow;
   const Summary = result.summary;
-  const BenchmarkPercentage = Number(Summary.benchmarkPercentage || 70);
+  const BenchmarkPercentage = Number(Summary.benchmarkPercentage || 75);
   const AccuracyPercentage = Number(Summary.accuracyPercentage || 0);
   const BenchmarkStatus = String(Summary.benchmarkStatus || result.benchmarkState || "").toUpperCase();
   const ExplicitCleared = BenchmarkStatus.includes("MET") || BenchmarkStatus.includes("CLEAR") || Summary.requiresAttention === false;
