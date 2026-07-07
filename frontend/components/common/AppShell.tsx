@@ -42,6 +42,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  PackageOpen,
   Sun,
   Target,
   TrendingUp,
