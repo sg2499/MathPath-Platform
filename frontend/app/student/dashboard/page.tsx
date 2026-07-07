@@ -242,10 +242,16 @@ export default function StudentDashboardPage() {
   const grindData = useMemo(() => {
     const data = [];
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    // Get last 7 days (including today)
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    
+    // Get current week (Sunday to Saturday)
+    const today = new Date();
+    const currentDayOfWeek = today.getDay(); // 0 is Sunday, 6 is Saturday
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDayOfWeek);
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
       const dayName = days[d.getDay()];
       const dateStr = d.toISOString().split("T")[0]; // YYYY-MM-DD
       
@@ -620,8 +626,10 @@ export default function StudentDashboardPage() {
                      className="absolute inset-0" 
                      style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
                    >
-                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-[var(--mp-role-primary)]/20 shadow-2xl transition-all duration-700 bg-white/95 dark:bg-black/85 backdrop-blur-3xl p-6 sm:p-8 cursor-pointer">
-                       <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
+                     <div className="relative overflow-visible h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-[var(--mp-role-primary)]/20 shadow-2xl transition-all duration-700 bg-white/95 dark:bg-black/85 backdrop-blur-3xl p-6 sm:p-8 cursor-pointer">
+                       <div className="absolute inset-0 overflow-hidden !rounded-[24px] pointer-events-none z-10">
+                         <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay" />
+                       </div>
                        
                        <div className="absolute top-4 right-6 z-30 flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
                          <span className="text-[11px] sm:text-xs uppercase tracking-widest font-black text-slate-900 dark:text-slate-200">Back to Inspiration</span>
@@ -635,7 +643,7 @@ export default function StudentDashboardPage() {
                                  {heatmapMonthYearLabel}
                                </span>
                                <h4 className="text-sm font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-5 flex items-center gap-2.5 drop-shadow-sm">
-                                  <Activity size={18} /> Grind Heatmap (Last 7 Days)
+                                  <Activity size={18} /> Grind Heatmap (This Week)
                                </h4>
                              </div>
                              <div className="flex items-end justify-between gap-3 h-28 w-full max-w-sm px-2">
@@ -644,23 +652,23 @@ export default function StudentDashboardPage() {
                                   return (
                                     <div key={i} className="flex-1 flex flex-col items-center gap-2 group/bar relative">
                                       {/* Tooltip on hover */}
-                                      <div className="absolute -top-[64px] left-1/2 -translate-x-1/2 bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[9px] p-2 rounded-lg font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-35 shadow-xl border border-white/10 dark:border-slate-200 w-36 flex flex-col gap-0.5">
-                                        <div className="flex justify-between items-center border-b border-white/10 dark:border-slate-200 pb-0.5 font-black text-rose-500 dark:text-rose-600 text-[10px]">
+                                      <div className="absolute -top-[90px] left-1/2 -translate-x-1/2 bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[11px] p-3 rounded-xl font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-2xl border border-white/10 dark:border-slate-200 w-48 flex flex-col gap-1.5">
+                                        <div className="flex justify-between items-center border-b border-white/10 dark:border-slate-200 pb-1 font-black text-rose-500 dark:text-rose-600 text-[12px] uppercase">
                                           <span>{d.count > 0 ? `${d.flowState}% ${d.tier}` : 'REST DAY'}</span>
-                                          <span className="text-[7px] opacity-60 font-semibold">{d.day}</span>
+                                          <span className="text-[9px] opacity-60 font-semibold">{d.day}</span>
                                         </div>
                                         {d.count > 0 ? (
                                           <>
-                                            <div className="flex justify-between leading-none text-[8px] mt-0.5">
-                                              <span>Accuracy: {d.accuracy}%</span>
-                                              <span>Time: {d.timeSpent}m</span>
+                                            <div className="flex justify-between leading-none text-[11px] mt-0.5">
+                                              <span className="opacity-80">Accuracy: <span className="opacity-100 text-emerald-400 dark:text-emerald-600">{d.accuracy}%</span></span>
+                                              <span className="opacity-80">Time: <span className="opacity-100">{d.timeSpent}m</span></span>
                                             </div>
-                                            <p className="text-[7.5px] opacity-80 leading-tight text-center border-t border-white/5 dark:border-slate-100 pt-0.5 font-semibold italic whitespace-normal">
-                                              {d.insight}
+                                            <p className="text-[10px] opacity-90 leading-tight text-center border-t border-white/10 dark:border-slate-300 pt-1.5 font-semibold italic whitespace-normal mt-0.5">
+                                              "{d.insight}"
                                             </p>
                                           </>
                                         ) : (
-                                          <span className="text-[7.5px] opacity-60 text-center py-0.5">No conquests attempted</span>
+                                          <span className="text-[11px] opacity-70 text-center py-1">No conquests attempted</span>
                                         )}
                                       </div>
                                       <div 
