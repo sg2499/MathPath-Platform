@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { RankBadge } from './RankBadge';
-import { Coins } from 'lucide-react';
+import { RankInspectionModal } from './RankInspectionModal';
+import { Coins, Sparkles } from 'lucide-react';
 
 export interface StudentWalletProps {
   currentXp: number;
@@ -60,80 +61,148 @@ export function getRankTierFromXp(xp: number): string {
 }
 
 export function StudentWallet({ currentXp, currentRankTier, coinBalance, className }: StudentWalletProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   // Resolve rank tier dynamically if not explicitly provided
   const resolvedRankTier = currentRankTier || getRankTierFromXp(currentXp);
 
   // Find progress towards next tier
-  // Finding closest threshold bounds
   let currentTierMinXp = 0;
   let nextTierMinXp = 1000;
 
   for (let i = TIER_THRESHOLDS.length - 1; i >= 0; i--) {
     if (currentXp >= TIER_THRESHOLDS[i].xp) {
       currentTierMinXp = TIER_THRESHOLDS[i].xp;
-      nextTierMinXp = i > 0 ? TIER_THRESHOLDS[i - 1].xp : currentTierMinXp + 2000; // default range for Champion
+      nextTierMinXp = i > 0 ? TIER_THRESHOLDS[i - 1].xp : currentTierMinXp + 2000;
     }
   }
 
   const xpProgress = currentXp - currentTierMinXp;
   const xpNeeded = nextTierMinXp - currentTierMinXp;
   const progressPercent = Math.min(100, Math.max(0, (xpProgress / xpNeeded) * 100));
-
   const rankDisplayName = resolvedRankTier.replace('_', ' ');
 
+  // 3D HUD Mouse Tilt effect variables
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [10, -10]), { stiffness: 300, damping: 20 });
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-10, 10]), { stiffness: 300, damping: 20 });
+
+  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseX = event.clientX - rect.left - width / 2;
+    const mouseY = event.clientY - rect.top - height / 2;
+    x.set(mouseX / width);
+    y.set(mouseY / height);
+  }
+
+  function handleMouseLeave() {
+    x.set(0);
+    y.set(0);
+  }
+
   return (
-    <div className={cn("flex flex-col sm:flex-row items-center gap-6 p-4 bg-white/20 dark:bg-slate-900/35 border border-white/40 dark:border-white/10 rounded-3xl shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] select-none", className)}>
-      
-      {/* Huge, Detailed Rank Badge on Left */}
-      <div className="relative flex items-center justify-center group">
-        <RankBadge tier={resolvedRankTier} size="lg" className="drop-shadow-[0_0_15px_rgba(253,224,71,0.3)] transition-transform duration-500 group-hover:scale-110" />
+    <>
+      <motion.div
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          rotateX,
+          rotateY,
+          transformStyle: "preserve-3d",
+        }}
+        className={cn(
+          "flex flex-col sm:flex-row items-center gap-6 p-5 rounded-3xl transition-all duration-300 select-none",
+          "bg-slate-950/85 dark:bg-slate-950/90 border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] hover:border-slate-700/80",
+          className
+        )}
+      >
         
-        {/* Glow behind badge */}
-        <div className="absolute inset-0 -z-10 bg-indigo-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      </div>
+        {/* Left Side: Interactive Rank Badge Core */}
+        <div 
+          onClick={() => setIsModalOpen(true)}
+          className="relative flex items-center justify-center group cursor-pointer"
+          style={{ transform: "translateZ(30px)" }}
+        >
+          {/* Neon energy rings around badge */}
+          <div className="absolute w-28 h-28 border-2 border-indigo-500/20 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute w-24 h-24 border border-purple-500/30 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          
+          <RankBadge 
+            tier={resolvedRankTier} 
+            size="lg" 
+            className="drop-shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-transform duration-500 group-hover:scale-110" 
+          />
+          
+          {/* Micro-interaction label */}
+          <div className="absolute -bottom-2 px-2 py-0.5 bg-indigo-600 rounded text-[8px] font-black uppercase tracking-widest text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+            INSPECT
+          </div>
+        </div>
 
-      {/* Level details & XP bar */}
-      <div className="flex flex-col gap-3 flex-1 min-w-[220px] w-full">
-        <div className="flex items-center justify-between">
+        {/* Center: HUD XP Bar info */}
+        <div 
+          className="flex flex-col gap-3 flex-1 min-w-[220px] w-full"
+          style={{ transform: "translateZ(15px)" }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">DIVISION LEVEL</span>
+              <span className="text-xl font-black uppercase text-white tracking-tighter drop-shadow-sm mt-1.5">{rankDisplayName}</span>
+            </div>
+            <div className="flex flex-col items-end">
+              <div className="flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="text-xs font-black text-indigo-400">XP METRIC</span>
+              </div>
+              <span className="text-[10px] font-black text-slate-400 mt-1.5">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
+            </div>
+          </div>
+
+          {/* Heavy Chiseled Shimmering Progress Bar */}
+          <div className="relative w-full h-4 bg-slate-900 rounded-full overflow-hidden border border-slate-800 shadow-inner group hover:ring-2 hover:ring-indigo-500/40 transition-all">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ duration: 1.5, ease: 'easeOut' }}
+              className="h-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 rounded-full relative"
+            >
+              {/* Animated glass shine */}
+              <div className="absolute inset-0 w-[200%] bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[mathShimmer_2.5s_infinite]" />
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Right Side: Game Ledger Coins Chip */}
+        <div 
+          className="group flex items-center gap-4 px-6 py-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700/60 shadow-lg hover:shadow-[0_15px_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[160px]"
+          style={{ transform: "translateZ(20px)" }}
+        >
+          {/* Shiny overlay sweep */}
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-400/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+          
+          <div className="w-11 h-11 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),0_4px_10px_rgba(249,115,22,0.4)] group-hover:rotate-[360deg] transition-transform duration-700">
+             <Coins className="w-6 h-6 text-white drop-shadow-md" />
+          </div>
+
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">CURRENT RANK</span>
-            <span className="text-xl font-black uppercase text-slate-800 dark:text-white tracking-tighter drop-shadow-sm mt-1">{rankDisplayName}</span>
-          </div>
-          <div className="flex flex-col items-end">
-            <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">LEVEL PROGRESS</span>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
+            <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none">MATHCOINS</span>
+            <span className="text-2xl font-black text-white mt-1.5 drop-shadow-sm tracking-tight">{coinBalance.toLocaleString()}</span>
           </div>
         </div>
-
-        {/* Thick, Highly Interactive Progress Bar */}
-        <div className="relative w-full h-4 bg-slate-200 dark:bg-slate-800/80 rounded-full overflow-hidden border border-slate-300/40 dark:border-slate-700/50 shadow-inner group cursor-pointer hover:ring-2 hover:ring-indigo-500/30 transition-all">
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: `${progressPercent}%` }}
-            transition={{ duration: 1.5, ease: 'easeOut' }}
-            className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 rounded-full relative"
-          >
-            {/* Moving glow sheen */}
-            <div className="absolute inset-0 w-[200%] bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[mathShimmer_2.5s_infinite]" />
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Reconstructed clean and proper Coins Chip with absolute game-tier styles */}
-      <div className="group flex items-center gap-4 px-6 py-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/50 dark:from-orange-950/40 dark:to-orange-900/20 border border-orange-200/60 dark:border-orange-500/30 shadow-md hover:shadow-[0_15px_40px_rgba(245,158,11,0.25)] transition-all duration-500 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[160px]">
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-400/10 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
         
-        {/* Large pulsing coin container */}
-        <div className="w-11 h-11 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),0_4px_10px_rgba(249,115,22,0.4)] group-hover:scale-110 transition-transform duration-300">
-           <Coins className="w-6 h-6 text-white drop-shadow-md animate-pulse" />
-        </div>
+      </motion.div>
 
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest leading-none">MATHCOINS</span>
-          <span className="text-2xl font-black text-orange-900 dark:text-orange-400 mt-1 drop-shadow-sm tracking-tight">{coinBalance.toLocaleString()}</span>
-        </div>
-      </div>
-      
-    </div>
+      {/* Cinematic Modal Overlay */}
+      <RankInspectionModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        currentXp={currentXp} 
+        currentRankTier={resolvedRankTier} 
+      />
+    </>
   );
 }
