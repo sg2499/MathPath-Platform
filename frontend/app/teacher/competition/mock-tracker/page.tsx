@@ -637,63 +637,67 @@ function TeacherCompetitionMockTrackerContent() {
                                               {LevelOpen ? (
                                                 <div className="border-t border-slate-100 p-3 dark:border-white/10">
                                                   <div className="overflow-hidden rounded-2xl border border-[#7a1f58]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
-                                                    <div className="math-tc-mock-header-row grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-0">
-                                                      {MockTableColumns.map((Column) => (
-                                                        <div key={Column.label} className="math-tc-mock-header-cell px-3 py-3">
-                                                          {Column.key ? (
-                                                            <button
-                                                              type="button"
-                                                              onClick={() => SetMockTableSort((Current) => NextSortState(Current, Column.key!))}
-                                                              className="math-tc-mock-header-sort-btn inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition focus:outline-none focus:ring-2"
-                                                              aria-label={`Sort by ${Column.label}`}
+                                                    <div className="w-full overflow-x-auto">
+                                                      <div className="min-w-[900px] xl:min-w-0">
+                                                        <div className="math-tc-mock-header-row grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] gap-0">
+                                                          {MockTableColumns.map((Column) => (
+                                                            <div key={Column.label} className="math-tc-mock-header-cell px-3 py-3">
+                                                              {Column.key ? (
+                                                                <button
+                                                                  type="button"
+                                                                  onClick={() => SetMockTableSort((Current) => NextSortState(Current, Column.key!))}
+                                                                  className="math-tc-mock-header-sort-btn inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition focus:outline-none focus:ring-2"
+                                                                  aria-label={`Sort by ${Column.label}`}
+                                                                >
+                                                                  <span>{Column.label}</span>
+                                                                  <SortIndicator Sort={MockTableSort} ColumnKey={Column.key} />
+                                                                </button>
+                                                              ) : (
+                                                                Column.label
+                                                              )}
+                                                            </div>
+                                                          ))}
+                                                        </div>
+                                                        <div className="divide-y divide-slate-100 dark:divide-white/10">
+                                                          {SortRows(LevelGroup.rows, MockTableSort).map((Row) => (
+                                                            <div
+                                                              key={Row.assignmentId}
+                                                              role={Row.attemptId ? "button" : undefined}
+                                                              tabIndex={Row.attemptId ? 0 : -1}
+                                                              onClick={() => Row.attemptId ? router.push(`/teacher/competition/mock-result/${Row.attemptId}`) : undefined}
+                                                              onKeyDown={(Event) => {
+                                                                if (Row.attemptId && (Event.key === "Enter" || Event.key === " ")) {
+                                                                  Event.preventDefault();
+                                                                  router.push(`/teacher/competition/mock-result/${Row.attemptId}`);
+                                                                }
+                                                              }}
+                                                              className={`tc-dark-hover-row group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
                                                             >
-                                                              <span>{Column.label}</span>
-                                                              <SortIndicator Sort={MockTableSort} ColumnKey={Column.key} />
-                                                            </button>
-                                                          ) : (
-                                                            Column.label
-                                                          )}
+                                                              <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</div>
+                                                              <div className="px-3 py-4 text-xs font-black text-slate-950 dark:text-white">{Row.mockExam.mockCode || "-"}</div>
+                                                              <div className="px-3 py-4">
+                                                                <Chip tone={StatusTone(Row.status)}>{StatusLabel(Row.status)}</Chip>
+                                                              </div>
+                                                              <div className="px-3 py-4">
+                                                                <Chip tone={AccuracyBandTone(ScorePercentage(Row))}>
+                                                                  {ScoreText(Row)}
+                                                                </Chip>
+                                                              </div>
+                                                              <div className="px-3 py-4">
+                                                                <Chip tone={AccuracyBandTone(IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : null)}>
+                                                                  {IsCompleted(Row) ? PercentValue(Row.accuracyPercentage) : "-"}
+                                                                </Chip>
+                                                              </div>
+                                                              <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
+                                                              <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{FormatDate(Row.assignedAt)}</div>
+                                                              <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? FormatDate(Row.submittedAt) : "-"}</div>
+                                                              <div className="px-3 py-4">
+                                                                <ReviewButton Row={Row} />
+                                                              </div>
+                                                            </div>
+                                                          ))}
                                                         </div>
-                                                      ))}
-                                                    </div>
-                                                    <div className="divide-y divide-slate-100 dark:divide-white/10">
-                                                      {SortRows(LevelGroup.rows, MockTableSort).map((Row) => (
-                                                        <div
-                                                          key={Row.assignmentId}
-                                                          role={Row.attemptId ? "button" : undefined}
-                                                          tabIndex={Row.attemptId ? 0 : -1}
-                                                          onClick={() => Row.attemptId ? router.push(`/teacher/competition/mock-result/${Row.attemptId}`) : undefined}
-                                                          onKeyDown={(Event) => {
-                                                            if (Row.attemptId && (Event.key === "Enter" || Event.key === " ")) {
-                                                              Event.preventDefault();
-                                                              router.push(`/teacher/competition/mock-result/${Row.attemptId}`);
-                                                            }
-                                                          }}
-                                                          className={`tc-dark-hover-row group grid grid-cols-[1.15fr_1fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1fr_0.85fr] items-center gap-0 transition ${Row.attemptId ? "cursor-pointer hover:bg-[#7a1f58]/[0.035] dark:hover:bg-rose-500/25 dark:hover:shadow-md dark:hover:shadow-rose-950/25 dark:focus-visible:ring-2 dark:focus-visible:ring-rose-300/30" : "bg-slate-50/40 dark:bg-white/[0.02]"}`}
-                                                        >
-                                                          <div className="px-3 py-4 text-sm font-black text-slate-950 dark:text-white">{Row.mockExam.title}</div>
-                                                          <div className="px-3 py-4 text-xs font-black text-slate-950 dark:text-white">{Row.mockExam.mockCode || "-"}</div>
-                                                          <div className="px-3 py-4">
-                                                            <Chip tone={StatusTone(Row.status)}>{StatusLabel(Row.status)}</Chip>
-                                                          </div>
-                                                          <div className="px-3 py-4">
-                                                            <Chip tone={AccuracyBandTone(ScorePercentage(Row))}>
-                                                              {ScoreText(Row)}
-                                                            </Chip>
-                                                          </div>
-                                                          <div className="px-3 py-4">
-                                                            <Chip tone={AccuracyBandTone(IsCompleted(Row) && Row.accuracyPercentage != null ? Number(Row.accuracyPercentage) : null)}>
-                                                              {IsCompleted(Row) ? PercentValue(Row.accuracyPercentage) : "-"}
-                                                            </Chip>
-                                                          </div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? (Row.timeTakenText || "-") : "-"}</div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{FormatDate(Row.assignedAt)}</div>
-                                                          <div className="px-3 py-4 text-sm font-bold text-slate-950 dark:text-white">{IsCompleted(Row) ? FormatDate(Row.submittedAt) : "-"}</div>
-                                                          <div className="px-3 py-4">
-                                                            <ReviewButton Row={Row} />
-                                                          </div>
-                                                        </div>
-                                                      ))}
+                                                      </div>
                                                     </div>
                                                   </div>
                                                 </div>

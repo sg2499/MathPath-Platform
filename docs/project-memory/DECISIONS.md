@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-07-05
+Last updated: 2026-07-07
 
 ## Project Continuity
 
@@ -102,3 +102,21 @@ Reason:
 
 - Pure completion counts flattened the visualization and understated longer work sessions.
 - A small minimum credit keeps quick completions visible while still allowing heavier sessions to stand out.
+
+## Dashboard Grind Window
+
+Decision: The student dashboard grind heatmap should show the current Sunday-to-Saturday week instead of a rolling last-7-days window.
+
+Reason:
+
+- The tooltip/card language now frames the surface as a weekly rhythm tracker rather than a trailing activity log.
+- A fixed calendar week makes empty earlier or upcoming days easier to interpret during browser QA and student review.
+
+## Dashboard Flow Tooltip
+
+Decision: The dashboard grind heatmap bars should communicate a derived daily flow score with tier labels, while the tooltip also exposes time spent and accuracy.
+
+Reason:
+
+- Time spent alone was too blunt to communicate the quality of a practice session.
+- The richer tooltip keeps the compact chart readable while surfacing a stronger daily-performance narrative.

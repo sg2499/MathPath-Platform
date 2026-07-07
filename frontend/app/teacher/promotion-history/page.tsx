@@ -134,63 +134,67 @@ function PromotionHistoryRecordTable({
 }) {
   return (
     <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-teacher-promotion-history-table-header grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
-        <div>From Level</div>
-        <div>To Level</div>
-        <div>Assessment</div>
-        <div>Score</div>
-        <div>Percentage</div>
-        <div>Promoted Date</div>
-        <div>Promoted By</div>
-      </div>
-      <div className="divide-y divide-slate-100 dark:divide-slate-800">
-        {Items.map((Item) => {
-          const Percentage = Number(Item.percentage);
-          return (
-            <div
-              key={Item.promotionId}
-              className="grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 px-4 py-4 transition hover:bg-[color:var(--mp-role-softer)] dark:hover:bg-slate-900/70"
-            >
-              <div className="flex min-w-0 items-center">
-                <Chip Tone="slate">{Item.fromLevelCode || "—"}</Chip>
-              </div>
-              <div className="flex min-w-0 items-center">
-                <Chip Tone="purple">{Item.toLevelCode || "—"}</Chip>
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-slate-950 dark:text-white">
-                  {Item.assessmentTitle || "Assessment"}
-                </p>
-              </div>
-              <div className="min-w-0">
-                <Chip Tone="green">
-                  {CleanNumber(Item.score)} / {CleanNumber(Item.maxScore ?? 100)}
-                </Chip>
-              </div>
-              <div className="min-w-0">
-                <Chip
-                  Tone={
-                    Number.isFinite(Percentage) && Percentage >= 70
-                      ? "green"
-                      : "slate"
-                  }
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-[700px] xl:min-w-0">
+          <div className="math-teacher-promotion-history-table-header grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+            <div>From Level</div>
+            <div>To Level</div>
+            <div>Assessment</div>
+            <div>Score</div>
+            <div>Percentage</div>
+            <div>Promoted Date</div>
+            <div>Promoted By</div>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {Items.map((Item) => {
+              const Percentage = Number(Item.percentage);
+              return (
+                <div
+                  key={Item.promotionId}
+                  className="grid grid-cols-[.82fr_.82fr_1.18fr_.66fr_.66fr_1fr_.9fr] items-center gap-3 px-4 py-4 transition hover:bg-[color:var(--mp-role-softer)] dark:hover:bg-slate-900/70"
                 >
-                  {Number.isFinite(Percentage)
-                    ? `${CleanNumber(Percentage)}%`
-                    : "—"}
-                </Chip>
-              </div>
-              <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                {Item.promotedAt
-                  ? formatMathPathDateTime(Item.promotedAt)
-                  : "—"}
-              </div>
-              <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                {Item.promotedByName || "Admin"}
-              </div>
-            </div>
-          );
-        })}
+                  <div className="flex min-w-0 items-center">
+                    <Chip Tone="slate">{Item.fromLevelCode || "—"}</Chip>
+                  </div>
+                  <div className="flex min-w-0 items-center">
+                    <Chip Tone="purple">{Item.toLevelCode || "—"}</Chip>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-slate-950 dark:text-white">
+                      {Item.assessmentTitle || "Assessment"}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <Chip Tone="green">
+                      {CleanNumber(Item.score)} / {CleanNumber(Item.maxScore ?? 100)}
+                    </Chip>
+                  </div>
+                  <div className="min-w-0">
+                    <Chip
+                      Tone={
+                        Number.isFinite(Percentage) && Percentage >= 70
+                          ? "green"
+                          : "slate"
+                      }
+                    >
+                      {Number.isFinite(Percentage)
+                        ? `${CleanNumber(Percentage)}%`
+                        : "—"}
+                    </Chip>
+                  </div>
+                  <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                    {Item.promotedAt
+                      ? formatMathPathDateTime(Item.promotedAt)
+                      : "—"}
+                  </div>
+                  <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                    {Item.promotedByName || "Admin"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

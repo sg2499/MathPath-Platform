@@ -895,10 +895,10 @@ export function AppShell({
               </a>
 
               <nav
-                className="hidden min-w-0 flex-1 justify-center lg:flex"
+                className="hidden min-w-0 flex-1 lg:justify-start xl:justify-center lg:flex"
                 aria-label="Primary navigation"
               >
-                <div className="premium-nav math-nav-spotlight relative z-[120] w-fit max-w-full overflow-visible px-1">
+                <div className="premium-nav math-nav-spotlight relative z-[120] w-fit max-w-full overflow-visible px-1 lg:gap-0 xl:gap-1">
                   {navGroups.map((group) => {
                     const Icon = group.icon;
                     const active = isGroupActive(group);
@@ -933,7 +933,7 @@ export function AppShell({
                           onMouseLeave={() => setHoveredNavGroup(null)}
                           onFocus={() => setHoveredNavGroup(group.label)}
                           onBlur={() => setHoveredNavGroup(null)}
-                          className={`premium-nav-item group shrink-0 px-3 text-sm ${
+                          className={`premium-nav-item group shrink-0 lg:px-1.5 xl:px-3 text-sm lg:text-[13px] xl:text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
@@ -1003,7 +1003,7 @@ export function AppShell({
                           }
                           onFocus={() => setHoveredNavGroup(group.label)}
                           onBlur={() => setHoveredNavGroup(null)}
-                          className={`premium-nav-item group shrink-0 px-3 text-sm ${
+                          className={`premium-nav-item group shrink-0 lg:px-1.5 xl:px-3 text-[13px] xl:text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
