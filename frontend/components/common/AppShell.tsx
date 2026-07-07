@@ -1,7 +1,6 @@
 "use client";
 
 import { NotificationsBell } from "@/components/common/NotificationsBell";
-import { StudentWallet } from "@/components/gamification/StudentWallet";
 import { apiErrorMessage } from "@/lib/api";
 import { changePassword, uploadProfilePhoto } from "@/lib/api/auth";
 import {
@@ -575,6 +574,13 @@ export function AppShell({
           icon: Award,
           tooltip: "View your earned badges and achievements",
         },
+        {
+          label: "Collector's Vault",
+          shortLabel: "Vault",
+          href: "/student/achievements/vault",
+          icon: PackageOpen,
+          tooltip: "View and open your collected item packs",
+        },
       ],
     },
   ];
@@ -831,7 +837,6 @@ export function AppShell({
                   </span>
                 </button>
 
-                {MountedUser?.role === 'STUDENT' ? <StudentWallet currentXp={26600} currentRankTier="GOLD_I" coinBalance={12450} className="hidden sm:flex" /> : null}
                 {MountedUser ? <NotificationsBell /> : null}
                 {MountedUser ? (
                   <div className="relative" ref={AccountMenuRef}>
@@ -872,7 +877,6 @@ export function AppShell({
                 >
                   {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
-                {MountedUser?.role === 'STUDENT' ? <StudentWallet currentXp={26600} currentRankTier="GOLD_I" coinBalance={12450} className="hidden sm:flex" /> : null}
                 {MountedUser ? <NotificationsBell /> : null}
                 <button
                   className="math-button-secondary px-3"
@@ -1205,7 +1209,6 @@ export function AppShell({
                   </span>
                 </button>
 
-                {MountedUser?.role === 'STUDENT' ? <StudentWallet currentXp={26600} currentRankTier="GOLD_I" coinBalance={12450} className="hidden sm:flex" /> : null}
                 {MountedUser ? <NotificationsBell /> : null}
                 {MountedUser ? (
                   <div className="relative" ref={AccountMenuRef}>
@@ -1245,7 +1248,6 @@ export function AppShell({
                 >
                   {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
-                {MountedUser?.role === 'STUDENT' ? <StudentWallet currentXp={26600} currentRankTier="GOLD_I" coinBalance={12450} className="hidden sm:flex" /> : null}
                 {MountedUser ? <NotificationsBell /> : null}
                 <button
                   className="math-button-secondary px-3"

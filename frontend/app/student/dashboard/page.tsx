@@ -2,6 +2,7 @@
 
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
+import { StudentWallet } from "@/components/gamification/StudentWallet";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { api, apiErrorMessage } from "@/lib/api";
@@ -371,34 +372,10 @@ export default function StudentDashboardPage() {
               </h1>
             </div>
 
-            {/* RIGHT SIDE: Level & Coins */}
+            {/* RIGHT SIDE: Gamification Wallet */}
             <div className="flex flex-wrap gap-4 items-center shrink-0 relative z-20">
-               {/* Level Chip */}
-               <div className="group flex items-center gap-3 px-5 py-2.5 rounded-2xl border border-cyan-200/80 dark:border-cyan-500/20 bg-gradient-to-br from-white to-cyan-50/60 dark:from-slate-800/60 dark:to-slate-900/40 backdrop-blur-md shadow-sm hover:shadow-[0_10px_30px_rgba(56,189,248,0.3)] transition-all duration-500 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative">
-                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-400/10 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                 <span className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white relative z-10">Level {currentLevel}</span>
-                 <div className="w-24 h-2 bg-slate-200/60 dark:bg-slate-700/60 rounded-full overflow-hidden shadow-inner relative z-10 group-hover:ring-2 group-hover:ring-cyan-400/50 transition-all duration-500">
-                   <motion.div 
-                       initial={{ width: 0 }}
-                       animate={{ width: `${(xpIntoLevel / 1000) * 100}%` }}
-                       transition={{ duration: 1.5, ease: "easeOut" }}
-                       className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 absolute top-0 left-0" 
-                   />
-                   <div className="absolute top-0 left-0 h-full w-[200%] bg-gradient-to-r from-transparent via-white/40 to-transparent animate-[mathShimmer_2s_infinite]" />
-                 </div>
-                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300 relative z-10">{xpIntoLevel} / 1000 XP</span>
-               </div>
-
-               {/* Coins Chip */}
-               <div className="group flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/50 dark:from-orange-900/60 dark:to-orange-800/40 border border-orange-200/60 dark:border-orange-500/30 shadow-sm hover:shadow-[0_10px_30px_rgba(245,158,11,0.3)] transition-all duration-500 hover:scale-105 hover:-translate-y-1 cursor-pointer backdrop-blur-md overflow-hidden relative">
-                 <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-400/10 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                 <div className="w-8 h-8 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),0_0_15px_rgba(249,115,22,0.4)]">
-                    <Coins size={18} className="text-white drop-shadow-md" />
-                 </div>
-                 <span className="text-lg font-black text-orange-900 dark:text-orange-400 drop-shadow-sm">{mathCoins.toLocaleString()}</span>
-               </div>
-             </div>
-
+              <StudentWallet currentXp={26600} currentRankTier="GOLD_I" coinBalance={12450} className="scale-110 sm:scale-125 origin-right" />
+            </div>
           </div>
         </section>
 
