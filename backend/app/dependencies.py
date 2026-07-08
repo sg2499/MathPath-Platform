@@ -1,15 +1,32 @@
-from fastapi import Depends
+from fastapi import Depends, BackgroundTasks
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-from app.database import get_db
+from sqlalchemy import update
+from app.database import get_db, SessionLocal
 from app.core.security import decode_token
 from app.core.errors import api_error
 from app.models import User, Student, Teacher
+from cachetools import TTLCache
+from datetime import datetime, timezone
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
+active_users_cache = TTLCache(maxsize=10000, ttl=120)
+
+def _update_user_activity(user_id: str):
+    db = SessionLocal()
+    try:
+        db.execute(
+            update(User).where(User.id == user_id).values(last_active_at=datetime.now(timezone.utc))
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
 
 def get_current_user(
+    background_tasks: BackgroundTasks,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
@@ -20,7 +37,6 @@ def get_current_user(
     if not payload:
         api_error(401, "UNAUTHORIZED", "Invalid or expired token.")
 
-    from datetime import datetime, timezone
     user = db.get(User, payload.get("sub"))
     if not user or not user.is_active:
         api_error(401, "UNAUTHORIZED", "User not found or inactive.")
@@ -32,6 +48,11 @@ def get_current_user(
                 api_error(401, "UNAUTHORIZED", "Session expired due to password change.")
         except Exception:
             pass
+
+    # MAANG-Tier Live Tracking: Debounce via LRU memory cache, update DB in background
+    if user.id not in active_users_cache:
+        active_users_cache[user.id] = True
+        background_tasks.add_task(_update_user_activity, user.id)
 
     return user
 
