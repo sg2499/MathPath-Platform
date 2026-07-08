@@ -21,7 +21,12 @@ def sanitize_branch_name(message):
 def check_live_students():
     print(">> Performing pre-flight safety check for active students...")
     try:
-        sys.path.append(os.path.join(os.getcwd(), 'backend'))
+        original_cwd = os.getcwd()
+        backend_dir = os.path.join(original_cwd, 'backend')
+        os.chdir(backend_dir)
+        if backend_dir not in sys.path:
+            sys.path.insert(0, backend_dir)
+            
         from app.database import SessionLocal
         from app.models import User
         from datetime import datetime, timezone, timedelta
@@ -30,6 +35,8 @@ def check_live_students():
         five_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
         live_count = db.query(User).filter(User.last_active_at >= five_mins_ago, User.role == "STUDENT").count()
         db.close()
+        
+        os.chdir(original_cwd)
         
         if live_count > 0:
             print(f"\n=======================================================")
