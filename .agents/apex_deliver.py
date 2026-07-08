@@ -18,6 +18,41 @@ def sanitize_branch_name(message):
     clean = re.sub(r'[^a-z0-9]+', '-', message.lower()).strip('-')
     return f"feature/apex-{clean}-{int(time.time())}"
 
+def check_live_students():
+    print(">> Performing pre-flight safety check for active students...")
+    try:
+        sys.path.append(os.path.join(os.getcwd(), 'backend'))
+        from app.database import SessionLocal
+        from app.models import User
+        from datetime import datetime, timezone, timedelta
+        
+        db = SessionLocal()
+        five_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
+        live_count = db.query(User).filter(User.last_active_at >= five_mins_ago, User.role == "STUDENT").count()
+        db.close()
+        
+        if live_count > 0:
+            print(f"\n=======================================================")
+            print(f" ⚠️  STOP: {live_count} students are currently active on the platform.")
+            print(f"    Deploying now may disrupt their session.")
+            print(f"=======================================================")
+            
+            # Note: Since agents run non-interactively, we will hard fail unless explicitly overridden
+            # but for a developer running this locally, it prompts.
+            if not sys.stdin.isatty():
+                print("Aborting delivery due to active students (running non-interactively).")
+                sys.exit(1)
+                
+            override = input("Do you want to override and deploy anyway? (y/N): ")
+            if override.lower() != 'y':
+                print("Aborting delivery.")
+                sys.exit(1)
+            print("Override accepted. Proceeding with deployment...")
+        else:
+            print(">> Safety check passed. No active students detected.")
+    except Exception as e:
+        print(f">> Safety check skipped or failed: {e}")
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python apex_deliver.py \"Commit message here\"")
@@ -29,6 +64,8 @@ def main():
     print(f"Apex Squad Auto-Delivery Initiated")
     print(f"Feature: {commit_message}")
     print("-" * 40)
+    
+    check_live_students()
     
     # 1. Stash current working directory to be absolutely safe
     print(">> Stashing current changes...")

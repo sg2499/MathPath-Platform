@@ -19,6 +19,7 @@ class User(Base):
     password_changed_at = Column(DateTime(timezone=True), nullable=True)
     role = Column(String(30), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    last_active_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
