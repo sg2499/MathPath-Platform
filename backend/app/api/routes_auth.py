@@ -184,3 +184,13 @@ def change_password(
     user.password_changed_at = func.now()
     db.commit()
     return {"updated": True, "message": "Password updated successfully."}
+
+
+@router.get("/ping")
+def auth_ping(user: User = Depends(get_current_user)):
+    """
+    Heartbeat endpoint. 
+    By depending on get_current_user, it automatically triggers the LRU-debounced 
+    last_active_at database update in the background.
+    """
+    return {"status": "ok", "user_id": user.id}
