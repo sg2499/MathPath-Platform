@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Award, Zap, Lock, CheckCircle2, ChevronRight } from 'lucide-react';
 import { RankBadge } from './RankBadge';
+import { RankCinematicOverlay } from './RankCinematicOverlay';
 
 export interface RankInspectionModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ const RANK_LIST = ['COPPER', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 
 
 export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTier }: RankInspectionModalProps) {
   const [mounted, setMounted] = useState(false);
+  const [activeCinematicTier, setActiveCinematicTier] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -43,7 +45,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-950/95 backdrop-blur-[30px]"
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-[40px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-950/80 to-black"
           />
 
           {/* Epic Modal Container */}
@@ -52,7 +54,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 30 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative w-full max-w-7xl max-h-[90vh] bg-slate-950 border border-slate-800/80 rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col z-10"
+            className="relative w-full max-w-[95vw] lg:max-w-7xl max-h-[90vh] bg-slate-950/60 border border-indigo-500/30 rounded-[2rem] shadow-[0_0_100px_rgba(79,70,229,0.15)] overflow-hidden flex flex-col z-10 backdrop-blur-md"
           >
             {/* Top-Right Close Button */}
             <button 
@@ -88,12 +90,13 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             </div>
 
             {/* Visual Roadmap Body */}
-            <div className="flex-1 overflow-y-auto p-10 md:p-14 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-slate-950 to-black relative">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 md:p-14 relative bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-indigo-950/20 via-transparent to-transparent">
               {/* Background Grid Texture */}
-              <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+              <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
-              <div className="relative max-w-5xl mx-auto py-10">
-                {/* Connecting Line (Underneath Badges) */}
+              <div className="relative w-full overflow-x-auto pb-24 pt-12 custom-scrollbar">
+                <div className="relative min-w-[1200px] w-full mx-auto px-10">
+                  {/* Connecting Line (Underneath Badges) */}
                 <div className="absolute top-1/2 left-0 right-0 h-2 -translate-y-1/2 bg-slate-900 rounded-full overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
                   {/* Glowing progress fill */}
                   <motion.div 
@@ -121,45 +124,52 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
                           <div className="absolute -inset-10 bg-indigo-500/20 rounded-full blur-[40px] pointer-events-none animate-pulse" />
                         )}
 
-                        <div className={cn(
-                          "relative z-10 transition-all duration-500",
-                          isLocked ? "grayscale opacity-40 hover:opacity-100 transition-all duration-300" : isActive ? "scale-110 md:scale-125 z-20" : "opacity-90"
-                        )}>
+                        <div 
+                          className={cn(
+                            "relative z-10 transition-all duration-500 cursor-pointer",
+                            isLocked ? "grayscale opacity-40 hover:opacity-100 transition-all duration-300" : isActive ? "scale-110 md:scale-125 z-20 hover:scale-125" : "opacity-90 hover:scale-110 hover:z-20"
+                          )}
+                          onClick={() => setActiveCinematicTier(rankName)}
+                        >
                           <RankBadge 
                             tier={isActive ? currentRankTier : rankName} 
                             size="lg"
-                            className={cn("pointer-events-auto", isActive && "drop-shadow-[0_0_40px_rgba(99,102,241,0.6)]")}
+                            className={cn("pointer-events-none", isActive && "drop-shadow-[0_0_40px_rgba(99,102,241,0.6)]")}
                           />
                           
                           {/* Status Icon Overlay */}
                           {isCompleted && (
-                            <div className="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-1 border border-indigo-500 shadow-lg">
+                            <div className="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-1 border border-indigo-500 shadow-lg pointer-events-none">
                               <CheckCircle2 className="w-4 h-4 text-indigo-400" />
                             </div>
                           )}
                           {isLocked && (
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-950/80 rounded-full p-2.5 border border-slate-800 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-950/80 rounded-full p-2.5 border border-slate-800 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                               <Lock className="w-5 h-5 text-slate-400" />
                             </div>
                           )}
                         </div>
 
-                        {/* Rank Label Below */}
+                        {/* Isometric Pedestal & Label */}
                         <div className={cn(
-                          "mt-6 flex flex-col items-center transition-all duration-300",
-                          isActive ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 absolute -bottom-12"
+                          "absolute -bottom-24 flex flex-col items-center transition-all duration-500 w-full",
+                          isActive ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8 group-hover:opacity-100 group-hover:translate-y-4"
                         )}>
+                          {isActive && (
+                            <div className="relative w-24 h-8 mb-4">
+                              {/* 3D Isometric Pedestal */}
+                              <div className="absolute inset-0 bg-indigo-500/30 blur-xl rounded-full animate-pulse" />
+                              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-slate-800 rounded-[50%] border-2 border-indigo-500/50 shadow-[0_0_30px_rgba(99,102,241,0.4)]" />
+                              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-24 h-6 bg-slate-900 rounded-[50%] border border-slate-700 shadow-[inset_0_-5px_10px_rgba(0,0,0,0.8)]" />
+                              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[2px] h-32 bg-gradient-to-t from-indigo-500/0 via-indigo-400/80 to-indigo-500/0 -z-10 blur-[1px]" />
+                            </div>
+                          )}
                           <span className={cn(
-                            "text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap",
-                            isActive ? "text-indigo-400" : isCompleted ? "text-slate-400" : "text-slate-600"
+                            "text-[10px] md:text-sm font-black uppercase tracking-widest whitespace-nowrap",
+                            isActive ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]" : isCompleted ? "text-slate-400" : "text-slate-600"
                           )}>
                             {rankName}
                           </span>
-                          {isActive && (
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1 px-2 py-0.5 bg-slate-900 border border-slate-800 rounded-md">
-                              CURRENT
-                            </span>
-                          )}
                         </div>
                       </div>
                     );
@@ -188,6 +198,12 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
 
           </motion.div>
         </div>
+      )}
+      {activeCinematicTier && (
+        <RankCinematicOverlay 
+          tier={activeCinematicTier} 
+          onComplete={() => setActiveCinematicTier(null)} 
+        />
       )}
     </AnimatePresence>,
     document.body
