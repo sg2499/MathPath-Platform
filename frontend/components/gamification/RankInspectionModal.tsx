@@ -143,7 +143,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
 
                         <div 
                           className={cn(
-                            "relative z-10 transition-all duration-500 cursor-pointer",
+                            "relative z-10 transition-all duration-500 cursor-pointer transform-gpu will-change-transform",
                             isLocked ? "grayscale opacity-40 hover:opacity-100 transition-all duration-300" : isActive ? "scale-110 md:scale-125 z-20 hover:scale-125" : "opacity-90 hover:scale-110 hover:z-20"
                           )}
                           onClick={() => setActiveCinematicTier(rankName)}

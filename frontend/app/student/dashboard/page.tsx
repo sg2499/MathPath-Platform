@@ -227,8 +227,8 @@ export default function StudentDashboardPage() {
     if (list.length === 0) {
       list.push({
         type: "COMPLETED",
-        title: "All Conquests Secured!",
-        detail: "You've successfully completed all assigned Practice Sheets and Mock Exams.",
+        title: "No Assigned Conquests",
+        detail: "You haven't had any Practice Sheets or Mock Exams assigned to you yet.",
         buttonText: "Explore Practice",
         route: "/student/practice"
       });

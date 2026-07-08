@@ -467,7 +467,7 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
   };
 
   return (
-    <div className={cn('relative group flex items-center justify-center', sizeClasses[size], className)}>
+    <div className={cn('relative group flex items-center justify-center transform-gpu will-change-transform', sizeClasses[size], className)}>
       <svg 
         viewBox="-10 -10 120 120" 
         className="w-full h-full drop-shadow-2xl overflow-visible"
@@ -478,7 +478,7 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
             <feDropShadow dx="0" dy="8" stdDeviation="6" floodColor="#000" floodOpacity="0.8"/>
           </filter>
           <filter id="intense-blur" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="15" result="blur" />
+            <feGaussianBlur stdDeviation="8" result="blur" />
           </filter>
         </defs>
         
