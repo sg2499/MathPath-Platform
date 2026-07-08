@@ -1028,6 +1028,30 @@ def delete_teacher_route(teacher_id: str, db: Session = Depends(get_db), user: U
 
     return {"deleted": True, "message": "Teacher deleted permanently.", "teacherId": teacher_id}
 
+@router.get("/live-students")
+def get_live_students(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from datetime import datetime, timezone, timedelta
+    five_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
+    
+    live_rows = (
+        db.query(Student, User)
+        .join(User, Student.user_id == User.id)
+        .filter(User.last_active_at >= five_mins_ago)
+        .order_by(User.last_active_at.desc())
+        .all()
+    )
+    
+    students = []
+    for student, u in live_rows:
+        students.append({
+            "id": u.id,
+            "full_name": u.full_name,
+            "student_code": student.student_code,
+            "last_active_at": u.last_active_at.isoformat() if u.last_active_at else None
+        })
+        
+    return {"live_students": students, "count": len(students)}
+
 
 @router.get("/students")
 def list_students(db: Session = Depends(get_db), user: User = Depends(admin_dep)):

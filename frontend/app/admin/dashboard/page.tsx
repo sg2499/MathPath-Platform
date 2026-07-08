@@ -28,6 +28,8 @@ const QuickLinks = [
   { Icon: <BarChart3 size={16} />, Label: "Performance Reports", Route: "/admin/results" },
 ];
 
+import { LiveRadarWidget } from "@/components/admin/LiveRadarWidget";
+
 export default function AdminDashboardPage() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const Router = useRouter();
@@ -40,8 +42,8 @@ export default function AdminDashboardPage() {
         <section className="math-dashboard-hero math-dashboard-hero-admin math-dashboard-hero-clean">
           <div className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-blue-400/16 blur-3xl" />
           <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-violet-300/14 blur-3xl" />
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
               <div className="math-dashboard-kicker">
                 <Target size={13} />
                 Admin Workspace
@@ -71,10 +73,8 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </div>
-            <div className="math-dashboard-readable-pulse math-dashboard-readable-pulse-admin">
-              <p className="math-dashboard-pulse-eyebrow">Platform Pulse</p>
-              <h2>Platform Pulse</h2>
-              <p>Governance, reports, and progression stay in sync.</p>
+            <div className="w-full lg:w-80 shrink-0">
+              <LiveRadarWidget />
             </div>
           </div>
         </section>
