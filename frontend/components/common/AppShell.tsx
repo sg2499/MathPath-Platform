@@ -941,7 +941,7 @@ export function AppShell({
                           onMouseLeave={() => setHoveredNavGroup(null)}
                           onFocus={() => setHoveredNavGroup(group.label)}
                           onBlur={() => setHoveredNavGroup(null)}
-                          className={`premium-nav-item group shrink-0 lg:px-1.5 xl:px-3 text-sm lg:text-[13px] xl:text-sm ${
+                          className={`premium-nav-item group shrink min-w-[2rem] lg:px-1.5 xl:px-3 text-xs lg:text-[12px] xl:text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
@@ -979,7 +979,7 @@ export function AppShell({
                                 ? { color: "#ffffff", opacity: 1 }
                                 : undefined)
                             }
-                            className={`whitespace-nowrap ${
+                            className={`truncate whitespace-nowrap min-w-0 ${
                               RoleNavHighlighted ? "!text-white opacity-100" : ""
                             }`}
                           >
@@ -1011,7 +1011,7 @@ export function AppShell({
                           }
                           onFocus={() => setHoveredNavGroup(group.label)}
                           onBlur={() => setHoveredNavGroup(null)}
-                          className={`premium-nav-item group shrink-0 lg:px-1.5 xl:px-3 text-[13px] xl:text-sm ${
+                          className={`premium-nav-item group shrink min-w-[2rem] lg:px-1.5 xl:px-3 text-xs lg:text-[12px] xl:text-sm ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
@@ -1050,7 +1050,7 @@ export function AppShell({
                                 ? { color: "#ffffff", opacity: 1 }
                                 : undefined)
                             }
-                            className={`whitespace-nowrap ${
+                            className={`truncate whitespace-nowrap min-w-0 ${
                               RoleNavHighlighted ? "!text-white opacity-100" : ""
                             }`}
                           >
