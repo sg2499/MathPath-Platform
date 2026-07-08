@@ -123,12 +123,12 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
 
                         <div className={cn(
                           "relative z-10 transition-all duration-500",
-                          isLocked ? "grayscale opacity-40 scale-75 blur-[1px] hover:blur-none hover:grayscale-0 hover:opacity-100" : isActive ? "scale-125 z-20" : "scale-90 opacity-80"
+                          isLocked ? "grayscale opacity-40 hover:opacity-100 transition-all duration-300" : isActive ? "scale-110 md:scale-125 z-20" : "opacity-90"
                         )}>
                           <RankBadge 
                             tier={isActive ? currentRankTier : rankName} 
-                            size={isActive ? "lg" : "md"} 
-                            className={cn("pointer-events-auto", isActive && "drop-shadow-[0_0_30px_rgba(99,102,241,0.5)]")}
+                            size="lg"
+                            className={cn("pointer-events-auto", isActive && "drop-shadow-[0_0_40px_rgba(99,102,241,0.6)]")}
                           />
                           
                           {/* Status Icon Overlay */}

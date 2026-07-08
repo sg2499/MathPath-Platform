@@ -146,15 +146,15 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
         >
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">DIVISION LEVEL</span>
-              <span className="text-2xl font-black uppercase text-slate-900 dark:text-white tracking-tighter drop-shadow-sm mt-1">{rankDisplayName}</span>
+              <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">RANK</span>
+              <span className="text-[2rem] sm:text-4xl font-black uppercase text-slate-900 dark:text-white tracking-tighter drop-shadow-sm mt-1">{rankDisplayName}</span>
             </div>
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-                <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 tracking-wide">XP METRIC</span>
+                <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 tracking-wide">ACQUIRED XP</span>
               </div>
-              <span className="text-xs font-black text-slate-600 dark:text-slate-300 mt-1">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
+              <span className="text-sm font-black text-slate-600 dark:text-slate-300 mt-1">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
             </div>
           </div>
 

@@ -16,76 +16,93 @@ const getRankBadgeDesign = (rank: string) => {
   switch (rank) {
     case 'COPPER':
       return {
-        coreColor: '#c2410c',
-        glowColor: 'rgba(194, 65, 12, 0.6)',
-        textColor: '#ffedd5',
-        textShadow: '0px 2px 4px #431407, 0px 0px 10px #ea580c, 0px 0px 2px #000',
-        gradient: (
-          <linearGradient id="grad-copper" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#fdba74" />
-            <stop offset="30%" stopColor="#ea580c" />
-            <stop offset="70%" stopColor="#7c2d12" />
-            <stop offset="100%" stopColor="#431407" />
-          </linearGradient>
-        ),
-        shape: (
-          <>
-            <polygon points="50,10 90,30 90,70 50,90 10,70 10,30" fill="url(#grad-copper)" stroke="#fdba74" strokeWidth="2" filter="url(#intense-glow)"/>
-            <polygon points="50,18 80,35 80,65 50,82 20,65 20,35" fill="rgba(67, 20, 7, 0.8)" stroke="#ea580c" strokeWidth="3" />
-            <circle cx="50" cy="50" r="22" fill="none" stroke="#fdba74" strokeWidth="1" strokeDasharray="4 4" opacity="0.6"/>
-          </>
-        )
-      };
-    case 'BRONZE':
-      return {
         coreColor: '#b45309',
-        glowColor: 'rgba(217, 119, 6, 0.6)',
+        glowColor: 'rgba(180, 83, 9, 0.7)',
         textColor: '#fef3c7',
         textShadow: '0px 2px 4px #78350f, 0px 0px 10px #f59e0b, 0px 0px 2px #000',
         gradient: (
-          <linearGradient id="grad-bronze" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#fde68a" />
-            <stop offset="40%" stopColor="#d97706" />
-            <stop offset="80%" stopColor="#78350f" />
+          <linearGradient id="grad-copper" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fcd34d" />
+            <stop offset="30%" stopColor="#d97706" />
+            <stop offset="70%" stopColor="#92400e" />
             <stop offset="100%" stopColor="#451a03" />
           </linearGradient>
         ),
         shape: (
           <>
-            <path d="M 50 5 L 95 25 L 85 75 L 50 95 L 15 75 L 5 25 Z" fill="url(#grad-bronze)" stroke="#fcd34d" strokeWidth="2" filter="url(#intense-glow)"/>
-            <path d="M 50 15 L 82 30 L 74 68 L 50 85 L 26 68 L 18 30 Z" fill="rgba(69, 26, 3, 0.8)" stroke="#f59e0b" strokeWidth="3" />
-            <path d="M 35 40 L 50 25 L 65 40 M 35 60 L 50 75 L 65 60" fill="none" stroke="#fcd34d" strokeWidth="2" opacity="0.5"/>
+            {/* Gear-like industrial base */}
+            <path d="M 30 10 L 70 10 L 90 30 L 90 70 L 70 90 L 30 90 L 10 70 L 10 30 Z" fill="#451a03" stroke="#92400e" strokeWidth="4" filter="url(#intense-glow)"/>
+            <path d="M 30 10 L 70 10 L 90 30 L 90 70 L 70 90 L 30 90 L 10 70 L 10 30 Z" fill="url(#grad-copper)" opacity="0.9" />
+            {/* Inner extruded plate */}
+            <path d="M 35 20 L 65 20 L 80 35 L 80 65 L 65 80 L 35 80 L 20 65 L 20 35 Z" fill="#78350f" stroke="#f59e0b" strokeWidth="2" />
+            {/* Rivets */}
+            <circle cx="25" cy="50" r="3" fill="#fcd34d" />
+            <circle cx="75" cy="50" r="3" fill="#fcd34d" />
+            <circle cx="50" cy="25" r="3" fill="#fcd34d" />
+            <circle cx="50" cy="75" r="3" fill="#fcd34d" />
+            <circle cx="50" cy="50" r="28" fill="none" stroke="#b45309" strokeWidth="1" strokeDasharray="4 4"/>
+          </>
+        )
+      };
+    case 'BRONZE':
+      return {
+        coreColor: '#9a3412',
+        glowColor: 'rgba(154, 52, 18, 0.7)',
+        textColor: '#ffedd5',
+        textShadow: '0px 2px 4px #431407, 0px 0px 10px #ea580c, 0px 0px 2px #000',
+        gradient: (
+          <linearGradient id="grad-bronze" x1="20%" y1="0%" x2="80%" y2="100%">
+            <stop offset="0%" stopColor="#fdba74" />
+            <stop offset="40%" stopColor="#ea580c" />
+            <stop offset="80%" stopColor="#9a3412" />
+            <stop offset="100%" stopColor="#431407" />
+          </linearGradient>
+        ),
+        shape: (
+          <>
+            {/* Spartan Shield */}
+            <path d="M 50 5 L 90 20 L 85 60 C 85 80 50 95 50 95 C 50 95 15 80 15 60 L 10 20 Z" fill="#431407" stroke="#9a3412" strokeWidth="5" filter="url(#intense-glow)"/>
+            <path d="M 50 5 L 90 20 L 85 60 C 85 80 50 95 50 95 C 50 95 15 80 15 60 L 10 20 Z" fill="url(#grad-bronze)" />
+            {/* Inner layer */}
+            <path d="M 50 15 L 80 28 L 75 58 C 75 75 50 85 50 85 C 50 85 25 75 25 58 L 20 28 Z" fill="#7c2d12" stroke="#fdba74" strokeWidth="2" />
+            {/* Center cross/engraving */}
+            <path d="M 50 15 L 50 85 M 25 45 L 75 45" stroke="#ea580c" strokeWidth="2" opacity="0.6"/>
           </>
         )
       };
     case 'SILVER':
       return {
-        coreColor: '#64748b',
-        glowColor: 'rgba(148, 163, 184, 0.7)',
-        textColor: '#ffffff',
-        textShadow: '0px 2px 4px #1e293b, 0px 0px 12px #cbd5e1, 0px 0px 2px #000',
+        coreColor: '#0ea5e9',
+        glowColor: 'rgba(14, 165, 233, 0.7)',
+        textColor: '#f0f9ff',
+        textShadow: '0px 2px 4px #0c4a6e, 0px 0px 15px #38bdf8, 0px 0px 2px #000',
         gradient: (
           <linearGradient id="grad-silver" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="25%" stopColor="#e2e8f0" />
-            <stop offset="70%" stopColor="#64748b" />
-            <stop offset="100%" stopColor="#334155" />
+            <stop offset="30%" stopColor="#e0f2fe" />
+            <stop offset="70%" stopColor="#0284c7" />
+            <stop offset="100%" stopColor="#082f49" />
           </linearGradient>
         ),
         shape: (
           <>
-            <polygon points="50,5 90,20 95,50 90,80 50,95 10,80 5,50 10,20" fill="url(#grad-silver)" stroke="#f8fafc" strokeWidth="2" filter="url(#intense-glow)"/>
-            <polygon points="50,15 80,28 85,50 80,72 50,85 20,72 15,50 20,28" fill="rgba(15, 23, 42, 0.85)" stroke="#94a3b8" strokeWidth="3" />
-            <rect x="35" y="35" width="30" height="30" fill="none" stroke="#e2e8f0" strokeWidth="1" transform="rotate(45 50 50)" opacity="0.7"/>
+            {/* Futuristic Chevron Base */}
+            <path d="M 10 40 L 50 5 L 90 40 L 90 60 L 50 95 L 10 60 Z" fill="#082f49" stroke="#0ea5e9" strokeWidth="4" filter="url(#intense-glow)"/>
+            <path d="M 10 40 L 50 5 L 90 40 L 90 60 L 50 95 L 10 60 Z" fill="url(#grad-silver)" opacity="0.9" />
+            {/* Inner cutouts */}
+            <path d="M 25 45 L 50 20 L 75 45 L 75 55 L 50 80 L 25 55 Z" fill="#0c4a6e" stroke="#7dd3fc" strokeWidth="3" />
+            {/* Cyber lines */}
+            <path d="M 50 20 L 50 80 M 25 45 L 75 45 M 25 55 L 75 55" stroke="#38bdf8" strokeWidth="1" opacity="0.5"/>
+            <polygon points="45,45 55,45 55,55 45,55" fill="#38bdf8" />
           </>
         )
       };
     case 'GOLD':
       return {
-        coreColor: '#ca8a04',
-        glowColor: 'rgba(250, 204, 21, 0.7)',
-        textColor: '#fef08a',
-        textShadow: '0px 2px 4px #713f12, 0px 0px 15px #facc15, 0px 0px 2px #000',
+        coreColor: '#eab308',
+        glowColor: 'rgba(234, 179, 8, 0.8)',
+        textColor: '#fefce8',
+        textShadow: '0px 2px 5px #713f12, 0px 0px 18px #facc15, 0px 0px 2px #000',
         gradient: (
           <radialGradient id="grad-gold" cx="50%" cy="30%" r="70%">
             <stop offset="0%" stopColor="#fef08a" />
@@ -96,87 +113,99 @@ const getRankBadgeDesign = (rank: string) => {
         ),
         shape: (
           <>
-            <path d="M 20 20 L 50 5 L 80 20 L 95 50 L 80 80 L 50 95 L 20 80 L 5 50 Z" fill="url(#grad-gold)" stroke="#fef08a" strokeWidth="2" filter="url(#intense-glow)"/>
-            <path d="M 28 28 L 50 15 L 72 28 L 85 50 L 72 72 L 50 85 L 28 72 L 15 50 Z" fill="rgba(66, 32, 6, 0.85)" stroke="#eab308" strokeWidth="4" />
-            <circle cx="50" cy="50" r="15" fill="none" stroke="#fef08a" strokeWidth="2" opacity="0.8"/>
-            <polygon points="50,30 55,45 70,50 55,55 50,70 45,55 30,50 45,45" fill="#facc15" opacity="0.9"/>
+            {/* Majestic Crown Star */}
+            <path d="M 50 0 L 65 30 L 95 20 L 75 45 L 95 70 L 60 70 L 50 95 L 40 70 L 5 70 L 25 45 L 5 20 L 35 30 Z" fill="#422006" stroke="#ca8a04" strokeWidth="4" filter="url(#intense-glow)"/>
+            <path d="M 50 0 L 65 30 L 95 20 L 75 45 L 95 70 L 60 70 L 50 95 L 40 70 L 5 70 L 25 45 L 5 20 L 35 30 Z" fill="url(#grad-gold)" />
+            {/* Inner gem */}
+            <circle cx="50" cy="50" r="22" fill="#713f12" stroke="#fde047" strokeWidth="3" />
+            <circle cx="50" cy="50" r="16" fill="url(#grad-gold)" />
+            {/* Sun rays */}
+            <path d="M 50 20 L 50 10 M 80 50 L 90 50 M 50 80 L 50 90 M 20 50 L 10 50" stroke="#fef08a" strokeWidth="3" opacity="0.8" strokeLinecap="round" />
           </>
         )
       };
     case 'PLATINUM':
       return {
-        coreColor: '#0891b2',
-        glowColor: 'rgba(34, 211, 238, 0.8)',
-        textColor: '#cffafe',
-        textShadow: '0px 2px 4px #164e63, 0px 0px 15px #22d3ee, 0px 0px 2px #000',
+        coreColor: '#c084fc',
+        glowColor: 'rgba(192, 132, 252, 0.9)',
+        textColor: '#faf5ff',
+        textShadow: '0px 2px 5px #4c1d95, 0px 0px 20px #d8b4fe, 0px 0px 2px #000',
         gradient: (
-          <linearGradient id="grad-platinum" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#cffafe" />
-            <stop offset="30%" stopColor="#06b6d4" />
-            <stop offset="70%" stopColor="#155e75" />
-            <stop offset="100%" stopColor="#083344" />
+          <linearGradient id="grad-platinum" x1="10%" y1="10%" x2="90%" y2="90%">
+            <stop offset="0%" stopColor="#f3e8ff" />
+            <stop offset="25%" stopColor="#d8b4fe" />
+            <stop offset="50%" stopColor="#9333ea" />
+            <stop offset="80%" stopColor="#4c1d95" />
+            <stop offset="100%" stopColor="#2e1065" />
           </linearGradient>
         ),
         shape: (
           <>
-            <polygon points="50,5 95,25 95,75 50,95 5,75 5,25" fill="url(#grad-platinum)" stroke="#a5f3fc" strokeWidth="3" filter="url(#intense-glow)"/>
-            <polygon points="50,15 82,32 82,68 50,85 18,68 18,32" fill="rgba(8, 51, 68, 0.9)" stroke="#22d3ee" strokeWidth="4" />
-            <line x1="50" y1="15" x2="50" y2="85" stroke="#a5f3fc" strokeWidth="1" opacity="0.5"/>
-            <line x1="18" y1="32" x2="82" y2="68" stroke="#a5f3fc" strokeWidth="1" opacity="0.5"/>
-            <line x1="18" y1="68" x2="82" y2="32" stroke="#a5f3fc" strokeWidth="1" opacity="0.5"/>
-            <circle cx="50" cy="50" r="10" fill="#06b6d4" filter="url(#blur-glow)"/>
+            {/* Crystalline matrix */}
+            <polygon points="50,5 90,28 90,72 50,95 10,72 10,28" fill="#2e1065" stroke="#c084fc" strokeWidth="4" filter="url(#intense-glow)"/>
+            <polygon points="50,5 90,28 90,72 50,95 10,72 10,28" fill="url(#grad-platinum)" opacity="0.8"/>
+            <path d="M 50 15 L 80 32 L 80 68 L 50 85 L 20 68 L 20 32 Z" fill="#4c1d95" stroke="#f3e8ff" strokeWidth="2" />
+            {/* Internal lattice */}
+            <path d="M 50 15 L 50 85 M 20 32 L 80 68 M 20 68 L 80 32" stroke="#d8b4fe" strokeWidth="1.5" opacity="0.6"/>
+            <circle cx="50" cy="50" r="15" fill="#f3e8ff" filter="url(#blur-glow)"/>
+            <circle cx="50" cy="50" r="10" fill="#a855f7" />
           </>
         )
       };
     case 'EMERALD':
       return {
-        coreColor: '#047857',
-        glowColor: 'rgba(16, 185, 129, 0.8)',
-        textColor: '#d1fae5',
-        textShadow: '0px 2px 4px #064e3b, 0px 0px 15px #34d399, 0px 0px 2px #000',
+        coreColor: '#10b981',
+        glowColor: 'rgba(16, 185, 129, 0.9)',
+        textColor: '#ecfdf5',
+        textShadow: '0px 2px 6px #064e3b, 0px 0px 20px #34d399, 0px 0px 3px #000',
         gradient: (
-          <linearGradient id="grad-emerald" x1="50%" y1="0%" x2="50%" y2="100%">
+          <linearGradient id="grad-emerald" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#a7f3d0" />
-            <stop offset="25%" stopColor="#10b981" />
-            <stop offset="75%" stopColor="#047857" />
+            <stop offset="20%" stopColor="#34d399" />
+            <stop offset="60%" stopColor="#059669" />
             <stop offset="100%" stopColor="#022c22" />
           </linearGradient>
         ),
         shape: (
           <>
-            <polygon points="50,5 95,40 75,95 25,95 5,40" fill="url(#grad-emerald)" stroke="#6ee7b7" strokeWidth="3" filter="url(#intense-glow)"/>
-            <polygon points="50,15 82,45 65,85 35,85 18,45" fill="rgba(2, 44, 34, 0.9)" stroke="#10b981" strokeWidth="4" />
-            <path d="M 50 25 L 70 50 L 50 75 L 30 50 Z" fill="none" stroke="#a7f3d0" strokeWidth="2" opacity="0.8"/>
-            <circle cx="50" cy="50" r="5" fill="#34d399" filter="url(#blur-glow)"/>
+            {/* Fractal emerald cluster */}
+            <path d="M 50 0 L 80 30 L 95 60 L 50 95 L 5 60 L 20 30 Z" fill="#022c22" stroke="#10b981" strokeWidth="4" filter="url(#intense-glow)"/>
+            <path d="M 50 0 L 80 30 L 95 60 L 50 95 L 5 60 L 20 30 Z" fill="url(#grad-emerald)" opacity="0.9"/>
+            <path d="M 50 15 L 70 35 L 80 55 L 50 80 L 20 55 L 30 35 Z" fill="#064e3b" stroke="#6ee7b7" strokeWidth="2" />
+            {/* Fractal lines */}
+            <path d="M 50 0 L 50 95 M 5 60 L 95 60 M 20 30 L 80 30" stroke="#a7f3d0" strokeWidth="2" opacity="0.4"/>
+            {/* Toxic glowing core */}
+            <polygon points="50,25 65,45 50,70 35,45" fill="#34d399" filter="url(#blur-glow)"/>
+            <polygon points="50,30 60,45 50,60 40,45" fill="#ecfdf5" />
           </>
         )
       };
     case 'DIAMOND':
       return {
-        coreColor: '#6366f1',
-        glowColor: 'rgba(139, 92, 246, 0.9)',
+        coreColor: '#38bdf8',
+        glowColor: 'rgba(56, 189, 248, 1)',
         textColor: '#ffffff',
-        textShadow: '0px 2px 6px #312e81, 0px 0px 20px #a855f7, 0px 0px 3px #000',
+        textShadow: '0px 2px 6px #082f49, 0px 0px 25px #bae6fd, 0px 0px 3px #000',
         gradient: (
           <linearGradient id="grad-diamond" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f3e8ff" />
-            <stop offset="25%" stopColor="#c084fc" />
-            <stop offset="50%" stopColor="#6366f1" />
-            <stop offset="80%" stopColor="#312e81" />
-            <stop offset="100%" stopColor="#1e1b4b" />
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="15%" stopColor="#e0f2fe" />
+            <stop offset="40%" stopColor="#7dd3fc" />
+            <stop offset="70%" stopColor="#0284c7" />
+            <stop offset="100%" stopColor="#082f49" />
           </linearGradient>
         ),
         shape: (
           <>
-            <polygon points="50,5 95,35 80,95 20,95 5,35" fill="url(#grad-diamond)" stroke="#e9d5ff" strokeWidth="4" filter="url(#intense-glow)"/>
-            <polygon points="50,15 82,40 68,85 32,85 18,40" fill="rgba(30, 27, 75, 0.95)" stroke="#a855f7" strokeWidth="4" />
-            {/* Inner crystalline facets */}
-            <path d="M 50 15 L 82 40 L 50 60 Z" fill="url(#grad-diamond)" opacity="0.3"/>
-            <path d="M 50 15 L 18 40 L 50 60 Z" fill="url(#grad-diamond)" opacity="0.1"/>
-            <path d="M 18 40 L 32 85 L 50 60 Z" fill="url(#grad-diamond)" opacity="0.2"/>
-            <path d="M 82 40 L 68 85 L 50 60 Z" fill="url(#grad-diamond)" opacity="0.4"/>
-            <path d="M 32 85 L 68 85 L 50 60 Z" fill="url(#grad-diamond)" opacity="0.25"/>
-            <circle cx="50" cy="50" r="30" fill="none" stroke="#d8b4fe" strokeWidth="1" strokeDasharray="2 4" opacity="0.8"/>
+            {/* Flawless prismatic 3D diamond */}
+            <path d="M 50 5 L 95 35 L 50 95 L 5 35 Z" fill="#082f49" stroke="#bae6fd" strokeWidth="4" filter="url(#intense-glow)"/>
+            <path d="M 50 5 L 95 35 L 50 95 L 5 35 Z" fill="url(#grad-diamond)" opacity="0.8"/>
+            <path d="M 50 5 L 75 35 L 50 95 L 25 35 Z" fill="rgba(2, 132, 199, 0.4)" stroke="#e0f2fe" strokeWidth="2" />
+            {/* Diamond facets */}
+            <path d="M 25 35 L 75 35" stroke="#ffffff" strokeWidth="2" opacity="0.8" />
+            <path d="M 50 5 L 50 35" stroke="#ffffff" strokeWidth="2" opacity="0.8" />
+            <path d="M 50 35 L 50 95" stroke="#ffffff" strokeWidth="2" opacity="0.5" />
+            <circle cx="50" cy="35" r="15" fill="none" stroke="#bae6fd" strokeWidth="1" strokeDasharray="2 2" opacity="0.9" />
           </>
         )
       };
@@ -186,26 +215,30 @@ const getRankBadgeDesign = (rank: string) => {
         coreColor: '#f43f5e',
         glowColor: 'rgba(225, 29, 72, 1)',
         textColor: '#ffffff',
-        textShadow: '0px 2px 8px #4c0519, 0px 0px 25px #fb7185, 0px 0px 4px #000',
+        textShadow: '0px 2px 8px #4c0519, 0px 0px 30px #fb7185, 0px 0px 4px #000',
         gradient: (
-          <radialGradient id="grad-champion" cx="50%" cy="50%" r="70%">
+          <radialGradient id="grad-champion" cx="50%" cy="40%" r="70%">
             <stop offset="0%" stopColor="#ffe4e6" />
-            <stop offset="30%" stopColor="#fb7185" />
-            <stop offset="70%" stopColor="#e11d48" />
-            <stop offset="100%" stopColor="#881337" />
+            <stop offset="20%" stopColor="#fda4af" />
+            <stop offset="50%" stopColor="#e11d48" />
+            <stop offset="85%" stopColor="#881337" />
+            <stop offset="100%" stopColor="#22000c" />
           </radialGradient>
         ),
         shape: (
           <>
-            {/* Radiant core burst */}
-            <path d="M 50 0 L 60 30 L 95 30 L 70 50 L 80 90 L 50 65 L 20 90 L 30 50 L 5 30 L 40 30 Z" fill="url(#grad-champion)" stroke="#fecdd3" strokeWidth="2" filter="url(#intense-glow)"/>
-            {/* Dark inner crest */}
-            <path d="M 50 15 L 56 38 L 80 38 L 62 52 L 68 78 L 50 62 L 32 78 L 38 52 L 20 38 L 44 38 Z" fill="rgba(76, 5, 25, 0.95)" stroke="#f43f5e" strokeWidth="4" />
-            {/* Floating crown particles */}
-            <circle cx="50" cy="5" r="3" fill="#ffe4e6" filter="url(#blur-glow)"/>
-            <circle cx="85" cy="20" r="2.5" fill="#ffe4e6" filter="url(#blur-glow)"/>
-            <circle cx="15" cy="20" r="2.5" fill="#ffe4e6" filter="url(#blur-glow)"/>
-            <circle cx="50" cy="55" r="18" fill="none" stroke="#fda4af" strokeWidth="2" strokeDasharray="3 3"/>
+            {/* Ethereal angelic wings / crown hybrid */}
+            <path d="M 50 0 L 70 20 L 95 10 L 85 40 L 100 65 L 70 80 L 50 100 L 30 80 L 0 65 L 15 40 L 5 10 L 30 20 Z" fill="#22000c" stroke="#fecdd3" strokeWidth="4" filter="url(#intense-glow)"/>
+            <path d="M 50 0 L 70 20 L 95 10 L 85 40 L 100 65 L 70 80 L 50 100 L 30 80 L 0 65 L 15 40 L 5 10 L 30 20 Z" fill="url(#grad-champion)" opacity="0.9"/>
+            {/* Inner shielded core */}
+            <path d="M 50 15 L 65 30 L 80 55 L 50 85 L 20 55 L 35 30 Z" fill="#881337" stroke="#fb7185" strokeWidth="3" />
+            {/* Intense hyper-glowing core orb */}
+            <circle cx="50" cy="50" r="18" fill="#ffe4e6" filter="url(#blur-glow)" opacity="0.9"/>
+            <circle cx="50" cy="50" r="10" fill="#ffffff" />
+            {/* Floating majestic particles/stars */}
+            <path d="M 50 -5 L 55 5 L 65 5 L 55 12 L 58 22 L 50 15 L 42 22 L 45 12 L 35 5 L 45 5 Z" fill="#ffe4e6" filter="url(#blur-glow)" transform="scale(0.5) translate(50, -10)" />
+            <path d="M 50 -5 L 55 5 L 65 5 L 55 12 L 58 22 L 50 15 L 42 22 L 45 12 L 35 5 L 45 5 Z" fill="#ffe4e6" filter="url(#blur-glow)" transform="scale(0.5) translate(-30, 70)" />
+            <path d="M 50 -5 L 55 5 L 65 5 L 55 12 L 58 22 L 50 15 L 42 22 L 45 12 L 35 5 L 45 5 Z" fill="#ffe4e6" filter="url(#blur-glow)" transform="scale(0.5) translate(130, 70)" />
           </>
         )
       };
