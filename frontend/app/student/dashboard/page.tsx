@@ -335,13 +335,18 @@ export default function StudentDashboardPage() {
 
   const completedAssignments = Assignments.filter((a: any) => a && a.status === 'COMPLETED').length;
   const completedAssessments = Assessments.filter((a: any) => a && (a.status === 'COMPLETED' || a.status === 'PASSED')).length;
-  const totalXP = (completedAssignments * 50) + (completedAssessments * 150) + (Badges.length * 200);
+  
+  const earnedBadges = Badges.filter((b: any) => b && b.isUnlocked).sort((a: any, b: any) => {
+    return new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime();
+  });
+
+  const totalXP = (completedAssignments * 50) + (completedAssessments * 150) + (earnedBadges.length * 200);
   const currentLevel = Math.floor(totalXP / 1000) + 1;
   const xpIntoLevel = totalXP % 1000;
   const mathCoins = Math.floor(totalXP / 10);
 
-  const recentBadge = Badges.length > 0 ? Badges[0] : null;
-  const RecentBadgeIcon = recentBadge && IconMap[recentBadge.icon] ? IconMap[recentBadge.icon] : Medal;
+  const recentBadge = earnedBadges.length > 0 ? earnedBadges[0] : null;
+  const RecentBadgeIcon = recentBadge && IconMap[recentBadge.iconName] ? IconMap[recentBadge.iconName] : Medal;
 
   // Auto-slideshow for multiple conquests
   useEffect(() => {
