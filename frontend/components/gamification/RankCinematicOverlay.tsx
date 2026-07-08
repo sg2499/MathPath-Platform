@@ -171,10 +171,9 @@ const Scene = ({ tier }: { tier: string }) => {
   return (
     <>
       <Environment preset="city" />
-      <EffectComposer multisampling={0}>
-        <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} />
-        <ChromaticAberration offset={new THREE.Vector2(0.003, 0.003)} blendFunction={BlendFunction.NORMAL} />
-        <Noise opacity={0.15} />
+      {/* We are removing ChromaticAberration and Noise, and lowering Bloom so the AI asset remains CRYSTAL CLEAR */}
+      <EffectComposer multisampling={8}>
+        <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} intensity={0.5} />
         <Vignette eskil={false} offset={0.1} darkness={1.2} />
       </EffectComposer>
       
