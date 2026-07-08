@@ -67,8 +67,8 @@ const ChampionCameraRig = () => {
     if (t < 1.5) {
       const z = THREE.MathUtils.lerp(1, 25, Math.pow(t / 1.5, 3)); // Cubic ease out
       camera.position.set(0, 0, z);
-      camera.fov = THREE.MathUtils.lerp(100, 45, t / 1.5);
-      camera.updateProjectionMatrix();
+      (camera as THREE.PerspectiveCamera).fov = THREE.MathUtils.lerp(100, 45, t / 1.5);
+      (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
       
       // Intense violent vibration during pullback
       if (t > 1.0) {
