@@ -392,11 +392,11 @@ export default function LoginClient({
       <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
 
       <div
-        className="math-login-frame relative z-10 mx-auto grid w-full max-w-[1820px] lg:grid-cols-[1.04fr_0.96fr]"
+        className="math-login-frame relative z-10 mx-auto grid w-full max-w-[1820px] lg:h-[calc(100vh-3rem)] lg:min-h-[720px] lg:max-h-[960px] lg:grid-cols-[1.04fr_0.96fr] lg:overflow-hidden lg:rounded-[2.5rem] lg:bg-white lg:shadow-2xl lg:dark:bg-slate-950"
         data-testid="login-frame"
       >
         <section
-          className={`math-login-story relative hidden min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
+          className={`math-login-story relative hidden h-full min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
         >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_10%,rgba(255,255,255,0.24),transparent_25%),radial-gradient(circle_at_88%_82%,rgba(255,255,255,0.16),transparent_28%)]" />
           <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),transparent_38%),linear-gradient(180deg,rgba(2,6,23,0.10),transparent_42%,rgba(255,255,255,0.08))]" />
