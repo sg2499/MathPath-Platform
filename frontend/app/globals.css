@@ -45,13 +45,13 @@ html.dark {
   * { @apply border-transparent; }
   html {
     scroll-behavior: smooth;
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
   }
   body {
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow-x: clip;
     color: var(--ink);
     background:
       radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.16), transparent 28%),
