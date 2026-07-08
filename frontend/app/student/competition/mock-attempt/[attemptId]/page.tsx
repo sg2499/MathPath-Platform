@@ -145,7 +145,7 @@ export default function StudentCompetitionMockAttemptPage() {
 
   return (
     <AppShell title="Competition Mock Attempt">
-      <section className="math-slide-up math-card flex flex-col gap-4 overflow-visible p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
+      <section className="math-slide-up math-card flex flex-col gap-4 !overflow-visible p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
         <div className="grid gap-4 rounded-[24px] border border-orange-100 bg-gradient-to-r from-white/98 via-orange-50/70 to-amber-100/55 p-4 shadow-sm dark:border-slate-800 dark:from-slate-950/96 dark:via-slate-900/88 dark:to-orange-950/36">
           <div>
             <div className="flex flex-wrap items-center gap-2">
