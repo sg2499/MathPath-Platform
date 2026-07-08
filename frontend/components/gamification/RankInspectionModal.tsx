@@ -176,8 +176,9 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
                   })}
                 </div>
               </div>
+            </div>
 
-              {/* Motivational Footer Banner */}
+            {/* Motivational Footer Banner */}
               <div className="mt-16 mx-auto max-w-3xl bg-gradient-to-r from-indigo-950/30 via-purple-900/20 to-indigo-950/30 border border-indigo-500/20 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6 shadow-2xl">
                 <div className="w-12 h-12 rounded-full bg-indigo-950/50 flex items-center justify-center border border-indigo-500/30 shrink-0">
                   <Zap className="w-6 h-6 text-indigo-400" />
