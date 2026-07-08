@@ -1452,6 +1452,25 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
     if MissingColumns:
         api_error(400, "MISSING_COLUMNS", f"Missing mandatory columns: {', '.join(MissingColumns)}")
 
+    # First Pass: Collect all identifiers to limit DB memory usage
+    RequestedCustomIds = set()
+    RequestedStudentCodes = set()
+    
+    ParsedRows = []
+    for RowNumber, RowValues in enumerate(Rows[1:], start=2):
+        Row = {Headers[Index]: RowValues[Index] if Index < len(RowValues) else None for Index in range(len(Headers)) if Headers[Index]}
+        if all(clean_text(Value) is None for Value in Row.values()):
+            ParsedRows.append({"is_empty": True, "row_number": RowNumber})
+            continue
+            
+        CId = clean_text(Row.get("custom_id"))
+        if CId: RequestedCustomIds.add(CId)
+            
+        SCode = clean_text(Row.get("student_code"))
+        if SCode: RequestedStudentCodes.add(SCode)
+            
+        ParsedRows.append({"is_empty": False, "row_number": RowNumber, "data": Row})
+
     Created = 0
     Failed = 0
     Skipped = 0
@@ -1484,21 +1503,24 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
         TeacherNamesById[TeacherValue.id] = CleanName
         TeachersByName.setdefault(CleanName.lower(), []).append(TeacherValue)
 
+    # Targeted Queries for large tables (only fetch what is uploaded)
     ExistingCustomIds = {
         Value[0]
-        for Value in db.query(Student.custom_id).filter(Student.custom_id.isnot(None)).all()
+        for Value in db.query(Student.custom_id).filter(Student.custom_id.in_(RequestedCustomIds)).all()
         if Value[0]
-    }
+    } if RequestedCustomIds else set()
+    
     ExistingStudentCodes = {
         Value[0]
-        for Value in db.query(Student.student_code).filter(Student.student_code.isnot(None)).all()
+        for Value in db.query(Student.student_code).filter(Student.student_code.in_(RequestedStudentCodes)).all()
         if Value[0]
-    }
+    } if RequestedStudentCodes else set()
+    
     ExistingLoginIdentifiers = {
         Value[0]
-        for Value in db.query(User.phone).filter(User.phone.isnot(None)).all()
+        for Value in db.query(User.phone).filter(User.phone.in_(RequestedStudentCodes)).all()
         if Value[0]
-    }
+    } if RequestedStudentCodes else set()
 
     def ResolveTeacher(Row: dict) -> tuple[Teacher | None, str | None]:
         TeacherName = clean_text(Row.get("teacher"))
@@ -1527,11 +1549,15 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
             raise ValueError(f"Teacher not found: {TeacherName}.")
         return None, None
 
-    for RowNumber, RowValues in enumerate(Rows[1:], start=2):
-        Row = {Headers[Index]: RowValues[Index] if Index < len(RowValues) else None for Index in range(len(Headers)) if Headers[Index]}
-        if all(clean_text(Value) is None for Value in Row.values()):
+    ValidRowsToInsert = []
+
+    for ParsedRow in ParsedRows:
+        if ParsedRow["is_empty"]:
             Skipped += 1
             continue
+            
+        RowNumber = ParsedRow["row_number"]
+        Row = ParsedRow["data"]
 
         try:
             MissingValues = [Field for Field in MANDATORY_BULK_FIELDS if not clean_text(Row.get(Field))]
@@ -1569,22 +1595,57 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
             if not Password or len(Password) < 6:
                 raise ValueError("Password must be at least 6 characters.")
 
-            with db.begin_nested():
-                StudentUser = User(
+            SeenCustomIds.add(CustomId)
+            SeenStudentCodes.add(StudentCode)
+            SeenIdentifiers.add(StudentCode)
+            
+            ValidRowsToInsert.append({
+                "row_number": RowNumber,
+                "row_data": Row,
+                "custom_id": CustomId,
+                "student_code": StudentCode,
+                "module_id": ModuleRecord.id,
+                "level_id": LevelRecord.id,
+                "teacher_record": TeacherRecord,
+                "teacher_display_name": TeacherDisplayName,
+                "active": Active,
+                "password": Password,
+                "level_code": LevelCode
+            })
+            
+        except Exception as Exc:
+            Failed += 1
+            Results.append({"row": RowNumber, "status": "FAILED", "error": str(Exc)})
+
+    # Batch Insert the valid rows
+    if ValidRowsToInsert:
+        try:
+            UsersToInsert = []
+            for ValidRow in ValidRowsToInsert:
+                Row = ValidRow["row_data"]
+                UserObj = User(
                     full_name=clean_text(Row.get("student_name")),
                     email=None,
-                    phone=StudentCode,
-                    password_hash=hash_password(Password),
+                    phone=ValidRow["student_code"],
+                    password_hash=hash_password(ValidRow["password"]),
                     role="STUDENT",
-                    is_active=Active,
+                    is_active=ValidRow["active"],
                 )
-                db.add(StudentUser)
-                db.flush()
-
-                StudentRecord = Student(
+                UsersToInsert.append(UserObj)
+                
+            db.add_all(UsersToInsert)
+            db.flush()
+            
+            StudentsToInsert = []
+            for Index, ValidRow in enumerate(ValidRowsToInsert):
+                Row = ValidRow["row_data"]
+                StudentUser = UsersToInsert[Index]
+                TeacherRecord = ValidRow["teacher_record"]
+                
+                StudentObj = Student(
                     user_id=StudentUser.id,
-                    custom_id=CustomId,
-                    teacher=TeacherDisplayName,
+                    custom_id=ValidRow["custom_id"],
+                    teacher=ValidRow["teacher_display_name"],
                     teacher_id=TeacherRecord.id if TeacherRecord else None,
                     admission_date=clean_text(Row.get("admission_date")),
                     dob=clean_text(Row.get("dob")),
@@ -1607,36 +1668,39 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
                     mother_mobile=clean_text(Row.get("mother_mobile")),
                     mother_email=clean_text(Row.get("mother_email")),
                     mother_whatsapp=clean_text(Row.get("mother_whatsapp")),
-                    student_code=StudentCode,
-                    current_module_id=ModuleRecord.id,
-                    current_level_id=LevelRecord.id,
-                    is_active=Active,
+                    student_code=ValidRow["student_code"],
+                    current_module_id=ValidRow["module_id"],
+                    current_level_id=ValidRow["level_id"],
+                    is_active=ValidRow["active"],
                 )
-                db.add(StudentRecord)
-                db.flush()
-
+                StudentsToInsert.append(StudentObj)
+                
+            db.add_all(StudentsToInsert)
             db.commit()
-            ExistingCustomIds.add(CustomId)
-            ExistingStudentCodes.add(StudentCode)
-            ExistingLoginIdentifiers.add(StudentCode)
-            SeenCustomIds.add(CustomId)
-            SeenStudentCodes.add(StudentCode)
-            SeenIdentifiers.add(StudentCode)
-            Created += 1
-            Results.append({
-                "row": RowNumber,
-                "status": "CREATED",
-                "studentCode": StudentCode,
-                "studentName": StudentUser.full_name,
-                "teacherCode": TeacherRecord.teacher_code if TeacherRecord else clean_text(Row.get("teacher_code")),
-                "teacherName": TeacherDisplayName,
-                "levelCode": LevelCode,
-            })
+            
+            for Index, ValidRow in enumerate(ValidRowsToInsert):
+                Row = ValidRow["row_data"]
+                StudentUser = UsersToInsert[Index]
+                TeacherRecord = ValidRow["teacher_record"]
+                Created += 1
+                Results.append({
+                    "row": ValidRow["row_number"],
+                    "status": "CREATED",
+                    "studentCode": ValidRow["student_code"],
+                    "studentName": StudentUser.full_name,
+                    "teacherCode": TeacherRecord.teacher_code if TeacherRecord else clean_text(Row.get("teacher_code")),
+                    "teacherName": ValidRow["teacher_display_name"],
+                    "levelCode": ValidRow["level_code"],
+                })
         except Exception as Exc:
             db.rollback()
-            Failed += 1
-            Results.append({"row": RowNumber, "status": "FAILED", "error": str(Exc)})
-            continue
+            for ValidRow in ValidRowsToInsert:
+                Failed += 1
+                Results.append({
+                    "row": ValidRow["row_number"],
+                    "status": "FAILED",
+                    "error": f"Database batch insert error: {str(Exc)}"
+                })
 
     return {
         "created": Created,
