@@ -702,11 +702,11 @@ export default function StudentDashboardPage() {
                                  </div>
                                )}
                              </div>
-                             <div className="mb-6 h-[50px] flex flex-col justify-center">
-                               <h5 className="text-slate-900 dark:text-white text-sm font-black tracking-wide truncate mb-1">
+                             <div className="mb-6 min-h-[50px] h-auto flex flex-col justify-center gap-1.5">
+                               <h5 className="text-slate-900 dark:text-white text-sm font-black tracking-wide leading-tight">
                                  {activeConquest.title}
                                </h5>
-                               <p className="text-slate-600 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                               <p className="text-slate-600 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider leading-relaxed">
                                  {activeConquest.detail}
                                </p>
                              </div>

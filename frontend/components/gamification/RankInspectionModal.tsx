@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Award, Zap, Lock, CheckCircle2, ChevronRight } from 'lucide-react';
+import { X, Award, Zap, Lock, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { RankBadge } from './RankBadge';
 import { RankCinematicOverlay } from './RankCinematicOverlay';
 
@@ -20,6 +20,7 @@ const RANK_LIST = ['COPPER', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 
 export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTier }: RankInspectionModalProps) {
   const [mounted, setMounted] = useState(false);
   const [activeCinematicTier, setActiveCinematicTier] = useState<string | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -65,7 +66,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             </button>
 
             {/* Header Section */}
-            <div className="relative p-10 md:p-14 pb-6 overflow-hidden border-b border-slate-800/60 bg-gradient-to-b from-slate-900/80 to-slate-950">
+            <div className="relative p-6 md:p-8 pb-6 overflow-hidden border-b border-slate-800/60 bg-gradient-to-b from-slate-900/80 to-slate-950">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
               
               <div className="flex items-center gap-3 mb-3">
@@ -75,26 +76,42 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
               <h2 className="text-5xl font-black text-white uppercase tracking-tighter drop-shadow-md">
                 Division Pathway
               </h2>
-              <p className="text-slate-400 text-lg mt-2 max-w-2xl">
+              <p className="text-slate-400 text-lg mt-2 max-w-none md:whitespace-nowrap">
                 Track your ascension through the MathPath divisions. Conquer lessons to unlock legendary tiers.
               </p>
               
-              <div className="absolute right-10 bottom-10 hidden md:block">
-                <div className="flex flex-col items-end">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest">TOTAL ACQUIRED XP</span>
-                  <div className="text-4xl font-black text-white mt-1 tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                    {currentXp.toLocaleString()} <span className="text-lg text-slate-500">XP</span>
-                  </div>
+              <div className="absolute right-10 bottom-8 hidden md:flex flex-col items-end gap-1.5">
+                <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-[0.2em] shadow-indigo-500/50 drop-shadow-sm">TOTAL ACQUIRED XP</span>
+                <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl px-5 py-2 flex items-center gap-2 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                  <span className="text-3xl font-black text-white tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                    {currentXp.toLocaleString()}
+                  </span>
+                  <span className="text-sm font-black text-indigo-300 mt-1">XP</span>
                 </div>
               </div>
             </div>
 
             {/* Visual Roadmap Body */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 md:p-14 relative bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-indigo-950/20 via-transparent to-transparent">
+            <div className="flex-1 overflow-hidden p-6 md:p-8 relative bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-indigo-950/20 via-transparent to-transparent flex flex-col justify-center">
               {/* Background Grid Texture */}
               <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
-              <div className="relative w-full overflow-x-auto pb-24 pt-12 custom-scrollbar">
+              {/* Navigation Arrows */}
+              <button 
+                onClick={() => scrollContainerRef.current?.scrollBy({ left: -400, behavior: 'smooth' })}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-900/90 border border-indigo-500/50 hover:bg-indigo-600 rounded-full text-indigo-400 hover:text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:scale-110 hidden md:block"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              
+              <button 
+                onClick={() => scrollContainerRef.current?.scrollBy({ left: 400, behavior: 'smooth' })}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-900/90 border border-indigo-500/50 hover:bg-indigo-600 rounded-full text-indigo-400 hover:text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:scale-110 hidden md:block"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+
+              <div ref={scrollContainerRef} className="relative w-full overflow-x-auto pb-24 pt-12 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 <div className="relative min-w-[1200px] w-full mx-auto px-10">
                   {/* Connecting Line (Underneath Badges) */}
                 <div className="absolute top-1/2 left-0 right-0 h-2 -translate-y-1/2 bg-slate-900 rounded-full overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
@@ -179,7 +196,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             </div>
 
             {/* Motivational Footer Banner */}
-              <div className="mt-16 mx-auto max-w-3xl bg-gradient-to-r from-indigo-950/30 via-purple-900/20 to-indigo-950/30 border border-indigo-500/20 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6 shadow-2xl">
+              <div className="mt-6 mx-auto max-w-3xl bg-gradient-to-r from-indigo-950/30 via-purple-900/20 to-indigo-950/30 border border-indigo-500/20 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6 shadow-2xl">
                 <div className="w-12 h-12 rounded-full bg-indigo-950/50 flex items-center justify-center border border-indigo-500/30 shrink-0">
                   <Zap className="w-6 h-6 text-indigo-400" />
                 </div>
