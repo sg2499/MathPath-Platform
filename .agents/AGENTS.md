@@ -52,7 +52,7 @@ Do not ask the user to upload these sheets or images. Whenever you need to read 
 2. **Testing:** Enforce automated testing (Jest, Playwright) and block PRs on failure.
 3. **CI/CD:** Require preview environments for review before merging to production.
 
-# Gamification Architecture (Established Today)
-1. **AAA-Quality Badges:** Do not use flat shapes or static image assets for Rank Badges. All Rank Badges must be implemented natively via deeply layered SVGs, intense CSS drop-shadows/glows (`feGaussianBlur`), and complex polygon geometry to ensure absolute crispness and extreme AAA immersion. Roman numerals must be 100% visible across Light/Dark modes using deep text-shadows.
+# Gamification Architecture (Evolved July 8, 2026)
+1. **AAA-Quality Badges (Cinematic Overhaul):** Do not use flat SVGs or procedural geometry for Rank Badge cutscenes. The new paradigm uses **AI-Generated Hyper-Realistic Master Assets** (e.g., Copper Forge, Champion Black Hole) rendered natively through `@react-three/fiber` `<Canvas>`. The assets must be displayed with crystal-clear fidelity using custom GLSL shaders to key out black backgrounds, paired with deterministic camera choreography (shakes, FOV shifts) and optimized Post-Processing (Bloom, Vignette) without destroying the 2D asset's crispness.
 2. **Visual Roadmaps:** Do not use simple lists or basic 3D spheres for ranking progression. Use visual timelines ("Rank Pathways") showcasing the full visual tier list with dynamic line connections.
 3. **Collector's Vault:** The 3D Vault is active. Continue using React Three Fiber, Cannon.js physics, and `three-stdlib` for 3D loot unboxing mechanics, adhering to the standard Next.js dynamic import rules for 3D canvas rendering.
