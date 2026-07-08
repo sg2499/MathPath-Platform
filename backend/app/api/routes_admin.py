@@ -251,22 +251,15 @@ TEACHER_SIGNATURE_DIR.mkdir(parents=True, exist_ok=True)
 
 MANDATORY_BULK_FIELDS = [
     "custom_id",
-    "teacher",
-    "admission_date",
     "student_name",
     "dob",
     "gender",
-    "blood_group",
     "school_name",
-    "class",
-    "section",
     "father_name",
     "father_mobile",
-    "father_email",
     "father_whatsapp",
     "mother_name",
     "mother_mobile",
-    "mother_email",
     "mother_whatsapp",
     "student_code",
     "password",
@@ -276,13 +269,20 @@ MANDATORY_BULK_FIELDS = [
 ]
 
 TEMPLATE_FIELDS = MANDATORY_BULK_FIELDS + [
+    "teacher",
+    "teacher_code",
+    "admission_date",
+    "blood_group",
+    "class",
+    "section",
+    "father_email",
+    "mother_email",
     "interest",
     "present_address",
     "permanent_address",
     "school_area",
     "father_occupation",
     "mother_occupation",
-    "teacher_code",
 ]
 
 
@@ -1525,6 +1525,10 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
     def ResolveTeacher(Row: dict) -> tuple[Teacher | None, str | None]:
         TeacherName = clean_text(Row.get("teacher"))
         TeacherCode = clean_text(Row.get("teacher_code"))
+        
+        if not TeacherName and not TeacherCode:
+            raise ValueError("A teacher or teacher_code must be provided.")
+            
         if TeacherCode:
             TeacherRecord = TeachersByCode.get(TeacherCode)
             if TeacherRecord:
@@ -1540,6 +1544,7 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
                 if len(NameMatches) > 1:
                     raise ValueError(f"Teacher code {TeacherCode} was not found and multiple teachers matched {TeacherName}.")
             raise ValueError(f"Teacher code not found: {TeacherCode}.")
+            
         if TeacherName:
             NameMatches = TeachersByName.get(TeacherName.lower(), [])
             if len(NameMatches) == 1:
@@ -1547,6 +1552,7 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
             if len(NameMatches) > 1:
                 raise ValueError("Multiple teachers matched this teacher name. Use teacher_code in the template.")
             raise ValueError(f"Teacher not found: {TeacherName}.")
+            
         return None, None
 
     ValidRowsToInsert = []
