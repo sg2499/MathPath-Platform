@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Activity, Clock } from "lucide-react";
-import { getAuthToken } from "@/utils/auth";
+import { getToken } from "@/lib/auth";
 
 interface LiveStudent {
   id: string;
@@ -18,7 +18,7 @@ export function LiveRadarWidget() {
   useEffect(() => {
     const fetchLiveStudents = async () => {
       try {
-        const token = getAuthToken();
+        const token = getToken();
         if (!token) return;
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/live-students`, {
           headers: { Authorization: `Bearer ${token}` },
