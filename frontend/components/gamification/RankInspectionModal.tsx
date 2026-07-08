@@ -4,9 +4,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Award, Zap, Lock, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { X, Award, Zap, Lock, CheckCircle2, ChevronRight, ChevronLeft, Info } from 'lucide-react';
 import { RankBadge } from './RankBadge';
 import { RankCinematicOverlay } from './RankCinematicOverlay';
+import { RankGuideModal } from './RankGuideModal';
 
 export interface RankInspectionModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ const RANK_LIST = ['COPPER', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 
 export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTier }: RankInspectionModalProps) {
   const [mounted, setMounted] = useState(false);
   const [activeCinematicTier, setActiveCinematicTier] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,13 +59,22 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="relative w-full max-w-[95vw] lg:max-w-7xl max-h-[90vh] bg-slate-950/60 border border-indigo-500/30 rounded-[2rem] shadow-[0_0_100px_rgba(79,70,229,0.15)] overflow-hidden flex flex-col z-10 backdrop-blur-md"
           >
-            {/* Top-Right Close Button */}
-            <button 
-              onClick={onClose}
-              className="absolute top-6 right-6 z-50 p-3 bg-slate-900/80 border border-slate-800 hover:border-slate-600 rounded-full text-slate-400 hover:text-white transition-all hover:scale-105 shadow-xl hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            {/* Top-Right Action Buttons */}
+            <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
+              <button 
+                onClick={() => setShowGuide(true)}
+                className="px-4 py-2 bg-indigo-600/20 border border-indigo-500/50 hover:bg-indigo-600/40 rounded-full text-indigo-300 hover:text-white transition-all hover:scale-105 shadow-xl hover:shadow-[0_0_15px_rgba(79,70,229,0.4)] flex items-center gap-2 backdrop-blur-md"
+              >
+                <Info className="w-5 h-5" />
+                <span className="text-sm font-black uppercase tracking-widest hidden md:block">System Guide</span>
+              </button>
+              <button 
+                onClick={onClose}
+                className="p-3 bg-slate-900/80 border border-slate-800 hover:border-slate-600 rounded-full text-slate-400 hover:text-white transition-all hover:scale-105 shadow-xl hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] backdrop-blur-md"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
             {/* Header Section */}
             <div className="relative p-6 md:p-8 pb-6 overflow-hidden border-b border-slate-800/60 bg-gradient-to-b from-slate-900/80 to-slate-950">
@@ -143,10 +154,19 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
 
                         <div 
                           className={cn(
-                            "relative z-10 transition-all duration-500 cursor-pointer transform-gpu will-change-transform",
-                            isLocked ? "grayscale opacity-40 hover:opacity-100 transition-all duration-300" : isActive ? "scale-110 md:scale-125 z-20 hover:scale-125" : "opacity-90 hover:scale-110 hover:z-20"
+                            "relative z-10 transition-all duration-500 transform-gpu will-change-transform",
+                            isLocked 
+                              ? "grayscale opacity-40 hover:opacity-100 transition-all duration-300 cursor-not-allowed" 
+                              : isActive 
+                                ? "scale-110 md:scale-125 z-20 hover:scale-125 cursor-pointer" 
+                                : "opacity-90 hover:scale-110 hover:z-20 cursor-pointer"
                           )}
-                          onClick={() => setActiveCinematicTier(rankName)}
+                          onClick={() => {
+                            // Lock logic: Only allow cinematic if the tier is unlocked (active or completed)
+                            if (!isLocked) {
+                              setActiveCinematicTier(rankName);
+                            }
+                          }}
                         >
                           <RankBadge 
                             tier={isActive ? currentRankTier : rankName} 
@@ -223,6 +243,10 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
           onComplete={() => setActiveCinematicTier(null)} 
         />
       )}
+      <RankGuideModal 
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
+      />
     </AnimatePresence>,
     document.body
   );
