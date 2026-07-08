@@ -1,5 +1,6 @@
 "use client";
 
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { NotificationsBell } from "@/components/common/NotificationsBell";
 import { apiErrorMessage } from "@/lib/api";
 import { changePassword, uploadProfilePhoto } from "@/lib/api/auth";
@@ -149,6 +150,9 @@ export function AppShell({
   const pathname = usePathname();
   const [MountedUser, SetMountedUser] = useState<StoredUser>(null);
   const [AuthReady, SetAuthReady] = useState(false);
+
+  // Trigger heartbeat to keep live radar accurate
+  useHeartbeat();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
