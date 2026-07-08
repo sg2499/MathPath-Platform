@@ -384,15 +384,17 @@ export default function LoginClient({
       className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative flex min-h-[100svh] items-center justify-center px-4 py-4 text-slate-950 sm:px-5 sm:py-5 xl:px-6 xl:py-6`}
       data-testid="login-shell"
     >
-      <div className="absolute inset-0 math-grid-dots opacity-55 dark:opacity-35" />
-      <div className="math-login-aura math-login-aura-one" />
-      <div className="math-login-aura math-login-aura-two" />
-      <div className="math-login-aura math-login-aura-three" />
-      <div className="math-login-orbit left-[6%] top-[14%] hidden lg:block" />
-      <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 math-grid-dots opacity-55 dark:opacity-35" />
+        <div className="math-login-aura math-login-aura-one" />
+        <div className="math-login-aura math-login-aura-two" />
+        <div className="math-login-aura math-login-aura-three" />
+        <div className="math-login-orbit left-[6%] top-[14%] hidden lg:block" />
+        <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
+      </div>
 
       <div
-        className="math-login-frame relative z-10 mx-auto grid w-full max-w-[1820px] lg:h-[calc(100vh-3rem)] lg:min-h-[720px] lg:max-h-[960px] lg:grid-cols-[1.04fr_0.96fr] lg:overflow-hidden lg:rounded-[2.5rem] lg:bg-white lg:shadow-2xl lg:dark:bg-slate-950"
+        className="math-login-frame relative z-10 mx-auto grid w-full max-w-[1820px] lg:h-auto lg:min-h-[720px] lg:grid-cols-[1.04fr_0.96fr] lg:overflow-hidden lg:rounded-[2.5rem] lg:bg-white lg:shadow-2xl lg:dark:bg-slate-950"
         data-testid="login-frame"
       >
         <section
