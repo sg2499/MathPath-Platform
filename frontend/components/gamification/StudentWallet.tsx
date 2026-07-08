@@ -147,14 +147,18 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">RANK</span>
-              <span className="text-[2rem] sm:text-4xl font-black uppercase text-slate-900 dark:text-white tracking-tighter drop-shadow-sm mt-1">{rankDisplayName}</span>
+              <span className="text-2xl sm:text-3xl font-black uppercase text-slate-900 dark:text-white tracking-tighter drop-shadow-sm mt-1">{rankDisplayName}</span>
             </div>
+            
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-10 bg-slate-200 dark:bg-slate-700 mx-4" />
+
             <div className="flex flex-col items-end">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 mb-1">
                 <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                 <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 tracking-wide">ACQUIRED XP</span>
               </div>
-              <span className="text-sm font-black text-slate-600 dark:text-slate-300 mt-1">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
+              <span className="text-sm font-black text-slate-600 dark:text-slate-300">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
             </div>
           </div>
 
