@@ -145,8 +145,33 @@ export default function StudentCompetitionMockAttemptPage() {
 
   return (
     <AppShell title="Competition Mock Attempt">
-      <section className="math-slide-up math-card flex flex-col gap-4 !overflow-visible p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
-        <div className="grid gap-4 rounded-[24px] border border-orange-100 bg-gradient-to-r from-white/98 via-orange-50/70 to-amber-100/55 p-4 shadow-sm dark:border-slate-800 dark:from-slate-950/96 dark:via-slate-900/88 dark:to-orange-950/36">
+      <section className="math-slide-up flex flex-col gap-3 p-2 sm:p-3 h-[calc(100svh-5rem)] relative overflow-hidden">
+        {/* Floating Side Navigation Arrows */}
+        <button
+          onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
+          disabled={currentIndex === 0}
+          className="absolute left-1 sm:left-4 top-1/2 z-[100] -translate-y-1/2 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/80 dark:bg-slate-900/80 shadow-lg backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <button
+          onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
+          disabled={currentIndex >= questions.length - 1}
+          className="absolute right-1 sm:right-4 top-1/2 z-[100] -translate-y-1/2 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/80 dark:bg-slate-900/80 shadow-lg backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+
+        {/* 1. Metric Bar (Top, non-sticky, completely un-obscuring) */}
+        <div className="shrink-0 z-[90] grid gap-2 sm:gap-3 rounded-2xl sm:rounded-3xl bg-white/60 p-2 shadow-sm backdrop-blur-xl ring-1 ring-slate-200/50 dark:bg-slate-950/60 dark:ring-slate-800/50 grid-cols-2 xl:grid-cols-4">
+          <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
+          <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
+          <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
+          <TimerMetricCard remainingSeconds={remainingSeconds} />
+        </div>
+
+        {/* 2. Header Info */}
+        <div className="shrink-0 grid gap-2 sm:gap-4 rounded-[16px] sm:rounded-[24px] border border-orange-100 bg-gradient-to-r from-white/98 via-orange-50/70 to-amber-100/55 p-3 sm:p-4 shadow-sm dark:border-slate-800 dark:from-slate-950/96 dark:via-slate-900/88 dark:to-orange-950/36 mx-12 sm:mx-20">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
@@ -156,24 +181,14 @@ export default function StudentCompetitionMockAttemptPage() {
                 {sectionLabel}
               </p>
             </div>
-            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[1.8rem]">
+            <h1 className="mt-2 text-xl sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white">
               {mockExam.title || "Competition Mock"}
             </h1>
-            <p className="mt-1 text-sm font-semibold leading-5 text-slate-700 dark:text-slate-300">
-              {mockExam.mockCode ? `${mockExam.mockCode} · ` : ""}
-              {mockExam.moduleCode || "Module"} · {mockExam.levelCode || "Level"}. Answer carefully. The mock auto-saves each response and submits when time expires.
-            </p>
           </div>
         </div>
 
-        <div className="sticky top-[80px] sm:top-[104px] 2xl:top-[144px] z-[90] grid gap-3 rounded-3xl bg-white/60 p-2 shadow-sm backdrop-blur-xl ring-1 ring-slate-200/50 dark:bg-slate-950/60 dark:ring-slate-800/50 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
-          <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
-          <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
-          <TimerMetricCard remainingSeconds={remainingSeconds} />
-        </div>
-
-        <div className={`grid flex-1 gap-4 xl:items-stretch ${isExpressionQuestion ? "xl:grid-cols-[minmax(0,1.22fr)_minmax(320px,0.78fr)]" : "xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]"}`}>
+        {/* 3. Cards Container */}
+        <div className={`grid flex-1 min-h-0 gap-3 xl:items-stretch mx-12 sm:mx-20 ${isExpressionQuestion ? "xl:grid-cols-[minmax(0,1.22fr)_minmax(320px,0.78fr)]" : "xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]"}`}>
           <div className="math-card flex flex-col h-[450px] sm:h-[500px] overflow-hidden border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
             <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
               <div>
@@ -215,23 +230,23 @@ export default function StudentCompetitionMockAttemptPage() {
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-white/92 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/85">
-          <QuestionNavigator
-            totalQuestions={questions.length}
-            currentQuestionNumber={currentQuestion.questionNumber}
-            answeredQuestionNumbers={answeredNumbers}
-            onSelectQuestion={(number) => setCurrentIndex(number - 1)}
-          />
+        {/* 4. Navigator and Submit Block (Bottom) */}
+        <div className="shrink-0 flex flex-col xl:flex-row gap-4 items-center justify-between rounded-[20px] sm:rounded-[24px] border border-slate-200 bg-white/92 p-3 sm:p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/85 mx-12 sm:mx-20">
+          <div className="w-full xl:w-2/3 overflow-hidden">
+            {/* The navigator will scroll internally if there are 100 questions */}
+            <div className="max-h-[70px] sm:max-h-[85px] overflow-y-auto pr-2 custom-scrollbar">
+              <QuestionNavigator
+                totalQuestions={questions.length}
+                currentQuestionNumber={currentQuestion.questionNumber}
+                answeredQuestionNumbers={answeredNumbers}
+                onSelectQuestion={(number) => setCurrentIndex(number - 1)}
+              />
+            </div>
+          </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-            <button className="math-button-secondary" disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}>
-              Previous
-            </button>
+          <div className="w-full xl:w-1/3 shrink-0">
             <button className="math-button-primary w-full py-3" onClick={() => setShowConfirm(true)} disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}>
               Submit Mock
-            </button>
-            <button className="math-button-secondary" disabled={currentIndex >= questions.length - 1} onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}>
-              Next
             </button>
           </div>
         </div>
