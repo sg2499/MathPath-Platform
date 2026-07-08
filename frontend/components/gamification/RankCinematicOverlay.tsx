@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useEffect, useState, useRef, Suspense } from 'react';
+import React, { useEffect, useState, useRef, Suspense, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
 import { 
   Environment, 
   Sparkles, 
   Stars, 
-  Float
+  Float,
+  useProgress
 } from '@react-three/drei';
 import { EffectComposer, Bloom, ChromaticAberration, Noise, Vignette } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
@@ -20,25 +21,46 @@ interface RankCinematicOverlayProps {
 }
 
 // ============================================================================
-// DYNAMIC CAMERA RIG (Violent Entrance -> Impact -> Slow Orbit)
+// COMBINED RIG (Camera + Mesh) - Ensures timeline syncs perfectly with Suspense
 // ============================================================================
-const CinematicCameraRig = () => {
+const CinematicMasterRig = ({ tier }: { tier: string }) => {
   const { camera } = useThree();
+  const meshRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  
+  // Preload the AI Master Asset. Suspense will block rendering until this is ready!
+  const texture = useLoader(THREE.TextureLoader, `/assets/ranks/${tier}.png`);
+  
+  // VERY IMPORTANT: Set correct color space so the image is perfectly clear and not washed out!
+  useEffect(() => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 16;
+  }, [texture]);
+
+  const uniforms = useMemo(() => ({
+    tex: { value: texture },
+    opacity: { value: 0.0 } // Start fully transparent to prevent pop-in
+  }), [texture]);
+
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     
+    // --- CAMERA MATHEMATICS ---
     // 0.0s - 1.5s: The Intense Buildup (Rapid Pullback)
     if (t < 1.5) {
       const z = THREE.MathUtils.lerp(1, 15, Math.pow(t / 1.5, 3)); // Cubic ease out
-      camera.position.set(0, 0, z);
-      (camera as THREE.PerspectiveCamera).fov = THREE.MathUtils.lerp(120, 50, Math.pow(t / 1.5, 2));
-      (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+      const fov = THREE.MathUtils.lerp(120, 50, Math.pow(t / 1.5, 2));
       
-      // Intense violent vibration during pullback
+      // Absolute deterministic shake (Fixes the extreme stutter/lag)
+      let shakeX = 0;
+      let shakeY = 0;
       if (t > 1.0) {
-         camera.position.x += (Math.random() - 0.5) * 0.8;
-         camera.position.y += (Math.random() - 0.5) * 0.8;
+         shakeX = (Math.random() - 0.5) * 0.8;
+         shakeY = (Math.random() - 0.5) * 0.8;
       }
+      camera.position.set(shakeX, shakeY, z);
+      (camera as THREE.PerspectiveCamera).fov = fov;
+      (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
       camera.lookAt(0, 0, 0);
     } 
     // 1.5s - 2.5s: The Impact Shake
@@ -56,30 +78,25 @@ const CinematicCameraRig = () => {
       camera.position.lerp(new THREE.Vector3(Math.sin(t * 0.2) * 2, Math.cos(t * 0.1) * 1, 16), 0.01);
       camera.lookAt(0, 0, 0);
     }
-  });
-  return null;
-};
 
-// ============================================================================
-// AI MASTER ASSET MESH (Additive Blending)
-// ============================================================================
-const MasterEmblemMesh = ({ tier }: { tier: string }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
-  // Load the AI-generated high-fidelity master asset
-  const texture = useLoader(THREE.TextureLoader, `/assets/ranks/${tier}.png`);
-  
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
+    // --- MESH ANIMATION ---
     if (meshRef.current) {
-      // Violent scaling entrance
       if (t < 1.5) {
+        // Slam into the screen
         const s = THREE.MathUtils.lerp(10, 1, Math.pow(t / 1.5, 4));
         meshRef.current.scale.set(s, s, s);
       } else {
         meshRef.current.scale.set(1, 1, 1);
-        // Subtle floating/breathing after impact
         meshRef.current.position.y = Math.sin(t * 2) * 0.2;
+      }
+    }
+
+    // Fade the image opacity perfectly with the timeline to prevent pop-in
+    if (materialRef.current) {
+      if (t < 0.2) {
+        materialRef.current.uniforms.opacity.value = t / 0.2; // Fade in over 200ms
+      } else {
+        materialRef.current.uniforms.opacity.value = 1.0;
       }
     }
   });
@@ -107,19 +124,41 @@ const MasterEmblemMesh = ({ tier }: { tier: string }) => {
       <Float speed={2} rotationIntensity={0.2} floatIntensity={0.2}>
         <mesh ref={meshRef}>
           <planeGeometry args={[12, 12]} />
-          <meshBasicMaterial 
-            map={texture} 
-            transparent={true} 
-            blending={THREE.AdditiveBlending}
+          {/* Custom GLSL Shader to perfectly key out the black background while keeping shadows/clarity! */}
+          <shaderMaterial 
+            ref={materialRef}
+            uniforms={uniforms}
+            transparent={true}
             depthWrite={false}
             side={THREE.DoubleSide}
+            blending={THREE.NormalBlending}
+            vertexShader={`
+              varying vec2 vUv;
+              void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `}
+            fragmentShader={`
+              uniform sampler2D tex;
+              uniform float opacity;
+              varying vec2 vUv;
+              void main() {
+                vec4 c = texture2D(tex, vUv);
+                // Calculate brightness to isolate pure black background
+                float b = max(max(c.r, c.g), c.b);
+                // Smoothstep to create a perfect alpha mask without washing out the image
+                float a = smoothstep(0.01, 0.15, b);
+                gl_FragColor = vec4(c.rgb, a * opacity);
+              }
+            `}
           />
         </mesh>
       </Float>
 
-      {/* Physics Particle Systems matching the rank's energy */}
-      <Sparkles count={800} scale={20} size={5} speed={tier === 'CHAMPION' ? 5 : 2} color={colors.spark} opacity={0.8} />
-      <Stars radius={10} depth={50} count={2000} factor={6} saturation={1} fade speed={tier === 'CHAMPION' ? 5 : 2} />
+      {/* Optimized Physics Systems (Lowered count to fix lag, maintained scale) */}
+      <Sparkles count={200} scale={20} size={5} speed={tier === 'CHAMPION' ? 5 : 2} color={colors.spark} opacity={0.8} />
+      <Stars radius={10} depth={50} count={500} factor={6} saturation={1} fade speed={tier === 'CHAMPION' ? 5 : 2} />
     </>
   );
 };
@@ -131,19 +170,16 @@ const MasterEmblemMesh = ({ tier }: { tier: string }) => {
 const Scene = ({ tier }: { tier: string }) => {
   return (
     <>
-      <CinematicCameraRig />
       <Environment preset="city" />
-      
-      {/* High-End Post-Processing Pipeline */}
-      <EffectComposer>
-        <Bloom luminanceThreshold={0.1} luminanceSmoothing={0.9} intensity={2} />
-        <ChromaticAberration offset={new THREE.Vector2(0.005, 0.005)} blendFunction={BlendFunction.NORMAL} />
-        <Noise opacity={tier === 'CHAMPION' ? 0.3 : 0.1} />
+      <EffectComposer multisampling={0}>
+        <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} />
+        <ChromaticAberration offset={new THREE.Vector2(0.003, 0.003)} blendFunction={BlendFunction.NORMAL} />
+        <Noise opacity={0.15} />
         <Vignette eskil={false} offset={0.1} darkness={1.2} />
       </EffectComposer>
       
       <Suspense fallback={null}>
-        <MasterEmblemMesh tier={tier} />
+        <CinematicMasterRig tier={tier} />
       </Suspense>
     </>
   );
@@ -154,12 +190,15 @@ const Scene = ({ tier }: { tier: string }) => {
 // ============================================================================
 const TypographyOverlay = ({ tier }: { tier: string }) => {
   const [showText, setShowText] = useState(false);
+  const { active } = useProgress(); // Waits for suspense to finish!
   
   useEffect(() => {
-    // Reveal text exactly at impact (1.5s sequence)
-    const t = setTimeout(() => setShowText(true), 1500);
-    return () => clearTimeout(t);
-  }, []);
+    // Only start the 1.5s countdown AFTER all assets are completely loaded
+    if (!active) {
+      const t = setTimeout(() => setShowText(true), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [active]);
 
   const getTypography = () => {
     switch (tier) {
@@ -205,14 +244,9 @@ export function RankCinematicOverlay({ tier, onComplete }: RankCinematicOverlayP
 
   useEffect(() => {
     setMounted(true);
-    const timer = setTimeout(() => {
-      onComplete();
-    }, 8000); 
-    return () => {
-      setMounted(false);
-      clearTimeout(timer);
-    };
-  }, [onComplete]);
+    // Removed the 8-second auto-close. The overlay will now stay on screen permanently until the user clicks it.
+    return () => setMounted(false);
+  }, []);
 
   if (!mounted) return null;
 
@@ -232,6 +266,7 @@ export function RankCinematicOverlay({ tier, onComplete }: RankCinematicOverlayP
           </Canvas>
         </div>
         <TypographyOverlay tier={tier} />
+        
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.5 }}
