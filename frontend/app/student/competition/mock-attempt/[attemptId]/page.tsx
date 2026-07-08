@@ -145,21 +145,21 @@ export default function StudentCompetitionMockAttemptPage() {
 
   return (
     <AppShell title="Competition Mock Attempt">
-      <section className="math-slide-up flex flex-col gap-3 p-2 sm:p-3 h-[calc(100svh-5rem)] relative overflow-hidden">
+      <section className="math-slide-up flex flex-col gap-2 sm:gap-3 p-2 sm:p-3 h-[calc(100svh-80px)] -mt-6 -mb-10 relative overflow-hidden">
         {/* Floating Side Navigation Arrows */}
         <button
           onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
           disabled={currentIndex === 0}
-          className="absolute left-1 sm:left-4 top-1/2 z-[100] -translate-y-1/2 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/80 dark:bg-slate-900/80 shadow-lg backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="absolute left-1 sm:left-4 top-[55%] sm:top-1/2 z-[100] -translate-y-1/2 flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/80 dark:bg-slate-900/80 shadow-lg backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <button
           onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
           disabled={currentIndex >= questions.length - 1}
-          className="absolute right-1 sm:right-4 top-1/2 z-[100] -translate-y-1/2 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/80 dark:bg-slate-900/80 shadow-lg backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="absolute right-1 sm:right-4 top-[55%] sm:top-1/2 z-[100] -translate-y-1/2 flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/80 dark:bg-slate-900/80 shadow-lg backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
 
         {/* 1. Metric Bar (Top, non-sticky, completely un-obscuring) */}
@@ -189,7 +189,7 @@ export default function StudentCompetitionMockAttemptPage() {
 
         {/* 3. Cards Container */}
         <div className={`grid flex-1 min-h-0 gap-3 xl:items-stretch mx-12 sm:mx-20 ${isExpressionQuestion ? "xl:grid-cols-[minmax(0,1.22fr)_minmax(320px,0.78fr)]" : "xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]"}`}>
-          <div className="math-card flex flex-col h-[450px] sm:h-[500px] overflow-hidden border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
+          <div className="math-card flex flex-col flex-1 min-h-[250px] overflow-hidden border border-slate-200/80 bg-slate-50/75 p-3 sm:p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
             <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
               <div>
                 <div className="math-block-header mb-2"><Layers3 size={14} /> {sectionLabel}</div>
@@ -211,7 +211,7 @@ export default function StudentCompetitionMockAttemptPage() {
             </div>
           </div>
 
-          <div className={`math-card flex flex-col h-[450px] sm:h-[500px] overflow-hidden border border-slate-200/80 bg-white/88 p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60 ${isExpressionQuestion ? "xl:p-3.5" : ""}`}>
+          <div className={`math-card flex flex-col flex-1 min-h-[250px] overflow-hidden border border-slate-200/80 bg-white/88 p-3 sm:p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60 ${isExpressionQuestion ? "xl:p-3.5" : ""}`}>
             <div className="shrink-0 border-b border-slate-200/80 pb-3 dark:border-slate-800">
               <div className="math-block-header mb-2"><CheckCircle2 size={14} /> Select Answer</div>
               <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Choose the correct option</h2>
