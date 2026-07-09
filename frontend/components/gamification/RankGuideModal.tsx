@@ -82,7 +82,9 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
                     <div>
                       <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">1. The Ascension Hierarchy</h3>
                       <p className="text-slate-400 leading-relaxed text-lg">
-                        You begin your journey in the <strong className="text-amber-500">Copper</strong> tier. By proving your mathematical dominance, you will ascend through 8 legendary divisions: Bronze, Silver, Gold, Platinum, Emerald, Diamond, and ultimately, <strong className="text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]">Champion</strong>. Each tier demands greater mastery.
+                        You begin your journey at <strong className="text-amber-500">Copper V</strong>. By proving your mathematical dominance, you will ascend through 8 legendary tiers: <strong className="text-amber-500">Copper, Bronze, Silver, Gold, Platinum, Emerald, Diamond,</strong> and ultimately, <strong className="text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]">Champion</strong>.
+                        <br/><br/>
+                        Each tier from Copper through Emerald consists of <strong className="text-white">5 specific ranks (V, IV, III, II, I)</strong>, where V is the entry point and I is the peak of that tier. The elite <strong className="text-cyan-400">Diamond</strong> tier consists of only <strong className="text-white">3 ranks (III, II, I)</strong>, leading to the ultimate, infinite apex: <strong className="text-rose-500">Champion</strong>.
                       </p>
                     </div>
                   </div>
