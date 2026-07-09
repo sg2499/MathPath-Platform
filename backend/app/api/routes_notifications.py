@@ -130,3 +130,15 @@ def admin_create_notification(
     db.commit()
     db.refresh(notification)
     return NotificationPayload(notification)
+
+
+@router.delete("/admin/clear/{user_id}")
+def admin_clear_notifications(
+    user_id: str,
+    db: Session = Depends(get_db),
+    actor: User = Depends(admin_dep),
+):
+    from app.models.models import Notification
+    deleted = db.query(Notification).filter(Notification.user_id == user_id).delete()
+    db.commit()
+    return {"deleted": deleted, "user_id": user_id}
