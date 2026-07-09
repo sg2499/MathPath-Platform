@@ -348,6 +348,8 @@ export default function StudentDashboardPage() {
   const recentBadge = earnedBadges.length > 0 ? earnedBadges[0] : null;
   const RecentBadgeIcon = recentBadge && IconMap[recentBadge.iconName] ? IconMap[recentBadge.iconName] : Medal;
 
+  const isLoadingStats = AssignmentQuery.isLoading || AssessmentQuery.isLoading || AchievementQuery.isLoading;
+
   // Auto-slideshow for multiple conquests
   useEffect(() => {
     if (!quoteIsFlipped || conquests.length <= 1) return;
@@ -379,7 +381,7 @@ export default function StudentDashboardPage() {
 
             {/* RIGHT SIDE: Gamification Wallet */}
             <div className="flex flex-wrap gap-4 items-center shrink-0 relative z-20">
-              <StudentWallet currentXp={totalXP} coinBalance={mathCoins} className="scale-110 sm:scale-125 origin-right" />
+              <StudentWallet currentXp={totalXP} coinBalance={mathCoins} isLoading={isLoadingStats} className="scale-110 sm:scale-125 origin-right" />
             </div>
           </div>
         </section>

@@ -12,6 +12,7 @@ export interface StudentWalletProps {
   currentRankTier?: string;
   coinBalance: number;
   className?: string;
+  isLoading?: boolean;
 }
 
 const TIER_THRESHOLDS = [
@@ -60,7 +61,7 @@ export function getRankTierFromXp(xp: number): string {
   return 'COPPER_V';
 }
 
-export function StudentWallet({ currentXp, currentRankTier, coinBalance, className }: StudentWalletProps) {
+export function StudentWallet({ currentXp, currentRankTier, coinBalance, className, isLoading }: StudentWalletProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Resolve rank tier dynamically if not explicitly provided
@@ -102,6 +103,38 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
   function handleMouseLeave() {
     x.set(0);
     y.set(0);
+  }
+
+  if (isLoading) {
+    return (
+      <div className={cn(
+        "flex flex-col sm:flex-row items-center gap-6 md:gap-10 p-6 md:p-8 rounded-[2rem] transition-all duration-300 select-none",
+        "bg-white/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800",
+        className
+      )}>
+        {/* Skeleton Badge */}
+        <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-slate-200 dark:bg-slate-800/80 animate-pulse shrink-0 shadow-inner" />
+        
+        {/* Skeleton Center */}
+        <div className="flex flex-col gap-4 flex-1 min-w-[280px] w-full">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2">
+              <div className="w-12 h-3 bg-slate-200 dark:bg-slate-800/80 rounded animate-pulse" />
+              <div className="w-32 h-8 bg-slate-200 dark:bg-slate-800/80 rounded animate-pulse" />
+            </div>
+            <div className="hidden sm:block w-px h-10 bg-slate-200 dark:bg-slate-800/50 mx-4" />
+            <div className="flex flex-col items-end gap-2 mt-1">
+              <div className="w-20 h-3 bg-slate-200 dark:bg-slate-800/80 rounded animate-pulse" />
+              <div className="w-24 h-4 bg-slate-200 dark:bg-slate-800/80 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="w-full h-6 bg-slate-200 dark:bg-slate-800/80 rounded-full animate-pulse shadow-inner" />
+        </div>
+
+        {/* Skeleton Coins */}
+        <div className="min-w-[180px] h-[88px] rounded-[1.5rem] bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 animate-pulse shrink-0 shadow-inner" />
+      </div>
+    );
   }
 
   return (
