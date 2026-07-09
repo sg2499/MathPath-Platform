@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Info, Shield, Zap, Box, ChevronRight, Target, Flame } from 'lucide-react';
+import { X, Compass, Pyramid, Orbit, Anvil, ChevronRight } from 'lucide-react';
 
 interface RankGuideModalProps {
   isOpen: boolean;
@@ -55,7 +55,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
               
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                  <Info className="w-5 h-5 text-indigo-400" />
+                  <Compass className="w-5 h-5 text-indigo-400" />
                 </div>
                 <span className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] shadow-indigo-500/50">SYSTEM DIRECTIVE</span>
               </div>
@@ -77,7 +77,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/40 flex items-center justify-center shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-                      <Shield className="w-8 h-8 text-indigo-400" />
+                      <Pyramid className="w-8 h-8 text-indigo-400" />
                     </div>
                     <div>
                       <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">1. The Ascension Hierarchy</h3>
@@ -95,7 +95,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
                   <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-900 to-slate-900 border border-fuchsia-500/40 flex items-center justify-center shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-                      <Zap className="w-8 h-8 text-fuchsia-400" />
+                      <Orbit className="w-8 h-8 text-fuchsia-400" />
                     </div>
                     <div>
                       <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">2. Acquiring XP & Evolution</h3>
@@ -111,7 +111,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
                   <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-900 to-slate-900 border border-amber-500/40 flex items-center justify-center shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-                      <Box className="w-8 h-8 text-amber-400" />
+                      <Anvil className="w-8 h-8 text-amber-400" />
                     </div>
                     <div>
                       <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">3. The Collector's Vault</h3>
