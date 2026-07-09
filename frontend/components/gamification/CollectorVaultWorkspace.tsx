@@ -38,53 +38,54 @@ export function CollectorVaultWorkspace() {
   }
 
   return (
-    <div className="flex flex-col w-full h-full gap-4">
-      {/* Vault Hero Block */}
-      <section className="math-dashboard-hero math-dashboard-hero-student shrink-0 relative overflow-hidden rounded-[2rem] border border-white/40 dark:border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-4 sm:p-5 lg:p-6 bg-white/30 dark:bg-slate-900/30 backdrop-blur-2xl">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between w-full gap-6">
-          <div className="flex flex-col gap-2 pt-1 lg:pt-2">
-            <div className="math-block-header">
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-500 dark:text-indigo-400" />
-              <h2 className="text-xs sm:text-sm font-black tracking-[0.2em] uppercase text-slate-800 dark:text-slate-300">
-                Collector's Vault
-              </h2>
+    <div className="flex flex-col w-full h-full gap-6">
+      {/* Vault Hero Block (Standardized to Trophy Room Style) */}
+      <section className="math-dashboard-hero math-dashboard-hero-student math-dashboard-hero-clean shrink-0">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-indigo-300/18 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-cyan-300/16 blur-3xl" />
+        
+        <div className="relative flex items-start justify-between gap-5">
+          <div className="flex flex-col gap-5">
+            <div className="math-block-header w-fit">
+              <Sparkles size={14} />
+              Collector's Vault
             </div>
-            <h1 className="math-hero-title text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-slate-900 dark:text-white leading-[1.1]">
-              Unlock <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-cyan-400">Mythic</span> Rewards
-            </h1>
-            <p className="math-hero-subtitle text-slate-600 dark:text-slate-400 font-medium max-w-xl mt-2 text-sm sm:text-base">
-              Decrypt high-security caches to unlock God-Tier avatars, titles, and 3D companions. Collect sets to trigger the Global XP Surge.
-            </p>
-          </div>
-          
-          <div className="shrink-0 flex items-center justify-end">
-            <div className="flex bg-slate-900/50 backdrop-blur-md p-2 rounded-2xl border border-white/10 gap-2">
-              <button
-                onClick={() => setActiveTab('UNBOX')}
-                className={cn(
-                  "px-6 py-2.5 rounded-xl font-black uppercase tracking-widest transition-all duration-300 text-sm",
-                  activeTab === 'UNBOX' 
-                    ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-[0_0_20px_rgba(79,70,229,0.5)]" 
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                )}
-              >
-                Decrypt Caches ({packs.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('COLLECTION')}
-                className={cn(
-                  "px-6 py-2.5 rounded-xl font-black uppercase tracking-widest transition-all duration-300 text-sm",
-                  activeTab === 'COLLECTION' 
-                    ? "bg-gradient-to-r from-cyan-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.5)]" 
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                )}
-              >
-                The Codex
-              </button>
+            
+            <div className="flex flex-col gap-3">
+              <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem]">
+                Unlock <span className="text-indigo-600 dark:text-indigo-400">Mythic</span> Rewards
+              </h1>
+              <p className="math-subtitle max-w-4xl lg:whitespace-nowrap">
+                Decrypt high-security caches to unlock God-Tier avatars, titles, and 3D companions. Collect sets to trigger the Global XP Surge.
+              </p>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Tabs (Standardized to Trophy Room Style) */}
+      <div className="flex items-center space-x-4 shrink-0">
+        <button 
+          onClick={() => setActiveTab("UNBOX")}
+          className={`px-8 py-3 rounded-full font-bold transition-all ${
+            activeTab === "UNBOX" 
+              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105" 
+              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-indigo-600"
+          }`}
+        >
+          Decrypt Caches ({packs.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab("COLLECTION")}
+          className={`px-8 py-3 rounded-full font-bold transition-all ${
+            activeTab === "COLLECTION" 
+              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105" 
+              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-indigo-600"
+          }`}
+        >
+          The Codex
+        </button>
+      </div>
 
       {/* Main Grid Workspace */}
       <section className="math-dashboard-workspace flex-1 overflow-hidden relative rounded-[2rem] border border-white/40 dark:border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl p-4 sm:p-5 lg:p-6">
