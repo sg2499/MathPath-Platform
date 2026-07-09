@@ -150,14 +150,14 @@ export default function StudentCompetitionMockAttemptPage() {
         <button
           onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
           disabled={currentIndex === 0}
-          className="fixed left-2 sm:left-6 top-1/2 z-[100] -translate-y-1/2 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="hidden md:flex absolute -left-6 lg:-left-16 xl:-left-20 top-1/2 z-[100] -translate-y-1/2 h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <button
           onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
           disabled={currentIndex >= questions.length - 1}
-          className="fixed right-2 sm:right-6 top-1/2 z-[100] -translate-y-1/2 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="hidden md:flex absolute -right-6 lg:-right-16 xl:-right-20 top-1/2 z-[100] -translate-y-1/2 h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
@@ -175,10 +175,15 @@ export default function StudentCompetitionMockAttemptPage() {
             <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[1.8rem]">
               {mockExam.title || "Competition Mock"}
             </h1>
-            <p className="mt-1 text-sm font-semibold leading-5 text-slate-700 dark:text-slate-300">
-              {mockExam.mockCode ? `${mockExam.mockCode} · ` : ""}
-              {mockExam.moduleCode || "Module"} · {mockExam.levelCode || "Level"}. Answer carefully. The mock auto-saves each response and submits when time expires.
-            </p>
+            <div className="mt-1.5 flex flex-col gap-1">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                {mockExam.mockCode ? `${mockExam.mockCode} · ` : ""}
+                {mockExam.moduleCode || "Module"} · {mockExam.levelCode || "Level"}
+              </p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Answer carefully. The mock auto-saves each response and submits when time expires.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -190,7 +195,7 @@ export default function StudentCompetitionMockAttemptPage() {
         </div>
 
         <div className={`grid flex-1 gap-4 xl:items-stretch ${isExpressionQuestion ? "xl:grid-cols-[minmax(0,1.22fr)_minmax(320px,0.78fr)]" : "xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]"}`}>
-          <div className="math-card flex flex-col h-[450px] sm:h-[500px] overflow-hidden border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
+          <div className="math-card flex flex-col min-h-[450px] sm:min-h-[500px] border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
             <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
               <div>
                 <div className="math-block-header mb-2"><Layers3 size={14} /> {sectionLabel}</div>
@@ -200,8 +205,8 @@ export default function StudentCompetitionMockAttemptPage() {
                 {savingQuestionId === currentQuestion.questionId ? "Saving..." : "Auto-saved"}
               </div>
             </div>
-            <div className={`flex flex-1 items-center justify-center overflow-auto px-2 py-4 xl:min-h-0 ${isExpressionQuestion ? "xl:px-1" : ""}`}>
-              <div className={`flex w-full h-full items-center justify-center overflow-auto rounded-[28px] bg-white/92 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/80 dark:ring-slate-700 ${isExpressionQuestion ? "p-3 xl:p-2.5" : "p-4"}`}>
+            <div className={`flex flex-1 items-center justify-center px-2 py-4 xl:min-h-0 ${isExpressionQuestion ? "xl:px-1" : ""}`}>
+              <div className={`flex w-full h-full min-h-[300px] items-center justify-center rounded-[28px] bg-white/92 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/80 dark:ring-slate-700 ${isExpressionQuestion ? "p-3 xl:p-2.5" : "p-4"}`}>
                 <MathQuestionDisplay
                   operands={currentQuestion.operands}
                   operators={currentQuestion.operators}
@@ -212,7 +217,7 @@ export default function StudentCompetitionMockAttemptPage() {
             </div>
           </div>
 
-          <div className={`math-card flex flex-col h-[450px] sm:h-[500px] overflow-hidden border border-slate-200/80 bg-white/88 p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60 ${isExpressionQuestion ? "xl:p-3.5" : ""}`}>
+          <div className={`math-card flex flex-col min-h-[450px] sm:min-h-[500px] border border-slate-200/80 bg-white/88 p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60 ${isExpressionQuestion ? "xl:p-3.5" : ""}`}>
             <div className="shrink-0 border-b border-slate-200/80 pb-3 dark:border-slate-800">
               <div className="math-block-header mb-2"><CheckCircle2 size={14} /> Select Answer</div>
               <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Choose the correct option</h2>
