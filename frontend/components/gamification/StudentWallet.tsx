@@ -108,7 +108,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
   if (isLoading) {
     return (
       <div className={cn(
-        "flex flex-col sm:flex-row items-center gap-4 md:gap-6 p-3 sm:p-4 md:p-5 rounded-[2rem] transition-all duration-300 select-none",
+        "flex flex-col sm:flex-row items-center gap-4 p-3 sm:p-4 rounded-[2rem] transition-all duration-300 select-none",
         "bg-white/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800",
         className
       )}>
@@ -148,7 +148,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           transformStyle: "preserve-3d",
         }}
         className={cn(
-          "flex flex-col sm:flex-row items-center gap-4 md:gap-6 p-3 sm:p-4 md:p-5 rounded-[2rem] transition-all duration-300 select-none",
+          "flex flex-col sm:flex-row items-center gap-4 p-3 sm:p-4 rounded-[2rem] transition-all duration-300 select-none",
           "bg-white dark:bg-slate-950/90 border border-slate-200 dark:border-indigo-500/30",
           "shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] hover:border-indigo-300 dark:hover:border-indigo-400/50",
           className
@@ -162,12 +162,12 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           style={{ transform: "translateZ(40px)" }}
         >
           {/* Neon energy rings around badge */}
-          <div className="absolute w-32 h-32 border-2 border-indigo-500/40 dark:border-indigo-500/60 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="absolute w-28 h-28 border border-purple-500/50 dark:border-purple-500/70 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute w-28 h-28 md:w-36 md:h-36 border-2 border-indigo-500/40 dark:border-indigo-500/60 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute w-24 h-24 md:w-32 md:h-32 border border-purple-500/50 dark:border-purple-500/70 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
           
           <RankBadge 
             tier={resolvedRankTier} 
-            size="lg" 
+            size="md" 
             className="transition-transform duration-500 group-hover:scale-110" 
           />
         </div>
