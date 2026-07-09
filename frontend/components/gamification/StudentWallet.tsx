@@ -108,7 +108,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
   if (isLoading) {
     return (
       <div className={cn(
-        "flex flex-col sm:flex-row items-center gap-6 md:gap-10 p-6 md:p-8 rounded-[2rem] transition-all duration-300 select-none",
+        "flex flex-col sm:flex-row items-center gap-5 md:gap-8 p-4 sm:p-5 md:p-6 rounded-[2rem] transition-all duration-300 select-none",
         "bg-white/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800",
         className
       )}>
@@ -148,7 +148,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           transformStyle: "preserve-3d",
         }}
         className={cn(
-          "flex flex-col sm:flex-row items-center gap-6 md:gap-10 p-6 md:p-8 rounded-[2rem] transition-all duration-300 select-none",
+          "flex flex-col sm:flex-row items-center gap-5 md:gap-8 p-4 sm:p-5 md:p-6 rounded-[2rem] transition-all duration-300 select-none",
           "bg-white dark:bg-slate-950/90 border border-slate-200 dark:border-indigo-500/30",
           "shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] hover:border-indigo-300 dark:hover:border-indigo-400/50",
           className
@@ -214,7 +214,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
 
         {/* Right Side: Game Ledger Coins Chip */}
         <div 
-          className="group flex flex-col md:flex-row items-center gap-4 px-6 md:px-8 py-4 md:py-5 rounded-[1.5rem] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/60 shadow-md hover:shadow-[0_15px_30px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[180px]"
+          className="group flex flex-col md:flex-row items-center gap-4 px-5 md:px-6 py-3 md:py-4 rounded-[1.5rem] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/60 shadow-md hover:shadow-[0_15px_30px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[160px]"
           style={{ transform: "translateZ(30px)" }}
         >
           {/* Shiny overlay sweep */}

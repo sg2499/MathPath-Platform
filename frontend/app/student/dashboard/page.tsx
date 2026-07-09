@@ -363,25 +363,25 @@ export default function StudentDashboardPage() {
 
   return (
     <AppShell>
-      <main className="math-dashboard-page math-dashboard-student w-full space-y-5 relative z-10">
+      <main className="math-dashboard-page math-dashboard-student w-full flex flex-col gap-4 lg:h-[calc(100vh-90px)] 2xl:h-[calc(100vh-110px)] relative z-10">
         
         {/* ROW 1: HERO & HUD - Premium Glassmorphism */}
-        <section className="math-dashboard-hero math-dashboard-hero-student relative overflow-hidden rounded-[2rem] border border-white/40 dark:border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-6 sm:p-8 bg-white/30 dark:bg-slate-900/30 backdrop-blur-2xl">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between w-full">
+        <section className="math-dashboard-hero math-dashboard-hero-student shrink-0 relative overflow-hidden rounded-[2rem] border border-white/40 dark:border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-4 sm:p-5 bg-white/30 dark:bg-slate-900/30 backdrop-blur-2xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between w-full">
             
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               <div className="math-block-header">
                 <Laptop size={14} />
                 MATHPATH LOBBY
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black tracking-[-0.03em] text-slate-950 dark:text-white drop-shadow-md leading-tight">
+              <h1 className="text-2xl sm:text-3xl lg:text-[2.25rem] 2xl:text-[2.5rem] font-black tracking-[-0.03em] text-slate-950 dark:text-white drop-shadow-md leading-tight">
                 My Learning Workspace
               </h1>
             </div>
 
             {/* RIGHT SIDE: Gamification Wallet */}
             <div className="flex flex-wrap gap-4 items-center shrink-0 relative z-20">
-              <StudentWallet currentXp={totalXP} coinBalance={mathCoins} isLoading={isLoadingStats} className="scale-110 sm:scale-125 origin-right" />
+              <StudentWallet currentXp={totalXP} coinBalance={mathCoins} isLoading={isLoadingStats} className="scale-100 sm:scale-[1.05] origin-right" />
             </div>
           </div>
         </section>
@@ -392,13 +392,13 @@ export default function StudentDashboardPage() {
 
         {!AssignmentQuery.isLoading && !AssessmentQuery.isLoading && !AssignmentQuery.error && !AssessmentQuery.error ? (
           
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 items-stretch">
             
             {/* LEFT COLUMN: Intel Slider & Transmission Block */}
-            <div className="lg:col-span-8 flex flex-col gap-5 h-full">
+            <div className="lg:col-span-8 flex flex-col gap-4 h-full min-h-0">
                
                {/* 1. The Intel Carousel */}
-               <TiltCard className="group w-full h-[220px]">
+               <TiltCard className="group w-full h-[150px] 2xl:h-[180px] shrink-0">
                  <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-3xl text-slate-900 dark:text-white transition-all duration-500">
                    <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.02] dark:opacity-[0.05] mix-blend-overlay pointer-events-none" />
                    
@@ -414,7 +414,7 @@ export default function StudentDashboardPage() {
                      />
                    </div>
                    
-                   <div className="px-6 sm:px-10 pt-5 flex items-center gap-2 z-20 shrink-0">
+                   <div className="px-6 sm:px-8 pt-4 flex items-center gap-2 z-20 shrink-0">
                      <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-[mathBlobPulse_2s_infinite] shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
                      <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400 drop-shadow-sm">Live Intel Feed</span>
                    </div>
@@ -425,15 +425,15 @@ export default function StudentDashboardPage() {
                            key="slide-0"
                            onClick={() => Router.push("/student/achievements")}
                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
-                           className="relative z-10 w-full h-full px-6 sm:px-10 pb-5 pt-2 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
+                           className="relative z-10 w-full h-full px-6 sm:px-8 pb-4 pt-1 flex items-center justify-start gap-5 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
                          >
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-700 p-[3px] shadow-[0_0_30px_rgba(99,102,241,0.3)]">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-700 p-[3px] shadow-[0_0_30px_rgba(99,102,241,0.3)]">
                                <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center">
-                                  <RecentBadgeIcon size={32} className="text-indigo-500 dark:text-indigo-400" />
+                                  <RecentBadgeIcon size={28} className="text-indigo-500 dark:text-indigo-400" />
                                </div>
                             </div>
                             <div>
-                               <h2 className="text-xl sm:text-3xl font-black italic tracking-tight mb-2 text-indigo-600 dark:text-indigo-400">
+                               <h2 className="text-lg sm:text-2xl font-black italic tracking-tight mb-1 text-indigo-600 dark:text-indigo-400">
                                   {recentBadge ? "LATEST UNLOCK" : "NO RECENT UNLOCKS"}
                                </h2>
                                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
@@ -535,7 +535,7 @@ export default function StudentDashboardPage() {
 
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
-               <TiltCard className="group w-full h-full perspective-1000" isFlipped={quoteIsFlipped}>
+               <TiltCard className="group w-full flex-1 min-h-0 perspective-1000" isFlipped={quoteIsFlipped}>
                  <motion.div 
                    className="grid w-full h-full"
                    style={{ transformStyle: "preserve-3d" }}
@@ -548,7 +548,7 @@ export default function StudentDashboardPage() {
                      className="col-start-1 row-start-1 w-full h-full" 
                      style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
                    >
-                     <div className="relative overflow-hidden h-full flex flex-col justify-center min-h-[250px] sm:min-h-[300px] !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl bg-white/10 dark:bg-black/10 cursor-pointer">
+                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl bg-white/10 dark:bg-black/10 cursor-pointer">
                        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
                        
                        <div className="absolute bottom-4 right-6 z-30 flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
@@ -731,7 +731,7 @@ export default function StudentDashboardPage() {
             </div>
 
             {/* RIGHT COLUMN: Quick Links Bento Grid */}
-            <div className="lg:col-span-4 grid grid-cols-2 gap-4 h-full">
+            <div className="lg:col-span-4 grid grid-cols-2 grid-rows-3 gap-3 sm:gap-4 h-full min-h-0">
               {QuickLinks.map((LinkItem) => {
                 const renderIcon = () => {
                   const props = { size: 28, strokeWidth: 2 };
@@ -747,7 +747,7 @@ export default function StudentDashboardPage() {
                 };
                 
                 return (
-                  <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full min-h-[145px]">
+                  <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full">
                     <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-[24px] border border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl shadow-md hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                       
