@@ -2,10 +2,15 @@ import axios from "axios";
 import { getToken, clearAuth } from "./auth";
 
 function ResolveApiBaseUrl(): string {
-  if (process.env.NODE_ENV === "production") {
-    return "https://mathpath-backend.onrender.com/api";
+  // If the user hasn't configured a local backend URL in .env, default to the production Render server
+  // to prevent "Network Error" (Connection Refused) when running frontend on localhost without a local backend.
+  let RawBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://mathpath-backend.onrender.com/api").trim();
+  
+  // Auto-correct any leftover bad urls
+  if (RawBaseUrl === "http://localhost:8000" && process.env.NODE_ENV === "production") {
+      RawBaseUrl = "https://mathpath-backend.onrender.com/api";
   }
-  let RawBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").trim();
+
   const CleanBaseUrl = RawBaseUrl.replace(/\/+$/, "");
   return CleanBaseUrl.endsWith("/api") ? CleanBaseUrl : `${CleanBaseUrl}/api`;
 }
