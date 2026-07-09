@@ -139,6 +139,6 @@ def admin_clear_notifications(
     actor: User = Depends(admin_dep),
 ):
     from app.models.models import Notification
-    deleted = db.query(Notification).filter(Notification.user_id == user_id).delete()
+    deleted = db.query(Notification).filter(Notification.recipient_user_id == user_id).delete()
     db.commit()
     return {"deleted": deleted, "user_id": user_id}
