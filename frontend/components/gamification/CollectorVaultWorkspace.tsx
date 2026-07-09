@@ -96,7 +96,7 @@ export function CollectorVaultWorkspace() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.3 }}
-            className="w-full h-full overflow-y-auto custom-scrollbar pr-2"
+            className="w-full h-full overflow-y-auto custom-scrollbar pr-2 pb-12 pt-2 px-2"
           >
             {activeTab === 'UNBOX' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
