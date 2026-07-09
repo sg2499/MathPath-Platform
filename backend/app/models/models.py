@@ -984,7 +984,9 @@ class CollectiblesDictionary(Base):
     id = Column(String, primary_key=True, default=uuid_str)
     name = Column(String(150), nullable=False, unique=True)
     description = Column(Text, nullable=True)
-    rarity = Column(String(50), nullable=False) # COMMON, UNCOMMON, RARE, EPIC, LEGENDARY
+    rarity = Column(String(50), nullable=False) # COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC
+    type = Column(String(50), nullable=False, server_default='AVATAR') # AVATAR, TITLE, BANNER, CHARM, COINS, BADGE
+    series = Column(String(100), nullable=True) # E.g., 'The Voidborn Relics'
     model_3d_url = Column(Text, nullable=True)
     image_url = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -1000,3 +1002,15 @@ class UserCollectibles(Base):
 
     user = relationship("User")
     collectible = relationship("CollectiblesDictionary")
+
+class UserLootbox(Base):
+    __tablename__ = "user_lootboxes"
+    id = Column(String, primary_key=True, default=uuid_str)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    box_type = Column(String(50), nullable=False) # ALPHA_PACK, ELITE_CHEST, OMEGA_CAPSULE, CHAMPION_RELIQUARY
+    acquired_via = Column(String(100), nullable=True) # Reason for reward
+    is_opened = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    opened_at = Column(DateTime(timezone=True), nullable=True)
+    
+    user = relationship("User")
