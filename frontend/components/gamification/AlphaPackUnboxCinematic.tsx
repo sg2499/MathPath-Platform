@@ -6,11 +6,20 @@ import { EffectComposer, Bloom, ChromaticAberration, Noise, Vignette } from '@re
 import { Icosahedron, Sphere, Sparkles, Float, MeshDistortMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
+import { api, apiErrorMessage } from '@/lib/api';
 
 interface PackItem {
   id: string;
   name: string;
   rarity: 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC';
+}
+
+interface WonItem extends PackItem {
+  is_duplicate?: boolean;
+  fragments_awarded?: number;
+  description?: string;
+  type?: string;
+  series?: string;
 }
 
 interface Props {
@@ -133,7 +142,12 @@ function RevealItem({ item, color }: { item: PackItem, color: string }) {
 export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
   const [phase, setPhase] = useState<'IDLE' | 'DECRYPTING' | 'FLASH' | 'REVEAL'>('IDLE');
   const [progress, setProgress] = useState(0);
-  const color = RarityColors[pack.rarity] || RarityColors.COMMON;
+  const [wonItem, setWonItem] = useState<WonItem | null>(null);
+  const [unboxError, setUnboxError] = useState<string | null>(null);
+  
+  // The color starts as the pack's rarity color, but changes to the won item's rarity color if available
+  const displayRarity = wonItem?.rarity || pack.rarity;
+  const color = RarityColors[displayRarity] || RarityColors.COMMON;
 
   // Hold to Decrypt mechanic
   useEffect(() => {
@@ -169,10 +183,40 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
   // Flash Sequence
   useEffect(() => {
     if (phase === 'FLASH') {
-      const t1 = setTimeout(() => setPhase('REVEAL'), 2000); // Massive whiteout flash duration
-      return () => clearTimeout(t1);
+      let isMounted = true;
+      
+      const doUnbox = async () => {
+        try {
+          const res = await api.post('/student/gamification/vault/unbox', {
+            lootbox_id: pack.id
+          });
+          
+          if (isMounted) {
+            const data = res.data;
+            setWonItem({
+              id: data.item.id,
+              name: data.item.name,
+              rarity: data.item.rarity,
+              is_duplicate: data.is_duplicate,
+              fragments_awarded: data.fragments_awarded,
+              description: data.item.description,
+              type: data.item.type,
+              series: data.item.series
+            });
+            setTimeout(() => setPhase('REVEAL'), 1000); 
+          }
+        } catch (err) {
+          if (isMounted) {
+            setUnboxError(apiErrorMessage(err));
+            setTimeout(() => setPhase('REVEAL'), 1000);
+          }
+        }
+      };
+      
+      doUnbox();
+      return () => { isMounted = false; };
     }
-  }, [phase]);
+  }, [phase, pack.id]);
 
   return (
     <div 
@@ -189,7 +233,7 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
           
           <QuantumCore progress={progress} phase={phase} color={color} />
           
-          {phase === 'REVEAL' && <RevealItem item={pack} color={color} />}
+          {phase === 'REVEAL' && wonItem && <RevealItem item={wonItem} color={color} />}
 
           <EffectComposer>
             <Bloom 
@@ -247,24 +291,73 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
 
         {phase === 'REVEAL' && (
           <motion.div 
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1, duration: 1 }}
-            className="absolute inset-0 z-30 flex flex-col items-center justify-end pb-32 pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm p-8"
           >
-            <h3 className="text-xl font-bold uppercase tracking-[0.4em] text-white/50 mb-2">
-              {pack.rarity}
-            </h3>
-            <h1 className="text-6xl font-black uppercase tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.5)] mb-12 text-center max-w-3xl">
-              {pack.name}
-            </h1>
-
-            <button
-              onClick={onComplete}
-              className="pointer-events-auto px-12 py-4 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-black uppercase tracking-widest rounded-full backdrop-blur-md transition-all hover:scale-105"
-            >
-              Collect
-            </button>
+            <div className="text-center w-full max-w-2xl mx-auto flex flex-col gap-8 items-center">
+              {unboxError ? (
+                <h2 className="text-4xl font-black text-red-500">{unboxError}</h2>
+              ) : wonItem ? (
+                <>
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 1, duration: 0.8, type: 'spring' }}
+                    className="flex flex-col items-center gap-3"
+                  >
+                    <span 
+                      className="text-sm font-black uppercase tracking-[0.3em] drop-shadow-md"
+                      style={{ color }}
+                    >
+                      {wonItem.rarity} {wonItem.type}
+                    </span>
+                    <h2 className="text-6xl font-black text-white drop-shadow-2xl">
+                      {wonItem.name}
+                    </h2>
+                    {wonItem.series && (
+                      <p className="text-lg text-slate-300 italic">
+                        {wonItem.series}
+                      </p>
+                    )}
+                  </motion.div>
+                  
+                  {wonItem.is_duplicate && (
+                    <motion.div
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 1.5 }}
+                      className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 mt-4 max-w-md w-full"
+                    >
+                      <h3 className="text-orange-400 font-bold mb-2 uppercase tracking-wider text-sm flex justify-center items-center gap-2">
+                        Duplicate Converted
+                      </h3>
+                      <p className="text-white text-lg">
+                        +{wonItem.fragments_awarded} Quantum Fragments
+                      </p>
+                      <p className="text-slate-400 text-xs mt-2">
+                        Use fragments in The Forge to craft specific caches.
+                      </p>
+                    </motion.div>
+                  )}
+                </>
+              ) : (
+                <h2 className="text-6xl font-black text-white drop-shadow-2xl">
+                  {pack.name}
+                </h2>
+              )}
+              
+              <motion.button 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2.5 }}
+                onClick={onComplete}
+                className="mt-12 px-12 py-4 rounded-full bg-white text-slate-950 font-black tracking-widest uppercase hover:scale-105 hover:bg-orange-500 hover:text-white transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+              >
+                Claim & Continue
+              </motion.button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
