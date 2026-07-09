@@ -2,7 +2,15 @@ import axios from "axios";
 import { getToken, clearAuth } from "./auth";
 
 function ResolveApiBaseUrl(): string {
-  const RawBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").trim();
+  let RawBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
+  
+  // Auto-correct missing or incorrectly typed environment variables
+  if (!RawBaseUrl || RawBaseUrl.includes("mathpath-platform-backend") || RawBaseUrl === "http://localhost:8000") {
+    RawBaseUrl = process.env.NODE_ENV === "production"
+      ? "https://mathpath-backend.onrender.com/api"
+      : "http://localhost:8000";
+  }
+
   const CleanBaseUrl = RawBaseUrl.replace(/\/+$/, "");
   return CleanBaseUrl.endsWith("/api") ? CleanBaseUrl : `${CleanBaseUrl}/api`;
 }
