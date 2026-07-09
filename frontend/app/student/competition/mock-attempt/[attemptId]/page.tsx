@@ -81,9 +81,8 @@ export default function StudentCompetitionMockAttemptPage() {
   const currentDisplayType = String((currentQuestion as any)?.displayType ?? (currentQuestion as any)?.display_type ?? "").toUpperCase();
   const isExpressionQuestion = currentDisplayType === "EXPRESSION" || currentDisplayType === "EXPRESSION_WORKSHEET" || currentDisplayType === "COMPACT_EXPRESSION";
   const showSectionLabel = Boolean(sectionTitle);
-  const sectionLabel = showSectionLabel
-    ? (totalSections > 1 ? `Section ${sectionNumber || 1} · ${sectionTitle}` : sectionTitle)
-    : "Competition Question";
+  const displaySectionNumber = totalSections > 1 ? (sectionNumber || 1) : null;
+  const displaySectionTitle = showSectionLabel ? sectionTitle : "Competition Question";
 
   async function handleSelect(questionId: string, selectedOptionId: string) {
     if (!attempt || remainingSeconds <= 0) return;
@@ -162,25 +161,31 @@ export default function StudentCompetitionMockAttemptPage() {
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
 
-        <div className="grid gap-4 rounded-[24px] border border-orange-100 bg-gradient-to-r from-white/98 via-orange-50/70 to-amber-100/55 p-4 shadow-sm dark:border-slate-800 dark:from-slate-950/96 dark:via-slate-900/88 dark:to-orange-950/36">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
+        <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-orange-50 to-amber-100 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-amber-300/25 blur-3xl" />
+          <div className="relative z-10">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
                 Question {currentQuestion.questionNumber} Of {questions.length}
               </p>
+              {displaySectionNumber !== null && (
+                <p className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200">
+                  Section {displaySectionNumber}
+                </p>
+              )}
               <p className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200">
-                {sectionLabel}
+                {displaySectionTitle}
               </p>
             </div>
-            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[1.8rem]">
+            <h1 className="mt-2 max-w-5xl text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
               {mockExam.title || "Competition Mock"}
             </h1>
-            <div className="mt-1.5 flex flex-col gap-1">
-              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+            <div className="math-subtitle !mt-3 max-w-3xl flex flex-col gap-1">
+              <p className="font-bold">
                 {mockExam.mockCode ? `${mockExam.mockCode} · ` : ""}
                 {mockExam.moduleCode || "Module"} · {mockExam.levelCode || "Level"}
               </p>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              <p className="opacity-80">
                 Answer carefully. The mock auto-saves each response and submits when time expires.
               </p>
             </div>
@@ -198,7 +203,12 @@ export default function StudentCompetitionMockAttemptPage() {
           <div className="math-card flex flex-col min-h-[450px] sm:min-h-[500px] border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
             <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
               <div>
-                <div className="math-block-header mb-2"><Layers3 size={14} /> {sectionLabel}</div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  {displaySectionNumber !== null && (
+                    <div className="math-block-header !mb-0"><Layers3 size={14} /> Section {displaySectionNumber}</div>
+                  )}
+                  <div className="math-block-header !mb-0">{displaySectionNumber === null ? <Layers3 size={14} /> : null}{displaySectionTitle}</div>
+                </div>
                 <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Question {currentQuestion.questionNumber}</h2>
               </div>
               <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${savingQuestionId === currentQuestion.questionId ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200" : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>
