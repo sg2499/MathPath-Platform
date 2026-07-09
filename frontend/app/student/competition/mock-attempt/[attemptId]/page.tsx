@@ -81,7 +81,7 @@ export default function StudentCompetitionMockAttemptPage() {
   const currentDisplayType = String((currentQuestion as any)?.displayType ?? (currentQuestion as any)?.display_type ?? "").toUpperCase();
   const isExpressionQuestion = currentDisplayType === "EXPRESSION" || currentDisplayType === "EXPRESSION_WORKSHEET" || currentDisplayType === "COMPACT_EXPRESSION";
   const showSectionLabel = Boolean(sectionTitle);
-  const displaySectionNumber = totalSections > 1 ? (sectionNumber || 1) : null;
+  const displaySectionNumber = showSectionLabel ? (sectionNumber || 1) : null;
   const displaySectionTitle = showSectionLabel ? sectionTitle : "Competition Question";
 
   async function handleSelect(questionId: string, selectedOptionId: string) {
