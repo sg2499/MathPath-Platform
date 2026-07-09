@@ -117,7 +117,7 @@ export function CollectorVaultWorkspace() {
                 Unlock <span className="text-orange-500 dark:text-orange-400">Mythic</span> Rewards
               </h1>
               <p className="math-subtitle max-w-4xl lg:whitespace-nowrap">
-                Redeem caches earned from dedicated practice and exceptional Mock Exam performance. Unlock premium avatars, prestigious mastery titles, and exclusive 3D companions.
+                Redeem secure caches earned through mathematical mastery and exceptional Mock Exam performance. Unlock prestigious rank badges, exclusive cinematic accolades, and expand your strategic portfolio within the Collector's Vault.
               </p>
             </div>
           </div>
@@ -130,7 +130,7 @@ export function CollectorVaultWorkspace() {
           onClick={() => setActiveTab("UNBOX")}
           data-active={activeTab === "UNBOX" ? "true" : undefined}
           className={`px-8 py-3 rounded-full font-bold transition-all math-role-tab ${
-            activeTab === "UNBOX" ? "math-role-tab-active shadow-lg shadow-orange-500/30 scale-105" : ""
+            activeTab === "UNBOX" ? "math-role-tab-active scale-105" : ""
           }`}
         >
           Decrypt Caches ({packs.length})
@@ -139,7 +139,7 @@ export function CollectorVaultWorkspace() {
           onClick={() => setActiveTab("FORGE")}
           data-active={activeTab === "FORGE" ? "true" : undefined}
           className={`px-8 py-3 rounded-full font-bold transition-all math-role-tab ${
-            activeTab === "FORGE" ? "math-role-tab-active shadow-lg shadow-orange-500/30 scale-105" : ""
+            activeTab === "FORGE" ? "math-role-tab-active scale-105" : ""
           }`}
         >
           The Forge
@@ -148,7 +148,7 @@ export function CollectorVaultWorkspace() {
           onClick={() => setActiveTab("CODEX")}
           data-active={activeTab === "CODEX" ? "true" : undefined}
           className={`px-8 py-3 rounded-full font-bold transition-all math-role-tab ${
-            activeTab === "CODEX" ? "math-role-tab-active shadow-lg shadow-orange-500/30 scale-105" : ""
+            activeTab === "CODEX" ? "math-role-tab-active scale-105" : ""
           }`}
         >
           The Codex
@@ -164,7 +164,7 @@ export function CollectorVaultWorkspace() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.3 }}
-            className="w-full h-full overflow-y-auto custom-scrollbar pr-2 pb-12 pt-2 px-2"
+            className="w-full h-full overflow-y-auto overflow-x-hidden custom-scrollbar p-6 pb-16"
           >
             {activeTab === 'UNBOX' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
