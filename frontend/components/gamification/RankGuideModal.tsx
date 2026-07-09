@@ -39,7 +39,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 30 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative w-full max-w-4xl max-h-[90vh] bg-slate-950/80 border border-indigo-500/30 rounded-[2rem] shadow-[0_0_100px_rgba(79,70,229,0.2)] overflow-hidden flex flex-col z-10 backdrop-blur-xl"
+            className="relative w-full max-w-4xl max-h-[90vh] bg-slate-950/80 border border-indigo-500/30 rounded-[2rem] shadow-[0_0_100px_rgba(79,70,229,0.2)] overflow-hidden flex flex-col z-10"
           >
             {/* Top-Right Close Button */}
             <button 
@@ -68,12 +68,12 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
             </div>
 
             {/* Scrollable Content Body */}
-            <div className="flex-1 overflow-y-auto p-8 md:p-10 relative bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-indigo-950/10 via-transparent to-transparent [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex-1 overflow-y-auto overscroll-contain transform-gpu will-change-scroll p-8 md:p-10 relative bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-indigo-950/10 via-transparent to-transparent [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               
               <div className="flex flex-col gap-8">
                 
                 {/* Rule 1: The Ascension Hierarchy */}
-                <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-indigo-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(79,70,229,0.15)] hover:-translate-y-1 overflow-hidden">
+                <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-indigo-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(79,70,229,0.15)] hover:-translate-y-1 overflow-hidden transform-gpu">
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/40 flex items-center justify-center shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
@@ -91,7 +91,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
                 </div>
 
                 {/* Rule 2: Acquiring XP */}
-                <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-fuchsia-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(217,70,239,0.15)] hover:-translate-y-1 overflow-hidden">
+                <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-fuchsia-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(217,70,239,0.15)] hover:-translate-y-1 overflow-hidden transform-gpu">
                   <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-900 to-slate-900 border border-fuchsia-500/40 flex items-center justify-center shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
@@ -107,7 +107,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
                 </div>
 
                 {/* Rule 3: The Collector's Vault */}
-                <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-amber-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] hover:-translate-y-1 overflow-hidden">
+                <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-amber-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] hover:-translate-y-1 overflow-hidden transform-gpu">
                   <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-900 to-slate-900 border border-amber-500/40 flex items-center justify-center shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
