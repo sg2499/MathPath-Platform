@@ -53,10 +53,10 @@ export function CollectorVaultWorkspace() {
             
             <div className="flex flex-col gap-3">
               <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem]">
-                Unlock <span className="text-indigo-600 dark:text-indigo-400">Mythic</span> Rewards
+                Unlock <span className="text-orange-500 dark:text-orange-400">Mythic</span> Rewards
               </h1>
               <p className="math-subtitle max-w-4xl lg:whitespace-nowrap">
-                Decrypt high-security caches to unlock God-Tier avatars, titles, and 3D companions. Collect sets to trigger the Global XP Surge.
+                Redeem caches earned from dedicated practice and exceptional Mock Exam performance. Unlock premium avatars, prestigious mastery titles, and exclusive 3D companions.
               </p>
             </div>
           </div>
@@ -69,8 +69,8 @@ export function CollectorVaultWorkspace() {
           onClick={() => setActiveTab("UNBOX")}
           className={`px-8 py-3 rounded-full font-bold transition-all ${
             activeTab === "UNBOX" 
-              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105" 
-              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-indigo-600"
+              ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
+              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500"
           }`}
         >
           Decrypt Caches ({packs.length})
@@ -79,8 +79,8 @@ export function CollectorVaultWorkspace() {
           onClick={() => setActiveTab("COLLECTION")}
           className={`px-8 py-3 rounded-full font-bold transition-all ${
             activeTab === "COLLECTION" 
-              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105" 
-              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-indigo-600"
+              ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
+              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500"
           }`}
         >
           The Codex
