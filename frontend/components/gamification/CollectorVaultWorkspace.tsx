@@ -63,24 +63,22 @@ export function CollectorVaultWorkspace() {
         </div>
       </section>
 
-      {/* Tabs (Standardized to Trophy Room Style) */}
+      {/* Tabs (Standardized to Global math-role-tab) */}
       <div className="flex items-center space-x-4 shrink-0">
         <button 
           onClick={() => setActiveTab("UNBOX")}
-          className={`px-8 py-3 rounded-full font-bold transition-all ${
-            activeTab === "UNBOX" 
-              ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
-              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500 dark:hover:bg-orange-500 dark:hover:text-white"
+          data-active={activeTab === "UNBOX" ? "true" : undefined}
+          className={`px-8 py-3 rounded-full font-bold transition-all math-role-tab ${
+            activeTab === "UNBOX" ? "math-role-tab-active shadow-lg shadow-orange-500/30 scale-105" : ""
           }`}
         >
           Decrypt Caches ({packs.length})
         </button>
         <button 
           onClick={() => setActiveTab("COLLECTION")}
-          className={`px-8 py-3 rounded-full font-bold transition-all ${
-            activeTab === "COLLECTION" 
-              ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
-              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500 dark:hover:bg-orange-500 dark:hover:text-white"
+          data-active={activeTab === "COLLECTION" ? "true" : undefined}
+          className={`px-8 py-3 rounded-full font-bold transition-all math-role-tab ${
+            activeTab === "COLLECTION" ? "math-role-tab-active shadow-lg shadow-orange-500/30 scale-105" : ""
           }`}
         >
           The Codex
