@@ -108,7 +108,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
   if (isLoading) {
     return (
       <div className={cn(
-        "flex flex-col sm:flex-row items-center gap-5 md:gap-8 p-4 sm:p-5 md:p-6 rounded-[2rem] transition-all duration-300 select-none",
+        "flex flex-col sm:flex-row items-center gap-4 md:gap-6 p-3 sm:p-4 md:p-5 rounded-[2rem] transition-all duration-300 select-none",
         "bg-white/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800",
         className
       )}>
@@ -148,7 +148,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           transformStyle: "preserve-3d",
         }}
         className={cn(
-          "flex flex-col sm:flex-row items-center gap-5 md:gap-8 p-4 sm:p-5 md:p-6 rounded-[2rem] transition-all duration-300 select-none",
+          "flex flex-col sm:flex-row items-center gap-4 md:gap-6 p-3 sm:p-4 md:p-5 rounded-[2rem] transition-all duration-300 select-none",
           "bg-white dark:bg-slate-950/90 border border-slate-200 dark:border-indigo-500/30",
           "shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] hover:border-indigo-300 dark:hover:border-indigo-400/50",
           className

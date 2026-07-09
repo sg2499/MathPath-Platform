@@ -366,10 +366,10 @@ export default function StudentDashboardPage() {
       <main className="math-dashboard-page math-dashboard-student w-full flex flex-col gap-4 lg:h-[calc(100vh-90px)] 2xl:h-[calc(100vh-110px)] relative z-10">
         
         {/* ROW 1: HERO & HUD - Premium Glassmorphism */}
-        <section className="math-dashboard-hero math-dashboard-hero-student shrink-0 relative overflow-hidden rounded-[2rem] border border-white/40 dark:border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-4 sm:p-5 bg-white/30 dark:bg-slate-900/30 backdrop-blur-2xl">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between w-full">
+        <section className="math-dashboard-hero math-dashboard-hero-student shrink-0 relative overflow-hidden rounded-[2rem] border border-white/40 dark:border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-3 sm:p-4 bg-white/30 dark:bg-slate-900/30 backdrop-blur-2xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between w-full">
             
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 pt-1 lg:pt-2">
               <div className="math-block-header">
                 <Laptop size={14} />
                 MATHPATH LOBBY
@@ -381,7 +381,7 @@ export default function StudentDashboardPage() {
 
             {/* RIGHT SIDE: Gamification Wallet */}
             <div className="flex flex-wrap gap-4 items-center shrink-0 relative z-20">
-              <StudentWallet currentXp={totalXP} coinBalance={mathCoins} isLoading={isLoadingStats} className="scale-100 sm:scale-[1.05] origin-right" />
+              <StudentWallet currentXp={totalXP} coinBalance={mathCoins} isLoading={isLoadingStats} className="scale-100 sm:scale-100 origin-right" />
             </div>
           </div>
         </section>
