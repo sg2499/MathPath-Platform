@@ -70,7 +70,7 @@ export function CollectorVaultWorkspace() {
           className={`px-8 py-3 rounded-full font-bold transition-all ${
             activeTab === "UNBOX" 
               ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
-              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"
+              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500 dark:hover:bg-orange-500 dark:hover:text-white"
           }`}
         >
           Decrypt Caches ({packs.length})
@@ -80,7 +80,7 @@ export function CollectorVaultWorkspace() {
           className={`px-8 py-3 rounded-full font-bold transition-all ${
             activeTab === "COLLECTION" 
               ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
-              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"
+              : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500 dark:hover:bg-orange-500 dark:hover:text-white"
           }`}
         >
           The Codex
