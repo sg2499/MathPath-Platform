@@ -3,7 +3,7 @@ from sqlalchemy import text
 from app.database import SessionLocal
 from app.models.models import Student, CompetitionMockResultSummary, Notification
 from app.services.achievements import AchievementEngine
-from app.services.notifications import CreateNotification
+from app.services.notification_service import CreateNotification
 import logging
 
 def recalculate_all_gamification_stats() -> None:
