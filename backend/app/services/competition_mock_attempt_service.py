@@ -574,7 +574,9 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
     existing_summary.score = attempt.total_score
     existing_summary.max_score = attempt.max_score
     existing_summary.percentage = attempt.percentage
-    existing_summary.accuracy_percentage = round((correct / attempt.total_questions) * 100) if attempt.total_questions else 0.0
+    total = attempt.total_questions if attempt.total_questions > 0 else (attempt.attempted_count + attempt.unanswered_count)
+    if not total: total = 100
+    existing_summary.accuracy_percentage = round((correct / total) * 100)
     existing_summary.time_taken_seconds = attempt.time_taken_seconds
     existing_summary.time_utilization_percentage = attempt.time_utilization_percentage
     existing_summary.performance_band = attempt.performance_band or _performance_band(attempt.percentage)

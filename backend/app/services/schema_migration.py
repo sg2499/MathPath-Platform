@@ -648,6 +648,29 @@ def ensure_mock_notifications_fixed() -> None:
     finally:
         db.close()
 
+def ensure_mock_accuracy_fixed() -> None:
+    """Fixes the historical mock attempt accuracy percentages directly on startup."""
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("""
+                UPDATE competition_mock_result_summaries
+                SET accuracy_percentage = (
+                    SELECT ROUND((CAST(cma.correct_count AS FLOAT) / 
+                        CASE 
+                            WHEN cma.total_questions > 0 THEN cma.total_questions 
+                            WHEN (COALESCE(cma.attempted_count, 0) + COALESCE(cma.unanswered_count, 0)) > 0 THEN (COALESCE(cma.attempted_count, 0) + COALESCE(cma.unanswered_count, 0))
+                            ELSE 100 
+                        END) * 100)
+                    FROM competition_mock_attempts cma
+                    WHERE cma.id = competition_mock_result_summaries.mock_attempt_id
+                )
+                WHERE EXISTS (
+                    SELECT 1 FROM competition_mock_attempts cma WHERE cma.id = competition_mock_result_summaries.mock_attempt_id AND cma.correct_count IS NOT NULL
+                )
+            """))
+    except Exception as e:
+        print(f"Failed to fix mock accuracy: {e}")
+
 def ensure_mock_gamification_tables() -> None:
     from app.models.models import AchievementBadge, StudentBadge, StudentAchievementStat
     from app.database import engine
