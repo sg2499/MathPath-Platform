@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.models.models import StudentBadge, Notification, StudentStat, User, Student, CompetitionMockResultSummary
+from app.models.models import StudentBadge, Notification, StudentAchievementStat, User, Student, CompetitionMockResultSummary
 import logging
 
 def fix_false_unstoppable_badges() -> None:
@@ -16,9 +16,9 @@ def fix_false_unstoppable_badges() -> None:
             ).count()
             
             # Reset the streak stat
-            stat = db.query(StudentStat).filter(
-                StudentStat.student_id == student.id,
-                StudentStat.stat_key == "unstoppable_mock_streak"
+            stat = db.query(StudentAchievementStat).filter(
+                StudentAchievementStat.student_id == student.id,
+                StudentAchievementStat.stat_key == "unstoppable_mock_streak"
             ).first()
             if stat and stat.stat_value > mock_count:
                 stat.stat_value = mock_count
