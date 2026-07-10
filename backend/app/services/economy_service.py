@@ -116,7 +116,7 @@ class EconomyService:
     def get_user_economy(db: Session, user_id: str) -> UserEconomy:
         econ = db.query(UserEconomy).filter(UserEconomy.user_id == user_id).first()
         if not econ:
-            econ = UserEconomy(user_id=user_id, current_xp=0, coin_balance=0, lifetime_coins_earned=0)
+            econ = UserEconomy(user_id=user_id, current_xp=0, coin_balance=0, lifetime_coins_earned=0, quantum_fragments=0)
             db.add(econ)
             db.commit()
             db.refresh(econ)

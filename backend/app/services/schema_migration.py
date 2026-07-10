@@ -709,10 +709,7 @@ def ensure_mock_gamification_tables() -> None:
 def ensure_mock_gamification_rewards_retroactive() -> None:
     """Retroactively award XP, Coins, and Badges for existing mock submissions."""
     try:
-        with engine.begin() as connection:
-            pass # We will use ORM session for gamification logic
-            
-        from app.db.session import SessionLocal
+        from app.database import SessionLocal
         from app.models.models import CompetitionMockResultSummary, Student, EconomyTransaction, UserEconomy, AchievementBadge
         from app.services.economy_service import EconomyService
         from app.services.achievements import AchievementEngine
