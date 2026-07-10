@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.db.session import SessionLocal, engine
+from app.database import SessionLocal, engine
 from app.models.models import CompetitionMockResultSummary, User, Student, CompetitionMockAttempt, CompetitionMockExam, Notification
 from app.services.notifications import CreateNotification
 import logging
