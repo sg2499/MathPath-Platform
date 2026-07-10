@@ -2,6 +2,8 @@
 
 Last updated: 2026-07-07
 
+> **⚠️ SUPERSEDED AS THE PRIMARY ENTRY POINT (2026-07-10).** Read `docs/project-memory/COWORK_HANDOFF.md` first. The "Resume First" list below is stale — it predates the July 8–10 gamification hotfix chain (#290–301) and the engineering-system rework (agent squad in `.claude/agents/`, gated `apex_deliver.py`, `rollback.py`).
+
 ## Resume First
 
 Read:
