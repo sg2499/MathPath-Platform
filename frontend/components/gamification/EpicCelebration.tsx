@@ -306,7 +306,7 @@ export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebra
               transition={{ delay: 2.2 }}
               className="text-white font-black tracking-[0.3em] mt-4 uppercase text-lg md:text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
             >
-              {accuracy}% Accuracy
+              {Math.round(accuracy)}% Accuracy
             </motion.p>
         </motion.div>
       </div>
