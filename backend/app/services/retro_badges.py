@@ -1,31 +1,24 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.database import SessionLocal
-from app.models.models import StudentBadge, Notification, StudentAchievementStat, User, Student, CompetitionMockResultSummary
 import logging
 
 def fix_false_unstoppable_badges() -> None:
-    """Removes Unstoppable Streak badges falsely awarded due to retro script running multiple times."""
+    """Removes Unstoppable Streak badges falsely awarded using bulletproof raw SQL."""
     db = SessionLocal()
     try:
-        # Wipe all unstoppable streak badges unconditionally (no one has legitimately earned it yet)
-        db.query(StudentBadge).filter(
-            StudentBadge.badge_code == "unstoppable_streak"
-        ).delete()
+        # 1. Wipe badges
+        db.execute(text("DELETE FROM student_badges WHERE badge_code = 'unstoppable_streak'"))
         
-        # Wipe all notifications related to unstoppable streak
-        db.query(Notification).filter(
-            Notification.type == "BADGE_UNLOCKED",
-            Notification.title.ilike("%Unstoppable Streak%")
-        ).delete()
+        # 2. Wipe notifications
+        db.execute(text("DELETE FROM notifications WHERE type = 'BADGE_UNLOCKED' AND title ILIKE '%Unstoppable Streak%'"))
         
-        # Reset all unstoppable mock streak stats to 0
-        db.query(StudentAchievementStat).filter(
-            StudentAchievementStat.stat_name == "unstoppable_mock_streak"
-        ).update({"stat_value": 0})
+        # 3. Reset stats
+        db.execute(text("UPDATE student_achievement_stats SET stat_value = 0 WHERE stat_name = 'unstoppable_mock_streak'"))
         
         db.commit()
     except Exception as e:
         db.rollback()
-        logging.error(f"Failed to fix false unstoppable badges: {e}")
+        logging.error(f"Failed to fix false unstoppable badges via raw SQL: {e}")
     finally:
         db.close()
