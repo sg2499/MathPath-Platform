@@ -124,33 +124,46 @@ function PercentValue(Value?: number | null) {
 function AverageAccuracyValue(Rows: TeacherCompetitionTrackerRow[]) {
   const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && Row.accuracyPercentage != null);
   if (CompletedRows.length === 0) return null;
-  const Total = CompletedRows.reduce((Sum, Row) => Sum + Number(Row.accuracyPercentage || 0), 0);
-  return Math.round(Total / CompletedRows.length);
+  let totalCorrect = 0;
+  let totalQ = 0;
+  CompletedRows.forEach((Row) => {
+    const anyR = Row as any;
+    if (anyR.mockExam?.totalQuestions !== undefined && anyR.correctCount !== undefined) {
+      const qs = anyR.mockExam.totalQuestions > 0 ? anyR.mockExam.totalQuestions : ((anyR.attemptedCount ?? 0) + (anyR.unansweredCount ?? 0));
+      if (qs > 0) {
+        totalCorrect += anyR.correctCount;
+        totalQ += qs;
+      }
+    } else {
+      totalCorrect += Number(anyR.accuracyPercentage || 0);
+      totalQ += 100;
+    }
+  });
+  if (totalQ === 0) return null;
+  return Math.round((totalCorrect / totalQ) * 100);
 }
 
 
 function AverageScoreValue(Rows: TeacherCompetitionTrackerRow[]) {
   const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && Row.score != null);
   if (CompletedRows.length === 0) return 0;
-  const Total = CompletedRows.reduce((Sum, Row) => Sum + Number(Row.score || 0), 0);
-  return Math.round(Total / CompletedRows.length);
+  let totalScore = 0;
+  let totalMax = 0;
+  CompletedRows.forEach((Row) => {
+    const anyR = Row as any;
+    const s = Number(anyR.score || 0);
+    const m = Number(anyR.maxScore || 0);
+    if (m > 0) {
+      totalScore += s;
+      totalMax += m;
+    }
+  });
+  if (totalMax === 0) return 0;
+  return Math.round((totalScore / totalMax) * 100);
 }
 
 function AverageOfStudentAccuracyValues(Rows: TeacherCompetitionTrackerRow[]) {
-  const StudentMap = new Map<string, TeacherCompetitionTrackerRow[]>();
-  Rows.forEach((Row) => {
-    const StudentKey = Row.student.studentId || Row.student.studentCode || "student";
-    if (!StudentMap.has(StudentKey)) StudentMap.set(StudentKey, []);
-    StudentMap.get(StudentKey)!.push(Row);
-  });
-
-  const StudentAverages = Array.from(StudentMap.values())
-    .map((StudentRows) => AverageAccuracyValue(StudentRows))
-    .filter((Value): Value is number => Value != null);
-
-  if (StudentAverages.length === 0) return 0;
-  const Total = StudentAverages.reduce((Sum, Value) => Sum + Value, 0);
-  return Math.round(Total / StudentAverages.length);
+  return AverageAccuracyValue(Rows) || 0;
 }
 
 import { Chip } from "@/components/common/DetailWorkspaceViews";
