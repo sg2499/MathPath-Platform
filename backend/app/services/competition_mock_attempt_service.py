@@ -291,6 +291,10 @@ def _assignment_with_current_attempt_payload(db: Session, assignment: Competitio
                 "timeUtilizationPercentage": latest_result.time_utilization_percentage,
                 "performanceBand": latest_result.performance_band,
                 "completedAt": latest_result.completed_at.isoformat() if latest_result.completed_at else None,
+                "correctCount": latest_attempt.correct_count if latest_attempt else 0,
+                "totalQuestions": latest_attempt.total_questions if latest_attempt else 0,
+                "attemptedCount": latest_attempt.attempted_count if latest_attempt else 0,
+                "unansweredCount": latest_attempt.unanswered_count if latest_attempt else 0,
             }
             if latest_result else None
         ),
@@ -954,7 +958,8 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
         )
         .options(
             joinedload(CompetitionMockResultSummary.mock_exam).joinedload(CompetitionMockExam.module),
-            joinedload(CompetitionMockResultSummary.mock_exam).joinedload(CompetitionMockExam.level)
+            joinedload(CompetitionMockResultSummary.mock_exam).joinedload(CompetitionMockExam.level),
+            joinedload(CompetitionMockResultSummary.mock_attempt)
         )
         .order_by(CompetitionMockResultSummary.completed_at.asc())
         .all()
@@ -971,8 +976,10 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
             "moduleInsights": []
         }
 
-    total_score = 0
-    total_accuracy = 0
+    total_score_earned = 0
+    total_max_score = 0
+    total_correct = 0
+    total_questions_all = 0
     total_time_utilization = 0
     total_time_taken = 0
     total_questions = 0
@@ -993,8 +1000,15 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
             "timeTakenSeconds": s.time_taken_seconds
         })
 
-        total_score += s.score
-        total_accuracy += s.accuracy_percentage
+        total_score_earned += (s.score or 0)
+        total_max_score += (s.max_score or 0)
+        
+        if s.mock_attempt:
+            total_correct += (s.mock_attempt.correct_count or 0)
+            t_qs = s.mock_attempt.total_questions
+            if not t_qs:
+                t_qs = (s.mock_attempt.attempted_count or 0) + (s.mock_attempt.unanswered_count or 0)
+            total_questions_all += t_qs
 
         if s.time_utilization_percentage:
             total_time_utilization += s.time_utilization_percentage
@@ -1062,8 +1076,8 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
     module_insights.sort(key=lambda x: (x["moduleCode"], x["levelCode"]))
 
     return {
-        "overallScore": round(total_score / n) if n > 0 else 0,
-        "overallAccuracy": round(total_accuracy / n) if n > 0 else 0,
+        "overallScore": round((total_score_earned / total_max_score) * 100) if total_max_score > 0 else 0,
+        "overallAccuracy": round((total_correct / total_questions_all) * 100) if total_questions_all > 0 else 0,
         "overallTimeUtilization": round(total_time_utilization / n) if n > 0 else 0,
         "totalMocksAttempted": n,
         "averageTimePerQuestion": round(total_time_taken / total_questions, 2) if total_questions > 0 else 0,
