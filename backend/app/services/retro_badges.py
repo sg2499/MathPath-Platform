@@ -7,8 +7,13 @@ def fix_false_unstoppable_badges() -> None:
     """Removes Unstoppable Streak badges falsely awarded using bulletproof raw SQL."""
     db = SessionLocal()
     try:
-        # 1. Wipe badges
-        db.execute(text("DELETE FROM student_badges WHERE badge_code = 'unstoppable_streak'"))
+        # 1. Wipe badges (Need to join with achievement_badges since student_badges only has badge_id)
+        db.execute(text("""
+            DELETE FROM student_badges 
+            WHERE badge_id IN (
+                SELECT id FROM achievement_badges WHERE code = 'unstoppable_streak'
+            )
+        """))
         
         # 2. Wipe notifications
         db.execute(text("DELETE FROM notifications WHERE type = 'BADGE_UNLOCKED' AND title ILIKE '%Unstoppable Streak%'"))
