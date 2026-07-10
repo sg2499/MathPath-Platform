@@ -1087,9 +1087,9 @@ def get_cumulative_leaderboard(
             "studentId": r.student_id,
             "name": r.full_name,
             "photoUrl": r.photo_url or r.student_photo,
-            "percentage": round(percentage, 2),
-            "score": round(percentage, 2),  # Normalized to 100 max
-            "accuracy": round(r.avg_accuracy or 0, 2),
+            "percentage": round(percentage),
+            "score": round(percentage),  # Normalized to 100 max
+            "accuracy": round(r.avg_accuracy or 0),
             "timeTakenSeconds": int(standardized_time_seconds),
             "isCurrent": r.student_id == student.id
         })

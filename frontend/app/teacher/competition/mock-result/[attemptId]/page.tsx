@@ -42,7 +42,7 @@ function formatNumber(value?: number | null) {
   if (value === null || value === undefined || Number.isNaN(Number(value)))
     return "-";
   const numeric = Number(value);
-  return Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(1);
+  return String(Math.round(numeric));
 }
 
 function formatDate(value?: string | null) {
@@ -118,6 +118,8 @@ function buildCompetitionMessage(
   const nextBandTarget =
     percentage >= 100
       ? "Maintain 100% accuracy and keep setting the standard."
+      : percentage >= 95
+        ? "Aim for a flawless 100% next time."
       : percentage >= 90
         ? "Aim for 95%+ with zero careless errors."
       : percentage >= 75

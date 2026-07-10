@@ -189,8 +189,8 @@ def _teacher_competition_tracker_payload(db: Session, teacher: Teacher):
     completed = [row for row in rows if row.get("status") == "COMPLETED"]
     pending = [row for row in rows if row.get("status") in {"ASSIGNED", "PENDING"}]
     in_progress = [row for row in rows if row.get("status") == "IN_PROGRESS"]
-    avg_score = round(sum(float(row.get("percentage") or 0) for row in completed) / len(completed), 2) if completed else 0
-    avg_accuracy = round(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed), 2) if completed else 0
+    avg_score = round(sum(float(row.get("percentage") or 0) for row in completed) / len(completed)) if completed else 0
+    avg_accuracy = round(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed)) if completed else 0
     time_values = [int(row.get("timeTakenSeconds") or 0) for row in completed if row.get("timeTakenSeconds") is not None]
     avg_time = round(sum(time_values) / len(time_values)) if time_values else None
     return {
@@ -296,7 +296,7 @@ def teacher_dashboard(db: Session = Depends(get_db), teacher: Teacher = Depends(
         "activeStudentCount": active_student_count,
         "assignmentCount": len(set(relevant_assignment_ids)),
         "completedAttemptCount": completed_attempt_count,
-        "averageAccuracy": round(float(avg_accuracy or 0), 2),
+        "averageAccuracy": round(float(avg_accuracy or 0)),
     }
 
 
@@ -322,7 +322,7 @@ def attempt_accuracy(attempt: Attempt) -> float:
     if total <= 0:
         return 0
 
-    return round((attempt_score(attempt) / total) * 100, 2)
+    return round((attempt_score(attempt) / total) * 100)
 
 
 def student_payload(db: Session, student: Student) -> dict:
@@ -387,7 +387,7 @@ def student_payload(db: Session, student: Student) -> dict:
             in_progress_assignment_count += 1
 
     accuracy_values = [attempt_accuracy(a) for a in completed_attempts]
-    average_accuracy = round(sum(accuracy_values) / len(accuracy_values), 2) if accuracy_values else None
+    average_accuracy = round(sum(accuracy_values) / len(accuracy_values)) if accuracy_values else None
     below_benchmark_attempts = NeedsReattemptAttempts(completed_attempts, BENCHMARK_PERCENTAGE)
 
     latest_activity_at = None
