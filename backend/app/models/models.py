@@ -960,7 +960,6 @@ class UserEconomy(Base):
     current_rank_tier = Column(String(50), default="COPPER_V", nullable=False)
     coin_balance = Column(Integer, default=0, nullable=False)
     lifetime_coins_earned = Column(Integer, default=0, nullable=False)
-    quantum_fragments = Column(Integer, default=0, nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")

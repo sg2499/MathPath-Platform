@@ -13,87 +13,26 @@ interface VaultItem {
   isUnopenedPack?: boolean;
 }
 
-// Dummy data removed, pulling from backend now.
-import { api, apiErrorMessage } from '@/lib/api';
-
-interface VaultData {
-  quantum_fragments: number;
-  lootboxes: VaultItem[];
-  collectibles: VaultItem[];
-}
-
-import { TheForge } from './TheForge';
-import { TheCodex } from './TheCodex';
+// Dummy data to simulate the user's vault
+const MY_INVENTORY: VaultItem[] = [
+  { id: '1', name: 'Alpha Pack', rarity: 'COMMON', isUnopenedPack: true },
+  { id: '2', name: 'Elite Chest', rarity: 'LEGENDARY', isUnopenedPack: true },
+  { id: '3', name: 'Galactic Abacus', rarity: 'EPIC', isUnopenedPack: false },
+  { id: '4', name: 'Newton\'s Apple', rarity: 'RARE', isUnopenedPack: false },
+];
 
 export function CollectorVaultWorkspace() {
-  const [activeTab, setActiveTab] = useState<'UNBOX' | 'FORGE' | 'CODEX'>('UNBOX');
+  const [activeTab, setActiveTab] = useState<'COLLECTION' | 'UNBOX'>('UNBOX');
   const [unboxingPack, setUnboxingPack] = useState<VaultItem | null>(null);
-  
-  const [vaultData, setVaultData] = useState<VaultData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchVaultData = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/student/gamification/vault');
-      
-      // Transform backend box types to match frontend VaultItem 
-      const mappedBoxes = res.data.lootboxes.map((b: any) => ({
-        id: b.id,
-        name: b.box_type === 'ELITE_CHEST' ? 'Elite Chest' : 'Alpha Pack',
-        rarity: b.box_type === 'ELITE_CHEST' ? 'LEGENDARY' : 'COMMON',
-        isUnopenedPack: true
-      }));
-      
-      const mappedCollectibles = res.data.collectibles.map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        rarity: c.rarity,
-        isUnopenedPack: false,
-        image_url: c.image_url,
-        model_3d_url: c.model_3d_url
-      }));
-
-      setVaultData({
-        quantum_fragments: res.data.quantum_fragments,
-        lootboxes: mappedBoxes,
-        collectibles: mappedCollectibles
-      });
-      setError(null);
-    } catch (err) {
-      setError(apiErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  React.useEffect(() => {
-    fetchVaultData();
-  }, []);
-
-  const handleUnboxComplete = async () => {
-    // Refresh data after unbox
-    await fetchVaultData();
-    setUnboxingPack(null);
-  };
-
-  if (loading) {
-    return <div className="flex h-full w-full items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent"></div></div>;
-  }
-
-  if (error) {
-    return <div className="flex h-full w-full items-center justify-center text-red-500">{error}</div>;
-  }
-
-  const packs = vaultData?.lootboxes || [];
-  const collection = vaultData?.collectibles || [];
+  const packs = MY_INVENTORY.filter(i => i.isUnopenedPack);
+  const collection = MY_INVENTORY.filter(i => !i.isUnopenedPack);
 
   if (unboxingPack) {
     return (
       <AlphaPackUnboxCinematic 
         pack={unboxingPack} 
-        onComplete={handleUnboxComplete} 
+        onComplete={() => setUnboxingPack(null)} 
       />
     );
   }
@@ -136,19 +75,10 @@ export function CollectorVaultWorkspace() {
           Decrypt Caches ({packs.length})
         </button>
         <button 
-          onClick={() => setActiveTab("FORGE")}
-          data-active={activeTab === "FORGE" ? "true" : undefined}
+          onClick={() => setActiveTab("COLLECTION")}
+          data-active={activeTab === "COLLECTION" ? "true" : undefined}
           className={`px-8 py-3 rounded-full font-bold transition-all math-role-tab ${
-            activeTab === "FORGE" ? "math-role-tab-active shadow-lg shadow-orange-500/30 scale-105" : ""
-          }`}
-        >
-          The Forge
-        </button>
-        <button 
-          onClick={() => setActiveTab("CODEX")}
-          data-active={activeTab === "CODEX" ? "true" : undefined}
-          className={`px-8 py-3 rounded-full font-bold transition-all math-role-tab ${
-            activeTab === "CODEX" ? "math-role-tab-active shadow-lg shadow-orange-500/30 scale-105" : ""
+            activeTab === "COLLECTION" ? "math-role-tab-active shadow-lg shadow-orange-500/30 scale-105" : ""
           }`}
         >
           The Codex
@@ -202,6 +132,32 @@ export function CollectorVaultWorkspace() {
               </div>
             )}
 
+            {activeTab === 'COLLECTION' && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                {collection.map((item) => (
+                  <div
+                    key={item.id}
+                    className="relative flex flex-col items-center justify-center p-6 rounded-[2rem] border border-white/10 bg-black/40 backdrop-blur-md h-64 overflow-hidden group hover:border-white/30 transition-all duration-500"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="w-24 h-4 bg-white/5 rounded-[100%] absolute bottom-8 blur-md" />
+                    
+                    <Trophy className="w-16 h-16 mb-6 text-white/80 z-10 relative drop-shadow-2xl group-hover:scale-110 transition-transform duration-500" />
+                    <span className="font-black uppercase tracking-widest text-center text-sm z-10 text-white leading-tight">
+                      {item.name}
+                    </span>
+                    <span className={cn(
+                      "text-[10px] mt-2 font-black uppercase tracking-[0.2em] z-10",
+                      item.rarity === 'LEGENDARY' ? 'text-yellow-400' : 
+                      item.rarity === 'EPIC' ? 'text-purple-400' :
+                      item.rarity === 'RARE' ? 'text-cyan-400' : 'text-slate-400'
+                    )}>
+                      {item.rarity}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </section>
