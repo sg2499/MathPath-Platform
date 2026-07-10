@@ -77,7 +77,6 @@ def on_startup():
     ensure_mock_notifications_fixed()
     ensure_mock_gamification_tables()
     ensure_mock_accuracy_fixed()
-    ensure_mock_gamification_rewards_retroactive()
 
     # Seed gamification badges safely
     from app.services.achievements import AchievementEngine
