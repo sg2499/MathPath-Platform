@@ -105,6 +105,49 @@ function Average(values: Array<number | null | undefined>) {
   return valid.reduce((sum, value) => sum + value, 0) / valid.length;
 }
 
+function TrueAvgScore(assignments: StudentCompetitionMockAssignment[]) {
+  const valid = assignments.filter(a => IsCompleted(a) && a.latestResult);
+  if (!valid.length) return null;
+  let totalScore = 0;
+  let totalMax = 0;
+  valid.forEach(a => {
+    const s = ScoreValue(a) ?? 0;
+    const m = MaxScoreValue(a) ?? 0;
+    if (m > 0) {
+      totalScore += s;
+      totalMax += m;
+    }
+  });
+  if (totalMax === 0) return null;
+  return (totalScore / totalMax) * 100;
+}
+
+function TrueAvgAccuracy(assignments: StudentCompetitionMockAssignment[]) {
+  const valid = assignments.filter(a => IsCompleted(a) && a.latestResult);
+  if (!valid.length) return null;
+  let totalCorrect = 0;
+  let totalQ = 0;
+  valid.forEach(a => {
+    const r = a.latestResult!;
+    // check if it has new payload fields, otherwise fallback to percentage
+    const anyR = r as any;
+    if (anyR.totalQuestions !== undefined && anyR.correctCount !== undefined) {
+      const qs = anyR.totalQuestions > 0 ? anyR.totalQuestions : ((anyR.attemptedCount ?? 0) + (anyR.unansweredCount ?? 0));
+      if (qs > 0) {
+         totalCorrect += anyR.correctCount;
+         totalQ += qs;
+      }
+    } else {
+       if (r.accuracyPercentage !== undefined && r.accuracyPercentage !== null) {
+          totalCorrect += r.accuracyPercentage;
+          totalQ += 100;
+       }
+    }
+  });
+  if (totalQ === 0) return null;
+  return (totalCorrect / totalQ) * 100;
+}
+
 function AccuracyChipTone(value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
   if (value === null) return "slate";
   if (value < 60) return "red";
@@ -155,7 +198,7 @@ function BuildHierarchy(assignments: StudentCompetitionMockAssignment[]): Module
         levelCode: firstLevelExam?.levelCode || "Level",
         levelName: firstLevelExam?.levelName || firstLevelExam?.levelCode || "Level",
         assignments: [...levelAssignments].sort((left, right) => new Date(left.assignedAt || 0).getTime() - new Date(right.assignedAt || 0).getTime()),
-        avgAccuracy: Average(levelAssignments.map(AccuracyValue)),
+        avgAccuracy: TrueAvgAccuracy(levelAssignments),
       };
     });
     return {
@@ -163,7 +206,7 @@ function BuildHierarchy(assignments: StudentCompetitionMockAssignment[]): Module
       moduleCode: firstModuleExam?.moduleCode || "Module",
       moduleName: firstModuleExam?.moduleName || firstModuleExam?.moduleCode || "Module",
       levels,
-      avgAccuracy: Average(allModuleAssignments.map(AccuracyValue)),
+      avgAccuracy: TrueAvgAccuracy(allModuleAssignments),
     };
   });
 }
@@ -254,9 +297,9 @@ function StudentCompetitionMockExamsContent() {
 
   const completedCount = filteredAssignments.filter(IsCompleted).length;
   const pendingCount = Math.max(0, filteredAssignments.length - completedCount);
-  const avgScore = Average(filteredAssignments.map(ScoreValue));
+  const avgScore = TrueAvgScore(filteredAssignments);
   const avgMaxScore = Average(filteredAssignments.map(MaxScoreValue));
-  const avgAccuracy = Average(filteredAssignments.map(AccuracyValue));
+  const avgAccuracy = TrueAvgAccuracy(filteredAssignments);
   const hierarchy = BuildHierarchy(filteredAssignments);
 
   if (!ready) return null;
