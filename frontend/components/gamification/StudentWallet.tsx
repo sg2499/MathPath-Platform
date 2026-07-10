@@ -196,18 +196,18 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           </div>
 
           {/* Heavy Chiseled Shimmering Progress Bar */}
-          <div className="relative w-full h-6 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800 shadow-inner group hover:ring-2 hover:ring-indigo-500/40 transition-all">
+          <div className="relative w-full h-6 bg-slate-200 dark:bg-slate-800/80 rounded-full overflow-hidden border border-slate-300 dark:border-slate-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] group hover:ring-2 hover:ring-indigo-500/40 transition-all">
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 1.5, ease: 'easeOut' }}
-              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-400 dark:from-indigo-600 dark:via-purple-600 dark:to-indigo-500 rounded-full relative"
+              className="h-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 dark:from-indigo-500 dark:via-purple-500 dark:to-indigo-400 rounded-full relative shadow-[0_0_10px_rgba(99,102,241,0.6)]"
             >
-              {/* Animated glass shine */}
-              <div className="absolute inset-0 w-[200%] bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[mathShimmer_2s_infinite]" />
+              {/* Inner highlight for 3D pop */}
+              <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/20 rounded-t-full" />
               
               {/* Internal diagonal stripes for game-like texture */}
-              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.2) 10px, rgba(0,0,0,0.2) 20px)' }} />
+              <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, #000 10px, #000 20px)' }} />
             </motion.div>
           </div>
         </div>
