@@ -77,7 +77,7 @@ def _section_performance_from_review(review: list[dict[str, Any]]) -> tuple[list
     for item in sorted(section_totals.values(), key=_section_sort_key):
         total = int(item["total"] or 0)
         correct = int(item["correct"] or 0)
-        percentage = round((correct / total) * 100, 2) if total else 0.0
+        percentage = round((correct / total) * 100) if total else 0.0
         payload = {**item, "percentage": percentage}
         performance.append(payload)
         if percentage >= 75:
@@ -533,12 +533,12 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
     attempt.unanswered_count = unanswered
     attempt.attempted_count = correct + wrong
     attempt.total_questions = len(questions)
-    attempt.total_score = round(score, 2)
-    attempt.max_score = round(max_score, 2)
-    attempt.percentage = round((score / max_score) * 100, 2) if max_score else 0.0
+    attempt.total_score = round(score)
+    attempt.max_score = round(max_score)
+    attempt.percentage = round((score / max_score) * 100) if max_score else 0.0
     attempt.performance_band = _performance_band(attempt.percentage)
     attempt.time_taken_seconds = attempt.duration_seconds if auto else _duration_seconds(attempt.started_at, submitted_at, attempt.duration_seconds)
-    attempt.time_utilization_percentage = round(((attempt.time_taken_seconds or 0) / attempt.duration_seconds) * 100, 2) if attempt.duration_seconds else None
+    attempt.time_utilization_percentage = round(((attempt.time_taken_seconds or 0) / attempt.duration_seconds) * 100) if attempt.duration_seconds else None
 
     assignment = db.get(CompetitionMockAssignment, attempt.mock_assignment_id)
     if assignment:
@@ -550,7 +550,7 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
     for concept, item in concept_totals.items():
         total = int(item["total"])
         correct_value = int(item["correct"])
-        percentage = round((correct_value / total) * 100, 2) if total else 0.0
+        percentage = round((correct_value / total) * 100) if total else 0.0
         concept_payload = {"concept": concept, "correct": correct_value, "total": total, "percentage": percentage}
         concept_performance.append(concept_payload)
         if percentage >= 75:
@@ -574,7 +574,7 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
     existing_summary.score = attempt.total_score
     existing_summary.max_score = attempt.max_score
     existing_summary.percentage = attempt.percentage
-    existing_summary.accuracy_percentage = round((correct / (correct + wrong)) * 100, 2) if (correct + wrong) else 0.0
+    existing_summary.accuracy_percentage = round((correct / attempt.total_questions) * 100) if attempt.total_questions else 0.0
     existing_summary.time_taken_seconds = attempt.time_taken_seconds
     existing_summary.time_utilization_percentage = attempt.time_utilization_percentage
     existing_summary.performance_band = attempt.performance_band or _performance_band(attempt.percentage)
@@ -1060,9 +1060,9 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
     module_insights.sort(key=lambda x: (x["moduleCode"], x["levelCode"]))
 
     return {
-        "overallScore": round(total_score / n, 1) if n > 0 else 0,
-        "overallAccuracy": round(total_accuracy / n, 2) if n > 0 else 0,
-        "overallTimeUtilization": round(total_time_utilization / n, 2) if n > 0 else 0,
+        "overallScore": round(total_score / n) if n > 0 else 0,
+        "overallAccuracy": round(total_accuracy / n) if n > 0 else 0,
+        "overallTimeUtilization": round(total_time_utilization / n) if n > 0 else 0,
         "totalMocksAttempted": n,
         "averageTimePerQuestion": round(total_time_taken / total_questions, 2) if total_questions > 0 else 0,
         "history": history,

@@ -222,7 +222,7 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     attempt.attempted_count = correct + wrong
     attempt.total_score = float(correct)
     attempt.max_score = float(len(questions))
-    attempt.accuracy_percentage = round((correct / len(questions)) * 100, 2) if questions else 0
+    attempt.accuracy_percentage = round((correct / len(questions)) * 100) if questions else 0
     attempt.time_taken_seconds = attempt.duration_seconds if auto else min(attempt.duration_seconds, int((submitted - _aware(attempt.started_at)).total_seconds()))
     UpdateSubmittedAttemptBenchmarkState(attempt, BENCHMARK_PERCENTAGE)
 
@@ -331,7 +331,7 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
     if previous_attempt:
         retry_workflow["previousAccuracyPercentage"] = previous_attempt.accuracy_percentage
         retry_workflow["previousScore"] = previous_attempt.total_score
-        retry_workflow["accuracyDelta"] = round(float(attempt.accuracy_percentage or 0) - float(previous_attempt.accuracy_percentage or 0), 2)
+        retry_workflow["accuracyDelta"] = round(float(attempt.accuracy_percentage or 0) - float(previous_attempt.accuracy_percentage or 0))
 
     SummaryAccuracy = _safe_float(getattr(attempt, "accuracy_percentage", None), 0.0)
     SummaryScore = _safe_float(getattr(attempt, "total_score", None), 0.0)
