@@ -117,6 +117,18 @@ def ensure_student_teacher_id_column() -> None:
     with engine.begin() as connection:
         connection.execute(text("ALTER TABLE students ADD COLUMN teacher_id VARCHAR"))
 
+def ensure_user_economy_columns() -> None:
+    """Ensure quantum_fragments is added to user_economy if it exists."""
+    inspector = inspect(engine)
+    if "user_economy" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("user_economy")}
+    if "quantum_fragments" not in existing:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE user_economy ADD COLUMN quantum_fragments INTEGER NOT NULL DEFAULT 0"))
+
+
 DPS_COLUMNS = {
     "publication_status": "VARCHAR(30) DEFAULT 'DRAFT'",
     "last_preview_seed": "TEXT",
