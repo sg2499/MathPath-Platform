@@ -1,5 +1,7 @@
 # Session Resumption Status
 
+> **⚠️ SUPERSEDED (2026-07-10).** This file is stale (last updated 2026-06-12, well before the Competition/Gamification phase and the #290–301 hotfix chain). Read `docs/project-memory/COWORK_HANDOFF.md` for current state. This file should be updated automatically by `sre-devops` at the end of each delivery going forward — see `.antigravity/instructions.md` §1.
+
 - **Last Active Session End**: 2026-06-12
 - **Active Branch**: `main` (Clean working tree)
 - **Latest Commit**: `3ae5c92` ("clean: remove misplaced and obsolete admin students assessments sub-route")

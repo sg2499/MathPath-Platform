@@ -2,6 +2,8 @@
 
 Last updated: 2026-07-07
 
+> **⚠️ SUPERSEDED AS THE PRIMARY ENTRY POINT (2026-07-10).** This file is 93+ commits behind HEAD and is kept for historical context only. Read `docs/project-memory/COWORK_HANDOFF.md` first, then trust `git log --oneline -30` over any prose state description below.
+
 ## Product
 
 MathPath is a role-based abacus and mental math learning platform for Admin, Teacher, and Student workflows. The platform currently includes:

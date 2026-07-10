@@ -2,6 +2,8 @@
 
 **Last Updated:** 2026-06-17
 
+> **⚠️ SUPERSEDED AS THE PRIMARY ENTRY POINT (2026-07-10).** This file predates the Competition/Gamification work of July 2026 and the July 8–10 hotfix chain (#290–301). Read `docs/project-memory/COWORK_HANDOFF.md` first for current repo state, then `git log --oneline -30`.
+
 ## Current Phase: Mock Exam and Competition Phase
 
 ### State of the Platform

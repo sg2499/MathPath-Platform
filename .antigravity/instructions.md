@@ -32,13 +32,23 @@ Before executing any code modification, write and present an **Implementation Pl
 - **Clean Diffing**: Retain all existing docstrings, formatting, and comments. Make minimal, clean changes.
 - **Regression Safety**: Every commit must be compile-safe and type-safe. Run validation scripts (e.g., `npm run typecheck`, `npm run lint`, or `pytest`) before proposing or pushing.
 
-## 5. End-to-End Automated Deployment Loop
-Once the developer approves an Implementation Plan, the agent must execute the following workflow fully autonomously:
-1. **Implement Fix**: Make the code changes locally.
-2. **Validate**: Run local lints, type-checks, and tests.
-3. **Commit & Push**: Run Git commands to stage, commit, and push the changes directly to `main` (triggering auto-rebuild on Render and Vercel).
-4. **Monitor Deploy**: Execute `python .antigravity/scripts/monitor_deploy.py` to poll the live Vercel and Render endpoints. 
-5. **Notify**: Wake up and notify the developer with a direct link to the live Vercel domain only when the deployment health checks are successful.
+## 5. End-to-End Deployment Loop (revised 2026-07-10)
+
+**Environment note:** steps 3-5 below require real GitHub access (git push, `gh pr` commands). This only works from Claude Code running locally, where `gh.exe` is already authenticated. A Cowork session (sandboxed, no route to github.com) can complete steps 1-2 and must then hand off to a local Claude Code session (see `CLAUDE.md`) for delivery — do not attempt push/PR/merge from Cowork.
+Once the developer approves an Implementation Plan (or the change qualifies as low-risk autopilot per `.agents/AGENTS.md` §1), the work is routed through the squad, not executed by one agent doing everything:
+1. **Implement**: the matching specialist subagent (`frontend-architect`, `backend-architect`, `vfx-3d`, `data-telemetry`) makes the code changes and runs its own local validation (lint/typecheck/tests), reporting real output.
+2. **Review Gate**: `qa-reviewer` independently re-checks the diff and re-runs verification. Delivery does not proceed on anything less than PASS or an explicitly acknowledged PASS WITH NOTES.
+3. **Deliver**: `sre-devops` — and only `sre-devops` — runs `python .agents/apex_deliver.py "<commit message>"`. This pushes a branch, opens a PR, and **waits for `.github/workflows/mathpath-ci.yml` to actually pass** before merging (no more `--admin` bypass by default; that flag now requires interactive human confirmation and is reserved for genuine emergencies).
+4. **Monitor Deploy**: `sre-devops` runs `python .antigravity/scripts/monitor_deploy.py` to poll live Vercel and Render health. A merged PR is not a confirmed deploy — health must be verified.
+5. **Rollback path**: every successful delivery is tagged (`prod-YYYYMMDD-HHMMSS`, pushed to origin). If health checks fail post-deploy, the default response is `python .agents/rollback.py --to <tag>`, not another forward-fix hotfix — the #290–301 chain happened specifically because each failure was patched forward instead of rolled back.
+6. **Notify**: notify the developer with the live domain link, health status, and the rollback tag, only once health checks are confirmed successful.
+
+## 6. Model Routing Policy (added 2026-07-10)
+Not every task suits the Cowork session's default model (currently Sonnet 5). Before starting non-trivial work:
+1. Apply the rubric in `.claude/agents/model-router.md` (Haiku for narrow triage/mechanical edits only, Sonnet as the default for most implementation, Opus for hard technical escalation with a concrete trigger, Fable for open-ended creative/strategic judgment). For routine tasks, apply it directly; for ambiguous or high-stakes calls, invoke the `model-router` subagent explicitly.
+2. **The session's selected model never changes silently.** If the rubric recommends a non-default model for a specific task, stop and ask the developer for approval (state the task, the recommended model, and the concrete trigger) before proceeding.
+3. On approval, dispatch that specific task to the relevant specialist subagent with a model override (e.g. run `backend-architect` on Opus for a high-risk migration) — this affects only that delegated task, not the rest of the conversation.
+4. If the developer declines, proceed on the default model and note the tradeoff (e.g. "continuing on Sonnet; flag if this doesn't resolve after another attempt").
 
 ---
 
