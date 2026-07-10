@@ -11,7 +11,6 @@ from app.api.routes_auth import router as auth_router
 from app.api.routes_admin import router as admin_router
 from app.api.routes_student import router as student_router
 from app.api.routes_teacher import router as teacher_router
-from app.api.routes_gamification import router as gamification_router
 from app.api.routes_notifications import router as notifications_router
 import os
 import sentry_sdk
@@ -106,6 +105,5 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(student_router)
-app.include_router(gamification_router)
 app.include_router(teacher_router)
 app.include_router(notifications_router)
