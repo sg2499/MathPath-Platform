@@ -705,3 +705,88 @@ def ensure_mock_gamification_tables() -> None:
         StudentAchievementStat.__table__
     ])
 
+
+def ensure_mock_gamification_rewards_retroactive() -> None:
+    """Retroactively award XP, Coins, and Badges for existing mock submissions."""
+    try:
+        with engine.begin() as connection:
+            pass # We will use ORM session for gamification logic
+            
+        from app.db.session import SessionLocal
+        from app.models.models import CompetitionMockResultSummary, Student, EconomyTransaction, UserEconomy, AchievementBadge
+        from app.services.economy_service import EconomyService
+        from app.services.achievements import AchievementEngine
+        from app.services.notification_service import CreateNotification
+        from sqlalchemy.orm import joinedload
+        
+        db = SessionLocal()
+        try:
+            # Check all existing summaries
+            summaries = db.query(CompetitionMockResultSummary).options(joinedload(CompetitionMockResultSummary.mock_assignment)).all()
+            for summary in summaries:
+                # Check if XP was already awarded for this attempt
+                existing_tx = db.query(EconomyTransaction).filter(
+                    EconomyTransaction.source_action == f"MOCK_EXAM_SUBMISSION_{summary.mock_attempt_id}"
+                ).first()
+                
+                student = db.query(Student).filter_by(id=summary.student_id).first()
+                if not student or not student.user_id:
+                    continue
+                
+                if not existing_tx:
+                    # Award missing XP and Coins
+                    try:
+                        econ_result = EconomyService.evaluate_assignment_performance(
+                            db=db,
+                            user_id=student.user_id,
+                            accuracy_percent=summary.percentage or 0.0,
+                            base_xp=500,
+                            assignment_id=summary.mock_assignment_id or "MOCK"
+                        )
+                    except Exception as e:
+                        import logging
+                        logging.error(f"Failed to retroactive award XP for {summary.id}: {e}")
+                
+                # Retroactively evaluate badges
+                try:
+                    # We pass the db session and it will check what badges they already have, and award new ones if needed
+                    unlocked_badges = AchievementEngine.evaluate_mock_exam_submission(db, student.id, summary)
+                    
+                    for b in unlocked_badges:
+                        try:
+                            badge_id = b.get("id")
+                            code = b.get("code")
+                            tier = b.get("tier")
+                            name = b.get("name")
+                            description = b.get("description")
+                            icon_name = b.get("icon_name", "Target")
+                            
+                            CreateNotification(
+                                db,
+                                recipient_user_id=student.user_id,
+                                recipient_role="STUDENT",
+                                type="BADGE_UNLOCKED",
+                                category="GAMIFICATION",
+                                title=f"New Badge Unlocked: {name}",
+                                message=f"You unlocked the {tier} tier '{name}' badge for: {description}!",
+                                target_route=f"/student/achievements?badge={code}_{tier}",
+                                color_variant="PURPLE",
+                                metadata={"badgeId": badge_id, "tier": tier, "code": code, "icon": icon_name}
+                            )
+                        except Exception as ne:
+                            import logging
+                            logging.error(f"Failed retroactive badge notif: {ne}")
+                except Exception as e:
+                    import logging
+                    logging.error(f"Failed to retroactive gamify {summary.id}: {e}")
+                    
+            db.commit()
+        except Exception as inner_e:
+            db.rollback()
+            import logging
+            logging.error(f"Retroactive gamification failed: {inner_e}")
+        finally:
+            db.close()
+    except Exception as e:
+        import logging
+        logging.error(f"Failed in ensure_mock_gamification_rewards_retroactive: {e}")
