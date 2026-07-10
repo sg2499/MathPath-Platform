@@ -59,6 +59,7 @@ def on_startup():
     from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_assessment_reattempt_columns, ensure_student_level_promotions_table, ensure_assignment_attempt_chain_columns, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table, ensure_competition_mock_tables, ensure_mock_notifications_fixed, ensure_mock_gamification_tables, ensure_mock_accuracy_fixed, ensure_user_economy_columns
     from app.services.retro_notifications import ensure_mock_student_notifications_retroactive
     from app.services.retro_badges import fix_false_unstoppable_badges
+    from app.services.recalculate_streaks import recalculate_unstoppable_streaks
     ensure_user_columns()
     ensure_student_profile_columns()
     ensure_teacher_columns()
@@ -66,6 +67,7 @@ def on_startup():
     ensure_user_economy_columns()
     ensure_mock_student_notifications_retroactive()
     fix_false_unstoppable_badges()
+    recalculate_unstoppable_streaks()
     ensure_dps_publication_columns()
     ensure_assessment_reattempt_columns()
     ensure_student_level_promotions_table()
