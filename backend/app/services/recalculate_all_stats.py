@@ -28,7 +28,7 @@ def recalculate_all_gamification_stats() -> None:
                 
             results = db.query(CompetitionMockResultSummary).filter(
                 CompetitionMockResultSummary.student_id == student.id
-            ).order_by(CompetitionMockResultSummary.submitted_at.asc()).all()
+            ).order_by(CompetitionMockResultSummary.completed_at.asc()).all()
             
             for r in results:
                 try:
