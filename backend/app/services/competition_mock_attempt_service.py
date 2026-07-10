@@ -692,12 +692,32 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
             import logging
             logging.error(f"Failed to generate notifications for mock submission {attempt.id}: {e}")
 
+    # --- Economy Hook ---
+    final_xp = 0
+    final_coins = 0
+    try:
+        from app.services.economy_service import EconomyService
+        econ_result = EconomyService.evaluate_assignment_performance(
+            db=db,
+            user_id=student.user_id,
+            accuracy_percent=attempt.percentage or 0.0,
+            base_xp=500,
+            assignment_id=attempt.mock_assignment_id or "MOCK"
+        )
+        final_xp = econ_result.get("awarded_xp", 0)
+        final_coins = econ_result.get("awarded_coins", 0)
+    except Exception as e:
+        import logging
+        logging.error(f"Economy engine failed for attempt {attempt.id}: {e}")
+
     # --- Gamification Hook ---
     unlocked_badges = []
     try:
         from app.services.achievements import AchievementEngine
         from app.models.models import CompetitionMockResultSummary
-        summary = db.query(CompetitionMockResultSummary).filter_by(mock_attempt_id=attempt.id).first()
+        # Eagerly load the mock assignment to prevent detached instance / lazy-load errors
+        from sqlalchemy.orm import joinedload
+        summary = db.query(CompetitionMockResultSummary).options(joinedload(CompetitionMockResultSummary.mock_assignment)).filter_by(mock_attempt_id=attempt.id).first()
         if summary:
             unlocked_badges = AchievementEngine.evaluate_mock_exam_submission(db, student.id, summary)
 
@@ -708,6 +728,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
                     tier = b.get("tier")
                     name = b.get("name")
                     description = b.get("description")
+                    icon_name = b.get("icon_name", "Target")
                     CreateNotification(
                         db,
                         recipient_user_id=student.user_id,
@@ -718,7 +739,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
                         message=f"You unlocked the {tier} tier '{name}' badge for: {description}!",
                         target_route=f"/student/achievements?badge={code}_{tier}",
                         color_variant="PURPLE",
-                        metadata={"badgeId": badge_id, "tier": tier, "code": code}
+                        metadata={"badgeId": badge_id, "tier": tier, "code": code, "icon": icon_name}
                     )
                 except Exception as ne:
                     import logging
@@ -739,6 +760,8 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
         "unanswered": attempt.unanswered_count,
         "timeTakenSeconds": attempt.time_taken_seconds,
         "unlockedBadges": unlocked_badges,
+        "awardedXP": final_xp,
+        "awardedCoins": final_coins
     }
 
 
