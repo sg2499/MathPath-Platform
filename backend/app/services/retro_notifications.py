@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
 from app.models.models import CompetitionMockResultSummary, User, Student, CompetitionMockAttempt, CompetitionMockExam, Notification
-from app.services.notifications import CreateNotification
+from app.services.notification_service import CreateNotification
 import logging
 
 def ensure_mock_student_notifications_retroactive() -> None:
