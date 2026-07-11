@@ -15,7 +15,9 @@ import { api } from "@/lib/api";
 import { AppShell } from "@/components/common/AppShell";
 import { useRouter } from "next/navigation";
 import { LoadingState } from "@/components/common/LoadingState";
+import { ErrorState } from "@/components/common/ErrorState";
 import { BadgeInspectionModal } from "@/components/gamification/BadgeInspectionModal";
+import { useProtectedPage } from "@/hooks/useProtectedPage";
 
 // FORCE TAILWIND TO COMPILE THESE EXACT CLASSES DURING HOT-RELOAD
 // Without this, Next.js dev server may not pick up tailwind.config.ts changes until a full restart
@@ -96,13 +98,16 @@ const fallbackConfig: Record<string, any> = {
 };
 
 export default function TrophyRoomPage() {
+  const Ready = useProtectedPage(["STUDENT"]);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [badges, setBadges] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"mock" | "dps">("mock");
   const [selectedBadge, setSelectedBadge] = useState<{ badge: any, config: any } | null>(null);
 
   useEffect(() => {
+    if (!Ready) return;
     async function loadAchievements() {
       try {
         const response = await api.get(`/student/achievements`);
@@ -130,14 +135,25 @@ export default function TrophyRoomPage() {
         }
       } catch (err) {
         console.error(err);
+        setError("We couldn't load your achievements. Please try again in a moment.");
       } finally {
         setLoading(false);
       }
     }
     loadAchievements();
-  }, []);
+  }, [Ready]);
 
-  if (loading) return <LoadingState />;
+  if (!Ready || loading) return <LoadingState />;
+
+  if (error) {
+    return (
+      <AppShell>
+        <main className="math-dashboard-page math-dashboard-student w-full space-y-5">
+          <ErrorState title="Trophy Room Unavailable" message={error} />
+        </main>
+      </AppShell>
+    );
+  }
 
   // Group by tier
   const baseBadges = badges.filter(b => b.tier === "BASE");

@@ -1963,7 +1963,13 @@ export function RecordWorkspace({
                                                   <div className="flex shrink-0 flex-wrap items-center gap-2">
                                                     {onView ? (
                                                       (() => {
-                                                        const isPendingPractice = row.status === "Pending" || row.status === "Re-Attempt Pending";
+                                                        // Use the already-computed Issue.label (the human-readable
+                                                        // status), not the raw backend row.status enum value (e.g.
+                                                        // "NOT_STARTED") — comparing row.status against "Pending"
+                                                        // never matched, so this admin Manage tab never showed the
+                                                        // "Start Practice" quick action, unlike the Lessons/Records
+                                                        // tabs elsewhere in this file which already do this correctly.
+                                                        const isPendingPractice = Issue.label === "Pending" || Issue.label === "Re-Attempt Pending";
                                                         const actualViewLabel = isPendingPractice ? "Start Practice" : viewLabel;
                                                         const actualViewTip = isPendingPractice ? "Start your practice attempt" : viewTip;
                                                         const buttonIcon = isPendingPractice ? <PlayCircle size={16} className="shrink-0" /> : undefined;

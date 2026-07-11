@@ -952,9 +952,12 @@ def get_mock_exam_leaderboard(
             mapped_badges.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
             top_badges = mapped_badges[:3]
 
-            time_util = res.time_utilization_percentage or 0
-            standardized_time_seconds = (time_util / 100.0) * 3600
-
+            # timeTakenSeconds must come straight from the real, already-correct
+            # time_taken_seconds column. This used to be reconstructed from
+            # time_utilization_percentage rescaled against a hardcoded 3600s
+            # (60-minute) assumption, which produced fabricated, misleading
+            # values whenever an exam's real duration wasn't exactly 60
+            # minutes (e.g. a 30-minute exam used in full showed "60m 0s").
             leaderboard.append({
                 "rank": rank,
                 "studentId": st.id,
@@ -963,7 +966,7 @@ def get_mock_exam_leaderboard(
                 "percentage": res.percentage,
                 "score": res.percentage, # Normalized to 100 max
                 "accuracy": res.accuracy_percentage,
-                "timeTakenSeconds": int(standardized_time_seconds),
+                "timeTakenSeconds": int(res.time_taken_seconds or 0),
                 "isCurrent": is_current,
                 "topBadges": top_badges
             })
@@ -1029,6 +1032,29 @@ def get_student_achievements(
     return {"achievements": result}
 
 
+@router.get("/economy")
+def get_student_economy(
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student)
+):
+    """Real wallet state (XP / coins / rank tier) from the actual economy
+    ledger. EconomyService.award_xp_and_coins() is the only writer of this
+    table. Prior to this route existing, nothing in the frontend ever read
+    UserEconomy at all -- the student dashboard's "Acquired XP / MathCoins"
+    widget showed a locally-fabricated approximation instead (completed
+    assignments/assessments/badges times fixed multipliers), which didn't
+    move when a student completed a mock exam and had no relationship to
+    what EconomyService was actually crediting server-side."""
+    from app.services.economy_service import EconomyService
+    econ = EconomyService.get_user_economy(db, student.user_id)
+    return {
+        "currentXp": econ.current_xp,
+        "coinBalance": econ.coin_balance,
+        "currentRankTier": econ.current_rank_tier,
+        "lifetimeCoinsEarned": econ.lifetime_coins_earned,
+    }
+
+
 @router.get("/competition/hierarchy")
 def get_competition_hierarchy(
     db: Session = Depends(get_db),
@@ -1092,7 +1118,7 @@ def get_cumulative_leaderboard(
             User.photo_url,
             func.sum(CompetitionMockResultSummary.score).label('total_score'),
             func.sum(CompetitionMockResultSummary.max_score).label('total_max_score'),
-            func.avg(CompetitionMockResultSummary.time_utilization_percentage).label('avg_time_util'),
+            func.avg(CompetitionMockResultSummary.time_taken_seconds).label('avg_time_taken_seconds'),
             func.avg(CompetitionMockResultSummary.accuracy_percentage).label('avg_accuracy')
         )
         .join(Student, CompetitionMockResultSummary.student_id == Student.id)
@@ -1107,9 +1133,11 @@ def get_cumulative_leaderboard(
     processed_results = []
     for r in results:
         percentage = (r.total_score / r.total_max_score * 100) if r.total_max_score and r.total_max_score > 0 else 0
-        avg_time_util = r.avg_time_util or 0
-        standardized_time_seconds = (avg_time_util / 100.0) * 3600
-        
+
+        # See get_mock_exam_leaderboard() above for why this reads the real
+        # avg_time_taken_seconds column instead of reconstructing a value
+        # from time_utilization_percentage against a hardcoded 60-minute
+        # assumption.
         processed_results.append({
             "studentId": r.student_id,
             "name": r.full_name,
@@ -1117,7 +1145,7 @@ def get_cumulative_leaderboard(
             "percentage": round(percentage),
             "score": round(percentage),  # Normalized to 100 max
             "accuracy": round(r.avg_accuracy or 0),
-            "timeTakenSeconds": int(standardized_time_seconds),
+            "timeTakenSeconds": int(r.avg_time_taken_seconds or 0),
             "isCurrent": r.student_id == student.id
         })
         

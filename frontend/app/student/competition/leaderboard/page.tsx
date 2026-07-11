@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Award, Clock, Star, Trophy, Users, AlertCircle, ChevronDown, ArrowLeft } from "lucide-react";
 import { LeaderboardAPI } from "@/lib/api-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
+import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { triggerMythic, triggerSurge, triggerBlaze } from "@/lib/utils/particles";
@@ -47,6 +48,7 @@ function getInitials(name: string) {
 }
 
 export default function MockLeaderboardPage() {
+const Ready = useProtectedPage(["STUDENT"]);
 const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +72,7 @@ const router = useRouter();
 
   // Load Hierarchy on mount
   useEffect(() => {
+    if (!Ready) return;
     async function loadHierarchy() {
       try {
         const data = await LeaderboardAPI.getHierarchy();
@@ -112,7 +115,7 @@ const router = useRouter();
       }
     }
     loadHierarchy();
-  }, []);
+  }, [Ready]);
 
   const handleModuleChange = (moduleId: string) => {
       setSelectedModuleId(moduleId);
@@ -158,7 +161,7 @@ const router = useRouter();
     loadLeaderboard();
   }, [selectedLevelId, selectedExamId, viewMode]);
 
-  if (loading && !leaderboardData && modules.length === 0) return <LoadingState />;
+  if (!Ready || (loading && !leaderboardData && modules.length === 0)) return <LoadingState />;
 
   if (error) {
     return (
