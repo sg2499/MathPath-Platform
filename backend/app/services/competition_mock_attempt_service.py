@@ -275,6 +275,7 @@ def _completed_attempt_history_payload(db: Session, assignment_id: str) -> list[
             "maxScore": result.max_score,
             "accuracyPercentage": result.accuracy_percentage,
             "timeTakenSeconds": result.time_taken_seconds,
+            "expectedDurationSeconds": attempt.duration_seconds,
             "totalQuestions": attempt.total_questions,
             "completedAt": result.completed_at.isoformat(),
         })

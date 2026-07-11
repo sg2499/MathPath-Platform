@@ -13,7 +13,7 @@ import {
   Coins, Cpu, RadioTower, Lock, ChevronLeft, ChevronRight, CheckCircle, Target, Focus, Scan, Zap,
   FastForward, Rocket, Medal, Flag, Crown, Flame, Activity, Infinity as InfinityIcon, Clock, Sun,
   AlarmClock, TrendingUp, ArrowUpRight, ChevronsUp, Star, Sparkles, Crosshair,
-  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords, ArrowRight
+  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords, ArrowRight, Info
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -136,6 +136,7 @@ export default function StudentDashboardPage() {
   const [quoteIsFlipped, setQuoteIsFlipped] = useState(false);
   const [intelIndex, setIntelIndex] = useState(0);
   const [conquestIndex, setConquestIndex] = useState(0);
+  const [heatmapInfoOpen, setHeatmapInfoOpen] = useState(false);
 
   const AssignmentQuery = useQuery({
     queryKey: ["student-assignments"],
@@ -250,6 +251,7 @@ export default function StudentDashboardPage() {
       .map((r: any) => ({
         date: (r.completedDate || r.submittedAt || "").split("T")[0],
         timeTakenSeconds: r.timeTakenSeconds || 0,
+        expectedDurationSeconds: r.expectedDurationSeconds || null,
         accuracyPercentage: r.accuracyPercentage || 0,
         totalQuestions: r.totalQuestions || 5,
       }));
@@ -260,6 +262,7 @@ export default function StudentDashboardPage() {
         (a.attemptHistory || []).map((h: any) => ({
           date: (h.completedAt || "").split("T")[0],
           timeTakenSeconds: h.timeTakenSeconds || 0,
+          expectedDurationSeconds: h.expectedDurationSeconds || a.mockExam?.durationSeconds || null,
           accuracyPercentage: h.accuracyPercentage || 0,
           totalQuestions: h.totalQuestions || a.mockExam?.totalQuestions || 5,
         }))
@@ -271,6 +274,7 @@ export default function StudentDashboardPage() {
         (a.attemptHistory || []).map((h: any) => ({
           date: (h.completedAt || "").split("T")[0],
           timeTakenSeconds: h.timeTakenSeconds || 0,
+          expectedDurationSeconds: h.expectedDurationSeconds || a.durationSeconds || null,
           accuracyPercentage: h.accuracyPercentage || 0,
           totalQuestions: h.totalQuestions || a.questionCount || 5,
         }))
@@ -308,17 +312,36 @@ export default function StudentDashboardPage() {
         ? Math.round(dayResults.reduce((acc: number, r: any) => acc + (r.accuracyPercentage || 0), 0) / count)
         : 0;
 
-      // Estimate total questions (since we might not have it directly in the basic result payload)
-      // Fallback: estimate 5 questions per sheet if unknown
-      const questionsCount = dayResults.reduce((acc: number, r: any) => acc + (r.totalQuestions || 5), 0);
-      
-      // Speed (Questions per Minute)
-      const timeMinsForSpeed = (totalSeconds / 60) > 0.1 ? (totalSeconds / 60) : 5; 
-      const speed = count > 0 ? questionsCount / timeMinsForSpeed : 0;
+      // Pace, judged per task rather than one flat questions/minute bar: each
+      // practice sheet, assessment, and mock exam has its own admin-defined
+      // expected duration (expectedDurationSeconds). Pace ratio = expected
+      // time ÷ actual time taken for that specific attempt, so a 60-minute
+      // mock exam that used its full 60 minutes scores as "on pace" (ratio
+      // 1.0) rather than being penalized against a flat speed threshold that
+      // doesn't know the difference between a 5-minute drill and an hour-long
+      // exam. Capped at 1.5 so an implausibly fast attempt can't run away
+      // with the bonus. When expected duration is unknown, that attempt is
+      // treated as neutral (ratio 1.0) rather than skewing the day's score.
+      const paceRatios = dayResults.map((r: any) => {
+        const actual = r.timeTakenSeconds && r.timeTakenSeconds > 0 ? r.timeTakenSeconds : null;
+        const expected = r.expectedDurationSeconds && r.expectedDurationSeconds > 0 ? r.expectedDurationSeconds : actual;
+        if (!actual || !expected) return 1;
+        return Math.min(expected / actual, 1.5);
+      });
+      const avgPaceRatio = count > 0
+        ? paceRatios.reduce((acc: number, r: number) => acc + r, 0) / count
+        : 0;
+
+      // Speed keeps the same ~30-point ceiling it always had (speed remains
+      // a major factor, matching how central pace is to abacus training) —
+      // only how pace is measured has changed, from a flat threshold to a
+      // per-task-relative one.
+      const speed = avgPaceRatio; // exposed as "pace ratio": 1.0 = exactly on pace
+      const speedBonus = count > 0 ? Math.min(avgPaceRatio, 1.5) / 1.5 * 30 : 0;
 
       // Flow State: 0 to 100%
       const flowState = count > 0
-        ? Math.min(Math.round(avgAccuracy * 0.7 + Math.min(speed * 6, 30)), 100)
+        ? Math.min(Math.round(avgAccuracy * 0.7 + speedBonus), 100)
         : 0;
 
       let tier = "REST";
@@ -662,8 +685,27 @@ export default function StudentDashboardPage() {
                                <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 block leading-none">
                                  {heatmapMonthYearLabel}
                                </span>
-                               <h4 className="text-sm font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-5 flex items-center gap-2.5 drop-shadow-sm">
+                               <h4 className="relative text-sm font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-5 flex items-center gap-2.5 drop-shadow-sm">
                                   <Activity size={18} /> Grind Heatmap (This Week)
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setHeatmapInfoOpen((prev) => !prev); }}
+                                    className="text-slate-400 dark:text-slate-500 hover:text-[var(--mp-role-primary)] transition-colors normal-case tracking-normal font-normal"
+                                    aria-label="What does the Grind Heatmap show?"
+                                  >
+                                    <Info size={14} />
+                                  </button>
+                                  {heatmapInfoOpen && (
+                                    <>
+                                      <div className="fixed inset-0 z-40" onClick={() => setHeatmapInfoOpen(false)} />
+                                      <div className="absolute top-full left-0 mt-2 w-72 z-50 bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[11px] leading-relaxed p-4 rounded-2xl font-semibold normal-case tracking-normal shadow-2xl border border-white/10 dark:border-slate-200">
+                                        <p className="font-black uppercase text-[10px] tracking-wider mb-2 text-[var(--mp-role-primary)]">What is this?</p>
+                                        <p className="mb-2 opacity-90">Each bar is one day. It combines every practice sheet, assessment, and mock exam you completed that day — every attempt counts, not just your last one.</p>
+                                        <p className="mb-2 opacity-90">The tier (S/A/B/C/D) reflects both your <span className="text-emerald-400 dark:text-emerald-600">accuracy</span> and your <span className="text-amber-400 dark:text-amber-600">pace</span> against each task's own allotted time — finishing accurately and within your time earns the highest tiers.</p>
+                                        <p className="opacity-70">A gray, flat bar means no activity that day.</p>
+                                      </div>
+                                    </>
+                                  )}
                                </h4>
                              </div>
                              <div className="flex items-end justify-between gap-3 h-28 w-full max-w-sm px-2">
@@ -691,13 +733,18 @@ export default function StudentDashboardPage() {
                                           <span className="text-[12px] opacity-70 text-center py-2">No conquests attempted</span>
                                         )}
                                       </div>
-                                      <div 
-                                        style={{ height: `${pct}%` }}
-                                        className={`w-full rounded-t-[4px] transition-all duration-300 hover:scale-y-105
-                                          ${d.timeSpent > 0
-                                             ? 'bg-[var(--mp-role-primary)] shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]' 
-                                             : 'bg-slate-300 dark:bg-white/10'}`} 
-                                      />
+                                      {/* Fixed-height bar track: the bar's height:X% below needs an
+                                          explicit-height ancestor to resolve against, otherwise it
+                                          collapses to zero (a "ghost" bar that only shows via tooltip). */}
+                                      <div className="h-20 w-full flex items-end">
+                                        <div
+                                          style={{ height: `${pct}%` }}
+                                          className={`w-full rounded-t-[4px] transition-all duration-300 hover:scale-y-105
+                                            ${d.timeSpent > 0
+                                               ? 'bg-[var(--mp-role-primary)] shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]'
+                                               : 'bg-slate-300 dark:bg-white/10'}`}
+                                        />
+                                      </div>
                                       <div className="flex flex-col items-center gap-1 mt-2">
                                         <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">{d.day}</span>
                                         <span className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200 leading-none">{parseInt(d.date.split("-")[2], 10)}</span>
