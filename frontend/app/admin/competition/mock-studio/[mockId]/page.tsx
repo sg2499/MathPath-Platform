@@ -211,7 +211,17 @@ function groupQuestionsBySection(questions: CompetitionMockQuestion[]) {
       questions: [question],
     });
   });
-  return Array.from(sectionMap.values()).sort((left, right) => left.sectionNumber - right.sectionNumber);
+  // Sort by the real (fixed) section number to preserve correct concept
+  // order, then assign a clean sequential display number. Sections with 0
+  // questions (a concept the assigned level hasn't covered yet) never reach
+  // this map at all, so without this step the UI would show gaps like S1,
+  // S2, S3, S5, S7 instead of a clean S1-S9. The real sectionNumber is kept
+  // as-is for concept-specific logic elsewhere (e.g. isMmExpressionQuestion
+  // checks against fixed numbers) — only displaySectionNumber should ever
+  // be shown to admins or students.
+  return Array.from(sectionMap.values())
+    .sort((left, right) => left.sectionNumber - right.sectionNumber)
+    .map((section, index) => ({ ...section, displaySectionNumber: index + 1 }));
 }
 
 export default function AdminCompetitionMockDetailPage() {
@@ -359,7 +369,7 @@ function MockOverviewTab({ mock }: { mock: CompetitionMockExamDetail }) {
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {sections.map((section) => (
               <div key={section.sectionNumber} className="grid gap-3 px-5 py-3 sm:grid-cols-[96px_1fr_120px_90px] sm:items-center">
-                <span className="rounded-2xl math-admin-studio-chip px-3 py-2 text-center text-xs font-black">S{section.sectionNumber}</span>
+                <span className="rounded-2xl math-admin-studio-chip px-3 py-2 text-center text-xs font-black">S{section.displaySectionNumber}</span>
                 <p className="truncate font-black text-slate-950 dark:text-white">{section.sectionTitle}</p>
                 <p className="text-sm font-black text-slate-700 dark:text-slate-200">{section.questions.length} Questions</p>
                 <p className="text-sm font-black text-slate-500">{mock.totalQuestions ? ((section.questions.length / mock.totalQuestions) * 100).toFixed(1) : "0"}%</p>
@@ -379,6 +389,16 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
   useEffect(() => { setCurrentIndex(0); }, [mock.mockExamId]);
 
   const currentQuestion = questions[currentIndex];
+  // Same real-number -> clean-sequential-number lookup used everywhere else
+  // on this page, so a single question's badge stays consistent with the
+  // Section-Wise Questions and Coverage Check tabs.
+  const displaySectionNumberByRealNumber = useMemo(() => {
+    const map = new Map<number, number>();
+    groupQuestionsBySection(mock.questions || []).forEach((section) => {
+      map.set(section.sectionNumber, section.displaySectionNumber);
+    });
+    return map;
+  }, [mock.questions]);
   if (!questions.length || !currentQuestion) return <EmptyState title="No questions generated" description="This mock does not have generated questions yet." />;
 
   return (
@@ -398,7 +418,7 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
               <p className="math-kicker text-[10px]">Mock Preview</p>
               <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Question {currentQuestion.questionNumber} of {questions.length}</h2>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">Section {currentQuestion.sectionNumber}</span>
+                <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">Section {displaySectionNumberByRealNumber.get(Number(currentQuestion.sectionNumber)) ?? currentQuestion.sectionNumber}</span>
                 <span className={`rounded-full px-3 py-1 text-xs font-black ${isMasterModuleMock(mock.moduleCode) ? "math-admin-studio-chip" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>{getCleanMmSectionName(currentQuestion)}</span>
               </div>
             </div>
@@ -471,7 +491,7 @@ function MockCoverageTab({ mock, showAnswers }: { mock: CompetitionMockExamDetai
           <div key={section.sectionNumber} className="overflow-hidden rounded-[26px] border border-slate-200 dark:border-slate-800">
             <div className="flex flex-col gap-2 bg-slate-50 px-5 py-4 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="math-kicker text-[10px]">Section {section.sectionNumber}</p>
+                <p className="math-kicker text-[10px]">Section {section.displaySectionNumber}</p>
                 <h3 className="text-lg font-black text-slate-950 dark:text-white">{section.sectionTitle}</h3>
               </div>
               <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{section.questions.length} Questions</span>
