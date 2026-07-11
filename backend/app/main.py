@@ -56,16 +56,34 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-    from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_assessment_reattempt_columns, ensure_student_level_promotions_table, ensure_assignment_attempt_chain_columns, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table, ensure_competition_mock_tables, ensure_mock_notifications_fixed, ensure_mock_gamification_tables, ensure_mock_accuracy_fixed, ensure_user_economy_columns
-    from app.services.retro_notifications import ensure_mock_student_notifications_retroactive
-    from app.services.recalculate_all_stats import recalculate_all_gamification_stats
+    from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_assessment_reattempt_columns, ensure_student_level_promotions_table, ensure_assignment_attempt_chain_columns, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table, ensure_competition_mock_tables, ensure_mock_notifications_fixed, ensure_mock_gamification_tables, ensure_mock_accuracy_fixed, ensure_user_economy_columns, ensure_competition_mock_attempt_gamification_column
     ensure_user_columns()
     ensure_student_profile_columns()
     ensure_teacher_columns()
     ensure_student_teacher_id_column()
     ensure_user_economy_columns()
-    ensure_mock_student_notifications_retroactive()
-    recalculate_all_gamification_stats()
+    ensure_competition_mock_attempt_gamification_column()
+    # NOTE (2026-07-11): ensure_mock_student_notifications_retroactive() and
+    # recalculate_all_gamification_stats() used to run here, unconditionally,
+    # on every single backend restart. They existed because mock-completion
+    # side-effects (notifications, XP/coins, badges) weren't reliably firing
+    # at submission time -- two other code paths in
+    # competition_mock_attempt_service.py could grade an attempt without ever
+    # running those hooks, so this pair of jobs tried to paper over it by
+    # retroactively creating a (differently-worded, student-only, no
+    # teacher/admin) notification, and by doing a full destructive wipe of
+    # every student's badge/stat tables and recomputing them from scratch on
+    # every deploy. That's expensive, it never covered XP/coins at all, and
+    # it silently masked the real bug instead of fixing it -- and a wipe-and-
+    # rebuild of every student's badges on every deploy is itself a risk if
+    # evaluate_mock_exam_submission() ever regresses.
+    #
+    # The real fix: side-effects now run exactly once, atomically, from
+    # inside SubmitCompetitionMockAttempt() itself, guarded by
+    # gamification_processed_at, regardless of which path completes the
+    # attempt. Historical attempts from before this fix are caught up by a
+    # deliberate one-time run of backend/scripts/backfill_mock_gamification.py
+    # instead of an automatic full-platform recompute on every restart.
     ensure_dps_publication_columns()
     ensure_assessment_reattempt_columns()
     ensure_student_level_promotions_table()

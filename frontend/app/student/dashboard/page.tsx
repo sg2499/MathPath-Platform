@@ -207,6 +207,19 @@ export default function StudentDashboardPage() {
     enabled: Ready,
   });
 
+  // Real wallet state (XP / coins / rank tier) from the actual economy
+  // ledger -- see backend routes_student.py's /student/economy for context
+  // on why this replaced a locally-fabricated XP formula that never moved
+  // when a student completed a mock exam.
+  const EconomyQuery = useQuery({
+    queryKey: ["student-economy"],
+    queryFn: async () => {
+      const res = await api.get(`/student/economy`);
+      return res.data;
+    },
+    enabled: Ready,
+  });
+
   const MockAssignmentsQuery = useQuery({
     queryKey: ["student-mock-assignments"],
     queryFn: getStudentCompetitionMockAssignments,
@@ -238,6 +251,7 @@ export default function StudentDashboardPage() {
   const Assignments = AssignmentQuery.data ?? [];
   const Assessments = AssessmentQuery.data ?? [];
   const Badges = AchievementQuery.data ?? [];
+  const Economy = EconomyQuery.data ?? null;
   const MockAssignments = MockAssignmentsQuery.data ?? [];
   const Results = ResultsQuery.data ?? [];
 
@@ -447,15 +461,20 @@ export default function StudentDashboardPage() {
     return new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime();
   });
 
-  const totalXP = (completedAssignments * 50) + (completedAssessments * 150) + (earnedBadges.length * 200);
-  const currentLevel = Math.floor(totalXP / 1000) + 1;
-  const xpIntoLevel = totalXP % 1000;
-  const mathCoins = Math.floor(totalXP / 10);
+  // Real XP/coins/rank from the backend economy ledger (EconomyService).
+  // This used to be a locally-fabricated approximation
+  // (completedAssignments*50 + completedAssessments*150 + badges*200) that
+  // never read real data and didn't even factor in mock exams -- so it
+  // never moved when a student actually completed one. See
+  // routes_student.py's /student/economy for the real source of truth.
+  const realCurrentXp = Economy?.currentXp ?? 0;
+  const realCoinBalance = Economy?.coinBalance ?? 0;
+  const realRankTier = Economy?.currentRankTier ?? "COPPER_V";
 
   const recentBadge = earnedBadges.length > 0 ? earnedBadges[0] : null;
   const RecentBadgeIcon = recentBadge && IconMap[recentBadge.iconName] ? IconMap[recentBadge.iconName] : Medal;
 
-  const isLoadingStats = AssignmentQuery.isLoading || AssessmentQuery.isLoading || AchievementQuery.isLoading;
+  const isLoadingStats = AssignmentQuery.isLoading || AssessmentQuery.isLoading || AchievementQuery.isLoading || EconomyQuery.isLoading;
 
   // Auto-slideshow for multiple conquests
   useEffect(() => {
@@ -488,7 +507,7 @@ export default function StudentDashboardPage() {
 
             {/* RIGHT SIDE: Gamification Wallet */}
             <div className="flex flex-wrap gap-4 items-center shrink-0 relative z-20">
-              <StudentWallet currentXp={totalXP} coinBalance={mathCoins} isLoading={isLoadingStats} className="scale-100 sm:scale-100 origin-right" />
+              <StudentWallet currentXp={realCurrentXp} coinBalance={realCoinBalance} currentRankTier={realRankTier} isLoading={isLoadingStats} className="scale-100 sm:scale-100 origin-right" />
             </div>
           </div>
         </section>
