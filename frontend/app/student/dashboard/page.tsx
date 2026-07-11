@@ -40,6 +40,42 @@ const TIER_BAR_CLASSES: Record<string, string> = {
 };
 const REST_BAR_CLASSES = "bg-slate-300 dark:bg-white/10";
 
+// Local-timezone YYYY-MM-DD key. Using toISOString() here would convert to
+// UTC first, which silently shifts late-night activity into the wrong day
+// for any student west of UTC (and early-morning activity for students
+// east of it). Every "which day does this belong to" decision in the
+// heatmap below must go through this one function so the day columns and
+// the activity events being bucketed into them use the same definition of
+// "today".
+function toLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// Converts a backend ISO timestamp (timezone-aware, e.g. "...+00:00") into
+// the student's local calendar-day key. Returns null for missing/invalid
+// input so callers can filter it out same as before.
+function toActivityDateKey(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return toLocalDateKey(parsed);
+}
+
+// Re-parses one of our own "YYYY-MM-DD" date keys back into a Date. Doing
+// this with `new Date("YYYY-MM-DD")` directly would be a second timezone
+// trap: JS treats bare date strings (no time component) as UTC midnight,
+// so `.getMonth()`/`.getFullYear()` on the result can read one calendar
+// day off at a month/year boundary for students behind UTC. The
+// Date(year, monthIndex, day) constructor is always local time, so this
+// is the safe way to turn a date-only key back into local month/year.
+function parseLocalDateKey(key: string): Date {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
 function useDarkMode() {
   const [isDark, setIsDark] = useState(false);
   useEffect(() => {
@@ -261,7 +297,7 @@ export default function StudentDashboardPage() {
     const practiceEvents = Results
       .filter((r: any) => r && (r.completedDate || r.submittedAt))
       .map((r: any) => ({
-        date: (r.completedDate || r.submittedAt || "").split("T")[0],
+        date: toActivityDateKey(r.completedDate || r.submittedAt),
         timeTakenSeconds: r.timeTakenSeconds || 0,
         expectedDurationSeconds: r.expectedDurationSeconds || null,
         accuracyPercentage: r.accuracyPercentage || 0,
@@ -272,7 +308,7 @@ export default function StudentDashboardPage() {
       .filter((a: any) => a)
       .flatMap((a: any) =>
         (a.attemptHistory || []).map((h: any) => ({
-          date: (h.completedAt || "").split("T")[0],
+          date: toActivityDateKey(h.completedAt),
           timeTakenSeconds: h.timeTakenSeconds || 0,
           expectedDurationSeconds: h.expectedDurationSeconds || a.mockExam?.durationSeconds || null,
           accuracyPercentage: h.accuracyPercentage || 0,
@@ -284,7 +320,7 @@ export default function StudentDashboardPage() {
       .filter((a: any) => a)
       .flatMap((a: any) =>
         (a.attemptHistory || []).map((h: any) => ({
-          date: (h.completedAt || "").split("T")[0],
+          date: toActivityDateKey(h.completedAt),
           timeTakenSeconds: h.timeTakenSeconds || 0,
           expectedDurationSeconds: h.expectedDurationSeconds || a.durationSeconds || null,
           accuracyPercentage: h.accuracyPercentage || 0,
@@ -309,7 +345,7 @@ export default function StudentDashboardPage() {
       const d = new Date(startOfWeek);
       d.setDate(startOfWeek.getDate() + i);
       const dayName = days[d.getDay()];
-      const dateStr = d.toISOString().split("T")[0]; // YYYY-MM-DD
+      const dateStr = toLocalDateKey(d); // YYYY-MM-DD, in the student's own local timezone
 
       // Pooled across every activity type completed this day (practice
       // sheets, assessments, mock exams) and every attempt within it.
@@ -384,8 +420,8 @@ export default function StudentDashboardPage() {
 
   const heatmapMonthYearLabel = useMemo(() => {
     if (grindData.length === 0) return "";
-    const firstDate = new Date(grindData[0].date);
-    const lastDate = new Date(grindData[grindData.length - 1].date);
+    const firstDate = parseLocalDateKey(grindData[0].date);
+    const lastDate = parseLocalDateKey(grindData[grindData.length - 1].date);
     const monthNames = [
       "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
       "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
