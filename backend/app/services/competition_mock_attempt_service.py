@@ -49,6 +49,28 @@ def _competition_section_title(question: CompetitionMockQuestion) -> str:
     return MM_COMPETITION_SECTION_TITLES.get(section_number) or question.section_title or "Competition Mock"
 
 
+def _section_display_number_map(real_section_numbers: Any) -> dict[int, int]:
+    """Maps each real (fixed, 1-10) section_number actually present in this
+    exam's question set to a sequential 1..N display number, closing any
+    gaps left when a section was omitted (0 questions generated) for a
+    student's level. This mirrors the same renumbering already applied on
+    the admin Mock Studio page and the student pre-exam instructions page,
+    so the section count/labels a student sees before, during, and after a
+    mock stay consistent.
+
+    Callers must keep using the REAL section_number (not this map's output)
+    for anything concept-specific — e.g. MM_COMPETITION_SECTION_TITLES
+    lookups — since that dict is keyed by the fixed 1-10 concept numbers,
+    not display position. Only apply this map to values that are purely
+    for display (a "Section N" badge/heading).
+    """
+    try:
+        uniques = sorted({int(n or 0) for n in real_section_numbers})
+    except Exception:
+        return {}
+    return {real: idx + 1 for idx, real in enumerate(uniques)}
+
+
 def _section_sort_key(item: dict[str, Any]) -> tuple[int, str]:
     try:
         return (int(item.get("sectionNumber") or 999), str(item.get("concept") or ""))
@@ -136,6 +158,7 @@ def _question_payload(
     question: CompetitionMockQuestion,
     options: list[CompetitionMockQuestionOption],
     saved_answer: CompetitionMockAttemptAnswer | None = None,
+    display_section_number: int | None = None,
 ) -> dict[str, Any]:
     metadata = _json_loads(question.metadata_json, {})
     section_title = _competition_section_title(question)
@@ -152,7 +175,10 @@ def _question_payload(
     )
     metadata = dict(shaped_question.get("metadata") if isinstance(shaped_question.get("metadata"), dict) else metadata)
     metadata.update({
-        "section_number": question.section_number,
+        # Display-only renumbered section number (gap-free 1..N) when a
+        # display map was provided by the caller; falls back to the real
+        # number so nothing breaks if this is ever called without a map.
+        "section_number": display_section_number if display_section_number is not None else question.section_number,
         "section_title": section_title,
         "sectionTitle": section_title,
         "concept_family": question.concept_family,
@@ -212,6 +238,7 @@ def _attempt_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, 
 
     module_record = db.get(Module, exam.module_id)
     level_record = db.get(Level, exam.level_id)
+    section_display_map = _section_display_number_map(q.section_number for q in questions)
 
     return {
         "attemptId": attempt.id,
@@ -237,7 +264,12 @@ def _attempt_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, 
             "levelCode": level_record.level_code if level_record else None,
         },
         "questions": [
-            _question_payload(question, options_by_question.get(question.id, []), answers_by_question.get(question.id))
+            _question_payload(
+                question,
+                options_by_question.get(question.id, []),
+                answers_by_question.get(question.id),
+                display_section_number=section_display_map.get(int(question.section_number or 0)),
+            )
             for question in questions
         ],
     }
@@ -896,6 +928,36 @@ def _question_review_payload(db: Session, attempt: CompetitionMockAttempt) -> li
         })
     return review
 
+def _apply_section_display_numbers(review: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Renumbers each review row's sectionNumber (and the mirrored
+    metadata.section_number) to a gap-free 1..N display sequence, for
+    frontend display only — matches the same renumbering shown on the
+    pre-exam instructions page and the live attempt page.
+
+    Must run AFTER _section_performance_from_review, since that function's
+    MM_COMPETITION_SECTION_TITLES lookup depends on the real section
+    number, not display position.
+    """
+    if not review:
+        return review
+    display_map = _section_display_number_map(item.get("sectionNumber") for item in review)
+    renumbered: list[dict[str, Any]] = []
+    for item in review:
+        try:
+            real_number = int(item.get("sectionNumber") or 0)
+        except Exception:
+            real_number = 0
+        display_number = display_map.get(real_number, real_number)
+        new_item = dict(item)
+        new_item["sectionNumber"] = display_number
+        if isinstance(new_item.get("metadata"), dict):
+            new_metadata = dict(new_item["metadata"])
+            new_metadata["section_number"] = display_number
+            new_item["metadata"] = new_metadata
+        renumbered.append(new_item)
+    return renumbered
+
+
 def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, Any]:
     assignment = db.get(CompetitionMockAssignment, attempt.mock_assignment_id)
     exam = db.get(CompetitionMockExam, attempt.mock_exam_id)
@@ -925,6 +987,10 @@ def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, A
     module_record = db.get(Module, exam.module_id)
     question_review = _question_review_payload(db, attempt)
     section_performance, section_strengths, section_weaknesses = _section_performance_from_review(question_review)
+    # Renumber sectionNumber for display only, after the concept-performance
+    # grouping above (which needs the real, fixed 1-10 section number to
+    # look up MM_COMPETITION_SECTION_TITLES correctly).
+    question_review = _apply_section_display_numbers(question_review)
 
     return {
         "attemptId": attempt.id,
