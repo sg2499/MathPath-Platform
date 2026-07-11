@@ -1,10 +1,29 @@
 # Cowork Session Handoff
 
-Last updated: 2026-07-11 (written by Claude Cowork, Sonnet 5 session)
+Last updated: 2026-07-11 (written by Claude Cowork, Sonnet 5 session, round 2 same day)
 
 Purpose: read this first when starting a new Claude Cowork session on this repo. It captures everything established in the 2026-07-10 session(s) so no context is lost when switching models/sessions.
 
-## 2026-07-11 update: Grind heatmap multi-source/multi-attempt fix — prepared, not yet delivered
+## 2026-07-11 update (round 2): heatmap ghost-bar CSS bug + dynamic pace weighting + info icon — prepared, not yet delivered
+
+Round 1 (below) shipped to main as PR #303 and was confirmed live by the developer via screenshots: tooltip data now correctly showed the two real mock exam completions (accuracy/time matched production records exactly), proving the multi-source data-pooling fix works. But the live screenshots also surfaced two things nobody had caught yet:
+
+1. **Ghost bars.** The tooltip showed correct data on hover, but no visible colored bar rendered underneath it — a "ghost plot." Root cause: the heatmap row (`frontend/app/student/dashboard/page.tsx`) uses `items-end` on its flex container, which stops each day-column from stretching to the row's fixed height — each column's own height became auto/content-based instead. The bar inside is styled with `height: {percentage}%`, and a CSS percentage height cannot resolve against an auto-height parent, so it silently computed to zero. Pre-existing bug, not introduced by round 1 (round 1 never touched this render block) — this is very likely the exact thing `OPEN_ISSUES.md`'s long-standing "browser-QA the heatmap tooltip stack" item was warning about, just never confirmed until today. Fixed by giving each bar an explicit-height track (`h-20`) to size against, instead of an ambiguous auto-height parent.
+
+2. **Tier didn't match intuition: 97% accuracy scored a lower tier than 92%.** Not a bug — a formula design issue, confirmed by the numbers: the pre-existing `flowState` formula (`accuracy × 0.7 + min(speed × 6, 30)`) uses a flat "5 questions/minute" threshold for the speed bonus. The 97%-accuracy day was a 60-minute mock exam (~1.7 q/min → small bonus); the 92%-accuracy day was a 30-minute mock of similar size (~3.3 q/min → much bigger bonus) — enough to flip the ranking. Discussed the tradeoff with the developer directly: speed is intentionally a major factor in this abacus program (not something to water down), but it needs to be judged relative to what each specific task was designed to take, not one flat number applied to a 5-minute drill and an hour-long exam alike. Resolution: score pace per attempt as `expectedDurationSeconds ÷ actualTimeTakenSeconds` (capped at 1.5×), averaged across a day's attempts, feeding the same ~30-point ceiling the speed bonus always had — the weighting balance is unchanged, only what "fast" is measured against changed.
+
+Changes made this round (all additive):
+- `backend/app/api/routes_student.py`: `/student/results` rows now include `expectedDurationSeconds` (from `DPS.default_duration_seconds`).
+- `backend/app/services/competition_mock_attempt_service.py`: mock `attemptHistory` entries now include `expectedDurationSeconds` (from `CompetitionMockAttempt.duration_seconds`, already stored per-attempt).
+- `backend/app/services/assessment_engine_service.py`: assessment `attemptHistory` entries now include `expectedDurationSeconds` (from `AssessmentAttempt.duration_seconds`).
+- `frontend/types/assignment.ts`, `frontend/lib/api/student.ts`: added `expectedDurationSeconds` to the corresponding types.
+- `frontend/app/student/dashboard/page.tsx`: bar-track CSS fix; `combinedActivityEvents` now carries `expectedDurationSeconds` through for all three sources; `grindData`'s speed calculation replaced with per-attempt pace-ratio math (falls back to a neutral 1.0 ratio when expected duration is unknown, rather than skewing the score); added an info-icon popover on the heatmap heading explaining what it tracks and what drives the tier, since students had no way to know before.
+
+Verification status: same sandbox-staleness caveat as round 1 — this session's bash mount of the OneDrive-synced repo does not reflect live edits, so `pytest`/`npm run build` could not be run here. Verified by full manual re-read of every changed block after editing. qa-reviewer must run real verification before this ships, same as round 1.
+
+Delivery process note: for round 1, the developer explicitly asked to bypass the AI-orchestrated qa-reviewer → sre-devops squad pipeline for the actual push/merge, citing Claude usage-limit cost concerns (subagent calls alone burned ~100k+ tokens for one delivery). Cowork gave raw `git`/`gh` commands to run directly in the developer's own terminal instead — same CI/branch-protection gates apply either way, just without the AI-agent ceremony wrapped around it. Expect the same request for round 2; the commands template is already established (see the developer's terminal history from round 1).
+
+## 2026-07-11 update (round 1): Grind heatmap multi-source/multi-attempt fix — delivered as PR #303
 
 Root cause (confirmed by reading the actual code, not assumed): `frontend/app/student/dashboard/page.tsx`'s `grindData` calculation only ever read `Results` (practice-sheet attempts from `/student/results`). `MockAssignments` and `Assessments` were already being fetched on the same page but never merged into the heatmap's day-bucketing — so mock exam and assessment-engine completions had zero path into the heatmap for any student. Additionally, both the mock-assignment and assessment-assignment backend payloads only ever exposed the *latest* attempt per assignment, so even after wiring them in, same-day multiple attempts on those two types would have collapsed to one.
 
@@ -21,7 +40,7 @@ Also confirmed while scoping this: only two consumers read the two touched backe
 
 Known limitation intentionally left unfixed (logged in `OPEN_ISSUES.md`): mock assignments are filtered to the student's *current* level, so a mid-week level promotion would still hide that week's prior-level mock activity from the heatmap. Flagged, not fixed.
 
-Not yet done: delivery. Prompt/commands for local Claude Code to run qa-reviewer → sre-devops (`apex_deliver.py`) → `monitor_deploy.py` were handed to the developer at the end of this session — see the developer's own record of that message, not repeated here to avoid drift between this file and what was actually run.
+Delivered same day: qa-reviewer PASSED WITH NOTES (pytest 20/20, npm build clean, confirmed additive-only) via local Claude Code. Live-student pre-flight check couldn't reach production DB from that shell; developer explicitly authorized skipping it for this delivery (informed override — diff was read-only/additive and the developer confirmed no other students were realistically active). sre-devops hit a trust-boundary block (wouldn't accept a relayed authorization secondhand, by design) and a related Claude usage-limit concern from the developer led to finishing delivery via raw `git`/`gh` commands run directly in the developer's own terminal instead of the full AI-orchestrated pipeline. Merged as **PR #303**. Confirmed live by the developer's own screenshots: tooltip accuracy/time data matched real production mock exam records exactly.
 
 ## 2026-07-10 update: Apex Squad rebuilt as real subagents + delivery gate fixed
 

@@ -642,6 +642,7 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
             "wrong": attempt.wrong_count,
             "unanswered": attempt.unanswered_count,
             "timeTakenSeconds": attempt.time_taken_seconds,
+            "expectedDurationSeconds": dps.default_duration_seconds if dps else None,
             **benchmark_payload_for_attempt(attempt),
             **attempt_metadata(db, attempt),
             "moduleId": module.id if module else None,
