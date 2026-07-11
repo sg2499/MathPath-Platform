@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { Assignment } from "@/types/assignment";
+import type { Assignment, AttemptHistoryEntry } from "@/types/assignment";
 import type { AttemptPayload } from "@/types/attempt";
 import type { AttemptResult } from "@/types/result";
 
@@ -323,6 +323,7 @@ export type StudentCompetitionMockAssignment = {
     performanceBand?: string | null;
     completedAt?: string | null;
   } | null;
+  attemptHistory?: AttemptHistoryEntry[];
   mockExam: {
     mockExamId: string;
     title: string;
