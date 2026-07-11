@@ -236,8 +236,18 @@ def student_competition_mock_instructions(assignment_id: str, db: Session = Depe
             }
         sections_map[sec_num]["questionCount"] += 1
         
-    sections_list = [sections_map[k] for k in sorted(sections_map.keys())]
-    
+    # Sort by the real (fixed) section number to preserve correct concept
+    # order, then renumber sequentially for display. A section with 0
+    # questions (a concept the student's assigned level hasn't covered yet)
+    # never reaches sections_map at all, so without this step students would
+    # see gaps like Section 1, 2, 3, 5, 7 instead of a clean 1-9. This is the
+    # student-facing instructions preview only — it doesn't drive question
+    # generation or attempt/answer logic, so renumbering here is safe.
+    sections_list = [
+        {**sections_map[k], "sectionNumber": display_number}
+        for display_number, k in enumerate(sorted(sections_map.keys()), start=1)
+    ]
+
     return {
         "assignmentId": assignment.id,
         "mockExamId": exam.id,
