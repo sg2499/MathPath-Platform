@@ -1382,6 +1382,46 @@ def ListStudentLevelPromotions(Db: Session) -> dict[str, Any]:
         "total": len(Items),
     }
 
+def _CompletedAssessmentAttemptHistoryPayload(Db: Session, AssignmentId: str) -> list[dict[str, Any]]:
+    """All completed attempts for this assignment, oldest first.
+
+    Additive helper for activity feeds (e.g. the student dashboard grind
+    heatmap) that need every attempt on a given day, not just the latest.
+    Does not change or replace any existing single-attempt fields.
+    """
+    CompletedStatuses = {"SUBMITTED", "AUTO_SUBMITTED", "CLEARED", "NEEDS_RE_ATTEMPT"}
+    Attempts = (
+        Db.query(AssessmentAttempt)
+        .filter(
+            AssessmentAttempt.assessment_assignment_id == AssignmentId,
+            AssessmentAttempt.status.in_(list(CompletedStatuses)),
+        )
+        .order_by(AssessmentAttempt.attempt_number.asc())
+        .all()
+    )
+    History: list[dict[str, Any]] = []
+    for AttemptRow in Attempts:
+        ResultRow = (
+            Db.query(AssessmentResult)
+            .filter(AssessmentResult.assessment_attempt_id == AttemptRow.id)
+            .first()
+        )
+        CompletedAt = ResultRow.completion_date if ResultRow else AttemptRow.submitted_at
+        if not CompletedAt:
+            continue
+        History.append({
+            "attemptId": AttemptRow.id,
+            "attemptNumber": AttemptRow.attempt_number,
+            "score": (ResultRow.score if ResultRow else AttemptRow.total_score),
+            "maxScore": (ResultRow.max_score if ResultRow else AttemptRow.max_score),
+            "accuracyPercentage": (ResultRow.percentage if ResultRow else AttemptRow.percentage),
+            "timeTakenSeconds": AttemptRow.time_taken_seconds,
+            "totalQuestions": AttemptRow.total_questions,
+            "completedAt": Iso(CompletedAt),
+        })
+    return History
+
+
 def AssessmentAssignmentPayload(Db: Session, Assignment: AssessmentAssignment) -> dict[str, Any]:
     StudentItem = Db.get(Student, Assignment.student_id)
     StudentUser = Db.get(User, StudentItem.user_id) if StudentItem else None
@@ -1503,6 +1543,7 @@ def AssessmentAssignmentPayload(Db: Session, Assignment: AssessmentAssignment) -
         "durationSeconds": Version.duration_seconds if Version else None,
         "durationMinutes": round((Version.duration_seconds or 0) / 60, 2) if Version else None,
         "marksPerQuestion": Version.marks_per_question if Version else None,
+        "attemptHistory": _CompletedAssessmentAttemptHistoryPayload(Db, Assignment.id),
         **ProgressionPayload,
     }
 

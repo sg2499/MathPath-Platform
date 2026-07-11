@@ -240,10 +240,49 @@ export default function StudentDashboardPage() {
     return conquests[conquestIndex] || conquests[0];
   }, [conquests, conquestIndex]);
 
+  // Every completed activity this week, normalized to one shape, regardless
+  // of source (practice/DPS sheets, assessments, or competition mock exams)
+  // or how many attempts happened on a given day. The heatmap below pools
+  // all of these per calendar day rather than reading Results alone.
+  const combinedActivityEvents = useMemo(() => {
+    const practiceEvents = Results
+      .filter((r: any) => r && (r.completedDate || r.submittedAt))
+      .map((r: any) => ({
+        date: (r.completedDate || r.submittedAt || "").split("T")[0],
+        timeTakenSeconds: r.timeTakenSeconds || 0,
+        accuracyPercentage: r.accuracyPercentage || 0,
+        totalQuestions: r.totalQuestions || 5,
+      }));
+
+    const mockEvents = MockAssignments
+      .filter((a: any) => a)
+      .flatMap((a: any) =>
+        (a.attemptHistory || []).map((h: any) => ({
+          date: (h.completedAt || "").split("T")[0],
+          timeTakenSeconds: h.timeTakenSeconds || 0,
+          accuracyPercentage: h.accuracyPercentage || 0,
+          totalQuestions: h.totalQuestions || a.mockExam?.totalQuestions || 5,
+        }))
+      );
+
+    const assessmentEvents = Assessments
+      .filter((a: any) => a)
+      .flatMap((a: any) =>
+        (a.attemptHistory || []).map((h: any) => ({
+          date: (h.completedAt || "").split("T")[0],
+          timeTakenSeconds: h.timeTakenSeconds || 0,
+          accuracyPercentage: h.accuracyPercentage || 0,
+          totalQuestions: h.totalQuestions || a.questionCount || 5,
+        }))
+      );
+
+    return [...practiceEvents, ...mockEvents, ...assessmentEvents].filter((e) => e.date);
+  }, [Results, MockAssignments, Assessments]);
+
   const grindData = useMemo(() => {
     const data = [];
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    
+
     // Get current week (Sunday to Saturday)
     const today = new Date();
     const currentDayOfWeek = today.getDay(); // 0 is Sunday, 6 is Saturday
@@ -255,13 +294,10 @@ export default function StudentDashboardPage() {
       d.setDate(startOfWeek.getDate() + i);
       const dayName = days[d.getDay()];
       const dateStr = d.toISOString().split("T")[0]; // YYYY-MM-DD
-      
-      const dayResults = Results.filter((r: any) => {
-        if (!r) return false;
-        if (!r.completedDate && !r.submittedAt) return false;
-        const compDate = (r.completedDate || r.submittedAt || "").split("T")[0];
-        return compDate === dateStr;
-      });
+
+      // Pooled across every activity type completed this day (practice
+      // sheets, assessments, mock exams) and every attempt within it.
+      const dayResults = combinedActivityEvents.filter((r) => r.date === dateStr);
 
       const count = dayResults.length;
       const totalSeconds = dayResults.reduce((acc: number, r: any) => acc + (r.timeTakenSeconds || 0), 0);
@@ -309,7 +345,7 @@ export default function StudentDashboardPage() {
       data.push({ day: dayName, date: dateStr, count, timeSpent, accuracy: avgAccuracy, speed, flowState, tier, insight });
     }
     return data;
-  }, [Results]);
+  }, [combinedActivityEvents]);
 
   const heatmapMonthYearLabel = useMemo(() => {
     if (grindData.length === 0) return "";

@@ -8,6 +8,20 @@ export type AssignmentStatus =
 
 export type AssignmentMode = "PRACTICE" | "ASSESSMENT" | "COMPETITION";
 
+// A single completed attempt. Used by activity feeds (e.g. the student
+// dashboard grind heatmap) that need every attempt on a given day, not
+// just the latest one for an assignment.
+export type AttemptHistoryEntry = {
+  attemptId: string;
+  attemptNumber?: number | null;
+  score?: number | null;
+  maxScore?: number | null;
+  accuracyPercentage?: number | null;
+  timeTakenSeconds?: number | null;
+  totalQuestions?: number | null;
+  completedAt: string;
+};
+
 export type Assignment = {
   assignmentId: string;
   mode: AssignmentMode;
@@ -56,4 +70,6 @@ export type Assignment = {
 
   availableFrom?: string | null;
   availableUntil?: string | null;
+
+  attemptHistory?: AttemptHistoryEntry[];
 };

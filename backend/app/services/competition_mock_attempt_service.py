@@ -243,6 +243,44 @@ def _attempt_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, 
     }
 
 
+def _completed_attempt_history_payload(db: Session, assignment_id: str) -> list[dict[str, Any]]:
+    """All completed attempts for this assignment, oldest first.
+
+    Additive helper for activity feeds (e.g. the student dashboard grind
+    heatmap) that need every attempt on a given day, not just the latest.
+    Does not change or replace any existing single-attempt fields.
+    """
+    attempts = (
+        db.query(CompetitionMockAttempt)
+        .filter(
+            CompetitionMockAttempt.mock_assignment_id == assignment_id,
+            CompetitionMockAttempt.status.in_(list(COMPLETED_STATUSES)),
+        )
+        .order_by(CompetitionMockAttempt.attempt_number.asc(), CompetitionMockAttempt.started_at.asc())
+        .all()
+    )
+    history: list[dict[str, Any]] = []
+    for attempt in attempts:
+        result = (
+            db.query(CompetitionMockResultSummary)
+            .filter(CompetitionMockResultSummary.mock_attempt_id == attempt.id)
+            .first()
+        )
+        if not result or not result.completed_at:
+            continue
+        history.append({
+            "attemptId": attempt.id,
+            "attemptNumber": attempt.attempt_number,
+            "score": result.score,
+            "maxScore": result.max_score,
+            "accuracyPercentage": result.accuracy_percentage,
+            "timeTakenSeconds": result.time_taken_seconds,
+            "totalQuestions": attempt.total_questions,
+            "completedAt": result.completed_at.isoformat(),
+        })
+    return history
+
+
 def _assignment_with_current_attempt_payload(db: Session, assignment: CompetitionMockAssignment) -> dict[str, Any]:
     exam = db.get(CompetitionMockExam, assignment.mock_exam_id)
     if not exam:
@@ -298,6 +336,7 @@ def _assignment_with_current_attempt_payload(db: Session, assignment: Competitio
             }
             if latest_result else None
         ),
+        "attemptHistory": _completed_attempt_history_payload(db, assignment.id),
         "mockExam": {
             "mockExamId": exam.id,
             "title": exam.title,

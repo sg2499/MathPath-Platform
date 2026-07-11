@@ -27,6 +27,21 @@ def sanitize_branch_name(message):
     clean = re.sub(r'[^a-z0-9]+', '-', message.lower()).strip('-')
     return f"feature/apex-{clean}-{int(time.time())}"
 
+def safe_confirm(prompt):
+    """input() that fails closed instead of raising an uncaught EOFError.
+
+    sys.stdin.isatty() can report True in some non-interactive invocations
+    (e.g. run via a tool harness with a pty but no attached human), in which
+    case a bare input() would crash with a stack trace instead of the
+    intended "cannot verify non-interactively" abort. Treat EOF the same as
+    an explicit decline: no answer is not consent.
+    """
+    try:
+        return input(prompt)
+    except EOFError:
+        print("\n[no input available — treating as declined]")
+        return ""
+
 def check_live_students():
     """
     Pre-flight safety check for active students.
@@ -44,12 +59,24 @@ def check_live_students():
       2. DATABASE_URL env var, but ONLY if it does not look like sqlite/local.
       3. Otherwise: refuse to claim "passed". Report UNVERIFIED and require
          explicit human override before proceeding.
+
+    NOTE: "does not look like local" is a blocklist (sqlite/empty/localhost/
+    loopback), not an allowlist against the real Render Postgres hostname —
+    that hostname isn't known to this script. A local non-sqlite Postgres
+    (e.g. a Docker Postgres on a non-localhost container name) could still
+    slip through undetected. If that's a real setup you use, switch this to
+    an allowlist match against your actual prod DB host instead.
     """
     print(">> Performing pre-flight safety check for active students...")
 
+    human_override = os.environ.get("HUMAN_OVERRIDE_LIVE_CHECK") == "1"
+
     prod_url = os.environ.get("PROD_DATABASE_URL")
     fallback_url = os.environ.get("DATABASE_URL", "")
-    is_probably_local = (not fallback_url) or fallback_url.startswith("sqlite")
+    local_markers = ("sqlite", "localhost", "127.0.0.1", "0.0.0.0", "::1")
+    is_probably_local = (not fallback_url) or any(
+        marker in fallback_url.lower() for marker in local_markers
+    )
 
     if not prod_url and is_probably_local:
         print("=======================================================")
@@ -57,12 +84,18 @@ def check_live_students():
         print("    DATABASE_URL resolves to a local/sqlite database.")
         print("    This check CANNOT see live production students.")
         print("=======================================================")
+        if human_override:
+            print(">> HUMAN_OVERRIDE_LIVE_CHECK=1: a human explicitly authorized")
+            print("   skipping this check for this delivery (outside an interactive")
+            print("   session). Proceeding without live-student verification.")
+            print("   This does not affect the CI gate or branch protection below.")
+            return
         if not sys.stdin.isatty():
             print("Aborting delivery: cannot verify production safety non-interactively.")
             print("Set PROD_DATABASE_URL (read-only) to enable a real check, or have a")
             print("human run this delivery interactively and explicitly accept the risk.")
             sys.exit(1)
-        override = input("Proceed WITHOUT verifying live students? (y/N): ")
+        override = safe_confirm("Proceed WITHOUT verifying live students? (y/N): ")
         if override.lower() != 'y':
             print("Aborting delivery.")
             sys.exit(1)
@@ -102,7 +135,7 @@ def check_live_students():
             if not sys.stdin.isatty():
                 print("Aborting delivery due to active students (running non-interactively).")
                 sys.exit(1)
-            override = input("Do you want to override and deploy anyway? (y/N): ")
+            override = safe_confirm("Do you want to override and deploy anyway? (y/N): ")
             if override.lower() != 'y':
                 print("Aborting delivery.")
                 sys.exit(1)
@@ -116,7 +149,7 @@ def check_live_students():
         print(">> Refusing to report 'passed' on an unverified check.")
         if not sys.stdin.isatty():
             sys.exit(1)
-        override = input("Proceed WITHOUT a working safety check? (y/N): ")
+        override = safe_confirm("Proceed WITHOUT a working safety check? (y/N): ")
         if override.lower() != 'y':
             print("Aborting delivery.")
             sys.exit(1)
@@ -196,7 +229,7 @@ def main():
         print("    This must be a human-declared emergency, not routine use.")
         print("=======================================================")
         if sys.stdin.isatty():
-            confirm = input('Type "EMERGENCY" to confirm bypassing CI and branch protection: ')
+            confirm = safe_confirm('Type "EMERGENCY" to confirm bypassing CI and branch protection: ')
             if confirm != "EMERGENCY":
                 print("Confirmation not given. Aborting bypass. PR left open for normal review.")
                 print(f"PR: {pr_url}")
