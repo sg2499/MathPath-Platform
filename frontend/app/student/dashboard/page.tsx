@@ -13,7 +13,7 @@ import {
   Coins, Cpu, RadioTower, Lock, ChevronLeft, ChevronRight, CheckCircle, Target, Focus, Scan, Zap,
   FastForward, Rocket, Medal, Flag, Crown, Flame, Activity, Infinity as InfinityIcon, Clock, Sun,
   AlarmClock, TrendingUp, ArrowUpRight, ChevronsUp, Star, Sparkles, Crosshair,
-  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords, ArrowRight, Info
+  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords, ArrowRight, Info, X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -27,6 +27,18 @@ const IconMap: Record<string, any> = {
   Trophy, Star, Sparkles, Crosshair, Aperture, Radar, Shield, Anchor, Mountain,
   Brain, Lightbulb, Library, Award
 };
+
+// Distinct bar color per grind-heatmap tier, so the tier is visible at a
+// glance without needing to hover every bar. REST (no activity) stays the
+// original neutral gray.
+const TIER_BAR_CLASSES: Record<string, string> = {
+  "S-TIER": "bg-gradient-to-t from-amber-500 to-yellow-300 shadow-[0_0_10px_rgba(251,191,36,0.7)] dark:shadow-[0_0_14px_rgba(251,191,36,0.6)]",
+  "A-TIER": "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.55)] dark:shadow-[0_0_12px_rgba(16,185,129,0.5)]",
+  "B-TIER": "bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.55)] dark:shadow-[0_0_12px_rgba(14,165,233,0.5)]",
+  "C-TIER": "bg-amber-600 shadow-[0_0_8px_rgba(217,119,6,0.55)] dark:shadow-[0_0_12px_rgba(217,119,6,0.5)]",
+  "D-TIER": "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.55)] dark:shadow-[0_0_12px_rgba(244,63,94,0.5)]",
+};
+const REST_BAR_CLASSES = "bg-slate-300 dark:bg-white/10";
 
 function useDarkMode() {
   const [isDark, setIsDark] = useState(false);
@@ -695,17 +707,6 @@ export default function StudentDashboardPage() {
                                   >
                                     <Info size={14} />
                                   </button>
-                                  {heatmapInfoOpen && (
-                                    <>
-                                      <div className="fixed inset-0 z-40" onClick={() => setHeatmapInfoOpen(false)} />
-                                      <div className="absolute top-full left-0 mt-2 w-72 z-50 bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[11px] leading-relaxed p-4 rounded-2xl font-semibold normal-case tracking-normal shadow-2xl border border-white/10 dark:border-slate-200">
-                                        <p className="font-black uppercase text-[10px] tracking-wider mb-2 text-[var(--mp-role-primary)]">What is this?</p>
-                                        <p className="mb-2 opacity-90">Each bar is one day. It combines every practice sheet, assessment, and mock exam you completed that day — every attempt counts, not just your last one.</p>
-                                        <p className="mb-2 opacity-90">The tier (S/A/B/C/D) reflects both your <span className="text-emerald-400 dark:text-emerald-600">accuracy</span> and your <span className="text-amber-400 dark:text-amber-600">pace</span> against each task's own allotted time — finishing accurately and within your time earns the highest tiers.</p>
-                                        <p className="opacity-70">A gray, flat bar means no activity that day.</p>
-                                      </div>
-                                    </>
-                                  )}
                                </h4>
                              </div>
                              <div className="flex items-end justify-between gap-3 h-28 w-full max-w-sm px-2">
@@ -739,10 +740,7 @@ export default function StudentDashboardPage() {
                                       <div className="h-20 w-full flex items-end">
                                         <div
                                           style={{ height: `${pct}%` }}
-                                          className={`w-full rounded-t-[4px] transition-all duration-300 hover:scale-y-105
-                                            ${d.timeSpent > 0
-                                               ? 'bg-[var(--mp-role-primary)] shadow-[0_0_8px_var(--mp-role-primary)] dark:shadow-[0_0_12px_var(--mp-role-primary)]'
-                                               : 'bg-slate-300 dark:bg-white/10'}`}
+                                          className={`w-full rounded-t-[4px] transition-all duration-300 hover:scale-y-105 ${TIER_BAR_CLASSES[d.tier] || REST_BAR_CLASSES}`}
                                         />
                                       </div>
                                       <div className="flex flex-col items-center gap-1 mt-2">
@@ -805,6 +803,36 @@ export default function StudentDashboardPage() {
                                 {activeConquest.buttonText} <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                              </button>
                           </div>
+
+                          {/* Grind Heatmap explainer — scoped to just this card (not the
+                              whole screen), and stops every click from reaching the
+                              TiltCard's flip-to-quote handler above it. */}
+                          {heatmapInfoOpen && (
+                            <div
+                              className="absolute inset-0 z-[60] flex items-center justify-center p-6 sm:p-10 rounded-[24px] bg-black/60 backdrop-blur-sm"
+                              onClick={(e) => { e.stopPropagation(); setHeatmapInfoOpen(false); }}
+                            >
+                              <div
+                                className="max-w-sm w-full bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[12px] leading-relaxed p-5 rounded-2xl font-semibold shadow-2xl border border-white/10 dark:border-slate-200"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex items-center justify-between mb-3">
+                                  <p className="font-black uppercase text-[11px] tracking-wider text-[var(--mp-role-primary)]">What is the Grind Heatmap?</p>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setHeatmapInfoOpen(false); }}
+                                    className="opacity-60 hover:opacity-100 transition-opacity"
+                                    aria-label="Close"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                                <p className="mb-2 opacity-90">Each bar is one day. It combines every practice sheet, assessment, and mock exam you completed that day — every attempt counts, not just your last one.</p>
+                                <p className="mb-2 opacity-90">The tier (S/A/B/C/D) reflects both your <span className="text-emerald-400 dark:text-emerald-600">accuracy</span> and your <span className="text-amber-400 dark:text-amber-600">pace</span> against each task's own allotted time — finishing accurately and within your time earns the highest tiers.</p>
+                                <p className="opacity-70">Bar color shows the tier earned that day; a gray, flat bar means no activity.</p>
+                              </div>
+                            </div>
+                          )}
                        </div>
                      </div>
                    </div>
