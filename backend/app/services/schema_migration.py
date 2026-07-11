@@ -129,6 +129,25 @@ def ensure_user_economy_columns() -> None:
             connection.execute(text("ALTER TABLE user_economy ADD COLUMN quantum_fragments INTEGER NOT NULL DEFAULT 0"))
 
 
+def ensure_competition_mock_attempt_gamification_column() -> None:
+    """Self-heal safety net for gamification_processed_at (see matching Alembic migration).
+
+    Renders/deploys don't always run `alembic upgrade head` reliably, so this
+    project's convention is to also defensively add new columns at startup.
+    This one specifically gates the mock-completion side-effects (student /
+    teacher / admin notifications, XP + coin award, badge evaluation) so they
+    run exactly once per attempt no matter which code path first completes it.
+    """
+    inspector = inspect(engine)
+    if "competition_mock_attempts" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("competition_mock_attempts")}
+    if "gamification_processed_at" not in existing:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE competition_mock_attempts ADD COLUMN gamification_processed_at TIMESTAMP"))
+
+
 DPS_COLUMNS = {
     "publication_status": "VARCHAR(30) DEFAULT 'DRAFT'",
     "last_preview_seed": "TEXT",

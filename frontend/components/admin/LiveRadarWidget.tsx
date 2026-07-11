@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Activity, Clock } from "lucide-react";
-import { getToken } from "@/lib/auth";
+import { api } from "@/lib/api";
 
 interface LiveStudent {
   id: string;
@@ -18,14 +18,17 @@ export function LiveRadarWidget() {
   useEffect(() => {
     const fetchLiveStudents = async () => {
       try {
-        const token = getToken();
-        if (!token) return;
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/live-students`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Failed to fetch live students");
-        const data = await res.json();
-        setLiveStudents(data.live_students || []);
+        // NOTE: this previously read `process.env.NEXT_PUBLIC_API_URL`, which
+        // is not a variable set anywhere in this project (the real one is
+        // NEXT_PUBLIC_API_BASE_URL, used everywhere else via the shared `api`
+        // client below). That made every request resolve to the literal
+        // relative path "undefined/api/admin/live-students" against the
+        // frontend's own origin instead of the backend, so it 404'd silently
+        // and the widget always rendered "No students active" even when
+        // students were live on the platform. Using the shared `api` client
+        // fixes the URL and also attaches the admin's auth token for us.
+        const res = await api.get("/admin/live-students");
+        setLiveStudents(res.data?.live_students || []);
       } catch (error) {
         console.error(error);
       } finally {
