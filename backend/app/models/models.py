@@ -304,6 +304,11 @@ class CompetitionMockAttempt(Base):
     performance_band = Column(String(50), nullable=True)
     time_taken_seconds = Column(Integer, nullable=True)
     time_utilization_percentage = Column(Float, nullable=True)
+    # Set exactly once, the moment notifications/XP+coins/badge evaluation
+    # have run for this attempt. Guards against ever double-processing or
+    # ever silently skipping those side-effects -- see the matching Alembic
+    # migration for the full history of why this exists.
+    gamification_processed_at = Column(DateTime(timezone=True), nullable=True)
 
     mock_assignment = relationship("CompetitionMockAssignment")
     mock_exam = relationship("CompetitionMockExam")

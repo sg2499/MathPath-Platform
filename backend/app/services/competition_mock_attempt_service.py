@@ -663,14 +663,50 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
     existing_summary.completed_at = submitted_at
     db.commit()
     db.refresh(attempt)
+
+    # Run the completion side-effects (student/teacher/admin notifications,
+    # XP + coin award, badge evaluation) exactly once, from this single
+    # grading function, regardless of which caller first completes the
+    # attempt -- a manual submit, an explicit auto-submit, a lazy auto-submit
+    # triggered by a plain GET after the timer already expired server-side,
+    # or the defensive result-page repair further down in this file. Prior to
+    # this, those side-effects only ran from SubmitCompetitionMockAttemptForStudent(),
+    # so any attempt that got graded via one of the other paths silently
+    # never received them. See gamification_processed_at on the model /
+    # its migration for the idempotency guard that makes this safe to call
+    # from anywhere.
+    attempt._side_effects_result = _ProcessMockCompletionSideEffects(db, attempt)
+
     return attempt
 
 
-def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attempt_id: str, auto: bool = False) -> dict[str, Any]:
-    attempt = db.get(CompetitionMockAttempt, attempt_id)
-    if not attempt or attempt.student_id != student.id:
-        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition mock attempt not found.")
-    attempt = SubmitCompetitionMockAttempt(db, attempt, auto=auto)
+def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttempt) -> dict[str, Any] | None:
+    """Notifications + XP/coins + badge evaluation for a just-completed mock attempt.
+
+    Safe to call from any code path that just completed an attempt: it
+    atomically claims the attempt via gamification_processed_at before doing
+    any work, so if two requests somehow race to complete the same attempt,
+    only one of them actually runs this. Returns None if some other request
+    already claimed it (nothing new happened this call), otherwise a dict
+    describing what was awarded so the caller can surface it immediately.
+    """
+    from sqlalchemy import update as _sa_update
+
+    claim = db.execute(
+        _sa_update(CompetitionMockAttempt)
+        .where(
+            CompetitionMockAttempt.id == attempt.id,
+            CompetitionMockAttempt.gamification_processed_at.is_(None),
+        )
+        .values(gamification_processed_at=_now_utc())
+    )
+    db.commit()
+    if claim.rowcount == 0:
+        return None
+
+    student = db.get(Student, attempt.student_id)
+    if not student:
+        return None
 
     exam = db.get(CompetitionMockExam, attempt.mock_exam_id)
     module = db.get(Module, exam.module_id) if exam else None
@@ -679,72 +715,19 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
 
     if exam and assignment:
         student_user = db.get(User, student.user_id)
-        if not student_user:
-            return
+        if student_user:
+            try:
+                safe_teacher_id = student.teacher_id if student.teacher_id else None
 
-        try:
-            safe_teacher_id = student.teacher_id if student.teacher_id else None
-
-            # Notify Student
-            CreateNotification(
-                db,
-                recipient_user_id=student_user.id,
-                recipient_role="STUDENT",
-                type="MOCK_SUBMITTED",
-                category="COMPETITION_MOCK",
-                title="Mock Exam Submitted",
-                message=f"You successfully submitted {exam.title or exam.mock_code}. Score: {int(round(attempt.total_score or 0))}/{int(round(attempt.max_score or 0))} ({int(round(attempt.percentage or 0))}%)",
-                actor_user_id=student_user.id,
-                actor_role="STUDENT",
-                student_id=student.id,
-                teacher_id=safe_teacher_id,
-                attempt_id=attempt.id,
-                color_variant="indigo",
-                metadata={
-                    "event": "MOCK_SUBMITTED",
-                    "moduleCode": module.module_code if module else None,
-                    "levelCode": level.level_code if level else None,
-                }
-            )
-
-            teacher_name = "No Teacher"
-            if safe_teacher_id:
-                teacher_record = db.get(Teacher, safe_teacher_id)
-                teacher_user = db.get(User, teacher_record.user_id) if teacher_record else None
-                if teacher_user and teacher_record:
-                    teacher_name = teacher_user.full_name
-                    CreateNotification(
-                        db,
-                        recipient_user_id=teacher_user.id,
-                        recipient_role="TEACHER",
-                        type="STUDENT_MOCK_SUBMITTED",
-                        category="COMPETITION_MOCK",
-                        title="Student Mock Submitted",
-                        message=f"{student_user.full_name} submitted {exam.title or exam.mock_code}. Score: {int(round(attempt.total_score or 0))}/{int(round(attempt.max_score or 0))} ({int(round(attempt.percentage or 0))}%)",
-                        actor_user_id=student_user.id,
-                        actor_role="STUDENT",
-                        student_id=student.id,
-                        teacher_id=safe_teacher_id,
-                        attempt_id=attempt.id,
-                        color_variant="purple",
-                        metadata={
-                            "event": "STUDENT_MOCK_SUBMITTED",
-                            "moduleCode": module.module_code if module else None,
-                            "levelCode": level.level_code if level else None,
-                        }
-                    )
-
-            admins = db.query(User).filter(User.role.in_(["ADMIN", "SUPER_ADMIN"]), User.is_active == True).all()
-
-            for admin in admins:
+                # Notify Student
                 CreateNotification(
                     db,
-                    recipient_user_id=admin.id,
-                    recipient_role="ADMIN",
-                    type="STUDENT_MOCK_SUBMITTED",
+                    recipient_user_id=student_user.id,
+                    recipient_role="STUDENT",
+                    type="MOCK_SUBMITTED",
                     category="COMPETITION_MOCK",
-                    title="Student Mock Submitted",
-                    message=f"{student_user.full_name} (Teacher: {teacher_name}) submitted {exam.title or exam.mock_code}. Score: {int(round(attempt.total_score or 0))}/{int(round(attempt.max_score or 0))} ({int(round(attempt.percentage or 0))}%)",
+                    title="Mock Exam Submitted",
+                    message=f"You successfully submitted {exam.title or exam.mock_code}. Score: {int(round(attempt.total_score or 0))}/{int(round(attempt.max_score or 0))} ({int(round(attempt.percentage or 0))}%)",
                     actor_user_id=student_user.id,
                     actor_role="STUDENT",
                     student_id=student.id,
@@ -752,17 +735,68 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
                     attempt_id=attempt.id,
                     color_variant="indigo",
                     metadata={
-                        "event": "STUDENT_MOCK_SUBMITTED",
+                        "event": "MOCK_SUBMITTED",
                         "moduleCode": module.module_code if module else None,
                         "levelCode": level.level_code if level else None,
                     }
                 )
 
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            import logging
-            logging.error(f"Failed to generate notifications for mock submission {attempt.id}: {e}")
+                teacher_name = "No Teacher"
+                if safe_teacher_id:
+                    teacher_record = db.get(Teacher, safe_teacher_id)
+                    teacher_user = db.get(User, teacher_record.user_id) if teacher_record else None
+                    if teacher_user and teacher_record:
+                        teacher_name = teacher_user.full_name
+                        CreateNotification(
+                            db,
+                            recipient_user_id=teacher_user.id,
+                            recipient_role="TEACHER",
+                            type="STUDENT_MOCK_SUBMITTED",
+                            category="COMPETITION_MOCK",
+                            title="Student Mock Submitted",
+                            message=f"{student_user.full_name} submitted {exam.title or exam.mock_code}. Score: {int(round(attempt.total_score or 0))}/{int(round(attempt.max_score or 0))} ({int(round(attempt.percentage or 0))}%)",
+                            actor_user_id=student_user.id,
+                            actor_role="STUDENT",
+                            student_id=student.id,
+                            teacher_id=safe_teacher_id,
+                            attempt_id=attempt.id,
+                            color_variant="purple",
+                            metadata={
+                                "event": "STUDENT_MOCK_SUBMITTED",
+                                "moduleCode": module.module_code if module else None,
+                                "levelCode": level.level_code if level else None,
+                            }
+                        )
+
+                admins = db.query(User).filter(User.role.in_(["ADMIN", "SUPER_ADMIN"]), User.is_active == True).all()
+
+                for admin in admins:
+                    CreateNotification(
+                        db,
+                        recipient_user_id=admin.id,
+                        recipient_role="ADMIN",
+                        type="STUDENT_MOCK_SUBMITTED",
+                        category="COMPETITION_MOCK",
+                        title="Student Mock Submitted",
+                        message=f"{student_user.full_name} (Teacher: {teacher_name}) submitted {exam.title or exam.mock_code}. Score: {int(round(attempt.total_score or 0))}/{int(round(attempt.max_score or 0))} ({int(round(attempt.percentage or 0))}%)",
+                        actor_user_id=student_user.id,
+                        actor_role="STUDENT",
+                        student_id=student.id,
+                        teacher_id=safe_teacher_id,
+                        attempt_id=attempt.id,
+                        color_variant="indigo",
+                        metadata={
+                            "event": "STUDENT_MOCK_SUBMITTED",
+                            "moduleCode": module.module_code if module else None,
+                            "levelCode": level.level_code if level else None,
+                        }
+                    )
+
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                import logging
+                logging.error(f"Failed to generate notifications for mock submission {attempt.id}: {e}")
 
     # --- Economy Hook ---
     final_xp = 0
@@ -822,6 +856,29 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
         logging.error(f"Gamification engine failed for attempt {attempt.id}: {e}")
 
     return {
+        "unlockedBadges": unlocked_badges,
+        "awardedXP": final_xp,
+        "awardedCoins": final_coins,
+    }
+
+
+def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attempt_id: str, auto: bool = False) -> dict[str, Any]:
+    attempt = db.get(CompetitionMockAttempt, attempt_id)
+    if not attempt or attempt.student_id != student.id:
+        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition mock attempt not found.")
+    attempt = SubmitCompetitionMockAttempt(db, attempt, auto=auto)
+
+    # If THIS request is the one that completed the attempt, the result of
+    # _ProcessMockCompletionSideEffects is attached in-memory (see
+    # SubmitCompetitionMockAttempt above). If the attempt was already
+    # completed by an earlier request -- e.g. the timer expired and a lazy
+    # auto-submit beat this call to the server -- side_effects will be None
+    # here. That's expected, not an error: the student/teacher/admin
+    # notifications and XP/coins were already awarded the moment it first
+    # completed, this request just didn't happen to be the one that did it.
+    side_effects = getattr(attempt, "_side_effects_result", None) or {}
+
+    return {
         "attemptId": attempt.id,
         "status": attempt.status,
         "score": attempt.total_score,
@@ -831,11 +888,10 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
         "wrong": attempt.wrong_count,
         "unanswered": attempt.unanswered_count,
         "timeTakenSeconds": attempt.time_taken_seconds,
-        "unlockedBadges": unlocked_badges,
-        "awardedXP": final_xp,
-        "awardedCoins": final_coins
+        "unlockedBadges": side_effects.get("unlockedBadges", []),
+        "awardedXP": side_effects.get("awardedXP", 0),
+        "awardedCoins": side_effects.get("awardedCoins", 0),
     }
-
 
 
 def _question_review_payload(db: Session, attempt: CompetitionMockAttempt) -> list[dict[str, Any]]:
