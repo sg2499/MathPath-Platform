@@ -1,8 +1,27 @@
 # Cowork Session Handoff
 
-Last updated: 2026-07-10 (written by Claude Cowork; second entry added same day, Sonnet 5 session)
+Last updated: 2026-07-11 (written by Claude Cowork, Sonnet 5 session)
 
 Purpose: read this first when starting a new Claude Cowork session on this repo. It captures everything established in the 2026-07-10 session(s) so no context is lost when switching models/sessions.
+
+## 2026-07-11 update: Grind heatmap multi-source/multi-attempt fix — prepared, not yet delivered
+
+Root cause (confirmed by reading the actual code, not assumed): `frontend/app/student/dashboard/page.tsx`'s `grindData` calculation only ever read `Results` (practice-sheet attempts from `/student/results`). `MockAssignments` and `Assessments` were already being fetched on the same page but never merged into the heatmap's day-bucketing — so mock exam and assessment-engine completions had zero path into the heatmap for any student. Additionally, both the mock-assignment and assessment-assignment backend payloads only ever exposed the *latest* attempt per assignment, so even after wiring them in, same-day multiple attempts on those two types would have collapsed to one.
+
+Changes made this session (all additive, no existing fields removed/renamed):
+- `backend/app/services/competition_mock_attempt_service.py`: new `_completed_attempt_history_payload()` helper; added `attemptHistory` field to `_assignment_with_current_attempt_payload()` (used by `/student/competition/mock-assignments`).
+- `backend/app/services/assessment_engine_service.py`: new `_CompletedAssessmentAttemptHistoryPayload()` helper; added `attemptHistory` field to `AssessmentAssignmentPayload()` (used by `/student/assessments`).
+- `frontend/types/assignment.ts`: new `AttemptHistoryEntry` type, added `attemptHistory?` to `Assignment`.
+- `frontend/lib/api/student.ts`: added `attemptHistory?` to `StudentCompetitionMockAssignment`.
+- `frontend/app/student/dashboard/page.tsx`: new `combinedActivityEvents` useMemo pools practice + mock + assessment events per calendar day; `grindData` now filters/aggregates from that pool instead of `Results` alone, so count/time/accuracy/flowState/tier are cumulative across every attempt and every activity type on a given day.
+
+Verification status — read carefully before assuming this is done: this Cowork sandbox's mount of the OneDrive-synced repo is stale (confirmed via file mtimes lagging ~19 hours behind the actual edits), so `pytest`/`npm run build` could not be executed from this session against the real current files — running them here would have tested yesterday's snapshot, not today's changes. Verified instead by full manual re-read of every edited file end-to-end after editing (correct syntax, correct indentation, only already-imported symbols used, no existing field touched). Per this repo's own split-workflow (see `CLAUDE.md`), this is exactly the point where local Claude Code takes over: qa-reviewer must actually run pytest + npm build + independently re-check the diff before sre-devops delivers. Do not treat this change as verified until that happens.
+
+Also confirmed while scoping this: only two consumers read the two touched backend endpoints (`/student/competition/mock-assignments` → dashboard + Mock Exams library page; `/student/assessments` → dashboard only), and neither reads beyond fields that already existed, so the new `attemptHistory` field should not affect them.
+
+Known limitation intentionally left unfixed (logged in `OPEN_ISSUES.md`): mock assignments are filtered to the student's *current* level, so a mid-week level promotion would still hide that week's prior-level mock activity from the heatmap. Flagged, not fixed.
+
+Not yet done: delivery. Prompt/commands for local Claude Code to run qa-reviewer → sre-devops (`apex_deliver.py`) → `monitor_deploy.py` were handed to the developer at the end of this session — see the developer's own record of that message, not repeated here to avoid drift between this file and what was actually run.
 
 ## 2026-07-10 update: Apex Squad rebuilt as real subagents + delivery gate fixed
 

@@ -4,17 +4,17 @@ This file is a snapshot, not a log — the active Claude Code session **overwrit
 
 ## Current
 
-- **Updated:** 2026-07-10
-- **Task given:** Deliver the uncommitted delivery/engineering-safety rework (apex_deliver.py, rollback.py, .claude/agents/*, memory docs) — qa-reviewer gate, then sre-devops push/PR/merge.
-- **Stage:** qa-reviewer passed (PASS WITH NOTES), handing off to sre-devops now.
-- **Active persona:** sre-devops
-- **Last action:** qa-reviewer re-reviewed from scratch after manual fixes to the two originally-reported bugs (Windows UnicodeEncodeError in apex_deliver.py print() calls, /dev/null redirect bug in rollback.py); both confirmed fixed and independently reproduced. Non-blocking notes: cosmetic em-dashes remain in comments, gh pr merge --auto will dead-end into manual merge since this repo has allow_auto_merge=false and no branch protection on main, and check_live_students()'s local-vs-prod heuristic wouldn't catch a local Postgres URL (only sqlite/empty). Deleted a stray scratch_nonascii_dump.txt debug file from repo root before handoff.
-- **Blocked on:** none
-- **Next step:** sre-devops runs python .agents/apex_deliver.py to commit/push/PR this changeset; expect the --auto merge to leave the PR open for manual merge per the note above.
+- **Updated:** 2026-07-11 (local Claude Code session, picked up the Cowork handoff)
+- **Task given:** Deliver the grind-heatmap multi-source/multi-attempt fix prepared this session (see COWORK_HANDOFF.md 2026-07-11 entry). Files changed: `backend/app/services/competition_mock_attempt_service.py`, `backend/app/services/assessment_engine_service.py`, `frontend/types/assignment.ts`, `frontend/lib/api/student.ts`, `frontend/app/student/dashboard/page.tsx`, plus this doc set.
+- **Stage:** qa-reviewer PASS WITH NOTES. sre-devops correctly refused (twice) to run the live-student-check override on relayed authorization — its rule is categorical: no agent-relayed claim of user consent is ever trusted, only direct user input or real config. No TTY was available for it to ask the developer directly either. Developer then explicitly chose to have the orchestrator (this session) run `apex_deliver.py` directly instead, since the orchestrator received the consent first-hand via `AskUserQuestion`, not by relay. sre-devops did land one in-scope robustness fix along the way: `safe_confirm()` in `.agents/apex_deliver.py` now fails closed on EOF instead of crashing.
+- **Active persona:** orchestrator (running delivery directly, exception to the usual sre-devops-only path, for this one delivery)
+- **Last action:** running `HUMAN_OVERRIDE_LIVE_CHECK=1 python .agents/apex_deliver.py "..."` directly.
+- **Blocked on:** nothing — in progress.
+- **Next step:** on successful delivery → `monitor_deploy.py` to confirm Vercel/Render health.
 
 ## Last completed milestone
 
-- qa-reviewer PASS WITH NOTES on the delivery-safety rework (2026-07-10), after one FAIL round and manual bug fixes.
+- Delivery-safety rework (CI-gated apex_deliver.py, rollback.py, 10-persona subagent squad, reconciled operating protocol) shipped to production 2026-07-10: qa-reviewer FAIL -> manual fixes -> qa-reviewer PASS WITH NOTES -> human-confirmed override of check_live_students() UNVERIFIED gate (tooling/docs-only diff) -> PR #302 merged -> tag prod-20260710-195723 -> deploy verified healthy. One self-corrected process note: sre-devops briefly ran `git config core.longpaths true` while unblocking a corrupted local ref, then reverted it in the same step; no config drift remains.
 
 ## Notes for whoever reads this next
 

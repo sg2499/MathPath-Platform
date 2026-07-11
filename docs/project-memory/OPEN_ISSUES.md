@@ -1,11 +1,13 @@
 # Open Issues
 
-Last updated: 2026-07-07
+Last updated: 2026-07-11
 
 ## Active
 
+- Browser-QA the 2026-07-11 grind-heatmap multi-source fix (practice + assessments + mock exams pooled per day, cumulative across attempts) once delivered — verify tooltip counts/accuracy/time match actual same-day activity for a student with mixed attempt types, and confirm the July 9/10 mock completions now render on the correct days.
+- Known limitation left open from the 2026-07-11 heatmap fix (not blocking, flagged for a future pass): `ListStudentCompetitionMockAssignmentsForAttempt` filters mock assignments to the student's `current_level_id`, so if a student is promoted to a new level mid-week, that week's mock activity from the prior level drops out of `/student/competition/mock-assignments` entirely (and therefore out of the heatmap) even though it happened this week. Would need the endpoint to stop filtering by current level for activity-feed purposes, or a separate activity-only endpoint.
 - Browser-QA the 2026-07-07 student dashboard heatmap tooltip stack from `ec9d041` through `dd9938e`, especially current-week Sunday-to-Saturday alignment, empty future-day handling, tooltip readability, and dark/light theme contrast.
-- Decide whether the shipped `flowState` formula should keep estimating `5` questions per sheet when `totalQuestions` is absent, or switch to payload-backed counts before relying on tier/rank copy.
+- Decide whether the shipped `flowState` formula should keep estimating `5` questions per sheet when `totalQuestions` is absent, or switch to payload-backed counts before relying on tier/rank copy. (Still open — the 2026-07-11 fix reuses the same 5-question fallback for mock/assessment events for consistency, it did not resolve the underlying heuristic.)
 - Re-run `npm.cmd run verify:student-login-responsive` in an environment that can actually launch Playwright browsers; the 2026-07-05 local attempt hit `spawn EPERM` for all 60 cases before any page assertions ran.
 - Browser-QA the student login page on live or preview after `4ecd510`, especially 320px width, phone landscape, tablet widths, tab readability, theme-toggle overlap, and zoom/scroll behavior.
 - Make `npm.cmd run typecheck` reliable on a clean checkout, or document that it must follow `npm.cmd run build`, because the pre-build 2026-07-06 run failed on missing `.next/types` references from `frontend/tsconfig.json`.
@@ -25,6 +27,7 @@ Last updated: 2026-07-07
 
 ## Resolved Recently
 
+- 2026-07-11: Grind heatmap was silently undercounting activity — it only read practice-sheet `Results`, never mock exam or assessment-engine completions, even though both were already fetched by the dashboard page. Fixed by adding an additive `attemptHistory` array (full completed-attempt history, not just latest) to the mock-assignment and assessment-assignment backend payloads, and rewriting the dashboard's `grindData` calculation to pool practice + mock + assessment events per calendar day before computing one flowState/tier per day. Not yet delivered to main — prepared in this Cowork session, pending qa-reviewer + sre-devops via local Claude Code.
 - Student dashboard JSX compilation was repaired in `134eeb2`.
 - The student dashboard hydration crash from hook ordering was repaired in `8979bfc`.
 - Conquest Matrix date presentation and mock slideshow support were refined in `303b004`.
