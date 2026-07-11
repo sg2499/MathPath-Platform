@@ -205,9 +205,16 @@ function groupQuestionsBySection(questions: CompetitionMockQuestion[]) {
       existingSection.questions.push(question);
       return;
     }
+    // sectionTitle here must be the concept name with the embedded original
+    // number stripped out (getCleanMmSectionName does this using the
+    // question's real sectionNumber). The badge/kicker elsewhere shows the
+    // renumbered displaySectionNumber separately — if this stayed as the
+    // raw "Section 7 - Cubes and Cube Roots" string, the badge would say S6
+    // while the adjacent text still said "Section 7", the exact stale-gap
+    // bug this whole fix exists for.
     sectionMap.set(sectionNumber, {
       sectionNumber,
-      sectionTitle: question.sectionTitle || question.conceptTag || `Section ${sectionNumber}`,
+      sectionTitle: getCleanMmSectionName(question) || question.conceptTag || `Section ${sectionNumber}`,
       questions: [question],
     });
   });

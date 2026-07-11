@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -243,10 +244,25 @@ def student_competition_mock_instructions(assignment_id: str, db: Session = Depe
     # see gaps like Section 1, 2, 3, 5, 7 instead of a clean 1-9. This is the
     # student-facing instructions preview only — it doesn't drive question
     # generation or attempt/answer logic, so renumbering here is safe.
-    sections_list = [
-        {**sections_map[k], "sectionNumber": display_number}
-        for display_number, k in enumerate(sorted(sections_map.keys()), start=1)
-    ]
+    #
+    # sectionNumber alone isn't enough: sectionTitle is a full string stored
+    # at generation time (e.g. "Section 7 - Cubes and Cube Roots") with the
+    # ORIGINAL number baked into the text itself, and that's the string the
+    # page actually displays. So the embedded number has to be stripped and
+    # rebuilt with the new display number too, or the title text still shows
+    # the stale gap even though sectionNumber is correct underneath it.
+    sections_list = []
+    for display_number, k in enumerate(sorted(sections_map.keys()), start=1):
+        section = sections_map[k]
+        raw_title = section["sectionTitle"] or ""
+        prefix_pattern = re.compile(rf"^section\s*{k}\s*[-–—:]\s*", re.IGNORECASE)
+        clean_title = prefix_pattern.sub("", raw_title).strip()
+        display_title = f"Section {display_number} - {clean_title}" if clean_title else f"Section {display_number}"
+        sections_list.append({
+            **section,
+            "sectionNumber": display_number,
+            "sectionTitle": display_title,
+        })
 
     return {
         "assignmentId": assignment.id,
