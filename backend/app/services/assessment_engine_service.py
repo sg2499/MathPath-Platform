@@ -1416,6 +1416,7 @@ def _CompletedAssessmentAttemptHistoryPayload(Db: Session, AssignmentId: str) ->
             "maxScore": (ResultRow.max_score if ResultRow else AttemptRow.max_score),
             "accuracyPercentage": (ResultRow.percentage if ResultRow else AttemptRow.percentage),
             "timeTakenSeconds": AttemptRow.time_taken_seconds,
+            "expectedDurationSeconds": AttemptRow.duration_seconds,
             "totalQuestions": AttemptRow.total_questions,
             "completedAt": Iso(CompletedAt),
         })

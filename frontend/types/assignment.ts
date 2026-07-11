@@ -18,6 +18,7 @@ export type AttemptHistoryEntry = {
   maxScore?: number | null;
   accuracyPercentage?: number | null;
   timeTakenSeconds?: number | null;
+  expectedDurationSeconds?: number | null;
   totalQuestions?: number | null;
   completedAt: string;
 };

@@ -71,6 +71,7 @@ export type StudentResultAttempt = {
   wrong: number;
   unanswered: number;
   timeTakenSeconds: number | null;
+  expectedDurationSeconds?: number | null;
   benchmarkPercentage?: number | null;
   benchmarkStatus?: string | null;
   requiresAttention?: boolean | null;
