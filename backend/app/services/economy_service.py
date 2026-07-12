@@ -168,48 +168,148 @@ class EconomyService:
         return econ, ranked_up
 
     @staticmethod
+    def _accuracy_multiplier(accuracy_percent: float) -> float:
+        """The one performance-to-reward curve used everywhere in the economy.
+
+        Shared by every activity type (DPS, assessment, mock) so "how much
+        better performance pays" is decided in exactly one place. <50% = 0.5x,
+        50-75% = 1.0x, 75-90% = 1.5x, 90-100% (not perfect) = 2.0x, a perfect
+        100% = 2.5x.
+        """
+        if accuracy_percent == 100.0:
+            return 2.5
+        if accuracy_percent >= 90.0:
+            return 2.0
+        if accuracy_percent >= 75.0:
+            return 1.5
+        if accuracy_percent < 50.0:
+            return 0.5
+        return 1.0
+
+    @staticmethod
     def evaluate_assignment_performance(
-        db: Session, 
-        user_id: str, 
-        accuracy_percent: float, 
-        base_xp: int = 200, 
+        db: Session,
+        user_id: str,
+        accuracy_percent: float,
+        base_xp: int = 200,
         assignment_id: str = "N/A"
     ) -> Dict[str, Any]:
         """
-        The core Multiplier Engine ensuring high performance yields more XP & Drops, 
-        rather than just volume grinding.
+        Legacy flat-base-XP engine. Superseded by evaluate_activity_performance()
+        below for all live completion paths (DPS, assessments, mocks) as of the
+        student-portal economy unification -- kept only because
+        backend/scripts/backfill_mock_gamification.py (already run to
+        completion for the round-9 backfill) references it and shouldn't be
+        rewritten retroactively. Do not wire this into any new call site.
         """
-        # Multiplier scaling: <50% = 0.5x, >90% = 2.0x, 100% = 2.5x
-        multiplier = 1.0
-        if accuracy_percent == 100.0:
-            multiplier = 2.5
-        elif accuracy_percent >= 90.0:
-            multiplier = 2.0
-        elif accuracy_percent >= 75.0:
-            multiplier = 1.5
-        elif accuracy_percent < 50.0:
-            multiplier = 0.5
-            
+        multiplier = EconomyService._accuracy_multiplier(accuracy_percent)
+
         final_xp = int(base_xp * multiplier)
         final_coins = int(25 * multiplier) if accuracy_percent >= 50.0 else 0
-        
+
         # RNG Drop chance for an Alpha Pack (Base 10% * Multiplier)
         dropped_pack = roll_loot_drop(base_chance_percent=10.0, multiplier=multiplier)
         pack_type = None
         if dropped_pack:
             # If accuracy is perfect, drop an Elite Chest instead
             pack_type = "ELITE_CHEST" if accuracy_percent == 100.0 else "ALPHA_PACK"
-            
+
         # Update Ledger
         econ, ranked_up = EconomyService.award_xp_and_coins(
-            db, user_id, final_xp, final_coins, 
+            db, user_id, final_xp, final_coins,
             source_action="ASSIGNMENT_COMPLETION", reference_id=assignment_id
         )
-        
+
         return {
             "awarded_xp": final_xp,
             "awarded_coins": final_coins,
             "new_rank": econ.current_rank_tier,
             "ranked_up": ranked_up,
             "dropped_pack": pack_type
+        }
+
+    # ---------------------------------------------------------
+    # UNIFIED ACTIVITY ECONOMY (DPS / ASSESSMENT / MOCK)
+    # ---------------------------------------------------------
+    # One formula for every activity type a student can complete, so XP and
+    # coins are fair and consistent regardless of which module or level an
+    # activity belongs to, and regardless of how long any individual DPS
+    # sheet, assessment, or mock exam happens to be configured for.
+    #
+    # Reward is proportional to the activity's own admin-configured allotted
+    # duration_seconds -- NOT the student's actual time_taken_seconds. Two
+    # deliberate reasons: (1) time_taken_seconds is derived after submission,
+    # and the student-portal audit that led to this found it had historically
+    # been the source of real timing bugs (see the AUTO_SUBMITTED timestamp
+    # fixes) -- keying the reward off a field that can itself be wrong would
+    # let that bug corrupt payouts too. duration_seconds is fixed and correct
+    # the instant the attempt starts. (2) This program explicitly rewards
+    # speed -- paying by time *taken* would mean a fast, accurate student
+    # earns LESS than a slow one for the same accuracy on the same content,
+    # which is backwards. Paying by allotted duration means the size of the
+    # reward reflects the size of the activity, not how quickly any one
+    # student finished it; the accuracy multiplier is what rewards quality.
+    #
+    # Because every module/level can configure its own duration per DPS,
+    # assessment, and mock, this formula never needs manual re-tuning as new
+    # content is added -- it reads directly from each attempt's own stored
+    # duration_seconds every time.
+    GAMIFICATION_MINUTE_RATE = 500.0 / 60.0 / 1.5  # derived from the mock exam's pre-existing 500 XP / 60-minute baseline at ACTIVITY_WEIGHTS["MOCK"]
+    ACTIVITY_WEIGHTS = {
+        "DPS": 1.0,          # routine, frequent, lowest stakes
+        "ASSESSMENT": 1.3,   # gates level progression
+        "MOCK": 1.5,         # competitive, leaderboard-visible, highest stakes
+    }
+    COIN_XP_RATIO = 0.05  # unchanged from the original mock formula (25 coins / 500 xp)
+    MIN_DURATION_MINUTES = 1.0
+    MAX_DURATION_MINUTES = 180.0  # guards against a misconfigured (0, negative, or absurd) duration ever producing a buggy payout
+
+    @staticmethod
+    def evaluate_activity_performance(
+        db: Session,
+        user_id: str,
+        accuracy_percent: float,
+        activity_type: str,
+        duration_seconds: int | float | None,
+        reference_id: str = "N/A",
+    ) -> Dict[str, Any]:
+        """
+        The single XP/coin formula for DPS sheets, assessments, and mock
+        exams alike. See the module-level comment above for why the reward
+        is based on the activity's allotted duration rather than the
+        student's actual time taken.
+        """
+        weight = EconomyService.ACTIVITY_WEIGHTS.get(activity_type, 1.0)
+        raw_minutes = float(duration_seconds or 0) / 60.0
+        duration_minutes = max(
+            EconomyService.MIN_DURATION_MINUTES,
+            min(raw_minutes, EconomyService.MAX_DURATION_MINUTES),
+        )
+        multiplier = EconomyService._accuracy_multiplier(accuracy_percent)
+
+        base_xp = EconomyService.GAMIFICATION_MINUTE_RATE * duration_minutes * weight
+        final_xp = max(0, round(base_xp * multiplier))
+        final_coins = max(0, round(final_xp * EconomyService.COIN_XP_RATIO)) if accuracy_percent >= 50.0 else 0
+
+        # Loot-pack drops stay mock-exclusive for now -- Collector's Vault,
+        # where a dropped pack would actually be seen and opened, isn't built
+        # out yet for DPS/assessment content.
+        dropped_pack = None
+        pack_type = None
+        if activity_type == "MOCK":
+            dropped_pack = roll_loot_drop(base_chance_percent=10.0, multiplier=multiplier)
+            if dropped_pack:
+                pack_type = "ELITE_CHEST" if accuracy_percent == 100.0 else "ALPHA_PACK"
+
+        econ, ranked_up = EconomyService.award_xp_and_coins(
+            db, user_id, final_xp, final_coins,
+            source_action=f"{activity_type}_COMPLETION", reference_id=reference_id,
+        )
+
+        return {
+            "awarded_xp": final_xp,
+            "awarded_coins": final_coins,
+            "new_rank": econ.current_rank_tier,
+            "ranked_up": ranked_up,
+            "dropped_pack": pack_type,
         }

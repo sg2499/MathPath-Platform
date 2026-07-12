@@ -4,18 +4,26 @@ This file is a snapshot, not a log — the active Claude Code session **overwrit
 
 ## Current
 
-- **Updated:** 2026-07-13 (written by Cowork — full student-portal audit + five fixes implemented, awaiting qa-reviewer/delivery)
-- **Status:** NOT IDLE. Five fixes from a full student-portal audit are sitting in the working tree, prepared but not verified or delivered:
-  1. Practice/DPS lazy-auto-submit notification gap (same bug class as pre-round-9 mocks) — fixed, `attempt_service.py`.
-  2. Assessments had zero server-side safety net for expired attempts — fixed, `assessment_engine_service.py`.
-  3. `get_current_student()` defensive `is_active` check — added, `dependencies.py`.
-  4. Sliding JWT session refresh (permanent fix, not just a bigger expiry number) — `dependencies.py` + `main.py` (CORS) + frontend `lib/api.ts`/`lib/auth.ts`.
-  5. Two new backfill scripts, not yet run: `backfill_practice_attempt_notifications.py`, `backfill_assessment_attempt_notifications.py`.
-  Collector's Vault explicitly deferred per Shailesh — not touched.
-- **Verification status:** Cowork's sandbox had the same confirmed bash-mount staleness as every prior round this week (phantom truncation/syntax errors that don't reproduce against the real files) — not run via pytest/build here. Verified via full manual re-read only.
-- **Blocked on:** qa-reviewer needs to run real pytest + typecheck + build; sre-devops delivers if it passes. After delivery, run both new backfill scripts (`--dry-run` then `--apply`, either order). Full detail in `docs/project-memory/COWORK_HANDOFF.md`'s 2026-07-13 entry and `OPEN_ISSUES.md`.
+- **Updated:** 2026-07-13 (written by Cowork — line-by-line student-portal audit + unified economy system implemented, awaiting qa-reviewer/delivery)
+- **Status:** NOT IDLE. Working tree has, prepared but not verified or delivered:
+  1. Unified economy system: one formula (`EconomyService.evaluate_activity_performance()`, duration-based + accuracy multiplier + activity weight) now covers DPS, assessments, and mocks — `economy_service.py`, `attempt_service.py`, `assessment_engine_service.py`, `competition_mock_attempt_service.py`. New `gamification_processed_at` columns on `attempts`/`assessment_attempts` (2 migrations).
+  2. Assessment AUTO_SUBMITTED timestamp bug fixed (same class as round 10) — `assessment_engine_service.py`.
+  3. DPS `marks_per_question` scoring fix — `attempt_service.py`.
+  4. Cleanup: `recalculate_streaks.py` column fix, dead `NotifyPracticeReattemptUnlocked()` deleted, dead `GET /student/notifications` deleted.
+  5. Three new backfill/correction scripts, not yet run: `backfill_practice_dps_economy.py`, `backfill_assessment_economy.py`, `fix_assessment_auto_submitted_timestamps.py`.
+  Collector's Vault explicitly deferred per Shailesh — not touched, loot-pack drops stay mock-exclusive.
+- **Verification status:** Cowork's sandbox had the same confirmed bash-mount staleness as every prior round (phantom `SyntaxError` in `models.py` at a line nowhere near any edit) — not run via pytest/build here. Verified via full manual re-read; the 5 brand-new files (2 migrations + 3 scripts) did `py_compile` clean.
+- **Blocked on:** qa-reviewer needs to run real pytest + typecheck + build; sre-devops delivers if it passes. After delivery, run all three new scripts (`--dry-run` then `--apply`). Full detail in `docs/project-memory/COWORK_HANDOFF.md`'s latest 2026-07-13 entry and `OPEN_ISSUES.md`.
 
 ## Last completed milestone
+
+- **2026-07-13 — full student-portal audit + five fixes, delivered end to end.** Merged as PR #311 (commit `434f357`), all 11 CI checks passed. `pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean. Both new backfill scripts run to completion in production:
+  1. Practice/DPS lazy-auto-submit notification gap (same bug class as pre-round-9 mocks) — fixed, `attempt_service.py`. Backfilled: `backfill_practice_attempt_notifications.py --apply` — 8 historical attempts (Sakshi Agarwal x4, Shailesh Gupta x1, Meera Chatterjee x3), 30 notifications created.
+  2. Assessments had zero server-side safety net for expired attempts — fixed, `assessment_engine_service.py`. Backfilled: `backfill_assessment_attempt_notifications.py --apply` — 0 attempts affected, no historical gap existed.
+  3. `get_current_student()` defensive `is_active` check — added, `dependencies.py`.
+  4. Sliding JWT session refresh (permanent fix, not just a bigger expiry number) — `dependencies.py` + `main.py` (CORS) + frontend `lib/api.ts`/`lib/auth.ts`.
+  5. Two new backfill scripts, both run to completion (see #1/#2 above).
+  Collector's Vault explicitly deferred per Shailesh — still not touched, remains the only open item in `OPEN_ISSUES.md`.
 
 - **2026-07-12 — round 10 + badge-notification commit-bug fix + heatmap tier-color fix, delivered end to end.** Merged as PR #310 (squash commit `c2ebec6`), confirmed deployed on both Vercel and Render before any backfill was run (developer verified directly in both dashboards). Backend verified for real this time (`pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean, 41/41 routes) — run from the developer's own terminal, since this session's Cowork sandbox had a confirmed-stale repo mount and couldn't be trusted for verification.
   1. Round 10: `submitted_at` for AUTO_SUBMITTED mock attempts now computed as `started_at + duration_seconds` instead of detection-time `_now_utc()`. Retro-correction script `backend/scripts/fix_auto_submitted_timestamps.py --apply` run against production: 13 AUTO_SUBMITTED attempts scanned, 12 had drifted timestamps (all minor, seconds to ~8 minutes), all corrected along with their `CompetitionMockResultSummary.completed_at` and 36 associated notification timestamps (12 attempts x student/teacher/admin).

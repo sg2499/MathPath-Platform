@@ -31,7 +31,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.core.errors import api_error
-from app.models import Attempt, AttemptAnswer, GeneratedQuestion, QuestionOption, DPS, DPSSection, Assignment, AssignmentReattemptPermission
+from app.models import Attempt, AttemptAnswer, GeneratedQuestion, QuestionOption, DPS, DPSSection, Assignment, AssignmentReattemptPermission, Student
 from app.services.assignment_service import validate_assignment_access, create_auto_retry_assignment_for_attempt
 from app.services.generation_service import build_attempt_question_seed, persist_question_set
 from app.services.audit_service import log_event
@@ -198,6 +198,13 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
         return attempt
     questions = db.query(GeneratedQuestion).filter(GeneratedQuestion.question_set_id == attempt.question_set_id).all()
     answers = {a.question_id: a for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
+    # Marks per question comes from the DPS's own configured value rather
+    # than an assumed 1 -- every DPS currently in the system is seeded at 1,
+    # so this doesn't change any existing score, but it means a future DPS
+    # configured with a different marks_per_question is scored correctly
+    # instead of silently ignored.
+    dps = db.get(DPS, attempt.dps_id)
+    marks_per_question = float(getattr(dps, "marks_per_question", 1) or 1)
     correct = wrong = unanswered = 0
     for q in questions:
         ans = answers.get(q.id)
@@ -208,7 +215,7 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
         if opt and opt.is_correct:
             correct += 1
             ans.is_correct = True
-            ans.marks_awarded = 1
+            ans.marks_awarded = marks_per_question
         else:
             wrong += 1
             ans.is_correct = False
@@ -220,8 +227,8 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     attempt.wrong_count = wrong
     attempt.unanswered_count = unanswered
     attempt.attempted_count = correct + wrong
-    attempt.total_score = float(correct)
-    attempt.max_score = float(len(questions))
+    attempt.total_score = float(correct) * marks_per_question
+    attempt.max_score = float(len(questions)) * marks_per_question
     attempt.accuracy_percentage = round((correct / len(questions)) * 100) if questions else 0
     attempt.time_taken_seconds = attempt.duration_seconds if auto else min(attempt.duration_seconds, int((submitted - _aware(attempt.started_at)).total_seconds()))
     UpdateSubmittedAttemptBenchmarkState(attempt, BENCHMARK_PERCENTAGE)
@@ -252,6 +259,7 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     db.refresh(attempt)
 
     _process_attempt_notification_side_effects(db, attempt, retry_assignment)
+    _process_attempt_gamification_side_effects(db, attempt)
 
     return attempt
 
@@ -309,6 +317,55 @@ def _process_attempt_notification_side_effects(db: Session, attempt: Attempt, re
         db.rollback()
         import logging
         logging.error(f"Failed to send completion notifications for attempt {attempt.id}: {e}")
+
+
+def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) -> dict | None:
+    """XP + coin award for a just-graded practice/DPS attempt.
+
+    Same atomic-claim shape as _process_attempt_notification_side_effects()
+    above, but gated by its own gamification_processed_at column so the two
+    guards can never block or race each other -- an attempt's notification
+    and its economy award are independent, each processed exactly once,
+    regardless of which code path first completes the attempt.
+
+    Uses EconomyService.evaluate_activity_performance(), the same formula
+    shared by assessments and mock exams -- see that function's docstring
+    for why reward is based on the DPS's allotted duration rather than the
+    student's actual time taken.
+    """
+    from sqlalchemy import update as _sa_update
+
+    claim = db.execute(
+        _sa_update(Attempt)
+        .where(
+            Attempt.id == attempt.id,
+            Attempt.gamification_processed_at.is_(None),
+        )
+        .values(gamification_processed_at=now_utc())
+    )
+    db.commit()
+    if claim.rowcount == 0:
+        return None
+
+    try:
+        from app.services.economy_service import EconomyService
+
+        student = db.get(Student, attempt.student_id)
+        if not student:
+            return None
+        return EconomyService.evaluate_activity_performance(
+            db=db,
+            user_id=student.user_id,
+            accuracy_percent=float(attempt.accuracy_percentage or 0),
+            activity_type="DPS",
+            duration_seconds=attempt.duration_seconds,
+            reference_id=attempt.id,
+        )
+    except Exception as e:
+        db.rollback()
+        import logging
+        logging.error(f"Failed to award economy for attempt {attempt.id}: {e}")
+        return None
 
 
 def latest_retry_assignment_for_attempt(db: Session, attempt: Attempt):
