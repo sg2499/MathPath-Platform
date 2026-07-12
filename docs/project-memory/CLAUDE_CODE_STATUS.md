@@ -4,18 +4,20 @@ This file is a snapshot, not a log — the active Claude Code session **overwrit
 
 ## Current
 
-- **Updated:** 2026-07-13 (written by Cowork — line-by-line student-portal audit + unified economy system implemented, awaiting qa-reviewer/delivery)
-- **Status:** NOT IDLE. Working tree has, prepared but not verified or delivered:
+- **Updated:** 2026-07-13 (written by Cowork — unified economy round + docs-sync fix, fully delivered and backfilled)
+- **Status:** IDLE. Nothing in progress.
+- **Blocked on:** nothing.
+
+## Last completed milestone
+
+- **2026-07-13 — unified economy system + assessment timestamp fix + cleanup, delivered end to end and backfilled.** Merged as PR #312 (squash commit `6145dca`), all 11 CI checks passed (`pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean, 41/41 routes), confirmed deployed on both Vercel and Render.
   1. Unified economy system: one formula (`EconomyService.evaluate_activity_performance()`, duration-based + accuracy multiplier + activity weight) now covers DPS, assessments, and mocks — `economy_service.py`, `attempt_service.py`, `assessment_engine_service.py`, `competition_mock_attempt_service.py`. New `gamification_processed_at` columns on `attempts`/`assessment_attempts` (2 migrations).
   2. Assessment AUTO_SUBMITTED timestamp bug fixed (same class as round 10) — `assessment_engine_service.py`.
   3. DPS `marks_per_question` scoring fix — `attempt_service.py`.
   4. Cleanup: `recalculate_streaks.py` column fix, dead `NotifyPracticeReattemptUnlocked()` deleted, dead `GET /student/notifications` deleted.
-  5. Three new backfill/correction scripts, not yet run: `backfill_practice_dps_economy.py`, `backfill_assessment_economy.py`, `fix_assessment_auto_submitted_timestamps.py`.
+  5. **Backfilled — all three scripts run to completion in production:** `backfill_practice_dps_economy.py --apply` — 8 historical practice/DPS attempts (the same 8 from the PR #311 notification backfill: Sakshi Agarwal x4, Shailesh Gupta x1, Meera Chatterjee x3), 210 XP / 7 coins awarded total, hand-verified against the formula. `backfill_assessment_economy.py --apply` — 0 attempts affected (no historical assessment completions exist yet). `fix_assessment_auto_submitted_timestamps.py --apply` — 0 attempts affected (same reason).
   Collector's Vault explicitly deferred per Shailesh — not touched, loot-pack drops stay mock-exclusive.
-- **Verification status:** Cowork's sandbox had the same confirmed bash-mount staleness as every prior round (phantom `SyntaxError` in `models.py` at a line nowhere near any edit) — not run via pytest/build here. Verified via full manual re-read; the 5 brand-new files (2 migrations + 3 scripts) did `py_compile` clean.
-- **Blocked on:** qa-reviewer needs to run real pytest + typecheck + build; sre-devops delivers if it passes. After delivery, run all three new scripts (`--dry-run` then `--apply`). Full detail in `docs/project-memory/COWORK_HANDOFF.md`'s latest 2026-07-13 entry and `OPEN_ISSUES.md`.
-
-## Last completed milestone
+  - **Note:** this file and `OPEN_ISSUES.md` briefly carried stale ("not yet delivered") content after PR #312 actually merged — a doc-sync gap between the Cowork sandbox's edits and what `git add` captured at commit time. Caught and corrected via a follow-up docs-only PR #313 (squash commit `9871632`). If a memory doc's status ever looks inconsistent with `git log`/PR history again, trust the git history, not the doc, and re-sync it the same way.
 
 - **2026-07-13 — full student-portal audit + five fixes, delivered end to end.** Merged as PR #311 (commit `434f357`), all 11 CI checks passed. `pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean. Both new backfill scripts run to completion in production:
   1. Practice/DPS lazy-auto-submit notification gap (same bug class as pre-round-9 mocks) — fixed, `attempt_service.py`. Backfilled: `backfill_practice_attempt_notifications.py --apply` — 8 historical attempts (Sakshi Agarwal x4, Shailesh Gupta x1, Meera Chatterjee x3), 30 notifications created.
