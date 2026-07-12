@@ -1,11 +1,24 @@
 # Open Issues
 
-Last updated: 2026-07-13 (unified economy system — delivered as PR #312, backfilled and verified; docs-sync fix delivered as PR #313)
+Last updated: 2026-07-13 (repo-hygiene cleanup prepared, awaiting push; unified economy system delivered as PR #312, backfilled and verified; docs-sync fix delivered as PR #313)
 
 ## Active
 
 - Collector's Vault (`frontend/app/student/achievements/vault/`) still runs on hardcoded dummy data with zero backend calls and no `useProtectedPage` guard. Explicitly deferred by Shailesh (2026-07-13) until the rest of the student portal is confirmed solid — needs a product decision (build the real backend vs. hide the nav entry) before a code fix makes sense. Same underlying issue flagged since round 7. Also explicitly excluded from the unified economy system (no loot-pack drops for DPS/assessments until the Vault exists).
-- Nothing else open as of 2026-07-13. The economy round below is fully delivered and backfilled — nothing pending from it.
+- Repo-wide cleanup prepared, not yet pushed — see Resolved section below for the full list.
+
+## Resolved Recently (2026-07-13, repo-hygiene cleanup — prepared, not yet delivered)
+
+Shailesh asked for a full repo sweep for dead/unused files and anything bloating or slowing down the platform, across everything, not just the student portal. Findings, all confirmed unreferenced by any code, docs, or CI workflow before flagging:
+
+1. **`MathPath-Platform/` — a 946MB duplicate nested clone of the entire repo**, tracked as a broken/orphaned gitlink (mode `160000`, dangling commit hash) with no `.gitmodules` registering it as a real submodule. Includes its own `.git`, its own 459MB `node_modules`, duplicate `backend/`/`frontend/`/`docs/` — pure dead weight, most likely from an accidental `git add` after cloning the repo into a subfolder at some point. Removed via `git rm --cached` + manual delete (submodule/gitlink entries aren't cleanly removed by a normal `git rm -r`).
+2. **4 unreferenced root-level files:** `original_page.tsx` (stray "before" snapshot of a page component), `teacher-rules.css` (64KB, not imported anywhere — real styling is `frontend/app/globals.css` + Tailwind), `trigger_gamification_sync.py` and `trigger_production_sync.py` (pre-dated the proper `backend/scripts/backfill_*` convention, fully superseded).
+3. **5 pre-git versioning artifacts:** `README_MATHPATH_v2_2_PHASE2A_STABLE.md`, `README_MathPath_v2_3_Phase_2_Stable_Freeze.md`, `README_STABLE_v2_1_PREMIUM_UI.md`, `VERSION.txt`, `STABLE_PACKAGE_DO_NOT_EDIT_DIRECTLY.txt` — all from an old "duplicate the whole folder per phase" workflow, obsolete now that git branches/tags/PRs handle versioning. Only the plain `README.md` stays.
+4. **`mathpath.db`** — empty (0 bytes), untracked (caught by `.gitignore`'s `*.db` rule already), just deleted from disk.
+
+**Not a repo/git problem, flagged for awareness only:** `frontend/node_modules` (818MB) and `frontend/.next` (2.4GB) are properly gitignored, not bloating git history — but both, plus the nested clone's own `node_modules`, sit inside the OneDrive-synced folder, meaning several GB of build cache/installed packages are likely being continuously indexed by OneDrive. Plausible contributor to this session's repeated "stale sync" issues. Worth excluding `node_modules`/`.next` from OneDrive sync, or moving local dev work outside the synced folder — a local-machine setting, not something a code change can fix.
+
+**Prepared, not yet pushed** — deletion commands handed to the developer.
 
 ## Resolved Recently (2026-07-13, unified economy system + assessment timestamp fix + cleanup — delivered as PR #312, backfilled, verified)
 

@@ -4,9 +4,9 @@ This file is a snapshot, not a log — the active Claude Code session **overwrit
 
 ## Current
 
-- **Updated:** 2026-07-13 (written by Cowork — unified economy round + docs-sync fix, fully delivered and backfilled)
-- **Status:** IDLE. Nothing in progress.
-- **Blocked on:** nothing.
+- **Updated:** 2026-07-13 (written by Cowork — repo-hygiene cleanup, prepared, awaiting push)
+- **Status:** NOT IDLE. Repo-wide audit found: a 946MB duplicate nested clone (`MathPath-Platform/`, tracked as a broken/orphaned gitlink with no `.gitmodules`), 4 unreferenced root scripts/files (`original_page.tsx`, `teacher-rules.css`, `trigger_gamification_sync.py`, `trigger_production_sync.py`), 3 obsolete pre-git "STABLE" README snapshots plus `VERSION.txt` and `STABLE_PACKAGE_DO_NOT_EDIT_DIRECTLY.txt` (artifacts of an old folder-duplication versioning scheme), and an empty untracked `mathpath.db` at root. All confirmed unreferenced by any code/docs/CI before flagging. Deletion commands handed to the developer, not yet run.
+- **Blocked on:** developer running the cleanup + push.
 
 ## Last completed milestone
 
