@@ -250,7 +250,66 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     log_event(db, "AUTO_SUBMITTED" if auto else "ATTEMPT_SUBMITTED", student_id=attempt.student_id, attempt_id=attempt.id)
     db.commit()
     db.refresh(attempt)
+
+    _process_attempt_notification_side_effects(db, attempt, retry_assignment)
+
     return attempt
+
+
+def _process_attempt_notification_side_effects(db: Session, attempt: Attempt, retry_assignment) -> None:
+    """Completion notification for a just-graded practice/DPS attempt, plus its
+    retry-assignment notification if one was created this call.
+
+    Safe to call from any code path that just completed an attempt -- the
+    explicit /attempts/{id}/submit and /attempts/{id}/auto-submit routes, or
+    the lazy GET-triggered auto-submit in ensure_active_or_auto_submit() --
+    since it atomically claims the attempt via notification_processed_at
+    before doing any work. If two requests somehow race to complete the same
+    attempt, only one of them actually notifies anyone.
+
+    Background: before this existed, NotifyPracticeAttemptSubmitted() and the
+    retry-assignment notification only ever got called from the two explicit
+    route handlers, never from submit_attempt() itself. Any attempt completed
+    via the lazy path (timer expired while the student's tab was backgrounded
+    or closed, then a plain GET detected it) got graded correctly, but the
+    student, teacher, and admin were never notified -- the exact same bug
+    class as the pre-round-9 competition mock exam bug, just never caught
+    because nobody was cross-checking practice sheet notification
+    completeness. See the matching Alembic migration for the full history.
+    """
+    from sqlalchemy import update as _sa_update
+
+    claim = db.execute(
+        _sa_update(Attempt)
+        .where(
+            Attempt.id == attempt.id,
+            Attempt.notification_processed_at.is_(None),
+        )
+        .values(notification_processed_at=now_utc())
+    )
+    db.commit()
+    if claim.rowcount == 0:
+        return
+
+    try:
+        from app.services.practice_notification_service import (
+            NotifyPracticeAssignmentsCreated,
+            NotifyPracticeAttemptSubmitted,
+        )
+
+        NotifyPracticeAttemptSubmitted(db, attempt_id=attempt.id)
+        if retry_assignment is not None:
+            NotifyPracticeAssignmentsCreated(
+                db,
+                assignment_ids=[retry_assignment.id],
+                actor_user_id=retry_assignment.assigned_by_user_id,
+            )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        import logging
+        logging.error(f"Failed to send completion notifications for attempt {attempt.id}: {e}")
+
 
 def latest_retry_assignment_for_attempt(db: Session, attempt: Attempt):
     attempt_group_id = getattr(attempt, "attempt_group_id", None)

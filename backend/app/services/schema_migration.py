@@ -148,6 +148,47 @@ def ensure_competition_mock_attempt_gamification_column() -> None:
             connection.execute(text("ALTER TABLE competition_mock_attempts ADD COLUMN gamification_processed_at TIMESTAMP"))
 
 
+def ensure_attempt_notification_processed_column() -> None:
+    """Self-heal safety net for attempts.notification_processed_at (see matching
+    Alembic migration bfa28b9fc380).
+
+    Same convention as ensure_competition_mock_attempt_gamification_column()
+    above. This one gates the practice/DPS attempt completion notification
+    (and its retry-assignment notification, if any) so it runs exactly once
+    per attempt no matter which code path first completes it -- including
+    the lazy-auto-submit fallback triggered by a plain GET after the timer's
+    already expired server-side, which previously never notified anyone.
+    """
+    inspector = inspect(engine)
+    if "attempts" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("attempts")}
+    if "notification_processed_at" not in existing:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE attempts ADD COLUMN notification_processed_at TIMESTAMP"))
+
+
+def ensure_assessment_attempt_notification_processed_column() -> None:
+    """Self-heal safety net for assessment_attempts.notification_processed_at
+    (see matching Alembic migration a1e6838c5ea3).
+
+    Same convention as the two functions above. Also backs the new
+    lazy-auto-submit safety net on assessment attempts, which previously had
+    none at all -- an assessment whose auto-submit call never reached the
+    server (tab closed at time-up, crash, dropped network) would stay
+    IN_PROGRESS forever with no way to self-heal.
+    """
+    inspector = inspect(engine)
+    if "assessment_attempts" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("assessment_attempts")}
+    if "notification_processed_at" not in existing:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE assessment_attempts ADD COLUMN notification_processed_at TIMESTAMP"))
+
+
 DPS_COLUMNS = {
     "publication_status": "VARCHAR(30) DEFAULT 'DRAFT'",
     "last_preview_seed": "TEXT",

@@ -527,6 +527,12 @@ class AssessmentAttempt(Base):
     performance_band = Column(String(50), nullable=True)
     result_status = Column(String(50), nullable=True)
     time_taken_seconds = Column(Integer, nullable=True)
+    # Set exactly once, the moment this attempt's completion notification has
+    # run. Also doubles as the idempotency guard for the lazy-auto-submit
+    # safety net (see GetAssessmentAttemptForStudent) so a timer-expiry
+    # completion detected via a plain GET can never double-process or race
+    # with an explicit submit/auto-submit call.
+    notification_processed_at = Column(DateTime(timezone=True), nullable=True)
 
     assessment_assignment = relationship("AssessmentAssignment")
     assessment_version = relationship("AssessmentVersion")
@@ -770,6 +776,11 @@ class Attempt(Base):
     max_score = Column(Float, default=0, nullable=False)
     accuracy_percentage = Column(Float, default=0, nullable=False)
     time_taken_seconds = Column(Integer, nullable=True)
+    # Set exactly once, the moment this attempt's completion notification (and
+    # its retry-assignment notification, if any) has run. Guards against
+    # ever double-processing or ever silently skipping it -- see the matching
+    # Alembic migration for the full history of why this exists.
+    notification_processed_at = Column(DateTime(timezone=True), nullable=True)
 
 class AttemptAnswer(Base):
     __tablename__ = "attempt_answers"
