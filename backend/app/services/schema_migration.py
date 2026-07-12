@@ -189,6 +189,44 @@ def ensure_assessment_attempt_notification_processed_column() -> None:
             connection.execute(text("ALTER TABLE assessment_attempts ADD COLUMN notification_processed_at TIMESTAMP"))
 
 
+def ensure_attempt_gamification_processed_column() -> None:
+    """Self-heal safety net for attempts.gamification_processed_at (see matching
+    Alembic migration c2f7a9d3e451).
+
+    Same convention as the other ensure_*_column() functions in this file.
+    Gates the practice/DPS attempt's XP + coin award (EconomyService.
+    evaluate_activity_performance) so it runs exactly once per attempt,
+    independently of the notification claim above -- see the migration
+    docstring for why these are two separate columns.
+    """
+    inspector = inspect(engine)
+    if "attempts" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("attempts")}
+    if "gamification_processed_at" not in existing:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE attempts ADD COLUMN gamification_processed_at TIMESTAMP"))
+
+
+def ensure_assessment_attempt_gamification_processed_column() -> None:
+    """Self-heal safety net for assessment_attempts.gamification_processed_at
+    (see matching Alembic migration d4a1b8e6f723).
+
+    Same convention as the other ensure_*_column() functions in this file.
+    Gates the assessment attempt's XP + coin award, independently of the
+    notification claim above.
+    """
+    inspector = inspect(engine)
+    if "assessment_attempts" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("assessment_attempts")}
+    if "gamification_processed_at" not in existing:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE assessment_attempts ADD COLUMN gamification_processed_at TIMESTAMP"))
+
+
 DPS_COLUMNS = {
     "publication_status": "VARCHAR(30) DEFAULT 'DRAFT'",
     "last_preview_seed": "TEXT",

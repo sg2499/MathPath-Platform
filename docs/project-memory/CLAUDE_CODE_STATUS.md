@@ -4,20 +4,26 @@ This file is a snapshot, not a log — the active Claude Code session **overwrit
 
 ## Current
 
-- **Updated:** 2026-07-13 (written by Cowork — unified economy system + assessment timestamp fix delivered, backfills pending)
-- **Status:** NOT IDLE, but delivered. Merged as PR #312 (squash commit `6145dca`), all 11 CI checks passed, confirmed deployed on both Vercel and Render by the developer directly. Remaining work is the backfill: three new scripts not yet run (`backfill_practice_dps_economy.py`, `backfill_assessment_economy.py`, `fix_assessment_auto_submitted_timestamps.py`) — `--dry-run` first, developer reviews, then `--apply`.
-- **Blocked on:** nothing except running the three backfill scripts above.
+- **Updated:** 2026-07-13 (written by Cowork — line-by-line student-portal audit + unified economy system implemented, awaiting qa-reviewer/delivery)
+- **Status:** NOT IDLE. Working tree has, prepared but not verified or delivered:
+  1. Unified economy system: one formula (`EconomyService.evaluate_activity_performance()`, duration-based + accuracy multiplier + activity weight) now covers DPS, assessments, and mocks — `economy_service.py`, `attempt_service.py`, `assessment_engine_service.py`, `competition_mock_attempt_service.py`. New `gamification_processed_at` columns on `attempts`/`assessment_attempts` (2 migrations).
+  2. Assessment AUTO_SUBMITTED timestamp bug fixed (same class as round 10) — `assessment_engine_service.py`.
+  3. DPS `marks_per_question` scoring fix — `attempt_service.py`.
+  4. Cleanup: `recalculate_streaks.py` column fix, dead `NotifyPracticeReattemptUnlocked()` deleted, dead `GET /student/notifications` deleted.
+  5. Three new backfill/correction scripts, not yet run: `backfill_practice_dps_economy.py`, `backfill_assessment_economy.py`, `fix_assessment_auto_submitted_timestamps.py`.
+  Collector's Vault explicitly deferred per Shailesh — not touched, loot-pack drops stay mock-exclusive.
+- **Verification status:** Cowork's sandbox had the same confirmed bash-mount staleness as every prior round (phantom `SyntaxError` in `models.py` at a line nowhere near any edit) — not run via pytest/build here. Verified via full manual re-read; the 5 brand-new files (2 migrations + 3 scripts) did `py_compile` clean.
+- **Blocked on:** qa-reviewer needs to run real pytest + typecheck + build; sre-devops delivers if it passes. After delivery, run all three new scripts (`--dry-run` then `--apply`). Full detail in `docs/project-memory/COWORK_HANDOFF.md`'s latest 2026-07-13 entry and `OPEN_ISSUES.md`.
 
 ## Last completed milestone
 
-- **2026-07-13 — unified economy system + assessment timestamp fix + cleanup, delivered end to end.** Merged as PR #312 (squash commit `6145dca`), all 11 CI checks passed (`pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean, 41/41 routes), confirmed deployed on both Vercel and Render. Full detail in `docs/project-memory/COWORK_HANDOFF.md`'s latest 2026-07-13 entry. Summary:
-  1. Unified economy system — DPS, assessments, and mocks now all earn XP/coins under one formula (`EconomyService.evaluate_activity_performance()`), based on each attempt's allotted `duration_seconds` x the existing accuracy multiplier curve x a per-activity weight (DPS 1.0 / Assessment 1.3 / Mock 1.5). Previously only mocks earned anything.
-  2. Assessment AUTO_SUBMITTED timestamp bug (same class as round 10, never applied to assessments) — fixed.
-  3. DPS `marks_per_question` scoring fix.
-  4. Cleanup: `recalculate_streaks.py` column fix, dead `NotifyPracticeReattemptUnlocked()` deleted, dead `GET /student/notifications` deleted.
-  5. Three new backfill/correction scripts — not yet run, see "Current" above.
-  One unrelated line-ending-only diff on `backend/scripts/backfill_mock_gamification.py` (508/422 lines, pure LF/CRLF noise, zero content change) was deliberately excluded from this commit rather than bundled in.
-  Collector's Vault explicitly deferred per Shailesh — still not touched, loot-pack drops stay mock-exclusive.
+- **2026-07-13 — full student-portal audit + five fixes, delivered end to end.** Merged as PR #311 (commit `434f357`), all 11 CI checks passed. `pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean. Both new backfill scripts run to completion in production:
+  1. Practice/DPS lazy-auto-submit notification gap (same bug class as pre-round-9 mocks) — fixed, `attempt_service.py`. Backfilled: `backfill_practice_attempt_notifications.py --apply` — 8 historical attempts (Sakshi Agarwal x4, Shailesh Gupta x1, Meera Chatterjee x3), 30 notifications created.
+  2. Assessments had zero server-side safety net for expired attempts — fixed, `assessment_engine_service.py`. Backfilled: `backfill_assessment_attempt_notifications.py --apply` — 0 attempts affected, no historical gap existed.
+  3. `get_current_student()` defensive `is_active` check — added, `dependencies.py`.
+  4. Sliding JWT session refresh (permanent fix, not just a bigger expiry number) — `dependencies.py` + `main.py` (CORS) + frontend `lib/api.ts`/`lib/auth.ts`.
+  5. Two new backfill scripts, both run to completion (see #1/#2 above).
+  Collector's Vault explicitly deferred per Shailesh — still not touched, remains the only open item in `OPEN_ISSUES.md`.
 
 - **2026-07-12 — round 10 + badge-notification commit-bug fix + heatmap tier-color fix, delivered end to end.** Merged as PR #310 (squash commit `c2ebec6`), confirmed deployed on both Vercel and Render before any backfill was run (developer verified directly in both dashboards). Backend verified for real this time (`pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean, 41/41 routes) — run from the developer's own terminal, since this session's Cowork sandbox had a confirmed-stale repo mount and couldn't be trusted for verification.
   1. Round 10: `submitted_at` for AUTO_SUBMITTED mock attempts now computed as `started_at + duration_seconds` instead of detection-time `_now_utc()`. Retro-correction script `backend/scripts/fix_auto_submitted_timestamps.py --apply` run against production: 13 AUTO_SUBMITTED attempts scanned, 12 had drifted timestamps (all minor, seconds to ~8 minutes), all corrected along with their `CompetitionMockResultSummary.completed_at` and 36 associated notification timestamps (12 attempts x student/teacher/admin).

@@ -814,16 +814,26 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
                 logging.error(f"Failed to generate notifications for mock submission {attempt.id}: {e}")
 
     # --- Economy Hook ---
+    # Uses the same duration-based, activity-weighted formula shared with
+    # DPS and assessment completion (EconomyService.evaluate_activity_performance)
+    # instead of the old flat base_xp=500 -- see that function's docstring
+    # for why reward is now based on the mock's allotted duration_seconds
+    # rather than a fixed constant. For a typical 60-minute mock at the
+    # standard (50-75% accuracy) multiplier band, this lands at essentially
+    # the same payout as before, so no existing student's earned XP/coins
+    # trajectory changes; a mock configured with a different duration now
+    # pays proportionally instead of identically to every other mock.
     final_xp = 0
     final_coins = 0
     try:
         from app.services.economy_service import EconomyService
-        econ_result = EconomyService.evaluate_assignment_performance(
+        econ_result = EconomyService.evaluate_activity_performance(
             db=db,
             user_id=student.user_id,
             accuracy_percent=attempt.percentage or 0.0,
-            base_xp=500,
-            assignment_id=attempt.mock_assignment_id or "MOCK"
+            activity_type="MOCK",
+            duration_seconds=attempt.duration_seconds,
+            reference_id=attempt.mock_assignment_id or "MOCK"
         )
         final_xp = econ_result.get("awarded_xp", 0)
         final_coins = econ_result.get("awarded_coins", 0)
