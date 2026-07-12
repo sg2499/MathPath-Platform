@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getToken, clearAuth } from "./auth";
+import { getToken, clearAuth, updateStoredToken } from "./auth";
 
 function ResolveApiBaseUrl(): string {
   const RawBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").trim();
@@ -31,7 +31,20 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Sliding-session refresh: the backend transparently reissues a token
+    // once the current one is more than halfway through its lifetime (see
+    // get_current_user() in dependencies.py) and returns it via this header.
+    // Swapping it in here means an actively-used session -- e.g. a student
+    // mid-exam, saving an answer every few minutes -- renews itself on every
+    // request and can never hit a hard expiry wall mid-activity, without the
+    // student ever noticing anything happened.
+    const RefreshedToken = response.headers?.["x-new-access-token"];
+    if (RefreshedToken && typeof window !== "undefined") {
+      updateStoredToken(RefreshedToken);
+    }
+    return response;
+  },
   (error) => {
     if (error?.response?.status === 401 && typeof window !== "undefined") {
       clearAuth();
