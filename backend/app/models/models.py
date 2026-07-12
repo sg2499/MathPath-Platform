@@ -533,6 +533,11 @@ class AssessmentAttempt(Base):
     # completion detected via a plain GET can never double-process or race
     # with an explicit submit/auto-submit call.
     notification_processed_at = Column(DateTime(timezone=True), nullable=True)
+    # Set exactly once, the moment this attempt's XP/coin award has run.
+    # Separate from notification_processed_at above so the two idempotency
+    # guards can't interfere with each other -- see EconomyService's
+    # evaluate_activity_performance() and the matching Alembic migration.
+    gamification_processed_at = Column(DateTime(timezone=True), nullable=True)
 
     assessment_assignment = relationship("AssessmentAssignment")
     assessment_version = relationship("AssessmentVersion")
@@ -781,6 +786,11 @@ class Attempt(Base):
     # ever double-processing or ever silently skipping it -- see the matching
     # Alembic migration for the full history of why this exists.
     notification_processed_at = Column(DateTime(timezone=True), nullable=True)
+    # Set exactly once, the moment this attempt's XP/coin award has run.
+    # Separate from notification_processed_at above so the two idempotency
+    # guards can't interfere with each other -- see EconomyService's
+    # evaluate_activity_performance() and the matching Alembic migration.
+    gamification_processed_at = Column(DateTime(timezone=True), nullable=True)
 
 class AttemptAnswer(Base):
     __tablename__ = "attempt_answers"

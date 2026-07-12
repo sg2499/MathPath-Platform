@@ -15,10 +15,19 @@ def recalculate_unstoppable_streaks() -> None:
 
         students = db.query(Student).all()
         for student in students:
-            # Get all mock results chronologically
+            # Get all mock results chronologically. Note: this model has no
+            # submitted_at column -- completed_at is the real chronological
+            # field (see CompetitionMockResultSummary in models.py). This
+            # was previously referencing a column that doesn't exist and
+            # would have raised AttributeError on any call; fixed as part of
+            # the full student-portal audit. Confirmed unused by any live
+            # code path -- kept as a manual reconciliation tool in case the
+            # live per-submission increment/reset logic in
+            # AchievementEngine.evaluate_mock_exam_submission() ever drifts
+            # from the true historical record.
             results = db.query(CompetitionMockResultSummary).filter(
                 CompetitionMockResultSummary.student_id == student.id
-            ).order_by(CompetitionMockResultSummary.submitted_at.asc()).all()
+            ).order_by(CompetitionMockResultSummary.completed_at.asc()).all()
             
             streak = 0
             for r in results:
