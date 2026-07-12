@@ -1,1 +1,0 @@
-MathPath v2.2 Phase 2A Student Management Stable. Duplicate this folder before Phase 2B development.
