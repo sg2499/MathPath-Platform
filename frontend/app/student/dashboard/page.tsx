@@ -29,16 +29,26 @@ const IconMap: Record<string, any> = {
 };
 
 // Distinct bar color per grind-heatmap tier, so the tier is visible at a
-// glance without needing to hover every bar. REST (no activity) stays the
-// original neutral gray.
+// glance without needing to hover every bar. Every shade below was picked
+// for its relative luminance (~0.13-0.28), the band that clears the 3:1
+// minimum contrast for graphical UI elements against BOTH the light-mode
+// card (bg-white/95) and the dark-mode card (bg-black/85) at once -- no
+// dark: variant needed for the base color itself. The previous palette
+// (amber-500->yellow-300 gradient, emerald-500, sky-500, slate-300/white-10
+// rest) looked fine in dark mode but several fell to ~1.3-2.8:1 contrast in
+// light mode, and the REST bar was ~1:1 (invisible) in dark mode -- bars
+// were reported as "meshing into the background" on both themes.
 const TIER_BAR_CLASSES: Record<string, string> = {
-  "S-TIER": "bg-gradient-to-t from-amber-500 to-yellow-300 shadow-[0_0_10px_rgba(251,191,36,0.7)] dark:shadow-[0_0_14px_rgba(251,191,36,0.6)]",
-  "A-TIER": "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.55)] dark:shadow-[0_0_12px_rgba(16,185,129,0.5)]",
-  "B-TIER": "bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.55)] dark:shadow-[0_0_12px_rgba(14,165,233,0.5)]",
-  "C-TIER": "bg-amber-600 shadow-[0_0_8px_rgba(217,119,6,0.55)] dark:shadow-[0_0_12px_rgba(217,119,6,0.5)]",
-  "D-TIER": "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.55)] dark:shadow-[0_0_12px_rgba(244,63,94,0.5)]",
+  "S-TIER": "bg-gradient-to-t from-yellow-700 to-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.6)] dark:shadow-[0_0_14px_rgba(217,119,6,0.55)]",
+  "A-TIER": "bg-emerald-600 shadow-[0_0_8px_rgba(5,150,105,0.55)] dark:shadow-[0_0_12px_rgba(5,150,105,0.5)]",
+  "B-TIER": "bg-sky-600 shadow-[0_0_8px_rgba(2,132,199,0.55)] dark:shadow-[0_0_12px_rgba(2,132,199,0.5)]",
+  "C-TIER": "bg-violet-600 shadow-[0_0_8px_rgba(124,58,237,0.55)] dark:shadow-[0_0_12px_rgba(124,58,237,0.5)]",
+  "D-TIER": "bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.55)] dark:shadow-[0_0_12px_rgba(225,29,72,0.5)]",
 };
-const REST_BAR_CLASSES = "bg-slate-300 dark:bg-white/10";
+// slate-500 sits in the same safe-contrast band as the tier colors above,
+// so REST days are now clearly visible (not just "not invisible") on both
+// themes, while staying obviously muted/neutral next to the vibrant tiers.
+const REST_BAR_CLASSES = "bg-slate-500 shadow-[0_0_4px_rgba(100,116,139,0.35)]";
 
 // Local-timezone YYYY-MM-DD key. Using toISOString() here would convert to
 // UTC first, which silently shifts late-night activity into the wrong day

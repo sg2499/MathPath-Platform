@@ -601,7 +601,22 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
             answer.is_correct = False
             answer.marks_awarded = 0.0
 
-    submitted_at = _now_utc()
+    now = _now_utc()
+    if auto:
+        # AUTO_SUBMITTED means the timer ran out; the true end-of-exam
+        # moment is started_at + duration_seconds, not whenever this code
+        # happens to run (a lazy GET, a background job, or the defensive
+        # result-page repair can all detect the expiry minutes or hours
+        # late). Stamping submitted_at with "now" mis-timed every
+        # auto-submitted attempt and could shift it into the wrong day for
+        # streak/heatmap bucketing (see recalculate_streaks.py, which sorts
+        # on this column). Falls back to "now" only if started_at is
+        # missing, and is never allowed to land in the future (clock-skew
+        # guard).
+        started = _aware(attempt.started_at)
+        submitted_at = min(started + timedelta(seconds=attempt.duration_seconds or 0), now) if started else now
+    else:
+        submitted_at = now
     attempt.status = "AUTO_SUBMITTED" if auto else "SUBMITTED"
     attempt.submitted_at = submitted_at
     attempt.correct_count = correct
@@ -847,7 +862,26 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
                         color_variant="PURPLE",
                         metadata={"badgeId": badge_id, "tier": tier, "code": code, "icon": icon_name}
                     )
+                    # CreateNotification() only db.add()s + db.flush()es -- it never
+                    # commits (by design, so callers can batch several notifications
+                    # into one transaction). Every OTHER notification/side-effect in
+                    # this function has its own explicit db.commit() (student/
+                    # teacher/admin block above, the gamification_processed_at claim,
+                    # AchievementEngine.evaluate_mock_exam_submission() internally),
+                    # but this badge-notification loop never did. Since neither
+                    # SubmitCompetitionMockAttemptForStudent() nor the route handler
+                    # that calls it commit afterward either, and get_db() closes the
+                    # session with no implicit commit, every badge-unlock notification
+                    # was silently created, flushed into the open transaction, then
+                    # discarded when the request ended -- the badge itself persisted
+                    # (evaluate_mock_exam_submission commits its own writes before
+                    # this loop even starts), so Trophy Room / the dashboard's
+                    # "Latest Unlock" widget showed it correctly, but the student
+                    # never got notified. Committing per-badge here (matching the
+                    # round-9 backfill script's pattern) is what actually persists it.
+                    db.commit()
                 except Exception as ne:
+                    db.rollback()
                     import logging
                     logging.error(f"Failed to create badge notification for {b.get('name')}: {ne}")
 
