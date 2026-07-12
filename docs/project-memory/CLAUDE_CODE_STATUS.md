@@ -4,11 +4,13 @@ This file is a snapshot, not a log — the active Claude Code session **overwrit
 
 ## Current
 
-- **Updated:** 2026-07-13 (written by Cowork — repo-hygiene cleanup, prepared, awaiting push)
-- **Status:** NOT IDLE. Repo-wide audit found: a 946MB duplicate nested clone (`MathPath-Platform/`, tracked as a broken/orphaned gitlink with no `.gitmodules`), 4 unreferenced root scripts/files (`original_page.tsx`, `teacher-rules.css`, `trigger_gamification_sync.py`, `trigger_production_sync.py`), 3 obsolete pre-git "STABLE" README snapshots plus `VERSION.txt` and `STABLE_PACKAGE_DO_NOT_EDIT_DIRECTLY.txt` (artifacts of an old folder-duplication versioning scheme), and an empty untracked `mathpath.db` at root. All confirmed unreferenced by any code/docs/CI before flagging. Deletion commands handed to the developer, not yet run.
-- **Blocked on:** developer running the cleanup + push.
+- **Updated:** 2026-07-13 (written by Cowork — repo-hygiene cleanup delivered)
+- **Status:** IDLE. Nothing in progress.
+- **Blocked on:** nothing.
 
 ## Last completed milestone
+
+- **2026-07-13 — repo-wide cleanup, delivered.** Merged as PR #315 (squash commit `040a946`), all 11 CI checks passed (backend-tests, frontend-build, frontend-typecheck, frontend-e2e-tests, governance-audit, repository-safety, all green) — confirming everything removed was genuinely dead weight. Removed: `MathPath-Platform/` (946MB duplicate nested clone, tracked as a broken/orphaned gitlink with no `.gitmodules`), `original_page.tsx`, `teacher-rules.css`, `trigger_gamification_sync.py`, `trigger_production_sync.py`, 3 obsolete pre-git "STABLE" README snapshots, `VERSION.txt`, `STABLE_PACKAGE_DO_NOT_EDIT_DIRECTLY.txt`, and an empty untracked `mathpath.db`. Also flagged for the developer (not a code fix): `frontend/node_modules`/`.next` sit inside the OneDrive-synced folder and are plausibly contributing to this session's sync-timing issues — worth excluding from OneDrive sync locally.
 
 - **2026-07-13 — unified economy system + assessment timestamp fix + cleanup, delivered end to end and backfilled.** Merged as PR #312 (squash commit `6145dca`), all 11 CI checks passed (`pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean, 41/41 routes), confirmed deployed on both Vercel and Render.
   1. Unified economy system: one formula (`EconomyService.evaluate_activity_performance()`, duration-based + accuracy multiplier + activity weight) now covers DPS, assessments, and mocks — `economy_service.py`, `attempt_service.py`, `assessment_engine_service.py`, `competition_mock_attempt_service.py`. New `gamification_processed_at` columns on `attempts`/`assessment_attempts` (2 migrations).
