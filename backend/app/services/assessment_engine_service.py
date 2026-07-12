@@ -1610,11 +1610,32 @@ def GetAssessmentAssignmentForStudent(Db: Session, StudentItem: Student, Assignm
     return Assignment
 
 
+def EnsureAssessmentAttemptActiveOrAutoSubmit(Db: Session, Attempt: AssessmentAttempt) -> AssessmentAttempt:
+    """Lazy server-side safety net, mirroring ensure_active_or_auto_submit()
+    (practice/DPS attempts) and EnsureCompetitionAttemptActiveOrSubmit()
+    (competition mocks).
+
+    Assessment attempts previously had no equivalent of this at all --
+    completion relied entirely on the frontend's client-side timer calling
+    POST /assessment-attempts/{id}/auto-submit at the exact moment it hit
+    zero. If that call never landed (tab closed right at time-up, browser
+    crash, dropped network, laptop sleep), the attempt just stayed
+    IN_PROGRESS forever: no result, no retake, no scheduled sweep anywhere to
+    catch it, nothing short of manual admin intervention. This closes that
+    gap the same way it's already closed for mocks and practice sheets.
+    """
+    if Attempt.status != "IN_PROGRESS":
+        return Attempt
+    if AssessmentRemainingSeconds(Attempt) > 0:
+        return Attempt
+    return _SubmitAssessmentAttemptCore(Db, Attempt, Auto=True)
+
+
 def GetAssessmentAttemptForStudent(Db: Session, StudentItem: Student, AttemptId: str) -> AssessmentAttempt:
     Attempt = Db.get(AssessmentAttempt, AttemptId)
     if not Attempt or Attempt.student_id != StudentItem.id:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found for this student.")
-    return Attempt
+    return EnsureAssessmentAttemptActiveOrAutoSubmit(Db, Attempt)
 
 
 def StudentAssessmentStartPayload(Db: Session, StudentItem: Student, AssignmentId: str) -> dict[str, Any]:
@@ -1754,11 +1775,12 @@ def AssessmentAttemptPayload(Db: Session, Attempt: AssessmentAttempt) -> dict[st
 
 
 def SaveAssessmentAnswer(Db: Session, StudentItem: Student, AttemptId: str, QuestionId: str, SelectedOptionId: str) -> dict[str, Any]:
+    # GetAssessmentAttemptForStudent() already runs EnsureAssessmentAttemptActiveOrAutoSubmit()
+    # internally, so an expired attempt is auto-submitted (with its notification
+    # sent, exactly once) before it's ever returned here -- no need for a second,
+    # duplicate expiry check in this function anymore.
     Attempt = GetAssessmentAttemptForStudent(Db, StudentItem, AttemptId)
     if Attempt.status != "IN_PROGRESS":
-        return {"status": Attempt.status, "resultAvailable": True}
-    if AssessmentRemainingSeconds(Attempt) <= 0:
-        Attempt = SubmitAssessmentAttempt(Db, StudentItem, AttemptId, Auto=True)
         return {"status": Attempt.status, "resultAvailable": True}
 
     Question = Db.get(AssessmentQuestion, QuestionId)
@@ -1801,6 +1823,17 @@ def SaveAssessmentAnswer(Db: Session, StudentItem: Student, AttemptId: str, Ques
 
 def SubmitAssessmentAttempt(Db: Session, StudentItem: Student, AttemptId: str, Auto: bool = False) -> AssessmentAttempt:
     Attempt = GetAssessmentAttemptForStudent(Db, StudentItem, AttemptId)
+    return _SubmitAssessmentAttemptCore(Db, Attempt, Auto=Auto)
+
+
+def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: bool = False) -> AssessmentAttempt:
+    """The actual grading logic, operating directly on an already-fetched,
+    already-ownership-verified attempt. Split out from SubmitAssessmentAttempt
+    so EnsureAssessmentAttemptActiveOrAutoSubmit() (the lazy GET-triggered
+    fallback) can call straight into it without re-fetching the attempt via
+    GetAssessmentAttemptForStudent() -- which would otherwise recurse right
+    back into this same lazy-fallback check.
+    """
     if Attempt.status != "IN_PROGRESS":
         return Attempt
 
@@ -1884,7 +1917,52 @@ def SubmitAssessmentAttempt(Db: Session, StudentItem: Student, AttemptId: str, A
 
     Db.commit()
     Db.refresh(Attempt)
+
+    _ProcessAssessmentCompletionNotification(Db, Attempt)
+
     return Attempt
+
+
+def _ProcessAssessmentCompletionNotification(Db: Session, Attempt: AssessmentAttempt) -> None:
+    """Completion notification for a just-graded assessment attempt.
+
+    Safe to call from any code path that just completed an attempt -- the
+    explicit /assessment-attempts/{id}/submit and .../auto-submit routes, or
+    the lazy GET-triggered fallback in EnsureAssessmentAttemptActiveOrAutoSubmit()
+    -- since it atomically claims the attempt via notification_processed_at
+    before doing any work. If two requests somehow race to complete the same
+    attempt, only one of them actually notifies anyone.
+
+    Same fix shape as round 9 (competition mocks) and the equivalent fix for
+    practice/DPS attempts: before this existed, NotifyAssessmentAttemptSubmitted()
+    only ever got called from the two explicit route handlers, never from the
+    core grading logic itself, so an attempt completed via a lazy detection
+    (timer expired while the tab was backgrounded/closed) graded correctly but
+    never notified the student.
+    """
+    from sqlalchemy import update as _sa_update
+
+    Claim = Db.execute(
+        _sa_update(AssessmentAttempt)
+        .where(
+            AssessmentAttempt.id == Attempt.id,
+            AssessmentAttempt.notification_processed_at.is_(None),
+        )
+        .values(notification_processed_at=NowUtc())
+    )
+    Db.commit()
+    if Claim.rowcount == 0:
+        return
+
+    try:
+        from app.services.assessment_notification_service import NotifyAssessmentAttemptSubmitted
+
+        NotifyAssessmentAttemptSubmitted(Db, attempt_id=Attempt.id)
+        Db.commit()
+    except Exception as e:
+        Db.rollback()
+        import logging
+        logging.error(f"Failed to send assessment completion notification for attempt {Attempt.id}: {e}")
 
 
 def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeReview: bool = True) -> dict[str, Any]:

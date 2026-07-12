@@ -1,10 +1,48 @@
 # Cowork Session Handoff
 
-Last updated: 2026-07-11 (written by Claude Cowork, Sonnet 5 session — rounds 6-9 delivered, backfilled, and verified clean this session)
+Last updated: 2026-07-13 (full student-portal audit + fixes — prepared, not yet delivered)
 
 Purpose: read this first when starting a new Claude Cowork session on this repo. It captures everything established in the most recent session(s) so no context is lost when switching models/sessions/days.
 
-## 2026-07-12 update: round 10 (AUTO_SUBMITTED submitted_at fix + retro-correction script) + heatmap tier bar color/contrast fix — prepared, not yet delivered
+## 2026-07-13 update: full student-portal audit, five fixes — prepared, not yet delivered
+
+After round 10 shipped, Shailesh asked for a from-scratch audit of the entire student side of the platform ("every single detail... nothing should be left out") given students were actively attempting exams that day, specifically to catch any other instance of the bug class round 9/10 had just surfaced. Full findings were reported first (auth, notification commit patterns, mock/practice/assessment attempt lifecycles, frontend guards) with no code changes, then Shailesh approved fixing everything found except Collector's Vault (explicitly deferred — still needs real backend work, tackled separately once the rest of the portal is confirmed solid).
+
+**1. Practice/DPS lazy-auto-submit notification gap (critical, same bug class as pre-round-9 mocks).** `attempt_service.py`'s `ensure_active_or_auto_submit()` — the lazy fallback triggered by a plain GET once a practice/DPS attempt's timer has expired server-side — called `submit_attempt()` directly, which graded the attempt correctly but never notified anyone: `NotifyPracticeAttemptSubmitted()` (and the retry-assignment notification) only ever lived in the two explicit route handlers (`/attempts/{id}/submit`, `/attempts/{id}/auto-submit`), never inside `submit_attempt()` itself. Fixed by moving both notifications into a new `_process_attempt_notification_side_effects()` called from inside `submit_attempt()`, gated by a new `notification_processed_at` column (migration `bfa28b9fc380`) claimed atomically, so every completion path gets identical treatment exactly once. Route handlers simplified to just call `submit_attempt()` and return — no more duplicate notification logic.
+
+**2. Assessments had no server-side safety net at all (high).** Unlike mocks and practice sheets, `GetAssessmentAttemptForStudent()` had no lazy-completion fallback whatsoever — an assessment whose client-side timer-driven auto-submit call never reached the server (tab closed at time-up, crash, dropped network) would stay `IN_PROGRESS` forever, no scheduled sweep anywhere to catch it. (One partial, narrower version of this check already existed inline in `SaveAssessmentAnswer` — removed as redundant once the centralized fix covers every path uniformly.) Fixed: split `SubmitAssessmentAttempt` into a thin ownership-verifying wrapper and a new `_SubmitAssessmentAttemptCore()` that operates directly on an attempt object (avoiding recursion through `GetAssessmentAttemptForStudent`); added `EnsureAssessmentAttemptActiveOrAutoSubmit()`, the same shape as the mock/practice fallbacks, wired into `GetAssessmentAttemptForStudent()`. Notification moved into `_SubmitAssessmentAttemptCore()` via `_ProcessAssessmentCompletionNotification()`, gated by a new `notification_processed_at` column on `assessment_attempts` (migration `a1e6838c5ea3`).
+
+**3. `get_current_student()` had no defensive `is_active` check (medium, hardening not an active exploit).** `get_current_teacher()` already independently checks `teacher.is_active`; the student equivalent didn't, relying solely on `user.is_active`. Every current admin endpoint that deactivates a student does keep `student.is_active` and `user.is_active` in sync, so this wasn't live-exploitable, but added the same defensive second check to `get_current_student()` (`dependencies.py`) so a future desync (bulk import, data-repair script, new admin feature) can never silently leave a "deactivated" student with working login.
+
+**4. Sliding JWT session refresh (Shailesh's explicit ask, "fix it once and for all," not a band-aid bump of the expiry number).** `get_current_user()` now checks remaining token lifetime on every authenticated request; once a token is more than halfway through its life, a fresh one is transparently issued via an `X-New-Access-Token` response header (added to CORS `expose_headers`, since custom headers are invisible to frontend JS cross-origin otherwise). Frontend's axios response interceptor (`lib/api.ts`) reads that header and swaps the stored token via a new `updateStoredToken()` helper (`lib/auth.ts`) — silent to the student. Net effect: a genuinely active session (answering questions, timer polls) renews itself continuously and can never hit a hard expiry wall mid-exam; a truly idle session still expires on schedule.
+
+**5. Two new backfill scripts** (`backend/scripts/backfill_practice_attempt_notifications.py`, `backend/scripts/backfill_assessment_attempt_notifications.py`) close the historical gap for #1 and #2 — both find every completed attempt with `notification_processed_at IS NULL` (which, conveniently, is every pre-fix attempt, since the column and the gating didn't exist yet) and call the REAL production notification function directly (not a reimplementation, to avoid the class of bug found in the round-9 backfill script's own dedup logic), backdating created notifications to the attempt's real `submitted_at`. Not yet run — needs the code deployed first, same order as every prior backfill.
+
+**Verification status:** same sandbox-staleness pattern as every round this week — confirmed again this session (dependencies.py and schema_migration.py both showed phantom truncation/syntax errors in the bash mount that don't reproduce against the real file via the file-edit tools). Not run via pytest/build in this sandbox; verified via full manual re-read of every edited file. **qa-reviewer must run real pytest + typecheck + build before this ships.**
+
+**Files changed this session:**
+- `backend/app/dependencies.py` — student `is_active` check, sliding JWT refresh.
+- `backend/app/main.py` — CORS `expose_headers`, two new startup self-heal calls.
+- `backend/app/models/models.py` — `notification_processed_at` on `Attempt` and `AssessmentAttempt`.
+- `backend/app/services/schema_migration.py` — two new self-heal functions.
+- `backend/app/services/attempt_service.py` — notification moved into `submit_attempt()`.
+- `backend/app/services/assessment_engine_service.py` — lazy-completion fallback + notification moved into core grading.
+- `backend/app/api/routes_student.py` — route handlers simplified, unused imports removed.
+- `backend/alembic/versions/bfa28b9fc380_*.py`, `a1e6838c5ea3_*.py` — new migrations.
+- `backend/scripts/backfill_practice_attempt_notifications.py`, `backend/scripts/backfill_assessment_attempt_notifications.py` — new, not yet run.
+- `frontend/lib/api.ts`, `frontend/lib/auth.ts` — sliding-refresh interceptor + token-swap helper.
+
+**Explicitly out of scope:** Collector's Vault (`frontend/app/student/achievements/vault/`) — still hardcoded dummy data with no backend and no `useProtectedPage` guard, deferred per Shailesh's instruction until the rest of the portal is confirmed solid.
+
+## 2026-07-12 update: round 10 + heatmap tier-color fix + badge-notification commit-bug fix — delivered as PR #310, backfilled, verified
+
+**tl;dr: all three fixes below are live in production (PR #310, commit `c2ebec6`, confirmed deployed on Vercel and Render), both one-time backfills have been run to completion, and there's nothing pending from this thread.** Delivered from the developer's own terminal with real verification this time (`pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean, 41/41 routes) — Cowork's sandbox had a confirmed-stale repo mount this session (see the verification-caveat note further down) so those checks were deliberately skipped in Cowork and re-run for real before push.
+
+Backfill results: `fix_auto_submitted_timestamps.py --apply` corrected 12 of 13 AUTO_SUBMITTED attempts (drift ranged seconds to ~8 minutes), their result summaries, and 36 notification timestamps. `backfill_missing_badge_notifications.py --apply` found and fixed exactly 1 missing notification platform-wide (Nishant Gantayet's "The High Achiever" badge — the one that surfaced the bug in the first place), out of 65 badges scanned across every student.
+
+One process note worth keeping for next time: the first `--dry-run` attempt failed with `no such column: gamification_processed_at` because `DATABASE_URL` wasn't set in the terminal session, so the script silently ran against the local unmigrated SQLite dev DB instead of production. Fixed by setting `$env:DATABASE_URL` to the Render **External** Postgres URL (Internal only resolves from inside Render's network) before re-running — same gotcha as round 9's backfill hit.
+
+## 2026-07-12 update (superseded by the entry above — kept for the investigation detail): round 10 (AUTO_SUBMITTED submitted_at fix + retro-correction script) + heatmap tier bar color/contrast fix — prepared, not yet delivered
 
 Two independent fixes this session, both additive, no new migrations beyond what round 9 already shipped.
 
