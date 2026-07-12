@@ -955,96 +955,11 @@ def NotifyPracticeAttemptSubmitted(
     if not cleared and bool(getattr(attempt, "requires_manual_intervention", False)):
         NotifyPracticeReattemptApprovalNeeded(db, attempt_id=attempt.id)
 
-
-def NotifyPracticeReattemptUnlocked(
-    db: Session,
-    *,
-    permission_id: str,
-    actor_user_id: str | None,
-) -> None:
-    permission = db.get(AssignmentReattemptPermission, permission_id)
-    if not permission:
-        return
-
-    assignment = db.get(Assignment, permission.assignment_id) if permission.assignment_id else None
-    context = _practice_context(db, assignment=assignment, permission=permission)
-    student = context.get("student")
-    student_user = context.get("student_user")
-    teacher = context.get("teacher")
-    teacher_user = context.get("teacher_user")
-    module = context.get("module")
-    level = context.get("level")
-    lesson = context.get("lesson")
-    dps = context.get("dps")
-    dps_label = context.get("dps_label")
-    dps_identity = _practice_notification_identity(context)
-    level_label = context.get("level_label")
-    student_name = context.get("student_name")
-
-    if student_user:
-        CreateNotification(
-            db,
-            recipient_user_id=student_user.id,
-            recipient_role="STUDENT",
-            actor_user_id=actor_user_id,
-            actor_role="ADMIN" if actor_user_id else None,
-            student_id=student.id if student else None,
-            teacher_id=teacher.id if teacher else None,
-            module_id=module.id if module else None,
-            level_id=level.id if level else None,
-            lesson_id=lesson.id if lesson else None,
-            dps_id=dps.id if dps else None,
-            type="DPS_REATTEMPT_ASSIGNED",
-            category="REATTEMPT",
-            title="Re-Attempt DPS Assigned",
-            message=f"A re-attempt has been unlocked for {dps_identity}.",
-            target_route="/student/practice",
-            target_tab="practice",
-            metadata={
-                    "assignmentId": assignment.id if assignment else None,
-                    "permissionId": permission.id,
-                    "dpsId": dps.id if dps else None,
-                    "lessonId": lesson.id if lesson else None,
-                    "studentCode": context.get("student_code"),
-                    "moduleCode": context.get("module_code"),
-                    "levelCode": context.get("level_code") or level_label,
-                    "highlightId": f"assignment-{assignment.id}" if assignment else None,
-                    "targetAction": "start-reattempt",
-                    "notificationGroup": "PRACTICE",
-                    **_practice_identity_metadata(context),
-                },
-        )
-
-    if teacher_user:
-        CreateNotification(
-            db,
-            recipient_user_id=teacher_user.id,
-            recipient_role="TEACHER",
-            actor_user_id=actor_user_id,
-            actor_role="ADMIN" if actor_user_id else None,
-            student_id=student.id if student else None,
-            teacher_id=teacher.id if teacher else None,
-            module_id=module.id if module else None,
-            level_id=level.id if level else None,
-            lesson_id=lesson.id if lesson else None,
-            dps_id=dps.id if dps else None,
-            type="DPS_REATTEMPT_ASSIGNED",
-            category="REATTEMPT",
-            title="DPS Re-Attempt Assigned",
-            message=f"{student_name} can now re-attempt {dps_identity}.",
-            target_route=_teacher_practice_target_route(context),
-            target_tab="practice-tracker",
-            metadata={
-                "assignmentId": assignment.id if assignment else None,
-                "permissionId": permission.id,
-                "dpsId": dps.id if dps else None,
-                "lessonId": lesson.id if lesson else None,
-                "studentCode": context.get("student_code"),
-                "moduleCode": context.get("module_code"),
-                "levelCode": context.get("level_code") or level_label,
-                "highlightId": f"assignment-{assignment.id}" if assignment else None,
-                "targetAction": "view-record",
-                "notificationGroup": "PRACTICE",
-                **_practice_identity_metadata(context),
-            },
-        )
+# NOTE: NotifyPracticeReattemptUnlocked() was removed here as part of the
+# full student-portal audit -- it was fully built but never called from any
+# code path. The actual reattempt-approval flow (routes_admin.py's
+# admin_approve_reattempt-style endpoint) already sends
+# NotifyPracticeFreshPracticeAssigned() at the moment a reattempt permission
+# is approved and its fresh assignment is created in the same step, so a
+# second "unlocked" notification for the same event would have been a
+# duplicate, not a fix, if this had ever been wired in.
