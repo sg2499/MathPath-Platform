@@ -1,22 +1,24 @@
 # Open Issues
 
-Last updated: 2026-07-13 (line-by-line student-portal audit + unified economy system — prepared, NOT yet delivered — see Resolved section)
+Last updated: 2026-07-13 (unified economy system — delivered as PR #312, backfilled and verified; docs-sync fix delivered as PR #313)
 
 ## Active
 
 - Collector's Vault (`frontend/app/student/achievements/vault/`) still runs on hardcoded dummy data with zero backend calls and no `useProtectedPage` guard. Explicitly deferred by Shailesh (2026-07-13) until the rest of the student portal is confirmed solid — needs a product decision (build the real backend vs. hide the nav entry) before a code fix makes sense. Same underlying issue flagged since round 7. Also explicitly excluded from the unified economy system (no loot-pack drops for DPS/assessments until the Vault exists).
-- Nothing else newly flagged as of 2026-07-13 beyond the browser-QA / decision items already listed below.
+- Nothing else open as of 2026-07-13. The economy round below is fully delivered and backfilled — nothing pending from it.
 
-## Resolved Recently (2026-07-13, line-by-line student-portal audit + unified economy system — prepared, NOT yet delivered/backfilled)
+## Resolved Recently (2026-07-13, unified economy system + assessment timestamp fix + cleanup — delivered as PR #312, backfilled, verified)
 
-Full detail in `COWORK_HANDOFF.md`'s latest 2026-07-13 entry. Summary:
+**Delivery:** PR #312, squash commit `6145dca`, all 11 CI checks passed (`pytest tests/ -q`: 20 passed; `npm run typecheck && npm run build`: clean, 41/41 routes). Confirmed deployed on both Vercel and Render. Full detail in `COWORK_HANDOFF.md`'s latest 2026-07-13 entry. Summary:
 
-1. **Unified economy system** — DPS, assessments, and mock exams now all earn XP/coins under one formula (`EconomyService.evaluate_activity_performance()`), based on each attempt's allotted `duration_seconds` × the existing accuracy multiplier curve × a per-activity weight (DPS 1.0 / Assessment 1.3 / Mock 1.5). Previously only mocks earned anything, despite the dashboard explicitly promising MathCoins for DPS completion. New `gamification_processed_at` columns on `attempts` and `assessment_attempts`. Two new backfill scripts (not yet run): `backfill_practice_dps_economy.py`, `backfill_assessment_economy.py`.
-2. **Assessment AUTO_SUBMITTED timestamp bug** (same class as round 10, never applied to assessments) — fixed in `_SubmitAssessmentAttemptCore()`. New retroactive correction script (not yet run): `fix_assessment_auto_submitted_timestamps.py`.
+1. **Unified economy system** — DPS, assessments, and mock exams now all earn XP/coins under one formula (`EconomyService.evaluate_activity_performance()`), based on each attempt's allotted `duration_seconds` × the existing accuracy multiplier curve × a per-activity weight (DPS 1.0 / Assessment 1.3 / Mock 1.5). Previously only mocks earned anything, despite the dashboard explicitly promising MathCoins for DPS completion. New `gamification_processed_at` columns on `attempts` and `assessment_attempts`. **Backfilled:** `backfill_practice_dps_economy.py --apply` — 8 historical attempts (Sakshi Agarwal x4, Shailesh Gupta x1, Meera Chatterjee x3), 210 XP / 7 coins awarded total, hand-checked against the formula (duration 300s × DPS weight 1.0 × accuracy multiplier band per attempt — all matched exactly).
+2. **Assessment AUTO_SUBMITTED timestamp bug** (same class as round 10, never applied to assessments) — fixed in `_SubmitAssessmentAttemptCore()`. **Backfilled:** `backfill_assessment_economy.py --apply` and `fix_assessment_auto_submitted_timestamps.py --apply` — 0 attempts affected by either (no assessment completions exist historically yet, consistent with PR #311's finding).
 3. **DPS `marks_per_question` fix** — `submit_attempt()` now scores using the DPS's real configured value instead of hardcoding 1.
 4. **Cleanup** — `recalculate_streaks.py`'s broken column reference fixed; dead `NotifyPracticeReattemptUnlocked()` deleted; dead synthesized `GET /student/notifications` endpoint deleted.
 
-**Not yet delivered or backfilled.** qa-reviewer must run real pytest + typecheck + build first (Cowork's sandbox had the same confirmed bash-mount staleness issue as every prior round this week).
+**Nothing pending from this thread.** All fixes live in production, all three backfills applied, zero errors.
+
+**Also this round — docs-sync fix, delivered as PR #313.** `CLAUDE_CODE_STATUS.md` and this file briefly carried stale "not yet delivered" content after PR #312 actually merged (a sync gap between the Cowork sandbox's edits and what `git add` captured at commit time — same root cause flagged in the note below from the PR #311 round, now confirmed to have also affected PR #312). Corrected via a docs-only PR #313 (squash commit `9871632`). If a memory doc's status ever looks inconsistent with `git log`/PR history again, trust the git history, not the doc.
 
 ## Resolved Recently (2026-07-13, full student-portal audit — five fixes, delivered as PR #311, backfilled, verified)
 
