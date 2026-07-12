@@ -7,7 +7,7 @@ from app.dependencies import get_current_student
 from app.models import Student, DPS, Lesson, Level, Module, Attempt, Assignment, AssignmentReattemptPermission, AssessmentAssignment, StudentLevelPromotion
 from app.services.assignment_service import get_student_assignments
 from app.services.curriculum_service import dps_config_payload
-from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds, latest_retry_assignment_for_attempt
+from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds
 from app.services.assessment_eligibility_service import assessment_eligibility_payload
 from app.services.assessment_engine_service import (
     AssessmentAssignmentPayload,
@@ -19,8 +19,6 @@ from app.services.assessment_engine_service import (
     SubmitAssessmentAttempt,
     AssessmentResultPayload,
 )
-from app.services.assessment_notification_service import NotifyAssessmentAttemptSubmitted
-from app.services.practice_notification_service import NotifyPracticeAttemptSubmitted, NotifyPracticeAssignmentsCreated
 from app.services.reattempt_operational_service import AttemptConceptKey, AttemptSequenceValue
 from app.services.assessment_feedback_service import assessment_feedback_payload, active_assessment_remark
 from app.services.competition_mock_assignment_service import ListStudentCompetitionMockAssignments
@@ -816,31 +814,18 @@ def answer(attempt_id: str, payload: SaveAnswerRequest, db: Session = Depends(ge
 @router.post("/attempts/{attempt_id}/submit")
 def submit(attempt_id: str, payload: SubmitRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     attempt = get_attempt_for_student(db, student, attempt_id)
+    # submit_attempt() now sends the completion notification (and any
+    # retry-assignment notification) itself, atomically, exactly once,
+    # regardless of whether THIS call is what actually completed the attempt
+    # or whether the lazy auto-submit fallback inside get_attempt_for_student()
+    # already beat it to it -- see _process_attempt_notification_side_effects.
     attempt = submit_attempt(db, attempt, auto=False)
-    NotifyPracticeAttemptSubmitted(db, attempt_id=attempt.id)
-    RetryAssignment = latest_retry_assignment_for_attempt(db, attempt)
-    if RetryAssignment is not None:
-        NotifyPracticeAssignmentsCreated(
-            db,
-            assignment_ids=[RetryAssignment.id],
-            actor_user_id=RetryAssignment.assigned_by_user_id,
-        )
-    db.commit()
     return result_payload(db, attempt, include_review=True)
 
 @router.post("/attempts/{attempt_id}/auto-submit")
 def auto_submit(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     attempt = get_attempt_for_student(db, student, attempt_id)
     attempt = submit_attempt(db, attempt, auto=True)
-    NotifyPracticeAttemptSubmitted(db, attempt_id=attempt.id)
-    RetryAssignment = latest_retry_assignment_for_attempt(db, attempt)
-    if RetryAssignment is not None:
-        NotifyPracticeAssignmentsCreated(
-            db,
-            assignment_ids=[RetryAssignment.id],
-            actor_user_id=RetryAssignment.assigned_by_user_id,
-        )
-    db.commit()
     return result_payload(db, attempt, include_review=True)
 
 @router.get("/attempts/{attempt_id}/result")
@@ -874,17 +859,18 @@ def save_assessment_attempt_answer(attempt_id: str, payload: SaveAssessmentAnswe
 
 @router.post("/assessment-attempts/{attempt_id}/submit")
 def submit_assessment_attempt(attempt_id: str, payload: SubmitRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    # SubmitAssessmentAttempt() now sends the completion notification itself,
+    # atomically, exactly once, regardless of whether THIS call is what
+    # actually completed the attempt or the lazy auto-submit fallback inside
+    # GetAssessmentAttemptForStudent() already beat it to it -- see
+    # _ProcessAssessmentCompletionNotification.
     Attempt = SubmitAssessmentAttempt(db, student, attempt_id, Auto=False)
-    NotifyAssessmentAttemptSubmitted(db, attempt_id=Attempt.id)
-    db.commit()
     return AssessmentResultPayload(db, Attempt, IncludeReview=True)
 
 
 @router.post("/assessment-attempts/{attempt_id}/auto-submit")
 def auto_submit_assessment_attempt(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     Attempt = SubmitAssessmentAttempt(db, student, attempt_id, Auto=True)
-    NotifyAssessmentAttemptSubmitted(db, attempt_id=Attempt.id)
-    db.commit()
     return AssessmentResultPayload(db, Attempt, IncludeReview=True)
 
 

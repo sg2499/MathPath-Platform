@@ -43,6 +43,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # X-New-Access-Token carries the sliding-session refresh (see
+    # get_current_user() in dependencies.py) -- without explicitly exposing
+    # it here, the browser's CORS policy hides ALL custom response headers
+    # from frontend JS by default, so the refreshed token would be sent by
+    # the server but invisible to axios and silently do nothing.
+    expose_headers=["X-New-Access-Token"],
 )
 
 @app.exception_handler(Exception)
@@ -56,13 +62,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-    from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_assessment_reattempt_columns, ensure_student_level_promotions_table, ensure_assignment_attempt_chain_columns, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table, ensure_competition_mock_tables, ensure_mock_notifications_fixed, ensure_mock_gamification_tables, ensure_mock_accuracy_fixed, ensure_user_economy_columns, ensure_competition_mock_attempt_gamification_column
+    from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_assessment_reattempt_columns, ensure_student_level_promotions_table, ensure_assignment_attempt_chain_columns, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table, ensure_competition_mock_tables, ensure_mock_notifications_fixed, ensure_mock_gamification_tables, ensure_mock_accuracy_fixed, ensure_user_economy_columns, ensure_competition_mock_attempt_gamification_column, ensure_attempt_notification_processed_column, ensure_assessment_attempt_notification_processed_column
     ensure_user_columns()
     ensure_student_profile_columns()
     ensure_teacher_columns()
     ensure_student_teacher_id_column()
     ensure_user_economy_columns()
     ensure_competition_mock_attempt_gamification_column()
+    ensure_attempt_notification_processed_column()
+    ensure_assessment_attempt_notification_processed_column()
     # NOTE (2026-07-11): ensure_mock_student_notifications_retroactive() and
     # recalculate_all_gamification_stats() used to run here, unconditionally,
     # on every single backend restart. They existed because mock-completion

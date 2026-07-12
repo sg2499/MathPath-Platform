@@ -119,6 +119,21 @@ export function setAuth(token: string, user: CurrentUser): void {
   window.dispatchEvent(new Event("mathpath-auth-changed"));
 }
 
+export function updateStoredToken(token: string): void {
+  // Swaps just the access token for the currently active role, leaving the
+  // stored user object untouched. Used by the sliding-session refresh: the
+  // backend transparently reissues a token when the current one is more
+  // than halfway through its lifetime (see get_current_user() in
+  // dependencies.py), and this is what actually applies that renewed token
+  // so an actively-used session never hits a hard expiry wall mid-exam.
+  if (typeof window === "undefined") return;
+  const role = activeRole();
+  if (role) {
+    localStorage.setItem(tokenKey(role), token);
+  }
+  localStorage.setItem(LEGACY_TOKEN_KEY, token);
+}
+
 export function clearAuth(): void {
   if (typeof window === "undefined") return;
   const role = activeRole();
