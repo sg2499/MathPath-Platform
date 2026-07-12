@@ -1,13 +1,13 @@
 # Open Issues
 
-Last updated: 2026-07-13 (repo-hygiene cleanup prepared, awaiting push; unified economy system delivered as PR #312, backfilled and verified; docs-sync fix delivered as PR #313)
+Last updated: 2026-07-13 (repo-hygiene cleanup delivered as PR #315; unified economy system delivered as PR #312, backfilled and verified; docs-sync fix delivered as PR #313)
 
 ## Active
 
 - Collector's Vault (`frontend/app/student/achievements/vault/`) still runs on hardcoded dummy data with zero backend calls and no `useProtectedPage` guard. Explicitly deferred by Shailesh (2026-07-13) until the rest of the student portal is confirmed solid — needs a product decision (build the real backend vs. hide the nav entry) before a code fix makes sense. Same underlying issue flagged since round 7. Also explicitly excluded from the unified economy system (no loot-pack drops for DPS/assessments until the Vault exists).
-- Repo-wide cleanup prepared, not yet pushed — see Resolved section below for the full list.
+- Local-machine suggestion, not a repo issue: exclude `frontend/node_modules`/`.next` from OneDrive sync — flagged during the cleanup round below as a plausible contributor to this session's stale-sync issues.
 
-## Resolved Recently (2026-07-13, repo-hygiene cleanup — prepared, not yet delivered)
+## Resolved Recently (2026-07-13, repo-hygiene cleanup — delivered as PR #315, verified)
 
 Shailesh asked for a full repo sweep for dead/unused files and anything bloating or slowing down the platform, across everything, not just the student portal. Findings, all confirmed unreferenced by any code, docs, or CI workflow before flagging:
 
@@ -18,7 +18,7 @@ Shailesh asked for a full repo sweep for dead/unused files and anything bloating
 
 **Not a repo/git problem, flagged for awareness only:** `frontend/node_modules` (818MB) and `frontend/.next` (2.4GB) are properly gitignored, not bloating git history — but both, plus the nested clone's own `node_modules`, sit inside the OneDrive-synced folder, meaning several GB of build cache/installed packages are likely being continuously indexed by OneDrive. Plausible contributor to this session's repeated "stale sync" issues. Worth excluding `node_modules`/`.next` from OneDrive sync, or moving local dev work outside the synced folder — a local-machine setting, not something a code change can fix.
 
-**Prepared, not yet pushed** — deletion commands handed to the developer.
+**Delivery:** PR #315, squash commit `040a946`, all 11 CI checks passed (backend-tests, frontend-build, frontend-typecheck, frontend-e2e-tests, governance-audit, repository-safety) — confirming everything removed was genuinely unused.
 
 ## Resolved Recently (2026-07-13, unified economy system + assessment timestamp fix + cleanup — delivered as PR #312, backfilled, verified)
 
