@@ -1869,7 +1869,24 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     Score = NormalizeAssessmentScore(RawScore, MaxScore)
     Percentage = NormalizeAssessmentPercentage(Score, MaxScore)
     Status = ResultStatus(Percentage)
-    SubmittedAt = NowUtc()
+
+    # AUTO_SUBMITTED means the timer ran out; the true end-of-attempt moment
+    # is started_at + duration_seconds, not whenever this code happens to run
+    # (the lazy GET-triggered fallback in EnsureAssessmentAttemptActiveOrAutoSubmit
+    # can detect the expiry minutes or hours late if the student's tab was
+    # backgrounded or closed). Stamping submitted_at with "now" on the auto
+    # path mis-times the attempt and can inflate time_taken_seconds past the
+    # assessment's own duration_seconds -- the exact bug class round 10
+    # fixed for mock exams, found during the full student-portal audit to
+    # have never been applied here. Falls back to "now" only if started_at
+    # is missing, and is never allowed to land in the future (clock-skew
+    # guard).
+    Now = NowUtc()
+    StartedAt = AwareUtc(Attempt.started_at)
+    if Auto:
+        SubmittedAt = min(StartedAt + timedelta(seconds=Attempt.duration_seconds or 0), Now) if StartedAt else Now
+    else:
+        SubmittedAt = Now
 
     Attempt.status = Status
     Attempt.submitted_at = SubmittedAt
@@ -1882,7 +1899,6 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     Attempt.percentage = Percentage
     Attempt.performance_band = PerformanceBand(Percentage)
     Attempt.result_status = Status
-    StartedAt = AwareUtc(Attempt.started_at)
     Attempt.time_taken_seconds = max(0, int((SubmittedAt - StartedAt).total_seconds())) if StartedAt else None
 
     if Assignment:
@@ -1919,8 +1935,56 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     Db.refresh(Attempt)
 
     _ProcessAssessmentCompletionNotification(Db, Attempt)
+    _ProcessAssessmentGamificationSideEffects(Db, Attempt)
 
     return Attempt
+
+
+def _ProcessAssessmentGamificationSideEffects(Db: Session, Attempt: AssessmentAttempt) -> dict | None:
+    """XP + coin award for a just-graded assessment attempt.
+
+    Same atomic-claim shape as _ProcessAssessmentCompletionNotification()
+    above, but gated by its own gamification_processed_at column so the two
+    guards can never block or race each other.
+
+    Uses EconomyService.evaluate_activity_performance(), the same formula
+    shared by DPS attempts and mock exams -- see that function's docstring
+    for why reward is based on the assessment's allotted duration rather
+    than the student's actual time taken.
+    """
+    from sqlalchemy import update as _sa_update
+
+    Claim = Db.execute(
+        _sa_update(AssessmentAttempt)
+        .where(
+            AssessmentAttempt.id == Attempt.id,
+            AssessmentAttempt.gamification_processed_at.is_(None),
+        )
+        .values(gamification_processed_at=NowUtc())
+    )
+    Db.commit()
+    if Claim.rowcount == 0:
+        return None
+
+    try:
+        from app.services.economy_service import EconomyService
+
+        StudentItem = Db.get(Student, Attempt.student_id)
+        if not StudentItem:
+            return None
+        return EconomyService.evaluate_activity_performance(
+            db=Db,
+            user_id=StudentItem.user_id,
+            accuracy_percent=float(Attempt.percentage or 0),
+            activity_type="ASSESSMENT",
+            duration_seconds=Attempt.duration_seconds,
+            reference_id=Attempt.id,
+        )
+    except Exception as e:
+        Db.rollback()
+        import logging
+        logging.error(f"Failed to award economy for assessment attempt {Attempt.id}: {e}")
+        return None
 
 
 def _ProcessAssessmentCompletionNotification(Db: Session, Attempt: AssessmentAttempt) -> None:

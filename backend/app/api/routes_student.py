@@ -130,77 +130,14 @@ def attempt_date_payload(attempt):
         "completedDate": submitted_at.isoformat() if submitted_at else None,
     }
 
-@router.get("/notifications")
-def student_notifications(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
-    notifications = []
-
-    for assignment in get_student_assignments(db, student):
-        latest = latest_attempt_for_assignment_student(db, assignment.id, student.id)
-        reattempt_permission = active_reattempt_permission_for_student(db, assignment.id, student.id)
-        is_completed = latest and latest.status in ["SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"]
-        is_available = not latest or (reattempt_permission and is_completed)
-
-        if is_available:
-            dps = db.get(DPS, assignment.dps_id)
-            lesson = db.get(Lesson, dps.lesson_id) if dps else None
-            label = "assessment" if assignment.assignment_type == "ASSESSMENT" else "practice sheet"
-            tone = "purple" if reattempt_permission else "info"
-            title = "Reattempt unlocked" if reattempt_permission else f"New {label} assigned"
-            message = (
-                f"Admin has reopened {assignment.title}. Complete it after revision."
-                if reattempt_permission
-                else f"{assignment.title} is available for you to complete."
-            )
-            target = "/student/assessments" if assignment.assignment_type == "ASSESSMENT" else "/student/dashboard"
-
-            notifications.append({
-                "id": f"student-assignment-{assignment.id}-{'reattempt' if reattempt_permission else 'new'}",
-                "title": title,
-                "message": message,
-                "tone": tone,
-                "targetUrl": target,
-                "createdAt": (reattempt_permission.allowed_at.isoformat() if reattempt_permission and reattempt_permission.allowed_at else assignment.created_at.isoformat() if assignment.created_at else None),
-                "assignmentType": assignment.assignment_type,
-                "lessonNumber": lesson.lesson_number if lesson else None,
-                "dpsNumber": dps.dps_number if dps else None,
-            })
-
-    attempts = (
-        db.query(Attempt)
-        .filter(Attempt.student_id == student.id, Attempt.status.in_(["SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"]))
-        .order_by(Attempt.submitted_at.desc().nullslast())
-        .limit(15)
-        .all()
-    )
-
-    for attempt in attempts:
-        assignment = db.get(Assignment, attempt.assignment_id) if attempt.assignment_id else None
-        accuracy = float(attempt.accuracy_percentage or 0)
-        if accuracy < 70:
-            tone = "danger"
-            title = "Needs more practice"
-            message = "You completed the sheet, but your score is below the 70% benchmark. Review mistakes with your teacher and try again after practice."
-        elif accuracy >= 90:
-            tone = "success"
-            title = "Excellent work"
-            message = f"Great performance! You scored {accuracy:g}%. Keep the momentum going."
-        else:
-            tone = "warning"
-            title = "Good progress"
-            message = f"You scored {accuracy:g}%. Keep practicing to reach the 90%+ excellence range."
-
-        notifications.append({
-            "id": f"student-attempt-{attempt.id}",
-            "title": title,
-            "message": message,
-            "tone": tone,
-            "targetUrl": f"/student/result/{attempt.id}",
-            "createdAt": attempt.submitted_at.isoformat() if attempt.submitted_at else None,
-            "assignmentType": assignment.assignment_type if assignment else None,
-        })
-
-    notifications = sorted(notifications, key=lambda item: item.get("createdAt") or "", reverse=True)
-    return {"notifications": notifications[:25]}
+# NOTE: GET /notifications (a synthesized, on-the-fly notification list built
+# from Assignment/Attempt rows) was removed here as part of the full
+# student-portal audit -- confirmed no frontend code calls it. The real
+# notification panel (NotificationsBell.tsx) has always used
+# GET /api/notifications instead, which is backed by the actual Notification
+# table every CreateNotification() call writes to. Keeping this parallel,
+# unused implementation around risked a future engineer mistaking it for the
+# source of truth.
 
 
 @router.get("/competition/mock-assignments")

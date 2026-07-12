@@ -1,23 +1,34 @@
 # Open Issues
 
-Last updated: 2026-07-13 (full student-portal audit + five fixes — prepared, NOT yet delivered — see Resolved section)
+Last updated: 2026-07-13 (line-by-line student-portal audit + unified economy system — prepared, NOT yet delivered — see Resolved section)
 
 ## Active
 
-- Collector's Vault (`frontend/app/student/achievements/vault/`) still runs on hardcoded dummy data with zero backend calls and no `useProtectedPage` guard. Explicitly deferred by Shailesh (2026-07-13) until the rest of the student portal is confirmed solid — needs a product decision (build the real backend vs. hide the nav entry) before a code fix makes sense. Same underlying issue flagged since round 7.
-- Nothing else newly flagged as of 2026-07-12 beyond the browser-QA / decision items already listed below.
+- Collector's Vault (`frontend/app/student/achievements/vault/`) still runs on hardcoded dummy data with zero backend calls and no `useProtectedPage` guard. Explicitly deferred by Shailesh (2026-07-13) until the rest of the student portal is confirmed solid — needs a product decision (build the real backend vs. hide the nav entry) before a code fix makes sense. Same underlying issue flagged since round 7. Also explicitly excluded from the unified economy system (no loot-pack drops for DPS/assessments until the Vault exists).
+- Nothing else newly flagged as of 2026-07-13 beyond the browser-QA / decision items already listed below.
 
-## Resolved Recently (2026-07-13, full student-portal audit — five fixes, prepared, NOT yet delivered/backfilled)
+## Resolved Recently (2026-07-13, line-by-line student-portal audit + unified economy system — prepared, NOT yet delivered/backfilled)
 
-Full detail in `COWORK_HANDOFF.md`'s 2026-07-13 entry. Summary:
+Full detail in `COWORK_HANDOFF.md`'s latest 2026-07-13 entry. Summary:
 
-1. **Practice/DPS lazy-auto-submit notification gap** (critical, same bug class as pre-round-9 mocks) — the lazy timer-expiry fallback graded attempts correctly but never notified anyone. Fixed by moving the notification into `submit_attempt()` itself, gated by new `notification_processed_at` column (migration `bfa28b9fc380`).
-2. **Assessments had no server-side lazy-completion safety net at all** (high) — could get stuck `IN_PROGRESS` forever if the frontend's auto-submit call never landed. Added the same fallback mocks/practice already have (`EnsureAssessmentAttemptActiveOrAutoSubmit`), notification gated by new `notification_processed_at` column on `assessment_attempts` (migration `a1e6838c5ea3`).
-3. **`get_current_student()` defensive `is_active` check** (medium, hardening) — now matches `get_current_teacher()`'s pattern.
-4. **Sliding JWT session refresh** — tokens more than halfway through their lifetime are transparently renewed via an `X-New-Access-Token` response header, picked up silently by the frontend. Permanent fix for "student could theoretically get logged out mid-exam," not just a bigger expiry number.
-5. Two new backfill scripts (not yet run): `backfill_practice_attempt_notifications.py`, `backfill_assessment_attempt_notifications.py`.
+1. **Unified economy system** — DPS, assessments, and mock exams now all earn XP/coins under one formula (`EconomyService.evaluate_activity_performance()`), based on each attempt's allotted `duration_seconds` × the existing accuracy multiplier curve × a per-activity weight (DPS 1.0 / Assessment 1.3 / Mock 1.5). Previously only mocks earned anything, despite the dashboard explicitly promising MathCoins for DPS completion. New `gamification_processed_at` columns on `attempts` and `assessment_attempts`. Two new backfill scripts (not yet run): `backfill_practice_dps_economy.py`, `backfill_assessment_economy.py`.
+2. **Assessment AUTO_SUBMITTED timestamp bug** (same class as round 10, never applied to assessments) — fixed in `_SubmitAssessmentAttemptCore()`. New retroactive correction script (not yet run): `fix_assessment_auto_submitted_timestamps.py`.
+3. **DPS `marks_per_question` fix** — `submit_attempt()` now scores using the DPS's real configured value instead of hardcoding 1.
+4. **Cleanup** — `recalculate_streaks.py`'s broken column reference fixed; dead `NotifyPracticeReattemptUnlocked()` deleted; dead synthesized `GET /student/notifications` endpoint deleted.
 
 **Not yet delivered or backfilled.** qa-reviewer must run real pytest + typecheck + build first (Cowork's sandbox had the same confirmed bash-mount staleness issue as every prior round this week).
+
+## Resolved Recently (2026-07-13, full student-portal audit — five fixes, delivered as PR #311, backfilled, verified)
+
+**Delivery:** PR #311, commit `434f357`, all 11 CI checks passed, merged. `pytest tests/ -q`: 20 passed. `npm run typecheck && npm run build`: clean. Full detail in `COWORK_HANDOFF.md`'s 2026-07-13 entry. Summary:
+
+1. **Practice/DPS lazy-auto-submit notification gap** (critical, same bug class as pre-round-9 mocks) — the lazy timer-expiry fallback graded attempts correctly but never notified anyone. Fixed by moving the notification into `submit_attempt()` itself, gated by new `notification_processed_at` column (migration `bfa28b9fc380`). **Backfilled:** `backfill_practice_attempt_notifications.py --apply` — 8 historical attempts (Sakshi Agarwal x4, Shailesh Gupta x1, Meera Chatterjee x3), 30 notifications created.
+2. **Assessments had no server-side lazy-completion safety net at all** (high) — could get stuck `IN_PROGRESS` forever if the frontend's auto-submit call never landed. Added the same fallback mocks/practice already have (`EnsureAssessmentAttemptActiveOrAutoSubmit`), notification gated by new `notification_processed_at` column on `assessment_attempts` (migration `a1e6838c5ea3`). **Backfilled:** `backfill_assessment_attempt_notifications.py --apply` — 0 attempts affected (no historical gap existed).
+3. **`get_current_student()` defensive `is_active` check** (medium, hardening) — now matches `get_current_teacher()`'s pattern.
+4. **Sliding JWT session refresh** — tokens more than halfway through their lifetime are transparently renewed via an `X-New-Access-Token` response header, picked up silently by the frontend. Permanent fix for "student could theoretically get logged out mid-exam," not just a bigger expiry number.
+5. Two new backfill scripts, both run to completion (see #1/#2 above): `backfill_practice_attempt_notifications.py`, `backfill_assessment_attempt_notifications.py`.
+
+**Nothing pending from this thread.** All five fixes live in production, both backfills applied, zero errors.
 
 ## Resolved Recently (2026-07-12, round 10 + heatmap tier-color fix + badge-notification commit-bug fix — delivered as PR #310, backfilled, verified)
 
