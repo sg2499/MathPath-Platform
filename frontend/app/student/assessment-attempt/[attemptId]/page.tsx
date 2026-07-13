@@ -51,7 +51,7 @@ export default function StudentAssessmentAttemptPage() {
     AutoSubmitMutation.mutate();
   }, [Attempt, AutoSubmitMutation, ManualSubmitMutation.isPending]);
 
-  const RemainingSeconds = useAttemptTimer(Attempt ? Attempt.remainingSeconds : 999999, HandleTimeUp);
+  const RemainingSeconds = useAttemptTimer(Attempt ? Attempt.remainingSeconds : 999999, HandleTimeUp, () => Query.refetch());
   const Questions = Attempt?.questions || [];
   const CurrentQuestion = Questions[CurrentIndex];
 
