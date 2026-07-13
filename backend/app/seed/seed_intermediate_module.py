@@ -312,6 +312,13 @@ def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int)
         raw_count = int(section_definition.get("questionCount") or 10)
         question_count = 2 if concept_family in {"SKILL_STACKER", "CONCEPT_DRILL"} else raw_count
         operation_focus = str(section_definition.get("operationFocus") or OperationFocusForConcept(concept_family))
+        # Concept Drill and Skill Stacker only ever carry 2 questions per sheet
+        # occurrence -- at the DPS's default 1 mark/question that section would
+        # contribute just 2 marks and make the sheet's total marks come out
+        # non-whole. 5 marks each (10 total for the section) keeps the DPS
+        # total round. None everywhere else means "inherit DPS.marks_per_question"
+        # (unchanged, still 1) -- this only ever applies within IM.
+        section_marks_per_question = 5.0 if concept_family in {"SKILL_STACKER", "CONCEPT_DRILL"} else None
 
         section_config = {
             **config,
@@ -334,6 +341,7 @@ def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int)
                 allow_negative_operands=True,
                 allow_negative_answer=True,
                 generator_config_json=json.dumps(section_config),
+                marks_per_question=section_marks_per_question,
             )
             db.add(section)
             db.flush()
@@ -351,6 +359,7 @@ def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int)
             section.allow_negative_operands = True
             section.allow_negative_answer = True
             section.generator_config_json = json.dumps(section_config)
+            section.marks_per_question = section_marks_per_question
         saved_sections.append(section)
 
     stale_sections = (

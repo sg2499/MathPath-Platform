@@ -62,7 +62,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-    from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_assessment_reattempt_columns, ensure_student_level_promotions_table, ensure_assignment_attempt_chain_columns, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table, ensure_competition_mock_tables, ensure_mock_notifications_fixed, ensure_mock_gamification_tables, ensure_mock_accuracy_fixed, ensure_user_economy_columns, ensure_competition_mock_attempt_gamification_column, ensure_attempt_notification_processed_column, ensure_assessment_attempt_notification_processed_column, ensure_attempt_gamification_processed_column, ensure_assessment_attempt_gamification_processed_column
+    from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_dps_section_marks_column, ensure_assessment_reattempt_columns, ensure_student_level_promotions_table, ensure_assignment_attempt_chain_columns, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table, ensure_competition_mock_tables, ensure_mock_notifications_fixed, ensure_mock_gamification_tables, ensure_mock_accuracy_fixed, ensure_user_economy_columns, ensure_competition_mock_attempt_gamification_column, ensure_attempt_notification_processed_column, ensure_assessment_attempt_notification_processed_column, ensure_attempt_gamification_processed_column, ensure_assessment_attempt_gamification_processed_column
     ensure_user_columns()
     ensure_student_profile_columns()
     ensure_teacher_columns()
@@ -95,6 +95,7 @@ def on_startup():
     # deliberate one-time run of backend/scripts/backfill_mock_gamification.py
     # instead of an automatic full-platform recompute on every restart.
     ensure_dps_publication_columns()
+    ensure_dps_section_marks_column()
     ensure_assessment_reattempt_columns()
     ensure_student_level_promotions_table()
     ensure_assignment_attempt_chain_columns()

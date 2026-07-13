@@ -254,6 +254,32 @@ def ensure_dps_publication_columns() -> None:
             connection.execute(text("UPDATE dps SET publication_status = 'DRAFT' WHERE publication_status IS NULL"))
 
 
+DPS_SECTION_COLUMNS = {
+    "marks_per_question": "FLOAT",
+}
+
+
+def ensure_dps_section_marks_column() -> None:
+    """SQLite/Postgres-safe migration adding DPSSection.marks_per_question.
+
+    Nullable, no default -- every existing row gets NULL, which means "inherit
+    DPS.marks_per_question" (today's scoring behavior, unchanged). Only IM's
+    seed script (Concept Drill / Skill Stacker sections) ever sets a real
+    value here; no other module is affected by this column existing.
+    """
+    inspector = inspect(engine)
+    if "dps_sections" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("dps_sections")}
+    missing = [(name, ddl) for name, ddl in DPS_SECTION_COLUMNS.items() if name not in existing]
+    if not missing:
+        return
+
+    with engine.begin() as connection:
+        for name, ddl in missing:
+            connection.execute(text(f"ALTER TABLE dps_sections ADD COLUMN {name} {ddl}"))
+
 
 ASSESSMENT_ASSIGNMENT_COLUMNS = {
     "assessment_assignment_type": "VARCHAR(30) DEFAULT 'ORIGINAL'",
