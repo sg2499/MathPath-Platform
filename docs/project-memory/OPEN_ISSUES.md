@@ -1,11 +1,20 @@
 # Open Issues
 
-Last updated: 2026-07-13 (repo-hygiene cleanup delivered as PR #315; unified economy system delivered as PR #312, backfilled and verified; docs-sync fix delivered as PR #313)
+Last updated: 2026-07-13 (premature mock-exam auto-submit investigation + fix delivered as PR #318, verified; repo-hygiene cleanup delivered as PR #315; unified economy system delivered as PR #312, backfilled and verified; docs-sync fix delivered as PR #313)
 
 ## Active
 
+- Browser-QA the 2026-07-13 timer fix (PR #318) live: confirm the sub-5-minute urgency pulse actually renders (both themes), confirm dark-mode timer chip contrast looks right, and confirm a genuinely backgrounded tab past expiry resyncs to the correct submitted state instead of showing stale time.
 - Collector's Vault (`frontend/app/student/achievements/vault/`) still runs on hardcoded dummy data with zero backend calls and no `useProtectedPage` guard. Explicitly deferred by Shailesh (2026-07-13) until the rest of the student portal is confirmed solid — needs a product decision (build the real backend vs. hide the nav entry) before a code fix makes sense. Same underlying issue flagged since round 7. Also explicitly excluded from the unified economy system (no loot-pack drops for DPS/assessments until the Vault exists).
 - Local-machine suggestion, not a repo issue: exclude `frontend/node_modules`/`.next` from OneDrive sync — flagged during the cleanup round below as a plausible contributor to this session's stale-sync issues.
+
+## Resolved Recently (2026-07-13, premature mock-exam auto-submit — investigated and fixed as PR #318, verified)
+
+Students reported mock exams auto-submitting while the on-screen timer still showed minutes remaining. Investigated before any code changed. Backend deadline enforcement was confirmed correct (`expires_at = started_at + duration_seconds`, re-checked on every answer-save and page load). Root cause was the client-side countdown: `frontend/hooks/useAttemptTimer.ts` (shared by mock/assessment/DPS-practice attempt pages, unchanged since the initial commit) counted down via a plain `setTimeout` chain with no anchor to wall-clock time and no resync on tab-focus regain (React Query's `refetchOnWindowFocus` is globally off). A backgrounded tab (student switches apps, phone locks) freezes the display while the server's real deadline keeps advancing; the next answer-save correctly detects real expiry and submits, while the frozen display still showed time left — reproducible for any student who left the tab mid-attempt, on any timed activity type, which is why only some students hit it.
+
+**Fix:** `useAttemptTimer.ts` now anchors to an absolute deadline and self-corrects every tick regardless of throttling, plus a `visibilitychange` listener that resyncs immediately and refetches the attempt from the server the moment the tab regains focus. Wired into all three attempt pages (mock, assessment, DPS/practice). Also fixed in the same pass: `.math-timer-critical`'s pulsing animation referenced the wrong keyframes name (`math-timer-critical` vs. `@keyframes mathTimerCritical`) so the sub-5-minute urgency pulse never actually ran — one-line name fix; and `TestTimer.tsx` had no dark-mode variants on its non-urgent state — added.
+
+**Delivery:** PR #318, squash commit `fa246c0`, all 11 CI checks passed (`npm run typecheck && npm run build` run for real in the developer's terminal, clean, 41/41 routes). Frontend-only, no backend/schema touched. **Not yet independently browser-verified live** — see Active item above.
 
 ## Resolved Recently (2026-07-13, repo-hygiene cleanup — delivered as PR #315, verified)
 
