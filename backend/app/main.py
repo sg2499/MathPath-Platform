@@ -115,11 +115,9 @@ def on_startup():
         db.close()
     if SEED_ON_STARTUP:
         from app.seed.seed_ylm_phase1 import seed as seed_ylm_phase1
-        from app.seed.seed_ylm_l2_test import seed as seed_ylm_l2_test
         db = SessionLocal()
         try:
             seed_ylm_phase1(db)
-            seed_ylm_l2_test(db)
         finally:
             db.close()
 
@@ -132,6 +130,19 @@ def on_startup():
     db = SessionLocal()
     try:
         seed_master_module(db)
+    finally:
+        db.close()
+
+    # Always run the Intermediate Module curriculum sync independently from demo/legacy
+    # seed flags, mirroring the Master Module sync above. This is idempotent: it only
+    # creates or completes IM -> IM-L4 -> Lessons 1-12 -> DPS 1-5. It does not create
+    # students, teachers, assignments, attempts, or demo records, and shares no code
+    # with the Master Module seed (app.seed.seed_intermediate_module imports only from
+    # app.question_engine.im).
+    from app.seed.seed_intermediate_module import seed as seed_intermediate_module
+    db = SessionLocal()
+    try:
+        seed_intermediate_module(db)
     finally:
         db.close()
 
