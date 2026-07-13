@@ -8,7 +8,12 @@ export function TestTimer({ remainingSeconds, className = "" }: { remainingSecon
     <div
       className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-black shadow-sm ${
         urgent
-          ? "math-timer-critical bg-rose-600 text-white ring-2 ring-rose-200 shadow-rose-500/30 dark:ring-rose-900/70 [&_svg]:text-white [&_svg]:opacity-100"
+          ? // Note: this used to also carry [&_svg]:text-white [&_svg]:opacity-100,
+            // which force-colored the nested Clock3 icon white via a
+            // higher-specificity descendant selector -- overriding the icon's
+            // own text-rose-600 class and leaving it white-on-white inside its
+            // own white circle (invisible, in both themes). Removed.
+            "math-timer-critical bg-rose-600 text-white ring-2 ring-rose-200 shadow-rose-500/30 dark:ring-rose-900/70"
           : "bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-200 dark:ring-blue-800"
       } ${className}`}
       aria-live={urgent ? "assertive" : "polite"}
