@@ -77,6 +77,33 @@ def latest_attempt_for_student_assignment(db: Session, assignment_id: str, stude
     )
 
 
+def _SectionMarksPerQuestion(section: DPSSection | None, dps_default_marks: float) -> float:
+    """A section's own marks_per_question overrides the DPS's flat default when
+    set; otherwise every question on the sheet is scored at the DPS's value,
+    exactly as before this existed. Today only IM's Concept Drill/Skill
+    Stacker sections ever set an override -- every other section in every
+    module stays None here and this returns the same value it always has.
+    """
+    if section is not None and getattr(section, "marks_per_question", None) is not None:
+        return float(section.marks_per_question)
+    return dps_default_marks
+
+
+def _ComputeDpsMaxScore(db: Session, dps: DPS) -> float:
+    """Sum each section's question_count x its effective marks_per_question.
+    Used at attempt creation (before any question set exists yet, so this
+    reads section definitions directly rather than generated questions). Falls
+    back to the flat DPS-wide calculation if a DPS somehow has no sections."""
+    dps_default_marks = float(getattr(dps, "marks_per_question", 1) or 1)
+    sections = db.query(DPSSection).filter(DPSSection.dps_id == dps.id).all()
+    if not sections:
+        return float(dps.default_question_count or 0) * dps_default_marks
+    return sum(
+        int(section.question_count or 0) * _SectionMarksPerQuestion(section, dps_default_marks)
+        for section in sections
+    )
+
+
 def safe_questions_payload(db: Session, attempt: Attempt) -> list[dict]:
     questions = db.query(GeneratedQuestion).filter(GeneratedQuestion.question_set_id == attempt.question_set_id).order_by(GeneratedQuestion.question_number).all()
     answers = {a.question_id: a.selected_option_id for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
@@ -139,7 +166,7 @@ def start_attempt(db: Session, student, assignment_id: str, dps_id: str, mode: s
         expires_at=expires,
         duration_seconds=dps.default_duration_seconds,
         total_questions=dps.default_question_count,
-        max_score=dps.default_question_count * dps.marks_per_question,
+        max_score=_ComputeDpsMaxScore(db, dps),
     )
     ApplyAttemptChainMetadata(db, attempt, assignment, student.id)
     db.add(attempt)
@@ -198,15 +225,22 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
         return attempt
     questions = db.query(GeneratedQuestion).filter(GeneratedQuestion.question_set_id == attempt.question_set_id).all()
     answers = {a.question_id: a for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
-    # Marks per question comes from the DPS's own configured value rather
-    # than an assumed 1 -- every DPS currently in the system is seeded at 1,
-    # so this doesn't change any existing score, but it means a future DPS
-    # configured with a different marks_per_question is scored correctly
-    # instead of silently ignored.
+    # Marks per question comes from each question's own section when that
+    # section has an override (e.g. IM's Concept Drill/Skill Stacker, 5 marks
+    # each instead of the sheet's flat 1), falling back to the DPS's own
+    # configured value otherwise -- every DPS/section that doesn't set an
+    # override scores exactly as it always has.
     dps = db.get(DPS, attempt.dps_id)
-    marks_per_question = float(getattr(dps, "marks_per_question", 1) or 1)
+    dps_default_marks = float(getattr(dps, "marks_per_question", 1) or 1)
+    dps_sections = db.query(DPSSection).filter(DPSSection.dps_id == attempt.dps_id).all()
+    section_by_id = {section.id: section for section in dps_sections}
     correct = wrong = unanswered = 0
+    total_score = 0.0
+    max_score = 0.0
     for q in questions:
+        section = section_by_id.get(q.dps_section_id) if q.dps_section_id else None
+        question_marks = _SectionMarksPerQuestion(section, dps_default_marks)
+        max_score += question_marks
         ans = answers.get(q.id)
         if not ans or not ans.selected_option_id:
             unanswered += 1
@@ -215,7 +249,8 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
         if opt and opt.is_correct:
             correct += 1
             ans.is_correct = True
-            ans.marks_awarded = marks_per_question
+            ans.marks_awarded = question_marks
+            total_score += question_marks
         else:
             wrong += 1
             ans.is_correct = False
@@ -227,8 +262,8 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     attempt.wrong_count = wrong
     attempt.unanswered_count = unanswered
     attempt.attempted_count = correct + wrong
-    attempt.total_score = float(correct) * marks_per_question
-    attempt.max_score = float(len(questions)) * marks_per_question
+    attempt.total_score = total_score
+    attempt.max_score = max_score
     attempt.accuracy_percentage = round((correct / len(questions)) * 100) if questions else 0
     attempt.time_taken_seconds = attempt.duration_seconds if auto else min(attempt.duration_seconds, int((submitted - _aware(attempt.started_at)).total_seconds()))
     UpdateSubmittedAttemptBenchmarkState(attempt, BENCHMARK_PERCENTAGE)

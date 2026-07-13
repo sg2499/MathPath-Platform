@@ -7,7 +7,7 @@ from app.dependencies import get_current_student
 from app.models import Student, DPS, Lesson, Level, Module, Attempt, Assignment, AssignmentReattemptPermission, AssessmentAssignment, StudentLevelPromotion
 from app.services.assignment_service import get_student_assignments
 from app.services.curriculum_service import dps_config_payload
-from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds
+from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds, _ComputeDpsMaxScore
 from app.services.assessment_eligibility_service import assessment_eligibility_payload
 from app.services.assessment_engine_service import (
     AssessmentAssignmentPayload,
@@ -289,6 +289,7 @@ def assignments(db: Session = Depends(get_db), student: Student = Depends(get_cu
             "questionCount": dps.default_question_count,
             "durationSeconds": dps.default_duration_seconds,
             "marksPerQuestion": dps.marks_per_question,
+            "totalMarks": _ComputeDpsMaxScore(db, dps),
             "status": status,
             "attemptId": attempt_id,
             "reattemptAvailable": bool(reattempt_permission),

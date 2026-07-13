@@ -178,6 +178,13 @@ class DPSSection(Base):
     allow_negative_operands = Column(Boolean, default=True, nullable=False)
     allow_negative_answer = Column(Boolean, default=False, nullable=False)
     generator_config_json = Column(Text)
+    # Nullable on purpose: None means "inherit DPS.marks_per_question" (today's
+    # behavior, unchanged for every existing section in every module). Only set
+    # to a real value when a section needs to be scored differently from the
+    # rest of its own DPS sheet -- e.g. IM's Concept Drill/Skill Stacker
+    # sections, which only carry 2 questions each and are set to 5 marks so the
+    # sheet's total marks come out whole. See seed_intermediate_module.py.
+    marks_per_question = Column(Float, nullable=True)
     dps = relationship("DPS")
     __table_args__ = (UniqueConstraint("dps_id", "section_number", name="uq_dps_section"),)
 
