@@ -1,8 +1,24 @@
 # Cowork Session Handoff
 
-Last updated: 2026-07-13 (repo-hygiene cleanup delivered as PR #315; unified economy system delivered as PR #312, backfilled and verified; docs-sync fix delivered as PR #313)
+Last updated: 2026-07-13 (premature mock-exam auto-submit investigation + fix delivered as PR #318, verified; repo-hygiene cleanup delivered as PR #315; unified economy system delivered as PR #312, backfilled and verified; docs-sync fix delivered as PR #313)
 
 Purpose: read this first when starting a new Claude Cowork session on this repo. It captures everything established in the most recent session(s) so no context is lost when switching models/sessions/days.
+
+## 2026-07-13 update: premature mock-exam auto-submit investigation + fix — delivered as PR #318, verified
+
+Students reported mock exams auto-submitting while the on-screen timer still showed several minutes remaining. Investigated end-to-end before any code changed, per Shailesh's explicit instruction. Backend deadline enforcement (`expires_at = started_at + duration_seconds`, re-checked on every answer-save and page load via `EnsureCompetitionAttemptActiveOrSubmit`/`SubmitCompetitionMockAttempt`) was confirmed correct — no clock-skew or premature-expiry bug there.
+
+**Root cause: the client-side countdown, not the server.** `frontend/hooks/useAttemptTimer.ts` (shared by mock exam, assessment, and DPS/practice attempt pages — unchanged since the initial commit) counted down by blindly decrementing a number via chained `setTimeout`, with no anchor to real wall-clock time and no resync on tab-focus regain (the app's global React Query config has `refetchOnWindowFocus: false`). Backgrounded/throttled tabs (student switches apps, phone locks, alt-tabs) freeze or lag the on-screen timer while the server's real deadline keeps advancing; the next network call (an answer save) correctly detects real expiry and submits, while the frozen display still showed time left. Reproducible for any student who leaves the tab mid-attempt, on any of the three timed activity types — not a one-off, which is exactly why only "some" students reported it (only those who actually backgrounded the tab).
+
+**Fix (frontend-only, no backend/schema touched):**
+1. `useAttemptTimer.ts` now anchors to an absolute deadline (`Date.now() + initialSeconds*1000`) and recomputes remaining time from that deadline on every tick, self-correcting regardless of setTimeout throttling. Added a `visibilitychange` listener that immediately recomputes on tab-focus regain and fires an optional `onVisible` callback.
+2. All three attempt pages (`mock-attempt`, `assessment-attempt`, `attempt`) now pass `query.refetch()` as that callback, so returning to a backgrounded tab immediately re-pulls true attempt state from the server instead of trusting stale local time.
+3. Separately found and fixed in the same session (a UI report, not the auto-submit bug): `.math-timer-critical`'s pulsing animation for the sub-5-minute urgency state referenced the wrong keyframes name (`math-timer-critical` vs. the actual `@keyframes mathTimerCritical`) — CSS silently no-op'd, so the timer sat static red instead of pulsing. One-line fix in `globals.css`.
+4. `TestTimer.tsx` had no dark-mode variants on its non-urgent (blue) state — hardcoded light Tailwind classes with no `dark:` counterparts. Added dark-mode contrast classes for both states, and removed a redundant inline `style` override that would have silently blocked any future dark-mode class styling on the icon.
+
+**Files changed:** `frontend/hooks/useAttemptTimer.ts`, `frontend/app/student/competition/mock-attempt/[attemptId]/page.tsx`, `frontend/app/student/assessment-attempt/[attemptId]/page.tsx`, `frontend/app/student/attempt/[attemptId]/page.tsx`, `frontend/app/globals.css`, `frontend/components/student/TestTimer.tsx`.
+
+**Verification:** `npm run typecheck && npm run build` run for real in the developer's own terminal (clean, 41/41 routes) — this session's sandbox bash mount showed the same phantom-corruption pattern as prior rounds (a correctly-closed file read back mid-token truncated via bash `cat`/`tsc`), confirmed spurious via `git diff -w` and a fresh re-read through the Read tool showing the real content was always correct. Delivered as **PR #318** (squash commit `fa246c0`), all 11 CI checks passed, confirmed merged. **Not yet independently browser-verified live** — flagged as a follow-up: confirm the pulsing animation renders in both themes at ≤5 minutes, and confirm a genuinely backgrounded tab past expiry resyncs correctly instead of showing stale time.
 
 ## 2026-07-13 update: repo-wide cleanup audit — delivered as PR #315, verified
 

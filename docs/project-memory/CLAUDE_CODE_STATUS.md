@@ -4,11 +4,13 @@ This file is a snapshot, not a log — the active Claude Code session **overwrit
 
 ## Current
 
-- **Updated:** 2026-07-13 (written by Cowork — repo-hygiene cleanup delivered)
+- **Updated:** 2026-07-13 (written by Cowork — premature mock-exam auto-submit fix delivered)
 - **Status:** IDLE. Nothing in progress.
-- **Blocked on:** nothing.
+- **Blocked on:** nothing. Follow-up (not blocking): live browser-QA of the timer fix — see `OPEN_ISSUES.md` Active section.
 
 ## Last completed milestone
+
+- **2026-07-13 — premature mock-exam auto-submit investigated and fixed, delivered.** Students reported mocks auto-submitting with minutes still on the clock. Root-caused to the client-side countdown (`useAttemptTimer.ts`) having no wall-clock anchor and no resync on tab-focus regain, so a backgrounded tab shows stale time after the server correctly auto-submits on real deadline expiry. Fixed by anchoring the countdown to an absolute deadline plus a `visibilitychange` resync, wired into all three attempt pages (mock/assessment/DPS-practice). Also fixed same session: sub-5-minute urgency pulse animation had a keyframes-name mismatch and never actually ran; `TestTimer.tsx` had no dark-mode contrast variants. Frontend-only, no backend/schema changes. Merged as PR #318 (squash commit `fa246c0`), all 11 CI checks passed, `npm run typecheck && npm run build` run for real in the developer's terminal (clean, 41/41 routes). Not yet browser-verified live.
 
 - **2026-07-13 — repo-wide cleanup, delivered.** Merged as PR #315 (squash commit `040a946`), all 11 CI checks passed (backend-tests, frontend-build, frontend-typecheck, frontend-e2e-tests, governance-audit, repository-safety, all green) — confirming everything removed was genuinely dead weight. Removed: `MathPath-Platform/` (946MB duplicate nested clone, tracked as a broken/orphaned gitlink with no `.gitmodules`), `original_page.tsx`, `teacher-rules.css`, `trigger_gamification_sync.py`, `trigger_production_sync.py`, 3 obsolete pre-git "STABLE" README snapshots, `VERSION.txt`, `STABLE_PACKAGE_DO_NOT_EDIT_DIRECTLY.txt`, and an empty untracked `mathpath.db`. Also flagged for the developer (not a code fix): `frontend/node_modules`/`.next` sit inside the OneDrive-synced folder and are plausibly contributing to this session's sync-timing issues — worth excluding from OneDrive sync locally.
 
