@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Module, Level, Lesson
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, IsPackage1Supported
+from app.question_engine.im import IMConfig, GenerateImQuestionSet, IsImConceptSupported
 from app.core.errors import api_error
 
 def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
@@ -70,6 +71,45 @@ def build_mm_config_from_dps(db: Session, dps: DPS, seed: str) -> MMConfig:
     )
 
 
+def build_im_config_from_dps(db: Session, dps: DPS, seed: str) -> IMConfig:
+    LessonRecord = db.get(Lesson, dps.lesson_id)
+    LevelRecord = db.get(Level, LessonRecord.level_id) if LessonRecord else None
+    ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
+    SectionRecord = (
+        db.query(DPSSection)
+        .filter(DPSSection.dps_id == dps.id)
+        .order_by(DPSSection.section_number)
+        .first()
+    )
+    GeneratorConfig = {}
+    if SectionRecord and SectionRecord.generator_config_json:
+        try:
+            GeneratorConfig = json.loads(SectionRecord.generator_config_json or "{}")
+        except Exception:
+            GeneratorConfig = {}
+
+    DpsTitle = getattr(dps, "dps_title", "") or GeneratorConfig.get("dpsTitle", "")
+    LessonTitle = getattr(LessonRecord, "lesson_title", "") or GeneratorConfig.get("lessonTitle", "")
+    ConceptFamily = getattr(SectionRecord, "concept_family", None) or GeneratorConfig.get("conceptFamily", "ADD_LESS")
+    OperationFocus = getattr(SectionRecord, "operation_focus", None) or "MIXED"
+
+    return IMConfig(
+        ModuleCode=getattr(ModuleRecord, "module_code", "IM") or "IM",
+        LevelCode=getattr(LevelRecord, "level_code", "IM-L4") or "IM-L4",
+        LessonNumber=int(getattr(LessonRecord, "lesson_number", 0) or 0),
+        DpsNumber=int(getattr(dps, "dps_number", 0) or 0),
+        DpsTitle=DpsTitle,
+        LessonTitle=LessonTitle,
+        QuestionCount=int(getattr(dps, "default_question_count", 10) or 10),
+        Seed=seed,
+        ConceptFamily=ConceptFamily,
+        OperationFocus=OperationFocus,
+        DigitPattern=getattr(SectionRecord, "digit_pattern", "INTERMEDIATE_MODULE") if SectionRecord else "INTERMEDIATE_MODULE",
+        Difficulty=getattr(SectionRecord, "difficulty", "INTERMEDIATE") if SectionRecord else "INTERMEDIATE",
+        GeneratorConfig=GeneratorConfig,
+    )
+
+
 def build_attempt_question_seed(dps: DPS, assignment, student_id: str, attempt, started_at) -> str:
     """Build the question seed for a student attempt.
 
@@ -115,6 +155,9 @@ def _is_dynamic_generator_supported(db: Session, dps: DPS) -> bool:
     if ModuleCode == "MM":
         Config = build_mm_config_from_dps(db, dps, build_preview_seed(dps))
         return IsPackage1Supported(Config.ConceptFamily)
+    if ModuleCode == "IM":
+        Config = build_im_config_from_dps(db, dps, build_preview_seed(dps))
+        return IsImConceptSupported(Config.ConceptFamily)
     return False
 
 
@@ -131,6 +174,11 @@ def _unsupported_static_message(db: Session, dps: DPS) -> str:
             f"{ModuleCode} {LevelCode} Lesson {LessonNumber} / {DpsTitle} is not part of the active MM generator package yet. "
             "Active MM generator packages currently support decimal add-less, decimal multiplication/division, whole-number multiplication/division digit patterns, integers, BODMAS, and percentage practice."
         )
+    if ModuleCode == "IM":
+        return (
+            f"{ModuleCode} {LevelCode} Lesson {LessonNumber} / {DpsTitle} is not part of the active IM generator package yet. "
+            "The IM generator currently supports Add/Less, Decimal Add/Less, Borrowing Sums, whole-number multiplication/division, Squares, Skill Stacker, Concept Drill, BODMAS, Solve the Equation, and Answer Position."
+        )
     return (
         f"{ModuleCode} {LevelCode} Lesson {LessonNumber} is not connected to a dynamic question generator yet."
     )
@@ -144,6 +192,9 @@ def generate_preview(db: Session, dps: DPS, seed: str | None = None) -> list[dic
     if ModuleCode == "MM":
         Config = build_mm_config_from_dps(db, dps, seed)
         return GenerateMmQuestionSet(Config)
+    if ModuleCode == "IM":
+        Config = build_im_config_from_dps(db, dps, seed)
+        return GenerateImQuestionSet(Config)
     config = build_config_from_dps(db, dps, seed)
     return generate_ylm_question_set(config)
 
@@ -157,6 +208,9 @@ def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, stude
     if ModuleCode == "MM":
         Config = build_mm_config_from_dps(db, dps, seed)
         generated = GenerateMmQuestionSet(Config)
+    elif ModuleCode == "IM":
+        Config = build_im_config_from_dps(db, dps, seed)
+        generated = GenerateImQuestionSet(Config)
     else:
         config = build_config_from_dps(db, dps, seed)
         generated = generate_ylm_question_set(config)
