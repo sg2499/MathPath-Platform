@@ -453,7 +453,10 @@ html.dark {
   }
 
   .math-timer-critical {
-    animation: math-timer-critical 900ms ease-in-out infinite;
+    /* Matches @keyframes mathTimerCritical above -- was previously
+       referencing the wrong (kebab-case) animation name, so the pulse
+       never actually ran and the urgent timer just sat static red. */
+    animation: mathTimerCritical 900ms ease-in-out infinite;
   }
 
   .math-icon-button {
