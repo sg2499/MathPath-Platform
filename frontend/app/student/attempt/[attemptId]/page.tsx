@@ -60,7 +60,8 @@ export default function AttemptPage() {
 
   const remainingSeconds = useAttemptTimer(
     attempt ? attempt.remainingSeconds : 999999,
-    handleTimeUp
+    handleTimeUp,
+    () => query.refetch()
   );
 
   const questions = attempt?.questions || [];

@@ -58,7 +58,7 @@ export default function StudentCompetitionMockAttemptPage() {
     autoSubmitMutation.mutate();
   }, [attempt, autoSubmitMutation, manualSubmitMutation.isPending]);
 
-  const remainingSeconds = useAttemptTimer(attempt ? attempt.remainingSeconds : 999999, handleTimeUp);
+  const remainingSeconds = useAttemptTimer(attempt ? attempt.remainingSeconds : 999999, handleTimeUp, () => query.refetch());
   const questions = attempt?.questions || [];
   const currentQuestion = questions[currentIndex];
 
