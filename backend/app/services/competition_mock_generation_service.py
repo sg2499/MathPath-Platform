@@ -39,6 +39,7 @@ MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW = 15
 IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 100
 IM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 1800
 IM_COMPETITION_BATCH_SIZE = 5
+IM_COMPETITION_SLOT_MAX_RETRIES = 10
 
 
 IM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
@@ -1229,71 +1230,82 @@ def _CollectImCompetitionSectionLockedQuestions(
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
         ConceptCoverageOrder: list[str] = []
-        OrderedConceptSchedule = _ImCompetitionOrderedConceptSchedule(ConceptPool, RequiredCount)
-        Attempts = 0
+        # One slot per required question, each pre-assigned to a concept by
+        # _ImCompetitionOrderedConceptSchedule so every concept in the section
+        # gets an equal (base, +1 for the remainder) share -- generating one
+        # question per slot strictly in schedule order, instead of pulling a
+        # multi-question batch per concept and greedily filling however many
+        # slots happen to be open, is what actually guarantees that equal
+        # split: a batch-based approach lets one concept's batch silently eat
+        # slots the schedule meant for a different concept the moment any
+        # duplicate gets skipped, which is exactly what under-represented some
+        # concepts before.
+        OrderedConceptSchedule = _ImCompetitionOrderedConceptSchedule(ConceptPool, RequiredCount) or []
 
-        while ConceptPool and len(SectionQuestions) < RequiredCount and Attempts < max(RequiredCount * 12, 48):
-            if OrderedConceptSchedule:
-                ConceptSpec = OrderedConceptSchedule[len(SectionQuestions)]
-            else:
-                ConceptSpec = ConceptPool[Attempts % len(ConceptPool)]
-            LessonRecord = OrderedLessons[(SectionIndex + Attempts) % len(OrderedLessons)]
-            Batch = _GenerateImCompetitionConceptBatch(
-                ModuleRecord=ModuleRecord,
-                LevelRecord=LevelRecord,
-                LessonRecord=LessonRecord,
-                SectionDefinition=SectionDefinition,
-                ConceptSpec=ConceptSpec,
-                RequiredCount=IM_COMPETITION_BATCH_SIZE,
-                Seed=f"COMPETITION-IM-{SectionKey}-{ConceptSpec['conceptFamily']}-{uuid4().hex}-{Attempts}",
-            )
-            for Question in Batch:
-                Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
-                Signature = _QuestionSignature(Question)
+        for SlotIndex, ConceptSpec in enumerate(OrderedConceptSchedule):
+            LessonRecord = OrderedLessons[(SectionIndex + SlotIndex) % len(OrderedLessons)]
+            AcceptedQuestion: dict[str, Any] | None = None
+            for RetryIndex in range(IM_COMPETITION_SLOT_MAX_RETRIES):
+                Batch = _GenerateImCompetitionConceptBatch(
+                    ModuleRecord=ModuleRecord,
+                    LevelRecord=LevelRecord,
+                    LessonRecord=LessonRecord,
+                    SectionDefinition=SectionDefinition,
+                    ConceptSpec=ConceptSpec,
+                    RequiredCount=1,
+                    Seed=f"COMPETITION-IM-{SectionKey}-{ConceptSpec['conceptFamily']}-SLOT{SlotIndex}-{uuid4().hex}-{RetryIndex}",
+                )
+                if not Batch:
+                    continue
+                Candidate = Batch[0]
+                Signature = _QuestionSignature(Candidate)
                 if Signature in UsedSignatures:
                     continue
-                if Signature in RecentSignatures and Attempts < max(RequiredCount * 4, 16):
+                if Signature in RecentSignatures and RetryIndex < IM_COMPETITION_SLOT_MAX_RETRIES // 2:
                     continue
+                AcceptedQuestion = Candidate
                 UsedSignatures.add(Signature)
-                Metadata = dict(Metadata)
-                Metadata.update({
-                    "competitionConceptKey": ConceptSpec["title"],
-                    "competitionConceptName": ConceptSpec["title"],
-                    "competitionAllowedConceptFamily": ConceptSpec["conceptFamily"],
-                    "conceptName": ConceptSpec["title"],
-                    "competitionSectionKey": SectionKey,
-                    "competitionSectionNumber": SectionDefinition["number"],
-                    "competitionSectionTitle": SectionDefinition["title"],
-                    "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
-                    "competitionSectionLocked": True,
-                    "competitionDifficultyProfile": "IM_COMPETITION_LEVEL4",
-                    "section_number": SectionDefinition["number"],
-                    "section_title": _CompetitionSectionDisplayTitle(SectionDefinition),
-                })
-                QuestionCopy = dict(Question)
-                QuestionCopy["metadata"] = Metadata
-                SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition))
-                ConceptName = str(ConceptSpec["title"])
-                ConceptCoverage[ConceptName] += 1
-                if ConceptName not in ConceptCoverageOrder:
-                    ConceptCoverageOrder.append(ConceptName)
-                if len(SectionQuestions) >= RequiredCount:
-                    break
-            Attempts += 1
+                break
 
-        if len(SectionQuestions) < RequiredCount:
-            api_error(
-                400,
-                "IM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                f"Could not generate the required {RequiredCount} fresh questions for {SectionDefinition['title']} without repeating the recent mock window.",
-                {
-                    "sectionKey": SectionKey,
-                    "required": RequiredCount,
-                    "generated": len(SectionQuestions),
-                    "freshnessWindowMockCount": FreshnessWindowMockCount,
-                    "recentBlockedSignatureCount": len(RecentSignatures),
-                },
-            )
+            if AcceptedQuestion is None:
+                api_error(
+                    400,
+                    "IM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
+                    f"Could not generate a fresh '{ConceptSpec['title']}' question for {SectionDefinition['title']} without repeating the recent mock window.",
+                    {
+                        "sectionKey": SectionKey,
+                        "conceptTitle": ConceptSpec["title"],
+                        "slotIndex": SlotIndex,
+                        "required": RequiredCount,
+                        "generated": len(SectionQuestions),
+                        "freshnessWindowMockCount": FreshnessWindowMockCount,
+                        "recentBlockedSignatureCount": len(RecentSignatures),
+                    },
+                )
+
+            Metadata = AcceptedQuestion.get("metadata") if isinstance(AcceptedQuestion.get("metadata"), dict) else {}
+            Metadata = dict(Metadata)
+            Metadata.update({
+                "competitionConceptKey": ConceptSpec["title"],
+                "competitionConceptName": ConceptSpec["title"],
+                "competitionAllowedConceptFamily": ConceptSpec["conceptFamily"],
+                "conceptName": ConceptSpec["title"],
+                "competitionSectionKey": SectionKey,
+                "competitionSectionNumber": SectionDefinition["number"],
+                "competitionSectionTitle": SectionDefinition["title"],
+                "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
+                "competitionSectionLocked": True,
+                "competitionDifficultyProfile": "IM_COMPETITION_LEVEL4",
+                "section_number": SectionDefinition["number"],
+                "section_title": _CompetitionSectionDisplayTitle(SectionDefinition),
+            })
+            QuestionCopy = dict(AcceptedQuestion)
+            QuestionCopy["metadata"] = Metadata
+            SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition))
+            ConceptName = str(ConceptSpec["title"])
+            ConceptCoverage[ConceptName] += 1
+            if ConceptName not in ConceptCoverageOrder:
+                ConceptCoverageOrder.append(ConceptName)
 
         Selected.extend(SectionQuestions)
         SectionCoverage.append({
