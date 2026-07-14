@@ -27,6 +27,7 @@ from app.models import (
 )
 from app.services.generation_service import generate_preview
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, OperationFocusForConcept
+from app.question_engine.im import IMConfig, GenerateImQuestionSet, OperationFocusForConcept as ImOperationFocusForConcept
 
 
 DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 60
@@ -35,6 +36,77 @@ DEFAULT_COMPETITION_MARKS_PER_QUESTION = 1
 MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 100
 MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 3600
 MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW = 15
+IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 100
+IM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 1800
+IM_COMPETITION_BATCH_SIZE = 5
+
+
+IM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
+    {"key": "IM_ADD_LESS_ABACUS", "number": 1, "title": "Section 1 - Add/Less (Abacus)"},
+    {"key": "IM_ADD_LESS_VISUAL", "number": 2, "title": "Section 2 - Add/Less (Visual)"},
+    {"key": "IM_MULTIPLICATION", "number": 3, "title": "Section 3 - Multiplication"},
+    {"key": "IM_DIVISION", "number": 4, "title": "Section 4 - Division"},
+    {"key": "IM_SQUARES", "number": 5, "title": "Section 5 - Squares"},
+    {"key": "IM_BODMAS_SOLVE_EQUATION", "number": 6, "title": "Section 6 - BODMAS and Solve Equation"},
+    {"key": "IM_POSITIONAL_PLACEMENT", "number": 7, "title": "Section 7 - Positional and Placement"},
+    {"key": "IM_SKILL_DRILL", "number": 8, "title": "Section 8 - Skill Stacker and Concept Drill"},
+]
+
+IM_COMPETITION_SECTION_BY_KEY = {Row["key"]: Row for Row in IM_COMPETITION_SECTION_DEFINITIONS}
+
+# Every distinct concept/title variant pulled directly from IM_CURRICULUM_MAP
+# (12 lessons x 5 DPS, IM Level 4), grouped into the 8 competition sections
+# confirmed with Shailesh. Generator flags (multiplicationDigits, isDecimal,
+# borrowingMode, etc.) match the exact keys app.question_engine.im.operands
+# reads off Config.GeneratorConfig, so competition questions use the same
+# math as the real curriculum, not a reinvented approximation of it.
+IM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
+    "IM_ADD_LESS_ABACUS": [
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less (Abacus)"},
+        {"conceptFamily": "ADD_LESS", "title": "6 Digit Add/Less Sums (Abacus)", "explicitDigitCount": 6},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Abacus)", "isDecimal": True, "decimalPlaces": 2},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Negative Answers (Abacus)", "borrowingMode": "NEGATIVE"},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Negative/Positive Answers (Abacus)", "borrowingMode": "POSITIVE_NEGATIVE"},
+    ],
+    "IM_ADD_LESS_VISUAL": [
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less (Visual)"},
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less Sums (Visual)"},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Visual)", "isDecimal": True, "decimalPlaces": 2},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less Sums (Visual)", "isDecimal": True, "decimalPlaces": 2},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Negative Answers (Visual)", "borrowingMode": "NEGATIVE"},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Negative/Positive Answers (Visual)", "borrowingMode": "POSITIVE_NEGATIVE"},
+    ],
+    "IM_MULTIPLICATION": [
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "2D x 2D Multiplication", "multiplicationDigits": (2, 2)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "3D x 1D Multiplication", "multiplicationDigits": (3, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "4D x 1D Multiplication", "multiplicationDigits": (4, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "3D x 2D Multiplication", "multiplicationDigits": (3, 2)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "4D x 2D Multiplication", "multiplicationDigits": (4, 2)},
+    ],
+    "IM_DIVISION": [
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "3D / 1D Long Division & Estimation", "divisionDigits": (3, 1), "isLongDivisionEstimation": True},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "3D / 2D Division", "divisionDigits": (3, 2)},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "4D / 1D Long Division & Estimation", "divisionDigits": (4, 1), "isLongDivisionEstimation": True},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "4D / 2D Division", "divisionDigits": (4, 2)},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "4D / 3D Division", "divisionDigits": (4, 3)},
+    ],
+    "IM_SQUARES": [
+        {"conceptFamily": "SQUARES", "title": "Squares"},
+    ],
+    "IM_BODMAS_SOLVE_EQUATION": [
+        {"conceptFamily": "BODMAS", "title": "BODMAS"},
+        {"conceptFamily": "BODMAS", "title": "BODMAS with Square Term", "hasSquareTerm": True},
+        {"conceptFamily": "SOLVE_EQUATION", "title": "Solve the Equation"},
+    ],
+    "IM_POSITIONAL_PLACEMENT": [
+        {"conceptFamily": "ANSWER_POSITION", "title": "Write the Number from the Given Position", "answerPositionDirection": "WRITE_FROM_POSITION", "positionRange": (-5, 5)},
+        {"conceptFamily": "ANSWER_POSITION", "title": "Find the Position of the First Natural Number", "answerPositionDirection": "FIND_POSITION", "positionRange": (-4, 4)},
+    ],
+    "IM_SKILL_DRILL": [
+        {"conceptFamily": "SKILL_STACKER", "title": "Skill Stacker"},
+        {"conceptFamily": "CONCEPT_DRILL", "title": "Concept Drill"},
+    ],
+}
 
 
 MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
@@ -785,6 +857,45 @@ def _MmSectionCountMap(TotalQuestionCount: int, SectionCountsOverride: dict[str,
     }
 
 
+def _ImSectionCountMap(TotalQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
+    if SectionCountsOverride:
+        # Admin decides exactly how many questions go into each section, including
+        # setting any section to 0 (or leaving it out) to omit it entirely. There
+        # is no automatic redistribution of an omitted section's freed budget onto
+        # the remaining sections -- the total simply becomes whatever the admin
+        # explicitly allocated, matching how MM's section counts already behave.
+        return {
+            Section["key"]: int(SectionCountsOverride.get(Section["key"], 0) or 0)
+            for Section in IM_COMPETITION_SECTION_DEFINITIONS
+        }
+    Requested = max(1, int(TotalQuestionCount or IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT))
+    Base = Requested // len(IM_COMPETITION_SECTION_DEFINITIONS)
+    Remainder = Requested % len(IM_COMPETITION_SECTION_DEFINITIONS)
+    return {
+        Section["key"]: Base + (1 if Index < Remainder else 0)
+        for Index, Section in enumerate(IM_COMPETITION_SECTION_DEFINITIONS)
+    }
+
+
+def _ImCompetitionOrderedConceptSchedule(ConceptPool: list[dict[str, Any]], RequiredCount: int) -> list[dict[str, Any]] | None:
+    """Return a section-internal ordered concept schedule for IM competition mocks.
+
+    Same intent as MM's version: students train one concept family at a time
+    inside a section, so a mixed section's questions stay grouped in a
+    predictable order (the concept pool's own list order) rather than being
+    shuffled concept-by-concept every question.
+    """
+    if not ConceptPool or RequiredCount <= 0:
+        return None
+    Base = RequiredCount // len(ConceptPool)
+    Remainder = RequiredCount % len(ConceptPool)
+    Schedule: list[dict[str, Any]] = []
+    for Index, Spec in enumerate(ConceptPool):
+        Count = Base + (1 if Index < Remainder else 0)
+        Schedule.extend([Spec] * Count)
+    return Schedule
+
+
 def _MmCompetitionDigitConfig(ConceptTitle: str, ConceptFamily: str) -> dict[str, list[int]]:
     TitleText = (
         str(ConceptTitle or "")
@@ -1055,6 +1166,165 @@ def _CollectMmCompetitionSectionLockedQuestions(
 
 
 
+def _GenerateImCompetitionConceptBatch(
+    *,
+    ModuleRecord: Module,
+    LevelRecord: Level,
+    LessonRecord: Lesson | None,
+    SectionDefinition: dict[str, Any],
+    ConceptSpec: dict[str, Any],
+    RequiredCount: int,
+    Seed: str,
+) -> list[dict[str, Any]]:
+    ConceptFamily = str(ConceptSpec["conceptFamily"])
+    ConceptTitle = str(ConceptSpec["title"])
+    ExtraFlags = {Key: Value for Key, Value in ConceptSpec.items() if Key not in {"conceptFamily", "title"}}
+
+    Config = IMConfig(
+        ModuleCode=getattr(ModuleRecord, "module_code", "IM") or "IM",
+        LevelCode=getattr(LevelRecord, "level_code", "IM-L4") or "IM-L4",
+        LessonNumber=int(getattr(LessonRecord, "lesson_number", 1) or 1),
+        DpsNumber=SectionDefinition["number"],
+        DpsTitle=ConceptTitle,
+        LessonTitle=getattr(LessonRecord, "lesson_title", "Competition Mock") or "Competition Mock",
+        QuestionCount=max(RequiredCount, 1),
+        Seed=Seed,
+        ConceptFamily=ConceptFamily,
+        OperationFocus=ImOperationFocusForConcept(ConceptFamily),
+        DigitPattern="INTERMEDIATE_MODULE",
+        Difficulty="INTERMEDIATE",
+        GeneratorConfig={
+            "forceSingleSection": True,
+            "source": "IM_COMPETITION_SECTION_LOCKED_GENERATOR",
+            "competitionSectionKey": SectionDefinition["key"],
+            "competitionSectionNumber": SectionDefinition["number"],
+            "competitionSectionTitle": SectionDefinition["title"],
+            **ExtraFlags,
+        },
+    )
+    Questions = GenerateImQuestionSet(Config)
+    return Questions[:RequiredCount]
+
+
+def _CollectImCompetitionSectionLockedQuestions(
+    ModuleRecord: Module,
+    LevelRecord: Level,
+    Lessons: list[Lesson],
+    TargetQuestionCount: int,
+    SectionCountsOverride: dict[str, int] | None = None,
+    ExcludedSignatures: set[str] | None = None,
+    FreshnessWindowMockCount: int = MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    SectionCounts = _ImSectionCountMap(TargetQuestionCount, SectionCountsOverride)
+    Selected: list[dict[str, Any]] = []
+    SectionCoverage: list[dict[str, Any]] = []
+    RecentSignatures = set(ExcludedSignatures or set())
+    UsedSignatures: set[str] = set()
+    OrderedLessons = Lessons or [None]
+
+    for SectionIndex, SectionDefinition in enumerate(IM_COMPETITION_SECTION_DEFINITIONS):
+        SectionKey = SectionDefinition["key"]
+        RequiredCount = int(SectionCounts.get(SectionKey, 0) or 0)
+        ConceptPool = IM_COMPETITION_SECTION_CONCEPT_POOLS.get(SectionKey, [])
+        SectionQuestions: list[dict[str, Any]] = []
+        ConceptCoverage: dict[str, int] = defaultdict(int)
+        ConceptCoverageOrder: list[str] = []
+        OrderedConceptSchedule = _ImCompetitionOrderedConceptSchedule(ConceptPool, RequiredCount)
+        Attempts = 0
+
+        while ConceptPool and len(SectionQuestions) < RequiredCount and Attempts < max(RequiredCount * 12, 48):
+            if OrderedConceptSchedule:
+                ConceptSpec = OrderedConceptSchedule[len(SectionQuestions)]
+            else:
+                ConceptSpec = ConceptPool[Attempts % len(ConceptPool)]
+            LessonRecord = OrderedLessons[(SectionIndex + Attempts) % len(OrderedLessons)]
+            Batch = _GenerateImCompetitionConceptBatch(
+                ModuleRecord=ModuleRecord,
+                LevelRecord=LevelRecord,
+                LessonRecord=LessonRecord,
+                SectionDefinition=SectionDefinition,
+                ConceptSpec=ConceptSpec,
+                RequiredCount=IM_COMPETITION_BATCH_SIZE,
+                Seed=f"COMPETITION-IM-{SectionKey}-{ConceptSpec['conceptFamily']}-{uuid4().hex}-{Attempts}",
+            )
+            for Question in Batch:
+                Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+                Signature = _QuestionSignature(Question)
+                if Signature in UsedSignatures:
+                    continue
+                if Signature in RecentSignatures and Attempts < max(RequiredCount * 4, 16):
+                    continue
+                UsedSignatures.add(Signature)
+                Metadata = dict(Metadata)
+                Metadata.update({
+                    "competitionConceptKey": ConceptSpec["title"],
+                    "competitionConceptName": ConceptSpec["title"],
+                    "competitionAllowedConceptFamily": ConceptSpec["conceptFamily"],
+                    "conceptName": ConceptSpec["title"],
+                    "competitionSectionKey": SectionKey,
+                    "competitionSectionNumber": SectionDefinition["number"],
+                    "competitionSectionTitle": SectionDefinition["title"],
+                    "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
+                    "competitionSectionLocked": True,
+                    "competitionDifficultyProfile": "IM_COMPETITION_LEVEL4",
+                    "section_number": SectionDefinition["number"],
+                    "section_title": _CompetitionSectionDisplayTitle(SectionDefinition),
+                })
+                QuestionCopy = dict(Question)
+                QuestionCopy["metadata"] = Metadata
+                SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition))
+                ConceptName = str(ConceptSpec["title"])
+                ConceptCoverage[ConceptName] += 1
+                if ConceptName not in ConceptCoverageOrder:
+                    ConceptCoverageOrder.append(ConceptName)
+                if len(SectionQuestions) >= RequiredCount:
+                    break
+            Attempts += 1
+
+        if len(SectionQuestions) < RequiredCount:
+            api_error(
+                400,
+                "IM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
+                f"Could not generate the required {RequiredCount} fresh questions for {SectionDefinition['title']} without repeating the recent mock window.",
+                {
+                    "sectionKey": SectionKey,
+                    "required": RequiredCount,
+                    "generated": len(SectionQuestions),
+                    "freshnessWindowMockCount": FreshnessWindowMockCount,
+                    "recentBlockedSignatureCount": len(RecentSignatures),
+                },
+            )
+
+        Selected.extend(SectionQuestions)
+        SectionCoverage.append({
+            "sectionKey": SectionKey,
+            "sectionNumber": SectionDefinition["number"],
+            "sectionTitle": SectionDefinition["title"],
+            "selectedQuestionCount": len(SectionQuestions),
+            "availableQuestionCount": len(SectionQuestions),
+            "locked": True,
+            "concepts": [
+                {"conceptName": Name, "selectedQuestionCount": ConceptCoverage[Name], "availableQuestionCount": ConceptCoverage[Name]}
+                for Name in ConceptCoverageOrder
+            ],
+        })
+
+    for Index, Question in enumerate(Selected, start=1):
+        Question["question_number"] = Index
+
+    CoveragePayload = {
+        "targetQuestionCount": TargetQuestionCount,
+        "selectedQuestionCount": len(Selected),
+        "competitionStructure": "IM_8_SECTION_COMPETITION_MOCK_SECTION_LOCKED",
+        "sectionCount": len(SectionCoverage),
+        "sections": SectionCoverage,
+        "generationErrors": [],
+        "freshnessWindowMockCount": FreshnessWindowMockCount,
+        "recentBlockedSignatureCount": len(RecentSignatures),
+    }
+    return Selected, CoveragePayload
+
+
 def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int | None = None) -> dict[str, Any]:
     ModuleRecord, LevelRecord, Lessons, DpsRows = _LevelRecords(db, LevelId)
     if _IsMasterModule(ModuleRecord):
@@ -1079,6 +1349,31 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
             "levelName": LevelRecord.level_name,
             "totalQuestions": RequestedQuestionCount,
             "structure": "MM_10_SECTION_COMPETITION_MOCK",
+            "sections": Sections,
+        }
+
+    if _IsIntermediateModule(ModuleRecord):
+        RequestedQuestionCount = int(TotalQuestions or IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+        Base = RequestedQuestionCount // len(IM_COMPETITION_SECTION_DEFINITIONS)
+        Remainder = RequestedQuestionCount % len(IM_COMPETITION_SECTION_DEFINITIONS)
+        Sections = []
+        for Index, Section in enumerate(IM_COMPETITION_SECTION_DEFINITIONS):
+            Sections.append({
+                "sectionKey": Section["key"],
+                "sectionNumber": Section["number"],
+                "sectionTitle": Section["title"],
+                "questionCount": Base + (1 if Index < Remainder else 0),
+                "locked": True,
+            })
+        return {
+            "moduleId": ModuleRecord.id,
+            "moduleCode": ModuleRecord.module_code,
+            "moduleName": ModuleRecord.module_name,
+            "levelId": LevelRecord.id,
+            "levelCode": LevelRecord.level_code,
+            "levelName": LevelRecord.level_name,
+            "totalQuestions": RequestedQuestionCount,
+            "structure": "IM_8_SECTION_COMPETITION_MOCK",
             "sections": Sections,
         }
 
@@ -1159,6 +1454,12 @@ def _IsMasterModule(ModuleRecord: Module) -> bool:
     ModuleCode = _NormalizeText(getattr(ModuleRecord, "module_code", "")).upper()
     ModuleName = _NormalizeText(getattr(ModuleRecord, "module_name", "")).lower()
     return ModuleCode == "MM" or "master module" in ModuleName
+
+
+def _IsIntermediateModule(ModuleRecord: Module) -> bool:
+    ModuleCode = _NormalizeText(getattr(ModuleRecord, "module_code", "")).upper()
+    ModuleName = _NormalizeText(getattr(ModuleRecord, "module_name", "")).lower()
+    return ModuleCode == "IM" or "intermediate module" in ModuleName
 
 
 def _QuestionSourceText(Question: dict[str, Any], FallbackTitle: str) -> str:
@@ -1498,22 +1799,56 @@ def _ActiveSectionsByDps(db: Session, DpsRows: list[DPS]) -> dict[str, list[DPSS
     return ByDps
 
 
-def _CompetitionInstructions(ModuleRecord: Module, LevelRecord: Level, TotalQuestions: int, DurationSeconds: int) -> str:
+def _CompetitionInstructions(ModuleRecord: Module, LevelRecord: Level, TotalQuestions: int, DurationSeconds: int, SectionCoverage: list[dict[str, Any]] | None = None) -> str:
     Minutes = max(1, round(DurationSeconds / 60))
-    return (
+    Base = (
         f"Competition-style mock practice for {ModuleRecord.module_name} / {LevelRecord.level_name}. "
         f"Answer all {TotalQuestions} questions within {Minutes} minutes. "
         "Focus on speed, accuracy, time management, and calm exam temperament."
     )
+    # Section-locked papers (MM's 10 sections, IM's 8 sections) carry a real,
+    # admin-chosen composition -- including sections the admin may have omitted
+    # or resized -- so students should see exactly what's in the paper instead
+    # of just a total question count.
+    ActiveSections = [Row for Row in (SectionCoverage or []) if int(Row.get("selectedQuestionCount") or 0) > 0]
+    if not ActiveSections:
+        return Base
+    Breakdown = "; ".join(
+        f"{Row.get('sectionTitle')} ({int(Row.get('selectedQuestionCount') or 0)})"
+        for Row in ActiveSections
+    )
+    return f"{Base} Sections: {Breakdown}."
 
 
 def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: Level, Lessons: list[Lesson], DpsRows: list[DPS], TargetQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    IsMmMock = _IsMasterModule(ModuleRecord)
+    IsImMock = _IsIntermediateModule(ModuleRecord)
+
+    if IsImMock:
+        # IM Level 4 gets the same dedicated, section-locked treatment as MM --
+        # skip the generic per-DPS round-robin path entirely rather than
+        # generating a throwaway pass through it first.
+        RecentSignatures = _RecentMmCompetitionQuestionSignatures(
+            db,
+            ModuleRecord=ModuleRecord,
+            LevelRecord=LevelRecord,
+            WindowMockCount=MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
+        )
+        return _CollectImCompetitionSectionLockedQuestions(
+            ModuleRecord,
+            LevelRecord,
+            Lessons,
+            TargetQuestionCount,
+            SectionCountsOverride,
+            ExcludedSignatures=RecentSignatures,
+            FreshnessWindowMockCount=MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
+        )
+
     SectionsByDps = _ActiveSectionsByDps(db, DpsRows)
     GeneratedByConcept: dict[str, list[dict[str, Any]]] = defaultdict(list)
     MmGeneratedBySection: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
     CoverageRows: list[dict[str, Any]] = []
     GenerationErrors: list[dict[str, Any]] = []
-    IsMmMock = _IsMasterModule(ModuleRecord)
 
     for DpsRecord in DpsRows:
         Seed = f"COMPETITION-MOCK-DRAFT-{DpsRecord.id}-{uuid4().hex}"
@@ -1806,8 +2141,17 @@ def GenerateCompetitionMockDraft(
     ModuleRecord, LevelRecord, Lessons, DpsRows = _LevelRecords(db, LevelId)
     SectionCountsOverride = _NormalizeSectionCounts(SectionCounts)
     IsMmMock = _IsMasterModule(ModuleRecord)
-    DefaultQuestionCount = MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsMmMock else DEFAULT_COMPETITION_MOCK_QUESTION_COUNT
-    DefaultDurationSeconds = MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsMmMock else DEFAULT_COMPETITION_MOCK_DURATION_SECONDS
+    IsImMock = _IsIntermediateModule(ModuleRecord)
+    DefaultQuestionCount = (
+        MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsMmMock
+        else IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsImMock
+        else DEFAULT_COMPETITION_MOCK_QUESTION_COUNT
+    )
+    DefaultDurationSeconds = (
+        MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsMmMock
+        else IM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsImMock
+        else DEFAULT_COMPETITION_MOCK_DURATION_SECONDS
+    )
     RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)
     if RequestedQuestionCount < 10:
         api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams must contain at least 10 questions.")
@@ -1838,7 +2182,7 @@ def GenerateCompetitionMockDraft(
         marks_per_question=DEFAULT_COMPETITION_MARKS_PER_QUESTION,
         duration_seconds=RequestedDurationSeconds,
         status="DRAFT",
-        instructions=_CompetitionInstructions(ModuleRecord, LevelRecord, ActualQuestionCount, RequestedDurationSeconds),
+        instructions=_CompetitionInstructions(ModuleRecord, LevelRecord, ActualQuestionCount, RequestedDurationSeconds, CoveragePayload.get("sections")),
         syllabus_coverage_json=json.dumps(CoveragePayload),
         generation_config_json=json.dumps({
             "engine": "COMPETITION_MOCK_GENERATOR_FOUNDATION",
