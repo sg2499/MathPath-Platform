@@ -110,6 +110,41 @@ IM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
 }
 
 
+# IM competition mocks are designed level by level, not module-wide -- each
+# IM level (L1-L4) gets its own distinct set of sections and concepts, so
+# there is no single "IM section structure" that generically applies to
+# every level. IM_COMPETITION_LEVEL_REGISTRY is the single source of truth
+# for which levels currently have a defined mock structure; generation code
+# must resolve a level's structure through _ImCompetitionLevelConfig() below
+# rather than referencing IM_COMPETITION_SECTION_DEFINITIONS/
+# IM_COMPETITION_SECTION_CONCEPT_POOLS directly, so that requesting a mock
+# for a level that hasn't been configured yet (e.g. IM-L1/L2/L3 today) fails
+# loudly with a clear error instead of silently generating IM-L4 content
+# under a different level's name. To add a new level, add its own entry here
+# with that level's own sections/concepts -- do not extend IM-L4's.
+IM_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
+    "IM-L4": {
+        "sectionDefinitions": IM_COMPETITION_SECTION_DEFINITIONS,
+        "sectionConceptPools": IM_COMPETITION_SECTION_CONCEPT_POOLS,
+    },
+}
+
+
+def _ImCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
+    LevelCode = str(getattr(LevelRecord, "level_code", "") or "")
+    Config = IM_COMPETITION_LEVEL_REGISTRY.get(LevelCode)
+    if Config is None:
+        api_error(
+            400,
+            "IM_COMPETITION_LEVEL_NOT_CONFIGURED",
+            f"No competition mock section structure has been defined yet for IM level '{LevelCode}'. "
+            "IM competition mocks are designed level by level -- add this level's own sections and "
+            "concept pools to IM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
+            {"levelCode": LevelCode, "configuredLevels": sorted(IM_COMPETITION_LEVEL_REGISTRY.keys())},
+        )
+    return Config
+
+
 MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
     {
         "key": "MM_ABACUS_ADD_LESS",
@@ -366,14 +401,46 @@ MM_COMPETITION_ORDERED_CONCEPT_GROUPS: dict[str, list[list[str]]] = {
 }
 
 
-def _MmCompetitionOrderedConceptSchedule(SectionKey: str, ConceptPool: list[dict[str, Any]], RequiredCount: int) -> list[dict[str, Any]] | None:
+# Same reasoning as IM_COMPETITION_LEVEL_REGISTRY above: MM only has one live
+# level today (MM-L1), but the section/concept/challenge-lesson structure
+# below is that level's own curated content, not a generic formula. Keying it
+# by level_code and resolving it only through _MmCompetitionLevelConfig()
+# means that if a second MM level is ever added without its own registry
+# entry, generation fails loudly instead of quietly reusing MM-L1's sections.
+MM_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
+    "MM-L1": {
+        "sectionDefinitions": MM_COMPETITION_SECTION_DEFINITIONS,
+        "sectionConceptPools": MM_COMPETITION_SECTION_CONCEPT_POOLS,
+        "challengeLessonFloors": MM_COMPETITION_CHALLENGE_LESSON_FLOORS,
+        "orderedConceptGroups": MM_COMPETITION_ORDERED_CONCEPT_GROUPS,
+        "sectionByKey": MM_COMPETITION_SECTION_BY_KEY,
+    },
+}
+
+
+def _MmCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
+    LevelCode = str(getattr(LevelRecord, "level_code", "") or "")
+    Config = MM_COMPETITION_LEVEL_REGISTRY.get(LevelCode)
+    if Config is None:
+        api_error(
+            400,
+            "MM_COMPETITION_LEVEL_NOT_CONFIGURED",
+            f"No competition mock section structure has been defined yet for MM level '{LevelCode}'. "
+            "Add this level's own sections, concept pools, and challenge-lesson floors to "
+            "MM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
+            {"levelCode": LevelCode, "configuredLevels": sorted(MM_COMPETITION_LEVEL_REGISTRY.keys())},
+        )
+    return Config
+
+
+def _MmCompetitionOrderedConceptSchedule(SectionKey: str, ConceptPool: list[dict[str, Any]], RequiredCount: int, OrderedConceptGroups: dict[str, list[list[str]]]) -> list[dict[str, Any]] | None:
     """Return a section-internal ordered concept schedule for MM competition mocks.
 
     Students are trained to solve one concept family at a time inside a section.
     For mixed competition sections, keep the questions grouped in the same
     predictable training order while preserving the section's total count.
     """
-    Groups = MM_COMPETITION_ORDERED_CONCEPT_GROUPS.get(SectionKey)
+    Groups = OrderedConceptGroups.get(SectionKey)
     if not Groups or RequiredCount <= 0:
         return None
 
@@ -397,10 +464,10 @@ def _MmCompetitionOrderedConceptSchedule(SectionKey: str, ConceptPool: list[dict
     return Schedule
 
 
-def _MmCompetitionChallengeLessons(Lessons: list[Lesson], SectionKey: str) -> list[Lesson]:
+def _MmCompetitionChallengeLessons(Lessons: list[Lesson], SectionKey: str, ChallengeLessonFloors: dict[str, int]) -> list[Lesson]:
     if not Lessons:
         return []
-    MinimumLessonNumber = MM_COMPETITION_CHALLENGE_LESSON_FLOORS.get(SectionKey, 20)
+    MinimumLessonNumber = ChallengeLessonFloors.get(SectionKey, 20)
     ChallengeLessons = [
         LessonRecord
         for LessonRecord in Lessons
@@ -843,22 +910,22 @@ def _ApplyMmCompetitionQuestionShaping(Question: dict[str, Any], *, SectionKey: 
     return ShapedQuestion
 
 
-def _MmSectionCountMap(TotalQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
+def _MmSectionCountMap(TotalQuestionCount: int, SectionDefinitions: list[dict[str, Any]], SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
     if SectionCountsOverride:
         return {
             Section["key"]: int(SectionCountsOverride.get(Section["key"], 0) or 0)
-            for Section in MM_COMPETITION_SECTION_DEFINITIONS
+            for Section in SectionDefinitions
         }
     Requested = max(1, int(TotalQuestionCount or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT))
-    Base = Requested // len(MM_COMPETITION_SECTION_DEFINITIONS)
-    Remainder = Requested % len(MM_COMPETITION_SECTION_DEFINITIONS)
+    Base = Requested // len(SectionDefinitions)
+    Remainder = Requested % len(SectionDefinitions)
     return {
         Section["key"]: Base + (1 if Index < Remainder else 0)
-        for Index, Section in enumerate(MM_COMPETITION_SECTION_DEFINITIONS)
+        for Index, Section in enumerate(SectionDefinitions)
     }
 
 
-def _ImSectionCountMap(TotalQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
+def _ImSectionCountMap(TotalQuestionCount: int, SectionDefinitions: list[dict[str, Any]], SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
     if SectionCountsOverride:
         # Admin decides exactly how many questions go into each section, including
         # setting any section to 0 (or leaving it out) to omit it entirely. There
@@ -867,14 +934,14 @@ def _ImSectionCountMap(TotalQuestionCount: int, SectionCountsOverride: dict[str,
         # explicitly allocated, matching how MM's section counts already behave.
         return {
             Section["key"]: int(SectionCountsOverride.get(Section["key"], 0) or 0)
-            for Section in IM_COMPETITION_SECTION_DEFINITIONS
+            for Section in SectionDefinitions
         }
     Requested = max(1, int(TotalQuestionCount or IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT))
-    Base = Requested // len(IM_COMPETITION_SECTION_DEFINITIONS)
-    Remainder = Requested % len(IM_COMPETITION_SECTION_DEFINITIONS)
+    Base = Requested // len(SectionDefinitions)
+    Remainder = Requested % len(SectionDefinitions)
     return {
         Section["key"]: Base + (1 if Index < Remainder else 0)
-        for Index, Section in enumerate(IM_COMPETITION_SECTION_DEFINITIONS)
+        for Index, Section in enumerate(SectionDefinitions)
     }
 
 
@@ -1030,24 +1097,33 @@ def _CollectMmCompetitionSectionLockedQuestions(
     ExcludedSignatures: set[str] | None = None,
     FreshnessWindowMockCount: int = MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    SectionCounts = _MmSectionCountMap(TargetQuestionCount, SectionCountsOverride)
+    # Resolved once, up front, for this level -- fails loudly here (before any
+    # generation work happens) if this level has no registered mock structure,
+    # instead of silently falling through to another level's sections.
+    LevelConfig = _MmCompetitionLevelConfig(LevelRecord)
+    SectionDefinitions = LevelConfig["sectionDefinitions"]
+    SectionConceptPools = LevelConfig["sectionConceptPools"]
+    ChallengeLessonFloors = LevelConfig["challengeLessonFloors"]
+    OrderedConceptGroups = LevelConfig["orderedConceptGroups"]
+
+    SectionCounts = _MmSectionCountMap(TargetQuestionCount, SectionDefinitions, SectionCountsOverride)
     Selected: list[dict[str, Any]] = []
     SectionCoverage: list[dict[str, Any]] = []
     RecentSignatures = set(ExcludedSignatures or set())
     UsedSignatures: set[str] = set()
     OrderedLessons = Lessons or [None]
 
-    for SectionIndex, SectionDefinition in enumerate(MM_COMPETITION_SECTION_DEFINITIONS):
+    for SectionIndex, SectionDefinition in enumerate(SectionDefinitions):
         SectionKey = SectionDefinition["key"]
         RequiredCount = int(SectionCounts.get(SectionKey, 0) or 0)
-        ConceptPool = MM_COMPETITION_SECTION_CONCEPT_POOLS.get(SectionKey, [])
+        ConceptPool = SectionConceptPools.get(SectionKey, [])
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
         ConceptCoverageOrder: list[str] = []
         UsedWriteNumberPositions: set[int] = set()
-        OrderedConceptSchedule = _MmCompetitionOrderedConceptSchedule(SectionKey, ConceptPool, RequiredCount)
+        OrderedConceptSchedule = _MmCompetitionOrderedConceptSchedule(SectionKey, ConceptPool, RequiredCount, OrderedConceptGroups)
         Attempts = 0
-        ChallengeLessons = _MmCompetitionChallengeLessons(Lessons, SectionKey) or OrderedLessons
+        ChallengeLessons = _MmCompetitionChallengeLessons(Lessons, SectionKey, ChallengeLessonFloors) or OrderedLessons
 
         while len(SectionQuestions) < RequiredCount and Attempts < max(RequiredCount * 12, 48):
             if OrderedConceptSchedule:
@@ -1101,7 +1177,7 @@ def _CollectMmCompetitionSectionLockedQuestions(
                     "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
                     "competitionSectionLocked": True,
                     "competitionDifficultyProfile": "MM_COMPETITION_CHALLENGE",
-                    "competitionChallengeLessonFloor": MM_COMPETITION_CHALLENGE_LESSON_FLOORS.get(SectionKey, 20),
+                    "competitionChallengeLessonFloor": ChallengeLessonFloors.get(SectionKey, 20),
                     "section_number": SectionDefinition["number"],
                     "section_title": _CompetitionSectionDisplayTitle(SectionDefinition),
                 })
@@ -1216,17 +1292,27 @@ def _CollectImCompetitionSectionLockedQuestions(
     ExcludedSignatures: set[str] | None = None,
     FreshnessWindowMockCount: int = MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    SectionCounts = _ImSectionCountMap(TargetQuestionCount, SectionCountsOverride)
+    # Resolved once, up front, for this level -- fails loudly here (before any
+    # generation work happens) if this level has no registered mock structure,
+    # instead of silently falling through to another level's sections. IM
+    # mocks are designed level by level (confirmed with Shailesh), so this
+    # lookup is what lets IM-L1/L2/L3 get their own distinct structures later
+    # without ever risking IM-L4's sections leaking into them.
+    LevelConfig = _ImCompetitionLevelConfig(LevelRecord)
+    SectionDefinitions = LevelConfig["sectionDefinitions"]
+    SectionConceptPools = LevelConfig["sectionConceptPools"]
+
+    SectionCounts = _ImSectionCountMap(TargetQuestionCount, SectionDefinitions, SectionCountsOverride)
     Selected: list[dict[str, Any]] = []
     SectionCoverage: list[dict[str, Any]] = []
     RecentSignatures = set(ExcludedSignatures or set())
     UsedSignatures: set[str] = set()
     OrderedLessons = Lessons or [None]
 
-    for SectionIndex, SectionDefinition in enumerate(IM_COMPETITION_SECTION_DEFINITIONS):
+    for SectionIndex, SectionDefinition in enumerate(SectionDefinitions):
         SectionKey = SectionDefinition["key"]
         RequiredCount = int(SectionCounts.get(SectionKey, 0) or 0)
-        ConceptPool = IM_COMPETITION_SECTION_CONCEPT_POOLS.get(SectionKey, [])
+        ConceptPool = SectionConceptPools.get(SectionKey, [])
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
         ConceptCoverageOrder: list[str] = []
@@ -1295,7 +1381,7 @@ def _CollectImCompetitionSectionLockedQuestions(
                 "competitionSectionTitle": SectionDefinition["title"],
                 "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
                 "competitionSectionLocked": True,
-                "competitionDifficultyProfile": "IM_COMPETITION_LEVEL4",
+                "competitionDifficultyProfile": f"IM_COMPETITION_{str(getattr(LevelRecord, 'level_code', '') or 'UNKNOWN').replace('-', '_')}",
                 "section_number": SectionDefinition["number"],
                 "section_title": _CompetitionSectionDisplayTitle(SectionDefinition),
             })
@@ -1340,11 +1426,16 @@ def _CollectImCompetitionSectionLockedQuestions(
 def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int | None = None) -> dict[str, Any]:
     ModuleRecord, LevelRecord, Lessons, DpsRows = _LevelRecords(db, LevelId)
     if _IsMasterModule(ModuleRecord):
+        # Resolved via the level registry (not the bare global) so that
+        # previewing a mock plan for an unconfigured MM level fails loudly
+        # here too, not just at actual generation time.
+        MmLevelConfig = _MmCompetitionLevelConfig(LevelRecord)
+        MmSectionDefinitions = MmLevelConfig["sectionDefinitions"]
         RequestedQuestionCount = int(TotalQuestions or MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
-        Base = RequestedQuestionCount // len(MM_COMPETITION_SECTION_DEFINITIONS)
-        Remainder = RequestedQuestionCount % len(MM_COMPETITION_SECTION_DEFINITIONS)
+        Base = RequestedQuestionCount // len(MmSectionDefinitions)
+        Remainder = RequestedQuestionCount % len(MmSectionDefinitions)
         Sections = []
-        for Index, Section in enumerate(MM_COMPETITION_SECTION_DEFINITIONS):
+        for Index, Section in enumerate(MmSectionDefinitions):
             Sections.append({
                 "sectionKey": Section["key"],
                 "sectionNumber": Section["number"],
@@ -1365,11 +1456,17 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         }
 
     if _IsIntermediateModule(ModuleRecord):
+        # Same reasoning as the MM branch above -- resolve via the level
+        # registry so an unconfigured IM level (e.g. IM-L1/L2/L3 today) fails
+        # loudly at preview time instead of silently showing IM-L4's sections
+        # under a different level's name.
+        ImLevelConfig = _ImCompetitionLevelConfig(LevelRecord)
+        ImSectionDefinitions = ImLevelConfig["sectionDefinitions"]
         RequestedQuestionCount = int(TotalQuestions or IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
-        Base = RequestedQuestionCount // len(IM_COMPETITION_SECTION_DEFINITIONS)
-        Remainder = RequestedQuestionCount % len(IM_COMPETITION_SECTION_DEFINITIONS)
+        Base = RequestedQuestionCount // len(ImSectionDefinitions)
+        Remainder = RequestedQuestionCount % len(ImSectionDefinitions)
         Sections = []
-        for Index, Section in enumerate(IM_COMPETITION_SECTION_DEFINITIONS):
+        for Index, Section in enumerate(ImSectionDefinitions):
             Sections.append({
                 "sectionKey": Section["key"],
                 "sectionNumber": Section["number"],

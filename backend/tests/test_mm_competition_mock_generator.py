@@ -3,6 +3,8 @@ from datetime import datetime, timedelta, timezone
 import json
 import random
 
+import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -18,6 +20,7 @@ from app.question_engine.mm.operands import (
     _IsTrivialScaleOperand,
 )
 from app.services.competition_mock_generation_service import (
+    MM_COMPETITION_LEVEL_REGISTRY,
     MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW,
     MM_COMPETITION_SECTION_CONCEPT_POOLS,
     MM_COMPETITION_SECTION_DEFINITIONS,
@@ -25,6 +28,7 @@ from app.services.competition_mock_generation_service import (
     MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
     _CollectMmCompetitionSectionLockedQuestions,
     _MmCompetitionDigitConfig,
+    _MmCompetitionLevelConfig,
     _MmSectionCountMap,
     _QuestionSignature,
     _RecentMmCompetitionQuestionSignatures,
@@ -32,12 +36,17 @@ from app.services.competition_mock_generation_service import (
 
 
 def _master_module_records():
+    # MM-L1 is the only level registered in MM_COMPETITION_LEVEL_REGISTRY
+    # (backend/app/services/competition_mock_generation_service.py) -- using
+    # any other level_code here would now trip the "level not configured"
+    # guard that _CollectMmCompetitionSectionLockedQuestions raises for any
+    # level without its own registered mock structure.
     module = Module(id="module-mm", module_code="MM", module_name="Master Module")
     level = Level(
-        id="level-mm-9",
+        id="level-mm-1",
         module_id=module.id,
-        level_code="MM-L9",
-        level_name="Level - 9",
+        level_code="MM-L1",
+        level_name="Level - 1",
     )
     lessons = [
         Lesson(
@@ -98,7 +107,7 @@ def test_mm_mock_defaults_and_section_count_distribution():
     assert MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT == 100
     assert MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS == 3600
 
-    counts = _MmSectionCountMap(MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+    counts = _MmSectionCountMap(MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT, MM_COMPETITION_SECTION_DEFINITIONS)
 
     assert len(counts) == 10
     assert sum(counts.values()) == 100
@@ -310,3 +319,50 @@ def test_mm_multiplication_and_division_avoid_trivial_scale_operands():
         operands, _, answer, _ = GenerateDecimalDivision(decimal_division_config, random.Random(f"decimal-div-{index}"), 9)
         assert not _IsTrivialScaleOperand(operands[1])
         assert not _IsTrivialScaleOperand(answer)
+
+
+def test_mm_l1_is_registered_with_a_complete_competition_mock_structure():
+    # MM_COMPETITION_LEVEL_REGISTRY is the single source of truth generation
+    # code reads from -- if MM-L1 ever fell out of it, every MM competition
+    # mock in production would start failing immediately, so this pins down
+    # that it stays present and points at the real, non-empty structures.
+    assert "MM-L1" in MM_COMPETITION_LEVEL_REGISTRY
+    config = MM_COMPETITION_LEVEL_REGISTRY["MM-L1"]
+    assert config["sectionDefinitions"] == MM_COMPETITION_SECTION_DEFINITIONS
+    assert config["sectionConceptPools"] == MM_COMPETITION_SECTION_CONCEPT_POOLS
+    assert len(config["sectionDefinitions"]) == 10
+    for section in config["sectionDefinitions"]:
+        assert config["sectionConceptPools"].get(section["key"])
+        assert config["challengeLessonFloors"].get(section["key"])
+
+
+def test_unregistered_mm_level_fails_loudly_instead_of_reusing_mm_l1():
+    # A level with no entry in MM_COMPETITION_LEVEL_REGISTRY (e.g. a future
+    # MM-L2 added before anyone defines its own mock sections) must be
+    # rejected with a clear, catchable error -- never silently generate
+    # MM-L1's questions under a different level's name.
+    module = Module(id="module-mm", module_code="MM", module_name="Master Module")
+    unregistered_level = Level(
+        id="level-mm-2",
+        module_id=module.id,
+        level_code="MM-L2",
+        level_name="Level - 2",
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        _MmCompetitionLevelConfig(unregistered_level)
+    assert exc.value.status_code == 400
+    assert exc.value.detail["code"] == "MM_COMPETITION_LEVEL_NOT_CONFIGURED"
+
+    lessons = [
+        Lesson(id=f"lesson-{n}", level_id=unregistered_level.id, lesson_number=n, lesson_title=f"Lesson {n}")
+        for n in range(1, 31)
+    ]
+    with pytest.raises(HTTPException) as exc:
+        _CollectMmCompetitionSectionLockedQuestions(
+            module,
+            unregistered_level,
+            lessons,
+            MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+        )
+    assert exc.value.detail["code"] == "MM_COMPETITION_LEVEL_NOT_CONFIGURED"
