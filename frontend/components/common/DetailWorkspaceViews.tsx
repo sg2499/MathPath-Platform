@@ -297,6 +297,28 @@ export function recordTitle(row: AnyRow) {
 }
 
 export function scoreText(row: AnyRow) {
+  const max =
+    row.maxScore ??
+    row.totalMarks ??
+    row.outOf ??
+    row.totalQuestions ??
+    row.questionCount ??
+    row.totalQuestionCount ??
+    row.questionsCount ??
+    row.question_count ??
+    row.total ??
+    10;
+
+  // A row that hasn't been attempted yet (Pending / Re-Attempt Pending) has
+  // no real "obtained" score -- row.correct is a zero placeholder from the
+  // backend for bookkeeping, not an actual result, so it must never be
+  // rendered as a score (that previously showed a fabricated "0 / 10" on
+  // every never-attempted sheet). Match the same "—" treatment already used
+  // for the Accuracy column until there's a real attempt to report on.
+  if (!isCompleted(row)) {
+    return `— / ${max}`;
+  }
+
   const score =
     row.score ??
     row.totalScore ??
@@ -315,24 +337,12 @@ export function scoreText(row: AnyRow) {
     row.correctAnswers ??
     row.attemptCorrectCount;
 
-  const max =
-    row.maxScore ??
-    row.totalMarks ??
-    row.outOf ??
-    row.totalQuestions ??
-    row.questionCount ??
-    row.totalQuestionCount ??
-    row.questionsCount ??
-    row.question_count ??
-    row.total ??
-    10;
-
   if (score !== null && score !== undefined && score !== "") {
     return `${score} / ${max}`;
   }
 
   const accuracyValue = accuracy(row);
-  if (isCompleted(row) && accuracyValue > 0 && max) {
+  if (accuracyValue > 0 && max) {
     const inferredScore = Math.round((Number(max) * accuracyValue) / 100);
     return `${inferredScore} / ${max}`;
   }

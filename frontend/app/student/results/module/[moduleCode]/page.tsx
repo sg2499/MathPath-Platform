@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
   AnyRow,
+  isCompleted,
   levelCodeOf,
   moduleCodeOf,
   moduleTitle,
@@ -104,11 +105,15 @@ function StudentModuleProgressWorkspacePageContent() {
           initialTab={(SearchParams.get("tab") === "lesson-insights" || SearchParams.get("tab") === "lessons") ? "lessons" : "overview"}
           focusTarget={FocusTarget}
           onView={(Row) => {
-            if (Row.status === "Pending" || Row.status === "Re-Attempt Pending") {
+            // Was comparing Row.status to the exact-case display label
+            // ("Pending"), but the backend actually sends "PENDING" -- the
+            // comparison never matched, so the click silently did nothing.
+            // isCompleted() is the same normalized check the row's own
+            // "Start Practice" button/status chip already uses, so this can
+            // never drift out of sync with what's shown on screen again.
+            if (!isCompleted(Row) && (Row.dpsId || Row.dps_id)) {
               const assignmentId = Row.assignmentId || "";
-              if (Row.dpsId || Row.dps_id) {
-                Router.push(`/student/dps/${Row.dpsId || Row.dps_id}?assignmentId=${assignmentId}`);
-              }
+              Router.push(`/student/dps/${Row.dpsId || Row.dps_id}?assignmentId=${assignmentId}`);
             } else if (Row.attemptId) {
               Router.push(`/student/result/${Row.attemptId}`);
             }
