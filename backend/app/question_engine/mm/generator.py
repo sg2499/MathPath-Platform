@@ -143,6 +143,12 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
 
 def GenerateMmQuestionSet(Config: MMConfig) -> list[dict]:
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    if GeneratorConfig.get("forceSingleSection"):
+        # Callers that already resolved one specific DPSSection row (e.g. assessment
+        # generation, which iterates live DB sections itself) must never have this
+        # LessonNumber/DpsNumber pair silently re-expanded into every section
+        # MM_CURRICULUM_MAP knows about for that DPS. This flag skips that lookup.
+        return rebalance_correct_option_distribution(_GenerateSingleSectionQuestionSet(Config))
     IsCompetitionSectionLocked = GeneratorConfig.get("source") == "MM_COMPETITION_SECTION_LOCKED_GENERATOR"
     SectionDefinitions = []
 

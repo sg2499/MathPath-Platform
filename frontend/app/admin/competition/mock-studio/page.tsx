@@ -31,8 +31,10 @@ import type { ReactNode } from "react";
 
 const DefaultQuestionCount = 40;
 const MmDefaultQuestionCount = 100;
+const ImDefaultQuestionCount = 100;
 const DefaultDurationMinutes = 20;
 const MmDefaultDurationMinutes = 60;
+const ImDefaultDurationMinutes = 30;
 
 const AdminRowActionButtonClass = "inline-flex items-center justify-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] shadow-sm transition duration-200 hover:-translate-y-px hover:border-[color:var(--mp-role-border-strong)] hover:bg-[image:var(--mp-role-action-bg)] hover:text-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--mp-role-primary)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-[color:var(--mp-role-border)] disabled:hover:bg-white disabled:hover:text-[color:var(--mp-role-primary)] disabled:hover:shadow-sm dark:bg-slate-950/60 dark:text-blue-100 dark:hover:border-[color:var(--mp-role-border-strong)] dark:hover:bg-[image:var(--mp-role-action-bg)] dark:hover:text-white dark:disabled:hover:bg-slate-950/60 dark:disabled:hover:text-blue-100";
 
@@ -127,12 +129,19 @@ export default function AdminCompetitionMockStudioPage() {
   const SelectedLevel = Levels.find((LevelValue) => LevelValue.levelId === SelectedLevelId) || null;
   const SelectedModule = Modules.find((ModuleValue) => ModuleValue.moduleId === SelectedModuleId) || null;
   const IsSelectedMasterModule = Boolean(SelectedModule && (SelectedModule.moduleCode?.toUpperCase() === "MM" || SelectedModule.moduleName?.toLowerCase().includes("master module")));
+  const IsSelectedIntermediateModule = Boolean(SelectedModule && (SelectedModule.moduleCode?.toUpperCase() === "IM" || SelectedModule.moduleName?.toLowerCase().includes("intermediate module")));
 
   useEffect(() => {
-    if (!IsSelectedMasterModule) return;
-    SetQuestionCount((CurrentValue) => CurrentValue === String(DefaultQuestionCount) ? String(MmDefaultQuestionCount) : CurrentValue);
-    SetDurationMinutes((CurrentValue) => CurrentValue === String(DefaultDurationMinutes) ? String(MmDefaultDurationMinutes) : CurrentValue);
-  }, [IsSelectedMasterModule]);
+    if (IsSelectedMasterModule) {
+      SetQuestionCount((CurrentValue) => CurrentValue === String(DefaultQuestionCount) ? String(MmDefaultQuestionCount) : CurrentValue);
+      SetDurationMinutes((CurrentValue) => CurrentValue === String(DefaultDurationMinutes) ? String(MmDefaultDurationMinutes) : CurrentValue);
+      return;
+    }
+    if (IsSelectedIntermediateModule) {
+      SetQuestionCount((CurrentValue) => CurrentValue === String(DefaultQuestionCount) ? String(ImDefaultQuestionCount) : CurrentValue);
+      SetDurationMinutes((CurrentValue) => CurrentValue === String(DefaultDurationMinutes) ? String(ImDefaultDurationMinutes) : CurrentValue);
+    }
+  }, [IsSelectedMasterModule, IsSelectedIntermediateModule]);
 
 
   const CleanSectionCounts = useMemo(() => {
