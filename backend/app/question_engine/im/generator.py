@@ -146,6 +146,12 @@ def _GenerateSingleSectionQuestionSet(Config: IMConfig, SectionNumber: int = 1, 
 
 def GenerateImQuestionSet(Config: IMConfig) -> list[dict]:
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    if GeneratorConfig.get("forceSingleSection"):
+        # Callers that already resolved one specific DPSSection row (e.g. assessment
+        # generation, which iterates live DB sections itself) must never have this
+        # LessonNumber/DpsNumber pair silently re-expanded into every section
+        # IM_CURRICULUM_MAP knows about for that DPS. This flag skips that lookup.
+        return rebalance_correct_option_distribution(_GenerateSingleSectionQuestionSet(Config))
     SectionDefinitions = GeneratorConfig.get("dpsSections") or IM_CURRICULUM_MAP.get(Config.LessonNumber, {}).get(Config.DpsNumber, [])
 
     if not SectionDefinitions:

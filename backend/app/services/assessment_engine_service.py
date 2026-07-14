@@ -33,6 +33,8 @@ from app.models import (
     User,
 )
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
+from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, OperationFocusForConcept as MmOperationFocusForConcept
+from app.question_engine.im import IMConfig, GenerateImQuestionSet, OperationFocusForConcept as ImOperationFocusForConcept
 
 ASSESSMENT_VERSION_STATUSES = {"DRAFT", "PREVIEW", "PUBLISHED", "ARCHIVED"}
 ASSESSMENT_ASSIGNMENT_STATUSES = {"ASSIGNED", "IN_PROGRESS", "SUBMITTED", "CLEARED", "NEEDS_RE_ATTEMPT", "CANCELLED"}
@@ -201,6 +203,57 @@ def SectionConfig(Db: Session, LessonItem: Lesson, Section: DPSSection, Question
         lesson_title=GeneratorConfig.get("lesson_title") or LessonItem.lesson_title,
         seed=Seed,
     )
+
+
+def MmSectionConfig(Db: Session, LessonItem: Lesson, Section: DPSSection, QuestionCount: int, Seed: str) -> MMConfig:
+    LevelItem = Db.get(Level, LessonItem.level_id)
+    ModuleItem = Db.get(Module, LevelItem.module_id) if LevelItem else None
+    DpsItem = Db.get(DPS, Section.dps_id) if Section.dps_id else None
+    GeneratorConfig = {**SafeJson(Section.generator_config_json, {}), "forceSingleSection": True}
+    ConceptFamily = Section.concept_family or GeneratorConfig.get("conceptFamily") or "CONCEPT_DRILL"
+    return MMConfig(
+        ModuleCode=ModuleItem.module_code if ModuleItem else "MM",
+        LevelCode=LevelItem.level_code if LevelItem else "MM-L1",
+        LessonNumber=LessonItem.lesson_number,
+        DpsNumber=DpsItem.dps_number if DpsItem else Section.section_number,
+        DpsTitle=Section.section_title or (DpsItem.dps_title if DpsItem else LessonItem.lesson_title),
+        LessonTitle=GeneratorConfig.get("lesson_title") or LessonItem.lesson_title,
+        QuestionCount=QuestionCount,
+        Seed=Seed,
+        ConceptFamily=ConceptFamily,
+        OperationFocus=Section.operation_focus or MmOperationFocusForConcept(ConceptFamily),
+        DigitPattern=Section.digit_pattern or "MASTER_MODULE",
+        Difficulty=Section.difficulty or "MASTER",
+        GeneratorConfig=GeneratorConfig,
+    )
+
+
+def ImSectionConfig(Db: Session, LessonItem: Lesson, Section: DPSSection, QuestionCount: int, Seed: str) -> IMConfig:
+    LevelItem = Db.get(Level, LessonItem.level_id)
+    ModuleItem = Db.get(Module, LevelItem.module_id) if LevelItem else None
+    DpsItem = Db.get(DPS, Section.dps_id) if Section.dps_id else None
+    GeneratorConfig = {**SafeJson(Section.generator_config_json, {}), "forceSingleSection": True}
+    ConceptFamily = Section.concept_family or GeneratorConfig.get("conceptFamily") or "ADD_LESS"
+    return IMConfig(
+        ModuleCode=ModuleItem.module_code if ModuleItem else "IM",
+        LevelCode=LevelItem.level_code if LevelItem else "IM-L4",
+        LessonNumber=LessonItem.lesson_number,
+        DpsNumber=DpsItem.dps_number if DpsItem else Section.section_number,
+        DpsTitle=Section.section_title or (DpsItem.dps_title if DpsItem else LessonItem.lesson_title),
+        LessonTitle=GeneratorConfig.get("lesson_title") or LessonItem.lesson_title,
+        QuestionCount=QuestionCount,
+        Seed=Seed,
+        ConceptFamily=ConceptFamily,
+        OperationFocus=Section.operation_focus or ImOperationFocusForConcept(ConceptFamily),
+        DigitPattern=Section.digit_pattern or "INTERMEDIATE_MODULE",
+        Difficulty=Section.difficulty or "INTERMEDIATE",
+        GeneratorConfig=GeneratorConfig,
+    )
+
+
+def AssessmentModuleCode(Db: Session, Blueprint: AssessmentBlueprint) -> str:
+    ModuleItem = Db.get(Module, Blueprint.module_id) if Blueprint.module_id else None
+    return str(getattr(ModuleItem, "module_code", "") or "").upper()
 
 
 def LessonSourceSections(Db: Session, LessonId: str) -> list[DPSSection]:
@@ -449,6 +502,83 @@ def GenerateAssessmentQuestionBatch(Config: YLMConfig, Count: int) -> list[dict[
             raise ValueError(str(LastError) if LastError else f"Could not generate assessment question {QuestionIndex}")
     return Questions
 
+
+def _GenerateMmAssessmentBatch(Config: MMConfig, Count: int) -> list[dict[str, Any]]:
+    """MM counterpart of GenerateAssessmentQuestionBatch. Same fallback shape,
+    routed through the real MM generator (with forceSingleSection set on the
+    config) instead of YLM's add/less-only engine, so MM assessment lessons
+    finally test the lesson's actual concept.
+    """
+    if Count <= 0:
+        return []
+    FullConfig = replace(Config, QuestionCount=Count)
+    try:
+        Questions = GenerateMmQuestionSet(FullConfig)
+        if len(Questions) == Count:
+            return Questions
+    except Exception:
+        Questions = []
+
+    Questions = []
+    for QuestionIndex in range(1, Count + 1):
+        LastError: Exception | None = None
+        for RetryIndex in range(1, 16):
+            SingleConfig = replace(Config, QuestionCount=1, Seed=f"{Config.Seed}-AQ{QuestionIndex}-R{RetryIndex}-{uuid4().hex}")
+            try:
+                Generated = GenerateMmQuestionSet(SingleConfig)
+                if Generated:
+                    Row = Generated[0]
+                    Row["question_number"] = QuestionIndex
+                    Questions.append(Row)
+                    break
+            except Exception as Exc:
+                LastError = Exc
+        else:
+            raise ValueError(str(LastError) if LastError else f"Could not generate assessment question {QuestionIndex}")
+    return Questions
+
+
+def _GenerateImAssessmentBatch(Config: IMConfig, Count: int) -> list[dict[str, Any]]:
+    """IM counterpart of GenerateAssessmentQuestionBatch. Same fallback shape,
+    routed through the real IM generator (with forceSingleSection set on the
+    config) instead of YLM's add/less-only engine, so IM Level 4 assessment
+    lessons finally test the lesson's actual concept.
+    """
+    if Count <= 0:
+        return []
+    FullConfig = replace(Config, QuestionCount=Count)
+    try:
+        Questions = GenerateImQuestionSet(FullConfig)
+        if len(Questions) == Count:
+            return Questions
+    except Exception:
+        Questions = []
+
+    Questions = []
+    for QuestionIndex in range(1, Count + 1):
+        LastError: Exception | None = None
+        for RetryIndex in range(1, 16):
+            SingleConfig = replace(Config, QuestionCount=1, Seed=f"{Config.Seed}-AQ{QuestionIndex}-R{RetryIndex}-{uuid4().hex}")
+            try:
+                Generated = GenerateImQuestionSet(SingleConfig)
+                if Generated:
+                    Row = Generated[0]
+                    Row["question_number"] = QuestionIndex
+                    Questions.append(Row)
+                    break
+            except Exception as Exc:
+                LastError = Exc
+        else:
+            raise ValueError(str(LastError) if LastError else f"Could not generate assessment question {QuestionIndex}")
+    return Questions
+
+
+def _DefaultAssessmentExplanation(ModuleCode: str) -> str:
+    if ModuleCode in {"MM", "IM"}:
+        return "Work through the problem step by step and select the correct answer."
+    return "Solve the vertical add-less sequence carefully and select the correct answer."
+
+
 def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, GeneratedByUserId: str | None = None, Status: str = "PREVIEW") -> AssessmentVersion:
     Db.flush()
     Rows = (
@@ -483,6 +613,8 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
     Db.add(Version)
     Db.flush()
 
+    ModuleCode = AssessmentModuleCode(Db, Blueprint)
+
     QuestionNumber = 1
     for BlueprintLesson, LessonItem in Rows:
         Sections = LessonSourceSections(Db, LessonItem.id)
@@ -498,9 +630,16 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
         for SectionIndex, Count in enumerate(Counts):
             Section = Sections[SectionIndex % len(Sections)]
             SectionSeed = f"{Seed}-L{LessonItem.lesson_number}-S{SectionIndex + 1}-{uuid4().hex}"
-            Config = SectionConfig(Db, LessonItem, Section, Count, SectionSeed)
             try:
-                GeneratedQuestions = GenerateAssessmentQuestionBatch(Config, Count)
+                if ModuleCode == "MM":
+                    Config = MmSectionConfig(Db, LessonItem, Section, Count, SectionSeed)
+                    GeneratedQuestions = _GenerateMmAssessmentBatch(Config, Count)
+                elif ModuleCode == "IM":
+                    Config = ImSectionConfig(Db, LessonItem, Section, Count, SectionSeed)
+                    GeneratedQuestions = _GenerateImAssessmentBatch(Config, Count)
+                else:
+                    Config = SectionConfig(Db, LessonItem, Section, Count, SectionSeed)
+                    GeneratedQuestions = GenerateAssessmentQuestionBatch(Config, Count)
             except Exception as Exc:
                 api_error(
                     400,
@@ -522,17 +661,18 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                         "randomizedAssessment": True,
                     }
                 )
+                GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands)
                 AssessmentQuestionRow = AssessmentQuestion(
                     assessment_version_id=Version.id,
                     lesson_id=LessonItem.id,
                     question_number=QuestionNumber,
                     lesson_question_number=Generated.get("question_number") or 1,
                     display_type=Generated.get("display_type") or "VERTICAL",
-                    question_text=QuestionText(Operands),
+                    question_text=GeneratedQuestionText,
                     operands_json=json.dumps(Operands),
                     operators_json=json.dumps(Generated.get("operators", [])),
                     correct_answer=str(Generated.get("correct_answer")),
-                    explanation="Solve the vertical add-less sequence carefully and select the correct answer.",
+                    explanation=Generated.get("explanation") or _DefaultAssessmentExplanation(ModuleCode),
                     difficulty=Section.difficulty or "MIXED",
                     concept_tag=Metadata.get("concept_family") or Section.concept_family,
                     source_type="DPS_CONCEPT_RULE",
