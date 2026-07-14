@@ -128,6 +128,19 @@ function getMockDisplayType(question: CompetitionMockQuestion, mock: Competition
   return question.displayType;
 }
 
+// Long-form question layouts (expression worksheets, financial tables) need
+// the full-width single-column treatment regardless of which module
+// generated them -- this used to be gated on isMmExpressionQuestion /
+// isMmFinancialQuestion directly, which only ever returns true for MM, so
+// every other module's BODMAS/Solve Equation/multiplication/division
+// questions got squeezed into the narrow two-column layout no matter how
+// long the expression was. Basing it on the actual resolved display type
+// instead extends the same wide layout to any module.
+function needsWideQuestionLayout(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
+  const displayType = getMockDisplayType(question, mock);
+  return displayType === "EXPRESSION_WORKSHEET" || displayType === "FINANCIAL_TABLE";
+}
+
 function formatMockValue(value: number | string) {
   if (typeof value === "number") {
     if (Number.isInteger(value)) return String(value);
@@ -441,8 +454,8 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
             )}
           </div>
 
-          <div className={`mt-5 grid gap-5 ${isMmExpressionQuestion(currentQuestion, mock) || isMmFinancialQuestion(currentQuestion, mock) ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,420px)_1fr] xl:items-center"}`}>
-            <div className={`${isMmExpressionQuestion(currentQuestion, mock) || isMmFinancialQuestion(currentQuestion, mock) ? "w-full" : ""} overflow-visible rounded-[26px] bg-slate-50/90 p-4 dark:bg-slate-900/70 sm:p-5`}>
+          <div className={`mt-5 grid gap-5 ${needsWideQuestionLayout(currentQuestion, mock) ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,420px)_1fr] xl:items-center"}`}>
+            <div className={`${needsWideQuestionLayout(currentQuestion, mock) ? "w-full" : ""} overflow-visible rounded-[26px] bg-slate-50/90 p-4 dark:bg-slate-900/70 sm:p-5`}>
               <MockQuestionRenderer question={currentQuestion} mock={mock} />
             </div>
 
