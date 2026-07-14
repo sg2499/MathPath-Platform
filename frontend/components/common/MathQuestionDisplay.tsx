@@ -89,18 +89,28 @@ function ExpressionQuestion({
   const ExpressionAlreadyContainsPrompt = /[?？]/.test(Expression);
   const IsAnswerPosition = mode === "ANSWER_POSITION";
   const CharacterCount = Expression.replace(/\s+/g, "").length;
+  // Some generated expressions (IM/MM BODMAS with a squared term, multi-step
+  // competition challenges, etc.) routinely run 30-45+ characters -- well past
+  // what a single nowrap line at a readable font size can hold. A question
+  // must never be silently clipped, so past this threshold wrapping is
+  // allowed onto multiple lines instead of hiding overflow: a wrapped
+  // question is always fully readable, a clipped one is not.
+  const WrapThreshold = 26;
+  const AllowWrap = CharacterCount > WrapThreshold;
   const FontSizePx = IsAnswerPosition
     ? Math.max(15, 28 - Math.max(0, CharacterCount - 20) * 0.32)
-    : Math.max(14, 34 - Math.max(0, CharacterCount - 18) * 0.4);
+    : AllowWrap
+      ? Math.max(16, 26 - Math.max(0, CharacterCount - WrapThreshold) * 0.15)
+      : Math.max(14, 34 - Math.max(0, CharacterCount - 18) * 0.4);
 
   return (
-    <div className="mx-auto flex w-full max-w-full justify-center overflow-hidden rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
+    <div className="mx-auto flex w-full max-w-full justify-center rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
       <div
-        className="w-full overflow-hidden text-center font-mono font-black leading-[1.2] py-1 tracking-tight"
+        className="w-full text-center font-mono font-black leading-[1.35] py-1 tracking-tight"
         style={{
           fontSize: `${FontSizePx}px`,
-          whiteSpace: "nowrap",
-          textWrap: "nowrap",
+          whiteSpace: AllowWrap ? "normal" : "nowrap",
+          overflowWrap: AllowWrap ? "break-word" : "normal",
         }}
       >
         {RenderExpressionWithBlueQuestion(Expression)}
