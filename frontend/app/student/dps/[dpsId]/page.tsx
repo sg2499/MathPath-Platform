@@ -118,7 +118,7 @@ function DpsInstructionPageContent() {
               <div className="rounded-[32px] border border-white/70 bg-white/92 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
                 <h3 className="text-xl font-black text-slate-950 dark:text-white">Practice Details</h3>
                 <div className="mt-4 grid gap-3">
-                  <InfoCard icon={<ClipboardList size={17} />} label="Questions" value={Query.data.testSettings?.questionCount || 10} />
+                  <InfoCard icon={<ClipboardList size={17} />} label="Questions" value={Query.data.testSettings?.questionCount ?? "—"} />
                   <InfoCard icon={<Clock3 size={17} />} label="Time" value={`${Math.floor((Query.data.testSettings?.durationSeconds || 300) / 60)} Mins`} />
                   <InfoCard icon={<Brain size={17} />} label="Type" value="MCQ" />
                 </div>

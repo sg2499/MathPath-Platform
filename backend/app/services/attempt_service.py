@@ -31,7 +31,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.core.errors import api_error
-from app.models import Attempt, AttemptAnswer, GeneratedQuestion, QuestionOption, DPS, DPSSection, Assignment, AssignmentReattemptPermission, Student
+from app.models import Attempt, AttemptAnswer, GeneratedQuestion, QuestionOption, DPS, DPSSection, Assignment, AssignmentReattemptPermission, Student, Lesson, Level, Module
 from app.services.assignment_service import validate_assignment_access, create_auto_retry_assignment_for_attempt
 from app.services.generation_service import build_attempt_question_seed, persist_question_set
 from app.services.audit_service import log_event
@@ -102,6 +102,28 @@ def _ComputeDpsMaxScore(db: Session, dps: DPS) -> float:
         int(section.question_count or 0) * _SectionMarksPerQuestion(section, dps_default_marks)
         for section in sections
     )
+
+
+def attempt_context_payload(db: Session, attempt: Attempt) -> dict:
+    """Module/DPS context for the attempt screen's header (real sheet title,
+    module, lesson/DPS numbers) so the shared practice-attempt page never has
+    to hardcode a title -- same shape for every module (MM/YLM/IM/future),
+    since this reads the attempt's own DPS rather than anything module-specific.
+    """
+    dps = db.get(DPS, attempt.dps_id) if attempt.dps_id else None
+    if not dps:
+        return {}
+    lesson = db.get(Lesson, dps.lesson_id) if dps.lesson_id else None
+    level = db.get(Level, lesson.level_id) if lesson else None
+    module = db.get(Module, level.module_id) if level else None
+    return {
+        "dpsTitle": dps.dps_title,
+        "dpsNumber": dps.dps_number,
+        "lessonNumber": lesson.lesson_number if lesson else None,
+        "moduleCode": module.module_code if module else None,
+        "moduleName": module.module_name if module else None,
+        "levelCode": level.level_code if level else None,
+    }
 
 
 def safe_questions_payload(db: Session, attempt: Attempt) -> list[dict]:
@@ -264,7 +286,18 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     attempt.attempted_count = correct + wrong
     attempt.total_score = total_score
     attempt.max_score = max_score
-    attempt.accuracy_percentage = round((correct / len(questions)) * 100) if questions else 0
+    # Marks-based, not question-count-based: correct/total_questions was fine
+    # while every question was worth the same 1 mark (score% and accuracy%
+    # were always identical), but IM's Concept Drill/Skill Stacker sections
+    # (5 marks each vs 1 for everything else) can make the two diverge a lot
+    # -- e.g. 2 of 10 flat-1-mark questions right plus all 4 of the 5-mark
+    # questions right is 6/14 correct by raw count (43%) but 22/30 by marks
+    # (73%). The benchmark check (UpdateSubmittedAttemptBenchmarkState below)
+    # and the economy/XP formula both key off this same field, so it needs to
+    # reflect real performance-by-marks. For every flat 1-mark-per-question
+    # sheet (all of MM/YLM, most of IM) this is byte-identical to the old
+    # formula, since total_score/max_score == correct/total_questions there.
+    attempt.accuracy_percentage = round((total_score / max_score) * 100) if max_score else 0
     attempt.time_taken_seconds = attempt.duration_seconds if auto else min(attempt.duration_seconds, int((submitted - _aware(attempt.started_at)).total_seconds()))
     UpdateSubmittedAttemptBenchmarkState(attempt, BENCHMARK_PERCENTAGE)
 

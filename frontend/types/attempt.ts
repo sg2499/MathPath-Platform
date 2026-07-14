@@ -12,4 +12,12 @@ export type AttemptPayload = {
   totalQuestions: number;
   answeredCount?: number;
   questions: StudentQuestion[];
+  // Real sheet/module context for the attempt screen's header -- same shape
+  // for every module, never a hardcoded placeholder.
+  dpsTitle?: string | null;
+  dpsNumber?: number | null;
+  lessonNumber?: number | null;
+  moduleCode?: string | null;
+  moduleName?: string | null;
+  levelCode?: string | null;
 };

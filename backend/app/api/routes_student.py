@@ -7,7 +7,7 @@ from app.dependencies import get_current_student
 from app.models import Student, DPS, Lesson, Level, Module, Attempt, Assignment, AssignmentReattemptPermission, AssessmentAssignment, StudentLevelPromotion
 from app.services.assignment_service import get_student_assignments
 from app.services.curriculum_service import dps_config_payload
-from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds, _ComputeDpsMaxScore
+from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds, _ComputeDpsMaxScore, attempt_context_payload
 from app.services.assessment_eligibility_service import assessment_eligibility_payload
 from app.services.assessment_engine_service import (
     AssessmentAssignmentPayload,
@@ -653,7 +653,7 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
             "recordKind": "PENDING_ASSIGNMENT",
             "status": "PENDING",
             "score": None,
-            "maxScore": None,
+            "maxScore": _ComputeDpsMaxScore(db, dps) if dps else None,
             "accuracyPercentage": None,
             "correct": 0,
             "wrong": 0,
@@ -698,7 +698,9 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
 @router.get("/dps/{dps_id}")
 def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     payload = dps_config_payload(db, dps_id)
-    section = payload["sections"][0] if payload["sections"] else {}
+    sections = payload["sections"] or []
+    primary_section = sections[0] if sections else {}
+    question_count = payload["defaultQuestionCount"] or 0
     return {
         "dpsId": payload["dpsId"],
         "moduleCode": payload["moduleCode"],
@@ -707,13 +709,26 @@ def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = D
         "dpsNumber": payload["dpsNumber"],
         "title": payload["dpsTitle"],
         "concept": {
-            "conceptFamily": section.get("conceptFamily"),
-            "operationFocus": section.get("operationFocus"),
-            "abacusRule": section.get("abacusRule"),
-            "description": section.get("sectionTitle"),
+            # Kept for any older consumer that reads a single flat concept
+            # (first section only) -- but "sections" below is the real,
+            # complete list every sheet's instructions page should render.
+            "conceptFamily": primary_section.get("conceptFamily"),
+            "operationFocus": primary_section.get("operationFocus"),
+            "abacusRule": primary_section.get("abacusRule"),
+            "description": primary_section.get("sectionTitle"),
+            "sections": [
+                {
+                    "sectionNumber": s.get("sectionNumber"),
+                    "sectionTitle": s.get("sectionTitle"),
+                    "questionCount": s.get("questionCount"),
+                    "conceptFamily": s.get("conceptFamily"),
+                    "operationFocus": s.get("operationFocus"),
+                }
+                for s in sections
+            ],
         },
         "testSettings": {
-            "questionCount": payload["defaultQuestionCount"],
+            "questionCount": question_count,
             "durationSeconds": payload["defaultDurationSeconds"],
             "marksPerQuestion": payload["marksPerQuestion"],
             "answerType": "MCQ",
@@ -722,18 +737,23 @@ def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = D
             "navigationAllowed": True,
             "autoSubmit": True,
         },
-        "instructions": ["You will get 10 questions.", "Each question has 4 options.", "Choose the correct answer.", "The test will auto-submit when time is up."],
+        "instructions": [
+            f"You will get {question_count} question{'s' if question_count != 1 else ''}.",
+            "Each question has 4 options.",
+            "Choose the correct answer.",
+            "The test will auto-submit when time is up.",
+        ],
     }
 
 @router.post("/attempts/start")
 def start(payload: StartAttemptRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     attempt = start_attempt(db, student, payload.assignmentId, payload.dpsId, payload.mode)
-    return {"attemptId": attempt.id, "questionSetId": attempt.question_set_id, "status": attempt.status, "mode": attempt.mode, "startedAt": attempt.started_at, "expiresAt": attempt.expires_at, "remainingSeconds": remaining_seconds(attempt), "totalQuestions": attempt.total_questions, "questions": safe_questions_payload(db, attempt)}
+    return {"attemptId": attempt.id, "questionSetId": attempt.question_set_id, "status": attempt.status, "mode": attempt.mode, "startedAt": attempt.started_at, "expiresAt": attempt.expires_at, "remainingSeconds": remaining_seconds(attempt), "totalQuestions": attempt.total_questions, "questions": safe_questions_payload(db, attempt), **attempt_context_payload(db, attempt)}
 
 @router.get("/attempts/{attempt_id}")
 def resume(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     attempt = get_attempt_for_student(db, student, attempt_id)
-    data = {"attemptId": attempt.id, "status": attempt.status, "mode": attempt.mode, "startedAt": attempt.started_at, "expiresAt": attempt.expires_at, "remainingSeconds": remaining_seconds(attempt), "totalQuestions": attempt.total_questions}
+    data = {"attemptId": attempt.id, "status": attempt.status, "mode": attempt.mode, "startedAt": attempt.started_at, "expiresAt": attempt.expires_at, "remainingSeconds": remaining_seconds(attempt), "totalQuestions": attempt.total_questions, **attempt_context_payload(db, attempt)}
     if attempt.status == "IN_PROGRESS":
         data["questions"] = safe_questions_payload(db, attempt)
     else:
