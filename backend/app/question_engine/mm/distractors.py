@@ -1,6 +1,8 @@
 import random
 from decimal import Decimal, ROUND_HALF_UP
 
+from app.question_engine.smart_distractors import generate_smart_distractors
+
 
 def _QuantizeLike(Value: Decimal, CorrectAnswer: Decimal) -> Decimal:
     Exponent = CorrectAnswer.as_tuple().exponent
@@ -22,43 +24,23 @@ def _Display(Value: Decimal) -> int | str:
     return DisplayText
 
 
-def GenerateMmDistractors(CorrectAnswer: Decimal, Rng: random.Random, AllowNegative: bool = False) -> list[int | str]:
-    Magnitude = max(Decimal("1"), abs(CorrectAnswer))
-    Step = Decimal("0.1") if CorrectAnswer.as_tuple().exponent < 0 else Decimal("1")
-    CandidateDeltas = [Step, -Step, Step * 2, -Step * 2, Step * 5, -Step * 5]
-    if Magnitude >= 50:
-        CandidateDeltas.extend([Decimal("10"), Decimal("-10"), Decimal("20"), Decimal("-20")])
-    if Magnitude >= 1000:
-        CandidateDeltas.extend([Decimal("100"), Decimal("-100")])
-
-    Candidates: list[Decimal] = []
-    for Delta in CandidateDeltas:
-        Candidate = _QuantizeLike(CorrectAnswer + Delta, CorrectAnswer)
-        if Candidate == CorrectAnswer:
-            continue
-        if not AllowNegative and Candidate < 0:
-            continue
-        if Candidate not in Candidates:
-            Candidates.append(Candidate)
-
-    Guard = 0
-    while len(Candidates) < 3 and Guard < 80:
-        Guard += 1
-        RandomDelta = Decimal(Rng.choice([-25, -20, -15, -12, -9, -7, -5, -3, 3, 5, 7, 9, 12, 15, 20, 25])) * Step
-        Candidate = _QuantizeLike(CorrectAnswer + RandomDelta, CorrectAnswer)
-        if Candidate != CorrectAnswer and (AllowNegative or Candidate >= 0) and Candidate not in Candidates:
-            Candidates.append(Candidate)
-
-    Offset = Decimal("1")
-    while len(Candidates) < 3:
-        Candidate = _QuantizeLike(CorrectAnswer + Offset, CorrectAnswer)
-        if Candidate != CorrectAnswer and (AllowNegative or Candidate >= 0) and Candidate not in Candidates:
-            Candidates.append(Candidate)
-        Offset += Decimal("1")
-
-    Candidates.sort(key=lambda Candidate: abs(Candidate - CorrectAnswer))
-    Selected = Candidates[:3]
-    Rng.shuffle(Selected)
+def GenerateMmDistractors(
+    CorrectAnswer: Decimal,
+    Rng: random.Random,
+    AllowNegative: bool = False,
+    Operation: str = "GENERIC",
+    Operands: list[Decimal] | None = None,
+) -> list[int | str]:
+    """Every wrong option shares CorrectAnswer's own last digit (at its own
+    decimal precision) so a units-digit shortcut can never eliminate an
+    option, and is built from a plausible calculation mistake where the
+    operation gives us enough structure to construct one (missed row/sign
+    flip for Add/Less, digit-transpose/middle-digit-shift for multiplication
+    and division), rather than a naive small numeric offset. See
+    app.question_engine.smart_distractors for the shared implementation
+    used identically by IM and YLM.
+    """
+    Selected = generate_smart_distractors(CorrectAnswer, Rng, Operation, Operands or [], AllowNegative)
     return [_Display(Value) for Value in Selected]
 
 def GenerateFinancialDistractors(CorrectAnswer: Decimal, Rng: random.Random, Metadata: dict | None = None) -> list[int | str]:
