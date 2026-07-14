@@ -16,6 +16,33 @@ def _Display(Value: Decimal) -> int | float:
     return float(Value.normalize())
 
 
+def _OperationKind(ConceptFamily: str) -> str:
+    """Which smart-distractor structural strategy applies. See
+    app.question_engine.smart_distractors -- every concept family still gets
+    the universal last-digit-safe baseline regardless of this classification;
+    this only picks which "genuine mistake" candidates get tried first."""
+    if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}:
+        return "ADD_SUBTRACT"
+    if ConceptFamily in {
+        "WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION",
+        "SQUARES", "CUBES", "MIXED_SQUARE_CUBE", "SKILL_STACKER",
+    }:
+        return "MULTIPLY"
+    if ConceptFamily in {"WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION"}:
+        return "DIVIDE"
+    return "GENERIC"
+
+
+def _OperandsAsDecimals(Operands: list) -> list[Decimal]:
+    Result: list[Decimal] = []
+    for Value in Operands:
+        try:
+            Result.append(Decimal(str(Value)))
+        except Exception:
+            continue
+    return Result
+
+
 def _DisplayMode(ConceptFamily: str) -> str:
     if ConceptFamily == "ANSWER_POSITION": return "ANSWER_POSITION"
     if ConceptFamily == "SOLVE_EQUATION": return "EXPRESSION_WORKSHEET"
@@ -69,7 +96,9 @@ def _GenerateSingleSectionQuestionSet(Config: MMConfig, SectionNumber: int = 1, 
         elif ExtraMetadata.get("answer_position_mode") == "WRITE_NUMBER_FROM_GIVEN_POSITION_TABLE":
             Distractors = GenerateAnswerPositionDistractors(CorrectAnswer, Rng, ExtraMetadata)
         else:
-            Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions)
+            OperationKind = _OperationKind(Config.ConceptFamily)
+            NumericOperands = _OperandsAsDecimals(Operands) if OperationKind in {"ADD_SUBTRACT", "DIVIDE"} else []
+            Distractors = GenerateMmDistractors(CorrectAnswer, Rng, AllowNegativeOptions, OperationKind, NumericOperands)
         Options = build_mcq_options(CorrectDisplay, Distractors, Rng)
         QuestionText = ExtraMetadata.get("question_text") if isinstance(ExtraMetadata, dict) else None
         DisplaySectionTitle = SectionTitle or Config.DpsTitle
