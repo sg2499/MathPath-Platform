@@ -6819,46 +6819,70 @@ html.dark .math-login-tabs .math-login-tab:not([aria-selected="true"]):hover {
   }
 
   .math-login-tabs {
-    margin-bottom: 0.5rem !important;
+    margin-bottom: 0.4rem !important;
     padding: 0.3rem !important;
   }
 
   .math-login-tabs .math-login-tab {
-    min-height: 2.4rem !important;
-    padding: 0.4rem 0.35rem !important;
+    min-height: 2.2rem !important;
+    padding: 0.3rem 0.3rem !important;
   }
 
   .math-login-form-heading {
-    margin-top: 0.15rem !important;
-    font-size: clamp(1.6rem, 8vh, 2.1rem) !important;
+    margin-top: 0.1rem !important;
+    font-size: clamp(1.4rem, 7vh, 1.9rem) !important;
+    line-height: 1.1 !important;
   }
 
   .math-login-form-subtitle {
-    margin-top: 0.25rem !important;
-    line-height: 1.3 !important;
+    margin-top: 0.2rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
   }
 
   .math-login-card {
-    margin-top: 0.6rem !important;
-    padding: 0.7rem !important;
+    margin-top: 0.45rem !important;
+    padding: 0.55rem !important;
   }
 
   .math-login-card > * + * {
-    margin-top: 0.5rem !important;
+    margin-top: 0.4rem !important;
+  }
+
+  /* Label text and the label-to-input gap are untouched by every other tier above this
+     one - real, measured space that's free to reclaim once a device is this height-tight. */
+  .math-login-card label.math-label {
+    font-size: 0.75rem !important;
   }
 
   .math-login-card .math-input {
-    min-height: 2.5rem !important;
+    margin-top: 0.3rem !important;
+    min-height: 2.3rem !important;
+  }
+
+  .math-login-card .relative.mt-2 {
+    margin-top: 0.3rem !important;
   }
 
   .math-button-primary {
-    min-height: 2.5rem !important;
+    min-height: 2.3rem !important;
+  }
+
+  /* "Forgot Password?" help line: still present and legible, just no longer sized for a
+     tall viewport it doesn't have. */
+  .math-login-card > *:last-child {
+    padding-top: 0.35rem !important;
+  }
+
+  .math-login-card > *:last-child p {
+    font-size: 0.7rem !important;
+    line-height: 1.2 !important;
   }
 
   .math-login-status {
-    margin-top: 0.5rem !important;
-    padding-top: 0.35rem !important;
-    padding-bottom: 0.35rem !important;
+    margin-top: 0.4rem !important;
+    padding-top: 0.3rem !important;
+    padding-bottom: 0.3rem !important;
   }
 }
 
@@ -6912,42 +6936,97 @@ html.dark .math-login-tabs .math-login-tab:not([aria-selected="true"]):hover {
   }
 
   .math-login-form-zone {
-    padding-top: 0.6rem !important;
-    padding-bottom: 0.6rem !important;
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
   }
 
   .math-login-mobile-header {
-    margin-bottom: 0.5rem !important;
+    margin-bottom: 0.4rem !important;
+  }
+
+  /* Landscape is width-rich but height-starved, so the logo box (not any text) has to be
+     the row's height ceiling. That only works if the tagline line under the wordmark is
+     dropped too - otherwise the two-line text stack would end up taller than the shrunk
+     logo and the row height wouldn't actually shrink with it. */
+  .math-login-mobile-brand > div:first-child {
+    padding: 0.25rem 0.4rem !important;
+  }
+
+  .math-login-mobile-brand img {
+    height: 1.7rem !important;
+  }
+
+  .math-login-mobile-brand p:last-child {
+    display: none;
+  }
+
+  .math-login-theme-toggle {
+    min-height: 1.9rem !important;
+    padding: 0.25rem 0.55rem !important;
   }
 
   .math-login-tabs {
-    margin-bottom: 0.5rem !important;
-    padding: 0.3rem !important;
+    margin-bottom: 0.35rem !important;
+    padding: 0.25rem !important;
   }
 
   .math-login-tabs .math-login-tab {
-    min-height: 2.35rem;
-    padding: 0.35rem;
+    min-height: 1.95rem;
+    padding: 0.25rem;
     font-size: 0.72rem;
   }
 
   .math-login-form-heading {
-    margin-top: 0.35rem !important;
-    font-size: clamp(1.5rem, 8vh, 2.1rem) !important;
+    margin-top: 0.2rem !important;
+    font-size: 1.35rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .math-login-form-subtitle {
+    margin-top: 0.15rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1.15 !important;
   }
 
   .math-login-card {
-    margin-top: 0.55rem !important;
-    padding: 0.7rem !important;
+    margin-top: 0.35rem !important;
+    padding: 0.45rem !important;
+  }
+
+  .math-login-card > * + * {
+    margin-top: 0.3rem !important;
+  }
+
+  .math-login-card label.math-label {
+    font-size: 0.72rem !important;
   }
 
   .math-login-card .math-input {
-    min-height: 2.5rem !important;
+    margin-top: 0.25rem !important;
+    min-height: 2.2rem !important;
+  }
+
+  .math-login-card .relative.mt-2 {
+    margin-top: 0.25rem !important;
+  }
+
+  .math-button-primary {
+    min-height: 2.2rem !important;
+  }
+
+  .math-login-card > *:last-child {
+    padding-top: 0.3rem !important;
+  }
+
+  .math-login-card > *:last-child p {
+    font-size: 0.68rem !important;
+    line-height: 1.15 !important;
   }
 
   .math-login-status {
-    margin-top: 0.5rem !important;
-    padding-top: 0.35rem !important;
+    margin-top: 0.35rem !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
   }
 }
 
