@@ -7,6 +7,7 @@ and the generator retries with a fresh seed if a check fails.
 from decimal import Decimal
 
 from app.question_engine.im.config import IMConfig, IsImConceptSupported
+from app.question_engine.im.operands import TruncateThenRoundQuotient
 
 
 def _IsNumericText(Value: object) -> bool:
@@ -38,12 +39,20 @@ def _ValidateMultiplication(Operands: list, Operators: list[str], CorrectAnswer:
     return Left > 0 and Right > 0 and CorrectAnswer == Left * Right
 
 
-def _ValidateDivision(Operands: list, Operators: list[str], CorrectAnswer: Decimal) -> bool:
+def _ValidateDivision(Config: IMConfig, Operands: list, Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if len(Operands) != 2 or Operators != ["", "÷"]:
         return False
     Dividend, Divisor = Decimal(str(Operands[0])), Decimal(str(Operands[1]))
     if Divisor <= 0:
         return False
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    if bool(GeneratorConfig.get("isLongDivisionEstimation")):
+        # This concept requires a genuine remainder (see operands.py's
+        # _GenerateLongDivisionEstimationPair) and the answer is the rounded
+        # quotient, not the exact one -- mirror both rules here.
+        if Dividend % Divisor == 0:
+            return False
+        return CorrectAnswer == TruncateThenRoundQuotient(Dividend / Divisor)
     return CorrectAnswer == Dividend / Divisor
 
 
@@ -105,7 +114,7 @@ def ValidateImQuestion(Config: IMConfig, Operands: list, Operators: list[str], C
     if ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION":
         return _ValidateMultiplication(Operands, Operators, CorrectAnswer)
     if ConceptFamily == "WHOLE_NUMBER_DIVISION":
-        return _ValidateDivision(Operands, Operators, CorrectAnswer)
+        return _ValidateDivision(Config, Operands, Operators, CorrectAnswer)
     if ConceptFamily == "SQUARES":
         return _ValidateSquares(Operands, Operators, CorrectAnswer)
     if ConceptFamily == "SKILL_STACKER":

@@ -20,7 +20,7 @@ not Master Module's wider "MASTER" ranges.
 """
 
 import random
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 
 from app.question_engine.im.config import IMConfig
 
@@ -163,43 +163,104 @@ def GenerateWholeNumberMultiplication(Config: IMConfig, Rng: random.Random, Ques
     }
 
 
+def TruncateThenRoundQuotient(ExactQuotient: Decimal) -> Decimal:
+    """The "Long Division & Estimation" rounding rule (Shailesh's spec,
+    2026-07-15): a student works the division out by hand to 3 decimal places
+    -- truncated, not rounded, since that's the literal next digit long
+    division produces -- then rounds that 3-decimal figure to 2 decimal places
+    using the standard rule on the 3rd decimal digit (< 5 rounds down, >= 5
+    rounds up). Worked example: 415 / 7 = 59.285714... -> truncate to 59.285
+    -> 3rd decimal is 5 -> rounds up to 59.29. Exported (no leading
+    underscore) because im/validators.py needs the exact same rounding to
+    check a submitted answer.
+    """
+    ThreeDecimalPlaces = ExactQuotient.quantize(Decimal("0.001"), rounding=ROUND_DOWN)
+    return ThreeDecimalPlaces.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _GenerateLongDivisionEstimationPair(
+    Rng: random.Random, DividendMin: int, DividendMax: int, DivisorMin: int, DivisorMax: int,
+) -> tuple[int, int]:
+    """Long Division & Estimation is a distinct concept from plain division:
+    the whole point is practicing long division out to a remainder and
+    rounding the result (see TruncateThenRoundQuotient), so -- unlike plain
+    division -- the dividend must NOT divide evenly. Digit-pattern-agnostic on
+    purpose (works for 3D/1D, 4D/1D today, and any future digit pattern or
+    level whose curriculum map sets isLongDivisionEstimation=True) -- callers
+    control the exact digit ranges, this only enforces "has a remainder."
+    """
+    Divisor = max(DivisorMin, 2)
+    Dividend = min(DividendMax, max(DividendMin, Divisor + 1))
+    if Dividend % Divisor == 0:
+        Dividend = min(DividendMax, Dividend + 1)
+
+    for _Attempt in range(120):
+        CandidateDivisor = Rng.randint(DivisorMin, DivisorMax)
+        if CandidateDivisor <= 1:
+            continue
+        CandidateDividend = Rng.randint(DividendMin, DividendMax)
+        if CandidateDividend % CandidateDivisor == 0:
+            continue  # exact division defeats the purpose of this concept
+        if _IsTrivial(CandidateDividend):
+            continue
+        Divisor, Dividend = CandidateDivisor, CandidateDividend
+        break
+
+    return Dividend, Divisor
+
+
 def GenerateWholeNumberDivision(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
-    """Reproduces the workbook's own dividend-generation strategy from first
-    principles: pick a divisor within its digit range, then pick a quotient
-    that keeps the dividend inside its own digit range, and multiply --
-    guaranteeing a clean, remainder-free division every time, exactly the way
-    LEVEL 8.xlsx's own RANDBETWEEN-driven cells do it.
+    """Plain division reproduces the workbook's own dividend-generation
+    strategy from first principles: pick a divisor within its digit range,
+    then pick a quotient that keeps the dividend inside its own digit range,
+    and multiply -- guaranteeing a clean, remainder-free division every time,
+    exactly the way LEVEL 8.xlsx's own RANDBETWEEN-driven cells do it.
+
+    Long Division & Estimation (isLongDivisionEstimation=True, currently the
+    3D/1D and 4D/1D sections per curriculum_map.py's _DIV() calls) is
+    deliberately different: the dividend must NOT divide evenly, and the
+    answer is the quotient rounded per TruncateThenRoundQuotient rather than
+    a whole number. See that function's docstring for the exact rule and
+    worked example (Shailesh, 2026-07-15).
     """
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
     DividendDigits, DivisorDigits = GeneratorConfig.get("divisionDigits") or (4, 2)
     DivisorMin, DivisorMax = _DigitRange(int(DivisorDigits))
     DividendMin, DividendMax = _DigitRange(int(DividendDigits))
+    IsLongDivisionEstimation = bool(GeneratorConfig.get("isLongDivisionEstimation"))
 
-    Divisor = max(DivisorMin, 2)
-    Quotient = max(DividendMin // Divisor, 2)
-    Dividend = Divisor * Quotient
-
-    for _Attempt in range(120):
-        Divisor = Rng.randint(DivisorMin, DivisorMax)
-        if Divisor <= 1:
-            continue
-        MinQuotient = max(2, -(-DividendMin // Divisor))
-        MaxQuotient = DividendMax // Divisor
-        if MinQuotient > MaxQuotient:
-            continue
-        Quotient = Rng.randint(MinQuotient, MaxQuotient)
+    if IsLongDivisionEstimation:
+        Dividend, Divisor = _GenerateLongDivisionEstimationPair(
+            Rng, DividendMin, DividendMax, DivisorMin, DivisorMax
+        )
+        CorrectAnswer = TruncateThenRoundQuotient(Decimal(Dividend) / Decimal(Divisor))
+    else:
+        Divisor = max(DivisorMin, 2)
+        Quotient = max(DividendMin // Divisor, 2)
         Dividend = Divisor * Quotient
-        if DividendMin <= Dividend <= DividendMax and not _IsTrivial(Dividend):
-            break
 
-    CorrectAnswer = Decimal(Quotient)
+        for _Attempt in range(120):
+            Divisor = Rng.randint(DivisorMin, DivisorMax)
+            if Divisor <= 1:
+                continue
+            MinQuotient = max(2, -(-DividendMin // Divisor))
+            MaxQuotient = DividendMax // Divisor
+            if MinQuotient > MaxQuotient:
+                continue
+            Quotient = Rng.randint(MinQuotient, MaxQuotient)
+            Dividend = Divisor * Quotient
+            if DividendMin <= Dividend <= DividendMax and not _IsTrivial(Dividend):
+                break
+
+        CorrectAnswer = Decimal(Quotient)
+
     # See the comment in GenerateWholeNumberMultiplication: no question_text on
     # purpose, so the frontend builds "2236 ÷ 52 = ?" from operands instead of
     # displaying a bare "Division" label.
     return [Dividend, Divisor], ["", "÷"], CorrectAnswer, {
         "dividend_digits": int(DividendDigits),
         "divisor_digits": int(DivisorDigits),
-        "is_long_division_estimation": bool(GeneratorConfig.get("isLongDivisionEstimation")),
+        "is_long_division_estimation": IsLongDivisionEstimation,
     }
 
 

@@ -4,10 +4,11 @@ This file is a snapshot, not a log — the active Claude Code session **overwrit
 
 ## Current
 
-- **Updated:** 2026-07-14 (Cowork — IM Level 4 assessments/competition-mock wiring, equal-distribution + mock-studio layout fix, MM/IM level-registry robustness, and a full repo-wide branch/ref hygiene cleanup, all delivered end to end)
-- **Status:** IDLE. Nothing in progress, nothing pending. PR #326/#328/#329 all live in production; branch cleanup complete and confirmed clean.
-- **Task:** none in progress. Ready for next task. Top candidate for tomorrow: visual verification of the mock-studio preview (BODMAS rendering + even concept distribution) — not yet eyeballed, only verified programmatically.
-- **Blocked on:** nothing. Two harmless leftover files (`BRANCH_CLEANUP_AUDIT_20260714.md`, `cleanup-stale-branches.ps1`) still need a manual delete by Shailesh — Cowork's sandbox can't write/delete in this OneDrive-mounted folder.
+- **Updated:** 2026-07-15 (Cowork — IM "Long Division & Estimation" concept fix, prepared not delivered)
+- **Status:** PREPARED, NOT DELIVERED. Code changes are in the working tree; this Cowork sandbox cannot verify (stale-bash-mount issue, same as most prior rounds) or push/PR/merge.
+- **Task:** Fixed `GenerateWholeNumberDivision()` (`backend/app/question_engine/im/operands.py`) so IM's 3D/1D and 4D/1D "Long Division & Estimation" sections generate a genuine remainder and round the quotient (truncate to 3 decimals, round to 2 on the 3rd digit) instead of the old always-exact division. Updated `_ValidateDivision()` to match. Added two new scripts: `verify_long_division_estimation.py` (standalone, no DB, run first) and `diagnose_and_fix_long_division_estimation.py` (`--dry-run`/`--apply`, needs production `DATABASE_URL`, finds existing affected DPS/assessment/mock content). Full detail in `COWORK_HANDOFF.md`'s 2026-07-15 round-2 entry and `OPEN_ISSUES.md`.
+- **Progress:** `verify_long_division_estimation.py` run for real — caught and fixed one bug (`ROUND_DOWN` missing import), then passed clean 21/21. Diagnostic script (`diagnose_and_fix_long_division_estimation.py --dry-run`) run for real against production twice: first run had its own bug (competition-mock filter used the wrong naming convention), fixed to use the metadata flag instead; second run came back 0 affected rows across DPS/assessments/mocks -- genuinely correct, since Shailesh deleted the old draft mocks (`IM_01`, `Srijan Practice`) that had the bug, and no student attempts exist yet on this concept. **Nothing to backfill.**
+- **Blocked on:** real `pytest`/typecheck/build via qa-reviewer, then sre-devops delivers (commit/push/PR/CI/merge). No backfill decision pending anymore.
 
 ## Last completed milestone
 
