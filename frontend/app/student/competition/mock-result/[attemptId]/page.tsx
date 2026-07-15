@@ -175,6 +175,18 @@ function sectionAnchorKey(
     .replace(/(^-|-$)/g, "")}`;
 }
 
+// The section title persisted at generation time already has its own real
+// section number baked in (e.g. "Section 7 - Positional and Placement"),
+// while this page separately renders the renumbered display number (1, 2...
+// with gaps closed for whatever sections a level omits) right next to it.
+// Concatenating the two produced "Section 1 - Section 7 - Positional and
+// Placement". Stripping any leading "Section <n> -" here mirrors the same
+// cleanup Mock Studio already does (getCleanMmSectionName) so only one,
+// correct section number is ever shown.
+function stripSectionNumberPrefix(title: string): string {
+  return title.replace(/^section\s*\d+\s*[-–—:]\s*/i, "").trim();
+}
+
 type ResultTab = "questions" | "analysis";
 
 export default function StudentCompetitionMockResultPage() {
@@ -482,9 +494,10 @@ function QuestionReviewTab({
     }> = [];
 
     questions.forEach((question) => {
-      const title =
+      const rawTitle =
         question.sectionTitle || question.concept || "Competition Mock";
-      const key = sectionAnchorKey(title, question.sectionNumber);
+      const title = stripSectionNumberPrefix(rawTitle);
+      const key = sectionAnchorKey(rawTitle, question.sectionNumber);
       const existing = groups.find((group) => group.key === key);
       if (existing) {
         existing.questions.push(question);
@@ -559,7 +572,7 @@ function QuestionReviewTab({
                             Section {question.sectionNumber || "-"}
                           </span>
                           <span className="math-badge border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] text-[var(--mp-role-readable)]">
-                            {question.sectionTitle || "Competition Mock"}
+                            {stripSectionNumberPrefix(question.sectionTitle || "Competition Mock")}
                           </span>
                         </div>
                       </div>
