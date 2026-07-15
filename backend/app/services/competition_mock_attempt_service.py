@@ -42,11 +42,20 @@ MM_COMPETITION_SECTION_TITLES: dict[int, str] = {
 
 
 def _competition_section_title(question: CompetitionMockQuestion) -> str:
+    # The generator (competition_mock_generation_service.py) persists the correct,
+    # module-specific title on every question at creation time for both MM and IM
+    # mocks. MM_COMPETITION_SECTION_TITLES below is a legacy fallback for older rows
+    # that predate that persisted title - it must never win over the real value,
+    # since its section numbers 1-10 are MM-specific and collide with IM's own
+    # 1-8 numbering (e.g. IM section 7 "Positional and Placement" was being
+    # overwritten with MM section 7 "Cubes and Cube Roots").
+    if question.section_title:
+        return question.section_title
     try:
         section_number = int(question.section_number or 0)
     except Exception:
         section_number = 0
-    return MM_COMPETITION_SECTION_TITLES.get(section_number) or question.section_title or "Competition Mock"
+    return MM_COMPETITION_SECTION_TITLES.get(section_number) or "Competition Mock"
 
 
 def _section_display_number_map(real_section_numbers: Any) -> dict[int, int]:
@@ -85,7 +94,10 @@ def _section_performance_from_review(review: list[dict[str, Any]]) -> tuple[list
             section_number = int(question.get("sectionNumber") or 0)
         except Exception:
             section_number = 0
-        section_title = MM_COMPETITION_SECTION_TITLES.get(section_number) or question.get("sectionTitle") or "Competition Mock"
+        # See _competition_section_title() above: the persisted per-question title
+        # is always correct and module-specific; the fixed MM dict is only a
+        # legacy fallback and must not override it.
+        section_title = question.get("sectionTitle") or MM_COMPETITION_SECTION_TITLES.get(section_number) or "Competition Mock"
         bucket = section_totals.setdefault(
             section_number,
             {"concept": section_title, "sectionNumber": section_number, "correct": 0, "total": 0, "percentage": 0.0},
