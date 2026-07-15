@@ -551,7 +551,7 @@ export default function LoginClient({
               {RoleLabel(ActiveTab)} Login
             </h2>
 
-            <p className="mt-1.5 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
+            <p className="math-login-form-subtitle mt-1.5 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
               {Active.Promise}
             </p>
 
