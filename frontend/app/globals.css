@@ -1619,6 +1619,18 @@ html.dark .math-login-frame {
   backdrop-filter: blur(18px);
 }
 
+/* The logo card sits over the deliberately near-black "from" corner of every role's
+   story-panel gradient (from-slate-950 / from-rose-950 / #2B102D) - the shared 16%-white
+   glass background above is nowhere near enough to lift that, so the card reads as a dark
+   smudge behind the crisp white logo box rather than a clean lockup. Brightened and
+   lightened just for this one card - the other glass surfaces above sit over brighter,
+   mid-gradient parts of the panel and don't have this problem. */
+.math-login-logo-card {
+  background: rgba(255, 255, 255, 0.38) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.10), inset 0 1px 0 rgba(255,255,255,0.34) !important;
+}
+
 .math-login-feature {
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.08));
