@@ -4,6 +4,7 @@ import { login, warmupAuthApi } from "@/lib/api/auth";
 import { apiErrorMessage } from "@/lib/api";
 import { defaultRouteForRole, setActiveRole, setAuth } from "@/lib/auth";
 import type { CurrentUser, UserRole } from "@/types/auth";
+import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -433,39 +434,50 @@ export default function LoginClient({
               </a>
             </div>
 
-            <div className="math-login-story-copy shrink-0">
-              <div className="flex">
-                <div className="math-login-eyebrow inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.18em] text-white/94">
-                  {Active.Icon}
-                  {Active.Eyebrow}
-                </div>
-              </div>
-
-              <h1
-                className="math-login-story-headline mt-4 max-w-3xl text-[2.25rem] font-extrabold leading-[1.02] tracking-[-0.035em] xl:text-[2.95rem] 2xl:text-[3.35rem]"
-                style={{
-                  fontFamily:
-                    '"Inter", "Manrope", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                }}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={ActiveTab}
+                className="shrink-0"
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
               >
-                {Active.Headline}
-              </h1>
+                <div className="math-login-story-copy">
+                  <div className="flex">
+                    <div className="math-login-eyebrow inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.18em] text-white/94">
+                      {Active.Icon}
+                      {Active.Eyebrow}
+                    </div>
+                  </div>
 
-              <p className="math-login-story-description mt-2.5 max-w-3xl text-sm leading-6 text-white/91 xl:text-[0.98rem] xl:leading-7">
-                {Active.Description}
-              </p>
-            </div>
+                  <h1
+                    className="math-login-story-headline mt-4 max-w-3xl text-[2.25rem] font-extrabold leading-[1.02] tracking-[-0.035em] xl:text-[2.95rem] 2xl:text-[3.35rem]"
+                    style={{
+                      fontFamily:
+                        '"Inter", "Manrope", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                    }}
+                  >
+                    {Active.Headline}
+                  </h1>
 
-            <div className="math-login-feature-grid grid shrink-0 gap-4 sm:grid-cols-2">
-              {Active.Features.map((FeatureItem) => (
-                <Feature
-                  key={FeatureItem.Title}
-                  Icon={FeatureItem.Icon}
-                  Title={FeatureItem.Title}
-                  Desc={FeatureItem.Desc}
-                />
-              ))}
-            </div>
+                  <p className="math-login-story-description mt-2.5 max-w-3xl text-sm leading-6 text-white/91 xl:text-[0.98rem] xl:leading-7">
+                    {Active.Description}
+                  </p>
+                </div>
+
+                <div className="math-login-feature-grid grid gap-4 sm:grid-cols-2">
+                  {Active.Features.map((FeatureItem) => (
+                    <Feature
+                      key={FeatureItem.Title}
+                      Icon={FeatureItem.Icon}
+                      Title={FeatureItem.Title}
+                      Desc={FeatureItem.Desc}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </section>
 
@@ -485,7 +497,7 @@ export default function LoginClient({
                 className="math-login-mobile-brand flex items-center gap-3 rounded-2xl transition duration-200 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-white/70 lg:hidden"
                 aria-label="Open MathPath website"
               >
-                <div className="rounded-2xl bg-white px-3 py-2.5 shadow-md dark:bg-slate-900">
+                <div className="rounded-2xl bg-white px-3 py-2.5 shadow-md">
                   <Image
                     src="/mathpath-logo.png"
                     alt="MathPath logo"
@@ -545,16 +557,26 @@ export default function LoginClient({
               })}
             </div>
 
-            <h2
-              id="mathpath-login-heading"
-              className="math-login-form-heading mt-1 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl"
-            >
-              {RoleLabel(ActiveTab)} Login
-            </h2>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={ActiveTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <h2
+                  id="mathpath-login-heading"
+                  className="math-login-form-heading mt-1 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl"
+                >
+                  {RoleLabel(ActiveTab)} Login
+                </h2>
 
-            <p className="math-login-form-subtitle mt-1.5 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
-              {Active.Promise}
-            </p>
+                <p className="math-login-form-subtitle mt-1.5 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
+                  {Active.Promise}
+                </p>
+              </motion.div>
+            </AnimatePresence>
 
             <form
               id="mathpath-login-panel"
