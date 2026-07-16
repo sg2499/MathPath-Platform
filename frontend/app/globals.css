@@ -6933,23 +6933,25 @@ html.dark .math-login-tabs .math-login-tab:not([aria-selected="true"]):hover {
   .math-login-shell {
     /* !important so this deterministically wins over the shell's own responsive
        py-* Tailwind classes - this tier needs every pixel it can get, so the frame's
-       matching height subtraction below has to be able to trust this value exactly. */
-    padding-top: max(0.5rem, env(safe-area-inset-top)) !important;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
+       matching height subtraction below has to be able to trust this value exactly.
+       Trimmed from 0.5rem: safe-area devices are unaffected (the max() still protects
+       them), this only reclaims space on the CI/simulator case that has none. */
+    padding-top: max(0.35rem, env(safe-area-inset-top)) !important;
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom)) !important;
   }
 
   .math-login-frame {
-    height: calc(100dvh - 1rem) !important;
-    max-height: calc(100dvh - 1rem) !important;
+    height: calc(100dvh - 0.7rem) !important;
+    max-height: calc(100dvh - 0.7rem) !important;
   }
 
   .math-login-form-zone {
-    padding-top: 0.3rem !important;
-    padding-bottom: 0.3rem !important;
+    padding-top: 0.2rem !important;
+    padding-bottom: 0.2rem !important;
   }
 
   .math-login-mobile-header {
-    margin-bottom: 0.3rem !important;
+    margin-bottom: 0.2rem !important;
   }
 
   /* Landscape is width-rich but height-starved, so the logo box (not any text) has to be
@@ -6957,84 +6959,102 @@ html.dark .math-login-tabs .math-login-tab:not([aria-selected="true"]):hover {
      dropped too - otherwise the two-line text stack would end up taller than the shrunk
      logo and the row height wouldn't actually shrink with it. */
   .math-login-mobile-brand > div:first-child {
-    padding: 0.15rem 0.35rem !important;
+    padding: 0.1rem 0.3rem !important;
   }
 
   .math-login-mobile-brand img {
-    height: 1.2rem !important;
+    height: 1.05rem !important;
   }
 
   .math-login-mobile-brand p:last-child {
     display: none;
   }
 
+  /* The real, measured gap CI caught: this "MathPath" wordmark line was never resized for
+     this tier, so it kept the shared text-lg utility's line-height (28px) - taller than the
+     shrunk logo box beside it, meaning the text (not the logo) was silently setting the
+     header row's actual height. Shrinking it down means the logo becomes the row's real
+     ceiling again, which is what every measurement above already assumed was true. */
+  .math-login-mobile-brand p:first-child {
+    font-size: 0.7rem !important;
+    line-height: 1.05 !important;
+  }
+
   .math-login-theme-toggle {
-    min-height: 1.6rem !important;
-    padding: 0.15rem 0.5rem !important;
+    min-height: 1.3rem !important;
+    padding: 0.08rem 0.4rem !important;
   }
 
   .math-login-tabs {
-    margin-bottom: 0.25rem !important;
-    padding: 0.18rem !important;
+    margin-bottom: 0.16rem !important;
+    padding: 0.12rem !important;
   }
 
   .math-login-tabs .math-login-tab {
-    min-height: 1.5rem;
-    padding: 0.18rem;
-    font-size: 0.7rem;
+    min-height: 1.2rem !important;
+    padding: 0.12rem !important;
+    font-size: 0.66rem !important;
+  }
+
+  /* The role icon inside each tab is a fixed-pixel SVG (rendered at size=18 regardless of
+     breakpoint) - untouched by any text/padding override above, so at this tier it was
+     quietly forcing the tab row taller than its own min-height. */
+  .math-login-tab-icon svg {
+    width: 0.8rem !important;
+    height: 0.8rem !important;
   }
 
   .math-login-form-heading {
-    margin-top: 0.08rem !important;
-    font-size: 1.15rem !important;
+    margin-top: 0.04rem !important;
+    font-size: 1.02rem !important;
     line-height: 1.05 !important;
   }
 
   .math-login-form-subtitle {
-    margin-top: 0.08rem !important;
-    font-size: 0.65rem !important;
+    margin-top: 0.04rem !important;
+    font-size: 0.58rem !important;
     line-height: 1.05 !important;
   }
 
   .math-login-card {
-    margin-top: 0.22rem !important;
-    padding: 0.28rem !important;
+    margin-top: 0.13rem !important;
+    padding: 0.18rem !important;
   }
 
   .math-login-card > * + * {
-    margin-top: 0.2rem !important;
+    margin-top: 0.12rem !important;
   }
 
   .math-login-card label.math-label {
-    font-size: 0.65rem !important;
+    font-size: 0.6rem !important;
   }
 
   .math-login-card .math-input {
-    margin-top: 0.18rem !important;
-    min-height: 1.85rem !important;
+    margin-top: 0.12rem !important;
+    min-height: 1.6rem !important;
   }
 
   .math-login-card .relative.mt-2 {
-    margin-top: 0.18rem !important;
+    margin-top: 0.12rem !important;
   }
 
   .math-button-primary {
-    min-height: 1.85rem !important;
+    min-height: 1.6rem !important;
   }
 
   .math-login-card > *:last-child {
-    padding-top: 0.2rem !important;
+    padding-top: 0.12rem !important;
   }
 
   .math-login-card > *:last-child p {
-    font-size: 0.6rem !important;
+    font-size: 0.55rem !important;
     line-height: 1.05 !important;
   }
 
   .math-login-status {
-    margin-top: 0.22rem !important;
-    padding-top: 0.18rem !important;
-    padding-bottom: 0.18rem !important;
+    margin-top: 0.13rem !important;
+    padding-top: 0.12rem !important;
+    padding-bottom: 0.12rem !important;
   }
 }
 
