@@ -1505,6 +1505,29 @@ html.dark .math-login-shell {
     linear-gradient(135deg, #030815 0%, #071225 48%, #090f1d 100%);
 }
 
+/* Abacus-rail motif: thin horizontal "rods" every 64px with small "bead" dots at 32px
+   spacing, referencing the "Visual Abacus Mastery" tagline instead of a generic pattern.
+   (This class was previously referenced in the login JSX with no matching rule at all —
+   it rendered as an inert, invisible div. Giving it real content fixes that too.) */
+.math-grid-dots {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(15, 23, 42, 0.07) 0px, rgba(15, 23, 42, 0.07) 1.5px, transparent 1.5px, transparent 64px),
+    radial-gradient(circle, rgba(37, 99, 235, 0.16) 1.6px, transparent 1.6px);
+  background-size: 100% 64px, 32px 32px;
+  background-position: 0 0, 16px 32px;
+}
+
+html.dark .math-grid-dots {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(148, 163, 184, 0.10) 0px, rgba(148, 163, 184, 0.10) 1.5px, transparent 1.5px, transparent 64px),
+    radial-gradient(circle, rgba(56, 189, 248, 0.18) 1.6px, transparent 1.6px);
+  background-size: 100% 64px, 32px 32px;
+  background-position: 0 0, 16px 32px;
+}
+
+/* Ambient glow is tied to the active role's own palette (--mp-role-*, set by
+   .math-login-role-admin/teacher/student) instead of a fixed blue/purple/cyan trio that
+   used to render the same way regardless of which role was selected. */
 .math-login-aura {
   position: absolute;
   border-radius: 9999px;
@@ -1517,7 +1540,7 @@ html.dark .math-login-shell {
   top: -16rem;
   height: 42rem;
   width: 42rem;
-  background: rgba(99, 102, 241, 0.20);
+  background: color-mix(in srgb, var(--mp-role-primary, #6366f1) 26%, transparent);
 }
 
 .math-login-aura-two {
@@ -1525,30 +1548,39 @@ html.dark .math-login-shell {
   right: -16rem;
   height: 46rem;
   width: 46rem;
-  background: rgba(6, 182, 212, 0.20);
+  background: color-mix(in srgb, var(--mp-role-secondary, #06b6d4) 24%, transparent);
 }
 
-.math-login-aura-three {
-  right: 18%;
-  top: 6%;
-  height: 20rem;
-  width: 20rem;
-  background: rgba(168, 85, 247, 0.15);
-}
+html.dark .math-login-aura-one { background: color-mix(in srgb, var(--mp-role-primary, #22d3ee) 16%, transparent); }
+html.dark .math-login-aura-two { background: color-mix(in srgb, var(--mp-role-secondary, #2563eb) 18%, transparent); }
 
-html.dark .math-login-aura-one { background: rgba(34, 211, 238, 0.11); }
-html.dark .math-login-aura-two { background: rgba(37, 99, 235, 0.14); }
-html.dark .math-login-aura-three { background: rgba(139, 92, 246, 0.13); }
-
+/* "Orbit" rings double as a literal nod to the product name: a bead riding a rail on a
+   path. Ring color follows the active role; the centered dot is the "bead". */
 .math-login-orbit {
   position: absolute;
   height: 13rem;
   width: 13rem;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  box-shadow: inset 0 0 44px rgba(255, 255, 255, 0.12), 0 30px 80px rgba(37, 99, 235, 0.10);
+  border: 1px solid color-mix(in srgb, var(--mp-role-secondary, #ffffff) 45%, rgba(255, 255, 255, 0.34));
+  box-shadow: inset 0 0 44px rgba(255, 255, 255, 0.12), 0 30px 80px var(--mp-role-shadow, rgba(37, 99, 235, 0.10));
   opacity: 0.7;
   pointer-events: none;
+}
+
+.math-login-orbit-bead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.math-login-orbit-bead::after {
+  content: "";
+  height: 0.85rem;
+  width: 0.85rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--mp-role-accent, #f8fafc) 70%, white);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--mp-role-accent, #f8fafc) 60%, transparent);
+  transform: translate(5.6rem, -1.2rem);
 }
 
 .math-login-frame {
@@ -1580,8 +1612,6 @@ html.dark .math-login-frame {
 .math-login-theme-toggle,
 .math-login-tabs,
 .math-login-card,
-.math-login-promise,
-.math-login-mini-card,
 .math-login-mobile-brand {
   border: 1px solid rgba(255, 255, 255, 0.44);
   background: rgba(255, 255, 255, 0.16);
@@ -1607,8 +1637,6 @@ html.dark .math-login-form-zone {
 .math-login-theme-toggle,
 .math-login-tabs,
 .math-login-card,
-.math-login-promise,
-.math-login-mini-card,
 .math-login-mobile-brand {
   border-color: rgba(203, 213, 225, 0.72);
   background: rgba(255, 255, 255, 0.70);
@@ -1618,8 +1646,6 @@ html.dark .math-login-form-zone {
 html.dark .math-login-theme-toggle,
 html.dark .math-login-tabs,
 html.dark .math-login-card,
-html.dark .math-login-promise,
-html.dark .math-login-mini-card,
 html.dark .math-login-mobile-brand {
   border-color: rgba(71, 85, 105, 0.70);
   background: rgba(15, 23, 42, 0.62);
@@ -1631,29 +1657,77 @@ html.dark .math-login-mobile-brand {
   padding: 1.05rem;
 }
 
-.math-login-tab-active {
-  background: linear-gradient(135deg, #020617, #1d4ed8 58%, #06b6d4);
+/* Sliding role indicator: one element that carries the active role's color and glides
+   between the 3 equal-width tab columns via translateX, instead of each tab button
+   swapping its own background instantly. --tab-index is set inline from React state. */
+.math-login-tab-indicator {
+  --tab-count: 3;
+  --tab-gap: 0.5rem;
+  position: absolute;
+  top: 0.375rem;
+  bottom: 0.375rem;
+  left: 0.375rem;
+  width: calc((100% - 0.75rem - (var(--tab-count) - 1) * var(--tab-gap)) / var(--tab-count));
+  transform: translateX(calc(var(--tab-index, 0) * (100% + var(--tab-gap))));
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--mp-role-dark, #020617), var(--mp-role-primary, #1d4ed8) 54%, var(--mp-role-accent, #06b6d4));
+  box-shadow: 0 18px 42px var(--mp-role-shadow, rgba(37, 99, 235, 0.26)), inset 0 1px 0 rgba(255,255,255,0.20);
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
-html.dark .math-login-tab-active {
-  background: linear-gradient(135deg, #ffffff, #dbeafe 58%, #bae6fd);
+html.dark .math-login-tab-indicator {
+  box-shadow: 0 18px 42px var(--mp-role-shadow, rgba(37, 99, 235, 0.26)), inset 0 1px 0 rgba(255,255,255,0.12);
 }
 
-.math-login-welcome-chip {
-  border: 1px solid rgba(37, 99, 235, 0.14);
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(6, 182, 212, 0.10));
-  color: #1d4ed8;
-  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.08);
+@media (prefers-reduced-motion: reduce) {
+  .math-login-tab-indicator { transition: none; }
 }
 
-html.dark .math-login-welcome-chip {
-  border-color: rgba(34, 211, 238, 0.20);
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.10), rgba(99, 102, 241, 0.12));
-  color: #a5f3fc;
+/* Connection-status line: replaces the old static "MathPath Promise" callout (which just
+   repeated the tagline already shown in the brand panel) and the 3 generic mini-cards
+   (Role-Based / Secure Access / Premium Flow, which said nothing role- or state-specific).
+   This surfaces the real, already-computed auth warm-up state instead of decoration. */
+.math-login-status {
+  color: color-mix(in srgb, var(--mp-role-primary, #475569) 70%, #475569);
 }
 
-.math-login-theme-toggle:hover,
-.math-login-mini-card:hover {
+html.dark .math-login-status {
+  color: color-mix(in srgb, var(--mp-role-secondary, #cbd5e1) 65%, #cbd5e1);
+}
+
+.math-login-status-dot {
+  height: 0.5rem;
+  width: 0.5rem;
+  border-radius: 9999px;
+  background: currentColor;
+}
+
+.math-login-status-ready .math-login-status-dot {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+}
+
+.math-login-status-preparing .math-login-status-dot,
+.math-login-status-working .math-login-status-dot {
+  background: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.18);
+  animation: math-login-status-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes math-login-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .math-login-status-preparing .math-login-status-dot,
+  .math-login-status-working .math-login-status-dot {
+    animation: none;
+  }
+}
+
+.math-login-theme-toggle:hover {
   transform: translateY(-1px);
   box-shadow: 0 20px 54px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255,255,255,0.84);
 }
@@ -2576,18 +2650,6 @@ html.dark .math-login-welcome-chip {
       radial-gradient(circle at 88% 8%, rgba(251,113,133,0.20), transparent 24%),
       radial-gradient(circle at 72% 100%, rgba(250,204,21,0.16), transparent 30%),
       linear-gradient(135deg, var(--page-bg-1), var(--page-bg-2) 48%, var(--page-bg-3));
-  }
-
-  .math-login-shell .math-login-tab-active {
-    background: linear-gradient(135deg, var(--mp-role-dark), var(--mp-role-primary) 54%, var(--mp-role-accent));
-    box-shadow: 0 18px 42px var(--mp-role-shadow), inset 0 1px 0 rgba(255,255,255,0.20);
-  }
-
-  .math-login-shell .math-login-welcome-chip {
-    border-color: color-mix(in srgb, var(--mp-role-primary) 18%, transparent);
-    background: linear-gradient(135deg, color-mix(in srgb, var(--mp-role-primary) 12%, transparent), color-mix(in srgb, var(--mp-role-secondary) 12%, transparent));
-    color: color-mix(in srgb, var(--mp-role-primary) 82%, #020617);
-    box-shadow: 0 12px 30px color-mix(in srgb, var(--mp-role-shadow) 50%, transparent);
   }
 
   .math-login-shell .math-button-primary {
@@ -5938,13 +6000,7 @@ html.dark .math-login-welcome-chip {
     .math-login-form-zone { padding-top: clamp(1rem, 2vh, 1.6rem) !important; padding-bottom: clamp(1rem, 2vh, 1.6rem) !important; }
     .math-login-tabs { margin-bottom: 0.8rem !important; }
     .math-login-card { margin-top: 0.85rem !important; padding: 0.95rem !important; }
-    .math-login-promise { margin-top: 0.85rem !important; }
-  }
-
-  @media (max-width: 1023px) {
-    .math-login-shell { overflow-y: auto !important; }
-    .math-login-frame { min-height: auto !important; }
-    .math-login-form-zone { min-height: calc(100svh - 1rem); overflow: visible !important; }
+    .math-login-status { margin-top: 0.6rem !important; }
   }
 
   @media (max-width: 760px) {
@@ -6388,8 +6444,12 @@ html.dark .math-modal-close-button:focus-visible {
 
   @media (min-width: 1024px) and (max-height: 860px) {
     .math-login-frame {
-      min-height: min(720px, calc(100svh - 2rem)) !important;
-      max-height: calc(100svh - 2rem) !important;
+      /* Subtract a generous 4rem instead of trying to track the shell's own responsive
+         py-4/sm:py-5/xl:py-6 padding growth exactly - the CI overflow failures on
+         desktop/tablet/landscape all traced back to this constant being too small at
+         wider breakpoints where the shell's real padding is bigger than assumed here. */
+      min-height: min(720px, calc(100svh - 4rem)) !important;
+      max-height: calc(100svh - 4rem) !important;
     }
 
     .math-login-story-content {
@@ -6404,7 +6464,7 @@ html.dark .math-modal-close-button:focus-visible {
     }
 
     .math-login-logo-card img {
-      height: clamp(3.15rem, 6.8vh, 3.8rem) !important;
+      height: clamp(3.9rem, 8vh, 4.7rem) !important;
     }
 
     .math-login-logo-card p:first-child {
@@ -6511,8 +6571,8 @@ html.dark .math-modal-close-button:focus-visible {
   }
 
   .math-login-logo-mark {
-    min-width: clamp(10.9rem, 12.7vw, 12.8rem) !important;
-    min-height: clamp(5.85rem, 6.35vw, 6.8rem) !important;
+    min-width: clamp(13rem, 15vw, 15.4rem) !important;
+    min-height: clamp(7rem, 7.6vw, 8.2rem) !important;
     padding: clamp(0.95rem, 1.12vw, 1.18rem) clamp(1.22rem, 1.55vw, 1.58rem) !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -6522,8 +6582,8 @@ html.dark .math-modal-close-button:focus-visible {
 
   .math-login-logo-mark img {
     width: 100% !important;
-    max-width: 82% !important;
-    max-height: clamp(3.75rem, 4.35vw, 4.45rem) !important;
+    max-width: 86% !important;
+    max-height: clamp(4.6rem, 5.3vw, 5.5rem) !important;
     object-fit: contain !important;
   }
 
@@ -6555,14 +6615,14 @@ html.dark .math-modal-close-button:focus-visible {
     }
 
     .math-login-logo-mark {
-      min-width: clamp(9.3rem, 11.6vw, 10.8rem) !important;
-      min-height: clamp(4.95rem, 5.9vw, 5.75rem) !important;
+      min-width: clamp(11rem, 13.5vw, 12.8rem) !important;
+      min-height: clamp(5.9rem, 6.9vw, 6.9rem) !important;
       padding: 0.86rem 1.15rem !important;
     }
 
     .math-login-logo-mark img {
-      max-width: 81% !important;
-      max-height: clamp(3.45rem, 4.25vw, 3.95rem) !important;
+      max-width: 84% !important;
+      max-height: clamp(4.15rem, 5vw, 4.75rem) !important;
     }
 
     .math-login-story-copy {
@@ -6575,10 +6635,13 @@ html.dark .math-modal-close-button:focus-visible {
   }
 }
 
-/* Phase 10.9 — Login role selector palette consistency */
+/* Phase 10.9 — Login role selector palette consistency.
+   The active state is now carried entirely by .math-login-tab-indicator (one sliding
+   element, colored from the active role's own CSS variables), so the tab buttons
+   themselves only need a text-color swap keyed off aria-selected — no more per-role
+   background classes duplicating the same 3 gradients twice (base + hover). */
 .math-login-tabs .math-login-tab {
   position: relative;
-  isolation: isolate;
   color: #475569;
 }
 
@@ -6586,51 +6649,16 @@ html.dark .math-login-tabs .math-login-tab {
   color: #cbd5e1;
 }
 
-.math-login-tabs .math-login-tab-active,
-html.dark .math-login-tabs .math-login-tab-active {
-  color: #ffffff !important;
+.math-login-tabs .math-login-tab[aria-selected="true"] {
+  color: #ffffff;
 }
 
-.math-login-tabs .math-login-tab-active.math-login-tab-admin,
-html.dark .math-login-tabs .math-login-tab-active.math-login-tab-admin {
-  background: linear-gradient(135deg, #020617, #2563eb 54%, #c026d3) !important;
-  box-shadow: 0 18px 42px rgba(37, 99, 235, 0.26), inset 0 1px 0 rgba(255,255,255,0.20);
+.math-login-tabs .math-login-tab:not([aria-selected="true"]):hover {
+  color: color-mix(in srgb, var(--mp-role-primary, #1d4ed8) 78%, #0f172a);
 }
 
-.math-login-tabs .math-login-tab-active.math-login-tab-teacher,
-html.dark .math-login-tabs .math-login-tab-active.math-login-tab-teacher {
-  background: linear-gradient(135deg, #2B102D, #6D2E5F 54%, #E6B8A2) !important;
-  box-shadow: 0 18px 42px rgba(109, 46, 95, 0.30), inset 0 1px 0 rgba(255,255,255,0.20);
-}
-
-.math-login-tabs .math-login-tab-active.math-login-tab-student,
-html.dark .math-login-tabs .math-login-tab-active.math-login-tab-student {
-  background: linear-gradient(135deg, #7f1d1d, #f97316 58%, #facc15) !important;
-  box-shadow: 0 18px 42px rgba(249, 115, 22, 0.25), inset 0 1px 0 rgba(255,255,255,0.20);
-}
-
-.math-login-tabs .math-login-tab:not(.math-login-tab-active):hover,
-html.dark .math-login-tabs .math-login-tab:not(.math-login-tab-active):hover {
-  color: #ffffff !important;
-  transform: translateY(-1px);
-}
-
-.math-login-tabs .math-login-tab-admin:not(.math-login-tab-active):hover,
-html.dark .math-login-tabs .math-login-tab-admin:not(.math-login-tab-active):hover {
-  background: linear-gradient(135deg, #020617, #2563eb 54%, #c026d3);
-  box-shadow: 0 14px 34px rgba(37, 99, 235, 0.24), inset 0 1px 0 rgba(255,255,255,0.18);
-}
-
-.math-login-tabs .math-login-tab-teacher:not(.math-login-tab-active):hover,
-html.dark .math-login-tabs .math-login-tab-teacher:not(.math-login-tab-active):hover {
-  background: linear-gradient(135deg, #2B102D, #6D2E5F 54%, #E6B8A2);
-  box-shadow: 0 14px 34px rgba(109, 46, 95, 0.28), inset 0 1px 0 rgba(255,255,255,0.18);
-}
-
-.math-login-tabs .math-login-tab-student:not(.math-login-tab-active):hover,
-html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):hover {
-  background: linear-gradient(135deg, #7f1d1d, #f97316 58%, #facc15);
-  box-shadow: 0 14px 34px rgba(249, 115, 22, 0.24), inset 0 1px 0 rgba(255,255,255,0.18);
+html.dark .math-login-tabs .math-login-tab:not([aria-selected="true"]):hover {
+  color: color-mix(in srgb, var(--mp-role-secondary, #bae6fd) 75%, #f8fafc);
 }
 
 /* Student login rollout hardening.
@@ -6650,9 +6678,13 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
 }
 
 .math-login-frame {
-  height: min(55.625rem, calc(100dvh - 2rem));
+  /* The shell around this frame uses responsive padding (py-4 / sm:py-5 / xl:py-6,
+     32px -> 40px -> 48px). Subtracting a flat 4rem (64px) here - rather than the 2rem
+     this used to assume - covers the largest real padding tier with margin to spare,
+     instead of relying on exact arithmetic that broke on desktop/tablet viewports in CI. */
+  height: min(55.625rem, calc(100dvh - 4rem));
   min-height: 0;
-  max-height: calc(100dvh - 2rem);
+  max-height: calc(100dvh - 4rem);
   overflow: hidden;
 }
 
@@ -6669,8 +6701,7 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
   -webkit-overflow-scrolling: touch;
 }
 
-.math-login-tab-label,
-.math-login-mini-card {
+.math-login-tab-label {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -6703,32 +6734,41 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
   }
 }
 
+/* Below 1024px the left "story" panel is hidden, so only the form column renders. It now
+   follows the same contract as desktop: the frame is hard-capped to the viewport height
+   (never taller than the screen), and the form column scrolls internally only if content
+   still doesn't fit — a real safety net, not the default mobile behavior. Previously this
+   breakpoint explicitly let the whole page grow past the viewport and scroll by design. */
 @media (max-width: 1023px) {
   .math-login-shell {
-    align-items: flex-start !important;
+    align-items: center !important;
   }
 
   .math-login-frame {
     display: block !important;
-    height: auto !important;
-    min-height: calc(100dvh - max(2rem, calc(env(safe-area-inset-top) + env(safe-area-inset-bottom)))) !important;
-    max-height: none !important;
-    overflow: visible !important;
+    height: calc(100dvh - max(4rem, calc(env(safe-area-inset-top) + env(safe-area-inset-bottom)))) !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - max(4rem, calc(env(safe-area-inset-top) + env(safe-area-inset-bottom)))) !important;
+    overflow: hidden !important;
   }
 
   .math-login-form-zone {
-    height: auto !important;
-    min-height: inherit !important;
-    overflow: visible !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
   }
 }
 
 @media (max-width: 639px) {
   .math-login-shell {
-    padding-top: max(0.625rem, env(safe-area-inset-top));
-    padding-right: max(0.625rem, env(safe-area-inset-right));
-    padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
-    padding-left: max(0.625rem, env(safe-area-inset-left));
+    /* !important here matters: without it, this can lose to the shell's own
+       py-4/px-4 Tailwind utility classes depending on stylesheet layer order, which
+       would silently make the frame's matching min-height subtraction below wrong -
+       exactly the class of bug that broke several viewports in CI. */
+    padding-top: max(0.625rem, env(safe-area-inset-top)) !important;
+    padding-right: max(0.625rem, env(safe-area-inset-right)) !important;
+    padding-bottom: max(0.625rem, env(safe-area-inset-bottom)) !important;
+    padding-left: max(0.625rem, env(safe-area-inset-left)) !important;
   }
 
   .math-login-frame {
@@ -6761,13 +6801,96 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
     font-size: clamp(1.9rem, 10vw, 2.5rem) !important;
   }
 
-  .math-login-card,
-  .math-login-promise {
+  .math-login-card {
     max-width: 100%;
   }
 
   .math-login-shell .math-input {
     font-size: 1rem;
+  }
+}
+
+/* Short portrait phones (e.g. 320x568) - CI measured the form column needing 87px more
+   than was available here. Tightens vertical rhythm across the whole stack rather than
+   any single element, since no one block was the culprit. */
+@media (max-width: 639px) and (max-height: 700px) {
+  /* The zone's own py-6 (48px total) is a Tailwind utility with no responsive variant
+     below `sm`, so every device this tier targets was paying that full tax untouched by
+     any override above - the single biggest reclaimable chunk here. */
+  .math-login-form-zone {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  .math-login-mobile-header {
+    margin-bottom: 0.5rem !important;
+  }
+
+  .math-login-tabs {
+    margin-bottom: 0.4rem !important;
+    padding: 0.3rem !important;
+  }
+
+  .math-login-tabs .math-login-tab {
+    min-height: 2.1rem !important;
+    padding: 0.25rem 0.3rem !important;
+  }
+
+  .math-login-form-heading {
+    margin-top: 0.08rem !important;
+    font-size: clamp(1.3rem, 6.5vh, 1.75rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  .math-login-form-subtitle {
+    margin-top: 0.15rem !important;
+    font-size: 0.7rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .math-login-card {
+    margin-top: 0.35rem !important;
+    padding: 0.45rem !important;
+  }
+
+  .math-login-card > * + * {
+    margin-top: 0.3rem !important;
+  }
+
+  /* Label text and the label-to-input gap are untouched by every other tier above this
+     one - real, measured space that's free to reclaim once a device is this height-tight. */
+  .math-login-card label.math-label {
+    font-size: 0.7rem !important;
+  }
+
+  .math-login-card .math-input {
+    margin-top: 0.25rem !important;
+    min-height: 2.15rem !important;
+  }
+
+  .math-login-card .relative.mt-2 {
+    margin-top: 0.25rem !important;
+  }
+
+  .math-button-primary {
+    min-height: 2.15rem !important;
+  }
+
+  /* "Forgot Password?" help line: still present and legible, just no longer sized for a
+     tall viewport it doesn't have. */
+  .math-login-card > *:last-child {
+    padding-top: 0.25rem !important;
+  }
+
+  .math-login-card > *:last-child p {
+    font-size: 0.65rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .math-login-status {
+    margin-top: 0.3rem !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
   }
 }
 
@@ -6782,7 +6905,7 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
   }
 
   .math-login-mobile-brand img {
-    height: 1.8rem !important;
+    height: 2.15rem !important;
   }
 
   .math-login-mobile-brand p:last-child,
@@ -6803,39 +6926,150 @@ html.dark .math-login-tabs .math-login-tab-student:not(.math-login-tab-active):h
   }
 }
 
+/* Toughest real-world case: a phone in landscape (e.g. 844x390) where height is the scarce
+   resource. Everything below tightens in lockstep so the full form fits without the
+   internal-scroll fallback ever needing to kick in. */
 @media (max-width: 1023px) and (orientation: landscape) and (max-height: 600px) {
   .math-login-shell {
-    padding-top: max(0.5rem, env(safe-area-inset-top));
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    /* !important so this deterministically wins over the shell's own responsive
+       py-* Tailwind classes - this tier needs every pixel it can get, so the frame's
+       matching height subtraction below has to be able to trust this value exactly.
+       Trimmed from 0.5rem: safe-area devices are unaffected (the max() still protects
+       them), this only reclaims space on the CI/simulator case that has none. */
+    padding-top: max(0.35rem, env(safe-area-inset-top)) !important;
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom)) !important;
   }
 
   .math-login-frame {
-    min-height: calc(100dvh - 1rem) !important;
+    height: calc(100dvh - 0.7rem) !important;
+    max-height: calc(100dvh - 0.7rem) !important;
   }
 
   .math-login-form-zone {
-    padding-top: 0.75rem !important;
-    padding-bottom: 0.75rem !important;
+    padding-top: 0.2rem !important;
+    padding-bottom: 0.2rem !important;
   }
 
-  .math-login-card,
-  .math-login-promise,
-  .math-login-mini-grid {
-    margin-top: 0.65rem !important;
+  .math-login-mobile-header {
+    margin-bottom: 0.2rem !important;
+  }
+
+  /* Landscape is width-rich but height-starved, so the logo box (not any text) has to be
+     the row's height ceiling. That only works if the tagline line under the wordmark is
+     dropped too - otherwise the two-line text stack would end up taller than the shrunk
+     logo and the row height wouldn't actually shrink with it. */
+  .math-login-mobile-brand > div:first-child {
+    padding: 0.1rem 0.3rem !important;
+  }
+
+  .math-login-mobile-brand img {
+    height: 1.05rem !important;
+  }
+
+  .math-login-mobile-brand p:last-child {
+    display: none;
+  }
+
+  /* The real, measured gap CI caught: this "MathPath" wordmark line was never resized for
+     this tier, so it kept the shared text-lg utility's line-height (28px) - taller than the
+     shrunk logo box beside it, meaning the text (not the logo) was silently setting the
+     header row's actual height. Shrinking it down means the logo becomes the row's real
+     ceiling again, which is what every measurement above already assumed was true. */
+  .math-login-mobile-brand p:first-child {
+    font-size: 0.7rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .math-login-theme-toggle {
+    min-height: 1.3rem !important;
+    padding: 0.08rem 0.4rem !important;
+  }
+
+  .math-login-tabs {
+    margin-bottom: 0.16rem !important;
+    padding: 0.12rem !important;
+  }
+
+  .math-login-tabs .math-login-tab {
+    min-height: 1.2rem !important;
+    padding: 0.12rem !important;
+    font-size: 0.66rem !important;
+  }
+
+  /* The role icon inside each tab is a fixed-pixel SVG (rendered at size=18 regardless of
+     breakpoint) - untouched by any text/padding override above, so at this tier it was
+     quietly forcing the tab row taller than its own min-height. */
+  .math-login-tab-icon svg {
+    width: 0.8rem !important;
+    height: 0.8rem !important;
+  }
+
+  .math-login-form-heading {
+    margin-top: 0.04rem !important;
+    font-size: 1.02rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .math-login-form-subtitle {
+    margin-top: 0.04rem !important;
+    font-size: 0.58rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .math-login-card {
+    margin-top: 0.13rem !important;
+    padding: 0.18rem !important;
+  }
+
+  .math-login-card > * + * {
+    margin-top: 0.12rem !important;
+  }
+
+  .math-login-card label.math-label {
+    font-size: 0.6rem !important;
+  }
+
+  .math-login-card .math-input {
+    margin-top: 0.12rem !important;
+    min-height: 1.6rem !important;
+  }
+
+  .math-login-card .relative.mt-2 {
+    margin-top: 0.12rem !important;
+  }
+
+  .math-button-primary {
+    min-height: 1.6rem !important;
+  }
+
+  .math-login-card > *:last-child {
+    padding-top: 0.12rem !important;
+  }
+
+  .math-login-card > *:last-child p {
+    font-size: 0.55rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .math-login-status {
+    margin-top: 0.13rem !important;
+    padding-top: 0.12rem !important;
+    padding-bottom: 0.12rem !important;
   }
 }
 
 @media (forced-colors: active) {
   .math-login-frame,
   .math-login-tabs,
-  .math-login-card,
-  .math-login-promise,
-  .math-login-mini-card {
+  .math-login-card {
     border: 1px solid CanvasText;
   }
 
-  .math-login-tabs .math-login-tab-active {
+  .math-login-tabs .math-login-tab[aria-selected="true"] {
     color: HighlightText !important;
+  }
+
+  .math-login-tab-indicator {
     background: Highlight !important;
   }
 }

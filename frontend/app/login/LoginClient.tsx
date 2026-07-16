@@ -15,7 +15,6 @@ import {
   Eye,
   EyeOff,
   GraduationCap,
-  LayoutDashboard,
   Moon,
   ShieldCheck,
   Sparkles,
@@ -23,7 +22,6 @@ import {
   Target,
   UserRound,
   UsersRound,
-  Zap,
 } from "lucide-react";
 
 type ThemeMode = "light" | "dark";
@@ -385,12 +383,13 @@ export default function LoginClient({
       data-testid="login-shell"
     >
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 math-grid-dots opacity-55 dark:opacity-35" />
+        {/* Abacus-rail motif: thin horizontal rods with bead dots, tying the backdrop to the
+            "Visual Abacus Mastery" brand promise instead of a generic decorative pattern. */}
+        <div className="absolute inset-0 math-grid-dots opacity-60 dark:opacity-40" />
         <div className="math-login-aura math-login-aura-one" />
         <div className="math-login-aura math-login-aura-two" />
-        <div className="math-login-aura math-login-aura-three" />
-        <div className="math-login-orbit left-[6%] top-[14%] hidden lg:block" />
-        <div className="math-login-orbit bottom-[10%] right-[8%] hidden lg:block" />
+        <div className="math-login-orbit math-login-orbit-bead left-[6%] top-[14%] hidden lg:block" />
+        <div className="math-login-orbit math-login-orbit-bead bottom-[10%] right-[8%] hidden lg:block" />
       </div>
 
       <div
@@ -418,9 +417,9 @@ export default function LoginClient({
                   <Image
                     src="/mathpath-logo.png"
                     alt="MathPath logo"
-                    width={144}
-                    height={66}
-                    className="h-[4.2rem] w-auto object-contain"
+                    width={210}
+                    height={101}
+                    className="h-[5.6rem] w-auto object-contain"
                     priority
                   />
                 </div>
@@ -485,13 +484,13 @@ export default function LoginClient({
                 className="math-login-mobile-brand flex items-center gap-3 rounded-2xl transition duration-200 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-white/70 lg:hidden"
                 aria-label="Open MathPath website"
               >
-                <div className="rounded-2xl bg-white px-2.5 py-2 shadow-md dark:bg-slate-900">
+                <div className="rounded-2xl bg-white px-3 py-2.5 shadow-md dark:bg-slate-900">
                   <Image
                     src="/mathpath-logo.png"
                     alt="MathPath logo"
-                    width={102}
-                    height={48}
-                    className="h-9 w-auto object-contain"
+                    width={140}
+                    height={67}
+                    className="h-11 w-auto object-contain"
                     priority
                   />
                 </div>
@@ -513,11 +512,13 @@ export default function LoginClient({
             </div>
 
             <div
-              className="math-login-tabs mb-3 grid grid-cols-3 gap-2 rounded-[24px] p-1.5"
+              className="math-login-tabs relative mb-3 grid grid-cols-3 gap-2 rounded-[24px] p-1.5"
               role="tablist"
               aria-label="Choose login role"
               data-testid="login-role-tabs"
+              style={{ "--tab-index": OrderedTabs.indexOf(ActiveTab) } as React.CSSProperties}
             >
+              <div className="math-login-tab-indicator" aria-hidden="true" />
               {OrderedTabs.map((Tab) => {
                 const TabData = RoleContent[Tab];
                 const ActiveState = ActiveTab === Tab;
@@ -530,9 +531,9 @@ export default function LoginClient({
                     id={`mathpath-login-tab-${Tab.toLowerCase()}`}
                     aria-selected={ActiveState}
                     aria-controls="mathpath-login-panel"
-                    className={`math-login-tab math-login-tab-${Tab.toLowerCase()} flex min-h-11 items-center justify-center gap-2 rounded-[18px] px-3 py-2.5 text-sm font-black transition duration-200 ${
+                    className={`math-login-tab relative z-[1] flex min-h-11 items-center justify-center gap-2 rounded-[18px] px-3 py-2.5 text-sm font-black transition-colors duration-200 ${
                       ActiveState
-                        ? "math-login-tab-active text-white shadow-xl shadow-slate-900/20 dark:text-white"
+                        ? "text-white"
                         : "text-slate-600 dark:text-slate-300"
                     }`}
                   >
@@ -543,19 +544,14 @@ export default function LoginClient({
               })}
             </div>
 
-            <div className="math-login-welcome-chip inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.18em]">
-              <Zap size={14} />
-              Welcome Back
-            </div>
-
             <h2
               id="mathpath-login-heading"
-              className="math-login-form-heading mt-2.5 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl"
+              className="math-login-form-heading mt-1 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl"
             >
               {RoleLabel(ActiveTab)} Login
             </h2>
 
-            <p className="mt-1.5 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
+            <p className="math-login-form-subtitle mt-1.5 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
               {Active.Promise}
             </p>
 
@@ -624,25 +620,25 @@ export default function LoginClient({
                 <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
                   Forgot Password?{" "}
                   <span className="text-slate-700 dark:text-slate-300">
-                    {ActiveTab === "STUDENT" 
-                      ? "Contact your teacher to reset it." 
+                    {ActiveTab === "STUDENT"
+                      ? "Contact your teacher to reset it."
                       : "Contact your platform administrator."}
                   </span>
                 </p>
               </div>
             </form>
 
-            <div className="math-login-promise mt-3 rounded-[22px] p-3.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              <span className="font-black text-slate-950 dark:text-white">
-                MathPath Promise:
-              </span>{" "}
-              Speed, Accuracy, Confidence, and Joyful Mathematical Thinking.
-            </div>
-
-            <div className="math-login-mini-grid mt-2.5 grid gap-3 sm:grid-cols-3">
-              <MiniCard Icon={<LayoutDashboard size={16} />} Label="Role-Based" />
-              <MiniCard Icon={<ShieldCheck size={16} />} Label="Secure Access" />
-              <MiniCard Icon={<Sparkles size={16} />} Label="Premium Flow" />
+            <div
+              className={`math-login-status math-login-status-${ConnectionStatus} mt-3 flex items-center justify-center gap-2 rounded-full py-2 text-[11px] font-bold uppercase tracking-[0.14em]`}
+              role="status"
+              aria-live="polite"
+            >
+              <span className="math-login-status-dot" aria-hidden="true" />
+              {ConnectionStatus === "ready"
+                ? "Secure Connection Ready"
+                : ConnectionStatus === "working"
+                ? "Connecting To MathPath…"
+                : "Preparing Secure Sign-In…"}
             </div>
           </div>
         </section>
@@ -665,15 +661,6 @@ function Feature({
       <div className="inline-flex rounded-2xl bg-white/13 p-2">{Icon}</div>
       <p className="mt-2.5 text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
       <p className="mt-1.5 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
-    </div>
-  );
-}
-
-function MiniCard({ Icon, Label }: { Icon: ReactNode; Label: string }) {
-  return (
-    <div className="math-login-mini-card flex min-h-12 items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-[11px] font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">
-      {Icon}
-      {Label}
     </div>
   );
 }

@@ -68,10 +68,14 @@ async function ReadLayout(PageInstance: Page) {
     const Brand = Rect(".math-login-mobile-brand");
     const ThemeToggle = Rect(".math-login-theme-toggle");
 
+    const FormZone = document.querySelector<HTMLElement>('[data-testid="login-form-zone"]');
+    const Shell = document.querySelector<HTMLElement>('[data-testid="login-shell"]');
+
     return {
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
       documentWidth: document.documentElement.scrollWidth,
+      documentHeight: document.documentElement.scrollHeight,
       shell: Rect('[data-testid="login-shell"]'),
       frame: Rect('[data-testid="login-frame"]'),
       form: Rect('[data-testid="student-login-form"]'),
@@ -81,6 +85,11 @@ async function ReadLayout(PageInstance: Page) {
       clippedTabs: Tabs.filter((Tab) => Tab.scrollWidth > Tab.clientWidth + 1).length,
       identifierFontSize: Identifier ? Number.parseFloat(window.getComputedStyle(Identifier).fontSize) : 0,
       darkMode: document.documentElement.classList.contains("dark"),
+      // "Visible in one go" means: (a) the page itself never grows taller than the
+      // viewport, and (b) the form column never needs its own internal scrollbar either.
+      // Both are checked below instead of assumed.
+      formZoneScrollOverflow: FormZone ? FormZone.scrollHeight - FormZone.clientHeight : 0,
+      shellScrollOverflow: Shell ? Shell.scrollHeight - Shell.clientHeight : 0,
     };
   });
 }
@@ -112,6 +121,14 @@ for (const Theme of Themes) {
         if (Viewport.width <= 639) {
           expect(Layout.identifierFontSize, "Mobile inputs must avoid forced iOS focus zoom").toBeGreaterThanOrEqual(16);
         }
+        expect(
+          Layout.documentHeight,
+          "The login page must be visible in one go, with no page-level scroll"
+        ).toBeLessThanOrEqual(Layout.viewportHeight + 1);
+        expect(
+          Layout.formZoneScrollOverflow,
+          "The form column must not need its own internal scrollbar either"
+        ).toBeLessThanOrEqual(1);
         expect(PageErrors).toEqual([]);
       } finally {
         await Context.close();
