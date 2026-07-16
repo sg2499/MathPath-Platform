@@ -456,7 +456,7 @@ export default function LoginClient({
               </p>
             </div>
 
-            <div className="math-login-feature-grid grid shrink-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="math-login-feature-grid grid shrink-0 gap-4 sm:grid-cols-2">
               {Active.Features.map((FeatureItem) => (
                 <Feature
                   key={FeatureItem.Title}
@@ -660,8 +660,8 @@ function Feature({
   return (
     <div className="math-login-feature rounded-[24px] p-4 transition duration-200 hover:-translate-y-0.5">
       <div className="inline-flex rounded-2xl bg-white/13 p-2">{Icon}</div>
-      <p className="mt-2.5 truncate text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
-      <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
+      <p className="mt-2.5 text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
+      <p className="mt-1.5 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
     </div>
   );
 }

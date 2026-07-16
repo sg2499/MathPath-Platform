@@ -6705,12 +6705,13 @@ html.dark .math-login-tabs .math-login-tab-student:not([aria-selected="true"]):h
 
 .math-login-frame {
   /* The shell around this frame uses responsive padding (py-4 / sm:py-5 / xl:py-6,
-     32px -> 40px -> 48px). Subtracting a flat 4rem (64px) here - rather than the 2rem
-     this used to assume - covers the largest real padding tier with margin to spare,
-     instead of relying on exact arithmetic that broke on desktop/tablet viewports in CI. */
-  height: min(55.625rem, calc(100dvh - 4rem));
+     32px -> 40px -> 48px). Subtracting 2.5rem (40px) here - rather than the 4rem this
+     used to assume - claws back real breathing room for the story panel's full 2x2
+     feature-card grid at shorter laptop heights, while still safely covering the
+     shell's own padding at every breakpoint. */
+  height: min(57.5rem, calc(100dvh - 2.5rem));
   min-height: 0;
-  max-height: calc(100dvh - 4rem);
+  max-height: calc(100dvh - 2.5rem);
   overflow: hidden;
 }
 
