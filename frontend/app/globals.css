@@ -6719,8 +6719,22 @@ html.dark .math-login-tabs .math-login-tab-student:not([aria-selected="true"]):h
    redesign) grew that stack's real content height without every compaction tier being
    widened to match - so on some real laptop heights the bottom feature-card row was
    silently clipped by this section's overflow-hidden with nowhere for the overflow to go.
-   Auto-scroll here means that can never happen again, regardless of exact tuning below. */
+   Auto-scroll here means that can never happen again, regardless of exact tuning below.
+
+   This is scoped to .math-login-story-content (the real logo/copy/feature stack), NOT the
+   outer .math-login-story panel itself - that panel also holds two purely decorative glow
+   circles (one uses -bottom-28, i.e. bottom:-112px, intentionally bleeding off-panel for the
+   glow effect). Putting overflow-y:auto on the panel made the browser treat that intentional
+   112px decorative bleed as real scrollable content, permanently inflating scrollHeight by
+   exactly 112px regardless of the actual text/card content - which is why every earlier
+   attempt to shrink the real content had zero measurable effect on CI's overflow reading.
+   The panel keeps its original overflow:hidden (cleanly clips the decorative bleed, as
+   designed); only the content wrapper below it scrolls if the real content doesn't fit. */
 .math-login-story {
+  overflow: hidden;
+}
+
+.math-login-story-content {
   overflow-y: auto !important;
   overflow-x: hidden;
   scrollbar-gutter: stable;

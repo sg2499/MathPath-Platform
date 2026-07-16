@@ -79,6 +79,13 @@ async function ReadLayout(PageInstance: Page) {
     const Shell = document.querySelector<HTMLElement>('[data-testid="login-shell"]');
     const StoryPanel = document.querySelector<HTMLElement>('[data-testid="login-story-panel"]');
     const StoryPanelVisible = !!StoryPanel && StoryPanel.getBoundingClientRect().width > 0;
+    // The panel itself (StoryPanel) also contains two purely decorative, absolutely
+    // positioned glow circles that intentionally bleed outside its box (one offset
+    // bottom:-112px on purpose). Measuring scrollHeight on the panel counts that
+    // decorative bleed as if it were real overflowing content. The actual logo/copy/
+    // feature stack lives in .math-login-story-content, a sibling of those glow divs -
+    // measuring overflow there instead reflects only the real content.
+    const StoryContent = document.querySelector<HTMLElement>(".math-login-story-content");
 
     return {
       viewportWidth: window.innerWidth,
@@ -104,7 +111,7 @@ async function ReadLayout(PageInstance: Page) {
       // Checked the same way as the form column so a future content change can't silently
       // clip the bottom feature-card row again without a real test catching it.
       storyPanelVisible: StoryPanelVisible,
-      storyPanelScrollOverflow: StoryPanel ? StoryPanel.scrollHeight - StoryPanel.clientHeight : 0,
+      storyPanelScrollOverflow: StoryContent ? StoryContent.scrollHeight - StoryContent.clientHeight : 0,
     };
   });
 }
