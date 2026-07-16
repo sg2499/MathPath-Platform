@@ -6442,7 +6442,12 @@ html.dark .math-modal-close-button:focus-visible {
     }
   }
 
-  @media (min-width: 1024px) and (max-height: 860px) {
+  @media (min-width: 1024px) and (max-height: 960px) {
+    /* Widened from 860px: the story-panel logo enlarged as part of this same redesign
+       (4.2rem -> 5.6rem) without this tier's threshold being widened to match, so common
+       laptop heights just above the old 860px cutoff never got the compaction they now
+       need and instead relied on the section's overflow-hidden silently clipping the
+       bottom feature-card row. */
     .math-login-frame {
       /* Subtract a generous 4rem instead of trying to track the shell's own responsive
          py-4/sm:py-5/xl:py-6 padding growth exactly - the CI overflow failures on
@@ -6571,9 +6576,9 @@ html.dark .math-modal-close-button:focus-visible {
   }
 
   .math-login-logo-mark {
-    min-width: clamp(13rem, 15vw, 15.4rem) !important;
-    min-height: clamp(7rem, 7.6vw, 8.2rem) !important;
-    padding: clamp(0.95rem, 1.12vw, 1.18rem) clamp(1.22rem, 1.55vw, 1.58rem) !important;
+    min-width: clamp(11rem, 13vw, 13rem) !important;
+    min-height: clamp(5.4rem, 6.2vw, 6.6rem) !important;
+    padding: clamp(0.8rem, 0.95vw, 1rem) clamp(1rem, 1.3vw, 1.32rem) !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -6583,13 +6588,13 @@ html.dark .math-modal-close-button:focus-visible {
   .math-login-logo-mark img {
     width: 100% !important;
     max-width: 86% !important;
-    max-height: clamp(4.6rem, 5.3vw, 5.5rem) !important;
+    max-height: clamp(3.9rem, 4.6vw, 4.7rem) !important;
     object-fit: contain !important;
   }
 
   .math-login-story-copy {
     display: flex !important;
-    min-height: clamp(13.9rem, 22vh, 16.2rem) !important;
+    min-height: clamp(10.5rem, 17vh, 13rem) !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
   }
@@ -6615,18 +6620,18 @@ html.dark .math-modal-close-button:focus-visible {
     }
 
     .math-login-logo-mark {
-      min-width: clamp(11rem, 13.5vw, 12.8rem) !important;
-      min-height: clamp(5.9rem, 6.9vw, 6.9rem) !important;
-      padding: 0.86rem 1.15rem !important;
+      min-width: clamp(9.5rem, 11.5vw, 11rem) !important;
+      min-height: clamp(4.6rem, 5.4vw, 5.6rem) !important;
+      padding: 0.68rem 0.92rem !important;
     }
 
     .math-login-logo-mark img {
       max-width: 84% !important;
-      max-height: clamp(4.15rem, 5vw, 4.75rem) !important;
+      max-height: clamp(3.4rem, 4vw, 3.9rem) !important;
     }
 
     .math-login-story-copy {
-      min-height: clamp(12.1rem, 21vh, 14.4rem) !important;
+      min-height: clamp(9rem, 15vh, 11rem) !important;
     }
 
     .math-login-role-student .math-login-story-headline {
@@ -6636,10 +6641,11 @@ html.dark .math-modal-close-button:focus-visible {
 }
 
 /* Phase 10.9 — Login role selector palette consistency.
-   The active state is now carried entirely by .math-login-tab-indicator (one sliding
-   element, colored from the active role's own CSS variables), so the tab buttons
-   themselves only need a text-color swap keyed off aria-selected — no more per-role
-   background classes duplicating the same 3 gradients twice (base + hover). */
+   The active state is carried by .math-login-tab-indicator (one sliding element, colored
+   from the active role's own CSS variables). Hover on an INACTIVE tab restores the original
+   pre-redesign behavior Shailesh asked to keep: white text + that role's own gradient fill
+   + lift, previewing what the tab looks like if selected - a plain text-tint hover reads as
+   much flatter and was a regression from the redesign, not an intentional simplification. */
 .math-login-tabs .math-login-tab {
   position: relative;
   color: #475569;
@@ -6654,11 +6660,31 @@ html.dark .math-login-tabs .math-login-tab {
 }
 
 .math-login-tabs .math-login-tab:not([aria-selected="true"]):hover {
-  color: color-mix(in srgb, var(--mp-role-primary, #1d4ed8) 78%, #0f172a);
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
 html.dark .math-login-tabs .math-login-tab:not([aria-selected="true"]):hover {
-  color: color-mix(in srgb, var(--mp-role-secondary, #bae6fd) 75%, #f8fafc);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.math-login-tabs .math-login-tab-admin:not([aria-selected="true"]):hover,
+html.dark .math-login-tabs .math-login-tab-admin:not([aria-selected="true"]):hover {
+  background: linear-gradient(135deg, #020617, #2563eb 54%, #c026d3);
+  box-shadow: 0 14px 34px rgba(37, 99, 235, 0.24), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
+.math-login-tabs .math-login-tab-teacher:not([aria-selected="true"]):hover,
+html.dark .math-login-tabs .math-login-tab-teacher:not([aria-selected="true"]):hover {
+  background: linear-gradient(135deg, #2B102D, #6D2E5F 54%, #E6B8A2);
+  box-shadow: 0 14px 34px rgba(109, 46, 95, 0.28), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
+.math-login-tabs .math-login-tab-student:not([aria-selected="true"]):hover,
+html.dark .math-login-tabs .math-login-tab-student:not([aria-selected="true"]):hover {
+  background: linear-gradient(135deg, #7f1d1d, #f97316 58%, #facc15);
+  box-shadow: 0 14px 34px rgba(249, 115, 22, 0.24), inset 0 1px 0 rgba(255,255,255,0.18);
 }
 
 /* Student login rollout hardening.
@@ -6686,6 +6712,32 @@ html.dark .math-login-tabs .math-login-tab:not([aria-selected="true"]):hover {
   min-height: 0;
   max-height: calc(100dvh - 4rem);
   overflow: hidden;
+}
+
+/* Safety net matching the form column's own pattern: the story panel's brand/copy/feature
+   stack has a fixed frame height to fit within, and the enlarged logo (part of this same
+   redesign) grew that stack's real content height without every compaction tier being
+   widened to match - so on some real laptop heights the bottom feature-card row was
+   silently clipped by this section's overflow-hidden with nowhere for the overflow to go.
+   Auto-scroll here means that can never happen again, regardless of exact tuning below.
+
+   This is scoped to .math-login-story-content (the real logo/copy/feature stack), NOT the
+   outer .math-login-story panel itself - that panel also holds two purely decorative glow
+   circles (one uses -bottom-28, i.e. bottom:-112px, intentionally bleeding off-panel for the
+   glow effect). Putting overflow-y:auto on the panel made the browser treat that intentional
+   112px decorative bleed as real scrollable content, permanently inflating scrollHeight by
+   exactly 112px regardless of the actual text/card content - which is why every earlier
+   attempt to shrink the real content had zero measurable effect on CI's overflow reading.
+   The panel keeps its original overflow:hidden (cleanly clips the decorative bleed, as
+   designed); only the content wrapper below it scrolls if the real content doesn't fit. */
+.math-login-story {
+  overflow: hidden;
+}
+
+.math-login-story-content {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 .math-login-story-content,

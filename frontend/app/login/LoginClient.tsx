@@ -57,12 +57,12 @@ const RoleContent: Record<
     Eyebrow: "Admin Control Centre",
     Headline: "Lead The MathPath Learning System.",
     Description:
-      "Oversee curriculum, users, assignments, readiness, and performance from one secure control workspace built for structured academic operations at scale.",
+      "Manage curriculum, users, assignments, and performance from one secure control centre.",
     IdentifierLabel: "Admin Email / Phone",
     IdentifierPlaceholder: "Enter admin email or phone",
     ButtonText: "Login as Admin",
     Promise:
-      "Institution-level access for curriculum, users, assignments, readiness, and performance oversight.",
+      "Institution-wide oversight of curriculum, users, assignments, and performance.",
     Gradient: "from-slate-950 via-indigo-700 to-fuchsia-500",
     AccentGlow: "bg-fuchsia-300/25",
     Icon: <ShieldCheck size={18} />,
@@ -71,22 +71,22 @@ const RoleContent: Record<
       {
         Icon: <BookOpenCheck size={18} />,
         Title: "Curriculum Management",
-        Desc: "Manage approved modules, levels, lessons, and DPS structure.",
+        Desc: "Manage modules, levels, lessons, and practice structure.",
       },
       {
         Icon: <UsersRound size={18} />,
         Title: "User Administration",
-        Desc: "Maintain students, teachers, access, levels, and onboarding records.",
+        Desc: "Manage students, teachers, access, and onboarding.",
       },
       {
         Icon: <BarChart3 size={18} />,
         Title: "Readiness & Performance",
-        Desc: "Monitor readiness, progress, and institution-wide performance signals.",
+        Desc: "Track readiness, progress, and performance at a glance.",
       },
       {
         Icon: <ClipboardPlus size={18} />,
         Title: "Assignment Governance",
-        Desc: "Create, review, and oversee practice allocation with control.",
+        Desc: "Create, review, and manage practice allocation.",
       },
     ],
   },
@@ -94,12 +94,12 @@ const RoleContent: Record<
     Eyebrow: "Teacher Workspace",
     Headline: "Guide Learners With Refined Focus.",
     Description:
-      "Guide every learner through practice, readiness, assessment, and focused review with elegant classroom visibility.",
+      "Guide every learner through practice, readiness, and assessment with full visibility.",
     IdentifierLabel: "Teacher Email / Phone / Teacher Code",
     IdentifierPlaceholder: "Enter teacher login identifier",
     ButtonText: "Login as Teacher",
     Promise:
-      "Teacher access for assigned students, DPS allocation, completion tracking, readiness signals, and focused review.",
+      "Assigned students, practice allocation, completion tracking, and readiness - all in view.",
     Gradient: "from-[#2B102D] via-[#6D2E5F] to-[#D89A76]",
     AccentGlow: "bg-[#E6B8A2]/30",
     Icon: <GraduationCap size={18} />,
@@ -108,22 +108,22 @@ const RoleContent: Record<
       {
         Icon: <UsersRound size={18} />,
         Title: "Assigned Learners",
-        Desc: "View your students and support each learner with structured visibility.",
+        Desc: "See your students and support each one with clear visibility.",
       },
       {
         Icon: <ClipboardPlus size={18} />,
         Title: "Practice & Assessment",
-        Desc: "Assign approved DPS sheets and eligible assessments from one workspace.",
+        Desc: "Assign practice sheets and assessments from one workspace.",
       },
       {
         Icon: <ShieldCheck size={18} />,
         Title: "Readiness Signals",
-        Desc: "Track completion, benchmark progress, and assessment readiness.",
+        Desc: "Track completion, progress, and assessment readiness.",
       },
       {
         Icon: <Target size={18} />,
         Title: "Practice Tracker",
-        Desc: "Track practice progress, re-attempt needs, and learning patterns clearly.",
+        Desc: "Track practice progress, re-attempts, and learning patterns.",
       },
     ],
   },
@@ -131,12 +131,12 @@ const RoleContent: Record<
     Eyebrow: "Student Learning Workspace",
     Headline: "Practice, Shine, And Grow.",
     Description:
-      "Open assigned practice, assessments, progress, and results in one joyful learning space built for confidence.",
+      "Practice, track progress, and review results in one confidence-building space.",
     IdentifierLabel: "Student Email / Phone / Student Code",
     IdentifierPlaceholder: "Enter student code, email, or phone",
     ButtonText: "Login as Student",
     Promise:
-      "Student access for assigned work, assessments, readiness, results, progress review, and confident learning growth.",
+      "Assigned work, assessments, progress, and results - all in one place.",
     Gradient: "from-rose-950 via-orange-500 to-pink-400",
     AccentGlow: "bg-amber-200/30",
     Icon: <UserRound size={18} />,
@@ -145,17 +145,17 @@ const RoleContent: Record<
       {
         Icon: <BookOpenCheck size={18} />,
         Title: "Assigned Learning",
-        Desc: "Access practice, assessments, and guided learning tasks in one place.",
+        Desc: "Everything assigned to you, in one place.",
       },
       {
         Icon: <BarChart3 size={18} />,
         Title: "Progress Tracking",
-        Desc: "Follow level progress, completion date, and confidence growth.",
+        Desc: "Follow your level progress and growth over time.",
       },
       {
         Icon: <Target size={18} />,
         Title: "Result Review",
-        Desc: "Review attempts, understand performance, and learn from every result.",
+        Desc: "Review attempts and learn from every result.",
       },
       {
         Icon: <Sparkles size={18} />,
@@ -398,6 +398,7 @@ export default function LoginClient({
       >
         <section
           className={`math-login-story relative hidden h-full min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
+          data-testid="login-story-panel"
         >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_10%,rgba(255,255,255,0.24),transparent_25%),radial-gradient(circle_at_88%_82%,rgba(255,255,255,0.16),transparent_28%)]" />
           <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),transparent_38%),linear-gradient(180deg,rgba(2,6,23,0.10),transparent_42%,rgba(255,255,255,0.08))]" />
@@ -455,7 +456,7 @@ export default function LoginClient({
               </p>
             </div>
 
-            <div className="math-login-feature-grid grid shrink-0 gap-4 sm:grid-cols-2">
+            <div className="math-login-feature-grid grid shrink-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {Active.Features.map((FeatureItem) => (
                 <Feature
                   key={FeatureItem.Title}
@@ -531,7 +532,7 @@ export default function LoginClient({
                     id={`mathpath-login-tab-${Tab.toLowerCase()}`}
                     aria-selected={ActiveState}
                     aria-controls="mathpath-login-panel"
-                    className={`math-login-tab relative z-[1] flex min-h-11 items-center justify-center gap-2 rounded-[18px] px-3 py-2.5 text-sm font-black transition-colors duration-200 ${
+                    className={`math-login-tab math-login-tab-${Tab.toLowerCase()} relative z-[1] flex min-h-11 items-center justify-center gap-2 rounded-[18px] px-3 py-2.5 text-sm font-black transition-colors duration-200 ${
                       ActiveState
                         ? "text-white"
                         : "text-slate-600 dark:text-slate-300"
@@ -659,8 +660,8 @@ function Feature({
   return (
     <div className="math-login-feature rounded-[24px] p-4 transition duration-200 hover:-translate-y-0.5">
       <div className="inline-flex rounded-2xl bg-white/13 p-2">{Icon}</div>
-      <p className="mt-2.5 text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
-      <p className="mt-1.5 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
+      <p className="mt-2.5 truncate text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
+      <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
     </div>
   );
 }

@@ -22,11 +22,18 @@ const Viewports: ViewportCase[] = [
 const Themes = ["light", "dark"] as const;
 const BaseUrl = process.env.MATHPATH_BASE_URL || "http://127.0.0.1:3000";
 
-async function OpenStudentLogin(
+const RoleHeadings: Record<string, string> = {
+  admin: "Admin Login",
+  teacher: "Teacher Login",
+  student: "Student Login",
+};
+
+async function OpenLogin(
   BrowserInstance: Browser,
   Viewport: ViewportCase,
   Theme: typeof Themes[number],
   PageErrors: string[],
+  Role: keyof typeof RoleHeadings = "student",
 ) {
   const Context = await BrowserInstance.newContext({
     viewport: { width: Viewport.width, height: Viewport.height },
@@ -41,8 +48,8 @@ async function OpenStudentLogin(
 
   const PageInstance = await Context.newPage();
   PageInstance.on("pageerror", (Error) => PageErrors.push(Error.message));
-  await PageInstance.goto(`${BaseUrl}/login?role=student`, { waitUntil: "domcontentloaded" });
-  await expect(PageInstance.getByRole("heading", { name: "Student Login" })).toBeVisible();
+  await PageInstance.goto(`${BaseUrl}/login?role=${Role}`, { waitUntil: "domcontentloaded" });
+  await expect(PageInstance.getByRole("heading", { name: RoleHeadings[Role] })).toBeVisible();
   return { Context, PageInstance };
 }
 
@@ -70,6 +77,15 @@ async function ReadLayout(PageInstance: Page) {
 
     const FormZone = document.querySelector<HTMLElement>('[data-testid="login-form-zone"]');
     const Shell = document.querySelector<HTMLElement>('[data-testid="login-shell"]');
+    const StoryPanel = document.querySelector<HTMLElement>('[data-testid="login-story-panel"]');
+    const StoryPanelVisible = !!StoryPanel && StoryPanel.getBoundingClientRect().width > 0;
+    // The panel itself (StoryPanel) also contains two purely decorative, absolutely
+    // positioned glow circles that intentionally bleed outside its box (one offset
+    // bottom:-112px on purpose). Measuring scrollHeight on the panel counts that
+    // decorative bleed as if it were real overflowing content. The actual logo/copy/
+    // feature stack lives in .math-login-story-content, a sibling of those glow divs -
+    // measuring overflow there instead reflects only the real content.
+    const StoryContent = document.querySelector<HTMLElement>(".math-login-story-content");
 
     return {
       viewportWidth: window.innerWidth,
@@ -90,6 +106,37 @@ async function ReadLayout(PageInstance: Page) {
       // Both are checked below instead of assumed.
       formZoneScrollOverflow: FormZone ? FormZone.scrollHeight - FormZone.clientHeight : 0,
       shellScrollOverflow: Shell ? Shell.scrollHeight - Shell.clientHeight : 0,
+      // The desktop "story" (brand/copy/feature) panel has its own fixed height to fit
+      // within, separate from the form column - only visible at wide-enough viewports.
+      // Checked the same way as the form column so a future content change can't silently
+      // clip the bottom feature-card row again without a real test catching it.
+      storyPanelVisible: StoryPanelVisible,
+      storyPanelScrollOverflow: StoryContent ? StoryContent.scrollHeight - StoryContent.clientHeight : 0,
+    };
+  });
+}
+
+// Diagnostic-only: measures each sub-section of the desktop story panel so a CI failure
+// tells us WHICH element is oversized instead of just the total overflow amount. Not part
+// of the layout contract itself - purely so the next failed run's log is self-explanatory.
+async function ReadStoryPanelBreakdown(PageInstance: Page) {
+  return PageInstance.evaluate(() => {
+    const HeightOf = (Selector: string) => {
+      const Element = document.querySelector<HTMLElement>(Selector);
+      return Element ? Math.round(Element.getBoundingClientRect().height) : null;
+    };
+    const Feature = document.querySelectorAll<HTMLElement>(".math-login-feature");
+    return {
+      storyPanel: HeightOf('[data-testid="login-story-panel"]'),
+      storyContent: HeightOf(".math-login-story-content"),
+      logoCard: HeightOf(".math-login-logo-card"),
+      logoMark: HeightOf(".math-login-logo-mark"),
+      storyCopy: HeightOf(".math-login-story-copy"),
+      eyebrow: HeightOf(".math-login-eyebrow"),
+      headline: HeightOf(".math-login-story-headline"),
+      description: HeightOf(".math-login-story-description"),
+      featureGrid: HeightOf(".math-login-feature-grid"),
+      featureCards: Array.from(Feature).map((El) => Math.round(El.getBoundingClientRect().height)),
     };
   });
 }
@@ -98,7 +145,7 @@ for (const Theme of Themes) {
   for (const Viewport of Viewports) {
     test(`student login remains usable on ${Viewport.name} in ${Theme} mode`, async ({ browser }) => {
       const PageErrors: string[] = [];
-      const { Context, PageInstance } = await OpenStudentLogin(browser, Viewport, Theme, PageErrors);
+      const { Context, PageInstance } = await OpenLogin(browser, Viewport, Theme, PageErrors, "student");
 
       try {
         const Layout = await ReadLayout(PageInstance);
@@ -129,10 +176,65 @@ for (const Theme of Themes) {
           Layout.formZoneScrollOverflow,
           "The form column must not need its own internal scrollbar either"
         ).toBeLessThanOrEqual(1);
+        if (Layout.storyPanelVisible) {
+          if (Layout.storyPanelScrollOverflow > 1) {
+            const Breakdown = await ReadStoryPanelBreakdown(PageInstance);
+            console.log(
+              `[story-panel-breakdown] ${Viewport.name}/${Theme}/student overflow=${Layout.storyPanelScrollOverflow} `
+              + JSON.stringify(Breakdown)
+            );
+          }
+          expect(
+            Layout.storyPanelScrollOverflow,
+            "The desktop story panel must not clip its bottom feature-card row"
+          ).toBeLessThanOrEqual(1);
+        }
         expect(PageErrors).toEqual([]);
       } finally {
         await Context.close();
       }
     });
+  }
+}
+
+// The desktop "story" panel's content length depends on which role is active - Admin's
+// copy in particular ran noticeably longer than Teacher/Student's, so a fix verified only
+// against the Student role (the only one the suite above ever loads) could still leave
+// Admin and/or Teacher clipped. Covers just the viewport widths where the story panel is
+// actually visible (>=1180px), not the full matrix, to keep this addition proportionate.
+const DesktopViewports = Viewports.filter((V) => V.width >= 1280);
+const OtherRoles = ["admin", "teacher"] as const;
+
+for (const Theme of Themes) {
+  for (const Viewport of DesktopViewports) {
+    for (const Role of OtherRoles) {
+      test(`${Role} login story panel is not clipped on ${Viewport.name} in ${Theme} mode`, async ({ browser }) => {
+        const PageErrors: string[] = [];
+        const { Context, PageInstance } = await OpenLogin(browser, Viewport, Theme, PageErrors, Role);
+
+        try {
+          const Layout = await ReadLayout(PageInstance);
+          expect(Layout.storyPanelVisible, "The story panel should be visible at this width").toBe(true);
+          if (Layout.storyPanelScrollOverflow > 1) {
+            const Breakdown = await ReadStoryPanelBreakdown(PageInstance);
+            console.log(
+              `[story-panel-breakdown] ${Viewport.name}/${Theme}/${Role} overflow=${Layout.storyPanelScrollOverflow} `
+              + JSON.stringify(Breakdown)
+            );
+          }
+          expect(
+            Layout.storyPanelScrollOverflow,
+            `The ${Role} story panel must not clip its bottom feature-card row`
+          ).toBeLessThanOrEqual(1);
+          expect(
+            Layout.documentHeight,
+            "The login page must be visible in one go, with no page-level scroll"
+          ).toBeLessThanOrEqual(Layout.viewportHeight + 1);
+          expect(PageErrors).toEqual([]);
+        } finally {
+          await Context.close();
+        }
+      });
+    }
   }
 }
