@@ -109,6 +109,31 @@ async function ReadLayout(PageInstance: Page) {
   });
 }
 
+// Diagnostic-only: measures each sub-section of the desktop story panel so a CI failure
+// tells us WHICH element is oversized instead of just the total overflow amount. Not part
+// of the layout contract itself - purely so the next failed run's log is self-explanatory.
+async function ReadStoryPanelBreakdown(PageInstance: Page) {
+  return PageInstance.evaluate(() => {
+    const HeightOf = (Selector: string) => {
+      const Element = document.querySelector<HTMLElement>(Selector);
+      return Element ? Math.round(Element.getBoundingClientRect().height) : null;
+    };
+    const Feature = document.querySelectorAll<HTMLElement>(".math-login-feature");
+    return {
+      storyPanel: HeightOf('[data-testid="login-story-panel"]'),
+      storyContent: HeightOf(".math-login-story-content"),
+      logoCard: HeightOf(".math-login-logo-card"),
+      logoMark: HeightOf(".math-login-logo-mark"),
+      storyCopy: HeightOf(".math-login-story-copy"),
+      eyebrow: HeightOf(".math-login-eyebrow"),
+      headline: HeightOf(".math-login-story-headline"),
+      description: HeightOf(".math-login-story-description"),
+      featureGrid: HeightOf(".math-login-feature-grid"),
+      featureCards: Array.from(Feature).map((El) => Math.round(El.getBoundingClientRect().height)),
+    };
+  });
+}
+
 for (const Theme of Themes) {
   for (const Viewport of Viewports) {
     test(`student login remains usable on ${Viewport.name} in ${Theme} mode`, async ({ browser }) => {
@@ -145,6 +170,13 @@ for (const Theme of Themes) {
           "The form column must not need its own internal scrollbar either"
         ).toBeLessThanOrEqual(1);
         if (Layout.storyPanelVisible) {
+          if (Layout.storyPanelScrollOverflow > 1) {
+            const Breakdown = await ReadStoryPanelBreakdown(PageInstance);
+            console.log(
+              `[story-panel-breakdown] ${Viewport.name}/${Theme}/student overflow=${Layout.storyPanelScrollOverflow} `
+              + JSON.stringify(Breakdown)
+            );
+          }
           expect(
             Layout.storyPanelScrollOverflow,
             "The desktop story panel must not clip its bottom feature-card row"
@@ -176,6 +208,13 @@ for (const Theme of Themes) {
         try {
           const Layout = await ReadLayout(PageInstance);
           expect(Layout.storyPanelVisible, "The story panel should be visible at this width").toBe(true);
+          if (Layout.storyPanelScrollOverflow > 1) {
+            const Breakdown = await ReadStoryPanelBreakdown(PageInstance);
+            console.log(
+              `[story-panel-breakdown] ${Viewport.name}/${Theme}/${Role} overflow=${Layout.storyPanelScrollOverflow} `
+              + JSON.stringify(Breakdown)
+            );
+          }
           expect(
             Layout.storyPanelScrollOverflow,
             `The ${Role} story panel must not clip its bottom feature-card row`
