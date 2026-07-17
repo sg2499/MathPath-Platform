@@ -59,22 +59,48 @@ function questionSearchText(question: CompetitionMockQuestion) {
   ].filter(Boolean).join(" ").toLowerCase();
 }
 
+// Concept-family sets, not section numbers, are what actually identify a
+// question's real concept. Section numbers used to be a safe shortcut
+// because each of these concepts always lived in one permanently-fixed
+// section (BODMAS/Percentage always 8, Financial always 9, Positional
+// always 5) -- but the section-omission redistribution + dense-renumbering
+// fix means a section's displayed number now legitimately shifts whenever
+// an earlier section is omitted, so a *different* concept's renumbered
+// section can land on 5/8/9 by coincidence. That collision is exactly what
+// caused Financial questions (Profit/Loss/Simple Interest/Selling Price/
+// Cost Price) to render as a bare "Find Cost Price = ?" label instead of
+// their real data table: once an earlier section was omitted, Financial's
+// section shifted down to display number 8, which used to mean
+// BODMAS/Percentage, so isMmExpressionQuestion wrongly matched it first.
+// conceptFamily is stamped by the backend from the question's own concept
+// spec (never shifts, never collides across concepts) and is always
+// present on every question generated since this file's concept-family
+// column was introduced, so it's the correct primary signal. The text
+// match is kept only as a fallback for the rare row where conceptFamily
+// might be missing/blank.
+const MM_EXPRESSION_CONCEPT_FAMILIES = new Set(["BODMAS", "SOLVE_EQUATION", "PERCENTAGE_ADD_LESS"]);
+const MM_FINANCIAL_CONCEPT_FAMILIES = new Set(["PROFIT_LOSS", "SIMPLE_INTEREST", "FIND_SELLING_PRICE", "FIND_COST_PRICE"]);
+const MM_POSITIONAL_CONCEPT_FAMILIES = new Set(["ANSWER_POSITION"]);
+
 function isMmExpressionQuestion(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
   if (!isMasterModuleMock(mock.moduleCode)) return false;
+  if (MM_EXPRESSION_CONCEPT_FAMILIES.has(String(question.conceptFamily || "").toUpperCase())) return true;
   const text = questionSearchText(question);
-  return Number(question.sectionNumber) === 8 || text.includes("bodmas") || text.includes("percentage") || text.includes("percent");
+  return text.includes("bodmas") || text.includes("percentage") || text.includes("percent");
 }
 
 function isMmFinancialQuestion(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
   if (!isMasterModuleMock(mock.moduleCode)) return false;
+  if (MM_FINANCIAL_CONCEPT_FAMILIES.has(String(question.conceptFamily || "").toUpperCase())) return true;
   const text = questionSearchText(question);
-  return Number(question.sectionNumber) === 9 || text.includes("profit") || text.includes("loss") || text.includes("interest") || text.includes("selling price") || text.includes("cost price");
+  return text.includes("profit") || text.includes("loss") || text.includes("interest") || text.includes("selling price") || text.includes("cost price");
 }
 
 function isMmPositionalQuestion(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
   if (!isMasterModuleMock(mock.moduleCode)) return false;
+  if (MM_POSITIONAL_CONCEPT_FAMILIES.has(String(question.conceptFamily || "").toUpperCase())) return true;
   const text = questionSearchText(question);
-  return Number(question.sectionNumber) === 5 || text.includes("position") || text.includes("placement");
+  return text.includes("position") || text.includes("placement");
 }
 
 function hasMultiplicationPlacementShape(question: CompetitionMockQuestion) {
@@ -108,7 +134,7 @@ function getCleanMmSectionName(question: CompetitionMockQuestion): string {
 
 function getMmQuestionConceptDisplayTitle(question: CompetitionMockQuestion, mock: CompetitionMockExamDetail) {
   if (!isMasterModuleMock(mock.moduleCode)) return question.conceptTag || question.conceptFamily || "Concept";
-  if (Number(question.sectionNumber) === 5 || isMmPositionalQuestion(question, mock)) {
+  if (isMmPositionalQuestion(question, mock)) {
     if (hasWriteNumberPositionShape(question)) return "Write Number From Given Position";
     if (hasMultiplicationPlacementShape(question)) return "Decimal Multiplication Answer Position";
     return "Find Position of the First Natural Number";
