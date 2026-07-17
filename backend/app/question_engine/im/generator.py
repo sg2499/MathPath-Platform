@@ -135,7 +135,9 @@ def _GenerateSingleSectionQuestionSet(Config: IMConfig, SectionNumber: int = 1, 
             "concept_family": Config.ConceptFamily,
             "operation_focus": Config.OperationFocus,
             "digit_pattern": Config.DigitPattern,
-            "generator_package": "IM_LEVEL4_SECTION_AWARE_PACKAGE_1",
+            # Shared across every IM level (L3 and L4 alike, 2026-07-17) --
+            # was literally "IM_LEVEL4_..." when this engine only served L4.
+            "generator_package": "IM_SECTION_AWARE_PACKAGE_1",
             "im_validated": True,
             "generation_attempts": Attempt + 1,
             **ExtraMetadata,
@@ -152,7 +154,7 @@ def GenerateImQuestionSet(Config: IMConfig) -> list[dict]:
         # LessonNumber/DpsNumber pair silently re-expanded into every section
         # IM_CURRICULUM_MAP knows about for that DPS. This flag skips that lookup.
         return rebalance_correct_option_distribution(_GenerateSingleSectionQuestionSet(Config))
-    SectionDefinitions = GeneratorConfig.get("dpsSections") or IM_CURRICULUM_MAP.get(Config.LessonNumber, {}).get(Config.DpsNumber, [])
+    SectionDefinitions = GeneratorConfig.get("dpsSections") or IM_CURRICULUM_MAP.get(Config.LevelCode, {}).get(Config.LessonNumber, {}).get(Config.DpsNumber, [])
 
     if not SectionDefinitions:
         return rebalance_correct_option_distribution(_GenerateSingleSectionQuestionSet(Config))
