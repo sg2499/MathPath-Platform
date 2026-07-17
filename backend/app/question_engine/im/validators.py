@@ -68,7 +68,10 @@ def _ValidateSkillStacker(Operands: list, Operators: list[str], CorrectAnswer: D
         return False
     AddValue = Decimal(str(Operands[0]))
     Times = int(Operands[1])
-    if Times < 8 or Times > 12 or AddValue <= 0:
+    # Upper bound widened to 15 to match LEVEL 8.xlsx's real ceiling (Lesson
+    # 12 uses TIMES=15, POWER(2,15-1)) -- the old <=12 cap rejected every
+    # valid Times=15 question the generator now produces (2026-07-17 audit).
+    if Times < 8 or Times > 15 or AddValue <= 0:
         return False
     return CorrectAnswer == AddValue * (Decimal(2) ** (Times - 1))
 

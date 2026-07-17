@@ -112,19 +112,20 @@ export default function AdminCompetitionMockStudioPage() {
   const MockExams = MocksQuery.data || [];
   const SectionPlan = SectionPlanQuery.data || null;
 
+  // SectionCounts only ever holds keys the admin has actually edited (typing
+  // a number, including 0 to omit a section) -- it is deliberately NOT
+  // pre-seeded with every section's default value. A section absent from
+  // this map is "floating": LiveSections (below) keeps it auto-split with
+  // whatever total-questions budget is left after the admin's explicit
+  // edits, live, as those edits change -- that's what makes the panel
+  // renumber and redistribute in real time instead of only after a
+  // round-trip. Switching level (or the section plan reloading for any
+  // other reason, e.g. a totally different level's section list coming in)
+  // clears every touch, since a fresh level's sections start with nothing
+  // omitted.
   useEffect(() => {
-    if (!SectionPlan?.sections?.length) {
-      SetSectionCounts({});
-      return;
-    }
-    SetSectionCounts((CurrentValue) => {
-      const NextValue: Record<string, string> = {};
-      SectionPlan.sections.forEach((SectionValue) => {
-        NextValue[SectionValue.sectionKey] = CurrentValue[SectionValue.sectionKey] ?? String(SectionValue.questionCount || 0);
-      });
-      return NextValue;
-    });
-  }, [SectionPlan]);
+    SetSectionCounts({});
+  }, [SectionPlan?.levelId]);
 
   const SelectedLevel = Levels.find((LevelValue) => LevelValue.levelId === SelectedLevelId) || null;
   const SelectedModule = Modules.find((ModuleValue) => ModuleValue.moduleId === SelectedModuleId) || null;
@@ -144,16 +145,64 @@ export default function AdminCompetitionMockStudioPage() {
   }, [IsSelectedMasterModule, IsSelectedIntermediateModule]);
 
 
+  // LiveSections mirrors the backend's _RedistributeSectionCounts +
+  // _DenseSectionNumbering pair (competition_mock_generation_service.py) so
+  // the admin sees the exact redistribution and renumbering that will
+  // actually happen at generation time, live, with no round-trip:
+  //   - a section is "touched" if the admin has typed something into its
+  //     box (present in SectionCounts), including 0 to omit it -- touched
+  //     positive values are always honored exactly, never silently shrunk.
+  //   - every other section is "floating": the leftover budget
+  //     (Target - PinnedSum) is split evenly across all floating sections,
+  //     with the remainder handed out one-by-one in definition order --
+  //     same rule the backend uses for its default (no-override) split.
+  //   - liveNumber is assigned densely (1, 2, 3...) in definition order,
+  //     skipping any section whose liveCount is 0, exactly matching
+  //     _DenseSectionNumbering.
+  const LiveSections = useMemo(() => {
+    const Sections = SectionPlan?.sections || [];
+    const Target = Math.max(0, Math.floor(Number(QuestionCount) || 0)) || DefaultQuestionCount;
+
+    let PinnedSum = 0;
+    let FloatingCount = 0;
+    Sections.forEach((SectionValue) => {
+      const Touched = SectionCounts[SectionValue.sectionKey];
+      if (Touched !== undefined) {
+        PinnedSum += Math.max(0, Math.floor(Number(Touched) || 0));
+      } else {
+        FloatingCount += 1;
+      }
+    });
+
+    const FloatingBudget = Math.max(0, Target - PinnedSum);
+    const FloatingBase = FloatingCount > 0 ? Math.floor(FloatingBudget / FloatingCount) : 0;
+    const FloatingRemainder = FloatingCount > 0 ? FloatingBudget % FloatingCount : 0;
+
+    let FloatingIndex = 0;
+    let DenseNumber = 0;
+    return Sections.map((SectionValue) => {
+      const Touched = SectionCounts[SectionValue.sectionKey];
+      let LiveCount: number;
+      if (Touched !== undefined) {
+        LiveCount = Math.max(0, Math.floor(Number(Touched) || 0));
+      } else {
+        LiveCount = FloatingBase + (FloatingIndex < FloatingRemainder ? 1 : 0);
+        FloatingIndex += 1;
+      }
+      const LiveNumber = LiveCount > 0 ? (DenseNumber += 1) : null;
+      return { ...SectionValue, liveCount: LiveCount, liveNumber: LiveNumber };
+    });
+  }, [SectionPlan, SectionCounts, QuestionCount]);
+
   const CleanSectionCounts = useMemo(() => {
     const Counts: Record<string, number> = {};
-    Object.entries(SectionCounts).forEach(([Key, Value]) => {
-      const CountValue = Math.max(0, Math.floor(Number(Value) || 0));
-      if (CountValue > 0) Counts[Key] = CountValue;
+    LiveSections.forEach((SectionValue) => {
+      if (SectionValue.liveCount > 0) Counts[SectionValue.sectionKey] = SectionValue.liveCount;
     });
     return Counts;
-  }, [SectionCounts]);
+  }, [LiveSections]);
 
-  const SectionCountTotal = useMemo(() => Object.values(CleanSectionCounts).reduce((Total, Value) => Total + Value, 0), [CleanSectionCounts]);
+  const SectionCountTotal = useMemo(() => LiveSections.reduce((Total, SectionValue) => Total + SectionValue.liveCount, 0), [LiveSections]);
 
   function UpdateSectionCount(SectionKey: string, Value: string) {
     SetSectionCounts((CurrentValue) => ({ ...CurrentValue, [SectionKey]: Value }));
@@ -202,7 +251,13 @@ export default function AdminCompetitionMockStudioPage() {
       levelId: SelectedLevelId,
       title: MockTitle.trim() || undefined,
       mockCode: MockCode.trim() || undefined,
-      totalQuestions: SectionCountTotal || Number(QuestionCount) || DefaultQuestionCount,
+      // The "Total Questions" field is the real target the admin set; it
+      // must win outright, not just when the section boxes happen to sum
+      // to zero. LiveSections/SectionCountTotal always redistributes to
+      // equal this same target anyway (see LiveSections above), so in
+      // practice the two only differ transiently before a re-render --
+      // but QuestionCount is the source of truth, never the box sum.
+      totalQuestions: Number(QuestionCount) || DefaultQuestionCount,
       durationSeconds: (Number(DurationMinutes) || DefaultDurationMinutes) * 60,
       competitionScope: "GENERAL",
       difficultyBand: "COMPETITION",
@@ -418,23 +473,28 @@ export default function AdminCompetitionMockStudioPage() {
                     <div className="mt-4 space-y-2">
                       {SectionPlanQuery.isLoading && <LoadingState label="Loading section plan..." />}
                       {!SelectedLevelId && <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Select a level to load section allocation.</p>}
-                      {SectionPlan?.sections?.map((SectionValue) => (
-                        <div key={SectionValue.sectionKey} className="grid gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50 sm:grid-cols-[1fr_110px] sm:items-center">
-                          <div className="min-w-0">
-                            <p className="text-sm font-black text-slate-950 dark:text-white">{SectionValue.sectionTitle}</p>
-                            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Section {SectionValue.sectionNumber}</p>
+                      {LiveSections.map((SectionValue) => {
+                        const IsOmitted = SectionValue.liveCount === 0;
+                        return (
+                          <div key={SectionValue.sectionKey} className={`grid gap-3 rounded-2xl border px-4 py-3 sm:grid-cols-[1fr_110px] sm:items-center ${IsOmitted ? "border-slate-200 bg-slate-100/70 dark:border-slate-800 dark:bg-slate-900/30" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/50"}`}>
+                            <div className="min-w-0">
+                              <p className={`text-sm font-black ${IsOmitted ? "text-slate-400 line-through dark:text-slate-600" : "text-slate-950 dark:text-white"}`}>{SectionValue.sectionTitle}</p>
+                              <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                                {IsOmitted ? "Omitted — questions redistributed to remaining sections" : `Section ${SectionValue.liveNumber}`}
+                              </p>
+                            </div>
+                            <input
+                              value={SectionCounts[SectionValue.sectionKey] ?? String(SectionValue.liveCount)}
+                              onChange={(EventValue) => UpdateSectionCount(SectionValue.sectionKey, EventValue.target.value)}
+                              type="number"
+                              min={0}
+                              max={300}
+                              className="math-input text-center font-black"
+                              aria-label={`${SectionValue.sectionTitle} question count`}
+                            />
                           </div>
-                          <input
-                            value={SectionCounts[SectionValue.sectionKey] ?? String(SectionValue.questionCount || 0)}
-                            onChange={(EventValue) => UpdateSectionCount(SectionValue.sectionKey, EventValue.target.value)}
-                            type="number"
-                            min={0}
-                            max={300}
-                            className="math-input text-center font-black"
-                            aria-label={`${SectionValue.sectionTitle} question count`}
-                          />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 

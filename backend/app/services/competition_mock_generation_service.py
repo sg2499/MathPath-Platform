@@ -110,6 +110,79 @@ IM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
 }
 
 
+# IM-L3 competition mock structure -- its own sections/concepts, built
+# directly from the IM-L3 curriculum audit in
+# app/question_engine/im/curriculum_map.py's _IM_L3_MAP (see that block's
+# module-level comment for the full audit trail), not adapted or scaled
+# down from IM-L4's own numbers. Two confirmed, deliberate differences from
+# IM-L4:
+#   - Section 6 is "BODMAS" only, not "BODMAS and Solve Equation" -- Solve
+#     the Equation does not exist anywhere in the IM-L3 curriculum
+#     (confirmed absent across all 12 lessons), and every real IM-L3 BODMAS
+#     expression uses the exact-division template
+#     (bodmasTemplate="L3_EXACT_DIVISION", zero remainder), never a squared
+#     term.
+#   - Multiplication/division digit patterns are narrower than L4's (only
+#     2Dx2D/3Dx1D/4Dx1D multiplication and 3D-4D/1D-2D division ever appear
+#     in the L3 workbook -- no 3Dx2D/4Dx2D multiplication or 4D/3D division
+#     at all), Skill Stacker's Times is fixed at 10 (never random, unlike
+#     L4), and Concept Drill's FROM/LESS bands are the same narrow range
+#     the audit found repeated identically across every L3 lesson that has
+#     one.
+IM_L3_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
+    {"key": "IM_L3_ADD_LESS_ABACUS", "number": 1, "title": "Section 1 - Add/Less (Abacus)"},
+    {"key": "IM_L3_ADD_LESS_VISUAL", "number": 2, "title": "Section 2 - Add/Less (Visual)"},
+    {"key": "IM_L3_MULTIPLICATION", "number": 3, "title": "Section 3 - Multiplication"},
+    {"key": "IM_L3_DIVISION", "number": 4, "title": "Section 4 - Division"},
+    {"key": "IM_L3_SQUARES", "number": 5, "title": "Section 5 - Squares"},
+    {"key": "IM_L3_BODMAS", "number": 6, "title": "Section 6 - BODMAS"},
+    {"key": "IM_L3_POSITIONAL_PLACEMENT", "number": 7, "title": "Section 7 - Positional and Placement"},
+    {"key": "IM_L3_SKILL_DRILL", "number": 8, "title": "Section 8 - Skill Stacker and Concept Drill"},
+]
+
+IM_L3_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
+    "IM_L3_ADD_LESS_ABACUS": [
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Abacus)", "isDecimal": True, "decimalPlaces": 2},
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less (Abacus)", "rowCount": 4, "magnitudeMin": 1000, "magnitudeMax": 9999},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Negative Answers (Abacus)", "borrowingMode": "NEGATIVE", "rowCount": 3, "magnitudeMin": 10000, "magnitudeMax": 99999},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Negative/Positive Answers (Abacus)", "borrowingMode": "POSITIVE_NEGATIVE", "rowCount": 3, "magnitudeMin": 10000, "magnitudeMax": 99999},
+    ],
+    "IM_L3_ADD_LESS_VISUAL": [
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Visual)", "isDecimal": True, "decimalPlaces": 2},
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less (Visual)", "rowCount": 3, "magnitudeMin": 1000, "magnitudeMax": 9999},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Add/Less Sums (Visual)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 3, "magnitudeMin": 1, "magnitudeMax": 99},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Negative Answers (Visual)", "borrowingMode": "NEGATIVE", "rowCount": 3, "magnitudeMin": 100, "magnitudeMax": 999},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Negative/Positive Answers (Visual)", "borrowingMode": "POSITIVE_NEGATIVE", "rowCount": 3, "magnitudeMin": 1000, "magnitudeMax": 9999},
+    ],
+    "IM_L3_MULTIPLICATION": [
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "2D x 2D Multiplication", "multiplicationDigits": (2, 2)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "3D x 1D Multiplication", "multiplicationDigits": (3, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "4D x 1D Multiplication", "multiplicationDigits": (4, 1)},
+    ],
+    "IM_L3_DIVISION": [
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "3D / 1D Long Division & Estimation", "divisionDigits": (3, 1), "isLongDivisionEstimation": True},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "3D / 2D Division", "divisionDigits": (3, 2)},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "4D / 1D Division", "divisionDigits": (4, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "4D / 2D Division", "divisionDigits": (4, 2)},
+    ],
+    "IM_L3_SQUARES": [
+        {"conceptFamily": "SQUARES", "title": "Squares"},
+    ],
+    "IM_L3_BODMAS": [
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "L3_EXACT_DIVISION", "bodmasDivisionDigits": (4, 1)},
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "L3_EXACT_DIVISION", "bodmasDivisionDigits": (3, 2)},
+    ],
+    "IM_L3_POSITIONAL_PLACEMENT": [
+        {"conceptFamily": "ANSWER_POSITION", "title": "Write the Number from the Given Position", "answerPositionDirection": "WRITE_FROM_POSITION", "positionRange": (-4, 3)},
+        {"conceptFamily": "ANSWER_POSITION", "title": "Find the Position of the First Natural Number", "answerPositionDirection": "FIND_POSITION", "positionRange": (-5, 6)},
+    ],
+    "IM_L3_SKILL_DRILL": [
+        {"conceptFamily": "SKILL_STACKER", "title": "Skill Stacker", "fixedTimes": 10, "addRange": (1, 14)},
+        {"conceptFamily": "CONCEPT_DRILL", "title": "Concept Drill", "wholeFromRange": (2000, 7000), "wholeLessRange": (100, 500), "decimalFromRange": (90, 290), "decimalLessRange": (6, 11)},
+    ],
+}
+
+
 # IM competition mocks are designed level by level, not module-wide -- each
 # IM level (L1-L4) gets its own distinct set of sections and concepts, so
 # there is no single "IM section structure" that generically applies to
@@ -118,7 +191,7 @@ IM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
 # must resolve a level's structure through _ImCompetitionLevelConfig() below
 # rather than referencing IM_COMPETITION_SECTION_DEFINITIONS/
 # IM_COMPETITION_SECTION_CONCEPT_POOLS directly, so that requesting a mock
-# for a level that hasn't been configured yet (e.g. IM-L1/L2/L3 today) fails
+# for a level that hasn't been configured yet (e.g. IM-L1/L2 today) fails
 # loudly with a clear error instead of silently generating IM-L4 content
 # under a different level's name. To add a new level, add its own entry here
 # with that level's own sections/concepts -- do not extend IM-L4's.
@@ -126,6 +199,10 @@ IM_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     "IM-L4": {
         "sectionDefinitions": IM_COMPETITION_SECTION_DEFINITIONS,
         "sectionConceptPools": IM_COMPETITION_SECTION_CONCEPT_POOLS,
+    },
+    "IM-L3": {
+        "sectionDefinitions": IM_L3_COMPETITION_SECTION_DEFINITIONS,
+        "sectionConceptPools": IM_L3_COMPETITION_SECTION_CONCEPT_POOLS,
     },
 }
 
@@ -201,19 +278,33 @@ MM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
 MM_COMPETITION_SECTION_BY_KEY = {Row["key"]: Row for Row in MM_COMPETITION_SECTION_DEFINITIONS}
 
 
-def _CompetitionSectionDisplayTitle(SectionDefinition: dict[str, Any]) -> str:
-    return f"Section {SectionDefinition['number']} - {SectionDefinition['title'].split(' - ', 1)[-1]}"
+def _CompetitionSectionDisplayTitle(SectionDefinition: dict[str, Any], DisplayNumber: int | None = None) -> str:
+    Number = DisplayNumber if DisplayNumber is not None else SectionDefinition["number"]
+    return f"Section {Number} - {SectionDefinition['title'].split(' - ', 1)[-1]}"
 
 
-def _DecorateCompetitionSectionQuestion(Question: dict[str, Any], SectionKey: str, SectionDefinition: dict[str, Any]) -> dict[str, Any]:
+def _DecorateCompetitionSectionQuestion(Question: dict[str, Any], SectionKey: str, SectionDefinition: dict[str, Any], DisplayNumber: int | None = None) -> dict[str, Any]:
+    Number = DisplayNumber if DisplayNumber is not None else SectionDefinition["number"]
     DecoratedQuestion = dict(Question)
     Metadata = DecoratedQuestion.get("metadata") if isinstance(DecoratedQuestion.get("metadata"), dict) else {}
     Metadata = dict(Metadata)
     Metadata.update({
         "competitionSectionKey": SectionKey,
-        "competitionSectionNumber": SectionDefinition["number"],
-        "competitionSectionTitle": SectionDefinition["title"],
-        "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
+        "competitionSectionNumber": Number,
+        # Both title fields are rebuilt with the (possibly renumbered) Number
+        # baked in, not SectionDefinition["title"] verbatim -- that raw
+        # string has the section's ORIGINAL static number embedded in its
+        # own text (e.g. "Section 7 - Positional and Placement"), so once a
+        # section gets renumbered to close a gap, using the raw title would
+        # silently show the stale number in the text even though
+        # competitionSectionNumber itself is correct. competitionSectionTitle
+        # specifically is what ends up persisted as
+        # CompetitionMockQuestion.section_title -- the field every
+        # downstream screen (results, instructions, exam-taking) actually
+        # reads -- so it has to carry the corrected number too, not just the
+        # separate "display title" field.
+        "competitionSectionTitle": _CompetitionSectionDisplayTitle(SectionDefinition, Number),
+        "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition, Number),
         "competitionSectionLocked": True,
     })
     DecoratedQuestion["metadata"] = Metadata
@@ -910,39 +1001,101 @@ def _ApplyMmCompetitionQuestionShaping(Question: dict[str, Any], *, SectionKey: 
     return ShapedQuestion
 
 
-def _MmSectionCountMap(TotalQuestionCount: int, SectionDefinitions: list[dict[str, Any]], SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
-    if SectionCountsOverride:
+def _RedistributeSectionCounts(
+    TargetTotal: int,
+    SectionDefinitions: list[dict[str, Any]],
+    SectionCountsOverride: dict[str, int] | None,
+    DefaultTotal: int,
+) -> dict[str, int]:
+    """Split TargetTotal across a level's sections -- the one shared
+    implementation _MmSectionCountMap and _ImSectionCountMap both delegate
+    to, so this fix (and any future one) lives in exactly one place for
+    every current and future MM/IM level, not duplicated per module.
+
+    No override: even split, base + remainder to the first few sections in
+    definition order -- unchanged from before, and this is also what
+    already correctly handles a section a level's own registry never
+    defines at all (it's simply absent from SectionDefinitions, so the
+    split only ever divides across however many sections the level
+    actually has).
+
+    With an override (the admin's live per-section allocation, e.g. from
+    the mock-studio Section Allocation panel): a section given a positive
+    count keeps that EXACT number -- an admin's deliberate custom
+    allocation is never silently changed. A section left at 0 or missing
+    from the override is OFF. Previously, omitting a section this way just
+    shrank the mock's total by whatever that section would have carried
+    (`RequestedQuestionCount = sum(SectionCountsOverride.values())` in
+    GenerateCompetitionMockDraft). Now: if the admin's explicit positive
+    allocations add up to less than TargetTotal -- exactly what happens
+    when a section gets zeroed out without hand-rebalancing everything else
+    -- the shortfall is spread evenly (remainder to the first few, in
+    definition order) across whichever sections are still ON, so the
+    mock's total always lands on its intended target instead of coming up
+    short. If the explicit allocations already meet or exceed TargetTotal,
+    they're honored as-is (an admin's specific numbers are never shrunk to
+    fit).
+    """
+    if not SectionCountsOverride:
+        Requested = max(1, int(TargetTotal or DefaultTotal))
+        Base = Requested // len(SectionDefinitions)
+        Remainder = Requested % len(SectionDefinitions)
         return {
-            Section["key"]: int(SectionCountsOverride.get(Section["key"], 0) or 0)
-            for Section in SectionDefinitions
+            Section["key"]: Base + (1 if Index < Remainder else 0)
+            for Index, Section in enumerate(SectionDefinitions)
         }
-    Requested = max(1, int(TotalQuestionCount or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT))
-    Base = Requested // len(SectionDefinitions)
-    Remainder = Requested % len(SectionDefinitions)
-    return {
-        Section["key"]: Base + (1 if Index < Remainder else 0)
-        for Index, Section in enumerate(SectionDefinitions)
-    }
+
+    Counts: dict[str, int] = {}
+    ActiveKeys: list[str] = []
+    for Section in SectionDefinitions:
+        Key = Section["key"]
+        Explicit = max(0, int(SectionCountsOverride.get(Key, 0) or 0))
+        Counts[Key] = Explicit
+        if Explicit > 0:
+            ActiveKeys.append(Key)
+
+    AllocatedSum = sum(Counts.values())
+    Target = max(0, int(TargetTotal or 0)) or AllocatedSum
+    Shortfall = Target - AllocatedSum
+    if Shortfall > 0 and ActiveKeys:
+        Base = Shortfall // len(ActiveKeys)
+        Remainder = Shortfall % len(ActiveKeys)
+        for Index, Key in enumerate(ActiveKeys):
+            Counts[Key] += Base + (1 if Index < Remainder else 0)
+
+    return Counts
+
+
+def _DenseSectionNumbering(SectionDefinitions: list[dict[str, Any]], SectionCounts: dict[str, int]) -> dict[str, int]:
+    """Sequential, gap-free section numbers (1..N) for every section that
+    actually ends up with questions in it, in the level's own defined
+    order -- skipping any section whose count is 0/omitted, whether that's
+    because an admin zeroed it out via SectionCountsOverride or because a
+    level's registry simply never defined it. Computed once per generation
+    and used for every place a section number gets stamped (question
+    metadata, section coverage, and therefore the persisted
+    CompetitionMockQuestion rows every downstream screen -- exam-taking,
+    results, instructions, admin review -- ultimately reads), so a gap
+    never appears anywhere a student or admin can see it: whatever section
+    comes next always gets the very next number, never the number it would
+    have had in the full, un-omitted list.
+    """
+    Numbering: dict[str, int] = {}
+    NextNumber = 1
+    for Section in SectionDefinitions:
+        Key = Section["key"]
+        if int(SectionCounts.get(Key, 0) or 0) > 0:
+            Numbering[Key] = NextNumber
+            NextNumber += 1
+    return Numbering
+
+
+def _MmSectionCountMap(TotalQuestionCount: int, SectionDefinitions: list[dict[str, Any]], SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
+    return _RedistributeSectionCounts(TotalQuestionCount, SectionDefinitions, SectionCountsOverride, DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
 
 
 def _ImSectionCountMap(TotalQuestionCount: int, SectionDefinitions: list[dict[str, Any]], SectionCountsOverride: dict[str, int] | None = None) -> dict[str, int]:
-    if SectionCountsOverride:
-        # Admin decides exactly how many questions go into each section, including
-        # setting any section to 0 (or leaving it out) to omit it entirely. There
-        # is no automatic redistribution of an omitted section's freed budget onto
-        # the remaining sections -- the total simply becomes whatever the admin
-        # explicitly allocated, matching how MM's section counts already behave.
-        return {
-            Section["key"]: int(SectionCountsOverride.get(Section["key"], 0) or 0)
-            for Section in SectionDefinitions
-        }
-    Requested = max(1, int(TotalQuestionCount or IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT))
-    Base = Requested // len(SectionDefinitions)
-    Remainder = Requested % len(SectionDefinitions)
-    return {
-        Section["key"]: Base + (1 if Index < Remainder else 0)
-        for Index, Section in enumerate(SectionDefinitions)
-    }
+    return _RedistributeSectionCounts(TotalQuestionCount, SectionDefinitions, SectionCountsOverride, IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
 
 
 def _ImCompetitionOrderedConceptSchedule(ConceptPool: list[dict[str, Any]], RequiredCount: int) -> list[dict[str, Any]] | None:
@@ -1107,6 +1260,14 @@ def _CollectMmCompetitionSectionLockedQuestions(
     OrderedConceptGroups = LevelConfig["orderedConceptGroups"]
 
     SectionCounts = _MmSectionCountMap(TargetQuestionCount, SectionDefinitions, SectionCountsOverride)
+    # Sequential, gap-free display numbers for whichever sections actually
+    # end up with questions -- see _DenseSectionNumbering's docstring. Used
+    # below instead of each SectionDefinition's own static "number" so an
+    # omitted section (whether zeroed by the admin or absent from this
+    # level's own registry) never leaves a numbering gap anywhere
+    # downstream (question metadata, section coverage, and therefore every
+    # screen that reads them).
+    DenseNumbers = _DenseSectionNumbering(SectionDefinitions, SectionCounts)
     Selected: list[dict[str, Any]] = []
     SectionCoverage: list[dict[str, Any]] = []
     RecentSignatures = set(ExcludedSignatures or set())
@@ -1116,6 +1277,9 @@ def _CollectMmCompetitionSectionLockedQuestions(
     for SectionIndex, SectionDefinition in enumerate(SectionDefinitions):
         SectionKey = SectionDefinition["key"]
         RequiredCount = int(SectionCounts.get(SectionKey, 0) or 0)
+        if RequiredCount <= 0:
+            continue
+        DisplayNumber = DenseNumbers[SectionKey]
         ConceptPool = SectionConceptPools.get(SectionKey, [])
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
@@ -1172,18 +1336,18 @@ def _CollectMmCompetitionSectionLockedQuestions(
                     "competitionAllowedConceptFamily": ConceptSpec["conceptFamily"],
                     "conceptName": ConceptSpec["title"],
                     "competitionSectionKey": SectionKey,
-                    "competitionSectionNumber": SectionDefinition["number"],
-                    "competitionSectionTitle": SectionDefinition["title"],
-                    "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
+                    "competitionSectionNumber": DisplayNumber,
+                    "competitionSectionTitle": _CompetitionSectionDisplayTitle(SectionDefinition, DisplayNumber),
+                    "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition, DisplayNumber),
                     "competitionSectionLocked": True,
                     "competitionDifficultyProfile": "MM_COMPETITION_CHALLENGE",
                     "competitionChallengeLessonFloor": ChallengeLessonFloors.get(SectionKey, 20),
-                    "section_number": SectionDefinition["number"],
-                    "section_title": _CompetitionSectionDisplayTitle(SectionDefinition),
+                    "section_number": DisplayNumber,
+                    "section_title": _CompetitionSectionDisplayTitle(SectionDefinition, DisplayNumber),
                 })
                 QuestionCopy = dict(Question)
                 QuestionCopy["metadata"] = Metadata
-                SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition))
+                SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition, DisplayNumber))
                 if str(ConceptSpec.get("title") or "").lower() == "write number from given position":
                     PositionValue = Metadata.get("position")
                     if isinstance(PositionValue, int):
@@ -1215,8 +1379,8 @@ def _CollectMmCompetitionSectionLockedQuestions(
         Selected.extend(SectionQuestions)
         SectionCoverage.append({
             "sectionKey": SectionKey,
-            "sectionNumber": SectionDefinition["number"],
-            "sectionTitle": SectionDefinition["title"],
+            "sectionNumber": DisplayNumber,
+            "sectionTitle": _CompetitionSectionDisplayTitle(SectionDefinition, DisplayNumber),
             "selectedQuestionCount": len(SectionQuestions),
             "availableQuestionCount": len(SectionQuestions),
             "locked": True,
@@ -1303,6 +1467,9 @@ def _CollectImCompetitionSectionLockedQuestions(
     SectionConceptPools = LevelConfig["sectionConceptPools"]
 
     SectionCounts = _ImSectionCountMap(TargetQuestionCount, SectionDefinitions, SectionCountsOverride)
+    # Sequential, gap-free display numbers for whichever sections actually
+    # end up with questions -- see _DenseSectionNumbering's docstring.
+    DenseNumbers = _DenseSectionNumbering(SectionDefinitions, SectionCounts)
     Selected: list[dict[str, Any]] = []
     SectionCoverage: list[dict[str, Any]] = []
     RecentSignatures = set(ExcludedSignatures or set())
@@ -1312,6 +1479,9 @@ def _CollectImCompetitionSectionLockedQuestions(
     for SectionIndex, SectionDefinition in enumerate(SectionDefinitions):
         SectionKey = SectionDefinition["key"]
         RequiredCount = int(SectionCounts.get(SectionKey, 0) or 0)
+        if RequiredCount <= 0:
+            continue
+        DisplayNumber = DenseNumbers[SectionKey]
         ConceptPool = SectionConceptPools.get(SectionKey, [])
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
@@ -1377,17 +1547,17 @@ def _CollectImCompetitionSectionLockedQuestions(
                 "competitionAllowedConceptFamily": ConceptSpec["conceptFamily"],
                 "conceptName": ConceptSpec["title"],
                 "competitionSectionKey": SectionKey,
-                "competitionSectionNumber": SectionDefinition["number"],
-                "competitionSectionTitle": SectionDefinition["title"],
-                "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition),
+                "competitionSectionNumber": DisplayNumber,
+                "competitionSectionTitle": _CompetitionSectionDisplayTitle(SectionDefinition, DisplayNumber),
+                "competitionSectionDisplayTitle": _CompetitionSectionDisplayTitle(SectionDefinition, DisplayNumber),
                 "competitionSectionLocked": True,
                 "competitionDifficultyProfile": f"IM_COMPETITION_{str(getattr(LevelRecord, 'level_code', '') or 'UNKNOWN').replace('-', '_')}",
-                "section_number": SectionDefinition["number"],
-                "section_title": _CompetitionSectionDisplayTitle(SectionDefinition),
+                "section_number": DisplayNumber,
+                "section_title": _CompetitionSectionDisplayTitle(SectionDefinition, DisplayNumber),
             })
             QuestionCopy = dict(AcceptedQuestion)
             QuestionCopy["metadata"] = Metadata
-            SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition))
+            SectionQuestions.append(_DecorateCompetitionSectionQuestion(QuestionCopy, SectionKey, SectionDefinition, DisplayNumber))
             ConceptName = str(ConceptSpec["title"])
             ConceptCoverage[ConceptName] += 1
             if ConceptName not in ConceptCoverageOrder:
@@ -1396,8 +1566,8 @@ def _CollectImCompetitionSectionLockedQuestions(
         Selected.extend(SectionQuestions)
         SectionCoverage.append({
             "sectionKey": SectionKey,
-            "sectionNumber": SectionDefinition["number"],
-            "sectionTitle": SectionDefinition["title"],
+            "sectionNumber": DisplayNumber,
+            "sectionTitle": _CompetitionSectionDisplayTitle(SectionDefinition, DisplayNumber),
             "selectedQuestionCount": len(SectionQuestions),
             "availableQuestionCount": len(SectionQuestions),
             "locked": True,
@@ -2271,8 +2441,17 @@ def GenerateCompetitionMockDraft(
     if RequestedDurationSeconds < 300:
         api_error(400, "INVALID_DURATION", "Competition mock duration must be at least 5 minutes.")
 
-    if SectionCountsOverride:
-        RequestedQuestionCount = sum(SectionCountsOverride.values())
+    # RequestedQuestionCount is already the right target at this point --
+    # the admin's own TotalQuestions when they set one, else the sum of
+    # their section overrides, else the level default (see the assignment
+    # above). It used to get unconditionally overwritten here with
+    # `sum(SectionCountsOverride.values())` any time an override was
+    # present, which silently threw away an explicit TotalQuestions the
+    # moment the admin touched a single section box -- that's exactly what
+    # made omitting a section shrink the mock instead of redistributing its
+    # share (see _RedistributeSectionCounts). Keeping TotalQuestions
+    # authoritative here is what lets that redistribution actually reach a
+    # student-visible mock.
     SelectedQuestions, CoveragePayload = _CollectGeneratedQuestions(db, ModuleRecord, LevelRecord, Lessons, DpsRows, RequestedQuestionCount, SectionCountsOverride)
     ActualQuestionCount = len(SelectedQuestions)
     DisplayMockCode = _NormalizeMockCodeInput(MockCode) or _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)

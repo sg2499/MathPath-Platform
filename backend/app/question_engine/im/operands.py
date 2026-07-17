@@ -53,12 +53,33 @@ def _Display(Value: Decimal) -> int | float:
 # ---------------------------------------------------------------------------
 
 def _AddLessRowPlan(Config: IMConfig) -> tuple[int, int, int]:
-    """Return (row_count, magnitude_min, magnitude_max) for this section."""
+    """Return (row_count, magnitude_min, magnitude_max) for this section.
+
+    Every Add/Less-family DPS across both IM-L4 (LEVEL 8.xlsx) and IM-L3
+    (IM3 Lvl 7 New.xlsx) was re-measured directly from the workbooks'
+    literal cell values (row count + min/max magnitude per section,
+    2026-07-17 audit) -- the result: row count and magnitude vary
+    per-DPS-instance, not by a flat category rule (e.g. L4 Lesson 6 DPS-5
+    is 6 rows of 2-digit numbers; L4 Lesson 9 DPS-4 is 3 rows spanning
+    5-6 digit numbers; L4 Lesson 8 DPS-4 decimal rows stay under 10).
+    curriculum_map.py entries therefore carry explicit `rowCount` /
+    `magnitudeMin` / `magnitudeMax` overrides wherever the measured data
+    diverges from the old flat defaults; those overrides are read first
+    here. The category-based fallbacks below are a safety net only, for
+    any section that doesn't (yet) specify explicit values.
+    """
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+
+    ExplicitRowCount = GeneratorConfig.get("rowCount")
+    ExplicitMin = GeneratorConfig.get("magnitudeMin")
+    ExplicitMax = GeneratorConfig.get("magnitudeMax")
+    if ExplicitRowCount and ExplicitMin is not None and ExplicitMax is not None:
+        return int(ExplicitRowCount), int(ExplicitMin), int(ExplicitMax)
+
     ExplicitDigits = GeneratorConfig.get("explicitDigitCount")
     if ExplicitDigits:
         Minimum, Maximum = _DigitRange(int(ExplicitDigits))
-        RowCount = 3 if int(ExplicitDigits) >= 6 else 4
+        RowCount = int(ExplicitRowCount) if ExplicitRowCount else (3 if int(ExplicitDigits) >= 6 else 4)
         return RowCount, Minimum, Maximum
 
     IsDecimal = bool(GeneratorConfig.get("isDecimal"))
@@ -83,42 +104,57 @@ def GenerateAddLess(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -
     RowCount, Minimum, Maximum = _AddLessRowPlan(Config)
     BorrowingMode = GeneratorConfig.get("borrowingMode")
 
-    # Sign/magnitude bias, calibrated against real workbook column sums (not
-    # assumed): hand-computing the actual answer-key columns for several
-    # "Negative Answers" / "Negative/Positive Answers" DPS sheets showed sums
-    # landing negative 70-100% of the time (e.g. Lesson 7 DPS-1: 10/10 negative;
-    # Lesson 1 DPS-5: 7/10; Lesson 4 DPS-5: 7/10) -- these sections are built to
-    # reliably produce negative (borrowing) results, not an even split. A flat
-    # 50/50 or majority-positive draw (the original implementation) gets this
-    # backwards. NegativeProbability=0.9 with a max-of-two draw for the negative
-    # magnitude (stays within the same digit range, just biased toward its top
-    # end) reproduces that same skew without ever exceeding the digit ceiling.
+    # Sign/magnitude bias, calibrated against real workbook row values (not
+    # assumed): row-by-row inspection of every Add/Less-family DPS in both
+    # LEVEL 8.xlsx (L4) and IM3 Lvl 7 New.xlsx (L3) -- not just the answer-key
+    # column sums -- shows negative values are common in every row, INCLUDING
+    # the first row (e.g. L4 Lesson 1 DPS-1 row 1 has a negative entry; L4
+    # Borrowing sections show 2-5 negative first-row entries out of 10
+    # columns across every lesson that has one). Forcing the first row
+    # positive (the original implementation) doesn't match either workbook.
+    # Rows after the first stay on the original, separately-calibrated
+    # NegativeProbability; the first row gets its own (lower, category-tuned)
+    # probability instead of being hardcoded positive.
     NegativeProbability = 0.9 if BorrowingMode else 0.22
+    FirstRowNegativeProbability = GeneratorConfig.get("firstRowNegativeProbability")
+    if FirstRowNegativeProbability is None:
+        FirstRowNegativeProbability = 0.25 if BorrowingMode else (0.1 if IsDecimal else 0.05)
 
     Values: list[Decimal] = []
     for RowIndex in range(RowCount):
-        if RowIndex == 0:
-            Sign = 1
-            Magnitude = Decimal(Rng.randint(Minimum, Maximum))
+        RowNegativeProbability = FirstRowNegativeProbability if RowIndex == 0 else NegativeProbability
+        Sign = -1 if Rng.random() < RowNegativeProbability else 1
+        if Sign == -1 and BorrowingMode:
+            Magnitude = Decimal(max(Rng.randint(Minimum, Maximum), Rng.randint(Minimum, Maximum)))
         else:
-            Sign = -1 if Rng.random() < NegativeProbability else 1
-            if Sign == -1 and BorrowingMode:
-                Magnitude = Decimal(max(Rng.randint(Minimum, Maximum), Rng.randint(Minimum, Maximum)))
-            else:
-                Magnitude = Decimal(Rng.randint(Minimum, Maximum))
+            Magnitude = Decimal(Rng.randint(Minimum, Maximum))
         if Places:
             Magnitude = Magnitude + (Decimal(Rng.randint(0, (10 ** Places) - 1)) / Decimal(10 ** Places))
         Values.append(Magnitude * Sign)
 
     CorrectAnswer = _Quantize(sum(Values, Decimal(0)), Places)
     Operators = ["" if Index == 0 else ("+" if Value >= 0 else "-") for Index, Value in enumerate(Values)]
-    # Match the workbook's own display convention: magnitudes shown positive,
-    # sign carried by the operator (except the first, unsigned, row).
+    # Match the workbook's own display convention: magnitudes shown positive
+    # with the sign carried by the operator -- EXCEPT the first row, which has
+    # no preceding operator to carry a sign at all (Operators[0] is always
+    # ""), so a negative first row must carry its own sign directly on the
+    # displayed value (e.g. "-85.88"), exactly like the real worksheets show
+    # a bare negative number as the first cell in the column. Rows 1+ still
+    # display as a positive magnitude since their operator already encodes
+    # the sign. (Fixed 2026-07-17 alongside allowing row 0 to be negative --
+    # forcing abs() on every row, including row 0, silently discarded any
+    # negative first-row sign the moment it was generated.)
     DisplayOperands: list[int | float | str]
     if Places:
-        DisplayOperands = [f"{abs(Value):.{Places}f}" for Value in Values]
+        DisplayOperands = [
+            f"{Value:.{Places}f}" if Index == 0 else f"{abs(Value):.{Places}f}"
+            for Index, Value in enumerate(Values)
+        ]
     else:
-        DisplayOperands = [_Display(abs(Value)) for Value in Values]
+        DisplayOperands = [
+            _Display(Value) if Index == 0 else _Display(abs(Value))
+            for Index, Value in enumerate(Values)
+        ]
 
     return DisplayOperands, Operators, CorrectAnswer, {
         "question_text": "Add/Less",
@@ -282,8 +318,23 @@ def GenerateSquares(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -
 # ---------------------------------------------------------------------------
 
 def GenerateSkillStacker(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
-    Times = Rng.choice([8, 9, 10, 11, 12])
-    if Rng.random() < 0.4:
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    FixedTimes = GeneratorConfig.get("fixedTimes")
+    if FixedTimes:
+        # IM-L3's workbook literally never varies TIMES -- every Skill Stacker
+        # instance across all 12 lessons uses TIMES=10 (IM3 Lvl 7 New.xlsx
+        # audit, 2026-07-17). curriculum_map.py sets fixedTimes=10 for L3.
+        Times = int(FixedTimes)
+    else:
+        # L4's own workbook uses TIMES up to 15 (Lesson 12: POWER(2,15-1)),
+        # not 12 -- the old [8..12] choice list came up two steps short of
+        # the real ceiling (LEVEL 8.xlsx audit, 2026-07-17).
+        Times = Rng.choice([8, 9, 10, 11, 12, 15])
+
+    AddRange = GeneratorConfig.get("addRange")
+    if AddRange:
+        AddValue = Decimal(Rng.randint(int(AddRange[0]), int(AddRange[1])))
+    elif Rng.random() < 0.4:
         AddValue = Decimal(Rng.randint(400, 8000)) / Decimal(100)  # e.g. 4.00-80.00
         AddValue = AddValue.quantize(Decimal("0.01"))
     else:
@@ -303,11 +354,32 @@ def GenerateConceptDrill(Config: IMConfig, Rng: random.Random, QuestionNumber: i
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
     UseDecimalFrom = bool(GeneratorConfig.get("allowDecimalFrom")) and QuestionNumber % 2 == 0
 
+    # Config-driven ranges, read first, falling back to the historical L4
+    # defaults when a level/section doesn't override them. Needed because
+    # the two workbooks use materially different Concept Drill bands: L4's
+    # decimal LESS reaches 588.59 (Lesson 4 audit, 2026-07-17) -- past the
+    # old flat 95.00 cap -- while L3's whole/decimal Concept Drill values
+    # sit in a visibly narrower band throughout (IM3 Lvl 7 New.xlsx audit,
+    # same date; FROM ~2385-6739 whole, ~100-280 decimal, LESS ~127-489
+    # whole, ~6-11 decimal).
+    DecimalFromRange = GeneratorConfig.get("decimalFromRange")  # (min, max) as decimal values
+    DecimalLessRange = GeneratorConfig.get("decimalLessRange")
+    WholeFromRange = GeneratorConfig.get("wholeFromRange")
+    WholeLessRange = GeneratorConfig.get("wholeLessRange")
+
     if UseDecimalFrom:
-        FromValue = Decimal(Rng.randint(10000, 999999)) / Decimal(100)  # e.g. 100.00-9999.99
-        FromValue = FromValue.quantize(Decimal("0.01"))
-        LessValue = Decimal(Rng.randint(2000, 9500)) / Decimal(100)
-        LessValue = LessValue.quantize(Decimal("0.01"))
+        if DecimalFromRange:
+            FromMinCents, FromMaxCents = int(float(DecimalFromRange[0]) * 100), int(float(DecimalFromRange[1]) * 100)
+        else:
+            FromMinCents, FromMaxCents = 10000, 999999  # 100.00-9999.99 (L4 default)
+        FromValue = (Decimal(Rng.randint(FromMinCents, FromMaxCents)) / Decimal(100)).quantize(Decimal("0.01"))
+
+        if DecimalLessRange:
+            LessMinCents, LessMaxCents = int(float(DecimalLessRange[0]) * 100), int(float(DecimalLessRange[1]) * 100)
+        else:
+            LessMinCents, LessMaxCents = 2000, 58900  # 20.00-589.00 (widened past L4's real 588.59 ceiling)
+        LessValue = (Decimal(Rng.randint(LessMinCents, LessMaxCents)) / Decimal(100)).quantize(Decimal("0.01"))
+
         if LessValue <= 0:
             LessValue = Decimal("1.00")
         StepsHigh = int(FromValue // LessValue)
@@ -317,8 +389,14 @@ def GenerateConceptDrill(Config: IMConfig, Rng: random.Random, QuestionNumber: i
         FromDisplay: int | float | str = f"{FromValue:.2f}"
         LessDisplay: int | float | str = f"{LessValue:.2f}"
     else:
-        FromValue = Rng.randint(1000, 99999)
-        LessValue = Rng.randint(90, max(91, FromValue // 4))
+        if WholeFromRange:
+            FromValue = Rng.randint(int(WholeFromRange[0]), int(WholeFromRange[1]))
+        else:
+            FromValue = Rng.randint(1000, 99999)
+        if WholeLessRange:
+            LessValue = Rng.randint(int(WholeLessRange[0]), int(WholeLessRange[1]))
+        else:
+            LessValue = Rng.randint(90, max(91, FromValue // 4))
         CorrectAnswer = Decimal(FromValue % LessValue)
         FromDisplay = FromValue
         LessDisplay = LessValue
@@ -331,10 +409,62 @@ def GenerateConceptDrill(Config: IMConfig, Rng: random.Random, QuestionNumber: i
 # ---------------------------------------------------------------------------
 # BODMAS -- basic 4-operation tier (Lessons 5-6) and squared-term tier
 # (Lesson 7 onward), matching the workbook's own mid-level difficulty step.
+# This is the IM-L4 template (LEVEL 8.xlsx). IM-L3 (IM3 Lvl 7 New.xlsx) uses
+# a structurally different template -- see _GenerateBodmasL3Exact below --
+# dispatched via GeneratorConfig["bodmasTemplate"] == "L3_EXACT_DIVISION".
 # ---------------------------------------------------------------------------
+
+def _GenerateBodmasL3Exact(Config: IMConfig, Rng: random.Random) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """L3's own BODMAS shape: A + B x C - D/E + F, where every lesson's
+    division term divides EXACTLY (no remainder) -- verified against every
+    literal expression in IM3 Lvl 7 New.xlsx (25 expressions across Lessons
+    5, 7, 11, 12; every single one has an exact division term, e.g.
+    4516/4=1129, 183/61=3, 3822/7=546, 4248/6=708). This is the opposite of
+    L4's BODMAS, whose division term is an ordinary fractional remainder.
+    The workbook's real expressions also vary term order/count/sign lesson
+    to lesson (some drop the leading "A +", some add a trailing "- H", one
+    lesson even flips division to addition) -- this generator reproduces
+    the single dominant 5-term shape common to the majority of instances
+    rather than every literal structural permutation, the same level of
+    template fidelity L4's own generator already uses.
+    """
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    DivisionDigits = GeneratorConfig.get("bodmasDivisionDigits") or (4, 1)
+    DivisorDigits, DividendExtraDigits = int(DivisionDigits[1]), int(DivisionDigits[0])
+
+    A = Rng.randint(100, 999)
+    B = Rng.randint(100, 999)
+    C = Rng.randint(4, 9)
+    F = Rng.randint(100, 999)
+
+    DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
+    for _Attempt in range(60):
+        E = Rng.randint(DivisorMin, DivisorMax)
+        if E > 1:
+            break
+    else:
+        E = max(DivisorMin, 2)
+    DividendMin, DividendMax = _DigitRange(DividendExtraDigits)
+    QuotientMin = max(2, -(-DividendMin // E))
+    QuotientMax = max(QuotientMin, DividendMax // E)
+    Quotient = Rng.randint(QuotientMin, QuotientMax)
+    D = E * Quotient  # always exact -- D / E has zero remainder, matching every real L3 instance
+
+    Expression = f"{A} + {B} × {C} − {D} ÷ {E} + {F}"
+    CorrectAnswer = Decimal(A) + Decimal(B * C) - (Decimal(D) / Decimal(E)) + Decimal(F)
+    CorrectAnswer = _Quantize(CorrectAnswer, 2)
+    return [Expression], [""], CorrectAnswer, {
+        "question_text": Expression,
+        "has_square_term": False,
+        "bodmas_template": "L3_EXACT_DIVISION",
+    }
+
 
 def GenerateBodmas(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    if GeneratorConfig.get("bodmasTemplate") == "L3_EXACT_DIVISION":
+        return _GenerateBodmasL3Exact(Config, Rng)
+
     HasSquare = bool(GeneratorConfig.get("hasSquareTerm"))
 
     A = Rng.randint(150, 980)       # dividend
