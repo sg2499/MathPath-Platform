@@ -1,16 +1,24 @@
-"""Intermediate Module (IM) Level 4 curriculum seed.
+"""Intermediate Module (IM) curriculum seed -- IM-L4 and IM-L3.
 
 Structural mirror of seed_master_module.py (same Module -> Level -> Lesson ->
 DPS -> DPSSection upsert pattern, same idempotency guarantees, same DRAFT-only /
 manual-review-before-publish safety posture) but IM-specific end to end: it
 imports only from app.question_engine.im (never app.question_engine.mm or
 seed_master_module.py itself), so IM's data and MM's data have zero code
-overlap. Source of truth for section structure is IM_CURRICULUM_MAP, built
-directly from the verified LEVEL 8.xlsx findings pass (12 lessons, 5 DPS each,
-60 DPS total).
+overlap. Source of truth for section structure is
+app.question_engine.im.curriculum_map.IM_CURRICULUM_MAP, keyed by level code.
+
+This module seeds every IM level from one shared, level-parametrized upsert
+pipeline (`_LevelSeedConfig` + the `_upsert_*` functions below, which all take
+that config explicitly rather than reading module-level constants) instead of
+duplicating the Module -> Level -> Lesson -> DPS -> DPSSection logic per
+level. IM-L4 (LEVEL 8.xlsx, "Level - 8" images) and IM-L3 (IM3 Lvl 7 New.xlsx,
+"Level - 7" images) are two configs run through that one pipeline; adding a
+future IM-L5/L6/etc. is a third config, not a third copy of this file.
 """
 
 import json
+from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, Lesson, Level, Module
 from app.question_engine.im.config import OperationFocusForConcept
@@ -20,11 +28,6 @@ MODULE_CODE = "IM"
 MODULE_NAME = "Intermediate Module"
 MODULE_DESCRIPTION = "MathPath Intermediate Module practice curriculum."
 MODULE_DISPLAY_ORDER = 4
-
-LEVEL_CODE = "IM-L4"
-LEVEL_NAME = "Intermediate Module Level 4"
-LEVEL_INTERNAL_NUMBER = 4
-LEVEL_DISPLAY_ORDER = 4
 
 DPS_DURATION_SECONDS = 5 * 60
 DPS_PER_LESSON = 5
@@ -44,6 +47,39 @@ MODULE_ORDER = {
     "IM": 4,
     "MM": 5,
 }
+
+
+@dataclass(frozen=True)
+class _LevelSeedConfig:
+    level_code: str
+    level_name: str
+    internal_level_number: int
+    display_order: int
+    curriculum_map: dict[int, dict[int, list[dict]]]
+    source_level_label: str          # e.g. "Level - 8" -- the images-folder name
+    source_workbook_tag: str          # e.g. "IM-L8" -- the image filename prefix
+
+
+LEVEL_4_CONFIG = _LevelSeedConfig(
+    level_code="IM-L4",
+    level_name="Intermediate Module Level 4",
+    internal_level_number=4,
+    display_order=4,
+    curriculum_map=IM_CURRICULUM_MAP["IM-L4"],
+    source_level_label="Level - 8",
+    source_workbook_tag="IM-L8",
+)
+
+LEVEL_3_CONFIG = _LevelSeedConfig(
+    level_code="IM-L3",
+    level_name="Intermediate Module Level 3",
+    internal_level_number=3,
+    display_order=3,
+    curriculum_map=IM_CURRICULUM_MAP["IM-L3"],
+    source_level_label="Level - 7",
+    source_workbook_tag="IM-L7",
+)
+
 
 def _LessonConceptLabel(section: dict) -> str:
     """Canonical, human-readable concept label for lesson-level rollup. Distinguishes
@@ -91,15 +127,15 @@ def _JoinLabels(Labels: list[str]) -> str:
     return ", ".join(Labels[:-1]) + " & " + Labels[-1]
 
 
-def _BuildLessonTitles() -> dict[int, str]:
-    """Every lesson name is derived directly from IM_CURRICULUM_MAP -- the union of
-    every unique concept taught anywhere across that lesson's 5 DPS sheets, alphabetized
-    and joined. This is generated, not hand-typed, so it can never drift out of sync
-    with the actual section data (add a concept to the curriculum map and the lesson
-    title picks it up automatically).
+def _BuildLessonTitles(config: _LevelSeedConfig) -> dict[int, str]:
+    """Every lesson name is derived directly from the level's curriculum map -- the
+    union of every unique concept taught anywhere across that lesson's 5 DPS sheets,
+    alphabetized and joined. This is generated, not hand-typed, so it can never drift
+    out of sync with the actual section data (add a concept to the curriculum map and
+    the lesson title picks it up automatically).
     """
     Titles: dict[int, str] = {}
-    for LessonNumber, DpsMap in IM_CURRICULUM_MAP.items():
+    for LessonNumber, DpsMap in config.curriculum_map.items():
         Labels: list[str] = []
         for _DpsNumber, Sections in DpsMap.items():
             for Section in Sections:
@@ -111,21 +147,16 @@ def _BuildLessonTitles() -> dict[int, str]:
     return Titles
 
 
-LESSON_TITLES = _BuildLessonTitles()
-
 LESSON_SOURCE_TYPES = {lesson_number: "IMAGE_WORKSHEET" for lesson_number in range(1, 13)}
 
-# Source of truth for images: "Level - 8" folder, "LEVEL 8.xlsx" for answer keys.
-ORIGINAL_SOURCE_LEVEL_LABEL = "Level - 8"
+
+def _normalise_source_filename(config: _LevelSeedConfig, lesson_number: int, dps_number: int) -> str:
+    filename = f"{config.source_workbook_tag}_L{lesson_number}-DPS-{dps_number}.png"
+    return f"{config.source_level_label}/Lesson - {lesson_number}/{filename}"
 
 
-def _normalise_source_filename(lesson_number: int, dps_number: int) -> str:
-    filename = f"IM-L8_L{lesson_number}-DPS-{dps_number}.png"
-    return f"Level - 8/Lesson - {lesson_number}/{filename}"
-
-
-def _dps_sections(lesson_number: int, dps_number: int) -> list[dict]:
-    sections = IM_CURRICULUM_MAP.get(lesson_number, {}).get(dps_number, [])
+def _dps_sections(config: _LevelSeedConfig, lesson_number: int, dps_number: int) -> list[dict]:
+    sections = config.curriculum_map.get(lesson_number, {}).get(dps_number, [])
     return [
         {
             **section,
@@ -136,41 +167,43 @@ def _dps_sections(lesson_number: int, dps_number: int) -> list[dict]:
     ]
 
 
-def _dps_display_title(lesson_number: int, dps_number: int) -> str:
-    sections = _dps_sections(lesson_number, dps_number)
+def _dps_display_title(config: _LevelSeedConfig, lesson_titles: dict[int, str], lesson_number: int, dps_number: int) -> str:
+    sections = _dps_sections(config, lesson_number, dps_number)
     titles: list[str] = []
     for section in sections:
         title = str(section["sectionTitle"])
         if title not in titles:
             titles.append(title)
     if not titles:
-        return LESSON_TITLES.get(lesson_number, f"Lesson {lesson_number}")
+        return lesson_titles.get(lesson_number, f"Lesson {lesson_number}")
     if len(titles) == 1:
         return titles[0]
     return ", ".join(titles[:-1]) + " & " + titles[-1]
 
 
-def _dps_question_count(lesson_number: int, dps_number: int) -> int:
-    return sum(int(section.get("questionCount") or 0) for section in _dps_sections(lesson_number, dps_number))
+def _dps_question_count(config: _LevelSeedConfig, lesson_number: int, dps_number: int) -> int:
+    return sum(int(section.get("questionCount") or 0) for section in _dps_sections(config, lesson_number, dps_number))
 
 
-def _section_config(lesson_number: int, dps_number: int) -> dict:
+def _section_config(config: _LevelSeedConfig, lesson_titles: dict[int, str], lesson_number: int, dps_number: int) -> dict:
     source_type = LESSON_SOURCE_TYPES[lesson_number]
     return {
         "moduleCode": MODULE_CODE,
-        "levelCode": LEVEL_CODE,
+        "levelCode": config.level_code,
         "lessonNumber": lesson_number,
         "dpsNumber": dps_number,
-        "dpsTitle": _dps_display_title(lesson_number, dps_number),
-        "lessonTitle": LESSON_TITLES[lesson_number],
+        "dpsTitle": _dps_display_title(config, lesson_titles, lesson_number, dps_number),
+        "lessonTitle": lesson_titles[lesson_number],
         "sourceType": source_type,
-        "sourceFile": _normalise_source_filename(lesson_number, dps_number),
-        "sourceLevelLabel": ORIGINAL_SOURCE_LEVEL_LABEL,
+        "sourceFile": _normalise_source_filename(config, lesson_number, dps_number),
+        "sourceLevelLabel": config.source_level_label,
         "seedMode": "DYNAMIC_INTERMEDIATE_MODULE",
         "durationSeconds": DPS_DURATION_SECONDS,
         "manualReviewRequiredBeforePublishing": True,
-        "generatorPackage": "IM_LEVEL4_SECTION_AWARE_PACKAGE_1",
-        "dpsSections": _dps_sections(lesson_number, dps_number),
+        # Shared across every IM level -- see the matching comment in
+        # question_engine/im/generator.py (2026-07-17).
+        "generatorPackage": "IM_SECTION_AWARE_PACKAGE_1",
+        "dpsSections": _dps_sections(config, lesson_number, dps_number),
     }
 
 
@@ -202,68 +235,72 @@ def _upsert_module(db: Session) -> Module:
     return module
 
 
-def _upsert_level(db: Session, module: Module) -> Level:
+def _upsert_level(db: Session, module: Module, config: _LevelSeedConfig) -> Level:
     level = (
         db.query(Level)
-        .filter(Level.module_id == module.id, Level.level_code == LEVEL_CODE)
+        .filter(Level.module_id == module.id, Level.level_code == config.level_code)
         .first()
     )
     if not level:
         level = Level(
             module_id=module.id,
-            level_code=LEVEL_CODE,
-            level_name=LEVEL_NAME,
-            internal_level_number=LEVEL_INTERNAL_NUMBER,
-            display_order=LEVEL_DISPLAY_ORDER,
+            level_code=config.level_code,
+            level_name=config.level_name,
+            internal_level_number=config.internal_level_number,
+            display_order=config.display_order,
             is_active=True,
         )
         db.add(level)
         db.flush()
     else:
-        level.level_name = LEVEL_NAME
-        level.internal_level_number = LEVEL_INTERNAL_NUMBER
-        level.display_order = LEVEL_DISPLAY_ORDER
+        level.level_name = config.level_name
+        level.internal_level_number = config.internal_level_number
+        level.display_order = config.display_order
         level.is_active = True
     return level
 
 
-def _upsert_lesson(db: Session, level: Level, lesson_number: int) -> Lesson:
+def _upsert_lesson(db: Session, level: Level, lesson_titles: dict[int, str], lesson_number: int) -> Lesson:
     lesson = (
         db.query(Lesson)
         .filter(Lesson.level_id == level.id, Lesson.lesson_number == lesson_number)
         .first()
     )
+    title = lesson_titles[lesson_number]
     if not lesson:
         lesson = Lesson(
             level_id=level.id,
             lesson_number=lesson_number,
-            lesson_title=LESSON_TITLES[lesson_number],
-            description=f"Intermediate Module Lesson {lesson_number}: {LESSON_TITLES[lesson_number]}",
+            lesson_title=title,
+            description=f"Intermediate Module Lesson {lesson_number}: {title}",
             display_order=lesson_number,
             is_active=True,
         )
         db.add(lesson)
         db.flush()
     else:
-        lesson.lesson_title = LESSON_TITLES[lesson_number]
-        lesson.description = f"Intermediate Module Lesson {lesson_number}: {LESSON_TITLES[lesson_number]}"
+        lesson.lesson_title = title
+        lesson.description = f"Intermediate Module Lesson {lesson_number}: {title}"
         lesson.display_order = lesson_number
         lesson.is_active = True
     return lesson
 
 
-def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int) -> DPS:
+def _upsert_dps(db: Session, lesson: Lesson, config: _LevelSeedConfig, lesson_titles: dict[int, str],
+                 lesson_number: int, dps_number: int) -> DPS:
     dps = (
         db.query(DPS)
         .filter(DPS.lesson_id == lesson.id, DPS.dps_number == dps_number)
         .first()
     )
+    title = _dps_display_title(config, lesson_titles, lesson_number, dps_number)
+    question_count = _dps_question_count(config, lesson_number, dps_number)
     if not dps:
         dps = DPS(
             lesson_id=lesson.id,
             dps_number=dps_number,
-            dps_title=_dps_display_title(lesson_number, dps_number),
-            default_question_count=_dps_question_count(lesson_number, dps_number),
+            dps_title=title,
+            default_question_count=question_count,
             default_duration_seconds=DPS_DURATION_SECONDS,
             marks_per_question=1,
             label_style="NUMERIC",
@@ -276,8 +313,8 @@ def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int
         db.add(dps)
         db.flush()
     else:
-        dps.dps_title = _dps_display_title(lesson_number, dps_number)
-        dps.default_question_count = _dps_question_count(lesson_number, dps_number)
+        dps.dps_title = title
+        dps.default_question_count = question_count
         dps.default_duration_seconds = DPS_DURATION_SECONDS
         dps.marks_per_question = 1
         dps.label_style = "NUMERIC"
@@ -290,13 +327,14 @@ def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int
     return dps
 
 
-def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int) -> list[DPSSection]:
-    config = _section_config(lesson_number, dps_number)
+def _upsert_sections(db: Session, dps: DPS, config: _LevelSeedConfig, lesson_titles: dict[int, str],
+                      lesson_number: int, dps_number: int) -> list[DPSSection]:
+    section_config_base = _section_config(config, lesson_titles, lesson_number, dps_number)
     target_payload = {
-        "sourceType": config["sourceType"],
-        "sourceFile": config["sourceFile"],
+        "sourceType": section_config_base["sourceType"],
+        "sourceFile": section_config_base["sourceFile"],
     }
-    workbook_sections = _dps_sections(lesson_number, dps_number)
+    workbook_sections = _dps_sections(config, lesson_number, dps_number)
     active_section_numbers = {int(section["sectionNumber"]) for section in workbook_sections}
     saved_sections: list[DPSSection] = []
 
@@ -317,11 +355,12 @@ def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int)
         # contribute just 2 marks and make the sheet's total marks come out
         # non-whole. 5 marks each (10 total for the section) keeps the DPS
         # total round. None everywhere else means "inherit DPS.marks_per_question"
-        # (unchanged, still 1) -- this only ever applies within IM.
+        # (unchanged, still 1) -- this rule is keyed by concept_family, not by
+        # level, so it applies identically to IM-L3 and IM-L4 with zero extra code.
         section_marks_per_question = 5.0 if concept_family in {"SKILL_STACKER", "CONCEPT_DRILL"} else None
 
         section_config = {
-            **config,
+            **section_config_base,
             "activeSection": section_definition,
         }
         if not section:
@@ -375,8 +414,28 @@ def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int)
     return saved_sections
 
 
+def _seed_level(db: Session, module: Module, config: _LevelSeedConfig) -> tuple[int, int, int]:
+    lesson_titles = _BuildLessonTitles(config)
+    level = _upsert_level(db, module, config)
+
+    lesson_count = 0
+    dps_count = 0
+    section_count = 0
+    for lesson_number in range(1, 13):
+        lesson = _upsert_lesson(db, level, lesson_titles, lesson_number)
+        lesson_count += 1
+        for dps_number in range(1, DPS_PER_LESSON + 1):
+            dps = _upsert_dps(db, lesson, config, lesson_titles, lesson_number, dps_number)
+            dps_count += 1
+            sections = _upsert_sections(db, dps, config, lesson_titles, lesson_number, dps_number)
+            section_count += len(sections)
+
+    return lesson_count, dps_count, section_count
+
+
 def seed(db: Session) -> None:
-    """Synchronize the Intermediate Module Level 4 curriculum skeleton.
+    """Synchronize the Intermediate Module curriculum skeleton for every live IM
+    level (currently IM-L4 and IM-L3).
 
     This sync is idempotent and intentionally creates only curriculum/master data.
     It does not create students, teachers, assignments, attempts, reports, or demo data.
@@ -386,23 +445,22 @@ def seed(db: Session) -> None:
     """
     print("[MathPath Seed] Intermediate Module sync started")
     module = _upsert_module(db)
-    level = _upsert_level(db, module)
 
-    lesson_count = 0
-    dps_count = 0
-    section_count = 0
-    for lesson_number in range(1, 13):
-        lesson = _upsert_lesson(db, level, lesson_number)
-        lesson_count += 1
-        for dps_number in range(1, DPS_PER_LESSON + 1):
-            dps = _upsert_dps(db, lesson, lesson_number, dps_number)
-            dps_count += 1
-            sections = _upsert_sections(db, dps, lesson_number, dps_number)
-            section_count += len(sections)
+    total_lessons = total_dps = total_sections = 0
+    for config in (LEVEL_4_CONFIG, LEVEL_3_CONFIG):
+        lesson_count, dps_count, section_count = _seed_level(db, module, config)
+        total_lessons += lesson_count
+        total_dps += dps_count
+        total_sections += section_count
+        print(
+            "[MathPath Seed] Intermediate Module level sync completed: "
+            f"module={MODULE_CODE}, level={config.level_code}, lessons={lesson_count}, "
+            f"dps={dps_count}, sections={section_count}, duration_seconds={DPS_DURATION_SECONDS}"
+        )
 
     db.commit()
     print(
         "[MathPath Seed] Intermediate Module sync completed: "
-        f"module={MODULE_CODE}, level={LEVEL_CODE}, lessons={lesson_count}, "
-        f"dps={dps_count}, sections={section_count}, duration_seconds={DPS_DURATION_SECONDS}"
+        f"module={MODULE_CODE}, levels=2, lessons={total_lessons}, "
+        f"dps={total_dps}, sections={total_sections}"
     )

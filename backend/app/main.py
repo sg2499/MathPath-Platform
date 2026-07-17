@@ -136,10 +136,10 @@ def on_startup():
 
     # Always run the Intermediate Module curriculum sync independently from demo/legacy
     # seed flags, mirroring the Master Module sync above. This is idempotent: it only
-    # creates or completes IM -> IM-L4 -> Lessons 1-12 -> DPS 1-5. It does not create
-    # students, teachers, assignments, attempts, or demo records, and shares no code
-    # with the Master Module seed (app.seed.seed_intermediate_module imports only from
-    # app.question_engine.im).
+    # creates or completes IM -> {IM-L4, IM-L3} -> Lessons 1-12 -> DPS 1-5 for each
+    # level. It does not create students, teachers, assignments, attempts, or demo
+    # records, and shares no code with the Master Module seed
+    # (app.seed.seed_intermediate_module imports only from app.question_engine.im).
     from app.seed.seed_intermediate_module import seed as seed_intermediate_module
     db = SessionLocal()
     try:
