@@ -145,14 +145,14 @@ DPS_TITLES = {
         5: 'BODMAS & Division of Decimal Numbers',
     },
     12: {
-        1: 'Decimal Multiplication (Visual) & Division Mixed Pattern',
+        1: 'Division of Decimal Numbers (Visual) & Decimal Multiplication (Visual)',
         2: 'Multiplication Mixed Pattern (Visual) & Division Mixed Pattern (Visual)',
         3: 'Add Percentage (Visual) & Less Percentage (Visual)',
         4: 'Add Percentage (Visual) & Less Percentage (Visual)',
         5: 'Add Percentage (Visual) & Less Percentage (Visual)',
     },
     13: {
-        1: 'Decimal Multiplication (Visual) & Division Mixed Pattern',
+        1: 'Division of Decimal Numbers (Visual) & Decimal Multiplication (Visual)',
         2: 'Multiplication Mixed Pattern (Visual) & Division Mixed Pattern (Visual)',
         3: 'Add Percentage (Visual) & Less Percentage (Visual)',
         4: 'Add Percentage (Visual) & Less Percentage (Visual)',
@@ -163,7 +163,7 @@ DPS_TITLES = {
         2: 'Add Percentage (Visual) & Less Percentage (Visual)',
         3: 'Add Percentage (Visual) & Less Percentage (Visual)',
         4: 'Add Percentage (Visual) & Less Percentage (Visual)',
-        5: 'Simple Interest (Visual) & Less Percentage (Visual)',
+        5: 'Simple Interest (Visual)',
     },
     15: {
         1: 'Add Percentage (Visual) & Less Percentage (Visual)',
@@ -194,7 +194,7 @@ DPS_TITLES = {
         5: 'Multiplication Mixed Pattern (Visual) & Less Percentage (Visual)',
     },
     19: {
-        1: 'Squares (Visual), Cubes (Visual) & Skill Stacker (Visual)',
+        1: 'Squares (Visual), Cubes (Visual), Skill Stacker (Visual) & Concept Drill (Visual)',
         2: 'Add Percentage (Visual) & Less Percentage (Visual)',
         3: 'Cube Root of Mixed Digit',
         4: 'BODMAS & Concept Drill',
@@ -267,7 +267,7 @@ DPS_TITLES = {
         1: 'Add Percentage (Visual) & Less Percentage (Visual)',
         2: 'Profit-Loss (Visual) & Selling Price (Visual)',
         3: 'Profit & Loss (Visual)',
-        4: 'Simple Interest & Profit-Loss',
+        4: 'Simple Interest & Profit & Loss - Find Cost Price',
         5: '3D × 3D (Visual) & 6D ÷ 3D (Visual)',
     },
     30: {
