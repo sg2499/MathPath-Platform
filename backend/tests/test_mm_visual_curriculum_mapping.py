@@ -12,7 +12,6 @@ PERCENTAGE_VISUAL_EXPECTATIONS = {
     (14, 2): {"Add Percentage (Visual)", "Less Percentage (Visual)"},
     (14, 3): {"Add Percentage (Visual)", "Less Percentage (Visual)"},
     (14, 4): {"Add Percentage (Visual)", "Less Percentage (Visual)"},
-    (14, 5): {"Less Percentage (Visual)"},
     (15, 1): {"Add Percentage (Visual)", "Less Percentage (Visual)"},
     (15, 2): {"Add Percentage (Visual)", "Less Percentage (Visual)"},
     (15, 4): {"Less Percentage (Visual)"},
