@@ -191,10 +191,38 @@ def GenerateAddLess(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -
 # Multiplication / Division (whole numbers only anywhere in IM Level 4)
 # ---------------------------------------------------------------------------
 
-def _IsTrivial(Value: int) -> bool:
-    # Avoid operands that are suspiciously round (all-zero tail) too often --
-    # a light quality guard, not a workbook rule.
-    return Value % 100 == 0 and Value >= 100
+def _IsTrivial(Value: int | float | Decimal) -> bool:
+    """Block operands that turn multiplication/division into place shifting
+    (x1, x10, x100, /10, /100, ...) instead of requiring the student to
+    actually compute. Mirrors mm/operands.py's _IsTrivialScaleOperand
+    exactly, so both engines apply the identical guard.
+
+    Fixed 2026-07-18 (Shailesh, from a live IM-L2 admin-preview screenshot
+    showing "9663 x 1 = ?", "1827 x 1 = ?", "5703 x 1 = ?"): the previous
+    version here only flagged exact multiples of 100 that were >= 100 --
+    it never caught a literal 1, and GenerateWholeNumberMultiplication's
+    retry loop only re-rolled when BOTH operands were trivial (AND, not
+    OR), so a single trivial 1-digit side alone was accepted on the very
+    first attempt every time. Both bugs are fixed together here: this
+    function now correctly flags 0, 1, and any value whose only nonzero
+    digit is its leading one (10, 20, 50, 100, 300, 1000, ...) as trivial,
+    and every call site below now retries whenever EITHER operand is
+    trivial. Single digits 2-9 remain valid for explicit 1D patterns.
+    """
+    try:
+        DecimalValue = abs(Value if isinstance(Value, Decimal) else Decimal(str(Value).strip().replace(",", "")))
+    except Exception:
+        return False
+    if DecimalValue == 0:
+        return True
+    if DecimalValue == 1:
+        return True
+    NormalizedText = format(DecimalValue.normalize(), "f").replace(".", "").lstrip("0")
+    if not NormalizedText:
+        return True
+    if len(NormalizedText) <= 1:
+        return False
+    return NormalizedText[0] != "0" and set(NormalizedText[1:]) == {"0"}
 
 
 def GenerateWholeNumberMultiplication(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
@@ -207,7 +235,10 @@ def GenerateWholeNumberMultiplication(Config: IMConfig, Rng: random.Random, Ques
     for _Attempt in range(60):
         Left = Rng.randint(LeftMin, LeftMax)
         Right = Rng.randint(RightMin, RightMax)
-        if not (_IsTrivial(Left) and _IsTrivial(Right)):
+        # Retry if EITHER side is trivial (x1/x10/x100/...), not only when
+        # both are -- a single trivial side is exactly what made "9663 x 1"
+        # slip through before this fix.
+        if not (_IsTrivial(Left) or _IsTrivial(Right)):
             break
 
     CorrectAnswer = Decimal(Left * Right)
@@ -250,13 +281,19 @@ def _GenerateLongDivisionEstimationPair(
     control the exact digit ranges, this only enforces "has a remainder."
     """
     Divisor = max(DivisorMin, 2)
+    if _IsTrivial(Divisor):
+        Divisor += 1
     Dividend = min(DividendMax, max(DividendMin, Divisor + 1))
     if Dividend % Divisor == 0:
         Dividend = min(DividendMax, Dividend + 1)
 
     for _Attempt in range(120):
         CandidateDivisor = Rng.randint(DivisorMin, DivisorMax)
-        if CandidateDivisor <= 1:
+        # _IsTrivial now catches 1 as well as 10/100/1000/... (a divisor
+        # that just shifts the decimal point) -- not only the old plain
+        # "<= 1" check, so a 2+-digit divisor of exactly 10, 20, 100, etc.
+        # is retried too.
+        if _IsTrivial(CandidateDivisor):
             continue
         CandidateDividend = Rng.randint(DividendMin, DividendMax)
         if CandidateDividend % CandidateDivisor == 0:
@@ -296,12 +333,17 @@ def GenerateWholeNumberDivision(Config: IMConfig, Rng: random.Random, QuestionNu
         CorrectAnswer = TruncateThenRoundQuotient(Decimal(Dividend) / Decimal(Divisor))
     else:
         Divisor = max(DivisorMin, 2)
+        if _IsTrivial(Divisor):
+            Divisor += 1
         Quotient = max(DividendMin // Divisor, 2)
         Dividend = Divisor * Quotient
 
         for _Attempt in range(120):
             Divisor = Rng.randint(DivisorMin, DivisorMax)
-            if Divisor <= 1:
+            # _IsTrivial now catches 1 as well as 10/100/1000/... -- a
+            # divisor that just shifts the decimal point is exactly as
+            # guessable as a x1 multiplication, so it gets the same guard.
+            if _IsTrivial(Divisor):
                 continue
             MinQuotient = max(2, -(-DividendMin // Divisor))
             MaxQuotient = DividendMax // Divisor
@@ -495,10 +537,15 @@ def _GenerateBodmasExactDivision(Config: IMConfig, Rng: random.Random) -> tuple[
     DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
     for _Attempt in range(60):
         E = Rng.randint(DivisorMin, DivisorMax)
-        if E > 1:
+        # Same guard as the standalone division generator -- E must not be
+        # trivial (1, 10, 100, ...), or the embedded D/E term inside this
+        # BODMAS expression would let a student skip computing it.
+        if not _IsTrivial(E):
             break
     else:
         E = max(DivisorMin, 2)
+        if _IsTrivial(E):
+            E += 1
     DividendMin, DividendMax = _DigitRange(DividendExtraDigits)
     QuotientMin = max(2, -(-DividendMin // E))
     QuotientMax = max(QuotientMin, DividendMax // E)
@@ -522,20 +569,34 @@ def GenerateBodmas(Config: IMConfig, Rng: random.Random, QuestionNumber: int) ->
 
     HasSquare = bool(GeneratorConfig.get("hasSquareTerm"))
 
-    A = Rng.randint(150, 980)       # dividend
-    B = Rng.randint(13, 92)         # divisor
-    F = Rng.randint(100, 9999)      # additive term
-    G = Rng.randint(100, 9999)      # subtractive term
+    def _NonTrivialRandint(Minimum: int, Maximum: int) -> int:
+        # Same "must actually compute this term" guard as the standalone
+        # multiplication/division generators (fixed 2026-07-18) -- an
+        # embedded A÷B or D×E term inside a BODMAS expression is just as
+        # skippable-by-inspection as a standalone "x1"/"÷10" question if its
+        # own operand happens to land on a power of 10 (this L4 BODMAS
+        # divisor draw, randint(13,92), could previously land on 20/30/.../
+        # 90 with no guard at all).
+        for _Attempt in range(60):
+            Candidate = Rng.randint(Minimum, Maximum)
+            if not _IsTrivial(Candidate):
+                return Candidate
+        return Maximum if not _IsTrivial(Maximum) else Minimum
+
+    A = Rng.randint(150, 980)                 # dividend
+    B = _NonTrivialRandint(13, 92)             # divisor
+    F = Rng.randint(100, 9999)                # additive term
+    G = Rng.randint(100, 9999)                # subtractive term
 
     if HasSquare:
-        C = Rng.randint(10, 99)     # squared base
-        D = Rng.randint(10, 99)     # multiplication term left
-        E = Rng.randint(10, 99)     # multiplication term right
+        C = Rng.randint(10, 99)                    # squared base
+        D = _NonTrivialRandint(10, 99)              # multiplication term left
+        E = _NonTrivialRandint(10, 99)              # multiplication term right
         Expression = f"{A} ÷ {B} + {C}² + {D} × {E} + {F} - {G}"
         CorrectAnswer = (Decimal(A) / Decimal(B)) + Decimal(C * C) + Decimal(D * E) + Decimal(F) - Decimal(G)
     else:
-        C = Rng.randint(1000, 9999)  # multiplication term left (larger operand)
-        D = Rng.randint(2, 9)        # multiplication term right (single digit)
+        C = _NonTrivialRandint(1000, 9999)  # multiplication term left (larger operand)
+        D = Rng.randint(2, 9)                # multiplication term right (single digit, already never 1)
         Expression = f"{A} ÷ {B} + {C} × {D} + {F} - {G}"
         CorrectAnswer = (Decimal(A) / Decimal(B)) + Decimal(C * D) + Decimal(F) - Decimal(G)
 
