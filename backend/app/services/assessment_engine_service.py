@@ -80,6 +80,52 @@ def AssessmentQuestionMark(Version: AssessmentVersion | None, Question: Assessme
     return Marks[Index]
 
 
+# IM-only concept-weighted marking (Shailesh, 2026-07-18): every Intermediate
+# Module assessment question is worth 1 mark, except Skill Stacker and Concept
+# Drill, which are worth 5 -- the exact same rule DPS practice already
+# enforces via DPSSection.marks_per_question (seed_intermediate_module.py).
+# Deliberately scoped to ModuleCode == "IM" only: Master Module (and every
+# other module) explicitly stays on the flat evenly-balanced-100 scheme
+# below, unchanged, per Shailesh's explicit instruction to leave MM exactly
+# as-is across DPS, assessments, and mocks alike. Level-agnostic -- reads the
+# question's own concept_tag, not a level code -- so it applies automatically
+# to every current IM level (L2/L3/L4) and any future one without further
+# code changes.
+_IM_CONCEPT_WEIGHTED_FAMILIES = {"SKILL_STACKER", "CONCEPT_DRILL"}
+_IM_CONCEPT_WEIGHTED_MARKS = 5.0
+_IM_DEFAULT_QUESTION_MARKS = 1.0
+
+
+def ImConceptWeightedQuestionMark(ConceptTag: str | None) -> float:
+    return _IM_CONCEPT_WEIGHTED_MARKS if ConceptTag in _IM_CONCEPT_WEIGHTED_FAMILIES else _IM_DEFAULT_QUESTION_MARKS
+
+
+def _AssessmentModuleCodeForVersion(Db: Session, Version: AssessmentVersion | None) -> str:
+    if not Version:
+        return ""
+    Blueprint = Db.get(AssessmentBlueprint, Version.blueprint_id)
+    if not Blueprint:
+        return ""
+    return AssessmentModuleCode(Db, Blueprint)
+
+
+def ResolvedAssessmentQuestionMark(Db: Session, Version: AssessmentVersion | None, Question: AssessmentQuestion | None = None,
+                                    TotalQuestions: int | None = None) -> float:
+    """Single source of truth for "how many marks is this assessment question
+    worth" -- used identically in the question-display payload, the live
+    per-answer save, and final grading, so the three can never silently
+    disagree (the exact class of bug Shailesh flagged: a student seeing one
+    mark value mid-attempt and a different one at grading). IM resolves via
+    ImConceptWeightedQuestionMark(); every other module keeps the original
+    flat evenly-balanced-100 behavior via AssessmentQuestionMark(), byte-for-
+    byte unchanged.
+    """
+    if _AssessmentModuleCodeForVersion(Db, Version) == "IM":
+        ConceptTag = Question.concept_tag if Question else None
+        return ImConceptWeightedQuestionMark(ConceptTag)
+    return AssessmentQuestionMark(Version, Question, TotalQuestions)
+
+
 def NowUtc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -315,7 +361,7 @@ def QuestionPayload(Db: Session, Question: AssessmentQuestion, IncludeAnswerKey:
         "sourceType": Question.source_type,
         "sourceReferenceId": Question.source_reference_id,
         "metadata": SafeJson(Question.metadata_json, {}),
-        "questionMarks": AssessmentQuestionMark(Db.get(AssessmentVersion, Question.assessment_version_id), Question),
+        "questionMarks": ResolvedAssessmentQuestionMark(Db, Db.get(AssessmentVersion, Question.assessment_version_id), Question),
         "options": [
             {
                 "id": Option.id,
@@ -614,6 +660,14 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
     Db.flush()
 
     ModuleCode = AssessmentModuleCode(Db, Blueprint)
+    # IM-only (Shailesh, 2026-07-18): IM assessments don't split a fixed
+    # 100-mark pool evenly -- each question earns its own mark value from
+    # ImConceptWeightedQuestionMark() based on its real concept, so the
+    # version's true total is only known once every question is generated.
+    # Accumulated below and applied to Version.total_marks after the loop,
+    # for IM only; every other module keeps Blueprint.total_marks (100) set
+    # above, completely unchanged.
+    RunningImMarksTotal = 0.0
 
     QuestionNumber = 1
     for BlueprintLesson, LessonItem in Rows:
@@ -651,10 +705,18 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
             for Generated in GeneratedQuestions:
                 Operands = Generated.get("operands", [])
                 Metadata = Generated.get("metadata", {}) or {}
+                ConceptTag = Metadata.get("concept_family") or Section.concept_family
+                if ModuleCode == "IM":
+                    QuestionMarks = ImConceptWeightedQuestionMark(ConceptTag)
+                    RunningImMarksTotal += QuestionMarks
+                    MarksMode = "IM_CONCEPT_WEIGHTED"
+                else:
+                    QuestionMarks = AssessmentQuestionMark(Version, None, Blueprint.total_questions)
+                    MarksMode = "AUTO_BALANCED"
                 Metadata.update(
                     {
-                        "questionMarks": AssessmentQuestionMark(Version, None, Blueprint.total_questions),
-                        "marksMode": "AUTO_BALANCED",
+                        "questionMarks": QuestionMarks,
+                        "marksMode": MarksMode,
                         "sourceDpsSectionId": Section.id,
                         "sourceDpsId": Section.dps_id,
                         "levelWideAssessment": True,
@@ -674,7 +736,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     correct_answer=str(Generated.get("correct_answer")),
                     explanation=Generated.get("explanation") or _DefaultAssessmentExplanation(ModuleCode),
                     difficulty=Section.difficulty or "MIXED",
-                    concept_tag=Metadata.get("concept_family") or Section.concept_family,
+                    concept_tag=ConceptTag,
                     source_type="DPS_CONCEPT_RULE",
                     source_reference_id=Section.id,
                     seed=Generated.get("seed") or SectionSeed,
@@ -703,6 +765,15 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
             "Generated question count does not match the assessment blueprint.",
             {"expected": Blueprint.total_questions, "actual": ActualQuestionCount},
         )
+    if ModuleCode == "IM":
+        # Replace the placeholder Blueprint.total_marks (100) with the true
+        # sum of this version's concept-weighted question marks, so every
+        # downstream reader of Version.total_marks (grading's MaxScore,
+        # result screens, reports) reflects reality instead of a fixed 100
+        # that no longer corresponds to how IM questions are actually marked.
+        Version.total_marks = RunningImMarksTotal
+        Version.marks_per_question = _IM_DEFAULT_QUESTION_MARKS
+        Db.add(Version)
     Db.flush()
     return Version
 
@@ -1948,7 +2019,7 @@ def SaveAssessmentAnswer(Db: Session, StudentItem: Student, AttemptId: str, Ques
     Answer.selected_value = Option.option_value
     Answer.is_correct = bool(Option.is_correct)
     Version = Db.get(AssessmentVersion, Attempt.assessment_version_id)
-    Answer.marks_awarded = AssessmentQuestionMark(Version, Question) if Option.is_correct else 0.0
+    Answer.marks_awarded = ResolvedAssessmentQuestionMark(Db, Version, Question) if Option.is_correct else 0.0
     Answer.answered_at = NowUtc()
     Answer.updated_at = NowUtc()
 
@@ -1995,7 +2066,7 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
             AttemptedCount += 1
             Option = Db.get(AssessmentQuestionOption, Answer.selected_option_id)
             IsCorrect = bool(Option and Option.is_correct)
-            QuestionMarks = AssessmentQuestionMark(Version, Question, TotalQuestions)
+            QuestionMarks = ResolvedAssessmentQuestionMark(Db, Version, Question, TotalQuestions)
             Answer.is_correct = IsCorrect
             Answer.selected_value = Option.option_value if Option else Answer.selected_value
             Answer.marks_awarded = QuestionMarks if IsCorrect else 0.0

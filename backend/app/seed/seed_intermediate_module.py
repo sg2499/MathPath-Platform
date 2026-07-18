@@ -1,4 +1,4 @@
-"""Intermediate Module (IM) curriculum seed -- IM-L4 and IM-L3.
+"""Intermediate Module (IM) curriculum seed -- IM-L4, IM-L3, and IM-L2.
 
 Structural mirror of seed_master_module.py (same Module -> Level -> Lesson ->
 DPS -> DPSSection upsert pattern, same idempotency guarantees, same DRAFT-only /
@@ -12,9 +12,10 @@ This module seeds every IM level from one shared, level-parametrized upsert
 pipeline (`_LevelSeedConfig` + the `_upsert_*` functions below, which all take
 that config explicitly rather than reading module-level constants) instead of
 duplicating the Module -> Level -> Lesson -> DPS -> DPSSection logic per
-level. IM-L4 (LEVEL 8.xlsx, "Level - 8" images) and IM-L3 (IM3 Lvl 7 New.xlsx,
-"Level - 7" images) are two configs run through that one pipeline; adding a
-future IM-L5/L6/etc. is a third config, not a third copy of this file.
+level. IM-L4 (LEVEL 8.xlsx, "Level - 8" images), IM-L3 (IM3 Lvl 7 New.xlsx,
+"Level - 7" images), and IM-L2 (IM2 Lvl 6.xlsx, "Level - 6" images) are three
+configs run through that one pipeline; adding a future IM-L1/L5/etc. is a
+fourth config, not a fourth copy of this file.
 """
 
 import json
@@ -80,6 +81,16 @@ LEVEL_3_CONFIG = _LevelSeedConfig(
     source_workbook_tag="IM-L7",
 )
 
+LEVEL_2_CONFIG = _LevelSeedConfig(
+    level_code="IM-L2",
+    level_name="Intermediate Module Level 2",
+    internal_level_number=2,
+    display_order=2,
+    curriculum_map=IM_CURRICULUM_MAP["IM-L2"],
+    source_level_label="Level - 6",
+    source_workbook_tag="IM-L6",
+)
+
 
 def _LessonConceptLabel(section: dict) -> str:
     """Canonical, human-readable concept label for lesson-level rollup. Distinguishes
@@ -94,6 +105,11 @@ def _LessonConceptLabel(section: dict) -> str:
             return "Borrowing (Negative Answers)"
         if Borrowing == "POSITIVE_NEGATIVE":
             return "Borrowing (Negative/Positive Answers)"
+        if Borrowing == "POSITIVE":
+            # IM-L2 only -- every real Borrowing instance in IM2 Lvl 6.xlsx
+            # sums to a positive total (audit 2026-07-18), unlike L3/L4's
+            # NEGATIVE/POSITIVE_NEGATIVE variants.
+            return "Borrowing (Positive Answers)"
         return "Decimal Add-Less" if Concept == "DECIMAL_ADD_LESS" else "Add-Less"
     if Concept == "WHOLE_NUMBER_MULTIPLICATION":
         return "Multiplication"
@@ -435,7 +451,7 @@ def _seed_level(db: Session, module: Module, config: _LevelSeedConfig) -> tuple[
 
 def seed(db: Session) -> None:
     """Synchronize the Intermediate Module curriculum skeleton for every live IM
-    level (currently IM-L4 and IM-L3).
+    level (currently IM-L4, IM-L3, and IM-L2).
 
     This sync is idempotent and intentionally creates only curriculum/master data.
     It does not create students, teachers, assignments, attempts, reports, or demo data.
@@ -446,8 +462,9 @@ def seed(db: Session) -> None:
     print("[MathPath Seed] Intermediate Module sync started")
     module = _upsert_module(db)
 
+    LevelConfigs = (LEVEL_4_CONFIG, LEVEL_3_CONFIG, LEVEL_2_CONFIG)
     total_lessons = total_dps = total_sections = 0
-    for config in (LEVEL_4_CONFIG, LEVEL_3_CONFIG):
+    for config in LevelConfigs:
         lesson_count, dps_count, section_count = _seed_level(db, module, config)
         total_lessons += lesson_count
         total_dps += dps_count
@@ -461,6 +478,6 @@ def seed(db: Session) -> None:
     db.commit()
     print(
         "[MathPath Seed] Intermediate Module sync completed: "
-        f"module={MODULE_CODE}, levels=2, lessons={total_lessons}, "
+        f"module={MODULE_CODE}, levels={len(LevelConfigs)}, lessons={total_lessons}, "
         f"dps={total_dps}, sections={total_sections}"
     )
