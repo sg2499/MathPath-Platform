@@ -1202,12 +1202,24 @@ def _GenerateBodmasDivisionTerm(Rng: random.Random, DivisorMinimum: int, Divisor
 
     for _ in range(80):
         Divisor = Rng.randint(SafeDivisorMinimum, SafeDivisorMaximum)
+        # Same guard as the standalone whole-number/decimal division
+        # generators (_IsTrivialScaleOperand, used everywhere else in this
+        # file) -- a BODMAS division term is just as skippable-by-inspection
+        # as a standalone division question if its divisor lands on 1, 10,
+        # 20, ..., 100, etc. Fixed 2026-07-18 alongside the identical gap
+        # found in IM-L4's BODMAS generator.
+        if _IsTrivialScaleOperand(Divisor):
+            continue
         MaxSafeQuotient = min(SafeQuotientMaximum, 9999 // Divisor)
         if MaxSafeQuotient >= SafeQuotientMinimum:
             Quotient = Rng.randint(SafeQuotientMinimum, MaxSafeQuotient)
+            if _IsTrivialScaleOperand(Quotient):
+                continue
             return Divisor, Quotient, Divisor * Quotient
 
     Divisor = min(SafeDivisorMaximum, max(SafeDivisorMinimum, 99))
+    if _IsTrivialScaleOperand(Divisor):
+        Divisor = min(SafeDivisorMaximum, Divisor + 1)
     Quotient = min(SafeQuotientMaximum, max(SafeQuotientMinimum, 9999 // Divisor))
     return Divisor, Quotient, Divisor * Quotient
 
@@ -1223,8 +1235,15 @@ def _GenerateBodmasMultiplicationTermByDigits(Rng: random.Random, LeftDigits: in
     SafeRightDigits = min(max(int(RightDigits), 1), 4)
     LeftMinimum, LeftMaximum = _DigitRange(SafeLeftDigits)
     RightMinimum, RightMaximum = _DigitRange(SafeRightDigits)
-    Left = Rng.randint(LeftMinimum, min(LeftMaximum, 9999))
-    Right = Rng.randint(RightMinimum, min(RightMaximum, 9999))
+    Left = Right = 0
+    for _ in range(60):
+        Left = Rng.randint(LeftMinimum, min(LeftMaximum, 9999))
+        Right = Rng.randint(RightMinimum, min(RightMaximum, 9999))
+        # Same guard as the standalone whole-number multiplication generator
+        # -- an embedded BODMAS multiplication term must not be skippable by
+        # inspection either. Fixed 2026-07-18.
+        if not _HasTrivialScaleOperand([Left, Right]):
+            break
     return Left, Right, Left * Right
 
 
@@ -1244,6 +1263,11 @@ def _GenerateBodmasDivisionTermByDigits(Rng: random.Random, DividendDigits: int,
 
     for _ in range(120):
         Divisor = Rng.randint(max(2, DivisorMinimum), DivisorMaximum)
+        # Same guard as _GenerateWholeNumberDivisionByDigits -- a BODMAS
+        # division term's divisor must not be trivial either. Fixed
+        # 2026-07-18.
+        if _IsTrivialScaleOperand(Divisor):
+            continue
         MinQuotient = max(2, (DividendMinimum + Divisor - 1) // Divisor)
         MaxQuotient = max(MinQuotient, DividendMaximum // Divisor)
         if MaxQuotient >= MinQuotient:
@@ -1254,6 +1278,8 @@ def _GenerateBodmasDivisionTermByDigits(Rng: random.Random, DividendDigits: int,
 
     # Safe deterministic fallback for rare narrow ranges.
     Divisor = max(2, min(DivisorMaximum, max(DivisorMinimum, 100 if SafeDivisorDigits >= 3 else 10)))
+    if _IsTrivialScaleOperand(Divisor):
+        Divisor = min(DivisorMaximum, Divisor + 1)
     Quotient = max(2, min(DividendMaximum // Divisor, 99))
     Dividend = Divisor * Quotient
     if Dividend < DividendMinimum:
@@ -1351,7 +1377,10 @@ def _BodmasBracketsPowersPercent(Config: MMConfig, Rng: random.Random, QuestionN
     # while upgrading the bracket multiplication to stronger MM digit patterns.
     MultiplicandDigits, MultiplierDigits, _, _ = _BodmasStrongArithmeticPattern(QuestionNumber)
     Left, Right, _ = _GenerateBodmasMultiplicationTermByDigits(Rng, MultiplicandDigits, MultiplierDigits)
-    BracketDivisor = Rng.choice([10, 20, 25, 40, 50, 75, 100])
+    # 10/20/40/50/100 are trivial scale operands (shift-by-inspection) --
+    # dropped from this list 2026-07-18, same fix as the rest of the BODMAS
+    # family. 15/35/65/85 added to keep a comparable amount of variety.
+    BracketDivisor = Rng.choice([15, 25, 35, 65, 75, 85])
     BracketProduct = Decimal(Left * Right) / Decimal(BracketDivisor)
 
     Percent = Rng.choice([10, 15, 20, 25, 30, 40, 50, 70, 85])
@@ -1432,8 +1461,12 @@ def _BodmasCubeRootSquareLarge(Config: MMConfig, Rng: random.Random, QuestionNum
     CubeRadicand = CubeRoot ** 3
     SquareBase = Rng.randint(42, 99)
     Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 32, 96, 24, 160)
-    Multiplier = Rng.randint(25, 85)
-    Multiplicand = Rng.randint(180, 980)
+    Multiplier = Multiplicand = 0
+    for _ in range(60):
+        Multiplier = Rng.randint(25, 85)
+        Multiplicand = Rng.randint(180, 980)
+        if not _HasTrivialScaleOperand([Multiplier, Multiplicand]):
+            break
     TailValue = Rng.randint(120, 750)
     CorrectAnswer = Decimal(CubeRoot + (SquareBase ** 2) - Quotient + (Multiplicand * Multiplier) - TailValue)
     Units = [f"∛{CubeRadicand}", "+", f"{SquareBase}²", "-", f"{Dividend}÷{Divisor}", "+", f"{Multiplicand}×{Multiplier}", "-", str(TailValue)]
@@ -1441,8 +1474,12 @@ def _BodmasCubeRootSquareLarge(Config: MMConfig, Rng: random.Random, QuestionNum
 
 
 def _BodmasSquareRootLarge(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    Multiplicand = Rng.randint(240, 980)
-    Multiplier = Rng.randint(24, 86)
+    Multiplicand = Multiplier = 0
+    for _ in range(60):
+        Multiplicand = Rng.randint(240, 980)
+        Multiplier = Rng.randint(24, 86)
+        if not _HasTrivialScaleOperand([Multiplicand, Multiplier]):
+            break
     Root = Rng.randint(54, 99)
     Radicand = Root ** 2
     Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 24, 96, 40, 180)
