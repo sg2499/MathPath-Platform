@@ -115,16 +115,40 @@ def GenerateAddLess(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -
     # Rows after the first stay on the original, separately-calibrated
     # NegativeProbability; the first row gets its own (lower, category-tuned)
     # probability instead of being hardcoded positive.
-    NegativeProbability = 0.9 if BorrowingMode else 0.22
+    #
+    # IM-L2's Borrowing sections are the opposite lean: every real instance
+    # in IM2 Lvl 6.xlsx sums to a POSITIVE total per column despite roughly
+    # half the individual row entries being negative (audit 2026-07-18) --
+    # the negative entries just tend to be smaller in magnitude than the
+    # positive ones. L3/L4's borrowingMode=="NEGATIVE"/"POSITIVE_NEGATIVE"
+    # deliberately biases negative rows LARGER (via a max-of-two draw) since
+    # those levels lean toward negative/mixed totals; L2's "POSITIVE" mode
+    # does the mirror image -- negative rows draw smaller (min-of-two),
+    # positive rows draw larger (max-of-two), with a lower negative
+    # probability -- so the validator's CorrectAnswer > 0 check (see
+    # validators.py) succeeds within the generator's normal retry budget
+    # instead of relying on rare rejection-sampling luck.
+    IsPositiveOnlyBorrowing = BorrowingMode == "POSITIVE"
+    if IsPositiveOnlyBorrowing:
+        NegativeProbability = 0.35
+    else:
+        NegativeProbability = 0.9 if BorrowingMode else 0.22
     FirstRowNegativeProbability = GeneratorConfig.get("firstRowNegativeProbability")
     if FirstRowNegativeProbability is None:
-        FirstRowNegativeProbability = 0.25 if BorrowingMode else (0.1 if IsDecimal else 0.05)
+        if IsPositiveOnlyBorrowing:
+            FirstRowNegativeProbability = 0.15
+        else:
+            FirstRowNegativeProbability = 0.25 if BorrowingMode else (0.1 if IsDecimal else 0.05)
 
     Values: list[Decimal] = []
     for RowIndex in range(RowCount):
         RowNegativeProbability = FirstRowNegativeProbability if RowIndex == 0 else NegativeProbability
         Sign = -1 if Rng.random() < RowNegativeProbability else 1
-        if Sign == -1 and BorrowingMode:
+        if Sign == -1 and IsPositiveOnlyBorrowing:
+            Magnitude = Decimal(min(Rng.randint(Minimum, Maximum), Rng.randint(Minimum, Maximum)))
+        elif Sign == 1 and IsPositiveOnlyBorrowing:
+            Magnitude = Decimal(max(Rng.randint(Minimum, Maximum), Rng.randint(Minimum, Maximum)))
+        elif Sign == -1 and BorrowingMode:
             Magnitude = Decimal(max(Rng.randint(Minimum, Maximum), Rng.randint(Minimum, Maximum)))
         else:
             Magnitude = Decimal(Rng.randint(Minimum, Maximum))
@@ -324,12 +348,23 @@ def GenerateSkillStacker(Config: IMConfig, Rng: random.Random, QuestionNumber: i
         # IM-L3's workbook literally never varies TIMES -- every Skill Stacker
         # instance across all 12 lessons uses TIMES=10 (IM3 Lvl 7 New.xlsx
         # audit, 2026-07-17). curriculum_map.py sets fixedTimes=10 for L3.
+        # IM-L2's own workbook (IM2 Lvl 6.xlsx, audit 2026-07-18) uses a
+        # different fixed value that steps once mid-level: TIMES=5 for
+        # Lessons 1-8, TIMES=6 for Lessons 9-10 -- curriculum_map.py sets
+        # fixed_times=5/6 per lesson accordingly.
         Times = int(FixedTimes)
     else:
         # L4's own workbook uses TIMES up to 15 (Lesson 12: POWER(2,15-1)),
         # not 12 -- the old [8..12] choice list came up two steps short of
         # the real ceiling (LEVEL 8.xlsx audit, 2026-07-17).
         Times = Rng.choice([8, 9, 10, 11, 12, 15])
+
+    # IM-L2's own workbook formula is a plain product, ADD x TIMES -- verified
+    # against multiple real answer-key values (154387x5=771935, 538192x6=
+    # 3229152, IM2 Lvl 6.xlsx audit 2026-07-18), NOT the ADD x 2^(TIMES-1)
+    # doubling formula every L3/L4 instance uses. curriculum_map.py sets
+    # linear=True only for L2's Skill Stacker sections; L3/L4 are untouched.
+    LinearFormula = bool(GeneratorConfig.get("skillStackerLinear"))
 
     AddRange = GeneratorConfig.get("addRange")
     if AddRange:
@@ -340,7 +375,10 @@ def GenerateSkillStacker(Config: IMConfig, Rng: random.Random, QuestionNumber: i
     else:
         AddValue = Decimal(Rng.randint(4, 80))
 
-    CorrectAnswer = AddValue * (Decimal(2) ** (Times - 1))
+    if LinearFormula:
+        CorrectAnswer = AddValue * Decimal(Times)
+    else:
+        CorrectAnswer = AddValue * (Decimal(2) ** (Times - 1))
     return [_Display(AddValue), Times], ["Add", "Times"], CorrectAnswer, {
         "question_text": "Skill Stacker",
     }
@@ -409,33 +447,50 @@ def GenerateConceptDrill(Config: IMConfig, Rng: random.Random, QuestionNumber: i
 # ---------------------------------------------------------------------------
 # BODMAS -- basic 4-operation tier (Lessons 5-6) and squared-term tier
 # (Lesson 7 onward), matching the workbook's own mid-level difficulty step.
-# This is the IM-L4 template (LEVEL 8.xlsx). IM-L3 (IM3 Lvl 7 New.xlsx) uses
-# a structurally different template -- see _GenerateBodmasL3Exact below --
-# dispatched via GeneratorConfig["bodmasTemplate"] == "L3_EXACT_DIVISION".
+# This is the IM-L4 template (LEVEL 8.xlsx). IM-L3 (IM3 Lvl 7 New.xlsx) and
+# IM-L2 (IM2 Lvl 6.xlsx) both independently use a structurally different
+# template -- see _GenerateBodmasExactDivision below -- dispatched via
+# GeneratorConfig["bodmasTemplate"] == "EXACT_DIVISION_TEMPLATE". The shared
+# A+B×C-D÷E+F shape is genuinely common to both workbooks, but every
+# magnitude range is sourced independently per level via GeneratorConfig
+# overrides (bodmasAdditiveRange/bodmasMultiplierLeftRange/bodmasTailRange)
+# -- L2 is never assumed to share L3's number ranges just because it shares
+# the term shape.
 # ---------------------------------------------------------------------------
 
-def _GenerateBodmasL3Exact(Config: IMConfig, Rng: random.Random) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    """L3's own BODMAS shape: A + B x C - D/E + F, where every lesson's
-    division term divides EXACTLY (no remainder) -- verified against every
-    literal expression in IM3 Lvl 7 New.xlsx (25 expressions across Lessons
-    5, 7, 11, 12; every single one has an exact division term, e.g.
-    4516/4=1129, 183/61=3, 3822/7=546, 4248/6=708). This is the opposite of
-    L4's BODMAS, whose division term is an ordinary fractional remainder.
-    The workbook's real expressions also vary term order/count/sign lesson
-    to lesson (some drop the leading "A +", some add a trailing "- H", one
-    lesson even flips division to addition) -- this generator reproduces
-    the single dominant 5-term shape common to the majority of instances
-    rather than every literal structural permutation, the same level of
-    template fidelity L4's own generator already uses.
+def _GenerateBodmasExactDivision(Config: IMConfig, Rng: random.Random) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """Shape: A + B x C - D/E + F, where the division term divides EXACTLY
+    (no remainder). Confirmed independently in two workbooks:
+      - IM3 Lvl 7 New.xlsx (IM-L3): 25/25 real expressions exact (e.g.
+        4516/4=1129, 183/61=3, 3822/7=546, 4248/6=708). A/B/F land in the
+        100-999 band there (curriculum_map.py's L3 default, unchanged).
+      - IM2 Lvl 6.xlsx (IM-L2, audit 2026-07-18): 37/40 real expressions
+        exact (the 3 exceptions look like isolated data-entry slips, not
+        deliberate remainder design). A and B are consistently 2-digit
+        (10-99) there, not L3's 3-digit -- passed via bodmasAdditiveRange/
+        bodmasMultiplierLeftRange overrides rather than assumed equal to L3.
+    This is the opposite of L4's BODMAS, whose division term is an ordinary
+    fractional remainder. Both source workbooks' real expressions also vary
+    term order/count/sign lesson to lesson (some drop the leading "A +",
+    some add a trailing "- H", one lesson even flips division to addition)
+    -- this generator reproduces the single dominant 5-term shape common to
+    the majority of instances rather than every literal structural
+    permutation, the same level of template fidelity L4's own generator
+    already uses.
     """
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
     DivisionDigits = GeneratorConfig.get("bodmasDivisionDigits") or (4, 1)
     DivisorDigits, DividendExtraDigits = int(DivisionDigits[1]), int(DivisionDigits[0])
 
-    A = Rng.randint(100, 999)
-    B = Rng.randint(100, 999)
-    C = Rng.randint(4, 9)
-    F = Rng.randint(100, 999)
+    AdditiveRange = GeneratorConfig.get("bodmasAdditiveRange") or (100, 999)
+    MultiplierLeftRange = GeneratorConfig.get("bodmasMultiplierLeftRange") or (100, 999)
+    MultiplierRightRange = GeneratorConfig.get("bodmasMultiplierRightRange") or (4, 9)
+    TailRange = GeneratorConfig.get("bodmasTailRange") or (100, 999)
+
+    A = Rng.randint(int(AdditiveRange[0]), int(AdditiveRange[1]))
+    B = Rng.randint(int(MultiplierLeftRange[0]), int(MultiplierLeftRange[1]))
+    C = Rng.randint(int(MultiplierRightRange[0]), int(MultiplierRightRange[1]))
+    F = Rng.randint(int(TailRange[0]), int(TailRange[1]))
 
     DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
     for _Attempt in range(60):
@@ -448,7 +503,7 @@ def _GenerateBodmasL3Exact(Config: IMConfig, Rng: random.Random) -> tuple[list[i
     QuotientMin = max(2, -(-DividendMin // E))
     QuotientMax = max(QuotientMin, DividendMax // E)
     Quotient = Rng.randint(QuotientMin, QuotientMax)
-    D = E * Quotient  # always exact -- D / E has zero remainder, matching every real L3 instance
+    D = E * Quotient  # always exact -- D / E has zero remainder, matching every real L3/L2 instance
 
     Expression = f"{A} + {B} × {C} − {D} ÷ {E} + {F}"
     CorrectAnswer = Decimal(A) + Decimal(B * C) - (Decimal(D) / Decimal(E)) + Decimal(F)
@@ -456,14 +511,14 @@ def _GenerateBodmasL3Exact(Config: IMConfig, Rng: random.Random) -> tuple[list[i
     return [Expression], [""], CorrectAnswer, {
         "question_text": Expression,
         "has_square_term": False,
-        "bodmas_template": "L3_EXACT_DIVISION",
+        "bodmas_template": "EXACT_DIVISION_TEMPLATE",
     }
 
 
 def GenerateBodmas(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
-    if GeneratorConfig.get("bodmasTemplate") == "L3_EXACT_DIVISION":
-        return _GenerateBodmasL3Exact(Config, Rng)
+    if GeneratorConfig.get("bodmasTemplate") == "EXACT_DIVISION_TEMPLATE":
+        return _GenerateBodmasExactDivision(Config, Rng)
 
     HasSquare = bool(GeneratorConfig.get("hasSquareTerm"))
 

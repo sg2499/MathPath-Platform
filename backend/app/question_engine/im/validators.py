@@ -18,7 +18,7 @@ def _IsNumericText(Value: object) -> bool:
         return False
 
 
-def _ValidateAddLess(Operands: list, Operators: list[str], CorrectAnswer: Decimal) -> bool:
+def _ValidateAddLess(Config: IMConfig, Operands: list, Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if len(Operands) < 3 or len(Operands) != len(Operators) or Operators[0] != "":
         return False
     if any(Operator not in {"", "+", "-"} for Operator in Operators):
@@ -29,7 +29,18 @@ def _ValidateAddLess(Operands: list, Operators: list[str], CorrectAnswer: Decima
         Decimal(str(Value)) if Operator in ("", "+") else -Decimal(str(Value))
         for Value, Operator in zip(Operands, Operators)
     ]
-    return sum(Signed, Decimal(0)) == CorrectAnswer
+    if sum(Signed, Decimal(0)) != CorrectAnswer:
+        return False
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    if GeneratorConfig.get("borrowingMode") == "POSITIVE":
+        # IM-L2 only: every real Borrowing Sums instance in IM2 Lvl 6.xlsx
+        # sums to a positive total despite mixing negative row values --
+        # unlike L3/L4's NEGATIVE/POSITIVE_NEGATIVE borrowing, which allow
+        # either sign (audit 2026-07-18). Reject and let the generator's
+        # existing retry loop draw a fresh set of rows.
+        if CorrectAnswer <= 0:
+            return False
+    return True
 
 
 def _ValidateMultiplication(Operands: list, Operators: list[str], CorrectAnswer: Decimal) -> bool:
@@ -63,15 +74,25 @@ def _ValidateSquares(Operands: list, Operators: list[str], CorrectAnswer: Decima
     return "²" in Text and CorrectAnswer >= 0
 
 
-def _ValidateSkillStacker(Operands: list, Operators: list[str], CorrectAnswer: Decimal) -> bool:
+def _ValidateSkillStacker(Config: IMConfig, Operands: list, Operators: list[str], CorrectAnswer: Decimal) -> bool:
     if len(Operands) != 2 or Operators != ["Add", "Times"]:
         return False
     AddValue = Decimal(str(Operands[0]))
     Times = int(Operands[1])
+    if AddValue <= 0 or Times <= 0:
+        return False
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    if GeneratorConfig.get("skillStackerLinear"):
+        # IM-L2 only: TIMES is a small fixed constant (5 for Lessons 1-8, 6
+        # for Lessons 9-10, audit 2026-07-18) -- not L3/L4's 8-15 doubling
+        # range, so that bound would wrongly reject every real L2 question.
+        if Times > 20:
+            return False
+        return CorrectAnswer == AddValue * Decimal(Times)
     # Upper bound widened to 15 to match LEVEL 8.xlsx's real ceiling (Lesson
     # 12 uses TIMES=15, POWER(2,15-1)) -- the old <=12 cap rejected every
     # valid Times=15 question the generator now produces (2026-07-17 audit).
-    if Times < 8 or Times > 15 or AddValue <= 0:
+    if Times < 8 or Times > 15:
         return False
     return CorrectAnswer == AddValue * (Decimal(2) ** (Times - 1))
 
@@ -113,7 +134,7 @@ def ValidateImQuestion(Config: IMConfig, Operands: list, Operators: list[str], C
 
     ConceptFamily = Config.ConceptFamily
     if ConceptFamily in ("ADD_LESS", "DECIMAL_ADD_LESS"):
-        return _ValidateAddLess(Operands, Operators, CorrectAnswer)
+        return _ValidateAddLess(Config, Operands, Operators, CorrectAnswer)
     if ConceptFamily == "WHOLE_NUMBER_MULTIPLICATION":
         return _ValidateMultiplication(Operands, Operators, CorrectAnswer)
     if ConceptFamily == "WHOLE_NUMBER_DIVISION":
@@ -121,7 +142,7 @@ def ValidateImQuestion(Config: IMConfig, Operands: list, Operators: list[str], C
     if ConceptFamily == "SQUARES":
         return _ValidateSquares(Operands, Operators, CorrectAnswer)
     if ConceptFamily == "SKILL_STACKER":
-        return _ValidateSkillStacker(Operands, Operators, CorrectAnswer)
+        return _ValidateSkillStacker(Config, Operands, Operators, CorrectAnswer)
     if ConceptFamily == "CONCEPT_DRILL":
         return _ValidateConceptDrill(Operands, Operators, CorrectAnswer)
     if ConceptFamily == "BODMAS":

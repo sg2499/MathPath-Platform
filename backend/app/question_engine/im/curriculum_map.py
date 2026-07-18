@@ -1,4 +1,4 @@
-"""Intermediate Module curriculum map, covering both live levels.
+"""Intermediate Module curriculum map, covering all three live levels.
 
 Source of truth for IM-L4: LEVEL 8.xlsx ("IM Level 4" per Shailesh, confirmed),
 12 lesson tabs, 5 DPS per lesson, 60 DPS total.
@@ -6,6 +6,16 @@ Source of truth for IM-L3: IM3 Lvl 7 New.xlsx ("IM Level 3" per Shailesh,
 confirmed), same 12x5 shape, 60 DPS total (the workbook's own last two tabs are
 assessment sheets and are intentionally excluded here per Shailesh's
 instruction).
+Source of truth for IM-L2: IM2 Lvl 6.xlsx ("IM Level 2" per Shailesh,
+confirmed), same 12x5 shape, 60 DPS total, one Excel tab per lesson with all 5
+DPS stacked inside (no separate assessment tabs this time). Deliberately kept
+independent of L3/L4's assumptions per Shailesh's explicit instruction --
+every range is measured from IM2 Lvl 6.xlsx's own cells, not carried over from
+an adjacent level. See the "IM-L2" section below for what's genuinely
+different about this level (Skill Stacker's linear formula, positive-only
+Borrowing, its own BODMAS magnitude bands and division digit pattern, and a
+lower difficulty ceiling than L3/L4 -- no 2D×2D+ multiplication, no
+4D÷2D+/long division, no Solve Equation or Answer Position sections).
 
 Every entry below -- for both levels -- was built directly from a full,
 cell-by-cell audit of the respective workbook: every literal answer-key value
@@ -95,12 +105,18 @@ def _SQ(count: int = 10, *, visual: bool = True) -> dict:
 
 
 def _SS(count: int = 2, *, fixed_times: int | None = None,
-        add_range: tuple[int, int] | None = None) -> dict:
+        add_range: tuple[int, int] | None = None, linear: bool = False) -> dict:
     flags: dict[str, Any] = {}
     if fixed_times is not None:
         flags["fixedTimes"] = fixed_times
     if add_range is not None:
         flags["addRange"] = add_range
+    if linear:
+        # IM-L2 only: its workbook's real Skill Stacker answer is a plain
+        # product, ADD x TIMES -- not the ADD x 2^(TIMES-1) doubling formula
+        # every L3/L4 instance uses (verified against multiple real
+        # answer-key values, IM2 Lvl 6.xlsx audit 2026-07-18).
+        flags["skillStackerLinear"] = True
     return _S("Skill Stacker (Visual)", "SKILL_STACKER", count, **flags)
 
 
@@ -122,17 +138,34 @@ def _CD(count: int = 2, *, decimal_variant: bool = False,
 
 
 def _BM(count: int = 5, *, has_square: bool = False, template: str = "L4",
-        division_digits: tuple[int, int] | None = None) -> dict:
+        division_digits: tuple[int, int] | None = None,
+        additive_range: tuple[int, int] | None = None,
+        multiplier_left_range: tuple[int, int] | None = None,
+        multiplier_right_range: tuple[int, int] | None = None,
+        tail_range: tuple[int, int] | None = None) -> dict:
     # The workbook's own section header is always just "BODMAS (VISUAL)" -- it never
     # calls out the squared term or the division digit pattern in the title even on
     # sheets where either is present (verified against images/headers). hasSquareTerm
     # and bodmasDivisionDigits still drive generation behavior; they're just not
     # reflected in the display title, matching the sheet.
     flags: dict[str, Any] = {"hasSquareTerm": has_square}
-    if template == "L3_EXACT_DIVISION":
-        flags["bodmasTemplate"] = "L3_EXACT_DIVISION"
+    if template == "EXACT_DIVISION_TEMPLATE":
+        flags["bodmasTemplate"] = "EXACT_DIVISION_TEMPLATE"
         if division_digits is not None:
             flags["bodmasDivisionDigits"] = division_digits
+        # Overrides for the A/B/F term magnitudes -- L3's real workbook uses
+        # 3-digit A/B/F throughout (the operands.py default, left unset
+        # here), while L2's real workbook (IM2 Lvl 6.xlsx audit 2026-07-18)
+        # consistently uses 2-digit A/B with a 1-digit C and 3-digit F --
+        # passed explicitly per lesson below rather than assumed to match L3.
+        if additive_range is not None:
+            flags["bodmasAdditiveRange"] = additive_range
+        if multiplier_left_range is not None:
+            flags["bodmasMultiplierLeftRange"] = multiplier_left_range
+        if multiplier_right_range is not None:
+            flags["bodmasMultiplierRightRange"] = multiplier_right_range
+        if tail_range is not None:
+            flags["bodmasTailRange"] = tail_range
     return _S("BODMAS (Visual)", "BODMAS", count, **flags)
 
 
@@ -360,7 +393,7 @@ _IM_L3_MAP: dict[int, dict[int, list[dict]]] = {
     5: {
         1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
                 row_count=6, magnitude_min=1, magnitude_max=99)],
-        2: [_BM(count=5, template="L3_EXACT_DIVISION", division_digits=(4, 1)),
+        2: [_BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(4, 1)),
             _APF(10, (-5, 4))],
         3: [_DIV(4, 1, visual=True), _DIV(3, 1, visual=False, long_division=True)],
         4: [_SQ(visual=False), _DIV(3, 2, visual=True)],
@@ -384,7 +417,7 @@ _IM_L3_MAP: dict[int, dict[int, list[dict]]] = {
         2: [_MUL(3, 1, visual=True), _DIV(3, 2, visual=True)],
         3: [_AL("Add/Less (Abacus)", decimal=False, visual=False,
                 row_count=4, magnitude_min=1000, magnitude_max=9999),
-            _BM(count=5, template="L3_EXACT_DIVISION", division_digits=(3, 2))],
+            _BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(3, 2))],
         4: [_AL("Add/Less (Visual)", decimal=True, visual=True,
                 row_count=3, magnitude_min=0, magnitude_max=9), _APW(5, (-4, 3))],
         5: [_MUL(2, 2, visual=False), _DIV(4, 2, visual=False)],
@@ -422,7 +455,7 @@ _IM_L3_MAP: dict[int, dict[int, list[dict]]] = {
     11: {
         1: [_AL("Decimal Number Add/Less (Visual)", decimal=True, visual=True,
                 row_count=6, magnitude_min=0, magnitude_max=99)],
-        2: [_BM(count=5, template="L3_EXACT_DIVISION", division_digits=(4, 1)),
+        2: [_BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(4, 1)),
             _APF(10, (-5, 4))],
         3: [_DIV(4, 1, visual=True), _DIV(3, 1, visual=False, long_division=True)],
         4: [_SQ(visual=False), _DIV(3, 2, visual=True)],
@@ -432,7 +465,7 @@ _IM_L3_MAP: dict[int, dict[int, list[dict]]] = {
         1: [_AL("Borrowing Sums with Negative Answers (Visual)", borrowing="NEGATIVE", visual=True,
                 row_count=3, magnitude_min=100, magnitude_max=999), _DIV(3, 1, visual=False, long_division=True)],
         2: [_MUL(2, 2, visual=False), _DIV(4, 2, visual=False)],
-        3: [_BM(count=5, template="L3_EXACT_DIVISION", division_digits=(4, 1)),
+        3: [_BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(4, 1)),
             _APF(10, (-4, 4))],
         4: [_SQ(visual=False), _DIV(3, 2, visual=True)],
         5: [_MUL(4, 1, visual=False), _MUL(3, 1, visual=False)],
@@ -440,7 +473,216 @@ _IM_L3_MAP: dict[int, dict[int, list[dict]]] = {
 }
 
 
+# =============================================================================
+# IM-L2 (IM2 Lvl 6.xlsx)
+#
+# Built entirely from a full cell-by-cell audit (2026-07-18): every DPS's
+# section headers, concept families, digit patterns, row counts, and
+# magnitude bands read directly from the workbook -- not adapted or scaled
+# down from L3/L4's own maps. Per Shailesh's explicit instruction, IM-L2 is
+# kept structurally and numerically independent: every range below traces to
+# a real measured value in IM2 Lvl 6.xlsx, not an assumption carried over
+# from an adjacent level.
+#
+# Level-wide patterns confirmed by the audit that make L2 genuinely distinct
+# from L3/L4, not just a smaller copy of either:
+#   - Skill Stacker's real answer formula is a plain product, ADD x TIMES --
+#     not the ADD x 2^(TIMES-1) doubling formula every L3/L4 instance uses
+#     (verified against multiple exact answer-key matches, e.g.
+#     154387x5=771935, 538192x6=3229152). TIMES is a fixed constant that
+#     steps once mid-level: 5 for Lessons 1-8, 6 for Lessons 9-10. See
+#     operands.py's skillStackerLinear flag.
+#   - Borrowing Sums is ONLY ever the "positive answers" variant here -- L3/
+#     L4's NEGATIVE and POSITIVE_NEGATIVE borrowing modes don't appear
+#     anywhere in this workbook. Every real Borrowing instance sums to a
+#     positive total despite mixing negative row values, enforced via the
+#     new borrowingMode="POSITIVE" validator check (validators.py).
+#   - BODMAS uses the same exact-division shape as L3 (A+B×C-D÷E+F, D÷E
+#     always exact -- 37/40 real expressions confirmed, the 3 exceptions
+#     read as isolated data-entry slips) but with L2's own, visibly smaller
+#     A/B magnitude bands (mostly 2-3 digit vs L3's flat 3-digit) and a
+#     single consistent division digit pattern, (3,1), used in every one of
+#     L2's 8 BODMAS instances (L3 varies between (4,1) and (3,2) by lesson).
+#   - Multiplication never exceeds 4D x 1D (no 2D×2D/3D×2D pairs like L3/L4
+#     use) and division never exceeds 3D÷2D (no 4D÷2D, 4D÷3D, and no Long
+#     Division & Estimation variant at all) -- confirms L2 sits below L3/L4
+#     on every difficulty axis, consistent with its position in the
+#     Level-6/Level-7/Level-8 external numbering.
+#   - Solve the Equation and Answer Position/Find Position never appear
+#     anywhere in this workbook (grep-confirmed across all 12 lessons) --
+#     both are L3/L4-only concepts.
+#   - Squares appears in a section header exactly once (Lesson 4 DPS-4) with
+#     zero real question data behind it (confirmed both in the raw cells and
+#     by viewing the source image directly) -- built per Shailesh's explicit
+#     instruction as Decimal Add/Less + Squares, using the engine's only
+#     available Squares range (2-digit base, 11-99) since no level-specific
+#     override exists to calibrate against and none of L2's own data offers
+#     a real sample to measure from.
+# =============================================================================
+
+_IM_L2_MAP: dict[int, dict[int, list[dict]]] = {
+    1: {
+        1: [_AL("Decimal Number Add/Less (Visual)", decimal=True, visual=True,
+                row_count=4, magnitude_min=1, magnitude_max=9),
+            _SS(fixed_times=5, linear=True, add_range=(100000, 999999)),
+            _CD(whole_from_range=(150000, 550000), whole_less_range=(10000, 55000),
+                decimal_from_range=(150, 3200), decimal_less_range=(10, 380))],
+        2: [_MUL(3, 1, visual=True), _DIV(4, 1, visual=True)],
+        3: [_MUL(4, 1, visual=False), _DIV(3, 2, visual=False)],
+        4: [_DIV(3, 1, visual=True)],
+        5: [_AL("Decimal (Visual)", decimal=True, visual=True,
+                row_count=3, magnitude_min=0, magnitude_max=8),
+            _MUL(3, 1, visual=True)],
+    },
+    2: {
+        1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=10, magnitude_max=246),
+            _SS(fixed_times=5, linear=True, add_range=(100000, 999999)),
+            _CD(whole_from_range=(150000, 550000), whole_less_range=(10000, 55000),
+                decimal_from_range=(150, 3200), decimal_less_range=(10, 380))],
+        2: [_MUL(3, 1, visual=True), _DIV(4, 1, visual=True)],
+        3: [_MUL(4, 1, visual=False), _DIV(3, 2, visual=False)],
+        4: [_BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(3, 1),
+                additive_range=(60, 99), multiplier_left_range=(20, 99))],
+        5: [_AL("Borrowing Sums with Positive Answers (Abacus)", borrowing="POSITIVE", visual=False,
+                row_count=3, magnitude_min=1000, magnitude_max=9999),
+            _DIV(4, 1, visual=True)],
+    },
+    3: {
+        1: [_AL("Add/Less (Abacus)", decimal=False, visual=False,
+                row_count=4, magnitude_min=1000, magnitude_max=9999),
+            _SS(fixed_times=5, linear=True, add_range=(100000, 999999)),
+            _CD(whole_from_range=(150000, 550000), whole_less_range=(10000, 55000),
+                decimal_from_range=(150, 3200), decimal_less_range=(10, 380))],
+        2: [_MUL(2, 1, visual=True), _DIV(3, 2, visual=False)],
+        3: [_MUL(4, 1, visual=True), _DIV(3, 1, visual=True)],
+        4: [_AL("Borrowing Sums with Positive Answers (Visual)", borrowing="POSITIVE", visual=True,
+                row_count=3, magnitude_min=100, magnitude_max=999),
+            _DIV(4, 1, visual=True)],
+        5: [_AL("Decimal Number Add /Less (Abacus)", decimal=True, visual=False,
+                row_count=3, magnitude_min=19, magnitude_max=804),
+            _BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(3, 1),
+                multiplier_left_range=(20, 99))],
+    },
+    4: {
+        1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=31, magnitude_max=3769),
+            _SS(fixed_times=5, linear=True, add_range=(100000, 999999)),
+            _CD(whole_from_range=(150000, 550000), whole_less_range=(10000, 55000),
+                decimal_from_range=(150, 3200), decimal_less_range=(10, 380))],
+        2: [_MUL(2, 1, visual=False), _DIV(4, 1, visual=True)],
+        3: [_MUL(3, 1, visual=True), _MUL(4, 1, visual=False)],
+        # Lesson 4 DPS-4: the workbook's own "Squares (Abacus)" + stray "3D ÷
+        # 2D (Visual)" header pair has zero real question data behind it
+        # (confirmed via both the raw cells and the source image) -- built
+        # per Shailesh's explicit instruction as Decimal Add/Less + Squares,
+        # dropping the unsubstantiated division header entirely.
+        4: [_AL("Decimal Add /Less (Visual)", decimal=True, visual=True,
+                row_count=3, magnitude_min=0, magnitude_max=9),
+            _SQ(visual=False)],
+        5: [_AL("Borrowing Sums with Positive Answers (Visual)", borrowing="POSITIVE", visual=True,
+                row_count=3, magnitude_min=400, magnitude_max=1999),
+            _DIV(3, 2, visual=False)],
+    },
+    5: {
+        1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=6, magnitude_min=10, magnitude_max=89),
+            _BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(3, 1))],
+        2: [_DIV(4, 1, visual=True), _MUL(4, 1, visual=False)],
+        3: [_DIV(3, 2, visual=False), _MUL(3, 1, visual=True)],
+        4: [_MUL(3, 1, visual=True), _MUL(2, 1, visual=False)],
+        5: [_AL("Add/Less (Visual)", decimal=True, visual=True,
+                row_count=6, magnitude_min=10, magnitude_max=90)],
+    },
+    6: {
+        1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=49, magnitude_max=811),
+            _SS(fixed_times=5, linear=True, add_range=(100000, 999999)),
+            _CD(whole_from_range=(3000, 7000), whole_less_range=(400, 700),
+                decimal_from_range=(150, 250), decimal_less_range=(5, 15))],
+        2: [_MUL(3, 1, visual=True), _DIV(3, 2, visual=False)],
+        3: [_MUL(3, 1, visual=True), _DIV(4, 1, visual=True)],
+        4: [_AL("Borrowing Sums with Positive Answers (Abacus)", borrowing="POSITIVE", visual=False,
+                row_count=3, magnitude_min=1000, magnitude_max=9999),
+            _DIV(3, 2, visual=False)],
+        5: [_BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(3, 1),
+                multiplier_left_range=(20, 99))],
+    },
+    7: {
+        1: [_DIV(3, 1, visual=True), _DIV(4, 1, visual=True)],
+        2: [_MUL(3, 1, visual=True), _DIV(3, 2, visual=False)],
+        3: [_AL("Decimal Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=11, magnitude_max=99),
+            _BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(3, 1),
+                multiplier_left_range=(20, 99))],
+        4: [_SS(fixed_times=5, linear=True, add_range=(100000, 999999)),
+            _CD(whole_from_range=(3000, 7000), whole_less_range=(400, 700),
+                decimal_from_range=(250, 350), decimal_less_range=(20, 30))],
+        5: [_MUL(4, 1, visual=False), _DIV(3, 2, visual=False)],
+    },
+    8: {
+        1: [_MUL(3, 1, visual=True), _DIV(3, 2, visual=False)],
+        2: [_AL("Borrowing Sums with Positive Answers (Abacus)", borrowing="POSITIVE", visual=False,
+                row_count=3, magnitude_min=1000, magnitude_max=9999),
+            _SS(fixed_times=5, linear=True, add_range=(100000, 999999)),
+            _CD(whole_from_range=(3000, 7000), whole_less_range=(400, 700),
+                decimal_from_range=(350, 450), decimal_less_range=(25, 40))],
+        3: [_AL("Decimal Add/Less (Visual)", decimal=True, visual=True,
+                row_count=3, magnitude_min=0, magnitude_max=8),
+            _DIV(3, 2, visual=False)],
+        4: [_DIV(4, 1, visual=True), _DIV(3, 1, visual=True)],
+        5: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=11, magnitude_max=92),
+            _MUL(4, 1, visual=False)],
+    },
+    9: {
+        1: [_DIV(3, 2, visual=False)],
+        2: [_MUL(3, 1, visual=True), _MUL(4, 1, visual=False)],
+        3: [_DIV(3, 2, visual=False), _DIV(4, 1, visual=True)],
+        4: [_SS(fixed_times=6, linear=True, add_range=(100000, 999999)),
+            _CD(whole_from_range=(3000, 7000), whole_less_range=(400, 700),
+                decimal_from_range=(450, 600), decimal_less_range=(35, 55))],
+        5: [_MUL(2, 1, visual=True), _DIV(4, 1, visual=True)],
+    },
+    10: {
+        1: [_AL("Borrowing Sums (Abacus)", borrowing="POSITIVE", visual=False,
+                row_count=3, magnitude_min=1000, magnitude_max=9999),
+            _DIV(3, 2, visual=False)],
+        2: [_MUL(3, 1, visual=True), _MUL(4, 1, visual=False)],
+        3: [_DIV(3, 1, visual=True), _DIV(4, 1, visual=True)],
+        4: [_SS(fixed_times=6, linear=True, add_range=(100000, 999999)),
+            _CD(whole_from_range=(3000, 7000), whole_less_range=(400, 700),
+                decimal_from_range=(550, 700), decimal_less_range=(45, 65))],
+        5: [_AL("Decimal Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=20, magnitude_max=473),
+            _BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(3, 1),
+                multiplier_left_range=(20, 99))],
+    },
+    11: {
+        1: [_AL("Decimal Number Add/Less (Visual)", decimal=True, visual=True,
+                row_count=6, magnitude_min=0, magnitude_max=4)],
+        2: [_BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(3, 1),
+                multiplier_left_range=(20, 99))],
+        3: [_DIV(4, 1, visual=True), _DIV(3, 1, visual=True)],
+        4: [_MUL(2, 1, visual=True), _MUL(3, 1, visual=True)],
+        5: [_DIV(3, 2, visual=False), _MUL(4, 1, visual=False)],
+    },
+    12: {
+        1: [_AL("Borrowing Sums with Positive Answers (Abacus)", borrowing="POSITIVE", visual=False,
+                row_count=3, magnitude_min=1000, magnitude_max=9999),
+            _BM(count=5, template="EXACT_DIVISION_TEMPLATE", division_digits=(3, 1),
+                multiplier_left_range=(20, 99))],
+        2: [_MUL(3, 1, visual=True), _DIV(3, 2, visual=False)],
+        3: [_MUL(4, 1, visual=False), _DIV(4, 1, visual=True)],
+        4: [_MUL(2, 1, visual=True), _DIV(3, 2, visual=False)],
+        5: [_AL("Decimal Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=20, magnitude_max=473)],
+    },
+}
+
+
 IM_CURRICULUM_MAP: dict[str, dict[int, dict[int, list[dict]]]] = {
     "IM-L4": _IM_L4_MAP,
     "IM-L3": _IM_L3_MAP,
+    "IM-L2": _IM_L2_MAP,
 }
