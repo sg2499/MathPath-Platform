@@ -183,6 +183,85 @@ IM_L3_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
 }
 
 
+# IM-L2 competition mock structure -- its own sections/concepts, built
+# directly from the IM-L2 curriculum audit in
+# app/question_engine/im/curriculum_map.py's _IM_L2_MAP (IM2 Lvl 6.xlsx,
+# audited 2026-07-18; see that block's module-level comment for the full
+# audit trail). Confirmed with Shailesh: L2 uses only 6 sections, not L3/L4's
+# 8 -- Squares and Positional/Placement are both dropped because neither
+# concept has real substance in this level (Squares appears in exactly one
+# section header across all 60 DPS with zero real question data behind it;
+# Positional/Placement never appears anywhere in the workbook at all), so
+# including either as a standalone competition section would test a concept
+# the level doesn't actually teach. The remaining 6 sections cover every
+# concept that genuinely exists in IM-L2:
+#   - Add/Less (Abacus) and Add/Less (Visual) are split exactly like L3/L4.
+#     L2's own distinguishing trait: Borrowing is ONLY ever the "positive
+#     answers" variant here (borrowingMode="POSITIVE") -- L3/L4's NEGATIVE
+#     and POSITIVE_NEGATIVE borrowing modes never occur in this workbook.
+#   - Multiplication/Division digit patterns are narrower than even L3's:
+#     multiplication never exceeds 4D x 1D (no 2Dx2D/3Dx2D pairs) and
+#     division never exceeds 3D/2D (no 4D/2D, 4D/3D, and no Long Division &
+#     Estimation variant anywhere) -- confirms L2 sits a full step below L3
+#     on both axes.
+#   - BODMAS uses the same exact-division shape as L3 (A+BxC-D/E+F, D/E
+#     always exact) but with L2's own division digit pattern, (3,1), used in
+#     every single BODMAS instance in the workbook (L3 varies between (4,1)
+#     and (3,2)), and its own narrower A/B magnitude bands.
+#   - Skill Stacker's answer formula is a plain product, ADD x TIMES -- not
+#     L3/L4's ADD x 2^(TIMES-1) doubling formula (verified against multiple
+#     exact answer-key matches during the audit) -- carried through here via
+#     skillStackerLinear=True on every Skill Stacker pool entry. TIMES is a
+#     fixed constant that steps once mid-level (5 for the first ~8 lessons,
+#     6 for the last ~4), both variants included below.
+IM_L2_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
+    {"key": "IM_L2_ADD_LESS_ABACUS", "number": 1, "title": "Section 1 - Add/Less (Abacus)"},
+    {"key": "IM_L2_ADD_LESS_VISUAL", "number": 2, "title": "Section 2 - Add/Less (Visual)"},
+    {"key": "IM_L2_MULTIPLICATION", "number": 3, "title": "Section 3 - Multiplication"},
+    {"key": "IM_L2_DIVISION", "number": 4, "title": "Section 4 - Division"},
+    {"key": "IM_L2_BODMAS", "number": 5, "title": "Section 5 - BODMAS"},
+    {"key": "IM_L2_SKILL_DRILL", "number": 6, "title": "Section 6 - Skill Stacker and Concept Drill"},
+]
+
+IM_L2_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
+    "IM_L2_ADD_LESS_ABACUS": [
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Abacus)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 10, "magnitudeMax": 246},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Abacus)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 10, "magnitudeMax": 89},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Abacus)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 31, "magnitudeMax": 3769},
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less (Abacus)", "rowCount": 4, "magnitudeMin": 1000, "magnitudeMax": 9999},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Positive Answers (Abacus)", "borrowingMode": "POSITIVE", "rowCount": 3, "magnitudeMin": 1000, "magnitudeMax": 9999},
+    ],
+    "IM_L2_ADD_LESS_VISUAL": [
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Visual)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 1, "magnitudeMax": 9},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Visual)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 10, "magnitudeMax": 90},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Visual)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 0, "magnitudeMax": 4},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Positive Answers (Visual)", "borrowingMode": "POSITIVE", "rowCount": 3, "magnitudeMin": 100, "magnitudeMax": 999},
+        {"conceptFamily": "ADD_LESS", "title": "Borrowing Sums with Positive Answers (Visual)", "borrowingMode": "POSITIVE", "rowCount": 3, "magnitudeMin": 400, "magnitudeMax": 1999},
+    ],
+    "IM_L2_MULTIPLICATION": [
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "2D x 1D Multiplication", "multiplicationDigits": (2, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "3D x 1D Multiplication", "multiplicationDigits": (3, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "4D x 1D Multiplication", "multiplicationDigits": (4, 1)},
+    ],
+    "IM_L2_DIVISION": [
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "3D / 1D Division", "divisionDigits": (3, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "3D / 2D Division", "divisionDigits": (3, 2)},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "4D / 1D Division", "divisionDigits": (4, 1)},
+    ],
+    "IM_L2_BODMAS": [
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "EXACT_DIVISION_TEMPLATE", "bodmasDivisionDigits": (3, 1)},
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "EXACT_DIVISION_TEMPLATE", "bodmasDivisionDigits": (3, 1), "bodmasMultiplierLeftRange": (20, 99)},
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "EXACT_DIVISION_TEMPLATE", "bodmasDivisionDigits": (3, 1), "bodmasAdditiveRange": (60, 99)},
+    ],
+    "IM_L2_SKILL_DRILL": [
+        {"conceptFamily": "SKILL_STACKER", "title": "Skill Stacker", "fixedTimes": 5, "addRange": (100000, 999999), "skillStackerLinear": True},
+        {"conceptFamily": "SKILL_STACKER", "title": "Skill Stacker", "fixedTimes": 6, "addRange": (100000, 999999), "skillStackerLinear": True},
+        {"conceptFamily": "CONCEPT_DRILL", "title": "Concept Drill", "wholeFromRange": (150000, 550000), "wholeLessRange": (10000, 55000), "decimalFromRange": (150, 3200), "decimalLessRange": (10, 380)},
+        {"conceptFamily": "CONCEPT_DRILL", "title": "Concept Drill", "wholeFromRange": (3000, 7000), "wholeLessRange": (400, 700), "decimalFromRange": (150, 700), "decimalLessRange": (5, 65)},
+    ],
+}
+
+
 # IM competition mocks are designed level by level, not module-wide -- each
 # IM level (L1-L4) gets its own distinct set of sections and concepts, so
 # there is no single "IM section structure" that generically applies to
@@ -203,6 +282,10 @@ IM_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     "IM-L3": {
         "sectionDefinitions": IM_L3_COMPETITION_SECTION_DEFINITIONS,
         "sectionConceptPools": IM_L3_COMPETITION_SECTION_CONCEPT_POOLS,
+    },
+    "IM-L2": {
+        "sectionDefinitions": IM_L2_COMPETITION_SECTION_DEFINITIONS,
+        "sectionConceptPools": IM_L2_COMPETITION_SECTION_CONCEPT_POOLS,
     },
 }
 
