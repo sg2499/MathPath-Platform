@@ -2669,7 +2669,7 @@ def ArchiveCompetitionMockExam(db: Session, *, MockExamId: str) -> dict[str, Any
     db.refresh(ExamRecord)
     return CompetitionMockExamPayload(db, ExamRecord, IncludeQuestions=False)
 
-def CompetitionMockExamPayload(db: Session, ExamRecord: CompetitionMockExam, IncludeQuestions: bool = False) -> dict[str, Any]:
+def CompetitionMockExamPayload(db: Session, ExamRecord: CompetitionMockExam, IncludeQuestions: bool = False, EffectiveStatus: str | None = None) -> dict[str, Any]:
     ModuleRecord = db.get(Module, ExamRecord.module_id)
     LevelRecord = db.get(Level, ExamRecord.level_id)
     Payload: dict[str, Any] = {
@@ -2688,7 +2688,15 @@ def CompetitionMockExamPayload(db: Session, ExamRecord: CompetitionMockExam, Inc
         "totalMarks": ExamRecord.total_marks,
         "marksPerQuestion": ExamRecord.marks_per_question,
         "durationSeconds": ExamRecord.duration_seconds,
-        "status": ExamRecord.status,
+        # EffectiveStatus (2026-07-19, Shailesh): ExamRecord.status only ever
+        # holds DRAFT or ARCHIVED -- it is never flipped to ASSIGNED anywhere,
+        # even after real student assignments exist (those live entirely on
+        # CompetitionMockAssignment). Left alone, every assigned mock would
+        # display "DRAFT" forever and the admin's "Assigned" status filter
+        # would be permanently unreachable. ListCompetitionMockDrafts computes
+        # this from real assignment rows and passes it through; every other
+        # caller leaves it None and gets the raw DB column, unchanged.
+        "status": EffectiveStatus or ExamRecord.status,
         "instructions": ExamRecord.instructions,
         "syllabusCoverage": _SafeJsonLoads(ExamRecord.syllabus_coverage_json, {}),
         "generationConfig": _SafeJsonLoads(ExamRecord.generation_config_json, {}),
@@ -2743,9 +2751,61 @@ def CompetitionMockExamPayload(db: Session, ExamRecord: CompetitionMockExam, Inc
     return Payload
 
 
+_NaturalSortSplitPattern = re.compile(r"(\d+)")
+
+
+def _NaturalSortKey(TitleValue: str) -> list:
+    # Splits "Master Module - Mock 10" into ["master module - mock ", 10, ""]
+    # so titles sort as text-then-number instead of pure lexicographic order
+    # (which would put "Mock 10" before "Mock 2"). re.split with one capturing
+    # group always alternates text/digits/text/..., so every even index is a
+    # string and every odd index is an int -- comparisons never mix types.
+    return [
+        int(Chunk) if Chunk.isdigit() else Chunk.lower()
+        for Chunk in _NaturalSortSplitPattern.split(TitleValue or "")
+    ]
+
+
 def ListCompetitionMockDrafts(db: Session, LevelId: str | None = None) -> list[dict[str, Any]]:
     Query = db.query(CompetitionMockExam).filter(CompetitionMockExam.is_active == True)
     if LevelId:
         Query = Query.filter(CompetitionMockExam.level_id == LevelId)
-    Rows = Query.order_by(CompetitionMockExam.created_at.desc()).limit(100).all()
-    return [CompetitionMockExamPayload(db, Row, IncludeQuestions=False) for Row in Rows]
+    # Cap raised 100 -> 500 (2026-07-19, Shailesh): there is no pagination UI
+    # on Manage Mocks, so a hard 100-row cap was silent -- once the library
+    # passed 100 active papers, the oldest ones would simply stop appearing
+    # with no error or indicator. 500 buys real headroom; a true paginated
+    # endpoint is the right long-term fix if this library keeps growing.
+    Rows = Query.order_by(CompetitionMockExam.created_at.desc()).limit(500).all()
+
+    AssignedMockIds: set[str] = set()
+    if Rows:
+        AssignedMockIds = {
+            RowValue[0]
+            for RowValue in db.query(CompetitionMockAssignment.mock_exam_id)
+            .filter(
+                CompetitionMockAssignment.mock_exam_id.in_([Row.id for Row in Rows]),
+                CompetitionMockAssignment.is_active == True,
+            )
+            .distinct()
+            .all()
+        }
+
+    Payloads = [
+        CompetitionMockExamPayload(
+            db,
+            Row,
+            IncludeQuestions=False,
+            EffectiveStatus="ASSIGNED" if Row.id in AssignedMockIds and Row.status != "ARCHIVED" else None,
+        )
+        for Row in Rows
+    ]
+
+    # Naming-tree grouping (2026-07-19, Shailesh): the list used to be pure
+    # created_at DESC, which interleaves every naming series ("Mock 10", then
+    # "Pre Mock 6", then "Mock 9", ...) whenever papers weren't created in a
+    # tidy sequence. Sorting by natural-sort title instead groups "Mock 1, 2,
+    # 3..." together and "Pre Mock 1, 2, 3..." together (and the same for any
+    # other title prefix), while Python's stable sort keeps created_at DESC
+    # as the tiebreaker for exact-duplicate titles.
+    Payloads.sort(key=lambda PayloadValue: _NaturalSortKey(PayloadValue.get("title") or ""))
+    return Payloads
