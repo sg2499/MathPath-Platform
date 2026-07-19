@@ -114,9 +114,19 @@ def _section_performance_from_review(review: list[dict[str, Any]]) -> tuple[list
         percentage = round((correct / total) * 100) if total else 0.0
         payload = {**item, "percentage": percentage}
         performance.append(payload)
-        if percentage >= 75:
+        # Single clean 70% cutoff (2026-07-19, Shailesh) -- every UI surface
+        # ("Strengths >= 70% Accuracy" / "Areas to Improve < 70% Accuracy")
+        # advertises one 70% threshold, but this used to be >=75 / <60, which
+        # left a silent 60-74% dead zone: a section scoring 60-74% appeared in
+        # neither list, on the admin, teacher, AND student result pages (this
+        # function backs GetCompetitionMockResultFor{Student,Teacher,Admin}
+        # via the shared _result_payload()). Confirmed live: a 60% section and
+        # two 70% sections were invisible in both Strengths and Weak Areas,
+        # and missing from the "Focus Next" coaching message that reads off
+        # the weaknesses list.
+        if percentage >= 70:
             strengths.append(payload)
-        elif percentage < 60:
+        else:
             weaknesses.append(payload)
     return performance, strengths, weaknesses
 
@@ -550,21 +560,6 @@ def SaveCompetitionMockAnswer(db: Session, student: Student, attempt_id: str, qu
     }
 
 
-def _format_concept_family(concept: str | None) -> str:
-    if not concept or concept == "MM_UNSUPPORTED":
-        return "Mixed Concepts"
-    if concept == "BODMAS":
-        return "BODMAS"
-    if concept == "ADD_LESS":
-        return "Add/Less"
-    if concept == "DECIMAL_ADD_LESS":
-        return "Decimal Add/Less"
-    if concept == "PERCENTAGE_ADD_LESS":
-        return "Percentage Add/Less"
-
-    words = concept.replace("_", " ").split()
-    return " ".join(word.capitalize() for word in words)
-
 def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, auto: bool = False) -> CompetitionMockAttempt:
     if attempt.status in COMPLETED_STATUSES:
         return attempt
@@ -587,13 +582,19 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
     for question in questions:
         max_score += float(question.marks or 1)
 
-        # Group by exact question concept tag, fallback to family or section title if missing
-        if question.concept_tag:
-            concept_key = question.concept_tag
-        elif question.concept_family and question.concept_family != "MM_UNSUPPORTED":
-            concept_key = _format_concept_family(question.concept_family)
-        else:
-            concept_key = _competition_section_title(question)
+        # Group by the same module-specific, curated section title
+        # _section_performance_from_review() uses for the per-attempt result
+        # page (2026-07-19, Shailesh) -- this used to group by the much finer
+        # per-question concept_tag (a specific DPS/lesson title), which
+        # fragmented one real skill into many near-duplicate buckets with
+        # tiny sample sizes (e.g. "Add/Less (Abacus)", "6 Digit Add/Less
+        # Sums (Abacus)", "Add/Less (Visual)", "Add/Less Sums (Visual)" all
+        # separate, each 3-4 questions), producing noisy 33%/50%/67% swings
+        # on the Mock Performance Insights tab that don't reliably reflect
+        # mastery. Using the same section grouping everywhere keeps the
+        # concept identity a student sees identical across the per-mock
+        # result page and the aggregated insights tab.
+        concept_key = _competition_section_title(question)
 
         concept_totals.setdefault(concept_key, {"correct": 0, "total": 0})
         concept_totals[concept_key]["total"] += 1
@@ -656,9 +657,11 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
         percentage = round((correct_value / total) * 100) if total else 0.0
         concept_payload = {"concept": concept, "correct": correct_value, "total": total, "percentage": percentage}
         concept_performance.append(concept_payload)
-        if percentage >= 75:
+        # Same single 70% cutoff as _section_performance_from_review() above
+        # -- see that function's comment for why >=75/<60 was wrong.
+        if percentage >= 70:
             strengths.append(concept_payload)
-        elif percentage < 60:
+        else:
             weaknesses.append(concept_payload)
 
     existing_summary = (
