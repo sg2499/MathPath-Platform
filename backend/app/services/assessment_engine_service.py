@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import uuid4
 
@@ -324,15 +325,28 @@ def SplitCountAcrossSources(TotalCount: int, SourceCount: int) -> list[int]:
     return [Count for Count in Counts if Count > 0]
 
 
-def QuestionText(Operands: list[int]) -> str:
+def QuestionText(Operands: list) -> str:
+    # MM's decimal generators (e.g. GenerateDecimalAddLess) hand back operands
+    # already formatted as sign-prefixed strings ("-12.50", "3.25") rather than
+    # numeric int/float values, and don't set their own "question_text" override
+    # (2026-07-18 finding: this fallback crashed with `'>=' not supported between
+    # instances of 'str' and 'int'` on any full-level assessment distribution that
+    # pulled in a decimal Add/Less lesson). Coerce through Decimal so both plain
+    # numeric operands and pre-signed decimal strings render correctly here.
     Parts = []
     for Index, Operand in enumerate(Operands):
         if Index == 0:
             Parts.append(str(Operand))
-        elif Operand >= 0:
+            continue
+        try:
+            NumericOperand = Decimal(str(Operand))
+        except (InvalidOperation, ValueError, TypeError):
             Parts.append(f"+ {Operand}")
+            continue
+        if NumericOperand >= 0:
+            Parts.append(f"+ {NumericOperand}")
         else:
-            Parts.append(f"- {abs(Operand)}")
+            Parts.append(f"- {abs(NumericOperand)}")
     return " ".join(Parts)
 
 
