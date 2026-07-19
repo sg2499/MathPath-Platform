@@ -252,11 +252,43 @@ def SectionConfig(Db: Session, LessonItem: Lesson, Section: DPSSection, Question
     )
 
 
+def _ResolvedSectionGeneratorConfig(Section: DPSSection) -> dict[str, Any]:
+    """DPSSection.generator_config_json stores the real per-section definition
+    nested under an "activeSection" key (see seed_master_module.py's and
+    seed_intermediate_module.py's identical `_upsert_sections()` shape:
+    `{**config, "activeSection": section_definition}`), because that's how the
+    section-locked competition-mock/DPS-practice generation path expects it.
+    But this assessment-generation path (MmSectionConfig/ImSectionConfig) was
+    reading Section.generator_config_json as-is, so any generator-specific key
+    that only lives inside "activeSection" -- multiplicationDigits,
+    divisionDigits, etc. -- was invisible to every digit-pattern resolver that
+    looks for it at the top level (_MultiplicationDigits/_DivisionDigits in
+    mm/operands.py, their validators.py counterparts, IM's equivalents).
+    Found 2026-07-19: this silently broke assessment generation for any
+    section whose digit shape depends on one of those keys and isn't
+    recoverable from a title-text guess alone -- e.g. a WHOLE_NUMBER_MULTIPLICATION
+    section's first question (WARM_UP stage) generates a 2D x 1D shape by
+    generator-side stage default while the validator's title-parse fallback
+    expects the section's real 2D x 2D shape, so every retry fails validation,
+    permanently, for that question. Flattening "activeSection" onto the top
+    level here matches what the DPS/practice path already provides via its own
+    `**Section` spread, closing the gap without touching the seed script or
+    needing a reseed/backfill.
+    """
+    RawConfig = SafeJson(Section.generator_config_json, {})
+    if not isinstance(RawConfig, dict):
+        return {}
+    ActiveSection = RawConfig.get("activeSection")
+    if isinstance(ActiveSection, dict):
+        return {**RawConfig, **ActiveSection}
+    return RawConfig
+
+
 def MmSectionConfig(Db: Session, LessonItem: Lesson, Section: DPSSection, QuestionCount: int, Seed: str) -> MMConfig:
     LevelItem = Db.get(Level, LessonItem.level_id)
     ModuleItem = Db.get(Module, LevelItem.module_id) if LevelItem else None
     DpsItem = Db.get(DPS, Section.dps_id) if Section.dps_id else None
-    GeneratorConfig = {**SafeJson(Section.generator_config_json, {}), "forceSingleSection": True}
+    GeneratorConfig = {**_ResolvedSectionGeneratorConfig(Section), "forceSingleSection": True}
     ConceptFamily = Section.concept_family or GeneratorConfig.get("conceptFamily") or "CONCEPT_DRILL"
     return MMConfig(
         ModuleCode=ModuleItem.module_code if ModuleItem else "MM",
@@ -279,7 +311,7 @@ def ImSectionConfig(Db: Session, LessonItem: Lesson, Section: DPSSection, Questi
     LevelItem = Db.get(Level, LessonItem.level_id)
     ModuleItem = Db.get(Module, LevelItem.module_id) if LevelItem else None
     DpsItem = Db.get(DPS, Section.dps_id) if Section.dps_id else None
-    GeneratorConfig = {**SafeJson(Section.generator_config_json, {}), "forceSingleSection": True}
+    GeneratorConfig = {**_ResolvedSectionGeneratorConfig(Section), "forceSingleSection": True}
     ConceptFamily = Section.concept_family or GeneratorConfig.get("conceptFamily") or "ADD_LESS"
     return IMConfig(
         ModuleCode=ModuleItem.module_code if ModuleItem else "IM",
