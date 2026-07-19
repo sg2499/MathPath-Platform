@@ -41,6 +41,8 @@ Do not ask the user to upload these sheets or images. Whenever you need to read 
 1. **Data Normalization:** Backend acts as the single source of truth. Standardized scores/time utilization must be computed precisely once in the backend.
 2. **Testing:** Enforce automated testing (Jest, Playwright) and block PRs on failure.
 3. **CI/CD:** Require preview environments for review before merging to production.
+4. **Admin Authorization Check:** When querying the database for "Admins" to send notifications or verify permissions, always use `User.role.in_(["ADMIN", "SUPER_ADMIN"])` instead of just checking for `"ADMIN"`. The primary administrator account relies on the `SUPER_ADMIN` role.
+5. **Mock Exam Notification Routing:** Frontend notifications for mock exams (`MOCK_SUBMITTED`) must route students/admins to the `mock-result` page to view their scores, not the `mock-attempt` page.
 
 # Gamification Architecture (Evolved July 8, 2026)
 1. **AAA-Quality Badges (Cinematic Overhaul):** Do not use flat SVGs or procedural geometry for Rank Badge cutscenes. The new paradigm uses **AI-Generated Hyper-Realistic Master Assets** (e.g., Copper Forge, Champion Black Hole) rendered natively through `@react-three/fiber` `<Canvas>`. The assets must be displayed with crystal-clear fidelity using custom GLSL shaders to key out black backgrounds, paired with deterministic camera choreography (shakes, FOV shifts) and optimized Post-Processing (Bloom, Vignette) without destroying the 2D asset's crispness.

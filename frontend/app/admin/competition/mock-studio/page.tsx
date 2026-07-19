@@ -36,6 +36,15 @@ const DefaultDurationMinutes = 20;
 const MmDefaultDurationMinutes = 60;
 const ImDefaultDurationMinutes = 30;
 
+// 2026-07-19 (Shailesh, repo cleanup): only MM and IM have a real,
+// admin-curated competition-mock section structure (MM_COMPETITION_LEVEL_REGISTRY /
+// IM_COMPETITION_LEVEL_REGISTRY on the backend). Any other module -- YLM today --
+// silently fell through to a generic, unlocked per-DPS structure with none of
+// MM/IM's section design, which reads as a real gap rather than an intentional
+// mock format. Gated out of Create Mock here until it's actually built; existing
+// Manage/Assign flows for already-created mocks are untouched.
+const CompetitionMockSupportedModuleCodes = new Set(["MM", "IM"]);
+
 const AdminRowActionButtonClass = "inline-flex items-center justify-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] shadow-sm transition duration-200 hover:-translate-y-px hover:border-[color:var(--mp-role-border-strong)] hover:bg-[image:var(--mp-role-action-bg)] hover:text-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--mp-role-primary)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-[color:var(--mp-role-border)] disabled:hover:bg-white disabled:hover:text-[color:var(--mp-role-primary)] disabled:hover:shadow-sm dark:bg-slate-950/60 dark:text-blue-100 dark:hover:border-[color:var(--mp-role-border-strong)] dark:hover:bg-[image:var(--mp-role-action-bg)] dark:hover:text-white dark:disabled:hover:bg-slate-950/60 dark:disabled:hover:text-blue-100";
 
 function FormatDuration(SecondsValue: number | null | undefined) {
@@ -402,8 +411,11 @@ export default function AdminCompetitionMockStudioPage() {
                     Module
                     <select value={SelectedModuleId} onChange={(EventValue) => HandleModuleChange(EventValue.target.value)} className="math-input">
                       <option value="">Select Module</option>
-                      {Modules.map((ModuleValue: ModuleItem) => <option key={ModuleValue.moduleId} value={ModuleValue.moduleId}>{ModuleValue.moduleCode} · {ModuleValue.moduleName}</option>)}
+                      {Modules
+                        .filter((ModuleValue: ModuleItem) => CompetitionMockSupportedModuleCodes.has(ModuleValue.moduleCode))
+                        .map((ModuleValue: ModuleItem) => <option key={ModuleValue.moduleId} value={ModuleValue.moduleId}>{ModuleValue.moduleCode} · {ModuleValue.moduleName}</option>)}
                     </select>
+                    <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">Only modules with a real competition-mock section design are selectable here.</span>
                   </label>
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Level
