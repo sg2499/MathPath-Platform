@@ -5,7 +5,6 @@ import Link from "next/link";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
@@ -15,11 +14,9 @@ import {
   generateCompetitionMockDraft,
   getCompetitionMockSectionPlan,
   getAdminStudents,
-  getCompetitionMockExam,
   getLevels,
   getModules,
   listCompetitionMockExams,
-  type CompetitionMockExamDetail,
   type CompetitionMockExamSummary,
 } from "@/lib/api/admin";
 import type { LevelItem, ModuleItem } from "@/types/curriculum";
@@ -99,24 +96,45 @@ export default function AdminCompetitionMockStudioPage() {
   const [AssignToAll, SetAssignToAll] = useState(true);
   const [StudentSearch, SetStudentSearch] = useState("");
   const [AssignmentInstructions, SetAssignmentInstructions] = useState("");
-  const [PreviewMockId, SetPreviewMockId] = useState<string | null>(null);
   const [DeleteMockId, SetDeleteMockId] = useState<string | null>(null);
   const [ArchiveMockId, SetArchiveMockId] = useState<string | null>(null);
   const [ActiveStudioTab, SetActiveStudioTab] = useState<"CREATE" | "MANAGE">("CREATE");
   const [ManageSearch, SetManageSearch] = useState("");
   const [ManageStatusFilter, SetManageStatusFilter] = useState("ALL");
+  // ManageLevelFilterId is deliberately independent from SelectedLevelId
+  // (Create Mock's own level picker) -- 2026-07-19, Shailesh: they used to
+  // share one state pair, which meant this "All Levels" filter was disabled
+  // whenever Create Mock had no module chosen (the normal case on landing
+  // directly on Manage Mocks), and picking a level here silently changed
+  // Create Mock's selection too. See ManageLevelsQuery below for where its
+  // options come from.
+  const [ManageLevelFilterId, SetManageLevelFilterId] = useState("");
   const [SectionCounts, SetSectionCounts] = useState<Record<string, string>>({});
   const [LastMessage, SetLastMessage] = useState<string | null>(null);
 
   const ModulesQuery = useQuery({ queryKey: ["admin", "competition", "modules"], queryFn: getModules, enabled: Ready });
+  const Modules = ModulesQuery.data || [];
   const LevelsQuery = useQuery({ queryKey: ["admin", "competition", "levels", SelectedModuleId], queryFn: () => getLevels(SelectedModuleId), enabled: Ready && Boolean(SelectedModuleId) });
   const StudentsQuery = useQuery({ queryKey: ["admin", "competition", "students"], queryFn: getAdminStudents, enabled: Ready });
-  const MocksQuery = useQuery({ queryKey: ["admin", "competition", "mocks", SelectedLevelId], queryFn: () => listCompetitionMockExams(SelectedLevelId || undefined), enabled: Ready });
+  const MocksQuery = useQuery({ queryKey: ["admin", "competition", "mocks", ManageLevelFilterId], queryFn: () => listCompetitionMockExams(ManageLevelFilterId || undefined), enabled: Ready });
   const SectionPlanQuery = useQuery({ queryKey: ["admin", "competition", "section-plan", SelectedLevelId, QuestionCount], queryFn: () => getCompetitionMockSectionPlan(SelectedLevelId, Number(QuestionCount) || DefaultQuestionCount), enabled: Ready && Boolean(SelectedLevelId) });
-  const PreviewQuery = useQuery({ queryKey: ["admin", "competition", "mock", PreviewMockId], queryFn: () => getCompetitionMockExam(PreviewMockId || ""), enabled: Ready && Boolean(PreviewMockId) });
+  // Manage Mocks' level filter spans every competition-mock-supported module
+  // at once (unlike Create Mock's Level select, which is scoped to whichever
+  // single module is chosen there) -- so it fetches each supported module's
+  // levels in parallel and flattens them into one "MM · L1 / IM · L4 ..." list.
+  const SupportedModuleIdsKey = Modules.filter((ModuleValue: ModuleItem) => CompetitionMockSupportedModuleCodes.has(ModuleValue.moduleCode)).map((ModuleValue: ModuleItem) => ModuleValue.moduleId).join(",");
+  const ManageLevelsQuery = useQuery({
+    queryKey: ["admin", "competition", "manage-levels", SupportedModuleIdsKey],
+    queryFn: async () => {
+      const SupportedModules = Modules.filter((ModuleValue: ModuleItem) => CompetitionMockSupportedModuleCodes.has(ModuleValue.moduleCode));
+      const LevelLists = await Promise.all(SupportedModules.map((ModuleValue: ModuleItem) => getLevels(ModuleValue.moduleId).then((LevelListValue) => LevelListValue.map((LevelValue) => ({ ...LevelValue, moduleCode: ModuleValue.moduleCode })))));
+      return LevelLists.flat();
+    },
+    enabled: Ready && Modules.length > 0,
+  });
 
-  const Modules = ModulesQuery.data || [];
   const Levels = LevelsQuery.data || [];
+  const ManageLevels = ManageLevelsQuery.data || [];
   const Students = StudentsQuery.data || [];
   const MockExams = MocksQuery.data || [];
   const SectionPlan = SectionPlanQuery.data || null;
@@ -304,7 +322,6 @@ export default function AdminCompetitionMockStudioPage() {
     onSuccess: (ResultValue) => {
       SetLastMessage(ResultValue.message || "Competition mock exam archived.");
       SetSelectedMockIds((CurrentValue) => CurrentValue.filter((MockId) => MockId !== ArchiveMockId));
-      if (PreviewMockId === ArchiveMockId) SetPreviewMockId(null);
       SetArchiveMockId(null);
       QueryClient.invalidateQueries({ queryKey: ["admin", "competition"] });
     },
@@ -315,7 +332,6 @@ export default function AdminCompetitionMockStudioPage() {
     onSuccess: (ResultValue) => {
       SetLastMessage(ResultValue.message || "Competition mock exam deleted.");
       SetSelectedMockIds((CurrentValue) => CurrentValue.filter((MockId) => MockId !== DeleteMockId));
-      if (PreviewMockId === DeleteMockId) SetPreviewMockId(null);
       SetDeleteMockId(null);
       QueryClient.invalidateQueries({ queryKey: ["admin", "competition"] });
     },
@@ -326,7 +342,6 @@ export default function AdminCompetitionMockStudioPage() {
     SetSelectedLevelId("");
     SetSelectedMockIds([]);
     SetSelectedStudentIds([]);
-    SetPreviewMockId(null);
     SetDeleteMockId(null);
     SetArchiveMockId(null);
     SetSectionCounts({});
@@ -367,8 +382,8 @@ export default function AdminCompetitionMockStudioPage() {
           </p>
         </div>
 
-        {(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error || ArchiveMutation.error) && (
-          <ErrorState message={apiErrorMessage(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || PreviewQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error || ArchiveMutation.error)} />
+        {(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || ManageLevelsQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error || ArchiveMutation.error) && (
+          <ErrorState message={apiErrorMessage(ModulesQuery.error || LevelsQuery.error || StudentsQuery.error || MocksQuery.error || ManageLevelsQuery.error || SectionPlanQuery.error || GenerateMutation.error || AssignMutation.error || DeleteMutation.error || ArchiveMutation.error)} />
         )}
 
         {LastMessage && (
@@ -419,7 +434,7 @@ export default function AdminCompetitionMockStudioPage() {
                   </label>
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Level
-                    <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetPreviewMockId(null); SetDeleteMockId(null); SetArchiveMockId(null); SetSectionCounts({}); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
+                    <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetDeleteMockId(null); SetArchiveMockId(null); SetSectionCounts({}); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
                       <option value="">Select Level</option>
                       {Levels.map((LevelValue: LevelItem) => <option key={LevelValue.levelId} value={LevelValue.levelId}>{LevelValue.levelCode} · {LevelValue.levelName}</option>)}
                     </select>
@@ -531,9 +546,9 @@ export default function AdminCompetitionMockStudioPage() {
                     <option value="ASSIGNED">Assigned</option>
                     <option value="ARCHIVED">Archived</option>
                   </select>
-                  <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetPreviewMockId(null); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
+                  <select value={ManageLevelFilterId} onChange={(EventValue) => { SetManageLevelFilterId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); }} disabled={ManageLevelsQuery.isLoading} className="math-input">
                     <option value="">All Levels</option>
-                    {Levels.map((LevelValue: LevelItem) => <option key={LevelValue.levelId} value={LevelValue.levelId}>{LevelValue.levelCode}</option>)}
+                    {ManageLevels.map((LevelValue) => <option key={LevelValue.levelId} value={LevelValue.levelId}>{LevelValue.moduleCode} · {LevelValue.levelCode}</option>)}
                   </select>
                 </div>
 
@@ -693,289 +708,6 @@ export default function AdminCompetitionMockStudioPage() {
         )}
       </section>
     </AppShell>
-  );
-}
-
-function NormalisePreviewOperands(Operands: unknown[] | null | undefined): Array<number | string> {
-  return (Operands || []).map((OperandValue) => {
-    if (typeof OperandValue === "number" || typeof OperandValue === "string") return OperandValue;
-    if (OperandValue === null || OperandValue === undefined) return "";
-    return String(OperandValue);
-  });
-}
-
-
-function IsMasterModuleMock(ModuleCode: string | null | undefined) {
-  return String(ModuleCode || "").trim().toUpperCase().includes("MM");
-}
-
-function QuestionSearchText(QuestionValue: CompetitionMockExamDetail["questions"][number]) {
-  return [
-    QuestionValue.sectionTitle,
-    QuestionValue.conceptTag,
-    QuestionValue.conceptFamily,
-    QuestionValue.displayType,
-    QuestionValue.questionText,
-  ].filter(Boolean).join(" ").toLowerCase();
-}
-
-// Concept-family sets, not section numbers, are what actually identify a
-// question's real concept. Section numbers used to be a safe shortcut
-// because each of these concepts always lived in one permanently-fixed
-// section (BODMAS/Percentage always 8, Financial always 9, Positional
-// always 5) -- but the section-omission redistribution + dense-renumbering
-// fix means a section's displayed number now legitimately shifts whenever
-// an earlier section is omitted, so a *different* concept's renumbered
-// section can land on 5/8/9 by coincidence. That collision is exactly what
-// caused Financial questions (Profit/Loss/Simple Interest/Selling Price/
-// Cost Price) to render as a bare "Find Cost Price = ?" label instead of
-// their real data table: once an earlier section was omitted, Financial's
-// section shifted down to display number 8, which used to mean
-// BODMAS/Percentage, so IsMmExpressionQuestion wrongly matched it first.
-// conceptFamily is stamped by the backend from the question's own concept
-// spec (never shifts, never collides across concepts), so it's the correct
-// primary signal -- the text match is kept only as a fallback for the rare
-// row where conceptFamily might be missing/blank.
-const MM_EXPRESSION_CONCEPT_FAMILIES = new Set(["BODMAS", "SOLVE_EQUATION", "PERCENTAGE_ADD_LESS"]);
-const MM_FINANCIAL_CONCEPT_FAMILIES = new Set(["PROFIT_LOSS", "SIMPLE_INTEREST", "FIND_SELLING_PRICE", "FIND_COST_PRICE"]);
-const MM_POSITIONAL_CONCEPT_FAMILIES = new Set(["ANSWER_POSITION"]);
-
-function IsMmExpressionQuestion(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
-  if (!IsMasterModuleMock(ExamValue.moduleCode)) return false;
-  if (MM_EXPRESSION_CONCEPT_FAMILIES.has(String(QuestionValue.conceptFamily || "").toUpperCase())) return true;
-  const TextValue = QuestionSearchText(QuestionValue);
-  return TextValue.includes("bodmas") || TextValue.includes("percentage") || TextValue.includes("percent");
-}
-
-function IsMmFinancialQuestion(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
-  if (!IsMasterModuleMock(ExamValue.moduleCode)) return false;
-  if (MM_FINANCIAL_CONCEPT_FAMILIES.has(String(QuestionValue.conceptFamily || "").toUpperCase())) return true;
-  const TextValue = QuestionSearchText(QuestionValue);
-  return TextValue.includes("profit") || TextValue.includes("loss") || TextValue.includes("interest") || TextValue.includes("selling price") || TextValue.includes("cost price");
-}
-
-function IsMmPositionalQuestion(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
-  if (!IsMasterModuleMock(ExamValue.moduleCode)) return false;
-  if (MM_POSITIONAL_CONCEPT_FAMILIES.has(String(QuestionValue.conceptFamily || "").toUpperCase())) return true;
-  const TextValue = QuestionSearchText(QuestionValue);
-  return TextValue.includes("position") || TextValue.includes("placement");
-}
-
-function HasMultiplicationPlacementShape(QuestionValue: CompetitionMockExamDetail["questions"][number]) {
-  const TextValue = QuestionSearchText(QuestionValue);
-  const Operators = (QuestionValue.operators || []).map((OperatorValue) => String(OperatorValue || "").toLowerCase());
-  const Operands = NormalisePreviewOperands(QuestionValue.operands);
-
-  return (
-    TextValue.includes("decimal multiplication answer position") ||
-    TextValue.includes("answer position") ||
-    /[×x*]/.test(String(QuestionValue.questionText || "")) ||
-    Operators.some((OperatorValue) => OperatorValue === "×" || OperatorValue === "x" || OperatorValue === "*") ||
-    (Operands.length >= 2 && TextValue.includes("multiplication"))
-  );
-}
-
-function HasWriteNumberPositionShape(QuestionValue: CompetitionMockExamDetail["questions"][number]) {
-  const TextValue = QuestionSearchText(QuestionValue);
-  return TextValue.includes("write") && TextValue.includes("given position");
-}
-
-
-function GetCleanMmSectionName(QuestionValue: CompetitionMockExamDetail["questions"][number]): string {
-  const SectionNumber = Number(QuestionValue.sectionNumber || 0);
-  const RawTitle = String(QuestionValue.sectionTitle || QuestionValue.conceptTag || "").trim();
-  if (!RawTitle) return SectionNumber ? `Section ${SectionNumber}` : "Section";
-  const PrefixPattern = new RegExp(`^section\\s*${SectionNumber}\\s*[-–—:]\\s*`, "i");
-  const CleanTitle = RawTitle.replace(PrefixPattern, "").trim();
-  return CleanTitle || RawTitle;
-}
-
-function GetMmQuestionConceptDisplayTitle(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
-  if (!IsMasterModuleMock(ExamValue.moduleCode)) return QuestionValue.conceptTag || QuestionValue.conceptFamily || "Concept";
-  if (IsMmPositionalQuestion(QuestionValue, ExamValue)) {
-    if (HasWriteNumberPositionShape(QuestionValue)) return "Write Number From Given Position";
-    if (HasMultiplicationPlacementShape(QuestionValue)) return "Decimal Multiplication Answer Position";
-    return "Find Position of the First Natural Number";
-  }
-  return QuestionValue.conceptTag || QuestionValue.conceptFamily || "Concept";
-}
-
-function GetMmPositionalPromptTitle(QuestionValue: CompetitionMockExamDetail["questions"][number]) {
-  if (HasWriteNumberPositionShape(QuestionValue)) return null;
-  if (HasMultiplicationPlacementShape(QuestionValue)) return "DECIMAL MULTIPLICATION ANSWER POSITION";
-  return null;
-}
-
-function GetMockDisplayType(QuestionValue: CompetitionMockExamDetail["questions"][number], ExamValue: CompetitionMockExamDetail) {
-  if (IsMmFinancialQuestion(QuestionValue, ExamValue)) return "FINANCIAL_TABLE";
-  if (IsMmExpressionQuestion(QuestionValue, ExamValue)) return "EXPRESSION_WORKSHEET";
-  return QuestionValue.displayType;
-}
-
-function FormatMockExpressionValue(Value: number | string) {
-  if (typeof Value === "number") {
-    if (Number.isInteger(Value)) return String(Value);
-    return String(Number(Value.toFixed(8))).replace(/\.0+$/, "");
-  }
-  return String(Value);
-}
-
-function BuildMockExpression(Operands: Array<number | string>, Operators: string[]) {
-  if (!Operands.length) return "?";
-  return Operands.map((OperandValue, IndexValue) => {
-    const ValueText = FormatMockExpressionValue(OperandValue);
-    if (IndexValue === 0) return ValueText;
-    const OperatorText = String(Operators[IndexValue] || Operators[IndexValue - 1] || "+").trim();
-    if (OperatorText === "+%") return `+ ${ValueText}%`;
-    if (OperatorText === "-%") return `− ${ValueText}%`;
-    if (OperatorText === "×%") return `× ${ValueText}%`;
-    if (OperatorText === "%") return `% ${ValueText}`;
-    return `${OperatorText || "+"} ${ValueText}`;
-  }).join(" ");
-}
-
-function RenderMockExpressionParts(ExpressionValue: string) {
-  return ExpressionValue.split(/([?？])/g).map((PartValue, IndexValue) => (
-    PartValue === "?" || PartValue === "？"
-      ? <span key={`mock-question-mark-${IndexValue}`} className="text-blue-700 dark:text-cyan-300">?</span>
-      : <span key={`mock-expression-part-${IndexValue}`}>{PartValue}</span>
-  ));
-}
-
-function MockQuestionRenderer({ question, exam, compact = false }: { question: CompetitionMockExamDetail["questions"][number]; exam: CompetitionMockExamDetail; compact?: boolean }) {
-  const Operands = NormalisePreviewOperands(question.operands);
-  const Operators = question.operators || [];
-  const PositionalPromptTitle = IsMmPositionalQuestion(question, exam) ? GetMmPositionalPromptTitle(question) : null;
-  const QuestionTextForDisplay = PositionalPromptTitle ? null : question.questionText;
-
-  const RenderedQuestion = IsMmExpressionQuestion(question, exam) ? (() => {
-    const ExpressionValue = question.questionText?.trim() || BuildMockExpression(Operands, Operators);
-    const HasPrompt = /[?？]/.test(ExpressionValue);
-    return (
-      <div className="mx-auto flex w-full justify-center rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
-        <div className={`${compact ? "text-[16px] sm:text-[20px]" : "text-[24px] sm:text-[30px]"} max-w-full whitespace-normal break-words text-center font-mono font-black leading-snug tracking-tight`}>
-          {RenderMockExpressionParts(ExpressionValue)}
-          {!HasPrompt ? <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span> : null}
-        </div>
-      </div>
-    );
-  })() : (
-    <MathQuestionDisplay
-      operands={Operands}
-      operators={Operators}
-      displayType={GetMockDisplayType(question, exam)}
-      questionText={QuestionTextForDisplay}
-    />
-  );
-
-  if (!PositionalPromptTitle) return RenderedQuestion;
-
-  return (
-    <div className="mx-auto w-full max-w-md overflow-visible rounded-[22px] border border-slate-200 bg-white text-center shadow-inner dark:border-slate-700 dark:bg-slate-950/70">
-      <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">{PositionalPromptTitle}</p>
-      </div>
-      <div className="px-4 py-5">{RenderedQuestion}</div>
-    </div>
-  );
-}
-
-function GroupMockQuestionsBySection(Questions: CompetitionMockExamDetail["questions"]) {
-  const SectionMap = new Map<number, { sectionNumber: number; sectionTitle: string; questions: CompetitionMockExamDetail["questions"] }>();
-
-  Questions.forEach((QuestionValue) => {
-    const SectionNumber = Number(QuestionValue.sectionNumber || 1);
-    const ExistingSection = SectionMap.get(SectionNumber);
-    if (ExistingSection) {
-      ExistingSection.questions.push(QuestionValue);
-      return;
-    }
-
-    SectionMap.set(SectionNumber, {
-      sectionNumber: SectionNumber,
-      sectionTitle: QuestionValue.sectionTitle || QuestionValue.conceptTag || `Section ${SectionNumber}`,
-      questions: [QuestionValue],
-    });
-  });
-
-  return Array.from(SectionMap.values()).sort((LeftValue, RightValue) => LeftValue.sectionNumber - RightValue.sectionNumber);
-}
-
-function MockPreview({ exam }: { exam: CompetitionMockExamDetail }) {
-  const Sections = GroupMockQuestionsBySection(exam.questions || []);
-
-  return (
-    <div className="space-y-5">
-      <div className="rounded-[28px] border border-blue-100 bg-gradient-to-br from-white via-blue-50/50 to-indigo-50 p-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h3 className="text-lg font-black text-slate-950 dark:text-white">{exam.title}</h3>
-            <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
-              {exam.totalQuestions} Questions · {FormatDuration(exam.durationSeconds)} · {exam.totalMarks} Marks
-            </p>
-          </div>
-          <div className="inline-flex w-fit rounded-full border border-blue-100 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-cyan-200">
-            Section-Locked Preview
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {Sections.map((SectionValue) => {
-          const SampleQuestions = SectionValue.questions.slice(0, 2);
-          return (
-            <section key={SectionValue.sectionNumber} className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-              <div className="flex flex-col gap-2 bg-slate-50 px-5 py-4 dark:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-blue-700 dark:text-cyan-300">Section {SectionValue.sectionNumber}</p>
-                  <h4 className="mt-1 text-base font-black text-slate-950 dark:text-white">{SectionValue.sectionTitle}</h4>
-                </div>
-                <span className="inline-flex w-fit rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">
-                  {SectionValue.questions.length} Questions
-                </span>
-              </div>
-
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {SampleQuestions.map((QuestionValue) => (
-                  <article key={QuestionValue.mockQuestionId} className={`grid gap-4 px-5 py-4 ${IsMmExpressionQuestion(QuestionValue, exam) || IsMmFinancialQuestion(QuestionValue, exam) ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,340px)_1fr] xl:items-center"}`}>
-                    <div className="overflow-visible rounded-[22px] border border-blue-100 bg-slate-50 px-4 py-5 dark:border-slate-800 dark:bg-slate-900/40">
-                      <MockQuestionRenderer question={QuestionValue} exam={exam} compact />
-                    </div>
-
-                    <div className="min-w-0 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">Section {QuestionValue.sectionNumber}</span>
-                        <span className={`rounded-full px-3 py-1 text-xs font-black ${IsMasterModuleMock(exam.moduleCode) ? "math-admin-studio-chip" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>{GetCleanMmSectionName(QuestionValue)}</span>
-                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200">Answer: {QuestionValue.correctAnswer}</span>
-                      </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {(QuestionValue.options || []).map((OptionValue) => (
-                          <div
-                            key={OptionValue.optionId || `${QuestionValue.mockQuestionId}-${OptionValue.label}`}
-                            className={`flex min-h-[44px] items-center gap-3 rounded-2xl border px-3 py-2 text-sm font-black ${OptionValue.isCorrect ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"}`}
-                          >
-                            <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs font-black ${OptionValue.isCorrect ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
-                              {OptionValue.label}
-                            </span>
-                            <span className="break-words">{OptionValue.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-
-              {SectionValue.questions.length > SampleQuestions.length ? (
-                <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-xs font-black text-slate-500 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
-                  Showing {SampleQuestions.length} clean samples from this section. Open the full-page View for all {SectionValue.questions.length} questions.
-                </div>
-              ) : null}
-            </section>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
