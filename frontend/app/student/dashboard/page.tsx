@@ -442,6 +442,20 @@ export default function StudentDashboardPage() {
     return data;
   }, [combinedActivityEvents]);
 
+  // Honest, data-driven summary line under the heatmap. This used to be a
+  // hardcoded "Consistency: Top 5% this week." string that showed even for
+  // students with zero activity that week -- MathPath has no real
+  // cross-student weekly percentile computation, so that line was always a
+  // fabricated stat, not just wrong when idle. Replaced with the one number
+  // we can actually stand behind: how many of the last 7 days had a real
+  // completed activity, straight from grindData above.
+  const weeklyConsistencyLabel = useMemo(() => {
+    const activeDays = grindData.filter((d) => d.count > 0).length;
+    if (activeDays === 0) return "No conquests yet this week — start your streak.";
+    if (activeDays === 7) return "Consistency: active all 7 days this week.";
+    return `Consistency: active ${activeDays}/7 days this week.`;
+  }, [grindData]);
+
   const heatmapMonthYearLabel = useMemo(() => {
     if (grindData.length === 0) return "";
     const firstDate = parseLocalDateKey(grindData[0].date);
@@ -817,7 +831,7 @@ export default function StudentDashboardPage() {
                                 })}
                              </div>
                              <p className="text-[11px] sm:text-xs font-black text-slate-500 dark:text-slate-400 mt-6 uppercase tracking-[0.25em] leading-none">
-                                Consistency: Top 5% this week.
+                                {weeklyConsistencyLabel}
                              </p>
                           </div>
 
