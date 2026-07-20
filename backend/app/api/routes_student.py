@@ -1086,13 +1086,19 @@ def get_cumulative_leaderboard(
         .join(User, Student.user_id == User.id)
         .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
         .join(CompetitionMockAttempt, CompetitionMockResultSummary.mock_attempt_id == CompetitionMockAttempt.id)
-        .join(CompetitionMockAssignment, CompetitionMockResultSummary.mock_assignment_id == CompetitionMockAssignment.id)
+        # Join through CompetitionMockAttempt.mock_assignment_id, NOT
+        # CompetitionMockResultSummary.mock_assignment_id -- these two columns
+        # are not guaranteed to agree, and joining on the summary's own copy
+        # silently dropped rows Insights still counted (25% vs Insights' 42%
+        # after the first attempt at this filter). Mirroring Insights'
+        # exact join path (see GetCompetitionMockProgressInsightsForStudent
+        # in competition_mock_attempt_service.py) makes the two identical
+        # by construction instead of by coincidence.
+        .join(CompetitionMockAssignment, CompetitionMockAttempt.mock_assignment_id == CompetitionMockAssignment.id)
         .filter(CompetitionMockExam.level_id == level_id)
         # Same is_active scoping GetCompetitionMockProgressInsightsForStudent()
         # applies -- without it, a superseded/inactive assignment can still be
-        # pooled in here while Insights skips it, which is exactly what left
-        # a residual few-point gap (e.g. 41% vs 42%) even after switching this
-        # query onto the same pooled-correct/total formula.
+        # pooled in here while Insights skips it.
         .filter(CompetitionMockAssignment.is_active == True)  # noqa: E712
         .group_by(Student.id, Student.photo_url, User.full_name, User.photo_url)
         .all()
