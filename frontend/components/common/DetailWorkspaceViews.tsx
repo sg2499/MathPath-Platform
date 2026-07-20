@@ -476,8 +476,25 @@ export function needsReattempt(row: AnyRow) {
   const status = String(row.status ?? row.attemptStatus ?? "").toUpperCase();
   const normalizedStatus = status.replace(/[^A-Z]/g, "");
   if (normalizedStatus.includes("CLEARED")) return false;
+  if (isCompleted(row)) {
+    return (
+      isBelowBenchmark(row) ||
+      normalizedStatus.includes("NEEDSREATTEMPT") ||
+      normalizedStatus.includes("REATTEMPTAVAILABLE") ||
+      normalizedStatus.includes("BELOWBENCHMARK")
+    );
+  }
+  // Not-yet-attempted rows: a fresh re-attempt sheet is issued specifically
+  // because the previous attempt fell below benchmark. Until the student
+  // actually clears it, it must keep counting as "needs re-attempt" rather
+  // than silently blending into the generic "pending" bucket -- otherwise
+  // every summary card that reads this flag (Practice tab, Readiness tab,
+  // teacher/admin trackers) undercounts the moment the re-attempt sheet is
+  // assigned, even though the student still owes a passing score.
   return (
-    isBelowBenchmark(row) ||
+    Boolean(row.requiresAttention) ||
+    Boolean(row.isReattempt) ||
+    Number(row.retryAttemptNumber ?? 0) > 0 ||
     normalizedStatus.includes("NEEDSREATTEMPT") ||
     normalizedStatus.includes("REATTEMPTAVAILABLE") ||
     normalizedStatus.includes("BELOWBENCHMARK")
@@ -651,6 +668,10 @@ export function uniqueCompletedConceptCount(rows: AnyRow[]) {
 
 export function statusLabel(row: AnyRow) {
   const text = String(row.status ?? "").toUpperCase();
+  const isUnstartedReattempt =
+    (text === "PENDING" || text === "NOT_STARTED" || text === "IN_PROGRESS" || !text) &&
+    (Boolean(row.requiresAttention) || Boolean(row.isReattempt) || Number(row.retryAttemptNumber ?? 0) > 0);
+  if (isUnstartedReattempt) return "Needs Re-Attempt";
   if (text === "PENDING" || text === "NOT_STARTED" || !text) return "Pending";
   if (text === "IN_PROGRESS") return "Pending";
   if (text.includes("CLEARED")) return "Cleared";
