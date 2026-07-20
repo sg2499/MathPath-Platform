@@ -399,9 +399,9 @@ export type StudentCompetitionMockResult = {
   performanceBand?: string | null;
   completedAt?: string | null;
   submittedAt?: string | null;
-  conceptPerformance: Array<{ concept: string; correct: number; total: number; percentage: number }>;
-  conceptStrengths: Array<{ concept: string; correct: number; total: number; percentage: number }>;
-  conceptWeaknesses: Array<{ concept: string; correct: number; total: number; percentage: number }>;
+  conceptPerformance: Array<{ concept: string; sectionTitle?: string; sectionNumber?: number; correct: number; total: number; percentage: number }>;
+  conceptStrengths: Array<{ concept: string; sectionTitle?: string; sectionNumber?: number; correct: number; total: number; percentage: number }>;
+  conceptWeaknesses: Array<{ concept: string; sectionTitle?: string; sectionNumber?: number; correct: number; total: number; percentage: number }>;
   recommendation?: { message?: string } | null;
   questionReview?: Array<{
     questionId: string;
