@@ -1050,9 +1050,25 @@ def get_cumulative_leaderboard(
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student)
 ):
-    from app.models.models import CompetitionMockResultSummary, Student, User, CompetitionMockExam
-    from sqlalchemy import func
-    
+    from app.models.models import CompetitionMockResultSummary, Student, User, CompetitionMockExam, CompetitionMockAttempt
+    from sqlalchemy import func, case
+
+    # "Accuracy" here must be pooled correct/total across every mock in the
+    # level -- the exact same formula GetCompetitionMockProgressInsightsForStudent()
+    # uses for its "overallAccuracy" figure. It used to be a plain SQL AVG()
+    # over the stored CompetitionMockResultSummary.accuracy_percentage column,
+    # which silently drifted away from the Mock Performance Insights number
+    # (e.g. 71% here vs. 42% there for the same student) whenever that stored
+    # per-mock column didn't line up with the live CompetitionMockAttempt
+    # correct/total counts it was derived from. Reading correct_count/
+    # total_questions straight from CompetitionMockAttempt -- the same source
+    # of truth Insights uses -- makes the two numbers identical by
+    # construction, for every student, with no backfill required.
+    total_questions_expr = case(
+        (CompetitionMockAttempt.total_questions > 0, CompetitionMockAttempt.total_questions),
+        else_=CompetitionMockAttempt.attempted_count + CompetitionMockAttempt.unanswered_count,
+    )
+
     # We want to aggregate the scores and times for all mock exams in the given level
     results = (
         db.query(
@@ -1063,11 +1079,13 @@ def get_cumulative_leaderboard(
             func.sum(CompetitionMockResultSummary.score).label('total_score'),
             func.sum(CompetitionMockResultSummary.max_score).label('total_max_score'),
             func.avg(CompetitionMockResultSummary.time_taken_seconds).label('avg_time_taken_seconds'),
-            func.avg(CompetitionMockResultSummary.accuracy_percentage).label('avg_accuracy')
+            func.sum(CompetitionMockAttempt.correct_count).label('total_correct'),
+            func.sum(total_questions_expr).label('total_questions_all'),
         )
         .join(Student, CompetitionMockResultSummary.student_id == Student.id)
         .join(User, Student.user_id == User.id)
         .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
+        .join(CompetitionMockAttempt, CompetitionMockResultSummary.mock_attempt_id == CompetitionMockAttempt.id)
         .filter(CompetitionMockExam.level_id == level_id)
         .group_by(Student.id, Student.photo_url, User.full_name, User.photo_url)
         .all()
@@ -1077,6 +1095,7 @@ def get_cumulative_leaderboard(
     processed_results = []
     for r in results:
         percentage = (r.total_score / r.total_max_score * 100) if r.total_max_score and r.total_max_score > 0 else 0
+        accuracy = (r.total_correct / r.total_questions_all * 100) if r.total_questions_all and r.total_questions_all > 0 else 0
 
         # See get_mock_exam_leaderboard() above for why this reads the real
         # avg_time_taken_seconds column instead of reconstructing a value
@@ -1088,7 +1107,7 @@ def get_cumulative_leaderboard(
             "photoUrl": r.photo_url or r.student_photo,
             "percentage": round(percentage),
             "score": round(percentage),  # Normalized to 100 max
-            "accuracy": round(r.avg_accuracy or 0),
+            "accuracy": round(accuracy),
             "timeTakenSeconds": int(r.avg_time_taken_seconds or 0),
             "isCurrent": r.student_id == student.id
         })
