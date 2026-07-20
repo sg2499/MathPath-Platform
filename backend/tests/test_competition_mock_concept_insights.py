@@ -23,6 +23,7 @@ from types import SimpleNamespace
 from app.services.competition_mock_attempt_service import (
     _canonical_competition_concept_name,
     _section_performance_from_review,
+    _top_concept_highlights,
 )
 
 
@@ -147,3 +148,37 @@ def test_section_performance_groups_by_individual_concept_not_by_section():
     # groups by concept, not section.
     for item in performance:
         assert item["sectionTitle"] == "Section 8 - BODMAS, Solve Equation, Add/Less Percentage"
+
+
+def _concept(name: str, percentage: int) -> dict:
+    return {"concept": name, "correct": 0, "total": 0, "percentage": percentage}
+
+
+def test_top_concept_highlights_caps_strengths_to_five_best():
+    # 8 strengths in, only the 5 highest-scoring should survive, best first.
+    items = [_concept(f"Concept {p}", p) for p in [72, 100, 85, 90, 78, 95, 100, 80]]
+
+    highlighted = _top_concept_highlights(items, worst_first=False)
+
+    assert len(highlighted) == 5
+    assert [item["percentage"] for item in highlighted] == [100, 100, 95, 90, 85]
+
+
+def test_top_concept_highlights_caps_weaknesses_to_five_worst():
+    # 8 weaknesses in, only the 5 lowest-scoring should survive, worst first.
+    items = [_concept(f"Concept {p}", p) for p in [65, 0, 40, 20, 60, 10, 0, 55]]
+
+    highlighted = _top_concept_highlights(items, worst_first=True)
+
+    assert len(highlighted) == 5
+    assert [item["percentage"] for item in highlighted] == [0, 0, 10, 20, 40]
+
+
+def test_top_concept_highlights_passes_through_short_lists_unchanged():
+    # A mock with only 2 weaknesses shouldn't be padded or altered.
+    items = [_concept("Only Weak Concept", 30), _concept("Other Weak Concept", 50)]
+
+    highlighted = _top_concept_highlights(items, worst_first=True)
+
+    assert len(highlighted) == 2
+    assert [item["percentage"] for item in highlighted] == [30, 50]
