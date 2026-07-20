@@ -274,8 +274,8 @@ export default function StudentCompetitionMockResultPage() {
   // through every caller/prop. Falls back to using the passed value directly
   // for anything that's already a section title (or an unmapped legacy
   // value), so this stays safe even if a caller is missed.
-  const conceptToSectionTitle = new Map(
-    (result.conceptPerformance || []).map((item) => [item.concept, item.sectionTitle || item.concept]),
+  const conceptToSectionTitle = new Map<string, string>(
+    (result.conceptPerformance || []).map((item): [string, string] => [item.concept, item.sectionTitle || item.concept]),
   );
   const jumpToSection = (nameOrConcept: string) => {
     setActiveTab("questions");
