@@ -1050,7 +1050,7 @@ def get_cumulative_leaderboard(
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student)
 ):
-    from app.models.models import CompetitionMockResultSummary, Student, User, CompetitionMockExam, CompetitionMockAttempt
+    from app.models.models import CompetitionMockResultSummary, Student, User, CompetitionMockExam, CompetitionMockAttempt, CompetitionMockAssignment
     from sqlalchemy import func, case
 
     # "Accuracy" here must be pooled correct/total across every mock in the
@@ -1086,7 +1086,14 @@ def get_cumulative_leaderboard(
         .join(User, Student.user_id == User.id)
         .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
         .join(CompetitionMockAttempt, CompetitionMockResultSummary.mock_attempt_id == CompetitionMockAttempt.id)
+        .join(CompetitionMockAssignment, CompetitionMockResultSummary.mock_assignment_id == CompetitionMockAssignment.id)
         .filter(CompetitionMockExam.level_id == level_id)
+        # Same is_active scoping GetCompetitionMockProgressInsightsForStudent()
+        # applies -- without it, a superseded/inactive assignment can still be
+        # pooled in here while Insights skips it, which is exactly what left
+        # a residual few-point gap (e.g. 41% vs 42%) even after switching this
+        # query onto the same pooled-correct/total formula.
+        .filter(CompetitionMockAssignment.is_active == True)  # noqa: E712
         .group_by(Student.id, Student.photo_url, User.full_name, User.photo_url)
         .all()
     )
