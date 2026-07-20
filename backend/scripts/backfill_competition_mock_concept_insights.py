@@ -15,12 +15,20 @@ every read. Two real bugs were found and fixed in that function's source:
      section scoring 60-74% fell into neither list -- invisible on the
      admin, teacher, AND student result pages, and silently missing from
      the "Focus Next" coaching message.
-  2. Concept-bucket fragmentation: concept_performance_json used to group by
-     the raw per-question concept_tag (a specific DPS/lesson title) instead
-     of the same curated section title the per-mock Result Analysis page
-     already uses. One real skill could fragment into many near-duplicate
-     buckets with tiny sample sizes, producing noisy 33%/50%/67% swings on
-     the aggregated Mock Performance Insights tab (admin + teacher).
+  2. Synthetic/verbose concept names: a handful of competition-only
+     sub-generators tag their questions with an internal, verbose label
+     instead of the one real concept name a student would recognize from
+     regular DPS practice -- e.g. "BODMAS Competition Challenge" and "BODMAS
+     Square Root Decimal Percentage Challenge" are both just BODMAS
+     underneath; there's no such thing as two different "BODMAS" concepts in
+     the curriculum. _canonical_competition_concept_name() maps that small,
+     confirmed set of synthetic labels back to the one real concept name.
+     Every other concept_tag (digit-pattern multiplication/division
+     variants, Add/Less variants, Squares, Cubes, Percentage, etc.) is
+     already a real, individually distinct DPS-recognized concept and is
+     left alone -- concepts are grouped at that individual level, not rolled
+     up into a broader section, so a student can see exactly which specific
+     concept they're weak in without reviewing every question.
 
 Both are fixed going forward in SubmitCompetitionMockAttempt(). This script
 recomputes concept_performance_json / concept_strengths_json /
@@ -67,7 +75,7 @@ from app.models.models import (  # noqa: E402
     CompetitionMockQuestionOption,
     CompetitionMockResultSummary,
 )
-from app.services.competition_mock_attempt_service import _competition_section_title  # noqa: E402
+from app.services.competition_mock_attempt_service import _canonical_competition_concept_name  # noqa: E402
 
 STRENGTH_CUTOFF = 70
 
@@ -107,7 +115,7 @@ def _recompute_concept_data(db, attempt_id: str) -> tuple[list[dict], list[dict]
 
     concept_totals: dict[str, dict[str, int]] = {}
     for question in questions:
-        concept_key = _competition_section_title(question)
+        concept_key = _canonical_competition_concept_name(question)
         stats = concept_totals.setdefault(concept_key, {"correct": 0, "total": 0})
         stats["total"] += 1
         answer = answers.get(question.id)
