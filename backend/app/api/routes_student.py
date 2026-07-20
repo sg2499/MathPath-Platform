@@ -1081,6 +1081,7 @@ def get_cumulative_leaderboard(
             func.avg(CompetitionMockResultSummary.time_taken_seconds).label('avg_time_taken_seconds'),
             func.sum(CompetitionMockAttempt.correct_count).label('total_correct'),
             func.sum(total_questions_expr).label('total_questions_all'),
+            func.count(CompetitionMockResultSummary.id).label('row_count'),
         )
         .join(Student, CompetitionMockResultSummary.student_id == Student.id)
         .join(User, Student.user_id == User.id)
@@ -1122,7 +1123,14 @@ def get_cumulative_leaderboard(
             "score": round(percentage),  # Normalized to 100 max
             "accuracy": round(accuracy),
             "timeTakenSeconds": int(r.avg_time_taken_seconds or 0),
-            "isCurrent": r.student_id == student.id
+            "isCurrent": r.student_id == student.id,
+            # TEMPORARY diagnostic -- only populated for the requesting
+            # student's own row, to compare against Mock Exams/Insights'
+            # "10 mocks" figure without needing DB access. Remove once the
+            # pooled-row-count mismatch is root-caused (see PR #355 follow-up).
+            "_debugRowCount": r.row_count if r.student_id == student.id else None,
+            "_debugTotalCorrect": r.total_correct if r.student_id == student.id else None,
+            "_debugTotalQuestions": r.total_questions_all if r.student_id == student.id else None,
         })
         
     # Sort by percentage desc, time asc
