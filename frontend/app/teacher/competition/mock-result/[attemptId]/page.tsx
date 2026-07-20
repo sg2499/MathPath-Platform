@@ -288,10 +288,22 @@ export default function TeacherCompetitionMockResultPage() {
   const questionReview = result.questionReview || [];
   const competitionMessage = buildCompetitionMessage(result);
 
-  const jumpToSection = (sectionName: string) => {
+  // Strengths/Areas to Improve/focus-area buttons pass an individual concept
+  // name (e.g. "BODMAS"), not a section title (2026-07-19, Shailesh) -- the
+  // Question Review tab's anchors are still built per-section (several
+  // concepts share one section), so resolve the concept back to its parent
+  // section here before scrolling, rather than threading section identity
+  // through every caller/prop. Falls back to using the passed value directly
+  // for anything that's already a section title (or an unmapped legacy
+  // value), so this stays safe even if a caller is missed.
+  const conceptToSectionTitle = new Map(
+    (result.conceptPerformance || []).map((item: any) => [item.concept, item.sectionTitle || item.concept]),
+  );
+  const jumpToSection = (nameOrConcept: string) => {
     setActiveTab("questions");
+    const sectionTarget = conceptToSectionTitle.get(nameOrConcept) || nameOrConcept;
     window.setTimeout(() => {
-      const target = document.getElementById(sectionAnchorKey(sectionName));
+      const target = document.getElementById(sectionAnchorKey(sectionTarget));
       target?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
   };

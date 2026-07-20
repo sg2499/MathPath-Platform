@@ -58,6 +58,53 @@ def _competition_section_title(question: CompetitionMockQuestion) -> str:
     return MM_COMPETITION_SECTION_TITLES.get(section_number) or "Competition Mock"
 
 
+# A handful of competition-only sub-generators (competition_mock_generation_
+# service.py) tag their questions with a synthetic, verbose "Challenge"-suffixed
+# label instead of the one real concept name a student would recognize from
+# regular DPS practice -- e.g. "BODMAS Competition Challenge" and "BODMAS
+# Square Root Decimal Percentage Challenge" are both just BODMAS underneath;
+# there's no such thing as two different "BODMAS" concepts in the curriculum
+# (confirmed against seed_master_module.py's real DPS lesson titles, which
+# only ever say plain "BODMAS" / "BODMAS (Visual)"). This maps those specific
+# synthetic labels back to the single real concept name (2026-07-19,
+# Shailesh). Deliberately NOT a blanket "strip the word Challenge" rule --
+# most competition concept titles (digit-pattern multiplication/division
+# variants, Add/Less variants, Squares, Cubes, etc.) are already real,
+# individually distinct DPS concepts and must stay separate so a student can
+# see exactly which specific pattern they're weak in, not just a broad
+# section. Only entries confirmed to be multiple synthetic labels for one
+# real concept are collapsed here.
+_COMPETITION_CONCEPT_NAME_OVERRIDES: dict[str, str] = {
+    "BODMAS Competition Challenge": "BODMAS",
+    "BODMAS Square Root Decimal Percentage Challenge": "BODMAS",
+    "BODMAS with Square Term": "BODMAS",
+    "Solve Equation Competition Challenge": "Solve Equation",
+    "Add Percentage Challenge": "Add Percentage",
+    "Less Percentage Challenge": "Less Percentage",
+    "Add-Less Percentage Challenge": "Add-Less Percentage",
+}
+
+
+def _canonical_competition_concept_name(question: CompetitionMockQuestion) -> str:
+    """The individual, student-recognizable concept name for one question --
+    e.g. "BODMAS", "2D × 2D Multiplication", "Add Percentage" -- used to group
+    Strengths/Areas to Improve at the same fine-grained level a student sees
+    real practice concepts at, instead of either the raw (sometimes synthetic
+    or over-verbose) generator label or the much broader section title.
+
+    Priority mirrors _competition_section_title(): concept_tag is persisted on
+    every competition question at generation time (competition_mock_
+    generation_service.py), so it's the primary source; concept_family and the
+    section title are defensive fallbacks for the rare row missing it.
+    """
+    raw = (question.concept_tag or "").strip()
+    if not raw and question.concept_family and question.concept_family != "MM_UNSUPPORTED":
+        raw = _format_concept_family(question.concept_family)
+    if not raw:
+        raw = _competition_section_title(question)
+    return _COMPETITION_CONCEPT_NAME_OVERRIDES.get(raw, raw)
+
+
 def _section_display_number_map(real_section_numbers: Any) -> dict[int, int]:
     """Maps each real (fixed, 1-10) section_number actually present in this
     exam's question set to a sequential 1..N display number, closing any
@@ -88,7 +135,15 @@ def _section_sort_key(item: dict[str, Any]) -> tuple[int, str]:
 
 
 def _section_performance_from_review(review: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
-    section_totals: dict[int, dict[str, Any]] = {}
+    # Grouped by individual concept (2026-07-19, Shailesh), not by section --
+    # see _canonical_competition_concept_name()'s docstring for why. Each
+    # question already carries its concept name (set in
+    # _question_review_payload()) plus its section identity, which is kept
+    # on every bucket (sectionNumber/sectionTitle) purely so the frontend can
+    # still jump to the right spot in the Question Review tab when a student
+    # taps a concept -- the section is still the right *scroll target* even
+    # though it's no longer the *display/grouping* label.
+    concept_totals: dict[str, dict[str, Any]] = {}
     for question in review:
         try:
             section_number = int(question.get("sectionNumber") or 0)
@@ -98,9 +153,17 @@ def _section_performance_from_review(review: list[dict[str, Any]]) -> tuple[list
         # is always correct and module-specific; the fixed MM dict is only a
         # legacy fallback and must not override it.
         section_title = question.get("sectionTitle") or MM_COMPETITION_SECTION_TITLES.get(section_number) or "Competition Mock"
-        bucket = section_totals.setdefault(
-            section_number,
-            {"concept": section_title, "sectionNumber": section_number, "correct": 0, "total": 0, "percentage": 0.0},
+        concept_name = question.get("concept") or section_title
+        bucket = concept_totals.setdefault(
+            concept_name,
+            {
+                "concept": concept_name,
+                "sectionNumber": section_number,
+                "sectionTitle": section_title,
+                "correct": 0,
+                "total": 0,
+                "percentage": 0.0,
+            },
         )
         bucket["total"] += 1
         if question.get("isCorrect"):
@@ -108,7 +171,7 @@ def _section_performance_from_review(review: list[dict[str, Any]]) -> tuple[list
     performance: list[dict[str, Any]] = []
     strengths: list[dict[str, Any]] = []
     weaknesses: list[dict[str, Any]] = []
-    for item in sorted(section_totals.values(), key=_section_sort_key):
+    for item in sorted(concept_totals.values(), key=_section_sort_key):
         total = int(item["total"] or 0)
         correct = int(item["correct"] or 0)
         percentage = round((correct / total) * 100) if total else 0.0
@@ -560,6 +623,22 @@ def SaveCompetitionMockAnswer(db: Session, student: Student, attempt_id: str, qu
     }
 
 
+def _format_concept_family(concept: str | None) -> str:
+    if not concept or concept == "MM_UNSUPPORTED":
+        return "Mixed Concepts"
+    if concept == "BODMAS":
+        return "BODMAS"
+    if concept == "ADD_LESS":
+        return "Add/Less"
+    if concept == "DECIMAL_ADD_LESS":
+        return "Decimal Add/Less"
+    if concept == "PERCENTAGE_ADD_LESS":
+        return "Percentage Add/Less"
+
+    words = concept.replace("_", " ").split()
+    return " ".join(word.capitalize() for word in words)
+
+
 def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, auto: bool = False) -> CompetitionMockAttempt:
     if attempt.status in COMPLETED_STATUSES:
         return attempt
@@ -582,19 +661,19 @@ def SubmitCompetitionMockAttempt(db: Session, attempt: CompetitionMockAttempt, a
     for question in questions:
         max_score += float(question.marks or 1)
 
-        # Group by the same module-specific, curated section title
-        # _section_performance_from_review() uses for the per-attempt result
-        # page (2026-07-19, Shailesh) -- this used to group by the much finer
-        # per-question concept_tag (a specific DPS/lesson title), which
-        # fragmented one real skill into many near-duplicate buckets with
-        # tiny sample sizes (e.g. "Add/Less (Abacus)", "6 Digit Add/Less
-        # Sums (Abacus)", "Add/Less (Visual)", "Add/Less Sums (Visual)" all
-        # separate, each 3-4 questions), producing noisy 33%/50%/67% swings
-        # on the Mock Performance Insights tab that don't reliably reflect
-        # mastery. Using the same section grouping everywhere keeps the
-        # concept identity a student sees identical across the per-mock
-        # result page and the aggregated insights tab.
-        concept_key = _competition_section_title(question)
+        # Group by the individual, student-recognizable concept (2026-07-19,
+        # Shailesh) -- e.g. "BODMAS", "2D × 2D Multiplication", "Add
+        # Percentage" -- not the much broader section title. A student needs
+        # to see exactly which specific concept they're weak in without
+        # having to review every question; collapsing an entire section (up
+        # to 6 real concepts) into one bucket hid that detail. The only
+        # cleanup applied is _canonical_competition_concept_name()'s small
+        # override map, which folds a few synthetic multi-label generator
+        # names (e.g. "BODMAS Competition Challenge" and "BODMAS Square Root
+        # Decimal Percentage Challenge") down to the one real concept name --
+        # every other concept_tag is already a real, individually distinct
+        # DPS-recognized concept and stays separate.
+        concept_key = _canonical_competition_concept_name(question)
 
         concept_totals.setdefault(concept_key, {"correct": 0, "total": 0})
         concept_totals[concept_key]["total"] += 1
@@ -986,6 +1065,7 @@ def _question_review_payload(db: Session, attempt: CompetitionMockAttempt) -> li
     review: list[dict[str, Any]] = []
     for question in questions:
         section_title = _competition_section_title(question)
+        concept_name = _canonical_competition_concept_name(question)
         metadata = _json_loads(question.metadata_json, {})
         metadata.update({
             "section_number": question.section_number,
@@ -1005,7 +1085,7 @@ def _question_review_payload(db: Session, attempt: CompetitionMockAttempt) -> li
             "questionNumber": question.question_number,
             "sectionNumber": question.section_number,
             "sectionTitle": section_title,
-            "concept": section_title,
+            "concept": concept_name,
             "displayType": question.display_type,
             "questionText": question.question_text,
             "operands": _json_loads(question.operands_json, []),
