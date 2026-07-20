@@ -1153,6 +1153,28 @@ def _apply_section_display_numbers(review: list[dict[str, Any]]) -> list[dict[st
     return renumbered
 
 
+CONCEPT_HIGHLIGHT_LIMIT = 5
+
+
+def _top_concept_highlights(items: list[dict[str, Any]], *, worst_first: bool) -> list[dict[str, Any]]:
+    """Caps the per-mock Result page's Strengths/Weak Areas cards to the
+    CONCEPT_HIGHLIGHT_LIMIT most notable individual concepts (2026-07-19,
+    Shailesh). "Section Performance" (conceptPerformance, built from the same
+    section_strengths/section_weaknesses source but never passed through
+    this function) already lists every concept in the mock exhaustively and
+    is the working reference a student clicks through to review the exact
+    questions -- Strengths/Weak Areas sitting right below it used to just
+    repeat that entire list two more times (split by threshold), which for a
+    100-200 question mock meant scrolling past the same ~50 concepts three
+    times over. This keeps Strengths/Weak Areas as a fast, honest highlight
+    (best 5 / worst 5) instead. Full, uncapped concept detail is still the
+    right thing to show on the aggregate Mock Performance Insights tab
+    (GetCompetitionMockProgressInsightsForStudent) -- that function does not
+    call this helper and is unaffected.
+    """
+    return sorted(items, key=lambda item: item.get("percentage", 0), reverse=not worst_first)[:CONCEPT_HIGHLIGHT_LIMIT]
+
+
 def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, Any]:
     assignment = db.get(CompetitionMockAssignment, attempt.mock_assignment_id)
     exam = db.get(CompetitionMockExam, attempt.mock_exam_id)
@@ -1208,8 +1230,8 @@ def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, A
         "completedAt": summary.completed_at.isoformat() if summary.completed_at else None,
         "submittedAt": attempt.submitted_at.isoformat() if attempt.submitted_at else None,
         "conceptPerformance": section_performance or _json_loads(summary.concept_performance_json, []),
-        "conceptStrengths": section_strengths or _json_loads(summary.concept_strengths_json, []),
-        "conceptWeaknesses": section_weaknesses or _json_loads(summary.concept_weaknesses_json, []),
+        "conceptStrengths": _top_concept_highlights(section_strengths or _json_loads(summary.concept_strengths_json, []), worst_first=False),
+        "conceptWeaknesses": _top_concept_highlights(section_weaknesses or _json_loads(summary.concept_weaknesses_json, []), worst_first=True),
         "recommendation": _json_loads(summary.recommendation_json, {}),
         "questionReview": question_review,
         "mockExam": {
