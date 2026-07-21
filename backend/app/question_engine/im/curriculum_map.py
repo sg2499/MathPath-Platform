@@ -169,6 +169,45 @@ def _BM(count: int = 5, *, has_square: bool = False, template: str = "L4",
     return _S("BODMAS (Visual)", "BODMAS", count, **flags)
 
 
+def _BM_L1(count: int = 5, *, has_division: bool,
+           additive_range: tuple[int, int] | None = None,
+           multiplier_left_range: tuple[int, int] | None = None,
+           multiplier_right_range: tuple[int, int] | None = None,
+           tail_add_range: tuple[int, int] | None = None,
+           tail_sub_range: tuple[int, int] | None = None,
+           division_digits: tuple[int, int] | None = None) -> dict:
+    # IM-L1 only. Its own BODMAS templates -- structurally different from every
+    # other level's, and from each other, so neither reuses L2/L3's shared
+    # EXACT_DIVISION_TEMPLATE dispatch key (see operands.py's
+    # _GenerateBodmasImL1NoDivision / _GenerateBodmasImL1Division). Verified via
+    # direct expression evaluation against every one of this level's 40 real
+    # BODMAS answer-key values (2026-07-21 audit): Lessons 2 and 3 never carry a
+    # division term at all (10/10 real expressions, dominant shape
+    # A + B x C + D - E) -- IM_L1_NO_DIVISION_TEMPLATE. Lessons 5, 6, 7, 10, 11,
+    # 12 carry an embedded, exact-remainder division term in most instances
+    # (26/30, dominant shape A + B x C - D / E + F - G) -- IM_L1_DIVISION_TEMPLATE.
+    # One real expression (Lesson 10 DPS-5's last row) doesn't match its own
+    # stored answer at all -- an isolated workbook data-entry slip, the same
+    # class of exception the L2/L3 BODMAS audits already found and didn't try
+    # to reproduce.
+    flags: dict[str, Any] = {
+        "bodmasTemplate": "IM_L1_DIVISION_TEMPLATE" if has_division else "IM_L1_NO_DIVISION_TEMPLATE",
+    }
+    if additive_range is not None:
+        flags["bodmasAdditiveRange"] = additive_range
+    if multiplier_left_range is not None:
+        flags["bodmasMultiplierLeftRange"] = multiplier_left_range
+    if multiplier_right_range is not None:
+        flags["bodmasMultiplierRightRange"] = multiplier_right_range
+    if tail_add_range is not None:
+        flags["bodmasTailAddRange"] = tail_add_range
+    if tail_sub_range is not None:
+        flags["bodmasTailSubRange"] = tail_sub_range
+    if has_division and division_digits is not None:
+        flags["bodmasDivisionDigits"] = division_digits
+    return _S("BODMAS (Visual)", "BODMAS", count, **flags)
+
+
 def _SE(count: int = 10) -> dict:
     return _S("Solve the Equation", "SOLVE_EQUATION", count)
 
@@ -681,8 +720,226 @@ _IM_L2_MAP: dict[int, dict[int, list[dict]]] = {
 }
 
 
+# =============================================================================
+# IM-L1 (IM1 Lvl 5.xlsx)
+#
+# Built entirely from a full cell-by-cell audit (2026-07-21), then independently
+# re-verified programmatically -- every Add/Less row_count/magnitude, every
+# multiplication/division digit-shape, every Skill Stacker/Concept Drill
+# instance, and every one of the 40 real BODMAS expressions were re-extracted
+# and re-checked by parsing openpyxl's own cell values directly (not
+# transcribed by eye), the same "measured, not guessed" discipline as L2/L3/L4.
+# Per Shailesh's explicit instruction, IM-L1 is kept structurally and
+# numerically independent of every other level: no range below is carried over
+# or scaled from an adjacent level.
+#
+# Level-wide patterns confirmed by the audit that make L1 the true floor of the
+# module, genuinely below L2 on every difficulty axis:
+#   - Multiplication never pairs with more than a 1-digit right operand (2D/3D/
+#     4D x 1D only -- confirmed across all 340 real instances by measuring
+#     actual operand digit-lengths, not title text). Division never has more
+#     than a 1-digit divisor (3D/4D / 1D only, 354 real instances) -- L2 allows
+#     up to 3D/2D, so L1 sits a step below L2 here.
+#   - No Borrowing variant exists anywhere in this workbook (grep-confirmed
+#     zero hits) -- plain Add/Less only, no forced-sign-total rule needed.
+#   - Squares, Solve the Equation, Answer Position, and Long Division &
+#     Estimation are all completely absent (grep-confirmed zero hits across
+#     all 12 lessons).
+#   - Skill Stacker is the same plain-product formula as L2 (ADD x TIMES, not
+#     L3/L4's doubling) -- verified against all 9 real instances' answer-key
+#     values exactly. TIMES is fixed at 5 for Lessons 1-4/6-8, steps to 6 for
+#     Lessons 9-10 (same stepping shape as L2, own lower ADD magnitude band).
+#     Skill Stacker/Concept Drill appear in 9 of 12 lessons (absent from 5, 11,
+#     12), not always in DPS-1 -- placement varies by lesson, unlike every
+#     prior level.
+#   - Concept Drill is the same FROM mod LESS formula, verified exactly against
+#     all 9 real instances, with its own narrower FROM/LESS bands.
+#   - BODMAS is two genuinely different real shapes within this one level (see
+#     _BM_L1()'s docstring for the exact verified breakdown) -- not one
+#     dominant shape like L2/L3. BODMAS appears in 8 of 12 lessons (2, 3, 5, 6,
+#     7, 10, 11, 12); Lessons 1, 4, 8, 9 have none at all.
+#   - One stray, headerless 4-cell fragment (Lesson 7 DPS-3: "743/18", "691/72",
+#     "583/50", "507/46", 3-digit / 2-digit, none exact) sits beside that DPS's
+#     Decimal Add/Less block with no title and no answer row -- confirmed via
+#     Shailesh as workbook noise, not a real section, and dropped entirely.
+# =============================================================================
+
+_IM_L1_MAP: dict[int, dict[int, list[dict]]] = {
+    1: {
+        1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=0, magnitude_max=0),
+            _SS(fixed_times=5, linear=True, add_range=(9000, 12000)),
+            _CD(whole_from_range=(15000, 18000), whole_less_range=(4000, 5500))],
+        2: [_MUL(3, 1, visual=False), _DIV(4, 1, visual=False)],
+        3: [_MUL(2, 1, visual=True), _DIV(3, 1, visual=True)],
+        4: [_AL("Add/Less (Visual)", decimal=False, visual=True,
+                row_count=3, magnitude_min=100, magnitude_max=750), _DIV(3, 1, visual=True)],
+        5: [_AL("Decimal (Abacus)", decimal=True, visual=False,
+                row_count=3, magnitude_min=1, magnitude_max=5), _MUL(3, 1, visual=False)],
+    },
+    2: {
+        1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=0, magnitude_max=4),
+            _SS(fixed_times=5, linear=True, add_range=(16000, 19000)),
+            _CD(whole_from_range=(19000, 22000), whole_less_range=(1500, 2500))],
+        # L1 FINDING: the workbook's own header for the right-hand block reads
+        # "3D / 1D (Visual)", but the real cell data is 4-digit throughout
+        # (6020, 3354, 2736, 4040, ...) -- same class of stale-title-vs-real-data
+        # mismatch the L4 audit already found and corrected elsewhere. Digit
+        # shape below matches the measured data, not the stale label.
+        2: [_MUL(3, 1, visual=False), _DIV(4, 1, visual=True)],
+        # L1 FINDING: same mismatch class -- header says "2D X 1D (Visual)" but
+        # real data is 4-digit (5328, 2196, 4238, ...).
+        3: [_MUL(4, 1, visual=True), _DIV(3, 1, visual=True)],
+        4: [_AL("Add/Less (Visual)", decimal=False, visual=True,
+                row_count=3, magnitude_min=100, magnitude_max=900),
+            _BM_L1(has_division=False, additive_range=(60, 105), multiplier_left_range=(10, 90),
+                   multiplier_right_range=(2, 8), tail_add_range=(15, 360), tail_sub_range=(15, 360))],
+        5: [_AL("Add/Less (Abacus)", decimal=False, visual=False,
+                row_count=3, magnitude_min=1000, magnitude_max=9999), _DIV(4, 1, visual=False)],
+    },
+    3: {
+        1: [_AL("Add/Less (Abacus)", decimal=False, visual=False,
+                row_count=4, magnitude_min=1000, magnitude_max=9999),
+            _SS(fixed_times=5, linear=True, add_range=(17500, 20000)),
+            _CD(whole_from_range=(21000, 24000), whole_less_range=(4000, 5000))],
+        2: [_MUL(2, 1, visual=True), _DIV(3, 1, visual=True)],
+        3: [_MUL(2, 1, visual=True), _DIV(3, 1, visual=True)],
+        4: [_AL("Decimal Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=3, magnitude_min=1, magnitude_max=8), _DIV(3, 1, visual=True)],
+        5: [_AL("Add /Less (Visual)", decimal=False, visual=True,
+                row_count=3, magnitude_min=10, magnitude_max=450),
+            _BM_L1(has_division=False, additive_range=(30, 90), multiplier_left_range=(10, 90),
+                   multiplier_right_range=(2, 8), tail_add_range=(15, 100), tail_sub_range=(15, 100))],
+    },
+    4: {
+        1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=0, magnitude_max=9),
+            _SS(fixed_times=5, linear=True, add_range=(19500, 22000)),
+            _CD(whole_from_range=(24000, 27000), whole_less_range=(4500, 5500))],
+        2: [_MUL(2, 1, visual=True), _DIV(3, 1, visual=True)],
+        3: [_MUL(3, 1, visual=False), _MUL(2, 1, visual=True)],
+        4: [_AL("Decimal Add /Less (Abacus)", decimal=True, visual=False,
+                row_count=3, magnitude_min=1, magnitude_max=6)],
+        5: [_AL("Add / Less (Visual)", decimal=False, visual=True,
+                row_count=3, magnitude_min=10, magnitude_max=900), _DIV(3, 1, visual=True)],
+    },
+    5: {
+        1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=5, magnitude_min=0, magnitude_max=9),
+            _BM_L1(has_division=True, additive_range=(55, 100), multiplier_left_range=(20, 55),
+                   multiplier_right_range=(4, 9), tail_add_range=(20, 90), tail_sub_range=(20, 90),
+                   division_digits=(2, 1))],
+        2: [_DIV(3, 1, visual=True), _MUL(3, 1, visual=False)],
+        3: [_DIV(3, 1, visual=True), _MUL(3, 1, visual=True)],
+        4: [_MUL(3, 1, visual=False), _MUL(2, 1, visual=True)],
+        5: [_AL("Add/Less (Visual)", decimal=True, visual=True,
+                row_count=6, magnitude_min=10, magnitude_max=90)],
+    },
+    6: {
+        1: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=2, magnitude_max=19),
+            _SS(fixed_times=5, linear=True, add_range=(26500, 30000)),
+            _CD(whole_from_range=(25500, 28000), whole_less_range=(6500, 7500))],
+        2: [_MUL(3, 1, visual=False), _DIV(3, 1, visual=True)],
+        3: [_MUL(2, 1, visual=True), _DIV(4, 1, visual=False)],
+        4: [_AL("Add / Less (Abacus)", decimal=False, visual=False,
+                row_count=3, magnitude_min=1000, magnitude_max=9999), _DIV(4, 1, visual=False)],
+        5: [_AL("Add/Less (Visual)", decimal=False, visual=True,
+                row_count=3, magnitude_min=100, magnitude_max=999),
+            _BM_L1(has_division=True, additive_range=(200, 400), multiplier_left_range=(25, 95),
+                   multiplier_right_range=(4, 9), tail_add_range=(50, 450), tail_sub_range=(50, 350),
+                   division_digits=(3, 1))],
+    },
+    7: {
+        1: [_DIV(3, 1, visual=True), _DIV(4, 1, visual=False)],
+        2: [_MUL(3, 1, visual=False), _MUL(2, 1, visual=True)],
+        # L1 FINDING, confirmed with Shailesh: a stray 4-cell fragment
+        # ("743 / 18", "691 / 72", "583 / 50", "507 / 46", 3D / 2D, none exact
+        # division) sits beside this DPS's Decimal Add/Less block in the source
+        # workbook -- no title, no answer row, only 4 entries instead of the
+        # normal 10, doesn't match the pattern of any real section anywhere
+        # else in this level. Confirmed as workbook noise and dropped entirely;
+        # no 3D/2D division section exists anywhere in IM-L1.
+        3: [_AL("Decimal Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=2, magnitude_max=42),
+            _BM_L1(has_division=True, additive_range=(50, 120), multiplier_left_range=(25, 75),
+                   multiplier_right_range=(4, 8), tail_add_range=(45, 100), tail_sub_range=(45, 100),
+                   division_digits=(3, 1))],
+        4: [_AL("Add / Less (Visual)", decimal=False, visual=True,
+                row_count=3, magnitude_min=100, magnitude_max=950),
+            _SS(fixed_times=5, linear=True, add_range=(30000, 34000)),
+            _CD(whole_from_range=(27500, 30000), whole_less_range=(7500, 8500))],
+        5: [_MUL(3, 1, visual=False), _DIV(4, 1, visual=False)],
+    },
+    8: {
+        1: [_MUL(3, 1, visual=False), _DIV(3, 1, visual=True)],
+        # L1 FINDING: real magnitude spans a genuine mixed 4-5 digit band
+        # (1985-16529), not a single flat digit category -- explicit magnitude
+        # override, same technique as L4's "mixed spread" corrections.
+        2: [_AL("Add / Less (Abacus)", decimal=False, visual=False,
+                row_count=3, magnitude_min=1985, magnitude_max=16529),
+            _SS(fixed_times=5, linear=True, add_range=(34000, 37000)),
+            _CD(whole_from_range=(29000, 31500), whole_less_range=(6000, 7000))],
+        3: [_AL("Decimal Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=3, magnitude_min=1, magnitude_max=9), _DIV(3, 1, visual=True)],
+        4: [_DIV(4, 1, visual=False), _DIV(3, 1, visual=True)],
+        5: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=3, magnitude_max=83), _MUL(3, 1, visual=False)],
+    },
+    9: {
+        1: [_AL("Add/Less (Visual)", decimal=False, visual=True,
+                row_count=4, magnitude_min=100, magnitude_max=964), _DIV(3, 1, visual=True)],
+        2: [_MUL(3, 1, visual=False), _DIV(4, 1, visual=False)],
+        3: [_DIV(3, 1, visual=True), _DIV(4, 1, visual=False)],
+        4: [_AL("Decimal Number Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=3, magnitude_max=83),
+            _SS(fixed_times=6, linear=True, add_range=(38000, 41000)),
+            _CD(whole_from_range=(34500, 37000), whole_less_range=(7500, 8500))],
+        5: [_MUL(2, 1, visual=True), _DIV(4, 1, visual=False)],
+    },
+    10: {
+        1: [_AL("Add/Less (Abacus)", decimal=False, visual=False,
+                row_count=3, magnitude_min=1205, magnitude_max=9978), _DIV(3, 1, visual=True)],
+        2: [_MUL(3, 1, visual=False), _MUL(4, 1, visual=False)],
+        3: [_DIV(3, 1, visual=False), _MUL(4, 1, visual=False)],
+        4: [_DIV(3, 1, visual=False),
+            _SS(fixed_times=6, linear=True, add_range=(39500, 42000)),
+            _CD(whole_from_range=(34500, 37000), whole_less_range=(9000, 10000))],
+        5: [_AL("Decimal Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=4, magnitude_max=78),
+            _BM_L1(has_division=True, additive_range=(70, 520), multiplier_left_range=(55, 95),
+                   multiplier_right_range=(5, 8), tail_add_range=(75, 260), tail_sub_range=(30, 350),
+                   division_digits=(2, 1))],
+    },
+    11: {
+        1: [_AL("Decimal Number Add/Less (Visual)", decimal=True, visual=True,
+                row_count=6, magnitude_min=0, magnitude_max=1)],
+        2: [_BM_L1(has_division=True, additive_range=(55, 210), multiplier_left_range=(25, 95),
+                   multiplier_right_range=(4, 9), tail_add_range=(95, 245), tail_sub_range=(60, 115),
+                   division_digits=(3, 1))],
+        3: [_MUL(4, 1, visual=False), _DIV(3, 1, visual=True)],
+        4: [_MUL(2, 1, visual=True), _MUL(3, 1, visual=False)],
+        5: [_DIV(3, 1, visual=True), _MUL(4, 1, visual=False)],
+    },
+    12: {
+        1: [_AL("Add/Less (Abacus)", decimal=False, visual=False,
+                row_count=3, magnitude_min=1064, magnitude_max=32098),
+            _BM_L1(has_division=True, additive_range=(55, 160), multiplier_left_range=(40, 90),
+                   multiplier_right_range=(4, 8), tail_add_range=(60, 250), tail_sub_range=(40, 195),
+                   division_digits=(3, 1))],
+        2: [_MUL(3, 1, visual=False), _DIV(3, 1, visual=True)],
+        3: [_MUL(2, 1, visual=True), _MUL(4, 1, visual=False)],
+        4: [_MUL(2, 1, visual=True), _DIV(4, 1, visual=False)],
+        5: [_AL("Decimal Add/Less (Abacus)", decimal=True, visual=False,
+                row_count=4, magnitude_min=4, magnitude_max=96)],
+    },
+}
+
+
 IM_CURRICULUM_MAP: dict[str, dict[int, dict[int, list[dict]]]] = {
     "IM-L4": _IM_L4_MAP,
     "IM-L3": _IM_L3_MAP,
     "IM-L2": _IM_L2_MAP,
+    "IM-L1": _IM_L1_MAP,
 }
