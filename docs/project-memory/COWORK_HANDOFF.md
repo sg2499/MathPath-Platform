@@ -19,7 +19,6 @@ Last updated: 2026-07-21 (three rounds today. (1) IM-L1 full build confirmed del
 **Files changed:** `frontend/app/login/LoginClient.tsx`, plus `docs/project-memory/CLAUDE_CODE_STATUS.md` / `OPEN_ISSUES.md` / this file (doc sync).
 
 ## 2026-07-21 update (round 1): login page "visual elevation" (living background, abacus-bead flourish, login confetti, extra micro-interactions) — all four built, delivered, and confirmed live; 3 follow-up bugs found during Shailesh's own live testing (fixed in round 2 above)
-
 **tl;dr:** The 2026-07-17 login-redesign thread (see that entry below) shipped bug fixes plus one real addition (the role-switch crossfade) but explicitly deferred a bigger "visual elevation" ask — Shailesh's own sequencing was "fix these first then we will pick up the visual changes." With the logo/animation fixes from that round confirmed live (see `OPEN_ISSUES.md`'s 2026-07-20 summary), this round picks that back up. Asked Shailesh directly (multi-select prompt) which of the four previously-discussed ideas to build now; he chose all four, not a subset.
 
 **What shipped, all in `frontend/app/login/LoginClient.tsx` / `frontend/app/globals.css` / `frontend/lib/utils/particles.ts`:**
