@@ -5,6 +5,8 @@ from app.models import Lesson, Level, Module
 from app.services.competition_mock_generation_service import (
     IM_COMPETITION_SECTION_CONCEPT_POOLS,
     IM_COMPETITION_SECTION_DEFINITIONS,
+    IM_L1_COMPETITION_SECTION_CONCEPT_POOLS,
+    IM_L1_COMPETITION_SECTION_DEFINITIONS,
     IM_COMPETITION_LEVEL_REGISTRY,
     IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
     _CollectImCompetitionSectionLockedQuestions,
@@ -26,18 +28,35 @@ def test_im_l4_is_registered_with_a_complete_competition_mock_structure():
         assert config["sectionConceptPools"].get(section["key"])
 
 
+def test_im_l1_is_registered_with_a_complete_competition_mock_structure():
+    # Same guarantee as the IM-L4 test above, for IM-L1 (added 2026-07-21):
+    # pins down that it stays present and points at real, non-empty, distinct
+    # (not aliased to another level's) structures -- 6 sections per Shailesh's
+    # explicit spec, every section's pool actually populated.
+    assert "IM-L1" in IM_COMPETITION_LEVEL_REGISTRY
+    config = IM_COMPETITION_LEVEL_REGISTRY["IM-L1"]
+    assert config["sectionDefinitions"] == IM_L1_COMPETITION_SECTION_DEFINITIONS
+    assert config["sectionConceptPools"] == IM_L1_COMPETITION_SECTION_CONCEPT_POOLS
+    assert len(config["sectionDefinitions"]) == 6
+    for section in config["sectionDefinitions"]:
+        assert config["sectionConceptPools"].get(section["key"])
+
+
 def test_unregistered_im_level_fails_loudly_instead_of_reusing_im_l4():
     # IM competition mocks are designed level by level (confirmed with
     # Shailesh), so a level with no entry in IM_COMPETITION_LEVEL_REGISTRY
-    # (IM-L1/L2/L3 today) must be rejected with a clear, catchable error --
-    # never silently generate IM-L4's questions under a different level's
-    # name.
+    # must be rejected with a clear, catchable error -- never silently
+    # generate IM-L4's questions under a different level's name. IM-L1/L2/L3
+    # are all registered now (2026-07-21: IM-L1 joined L2/L3/L4) -- "IM-L0" is
+    # a level code that has never existed and never will, so it stays a valid
+    # stand-in for "some future/unconfigured level" without going stale again
+    # the next time a real level gets added.
     module = Module(id="module-im", module_code="IM", module_name="Intermediate Module")
     unregistered_level = Level(
-        id="level-im-1",
+        id="level-im-0",
         module_id=module.id,
-        level_code="IM-L1",
-        level_name="Level - 1",
+        level_code="IM-L0",
+        level_name="Level - 0",
     )
 
     with pytest.raises(HTTPException) as exc:
