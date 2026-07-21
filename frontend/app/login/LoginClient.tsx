@@ -3,6 +3,7 @@
 import { login, warmupAuthApi } from "@/lib/api/auth";
 import { apiErrorMessage } from "@/lib/api";
 import { defaultRouteForRole, setActiveRole, setAuth } from "@/lib/auth";
+import { triggerLoginWelcome } from "@/lib/utils/particles";
 import type { CurrentUser, UserRole } from "@/types/auth";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
@@ -49,6 +50,7 @@ const RoleContent: Record<
     Promise: string;
     Gradient: string;
     AccentGlow: string;
+    ConfettiColors: string[];
     Icon: ReactNode;
     Features: Array<{ Icon: ReactNode; Title: string; Desc: string }>;
     AcceptedRoles: UserRole[];
@@ -66,6 +68,7 @@ const RoleContent: Record<
       "Institution-wide oversight of curriculum, users, assignments, and performance.",
     Gradient: "from-slate-950 via-indigo-700 to-fuchsia-500",
     AccentGlow: "bg-fuchsia-300/25",
+    ConfettiColors: ["#2563eb", "#c026d3", "#22d3ee", "#f8fafc"],
     Icon: <ShieldCheck size={18} />,
     AcceptedRoles: ["ADMIN", "SUPER_ADMIN"],
     Features: [
@@ -103,6 +106,7 @@ const RoleContent: Record<
       "Assigned students, practice allocation, completion tracking, and readiness - all in view.",
     Gradient: "from-[#2B102D] via-[#6D2E5F] to-[#D89A76]",
     AccentGlow: "bg-[#E6B8A2]/30",
+    ConfettiColors: ["#6D2E5F", "#B76E79", "#E6B8A2", "#fdf2f8"],
     Icon: <GraduationCap size={18} />,
     AcceptedRoles: ["TEACHER"],
     Features: [
@@ -140,6 +144,7 @@ const RoleContent: Record<
       "Assigned work, assessments, progress, and results - all in one place.",
     Gradient: "from-rose-950 via-orange-500 to-pink-400",
     AccentGlow: "bg-amber-200/30",
+    ConfettiColors: ["#f97316", "#fb7185", "#facc15", "#fff7ed"],
     Icon: <UserRound size={18} />,
     AcceptedRoles: ["STUDENT"],
     Features: [
@@ -361,6 +366,22 @@ export default function LoginClient({
 
       const TargetRoute = defaultRouteForRole(Response.user.role);
       Router.prefetch(TargetRoute);
+
+      // Brief welcome moment before navigating away: a quick, role-colored confetti
+      // pop (subdued on purpose — see particles.ts — this happens on every login,
+      // not just an earned reward) with just enough of a pause to actually be seen
+      // before the page unmounts. Skipped outright for reduced-motion users rather
+      // than just muting the animation, since the deliberate delay itself is a
+      // motion-driven affordance.
+      const ReducedMotion =
+        typeof window !== "undefined" &&
+        Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
+
+      if (!ReducedMotion) {
+        triggerLoginWelcome(Active.ConfettiColors);
+        await new Promise((Resolve) => setTimeout(Resolve, 550));
+      }
+
       Router.replace(TargetRoute);
       Router.refresh();
 
@@ -391,6 +412,15 @@ export default function LoginClient({
         <div className="math-login-aura math-login-aura-two" />
         <div className="math-login-orbit math-login-orbit-bead left-[6%] top-[14%] hidden lg:block" />
         <div className="math-login-orbit math-login-orbit-bead bottom-[10%] right-[8%] hidden lg:block" />
+        {/* Living background: slow-floating bead motes, low-opacity ambient motion so the
+            page never feels perfectly static. Purely decorative, respects reduced-motion
+            via the platform-wide CSS rule (see globals.css). */}
+        <div className="math-login-float-bead math-login-float-bead-1" />
+        <div className="math-login-float-bead math-login-float-bead-2" />
+        <div className="math-login-float-bead math-login-float-bead-3" />
+        <div className="math-login-float-bead math-login-float-bead-4" />
+        <div className="math-login-float-bead math-login-float-bead-5" />
+        <div className="math-login-float-bead math-login-float-bead-6" />
       </div>
 
       <div
@@ -465,6 +495,8 @@ export default function LoginClient({
                     {Active.Description}
                   </p>
                 </div>
+
+                <AbacusFlourish />
 
                 <div className="math-login-feature-grid grid gap-4 sm:grid-cols-2">
                   {Active.Features.map((FeatureItem) => (
@@ -621,7 +653,7 @@ export default function LoginClient({
                   <button
                     type="button"
                     onClick={() => SetShowPassword(!ShowPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none"
+                    className="math-login-password-toggle absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none"
                     aria-label={ShowPassword ? "Hide password" : "Show password"}
                   >
                     {ShowPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -684,6 +716,25 @@ function Feature({
       <div className="inline-flex rounded-2xl bg-white/13 p-2">{Icon}</div>
       <p className="mt-2.5 text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
       <p className="mt-1.5 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
+    </div>
+  );
+}
+
+// A literal abacus rail with beads, two of which slide back and forth along it — the
+// "abacus-bead visual flourish" from the 2026-07-17 wishlist, distinct from the
+// abstract orbit-ring motif already in the page backdrop. Purely decorative
+// (aria-hidden), sits between the story copy and the feature grid.
+function AbacusFlourish() {
+  return (
+    <div className="my-5 hidden shrink-0 lg:block" aria-hidden="true">
+      <div className="math-login-abacus-rail">
+        <span className="math-abacus-bead math-abacus-bead-static-1" />
+        <span className="math-abacus-bead math-abacus-bead-static-2" />
+        <span className="math-abacus-bead math-abacus-bead-slide-a" />
+        <span className="math-abacus-bead math-abacus-bead-slide-b" />
+        <span className="math-abacus-bead math-abacus-bead-static-3" />
+        <span className="math-abacus-bead math-abacus-bead-static-4" />
+      </div>
     </div>
   );
 }

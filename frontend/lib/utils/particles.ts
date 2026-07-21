@@ -96,6 +96,25 @@ export const triggerMythic = () => {
   safeSetTimeout(royalBurst, 2000);
 };
 
+// A light, brief welcome burst for a successful login — deliberately far more
+// subdued than the loot-drop/badge-unlock effects above (triggerBlaze/triggerSurge/
+// triggerCrystal/triggerMythic), which are earned-reward moments for students only.
+// Login happens for every role on every session, so this stays a single quick pop
+// themed to whichever role just signed in, not a multi-second celebration.
+export const triggerLoginWelcome = (colors: string[]) => {
+  confetti({
+    particleCount: 60,
+    spread: 70,
+    startVelocity: 42,
+    origin: { x: 0.5, y: 0.35 },
+    colors,
+    gravity: 1,
+    scalar: 0.9,
+    ticks: 180,
+    zIndex: 9999,
+  });
+};
+
 // Kept for backward compatibility
 export const triggerShockwave = triggerBlaze;
 export const triggerGoldRush = triggerMythic;
