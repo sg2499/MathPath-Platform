@@ -370,17 +370,14 @@ export default function LoginClient({
       // Brief welcome moment before navigating away: a quick, role-colored confetti
       // pop (subdued on purpose — see particles.ts — this happens on every login,
       // not just an earned reward) with just enough of a pause to actually be seen
-      // before the page unmounts. Skipped outright for reduced-motion users rather
-      // than just muting the animation, since the deliberate delay itself is a
-      // motion-driven affordance.
-      const ReducedMotion =
-        typeof window !== "undefined" &&
-        Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
-
-      if (!ReducedMotion) {
-        triggerLoginWelcome(Active.ConfettiColors);
-        await new Promise((Resolve) => setTimeout(Resolve, 550));
-      }
+      // before the page unmounts. Fires unconditionally, matching how every other
+      // confetti moment in this codebase already behaves (EpicCelebration.tsx's
+      // loot-drop/badge-unlock bursts never check prefers-reduced-motion either) —
+      // an earlier version of this gated the burst behind a reduced-motion check,
+      // which silently skipped it in several real test environments and made the
+      // feature look broken when it was actually just suppressed.
+      triggerLoginWelcome(Active.ConfettiColors);
+      await new Promise((Resolve) => setTimeout(Resolve, 550));
 
       Router.replace(TargetRoute);
       Router.refresh();
@@ -482,7 +479,7 @@ export default function LoginClient({
                   </div>
 
                   <h1
-                    className="math-login-story-headline mt-4 max-w-3xl text-[2.25rem] font-extrabold leading-[1.02] tracking-[-0.035em] xl:text-[2.95rem] 2xl:text-[3.35rem]"
+                    className="math-login-story-headline mt-4 max-w-4xl text-[2.25rem] font-extrabold leading-[1.02] tracking-[-0.035em] xl:text-[2.95rem] 2xl:text-[3.35rem]"
                     style={{
                       fontFamily:
                         '"Inter", "Manrope", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -599,7 +596,7 @@ export default function LoginClient({
               >
                 <h2
                   id="mathpath-login-heading"
-                  className="math-login-form-heading mt-1 text-4xl font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-5xl"
+                  className="math-login-form-heading mt-1 text-[2.25rem] font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-[3rem]"
                 >
                   {RoleLabel(ActiveTab)} Login
                 </h2>
