@@ -1,4 +1,4 @@
-"""Intermediate Module (IM) curriculum seed -- IM-L4, IM-L3, and IM-L2.
+"""Intermediate Module (IM) curriculum seed -- IM-L4, IM-L3, IM-L2, and IM-L1.
 
 Structural mirror of seed_master_module.py (same Module -> Level -> Lesson ->
 DPS -> DPSSection upsert pattern, same idempotency guarantees, same DRAFT-only /
@@ -13,9 +13,10 @@ pipeline (`_LevelSeedConfig` + the `_upsert_*` functions below, which all take
 that config explicitly rather than reading module-level constants) instead of
 duplicating the Module -> Level -> Lesson -> DPS -> DPSSection logic per
 level. IM-L4 (LEVEL 8.xlsx, "Level - 8" images), IM-L3 (IM3 Lvl 7 New.xlsx,
-"Level - 7" images), and IM-L2 (IM2 Lvl 6.xlsx, "Level - 6" images) are three
-configs run through that one pipeline; adding a future IM-L1/L5/etc. is a
-fourth config, not a fourth copy of this file.
+"Level - 7" images), IM-L2 (IM2 Lvl 6.xlsx, "Level - 6" images), and IM-L1
+(IM1 Lvl 5.xlsx, "Level - 5" images) are four configs run through that one
+pipeline; adding a future IM level is a fifth config, not a fifth copy of this
+file.
 """
 
 import json
@@ -89,6 +90,16 @@ LEVEL_2_CONFIG = _LevelSeedConfig(
     curriculum_map=IM_CURRICULUM_MAP["IM-L2"],
     source_level_label="Level - 6",
     source_workbook_tag="IM-L6",
+)
+
+LEVEL_1_CONFIG = _LevelSeedConfig(
+    level_code="IM-L1",
+    level_name="Intermediate Module Level 1",
+    internal_level_number=1,
+    display_order=1,
+    curriculum_map=IM_CURRICULUM_MAP["IM-L1"],
+    source_level_label="Level - 5",
+    source_workbook_tag="IM-L5",
 )
 
 
@@ -451,7 +462,7 @@ def _seed_level(db: Session, module: Module, config: _LevelSeedConfig) -> tuple[
 
 def seed(db: Session) -> None:
     """Synchronize the Intermediate Module curriculum skeleton for every live IM
-    level (currently IM-L4, IM-L3, and IM-L2).
+    level (currently IM-L4, IM-L3, IM-L2, and IM-L1).
 
     This sync is idempotent and intentionally creates only curriculum/master data.
     It does not create students, teachers, assignments, attempts, reports, or demo data.
@@ -462,7 +473,7 @@ def seed(db: Session) -> None:
     print("[MathPath Seed] Intermediate Module sync started")
     module = _upsert_module(db)
 
-    LevelConfigs = (LEVEL_4_CONFIG, LEVEL_3_CONFIG, LEVEL_2_CONFIG)
+    LevelConfigs = (LEVEL_4_CONFIG, LEVEL_3_CONFIG, LEVEL_2_CONFIG, LEVEL_1_CONFIG)
     total_lessons = total_dps = total_sections = 0
     for config in LevelConfigs:
         lesson_count, dps_count, section_count = _seed_level(db, module, config)

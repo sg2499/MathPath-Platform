@@ -262,6 +262,84 @@ IM_L2_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
 }
 
 
+# IM-L1 (IM1 Lvl 5.xlsx, "Level - 5" images)
+#
+# Built from the same cell-by-cell + programmatic re-verification audit as
+# curriculum_map.py's _IM_L1_MAP (2026-07-21) -- see that map's module-level
+# comment for the full level-wide findings (multiplication/division ceiling,
+# no Borrowing, no Squares/Solve Equation/Answer Position, two real BODMAS
+# shapes, Skill Stacker/Concept Drill placement). Section structure confirmed
+# directly with Shailesh: 6 sections, every pool below drawing on the actual
+# range of patterns measured across the level's 60 DPS (not a single narrow
+# config standing in for the whole section), the same pooling discipline
+# IM_L2_COMPETITION_SECTION_CONCEPT_POOLS already uses. Multiplication/division
+# entries automatically get the shared _IsTrivial() guard (operands.py) that
+# blocks 0/1/10/100/... on every generated question, including inside BODMAS's
+# embedded division term -- confirmed via the same trivial-operand stress pass
+# run for every other IM level's mock registry.
+IM_L1_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
+    {"key": "IM_L1_ADD_LESS_ABACUS", "number": 1, "title": "Section 1 - Add/Less (Abacus)"},
+    {"key": "IM_L1_ADD_LESS_VISUAL", "number": 2, "title": "Section 2 - Add/Less (Visual)"},
+    {"key": "IM_L1_MULTIPLICATION", "number": 3, "title": "Section 3 - Multiplication"},
+    {"key": "IM_L1_DIVISION", "number": 4, "title": "Section 4 - Division"},
+    {"key": "IM_L1_BODMAS", "number": 5, "title": "Section 5 - BODMAS"},
+    {"key": "IM_L1_SKILL_DRILL", "number": 6, "title": "Section 6 - Skill Stacker and Concept Drill"},
+]
+
+IM_L1_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
+    "IM_L1_ADD_LESS_ABACUS": [
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Abacus)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 0, "magnitudeMax": 9},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal (Abacus)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 3, "magnitudeMin": 1, "magnitudeMax": 5},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Add/Less (Abacus)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 2, "magnitudeMax": 42},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Abacus)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 3, "magnitudeMax": 83},
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less (Abacus)", "rowCount": 4, "magnitudeMin": 1000, "magnitudeMax": 9999},
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less (Abacus)", "rowCount": 3, "magnitudeMin": 1985, "magnitudeMax": 16529},
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less (Abacus)", "rowCount": 3, "magnitudeMin": 1064, "magnitudeMax": 32098},
+    ],
+    "IM_L1_ADD_LESS_VISUAL": [
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Decimal Number Add/Less (Visual)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 0, "magnitudeMax": 1},
+        {"conceptFamily": "DECIMAL_ADD_LESS", "title": "Add/Less (Visual)", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 10, "magnitudeMax": 90},
+        {"conceptFamily": "ADD_LESS", "title": "Add/Less (Visual)", "rowCount": 3, "magnitudeMin": 100, "magnitudeMax": 750},
+        {"conceptFamily": "ADD_LESS", "title": "Add /Less (Visual)", "rowCount": 3, "magnitudeMin": 10, "magnitudeMax": 450},
+        {"conceptFamily": "ADD_LESS", "title": "Add / Less (Visual)", "rowCount": 3, "magnitudeMin": 10, "magnitudeMax": 900},
+    ],
+    "IM_L1_MULTIPLICATION": [
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "2D x 1D Multiplication", "multiplicationDigits": (2, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "3D x 1D Multiplication", "multiplicationDigits": (3, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "title": "4D x 1D Multiplication", "multiplicationDigits": (4, 1)},
+    ],
+    "IM_L1_DIVISION": [
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "3D / 1D Division", "divisionDigits": (3, 1)},
+        {"conceptFamily": "WHOLE_NUMBER_DIVISION", "title": "4D / 1D Division", "divisionDigits": (4, 1)},
+    ],
+    "IM_L1_BODMAS": [
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "IM_L1_NO_DIVISION_TEMPLATE",
+         "bodmasAdditiveRange": (60, 105), "bodmasMultiplierLeftRange": (10, 90), "bodmasMultiplierRightRange": (2, 8),
+         "bodmasTailAddRange": (15, 360), "bodmasTailSubRange": (15, 360)},
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "IM_L1_NO_DIVISION_TEMPLATE",
+         "bodmasAdditiveRange": (30, 90), "bodmasMultiplierLeftRange": (10, 90), "bodmasMultiplierRightRange": (2, 8),
+         "bodmasTailAddRange": (15, 100), "bodmasTailSubRange": (15, 100)},
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "IM_L1_DIVISION_TEMPLATE",
+         "bodmasAdditiveRange": (55, 100), "bodmasMultiplierLeftRange": (20, 55), "bodmasMultiplierRightRange": (4, 9),
+         "bodmasTailAddRange": (20, 90), "bodmasTailSubRange": (20, 90), "bodmasDivisionDigits": (2, 1)},
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "IM_L1_DIVISION_TEMPLATE",
+         "bodmasAdditiveRange": (200, 400), "bodmasMultiplierLeftRange": (25, 95), "bodmasMultiplierRightRange": (4, 9),
+         "bodmasTailAddRange": (50, 450), "bodmasTailSubRange": (50, 350), "bodmasDivisionDigits": (3, 1)},
+        {"conceptFamily": "BODMAS", "title": "BODMAS", "bodmasTemplate": "IM_L1_DIVISION_TEMPLATE",
+         "bodmasAdditiveRange": (70, 520), "bodmasMultiplierLeftRange": (55, 95), "bodmasMultiplierRightRange": (5, 8),
+         "bodmasTailAddRange": (75, 260), "bodmasTailSubRange": (30, 350), "bodmasDivisionDigits": (2, 1)},
+    ],
+    "IM_L1_SKILL_DRILL": [
+        {"conceptFamily": "SKILL_STACKER", "title": "Skill Stacker", "fixedTimes": 5, "addRange": (9000, 22000), "skillStackerLinear": True},
+        {"conceptFamily": "SKILL_STACKER", "title": "Skill Stacker", "fixedTimes": 5, "addRange": (26500, 37000), "skillStackerLinear": True},
+        {"conceptFamily": "SKILL_STACKER", "title": "Skill Stacker", "fixedTimes": 6, "addRange": (38000, 42000), "skillStackerLinear": True},
+        {"conceptFamily": "CONCEPT_DRILL", "title": "Concept Drill", "wholeFromRange": (15000, 27000), "wholeLessRange": (1500, 5500)},
+        {"conceptFamily": "CONCEPT_DRILL", "title": "Concept Drill", "wholeFromRange": (25500, 31500), "wholeLessRange": (6000, 8500)},
+        {"conceptFamily": "CONCEPT_DRILL", "title": "Concept Drill", "wholeFromRange": (34500, 37000), "wholeLessRange": (7500, 10000)},
+    ],
+}
+
+
 # IM competition mocks are designed level by level, not module-wide -- each
 # IM level (L1-L4) gets its own distinct set of sections and concepts, so
 # there is no single "IM section structure" that generically applies to
@@ -270,10 +348,10 @@ IM_L2_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
 # must resolve a level's structure through _ImCompetitionLevelConfig() below
 # rather than referencing IM_COMPETITION_SECTION_DEFINITIONS/
 # IM_COMPETITION_SECTION_CONCEPT_POOLS directly, so that requesting a mock
-# for a level that hasn't been configured yet (e.g. IM-L1/L2 today) fails
-# loudly with a clear error instead of silently generating IM-L4 content
-# under a different level's name. To add a new level, add its own entry here
-# with that level's own sections/concepts -- do not extend IM-L4's.
+# for a level that hasn't been configured yet fails loudly with a clear error
+# instead of silently generating another level's content under a different
+# level's name. To add a new level, add its own entry here with that level's
+# own sections/concepts -- do not extend an existing level's.
 IM_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     "IM-L4": {
         "sectionDefinitions": IM_COMPETITION_SECTION_DEFINITIONS,
@@ -286,6 +364,10 @@ IM_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     "IM-L2": {
         "sectionDefinitions": IM_L2_COMPETITION_SECTION_DEFINITIONS,
         "sectionConceptPools": IM_L2_COMPETITION_SECTION_CONCEPT_POOLS,
+    },
+    "IM-L1": {
+        "sectionDefinitions": IM_L1_COMPETITION_SECTION_DEFINITIONS,
+        "sectionConceptPools": IM_L1_COMPETITION_SECTION_CONCEPT_POOLS,
     },
 }
 

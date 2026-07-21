@@ -562,10 +562,109 @@ def _GenerateBodmasExactDivision(Config: IMConfig, Rng: random.Random) -> tuple[
     }
 
 
+def _GenerateBodmasImL1NoDivision(Config: IMConfig, Rng: random.Random) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """IM-L1 only. Shape: A + B x C + D - E, with no division term anywhere.
+
+    Confirmed via direct expression evaluation against IM1 Lvl 5.xlsx's own
+    answer-key values (2026-07-21 audit): Lessons 2 and 3 are the only two
+    lessons in this level with BODMAS, and between them 10/10 real expressions
+    (e.g. "102 - (21 x 4) + 95 - 70", "66 + (58 x 2) + 27 - 15") never include a
+    division term at all -- a genuinely different shape from every other BODMAS
+    variant in the IM engine, all of which embed a division term. This
+    reproduces the dominant 4-chunk shape (A, then B x C, then two more
+    add/subtract terms) rather than every literal permutation of term order/
+    count/sign seen across the 10 real instances, the same template-fidelity
+    level L2/L3/L4's own BODMAS generators already use. Dispatched via its own
+    "IM_L1_NO_DIVISION_TEMPLATE" key -- does not touch or share code with
+    _GenerateBodmasExactDivision, which every other level's BODMAS uses.
+    """
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    AdditiveRange = GeneratorConfig.get("bodmasAdditiveRange") or (30, 110)
+    MultiplierLeftRange = GeneratorConfig.get("bodmasMultiplierLeftRange") or (10, 90)
+    MultiplierRightRange = GeneratorConfig.get("bodmasMultiplierRightRange") or (2, 8)
+    TailAddRange = GeneratorConfig.get("bodmasTailAddRange") or (15, 360)
+    TailSubRange = GeneratorConfig.get("bodmasTailSubRange") or (15, 360)
+
+    A = Rng.randint(int(AdditiveRange[0]), int(AdditiveRange[1]))
+    B = Rng.randint(int(MultiplierLeftRange[0]), int(MultiplierLeftRange[1]))
+    C = Rng.randint(int(MultiplierRightRange[0]), int(MultiplierRightRange[1]))
+    D = Rng.randint(int(TailAddRange[0]), int(TailAddRange[1]))
+    E = Rng.randint(int(TailSubRange[0]), int(TailSubRange[1]))
+
+    Expression = f"{A} + {B} × {C} + {D} - {E}"
+    CorrectAnswer = Decimal(A) + Decimal(B * C) + Decimal(D) - Decimal(E)
+    return [Expression], [""], CorrectAnswer, {
+        "question_text": Expression,
+        "has_square_term": False,
+        "bodmas_template": "IM_L1_NO_DIVISION_TEMPLATE",
+    }
+
+
+def _GenerateBodmasImL1Division(Config: IMConfig, Rng: random.Random) -> tuple[list[int | float | str], list[str], Decimal, dict]:
+    """IM-L1 only. Shape: A + B x C - D / E + F - G, where D/E divides exactly.
+
+    Confirmed via direct expression evaluation against IM1 Lvl 5.xlsx's own
+    answer-key values (2026-07-21 audit): Lessons 5, 6, 7, 10, 11, 12 carry an
+    embedded division term in most of their real expressions (26/30), and every
+    one of those divisions is exact except a single isolated data-entry slip
+    (Lesson 10 DPS-5's last row genuinely doesn't match its own stored answer --
+    not reproduced here, same class of exception the L2/L3 BODMAS audits
+    already found and left alone). This is a 6-chunk shape, one chunk longer
+    than L2/L3's shared EXACT_DIVISION_TEMPLATE (A + B x C - D/E + F) -- IM-L1's
+    real expressions consistently carry one extra trailing add/subtract term
+    (e.g. "94 + (22 x 5) - 35 / 7 + 39 - 21"). Dispatched via its own
+    "IM_L1_DIVISION_TEMPLATE" key, isolated from every other level's BODMAS
+    code path.
+    """
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    DivisionDigits = GeneratorConfig.get("bodmasDivisionDigits") or (3, 1)
+    DividendExtraDigits, DivisorDigits = int(DivisionDigits[0]), int(DivisionDigits[1])
+
+    AdditiveRange = GeneratorConfig.get("bodmasAdditiveRange") or (55, 200)
+    MultiplierLeftRange = GeneratorConfig.get("bodmasMultiplierLeftRange") or (25, 90)
+    MultiplierRightRange = GeneratorConfig.get("bodmasMultiplierRightRange") or (4, 9)
+    TailAddRange = GeneratorConfig.get("bodmasTailAddRange") or (50, 350)
+    TailSubRange = GeneratorConfig.get("bodmasTailSubRange") or (30, 250)
+
+    A = Rng.randint(int(AdditiveRange[0]), int(AdditiveRange[1]))
+    B = Rng.randint(int(MultiplierLeftRange[0]), int(MultiplierLeftRange[1]))
+    C = Rng.randint(int(MultiplierRightRange[0]), int(MultiplierRightRange[1]))
+    F = Rng.randint(int(TailAddRange[0]), int(TailAddRange[1]))
+    G = Rng.randint(int(TailSubRange[0]), int(TailSubRange[1]))
+
+    DivisorMin, DivisorMax = _DigitRange(DivisorDigits)
+    for _Attempt in range(60):
+        E = Rng.randint(DivisorMin, DivisorMax)
+        if not _IsTrivial(E):
+            break
+    else:
+        E = max(DivisorMin, 2)
+        if _IsTrivial(E):
+            E += 1
+    DividendMin, DividendMax = _DigitRange(DividendExtraDigits)
+    QuotientMin = max(2, -(-DividendMin // E))
+    QuotientMax = max(QuotientMin, DividendMax // E)
+    Quotient = Rng.randint(QuotientMin, QuotientMax)
+    D = E * Quotient  # always exact -- D / E has zero remainder, matching every real IM-L1 instance
+
+    Expression = f"{A} + {B} × {C} - {D} ÷ {E} + {F} - {G}"
+    CorrectAnswer = Decimal(A) + Decimal(B * C) - (Decimal(D) / Decimal(E)) + Decimal(F) - Decimal(G)
+    CorrectAnswer = _Quantize(CorrectAnswer, 2)
+    return [Expression], [""], CorrectAnswer, {
+        "question_text": Expression,
+        "has_square_term": False,
+        "bodmas_template": "IM_L1_DIVISION_TEMPLATE",
+    }
+
+
 def GenerateBodmas(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
     if GeneratorConfig.get("bodmasTemplate") == "EXACT_DIVISION_TEMPLATE":
         return _GenerateBodmasExactDivision(Config, Rng)
+    if GeneratorConfig.get("bodmasTemplate") == "IM_L1_NO_DIVISION_TEMPLATE":
+        return _GenerateBodmasImL1NoDivision(Config, Rng)
+    if GeneratorConfig.get("bodmasTemplate") == "IM_L1_DIVISION_TEMPLATE":
+        return _GenerateBodmasImL1Division(Config, Rng)
 
     HasSquare = bool(GeneratorConfig.get("hasSquareTerm"))
 
