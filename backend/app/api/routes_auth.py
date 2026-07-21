@@ -96,7 +96,7 @@ def _decode_data_url(PhotoValue: str) -> tuple[bytes, str]:
 
 
 @router.get("/profile-photo/{user_id}")
-def get_profile_photo(user_id: str, db: Session = Depends(get_db)):
+def get_profile_photo(user_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     TargetUser = db.query(User).filter(User.id == user_id).first()
     if not TargetUser:
         api_error(404, "PHOTO_NOT_FOUND", "Profile photo not found.")
@@ -162,7 +162,9 @@ def upload_profile_photo(
 
 
 @router.post("/change-password")
+@limiter.limit("5/minute")
 def change_password(
+    request: Request,
     payload: ChangePasswordRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,6 +18,8 @@ import sentry_sdk
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.rate_limit import limiter
+
+logger = logging.getLogger("mathpath")
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 if SENTRY_DSN:
@@ -51,13 +54,42 @@ app.add_middleware(
     expose_headers=["X-New-Access-Token"],
 )
 
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Apply a baseline set of security headers to every response.
+
+    This is a JSON API backend with no server-rendered HTML pages of its own,
+    so a locked-down CSP and framing policy carry no functional risk here --
+    they simply close off classes of attack (clickjacking, MIME sniffing,
+    cross-origin framing) that would otherwise be enabled implicitly by
+    having no policy at all. setdefault() is used throughout so a route that
+    already sets one of these headers deliberately (e.g. the profile-photo
+    endpoint's X-Content-Type-Options) is never overridden.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+    # Browsers only honor HSTS on responses actually received over HTTPS, so
+    # it is safe to always set this even when running locally over HTTP.
+    response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+    return response
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     # Let FastAPI's HTTPException handler handle normal HTTP errors.
     from fastapi import HTTPException
     if isinstance(exc, HTTPException):
         return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
-    return JSONResponse(status_code=500, content={"error": {"code": "INTERNAL_SERVER_ERROR", "message": str(exc), "details": {}}})
+    # Log the real exception server-side (Sentry captures it too when
+    # SENTRY_DSN is configured) but never leak str(exc) to the client --
+    # stack traces and internal details can reveal file paths, query
+    # structure, or library versions to anyone who can trigger a 500.
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"error": {"code": "INTERNAL_SERVER_ERROR", "message": "Something went wrong. Please try again.", "details": {}}})
 
 @app.on_event("startup")
 def on_startup():
