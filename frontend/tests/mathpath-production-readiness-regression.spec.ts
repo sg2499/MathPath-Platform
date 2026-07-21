@@ -2,6 +2,21 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import fs from "node:fs";
 import path from "node:path";
 
+// No hardcoded password fallback on purpose -- this suite can target a real
+// deployed environment via MATHPATH_BASE_URL, and a fixed literal password
+// here would mean every checkout of this repo carries a guessable credential
+// for whatever account these tests log into. Fail loudly instead.
+function RequireEnvPassword(EnvVarName: string): string {
+  const Value = process.env[EnvVarName];
+  if (!Value || !Value.trim()) {
+    throw new Error(
+      `${EnvVarName} must be set (no hardcoded fallback password) -- export it before running this suite.`
+    );
+  }
+  return Value.trim();
+}
+
+
 const FrontendBaseUrl = process.env.MATHPATH_FRONTEND_BASE_URL ?? "http://localhost:3000";
 const ApiBaseUrl = process.env.MATHPATH_API_BASE_URL ?? "http://localhost:8000/api";
 const ReportFolder = path.join(process.cwd(), "verification-report", "phase-10-7-4-production-readiness");
@@ -15,17 +30,17 @@ const ProductionReadinessTimeoutMs = Number(process.env.MATHPATH_PRODUCTION_READ
 const Credentials = {
   ADMIN: {
     Identifier: process.env.MATHPATH_ADMIN_IDENTIFIER ?? "admin@mathpath.local",
-    Password: process.env.MATHPATH_ADMIN_PASSWORD ?? "Admin@123",
+    Password: RequireEnvPassword("MATHPATH_ADMIN_PASSWORD"),
     LandingRoute: "/admin/dashboard",
   },
   TEACHER: {
     Identifier: process.env.MATHPATH_TEACHER_IDENTIFIER ?? "teacher@mathpath.local",
-    Password: process.env.MATHPATH_TEACHER_PASSWORD ?? "Teacher@123",
+    Password: RequireEnvPassword("MATHPATH_TEACHER_PASSWORD"),
     LandingRoute: "/teacher/dashboard",
   },
   STUDENT: {
     Identifier: process.env.MATHPATH_STUDENT_IDENTIFIER ?? "MP-ST-001",
-    Password: process.env.MATHPATH_STUDENT_PASSWORD ?? "Student@123",
+    Password: RequireEnvPassword("MATHPATH_STUDENT_PASSWORD"),
     LandingRoute: "/student/dashboard",
   },
 } as const;

@@ -1,5 +1,6 @@
 import json
 import re
+import secrets
 import shutil
 import socket
 from datetime import datetime, timezone as datetime_timezone, timedelta, tzinfo
@@ -410,7 +411,11 @@ class StudentStatusRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    password: str = "Student@123"
+    # No hardcoded default on purpose -- a caller (frontend or a direct API
+    # call) must always supply a real password. A hardcoded fallback here
+    # previously meant any reset-password call with an omitted/blank
+    # password silently landed on a fixed, publicly-documented string.
+    password: str
 
 
 
@@ -419,7 +424,8 @@ class TeacherCreateRequest(BaseModel):
     teacherCode: str
     email: str | None = None
     phone: str | None = None
-    password: str = "Teacher@123"
+    # No hardcoded default on purpose -- see ResetPasswordRequest above.
+    password: str
     designation: str | None = None
     subjectSpecialization: str | None = None
     qualification: str | None = None
@@ -448,7 +454,8 @@ class TeacherStatusRequest(BaseModel):
 
 
 class ResetTeacherPasswordRequest(BaseModel):
-    password: str = "Teacher@123"
+    # No hardcoded default on purpose -- see ResetPasswordRequest above.
+    password: str
 
 
 def clean_text(value: Any) -> str | None:
@@ -645,11 +652,18 @@ def find_or_create_teacher_for_student(db: Session, teacher_name: str | None, te
         counter += 1
         final_code = f"{base_code}-{counter}"
 
+    # This path auto-creates a Teacher account on the fly when a student is
+    # created/edited with a teacher name that doesn't exist yet -- there's no
+    # password field in that flow for the admin to set. It previously landed
+    # on a fixed, publicly-documented default password; now it's a random,
+    # unguessable one instead. The admin still needs to open
+    # Admin -> Users -> Teachers -> this teacher -> reset password to hand
+    # this new teacher real, known login credentials.
     teacher_user = User(
         full_name=name,
         email=None,
         phone=None,
-        password_hash=hash_password("Teacher@123"),
+        password_hash=hash_password(secrets.token_urlsafe(18)),
         role="TEACHER",
         is_active=True,
     )
@@ -1428,7 +1442,7 @@ def download_students_template(user: User = Depends(admin_dep)):
         "mother_email": "mother@example.com",
         "mother_whatsapp": "8888888888",
         "student_code": "MP-DEMO-1001",
-        "password": "Student@123",
+        "password": "Choose-A-Strong-Password-1",
         "module_code": "YLM",
         "level_code": "YLM-L1",
         "status": "ACTIVE",

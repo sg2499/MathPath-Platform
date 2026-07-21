@@ -2,6 +2,21 @@ import { test as Test, type BrowserContext, type Locator, type Page, type Respon
 import Fs from "node:fs";
 import Path from "node:path";
 
+// No hardcoded password fallback on purpose -- this suite can target a real
+// deployed environment via MATHPATH_BASE_URL, and a fixed literal password
+// here would mean every checkout of this repo carries a guessable credential
+// for whatever account these tests log into. Fail loudly instead.
+function RequireEnvPassword(EnvVarName: string): string {
+  const Value = process.env[EnvVarName];
+  if (!Value || !Value.trim()) {
+    throw new Error(
+      `${EnvVarName} must be set (no hardcoded fallback password) -- export it before running this suite.`
+    );
+  }
+  return Value.trim();
+}
+
+
 LoadVerificationEnv();
 
 const BaseUrl = TrimTrailingSlash(process.env.MATHPATH_BASE_URL || "http://localhost:3000");
@@ -68,19 +83,19 @@ type SkippedRoute = {
 const Credentials: Record<RoleName, { Identifier: string; Password: string; Label: string; DefaultRoute: string }> = {
   ADMIN: {
     Identifier: process.env.MATHPATH_ADMIN_IDENTIFIER || "admin@mathpath.local",
-    Password: process.env.MATHPATH_ADMIN_PASSWORD || "Admin@123",
+    Password: RequireEnvPassword("MATHPATH_ADMIN_PASSWORD"),
     Label: "Admin",
     DefaultRoute: "/admin/dashboard",
   },
   TEACHER: {
     Identifier: process.env.MATHPATH_TEACHER_IDENTIFIER || "teacher@mathpath.local",
-    Password: process.env.MATHPATH_TEACHER_PASSWORD || "Teacher@123",
+    Password: RequireEnvPassword("MATHPATH_TEACHER_PASSWORD"),
     Label: "Teacher",
     DefaultRoute: "/teacher/dashboard",
   },
   STUDENT: {
     Identifier: process.env.MATHPATH_STUDENT_IDENTIFIER || "student@mathpath.local",
-    Password: process.env.MATHPATH_STUDENT_PASSWORD || "Student@123",
+    Password: RequireEnvPassword("MATHPATH_STUDENT_PASSWORD"),
     Label: "Student",
     DefaultRoute: "/student/dashboard",
   },
