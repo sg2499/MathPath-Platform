@@ -1737,6 +1737,145 @@ html.dark .math-login-status {
   .math-login-card { border-radius: 24px; }
 }
 
+/* Phase 10.6 — Login "visual elevation" follow-up (living background, abacus-bead
+   flourish, extra micro-interactions). This closes out the open item from the
+   2026-07-17 login round: the logo/animation fixes shipped then, this is the
+   deliberately-deferred "pick up the visual changes" half. All animations here are
+   plain CSS `animation`/`transition` so the platform-wide
+   `@media (prefers-reduced-motion: reduce)` rule near the top of this file (which
+   forces every animation/transition to ~0ms) neutralizes them automatically — no
+   per-rule override needed. */
+
+/* --- Living background: the two ambient auras drift slowly instead of sitting
+   static, and a handful of small "bead" motes float upward and fade, echoing the
+   abacus-bead motif at very low visual weight so it reads as atmosphere, not noise. */
+.math-login-aura-one { animation: math-login-aura-drift-one 19s ease-in-out infinite; }
+.math-login-aura-two { animation: math-login-aura-drift-two 23s ease-in-out infinite; }
+
+@keyframes math-login-aura-drift-one {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(2.75rem, 2rem) scale(1.08); }
+}
+
+@keyframes math-login-aura-drift-two {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-2.25rem, -2.75rem) scale(1.1); }
+}
+
+.math-login-float-bead {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  opacity: 0;
+  background: color-mix(in srgb, var(--mp-role-accent, #f8fafc) 65%, white);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--mp-role-accent, #f8fafc) 55%, transparent);
+}
+
+.math-login-float-bead-1 { left: 12%; bottom: -2%; height: 0.5rem; width: 0.5rem; animation: math-login-float 13s ease-in infinite; animation-delay: 0s; }
+.math-login-float-bead-2 { left: 26%; bottom: -2%; height: 0.35rem; width: 0.35rem; animation: math-login-float 16s ease-in infinite; animation-delay: 2.4s; }
+.math-login-float-bead-3 { left: 61%; bottom: -2%; height: 0.6rem; width: 0.6rem; animation: math-login-float 14.5s ease-in infinite; animation-delay: 5s; }
+.math-login-float-bead-4 { left: 78%; bottom: -2%; height: 0.4rem; width: 0.4rem; animation: math-login-float 17.5s ease-in infinite; animation-delay: 1.2s; }
+.math-login-float-bead-5 { left: 45%; bottom: -2%; height: 0.3rem; width: 0.3rem; animation: math-login-float 12s ease-in infinite; animation-delay: 7.5s; }
+.math-login-float-bead-6 { left: 90%; bottom: -2%; height: 0.45rem; width: 0.45rem; animation: math-login-float 18s ease-in infinite; animation-delay: 4s; }
+
+@keyframes math-login-float {
+  0% { transform: translateY(0); opacity: 0; }
+  8% { opacity: 0.55; }
+  92% { opacity: 0.35; }
+  100% { transform: translateY(-92vh); opacity: 0; }
+}
+
+/* --- Abacus-bead flourish: a literal thin rail with beads, two of which slide back
+   and forth along it — a genuine nod to "Ace With Abacus" rather than the purely
+   abstract orbit-ring motif already in the page backdrop. Desktop story panel only
+   (the panel itself is already lg:flex-only). */
+.math-login-abacus-rail {
+  position: relative;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4) 12%, rgba(255,255,255,0.4) 88%, transparent);
+}
+
+.math-abacus-bead {
+  position: absolute;
+  top: 50%;
+  height: 0.65rem;
+  width: 0.65rem;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.math-abacus-bead-static-1 { left: 8%; }
+.math-abacus-bead-static-2 { left: 20%; }
+.math-abacus-bead-static-3 { left: 80%; }
+.math-abacus-bead-static-4 { left: 92%; }
+
+.math-abacus-bead-slide-a {
+  background: var(--mp-role-accent, #facc15);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--mp-role-accent, #facc15) 70%, transparent);
+  animation: math-abacus-slide-a 6.5s ease-in-out infinite;
+}
+
+.math-abacus-bead-slide-b {
+  background: var(--mp-role-accent, #facc15);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--mp-role-accent, #facc15) 70%, transparent);
+  animation: math-abacus-slide-b 8s ease-in-out infinite;
+  animation-delay: 0.6s;
+}
+
+@keyframes math-abacus-slide-a {
+  0%, 100% { left: 34%; }
+  50% { left: 58%; }
+}
+
+@keyframes math-abacus-slide-b {
+  0%, 100% { left: 46%; }
+  50% { left: 70%; }
+}
+
+/* --- Extra micro-interactions beyond the pre-existing tab/button hover + input focus
+   glow: theme-toggle icon transitions instead of hard-swapping, the password
+   show/hide icon gets tactile press feedback, and feature-card icons brighten and
+   lift slightly on hover instead of only the whole card moving. */
+.math-login-theme-toggle svg {
+  transition: transform 320ms ease;
+}
+
+.math-login-theme-toggle:hover svg {
+  transform: rotate(24deg) scale(1.08);
+}
+
+.math-login-password-toggle {
+  transition: transform 150ms ease, color 150ms ease;
+}
+
+.math-login-password-toggle:hover {
+  transform: scale(1.12);
+}
+
+.math-login-password-toggle:active {
+  transform: scale(0.92);
+}
+
+.math-login-feature > div:first-child {
+  transition: transform 220ms ease, background 220ms ease;
+}
+
+.math-login-feature:hover > div:first-child {
+  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.math-login-tab-icon svg {
+  transition: transform 220ms ease;
+}
+
+.math-login-tab[aria-selected="true"] .math-login-tab-icon svg {
+  transform: scale(1.12);
+}
+
 /* Phase 10.3 — Premium App Shell + Navigation Elevation */
 @layer components {
   .math-shell-header {
