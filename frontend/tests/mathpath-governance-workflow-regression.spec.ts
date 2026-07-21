@@ -2,6 +2,21 @@ import { expect, request, test, type APIRequestContext, type APIResponse } from 
 import Fs from "node:fs";
 import Path from "node:path";
 
+// No hardcoded password fallback on purpose -- this suite can target a real
+// deployed environment via MATHPATH_BASE_URL, and a fixed literal password
+// here would mean every checkout of this repo carries a guessable credential
+// for whatever account these tests log into. Fail loudly instead.
+function RequireEnvPassword(EnvVarName: string): string {
+  const Value = process.env[EnvVarName];
+  if (!Value || !Value.trim()) {
+    throw new Error(
+      `${EnvVarName} must be set (no hardcoded fallback password) -- export it before running this suite.`
+    );
+  }
+  return Value.trim();
+}
+
+
 LoadVerificationEnv();
 
 type RoleName = "ADMIN" | "TEACHER" | "STUDENT";
@@ -43,15 +58,15 @@ const TargetStudentCode = CleanEnvValue(process.env.MATHPATH_SAMPLE_STUDENT_CODE
 const Credentials: Record<RoleName, { Identifier: string; Password: string }> = {
   ADMIN: {
     Identifier: CleanEnvValue(process.env.MATHPATH_ADMIN_IDENTIFIER) || "admin@mathpath.local",
-    Password: CleanEnvValue(process.env.MATHPATH_ADMIN_PASSWORD) || "Admin@123",
+    Password: RequireEnvPassword("MATHPATH_ADMIN_PASSWORD"),
   },
   TEACHER: {
     Identifier: CleanEnvValue(process.env.MATHPATH_TEACHER_IDENTIFIER) || "teacher@mathpath.local",
-    Password: CleanEnvValue(process.env.MATHPATH_TEACHER_PASSWORD) || "Teacher@123",
+    Password: RequireEnvPassword("MATHPATH_TEACHER_PASSWORD"),
   },
   STUDENT: {
     Identifier: CleanEnvValue(process.env.MATHPATH_STUDENT_IDENTIFIER) || "student@mathpath.local",
-    Password: CleanEnvValue(process.env.MATHPATH_STUDENT_PASSWORD) || "Student@123",
+    Password: RequireEnvPassword("MATHPATH_STUDENT_PASSWORD"),
   },
 };
 

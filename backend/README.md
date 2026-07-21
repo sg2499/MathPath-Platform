@@ -43,32 +43,34 @@ http://localhost:8000/docs
 
 ## Seeded Logins
 
+These are example local-dev accounts, not something the app auto-creates with a fixed password. Set your own password for each when you set up a fresh local environment.
+
 Admin:
 
 ```text
 identifier: admin@mathpath.local
-password: Admin@123
+password: <set locally when you create this account, never commit a real value here>
 ```
 
 Teacher:
 
 ```text
 identifier: teacher@mathpath.local
-password: Teacher@123
+password: <set locally when you create this account, never commit a real value here>
 ```
 
 Student:
 
 ```text
 identifier: student@mathpath.local
-password: Student@123
+password: <set locally when you create this account, never commit a real value here>
 ```
 
 Student code login also works:
 
 ```text
 identifier: YLM001
-password: Student@123
+password: <set locally when you create this account, never commit a real value here>
 ```
 
 ## First Test Flow

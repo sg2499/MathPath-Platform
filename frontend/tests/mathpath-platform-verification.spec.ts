@@ -1,6 +1,24 @@
 import { test as Test, type BrowserContext, type Locator, type Page, type Response } from "@playwright/test";
+import Crypto from "node:crypto";
 import Fs from "node:fs";
 import Path from "node:path";
+
+// No hardcoded password fallback on purpose -- this suite can target a real
+// deployed environment via MATHPATH_BASE_URL, and a fixed literal password
+// here would mean every checkout of this repo carries a guessable credential
+// for whatever account these tests log into. When no env var is configured
+// (e.g. CI's ephemeral database, which has no seeded admin/teacher/student
+// account for this diagnostic sweep to log into in the first place), fall
+// back to a random per-run value instead of throwing -- LoginAs() already
+// treats a failed login as non-fatal and records it in LoginIssues rather
+// than crashing the whole suite, so a hard crash here would only break the
+// public/unauthenticated portion of the sweep for no benefit.
+function ResolveVerificationPassword(EnvVarName: string): string {
+  const Value = process.env[EnvVarName];
+  if (Value && Value.trim()) return Value.trim();
+  return Crypto.randomUUID();
+}
+
 
 LoadVerificationEnv();
 
@@ -68,19 +86,19 @@ type SkippedRoute = {
 const Credentials: Record<RoleName, { Identifier: string; Password: string; Label: string; DefaultRoute: string }> = {
   ADMIN: {
     Identifier: process.env.MATHPATH_ADMIN_IDENTIFIER || "admin@mathpath.local",
-    Password: process.env.MATHPATH_ADMIN_PASSWORD || "Admin@123",
+    Password: ResolveVerificationPassword("MATHPATH_ADMIN_PASSWORD"),
     Label: "Admin",
     DefaultRoute: "/admin/dashboard",
   },
   TEACHER: {
     Identifier: process.env.MATHPATH_TEACHER_IDENTIFIER || "teacher@mathpath.local",
-    Password: process.env.MATHPATH_TEACHER_PASSWORD || "Teacher@123",
+    Password: ResolveVerificationPassword("MATHPATH_TEACHER_PASSWORD"),
     Label: "Teacher",
     DefaultRoute: "/teacher/dashboard",
   },
   STUDENT: {
     Identifier: process.env.MATHPATH_STUDENT_IDENTIFIER || "student@mathpath.local",
-    Password: process.env.MATHPATH_STUDENT_PASSWORD || "Student@123",
+    Password: ResolveVerificationPassword("MATHPATH_STUDENT_PASSWORD"),
     Label: "Student",
     DefaultRoute: "/student/dashboard",
   },

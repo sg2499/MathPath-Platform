@@ -40,32 +40,34 @@ mathpath_ylm_fullstack_v1/
 
 ## Seeded Logins
 
+These are example local-dev accounts, not something the app auto-creates with a fixed password. Set your own password for each when you set up a fresh local environment, and never commit a real value here.
+
 ### Admin
 
 ```text
 identifier: admin@mathpath.local
-password: Admin@123
+password: <set locally -- see "Rotate seeded credentials" below, never commit a real value here>
 ```
 
 ### Teacher
 
 ```text
 identifier: teacher@mathpath.local
-password: Teacher@123
+password: <set locally -- see "Rotate seeded credentials" below, never commit a real value here>
 ```
 
 ### Student
 
 ```text
 identifier: student@mathpath.local
-password: Student@123
+password: <set locally -- see "Rotate seeded credentials" below, never commit a real value here>
 ```
 
 Student code login:
 
 ```text
 identifier: YLM001
-password: Student@123
+password: <set locally when you create this account, never commit a real value here>
 ```
 
 ## Quick Run
@@ -154,5 +156,5 @@ This package includes the tested YLM Phase 1 full-stack stable flow:
 
 Default test credentials:
 
-- Admin: `admin@mathpath.local` / `Admin@123`
-- Student: `student@mathpath.local` / `Student@123`
+- Admin: `admin@mathpath.local` / `<set locally, see below>`
+- Student: `student@mathpath.local` / `<set locally, see below>`

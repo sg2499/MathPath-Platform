@@ -55,8 +55,19 @@ import {
 import { useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
-const DEFAULT_PASSWORD = "Student@123";
 const PAGE_SIZE = 20;
+
+// A fresh random default each time a create form opens, instead of a fixed,
+// publicly-documented string every student account could otherwise share.
+// The field stays editable -- this is just a sensible starting value the
+// admin can see, copy, and hand to the student, or overwrite outright.
+function generateDefaultPassword(): string {
+  const randomSegment =
+    typeof crypto !== "undefined" && "getRandomValues" in crypto
+      ? Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(36).padStart(2, "0")).join("")
+      : Math.random().toString(36).slice(2, 14);
+  return `Mp-${randomSegment}`;
+}
 
 type StudentSortKey = "studentCode" | "studentName" | "className" | "teacher" | "level" | "fatherMobile" | "status";
 
@@ -104,7 +115,7 @@ function emptyForm(): FormState {
     motherEmail: "",
     motherWhatsapp: "",
     studentCode: "",
-    password: DEFAULT_PASSWORD,
+    password: generateDefaultPassword(),
     currentModuleId: "",
     currentLevelId: "",
     status: "ACTIVE",
@@ -520,7 +531,7 @@ export default function AdminStudentsPage() {
       motherEmail: form.motherEmail.trim(),
       motherWhatsapp: form.motherWhatsapp.trim(),
       studentCode: form.studentCode.trim(),
-      password: form.password || DEFAULT_PASSWORD,
+      password: form.password || generateDefaultPassword(),
       moduleCode: selectedModule?.moduleCode ?? null,
       levelCode: selectedLevel?.levelCode ?? null,
       teacherId: form.teacherId || null,
@@ -573,7 +584,7 @@ export default function AdminStudentsPage() {
       motherEmail: student.motherEmail ?? "",
       motherWhatsapp: student.motherWhatsapp ?? "",
       studentCode: student.studentCode ?? "",
-      password: DEFAULT_PASSWORD,
+      password: "",
       currentModuleId: student.currentModuleId ?? "",
       currentLevelId: student.currentLevelId ?? "",
       status: student.isActive ? "ACTIVE" : "INACTIVE",
@@ -1011,7 +1022,7 @@ export default function AdminStudentsPage() {
                               onClick={() =>
                                 resetMutation.mutate({
                                   studentId: s.studentId,
-                                  password: resetPassword || DEFAULT_PASSWORD,
+                                  password: resetPassword || generateDefaultPassword(),
                                 })
                               }
                               title="Reset Password"

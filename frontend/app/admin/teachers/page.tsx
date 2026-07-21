@@ -40,8 +40,19 @@ import {
 import { useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
-const DEFAULT_PASSWORD = "Teacher@123";
 const PAGE_SIZE = 20;
+
+// A fresh random default each time a create form opens, instead of a fixed,
+// publicly-documented string every teacher account could otherwise share.
+// The field stays editable -- this is just a sensible starting value the
+// admin can see, copy, and hand to the teacher, or overwrite outright.
+function generateDefaultPassword(): string {
+  const randomSegment =
+    typeof crypto !== "undefined" && "getRandomValues" in crypto
+      ? Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(36).padStart(2, "0")).join("")
+      : Math.random().toString(36).slice(2, 14);
+  return `Mp-${randomSegment}`;
+}
 
 type TeacherSortKey = "teacher" | "code" | "contact" | "specialization" | "students" | "status";
 type SortDirection = "asc" | "desc";
@@ -69,7 +80,7 @@ function emptyForm(): TeacherPayload {
     teacherCode: "",
     email: "",
     phone: "",
-    password: DEFAULT_PASSWORD,
+    password: generateDefaultPassword(),
     designation: "",
     subjectSpecialization: "",
     qualification: "",
@@ -322,7 +333,7 @@ export default function AdminTeachersPage() {
       teacherCode: form.teacherCode.trim(),
       email: optional(form.email),
       phone: optional(form.phone),
-      password: form.password || DEFAULT_PASSWORD,
+      password: form.password || generateDefaultPassword(),
       designation: optional(form.designation),
       subjectSpecialization: optional(form.subjectSpecialization),
       qualification: optional(form.qualification),
@@ -362,7 +373,7 @@ export default function AdminTeachersPage() {
       teacherCode: teacher.teacherCode,
       email: teacher.email ?? "",
       phone: teacher.phone ?? "",
-      password: DEFAULT_PASSWORD,
+      password: "",
       designation: teacher.designation ?? "",
       subjectSpecialization: teacher.subjectSpecialization ?? "",
       qualification: teacher.qualification ?? "",

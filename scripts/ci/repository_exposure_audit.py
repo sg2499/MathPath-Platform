@@ -9,12 +9,40 @@ import subprocess
 from pathlib import Path
 
 BINARY_OR_EXPORT_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".sql", ".dump", ".bak", ".xlsx", ".xls", ".csv"}
-SENSITIVE_NAME_MARKERS = ("student-export", "student_export", "database-backup", "database_backup", "production-dump", "production_dump")
+# Any of these suffixes tracked in git at all is a finding on its own -- a raw
+# database file has no legitimate reason to be committed, named "backup" or
+# not. (Added 2026-07-21 security audit: backend/mathpath.db.pre_im_l3_backup
+# was tracked in git and matched none of the name markers below, since it
+# doesn't contain "database-backup"/"database_backup" as a literal substring
+# -- that gap is exactly why it went unnoticed by this tool.)
+# Deliberately excludes .sql -- schema/seed .sql files under db/ are
+# legitimate, intentional source control (see README's directory layout),
+# unlike a raw binary database dump, which never belongs in git regardless
+# of filename.
+ALWAYS_FLAG_DATABASE_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".dump"}
+SENSITIVE_NAME_MARKERS = ("student-export", "student_export", "database-backup", "database_backup", "production-dump", "production_dump", "backup")
 CONTENT_RULES = {
     "private_key_material": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     "github_token": re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
     "aws_access_key": re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     "credentialed_database_url": re.compile(r"\bpostgres(?:ql)?://[^\s:@]+:[^\s@]+@", re.IGNORECASE),
+    # Added 2026-07-21 security audit: catches the exact shape of the leaks
+    # this tool previously missed. Deliberately requires an actual quoted
+    # string literal (not a bare type name or function call) so this doesn't
+    # false-positive on ordinary code like `password: string` or
+    # `Password: RequireEnvPassword(...)`.
+    "hardcoded_password_literal": re.compile(
+        r"(?i)\bpassword\b\s*[:=]\s*[\"'](?!<)[A-Za-z0-9!@#$%^&*()_+=-]{6,}[\"']"
+    ),
+}
+# Same intent as hardcoded_password_literal above, but scoped to plain-text
+# docs, where a real credential leak looks like unquoted "password: Admin@123"
+# rather than a quoted code literal. Restricted to these extensions so it
+# never runs against source files, where a bare identifier/type name after
+# "password:" (e.g. `password: string`) would otherwise false-positive.
+DOC_PASSWORD_VALUE_SUFFIXES = {".md", ".txt"}
+DOC_CONTENT_RULES = {
+    "plaintext_password_in_docs": re.compile(r"(?i)^\s*password\s*:\s*(?!<)\S{6,}\s*$"),
 }
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".pdf", ".zip", ".woff", ".woff2"}
 MAX_BYTES = 2_000_000
@@ -31,8 +59,16 @@ def audit(root: Path, visibility: str) -> dict[str, object]:
     content_findings: list[dict[str, object]] = []
     for rel in files:
         lowered = rel.lower()
-        suffix = Path(rel).suffix.lower()
-        if suffix in BINARY_OR_EXPORT_SUFFIXES and any(marker in lowered for marker in SENSITIVE_NAME_MARKERS):
+        rel_path_obj = Path(rel)
+        suffix = rel_path_obj.suffix.lower()
+        # Use every dot-segment, not just the final suffix -- a real file
+        # this audit missed (mathpath.db.pre_im_l3_backup) has ".db" as a
+        # middle segment, not the last one, so Path.suffix alone (".pre_im_l3_backup")
+        # would silently miss it again.
+        all_suffixes = {part.lower() for part in rel_path_obj.suffixes}
+        if all_suffixes & ALWAYS_FLAG_DATABASE_SUFFIXES:
+            path_findings.append({"path": rel, "rule": "tracked_database_file"})
+        elif suffix in BINARY_OR_EXPORT_SUFFIXES and any(marker in lowered for marker in SENSITIVE_NAME_MARKERS):
             path_findings.append({"path": rel, "rule": "sensitive_export_filename"})
         path = root / rel
         if suffix in SKIP_SUFFIXES or not path.is_file() or path.stat().st_size > MAX_BYTES:
@@ -41,8 +77,11 @@ def audit(root: Path, visibility: str) -> dict[str, object]:
             text = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
+        applicable_rules = dict(CONTENT_RULES)
+        if suffix in DOC_PASSWORD_VALUE_SUFFIXES:
+            applicable_rules.update(DOC_CONTENT_RULES)
         for line_number, line in enumerate(text.splitlines(), start=1):
-            for rule, pattern in CONTENT_RULES.items():
+            for rule, pattern in applicable_rules.items():
                 if pattern.search(line):
                     content_findings.append({"path": rel, "line": line_number, "rule": rule})
     return {
