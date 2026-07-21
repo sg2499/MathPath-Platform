@@ -9,7 +9,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel
@@ -24,6 +24,7 @@ from app.core.config import (
     ASSESSMENT_TESTING_OVERRIDE_LABEL,
 )
 from app.core.security import hash_password
+from app.core.rate_limit import limiter
 from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
 from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam, CompetitionMockAssignment
@@ -931,7 +932,8 @@ def update_teacher_status_route(teacher_id: str, payload: TeacherStatusRequest, 
 
 
 @router.post("/teachers/{teacher_id}/reset-password")
-def reset_teacher_password_route(teacher_id: str, payload: ResetTeacherPasswordRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+@limiter.limit("10/minute")
+def reset_teacher_password_route(request: Request, teacher_id: str, payload: ResetTeacherPasswordRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     teacher = db.get(Teacher, teacher_id)
     if not teacher:
         api_error(404, "NOT_FOUND", "Teacher not found.")
@@ -1194,7 +1196,8 @@ def update_student_status_route(student_id: str, payload: StudentStatusRequest, 
 
 
 @router.post("/students/{student_id}/reset-password")
-def reset_student_password_route(student_id: str, payload: ResetPasswordRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+@limiter.limit("10/minute")
+def reset_student_password_route(request: Request, student_id: str, payload: ResetPasswordRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     student = db.get(Student, student_id)
     if not student:
         api_error(404, "NOT_FOUND", "Student not found.")

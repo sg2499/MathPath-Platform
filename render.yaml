@@ -17,7 +17,15 @@ services:
         value: "1440"
       - key: SEED_ON_STARTUP
         value: "true"
-      - key: TEMPORARY_ASSESSMENT_READINESS_BYPASS
+      # NOTE (2026-07-21 security audit, Phase 1): the app only reads
+      # ASSESSMENT_READINESS_FORCE_STRICT (see backend/app/core/config.py).
+      # A stale TEMPORARY_ASSESSMENT_READINESS_BYPASS var here previously did
+      # nothing -- the app silently ignored it and defaulted to bypass-on.
+      # This line preserves that same real-world behavior (bypass stays
+      # active) but now names the variable the code actually reads, so the
+      # deployed config is honest about what's really happening. Set this to
+      # "true" only when you deliberately want strict readiness gating live.
+      - key: ASSESSMENT_READINESS_FORCE_STRICT
         value: "false"
       - key: ASSESSMENT_TESTING_OVERRIDE_ENABLED
         value: "false"

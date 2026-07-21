@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models import User, Student, Teacher
 from app.core.security import verify_password, create_access_token
@@ -76,14 +77,23 @@ def user_payload(db: Session, user: User) -> dict:
 
 def login(db: Session, identifier: str, password: str) -> dict:
     cleaned_identifier = identifier.strip() if identifier else ""
-    user = db.query(User).filter((User.email.ilike(cleaned_identifier)) | (User.phone == cleaned_identifier)).first()
+    # Case-insensitive but exact -- deliberately not ilike(). ilike() treats
+    # a raw, unescaped identifier as a SQL LIKE pattern, so a login attempt
+    # containing "%" or "_" would be interpreted as a wildcard against every
+    # email/code in the table instead of matched literally. func.lower(...)
+    # == gives the same case-insensitive comparison without ever treating
+    # user input as pattern syntax.
+    lowered_identifier = cleaned_identifier.lower()
+    user = db.query(User).filter(
+        (func.lower(User.email) == lowered_identifier) | (User.phone == cleaned_identifier)
+    ).first()
 
     if not user:
-        student = db.query(Student).filter(Student.student_code.ilike(cleaned_identifier)).first()
+        student = db.query(Student).filter(func.lower(Student.student_code) == lowered_identifier).first()
         user = student.user if student else None
 
     if not user:
-        teacher = db.query(Teacher).filter(Teacher.teacher_code.ilike(cleaned_identifier)).first()
+        teacher = db.query(Teacher).filter(func.lower(Teacher.teacher_code) == lowered_identifier).first()
         user = teacher.user if teacher else None
 
     if not user or not verify_password(password, user.password_hash):
