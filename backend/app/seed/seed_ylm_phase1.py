@@ -131,7 +131,7 @@ def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str, ad
             dps_number=dps_number,
             dps_title=dps_title,
             default_question_count=10,
-            default_duration_seconds=300,
+            default_duration_seconds=600,
             marks_per_question=1,
             publication_status="DRAFT",
             published_seed=None,
@@ -144,7 +144,7 @@ def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str, ad
     else:
         dps.dps_title = dps_title
         dps.default_question_count = 10
-        dps.default_duration_seconds = 300
+        dps.default_duration_seconds = 600
         dps.marks_per_question = 1
         if _is_auto_seed_published_dps(dps):
             _reset_seed_published_dps_to_draft(dps)
