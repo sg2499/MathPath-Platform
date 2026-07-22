@@ -7,7 +7,7 @@ from app.database import get_db, SessionLocal
 from app.core.security import decode_token, create_access_token
 from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES
 from app.core.errors import api_error
-from app.core.cookies import read_session_token, set_session_cookie, CSRF_COOKIE_NAME, CSRF_HEADER_NAME
+from app.core.cookies import read_session_token, set_session_cookie, touch_csrf_cookie, CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 from app.models import User, Student, Teacher
 from cachetools import TTLCache
 from datetime import datetime, timezone
@@ -98,6 +98,14 @@ def get_current_user(
     # without ever passing the second factor, defeating the point of 2FA.
     if payload.get("purpose"):
         api_error(401, "UNAUTHORIZED", "Invalid or expired token.")
+
+    # Slide the CSRF cookie's Max-Age forward on every cookie-authenticated
+    # request (GET included), not just mutating ones -- otherwise it dies on
+    # its own fixed schedule even while the session cookie below keeps
+    # renewing indefinitely for an active user. See touch_csrf_cookie()'s
+    # docstring for the full incident writeup.
+    if used_cookie_auth:
+        touch_csrf_cookie(request, response)
 
     # CSRF check (double-submit cookie pattern): only applies when the
     # cookie is doing the authenticating, and only for methods that change

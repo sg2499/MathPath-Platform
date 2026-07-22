@@ -76,6 +76,39 @@ def set_csrf_cookie(response: Response) -> str:
     return token
 
 
+def touch_csrf_cookie(request: Request, response: Response) -> None:
+    """Keep the CSRF cookie alive for as long as the session itself is
+    active. Bug found 2026-07-22, day after the httpOnly cookie migration
+    shipped: the CSRF cookie's Max-Age was only ever set once, at login.
+    The session cookie, by contrast, slides forward indefinitely for an
+    active user (see the >50%-lifetime refresh in get_current_user()). An
+    admin who stayed logged in and active past the CSRF cookie's original
+    Max-Age ended up with a browser that still had a perfectly valid
+    session cookie but no CSRF cookie at all -- every mutating request then
+    failed CSRF_VALIDATION_FAILED, permanently, with no way to recover
+    short of logging out and back in (the frontend only auto-clears the
+    session on a 401, never on a CSRF 403, so nothing prompted a re-login
+    either). Fix: re-issue the CSRF cookie (same value, fresh Max-Age) on
+    every cookie-authenticated request, not just mutating ones, so it
+    slides forward in lockstep with actual usage exactly like the session
+    cookie does. If the cookie is already missing there's nothing to slide
+    -- that gets handled by the frontend's CSRF-403 self-heal instead (see
+    api.ts's response interceptor).
+    """
+    existing = request.cookies.get(CSRF_COOKIE_NAME)
+    if not existing:
+        return
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=existing,
+        max_age=_COOKIE_MAX_AGE_SECONDS,
+        httponly=False,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+
+
 def clear_session_cookie(response: Response, role: str) -> None:
     response.delete_cookie(_cookie_name_for_role(role), path=SESSION_COOKIE_PATH)
 
