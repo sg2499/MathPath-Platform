@@ -7,6 +7,12 @@ USER_COLUMNS = {
     "locked_until": "TIMESTAMP",
     "password_changed_at": "TIMESTAMP",
     "last_active_at": "TIMESTAMP",
+    # 2026-07-21 security audit, Phase 2.
+    "session_invalidated_at": "TIMESTAMP",
+    "totp_secret": "TEXT",
+    "totp_pending_secret": "TEXT",
+    "totp_enabled": "BOOLEAN DEFAULT FALSE NOT NULL",
+    "totp_backup_codes_json": "TEXT",
 }
 
 

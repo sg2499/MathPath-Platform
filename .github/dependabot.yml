@@ -1,0 +1,43 @@
+# Dependabot configuration (2026-07-21 security audit, Phase 2).
+#
+# Opens weekly PRs for outdated/vulnerable dependencies across all three
+# ecosystems this repo uses. This does not auto-merge anything -- every PR
+# still goes through the normal MathPath CI gate and squash-merge flow. The
+# goal is visibility (no more finding out about a CVE only when someone
+# manually runs pip-audit/npm audit), not automated changes to production.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "backend"
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "frontend"
+    # Major-version bumps for these two are high-blast-radius (framework/SDK
+    # upgrades needing dedicated, deliberate verification passes -- see the
+    # 2026-07-21 audit's Phase 2 notes in COWORK_HANDOFF.md) rather than
+    # something to land via a routine automated PR.
+    ignore:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@sentry/nextjs"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"

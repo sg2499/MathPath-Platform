@@ -1,6 +1,6 @@
 import axios from "axios";
 import { api } from "@/lib/api";
-import type { LoginResponse, CurrentUser } from "@/types/auth";
+import type { LoginResponse, LoginResult, CurrentUser } from "@/types/auth";
 
 const PROFILE_PHOTO_MAX_DIMENSION = 360;
 const PROFILE_PHOTO_MAX_UPLOAD_BYTES = 260_000;
@@ -74,7 +74,7 @@ export async function warmupAuthApi(): Promise<boolean> {
   return AuthWarmupPromise;
 }
 
-export async function login(identifier: string, password: string): Promise<LoginResponse> {
+export async function login(identifier: string, password: string): Promise<LoginResult> {
   const Payload = { identifier: identifier.trim(), password };
   let LastNetworkError: unknown = null;
 
@@ -82,7 +82,7 @@ export async function login(identifier: string, password: string): Promise<Login
 
   for (let AttemptIndex = 0; AttemptIndex < LOGIN_MAX_ATTEMPTS; AttemptIndex += 1) {
     try {
-      const { data } = await api.post<LoginResponse>("/auth/login", Payload, {
+      const { data } = await api.post<LoginResult>("/auth/login", Payload, {
         timeout: LOGIN_REQUEST_TIMEOUT_MS,
         skipAuth: true,
       } as any);
@@ -99,6 +99,15 @@ export async function login(identifier: string, password: string): Promise<Login
   }
 
   throw LastNetworkError || new Error("The secure login service is still waking up. Please try again in a few seconds.");
+}
+
+export async function verifyTwoFactorLogin(challengeToken: string, code: string): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>(
+    "/auth/2fa/verify-login",
+    { challengeToken, code: code.trim() },
+    { timeout: LOGIN_REQUEST_TIMEOUT_MS, skipAuth: true } as any,
+  );
+  return data;
 }
 
 export async function getMe(): Promise<CurrentUser> {
@@ -192,5 +201,27 @@ export async function uploadProfilePhoto(file: File): Promise<{ updated: boolean
 
 export async function changePassword(payload: { currentPassword: string; newPassword: string }): Promise<{ updated: boolean; message: string }> {
   const { data } = await api.post<{ updated: boolean; message: string }>("/auth/change-password", payload);
+  return data;
+}
+
+export async function logoutAllSessions(): Promise<{ updated: boolean; message: string }> {
+  const { data } = await api.post<{ updated: boolean; message: string }>("/auth/logout-all-sessions", {});
+  return data;
+}
+
+export type TwoFactorSetupResponse = { secret: string; qrCodeDataUrl: string; otpauthUri: string };
+
+export async function startTwoFactorSetup(): Promise<TwoFactorSetupResponse> {
+  const { data } = await api.post<TwoFactorSetupResponse>("/auth/2fa/setup", {});
+  return data;
+}
+
+export async function enableTwoFactor(code: string): Promise<{ updated: boolean; message: string; backupCodes: string[] }> {
+  const { data } = await api.post<{ updated: boolean; message: string; backupCodes: string[] }>("/auth/2fa/enable", { code });
+  return data;
+}
+
+export async function disableTwoFactor(password: string): Promise<{ updated: boolean; message: string }> {
+  const { data } = await api.post<{ updated: boolean; message: string }>("/auth/2fa/disable", { password });
   return data;
 }

@@ -1,7 +1,8 @@
+from datetime import datetime, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models import User, Student, Teacher
-from app.core.security import verify_password, create_access_token
+from app.core.security import verify_password, create_access_token, create_two_factor_challenge_token
 from app.core.errors import api_error
 
 
@@ -44,6 +45,7 @@ def user_payload(db: Session, user: User) -> dict:
         "loginId": user_login_id(user, student, teacher),
         "isActive": user.is_active,
         "profilePhotoUrl": public_profile_photo_url(user, user.photo_url),
+        "twoFactorEnabled": bool(user.totp_enabled),
     }
 
     if student:
@@ -102,9 +104,31 @@ def login(db: Session, identifier: str, password: str) -> dict:
     if not user.is_active:
         api_error(403, "ACCOUNT_INACTIVE", "This account is inactive. Please contact the admin.")
 
+    if user.totp_enabled:
+        # Password was correct, but a second factor is required before a
+        # real access token is issued. The challenge token is intentionally
+        # not a usable bearer token (see create_two_factor_challenge_token's
+        # docstring and the "purpose" claim check in get_current_user()).
+        return {
+            "twoFactorRequired": True,
+            "challengeToken": create_two_factor_challenge_token(user.id),
+            "tokenType": "Bearer",
+        }
+
     token = create_access_token(user.id, user.role)
     return {
         "accessToken": token,
         "tokenType": "Bearer",
         "user": user_payload(db, user),
     }
+
+
+def force_logout_user(db: Session, user: User) -> None:
+    """Invalidate every access token already issued to this user.
+
+    See User.session_invalidated_at's docstring in models.py and the check
+    in dependencies.py's get_current_user() -- any token with an iat before
+    this timestamp is rejected, so the user must log in again everywhere.
+    """
+    user.session_invalidated_at = datetime.now(timezone.utc)
+    db.commit()

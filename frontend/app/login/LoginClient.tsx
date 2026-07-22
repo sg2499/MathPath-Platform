@@ -1,9 +1,10 @@
 "use client";
 
-import { login, warmupAuthApi } from "@/lib/api/auth";
+import { login, verifyTwoFactorLogin, warmupAuthApi } from "@/lib/api/auth";
 import { apiErrorMessage } from "@/lib/api";
 import { defaultRouteForRole, setActiveRole, setAuth } from "@/lib/auth";
 import { triggerLoginWelcome } from "@/lib/utils/particles";
+import { isTwoFactorChallenge } from "@/types/auth";
 import type { CurrentUser, UserRole } from "@/types/auth";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
@@ -274,6 +275,11 @@ export default function LoginClient({
   const [Error, SetError] = useState("");
   const [Loading, SetLoading] = useState(false);
   const [Theme, SetTheme] = useState<ThemeMode>("light");
+  // Two-factor challenge: set once the password step succeeds but the
+  // account has 2FA enabled. While this is non-null, the form below renders
+  // a code-entry step instead of the identifier/password fields.
+  const [TwoFactorChallengeToken, SetTwoFactorChallengeToken] = useState<string | null>(null);
+  const [TwoFactorCode, SetTwoFactorCode] = useState("");
 
   const Active = RoleContent[ActiveTab];
   const OrderedTabs = useMemo<LoginTab[]>(() => ["ADMIN", "TEACHER", "STUDENT"], []);
@@ -333,6 +339,44 @@ export default function LoginClient({
     SetIdentifier(ReadRememberedLoginIdentifier(Tab));
     SetPassword("");
     SetShowPassword(false);
+    SetTwoFactorChallengeToken(null);
+    SetTwoFactorCode("");
+  }
+
+  async function CompleteLogin(Response: { accessToken: string; user: CurrentUser }, CleanIdentifier: string) {
+    if (!Active.AcceptedRoles.includes(Response.user.role)) {
+      SetError(RoleMismatchMessage(Response.user));
+      return;
+    }
+
+    setAuth(Response.accessToken, Response.user);
+    RememberSuccessfulLoginTab(ActiveTab);
+    RememberLoginIdentifier(ActiveTab, CleanIdentifier);
+    SetConnectionStatus("ready");
+
+    const TargetRoute = defaultRouteForRole(Response.user.role);
+    Router.prefetch(TargetRoute);
+
+    // Brief welcome moment before navigating away: a quick, role-colored confetti
+    // pop (subdued on purpose — see particles.ts — this happens on every login,
+    // not just an earned reward) with just enough of a pause to actually be seen
+    // before the page unmounts. Fires unconditionally, matching how every other
+    // confetti moment in this codebase already behaves (EpicCelebration.tsx's
+    // loot-drop/badge-unlock bursts never check prefers-reduced-motion either) —
+    // an earlier version of this gated the burst behind a reduced-motion check,
+    // which silently skipped it in several real test environments and made the
+    // feature look broken when it was actually just suppressed.
+    triggerLoginWelcome(Active.ConfettiColors);
+    await new Promise((Resolve) => setTimeout(Resolve, 550));
+
+    Router.replace(TargetRoute);
+    Router.refresh();
+
+    if (typeof window !== "undefined") {
+      if (window.location.pathname !== TargetRoute) {
+        window.location.assign(TargetRoute);
+      }
+    }
   }
 
   async function HandleSubmit(Event: React.FormEvent) {
@@ -352,41 +396,15 @@ export default function LoginClient({
     SetConnectionStatus("working");
 
     try {
-      const Response = await login(CleanIdentifier, CleanPassword);
+      const Result = await login(CleanIdentifier, CleanPassword);
 
-      if (!Active.AcceptedRoles.includes(Response.user.role)) {
-        SetError(RoleMismatchMessage(Response.user));
+      if (isTwoFactorChallenge(Result)) {
+        SetTwoFactorChallengeToken(Result.challengeToken);
+        SetConnectionStatus("ready");
         return;
       }
 
-      setAuth(Response.accessToken, Response.user);
-      RememberSuccessfulLoginTab(ActiveTab);
-      RememberLoginIdentifier(ActiveTab, CleanIdentifier);
-      SetConnectionStatus("ready");
-
-      const TargetRoute = defaultRouteForRole(Response.user.role);
-      Router.prefetch(TargetRoute);
-
-      // Brief welcome moment before navigating away: a quick, role-colored confetti
-      // pop (subdued on purpose — see particles.ts — this happens on every login,
-      // not just an earned reward) with just enough of a pause to actually be seen
-      // before the page unmounts. Fires unconditionally, matching how every other
-      // confetti moment in this codebase already behaves (EpicCelebration.tsx's
-      // loot-drop/badge-unlock bursts never check prefers-reduced-motion either) —
-      // an earlier version of this gated the burst behind a reduced-motion check,
-      // which silently skipped it in several real test environments and made the
-      // feature look broken when it was actually just suppressed.
-      triggerLoginWelcome(Active.ConfettiColors);
-      await new Promise((Resolve) => setTimeout(Resolve, 550));
-
-      Router.replace(TargetRoute);
-      Router.refresh();
-
-      if (typeof window !== "undefined") {
-        if (window.location.pathname !== TargetRoute) {
-          window.location.assign(TargetRoute);
-        }
-      }
+      await CompleteLogin(Result, CleanIdentifier);
     } catch (Err) {
       SetConnectionStatus("working");
       SetError(apiErrorMessage(Err));
@@ -394,6 +412,35 @@ export default function LoginClient({
     } finally {
       SetLoading(false);
     }
+  }
+
+  async function HandleTwoFactorSubmit(Event: React.FormEvent) {
+    Event.preventDefault();
+    if (Loading || !TwoFactorChallengeToken) return;
+
+    const CleanCode = TwoFactorCode.trim();
+    if (!CleanCode) {
+      SetError("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
+
+    SetError("");
+    SetLoading(true);
+
+    try {
+      const Response = await verifyTwoFactorLogin(TwoFactorChallengeToken, CleanCode);
+      await CompleteLogin(Response, Identifier.trim());
+    } catch (Err) {
+      SetError(apiErrorMessage(Err));
+    } finally {
+      SetLoading(false);
+    }
+  }
+
+  function CancelTwoFactorChallenge() {
+    SetTwoFactorChallengeToken(null);
+    SetTwoFactorCode("");
+    SetError("");
   }
 
   return (
@@ -607,78 +654,128 @@ export default function LoginClient({
               </motion.div>
             </AnimatePresence>
 
-            <form
-              id="mathpath-login-panel"
-              role="tabpanel"
-              aria-labelledby={`mathpath-login-tab-${ActiveTab.toLowerCase()}`}
-              className="math-login-card mt-3.5 space-y-3"
-              onSubmit={HandleSubmit}
-              data-testid="student-login-form"
-            >
-              <div>
-                <label className="math-label" htmlFor="mathpath-login-identifier">{Active.IdentifierLabel}</label>
-                <input
-                  id="mathpath-login-identifier"
-                  className="math-input mt-2 min-h-12"
-                  type="text"
-                  value={Identifier}
-                  onChange={(Event) => SetIdentifier(Event.target.value)}
-                  placeholder={Active.IdentifierPlaceholder}
-                  autoComplete={`${AutoCompleteSection(ActiveTab)} username`}
-                  name={`mathpath-${ActiveTab.toLowerCase()}-identifier`}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="math-label" htmlFor="mathpath-login-password">Password</label>
-                <div className="relative mt-2">
+            {TwoFactorChallengeToken ? (
+              <form
+                id="mathpath-login-2fa-panel"
+                className="math-login-card mt-3.5 space-y-3"
+                onSubmit={HandleTwoFactorSubmit}
+                data-testid="two-factor-login-form"
+              >
+                <div>
+                  <label className="math-label" htmlFor="mathpath-login-2fa-code">
+                    Authentication Code
+                  </label>
                   <input
-                    id="mathpath-login-password"
-                    className="math-input min-h-12 w-full pr-12"
-                    type={ShowPassword ? "text" : "password"}
-                    value={Password}
-                    onChange={(Event) => SetPassword(Event.target.value)}
-                    placeholder="Enter your password"
-                    autoComplete={`${AutoCompleteSection(ActiveTab)} current-password`}
-                    name={`mathpath-${ActiveTab.toLowerCase()}-password`}
+                    id="mathpath-login-2fa-code"
+                    className="math-input mt-2 min-h-12 text-center tracking-[0.35em]"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={TwoFactorCode}
+                    onChange={(Event) => SetTwoFactorCode(Event.target.value)}
+                    placeholder="123456"
+                    autoFocus
                     required
                   />
+                  <p className="mt-2 text-[13px] font-semibold text-slate-500 dark:text-slate-400">
+                    Enter the 6-digit code from your authenticator app, or one of your backup codes.
+                  </p>
+                </div>
+
+                {Error ? (
+                  <div role="alert" aria-live="polite" className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
+                    {Error}
+                  </div>
+                ) : null}
+
+                <button type="submit" className="math-button-primary min-h-12 w-full" disabled={Loading}>
+                  {Loading ? "Verifying..." : "Verify & Continue"}
+                </button>
+
+                <div className="pt-2 text-center">
                   <button
                     type="button"
-                    onClick={() => SetShowPassword(!ShowPassword)}
-                    className="math-login-password-toggle absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none"
-                    aria-label={ShowPassword ? "Hide password" : "Show password"}
+                    onClick={CancelTwoFactorChallenge}
+                    className="text-[13px] font-semibold text-slate-500 underline-offset-2 hover:underline dark:text-slate-400"
                   >
-                    {ShowPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    Back to login
                   </button>
                 </div>
-              </div>
-
-              {Error ? (
-                <div role="alert" aria-live="polite" className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
-                  {Error}
+              </form>
+            ) : (
+              <form
+                id="mathpath-login-panel"
+                role="tabpanel"
+                aria-labelledby={`mathpath-login-tab-${ActiveTab.toLowerCase()}`}
+                className="math-login-card mt-3.5 space-y-3"
+                onSubmit={HandleSubmit}
+                data-testid="student-login-form"
+              >
+                <div>
+                  <label className="math-label" htmlFor="mathpath-login-identifier">{Active.IdentifierLabel}</label>
+                  <input
+                    id="mathpath-login-identifier"
+                    className="math-input mt-2 min-h-12"
+                    type="text"
+                    value={Identifier}
+                    onChange={(Event) => SetIdentifier(Event.target.value)}
+                    placeholder={Active.IdentifierPlaceholder}
+                    autoComplete={`${AutoCompleteSection(ActiveTab)} username`}
+                    name={`mathpath-${ActiveTab.toLowerCase()}-identifier`}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    required
+                  />
                 </div>
-              ) : null}
 
-              <button type="submit" className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
-                {Loading ? "Logging In..." : Active.ButtonText}
-              </button>
+                <div>
+                  <label className="math-label" htmlFor="mathpath-login-password">Password</label>
+                  <div className="relative mt-2">
+                    <input
+                      id="mathpath-login-password"
+                      className="math-input min-h-12 w-full pr-12"
+                      type={ShowPassword ? "text" : "password"}
+                      value={Password}
+                      onChange={(Event) => SetPassword(Event.target.value)}
+                      placeholder="Enter your password"
+                      autoComplete={`${AutoCompleteSection(ActiveTab)} current-password`}
+                      name={`mathpath-${ActiveTab.toLowerCase()}-password`}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => SetShowPassword(!ShowPassword)}
+                      className="math-login-password-toggle absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none"
+                      aria-label={ShowPassword ? "Hide password" : "Show password"}
+                    >
+                      {ShowPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
 
-              <div className="pt-2 text-center">
-                <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
-                  Forgot Password?{" "}
-                  <span className="text-slate-700 dark:text-slate-300">
-                    {ActiveTab === "STUDENT"
-                      ? "Contact your teacher to reset it."
-                      : "Contact your platform administrator."}
-                  </span>
-                </p>
-              </div>
-            </form>
+                {Error ? (
+                  <div role="alert" aria-live="polite" className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
+                    {Error}
+                  </div>
+                ) : null}
+
+                <button type="submit" className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
+                  {Loading ? "Logging In..." : Active.ButtonText}
+                </button>
+
+                <div className="pt-2 text-center">
+                  <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
+                    Forgot Password?{" "}
+                    <span className="text-slate-700 dark:text-slate-300">
+                      {ActiveTab === "STUDENT"
+                        ? "Contact your teacher to reset it."
+                        : "Contact your platform administrator."}
+                    </span>
+                  </p>
+                </div>
+              </form>
+            )}
 
             <div
               className={`math-login-status math-login-status-${ConnectionStatus} mt-3 flex items-center justify-center gap-2 rounded-full py-2 text-[11px] font-bold uppercase tracking-[0.14em]`}

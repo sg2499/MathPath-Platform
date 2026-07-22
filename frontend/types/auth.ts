@@ -9,6 +9,7 @@ export type CurrentUser = {
   loginId?: string | null;
   isActive?: boolean;
   profilePhotoUrl?: string | null;
+  twoFactorEnabled?: boolean;
   student?: {
     id: string;
     studentCode: string;
@@ -36,3 +37,15 @@ export type LoginResponse = {
   tokenType: string;
   user: CurrentUser;
 };
+
+export type TwoFactorChallenge = {
+  twoFactorRequired: true;
+  challengeToken: string;
+  tokenType: string;
+};
+
+export type LoginResult = LoginResponse | TwoFactorChallenge;
+
+export function isTwoFactorChallenge(Result: LoginResult): Result is TwoFactorChallenge {
+  return (Result as TwoFactorChallenge).twoFactorRequired === true;
+}

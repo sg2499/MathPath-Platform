@@ -17,9 +17,28 @@ class User(Base):
     photo_url = Column(Text, nullable=True)
     password_hash = Column(Text, nullable=False)
     password_changed_at = Column(DateTime(timezone=True), nullable=True)
+    # Lightweight session-revocation mechanism (2026-07-21 security audit,
+    # Phase 2): any access token issued (iat) before this timestamp is
+    # rejected in get_current_user(), the same way password_changed_at
+    # already invalidates old tokens on a password change. This lets an
+    # admin (or the user themselves) force-logout every active session
+    # without requiring a password reset first -- e.g. a suspected-stolen
+    # device, or an admin responding to a compromised account report.
+    session_invalidated_at = Column(DateTime(timezone=True), nullable=True)
     role = Column(String(30), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     last_active_at = Column(DateTime(timezone=True), nullable=True)
+    # Optional TOTP-based 2FA (2026-07-21 security audit, Phase 2), currently
+    # gated to ADMIN/SUPER_ADMIN in the API layer. totp_secret is only set
+    # once setup is confirmed via a correct code (see routes_auth.py); a
+    # pending/unconfirmed secret lives in totp_pending_secret so a user who
+    # never finishes setup can't be locked into a half-configured state.
+    # Backup codes are stored hashed (bcrypt, same as passwords), never
+    # in plaintext.
+    totp_secret = Column(Text, nullable=True)
+    totp_pending_secret = Column(Text, nullable=True)
+    totp_enabled = Column(Boolean, default=False, nullable=False)
+    totp_backup_codes_json = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
