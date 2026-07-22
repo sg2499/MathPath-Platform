@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { UserRole } from "@/types/auth";
+import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 
 type ProfileAvatarTone = UserRole | "ADMIN" | "TEACHER" | "STUDENT";
 
@@ -52,6 +53,7 @@ export function ProfileAvatar({
   title,
 }: ProfileAvatarProps) {
   const ResolvedImageUrl = useMemo(() => ResolveAssetUrl(imageUrl), [imageUrl]);
+  const { src: LoadedImageUrl, failed: LoadFailed } = useAuthenticatedImage(ResolvedImageUrl);
   const [ImageFailed, SetImageFailed] = useState(false);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export function ProfileAvatar({
   }, [ResolvedImageUrl]);
 
   const Initials = ProfileInitials(name, role === "TEACHER" ? "TE" : role === "STUDENT" ? "ST" : "MP");
-  const ShowImage = Boolean(ResolvedImageUrl && !ImageFailed);
+  const ShowImage = Boolean(LoadedImageUrl && !ImageFailed && !LoadFailed);
 
   return (
     <div
@@ -70,8 +72,8 @@ export function ProfileAvatar({
       {!ShowImage ? <span className={`leading-none ${initialsClassName}`}>{Initials}</span> : null}
       {ShowImage ? (
         <img
-          key={ResolvedImageUrl}
-          src={ResolvedImageUrl}
+          key={LoadedImageUrl}
+          src={LoadedImageUrl ?? undefined}
           alt={String(name || "MathPath User")}
           className={`absolute inset-0 h-full w-full object-cover ${imageClassName}`}
           onError={() => SetImageFailed(true)}

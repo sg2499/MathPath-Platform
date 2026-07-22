@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ProfileAvatar, ResolveAssetUrl } from "@/components/common/ProfileAvatar";
+import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
@@ -1678,7 +1679,9 @@ function ImageInput({
   existingUrl?: string | null;
   onChange: (file: File | null) => void;
 }) {
-  const previewUrl = file ? URL.createObjectURL(file) : ResolveAssetUrl(existingUrl);
+  const LocalPreviewUrl = file ? URL.createObjectURL(file) : null;
+  const { src: LoadedExistingUrl } = useAuthenticatedImage(file ? null : ResolveAssetUrl(existingUrl));
+  const previewUrl = LocalPreviewUrl || LoadedExistingUrl;
 
   return (
     <div>
@@ -1777,6 +1780,7 @@ function StudentProfileModal({
   student: AdminStudent;
   onClose: () => void;
 }) {
+  const { src: LoadedPhoto } = useAuthenticatedImage(ResolveAssetUrl(student.photoUrl));
   const details: Array<[string, string | null | undefined]> = [
     ["Teacher", student.teacher],
     ["Admission Date", student.admissionDate],
@@ -1833,9 +1837,9 @@ function StudentProfileModal({
             <aside className="space-y-4">
               <div className="math-admin-light-profile-modal-panel rounded-[28px] bg-slate-50 p-4 dark:bg-slate-900/70">
                 <p className="font-black text-slate-950 dark:text-white">Photo</p>
-                {student.photoUrl ? (
+                {LoadedPhoto ? (
                   <img
-                    src={ResolveAssetUrl(student.photoUrl)}
+                    src={LoadedPhoto}
                     className="mt-3 h-44 w-44 rounded-3xl object-cover ring-1 ring-slate-200 dark:ring-slate-700"
                     alt="Student"
                   />
