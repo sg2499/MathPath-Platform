@@ -164,7 +164,7 @@ class DPS(Base):
     dps_number = Column(Integer, nullable=False)
     dps_title = Column(String(255), nullable=False)
     default_question_count = Column(Integer, default=10, nullable=False)
-    default_duration_seconds = Column(Integer, default=300, nullable=False)
+    default_duration_seconds = Column(Integer, default=600, nullable=False)
     marks_per_question = Column(Float, default=1, nullable=False)
     label_style = Column(String(30), default="NUMERIC", nullable=False)
     answer_type = Column(String(30), default="MCQ", nullable=False)

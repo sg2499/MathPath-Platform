@@ -14,7 +14,7 @@ LEVEL_NAME = "Master Module Level 1"
 LEVEL_INTERNAL_NUMBER = 1
 LEVEL_DISPLAY_ORDER = 1
 
-DPS_DURATION_SECONDS = 5 * 60
+DPS_DURATION_SECONDS = 10 * 60
 DPS_PER_LESSON = 5
 
 # MathPath module hierarchy convention:

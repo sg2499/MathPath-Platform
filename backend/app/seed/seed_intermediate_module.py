@@ -31,7 +31,7 @@ MODULE_NAME = "Intermediate Module"
 MODULE_DESCRIPTION = "MathPath Intermediate Module practice curriculum."
 MODULE_DISPLAY_ORDER = 4
 
-DPS_DURATION_SECONDS = 5 * 60
+DPS_DURATION_SECONDS = 10 * 60
 DPS_PER_LESSON = 5
 
 # MathPath module hierarchy convention:
