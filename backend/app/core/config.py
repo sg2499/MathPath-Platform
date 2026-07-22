@@ -7,6 +7,12 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mathpath.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+# httpOnly session cookies (2026-07-22 security hardening) must be Secure in
+# production (HTTPS-only, both Render and Vercel are HTTPS). Local dev over
+# plain http://localhost needs this off, since browsers refuse to set/send
+# a Secure cookie over an insecure origin -- set COOKIE_SECURE=false in
+# backend/.env for local development only, never in a deployed environment.
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
 # Production/demo deployments must not create demo students, demo teachers,
 # demo assignments, or demo attempts automatically on every redeploy.
 # Enable only for intentional local curriculum seeding.

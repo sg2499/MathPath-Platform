@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { getToken } from "@/lib/auth";
+import { getStoredUser } from "@/lib/auth";
 import { api } from "@/lib/api";
 
 export function useHeartbeat(intervalMs: number = 120000) {
@@ -8,8 +8,12 @@ export function useHeartbeat(intervalMs: number = 120000) {
       // Only ping if the tab is visible to avoid spamming from background tabs
       if (document.hidden) return;
 
-      const token = getToken();
-      if (!token) return; // Only ping if authenticated
+      // The real session lives in an httpOnly cookie now (2026-07-22), which
+      // JS can't inspect -- this is just a cheap "does it look like someone
+      // is logged in" check to skip the network call when clearly not. If
+      // the cookie is actually missing/expired, /auth/ping 401s and is
+      // silently swallowed below, same as it always was.
+      if (!getStoredUser()) return;
 
       try {
         // NOTE: this previously called `process.env.NEXT_PUBLIC_API_URL`,

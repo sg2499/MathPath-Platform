@@ -8,15 +8,15 @@ import {
   changePassword,
   disableTwoFactor,
   enableTwoFactor,
+  logout as logoutApi,
   logoutAllSessions,
   startTwoFactorSetup,
   uploadProfilePhoto,
 } from "@/lib/api/auth";
 import {
-  clearAuth,
+  clearSession,
   getStoredUser,
   getStoredUserForRole,
-  getTokenForRole,
   setActiveRole,
   updateStoredUser,
 } from "@/lib/auth";
@@ -187,12 +187,11 @@ export function AppShell({
       const ExpectedRole = expectedRoleFromPath(pathname);
 
       if (ExpectedRole) {
-        const RoleToken = getTokenForRole(ExpectedRole);
         const RoleUser = getStoredUserForRole(ExpectedRole);
         const StoredRole = normalizeShellRole(RoleUser?.role);
 
-        if (!RoleToken || !RoleUser || StoredRole !== ExpectedRole) {
-          clearAuth();
+        if (!RoleUser || StoredRole !== ExpectedRole) {
+          clearSession();
           localStorage.setItem("mathpath_login_role", ExpectedRole);
           SetMountedUser(null);
           SetAuthReady(false);
@@ -629,13 +628,24 @@ export function AppShell({
 
   const ActiveIcon = activeItem?.icon || LayoutDashboard;
 
-  function logout() {
+  async function logout() {
     const LogoutRole = IsAdmin ? "admin" : IsTeacher ? "teacher" : "student";
     if (typeof window !== "undefined") {
       localStorage.setItem("mathpath_login_role", LogoutRole.toUpperCase());
       localStorage.setItem("mathpath_active_role", LogoutRole.toUpperCase());
     }
-    clearAuth();
+    // The session cookie is httpOnly -- page JS can't clear it itself, so
+    // sign-out has to be a real backend call now (previously clearAuth()
+    // alone was enough, since the token just lived in localStorage).
+    // Best-effort: still clear local state and navigate away even if this
+    // call fails (e.g. the session had already expired), matching the old
+    // behavior of always being able to reach the login screen.
+    try {
+      await logoutApi();
+    } catch {
+      // Ignore -- see comment above.
+    }
+    clearSession();
     router.push(`/login?role=${LogoutRole}`);
   }
 

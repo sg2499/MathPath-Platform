@@ -7,7 +7,7 @@ import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { api, apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
-import { getStoredUser, getStoredUserForRole, getTokenForRole, setActiveRole } from "@/lib/auth";
+import { getStoredUser, getStoredUserForRole, setActiveRole } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target } from "lucide-react";
 import { PremiumResultFeedbackCard } from "@/components/common/PerformanceFeedback";
@@ -119,8 +119,13 @@ async function getAssessmentAttemptResultForCurrentRole(AttemptId: string, Viewe
   const StoredUser = ViewerRole ? getStoredUserForRole(ViewerRole) : getStoredUser();
   const Role = ViewerRole || (StoredUser?.role === "SUPER_ADMIN" ? "ADMIN" : StoredUser?.role);
   const Prefix = Role === "ADMIN" ? "/admin" : Role === "TEACHER" ? "/teacher" : "/student";
-  const RoleToken = ViewerRole ? getTokenForRole(ViewerRole) : null;
-  const { data } = await api.get(`${Prefix}/assessment-attempts/${AttemptId}/result`, RoleToken ? { headers: { Authorization: `Bearer ${RoleToken}` } } : undefined);
+  // Explicit X-Auth-Role override when an explicit ViewerRole was passed in
+  // -- this shared route isn't under a role-prefixed path, so the axios
+  // interceptor's default (URL-path-based) role hint can't be trusted here.
+  const { data } = await api.get(
+    `${Prefix}/assessment-attempts/${AttemptId}/result`,
+    ViewerRole ? { headers: { "X-Auth-Role": ViewerRole } } : undefined,
+  );
   return data;
 }
 

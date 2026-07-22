@@ -2,7 +2,7 @@
 
 import { login, verifyTwoFactorLogin, warmupAuthApi } from "@/lib/api/auth";
 import { apiErrorMessage } from "@/lib/api";
-import { defaultRouteForRole, setActiveRole, setAuth } from "@/lib/auth";
+import { defaultRouteForRole, setActiveRole, setSession } from "@/lib/auth";
 import { triggerLoginWelcome } from "@/lib/utils/particles";
 import { isTwoFactorChallenge } from "@/types/auth";
 import type { CurrentUser, UserRole } from "@/types/auth";
@@ -359,13 +359,16 @@ export default function LoginClient({
     SetTwoFactorCode("");
   }
 
-  async function CompleteLogin(Response: { accessToken: string; user: CurrentUser }, CleanIdentifier: string) {
+  async function CompleteLogin(Response: { user: CurrentUser }, CleanIdentifier: string) {
     if (!Active.AcceptedRoles.includes(Response.user.role)) {
       SetError(RoleMismatchMessage(Response.user));
       return;
     }
 
-    setAuth(Response.accessToken, Response.user);
+    // The session cookie was already set server-side by the /login (or
+    // /2fa/verify-login) response that got us here -- this just persists
+    // the non-secret profile for display and marks the role active.
+    setSession(Response.user);
     RememberSuccessfulLoginTab(ActiveTab);
     RememberLoginIdentifier(ActiveTab, CleanIdentifier);
     SetConnectionStatus("ready");
