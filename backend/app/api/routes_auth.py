@@ -1,4 +1,5 @@
 import base64
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -9,11 +10,24 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
-from app.core.security import hash_password, verify_password
+from app.core.security import (
+    hash_password,
+    verify_password,
+    strong_password_issue,
+    create_access_token,
+    decode_two_factor_challenge_token,
+)
+from app.core.totp import (
+    generate_totp_secret,
+    totp_provisioning_uri,
+    totp_qr_code_data_url,
+    verify_totp_code,
+    generate_backup_codes,
+)
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_roles
 from app.models import Student, Teacher, User
-from app.services.auth_service import login, user_payload
+from app.services.auth_service import login, user_payload, force_logout_user
 from app.core.rate_limit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -33,6 +47,19 @@ class LoginRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     currentPassword: str
     newPassword: str
+
+
+class TwoFactorEnableRequest(BaseModel):
+    code: str
+
+
+class TwoFactorDisableRequest(BaseModel):
+    password: str
+
+
+class TwoFactorVerifyLoginRequest(BaseModel):
+    challengeToken: str
+    code: str
 
 
 @router.post("/login")
@@ -176,8 +203,9 @@ def change_password(
         api_error(400, "VALIDATION_ERROR", "Current password is required.")
     if not NewPassword:
         api_error(400, "VALIDATION_ERROR", "New password is required.")
-    if len(NewPassword) < 6:
-        api_error(400, "VALIDATION_ERROR", "New password must be at least 6 characters.")
+    PasswordIssue = strong_password_issue(NewPassword)
+    if PasswordIssue:
+        api_error(400, "VALIDATION_ERROR", PasswordIssue)
     if not verify_password(CurrentPassword, user.password_hash):
         api_error(400, "INVALID_PASSWORD", "Current password is incorrect.")
 
@@ -186,6 +214,125 @@ def change_password(
     user.password_changed_at = func.now()
     db.commit()
     return {"updated": True, "message": "Password updated successfully."}
+
+
+@router.post("/logout-all-sessions")
+@limiter.limit("5/minute")
+def logout_all_sessions(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Invalidate every access token already issued to the current user, including this one.
+
+    Self-service equivalent of an admin force-logout -- for a user who
+    suspects their own session/device was compromised and wants every
+    active login killed immediately without waiting to change their
+    password. The caller will need to log in again right after calling this.
+    """
+    force_logout_user(db, user)
+    return {"updated": True, "message": "You have been signed out of all sessions. Please log in again."}
+
+
+# ---------------------------------------------------------------------------
+# Two-factor authentication (TOTP). Setup/enable/disable are gated to
+# ADMIN/SUPER_ADMIN for now, per the 2026-07-21 security audit's Phase 2
+# scope ("prioritized for the Admin role first") -- the highest-value
+# account on the platform gets the strongest protection first. verify-login
+# itself is intentionally not role-gated so it keeps working correctly if
+# 2FA is ever extended to other roles later.
+# ---------------------------------------------------------------------------
+
+@router.post("/2fa/setup")
+def two_factor_setup(user: User = Depends(require_roles("ADMIN", "SUPER_ADMIN")), db: Session = Depends(get_db)):
+    """Generate a new TOTP secret and return it as a QR code, but do not enable 2FA yet.
+
+    The secret is stored as "pending" until confirmed via a correct code at
+    POST /2fa/enable -- this prevents a user from locking themselves into a
+    broken 2FA setup (e.g. mis-scanned QR code) with no way back in.
+    """
+    Secret = generate_totp_secret()
+    user.totp_pending_secret = Secret
+    db.commit()
+    AccountLabel = user.email or user.phone or user.full_name or user.id
+    Uri = totp_provisioning_uri(Secret, AccountLabel)
+    return {
+        "secret": Secret,
+        "qrCodeDataUrl": totp_qr_code_data_url(Uri),
+        "otpauthUri": Uri,
+    }
+
+
+@router.post("/2fa/enable")
+def two_factor_enable(
+    payload: TwoFactorEnableRequest,
+    user: User = Depends(require_roles("ADMIN", "SUPER_ADMIN")),
+    db: Session = Depends(get_db),
+):
+    if not user.totp_pending_secret:
+        api_error(400, "NO_PENDING_SETUP", "Start 2FA setup first by calling /2fa/setup.")
+    if not verify_totp_code(user.totp_pending_secret, payload.code):
+        api_error(400, "INVALID_CODE", "That code didn't match. Check your authenticator app and try again.")
+
+    BackupCodes = generate_backup_codes()
+    user.totp_secret = user.totp_pending_secret
+    user.totp_pending_secret = None
+    user.totp_enabled = True
+    user.totp_backup_codes_json = json.dumps([hash_password(code) for code in BackupCodes])
+    db.commit()
+    return {
+        "updated": True,
+        "message": "Two-factor authentication is now enabled.",
+        # Shown exactly once -- only the hashes are ever stored, the same
+        # trust model as a password. If these are lost, disable and re-enable
+        # 2FA to get a fresh set.
+        "backupCodes": BackupCodes,
+    }
+
+
+@router.post("/2fa/disable")
+def two_factor_disable(
+    payload: TwoFactorDisableRequest,
+    user: User = Depends(require_roles("ADMIN", "SUPER_ADMIN")),
+    db: Session = Depends(get_db),
+):
+    # Require the current password to disable, not just an active session --
+    # otherwise a stolen/leaked session token alone could turn off 2FA and
+    # remove the very protection it exists to provide.
+    if not verify_password(payload.password or "", user.password_hash):
+        api_error(400, "INVALID_PASSWORD", "Password is incorrect.")
+    user.totp_secret = None
+    user.totp_pending_secret = None
+    user.totp_enabled = False
+    user.totp_backup_codes_json = None
+    db.commit()
+    return {"updated": True, "message": "Two-factor authentication has been disabled."}
+
+
+@router.post("/2fa/verify-login")
+@limiter.limit("10/minute")
+def two_factor_verify_login(request: Request, payload: TwoFactorVerifyLoginRequest, db: Session = Depends(get_db)):
+    UserId = decode_two_factor_challenge_token(payload.challengeToken)
+    if not UserId:
+        api_error(401, "UNAUTHORIZED", "This verification step has expired. Please log in again.")
+
+    user = db.get(User, UserId)
+    if not user or not user.is_active or not user.totp_enabled:
+        api_error(401, "UNAUTHORIZED", "This verification step has expired. Please log in again.")
+
+    Code = (payload.code or "").strip()
+    if verify_totp_code(user.totp_secret, Code):
+        token = create_access_token(user.id, user.role)
+        return {"accessToken": token, "tokenType": "Bearer", "user": user_payload(db, user)}
+
+    # Fall back to a one-time backup code -- consumed on use, same as any
+    # other single-use recovery credential.
+    StoredHashes = json.loads(user.totp_backup_codes_json or "[]")
+    for Index, StoredHash in enumerate(StoredHashes):
+        if verify_password(Code, StoredHash):
+            del StoredHashes[Index]
+            user.totp_backup_codes_json = json.dumps(StoredHashes)
+            db.commit()
+            token = create_access_token(user.id, user.role)
+            return {"accessToken": token, "tokenType": "Bearer", "user": user_payload(db, user)}
+
+    api_error(401, "INVALID_CODE", "That code didn't match. Check your authenticator app and try again.")
 
 
 @router.get("/ping")

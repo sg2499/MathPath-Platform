@@ -3,7 +3,14 @@
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { NotificationsBell } from "@/components/common/NotificationsBell";
 import { apiErrorMessage } from "@/lib/api";
-import { changePassword, uploadProfilePhoto } from "@/lib/api/auth";
+import {
+  changePassword,
+  disableTwoFactor,
+  enableTwoFactor,
+  logoutAllSessions,
+  startTwoFactorSetup,
+  uploadProfilePhoto,
+} from "@/lib/api/auth";
 import {
   clearAuth,
   getStoredUser,
@@ -163,6 +170,7 @@ export function AppShell({
   const [ProfileModalOpen, SetProfileModalOpen] = useState(false);
   const [SettingsModalOpen, SetSettingsModalOpen] = useState(false);
   const [PasswordModalOpen, SetPasswordModalOpen] = useState(false);
+  const [TwoFactorModalOpen, SetTwoFactorModalOpen] = useState(false);
   const [PhotoUploading, SetPhotoUploading] = useState(false);
   const [AccountNotice, SetAccountNotice] = useState<string | null>(null);
   const [AccountError, SetAccountError] = useState<string | null>(null);
@@ -716,8 +724,12 @@ export function AppShell({
       SetAccountError("Current password is required.");
       return;
     }
-    if (NewPassword.trim().length < 6) {
-      SetAccountError("New password must be at least 6 characters.");
+    if (NewPassword.trim().length < 8) {
+      SetAccountError("New password must be at least 8 characters.");
+      return;
+    }
+    if (!/[A-Za-z]/.test(NewPassword) || !/[0-9]/.test(NewPassword)) {
+      SetAccountError("New password must include at least one letter and one number.");
       return;
     }
     if (NewPassword !== ConfirmPassword) {
@@ -745,6 +757,18 @@ export function AppShell({
 
   function HandleSignOut() {
     SetAccountMenuOpen(false);
+    logout();
+  }
+
+  async function HandleSignOutAllSessions() {
+    try {
+      await logoutAllSessions();
+    } catch {
+      // Best-effort: even if the request fails (e.g. the session was
+      // already invalidated), still clear local state and send the user
+      // back to login below -- there's no useful recovery action here.
+    }
+    SetSettingsModalOpen(false);
     logout();
   }
 
@@ -1463,6 +1487,11 @@ export function AppShell({
             SetSettingsModalOpen(false);
             SetPasswordModalOpen(true);
           }}
+          onManageTwoFactor={() => {
+            SetSettingsModalOpen(false);
+            SetTwoFactorModalOpen(true);
+          }}
+          onSignOutAllSessions={HandleSignOutAllSessions}
         />
       ) : null}
 
@@ -1477,6 +1506,18 @@ export function AppShell({
           onConfirmPasswordChange={SetConfirmPassword}
           onSubmit={HandlePasswordUpdate}
           onClose={() => SetPasswordModalOpen(false)}
+        />
+      ) : null}
+
+      {MountedUser && TwoFactorModalOpen ? (
+        <TwoFactorModal
+          user={MountedUser}
+          onClose={() => SetTwoFactorModalOpen(false)}
+          onChanged={(Enabled) => {
+            const Updated = { ...MountedUser, twoFactorEnabled: Enabled };
+            updateStoredUser(Updated);
+            SetMountedUser(Updated);
+          }}
         />
       ) : null}
 
@@ -1787,6 +1828,8 @@ function SettingsModal({
   onToggleTheme,
   onUpdatePhoto,
   onChangePassword,
+  onManageTwoFactor,
+  onSignOutAllSessions,
 }: {
   user: NonNullable<StoredUser>;
   avatarUrl: string;
@@ -1796,7 +1839,10 @@ function SettingsModal({
   onToggleTheme: () => void;
   onUpdatePhoto: () => void;
   onChangePassword: () => void;
+  onManageTwoFactor: () => void;
+  onSignOutAllSessions: () => void;
 }) {
+  const CanUseTwoFactor = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
   return (
     <ModalFrame title="Account Settings" onClose={onClose}>
       <SettingsSection icon={<Camera size={17} />} title="Update Photo">
@@ -1886,6 +1932,58 @@ function SettingsModal({
             Change Password
           </button>
         </div>
+
+        {CanUseTwoFactor ? (
+          <div
+            className="mt-3 flex items-center justify-between gap-4 rounded-2xl border p-3"
+            style={{
+              borderColor: "var(--theme-border)",
+              background: "var(--theme-elevated-soft)",
+            }}
+          >
+            <div>
+              <p className="text-sm font-black text-slate-950 dark:text-white">
+                Two-Factor Authentication
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {user.twoFactorEnabled
+                  ? "Enabled -- an authenticator app code is required at login."
+                  : "Add an authenticator app code as a second login step."}
+              </p>
+            </div>
+            <button
+              className="math-button-secondary px-3 py-2 text-sm"
+              onClick={onManageTwoFactor}
+            >
+              <ShieldCheck size={15} />
+              {user.twoFactorEnabled ? "Manage" : "Set Up"}
+            </button>
+          </div>
+        ) : null}
+
+        <div
+          className="mt-3 flex items-center justify-between gap-4 rounded-2xl border p-3"
+          style={{
+            borderColor: "var(--theme-border)",
+            background: "var(--theme-elevated-soft)",
+          }}
+        >
+          <div>
+            <p className="text-sm font-black text-slate-950 dark:text-white">
+              Sign Out Everywhere
+            </p>
+            <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Immediately end every active session on every device, including this one.
+            </p>
+          </div>
+          <button
+            className="math-button-secondary px-3 py-2 text-sm"
+            onClick={onSignOutAllSessions}
+          >
+            <LogOut size={15} />
+            Sign Out All
+          </button>
+        </div>
       </SettingsSection>
     </ModalFrame>
   );
@@ -1968,6 +2066,208 @@ function PasswordModal({
           Update Password
         </button>
       </div>
+    </ModalFrame>
+  );
+}
+
+function TwoFactorModal({
+  user,
+  onClose,
+  onChanged,
+}: {
+  user: NonNullable<StoredUser>;
+  onClose: () => void;
+  onChanged: (enabled: boolean) => void;
+}) {
+  type TwoFactorStep = "status" | "setup" | "backup-codes" | "disable";
+  const [Step, SetStep] = useState<TwoFactorStep>(user.twoFactorEnabled ? "status" : "status");
+  const [Loading, SetLoading] = useState(false);
+  const [Error, SetError] = useState<string | null>(null);
+  const [SetupData, SetSetupData] = useState<{ secret: string; qrCodeDataUrl: string } | null>(null);
+  const [Code, SetCode] = useState("");
+  const [BackupCodes, SetBackupCodes] = useState<string[]>([]);
+  const [DisablePassword, SetDisablePassword] = useState("");
+
+  async function HandleStartSetup() {
+    SetError(null);
+    SetLoading(true);
+    try {
+      const Response = await startTwoFactorSetup();
+      SetSetupData({ secret: Response.secret, qrCodeDataUrl: Response.qrCodeDataUrl });
+      SetStep("setup");
+    } catch (ErrorValue) {
+      SetError(apiErrorMessage(ErrorValue));
+    } finally {
+      SetLoading(false);
+    }
+  }
+
+  async function HandleConfirmEnable() {
+    if (!Code.trim()) {
+      SetError("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
+    SetError(null);
+    SetLoading(true);
+    try {
+      const Response = await enableTwoFactor(Code.trim());
+      SetBackupCodes(Response.backupCodes);
+      SetStep("backup-codes");
+      SetCode("");
+      onChanged(true);
+    } catch (ErrorValue) {
+      SetError(apiErrorMessage(ErrorValue));
+    } finally {
+      SetLoading(false);
+    }
+  }
+
+  async function HandleConfirmDisable() {
+    if (!DisablePassword) {
+      SetError("Enter your password to confirm.");
+      return;
+    }
+    SetError(null);
+    SetLoading(true);
+    try {
+      await disableTwoFactor(DisablePassword);
+      SetDisablePassword("");
+      onChanged(false);
+      onClose();
+    } catch (ErrorValue) {
+      SetError(apiErrorMessage(ErrorValue));
+    } finally {
+      SetLoading(false);
+    }
+  }
+
+  return (
+    <ModalFrame title="Two-Factor Authentication" onClose={onClose} compact>
+      {Error ? (
+        <div
+          role="alert"
+          className="mb-4 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200"
+        >
+          {Error}
+        </div>
+      ) : null}
+
+      {Step === "status" && !user.twoFactorEnabled ? (
+        <div className="grid gap-4">
+          <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+            Two-factor authentication adds a second step to login using an authenticator app
+            (like Google Authenticator or Authy), on top of your password.
+          </p>
+          <button className="math-button-primary px-4 py-3" onClick={HandleStartSetup} disabled={Loading}>
+            {Loading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+            Set Up Two-Factor Authentication
+          </button>
+        </div>
+      ) : null}
+
+      {Step === "status" && user.twoFactorEnabled ? (
+        <div className="grid gap-4">
+          <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+            Two-factor authentication is currently <strong>enabled</strong> on this account.
+          </p>
+          <button
+            className="math-button-secondary px-4 py-3 text-rose-600 dark:text-rose-300"
+            onClick={() => SetStep("disable")}
+            disabled={Loading}
+          >
+            Disable Two-Factor Authentication
+          </button>
+        </div>
+      ) : null}
+
+      {Step === "setup" && SetupData ? (
+        <div className="grid gap-4">
+          <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+            Scan this QR code with your authenticator app, then enter the 6-digit code it shows.
+          </p>
+          <div className="flex justify-center rounded-2xl border p-4" style={{ borderColor: "var(--theme-border)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- server-generated base64 data URL, not a static asset */}
+            <img src={SetupData.qrCodeDataUrl} alt="Two-factor authentication QR code" width={200} height={200} />
+          </div>
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Can&apos;t scan it? Enter this key manually: <code className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">{SetupData.secret}</code>
+          </p>
+          <label className="grid gap-2">
+            <span className="math-label">6-Digit Code</span>
+            <input
+              className="math-input text-center tracking-[0.35em]"
+              type="text"
+              inputMode="numeric"
+              value={Code}
+              onChange={(Event) => SetCode(Event.target.value)}
+              placeholder="123456"
+              autoFocus
+            />
+          </label>
+          <div className="flex justify-end gap-3">
+            <button className="math-button-secondary px-4 py-3" onClick={() => SetStep("status")} disabled={Loading}>
+              Cancel
+            </button>
+            <button className="math-button-primary px-4 py-3" onClick={HandleConfirmEnable} disabled={Loading}>
+              {Loading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+              Enable
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {Step === "backup-codes" ? (
+        <div className="grid gap-4">
+          <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+            Two-factor authentication is now enabled. Save these one-time backup codes somewhere
+            safe -- each one can be used to log in if you ever lose access to your authenticator
+            app. They will not be shown again.
+          </p>
+          <div
+            className="grid grid-cols-2 gap-2 rounded-2xl border p-4 font-mono text-sm"
+            style={{ borderColor: "var(--theme-border)", background: "var(--theme-elevated-soft)" }}
+          >
+            {BackupCodes.map((BackupCode) => (
+              <span key={BackupCode}>{BackupCode}</span>
+            ))}
+          </div>
+          <button className="math-button-primary px-4 py-3" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      ) : null}
+
+      {Step === "disable" ? (
+        <div className="grid gap-4">
+          <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+            Enter your password to confirm disabling two-factor authentication.
+          </p>
+          <label className="grid gap-2">
+            <span className="math-label">Password</span>
+            <input
+              className="math-input"
+              type="password"
+              value={DisablePassword}
+              onChange={(Event) => SetDisablePassword(Event.target.value)}
+              autoComplete="current-password"
+              autoFocus
+            />
+          </label>
+          <div className="flex justify-end gap-3">
+            <button className="math-button-secondary px-4 py-3" onClick={() => SetStep("status")} disabled={Loading}>
+              Cancel
+            </button>
+            <button
+              className="math-button-primary px-4 py-3"
+              onClick={HandleConfirmDisable}
+              disabled={Loading}
+            >
+              {Loading ? <Loader2 size={16} className="animate-spin" /> : null}
+              Confirm Disable
+            </button>
+          </div>
+        </div>
+      ) : null}
     </ModalFrame>
   );
 }

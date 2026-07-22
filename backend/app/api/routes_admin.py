@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import secrets
 import shutil
@@ -34,7 +35,7 @@ from app.services.reattempt_operational_service import CountNeedsReattemptConcep
 from app.services.curriculum_service import dps_config_payload, get_dps_or_404
 from app.services.generation_service import build_preview_seed, generate_preview
 from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
-from app.services.auth_service import public_profile_photo_url
+from app.services.auth_service import public_profile_photo_url, force_logout_user
 from app.services.report_export_service import BuildWorkbookResponse, BuildParentProgressPdfResponse, BuildParentProgressPdfBytes, ReportGeneratedOn
 from app.services.email_service import (
     DiagnoseSmtpConfiguration,
@@ -950,6 +951,20 @@ def reset_teacher_password_route(request: Request, teacher_id: str, payload: Res
     return {"updated": True, "message": "Teacher password reset successfully.", "login": {"identifier": teacher_user.email or teacher_user.phone or teacher.teacher_code, "password": password}}
 
 
+@router.post("/teachers/{teacher_id}/force-logout")
+@limiter.limit("10/minute")
+def force_logout_teacher_route(request: Request, teacher_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """Immediately invalidate every active session for this teacher, no password reset required."""
+    teacher = db.get(Teacher, teacher_id)
+    if not teacher:
+        api_error(404, "NOT_FOUND", "Teacher not found.")
+    teacher_user = db.get(User, teacher.user_id)
+    if not teacher_user:
+        api_error(404, "NOT_FOUND", "Teacher user profile not found.")
+    force_logout_user(db, teacher_user)
+    return {"updated": True, "message": "Teacher has been signed out of all active sessions."}
+
+
 
 @router.post("/teachers/{teacher_id}/photo")
 def upload_teacher_photo_route(
@@ -1214,6 +1229,20 @@ def reset_student_password_route(request: Request, student_id: str, payload: Res
     return {"updated": True, "message": "Student password reset successfully.", "login": {"identifier": student.student_code, "password": password}}
 
 
+@router.post("/students/{student_id}/force-logout")
+@limiter.limit("10/minute")
+def force_logout_student_route(request: Request, student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """Immediately invalidate every active session for this student, no password reset required."""
+    student = db.get(Student, student_id)
+    if not student:
+        api_error(404, "NOT_FOUND", "Student not found.")
+    student_user = db.get(User, student.user_id)
+    if not student_user:
+        api_error(404, "NOT_FOUND", "Student user profile not found.")
+    force_logout_user(db, student_user)
+    return {"updated": True, "message": "Student has been signed out of all active sessions."}
+
+
 @router.post("/students/{student_id}/photo")
 def upload_student_photo(student_id: str, file: UploadFile = File(...), db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     student = db.get(Student, student_id)
@@ -1467,11 +1496,24 @@ def download_students_template(user: User = Depends(admin_dep)):
     return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
 
 
+MAX_BULK_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
 @router.post("/students/bulk-upload")
 def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     FileName = file.filename or ""
     if not FileName.lower().endswith((".xlsx", ".xlsm")):
         api_error(400, "INVALID_FILE", "Please upload the official MathPath Excel template in .xlsx or .xlsm format.")
+
+    # Guard against memory exhaustion before handing the raw stream to
+    # openpyxl, which loads the entire workbook into memory to parse it. A
+    # legitimate bulk-upload template is a few dozen KB even for hundreds of
+    # students, so this ceiling is generous headroom, not a tight limit.
+    file.file.seek(0, os.SEEK_END)
+    FileSizeBytes = file.file.tell()
+    file.file.seek(0)
+    if FileSizeBytes > MAX_BULK_UPLOAD_BYTES:
+        api_error(400, "FILE_TOO_LARGE", "Upload file must be under 5 MB.")
 
     try:
         WorkbookObject = load_workbook(file.file, data_only=True)

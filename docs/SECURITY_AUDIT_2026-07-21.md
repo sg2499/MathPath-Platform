@@ -2,7 +2,9 @@
 
 > **Phase 0 status: DELIVERED AND MERGED (PR #361, commit `4415372`).** Fixed: hardcoded default passwords in the admin create/reset-password backend endpoints *and* the admin frontend forms that pre-filled them, scrubbed every plaintext credential from every tracked file, hardened 6 Playwright specs, extended the CI exposure-audit tool to actually catch this class of issue going forward. Admin password rotated by Shailesh, confirmed done. The other three accounts (`MP-T-001`/`MP-ST-001`/`MP-ST-006`) intentionally left as-is per his call (test accounts being removed). `backend/mathpath.db.pre_im_l3_backup` purged from git history via `git filter-repo`, confirmed gone from `origin/main`. Nothing left open on Phase 0. Full narrative in `COWORK_HANDOFF.md`'s "2026-07-21 update (security audit Phase 0 delivery)" entry.
 >
-> **Phase 1 status: PREPARED, NOT YET DELIVERED**, on branch `security/phase-1-hardening`. All 7 items below implemented and self-verified (36/36 backend tests, live-exercised the login and profile-photo fixes against a real DB, security headers confirmed present on every response). One item (the env-var mismatch, #7 below) needed and got Shailesh's explicit sign-off before touching it, since it could have changed live production behavior — he chose to preserve current behavior and just make the config honest. Full detail in `COWORK_HANDOFF.md`'s "2026-07-21 update (security audit Phase 1)" entry. Blocked on a local Claude Code session to commit/push/PR/merge.
+> **Phase 1 status: DELIVERED AND MERGED (PR #362).** All 7 high-severity items shipped. Full detail in `COWORK_HANDOFF.md`'s "2026-07-21 update (security audit Phase 1)" entry.
+>
+> **Phase 2 status: PREPARED, NOT YET DELIVERED**, on branch `security/phase-2-hardening`. All 7 items below implemented and self-verified. Notably, building and testing the new force-logout mechanism surfaced a real, previously-shipped bug: the existing `password_changed_at` session-invalidation check had an `api_error()` call (which raises) sitting inside a `try/except Exception: pass` block, silently swallowing its own exception — meaning that check had likely never actually rejected a stale token in any environment since it shipped. Fixed alongside the new check. One item (password policy scope) reflects an explicit product decision from Shailesh: admin-issued initial/reset passwords for students/teachers stay simple (`first_name-last_name`, no complexity requirement) for onboarding feasibility at scale, with the real policy enforced only when a user changes their own password. Full detail in `COWORK_HANDOFF.md`'s "2026-07-21 update (security audit Phase 2)" entry. Blocked on a local Claude Code session to commit/push/PR/merge, plus a real `npm run typecheck && npm run build` pass and `npm audit fix` for the frontend fixes this round couldn't complete in-sandbox.
 
 Scope: full read-through of `backend/app` (auth, API routes, services, config) and `frontend` (auth/token handling, env exposure, XSS surface), plus a repo-wide scan for leaked secrets, dependency posture, and infra config (`render.yaml`, `.gitignore`). This was a code-level audit (static review), not a live penetration test — see "Before public launch" at the end for what a pen test should cover that this couldn't.
 
@@ -91,13 +93,13 @@ To be clear about where the platform actually stands, not just what's wrong:
 
 ### Phase 2 — next 2–4 weeks (defense-in-depth hardening)
 
-12. Run `pip-audit` and `npm audit` for real (this session's sandbox can check code but not run a full network-based audit reliably) and enable Dependabot/Renovate on the repo.
-13. Strengthen password policy (8+ chars, basic complexity) at every account-creation/change path, not just one.
-14. Add optional TOTP-based 2FA, prioritized for the Admin role first.
-15. Add a lightweight token-revocation mechanism so a compromised session can be force-logged-out without requiring a password change.
-16. Evaluate moving access tokens from `localStorage` to httpOnly cookies — bigger change, worth scoping separately rather than bundling into this pass.
-17. Add a file-size guard ahead of `openpyxl` parsing in bulk-upload.
-18. Review `python-jose` vs. `PyJWT`/`Authlib` and decide whether to migrate.
+12. ~~Run `pip-audit` and `npm audit` for real~~ — done. Backend deps bumped and verified (`python-jose`, `python-dotenv`, `python-multipart`); `starlette`/`pytest` investigated but deferred (see Phase 2 delivery notes). Frontend's safe fixes still need `npm audit fix` run locally. `.github/dependabot.yml` added for ongoing monitoring.
+13. ~~Strengthen password policy~~ — done, but scope was deliberately revised from "every path" after discussion with Shailesh: the policy (8+ chars, letter + number) applies **only** at the self-service change-password path. Admin-issued initial/reset passwords intentionally stay simple (e.g. `first_name-last_name`) so onboarding many students at once stays practical — see the Phase 2 delivery notes for the full reasoning.
+14. ~~Add optional TOTP-based 2FA, prioritized for the Admin role first~~ — done, full feature (setup, QR code, backup codes, login step), scoped to Admin/Super Admin.
+15. ~~Add a lightweight token-revocation mechanism~~ — done, plus a real pre-existing bug found and fixed in the adjacent `password_changed_at` check (see Phase 2 delivery notes).
+16. Evaluate moving access tokens from `localStorage` to httpOnly cookies — **still deferred**, per this item's own original recommendation to scope it separately.
+17. ~~Add a file-size guard ahead of `openpyxl` parsing in bulk-upload~~ — done, 5MB ceiling.
+18. ~~Review `python-jose` vs. `PyJWT`/`Authlib`~~ — done. Not urgent: the known CVEs are now patched by the 3.4.0 version bump. A future migration to PyJWT would be low-risk (JWT usage is fully centralized in one file) if wanted later, but isn't required now.
 
 ### Phase 3 — before/at public launch
 
