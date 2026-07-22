@@ -17,6 +17,7 @@ import {
   generateAdminAssessmentPreview,
   getAdminAssessmentBlueprints,
   getAdminGeneratedAssessment,
+  getAssessmentSectionsForLevel,
   getLessons,
   getLevels,
   getModules,
@@ -26,6 +27,7 @@ import {
   updateAdminAssessmentBlueprint,
   type AssessmentBlueprint,
   type AssessmentGeneratedVersion,
+  type AssessmentSectionItem,
 } from "@/lib/api/admin";
 import type { LessonItem } from "@/types/curriculum";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -59,18 +61,25 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 type BlueprintStatusFilter = "" | "ALL" | "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
-type LessonDistributionState = {
-  lessonId: string;
-  lessonNumber: number;
-  lessonTitle: string;
+// Generic distribution row -- covers both YLM's lesson-wise distribution and
+// IM/MM's section-wise distribution (2026-07-22). itemId/itemNumber/itemTitle
+// hold a lessonId/lessonNumber/lessonTitle or a sectionKey/sectionNumber/
+// sectionTitle depending on isSection, so the whole Create-tab matrix, Manage
+// card preview, and detail tabs below can share one code path instead of two
+// parallel ones.
+type DistributionRowState = {
+  itemId: string;
+  itemNumber: number;
+  itemTitle: string;
   questionCount: number;
+  isSection: boolean;
 };
 
 function secondsFromMinutes(value: number) {
   return Math.max(60, Math.round(value * 60));
 }
 
-function distributeEvenly(lessons: LessonItem[], totalQuestions: number): LessonDistributionState[] {
+function distributeEvenlyFromLessons(lessons: LessonItem[], totalQuestions: number): DistributionRowState[] {
   if (!lessons.length) return [];
   const safeTotal = Math.max(lessons.length, Number(totalQuestions || lessons.length));
   const base = Math.floor(safeTotal / lessons.length);
@@ -79,20 +88,69 @@ function distributeEvenly(lessons: LessonItem[], totalQuestions: number): Lesson
     const extra = remainder > 0 ? 1 : 0;
     remainder -= extra;
     return {
-      lessonId: lesson.lessonId,
-      lessonNumber: lesson.lessonNumber,
-      lessonTitle: lesson.lessonTitle,
+      itemId: lesson.lessonId,
+      itemNumber: lesson.lessonNumber,
+      itemTitle: lesson.lessonTitle,
       questionCount: Math.max(1, base + extra),
+      isSection: false,
     };
   });
 }
 
-function sumDistribution(distribution: LessonDistributionState[]) {
+function distributeEvenlyFromSections(sections: AssessmentSectionItem[], totalQuestions: number): DistributionRowState[] {
+  if (!sections.length) return [];
+  const safeTotal = Math.max(sections.length, Number(totalQuestions || sections.length));
+  const base = Math.floor(safeTotal / sections.length);
+  let remainder = safeTotal % sections.length;
+  return sections.map((section) => {
+    const extra = remainder > 0 ? 1 : 0;
+    remainder -= extra;
+    return {
+      itemId: section.sectionKey,
+      itemNumber: section.sectionNumber,
+      itemTitle: section.sectionTitle,
+      questionCount: Math.max(1, base + extra),
+      isSection: true,
+    };
+  });
+}
+
+function sumDistribution(distribution: DistributionRowState[]) {
   return distribution.reduce((sum, item) => sum + Number(item.questionCount || 0), 0);
 }
 
 function marksPerQuestion(totalQuestions: number) {
   return totalQuestions ? "Auto-Balanced" : "-";
+}
+
+// MM is flat 1 mark/question everywhere; IM (and any future concept-weighted
+// module) is 5 marks for Skill Stacker/Concept Drill and 1 otherwise; every
+// other module (YLM) keeps the original fixed-100-total auto-balanced
+// scheme. See ResolvedAssessmentQuestionMark() in assessment_engine_service.py.
+function marksModeLabel(moduleCode: string | null | undefined) {
+  if (moduleCode === "MM") return "Flat (1 Each)";
+  if (moduleCode === "IM") return "Concept-Weighted";
+  return "Auto-Balanced";
+}
+
+// Normalizes a saved blueprint's distribution (whichever mode it's in) into
+// one shape for read-only display -- Manage cards, Overview tab -- so those
+// don't need their own SECTION_WISE/LESSON_WISE branching.
+function blueprintDistributionEntries(item: AssessmentBlueprint) {
+  if (item.distributionMode === "SECTION_WISE") {
+    return (item.sectionDistribution || []).map((section) => ({
+      key: section.sectionKey,
+      label: section.sectionNumber != null ? `S${section.sectionNumber}` : section.sectionKey,
+      title: section.sectionTitle || section.sectionKey,
+      questionCount: section.questionCount,
+    }));
+  }
+  return (item.lessonDistribution || []).map((lesson) => ({
+    key: lesson.lessonId,
+    label: `L${lesson.lessonNumber}`,
+    title: lesson.lessonTitle,
+    questionCount: lesson.questionCount,
+  }));
 }
 
 function statusTone(status: string) {
@@ -148,11 +206,16 @@ export default function AdminAssessmentBlueprintBuilderPage() {
   const [totalQuestions, setTotalQuestions] = useState(40);
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [instructions, setInstructions] = useState("Answer all questions carefully. Review your work before submitting.");
-  const [distribution, setDistribution] = useState<LessonDistributionState[]>([]);
+  const [distribution, setDistribution] = useState<DistributionRowState[]>([]);
 
   const modulesQuery = useQuery({ queryKey: ["admin-modules"], queryFn: getModules, enabled: ready });
   const levelsQuery = useQuery({ queryKey: ["admin-levels", moduleId], queryFn: () => getLevels(moduleId), enabled: ready && Boolean(moduleId) });
   const lessonsQuery = useQuery({ queryKey: ["admin-lessons", levelId], queryFn: () => getLessons(levelId), enabled: ready && Boolean(levelId) });
+  // Probed for every selected level -- isSectionWise tells the Create tab
+  // whether to build its distribution matrix from mock sections (IM/MM) or
+  // fall back to the lesson-wise matrix above (YLM, or any module without a
+  // section registry yet). See /admin/levels/{levelId}/assessment-sections.
+  const sectionsQuery = useQuery({ queryKey: ["admin-assessment-sections", levelId], queryFn: () => getAssessmentSectionsForLevel(levelId), enabled: ready && Boolean(levelId) });
   const blueprintsQuery = useQuery({
     queryKey: ["admin-assessment-blueprints", statusFilter],
     queryFn: () => getAdminAssessmentBlueprints({ includeArchived: statusFilter === "ARCHIVED" || statusFilter === "ALL" || !statusFilter, status: !statusFilter || statusFilter === "ALL" ? undefined : statusFilter }),
@@ -162,14 +225,24 @@ export default function AdminAssessmentBlueprintBuilderPage() {
   const modules = modulesQuery.data ?? [];
   const levels = levelsQuery.data ?? [];
   const lessons = lessonsQuery.data ?? [];
+  const isSectionWiseLevel = Boolean(sectionsQuery.data?.isSectionWise);
+  const sections = isSectionWiseLevel ? sectionsQuery.data?.sections ?? [] : [];
   const blueprints = blueprintsQuery.data?.items ?? [];
+  const itemNoun = isSectionWiseLevel ? "Section" : "Lesson";
+  const distributionSourceCount = isSectionWiseLevel ? sections.length : lessons.length;
 
   useEffect(() => { setLevelId(""); setDistribution([]); }, [moduleId]);
   useEffect(() => { setManageLevelFilter(""); }, [manageModuleFilter]);
   useEffect(() => {
+    if (!levelId || sectionsQuery.isLoading) return;
+    if (isSectionWiseLevel) {
+      if (!sections.length) { setDistribution([]); return; }
+      setDistribution(distributeEvenlyFromSections(sections, totalQuestions));
+      return;
+    }
     if (!lessons.length) { setDistribution([]); return; }
-    setDistribution(distributeEvenly(lessons, totalQuestions));
-  }, [levelId, lessons.length]);
+    setDistribution(distributeEvenlyFromLessons(lessons, totalQuestions));
+  }, [levelId, lessons.length, sections.length, isSectionWiseLevel, sectionsQuery.isLoading]);
 
   const selectedModule = modules.find((item) => item.moduleId === moduleId);
   const selectedLevel = levels.find((item) => item.levelId === levelId);
@@ -211,16 +284,23 @@ export default function AdminAssessmentBlueprintBuilderPage() {
     );
   }, [blueprints, search, manageModuleFilter, manageLevelFilter]);
 
+  function toDistributionPayload(rows: DistributionRowState[]) {
+    return rows.map((item) => item.isSection
+      ? { sectionKey: item.itemId, questionCount: Number(item.questionCount) }
+      : { lessonId: item.itemId, questionCount: Number(item.questionCount), conceptRules: {} });
+  }
+
   const createMutation = useMutation({
     mutationFn: (status: "DRAFT" | "PUBLISHED") => createAdminAssessmentBlueprint({
       title: title.trim(), moduleId, levelId, totalQuestions, durationSeconds: secondsFromMinutes(60), instructions, status,
-      lessonDistribution: distribution.map((item) => ({ lessonId: item.lessonId, questionCount: Number(item.questionCount), conceptRules: {} })),
+      lessonDistribution: toDistributionPayload(distribution),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-assessment-blueprints"] });
       setTitle("");
       setInstructions("Answer all questions carefully. Review your work before submitting.");
-      if (lessons.length) setDistribution(distributeEvenly(lessons, totalQuestions));
+      if (isSectionWiseLevel) { if (sections.length) setDistribution(distributeEvenlyFromSections(sections, totalQuestions)); }
+      else if (lessons.length) setDistribution(distributeEvenlyFromLessons(lessons, totalQuestions));
     },
   });
   const updateMutation = useMutation({
@@ -231,7 +311,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
         totalQuestions,
         durationSeconds: secondsFromMinutes(60),
         instructions,
-        lessonDistribution: distribution.map((item) => ({ lessonId: item.lessonId, questionCount: Number(item.questionCount), conceptRules: {} })),
+        lessonDistribution: toDistributionPayload(distribution),
       });
     },
     onSuccess: () => {
@@ -266,23 +346,35 @@ export default function AdminAssessmentBlueprintBuilderPage() {
     setTotalQuestions(Number(item.totalQuestions || 40));
     setDurationMinutes(60);
     setInstructions(item.instructions || "");
-    setDistribution((item.lessonDistribution || []).map((lesson) => ({
-      lessonId: lesson.lessonId,
-      lessonNumber: lesson.lessonNumber,
-      lessonTitle: lesson.lessonTitle,
-      questionCount: lesson.questionCount,
-    })));
+    if (item.distributionMode === "SECTION_WISE") {
+      setDistribution((item.sectionDistribution || []).map((section) => ({
+        itemId: section.sectionKey,
+        itemNumber: section.sectionNumber ?? 0,
+        itemTitle: section.sectionTitle || section.sectionKey,
+        questionCount: section.questionCount,
+        isSection: true,
+      })));
+    } else {
+      setDistribution((item.lessonDistribution || []).map((lesson) => ({
+        itemId: lesson.lessonId,
+        itemNumber: lesson.lessonNumber,
+        itemTitle: lesson.lessonTitle,
+        questionCount: lesson.questionCount,
+        isSection: false,
+      })));
+    }
   }
 
   function cancelEditBlueprint() {
     setEditingBlueprint(null);
     setTitle("");
     setInstructions("Answer all questions carefully. Review your work before submitting.");
-    if (lessons.length) setDistribution(distributeEvenly(lessons, totalQuestions));
+    if (isSectionWiseLevel) { if (sections.length) setDistribution(distributeEvenlyFromSections(sections, totalQuestions)); }
+    else if (lessons.length) setDistribution(distributeEvenlyFromLessons(lessons, totalQuestions));
   }
 
-  function updateDistribution(lessonId: string, value: number) {
-    setDistribution((current) => current.map((item) => item.lessonId === lessonId ? { ...item, questionCount: Math.max(1, Number(value || 1)) } : item));
+  function updateDistribution(itemId: string, value: number) {
+    setDistribution((current) => current.map((item) => item.itemId === itemId ? { ...item, questionCount: Math.max(1, Number(value || 1)) } : item));
   }
 
   if (!ready) return null;
@@ -358,15 +450,15 @@ export default function AdminAssessmentBlueprintBuilderPage() {
                 <Field label="Assessment Title"><input className="math-input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Example: YLM Level 1 Assessment Set A" /></Field>
                 <Field label="Module"><select className="math-select" value={moduleId} onChange={(event) => setModuleId(event.target.value)}><option value="">Select Module</option>{modules.map((module) => <option key={module.moduleId} value={module.moduleId}>{module.moduleCode} - {module.moduleName}</option>)}</select></Field>
                 <Field label="Level"><select className="math-select" value={levelId} onChange={(event) => setLevelId(event.target.value)} disabled={!moduleId || levelsQuery.isLoading}><option value="">Select Level</option>{levels.map((level) => <option key={level.levelId} value={level.levelId}>{level.levelCode} - {level.levelName}</option>)}</select></Field>
-                <div className="grid gap-3 sm:grid-cols-2"><Field label="Total Questions"><input className="math-input" type="number" min={lessons.length || 1} value={totalQuestions} onChange={(event) => setTotalQuestions(Math.max(1, Number(event.target.value || 1)))} /></Field><Field label="Duration Minutes"><input className="math-input bg-slate-50 text-slate-700" type="number" min={60} value={60} readOnly aria-readonly="true" /></Field></div>
+                <div className="grid gap-3 sm:grid-cols-2"><Field label="Total Questions"><input className="math-input" type="number" min={distributionSourceCount || 1} value={totalQuestions} onChange={(event) => setTotalQuestions(Math.max(1, Number(event.target.value || 1)))} /></Field><Field label="Duration Minutes"><input className="math-input bg-slate-50 text-slate-700" type="number" min={60} value={60} readOnly aria-readonly="true" /></Field></div>
                 <Field label="Instructions"><textarea className="math-input min-h-[124px]" value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Instructions shown to students before assessment." /></Field>
               </div>
             </div>
             <div className="rounded-[30px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><p className="math-kicker text-[10px]">Step 2</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Distribution Matrix</h3><p className="mt-1 text-sm font-semibold text-slate-500">One clean matrix for every active lesson in the selected level.</p></div><div className="flex flex-wrap gap-2"><button type="button" className="math-button-secondary px-3 py-2" disabled={!lessons.length} onClick={() => setDistribution(distributeEvenly(lessons, totalQuestions))}><Zap size={15} />Auto Balance</button><button type="button" className="math-button-secondary px-3 py-2" disabled={!lessons.length} onClick={() => setDistribution((current) => current.map((item) => ({ ...item, questionCount: 1 })))}><Minus size={15} />Clear</button></div></div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-4"><Info label="Module" value={selectedModule?.moduleCode || "-"} /><Info label="Level" value={selectedLevel?.levelCode || "-"} /><Info label="Lessons" value={lessons.length || "-"} /><Info label="Marks/Question" value={marksPerQuestion(totalQuestions) || "-"} /></div>
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><p className="math-kicker text-[10px]">Step 2</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Distribution Matrix</h3><p className="mt-1 text-sm font-semibold text-slate-500">{isSectionWiseLevel ? "One clean matrix for every section this level's mock exam uses." : "One clean matrix for every active lesson in the selected level."}</p></div><div className="flex flex-wrap gap-2"><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution(isSectionWiseLevel ? distributeEvenlyFromSections(sections, totalQuestions) : distributeEvenlyFromLessons(lessons, totalQuestions))}><Zap size={15} />Auto Balance</button><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution((current) => current.map((item) => ({ ...item, questionCount: 1 })))}><Minus size={15} />Clear</button></div></div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-4"><Info label="Module" value={selectedModule?.moduleCode || "-"} /><Info label="Level" value={selectedLevel?.levelCode || "-"} /><Info label={isSectionWiseLevel ? "Sections" : "Lessons"} value={distributionSourceCount || "-"} /><Info label="Marks/Question" value={selectedModule ? marksModeLabel(selectedModule.moduleCode) : marksPerQuestion(totalQuestions) || "-"} /></div>
               <div className={`mt-5 rounded-[24px] border p-4 ${validDistribution ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className={`text-xs font-black uppercase tracking-[0.14em] ${validDistribution ? "text-emerald-700" : "text-amber-700"}`}>Validation</p><p className={`mt-1 text-sm font-black ${validDistribution ? "text-emerald-800" : "text-amber-800"}`}>{differenceCopy(distributionDifference)}</p></div><div className={`rounded-2xl px-4 py-2 text-sm font-black ${validDistribution ? "bg-white text-emerald-700" : "bg-white text-amber-700"}`}>Difference: {distributionDifference > 0 ? "+" : ""}{distributionDifference}</div></div></div>
-              <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 dark:border-slate-800"><div className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900"><div>Lesson</div><div>Topic</div><div>Questions</div><div>Weight</div><div>Status</div></div><div className="max-h-[430px] overflow-y-auto bg-white dark:bg-slate-950">{lessonsQuery.isLoading ? <LoadingState label="Loading lessons..." /> : null}{!levelId ? <div className="p-6 text-sm font-semibold text-slate-500">Select a module and level to load the distribution matrix.</div> : null}{levelId && !lessonsQuery.isLoading && !lessons.length ? <div className="p-6 text-sm font-semibold text-slate-500">No active lessons found for this level.</div> : null}{distribution.map((item) => { const weight = totalQuestions ? ((item.questionCount / totalQuestions) * 100).toFixed(1) : "0"; return <div key={item.lessonId} className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 border-t border-slate-100 px-4 py-3 text-sm dark:border-slate-800"><div className="flex items-center"><span className="math-admin-studio-chip rounded-2xl px-3 py-2 text-xs font-black">L{item.lessonNumber}</span></div><div className="min-w-0"><p className="truncate font-black text-slate-950 dark:text-white">{item.lessonTitle}</p><p className="mt-1 text-xs font-semibold text-slate-500">Full-level coverage required</p></div><input className="math-input h-11" type="number" min={1} value={item.questionCount} onChange={(event) => updateDistribution(item.lessonId, Number(event.target.value))} /><div className="flex items-center font-black text-slate-700 dark:text-slate-200">{weight}%</div><div className="flex items-center"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Included</span></div></div>; })}</div></div>
+              <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 dark:border-slate-800"><div className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900"><div>{itemNoun}</div><div>Topic</div><div>Questions</div><div>Weight</div><div>Status</div></div><div className="max-h-[430px] overflow-y-auto bg-white dark:bg-slate-950">{lessonsQuery.isLoading || sectionsQuery.isLoading ? <LoadingState label={`Loading ${itemNoun.toLowerCase()}s...`} /> : null}{!levelId ? <div className="p-6 text-sm font-semibold text-slate-500">Select a module and level to load the distribution matrix.</div> : null}{levelId && !lessonsQuery.isLoading && !sectionsQuery.isLoading && !distributionSourceCount ? <div className="p-6 text-sm font-semibold text-slate-500">No active {itemNoun.toLowerCase()}s found for this level.</div> : null}{distribution.map((item) => { const weight = totalQuestions ? ((item.questionCount / totalQuestions) * 100).toFixed(1) : "0"; return <div key={item.itemId} className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 border-t border-slate-100 px-4 py-3 text-sm dark:border-slate-800"><div className="flex items-center"><span className="math-admin-studio-chip rounded-2xl px-3 py-2 text-xs font-black">{item.isSection ? "S" : "L"}{item.itemNumber}</span></div><div className="min-w-0"><p className="truncate font-black text-slate-950 dark:text-white">{item.itemTitle}</p><p className="mt-1 text-xs font-semibold text-slate-500">Full-level coverage required</p></div><input className="math-input h-11" type="number" min={1} value={item.questionCount} onChange={(event) => updateDistribution(item.itemId, Number(event.target.value))} /><div className="flex items-center font-black text-slate-700 dark:text-slate-200">{weight}%</div><div className="flex items-center"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Included</span></div></div>; })}</div></div>
               {createMutation.error ? <div className="mt-4"><ErrorState message={apiErrorMessage(createMutation.error)} /></div> : null}
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">{editingBlueprint ? <button type="button" className="math-button-secondary" onClick={cancelEditBlueprint} disabled={updateMutation.isPending}>Cancel Edit</button> : null}<button type="button" className="math-button-secondary" disabled={!canCreate || createMutation.isPending || updateMutation.isPending} title={!canCreate ? differenceCopy(distributionDifference) : editingBlueprint ? "Save assessment changes" : "Save as draft"} onClick={() => editingBlueprint ? updateMutation.mutate() : createMutation.mutate("DRAFT")}><Save size={17} />{editingBlueprint ? "Save Changes" : "Save Draft"}</button>{!editingBlueprint ? <button type="button" className="math-button-primary" disabled={!canCreate || createMutation.isPending} title={!canCreate ? differenceCopy(distributionDifference) : "Create and publish"} onClick={() => createMutation.mutate("PUBLISHED")}><Rocket size={17} />Create & Publish</button> : null}</div>
             </div>
@@ -442,10 +534,10 @@ function AssessmentCard({ item, onView, onEdit, onPublish, onToggleLive, onArchi
             </div>
           </div>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-4"><Info label="Questions" value={item.totalQuestions} /><Info label="Marks" value={item.totalMarks} /><Info label="Marks/Question" value="Auto-Balanced" /><Info label="Duration" value="60 Mins" /></div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-4"><Info label="Questions" value={item.totalQuestions} /><Info label="Marks" value={item.totalMarks} /><Info label="Marks/Question" value={marksModeLabel(item.moduleCode)} /><Info label="Duration" value="60 Mins" /></div>
         <div className="mt-5 rounded-[24px] bg-slate-50 p-4 dark:bg-slate-900">
-          <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-slate-600"><BookOpenCheck size={16} /><p className="text-xs font-black uppercase tracking-[0.12em]">Distribution Preview</p></div><p className="text-xs font-black text-slate-500">{item.lessonDistribution.length} lessons</p></div>
-          <div className="mt-3 flex flex-wrap gap-2">{item.lessonDistribution.slice(0, 10).map((lesson) => <span key={lesson.lessonId} className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 shadow-sm dark:bg-slate-950 dark:text-slate-200">L{lesson.lessonNumber}: {lesson.questionCount}</span>)}{item.lessonDistribution.length > 10 ? <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">+{item.lessonDistribution.length - 10} more</span> : null}</div>
+          <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-slate-600"><BookOpenCheck size={16} /><p className="text-xs font-black uppercase tracking-[0.12em]">Distribution Preview</p></div><p className="text-xs font-black text-slate-500">{blueprintDistributionEntries(item).length} {item.distributionMode === "SECTION_WISE" ? "sections" : "lessons"}</p></div>
+          <div className="mt-3 flex flex-wrap gap-2">{blueprintDistributionEntries(item).slice(0, 10).map((entry) => <span key={entry.key} className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700 shadow-sm dark:bg-slate-950 dark:text-slate-200">{entry.label}: {entry.questionCount}</span>)}{blueprintDistributionEntries(item).length > 10 ? <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">+{blueprintDistributionEntries(item).length - 10} more</span> : null}</div>
         </div>
       </div>
     </article>
@@ -530,7 +622,7 @@ function AssessmentDetailsWorkspace({ item, onBack, onRefreshBlueprints }: { ite
       <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         <DetailMetric icon={<Target size={16} />} label="Questions" value={item.totalQuestions} helper="Assessment Length" />
         <DetailMetric icon={<ShieldCheck size={16} />} label="Total Marks" value={item.totalMarks} helper="Fixed Total" />
-        <DetailMetric icon={<Calculator size={16} />} label="Marks/Question" value="Auto-Balanced" helper="Exact 100-Mark Total" />
+        <DetailMetric icon={<Calculator size={16} />} label="Marks/Question" value={marksModeLabel(item.moduleCode)} helper={item.moduleCode === "MM" ? "Every Question Is 1 Mark" : item.moduleCode === "IM" ? "5 For Skill Stacker/Concept Drill" : "Exact 100-Mark Total"} />
         <DetailMetric icon={<Clock size={16} />} label="Duration" value="60 Mins" helper="Fixed Assessment Time" />
         <DetailMetric icon={<Gauge size={16} />} label="Generated" value={generatedAssessment?.questionCount ?? 0} helper="Preview Set" />
       </section>
@@ -575,6 +667,8 @@ function AssessmentDetailsWorkspace({ item, onBack, onRefreshBlueprints }: { ite
 }
 
 function AssessmentOverviewTab({ item }: { item: AssessmentBlueprint }) {
+  const isSectionWise = item.distributionMode === "SECTION_WISE";
+  const entries = blueprintDistributionEntries(item);
   return (
     <section className="rounded-[32px] border border-white/70 bg-white/90 p-4 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
       <div className="grid gap-4 xl:grid-cols-[0.78fr_1.22fr]">
@@ -583,7 +677,7 @@ function AssessmentOverviewTab({ item }: { item: AssessmentBlueprint }) {
           <h3 className="mt-2 text-xl font-black text-slate-950 dark:text-white">Student Instructions</h3>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{item.instructions || "Answer all questions carefully before submitting."}</p>
           <div className="mt-4 rounded-[22px] bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
-            Questions are generated from the lesson-wise distribution and the concept rules mapped to this level.
+            {isSectionWise ? "Questions are generated from the section-wise distribution, mirroring this level's competition mock sections." : "Questions are generated from the lesson-wise distribution and the concept rules mapped to this level."}
           </div>
         </div>
 
@@ -591,17 +685,17 @@ function AssessmentOverviewTab({ item }: { item: AssessmentBlueprint }) {
           <div className="flex items-center justify-between gap-3 bg-slate-50 px-5 py-3 dark:bg-slate-900">
             <div>
               <p className="math-kicker text-[10px]">Distribution Matrix</p>
-              <h3 className="text-xl font-black text-slate-950 dark:text-white">Lesson-Wise Questions</h3>
+              <h3 className="text-xl font-black text-slate-950 dark:text-white">{isSectionWise ? "Section-Wise Questions" : "Lesson-Wise Questions"}</h3>
             </div>
-            <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{item.lessonDistribution.length} Lessons</span>
+            <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{entries.length} {isSectionWise ? "Sections" : "Lessons"}</span>
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {item.lessonDistribution.map((lesson) => (
-              <div key={lesson.lessonId} className="grid gap-3 px-5 py-3 sm:grid-cols-[72px_1fr_120px_90px] sm:items-center">
-                <span className="rounded-2xl math-admin-studio-chip px-3 py-2 text-center text-xs font-black">L{lesson.lessonNumber}</span>
-                <p className="truncate font-black text-slate-950 dark:text-white">{lesson.lessonTitle}</p>
-                <p className="text-sm font-black text-slate-700 dark:text-slate-200">{lesson.questionCount} Questions</p>
-                <p className="text-sm font-black text-slate-500">{item.totalQuestions ? ((lesson.questionCount / item.totalQuestions) * 100).toFixed(1) : "0"}%</p>
+            {entries.map((entry) => (
+              <div key={entry.key} className="grid gap-3 px-5 py-3 sm:grid-cols-[72px_1fr_120px_90px] sm:items-center">
+                <span className="rounded-2xl math-admin-studio-chip px-3 py-2 text-center text-xs font-black">{entry.label}</span>
+                <p className="truncate font-black text-slate-950 dark:text-white">{entry.title}</p>
+                <p className="text-sm font-black text-slate-700 dark:text-slate-200">{entry.questionCount} Questions</p>
+                <p className="text-sm font-black text-slate-500">{item.totalQuestions ? ((entry.questionCount / item.totalQuestions) * 100).toFixed(1) : "0"}%</p>
               </div>
             ))}
           </div>
@@ -646,9 +740,11 @@ function GeneratedQuestionPreview({ item, assessment, showAnswers }: { item: Ass
   }, [assessment.id]);
 
   const CurrentQuestion = Questions[CurrentIndex];
+  const CurrentQuestionSectionKey = CurrentQuestion ? (CurrentQuestion.metadata?.assessmentSectionKey as string | undefined) : undefined;
   const CurrentLessonGroup = CurrentQuestion
-    ? assessment.lessonGroups.find((Group) => Group.lessonId === CurrentQuestion.lessonId)
+    ? assessment.lessonGroups.find((Group) => (CurrentQuestionSectionKey ? Group.sectionKey === CurrentQuestionSectionKey : Group.lessonId === CurrentQuestion.lessonId))
     : null;
+  const IsSectionGroup = CurrentLessonGroup?.groupKind === "SECTION";
 
   if (!Questions.length || !CurrentQuestion) {
     return <EmptyState message="Generate Preview to create the assessment question set." />;
@@ -672,10 +768,10 @@ function GeneratedQuestionPreview({ item, assessment, showAnswers }: { item: Ass
             </h2>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">
-                Lesson {CurrentQuestion.lessonNumber ?? CurrentLessonGroup?.lessonNumber ?? "-"}
+                {IsSectionGroup ? `Section ${CurrentLessonGroup?.sectionNumber ?? "-"}` : `Lesson ${CurrentQuestion.lessonNumber ?? CurrentLessonGroup?.lessonNumber ?? "-"}`}
               </span>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                {CurrentQuestion.lessonTitle || CurrentLessonGroup?.lessonTitle || item.levelName}
+                {(IsSectionGroup ? CurrentLessonGroup?.sectionTitle : CurrentQuestion.lessonTitle) || CurrentLessonGroup?.lessonTitle || item.levelName}
               </span>
               <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">
                 {CurrentQuestion.conceptTag || "Concept Rule"}
@@ -794,11 +890,11 @@ function AssessmentCoverageCheck({ assessment, showAnswers }: { assessment: Asse
   return (
     <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
       {assessment.lessonGroups.map((Group) => (
-        <div key={Group.lessonId} className="overflow-hidden rounded-[26px] border border-slate-200 dark:border-slate-800">
+        <div key={Group.groupKind === "SECTION" ? `section-${Group.sectionKey}` : `lesson-${Group.lessonId}`} className="overflow-hidden rounded-[26px] border border-slate-200 dark:border-slate-800">
           <div className="flex flex-col gap-2 bg-slate-50 px-5 py-4 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="math-kicker text-[10px]">Lesson {Group.lessonNumber}</p>
-              <h3 className="text-lg font-black text-slate-950 dark:text-white">{Group.lessonTitle}</h3>
+              <p className="math-kicker text-[10px]">{Group.groupKind === "SECTION" ? `Section ${Group.sectionNumber}` : `Lesson ${Group.lessonNumber}`}</p>
+              <h3 className="text-lg font-black text-slate-950 dark:text-white">{Group.groupKind === "SECTION" ? Group.sectionTitle : Group.lessonTitle}</h3>
             </div>
             <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{Group.questionCount} Questions</span>
           </div>
