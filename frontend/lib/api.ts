@@ -55,7 +55,17 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401 && typeof window !== "undefined") {
+    const Status = error?.response?.status;
+    const Code = error?.response?.data?.detail?.code;
+    // A CSRF 403 means the browser's CSRF cookie is missing or stale (see
+    // touch_csrf_cookie() in backend/app/core/cookies.py for how this can
+    // still happen, and dependencies.py for the check). Before that backend
+    // fix, a still-"logged in" (per stale localStorage) browser could hit
+    // this on every retry forever, since useProtectedPage only redirects to
+    // /login when no stored user exists at all. Treat it the same as a 401:
+    // clear the stale client-side session so the next protected-page check
+    // sends the user to a real login, which re-establishes both cookies.
+    if ((Status === 401 || (Status === 403 && Code === "CSRF_VALIDATION_FAILED")) && typeof window !== "undefined") {
       clearSession();
     }
     return Promise.reject(error);
