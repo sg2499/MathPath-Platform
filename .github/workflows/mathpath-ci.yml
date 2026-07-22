@@ -96,7 +96,7 @@ jobs:
           done
       - name: Upload governance evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: governance-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts
@@ -142,7 +142,7 @@ jobs:
           } | tee ci-artifacts/repository-safety.md >> "$GITHUB_STEP_SUMMARY"
       - name: Upload repository safety evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: repository-safety-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts
@@ -183,7 +183,7 @@ jobs:
           "## Delivery console lint`n`n- PowerShell parser: passed`n- Console JSON files: passed" | Add-Content $env:GITHUB_STEP_SUMMARY
       - name: Upload console lint evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: delivery-console-lint-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts
@@ -254,7 +254,7 @@ jobs:
           tail -n 20 ../ci-artifacts/backend-tests.txt >> "$GITHUB_STEP_SUMMARY" || true
       - name: Upload backend evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-tests-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts/backend-tests.txt
@@ -337,7 +337,7 @@ jobs:
           tail -n 20 ../ci-artifacts/generator-validation.txt >> "$GITHUB_STEP_SUMMARY" || true
       - name: Upload generator evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: generator-validation-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts/generator-validation.txt
@@ -405,7 +405,7 @@ jobs:
           tail -n 20 ../ci-artifacts/frontend-typecheck.txt >> "$GITHUB_STEP_SUMMARY" || true
       - name: Upload typecheck evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-typecheck-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts/frontend-typecheck.txt
@@ -473,7 +473,7 @@ jobs:
           tail -n 20 ../ci-artifacts/frontend-build.txt >> "$GITHUB_STEP_SUMMARY" || true
       - name: Upload frontend build evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts/frontend-build.txt
@@ -534,7 +534,7 @@ jobs:
           npm run verify:student-login-responsive 2>&1 | tee ../ci-artifacts/student-login-responsive.txt
       - name: Upload Playwright Artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -551,7 +551,7 @@ jobs:
           tail -n 20 ci-artifacts/frontend-e2e-tests.txt >> "$GITHUB_STEP_SUMMARY" || true
       - name: Upload E2E evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-e2e-tests-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
