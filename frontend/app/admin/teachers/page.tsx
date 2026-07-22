@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ProfileAvatar, ResolveAssetUrl } from "@/components/common/ProfileAvatar";
+import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { SortableHeader } from "@/components/common/SortableHeader";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
@@ -603,7 +604,8 @@ export default function AdminTeachersPage() {
 
 
 function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClose: () => void }) {
-  const Photo = ResolveAssetUrl(teacher.photoUrl);
+  const ResolvedPhoto = ResolveAssetUrl(teacher.photoUrl);
+  const { src: Photo } = useAuthenticatedImage(ResolvedPhoto);
   const DetailRows = [
     ["Teacher Code", teacher.teacherCode],
     ["Designation", teacher.designation || "Not Added"],
@@ -829,7 +831,9 @@ function ImageInput({
   existingUrl?: string | null;
   onChange: (file: File | null) => void;
 }) {
-  const previewUrl = file ? URL.createObjectURL(file) : ResolveAssetUrl(existingUrl);
+  const LocalPreviewUrl = file ? URL.createObjectURL(file) : null;
+  const { src: LoadedExistingUrl } = useAuthenticatedImage(file ? null : ResolveAssetUrl(existingUrl));
+  const previewUrl = LocalPreviewUrl || LoadedExistingUrl;
 
   return (
     <div>

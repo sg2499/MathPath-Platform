@@ -194,15 +194,16 @@ function ResolveInitialLoginTab(InitialRole?: string | string[] | null): LoginTa
   const InitialRoleValue = Array.isArray(InitialRole) ? InitialRole[0] : InitialRole;
   const ServerResolvedRole = NormalizeLoginTab(InitialRoleValue);
 
-  if (typeof window === "undefined") return ServerResolvedRole || "STUDENT";
-
-  const UrlRole = NormalizeLoginTab(new URLSearchParams(window.location.search).get("role"));
-  if (UrlRole) return UrlRole;
-
-  const SavedLoginRole = NormalizeLoginTab(localStorage.getItem(LOGIN_ROLE_STORAGE_KEY));
-  if (SavedLoginRole) return SavedLoginRole;
-
-  return "STUDENT";
+  // Deliberately does NOT read window.location.search or localStorage here.
+  // This seeds both the server-rendered markup and the very first client
+  // render -- the exact pass React diffs against during hydration -- so it
+  // has to be 100% deterministic from server-available data alone. A saved
+  // localStorage role (or a URL role Next didn't pass through as InitialRole
+  // for some reason) would make the client's first render disagree with the
+  // server's and throw React error #418. Any such correction happens after
+  // mount instead, in the effect below, exactly like the theme correction
+  // already does a few lines down.
+  return ServerResolvedRole || "STUDENT";
 }
 
 function SyncVisibleLoginTab(Tab: LoginTab, ReplaceUrl = true) {
@@ -289,8 +290,23 @@ export default function LoginClient({
 
   useEffect(() => {
     let IsMounted = true;
-    SyncVisibleLoginTab(ActiveTab);
-    SetIdentifier(ReadRememberedLoginIdentifier(ActiveTab));
+
+    // Now that we're safely past hydration, correct the active tab using
+    // URL/localStorage data that only exists in the browser (ResolveInitialLoginTab
+    // deliberately ignored both so the first client render couldn't disagree
+    // with the server-rendered one). Compute the corrected tab locally and use
+    // it directly below, rather than relying on ActiveTab state -- this effect
+    // only runs once, so a second render is not coming to pick up the change.
+    const UrlRole = NormalizeLoginTab(new URLSearchParams(window.location.search).get("role"));
+    const SavedLoginRole = NormalizeLoginTab(localStorage.getItem(LOGIN_ROLE_STORAGE_KEY));
+    const CorrectedTab = UrlRole || SavedLoginRole || ActiveTab;
+
+    if (CorrectedTab !== ActiveTab) {
+      SetActiveTab(CorrectedTab);
+    }
+
+    SyncVisibleLoginTab(CorrectedTab);
+    SetIdentifier(ReadRememberedLoginIdentifier(CorrectedTab));
     SetLoginReady(true);
     SetConnectionStatus("preparing");
 

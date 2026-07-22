@@ -1,6 +1,7 @@
 "use client";
 
 import { useHeartbeat } from "@/hooks/useHeartbeat";
+import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { NotificationsBell } from "@/components/common/NotificationsBell";
 import { apiErrorMessage } from "@/lib/api";
 import {
@@ -1616,6 +1617,7 @@ function Avatar({
   avatarUrl: string;
   compact?: boolean;
 }) {
+  const { src: LoadedAvatarUrl, failed: LoadFailed } = useAuthenticatedImage(avatarUrl);
   const [ImageFailed, SetImageFailed] = useState(false);
   const [ImageLoaded, SetImageLoaded] = useState(false);
 
@@ -1626,7 +1628,7 @@ function Avatar({
 
   const DisplayName = user?.fullName || (user as any)?.full_name || "MathPath User";
   const Initials = UserInitials(DisplayName);
-  const ShowImage = Boolean(avatarUrl && !ImageFailed);
+  const ShowImage = Boolean(LoadedAvatarUrl && !ImageFailed && !LoadFailed);
 
   return (
     <div
@@ -1638,8 +1640,8 @@ function Avatar({
       {!ShowImage ? <span className="leading-none">{Initials}</span> : null}
       {ShowImage ? (
         <img
-          key={avatarUrl}
-          src={avatarUrl}
+          key={LoadedAvatarUrl}
+          src={LoadedAvatarUrl ?? undefined}
           alt={DisplayName}
           className="absolute inset-0 z-10 h-full w-full object-cover opacity-100"
           onLoad={() => SetImageLoaded(true)}
