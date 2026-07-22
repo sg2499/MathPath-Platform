@@ -28,7 +28,7 @@ jobs:
       run_frontend_typecheck: ${{ steps.classification.outputs.run_frontend_typecheck }}
       run_frontend_build: ${{ steps.classification.outputs.run_frontend_build }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
@@ -107,7 +107,7 @@ jobs:
     name: repository-safety
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Validate diff and secret-bearing paths
@@ -153,7 +153,7 @@ jobs:
     name: delivery-console-lint
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Parse MathPath PowerShell automation
         shell: powershell
         run: |
@@ -202,7 +202,7 @@ jobs:
       DATABASE_URL: sqlite:///./mathpath_ci.db
       SEED_ON_STARTUP: 'false'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Resolve conservative backend decision
         id: decision
         shell: bash
@@ -273,7 +273,7 @@ jobs:
       DATABASE_URL: sqlite:///./mathpath_generator_ci.db
       SEED_ON_STARTUP: 'false'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Resolve conservative generator decision
         id: decision
         shell: bash
@@ -353,7 +353,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Resolve conservative typecheck decision
         id: decision
         shell: bash
@@ -421,7 +421,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Resolve conservative build decision
         id: decision
         shell: bash
@@ -490,7 +490,7 @@ jobs:
       SEED_ON_STARTUP: 'true'
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
