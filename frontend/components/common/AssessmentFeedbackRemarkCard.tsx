@@ -1,7 +1,6 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { getTokenForRole } from "@/lib/auth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -131,21 +130,22 @@ function CleanFeedbackLabel(Value?: string | null, HasText = false) {
 
 async function SaveFeedback(Role: ViewerRole, AttemptId: string, RemarkText: string) {
   const Prefix = Role === "ADMIN" ? "/admin" : "/teacher";
-  const RoleToken = getTokenForRole(Role);
+  // Explicit X-Auth-Role override: this component is used from both the
+  // admin and teacher shells, so the caller's intended role has to be
+  // stated explicitly rather than inferred from the URL path (which the
+  // shared axios interceptor would otherwise use as its default hint).
   const Response = await api.post(
     `${Prefix}/assessment-attempts/${AttemptId}/remarks`,
     { remarkText: RemarkText },
-    RoleToken ? { headers: { Authorization: `Bearer ${RoleToken}` } } : undefined,
+    { headers: { "X-Auth-Role": Role } },
   );
   return Response.data?.teacherFeedback as AssessmentTeacherFeedback | null;
 }
 
 async function DeleteFeedback(AttemptId: string) {
-  const RoleToken = getTokenForRole("ADMIN");
-  const Response = await api.delete(
-    `/admin/assessment-attempts/${AttemptId}/remarks`,
-    RoleToken ? { headers: { Authorization: `Bearer ${RoleToken}` } } : undefined,
-  );
+  const Response = await api.delete(`/admin/assessment-attempts/${AttemptId}/remarks`, {
+    headers: { "X-Auth-Role": "ADMIN" },
+  });
   return Response.data;
 }
 

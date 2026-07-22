@@ -29,6 +29,12 @@ from app.dependencies import get_current_user, require_roles
 from app.models import Student, Teacher, User
 from app.services.auth_service import login, user_payload, force_logout_user
 from app.core.rate_limit import limiter
+from app.core.cookies import (
+    set_session_cookie,
+    set_csrf_cookie,
+    clear_session_cookie,
+    CSRF_COOKIE_NAME,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -64,8 +70,19 @@ class TwoFactorVerifyLoginRequest(BaseModel):
 
 @router.post("/login")
 @limiter.limit("5/minute")
-def login_route(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
-    return login(db, payload.identifier, payload.password)
+def login_route(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
+    result = login(db, payload.identifier, payload.password)
+    if result.get("twoFactorRequired"):
+        return result
+
+    # 2026-07-22: session now lives in an httpOnly cookie, not the response
+    # body -- returning the raw token in JSON here would defeat the point of
+    # httpOnly (anything that can read the fetch response, e.g. an XSS
+    # payload or a request-logging tool, could still lift it). The frontend
+    # relies entirely on the cookie via credentials:"include" from here on.
+    set_session_cookie(response, result["user"]["role"], result["accessToken"])
+    set_csrf_cookie(response)
+    return {"tokenType": result["tokenType"], "user": result["user"]}
 
 
 @router.get("/me")
@@ -216,6 +233,19 @@ def change_password(
     return {"updated": True, "message": "Password updated successfully."}
 
 
+@router.post("/logout")
+def logout(response: Response, user: User = Depends(get_current_user)):
+    """Clear only the current role's session cookie (plus the shared CSRF
+    cookie). This is what a normal "Sign Out" button should call -- it ends
+    just this session, unlike /logout-all-sessions below which revokes
+    every token the user has been issued anywhere (self-service equivalent
+    of a compromised-account force-logout, not a routine sign-out).
+    """
+    clear_session_cookie(response, user.role)
+    response.delete_cookie(CSRF_COOKIE_NAME, path="/")
+    return {"loggedOut": True}
+
+
 @router.post("/logout-all-sessions")
 @limiter.limit("5/minute")
 def logout_all_sessions(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -307,7 +337,7 @@ def two_factor_disable(
 
 @router.post("/2fa/verify-login")
 @limiter.limit("10/minute")
-def two_factor_verify_login(request: Request, payload: TwoFactorVerifyLoginRequest, db: Session = Depends(get_db)):
+def two_factor_verify_login(request: Request, response: Response, payload: TwoFactorVerifyLoginRequest, db: Session = Depends(get_db)):
     UserId = decode_two_factor_challenge_token(payload.challengeToken)
     if not UserId:
         api_error(401, "UNAUTHORIZED", "This verification step has expired. Please log in again.")
@@ -317,9 +347,17 @@ def two_factor_verify_login(request: Request, payload: TwoFactorVerifyLoginReque
         api_error(401, "UNAUTHORIZED", "This verification step has expired. Please log in again.")
 
     Code = (payload.code or "").strip()
-    if verify_totp_code(user.totp_secret, Code):
+
+    def _issue_session() -> dict:
+        # Same cookie-first pattern as /login above -- no accessToken in the
+        # body, session cookie + CSRF cookie set instead.
         token = create_access_token(user.id, user.role)
-        return {"accessToken": token, "tokenType": "Bearer", "user": user_payload(db, user)}
+        set_session_cookie(response, user.role, token)
+        set_csrf_cookie(response)
+        return {"tokenType": "Bearer", "user": user_payload(db, user)}
+
+    if verify_totp_code(user.totp_secret, Code):
+        return _issue_session()
 
     # Fall back to a one-time backup code -- consumed on use, same as any
     # other single-use recovery credential.
@@ -329,8 +367,7 @@ def two_factor_verify_login(request: Request, payload: TwoFactorVerifyLoginReque
             del StoredHashes[Index]
             user.totp_backup_codes_json = json.dumps(StoredHashes)
             db.commit()
-            token = create_access_token(user.id, user.role)
-            return {"accessToken": token, "tokenType": "Bearer", "user": user_payload(db, user)}
+            return _issue_session()
 
     api_error(401, "INVALID_CODE", "That code didn't match. Check your authenticator app and try again.")
 

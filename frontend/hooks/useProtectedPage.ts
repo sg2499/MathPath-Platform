@@ -1,6 +1,6 @@
 "use client";
 
-import { getStoredUser, getStoredUserForRole, getToken, getTokenForRole, setActiveRole } from "@/lib/auth";
+import { getStoredUser, getStoredUserForRole, setActiveRole } from "@/lib/auth";
 import type { UserRole } from "@/types/auth";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -59,11 +59,17 @@ export function useProtectedPage(allowedRoles: UserRole[]) {
     const PathRole = roleFromPath(pathname);
     const CandidateRoles = PathRole ? [PathRole] : allowedRoles;
 
+    // Note: this only ever checks the non-secret stored user profile (see
+    // lib/auth.ts) -- it's a routing-UX convenience, not a security
+    // boundary. The real authorization check happens server-side on every
+    // API call against the httpOnly session cookie; a 401 there is what
+    // actually keeps someone out, same as before this file stopped also
+    // checking for a (equally client-forgeable, never validated here)
+    // token string.
     for (const CandidateRole of CandidateRoles) {
-      const Token = getTokenForRole(CandidateRole) || getToken();
       const User = getStoredUserForRole(CandidateRole) || getStoredUser();
 
-      if (Token && User && rolesMatch(User.role, allowedRoles) && rolesMatch(CandidateRole, allowedRoles)) {
+      if (User && rolesMatch(User.role, allowedRoles) && rolesMatch(CandidateRole, allowedRoles)) {
         setActiveRole(CandidateRole);
         if (pathname) persistCurrentRoute(CandidateRole, pathname);
         setReady(true);
@@ -74,9 +80,8 @@ export function useProtectedPage(allowedRoles: UserRole[]) {
     for (const AllowedRole of allowedRoles) {
       const NormalizedAllowedRole = normalizeRole(AllowedRole);
       if (!NormalizedAllowedRole) continue;
-      const Token = getTokenForRole(NormalizedAllowedRole);
       const User = getStoredUserForRole(NormalizedAllowedRole);
-      if (Token && User && rolesMatch(User.role, allowedRoles)) {
+      if (User && rolesMatch(User.role, allowedRoles)) {
         setActiveRole(NormalizedAllowedRole);
         const TargetRoute = PathRole && rolesMatch(PathRole, allowedRoles) ? currentFullRoute(pathname) || defaultRouteForRole(NormalizedAllowedRole) : defaultRouteForRole(NormalizedAllowedRole);
         if (TargetRoute.split("?")[0] !== pathname || (typeof window !== "undefined" && TargetRoute !== currentFullRoute(pathname))) router.replace(TargetRoute);

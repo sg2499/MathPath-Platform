@@ -115,6 +115,16 @@ export async function getMe(): Promise<CurrentUser> {
   return data;
 }
 
+/** Clears just the current role's httpOnly session cookie server-side --
+ * page JS has no way to clear an httpOnly cookie itself. See
+ * POST /api/auth/logout in routes_auth.py (added 2026-07-22 alongside the
+ * cookie migration; distinct from the heavier logoutAllSessions() below).
+ */
+export async function logout(): Promise<{ loggedOut: boolean }> {
+  const { data } = await api.post<{ loggedOut: boolean }>("/auth/logout");
+  return data;
+}
+
 function LoadImageFromFile(FileValue: File): Promise<HTMLImageElement> {
   return new Promise((Resolve, Reject) => {
     const Reader = new FileReader();

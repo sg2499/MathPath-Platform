@@ -1,4 +1,5 @@
-from fastapi import Depends, BackgroundTasks, Response
+import secrets
+from fastapi import Depends, BackgroundTasks, Response, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from sqlalchemy import update
@@ -6,6 +7,7 @@ from app.database import get_db, SessionLocal
 from app.core.security import decode_token, create_access_token
 from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES
 from app.core.errors import api_error
+from app.core.cookies import read_session_token, set_session_cookie, CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 from app.models import User, Student, Teacher
 from cachetools import TTLCache
 from datetime import datetime, timezone
@@ -59,14 +61,33 @@ def _update_user_activity(user_id: str):
 
 def get_current_user(
     background_tasks: BackgroundTasks,
+    request: Request,
     response: Response,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
-    if credentials is None or credentials.scheme.lower() != "bearer":
+    # Two supported credential sources, checked in this order:
+    #  1. Authorization: Bearer <token> -- unchanged from before. Kept alive
+    #     deliberately for scripts/admin tooling/potential future non-browser
+    #     clients that explicitly obtain and hold a token; it is not exposed
+    #     to any web page's JS execution context, so it isn't the thing the
+    #     2026-07-22 cookie migration is defending against.
+    #  2. The httpOnly session cookie (see app/core/cookies.py) -- what the
+    #     browser frontend uses as of this round. A request authenticated
+    #     this way is subject to the CSRF check below, since the cookie is
+    #     sent automatically by the browser and a bearer header is not.
+    token = None
+    used_cookie_auth = False
+    if credentials is not None and credentials.scheme.lower() == "bearer":
+        token = credentials.credentials
+    if not token:
+        token = read_session_token(request)
+        used_cookie_auth = token is not None
+
+    if not token:
         api_error(401, "UNAUTHORIZED", "Missing or invalid authorization header.")
 
-    payload = decode_token(credentials.credentials)
+    payload = decode_token(token)
     if not payload:
         api_error(401, "UNAUTHORIZED", "Invalid or expired token.")
 
@@ -77,6 +98,18 @@ def get_current_user(
     # without ever passing the second factor, defeating the point of 2FA.
     if payload.get("purpose"):
         api_error(401, "UNAUTHORIZED", "Invalid or expired token.")
+
+    # CSRF check (double-submit cookie pattern): only applies when the
+    # cookie is doing the authenticating, and only for methods that change
+    # state. A forged cross-site request can make the browser attach the
+    # session cookie automatically, but the attacker's page cannot read
+    # the separate, non-httpOnly CSRF cookie (blocked by same-origin
+    # policy) to also produce a matching header -- so the two won't match.
+    if used_cookie_auth and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
+        csrf_header = request.headers.get(CSRF_HEADER_NAME)
+        if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
+            api_error(403, "CSRF_VALIDATION_FAILED", "Request could not be verified. Please refresh and try again.")
 
     user = db.get(User, payload.get("sub"))
     if not user or not user.is_active:
@@ -130,7 +163,16 @@ def get_current_user(
             remaining_seconds = (expires_at - datetime.now(timezone.utc)).total_seconds()
             half_lifetime_seconds = (ACCESS_TOKEN_EXPIRE_MINUTES * 60) / 2
             if 0 < remaining_seconds < half_lifetime_seconds:
-                response.headers["X-New-Access-Token"] = create_access_token(user.id, user.role)
+                new_token = create_access_token(user.id, user.role)
+                # Bearer-header callers (scripts) still read this response
+                # header the same way they always have. Cookie-authenticated
+                # browser requests instead get a fresh Set-Cookie -- the
+                # browser applies it to its cookie jar automatically with no
+                # JS involved, which is simpler than the old header-read
+                # dance AND keeps the token out of JS's reach the whole time.
+                response.headers["X-New-Access-Token"] = new_token
+                if used_cookie_auth:
+                    set_session_cookie(response, user.role, new_token)
         except Exception:
             pass
 

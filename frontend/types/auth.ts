@@ -33,7 +33,11 @@ export type CurrentUser = {
 };
 
 export type LoginResponse = {
-  accessToken: string;
+  // No accessToken here as of the 2026-07-22 cookie migration -- the
+  // session is set via an httpOnly Set-Cookie response header instead
+  // (see backend/app/api/routes_auth.py's login_route()), never handed to
+  // page JS in the JSON body where an XSS payload (or anything else that
+  // can read the fetch response) could read it back out.
   tokenType: string;
   user: CurrentUser;
 };

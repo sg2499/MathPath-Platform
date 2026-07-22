@@ -1,53 +1,62 @@
 import axios from "axios";
-import { getToken, clearAuth, updateStoredToken } from "./auth";
+import { getActiveRoleHeaderValue, getCsrfToken, clearSession } from "./auth";
 
-function ResolveApiBaseUrl(): string {
-  const RawBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").trim();
-  const CleanBaseUrl = RawBaseUrl.replace(/\/+$/, "");
-  return CleanBaseUrl.endsWith("/api") ? CleanBaseUrl : `${CleanBaseUrl}/api`;
-}
-
+// 2026-07-22 security hardening: relative, same-origin base URL. The actual
+// backend is reached via the Next.js rewrite in next.config.mjs, which
+// proxies /api/* to the real Render URL server-side -- the browser itself
+// never makes a cross-origin request, which is what lets the session cookie
+// be first-party (SameSite=Lax) instead of needing the cross-site None that
+// Safari/iOS block by default. See next.config.mjs's ResolveBackendOrigin()
+// for where the real backend URL is actually configured.
 const DEFAULT_API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || "90000");
 
 export const api = axios.create({
-  baseURL: ResolveApiBaseUrl(),
-  timeout: DEFAULT_API_TIMEOUT_MS
+  baseURL: "/api",
+  timeout: DEFAULT_API_TIMEOUT_MS,
+  // Session now lives in an httpOnly cookie (see backend/app/core/cookies.py)
+  // instead of a token read out of localStorage -- withCredentials is what
+  // makes the browser actually attach it on every request.
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
   const RequestConfig = config as typeof config & { skipAuth?: boolean };
   if (RequestConfig.skipAuth) {
-    if (config.headers) {
-      delete config.headers.Authorization;
-    }
     return config;
   }
 
-  const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (!config.headers) {
+    config.headers = {} as typeof config.headers;
   }
+
+  // Non-secret hint telling the backend which role's session cookie applies
+  // to this request (a person can be logged into admin/teacher/student at
+  // once in different tabs -- see cookies.py's read_session_token()). Only
+  // set if a call site hasn't already provided an explicit override (e.g.
+  // shared routes like /assessment-result/[attemptId] that aren't under a
+  // role-prefixed path).
+  if (!config.headers["X-Auth-Role"] && !config.headers["x-auth-role"]) {
+    const RoleHint = getActiveRoleHeaderValue();
+    if (RoleHint) config.headers["X-Auth-Role"] = RoleHint;
+  }
+
+  // CSRF double-submit token, required on every mutating request once a
+  // cookie session exists -- see get_current_user()'s CSRF check in
+  // backend/app/dependencies.py. Harmless no-op before login (no cookie yet).
+  const Method = (config.method || "get").toLowerCase();
+  if (["post", "put", "patch", "delete"].includes(Method)) {
+    const CsrfToken = getCsrfToken();
+    if (CsrfToken) config.headers["X-CSRF-Token"] = CsrfToken;
+  }
+
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => {
-    // Sliding-session refresh: the backend transparently reissues a token
-    // once the current one is more than halfway through its lifetime (see
-    // get_current_user() in dependencies.py) and returns it via this header.
-    // Swapping it in here means an actively-used session -- e.g. a student
-    // mid-exam, saving an answer every few minutes -- renews itself on every
-    // request and can never hit a hard expiry wall mid-activity, without the
-    // student ever noticing anything happened.
-    const RefreshedToken = response.headers?.["x-new-access-token"];
-    if (RefreshedToken && typeof window !== "undefined") {
-      updateStoredToken(RefreshedToken);
-    }
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (error?.response?.status === 401 && typeof window !== "undefined") {
-      clearAuth();
+      clearSession();
     }
     return Promise.reject(error);
   }

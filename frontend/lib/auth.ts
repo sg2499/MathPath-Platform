@@ -1,8 +1,19 @@
 import type { CurrentUser, UserRole } from "@/types/auth";
 
-const LEGACY_TOKEN_KEY = "mathpath_access_token";
+// 2026-07-22 security hardening: the actual session now lives entirely in
+// an httpOnly cookie (see backend/app/core/cookies.py) that page JS cannot
+// read at all -- that's the whole point, it closes off the XSS-reads-
+// localStorage token-theft path. Everything stored here is non-secret: the
+// user's own profile (for display) and a "which role is this tab acting
+// as" hint used purely for client-side routing UX and to tell the shared
+// axios client which cookie the backend should check for a given request
+// (see lib/api.ts's X-Auth-Role header and cookies.py's
+// read_session_token()). None of it grants access on its own -- forging any
+// of these values client-side gets you a UI shell at best; every real API
+// call is still authorized server-side against the httpOnly cookie.
 const LEGACY_USER_KEY = "mathpath_user";
 const ACTIVE_ROLE_KEY = "mathpath_active_role";
+const CSRF_COOKIE_NAME = "mp_csrf";
 
 function roleFromPath(): UserRole | null {
   if (typeof window === "undefined") return null;
@@ -37,8 +48,22 @@ export function setActiveRole(role: UserRole): void {
   window.dispatchEvent(new Event("mathpath-auth-changed"));
 }
 
-function tokenKey(role: UserRole) {
-  return `mathpath_${role.toLowerCase()}_access_token`;
+/** Non-secret role hint attached as the X-Auth-Role header by lib/api.ts's
+ * axios interceptor -- lets the backend pick the right session cookie when
+ * more than one role is logged in in different tabs. See the file-level
+ * comment above: this selects a cookie, it never substitutes for one.
+ */
+export function getActiveRoleHeaderValue(): string | null {
+  return activeRole();
+}
+
+/** Reads the non-httpOnly CSRF cookie's value so it can be echoed back as
+ * the X-CSRF-Token header (double-submit pattern, see dependencies.py).
+ */
+export function getCsrfToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const Match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE_NAME}=([^;]*)`));
+  return Match ? decodeURIComponent(Match[1]) : null;
 }
 
 function userKey(role: UserRole) {
@@ -76,13 +101,6 @@ function safeSetJson(StorageKey: string, Value: CurrentUser): void {
   }
 }
 
-export function getTokenForRole(role: UserRole): string | null {
-  if (typeof window === "undefined") return null;
-  const normalizedRole = normalizeRole(role);
-  if (!normalizedRole) return null;
-  return localStorage.getItem(tokenKey(normalizedRole));
-}
-
 export function getStoredUserForRole(role: UserRole): CurrentUser | null {
   if (typeof window === "undefined") return null;
   const normalizedRole = normalizeRole(role);
@@ -96,55 +114,27 @@ export function getStoredUserForRole(role: UserRole): CurrentUser | null {
   }
 }
 
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  const role = activeRole();
-  if (role) {
-    const token = localStorage.getItem(tokenKey(role));
-    if (token) return token;
-  }
-  return localStorage.getItem(LEGACY_TOKEN_KEY);
-}
-
-export function setAuth(token: string, user: CurrentUser): void {
+/** Persists the logged-in user's own profile (display only, non-secret) and
+ * marks this role as active. Called once per successful login/2FA-verify;
+ * the real session was already established server-side via the httpOnly
+ * cookie the login response set before this runs.
+ */
+export function setSession(user: CurrentUser): void {
   const role = normalizeRole(user.role) || "STUDENT";
-  localStorage.setItem(tokenKey(role), token);
   safeSetJson(userKey(role), user);
   localStorage.setItem(ACTIVE_ROLE_KEY, role);
-
-  // Keep legacy keys for login page compatibility only.
-  localStorage.setItem(LEGACY_TOKEN_KEY, token);
   safeSetJson(LEGACY_USER_KEY, user);
-
   window.dispatchEvent(new Event("mathpath-auth-changed"));
 }
 
-export function updateStoredToken(token: string): void {
-  // Swaps just the access token for the currently active role, leaving the
-  // stored user object untouched. Used by the sliding-session refresh: the
-  // backend transparently reissues a token when the current one is more
-  // than halfway through its lifetime (see get_current_user() in
-  // dependencies.py), and this is what actually applies that renewed token
-  // so an actively-used session never hits a hard expiry wall mid-exam.
+export function clearSession(): void {
   if (typeof window === "undefined") return;
   const role = activeRole();
   if (role) {
-    localStorage.setItem(tokenKey(role), token);
-  }
-  localStorage.setItem(LEGACY_TOKEN_KEY, token);
-}
-
-export function clearAuth(): void {
-  if (typeof window === "undefined") return;
-  const role = activeRole();
-  if (role) {
-    localStorage.removeItem(tokenKey(role));
     localStorage.removeItem(userKey(role));
   }
-  localStorage.removeItem(LEGACY_TOKEN_KEY);
   localStorage.removeItem(LEGACY_USER_KEY);
 }
-
 
 export function updateStoredUser(user: CurrentUser): void {
   if (typeof window === "undefined") return;
