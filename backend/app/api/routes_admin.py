@@ -48,6 +48,8 @@ from app.services.assessment_blueprint_service import (
     blueprint_payload,
     create_blueprint,
     delete_blueprint,
+    is_section_wise_module,
+    level_section_registry_config,
     list_blueprints,
     publish_blueprint,
     update_blueprint,
@@ -313,7 +315,17 @@ class AssignmentStatusRequest(BaseModel):
 
 
 class AssessmentLessonDistributionRequest(BaseModel):
-    lessonId: str
+    """Distribution row for an assessment blueprint. Doubles as both shapes:
+    lessonId for YLM's original lesson-wise distribution, sectionKey for
+    IM/MM's section-wise distribution (2026-07-22) -- exactly one of the two
+    is populated depending on the target module, and
+    assessment_blueprint_service.py's validators only ever read the one that
+    applies. Both optional here so a single request schema (and a single
+    admin UI payload shape) works for either mode without the frontend
+    needing to know module-specific field names.
+    """
+    lessonId: str | None = None
+    sectionKey: str | None = None
     questionCount: int
     conceptRules: dict[str, Any] | None = None
 
@@ -1894,6 +1906,40 @@ def lessons(level_id: str, db: Session = Depends(get_db), user: User = Depends(a
     level = db.get(Level, level_id)
     rows = db.query(Lesson).filter(Lesson.level_id == level_id, Lesson.is_active == True).order_by(Lesson.lesson_number).all()
     return {"levelId": level_id, "levelCode": level.level_code if level else None, "lessons": [{"lessonId": l.id, "lessonNumber": l.lesson_number, "lessonTitle": l.lesson_title, "dpsCount": db.query(DPS).filter(DPS.lesson_id == l.id, DPS.is_active == True).count(), "isActive": l.is_active} for l in rows]}
+
+
+@router.get("/levels/{level_id}/assessment-sections")
+def assessment_sections_for_level(level_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """Section-wise counterpart of /levels/{level_id}/lessons above -- lets
+    the Assessment Blueprint Studio build a section-by-section distribution
+    form for IM/MM levels. Returns the SAME section list/order that level's
+    competition mock exam uses (read live from the registry, not a copy),
+    so the studio can never silently drift out of sync with mocks. For YLM
+    (or any module without section-wise assessments), isSectionWise is False
+    and the frontend should fall back to the lesson-wise /lessons endpoint.
+    """
+    level = db.get(Level, level_id)
+    if not level:
+        api_error(404, "LEVEL_NOT_FOUND", "Level not found.")
+    module = db.get(Module, level.module_id)
+    if not module:
+        api_error(404, "MODULE_NOT_FOUND", "Module not found.")
+
+    section_wise = is_section_wise_module(module.module_code)
+    if not section_wise:
+        return {"levelId": level_id, "levelCode": level.level_code, "moduleCode": module.module_code, "isSectionWise": False, "sections": []}
+
+    registry_config = level_section_registry_config(module.module_code, level)
+    sections = [
+        {
+            "sectionKey": row["key"],
+            "sectionNumber": row["number"],
+            "sectionTitle": row["title"],
+            "conceptCount": len(registry_config.get("sectionConceptPools", {}).get(row["key"], [])),
+        }
+        for row in registry_config["sectionDefinitions"]
+    ]
+    return {"levelId": level_id, "levelCode": level.level_code, "moduleCode": module.module_code, "isSectionWise": True, "sections": sections}
 
 
 @router.get("/lessons/{lesson_id}/dps")

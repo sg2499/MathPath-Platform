@@ -429,6 +429,34 @@ class AssessmentBlueprintLesson(Base):
     __table_args__ = (UniqueConstraint("blueprint_id", "lesson_id", name="uq_assessment_blueprint_lesson"),)
 
 
+class AssessmentBlueprintSection(Base):
+    """Section-wise question distribution for a blueprint (2026-07-22,
+    Shailesh: assessments should mirror the exact sections that level's
+    competition mock exam uses, not a lesson-wise split). Coexists with
+    AssessmentBlueprintLesson rather than replacing it -- IM and MM
+    blueprints use this table (their levels have a curated section registry
+    in competition_mock_generation_service.py); YLM (and any module without
+    one yet) keeps using AssessmentBlueprintLesson unchanged. A blueprint
+    only ever has rows in one of the two tables, decided by
+    SECTION_WISE_ASSESSMENT_MODULES in assessment_blueprint_service.py.
+
+    section_key is intentionally the only section identifier stored here --
+    the same convention AssessmentBlueprintLesson uses for lesson_id: title,
+    display number, and concept pool are always resolved live from that
+    level's registry entry (via section_key), never snapshotted, so a
+    blueprint can never silently drift from the mock section it's supposed
+    to mirror.
+    """
+    __tablename__ = "assessment_blueprint_sections"
+    id = Column(String, primary_key=True, default=uuid_str)
+    blueprint_id = Column(String, ForeignKey("assessment_blueprints.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_key = Column(String(100), nullable=False)
+    question_count = Column(Integer, nullable=False)
+    display_order = Column(Integer, default=0, nullable=False)
+
+    blueprint = relationship("AssessmentBlueprint")
+
+    __table_args__ = (UniqueConstraint("blueprint_id", "section_key", name="uq_assessment_blueprint_section"),)
 
 
 class AssessmentVersion(Base):
@@ -463,7 +491,14 @@ class AssessmentQuestion(Base):
     __tablename__ = "assessment_questions"
     id = Column(String, primary_key=True, default=uuid_str)
     assessment_version_id = Column(String, ForeignKey("assessment_versions.id", ondelete="CASCADE"), nullable=False, index=True)
-    lesson_id = Column(String, ForeignKey("lessons.id"), nullable=False, index=True)
+    # Nullable as of 2026-07-22 (section-wise assessments): a question
+    # generated from a mock-style section's concept pool (see
+    # AssessmentBlueprintSection) has no single owning Lesson -- a section
+    # like "MM_MULTIPLICATION" spans several lessons' worth of concepts.
+    # Legacy lesson-wise questions (YLM, and any pre-existing IM/MM rows)
+    # keep a real lesson_id; QuestionPayload() and every other reader
+    # already null-guards this field.
+    lesson_id = Column(String, ForeignKey("lessons.id"), nullable=True, index=True)
     question_number = Column(Integer, nullable=False)
     lesson_question_number = Column(Integer, nullable=False)
     display_type = Column(String(50), default="VERTICAL", nullable=False)

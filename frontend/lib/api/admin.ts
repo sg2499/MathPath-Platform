@@ -20,6 +20,30 @@ export async function getLessons(levelId: string): Promise<LessonItem[]> {
   return data.lessons;
 }
 
+export type AssessmentSectionItem = {
+  sectionKey: string;
+  sectionNumber: number;
+  sectionTitle: string;
+  conceptCount: number;
+};
+
+export type AssessmentSectionsForLevelResponse = {
+  levelId: string;
+  levelCode: string | null;
+  moduleCode: string | null;
+  isSectionWise: boolean;
+  sections: AssessmentSectionItem[];
+};
+
+// Section-wise counterpart of getLessons() above -- for IM/MM levels,
+// assessments mirror the exact sections that level's competition mock exam
+// uses (see AssessmentBlueprintSection). isSectionWise is false for YLM (or
+// any module without one), and the caller should fall back to getLessons().
+export async function getAssessmentSectionsForLevel(levelId: string): Promise<AssessmentSectionsForLevelResponse> {
+  const { data } = await api.get<AssessmentSectionsForLevelResponse>(`/admin/levels/${levelId}/assessment-sections`);
+  return data;
+}
+
 export async function getDpsByLesson(lessonId: string): Promise<DpsItem[]> {
   const { data } = await api.get<{ dps: DpsItem[] }>(`/admin/lessons/${lessonId}/dps`);
   return data.dps;
@@ -758,6 +782,19 @@ export type AssessmentBlueprintLessonDistribution = {
   conceptRules?: Record<string, unknown>;
 };
 
+// Section-wise counterpart of AssessmentBlueprintLessonDistribution above --
+// IM/MM assessments (2026-07-22) mirror the exact sections that level's
+// competition mock exam uses instead of a lesson-wise split. See
+// AssessmentBlueprint.distributionMode to tell which shape applies.
+export type AssessmentBlueprintSectionDistribution = {
+  id?: string;
+  sectionKey: string;
+  sectionNumber: number | null;
+  sectionTitle: string | null;
+  questionCount: number;
+  displayOrder?: number;
+};
+
 export type AssessmentBlueprint = {
   id: string;
   title: string;
@@ -784,7 +821,9 @@ export type AssessmentBlueprint = {
   archivedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+  distributionMode: "SECTION_WISE" | "LESSON_WISE" | string;
   lessonDistribution: AssessmentBlueprintLessonDistribution[];
+  sectionDistribution: AssessmentBlueprintSectionDistribution[];
   engineVersionCount?: number;
   engineAssignmentCount?: number;
   engineResultCount?: number;
@@ -807,8 +846,13 @@ export type AssessmentBlueprintCreatePayload = {
   durationSeconds: number;
   instructions?: string | null;
   status?: "DRAFT" | "PUBLISHED";
+  // Row shape doubles for both distribution modes -- lessonId for YLM,
+  // sectionKey for IM/MM. Exactly one is populated per row depending on
+  // moduleId's module; the backend validator only reads the one that
+  // applies (see AssessmentLessonDistributionRequest in routes_admin.py).
   lessonDistribution: Array<{
-    lessonId: string;
+    lessonId?: string;
+    sectionKey?: string;
     questionCount: number;
     conceptRules?: Record<string, unknown> | null;
   }>;
@@ -949,7 +993,7 @@ export type AssessmentGeneratedQuestion = {
   assessmentVersionId: string;
   questionNumber: number;
   lessonQuestionNumber: number;
-  lessonId: string;
+  lessonId: string | null;
   lessonNumber: number | null;
   lessonTitle: string | null;
   displayType: string;
@@ -968,10 +1012,18 @@ export type AssessmentGeneratedQuestion = {
   createdAt: string | null;
 };
 
+// "lessonGroups" carries both shapes (2026-07-22): groupKind "LESSON" for
+// YLM's original per-lesson grouping, groupKind "SECTION" for IM/MM's
+// section-wise grouping (sectionKey/sectionNumber/sectionTitle populated,
+// lessonId null). See VersionPayload() in assessment_engine_service.py.
 export type AssessmentGeneratedLessonGroup = {
-  lessonId: string;
+  groupKind?: "LESSON" | "SECTION" | string;
+  lessonId: string | null;
   lessonNumber: number | null;
   lessonTitle: string | null;
+  sectionKey?: string | null;
+  sectionNumber?: number | null;
+  sectionTitle?: string | null;
   questionCount: number;
   questions: AssessmentGeneratedQuestion[];
 };

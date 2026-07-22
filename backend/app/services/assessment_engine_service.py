@@ -16,6 +16,7 @@ from app.models import (
     AssessmentAttemptAnswer,
     AssessmentBlueprint,
     AssessmentBlueprintLesson,
+    AssessmentBlueprintSection,
     AssessmentQuestion,
     AssessmentQuestionOption,
     Assignment,
@@ -36,6 +37,24 @@ from app.models import (
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, OperationFocusForConcept as MmOperationFocusForConcept
 from app.question_engine.im import IMConfig, GenerateImQuestionSet, OperationFocusForConcept as ImOperationFocusForConcept
+from app.services.competition_mock_generation_service import (
+    IM_COMPETITION_LEVEL_REGISTRY,
+    MM_COMPETITION_LEVEL_REGISTRY,
+    _MmCompetitionDigitConfig,
+    _MmCompetitionAddLessConfig,
+)
+
+# Kept as a literal duplicate of assessment_blueprint_service.py's
+# SECTION_WISE_ASSESSMENT_MODULES rather than imported from it: that module
+# imports FROM this one (RegisterPublishedBlueprintVersion, AssessmentModuleCode),
+# so importing back would create a circular import. Both sets must be changed
+# together -- a module only ever gets added to section-wise assessments once,
+# and grep for SECTION_WISE_ASSESSMENT_MODULES finds both call sites.
+_SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM"}
+_SECTION_WISE_REGISTRIES: dict[str, dict[str, Any]] = {
+    "IM": IM_COMPETITION_LEVEL_REGISTRY,
+    "MM": MM_COMPETITION_LEVEL_REGISTRY,
+}
 
 ASSESSMENT_VERSION_STATUSES = {"DRAFT", "PREVIEW", "PUBLISHED", "ARCHIVED"}
 ASSESSMENT_ASSIGNMENT_STATUSES = {"ASSIGNED", "IN_PROGRESS", "SUBMITTED", "CLEARED", "NEEDS_RE_ATTEMPT", "CANCELLED"}
@@ -81,24 +100,31 @@ def AssessmentQuestionMark(Version: AssessmentVersion | None, Question: Assessme
     return Marks[Index]
 
 
-# IM-only concept-weighted marking (Shailesh, 2026-07-18): every Intermediate
-# Module assessment question is worth 1 mark, except Skill Stacker and Concept
-# Drill, which are worth 5 -- the exact same rule DPS practice already
-# enforces via DPSSection.marks_per_question (seed_intermediate_module.py).
-# Deliberately scoped to ModuleCode == "IM" only: Master Module (and every
-# other module) explicitly stays on the flat evenly-balanced-100 scheme
-# below, unchanged, per Shailesh's explicit instruction to leave MM exactly
-# as-is across DPS, assessments, and mocks alike. Level-agnostic -- reads the
-# question's own concept_tag, not a level code -- so it applies automatically
-# to every current IM level (L2/L3/L4) and any future one without further
-# code changes.
-_IM_CONCEPT_WEIGHTED_FAMILIES = {"SKILL_STACKER", "CONCEPT_DRILL"}
-_IM_CONCEPT_WEIGHTED_MARKS = 5.0
-_IM_DEFAULT_QUESTION_MARKS = 1.0
+# Concept-weighted marking (Shailesh, 2026-07-18; broadened 2026-07-22):
+# every question in a concept-weighted module's assessment is worth 1 mark,
+# except Skill Stacker and Concept Drill, which are worth 5 -- the exact same
+# rule DPS practice already enforces via DPSSection.marks_per_question
+# (seed_intermediate_module.py). Originally scoped to IM only; now an
+# explicit allow-list (_CONCEPT_WEIGHTED_MODULES) covering IM and any future
+# module that adopts this scheme, deliberately excluding MM, which stays on
+# its own flat-1-mark-always scheme (see MM_FLAT_QUESTION_MARKS below) per
+# Shailesh's explicit instruction to keep MM's DPS/assessment/mock marking
+# identical everywhere. YLM (or any module in neither set) keeps the original
+# flat evenly-balanced-100 scheme below, completely unchanged -- this is
+# deliberately three separate paths, not "MM vs everyone else", so YLM's
+# marking can never silently change just because it isn't MM. Level-agnostic
+# -- reads the question's own concept_tag, not a level code -- so it applies
+# automatically to every current and future level of a listed module without
+# further code changes.
+_CONCEPT_WEIGHTED_MODULES = {"IM"}
+_CONCEPT_WEIGHTED_FAMILIES = {"SKILL_STACKER", "CONCEPT_DRILL"}
+_CONCEPT_WEIGHTED_MARKS = 5.0
+_CONCEPT_WEIGHTED_DEFAULT_MARKS = 1.0
+MM_FLAT_QUESTION_MARKS = 1.0
 
 
 def ImConceptWeightedQuestionMark(ConceptTag: str | None) -> float:
-    return _IM_CONCEPT_WEIGHTED_MARKS if ConceptTag in _IM_CONCEPT_WEIGHTED_FAMILIES else _IM_DEFAULT_QUESTION_MARKS
+    return _CONCEPT_WEIGHTED_MARKS if ConceptTag in _CONCEPT_WEIGHTED_FAMILIES else _CONCEPT_WEIGHTED_DEFAULT_MARKS
 
 
 def _AssessmentModuleCodeForVersion(Db: Session, Version: AssessmentVersion | None) -> str:
@@ -116,12 +142,16 @@ def ResolvedAssessmentQuestionMark(Db: Session, Version: AssessmentVersion | Non
     worth" -- used identically in the question-display payload, the live
     per-answer save, and final grading, so the three can never silently
     disagree (the exact class of bug Shailesh flagged: a student seeing one
-    mark value mid-attempt and a different one at grading). IM resolves via
-    ImConceptWeightedQuestionMark(); every other module keeps the original
-    flat evenly-balanced-100 behavior via AssessmentQuestionMark(), byte-for-
-    byte unchanged.
+    mark value mid-attempt and a different one at grading). Three paths:
+    MM is always flat 1 mark; _CONCEPT_WEIGHTED_MODULES (IM today) resolves
+    via ImConceptWeightedQuestionMark(); everything else (YLM, and any
+    unlisted future module) keeps the original flat evenly-balanced-100
+    behavior via AssessmentQuestionMark(), byte-for-byte unchanged.
     """
-    if _AssessmentModuleCodeForVersion(Db, Version) == "IM":
+    ModuleCode = _AssessmentModuleCodeForVersion(Db, Version)
+    if ModuleCode == "MM":
+        return MM_FLAT_QUESTION_MARKS
+    if ModuleCode in _CONCEPT_WEIGHTED_MODULES:
         ConceptTag = Question.concept_tag if Question else None
         return ImConceptWeightedQuestionMark(ConceptTag)
     return AssessmentQuestionMark(Version, Question, TotalQuestions)
@@ -330,6 +360,109 @@ def ImSectionConfig(Db: Session, LessonItem: Lesson, Section: DPSSection, Questi
     )
 
 
+def SectionWiseLevelConfig(ModuleCode: str, LevelItem: Level | None) -> dict[str, Any]:
+    """Section-wise counterpart of LessonSourceSections() below -- returns
+    this level's {'sectionDefinitions', 'sectionConceptPools'}, read from the
+    exact same registry competition mocks use (never a copy), so an
+    assessment's sections and their concept pools can never silently drift
+    from that level's mock exam. Blueprint creation already validated this
+    registry entry exists (see assessment_blueprint_service.py's
+    level_section_registry_config()) -- this raises the same way if it
+    somehow doesn't, rather than generating with an empty/wrong section set.
+    """
+    Registry = _SECTION_WISE_REGISTRIES.get((ModuleCode or "").upper())
+    LevelCode = str(getattr(LevelItem, "level_code", "") or "")
+    Config = Registry.get(LevelCode) if Registry else None
+    if Config is None:
+        api_error(
+            400,
+            "ASSESSMENT_SECTION_REGISTRY_NOT_CONFIGURED",
+            f"No competition mock section structure has been defined yet for {ModuleCode} level '{LevelCode}'.",
+            {"moduleCode": ModuleCode, "levelCode": LevelCode},
+        )
+    return Config
+
+
+def MmSectionRegistryConfig(LevelItem: Level | None, SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], QuestionCount: int, Seed: str) -> MMConfig:
+    """Registry-driven counterpart of MmSectionConfig() above, for
+    section-wise assessments. Builds the same MMConfig the standard MM
+    generation engine (GenerateMmQuestionSet) already consumes, just sourced
+    from a mock section's concept-pool entry instead of a real DPSSection
+    row -- there is no single DPSSection a whole mock section maps to (e.g.
+    "MM_MULTIPLICATION" spans several lessons' worth of concepts), so this
+    intentionally has no DB lookup at all, same as mocks' own config
+    building.
+    """
+    ConceptFamily = str(ConceptSpec.get("conceptFamily") or "CONCEPT_DRILL")
+    ConceptTitle = str(ConceptSpec.get("title") or "")
+    SectionKey = str(SectionDefinition.get("key") or "")
+    # Same digit-width/borrowing-mode derivation mocks use to configure the
+    # generator for this exact concept variant (e.g. "3D x 2D Multiplication"
+    # -> multiplicationDigits=[3, 2]) -- without this the generic MM
+    # generator has no idea how many digits a title like that implies and
+    # produces invalid questions for anything beyond the simplest concepts.
+    # Reused directly rather than re-derived, so a title's meaning can never
+    # drift between mocks and assessments.
+    DigitConfig = _MmCompetitionDigitConfig(ConceptTitle, ConceptFamily)
+    AddLessConfig = (
+        _MmCompetitionAddLessConfig(SectionKey, ConceptTitle, ConceptFamily)
+        if ConceptFamily in {"ADD_LESS", "DECIMAL_ADD_LESS", "INTEGERS"}
+        else {}
+    )
+    return MMConfig(
+        ModuleCode="MM",
+        LevelCode=getattr(LevelItem, "level_code", "MM-L1") or "MM-L1",
+        LessonNumber=1,
+        DpsNumber=int(SectionDefinition.get("number") or 1),
+        DpsTitle=ConceptTitle or str(SectionDefinition.get("title") or ""),
+        LessonTitle=str(SectionDefinition.get("title") or ""),
+        QuestionCount=QuestionCount,
+        Seed=Seed,
+        ConceptFamily=ConceptFamily,
+        OperationFocus=MmOperationFocusForConcept(ConceptFamily),
+        DigitPattern="MASTER_MODULE",
+        Difficulty="MASTER",
+        GeneratorConfig={
+            "source": "ASSESSMENT_SECTION_REGISTRY",
+            "assessmentSectionKey": SectionKey,
+            "assessmentSectionNumber": SectionDefinition.get("number"),
+            "assessmentSectionTitle": SectionDefinition.get("title"),
+            **DigitConfig,
+            **AddLessConfig,
+            "forceSingleSection": True,
+        },
+    )
+
+
+def ImSectionRegistryConfig(LevelItem: Level | None, SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], QuestionCount: int, Seed: str) -> IMConfig:
+    """IM counterpart of MmSectionRegistryConfig() above. Same reasoning:
+    sourced from that level's IM_COMPETITION_LEVEL_REGISTRY concept-pool
+    entry, no DPSSection lookup.
+    """
+    ConceptFamily = str(ConceptSpec.get("conceptFamily") or "ADD_LESS")
+    return IMConfig(
+        ModuleCode="IM",
+        LevelCode=getattr(LevelItem, "level_code", "IM-L4") or "IM-L4",
+        LessonNumber=1,
+        DpsNumber=int(SectionDefinition.get("number") or 1),
+        DpsTitle=str(ConceptSpec.get("title") or SectionDefinition.get("title") or ""),
+        LessonTitle=str(SectionDefinition.get("title") or ""),
+        QuestionCount=QuestionCount,
+        Seed=Seed,
+        ConceptFamily=ConceptFamily,
+        OperationFocus=ImOperationFocusForConcept(ConceptFamily),
+        DigitPattern="INTERMEDIATE_MODULE",
+        Difficulty="INTERMEDIATE",
+        GeneratorConfig={
+            "source": "ASSESSMENT_SECTION_REGISTRY",
+            "assessmentSectionKey": SectionDefinition.get("key"),
+            "assessmentSectionNumber": SectionDefinition.get("number"),
+            "assessmentSectionTitle": SectionDefinition.get("title"),
+            "forceSingleSection": True,
+        },
+    )
+
+
 def AssessmentModuleCode(Db: Session, Blueprint: AssessmentBlueprint) -> str:
     ModuleItem = Db.get(Module, Blueprint.module_id) if Blueprint.module_id else None
     return str(getattr(ModuleItem, "module_code", "") or "").upper()
@@ -383,7 +516,12 @@ def QuestionText(Operands: list) -> str:
 
 
 def QuestionPayload(Db: Session, Question: AssessmentQuestion, IncludeAnswerKey: bool = False) -> dict[str, Any]:
-    LessonItem = Db.get(Lesson, Question.lesson_id)
+    # lesson_id is None for section-wise (IM/MM) questions -- see
+    # AssessmentBlueprintSection's docstring in models.py -- Db.get() with a
+    # None pk logs a SQLAlchemy warning (and may error in a future version),
+    # so guard it explicitly rather than relying on it just happening to
+    # return None today.
+    LessonItem = Db.get(Lesson, Question.lesson_id) if Question.lesson_id else None
     Options = (
         Db.query(AssessmentQuestionOption)
         .filter(AssessmentQuestionOption.assessment_question_id == Question.id)
@@ -476,21 +614,52 @@ def VersionPayload(Db: Session, Version: AssessmentVersion, IncludeQuestions: bo
     }
     if IncludeQuestions:
         QuestionRows = [QuestionPayload(Db, Question, IncludeAnswerKey=IncludeAnswerKey) for Question in Questions]
-        LessonGroups: dict[str, dict[str, Any]] = {}
+        # Section-wise questions (IM, MM -- see AssessmentBlueprintSection)
+        # have no lesson_id at all, so grouping by lessonId alone would
+        # collapse every one of them into a single "unknown" bucket. Group by
+        # section instead whenever a row's own metadata carries a section key
+        # (set in GenerateAssessmentVersion()); legacy lesson-wise rows (YLM)
+        # have no such metadata and group by lessonId exactly as before.
+        # "lessonGroups" is kept as the payload key for both shapes so the
+        # admin studio's existing preview/coverage UI needs only to read a
+        # generic "groupKind" field, not two entirely separate response
+        # shapes.
+        Groups: dict[str, dict[str, Any]] = {}
         for Row in QuestionRows:
-            LessonKey = Row["lessonId"] or "unknown"
-            if LessonKey not in LessonGroups:
-                LessonGroups[LessonKey] = {
-                    "lessonId": Row["lessonId"],
-                    "lessonNumber": Row["lessonNumber"],
-                    "lessonTitle": Row["lessonTitle"],
-                    "questionCount": 0,
-                    "questions": [],
-                }
-            LessonGroups[LessonKey]["questionCount"] += 1
-            LessonGroups[LessonKey]["questions"].append(Row)
+            Metadata = Row.get("metadata") or {}
+            SectionKey = Metadata.get("assessmentSectionKey")
+            if SectionKey:
+                GroupKey = f"section:{SectionKey}"
+                if GroupKey not in Groups:
+                    Groups[GroupKey] = {
+                        "groupKind": "SECTION",
+                        "sectionKey": SectionKey,
+                        "sectionNumber": Metadata.get("assessmentSectionNumber"),
+                        "sectionTitle": Metadata.get("assessmentSectionTitle"),
+                        "lessonId": None,
+                        "lessonNumber": Metadata.get("assessmentSectionNumber"),
+                        "lessonTitle": Metadata.get("assessmentSectionTitle"),
+                        "questionCount": 0,
+                        "questions": [],
+                    }
+            else:
+                GroupKey = f"lesson:{Row['lessonId'] or 'unknown'}"
+                if GroupKey not in Groups:
+                    Groups[GroupKey] = {
+                        "groupKind": "LESSON",
+                        "sectionKey": None,
+                        "sectionNumber": None,
+                        "sectionTitle": None,
+                        "lessonId": Row["lessonId"],
+                        "lessonNumber": Row["lessonNumber"],
+                        "lessonTitle": Row["lessonTitle"],
+                        "questionCount": 0,
+                        "questions": [],
+                    }
+            Groups[GroupKey]["questionCount"] += 1
+            Groups[GroupKey]["questions"].append(Row)
         Payload["questions"] = QuestionRows
-        Payload["lessonGroups"] = sorted(LessonGroups.values(), key=lambda Item: (Item.get("lessonNumber") or 9999))
+        Payload["lessonGroups"] = sorted(Groups.values(), key=lambda Item: (Item.get("lessonNumber") or 9999))
     return Payload
 
 
@@ -673,26 +842,53 @@ def _DefaultAssessmentExplanation(ModuleCode: str) -> str:
 
 def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, GeneratedByUserId: str | None = None, Status: str = "PREVIEW") -> AssessmentVersion:
     Db.flush()
-    Rows = (
-        Db.query(AssessmentBlueprintLesson, Lesson)
-        .join(Lesson, AssessmentBlueprintLesson.lesson_id == Lesson.id)
-        .filter(AssessmentBlueprintLesson.blueprint_id == Blueprint.id)
-        .order_by(AssessmentBlueprintLesson.display_order.asc(), Lesson.lesson_number.asc())
-        .all()
-    )
-    if not Rows:
-        api_error(
-            400,
-            "MISSING_LESSON_DISTRIBUTION",
-            "Assessment distribution was not saved before generation. Please save the distribution and try again.",
+    ModuleCode = AssessmentModuleCode(Db, Blueprint)
+    SectionWise = ModuleCode in _SECTION_WISE_ASSESSMENT_MODULES
+
+    LevelItem: Level | None = None
+    SectionRows: list[AssessmentBlueprintSection] = []
+    SectionDefsByKey: dict[str, dict[str, Any]] = {}
+    ConceptPools: dict[str, list[dict[str, Any]]] = {}
+    Rows: list[tuple[AssessmentBlueprintLesson, Lesson]] = []
+
+    if SectionWise:
+        SectionRows = (
+            Db.query(AssessmentBlueprintSection)
+            .filter(AssessmentBlueprintSection.blueprint_id == Blueprint.id)
+            .order_by(AssessmentBlueprintSection.display_order.asc())
+            .all()
         )
+        if not SectionRows:
+            api_error(
+                400,
+                "MISSING_SECTION_DISTRIBUTION",
+                "Assessment distribution was not saved before generation. Please save the distribution and try again.",
+            )
+        LevelItem = Db.get(Level, Blueprint.level_id)
+        RegistryConfig = SectionWiseLevelConfig(ModuleCode, LevelItem)
+        SectionDefsByKey = {row["key"]: row for row in RegistryConfig["sectionDefinitions"]}
+        ConceptPools = RegistryConfig["sectionConceptPools"]
+    else:
+        Rows = (
+            Db.query(AssessmentBlueprintLesson, Lesson)
+            .join(Lesson, AssessmentBlueprintLesson.lesson_id == Lesson.id)
+            .filter(AssessmentBlueprintLesson.blueprint_id == Blueprint.id)
+            .order_by(AssessmentBlueprintLesson.display_order.asc(), Lesson.lesson_number.asc())
+            .all()
+        )
+        if not Rows:
+            api_error(
+                400,
+                "MISSING_LESSON_DISTRIBUTION",
+                "Assessment distribution was not saved before generation. Please save the distribution and try again.",
+            )
 
     Seed = f"ASSESSMENT-{Blueprint.id}-V{NextVersionNumber(Db, Blueprint.id)}-{uuid4().hex}"
     Version = AssessmentVersion(
         blueprint_id=Blueprint.id,
         version_number=NextVersionNumber(Db, Blueprint.id),
         status=Status,
-        generation_mode="LEVEL_WIDE_RANDOMIZED",
+        generation_mode="SECTION_WIDE_RANDOMIZED" if SectionWise else "LEVEL_WIDE_RANDOMIZED",
         seed=Seed,
         total_questions=Blueprint.total_questions,
         total_marks=Blueprint.total_marks,
@@ -705,103 +901,182 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
     Db.add(Version)
     Db.flush()
 
-    ModuleCode = AssessmentModuleCode(Db, Blueprint)
-    # IM-only (Shailesh, 2026-07-18): IM assessments don't split a fixed
-    # 100-mark pool evenly -- each question earns its own mark value from
-    # ImConceptWeightedQuestionMark() based on its real concept, so the
-    # version's true total is only known once every question is generated.
-    # Accumulated below and applied to Version.total_marks after the loop,
-    # for IM only; every other module keeps Blueprint.total_marks (100) set
-    # above, completely unchanged.
-    RunningImMarksTotal = 0.0
+    # Section-wise (IM, MM) and IM's old lesson-wise concept-weighting both
+    # need the true post-generation total (not a fixed 100) -- see the
+    # comment on Version.total_marks below. YLM's flat evenly-balanced-100
+    # scheme never reads this.
+    RunningWeightedMarksTotal = 0.0
 
     QuestionNumber = 1
-    for BlueprintLesson, LessonItem in Rows:
-        Sections = LessonSourceSections(Db, LessonItem.id)
-        if not Sections:
-            api_error(
-                400,
-                "LESSON_HAS_NO_DPS_RULES",
-                "Every lesson must have DPS concept rules before assessment generation.",
-                {"lessonNumber": LessonItem.lesson_number, "lessonTitle": LessonItem.lesson_title},
-            )
 
-        Counts = SplitCountAcrossSources(BlueprintLesson.question_count, len(Sections))
-        for SectionIndex, Count in enumerate(Counts):
-            Section = Sections[SectionIndex % len(Sections)]
-            SectionSeed = f"{Seed}-L{LessonItem.lesson_number}-S{SectionIndex + 1}-{uuid4().hex}"
-            try:
-                if ModuleCode == "MM":
-                    Config = MmSectionConfig(Db, LessonItem, Section, Count, SectionSeed)
-                    GeneratedQuestions = _GenerateMmAssessmentBatch(Config, Count)
-                elif ModuleCode == "IM":
-                    Config = ImSectionConfig(Db, LessonItem, Section, Count, SectionSeed)
-                    GeneratedQuestions = _GenerateImAssessmentBatch(Config, Count)
-                else:
-                    Config = SectionConfig(Db, LessonItem, Section, Count, SectionSeed)
-                    GeneratedQuestions = GenerateAssessmentQuestionBatch(Config, Count)
-            except Exception as Exc:
+    if SectionWise:
+        for BlueprintSection in SectionRows:
+            SectionDef = SectionDefsByKey.get(BlueprintSection.section_key)
+            if not SectionDef:
                 api_error(
                     400,
-                    "ASSESSMENT_QUESTION_GENERATION_FAILED",
-                    "Assessment question generation failed for one lesson. Check its concept rules.",
-                    {"lessonNumber": LessonItem.lesson_number, "lessonTitle": LessonItem.lesson_title, "reason": str(Exc)},
+                    "SECTION_NOT_IN_LEVEL",
+                    "A saved section no longer exists in this level's mock section structure. Re-save the distribution.",
+                    {"sectionKey": BlueprintSection.section_key},
+                )
+            ConceptPool = ConceptPools.get(SectionDef["key"]) or []
+            if not ConceptPool:
+                api_error(
+                    400,
+                    "SECTION_HAS_NO_CONCEPT_POOL",
+                    f"Section '{SectionDef['title']}' has no concept pool configured.",
+                    {"sectionKey": SectionDef["key"]},
                 )
 
-            for Generated in GeneratedQuestions:
-                Operands = Generated.get("operands", [])
-                Metadata = Generated.get("metadata", {}) or {}
-                ConceptTag = Metadata.get("concept_family") or Section.concept_family
-                if ModuleCode == "IM":
-                    QuestionMarks = ImConceptWeightedQuestionMark(ConceptTag)
-                    RunningImMarksTotal += QuestionMarks
-                    MarksMode = "IM_CONCEPT_WEIGHTED"
-                else:
+            Counts = SplitCountAcrossSources(BlueprintSection.question_count, len(ConceptPool))
+            for ConceptIndex, Count in enumerate(Counts):
+                ConceptSpec = ConceptPool[ConceptIndex % len(ConceptPool)]
+                ConceptSeed = f"{Seed}-{SectionDef['key']}-C{ConceptIndex + 1}-{uuid4().hex}"
+                try:
+                    if ModuleCode == "MM":
+                        Config = MmSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
+                        GeneratedQuestions = _GenerateMmAssessmentBatch(Config, Count)
+                    else:
+                        Config = ImSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
+                        GeneratedQuestions = _GenerateImAssessmentBatch(Config, Count)
+                except Exception as Exc:
+                    api_error(
+                        400,
+                        "ASSESSMENT_QUESTION_GENERATION_FAILED",
+                        "Assessment question generation failed for one section. Check its concept pool.",
+                        {"sectionKey": SectionDef["key"], "sectionTitle": SectionDef["title"], "reason": str(Exc)},
+                    )
+
+                for Generated in GeneratedQuestions:
+                    Operands = Generated.get("operands", [])
+                    Metadata = Generated.get("metadata", {}) or {}
+                    ConceptTag = Metadata.get("concept_family") or ConceptSpec.get("conceptFamily")
+                    if ModuleCode == "MM":
+                        QuestionMarks = MM_FLAT_QUESTION_MARKS
+                        MarksMode = "MM_FLAT"
+                    else:
+                        QuestionMarks = ImConceptWeightedQuestionMark(ConceptTag)
+                        MarksMode = "CONCEPT_WEIGHTED"
+                    RunningWeightedMarksTotal += QuestionMarks
+                    Metadata.update(
+                        {
+                            "questionMarks": QuestionMarks,
+                            "marksMode": MarksMode,
+                            "assessmentSectionKey": SectionDef["key"],
+                            "assessmentSectionNumber": SectionDef.get("number"),
+                            "assessmentSectionTitle": SectionDef.get("title"),
+                            "levelWideAssessment": True,
+                            "randomizedAssessment": True,
+                        }
+                    )
+                    GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands)
+                    AssessmentQuestionRow = AssessmentQuestion(
+                        assessment_version_id=Version.id,
+                        lesson_id=None,
+                        question_number=QuestionNumber,
+                        lesson_question_number=Generated.get("question_number") or 1,
+                        display_type=Generated.get("display_type") or "VERTICAL",
+                        question_text=GeneratedQuestionText,
+                        operands_json=json.dumps(Operands),
+                        operators_json=json.dumps(Generated.get("operators", [])),
+                        correct_answer=str(Generated.get("correct_answer")),
+                        explanation=Generated.get("explanation") or _DefaultAssessmentExplanation(ModuleCode),
+                        difficulty="MIXED",
+                        concept_tag=ConceptTag,
+                        source_type="ASSESSMENT_SECTION_REGISTRY",
+                        source_reference_id=SectionDef["key"],
+                        seed=Generated.get("seed") or ConceptSeed,
+                        metadata_json=json.dumps(Metadata),
+                    )
+                    Db.add(AssessmentQuestionRow)
+                    Db.flush()
+
+                    for Option in Generated.get("options", []):
+                        Db.add(
+                            AssessmentQuestionOption(
+                                assessment_question_id=AssessmentQuestionRow.id,
+                                option_label=Option.get("label"),
+                                option_value=str(Option.get("value")),
+                                is_correct=bool(Option.get("is_correct")),
+                                display_order=int(Option.get("display_order") or 0),
+                            )
+                        )
+                    QuestionNumber += 1
+    else:
+        for BlueprintLesson, LessonItem in Rows:
+            Sections = LessonSourceSections(Db, LessonItem.id)
+            if not Sections:
+                api_error(
+                    400,
+                    "LESSON_HAS_NO_DPS_RULES",
+                    "Every lesson must have DPS concept rules before assessment generation.",
+                    {"lessonNumber": LessonItem.lesson_number, "lessonTitle": LessonItem.lesson_title},
+                )
+
+            Counts = SplitCountAcrossSources(BlueprintLesson.question_count, len(Sections))
+            for SectionIndex, Count in enumerate(Counts):
+                Section = Sections[SectionIndex % len(Sections)]
+                SectionSeed = f"{Seed}-L{LessonItem.lesson_number}-S{SectionIndex + 1}-{uuid4().hex}"
+                try:
+                    Config = SectionConfig(Db, LessonItem, Section, Count, SectionSeed)
+                    GeneratedQuestions = GenerateAssessmentQuestionBatch(Config, Count)
+                except Exception as Exc:
+                    api_error(
+                        400,
+                        "ASSESSMENT_QUESTION_GENERATION_FAILED",
+                        "Assessment question generation failed for one lesson. Check its concept rules.",
+                        {"lessonNumber": LessonItem.lesson_number, "lessonTitle": LessonItem.lesson_title, "reason": str(Exc)},
+                    )
+
+                for Generated in GeneratedQuestions:
+                    Operands = Generated.get("operands", [])
+                    Metadata = Generated.get("metadata", {}) or {}
+                    ConceptTag = Metadata.get("concept_family") or Section.concept_family
                     QuestionMarks = AssessmentQuestionMark(Version, None, Blueprint.total_questions)
                     MarksMode = "AUTO_BALANCED"
-                Metadata.update(
-                    {
-                        "questionMarks": QuestionMarks,
-                        "marksMode": MarksMode,
-                        "sourceDpsSectionId": Section.id,
-                        "sourceDpsId": Section.dps_id,
-                        "levelWideAssessment": True,
-                        "randomizedAssessment": True,
-                    }
-                )
-                GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands)
-                AssessmentQuestionRow = AssessmentQuestion(
-                    assessment_version_id=Version.id,
-                    lesson_id=LessonItem.id,
-                    question_number=QuestionNumber,
-                    lesson_question_number=Generated.get("question_number") or 1,
-                    display_type=Generated.get("display_type") or "VERTICAL",
-                    question_text=GeneratedQuestionText,
-                    operands_json=json.dumps(Operands),
-                    operators_json=json.dumps(Generated.get("operators", [])),
-                    correct_answer=str(Generated.get("correct_answer")),
-                    explanation=Generated.get("explanation") or _DefaultAssessmentExplanation(ModuleCode),
-                    difficulty=Section.difficulty or "MIXED",
-                    concept_tag=ConceptTag,
-                    source_type="DPS_CONCEPT_RULE",
-                    source_reference_id=Section.id,
-                    seed=Generated.get("seed") or SectionSeed,
-                    metadata_json=json.dumps(Metadata),
-                )
-                Db.add(AssessmentQuestionRow)
-                Db.flush()
-
-                for Option in Generated.get("options", []):
-                    Db.add(
-                        AssessmentQuestionOption(
-                            assessment_question_id=AssessmentQuestionRow.id,
-                            option_label=Option.get("label"),
-                            option_value=str(Option.get("value")),
-                            is_correct=bool(Option.get("is_correct")),
-                            display_order=int(Option.get("display_order") or 0),
-                        )
+                    Metadata.update(
+                        {
+                            "questionMarks": QuestionMarks,
+                            "marksMode": MarksMode,
+                            "sourceDpsSectionId": Section.id,
+                            "sourceDpsId": Section.dps_id,
+                            "levelWideAssessment": True,
+                            "randomizedAssessment": True,
+                        }
                     )
-                QuestionNumber += 1
+                    GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands)
+                    AssessmentQuestionRow = AssessmentQuestion(
+                        assessment_version_id=Version.id,
+                        lesson_id=LessonItem.id,
+                        question_number=QuestionNumber,
+                        lesson_question_number=Generated.get("question_number") or 1,
+                        display_type=Generated.get("display_type") or "VERTICAL",
+                        question_text=GeneratedQuestionText,
+                        operands_json=json.dumps(Operands),
+                        operators_json=json.dumps(Generated.get("operators", [])),
+                        correct_answer=str(Generated.get("correct_answer")),
+                        explanation=Generated.get("explanation") or _DefaultAssessmentExplanation(ModuleCode),
+                        difficulty=Section.difficulty or "MIXED",
+                        concept_tag=ConceptTag,
+                        source_type="DPS_CONCEPT_RULE",
+                        source_reference_id=Section.id,
+                        seed=Generated.get("seed") or SectionSeed,
+                        metadata_json=json.dumps(Metadata),
+                    )
+                    Db.add(AssessmentQuestionRow)
+                    Db.flush()
+
+                    for Option in Generated.get("options", []):
+                        Db.add(
+                            AssessmentQuestionOption(
+                                assessment_question_id=AssessmentQuestionRow.id,
+                                option_label=Option.get("label"),
+                                option_value=str(Option.get("value")),
+                                is_correct=bool(Option.get("is_correct")),
+                                display_order=int(Option.get("display_order") or 0),
+                            )
+                        )
+                    QuestionNumber += 1
 
     ActualQuestionCount = Db.query(AssessmentQuestion).filter(AssessmentQuestion.assessment_version_id == Version.id).count()
     if ActualQuestionCount != Blueprint.total_questions:
@@ -811,14 +1086,16 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
             "Generated question count does not match the assessment blueprint.",
             {"expected": Blueprint.total_questions, "actual": ActualQuestionCount},
         )
-    if ModuleCode == "IM":
-        # Replace the placeholder Blueprint.total_marks (100) with the true
-        # sum of this version's concept-weighted question marks, so every
-        # downstream reader of Version.total_marks (grading's MaxScore,
-        # result screens, reports) reflects reality instead of a fixed 100
-        # that no longer corresponds to how IM questions are actually marked.
-        Version.total_marks = RunningImMarksTotal
-        Version.marks_per_question = _IM_DEFAULT_QUESTION_MARKS
+    if SectionWise:
+        # Replace the placeholder Blueprint.total_marks (total_questions, see
+        # SECTION_WISE_PLACEHOLDER_MARKS_PER_QUESTION in
+        # assessment_blueprint_service.py) with the true sum of this
+        # version's question marks, so every downstream reader of
+        # Version.total_marks (grading's MaxScore, result screens, reports)
+        # reflects reality. For MM this always equals total_questions exactly
+        # (flat 1 each); for IM it reflects the real concept-weighted total.
+        Version.total_marks = RunningWeightedMarksTotal
+        Version.marks_per_question = MM_FLAT_QUESTION_MARKS if ModuleCode == "MM" else _CONCEPT_WEIGHTED_DEFAULT_MARKS
         Db.add(Version)
     Db.flush()
     return Version

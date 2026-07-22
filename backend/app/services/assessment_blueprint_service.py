@@ -10,6 +10,7 @@ from app.core.errors import api_error
 from app.models import (
     AssessmentBlueprint,
     AssessmentBlueprintLesson,
+    AssessmentBlueprintSection,
     AssessmentVersion,
     AssessmentQuestion,
     AssessmentQuestionOption,
@@ -29,11 +30,58 @@ from app.models import (
 
 from app.services.assessment_engine_service import (
     RegisterPublishedBlueprintVersion,
+    AssessmentModuleCode,
+)
+from app.services.competition_mock_generation_service import (
+    IM_COMPETITION_LEVEL_REGISTRY,
+    MM_COMPETITION_LEVEL_REGISTRY,
 )
 
 TOTAL_ASSESSMENT_MARKS = 100.0
 PASSING_PERCENTAGE = 70.0
 BLUEPRINT_STATUSES = {"DRAFT", "PUBLISHED", "ARCHIVED"}
+
+# 2026-07-22, Shailesh: assessments for these modules mirror the exact
+# sections that level's competition mock exam uses instead of a lesson-wise
+# split -- see AssessmentBlueprintSection's docstring in models.py. YLM (and
+# any module not listed here) stays on the original AssessmentBlueprintLesson
+# path completely unchanged; deliberately an explicit allow-list rather than
+# "everyone except YLM" so a brand-new module never silently gets swept into
+# section-wise assessments before it actually has a mock section registry to
+# mirror -- it would fail loudly instead, exactly like the mock generators
+# already do for an unconfigured level.
+SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM"}
+
+_SECTION_WISE_REGISTRIES: dict[str, dict[str, Any]] = {
+    "IM": IM_COMPETITION_LEVEL_REGISTRY,
+    "MM": MM_COMPETITION_LEVEL_REGISTRY,
+}
+
+
+def is_section_wise_module(module_code: str | None) -> bool:
+    return (module_code or "").upper() in SECTION_WISE_ASSESSMENT_MODULES
+
+
+def level_section_registry_config(module_code: str, level: Level) -> dict[str, Any]:
+    """Returns this level's {'sectionDefinitions': [...], 'sectionConceptPools':
+    {...}} -- sourced from the exact same registry competition mocks read
+    (IM_COMPETITION_LEVEL_REGISTRY / MM_COMPETITION_LEVEL_REGISTRY in
+    competition_mock_generation_service.py), never a copy, so an assessment's
+    sections can never silently drift from that level's mock exam sections.
+    """
+    registry = _SECTION_WISE_REGISTRIES.get((module_code or "").upper())
+    level_code = str(getattr(level, "level_code", "") or "")
+    config = registry.get(level_code) if registry else None
+    if config is None:
+        api_error(
+            400,
+            "ASSESSMENT_SECTION_REGISTRY_NOT_CONFIGURED",
+            f"No competition mock section structure has been defined yet for {module_code} level '{level_code}'. "
+            "Section-wise assessments mirror that structure, so it must exist (in "
+            "competition_mock_generation_service.py) before an assessment can be built for this level.",
+            {"moduleCode": module_code, "levelCode": level_code},
+        )
+    return config
 
 
 def now_utc() -> datetime:
@@ -153,38 +201,145 @@ def validate_distribution(
     return parsed
 
 
+def validate_section_distribution(
+    db: Session,
+    module_code: str,
+    level: Level,
+    total_questions: int,
+    section_distribution: list[dict[str, Any]],
+) -> list[tuple[dict[str, Any], int]]:
+    """Section-wise counterpart of validate_distribution() above, for
+    SECTION_WISE_ASSESSMENT_MODULES. Same shape and same error philosophy
+    (full coverage required, counts must sum to the total) -- just keyed by
+    sectionKey against that level's mock section registry instead of by
+    lessonId against that level's active lessons.
+    """
+    if total_questions <= 0:
+        api_error(400, "INVALID_TOTAL_QUESTIONS", "Total questions must be greater than zero.")
+
+    registry_config = level_section_registry_config(module_code, level)
+    section_defs = registry_config["sectionDefinitions"]
+    section_by_key = {row["key"]: row for row in section_defs}
+
+    if not section_distribution:
+        api_error(400, "MISSING_SECTION_DISTRIBUTION", "Section-wise question distribution is required.")
+
+    seen: set[str] = set()
+    parsed: list[tuple[dict[str, Any], int]] = []
+
+    for item in section_distribution:
+        section_key = str(item.get("sectionKey") or item.get("section_key") or "").strip()
+        question_count = item.get("questionCount", item.get("question_count"))
+
+        if not section_key:
+            api_error(400, "INVALID_SECTION_DISTRIBUTION", "Every distribution row must include sectionKey.")
+
+        if section_key in seen:
+            api_error(400, "DUPLICATE_SECTION_DISTRIBUTION", "A section can appear only once in the assessment distribution.")
+        seen.add(section_key)
+
+        section_def = section_by_key.get(section_key)
+        if not section_def:
+            api_error(400, "SECTION_NOT_IN_LEVEL", "Every section in the distribution must belong to this level's mock section structure.")
+
+        try:
+            count = int(question_count)
+        except Exception:
+            api_error(400, "INVALID_QUESTION_COUNT", "Question count must be a number.")
+
+        if count <= 0:
+            api_error(400, "INVALID_QUESTION_COUNT", "Each section must contribute at least one question.")
+
+        parsed.append((section_def, count))
+
+    missing_keys = set(section_by_key.keys()) - seen
+    if missing_keys:
+        missing_titles = [section_by_key[key]["title"] for key in missing_keys]
+        api_error(
+            400,
+            "FULL_SECTION_COVERAGE_REQUIRED",
+            "Assessment must include every section this level's mock exam uses.",
+            {"missingSections": missing_titles},
+        )
+
+    total_from_distribution = sum(count for _, count in parsed)
+    if total_from_distribution != total_questions:
+        api_error(
+            400,
+            "QUESTION_DISTRIBUTION_MISMATCH",
+            "Sum of section-wise questions must equal total questions.",
+            {"totalQuestions": total_questions, "distributionTotal": total_from_distribution},
+        )
+
+    return parsed
+
+
 def marks_per_question(total_questions: int) -> float:
     if total_questions <= 0:
         api_error(400, "INVALID_TOTAL_QUESTIONS", "Total questions must be greater than zero.")
     return round(TOTAL_ASSESSMENT_MARKS / total_questions, 4)
 
 
+# Section-wise modules (IM, MM) never use the fixed-100-total auto-balanced
+# scheme -- IM's real total is the sum of its concept-weighted questions
+# (5 for Skill Stacker/Concept Drill, 1 otherwise) and MM's is simply
+# total_questions (flat 1 mark each, matching mocks). 1.0 here is only the
+# blueprint-level placeholder shown before a version is ever generated;
+# GenerateAssessmentVersion() overwrites both total_marks and
+# marks_per_question with the true values once real questions exist -- same
+# pattern the old IM-only code already used, generalized.
+SECTION_WISE_PLACEHOLDER_MARKS_PER_QUESTION = 1.0
+
+
 def blueprint_payload(db: Session, blueprint: AssessmentBlueprint) -> dict[str, Any]:
     module = db.get(Module, blueprint.module_id)
     level = db.get(Level, blueprint.level_id)
     created_by = db.get(User, blueprint.created_by_user_id) if blueprint.created_by_user_id else None
+    module_code = module.module_code if module else None
+    section_wise = is_section_wise_module(module_code)
 
-    rows = (
-        db.query(AssessmentBlueprintLesson, Lesson)
-        .join(Lesson, AssessmentBlueprintLesson.lesson_id == Lesson.id)
-        .filter(AssessmentBlueprintLesson.blueprint_id == blueprint.id)
-        .order_by(AssessmentBlueprintLesson.display_order.asc(), Lesson.lesson_number.asc())
-        .all()
-    )
-
-    distribution = []
-    for row, lesson in rows:
-        distribution.append(
-            {
-                "id": row.id,
-                "lessonId": lesson.id,
-                "lessonNumber": lesson.lesson_number,
-                "lessonTitle": lesson.lesson_title,
-                "questionCount": row.question_count,
-                "displayOrder": row.display_order,
-                "conceptRules": _safe_json(row.concept_rule_json, {}),
-            }
+    distribution: list[dict[str, Any]] = []
+    if section_wise:
+        registry_config = level_section_registry_config(module_code, level) if level else {"sectionDefinitions": []}
+        section_by_key = {row["key"]: row for row in registry_config.get("sectionDefinitions", [])}
+        section_rows = (
+            db.query(AssessmentBlueprintSection)
+            .filter(AssessmentBlueprintSection.blueprint_id == blueprint.id)
+            .order_by(AssessmentBlueprintSection.display_order.asc())
+            .all()
         )
+        for row in section_rows:
+            section_def = section_by_key.get(row.section_key, {})
+            distribution.append(
+                {
+                    "id": row.id,
+                    "sectionKey": row.section_key,
+                    "sectionNumber": section_def.get("number"),
+                    "sectionTitle": section_def.get("title"),
+                    "questionCount": row.question_count,
+                    "displayOrder": row.display_order,
+                }
+            )
+    else:
+        rows = (
+            db.query(AssessmentBlueprintLesson, Lesson)
+            .join(Lesson, AssessmentBlueprintLesson.lesson_id == Lesson.id)
+            .filter(AssessmentBlueprintLesson.blueprint_id == blueprint.id)
+            .order_by(AssessmentBlueprintLesson.display_order.asc(), Lesson.lesson_number.asc())
+            .all()
+        )
+        for row, lesson in rows:
+            distribution.append(
+                {
+                    "id": row.id,
+                    "lessonId": lesson.id,
+                    "lessonNumber": lesson.lesson_number,
+                    "lessonTitle": lesson.lesson_title,
+                    "questionCount": row.question_count,
+                    "displayOrder": row.display_order,
+                    "conceptRules": _safe_json(row.concept_rule_json, {}),
+                }
+            )
 
     VersionCount = db.query(AssessmentVersion).filter(AssessmentVersion.blueprint_id == blueprint.id).count()
     AssignmentCount = db.query(AssessmentAssignment).filter(AssessmentAssignment.blueprint_id == blueprint.id).count()
@@ -222,7 +377,9 @@ def blueprint_payload(db: Session, blueprint: AssessmentBlueprint) -> dict[str, 
         "archivedAt": _iso(blueprint.archived_at),
         "createdAt": _iso(blueprint.created_at),
         "updatedAt": _iso(blueprint.updated_at),
-        "lessonDistribution": distribution,
+        "distributionMode": "SECTION_WISE" if section_wise else "LESSON_WISE",
+        "sectionDistribution": distribution if section_wise else [],
+        "lessonDistribution": [] if section_wise else distribution,
         "engineVersionCount": VersionCount,
         "engineAssignmentCount": AssignmentCount,
         "engineResultCount": ResultCount,
@@ -266,16 +423,25 @@ def create_blueprint(db: Session, *, title: str, module_id: str, level_id: str, 
     if status not in {"DRAFT", "PUBLISHED"}:
         api_error(400, "INVALID_STATUS", "Assessment can be created only as Draft or Published.")
 
-    get_module_level_or_404(db, module_id, level_id)
-    parsed_distribution = validate_distribution(db, level_id, total_questions, lesson_distribution)
+    module, level = get_module_level_or_404(db, module_id, level_id)
+    section_wise = is_section_wise_module(module.module_code)
+
+    if section_wise:
+        parsed_sections = validate_section_distribution(db, module.module_code, level, total_questions, lesson_distribution)
+        blueprint_total_marks = float(total_questions)
+        blueprint_marks_per_question = SECTION_WISE_PLACEHOLDER_MARKS_PER_QUESTION
+    else:
+        parsed_lessons = validate_distribution(db, level_id, total_questions, lesson_distribution)
+        blueprint_total_marks = TOTAL_ASSESSMENT_MARKS
+        blueprint_marks_per_question = marks_per_question(total_questions)
 
     blueprint = AssessmentBlueprint(
         title=title,
         module_id=module_id,
         level_id=level_id,
         total_questions=total_questions,
-        total_marks=TOTAL_ASSESSMENT_MARKS,
-        marks_per_question=marks_per_question(total_questions),
+        total_marks=blueprint_total_marks,
+        marks_per_question=blueprint_marks_per_question,
         duration_seconds=duration_seconds,
         passing_percentage=PASSING_PERCENTAGE,
         instructions=instructions,
@@ -288,19 +454,30 @@ def create_blueprint(db: Session, *, title: str, module_id: str, level_id: str, 
     db.add(blueprint)
     db.flush()
 
-    for display_order, (lesson, count, concept_rule) in enumerate(parsed_distribution, start=1):
-        db.add(
-            AssessmentBlueprintLesson(
-                blueprint_id=blueprint.id,
-                lesson_id=lesson.id,
-                question_count=count,
-                display_order=display_order,
-                concept_rule_json=json.dumps(concept_rule or {}),
+    if section_wise:
+        for display_order, (section_def, count) in enumerate(parsed_sections, start=1):
+            db.add(
+                AssessmentBlueprintSection(
+                    blueprint_id=blueprint.id,
+                    section_key=section_def["key"],
+                    question_count=count,
+                    display_order=display_order,
+                )
             )
-        )
+    else:
+        for display_order, (lesson, count, concept_rule) in enumerate(parsed_lessons, start=1):
+            db.add(
+                AssessmentBlueprintLesson(
+                    blueprint_id=blueprint.id,
+                    lesson_id=lesson.id,
+                    question_count=count,
+                    display_order=display_order,
+                    concept_rule_json=json.dumps(concept_rule or {}),
+                )
+            )
 
     # Critical: published assessments immediately generate/publish an assessment version.
-    # Persist the lesson distribution rows before the generation engine queries them.
+    # Persist the distribution rows before the generation engine queries them.
     db.flush()
 
     if status == "PUBLISHED":
@@ -322,6 +499,10 @@ def update_blueprint(db: Session, blueprint_id: str, *, title: str | None = None
     if blueprint.status == "ARCHIVED":
         api_error(400, "ARCHIVED_BLUEPRINT_LOCKED", "Archived assessments cannot be edited.")
 
+    module = db.get(Module, blueprint.module_id)
+    level = db.get(Level, blueprint.level_id)
+    section_wise = is_section_wise_module(module.module_code if module else None)
+
     if title is not None:
         cleaned = title.strip()
         if not cleaned:
@@ -340,23 +521,40 @@ def update_blueprint(db: Session, blueprint_id: str, *, title: str | None = None
         if total_questions <= 0:
             api_error(400, "INVALID_TOTAL_QUESTIONS", "Total questions must be greater than zero.")
         blueprint.total_questions = total_questions
-        blueprint.marks_per_question = marks_per_question(total_questions)
+        blueprint.marks_per_question = SECTION_WISE_PLACEHOLDER_MARKS_PER_QUESTION if section_wise else marks_per_question(total_questions)
+        if section_wise:
+            blueprint.total_marks = float(total_questions)
 
     if lesson_distribution is not None:
-        parsed_distribution = validate_distribution(db, blueprint.level_id, blueprint.total_questions, lesson_distribution)
+        if section_wise:
+            parsed_sections = validate_section_distribution(db, module.module_code, level, blueprint.total_questions, lesson_distribution)
 
-        db.query(AssessmentBlueprintLesson).filter(AssessmentBlueprintLesson.blueprint_id == blueprint.id).delete()
+            db.query(AssessmentBlueprintSection).filter(AssessmentBlueprintSection.blueprint_id == blueprint.id).delete()
 
-        for display_order, (lesson, count, concept_rule) in enumerate(parsed_distribution, start=1):
-            db.add(
-                AssessmentBlueprintLesson(
-                    blueprint_id=blueprint.id,
-                    lesson_id=lesson.id,
-                    question_count=count,
-                    display_order=display_order,
-                    concept_rule_json=json.dumps(concept_rule or {}),
+            for display_order, (section_def, count) in enumerate(parsed_sections, start=1):
+                db.add(
+                    AssessmentBlueprintSection(
+                        blueprint_id=blueprint.id,
+                        section_key=section_def["key"],
+                        question_count=count,
+                        display_order=display_order,
+                    )
                 )
-            )
+        else:
+            parsed_lessons = validate_distribution(db, blueprint.level_id, blueprint.total_questions, lesson_distribution)
+
+            db.query(AssessmentBlueprintLesson).filter(AssessmentBlueprintLesson.blueprint_id == blueprint.id).delete()
+
+            for display_order, (lesson, count, concept_rule) in enumerate(parsed_lessons, start=1):
+                db.add(
+                    AssessmentBlueprintLesson(
+                        blueprint_id=blueprint.id,
+                        lesson_id=lesson.id,
+                        question_count=count,
+                        display_order=display_order,
+                        concept_rule_json=json.dumps(concept_rule or {}),
+                    )
+                )
         db.flush()
 
     db.commit()
@@ -372,9 +570,18 @@ def publish_blueprint(db: Session, blueprint_id: str, published_by_user_id: str 
     if blueprint.status == "ARCHIVED":
         api_error(400, "ARCHIVED_BLUEPRINT_LOCKED", "Archived assessments cannot be published.")
 
-    rows = db.query(AssessmentBlueprintLesson).filter(AssessmentBlueprintLesson.blueprint_id == blueprint.id).all()
-    distribution = [{"lessonId": row.lesson_id, "questionCount": row.question_count} for row in rows]
-    validate_distribution(db, blueprint.level_id, blueprint.total_questions, distribution)
+    module = db.get(Module, blueprint.module_id)
+    level = db.get(Level, blueprint.level_id)
+    section_wise = is_section_wise_module(module.module_code if module else None)
+
+    if section_wise:
+        rows = db.query(AssessmentBlueprintSection).filter(AssessmentBlueprintSection.blueprint_id == blueprint.id).all()
+        distribution = [{"sectionKey": row.section_key, "questionCount": row.question_count} for row in rows]
+        validate_section_distribution(db, module.module_code, level, blueprint.total_questions, distribution)
+    else:
+        rows = db.query(AssessmentBlueprintLesson).filter(AssessmentBlueprintLesson.blueprint_id == blueprint.id).all()
+        distribution = [{"lessonId": row.lesson_id, "questionCount": row.question_count} for row in rows]
+        validate_distribution(db, blueprint.level_id, blueprint.total_questions, distribution)
 
     blueprint.status = "PUBLISHED"
     blueprint.published_at = blueprint.published_at or now_utc()
@@ -456,6 +663,7 @@ def delete_blueprint(db: Session, blueprint_id: str) -> dict[str, Any]:
         db.query(AssessmentVersion).filter(AssessmentVersion.id.in_(version_ids)).delete(synchronize_session=False)
 
     db.query(AssessmentBlueprintLesson).filter(AssessmentBlueprintLesson.blueprint_id == blueprint.id).delete(synchronize_session=False)
+    db.query(AssessmentBlueprintSection).filter(AssessmentBlueprintSection.blueprint_id == blueprint.id).delete(synchronize_session=False)
     db.delete(blueprint)
     db.commit()
     return snapshot
