@@ -871,7 +871,13 @@ function GeneratedQuestionPreview({ item, assessment, showAnswers }: { item: Ass
               <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">
                 {IsSectionGroup ? `Section ${CurrentLessonGroup?.sectionNumber ?? "-"}` : `Lesson ${CurrentQuestion.lessonNumber ?? CurrentLessonGroup?.lessonNumber ?? "-"}`}
               </span>
-              <span className={`rounded-full px-3 py-1 text-xs font-black ${item.moduleCode === "MM" ? "math-admin-studio-chip" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
+              {/* 2026-07-25: this used to only apply math-admin-studio-chip to
+                  the section-name chip for MM, leaving every other module
+                  (IM etc.) with a plain gray chip next to the blue
+                  section-number chip -- an inconsistency Shailesh flagged
+                  directly. Both chips are the same kind of badge and should
+                  always match, so this is no longer module-conditional. */}
+              <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">
                 {(IsSectionGroup ? CurrentLessonGroup?.sectionTitle : CurrentQuestion.lessonTitle) || CurrentLessonGroup?.lessonTitle || item.levelName}
               </span>
             </div>
@@ -888,10 +894,22 @@ function GeneratedQuestionPreview({ item, assessment, showAnswers }: { item: Ass
           )}
         </div>
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,360px)_1fr] xl:items-center">
-          <div className="rounded-[26px] bg-slate-50/90 p-4 dark:bg-slate-900/70 sm:p-5">
-            <MathQuestionDisplay operands={CurrentQuestion.operands} operators={CurrentQuestion.operators} displayType={(CurrentQuestion as any).displayType ?? (CurrentQuestion as any).display_type} questionText={(CurrentQuestion as any).questionText ?? (CurrentQuestion as any).question_text} />
-          </div>
+        {(() => {
+          const CurrentDisplayType = (CurrentQuestion as any).displayType ?? (CurrentQuestion as any).display_type;
+          // 2026-07-25 fix: BODMAS/expression and financial-table questions need
+          // the full-width single-column treatment the competition mock preview
+          // already gives them (mock-studio/[mockId]/page.tsx's
+          // needsWideQuestionLayout) -- this page always used the narrow 360px
+          // question column regardless of question type, which is what forced
+          // long BODMAS expressions to wrap/shrink instead of sitting on one
+          // line the way they do in mocks. Matching the same displayType check
+          // here keeps both surfaces visually identical, as they're meant to be.
+          const NeedsWideLayout = CurrentDisplayType === "EXPRESSION_WORKSHEET" || CurrentDisplayType === "FINANCIAL_TABLE";
+          return (
+            <div className={`mt-5 grid gap-5 ${NeedsWideLayout ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,360px)_1fr] xl:items-center"}`}>
+              <div className={`${NeedsWideLayout ? "w-full" : ""} rounded-[26px] bg-slate-50/90 p-4 dark:bg-slate-900/70 sm:p-5`}>
+                <MathQuestionDisplay operands={CurrentQuestion.operands} operators={CurrentQuestion.operators} displayType={CurrentDisplayType} questionText={(CurrentQuestion as any).questionText ?? (CurrentQuestion as any).question_text} />
+              </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             {CurrentQuestion.options.map((Option) => {
@@ -917,7 +935,9 @@ function GeneratedQuestionPreview({ item, assessment, showAnswers }: { item: Ass
               );
             })}
           </div>
-        </div>
+            </div>
+          );
+        })()}
 
         {showAnswers && CurrentQuestion.explanation ? (
           <div className="mt-4 rounded-[22px] bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">

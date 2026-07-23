@@ -334,3 +334,103 @@ def test_ylm_module_stays_on_legacy_lesson_wise_path(db_session):
     assert bp_service.is_section_wise_module("YLM") is False
     assert bp_service.is_section_wise_module("MM") is True
     assert bp_service.is_section_wise_module("IM") is True
+
+
+def test_im_assessment_generation_varies_digit_patterns_and_position_direction(db_session):
+    """2026-07-25 regression test for the ImSectionRegistryConfig fix.
+
+    Before this fix, ImSectionRegistryConfig() discarded every ConceptSpec
+    flag except conceptFamily/title, so every IM assessment question for a
+    given concept family silently fell back to operands.py's hardcoded
+    defaults -- multiplication always 2Dx2D, division always 4D/2D, answer
+    position always WRITE_FROM_POSITION -- no matter how many distinct
+    concept-pool variants (IM_COMPETITION_LEVEL_REGISTRY) that section
+    actually has. This generates a real IM-L4 assessment with enough
+    questions per section to cycle through each section's full concept pool
+    at least twice, then asserts real variety shows up in the persisted
+    question metadata -- not just a single repeated digit pattern.
+    """
+    module, level, admin = _seed_module_level(db_session, "IM", "Intermediate Module", "IM-L4", "IM Level 4")
+    registry_config = IM_COMPETITION_LEVEL_REGISTRY["IM-L4"]
+    section_defs = registry_config["sectionDefinitions"]
+
+    # Hand-built distribution (not the evenly-split helpers) so Multiplication,
+    # Division and Positional/Placement each get enough questions to cycle
+    # through their whole concept pool at least twice, while the whole
+    # blueprint still lands on exactly 100 marks (2 weighted x 5 + 90 x 1).
+    counts_by_key_fragment = {
+        "ADD_LESS_ABACUS": 13,
+        "ADD_LESS_VISUAL": 13,
+        "MULTIPLICATION": 15,
+        "DIVISION": 15,
+        "SQUARES": 12,
+        "BODMAS": 12,
+        "POSITIONAL": 10,
+        "SKILL_DRILL": 2,
+    }
+    distribution = []
+    for section_def in section_defs:
+        matched_count = next(
+            count for fragment, count in counts_by_key_fragment.items() if fragment in section_def["key"]
+        )
+        distribution.append({"sectionKey": section_def["key"], "questionCount": matched_count})
+    total_questions = sum(row["questionCount"] for row in distribution)
+    weighted_marks = sum(row["questionCount"] * 5 for row in distribution if "SKILL_DRILL" in row["sectionKey"])
+    normal_marks = sum(row["questionCount"] for row in distribution if "SKILL_DRILL" not in row["sectionKey"])
+    assert weighted_marks + normal_marks == 100, "test fixture distribution must satisfy the 100-marks invariant"
+
+    blueprint = bp_service.create_blueprint(
+        db_session,
+        title="IM-L4 Digit Variety Assessment",
+        module_id=module.id,
+        level_id=level.id,
+        total_questions=total_questions,
+        duration_seconds=1800,
+        lesson_distribution=distribution,
+        instructions=None,
+        created_by_user_id=admin.id,
+        status="PUBLISHED",
+    )
+    version = (
+        db_session.query(models.AssessmentVersion)
+        .filter(models.AssessmentVersion.blueprint_id == blueprint.id)
+        .one()
+    )
+    questions = (
+        db_session.query(models.AssessmentQuestion)
+        .filter(models.AssessmentQuestion.assessment_version_id == version.id)
+        .all()
+    )
+    assert len(questions) == total_questions
+
+    import json
+
+    def metadata(question):
+        return json.loads(question.metadata_json) if question.metadata_json else {}
+
+    multiplication_digit_pairs = {
+        (metadata(q).get("left_digits"), metadata(q).get("right_digits"))
+        for q in questions
+        if q.concept_tag == "WHOLE_NUMBER_MULTIPLICATION"
+    }
+    division_digit_pairs = {
+        (metadata(q).get("dividend_digits"), metadata(q).get("divisor_digits"))
+        for q in questions
+        if q.concept_tag == "WHOLE_NUMBER_DIVISION"
+    }
+    position_directions = {
+        metadata(q).get("answer_position_direction")
+        for q in questions
+        if q.concept_tag == "ANSWER_POSITION"
+    }
+
+    # The real regression check: more than just the single hardcoded default
+    # pattern must appear. IM-L4's real registry has 5 multiplication
+    # variants, 5 division variants, and both position directions -- this
+    # doesn't assert the exact count (that's the registry's business, not
+    # this test's), just that it's not silently collapsed to one value.
+    assert len(multiplication_digit_pairs) > 1, f"multiplication never varied: {multiplication_digit_pairs}"
+    assert len(division_digit_pairs) > 1, f"division never varied: {division_digit_pairs}"
+    assert position_directions == {"WRITE_FROM_POSITION", "FIND_POSITION"}, (
+        f"expected both position directions to appear, got: {position_directions}"
+    )
