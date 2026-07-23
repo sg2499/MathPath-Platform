@@ -438,8 +438,33 @@ def ImSectionRegistryConfig(LevelItem: Level | None, SectionDefinition: dict[str
     """IM counterpart of MmSectionRegistryConfig() above. Same reasoning:
     sourced from that level's IM_COMPETITION_LEVEL_REGISTRY concept-pool
     entry, no DPSSection lookup.
+
+    2026-07-25 fix: this used to build GeneratorConfig from only four static
+    keys, discarding every other field a ConceptSpec entry carries --
+    multiplicationDigits, divisionDigits, isLongDivisionEstimation,
+    answerPositionDirection, positionRange, hasSquareTerm, bodmasTemplate,
+    bodmasDivisionDigits, borrowingMode, isDecimal, decimalPlaces,
+    explicitDigitCount, rowCount, magnitudeMin/Max, fixedTimes, addRange,
+    skillStackerLinear, wholeFromRange/wholeLessRange/decimalFromRange/
+    decimalLessRange, and any future flag competition_mock_generation_service's
+    IM concept pools define. operands.py reads every one of those directly off
+    Config.GeneratorConfig with a hardcoded fallback when absent (e.g.
+    multiplicationDigits defaults to (2, 2), divisionDigits to (4, 2),
+    answerPositionDirection to WRITE_FROM_POSITION) -- so no matter which
+    ConceptSpec the caller's round-robin picked for a given question, every
+    single IM assessment question silently used the same hardcoded default.
+    That's why generated assessments only ever showed 2Dx2D multiplication and
+    4D/2D division regardless of the level's real concept-pool variety, and
+    why "Find the Position of the First Natural Number" (answerPositionDirection
+    ="FIND_POSITION") could never appear. Merging every ConceptSpec key except
+    conceptFamily/title (handled separately below) into GeneratorConfig fixes
+    every one of these at once, the same way MmSectionRegistryConfig above
+    already merges its DigitConfig/AddLessConfig. Harmless for concept
+    families with no extra flags (e.g. Squares) since there's nothing to
+    merge.
     """
     ConceptFamily = str(ConceptSpec.get("conceptFamily") or "ADD_LESS")
+    ConceptSpecFlags = {Key: Value for Key, Value in ConceptSpec.items() if Key not in {"conceptFamily", "title"}}
     return IMConfig(
         ModuleCode="IM",
         LevelCode=getattr(LevelItem, "level_code", "IM-L4") or "IM-L4",
@@ -459,6 +484,7 @@ def ImSectionRegistryConfig(LevelItem: Level | None, SectionDefinition: dict[str
             "assessmentSectionNumber": SectionDefinition.get("number"),
             "assessmentSectionTitle": SectionDefinition.get("title"),
             "forceSingleSection": True,
+            **ConceptSpecFlags,
         },
     )
 
