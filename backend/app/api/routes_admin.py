@@ -52,6 +52,7 @@ from app.services.assessment_blueprint_service import (
     level_section_registry_config,
     list_blueprints,
     publish_blueprint,
+    section_marks_metadata,
     update_blueprint,
 )
 
@@ -1930,12 +1931,18 @@ def assessment_sections_for_level(level_id: str, db: Session = Depends(get_db), 
         return {"levelId": level_id, "levelCode": level.level_code, "moduleCode": module.module_code, "isSectionWise": False, "sections": []}
 
     registry_config = level_section_registry_config(module.module_code, level)
+    marks_meta = section_marks_metadata(module.module_code, registry_config)
     sections = [
         {
             "sectionKey": row["key"],
             "sectionNumber": row["number"],
             "sectionTitle": row["title"],
             "conceptCount": len(registry_config.get("sectionConceptPools", {}).get(row["key"], [])),
+            # 2026-07-23: lets the Blueprint Studio auto-balance the paper to
+            # always total 100 marks -- isWeighted sections are worth
+            # marksPerQuestion (5) each, everything else is worth 1.
+            "isWeighted": marks_meta.get(row["key"], {}).get("isWeighted", False),
+            "marksPerQuestion": marks_meta.get(row["key"], {}).get("marksPerQuestion", 1.0),
         }
         for row in registry_config["sectionDefinitions"]
     ]

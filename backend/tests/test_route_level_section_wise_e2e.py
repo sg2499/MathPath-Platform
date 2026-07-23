@@ -62,6 +62,36 @@ def client():
         session.close()
 
 
+def _distribute_evenly(section_defs, total):
+    """Same base+remainder split the Assessment Blueprint Studio frontend
+    uses (distributeEvenlyFromSections in page.tsx) -- sum always lands
+    exactly on `total`.
+    """
+    count = len(section_defs)
+    base = total // count
+    remainder = total % count
+    rows = []
+    for index, section_def in enumerate(section_defs):
+        extra = 1 if index < remainder else 0
+        rows.append({"sectionKey": section_def["sectionKey"], "questionCount": base + extra})
+    return rows
+
+
+def _valid_weighted_distribution(section_defs, weighted_question_count=2):
+    """Builds a section distribution satisfying the 2026-07-23 100-marks-
+    always invariant for a concept-weighted module (IM), using the
+    isWeighted/marksPerQuestion metadata the route itself now returns (see
+    section_marks_metadata() in assessment_blueprint_service.py) -- exactly
+    what the real admin frontend reads to build the same UI.
+    """
+    weighted_defs = [row for row in section_defs if row.get("isWeighted")]
+    normal_defs = [row for row in section_defs if not row.get("isWeighted")]
+    marks_per_weighted = weighted_defs[0]["marksPerQuestion"] if weighted_defs else 5
+    normal_total = 100 - weighted_question_count * marks_per_weighted
+    assert normal_total >= len(normal_defs), "test fixture: weighted_question_count too high for this level's section count"
+    return _distribute_evenly(weighted_defs, weighted_question_count) + _distribute_evenly(normal_defs, int(normal_total))
+
+
 def _seed_level(session, module_code, module_name, level_code, level_name):
     module = Module(module_code=module_code, module_name=module_name, is_active=True)
     session.add(module)
@@ -83,9 +113,12 @@ def test_mm_full_http_round_trip(client):
     section_defs = sections_payload["sections"]
     assert len(section_defs) == len(MM_COMPETITION_LEVEL_REGISTRY["MM-L1"]["sectionDefinitions"])
 
-    questions_per_section = 2
+    # 2026-07-23: MM assessments must always total exactly 100 questions (1
+    # mark each) -- 10 sections x 10 questions each.
+    questions_per_section = 10
     distribution = [{"sectionKey": s["sectionKey"], "questionCount": questions_per_section} for s in section_defs]
     total_questions = len(section_defs) * questions_per_section
+    assert total_questions == 100
 
     create_resp = test_client.post(
         "/api/admin/assessment-blueprints",
@@ -132,9 +165,12 @@ def test_im_full_http_round_trip(client):
     assert sections_resp.status_code == 200, sections_resp.text
     section_defs = sections_resp.json()["sections"]
 
-    questions_per_section = 4
-    distribution = [{"sectionKey": s["sectionKey"], "questionCount": questions_per_section} for s in section_defs]
-    total_questions = len(section_defs) * questions_per_section
+    # 2026-07-23: IM assessments must always total exactly 100 marks (5
+    # marks x each Skill Stacker/Concept Drill question, 1 mark x every
+    # other question) -- build a distribution that satisfies that invariant
+    # instead of a uniform per-section count.
+    distribution = _valid_weighted_distribution(section_defs, weighted_question_count=2)
+    total_questions = sum(row["questionCount"] for row in distribution)
 
     create_resp = test_client.post(
         "/api/admin/assessment-blueprints",
@@ -164,6 +200,7 @@ def test_im_full_http_round_trip(client):
         for q in assessment["questions"]
     )
     assert assessment["totalMarks"] == expected_total
+    assert assessment["totalMarks"] == 100.0
     groups = assessment["lessonGroups"]
     assert all(g["groupKind"] == "SECTION" for g in groups)
     assert sum(g["questionCount"] for g in groups) == total_questions

@@ -25,6 +25,13 @@ export type AssessmentSectionItem = {
   sectionNumber: number;
   sectionTitle: string;
   conceptCount: number;
+  // 2026-07-23: lets the Assessment Blueprint Studio auto-balance a paper to
+  // always total 100 marks -- isWeighted sections (Skill Stacker/Concept
+  // Drill) are worth marksPerQuestion each (5 for concept-weighted modules),
+  // everything else is worth 1. See section_marks_metadata() in
+  // assessment_blueprint_service.py.
+  isWeighted: boolean;
+  marksPerQuestion: number;
 };
 
 export type AssessmentSectionsForLevelResponse = {

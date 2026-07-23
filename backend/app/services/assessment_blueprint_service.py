@@ -31,6 +31,9 @@ from app.models import (
 from app.services.assessment_engine_service import (
     RegisterPublishedBlueprintVersion,
     AssessmentModuleCode,
+    _CONCEPT_WEIGHTED_MODULES,
+    _CONCEPT_WEIGHTED_FAMILIES,
+    _CONCEPT_WEIGHTED_MARKS,
 )
 from app.services.competition_mock_generation_service import (
     IM_COMPETITION_LEVEL_REGISTRY,
@@ -82,6 +85,46 @@ def level_section_registry_config(module_code: str, level: Level) -> dict[str, A
             {"moduleCode": module_code, "levelCode": level_code},
         )
     return config
+
+
+def _weighted_section_keys(registry_config: dict[str, Any]) -> set[str]:
+    """Section keys whose entire concept pool is Skill Stacker / Concept
+    Drill (worth _CONCEPT_WEIGHTED_MARKS each, currently 5) rather than the
+    default 1 mark. Confirmed across every IM level's registry that these
+    concepts are always isolated into their own dedicated section (e.g.
+    IM_SKILL_DRILL) and never mixed with normal concepts in the same
+    section, so "every concept in this section's pool is weighted" is a
+    reliable way to classify a whole section without touching per-question
+    data (sections are the unit the admin distributes questions across).
+    """
+    pools = registry_config.get("sectionConceptPools", {}) or {}
+    weighted: set[str] = set()
+    for key, concepts in pools.items():
+        if concepts and all((c.get("conceptFamily") in _CONCEPT_WEIGHTED_FAMILIES) for c in concepts):
+            weighted.add(key)
+    return weighted
+
+
+def section_marks_metadata(module_code: str, registry_config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Per-sectionKey {'isWeighted': bool, 'marksPerQuestion': float} so the
+    Assessment Blueprint Studio can build its "Skill Stacker/Concept Drill
+    question count drives everything else" UI (see validate_section_distribution's
+    marks-must-equal-100 enforcement below) without hardcoding which sections
+    are weighted on the frontend. MM is never weighted -- flat 1 mark
+    everywhere, matching MM_FLAT_QUESTION_MARKS in assessment_engine_service.py.
+    """
+    section_defs = registry_config.get("sectionDefinitions", [])
+    module_upper = (module_code or "").upper()
+    if module_upper not in _CONCEPT_WEIGHTED_MODULES:
+        return {row["key"]: {"isWeighted": False, "marksPerQuestion": 1.0} for row in section_defs}
+    weighted_keys = _weighted_section_keys(registry_config)
+    return {
+        row["key"]: {
+            "isWeighted": row["key"] in weighted_keys,
+            "marksPerQuestion": _CONCEPT_WEIGHTED_MARKS if row["key"] in weighted_keys else 1.0,
+        }
+        for row in section_defs
+    }
 
 
 def now_utc() -> datetime:
@@ -271,6 +314,48 @@ def validate_section_distribution(
             {"totalQuestions": total_questions, "distributionTotal": total_from_distribution},
         )
 
+    # 2026-07-23, Shailesh: every assessment (across every module) must total
+    # exactly TOTAL_ASSESSMENT_MARKS (100) -- never more, never less. MM is
+    # flat 1 mark/question, so that's simply "always 100 questions". Concept-
+    # weighted modules (IM today) mix 1-mark and _CONCEPT_WEIGHTED_MARKS-mark
+    # (5) questions, so the invariant is on marks, not question count: this
+    # is what lets the admin freely pick how many Skill Stacker/Concept Drill
+    # questions to include while the rest of the paper auto-balances around
+    # it (see the frontend's Skill Stacker/Concept Drill Questions field).
+    # Both checks are hard failures with the same coverage-check philosophy
+    # as everything else in this function -- never silently clamp or scale.
+    module_upper = (module_code or "").upper()
+    if module_upper in _CONCEPT_WEIGHTED_MODULES:
+        weighted_keys = _weighted_section_keys(registry_config)
+        computed_marks = sum(
+            (_CONCEPT_WEIGHTED_MARKS if section_def["key"] in weighted_keys else 1.0) * count
+            for section_def, count in parsed
+        )
+        if computed_marks != TOTAL_ASSESSMENT_MARKS:
+            api_error(
+                400,
+                "ASSESSMENT_MARKS_MISMATCH",
+                f"Total marks must always equal {int(TOTAL_ASSESSMENT_MARKS)}. This distribution totals "
+                f"{computed_marks:g} marks ({int(_CONCEPT_WEIGHTED_MARKS)} marks per Skill Stacker/Concept Drill "
+                "question, 1 mark per other question). Adjust the Skill Stacker/Concept Drill question count or "
+                "the other sections' counts so the total is exactly right.",
+                {
+                    "currentMarks": computed_marks,
+                    "requiredMarks": TOTAL_ASSESSMENT_MARKS,
+                    "weightedSectionKeys": sorted(weighted_keys),
+                },
+            )
+    elif module_upper == "MM":
+        if total_questions != int(TOTAL_ASSESSMENT_MARKS):
+            api_error(
+                400,
+                "ASSESSMENT_QUESTION_COUNT_MUST_BE_100",
+                f"MM assessments are always {int(TOTAL_ASSESSMENT_MARKS)} questions at 1 mark each, so total "
+                f"marks are always {int(TOTAL_ASSESSMENT_MARKS)}. Adjust the section distribution so it sums to "
+                f"exactly {int(TOTAL_ASSESSMENT_MARKS)} questions.",
+                {"totalQuestions": total_questions, "required": int(TOTAL_ASSESSMENT_MARKS)},
+            )
+
     return parsed
 
 
@@ -428,7 +513,13 @@ def create_blueprint(db: Session, *, title: str, module_id: str, level_id: str, 
 
     if section_wise:
         parsed_sections = validate_section_distribution(db, module.module_code, level, total_questions, lesson_distribution)
-        blueprint_total_marks = float(total_questions)
+        # validate_section_distribution() above just hard-enforced that this
+        # distribution totals exactly TOTAL_ASSESSMENT_MARKS (100) -- for MM
+        # via total_questions == 100 (flat 1 mark each), for concept-weighted
+        # modules via the 5xweighted + 1xnormal marks sum. So unlike the old
+        # float(total_questions) placeholder (which was only ever right for
+        # MM), 100 is now the true value even before a version is generated.
+        blueprint_total_marks = TOTAL_ASSESSMENT_MARKS
         blueprint_marks_per_question = SECTION_WISE_PLACEHOLDER_MARKS_PER_QUESTION
     else:
         parsed_lessons = validate_distribution(db, level_id, total_questions, lesson_distribution)
@@ -523,7 +614,7 @@ def update_blueprint(db: Session, blueprint_id: str, *, title: str | None = None
         blueprint.total_questions = total_questions
         blueprint.marks_per_question = SECTION_WISE_PLACEHOLDER_MARKS_PER_QUESTION if section_wise else marks_per_question(total_questions)
         if section_wise:
-            blueprint.total_marks = float(total_questions)
+            blueprint.total_marks = TOTAL_ASSESSMENT_MARKS
 
     if lesson_distribution is not None:
         if section_wise:

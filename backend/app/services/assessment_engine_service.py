@@ -1087,6 +1087,24 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
             {"expected": Blueprint.total_questions, "actual": ActualQuestionCount},
         )
     if SectionWise:
+        # 2026-07-23, Shailesh: every section-wise assessment (MM and every
+        # concept-weighted module) must total exactly 100 marks --
+        # assessment_blueprint_service.validate_section_distribution() already
+        # hard-rejects any saved distribution that wouldn't, so this should be
+        # unreachable in practice. It's kept as a defense-in-depth check here
+        # (not just there) because this is the actual post-generation truth,
+        # not the pre-generation plan -- if a future bug in concept-pool
+        # classification, section registry data, or generation itself ever
+        # produced a real total that drifts from the validated plan, this
+        # fails loudly instead of quietly publishing a wrong-marks assessment.
+        if RunningWeightedMarksTotal != 100.0:
+            api_error(
+                400,
+                "ASSESSMENT_MARKS_MISMATCH",
+                "Generated assessment total marks does not equal 100. This indicates a mismatch between the "
+                "saved distribution and actual question generation -- please report this.",
+                {"expectedMarks": 100.0, "actualMarks": RunningWeightedMarksTotal},
+            )
         # Replace the placeholder Blueprint.total_marks (total_questions, see
         # SECTION_WISE_PLACEHOLDER_MARKS_PER_QUESTION in
         # assessment_blueprint_service.py) with the true sum of this
