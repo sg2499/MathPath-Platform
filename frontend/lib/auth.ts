@@ -134,6 +134,7 @@ export function clearSession(): void {
     localStorage.removeItem(userKey(role));
   }
   localStorage.removeItem(LEGACY_USER_KEY);
+  window.dispatchEvent(new Event("mathpath-auth-changed"));
 }
 
 export function updateStoredUser(user: CurrentUser): void {

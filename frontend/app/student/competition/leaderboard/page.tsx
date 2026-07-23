@@ -18,26 +18,6 @@ import type {
 import { z } from "zod";
 import { PodiumHeroAnimation } from "./PodiumHeroAnimation";
 
-// --- COUNT UP HOOK ---
-function useCountUp(end: number, duration: number = 2) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    let startTimestamp: number | null = null;
-    const step = (timestamp: number) => {
-      if (!startTimestamp) startTimestamp = timestamp;
-      const progress = Math.min((timestamp - startTimestamp) / (duration * 1000), 1);
-      // easeOutExpo
-      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      setCount(Math.floor(easeProgress * end));
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      }
-    };
-    requestAnimationFrame(step);
-  }, [end, duration]);
-  return count;
-}
-
 function getInitials(name: string) {
   if (!name) return "";
   const parts = name.trim().split(" ").filter(Boolean);
@@ -579,9 +559,17 @@ function CrownIcon() {
 // ============================================================================
 function TableRow({ row: r, delay }: { row: any; delay: number }) {
   const router = useRouter();
-  const animatedScore = useCountUp(Math.round(r.score));
-  const animatedAccuracy = useCountUp(Math.round(r.accuracy ?? r.percentage));
-  
+  // These are real ranking numbers students act on -- they must always show
+  // the correct value immediately. The previous useCountUp() animation here
+  // started every row at 0 and stepped up via requestAnimationFrame, which
+  // browsers throttle or pause entirely for backgrounded/unfocused tabs.
+  // When that happened, ranks 4+ were stuck showing "0 / 0%" indefinitely
+  // while the podium (ranks 1-3, rendered statically below) showed the real
+  // values -- exactly the "0% for everyone below top 3" bug. Rendering the
+  // real value directly removes that failure mode.
+  const animatedScore = Math.round(r.score);
+  const animatedAccuracy = Math.round(r.accuracy ?? r.percentage);
+
   return (
       <tr 
         key={r.rank} 

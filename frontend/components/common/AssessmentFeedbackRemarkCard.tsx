@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
+import { formatMathPathDateTime } from "@/lib/date";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -257,7 +258,7 @@ export function AssessmentFeedbackRemarkCard({
 
       {Feedback?.updatedAt || Feedback?.createdByName ? (
         <p className="mt-4 text-xs font-bold opacity-65">
-          {Feedback.createdByName ? `Added by ${Feedback.createdByName}` : "Feedback added"}{Feedback.updatedAt ? ` · ${new Date(Feedback.updatedAt).toLocaleString()}` : ""}
+          {Feedback.createdByName ? `Added by ${Feedback.createdByName}` : "Feedback added"}{Feedback.updatedAt ? ` · ${formatMathPathDateTime(Feedback.updatedAt)}` : ""}
         </p>
       ) : null}
     </section>

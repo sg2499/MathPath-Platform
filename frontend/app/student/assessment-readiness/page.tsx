@@ -280,7 +280,7 @@ export default function StudentAssessmentReadinessPage() {
                 chips={
                   <>
                     <Chip tone="blue">
-                      {visibleRow.completedDpsCount}/
+                      {visibleRow.passedDpsCount}/
                       {visibleRow.requiredDpsCount} cleared
                     </Chip>
                     {visibleRow.missingDpsCount ? (
@@ -487,7 +487,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
         <Info label="Required DPS" value={row.requiredDpsCount} icon={<Layers3 size={18} />} />
-        <Info label="Cleared DPS" value={row.completedDpsCount} icon={<CheckCircle2 size={18} />} />
+        <Info label="Cleared DPS" value={row.passedDpsCount} icon={<CheckCircle2 size={18} />} />
         <Info label="Pending DPS" value={pendingCount} icon={<Clock3 size={18} />} />
         <Info label="Needs Re-Attempt" value={needsReattemptCount} icon={<AlertTriangle size={18} />} />
       </div>
