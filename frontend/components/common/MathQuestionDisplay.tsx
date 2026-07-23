@@ -89,19 +89,21 @@ function ExpressionQuestion({
   const ExpressionAlreadyContainsPrompt = /[?？]/.test(Expression);
   const IsAnswerPosition = mode === "ANSWER_POSITION";
   const CharacterCount = Expression.replace(/\s+/g, "").length;
-  // Some generated expressions (IM/MM BODMAS with a squared term, multi-step
-  // competition challenges, etc.) routinely run 30-45+ characters -- well past
-  // what a single nowrap line at a readable font size can hold. A question
-  // must never be silently clipped, so past this threshold wrapping is
-  // allowed onto multiple lines instead of hiding overflow: a wrapped
-  // question is always fully readable, a clipped one is not.
+  // 2026-07-24 fix: this used to force whiteSpace:nowrap below a 26-character
+  // threshold, on the assumption a "short" expression always fits one line.
+  // That assumption broke as soon as this component was reused inside a
+  // narrower container (the Assessment Studio's ~360px preview column) --
+  // a 23-character BODMAS expression ("735 / 83 + 7530 x 4 + 2772 - 4644")
+  // at the resulting ~32px font is ~440px wide, well past 360px, and with
+  // nowrap forced it just overflowed and visually overlapped the answer
+  // options next to it instead of wrapping. Always allowing wrap (letting
+  // the browser decide whether a line actually needs to break, based on its
+  // real rendered width) fixes this everywhere this component is used,
+  // without needing to guess a container width from a character count.
   const WrapThreshold = 26;
-  const AllowWrap = CharacterCount > WrapThreshold;
   const FontSizePx = IsAnswerPosition
     ? Math.max(15, 28 - Math.max(0, CharacterCount - 20) * 0.32)
-    : AllowWrap
-      ? Math.max(16, 26 - Math.max(0, CharacterCount - WrapThreshold) * 0.15)
-      : Math.max(14, 34 - Math.max(0, CharacterCount - 18) * 0.4);
+    : Math.max(15, 26 - Math.max(0, CharacterCount - WrapThreshold) * 0.15);
 
   return (
     <div className="mx-auto flex w-full max-w-full justify-center rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
@@ -109,8 +111,8 @@ function ExpressionQuestion({
         className="w-full text-center font-mono font-black leading-[1.35] py-1 tracking-tight"
         style={{
           fontSize: `${FontSizePx}px`,
-          whiteSpace: AllowWrap ? "normal" : "nowrap",
-          overflowWrap: AllowWrap ? "break-word" : "normal",
+          whiteSpace: "normal",
+          overflowWrap: "break-word",
         }}
       >
         {RenderExpressionWithBlueQuestion(Expression)}
@@ -269,6 +271,17 @@ function PositionNumberTableQuestion({
   questionText?: string | null;
 }) {
   const Labels = operators.length ? operators : ["Position", "Number"];
+  const PositionText = FormatValue(operands[0] ?? "?");
+  const NumberText = FormatValue(operands[1] ?? "?");
+  // 2026-07-24 fix: both cells used a fixed text-2xl/3xl regardless of
+  // content length. _GenerateFindPositionNumber/_GenerateWriteFromPosition
+  // Number (operands.py) can produce numbers up to ~10 characters
+  // ("0.00009999") -- at a fixed large size those wrapped onto a second
+  // line inside their cell instead of staying in one clean box. Shrinking
+  // the font to the longer of the two values (same technique as
+  // ExpressionQuestion's FontSizePx above) keeps it on one line always.
+  const LongestLength = Math.max(PositionText.length, NumberText.length, 1);
+  const ValueFontSizePx = Math.max(17, 32 - Math.max(0, LongestLength - 4) * 1.8);
 
   return (
     <div className="mx-auto w-full max-w-md rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
@@ -280,9 +293,9 @@ function PositionNumberTableQuestion({
           <div className="border-r border-slate-200 px-4 py-3 dark:border-slate-700">{Labels[0] || "Position"}</div>
           <div className="px-4 py-3">{Labels[1] || "Number"}</div>
         </div>
-        <div className="grid grid-cols-2 text-center font-mono text-2xl font-black sm:text-3xl">
-          <div className="border-r border-slate-200 px-4 py-5 dark:border-slate-700">{FormatValue(operands[0] ?? "?")}</div>
-          <div className="px-4 py-5">{FormatValue(operands[1] ?? "?")}</div>
+        <div className="grid grid-cols-2 text-center font-mono font-black" style={{ fontSize: `${ValueFontSizePx}px` }}>
+          <div className="whitespace-nowrap border-r border-slate-200 px-4 py-5 dark:border-slate-700">{PositionText}</div>
+          <div className="whitespace-nowrap px-4 py-5">{NumberText}</div>
         </div>
       </div>
       <div className="mt-4 text-center text-2xl font-black text-blue-700 dark:text-cyan-300">?</div>
@@ -302,6 +315,10 @@ function IsFirstNaturalNumberCard(operators: string[]): boolean {
 
 function FirstNaturalNumberCardQuestion({ operands, questionText }: { operands: Array<number | string>; questionText?: string | null }) {
   const PromptText = questionText?.trim() || "Find the Position of the First Natural Number";
+  const NumberText = FormatValue(operands[0] ?? "?");
+  // 2026-07-24 fix: same wrap-onto-next-line issue as PositionNumberTableQuestion
+  // above -- a fixed text-3xl/4xl doesn't shrink for longer generated numbers.
+  const NumberFontSizePx = Math.max(20, 40 - Math.max(0, NumberText.length - 4) * 2.2);
 
   return (
     <div className="mx-auto w-full max-w-sm rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
@@ -312,8 +329,8 @@ function FirstNaturalNumberCardQuestion({ operands, questionText }: { operands: 
         <div className="bg-slate-100 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
           Number
         </div>
-        <div className="px-5 py-6 text-center font-mono text-3xl font-black leading-none sm:text-4xl">
-          {FormatValue(operands[0] ?? "?")}
+        <div className="whitespace-nowrap px-5 py-6 text-center font-mono font-black leading-none" style={{ fontSize: `${NumberFontSizePx}px` }}>
+          {NumberText}
         </div>
       </div>
       <div className="mt-4 text-center text-2xl font-black text-blue-700 dark:text-cyan-300">?</div>

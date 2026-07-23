@@ -143,7 +143,17 @@ function distributeWeighted100(sections: AssessmentSectionItem[], weightedQuesti
   const normalMarksTotal = 100 - safeWeightedCount * marksPerWeightedQuestion;
   const weightedRows = distributeEvenlyFromSections(weighted, safeWeightedCount);
   const normalRows = distributeEvenlyFromSections(normal, Math.max(normal.length, normalMarksTotal));
-  return [...weightedRows, ...normalRows];
+  // 2026-07-24 fix: computing weighted/normal counts separately must never
+  // reorder the matrix. This array's order becomes AssessmentBlueprintSection
+  // .display_order on save, which GenerateAssessmentVersion() then iterates
+  // in order to number questions -- so returning weighted-first (the original
+  // bug here) made Skill Stacker/Concept Drill generate as Questions 1-N and
+  // list as the first section everywhere, even though it's Section 8 (last)
+  // in every IM level's registry. Re-sort back to the level's real section
+  // order (the `sections` param, sourced straight from the registry) before
+  // returning.
+  const rowsByKey = new Map([...weightedRows, ...normalRows].map((row) => [row.itemId, row]));
+  return sections.map((section) => rowsByKey.get(section.sectionKey)!);
 }
 
 // Real marks total for a distribution -- weighted sections' questions count
@@ -534,7 +544,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
                 <Field label="Assessment Title"><input className="math-input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Example: YLM Level 1 Assessment Set A" /></Field>
                 <Field label="Module"><select className="math-select" value={moduleId} onChange={(event) => setModuleId(event.target.value)}><option value="">Select Module</option>{modules.map((module) => <option key={module.moduleId} value={module.moduleId}>{module.moduleCode} - {module.moduleName}</option>)}</select></Field>
                 <Field label="Level"><select className="math-select" value={levelId} onChange={(event) => setLevelId(event.target.value)} disabled={!moduleId || levelsQuery.isLoading}><option value="">Select Level</option>{levels.map((level) => <option key={level.levelId} value={level.levelId}>{level.levelCode} - {level.levelName}</option>)}</select></Field>
-                <div className="grid gap-3 sm:grid-cols-2">{hasWeightedSections ? <Field label="Skill Stacker / Concept Drill Questions"><input className="math-input" type="number" min={weightedSectionCount || 1} value={weightedQuestionCount} onChange={(event) => setWeightedQuestionCount(Math.max(weightedSectionCount || 1, Number(event.target.value || weightedSectionCount || 1)))} /></Field> : isFlatHundredLevel ? <Field label="Total Questions"><input className="math-input bg-slate-50 text-slate-700" type="number" value={100} readOnly aria-readonly="true" /></Field> : <Field label="Total Questions"><input className="math-input" type="number" min={distributionSourceCount || 1} value={totalQuestions} onChange={(event) => setTotalQuestions(Math.max(1, Number(event.target.value || 1)))} /></Field>}<Field label="Duration Minutes"><input className="math-input bg-slate-50 text-slate-700" type="number" min={60} value={60} readOnly aria-readonly="true" /></Field></div>
+                <div className="grid gap-3 sm:grid-cols-2 items-end">{hasWeightedSections ? <Field label="Skill Stacker / Concept Drill Questions"><input className="math-input" type="number" min={weightedSectionCount || 1} value={weightedQuestionCount} onChange={(event) => setWeightedQuestionCount(Math.max(weightedSectionCount || 1, Number(event.target.value || weightedSectionCount || 1)))} /></Field> : isFlatHundredLevel ? <Field label="Total Questions"><input className="math-input bg-slate-50 text-slate-700" type="number" value={100} readOnly aria-readonly="true" /></Field> : <Field label="Total Questions"><input className="math-input" type="number" min={distributionSourceCount || 1} value={totalQuestions} onChange={(event) => setTotalQuestions(Math.max(1, Number(event.target.value || 1)))} /></Field>}<Field label="Duration Minutes"><input className="math-input bg-slate-50 text-slate-700" type="number" min={60} value={60} readOnly aria-readonly="true" /></Field></div>
                 <Field label="Instructions"><textarea className="math-input min-h-[124px]" value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Instructions shown to students before assessment." /></Field>
               </div>
             </div>
@@ -852,17 +862,17 @@ function GeneratedQuestionPreview({ item, assessment, showAnswers }: { item: Ass
               Question {CurrentQuestion.questionNumber} of {Questions.length}
             </h2>
             <div className="mt-2 flex flex-wrap items-center gap-2">
+              {/* 2026-07-24: matches the competition mock preview's exact chip
+                  pattern (mock-studio/[mockId]/page.tsx) -- section-number
+                  chip + section-title chip only, admin role-palette styled
+                  (math-admin-studio-chip). No concept-tag or difficulty chip;
+                  those were never part of the mock convention this is meant
+                  to mirror. */}
               <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">
                 {IsSectionGroup ? `Section ${CurrentLessonGroup?.sectionNumber ?? "-"}` : `Lesson ${CurrentQuestion.lessonNumber ?? CurrentLessonGroup?.lessonNumber ?? "-"}`}
               </span>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <span className={`rounded-full px-3 py-1 text-xs font-black ${item.moduleCode === "MM" ? "math-admin-studio-chip" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
                 {(IsSectionGroup ? CurrentLessonGroup?.sectionTitle : CurrentQuestion.lessonTitle) || CurrentLessonGroup?.lessonTitle || item.levelName}
-              </span>
-              <span className="math-admin-studio-chip rounded-full px-3 py-1 text-xs font-black">
-                {CurrentQuestion.conceptTag || "Concept Rule"}
-              </span>
-              <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">
-                {CurrentQuestion.difficulty || "Mixed"}
               </span>
             </div>
           </div>
