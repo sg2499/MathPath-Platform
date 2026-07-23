@@ -173,6 +173,15 @@ def Iso(Value: Any) -> str | None:
     return Value.isoformat() if hasattr(Value, "isoformat") else str(Value)
 
 
+def SafeFloatOrNone(Value: Any) -> float | None:
+    if Value is None:
+        return None
+    try:
+        return float(Value)
+    except (TypeError, ValueError):
+        return None
+
+
 def SafeJson(Value: str | None, Fallback: Any = None) -> Any:
     if Fallback is None:
         Fallback = {}
@@ -1505,9 +1514,9 @@ def AssessmentReattemptApprovalPayload(Db: Session, Approval: AssessmentReattemp
         "attemptId": Attempt.id if Attempt else None,
         "attemptNumber": Attempt.attempt_number if Attempt else Approval.next_attempt_number,
         "attemptType": Attempt.attempt_type if Attempt else AssignmentType,
-        "score": float(Result.score) if Result else (float(Attempt.total_score) if Attempt else None),
-        "maxScore": float(Result.max_score) if Result else (float(Attempt.max_score) if Attempt else None),
-        "percentage": float(Result.percentage) if Result else (float(Attempt.percentage) if Attempt else None),
+        "score": SafeFloatOrNone(Result.score) if Result else (SafeFloatOrNone(Attempt.total_score) if Attempt else None),
+        "maxScore": SafeFloatOrNone(Result.max_score) if Result else (SafeFloatOrNone(Attempt.max_score) if Attempt else None),
+        "percentage": SafeFloatOrNone(Result.percentage) if Result else (SafeFloatOrNone(Attempt.percentage) if Attempt else None),
         "resultStatus": Result.result_status if Result else (Attempt.result_status if Attempt else None),
         "completionDate": Iso(Result.completion_date if Result else Attempt.submitted_at if Attempt else None),
         "status": Approval.status,
@@ -2068,10 +2077,10 @@ def AssessmentAssignmentPayload(Db: Session, Assignment: AssessmentAssignment) -
     elif Status == "CLEARED":
         Status = "COMPLETED"
 
-    MaxScore = float(Result.max_score) if Result else (float(Attempt.max_score) if Attempt else (float(Version.total_marks) if Version else None))
-    RawScore = float(Result.score) if Result else (float(Attempt.total_score) if Attempt else None)
+    MaxScore = SafeFloatOrNone(Result.max_score) if Result else (SafeFloatOrNone(Attempt.max_score) if Attempt else (SafeFloatOrNone(Version.total_marks) if Version else None))
+    RawScore = SafeFloatOrNone(Result.score) if Result else (SafeFloatOrNone(Attempt.total_score) if Attempt else None)
     Score = NormalizeAssessmentScore(RawScore, MaxScore) if RawScore is not None else None
-    Accuracy = NormalizeAssessmentPercentage(Score, MaxScore) if Score is not None else (float(Result.percentage) if Result else (float(Attempt.percentage) if Attempt else None))
+    Accuracy = NormalizeAssessmentPercentage(Score, MaxScore) if Score is not None else (SafeFloatOrNone(Result.percentage) if Result else (SafeFloatOrNone(Attempt.percentage) if Attempt else None))
     BenchmarkStatus = ("PASS" if Result and Result.cleared else "BELOW_BENCHMARK" if Result else "PENDING")
     RequiresAttention = bool(Result and not Result.cleared)
     ProgressionPayload = AssessmentProgressionPayload(Db, Assignment, Result=Result, Attempt=Attempt, LevelItem=LevelItem, ModuleItem=ModuleItem)

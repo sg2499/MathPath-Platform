@@ -402,8 +402,8 @@ export default function TeacherStudentsPage() {
       const MetricAccuracy = studentPracticeMetrics.get(Student.studentCode)?.averageAccuracy;
       if (typeof MetricAccuracy === "number" && Number.isFinite(MetricAccuracy)) return MetricAccuracy;
       const FallbackAccuracy = Number(Student.averageAccuracy);
-      return Number.isFinite(FallbackAccuracy) ? FallbackAccuracy : 0;
-    });
+      return Number.isFinite(FallbackAccuracy) ? FallbackAccuracy : null;
+    }).filter((value): value is number => value !== null);
     const avgAccuracy = accuracyValues.length
       ? Math.round(accuracyValues.reduce((a, b) => a + b, 0) / accuracyValues.length)
       : null;

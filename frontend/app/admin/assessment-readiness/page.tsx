@@ -640,7 +640,7 @@ export default function AdminAssessmentReadinessPage() {
                     chips={
                       <>
                         <Chip tone="blue">
-                          {row.completedDpsCount}/{row.requiredDpsCount} cleared
+                          {row.passedDpsCount}/{row.requiredDpsCount} cleared
                         </Chip>
                         {row.missingDpsCount ? (
                           <Chip tone="amber">
@@ -889,7 +889,7 @@ function ReadinessDetails({
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
         <Info label="Required DPS" value={row.requiredDpsCount} />
-        <Info label="Cleared DPS" value={row.completedDpsCount} />
+        <Info label="Cleared DPS" value={row.passedDpsCount} />
         <Info label="Pending DPS" value={pendingCount} />
         <Info label="Needs Re-Attempt" value={needsReattemptCount} />
       </div>

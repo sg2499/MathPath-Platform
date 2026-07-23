@@ -803,6 +803,19 @@ export default function AdminResultsPage() {
 
   useEffect(() => SetSelectedDpsId(""), [SelectedLessonId]);
 
+  useEffect(() => {
+    if (Mode !== "STUDENT") return;
+    if (!SelectedStudentId || SelectedStudentId === AllValue) return;
+    const Student = StudentsQuery.data?.find(
+      (Item) => Item.studentId === SelectedStudentId,
+    );
+    if (!Student) return;
+    const StudentModuleId = Student.currentModuleId || "";
+    if (StudentModuleId !== SelectedModuleId) {
+      SetSelectedModuleId(StudentModuleId);
+    }
+  }, [Mode, SelectedStudentId, StudentsQuery.data]);
+
   const SelectedTeacher = TeachersQuery.data?.find(
     (Teacher) => Teacher.teacherId === SelectedTeacherId,
   );
