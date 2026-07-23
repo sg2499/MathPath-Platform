@@ -119,6 +119,49 @@ function sumDistribution(distribution: DistributionRowState[]) {
   return distribution.reduce((sum, item) => sum + Number(item.questionCount || 0), 0);
 }
 
+function partitionWeightedSections(sections: AssessmentSectionItem[]) {
+  return {
+    weighted: sections.filter((section) => section.isWeighted),
+    normal: sections.filter((section) => !section.isWeighted),
+  };
+}
+
+// 2026-07-23, Shailesh: concept-weighted modules (IM today) must always
+// total exactly 100 marks -- (marksPerQuestion x weightedQuestionCount) for
+// Skill Stacker/Concept Drill questions + 1 mark x every other question.
+// The admin only ever picks weightedQuestionCount; everything else (the
+// normal sections' question counts) is derived so the paper can never
+// silently drift off 100. Mirrors validate_section_distribution()'s
+// enforcement of the same rule in assessment_blueprint_service.py -- this is
+// a convenience default, not the source of truth; the backend re-validates
+// independently regardless of what the frontend computes.
+function distributeWeighted100(sections: AssessmentSectionItem[], weightedQuestionCount: number): DistributionRowState[] {
+  const { weighted, normal } = partitionWeightedSections(sections);
+  if (!weighted.length || !normal.length) return distributeEvenlyFromSections(sections, sections.length);
+  const marksPerWeightedQuestion = weighted[0]?.marksPerQuestion || 5;
+  const safeWeightedCount = Math.max(weighted.length, Number(weightedQuestionCount || weighted.length));
+  const normalMarksTotal = 100 - safeWeightedCount * marksPerWeightedQuestion;
+  const weightedRows = distributeEvenlyFromSections(weighted, safeWeightedCount);
+  const normalRows = distributeEvenlyFromSections(normal, Math.max(normal.length, normalMarksTotal));
+  return [...weightedRows, ...normalRows];
+}
+
+// Real marks total for a distribution -- weighted sections' questions count
+// at their marksPerQuestion (5), everything else at 1. Used to keep the
+// "must always be exactly 100 marks" invariant visible live in the Studio,
+// whether the admin used Auto Balance or hand-edited a row.
+function distributionMarksTotal(distribution: DistributionRowState[], sections: AssessmentSectionItem[]): number {
+  const marksBySectionKey = new Map(sections.map((section) => [section.sectionKey, section.marksPerQuestion || 1]));
+  return distribution.reduce((sum, row) => sum + Number(row.questionCount || 0) * (marksBySectionKey.get(row.itemId) ?? 1), 0);
+}
+
+function marksValidationCopy(marks: number | null) {
+  if (marks === null) return "Loading...";
+  if (marks === 100) return "Total marks are exactly 100. Ready to save or publish.";
+  if (marks > 100) return `Total marks are ${marks} — ${marks - 100} over 100. Reduce the Skill Stacker/Concept Drill count or another section's count.`;
+  return `Total marks are ${marks} — ${100 - marks} short of 100. Increase the Skill Stacker/Concept Drill count or another section's count.`;
+}
+
 function marksPerQuestion(totalQuestions: number) {
   return totalQuestions ? "Auto-Balanced" : "-";
 }
@@ -204,6 +247,12 @@ export default function AdminAssessmentBlueprintBuilderPage() {
   const [moduleId, setModuleId] = useState("");
   const [levelId, setLevelId] = useState("");
   const [totalQuestions, setTotalQuestions] = useState(40);
+  // Only used for concept-weighted modules (IM today) -- how many Skill
+  // Stacker/Concept Drill questions (5 marks each) to include. Everything
+  // else about the paper (normal-section counts, total questions) is
+  // derived from this so the assessment always totals exactly 100 marks.
+  // Default of 2 matches Shailesh's choice; editable per assessment.
+  const [weightedQuestionCount, setWeightedQuestionCount] = useState(2);
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [instructions, setInstructions] = useState("Answer all questions carefully. Review your work before submitting.");
   const [distribution, setDistribution] = useState<DistributionRowState[]>([]);
@@ -230,26 +279,46 @@ export default function AdminAssessmentBlueprintBuilderPage() {
   const blueprints = blueprintsQuery.data?.items ?? [];
   const itemNoun = isSectionWiseLevel ? "Section" : "Lesson";
   const distributionSourceCount = isSectionWiseLevel ? sections.length : lessons.length;
+  // Concept-weighted (IM today, driven by weightedQuestionCount) vs flat
+  // section-wise (MM, always exactly 100 questions at 1 mark) vs lesson-wise
+  // (YLM, untouched free-typed Total Questions) -- three distinct paths, see
+  // ResolvedAssessmentQuestionMark() in assessment_engine_service.py.
+  const weightedSectionCount = sections.filter((section) => section.isWeighted).length;
+  const hasWeightedSections = isSectionWiseLevel && weightedSectionCount > 0;
+  const isFlatHundredLevel = isSectionWiseLevel && !hasWeightedSections;
 
   useEffect(() => { setLevelId(""); setDistribution([]); }, [moduleId]);
   useEffect(() => { setManageLevelFilter(""); }, [manageModuleFilter]);
   useEffect(() => {
-    if (!levelId || sectionsQuery.isLoading) return;
+    // Skip while an existing DRAFT is being edited -- beginEditBlueprint()
+    // already loaded its exact saved distribution below; auto-balancing here
+    // would silently discard it the moment this level's sections finish
+    // loading.
+    if (!levelId || sectionsQuery.isLoading || editingBlueprint) return;
     if (isSectionWiseLevel) {
       if (!sections.length) { setDistribution([]); return; }
-      setDistribution(distributeEvenlyFromSections(sections, totalQuestions));
+      if (hasWeightedSections) { setDistribution(distributeWeighted100(sections, weightedQuestionCount)); return; }
+      setDistribution(distributeEvenlyFromSections(sections, 100));
       return;
     }
     if (!lessons.length) { setDistribution([]); return; }
     setDistribution(distributeEvenlyFromLessons(lessons, totalQuestions));
-  }, [levelId, lessons.length, sections.length, isSectionWiseLevel, sectionsQuery.isLoading]);
+  }, [levelId, lessons.length, sections.length, isSectionWiseLevel, sectionsQuery.isLoading, hasWeightedSections, weightedQuestionCount, editingBlueprint]);
 
   const selectedModule = modules.find((item) => item.moduleId === moduleId);
   const selectedLevel = levels.find((item) => item.levelId === levelId);
   const distributionTotal = sumDistribution(distribution);
-  const distributionDifference = distributionTotal - totalQuestions;
-  const validDistribution = distribution.length > 0 && distributionTotal === totalQuestions && distribution.every((item) => item.questionCount > 0);
-  const canCreate = Boolean(title.trim() && moduleId && levelId && totalQuestions > 0 && durationMinutes > 0 && validDistribution);
+  // For section-wise levels, Total Questions is derived from the actual
+  // distribution (never independently typed) -- always trivially in sync,
+  // so the only real invariant left to check is the marks total.
+  const submittedTotalQuestions = isSectionWiseLevel ? distributionTotal : totalQuestions;
+  const distributionDifference = isSectionWiseLevel ? 0 : distributionTotal - totalQuestions;
+  const distributionMarks = isSectionWiseLevel ? distributionMarksTotal(distribution, sections) : null;
+  const marksMismatch = isSectionWiseLevel && distributionMarks !== 100;
+  const validDistribution = distribution.length > 0
+    && distribution.every((item) => item.questionCount > 0)
+    && (isSectionWiseLevel ? !marksMismatch : distributionTotal === totalQuestions);
+  const canCreate = Boolean(title.trim() && moduleId && levelId && submittedTotalQuestions > 0 && durationMinutes > 0 && validDistribution);
 
   const manageModuleOptions = useMemo(() => {
     const ModuleMap = new Map<string, string>();
@@ -292,15 +361,16 @@ export default function AdminAssessmentBlueprintBuilderPage() {
 
   const createMutation = useMutation({
     mutationFn: (status: "DRAFT" | "PUBLISHED") => createAdminAssessmentBlueprint({
-      title: title.trim(), moduleId, levelId, totalQuestions, durationSeconds: secondsFromMinutes(60), instructions, status,
+      title: title.trim(), moduleId, levelId, totalQuestions: submittedTotalQuestions, durationSeconds: secondsFromMinutes(60), instructions, status,
       lessonDistribution: toDistributionPayload(distribution),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-assessment-blueprints"] });
       setTitle("");
       setInstructions("Answer all questions carefully. Review your work before submitting.");
-      if (isSectionWiseLevel) { if (sections.length) setDistribution(distributeEvenlyFromSections(sections, totalQuestions)); }
-      else if (lessons.length) setDistribution(distributeEvenlyFromLessons(lessons, totalQuestions));
+      if (isSectionWiseLevel) {
+        if (sections.length) setDistribution(hasWeightedSections ? distributeWeighted100(sections, weightedQuestionCount) : distributeEvenlyFromSections(sections, 100));
+      } else if (lessons.length) setDistribution(distributeEvenlyFromLessons(lessons, totalQuestions));
     },
   });
   const updateMutation = useMutation({
@@ -308,7 +378,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
       if (!editingBlueprint) throw new Error("No assessment selected for editing.");
       return updateAdminAssessmentBlueprint(editingBlueprint.id, {
         title: title.trim(),
-        totalQuestions,
+        totalQuestions: submittedTotalQuestions,
         durationSeconds: secondsFromMinutes(60),
         instructions,
         lessonDistribution: toDistributionPayload(distribution),
@@ -347,13 +417,26 @@ export default function AdminAssessmentBlueprintBuilderPage() {
     setDurationMinutes(60);
     setInstructions(item.instructions || "");
     if (item.distributionMode === "SECTION_WISE") {
-      setDistribution((item.sectionDistribution || []).map((section) => ({
+      const rows = (item.sectionDistribution || []).map((section) => ({
         itemId: section.sectionKey,
         itemNumber: section.sectionNumber ?? 0,
         itemTitle: section.sectionTitle || section.sectionKey,
         questionCount: section.questionCount,
         isSection: true,
-      })));
+      }));
+      setDistribution(rows);
+      // Best-effort: if this level's section metadata is already cached
+      // (admin previously selected it in the Create tab this session), derive
+      // the Skill Stacker/Concept Drill count from the saved rows so the
+      // field reflects reality instead of resetting to the default of 2. If
+      // not cached, the editingBlueprint guard on the distribution effect
+      // above still protects these saved rows from being overwritten either way.
+      const cachedSections = sectionsQuery.data?.levelId === item.levelId ? sectionsQuery.data.sections : [];
+      const weightedKeys = new Set(cachedSections.filter((section) => section.isWeighted).map((section) => section.sectionKey));
+      if (weightedKeys.size) {
+        const derivedWeightedCount = rows.filter((row) => weightedKeys.has(row.itemId)).reduce((sum, row) => sum + row.questionCount, 0);
+        if (derivedWeightedCount > 0) setWeightedQuestionCount(derivedWeightedCount);
+      }
     } else {
       setDistribution((item.lessonDistribution || []).map((lesson) => ({
         itemId: lesson.lessonId,
@@ -369,8 +452,9 @@ export default function AdminAssessmentBlueprintBuilderPage() {
     setEditingBlueprint(null);
     setTitle("");
     setInstructions("Answer all questions carefully. Review your work before submitting.");
-    if (isSectionWiseLevel) { if (sections.length) setDistribution(distributeEvenlyFromSections(sections, totalQuestions)); }
-    else if (lessons.length) setDistribution(distributeEvenlyFromLessons(lessons, totalQuestions));
+    if (isSectionWiseLevel) {
+      if (sections.length) setDistribution(hasWeightedSections ? distributeWeighted100(sections, weightedQuestionCount) : distributeEvenlyFromSections(sections, 100));
+    } else if (lessons.length) setDistribution(distributeEvenlyFromLessons(lessons, totalQuestions));
   }
 
   function updateDistribution(itemId: string, value: number) {
@@ -441,7 +525,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
         <section className="mt-5 rounded-[36px] border border-white/70 bg-white/90 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div><p className="math-kicker">Create Assessment</p><h2 className="text-3xl font-black text-slate-950 dark:text-white">Build Assessment Structure</h2><p className="mt-2 max-w-3xl text-sm font-semibold text-slate-500">Complete the setup, review the distribution matrix, then save as draft or publish.</p></div>
-            <div className={`rounded-[24px] border px-5 py-4 ${validDistribution ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${validDistribution ? "text-emerald-700" : "text-amber-700"}`}>{validDistribution ? "Ready To Publish" : "Distribution Pending"}</p><p className={`mt-1 text-sm font-black ${validDistribution ? "text-emerald-800" : "text-amber-800"}`}>{distributionTotal} / {totalQuestions} questions</p></div>
+            <div className={`rounded-[24px] border px-5 py-4 ${validDistribution ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${validDistribution ? "text-emerald-700" : "text-amber-700"}`}>{validDistribution ? "Ready To Publish" : "Distribution Pending"}</p><p className={`mt-1 text-sm font-black ${validDistribution ? "text-emerald-800" : "text-amber-800"}`}>{isSectionWiseLevel ? `${distributionMarks ?? 0} / 100 marks` : `${distributionTotal} / ${totalQuestions} questions`}</p></div>
           </div>
           <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.4fr)]">
             <div className="rounded-[30px] border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-800 dark:bg-slate-900/40">
@@ -450,17 +534,18 @@ export default function AdminAssessmentBlueprintBuilderPage() {
                 <Field label="Assessment Title"><input className="math-input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Example: YLM Level 1 Assessment Set A" /></Field>
                 <Field label="Module"><select className="math-select" value={moduleId} onChange={(event) => setModuleId(event.target.value)}><option value="">Select Module</option>{modules.map((module) => <option key={module.moduleId} value={module.moduleId}>{module.moduleCode} - {module.moduleName}</option>)}</select></Field>
                 <Field label="Level"><select className="math-select" value={levelId} onChange={(event) => setLevelId(event.target.value)} disabled={!moduleId || levelsQuery.isLoading}><option value="">Select Level</option>{levels.map((level) => <option key={level.levelId} value={level.levelId}>{level.levelCode} - {level.levelName}</option>)}</select></Field>
-                <div className="grid gap-3 sm:grid-cols-2"><Field label="Total Questions"><input className="math-input" type="number" min={distributionSourceCount || 1} value={totalQuestions} onChange={(event) => setTotalQuestions(Math.max(1, Number(event.target.value || 1)))} /></Field><Field label="Duration Minutes"><input className="math-input bg-slate-50 text-slate-700" type="number" min={60} value={60} readOnly aria-readonly="true" /></Field></div>
+                <div className="grid gap-3 sm:grid-cols-2">{hasWeightedSections ? <Field label="Skill Stacker / Concept Drill Questions"><input className="math-input" type="number" min={weightedSectionCount || 1} value={weightedQuestionCount} onChange={(event) => setWeightedQuestionCount(Math.max(weightedSectionCount || 1, Number(event.target.value || weightedSectionCount || 1)))} /></Field> : isFlatHundredLevel ? <Field label="Total Questions"><input className="math-input bg-slate-50 text-slate-700" type="number" value={100} readOnly aria-readonly="true" /></Field> : <Field label="Total Questions"><input className="math-input" type="number" min={distributionSourceCount || 1} value={totalQuestions} onChange={(event) => setTotalQuestions(Math.max(1, Number(event.target.value || 1)))} /></Field>}<Field label="Duration Minutes"><input className="math-input bg-slate-50 text-slate-700" type="number" min={60} value={60} readOnly aria-readonly="true" /></Field></div>
                 <Field label="Instructions"><textarea className="math-input min-h-[124px]" value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Instructions shown to students before assessment." /></Field>
               </div>
             </div>
             <div className="rounded-[30px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><p className="math-kicker text-[10px]">Step 2</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Distribution Matrix</h3><p className="mt-1 text-sm font-semibold text-slate-500">{isSectionWiseLevel ? "One clean matrix for every section this level's mock exam uses." : "One clean matrix for every active lesson in the selected level."}</p></div><div className="flex flex-wrap gap-2"><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution(isSectionWiseLevel ? distributeEvenlyFromSections(sections, totalQuestions) : distributeEvenlyFromLessons(lessons, totalQuestions))}><Zap size={15} />Auto Balance</button><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution((current) => current.map((item) => ({ ...item, questionCount: 1 })))}><Minus size={15} />Clear</button></div></div>
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><p className="math-kicker text-[10px]">Step 2</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Distribution Matrix</h3><p className="mt-1 text-sm font-semibold text-slate-500">{isSectionWiseLevel ? "One clean matrix for every section this level's mock exam uses." : "One clean matrix for every active lesson in the selected level."}</p></div><div className="flex flex-wrap gap-2"><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution(isSectionWiseLevel ? (hasWeightedSections ? distributeWeighted100(sections, weightedQuestionCount) : distributeEvenlyFromSections(sections, 100)) : distributeEvenlyFromLessons(lessons, totalQuestions))}><Zap size={15} />Auto Balance</button><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution((current) => current.map((item) => ({ ...item, questionCount: 1 })))}><Minus size={15} />Clear</button></div></div>
               <div className="mt-5 grid gap-3 sm:grid-cols-4"><Info label="Module" value={selectedModule?.moduleCode || "-"} /><Info label="Level" value={selectedLevel?.levelCode || "-"} /><Info label={isSectionWiseLevel ? "Sections" : "Lessons"} value={distributionSourceCount || "-"} /><Info label="Marks/Question" value={selectedModule ? marksModeLabel(selectedModule.moduleCode) : marksPerQuestion(totalQuestions) || "-"} /></div>
-              <div className={`mt-5 rounded-[24px] border p-4 ${validDistribution ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className={`text-xs font-black uppercase tracking-[0.14em] ${validDistribution ? "text-emerald-700" : "text-amber-700"}`}>Validation</p><p className={`mt-1 text-sm font-black ${validDistribution ? "text-emerald-800" : "text-amber-800"}`}>{differenceCopy(distributionDifference)}</p></div><div className={`rounded-2xl px-4 py-2 text-sm font-black ${validDistribution ? "bg-white text-emerald-700" : "bg-white text-amber-700"}`}>Difference: {distributionDifference > 0 ? "+" : ""}{distributionDifference}</div></div></div>
-              <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 dark:border-slate-800"><div className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900"><div>{itemNoun}</div><div>Topic</div><div>Questions</div><div>Weight</div><div>Status</div></div><div className="max-h-[430px] overflow-y-auto bg-white dark:bg-slate-950">{lessonsQuery.isLoading || sectionsQuery.isLoading ? <LoadingState label={`Loading ${itemNoun.toLowerCase()}s...`} /> : null}{!levelId ? <div className="p-6 text-sm font-semibold text-slate-500">Select a module and level to load the distribution matrix.</div> : null}{levelId && !lessonsQuery.isLoading && !sectionsQuery.isLoading && !distributionSourceCount ? <div className="p-6 text-sm font-semibold text-slate-500">No active {itemNoun.toLowerCase()}s found for this level.</div> : null}{distribution.map((item) => { const weight = totalQuestions ? ((item.questionCount / totalQuestions) * 100).toFixed(1) : "0"; return <div key={item.itemId} className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 border-t border-slate-100 px-4 py-3 text-sm dark:border-slate-800"><div className="flex items-center"><span className="math-admin-studio-chip rounded-2xl px-3 py-2 text-xs font-black">{item.isSection ? "S" : "L"}{item.itemNumber}</span></div><div className="min-w-0"><p className="truncate font-black text-slate-950 dark:text-white">{item.itemTitle}</p><p className="mt-1 text-xs font-semibold text-slate-500">Full-level coverage required</p></div><input className="math-input h-11" type="number" min={1} value={item.questionCount} onChange={(event) => updateDistribution(item.itemId, Number(event.target.value))} /><div className="flex items-center font-black text-slate-700 dark:text-slate-200">{weight}%</div><div className="flex items-center"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Included</span></div></div>; })}</div></div>
+              {isSectionWiseLevel ? <div className="mt-3 grid gap-3 sm:grid-cols-2"><Info label="Total Questions" value={submittedTotalQuestions || "-"} /><Info label="Total Marks" value={distributionMarks ?? "-"} /></div> : null}
+              <div className={`mt-5 rounded-[24px] border p-4 ${validDistribution ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className={`text-xs font-black uppercase tracking-[0.14em] ${validDistribution ? "text-emerald-700" : "text-amber-700"}`}>Validation</p><p className={`mt-1 text-sm font-black ${validDistribution ? "text-emerald-800" : "text-amber-800"}`}>{isSectionWiseLevel ? marksValidationCopy(distributionMarks) : differenceCopy(distributionDifference)}</p></div><div className={`rounded-2xl px-4 py-2 text-sm font-black ${validDistribution ? "bg-white text-emerald-700" : "bg-white text-amber-700"}`}>{isSectionWiseLevel ? `Marks: ${distributionMarks ?? 0} / 100` : <>Difference: {distributionDifference > 0 ? "+" : ""}{distributionDifference}</>}</div></div></div>
+              <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 dark:border-slate-800"><div className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900"><div>{itemNoun}</div><div>Topic</div><div>Questions</div><div>Weight</div><div>Status</div></div><div className="max-h-[430px] overflow-y-auto bg-white dark:bg-slate-950">{lessonsQuery.isLoading || sectionsQuery.isLoading ? <LoadingState label={`Loading ${itemNoun.toLowerCase()}s...`} /> : null}{!levelId ? <div className="p-6 text-sm font-semibold text-slate-500">Select a module and level to load the distribution matrix.</div> : null}{levelId && !lessonsQuery.isLoading && !sectionsQuery.isLoading && !distributionSourceCount ? <div className="p-6 text-sm font-semibold text-slate-500">No active {itemNoun.toLowerCase()}s found for this level.</div> : null}{distribution.map((item) => { const weight = submittedTotalQuestions ? ((item.questionCount / submittedTotalQuestions) * 100).toFixed(1) : "0"; return <div key={item.itemId} className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 border-t border-slate-100 px-4 py-3 text-sm dark:border-slate-800"><div className="flex items-center"><span className="math-admin-studio-chip rounded-2xl px-3 py-2 text-xs font-black">{item.isSection ? "S" : "L"}{item.itemNumber}</span></div><div className="min-w-0"><p className="truncate font-black text-slate-950 dark:text-white">{item.itemTitle}</p><p className="mt-1 text-xs font-semibold text-slate-500">Full-level coverage required</p></div><input className="math-input h-11" type="number" min={1} value={item.questionCount} onChange={(event) => updateDistribution(item.itemId, Number(event.target.value))} /><div className="flex items-center font-black text-slate-700 dark:text-slate-200">{weight}%</div><div className="flex items-center"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Included</span></div></div>; })}</div></div>
               {createMutation.error ? <div className="mt-4"><ErrorState message={apiErrorMessage(createMutation.error)} /></div> : null}
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">{editingBlueprint ? <button type="button" className="math-button-secondary" onClick={cancelEditBlueprint} disabled={updateMutation.isPending}>Cancel Edit</button> : null}<button type="button" className="math-button-secondary" disabled={!canCreate || createMutation.isPending || updateMutation.isPending} title={!canCreate ? differenceCopy(distributionDifference) : editingBlueprint ? "Save assessment changes" : "Save as draft"} onClick={() => editingBlueprint ? updateMutation.mutate() : createMutation.mutate("DRAFT")}><Save size={17} />{editingBlueprint ? "Save Changes" : "Save Draft"}</button>{!editingBlueprint ? <button type="button" className="math-button-primary" disabled={!canCreate || createMutation.isPending} title={!canCreate ? differenceCopy(distributionDifference) : "Create and publish"} onClick={() => createMutation.mutate("PUBLISHED")}><Rocket size={17} />Create & Publish</button> : null}</div>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">{editingBlueprint ? <button type="button" className="math-button-secondary" onClick={cancelEditBlueprint} disabled={updateMutation.isPending}>Cancel Edit</button> : null}<button type="button" className="math-button-secondary" disabled={!canCreate || createMutation.isPending || updateMutation.isPending} title={!canCreate ? (isSectionWiseLevel ? marksValidationCopy(distributionMarks) : differenceCopy(distributionDifference)) : editingBlueprint ? "Save assessment changes" : "Save as draft"} onClick={() => editingBlueprint ? updateMutation.mutate() : createMutation.mutate("DRAFT")}><Save size={17} />{editingBlueprint ? "Save Changes" : "Save Draft"}</button>{!editingBlueprint ? <button type="button" className="math-button-primary" disabled={!canCreate || createMutation.isPending} title={!canCreate ? (isSectionWiseLevel ? marksValidationCopy(distributionMarks) : differenceCopy(distributionDifference)) : "Create and publish"} onClick={() => createMutation.mutate("PUBLISHED")}><Rocket size={17} />Create & Publish</button> : null}</div>
             </div>
           </div>
         </section>
