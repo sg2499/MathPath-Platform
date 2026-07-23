@@ -490,7 +490,7 @@ def SplitCountAcrossSources(TotalCount: int, SourceCount: int) -> list[int]:
     return [Count for Count in Counts if Count > 0]
 
 
-def QuestionText(Operands: list) -> str:
+def QuestionText(Operands: list, Operators: list | None = None) -> str:
     # MM's decimal generators (e.g. GenerateDecimalAddLess) hand back operands
     # already formatted as sign-prefixed strings ("-12.50", "3.25") rather than
     # numeric int/float values, and don't set their own "question_text" override
@@ -498,10 +498,30 @@ def QuestionText(Operands: list) -> str:
     # instances of 'str' and 'int'` on any full-level assessment distribution that
     # pulled in a decimal Add/Less lesson). Coerce through Decimal so both plain
     # numeric operands and pre-signed decimal strings render correctly here.
+    #
+    # 2026-07-24 fix: this used to unconditionally join every operand with a
+    # sign-derived "+"/"-", which is correct for Add/Less-family generators
+    # but silently WRONG for anything else -- IM's multiplication/division/
+    # squares generators (operands.py) deliberately don't set their own
+    # question_text so the frontend's BuildExpression() in
+    # MathQuestionDisplay.tsx can build the honest "82 × 64" expression from
+    # the real Operators array they return (e.g. ["", "×"]). But this
+    # fallback ran first and got PERSISTED as AssessmentQuestion.question_text,
+    # and the frontend prefers a persisted question_text over rebuilding one
+    # -- so "82 × 64" silently became "82 + 64" for every multiplication/
+    # division/squares question. Now: honor a real non-additive operator
+    # token (×, ÷, or anything else that isn't blank/+/-/−) when the caller
+    # provides one, and only fall back to the sign-derived +/- guess when it
+    # doesn't.
+    Operators = Operators or []
     Parts = []
     for Index, Operand in enumerate(Operands):
         if Index == 0:
             Parts.append(str(Operand))
+            continue
+        RawOperator = str(Operators[Index]).strip() if Index < len(Operators) else ""
+        if RawOperator and RawOperator not in {"+", "-", "−"}:
+            Parts.append(f"{RawOperator} {Operand}")
             continue
         try:
             NumericOperand = Decimal(str(Operand))
@@ -969,7 +989,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                             "randomizedAssessment": True,
                         }
                     )
-                    GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands)
+                    GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands, Generated.get("operators"))
                     AssessmentQuestionRow = AssessmentQuestion(
                         assessment_version_id=Version.id,
                         lesson_id=None,
@@ -1044,7 +1064,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                             "randomizedAssessment": True,
                         }
                     )
-                    GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands)
+                    GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands, Generated.get("operators"))
                     AssessmentQuestionRow = AssessmentQuestion(
                         assessment_version_id=Version.id,
                         lesson_id=LessonItem.id,
