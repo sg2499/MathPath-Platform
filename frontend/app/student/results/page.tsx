@@ -88,28 +88,39 @@ function AccuracyValue(Row: AnyRow) {
   return Number.isNaN(NumericAccuracy) ? 0 : NumericAccuracy;
 }
 
-function AverageValues(Values: number[]) {
-  if (!Values.length) return 0;
+function FormatAccuracyOrDash(Value: number | null | undefined): string {
+  return typeof Value === "number" && Number.isFinite(Value) ? `${Value}%` : "—";
+}
+
+function AverageValues(Values: number[]): number | null {
+  // No values means no completed/scored work yet — return null so callers
+  // can render "no data" (—) instead of a fake 0%, not "0" which is
+  // indistinguishable from a genuine 0% score.
+  if (!Values.length) return null;
   return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
 }
 
-function AttemptAverageForRows(Rows: AnyRow[]) {
+function AttemptAverageForRows(Rows: AnyRow[]): number | null {
   const Values = Rows
     .filter((Row) => IsPracticeResultRow(Row) && isCompleted(Row) && HasAccuracyValue(Row))
     .map(AccuracyValue);
   return AverageValues(Values);
 }
 
-function HierarchyAverageForRows(Rows: AnyRow[]) {
+function HierarchyAverageForRows(Rows: AnyRow[]): number | null {
   const AccuracyRows = Rows.filter((Row) => IsPracticeResultRow(Row) && isCompleted(Row) && HasAccuracyValue(Row));
-  if (!AccuracyRows.length) return 0;
+  if (!AccuracyRows.length) return null;
 
   const LevelCodes = SortLevelCodes(Array.from(new Set(AccuracyRows.map(levelCodeOf).filter(Boolean))));
   if (!LevelCodes.length) return AttemptAverageForRows(AccuracyRows);
 
+  // Filtering by "!== null" (not the old "> 0") so a level that genuinely
+  // averaged 0% still counts toward the cross-level average instead of
+  // being silently dropped — only levels with zero completed attempts
+  // (null) are excluded.
   const LevelAverages = LevelCodes
     .map((LevelCode) => AttemptAverageForRows(AccuracyRows.filter((Row) => levelCodeOf(Row) === LevelCode)))
-    .filter((Value) => Value > 0);
+    .filter((Value): Value is number => Value !== null);
 
   return AverageValues(LevelAverages);
 }
@@ -314,7 +325,7 @@ export default function StudentResultsPage() {
             <CompactProgressMetric label="Modules" value={TotalModules} icon={<Layers3 size={14} />} />
             <CompactProgressMetric label="Total Levels" value={TotalLevels} icon={<Route size={14} />} />
             <CompactProgressMetric label="Active Level" value={ActiveLevelLabel} icon={<Trophy size={14} />} />
-            <CompactProgressMetric label="Average Accuracy" value={`${OverallStudentAverage}%`} icon={<BarChart3 size={14} />} />
+            <CompactProgressMetric label="Average Accuracy" value={FormatAccuracyOrDash(OverallStudentAverage)} icon={<BarChart3 size={14} />} />
           </div>
         </div>
 
@@ -399,7 +410,7 @@ export default function StudentResultsPage() {
                       <Trophy size={14} /> {ActiveLevel} · {ModuleStatus}
                     </span>
                     <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${accuracyToneClass(ModuleAverage)}`}>
-                      {ModuleAverage}% Avg
+                      {FormatAccuracyOrDash(ModuleAverage)} Avg
                     </span>
                     <span className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                       <ChevronDown className={IsExpanded ? "rotate-180 transition" : "transition"} size={15} />
@@ -412,7 +423,7 @@ export default function StudentResultsPage() {
                   <CompactProgressMetric label="Module Status" value={ModuleStatus} icon={<Trophy size={14} />} />
                   <CompactProgressMetric label="Current Level" value={ActiveLevel} icon={<Route size={14} />} />
                   <CompactProgressMetric label="DPS Cleared" value={`${ModuleCompleted}/${ModuleRequired}`} icon={<FileText size={14} />} />
-                  <CompactProgressMetric label="Average Accuracy" value={`${CurrentLevelAverage}%`} icon={<BarChart3 size={14} />} />
+                  <CompactProgressMetric label="Average Accuracy" value={FormatAccuracyOrDash(CurrentLevelAverage)} icon={<BarChart3 size={14} />} />
                   <CompactProgressMetric label="Last Activity" value={latestActivity(ModuleMetricRows)} icon={<Clock3 size={14} />} />
                   <div className="md:col-span-2 xl:col-span-5 rounded-[20px] border border-slate-100 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/70">
                     <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">
@@ -448,7 +459,7 @@ export default function StudentResultsPage() {
                             <div className="flex flex-wrap gap-2">
                               <span className={`rounded-full border px-3 py-1 text-xs font-black ${LevelToneClass(LevelStatus.Tone)}`}>{LevelStatus.Status}</span>
                               <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{LevelStatus.Completed}/{LevelStatus.Required} DPS</span>
-                              <span className={`rounded-full border px-3 py-1 text-xs font-black ${accuracyToneClass(LevelStatus.Average)}`}>{LevelStatus.Average}% Avg</span>
+                              <span className={`rounded-full border px-3 py-1 text-xs font-black ${accuracyToneClass(LevelStatus.Average)}`}>{FormatAccuracyOrDash(LevelStatus.Average)} Avg</span>
                               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-600">{LevelRows.filter(IsPracticeResultRow).length} Record(s)</span>
                             </div>
                           </div>
