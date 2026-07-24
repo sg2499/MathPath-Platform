@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
+import { getStudentAssessments } from "@/lib/api/student";
 import {
   MATHPATH_COMPLETION_TIMESTAMP_KEYS,
   formatMathPathDateTime,
@@ -24,56 +25,6 @@ type LoadState = {
   rows: AssessmentRow[];
 };
 
-function apiBaseUrl() {
-  const RawBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").trim();
-  const CleanBaseUrl = RawBaseUrl.replace(/\/+$/, "");
-  return CleanBaseUrl.endsWith("/api") ? CleanBaseUrl : `${CleanBaseUrl}/api`;
-}
-
-function authToken() {
-  if (typeof window === "undefined") return "";
-
-  const RoleScopedToken =
-    localStorage.getItem("mathpath_student_access_token") ||
-    localStorage.getItem("mathpath_access_token") ||
-    localStorage.getItem("mathpath_token") ||
-    localStorage.getItem("access_token") ||
-    localStorage.getItem("token") ||
-    "";
-
-  return RoleScopedToken;
-}
-
-async function fetchJson(url: string) {
-  const token = authToken();
-  const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed with status code ${response.status}`);
-  }
-
-  return response.json();
-}
-
-function arrayFromPayload(payload: any): AssessmentRow[] {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.assessments)) return payload.assessments;
-  if (Array.isArray(payload?.items)) return payload.items;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.assignments)) return payload.assignments;
-  if (Array.isArray(payload?.activeAssessments)) return payload.activeAssessments;
-  if (Array.isArray(payload?.activeAssignments)) {
-    return payload.activeAssignments.filter((row: AssessmentRow) => isAssessment(row));
-  }
-  return [];
-}
-
 function isAssessment(row: AssessmentRow) {
   const haystack = [
     row.assignmentType,
@@ -91,37 +42,25 @@ function isAssessment(row: AssessmentRow) {
   return haystack.includes("ASSESSMENT") || haystack.includes("EXAM") || haystack.includes("TEST");
 }
 
-async function loadStudentAssessments() {
-  const base = apiBaseUrl();
-
-  const candidateUrls = [
-    `${base}/student/assessments`,
-    `${base}/student/assessments/assigned`,
-    `${base}/student/assignments?type=ASSESSMENT`,
-    `${base}/student/dashboard`,
-  ];
-
-  const errors: string[] = [];
-
-  for (const url of candidateUrls) {
-    try {
-      const payload = await fetchJson(url);
-      const rows = arrayFromPayload(payload);
-      return rows.filter((row) => {
-        const hasExplicitAssessment = isAssessment(row);
-        const hasAssessmentFields = row.assessmentId || row.assessmentTitle;
-        return hasExplicitAssessment || hasAssessmentFields;
-      });
-    } catch (error: any) {
-      errors.push(`${url}: ${error?.message || "failed"}`);
-    }
-  }
-
-  // Route exists now even if the backend assessment endpoint is not yet enabled.
-  // We return an empty list instead of throwing a route-level 404.
-  if (errors.every((message) => message.includes("404"))) return [];
-
-  throw new Error("Unable to load student assessments. Please refresh after signing in again, or ask Admin to verify assessment access.");
+async function loadStudentAssessments(): Promise<AssessmentRow[]> {
+  // This used to hand-roll its own fetch chain (apiBaseUrl()/authToken()/
+  // fetchJson(), trying 4 candidate URLs) reading a bearer token out of
+  // localStorage. That token hasn't existed since the 2026-07-22 security
+  // hardening moved the real session into an httpOnly cookie (see
+  // lib/auth.ts's file-level comment) -- every request this page made was
+  // silently going out with no credentials at all, so every candidate
+  // 401'd (or 404'd for the two URLs that were never real routes), and
+  // since not every failure was a 404 this always fell through to the
+  // hard error. getStudentAssessments() (lib/api/student.ts) uses the
+  // shared axios client, which sends the httpOnly cookie automatically
+  // (withCredentials: true) -- the same client every other working
+  // student/teacher/admin page already relies on.
+  const rows = (await getStudentAssessments()) as unknown as AssessmentRow[];
+  return rows.filter((row) => {
+    const hasExplicitAssessment = isAssessment(row);
+    const hasAssessmentFields = row.assessmentId || row.assessmentTitle;
+    return hasExplicitAssessment || hasAssessmentFields;
+  });
 }
 
 function normalizeStatus(status: unknown) {
