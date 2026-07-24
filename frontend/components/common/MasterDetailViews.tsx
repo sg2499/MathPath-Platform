@@ -18,7 +18,8 @@ import { usePathname } from "next/navigation";
 
 type AnyRow = Record<string, any>;
 
-function AccuracyTone(Value: number): "green" | "amber" | "red" {
+function AccuracyTone(Value: number | null): "green" | "amber" | "red" | "slate" {
+  if (typeof Value !== "number" || !Number.isFinite(Value)) return "slate";
   if (Value > 70) return "green";
   if (Value >= 60) return "amber";
   return "red";
@@ -66,9 +67,9 @@ function accuracy(row: AnyRow) {
   return numberValue(row.accuracy ?? row.accuracyPercentage ?? row.averageAccuracy, 0);
 }
 
-function averageAccuracy(rows: AnyRow[]) {
+function averageAccuracy(rows: AnyRow[]): number | null {
   const values = rows.map(accuracy).filter((value) => value > 0);
-  if (!values.length) return 0;
+  if (!values.length) return null;
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
 
@@ -259,7 +260,7 @@ export function MasterDetailStudentLayout({
                 <div className="text-lg font-black">{stats.total}</div>
                 <div><Chip tone="green">{stats.completed}</Chip></div>
                 <div><Chip tone={stats.pending ? "amber" : "green"}>{stats.pending}</Chip></div>
-                <div><Chip tone={AccuracyTone(stats.avg)}>{stats.avg}%</Chip></div>
+                <div><Chip tone={AccuracyTone(stats.avg)}>{typeof stats.avg === "number" ? `${stats.avg}%` : "—"}</Chip></div>
                 <div className="text-sm font-bold text-slate-600">{stats.last}</div>
                 <div className="flex justify-start">
                   <StandardViewButton
@@ -347,7 +348,7 @@ function StudentDetailDrawer({
             <div className="mt-2 flex flex-wrap gap-2">
               <Chip tone="blue">{student.studentCode}</Chip>
               <Chip>{student.classLabel || "Class -"}</Chip>
-              <Chip tone={AccuracyTone(stats.avg)}>{stats.avg}% average</Chip>
+              <Chip tone={AccuracyTone(stats.avg)}>{typeof stats.avg === "number" ? `${stats.avg}% average` : "No data yet"}</Chip>
             </div>
           </div>
 
@@ -414,7 +415,7 @@ function StudentDetailDrawer({
                       <div className="flex gap-2">
                         <Chip tone="blue">{lesson.rows.length} sheets</Chip>
                         <Chip tone="green">{lessonCompleted} completed</Chip>
-                        <Chip tone={AccuracyTone(lessonAvg)}>{lessonAvg}% avg</Chip>
+                        <Chip tone={AccuracyTone(lessonAvg)}>{typeof lessonAvg === "number" ? `${lessonAvg}% avg` : "No data"}</Chip>
                       </div>
                     </div>
                     <div className="mt-4">
@@ -581,7 +582,7 @@ export function StudentProgressMasterDetail({
               <div className="mt-4 grid grid-cols-4 gap-3">
                 <Metric label="My Attempts" value={(module.rows || []).length} icon={<FileText size={15} />} />
                 <Metric label="Cleared" value={completed} icon={<CheckCircle2 size={15} />} />
-                <Metric label="Average" value={`${avg}%`} icon={<TargetIcon />} />
+                <Metric label="Average" value={typeof avg === "number" ? `${avg}%` : "—"} icon={<TargetIcon />} />
                 <Metric label="Last Activity" value={latestActivity(module.rows || [])} icon={<Clock3 size={15} />} />
               </div>
             </button>
@@ -666,7 +667,7 @@ function StudentLessonList({ module }: { module: any }) {
             <div className="flex gap-2">
               <Chip tone="blue">{rows.length} sheet(s)</Chip>
               <Chip tone="green">{rows.filter(isCompleted).length} completed</Chip>
-              <Chip tone={AccuracyTone(averageAccuracy(rows))}>{averageAccuracy(rows)}% avg</Chip>
+              <Chip tone={AccuracyTone(averageAccuracy(rows))}>{typeof averageAccuracy(rows) === "number" ? `${averageAccuracy(rows)}% avg` : "No data"}</Chip>
             </div>
           </div>
         </div>

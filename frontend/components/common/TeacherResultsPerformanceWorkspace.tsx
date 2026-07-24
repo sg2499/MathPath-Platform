@@ -72,6 +72,16 @@ function BenchmarkTone(Row: AnyRow): Tone {
 
 function PerformanceBand(Rows: AnyRow[]) {
   const Avg = AverageAccuracy(Rows);
+  // AverageAccuracy() is null when there is no scored/completed row to
+  // average -- distinct from a real low score. Show a neutral "Pending"
+  // band instead of folding "no data yet" into "Needs Re-Attempt".
+  if (Avg === null) {
+    return {
+      Label: "Pending",
+      Tone: "amber" as const,
+      Guidance: "No scored attempts yet for this scope.",
+    };
+  }
   if (Avg < 75) {
     return {
       Label: "Needs Re-Attempt",
@@ -99,11 +109,20 @@ function PerformanceBand(Rows: AnyRow[]) {
 function LessonInsight(Rows: AnyRow[]) {
   const Avg = AverageAccuracy(Rows);
   const Below = uniqueNeedsReattemptCount(Rows);
-  if (Below > 0 || Avg < 75) {
+  if (Below > 0 || (Avg !== null && Avg < 75)) {
     return {
       Label: "Suggested Focus",
       Text: "Revisit concept rules and plan improvement practice.",
       Tone: "amber" as const,
+    };
+  }
+  // No re-attempt flags and no scored attempts at all -- neutral "not
+  // enough data yet" rather than misreporting either Strength or Steady.
+  if (Avg === null) {
+    return {
+      Label: "No Data Yet",
+      Text: "No scored attempts yet for this lesson.",
+      Tone: "blue" as const,
     };
   }
   if (Avg >= 90) {
@@ -328,7 +347,7 @@ export function TeacherResultsPerformanceWorkspace({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Metric
             label="Average Accuracy"
-            value={`${AverageAccuracy(FilteredRows)}%`}
+            value={(() => { const A = AverageAccuracy(FilteredRows); return typeof A === "number" ? `${A}%` : "—"; })()}
             icon={<BarChart3 size={15} />}
           />
           <Metric
@@ -504,13 +523,14 @@ function InsightCard({
   title: string;
   value: string;
   description: string;
-  tone: "green" | "blue" | "red";
+  tone: "green" | "blue" | "red" | "amber";
   icon: ReactNode;
 }) {
   const Tones = {
     green: "border-emerald-200 bg-emerald-50/85 text-emerald-800",
     blue: "border-blue-200 bg-blue-50/85 text-blue-800",
     red: "border-rose-200 bg-rose-50/85 text-rose-800",
+    amber: "border-amber-200 bg-amber-50/85 text-amber-800",
   };
 
   return (
@@ -614,7 +634,7 @@ function LessonDrilldownCard({
           <div className="mt-3 flex flex-wrap gap-2">
             <Chip tone="blue">Practice Reviewed: {Lesson.Rows.length}</Chip>
             <Chip tone={accuracyTone(AverageAccuracy(Lesson.Rows))}>
-              Average Accuracy: {AverageAccuracy(Lesson.Rows)}%
+              Average Accuracy: {typeof AverageAccuracy(Lesson.Rows) === "number" ? `${AverageAccuracy(Lesson.Rows)}%` : "—"}
             </Chip>
             {BelowCount ? (
               <Chip tone="red">Needs Re-Attempt: {BelowCount}</Chip>

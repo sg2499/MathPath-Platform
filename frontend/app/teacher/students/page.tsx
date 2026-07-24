@@ -101,7 +101,7 @@ function trackerLevelCode(row: Record<string, any>) {
   return String(row.levelCode || row.levelId || row.level || "Level");
 }
 
-function trackerHierarchyAverageAccuracy(rows: Record<string, any>[]) {
+function trackerHierarchyAverageAccuracy(rows: Record<string, any>[]): number | null {
   const AttemptRows = rows.flatMap(trackerAttemptRows);
   const LevelCodes = Array.from(new Set(AttemptRows.map(trackerLevelCode).filter(Boolean))).sort((First, Second) =>
     First.localeCompare(Second, undefined, { numeric: true }),
@@ -120,7 +120,15 @@ function trackerHierarchyAverageAccuracy(rows: Record<string, any>[]) {
     })
     .filter((Value): Value is number => Value !== null);
 
-  if (!LevelAverages.length) return 0;
+  // A student with zero completed, scored attempts has no real accuracy to
+  // report. Returning 0 here (as this used to) is indistinguishable from a
+  // genuine 0% score once it flows into StudentRow's `metric?.averageAccuracy
+  // ?? student.averageAccuracy` and the team-average reducer in
+  // TeacherStudentsPage -- it silently reintroduces the exact null-as-zero
+  // dilution bug those call sites already guard against, because this fake 0
+  // wins before their null checks ever run. Return null so "no data" stays
+  // "no data" all the way up.
+  if (!LevelAverages.length) return null;
 
   return Math.round(LevelAverages.reduce((Sum, Value) => Sum + Value, 0) / LevelAverages.length);
 }

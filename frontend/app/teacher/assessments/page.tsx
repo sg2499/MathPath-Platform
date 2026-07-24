@@ -324,12 +324,20 @@ function AverageAssessmentAccuracy(Rows: TeacherAssessmentRow[]) {
 
 function StudentAssessmentAverageAccuracy(Rows: TeacherAssessmentRow[]) {
   const CurrentRows = CurrentAssessmentRows(Rows);
-  return AverageAssessmentAccuracy(CurrentRows) ?? 0;
+  return AverageAssessmentAccuracy(CurrentRows);
 }
 
 function VisibleStudentsAssessmentAverageAccuracy(Students: StudentAssessmentGroup[]) {
   if (!Students.length) return null;
-  const Values = Students.map((Student) => StudentAssessmentAverageAccuracy(Student.Rows));
+  // StudentAssessmentAverageAccuracy(...) is null for a student with no
+  // scored current assessment rows. Coercing that to 0 before this reduce
+  // (as this used to, via `?? 0`) would let a never-attempted student drag
+  // the team average down exactly like the null-as-zero dilution bug found
+  // elsewhere on the platform. Filter nulls out first.
+  const Values = Students
+    .map((Student) => StudentAssessmentAverageAccuracy(Student.Rows))
+    .filter((Value): Value is number => Value !== null && Number.isFinite(Value));
+  if (!Values.length) return null;
   return Values.reduce((Total, Value) => Total + Value, 0) / Values.length;
 }
 

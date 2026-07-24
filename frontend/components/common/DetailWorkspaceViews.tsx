@@ -383,9 +383,9 @@ export function accuracy(row: AnyRow) {
   return 0;
 }
 
-export function averageAccuracy(rows: AnyRow[]) {
+export function averageAccuracy(rows: AnyRow[]): number | null {
   const values = rows.map(accuracy).filter((value) => value > 0);
-  if (!values.length) return 0;
+  if (!values.length) return null;
   return Math.round(
     values.reduce((sum, value) => sum + value, 0) / values.length,
   );
@@ -396,11 +396,16 @@ function hasAccuracyValue(row: AnyRow) {
   return RawAccuracy !== null && RawAccuracy !== undefined && RawAccuracy !== "" && !Number.isNaN(Number(RawAccuracy));
 }
 
-function averageAccuracyIncludingZero(rows: AnyRow[]) {
+function averageAccuracyIncludingZero(rows: AnyRow[]): number | null {
   const Values = rows
     .filter((Row) => isCompleted(Row) && hasAccuracyValue(Row))
     .map(accuracy);
-  if (!Values.length) return 0;
+  // No completed, scored rows means there is no real accuracy to report --
+  // returning 0 here is indistinguishable from an actual 0% score once it
+  // reaches a Chip/Metric render or a team-wide average, silently
+  // recreating the null-as-zero dilution bug. Return null so "no data"
+  // survives all the way to display instead of masquerading as a real 0.
+  if (!Values.length) return null;
   return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
 }
 
@@ -412,7 +417,7 @@ function attemptHistoryAverageAccuracy(rows: AnyRow[]) {
   return averageAccuracyIncludingZero(rowsWithAttemptHistory(rows));
 }
 
-export function hierarchyAverageAccuracy(rows: AnyRow[]) {
+export function hierarchyAverageAccuracy(rows: AnyRow[]): number | null {
   const LevelCodes = sortLevelCodes(
     Array.from(new Set(rows.map(levelCodeOf).filter(Boolean))),
   );
@@ -426,14 +431,34 @@ export function hierarchyAverageAccuracy(rows: AnyRow[]) {
     })
     .filter((Value): Value is number => Value !== null);
 
-  if (!LevelAverages.length) return 0;
+  // Same reasoning as averageAccuracyIncludingZero above: no level with any
+  // reviewed accuracy means there is nothing real to average. Returning null
+  // (not 0) keeps every caller -- team-average reducers, per-student Chips,
+  // module/level rollups -- from silently treating "never attempted" as "0%".
+  if (!LevelAverages.length) return null;
   return Math.round(
     LevelAverages.reduce((Total, Value) => Total + Value, 0) / LevelAverages.length,
   );
 }
 
-export function studentOverallAverageAccuracy(rows: AnyRow[]) {
+export function studentOverallAverageAccuracy(rows: AnyRow[]): number | null {
   return hierarchyAverageAccuracy(rows);
+}
+
+/** Formats a possibly-absent average accuracy for display. Never coerces "no data" into "0%". */
+export function formatAccuracyPercent(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}%` : "—";
+}
+
+/** Tone helper matching formatAccuracyPercent -- "no data" renders as neutral, never red or green.
+ * Named distinctly from the pre-existing row/string-accepting accuracyTone() below to avoid a
+ * duplicate export collision; this one only ever takes the numeric average-accuracy value. */
+export function numericAccuracyTone(
+  value: number | null | undefined,
+  threshold = 70,
+): "green" | "red" | "slate" {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "slate";
+  return value >= threshold ? "green" : "red";
 }
 
 export function isCompleted(row: AnyRow) {
@@ -1199,8 +1224,8 @@ export function StudentSummaryTable({
                 {(() => {
                   const OverallAverage = hierarchyAverageAccuracy(student.rows);
                   return (
-                    <Chip tone={OverallAverage >= 70 ? "green" : "red"}>
-                      {OverallAverage}%
+                    <Chip tone={numericAccuracyTone(OverallAverage)}>
+                      {formatAccuracyPercent(OverallAverage)}
                     </Chip>
                   );
                 })()}
@@ -1538,7 +1563,7 @@ export function RecordWorkspace({
           />
           <Metric
             label="Average Accuracy"
-            value={`${stats.avg}%`}
+            value={formatAccuracyPercent(stats.avg)}
             icon={<TrendingUp size={15} />}
             role={role}
           />
@@ -1652,8 +1677,8 @@ export function RecordWorkspace({
                         {(() => {
                           const LessonAverage = attemptHistoryAverageAccuracy(lesson.rows);
                           return (
-                            <Chip tone={LessonAverage >= 70 ? "green" : "red"}>
-                              {LessonAverage}% Avg
+                            <Chip tone={numericAccuracyTone(LessonAverage)}>
+                              {formatAccuracyPercent(LessonAverage)} Avg
                             </Chip>
                           );
                         })()}
@@ -1711,8 +1736,8 @@ export function RecordWorkspace({
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
                         </Chip>
                         {role === "admin" ? (
-                          <Chip tone={hierarchyAverageAccuracy(ModuleRows) >= 70 ? "green" : "red"}>
-                            {hierarchyAverageAccuracy(ModuleRows)}% Avg
+                          <Chip tone={numericAccuracyTone(hierarchyAverageAccuracy(ModuleRows))}>
+                            {formatAccuracyPercent(hierarchyAverageAccuracy(ModuleRows))} Avg
                           </Chip>
                         ) : null}
                         <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
@@ -1751,8 +1776,8 @@ export function RecordWorkspace({
                                   {(() => {
                                     const LevelAverage = role === "admin" ? hierarchyAverageAccuracy(LevelRows) : averageAccuracy(LevelRows);
                                     return (
-                                      <Chip tone={LevelAverage >= 70 ? "green" : "red"}>
-                                        {LevelAverage}% Avg
+                                      <Chip tone={numericAccuracyTone(LevelAverage)}>
+                                        {formatAccuracyPercent(LevelAverage)} Avg
                                       </Chip>
                                     );
                                   })()}
@@ -1793,8 +1818,8 @@ export function RecordWorkspace({
                                             {(() => {
                                               const LessonAverage = attemptHistoryAverageAccuracy(lesson.rows);
                                               return (
-                                                <Chip tone={LessonAverage >= 70 ? "green" : "red"}>
-                                                  {LessonAverage}% Avg
+                                                <Chip tone={numericAccuracyTone(LessonAverage)}>
+                                                  {formatAccuracyPercent(LessonAverage)} Avg
                                                 </Chip>
                                               );
                                             })()}
@@ -1948,8 +1973,8 @@ export function RecordWorkspace({
                                             {(() => {
                                               const LessonAverage = attemptHistoryAverageAccuracy(lesson.rows);
                                               return (
-                                                <Chip tone={LessonAverage >= 70 ? "green" : "red"}>
-                                                  {LessonAverage}% Avg
+                                                <Chip tone={numericAccuracyTone(LessonAverage)}>
+                                                  {formatAccuracyPercent(LessonAverage)} Avg
                                                 </Chip>
                                               );
                                             })()}
@@ -2376,8 +2401,8 @@ function StudentProgressOverview({
             {(() => {
               const ScopeAverage = attemptHistoryAverageAccuracy(SourceRows);
               return (
-                <Chip tone={ScopeAverage >= 70 ? "green" : "red"}>
-                  Average Accuracy: {ScopeAverage}%
+                <Chip tone={numericAccuracyTone(ScopeAverage)}>
+                  Average Accuracy: {formatAccuracyPercent(ScopeAverage)}
                 </Chip>
               );
             })()}
@@ -2402,7 +2427,7 @@ function StudentProgressOverview({
             {LessonInsights.length ? (
               LessonInsights.map((LessonItem) => {
                 const IsOpen = Boolean(OpenLessons[LessonItem.key]);
-                const HasFocus = LessonItem.below > 0 || LessonItem.avg < 90;
+                const HasFocus = LessonItem.below > 0 || (typeof LessonItem.avg === "number" && LessonItem.avg < 90);
                 return (
                   <div
                     key={LessonItem.key}
@@ -2426,14 +2451,14 @@ function StudentProgressOverview({
                       <div className="flex items-center gap-2">
                         <Chip
                           tone={
-                            LessonItem.avg >= 90 && !LessonItem.below
+                            typeof LessonItem.avg === "number" && LessonItem.avg >= 90 && !LessonItem.below
                               ? "green"
                               : LessonItem.below
                                 ? "red"
                                 : "blue"
                           }
                         >
-                          Average Accuracy: {LessonItem.avg}%
+                          Average Accuracy: {formatAccuracyPercent(LessonItem.avg)}
                         </Chip>
                         <ChevronDown
                           className={
@@ -2449,13 +2474,13 @@ function StudentProgressOverview({
                         <MiniInsight
                           title="Best Accuracy"
                           value={
-                            LessonItem.avg >= 90 && !LessonItem.below
+                            typeof LessonItem.avg === "number" && LessonItem.avg >= 90 && !LessonItem.below
                               ? LessonItem.title
                               : "Building Confidence"
                           }
                           description={
-                            LessonItem.avg >= 90 && !LessonItem.below
-                              ? `${LessonItem.avg}% average accuracy`
+                            typeof LessonItem.avg === "number" && LessonItem.avg >= 90 && !LessonItem.below
+                              ? `${formatAccuracyPercent(LessonItem.avg)} average accuracy`
                               : "Complete more accurate work to build this strength."
                           }
                           tone="green"
@@ -2467,7 +2492,7 @@ function StudentProgressOverview({
                           }
                           description={
                             HasFocus
-                              ? `${LessonItem.avg}% average · Needs Re-Attempt: ${LessonItem.below}`
+                              ? `${formatAccuracyPercent(LessonItem.avg)} average · Needs Re-Attempt: ${LessonItem.below}`
                               : "No improvement focus in visible work."
                           }
                           tone={LessonItem.below ? "red" : "blue"}
@@ -2767,9 +2792,9 @@ function LevelSnapshot({ rows }: { rows: AnyRow[] }) {
 function LessonFocusSnapshot({ rows }: { rows: AnyRow[] }) {
   const lessons = buildLessonFocusItems(rows);
   const attention = lessons.filter(
-    (item) => item.below || item.avg < 70,
+    (item) => item.below || (typeof item.avg === "number" && item.avg < 70),
   ).length;
-  const strong = lessons.filter((item) => item.avg >= 90 && !item.below).length;
+  const strong = lessons.filter((item) => typeof item.avg === "number" && item.avg >= 90 && !item.below).length;
   return (
     <div className="rounded-[22px] border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-center gap-2">

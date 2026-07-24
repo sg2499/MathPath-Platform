@@ -19,6 +19,7 @@ import {
 import {
   AnyRow,
   buildStudents,
+  formatAccuracyPercent,
   hierarchyAverageAccuracy,
   isBelowBenchmark,
   isCompleted,
@@ -203,12 +204,19 @@ function studentOverallAverageAccuracy(rows: AnyRow[]) {
   return hierarchyAverageAccuracy(rows);
 }
 
-function visibleStudentsAverageAccuracy(students: ReturnType<typeof buildStudents>) {
-  if (!students.length) return 0;
+function visibleStudentsAverageAccuracy(students: ReturnType<typeof buildStudents>): number | null {
+  if (!students.length) return null;
 
-  const StudentAccuracyValues = students.map((student) =>
-    studentOverallAverageAccuracy(student.rows),
-  );
+  // studentOverallAverageAccuracy(...) is null for a student with no reviewed
+  // accuracy yet. Reducing that unfiltered (`sum + null` coerces to `sum + 0`
+  // in JS) while still dividing by the full student count recreates the
+  // null-as-zero dilution bug this pass is closing everywhere else. Filter
+  // nulls out first so a no-data student doesn't drag the team average down.
+  const StudentAccuracyValues = students
+    .map((student) => studentOverallAverageAccuracy(student.rows))
+    .filter((value): value is number => typeof value === "number");
+
+  if (!StudentAccuracyValues.length) return null;
 
   return Math.round(
     StudentAccuracyValues.reduce((sum, value) => sum + value, 0) / StudentAccuracyValues.length,
@@ -312,7 +320,7 @@ export default function AdminPracticeAssignmentsPage() {
             />
             <Metric
               label="Average Accuracy"
-              value={`${averageAccuracyValue}%`}
+              value={formatAccuracyPercent(averageAccuracyValue)}
               icon={<BarChart3 size={15} />}
               className="dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]"
             />
