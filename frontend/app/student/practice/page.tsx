@@ -79,7 +79,7 @@ function AverageAccuracyDisplay(
     AssignmentAccuracy(Assignment),
   ).filter((Value): Value is number => Value !== null);
 
-  if (!AccuracyValues.length) return "0%";
+  if (!AccuracyValues.length) return "—";
 
   const Average =
     AccuracyValues.reduce((Total, Value) => Total + Value, 0) /
@@ -151,7 +151,7 @@ function BuildPracticeHeroMetrics(Results: AnyRow[], Assignments: AnyRow[]) {
       Cleared,
       Pending,
       NeedsReattempt,
-      AverageAccuracy: typeof AverageAccuracy === "number" ? `${AverageAccuracy}%` : "0%",
+      AverageAccuracy: typeof AverageAccuracy === "number" ? `${AverageAccuracy}%` : "—",
     };
   }
 
