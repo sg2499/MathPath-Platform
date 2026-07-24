@@ -208,7 +208,12 @@ function cleanNumber(valueInput: unknown) {
 }
 
 function cappedScore(row: AssessmentRow) {
-  const rawScore = Number(value(row, ["score", "totalScore", "scoreObtained", "marksObtained"], ""));
+  // Same "no data" vs "genuinely 0" ambiguity as accuracy: a Pending row has
+  // no score field at all, and `Number("")` is 0 in JS, not NaN, so the raw
+  // field's presence has to be checked before converting.
+  const RawScore = row.score ?? row.totalScore ?? row.scoreObtained ?? row.marksObtained;
+  if (RawScore === null || RawScore === undefined || RawScore === "") return null;
+  const rawScore = Number(RawScore);
   const rawTotal = Number(value(row, ["totalMarks", "maxScore", "outOf"], "100"));
   if (!Number.isFinite(rawScore)) return null;
   if (Number.isFinite(rawTotal) && rawTotal > 0) return Math.min(Math.max(rawScore, 0), rawTotal);
@@ -286,12 +291,17 @@ function CurrentAssessmentMetricRows(rows: AssessmentRow[]) {
 }
 
 function AssessmentAverageAccuracyDisplay(rows: AssessmentRow[]) {
+  // Only rows that actually carry a real accuracy value are averaged — a
+  // Pending (not-yet-attempted) row has no accuracy/accuracyPercentage/
+  // percentage field at all, and treating that absence as 0 (which
+  // `Number("")` silently does in JS) would dilute the average with fake
+  // zeros for students who have both scored and not-yet-scored assessments.
   const AccuracyValues = rows
-    .map((row) => Number(value(row, ["accuracy", "accuracyPercentage", "percentage"], "")))
-    .filter((Value) => Number.isFinite(Value))
-    .map((Value) => Math.min(100, Math.max(0, Math.round(Value))));
+    .map((row) => rowAccuracyOrNull(row))
+    .filter((Value): Value is number => Value !== null)
+    .map((Value) => Math.round(Value));
 
-  if (!AccuracyValues.length) return "0%";
+  if (!AccuracyValues.length) return "—";
 
   const Average = AccuracyValues.reduce((Total, Value) => Total + Value, 0) / AccuracyValues.length;
   return `${Math.round(Average)}%`;
@@ -303,10 +313,21 @@ function recordScore(row: AssessmentRow) {
   return score !== null ? `${cleanNumber(score)} / ${cleanNumber(total) || "100"}` : "—";
 }
 
+function rowAccuracyOrNull(row: AssessmentRow): number | null {
+  // `value()` falls back to "" when none of these keys exist (e.g. a Pending
+  // row with no score yet), and `Number("")` is 0 in JS, not NaN — so a
+  // plain `Number.isFinite()` check after the fact can't tell "genuinely 0%"
+  // apart from "no data at all". Check for the raw field's presence first.
+  const Raw = row.accuracy ?? row.accuracyPercentage ?? row.percentage;
+  if (Raw === null || Raw === undefined || Raw === "") return null;
+  const Num = Number(Raw);
+  return Number.isFinite(Num) ? Math.min(Math.max(Num, 0), 100) : null;
+}
+
 function recordAccuracy(row: AssessmentRow) {
-  const rawAccuracy = Number(value(row, ["accuracy", "accuracyPercentage", "percentage"], ""));
-  if (!Number.isFinite(rawAccuracy)) return "—";
-  return `${cleanNumber(Math.min(Math.max(rawAccuracy, 0), 100))}%`;
+  const rawAccuracy = rowAccuracyOrNull(row);
+  if (rawAccuracy === null) return "—";
+  return `${cleanNumber(rawAccuracy)}%`;
 }
 
 
@@ -321,8 +342,8 @@ function PerformanceValueChip({ Value, Tone = "blue" }: { Value: string; Tone?: 
 }
 
 function AccuracyTone(row: AssessmentRow): "green" | "red" | "slate" {
-  const RawAccuracy = Number(value(row, ["accuracy", "accuracyPercentage", "percentage"], ""));
-  if (!Number.isFinite(RawAccuracy)) return "slate";
+  const RawAccuracy = rowAccuracyOrNull(row);
+  if (RawAccuracy === null) return "slate";
   return RawAccuracy >= 70 ? "green" : "red";
 }
 
