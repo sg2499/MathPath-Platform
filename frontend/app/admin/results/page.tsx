@@ -458,28 +458,32 @@ function CurrentNeedsReAttemptCount(Rows: AnyRecord[]) {
   ).length;
 }
 
-function CurrentAverageAccuracy(Rows: AnyRecord[]) {
+function CurrentAverageAccuracy(Rows: AnyRecord[]): number | null {
   const CurrentRows = BuildCurrentAttemptGroups(Rows).map(
     (Group) => Group.CurrentRow,
   );
   const Percentages = CurrentRows.map(RowPercent).filter((Value) =>
     Number.isFinite(Value),
   );
-  if (!Percentages.length) return 0;
+  if (!Percentages.length) return null;
   return Math.round(
     Percentages.reduce((Total, Value) => Total + Value, 0) / Percentages.length,
   );
 }
 
 
-function VisibleAttemptAverageAccuracy(Rows: AnyRecord[]) {
+function VisibleAttemptAverageAccuracy(Rows: AnyRecord[]): number | null {
   const Percentages = Rows.map(RowPercent).filter((Value) =>
     Number.isFinite(Value),
   );
-  if (!Percentages.length) return 0;
+  if (!Percentages.length) return null;
   return Math.round(
     Percentages.reduce((Total, Value) => Total + Value, 0) / Percentages.length,
   );
+}
+
+function FormatAccuracyOrDash(Value: number | null | undefined) {
+  return typeof Value === "number" && Number.isFinite(Value) ? `${Value}%` : "—";
 }
 
 function StudentAverageAccuracyKey(Row: AnyRecord, Index: number) {
@@ -507,9 +511,9 @@ function CurrentAverageAccuracyByStudent(Rows: AnyRecord[]) {
 
   const StudentAverages = Array.from(RowsByStudent.values())
     .map((StudentRows) => CurrentAverageAccuracy(StudentRows))
-    .filter((Value) => Number.isFinite(Value));
+    .filter((Value): Value is number => typeof Value === "number" && Number.isFinite(Value));
 
-  if (!StudentAverages.length) return 0;
+  if (!StudentAverages.length) return null;
 
   return Math.round(
     StudentAverages.reduce((Total, Value) => Total + Value, 0) /
@@ -1511,7 +1515,7 @@ export default function AdminResultsPage() {
             <MetricCard
               icon={<BarChart3 size={16} />}
               label="Average Accuracy"
-              value={`${VisibleAttemptAverageAccuracy(FilteredLearningRows)}%`}
+              value={FormatAccuracyOrDash(VisibleAttemptAverageAccuracy(FilteredLearningRows))}
             />
           </>
         ) : (
@@ -1561,13 +1565,13 @@ export default function AdminResultsPage() {
             <MetricCard
               icon={<BarChart3 size={15} />}
               label="DPS Avg Accuracy"
-              value={`${StudentHistoryMetricValues.dpsAverageAccuracy}%`}
+              value={FormatAccuracyOrDash(StudentHistoryMetricValues.dpsAverageAccuracy)}
               compact
             />
             <MetricCard
               icon={<Target size={15} />}
               label="Assessment Avg Accuracy"
-              value={`${StudentHistoryMetricValues.assessmentAverageAccuracy}%`}
+              value={FormatAccuracyOrDash(StudentHistoryMetricValues.assessmentAverageAccuracy)}
               compact
             />
           </>
