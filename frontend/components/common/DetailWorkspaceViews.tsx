@@ -3065,10 +3065,13 @@ export function accuracyTone(Value: AnyRow | number | string | null | undefined)
 
 
 export function accuracyToneClass(Value: AnyRow | number | string | null | undefined) {
+  // NaN fallback (not 0) so a genuinely-missing value renders as the neutral
+  // "no data" slate tone below, instead of being coerced into a real 0%
+  // and rendered as a false low-accuracy red.
   const AccuracyValue =
     typeof Value === "object" && Value !== null
       ? accuracy(Value)
-      : numberValue(Value, 0);
+      : numberValue(Value, Number.NaN);
 
   if (!Number.isFinite(AccuracyValue)) {
     return "border-slate-300 bg-slate-100 text-slate-700 shadow-sm dark:border-slate-300/80 dark:bg-slate-500/35 dark:text-white dark:shadow-slate-950/30";
