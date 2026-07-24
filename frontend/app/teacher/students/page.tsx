@@ -401,6 +401,14 @@ export default function TeacherStudentsPage() {
     const accuracyValues = VisibleStudents.map((Student) => {
       const MetricAccuracy = studentPracticeMetrics.get(Student.studentCode)?.averageAccuracy;
       if (typeof MetricAccuracy === "number" && Number.isFinite(MetricAccuracy)) return MetricAccuracy;
+      // Student.averageAccuracy is `null` (not 0) from the backend when a
+      // student has zero completed attempts. Number(null) evaluates to 0 in
+      // JavaScript, not NaN -- calling Number() first before checking for
+      // null/undefined let every no-data student's absence of a score slip
+      // through as a fake real 0, silently recreating the exact dilution bug
+      // this fix was meant to close. Guard against null/undefined explicitly
+      // before the numeric conversion.
+      if (Student.averageAccuracy === null || Student.averageAccuracy === undefined) return null;
       const FallbackAccuracy = Number(Student.averageAccuracy);
       return Number.isFinite(FallbackAccuracy) ? FallbackAccuracy : null;
     }).filter((value): value is number => value !== null);
