@@ -32,7 +32,8 @@ type WorkspaceRole = "admin" | "teacher" | "student";
 
 type Tone = "slate" | "green" | "red" | "amber" | "blue" | "cyan";
 
-function AccuracyTone(Value: number): "green" | "amber" | "red" {
+function AccuracyTone(Value: number | null): "green" | "amber" | "red" | "slate" {
+  if (typeof Value !== "number" || !Number.isFinite(Value)) return "slate";
   if (Value > 70) return "green";
   if (Value >= 60) return "amber";
   return "red";
@@ -214,7 +215,10 @@ function Stats(Rows: AssessmentRow[]) {
   const Pending = Rows.filter(IsPending).length;
   const Reattempt = Rows.filter(NeedsReattempt).length;
   const AccuracyValues = Rows.filter((Row) => HasResult(Row)).map(Accuracy).filter((Value) => Value > 0);
-  const Average = AccuracyValues.length ? Math.round(AccuracyValues.reduce((Sum, Value) => Sum + Value, 0) / AccuracyValues.length) : 0;
+  // No scored rows means no real accuracy to report -- null (not 0) so a
+  // level/scope with zero attempts renders as "no data" instead of a
+  // misleading "0% Avg".
+  const Average = AccuracyValues.length ? Math.round(AccuracyValues.reduce((Sum, Value) => Sum + Value, 0) / AccuracyValues.length) : null;
   return { Total: Rows.length, Cleared, Pending, Reattempt, Average };
 }
 
@@ -536,7 +540,7 @@ function AssessmentInsights({ Groups, OpenModules, OpenLevels, ToggleModule, Tog
                       <Chip tone="blue">{LevelGroup.Rows.length} Assessment(s)</Chip>
                       <Chip tone="green">{GroupStats.Cleared} Cleared</Chip>
                       <Chip tone={GroupStats.Reattempt ? "red" : "green"}>{GroupStats.Reattempt} Needs Re-Attempt</Chip>
-                      <Chip tone={AccuracyTone(GroupStats.Average)}>{GroupStats.Average}% Avg</Chip>
+                      <Chip tone={AccuracyTone(GroupStats.Average)}>{typeof GroupStats.Average === "number" ? `${GroupStats.Average}% Avg` : "— Avg"}</Chip>
                       <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300"><ChevronDown className={IsOpen ? "rotate-180 transition" : "transition"} size={18} /></span>
                     </div>
                   </button>

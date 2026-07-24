@@ -54,6 +54,7 @@ import {
   studentNameOf,
   uniqueNeedsReattemptCount,
   hierarchyAverageAccuracy,
+  formatAccuracyPercent,
 } from "@/components/common/DetailWorkspaceViews";
 
 type ModuleFilter = string;
@@ -253,12 +254,19 @@ function AttemptedRows(Rows: AnyRow[]) {
 
 function AverageAccuracyDisplay(Rows: AnyRow[]) {
   const ReviewedRows = AttemptedRows(Rows);
-  return ReviewedRows.length ? `${averageAccuracy(ReviewedRows)}%` : "—";
+  return ReviewedRows.length ? formatAccuracyPercent(averageAccuracy(ReviewedRows)) : "—";
 }
 
 function AverageStudentAccuracyDisplay(Students: StudentNode[]) {
   if (!Students.length) return "—";
-  const Values = Students.map((Student) => StudentOperationalStats(Student.rows).Average);
+  // StudentOperationalStats(...).Average is null for a student with no
+  // reviewed accuracy yet. `Total + null` silently coerces to `Total + 0` in
+  // JS, so an unfiltered reduce over these values recreates the exact
+  // null-as-zero dilution bug this pass is closing elsewhere. Filter nulls
+  // out before averaging so a no-data student doesn't drag the team number down.
+  const Values = Students
+    .map((Student) => StudentOperationalStats(Student.rows).Average)
+    .filter((Value): Value is number => typeof Value === "number");
   if (!Values.length) return "—";
   return `${Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length)}%`;
 }
@@ -290,7 +298,11 @@ function MatchesPerformanceFilter(Row: AnyRow, FilterValue: PerformanceFilter) {
 function PerformanceBand(Rows: AnyRow[]) {
   const ReviewedRows = AttemptedRows(Rows);
   if (!ReviewedRows.length) return { Label: "Pending", Tone: "amber" as Tone };
-  const Average = averageAccuracy(ReviewedRows);
+  // ReviewedRows is guaranteed non-empty here, so averageAccuracy() only
+  // returns null when every reviewed row's accuracy is exactly 0 (its
+  // `value > 0` filter excludes them) -- which already belongs in the
+  // "Needs Re-Attempt" band. `?? 0` preserves that exact behavior.
+  const Average = averageAccuracy(ReviewedRows) ?? 0;
   if (Average < 70) return { Label: "Needs Re-Attempt", Tone: "red" as Tone };
   if (Average >= 90) return { Label: "Excellence Zone", Tone: "green" as Tone };
   return { Label: "Growth Zone", Tone: "amber" as Tone };
@@ -1527,7 +1539,7 @@ function StudentReviewTab({
                   </div>
                   <div className="flex justify-center">
                     <Chip tone={accuracyTone(Stats.Average)}>
-                      {Stats.Average}%
+                      {formatAccuracyPercent(Stats.Average)}
                     </Chip>
                   </div>
                   <div className="flex justify-center">

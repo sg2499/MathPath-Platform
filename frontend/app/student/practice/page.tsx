@@ -151,7 +151,7 @@ function BuildPracticeHeroMetrics(Results: AnyRow[], Assignments: AnyRow[]) {
       Cleared,
       Pending,
       NeedsReattempt,
-      AverageAccuracy: `${AverageAccuracy}%`,
+      AverageAccuracy: typeof AverageAccuracy === "number" ? `${AverageAccuracy}%` : "0%",
     };
   }
 
