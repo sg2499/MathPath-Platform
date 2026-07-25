@@ -863,7 +863,7 @@ def get_mock_exam_leaderboard(
     
     # Pre-fetch all legendary and super badges for performance
     all_badges = db.query(AchievementBadge).all()
-    badge_map = {b.id: {"id": b.id, "name": b.name, "tier": b.tier, "iconName": b.icon_name} for b in all_badges}
+    badge_map = {b.id: {"id": b.id, "code": b.code, "name": b.name, "tier": b.tier, "iconName": b.icon_name} for b in all_badges}
 
     results = (
         db.query(CompetitionMockResultSummary, Student, User)
@@ -1050,7 +1050,7 @@ def get_cumulative_leaderboard(
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student)
 ):
-    from app.models.models import CompetitionMockResultSummary, Student, User, CompetitionMockExam, CompetitionMockAttempt, CompetitionMockAssignment
+    from app.models.models import CompetitionMockResultSummary, Student, User, CompetitionMockExam, CompetitionMockAttempt, CompetitionMockAssignment, StudentBadge, AchievementBadge
     from sqlalchemy import func, case
 
     # "Accuracy" here must be pooled correct/total across every mock in the
@@ -1138,7 +1138,34 @@ def get_cumulative_leaderboard(
             
         if rank <= 10 or r['isCurrent']:
             leaderboard.append(r)
-            
+
+    # Attach each shown student's top 3 badges (LEGENDARY > SUPER > BASE),
+    # same read-only presentation convention get_mock_exam_leaderboard() uses
+    # above. This was the one leaderboard view where topBadges was entirely
+    # missing (2026-07-25 Round 1 fix) -- no gamification data is written or
+    # altered here, only looked up for display.
+    shown_student_ids = [entry["studentId"] for entry in leaderboard]
+    if shown_student_ids:
+        all_badges = db.query(AchievementBadge).all()
+        badge_lookup = {
+            b.id: {"id": b.id, "code": b.code, "name": b.name, "tier": b.tier, "iconName": b.icon_name}
+            for b in all_badges
+        }
+        tier_score = {"LEGENDARY": 3, "SUPER": 2, "BASE": 1}
+        student_badge_rows = (
+            db.query(StudentBadge)
+            .filter(StudentBadge.student_id.in_(shown_student_ids))
+            .all()
+        )
+        badges_by_student: dict = {}
+        for sb in student_badge_rows:
+            if sb.badge_id in badge_lookup:
+                badges_by_student.setdefault(sb.student_id, []).append(badge_lookup[sb.badge_id])
+        for entry in leaderboard:
+            student_badges = badges_by_student.get(entry["studentId"], [])
+            student_badges.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
+            entry["topBadges"] = student_badges[:3]
+
     return {
         "leaderboard": [entry for entry in leaderboard if entry["rank"] <= 10],
         "currentStudentRank": current_student_rank,

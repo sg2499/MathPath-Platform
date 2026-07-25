@@ -3,6 +3,7 @@ import { z } from "zod";
 // Shared Badges Schema
 export const BadgeSchema = z.object({
   id: z.string(),
+  code: z.string().optional(),
   name: z.string(),
   tier: z.enum(["BASE", "SUPER", "LEGENDARY"]),
   iconName: z.string(),

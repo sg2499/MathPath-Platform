@@ -23,6 +23,54 @@ import { ClipboardCheck, Clock3, Gauge, Layers3, Trophy, CheckCircle2 } from "lu
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
+// Round-1 gamification fix (2026-07-25): the submit/auto-submit/save-answer
+// responses already carry `unlockedBadges` (the backend computes it, see
+// SubmitCompetitionMockAttemptForStudent / SaveCompetitionMockAnswer), but
+// nothing on the frontend ever read it -- a student could earn a badge and
+// never see it happen at the actual moment of achievement. This stashes it
+// in sessionStorage keyed by attemptId immediately before navigating to the
+// result page, which then consumes-and-clears it on mount. sessionStorage
+// (not localStorage) is deliberate: this is one-time handoff data for the
+// very next navigation, not something that should persist indefinitely or
+// resurface if the student returns to this result page later.
+function stashUnlockedBadgesForResult(attemptId: string, response: unknown) {
+  try {
+    const badges = (response as { unlockedBadges?: unknown[] } | undefined)?.unlockedBadges;
+    if (Array.isArray(badges) && badges.length > 0) {
+      // The submit-side backend response for this specific field is a raw
+      // dict (no camelCase alias generator, unlike the /achievements route),
+      // so it still carries `icon_name`. Normalize to `iconName` here at the
+      // handoff boundary so the result page's reveal UI can share the exact
+      // same BadgeIconMap lookup convention as the Trophy Room without ever
+      // touching the backend's gamification evaluation logic itself.
+      const normalized = badges.map((b: any) => ({
+        ...b,
+        iconName: b?.iconName ?? b?.icon_name,
+      }));
+      sessionStorage.setItem(`mp_unlocked_badges_${attemptId}`, JSON.stringify(normalized));
+    }
+  } catch (e) {
+    // Never let a storage failure (e.g. private-browsing quirks) block navigation.
+    console.error("Failed to stash unlocked badges for result reveal", e);
+  }
+}
+
+// Same one-time sessionStorage handoff pattern as stashUnlockedBadgesForResult
+// above, for the rankedUp/newRankTier fields the submit response now also
+// carries (2026-07-25 Round 1 fix). RankCinematicOverlay previously only
+// fired from a student manually clicking a tier inside the rank roadmap
+// modal -- this is what lets an actual real rank-up play automatically.
+function stashRankUpForResult(attemptId: string, response: unknown) {
+  try {
+    const data = response as { rankedUp?: boolean; newRankTier?: string | null } | undefined;
+    if (data?.rankedUp && data?.newRankTier) {
+      sessionStorage.setItem(`mp_rank_up_${attemptId}`, data.newRankTier);
+    }
+  } catch (e) {
+    console.error("Failed to stash rank-up for result reveal", e);
+  }
+}
+
 export default function StudentCompetitionMockAttemptPage() {
   const ready = useProtectedPage(["STUDENT"]);
   const params = useParams<{ attemptId: string }>();
@@ -44,12 +92,20 @@ export default function StudentCompetitionMockAttemptPage() {
 
   const autoSubmitMutation = useMutation({
     mutationFn: () => autoSubmitCompetitionMockAttempt(attemptId),
-    onSuccess: () => router.replace(`/student/competition/mock-result/${attemptId}`),
+    onSuccess: (data) => {
+      stashUnlockedBadgesForResult(attemptId, data);
+      stashRankUpForResult(attemptId, data);
+      router.replace(`/student/competition/mock-result/${attemptId}`);
+    },
   });
 
   const manualSubmitMutation = useMutation({
     mutationFn: () => submitCompetitionMockAttempt(attemptId),
-    onSuccess: () => router.replace(`/student/competition/mock-result/${attemptId}`),
+    onSuccess: (data) => {
+      stashUnlockedBadgesForResult(attemptId, data);
+      stashRankUpForResult(attemptId, data);
+      router.replace(`/student/competition/mock-result/${attemptId}`);
+    },
   });
 
   const handleTimeUp = useCallback(() => {
@@ -94,7 +150,11 @@ export default function StudentCompetitionMockAttemptPage() {
     setSavingQuestionId(questionId);
     try {
       const response = await saveCompetitionMockAnswer(attemptId, { questionId, selectedOptionId });
-      if (response?.status === "AUTO_SUBMITTED") router.replace(`/student/competition/mock-result/${attemptId}`);
+      if (response?.status === "AUTO_SUBMITTED") {
+        stashUnlockedBadgesForResult(attemptId, response);
+        stashRankUpForResult(attemptId, response);
+        router.replace(`/student/competition/mock-result/${attemptId}`);
+      }
     } finally {
       setSavingQuestionId(null);
     }

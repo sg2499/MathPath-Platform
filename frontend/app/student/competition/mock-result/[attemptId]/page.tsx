@@ -23,8 +23,20 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { EpicCelebration } from "@/components/gamification/EpicCelebration";
+import { BadgeInspectionModal } from "@/components/gamification/BadgeInspectionModal";
+import { RankCinematicOverlay } from "@/components/gamification/RankCinematicOverlay";
+import { getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
 import { AnimatePresence } from "framer-motion";
 import { CompetitionMessage, competitionMessagePools } from "@/lib/utils/competitionMessages";
+
+// Rarity order used purely to sequence the post-submission badge reveal --
+// legendary badges are always shown last so the moment escalates rather than
+// peaking early (2026-07-25, Round 1 gamification fix).
+const BADGE_REVEAL_TIER_ORDER: Record<string, number> = {
+  BASE: 0,
+  SUPER: 1,
+  LEGENDARY: 2,
+};
 
 function formatDuration(seconds?: number | null) {
   if (seconds === null || seconds === undefined) return "-";
@@ -199,6 +211,23 @@ export default function StudentCompetitionMockResultPage() {
   const [allowSkip, setAllowSkip] = useState(false);
   const hasExploded = useRef(false);
 
+  // Badge-unlock reveal handoff: the mock-attempt page stashes any badges
+  // unlocked by this specific submission into sessionStorage right before
+  // navigating here (one-time, per-attempt). Consumed once, then cleared --
+  // reloading this result page later should not replay the reveal.
+  const [unlockedBadges, setUnlockedBadges] = useState<any[]>([]);
+  const [badgesLoaded, setBadgesLoaded] = useState(false);
+  const [badgeRevealIndex, setBadgeRevealIndex] = useState<number | null>(null);
+  const badgesConsumed = useRef(false);
+
+  // Rank-up cinematic finale: same one-time sessionStorage handoff as the
+  // badge reveal above. RankCinematicOverlay previously only ever fired from
+  // a student manually clicking a tier inside the rank roadmap modal -- this
+  // is what makes a real, XP-driven rank-up play automatically, as the last
+  // beat after any celebration and badge reveals (2026-07-25 Round 1 fix).
+  const [rankUpTier, setRankUpTier] = useState<string | null>(null);
+  const [showRankUp, setShowRankUp] = useState(false);
+
   const query = useQuery({
     queryKey: ["student-competition-mock-result", attemptId],
     queryFn: () => getCompetitionMockResult(attemptId),
@@ -206,7 +235,40 @@ export default function StudentCompetitionMockResultPage() {
   });
 
   useEffect(() => {
-    if (query.data && !hasExploded.current) {
+    if (!attemptId || badgesConsumed.current) return;
+    badgesConsumed.current = true;
+    try {
+      const key = `mp_unlocked_badges_${attemptId}`;
+      const raw = sessionStorage.getItem(key);
+      if (raw) {
+        sessionStorage.removeItem(key);
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const sorted = [...parsed].sort(
+            (a, b) => (BADGE_REVEAL_TIER_ORDER[a?.tier] ?? 0) - (BADGE_REVEAL_TIER_ORDER[b?.tier] ?? 0),
+          );
+          setUnlockedBadges(sorted);
+        }
+      }
+      const rankKey = `mp_rank_up_${attemptId}`;
+      const rankRaw = sessionStorage.getItem(rankKey);
+      if (rankRaw) {
+        sessionStorage.removeItem(rankKey);
+        setRankUpTier(rankRaw);
+      }
+    } catch (e) {
+      console.error("Failed to read unlocked badge handoff from sessionStorage", e);
+    } finally {
+      setBadgesLoaded(true);
+    }
+  }, [attemptId]);
+
+  // Sequencing: EpicCelebration (if accuracy >= 80) plays first; the badge
+  // reveal starts either right after it completes, or immediately if there
+  // was no celebration to play. Waits on both the result query and the
+  // badge handoff read so the two async sources never race each other.
+  useEffect(() => {
+    if (query.data && badgesLoaded && !hasExploded.current) {
       hasExploded.current = true;
       const accuracy = query.data.accuracyPercentage || 0;
       if (accuracy >= 80) {
@@ -219,9 +281,13 @@ export default function StudentCompetitionMockResultPage() {
           console.error("Failed to parse viewed_celebrations from localStorage", e);
         }
         setShowCelebration(true);
+      } else if (unlockedBadges.length > 0) {
+        setBadgeRevealIndex(0);
+      } else if (rankUpTier) {
+        setShowRankUp(true);
       }
     }
-  }, [query.data, attemptId]);
+  }, [query.data, badgesLoaded, unlockedBadges, rankUpTier, attemptId]);
 
   const handleCelebrationComplete = () => {
     setShowCelebration(false);
@@ -233,6 +299,22 @@ export default function StudentCompetitionMockResultPage() {
     } catch (e) {
       console.error("Failed to save viewed_celebrations to localStorage", e);
     }
+    if (unlockedBadges.length > 0) {
+      setBadgeRevealIndex(0);
+    } else if (rankUpTier) {
+      setShowRankUp(true);
+    }
+  };
+
+  const handleBadgeRevealClose = () => {
+    setBadgeRevealIndex((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next < unlockedBadges.length) return next;
+      // Badge sequence finished -- hand off to the rank-up cinematic finale.
+      if (rankUpTier) setShowRankUp(true);
+      return null;
+    });
   };
 
   if (!ready) return null;
@@ -297,6 +379,19 @@ export default function StudentCompetitionMockResultPage() {
           />
         )}
       </AnimatePresence>
+      {!showCelebration && badgeRevealIndex !== null && unlockedBadges[badgeRevealIndex] && (
+        <BadgeInspectionModal
+          badge={unlockedBadges[badgeRevealIndex]}
+          config={getBadgeVisualConfig(
+            unlockedBadges[badgeRevealIndex].code,
+            unlockedBadges[badgeRevealIndex].tier,
+          )}
+          onClose={handleBadgeRevealClose}
+        />
+      )}
+      {!showCelebration && badgeRevealIndex === null && showRankUp && rankUpTier && (
+        <RankCinematicOverlay tier={rankUpTier} onComplete={() => setShowRankUp(false)} />
+      )}
       <AppShell title="Competition Mock Result">
       <section className="space-y-5">
         <div className="math-card p-6">
