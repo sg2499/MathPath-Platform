@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, useMotionTemplate, Variants } from "framer-motion";
 import { 
   Target, Focus, Scan, Zap, FastForward, Rocket, Medal, 
@@ -406,6 +407,35 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
 export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspectionModalProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
 
+  // Portal-mount to document.body (2026-07-25 fix): AppShell's nav header and
+  // its dropdowns live in their own stacking contexts (z-[120]/z-[140]) that
+  // are siblings of this modal's actual DOM ancestor, not descendants of it.
+  // A high z-index alone (z-[9999]) can't escape a parent's stacking context,
+  // so the header was rendering on top of this modal in production even
+  // though this component's own z-index is far larger. Portaling to <body>
+  // makes this modal a true top-level sibling of the header, which fixes it
+  // for good instead of an endless z-index arms race.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Escape-to-close, and lock background scroll while open -- neither existed
+  // before, so the only way to dismiss was the small close button (easy to
+  // miss, and now doubly important since the click-through bug is fixed).
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
   // High-performance Framer Motion Values
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -496,7 +526,9 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
     }
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
@@ -620,6 +652,7 @@ export function BadgeInspectionModal({ badge, config, onClose }: BadgeInspection
            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

@@ -17,6 +17,40 @@ import type {
 } from "@/lib/schemas/leaderboard";
 import { z } from "zod";
 import { PodiumHeroAnimation } from "./PodiumHeroAnimation";
+import { BadgeIconMap, getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
+
+// Small badge-chip cluster shared by the podium cards and the ranks 4-10
+// table -- the backend has computed each shown student's top 3 badges
+// (topBadges, LEGENDARY > SUPER > BASE) for a while now, but nothing on this
+// page ever rendered them (2026-07-25 Round 1 fix). Uses the exact same
+// icon/color lookup convention as the Trophy Room and the mock-result badge
+// reveal so a badge always looks like the same badge everywhere it appears.
+function TopBadgeChips({ badges, size = "sm" }: { badges?: any[]; size?: "sm" | "xs" }) {
+  if (!badges || badges.length === 0) return null;
+  const dim = size === "xs" ? "w-6 h-6" : "w-7 h-7 md:w-8 md:h-8";
+  const iconDim = size === "xs" ? 12 : 14;
+  return (
+    <div className="flex items-center -space-x-2">
+      {badges.map((b) => {
+        const Icon = BadgeIconMap[b.iconName] || BadgeIconMap.Target;
+        const config = getBadgeVisualConfig(b.code, b.tier);
+        return (
+          <div
+            key={b.id}
+            title={`${b.name} (${b.tier})`}
+            className={`relative ${dim} rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-md shrink-0`}
+            style={{
+              background: config.customBg || config.unlockedBg,
+              boxShadow: `0 0 8px ${config.bloomColor}`,
+            }}
+          >
+            <Icon size={iconDim} style={{ color: config.iconColorHex || "#ffffff" }} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function getInitials(name: string) {
   if (!name) return "";
@@ -177,13 +211,23 @@ const router = useRouter();
       </div>
 
       {/* 1.5 Floating Stardust Engine */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden mix-blend-screen">
+      {/* mix-blend-screen against a white dot is how this achieved its glow --
+          screen(bg, pure-white) always resolves to pure white regardless of
+          bg, which reads as a bright glow on the dark theme's near-black
+          background but collapses to near-zero contrast against the light
+          theme's near-white background (#F8FAFC), making every particle
+          effectively invisible there (2026-07-25 Round 1 fix). Light mode
+          now renders the same particles as a soft indigo speck under
+          mix-blend-multiply instead, which darkens toward the particle color
+          against a light background the same way screen brightens toward it
+          against a dark one -- dark mode's look is untouched. */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden mix-blend-multiply dark:mix-blend-screen">
         {[...Array(40)].map((_, i) => (
            <motion.div key={i}
              initial={{ y: "100vh", x: Math.random() * 100 + "vw", opacity: 0 }}
              animate={{ y: "-10vh", opacity: [0, Math.random(), 0] }}
              transition={{ duration: 10 + Math.random() * 20, repeat: Infinity, delay: Math.random() * 10 }}
-             className="absolute w-1 h-1 bg-white rounded-full shadow-[0_0_10px_#fff]"
+             className="absolute w-1 h-1 bg-indigo-400 dark:bg-white rounded-full shadow-[0_0_10px_rgba(99,102,241,0.7)] dark:shadow-[0_0_10px_#fff]"
              style={{ filter: `blur(${Math.random() * 2}px)` }}
            />
         ))}
@@ -519,6 +563,11 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
       <div className="text-center mb-4 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-max min-w-[100px] mx-auto whitespace-nowrap">
         <p className={`font-black text-sm md:text-base text-white ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
         <p className={`text-xs md:text-sm font-black ${config.textColor} mt-0.5 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
+        {student.topBadges && student.topBadges.length > 0 && (
+          <div className="mt-2 flex justify-center">
+            <TopBadgeChips badges={student.topBadges} size="sm" />
+          </div>
+        )}
       </div>
 
       {/* AAA Geometric Pedestal with Glass Foil Glare */}
@@ -589,6 +638,9 @@ function TableRow({ row: r, delay }: { row: any; delay: number }) {
         <span className={`font-bold text-base transition-colors duration-300 ${r.isCurrent ? 'text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700' : 'text-slate-800 dark:text-slate-200 group-hover:text-indigo-600'}`}>
           {r.name} {r.isCurrent && <span className="ml-3 text-[10px] bg-indigo-600 text-white font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-md shadow-indigo-500/30 animate-[pulse_2s_infinite]">You</span>}
         </span>
+        {r.topBadges && r.topBadges.length > 0 && (
+          <TopBadgeChips badges={r.topBadges} size="xs" />
+        )}
       </td>
       <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">
         {animatedScore}

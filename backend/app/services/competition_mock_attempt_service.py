@@ -582,7 +582,23 @@ def SaveCompetitionMockAnswer(db: Session, student: Student, attempt_id: str, qu
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition mock attempt not found.")
     attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
     if attempt.status != ACTIVE_STATUS:
-        return {"saved": False, "status": attempt.status, "message": "Competition mock is no longer active.", "resultAvailable": True}
+        # If this save call is the one that tipped the attempt into a lazy
+        # auto-submit (timer already expired server-side), the completion
+        # side-effects (badges/XP/coins) ran inside EnsureCompetitionAttemptActiveOrSubmit
+        # just above and are attached in-memory on `attempt` -- surface them
+        # here the same way SubmitCompetitionMockAttemptForStudent() does, so
+        # the frontend's badge-reveal handoff works from this path too, not
+        # just the two explicit submit endpoints.
+        side_effects = getattr(attempt, "_side_effects_result", None) or {}
+        return {
+            "saved": False,
+            "status": attempt.status,
+            "message": "Competition mock is no longer active.",
+            "resultAvailable": True,
+            "unlockedBadges": side_effects.get("unlockedBadges", []),
+            "rankedUp": side_effects.get("rankedUp", False),
+            "newRankTier": side_effects.get("newRankTier"),
+        }
 
     question = db.get(CompetitionMockQuestion, question_id)
     if not question or question.mock_exam_id != attempt.mock_exam_id:
@@ -919,6 +935,8 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
     # pays proportionally instead of identically to every other mock.
     final_xp = 0
     final_coins = 0
+    ranked_up = False
+    new_rank_tier = None
     try:
         from app.services.economy_service import EconomyService
         econ_result = EconomyService.evaluate_activity_performance(
@@ -931,6 +949,15 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
         )
         final_xp = econ_result.get("awarded_xp", 0)
         final_coins = econ_result.get("awarded_coins", 0)
+        # ranked_up/new_rank come straight out of EconomyService.award_xp_and_coins,
+        # which already computes them off the real current_xp -> current_rank_tier
+        # transition for this exact award -- nothing new is derived or guessed
+        # here, this just carries the existing values through to the response so
+        # the frontend can fire RankCinematicOverlay automatically instead of it
+        # only ever being reachable from the manual "preview" roadmap click
+        # (2026-07-25 Round 1 fix).
+        ranked_up = bool(econ_result.get("ranked_up", False))
+        new_rank_tier = econ_result.get("new_rank") if ranked_up else None
     except Exception as e:
         import logging
         logging.error(f"Economy engine failed for attempt {attempt.id}: {e}")
@@ -997,6 +1024,8 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
         "unlockedBadges": unlocked_badges,
         "awardedXP": final_xp,
         "awardedCoins": final_coins,
+        "rankedUp": ranked_up,
+        "newRankTier": new_rank_tier,
     }
 
 
@@ -1029,6 +1058,8 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
         "unlockedBadges": side_effects.get("unlockedBadges", []),
         "awardedXP": side_effects.get("awardedXP", 0),
         "awardedCoins": side_effects.get("awardedCoins", 0),
+        "rankedUp": side_effects.get("rankedUp", False),
+        "newRankTier": side_effects.get("newRankTier"),
     }
 
 

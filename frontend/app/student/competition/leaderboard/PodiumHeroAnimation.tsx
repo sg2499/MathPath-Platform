@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, MeshDistortMaterial, Stars, Cloud, Grid, Float } from '@react-three/drei';
@@ -307,41 +307,64 @@ function SpecificRank3() {
 
 export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, onComplete }: PodiumHeroAnimationProps) {
   const [mounted, setMounted] = useState(false);
+  // Reliability fix (2026-07-25): this cinematic was found stuck in production
+  // with its backdrop frozen at ~20% opacity (confirmed via computed style,
+  // not moving over several seconds) and "Skip Animation" not visually
+  // dismissing it. Root cause: the ONLY thing making this overlay opaque was
+  // a Framer Motion opacity tween racing against a heavy stacked R3F scene
+  // (multiple EffectComposer passes) on the same frame budget -- under load,
+  // that tween can stall mid-value, and AnimatePresence's exit animation can
+  // stall the exact same way, so even a successful onComplete() call didn't
+  // visually remove the overlay. `dismissed` is a plain, animation-independent
+  // boolean that hard-unmounts this component the instant any exit path
+  // fires, with no dependency on any tween completing.
+  const [dismissed, setDismissed] = useState(false);
+
+  const dismiss = useCallback(() => {
+    setDismissed(true);
+    onComplete();
+  }, [onComplete]);
 
   useEffect(() => {
     setMounted(true);
     if (rank !== null) {
+      setDismissed(false); // reset so a second hero moment isn't pre-dismissed
       const timer = setTimeout(() => {
-        onComplete();
+        dismiss();
       }, 10000); // 10 FULL SECONDS of AAA glory
       return () => clearTimeout(timer);
     }
-  }, [rank, onComplete]);
+  }, [rank, dismiss]);
 
   // Add keyboard listener for skipping
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        onComplete();
+        dismiss();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onComplete]);
+  }, [dismiss]);
 
-  if (!mounted) return null;
+  if (!mounted || dismissed || rank === null) return null;
 
   return (
     <AnimatePresence>
       {rank !== null && (
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1 }}
+          exit={{ opacity: 1 }}
           className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/95 backdrop-blur-3xl"
         >
+          {/* Hard-opaque block layer -- guarantees full immersion from frame 1,
+              independent of any animation. This is the fix for the stuck-at-
+              20%-opacity bug: the thing that actually has to be opaque no
+              longer depends on a tween that can stall under GPU/CPU load. */}
+          <div className="absolute inset-0 z-0 bg-black" />
+
           {/* ============================================================== */}
           {/* 3D CANVAS LAYER (Muted & Pushed Back)                          */}
           {/* ============================================================== */}
@@ -498,7 +521,7 @@ export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, on
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             whileHover={{ scale: 1.05 }}
-            onClick={() => onComplete()}
+            onClick={dismiss}
             className="absolute bottom-6 right-6 z-[200] text-white hover:text-white uppercase tracking-widest text-xs font-bold px-4 py-2 rounded-full border border-white/50 hover:border-white backdrop-blur-md transition-all duration-300 pointer-events-auto"
           >
             Skip Animation ⏭
