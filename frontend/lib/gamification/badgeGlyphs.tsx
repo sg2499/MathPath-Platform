@@ -1878,3 +1878,599 @@ export const mockExamBatch2Glyphs = {
   Lightbulb: IconInsightLamp,
   Library: IconGreatLibrary,
 } as const;
+
+/* ==========================================================================
+ * PHASE 1 -- MYTHIC TIER (2026-07-28)
+ * --------------------------------------------------------------------------
+ * Nine hand-drawn marks for the new MYTHIC tier of the nine skill-badge
+ * families that did not already have one. (The tenth, perfectionist, got
+ * `IconPerfectionistGemMythic` in the reference batch above and is untouched.)
+ *
+ * CONTRACT: like the reference batch and UNLIKE batches 1 and 2, these are
+ * brand-new iconName strings -- `SpeedCometMythic`, `CrownMythic`,
+ * `InfinityMythic`, `DawnBreakMythic`, `PhoenixSurgeMythic`,
+ * `LaurelCrownMythic`, `PrecisionCoreMythic`, `SummitMythic`, `OracleMythic`.
+ * They were seeded by the backend alongside the nine new MYTHIC
+ * AchievementBadge rows, so each key is owned by exactly one row and none of
+ * them can shadow, or be shadowed by, a key an existing badge resolves through.
+ *
+ * DRAWING RULE FOR THIS TIER: every mark is the SAME OBJECT its family's
+ * LEGENDARY mark draws, escalated -- not a new object. The tier step is carried
+ * by (a) an added structural element that only a ceiling tier would earn (a
+ * mach cone, a vault arch, an orbital ring, a horizon, a wing pair, a monument,
+ * a collapsed core, a summit banner, an opened eye) and (b) a denser internal
+ * facet/ray pass. If you can swap one of these with its family's LEGENDARY mark
+ * and not notice, it is wrong.
+ *
+ * THREE OF THE NINE ARE DRAWN FOR A LIGHT CARD (`DawnBreakMythic`,
+ * `LaurelCrownMythic`, `OracleMythic`): their badge colour is a high-luminance
+ * near-white, so those three take an INK `iconColorHex` and their accent fills
+ * are DEEP rather than bright. Bright accents vanish on those cards.
+ * ========================================================================== */
+
+/* --------------------------------------------------------------------------
+ * M1. SpeedCometMythic -- Speed Demon, MYTHIC. Tachyon violet.
+ * The BASE `SpeedComet` dart, now supersonic: the same raked crystal
+ * silhouette, but a MACH CONE opens behind it (the structural addition), the
+ * two trails become four of alternating weight, and the hot core at the waist
+ * has bloomed into a four-point flare. Still leaning into its direction of
+ * travel -- the family's asymmetry is the continuity.
+ * ------------------------------------------------------------------------ */
+const SDM_VIOLET = "#c445ff";
+const SDM_HOT = "#f0b3ff";
+const SDM_WHITE = "#ffffff";
+
+export function IconSpeedCometMythic(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Mach cone -- the shock envelope the dart is outrunning. Drawn first
+          and filled faintly so the dart reads as being INSIDE it. */}
+      <path d="M21.4 2.4 L4.6 11.2 L7.8 22.4 Z" fill={SDM_VIOLET} opacity={0.14} stroke="none" />
+      <g stroke={SDM_VIOLET} strokeWidth={1} opacity={0.5} fill="none">
+        <path d="M21.4 2.4 L4.6 11.2" />
+        <path d="M21.4 2.4 L7.8 22.4" />
+      </g>
+
+      {/* Four motion trails, alternating weight so they read as a wake rather
+          than as hatching. All parallel to the dart's own axis. */}
+      <g stroke={SDM_HOT} fill="none">
+        <path d="M8.6 4.4 Q6.4 7.2 4.2 10.0" strokeWidth={1.15} opacity={0.55} />
+        <path d="M11.4 5.4 Q9.2 8.0 7.0 10.6" strokeWidth={0.7} opacity={0.4} />
+        <path d="M18.4 14.2 Q16.2 17.0 14.0 19.8" strokeWidth={1.15} opacity={0.55} />
+        <path d="M20.8 15.4 Q19.0 17.8 17.2 20.2" strokeWidth={0.7} opacity={0.4} />
+      </g>
+
+      {/* Velocity echo -- the silhouette dropped back along its own axis. */}
+      <path d="M19.9 4.6 L17.6 13.2 L8.4 20.4 L12.2 9.0 Z" fill={SDM_VIOLET} opacity={0.24} stroke="none" />
+
+      {/* Hero dart. */}
+      <path d="M22.3 1.5 L19.8 10.9 L9.5 18.9 L13.8 6.5 Z" fill={SDM_VIOLET} fillOpacity={0.3} />
+      <path d="M22.3 1.5 L9.5 18.9" strokeWidth={1.05} opacity={0.9} />
+      <path d="M13.8 6.5 L19.8 10.9" strokeWidth={1.05} opacity={0.7} />
+      <path d="M16.1 4.0 L15.3 12.3" strokeWidth={0.75} opacity={0.5} />
+
+      {/* Four-point flare where BASE had a plain round core. */}
+      <path
+        d="M17.9 4.6 L18.9 7.6 L21.9 8.6 L18.9 9.6 L17.9 12.6 L16.9 9.6 L13.9 8.6 L16.9 7.6 Z"
+        fill={SDM_WHITE}
+        stroke="none"
+      />
+      <circle cx="17.9" cy="8.6" r="1.15" fill={SDM_HOT} stroke="none" opacity={0.95} />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * M2. CrownMythic -- Competitor, MYTHIC. Imperial sapphire.
+ * The LEGENDARY `Crown` mark, vaulted. Same five-point coronet, but it now sits
+ * UNDER an arch (the vault -- the structural addition, and the tie to the
+ * `EnvCrownVault` cinematic), every point is capped by an orb rather than a
+ * bare tip, and a jewelled band runs across the base. Five rays leave the
+ * centre stone.
+ * ------------------------------------------------------------------------ */
+const CRM_SAPPHIRE = "#0064a8";
+const CRM_BRIGHT = "#4aa8e8";
+const CRM_LIGHT = "#d6ecff";
+
+export function IconCrownMythic(props: BadgeGlyphProps) {
+  const points: [number, number, number][] = [
+    [3.0, 8.6, 1.05],
+    [7.5, 5.4, 1.25],
+    [12.0, 2.9, 1.55],
+    [16.5, 5.4, 1.25],
+    [21.0, 8.6, 1.05],
+  ];
+  return (
+    <GlyphShell {...props}>
+      {/* Vault arch. Open at the bottom, so the crown sits in it rather than
+          on it -- this is the one element the LEGENDARY mark does not have. */}
+      <path d="M1.4 21.6 V11.4 A10.6 10.6 0 0 1 22.6 11.4 V21.6" strokeWidth={1.05} opacity={0.45} fill="none" />
+      <path d="M3.4 21.6 V11.6 A8.6 8.6 0 0 1 20.6 11.6 V21.6" strokeWidth={0.6} opacity={0.28} fill="none" />
+
+      {/* Rays off the centre stone. */}
+      <g stroke={CRM_BRIGHT} strokeWidth={0.8} opacity={0.65}>
+        <path d="M12 2.4 V0.5" />
+        <path d="M9.0 3.4 L7.7 1.8" />
+        <path d="M15.0 3.4 L16.3 1.8" />
+        <path d="M6.6 5.6 L5.0 4.4" />
+        <path d="M17.4 5.6 L19.0 4.4" />
+      </g>
+
+      {/* Coronet body -- the same zig-zag the LEGENDARY Crown draws. */}
+      <path
+        d="M3.0 8.6 L7.5 5.4 L12 2.9 L16.5 5.4 L21 8.6 L19.4 18.2 L4.6 18.2 Z"
+        fill={CRM_SAPPHIRE}
+        fillOpacity={0.42}
+        strokeWidth={1.45}
+      />
+      {/* Interior facets: each point drops a line to the band. */}
+      <g strokeWidth={0.75} opacity={0.5}>
+        <path d="M7.5 5.4 L8.2 14.4" />
+        <path d="M12 2.9 L12 14.4" />
+        <path d="M16.5 5.4 L15.8 14.4" />
+      </g>
+
+      {/* Jewelled band. */}
+      <path d="M4.6 18.2 H19.4 L19.0 21.4 H5.0 Z" fill={CRM_SAPPHIRE} fillOpacity={0.6} strokeWidth={1.2} />
+      <g fill={CRM_LIGHT} stroke="none">
+        <circle cx="8.2" cy="19.8" r="0.8" />
+        <circle cx="12" cy="19.8" r="1" />
+        <circle cx="15.8" cy="19.8" r="0.8" />
+      </g>
+
+      {/* Orb caps -- the tier step: LEGENDARY's points are bare, these are set. */}
+      <g stroke="none">
+        {points.map(([x, y, r], i) => (
+          <circle key={i} cx={x} cy={y} r={r} fill={i === 2 ? CRM_LIGHT : CRM_BRIGHT} />
+        ))}
+      </g>
+      <circle cx="12" cy="2.9" r="2.5" stroke={CRM_LIGHT} strokeWidth={0.6} fill="none" opacity={0.55} />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * M3. InfinityMythic -- Unstoppable Streak, MYTHIC. Eternal turquoise.
+ * The LEGENDARY `Infinity` lemniscate, made eternal rather than merely long:
+ * the single line becomes a WOVEN DOUBLE BAND (two offset lemniscates that
+ * cross at the waist), an orbital ring is set behind it, and twelve tick marks
+ * ring the whole figure like a dial with no start and no end. Deliberately no
+ * fire anywhere -- this family is non-fire by construction.
+ * ------------------------------------------------------------------------ */
+const INM_TURQ = "#0bcda8";
+const INM_DEEP = "#06705d";
+const INM_LIGHT = "#9ffbe6";
+
+export function IconInfinityMythic(props: BadgeGlyphProps) {
+  const ticks = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const long = i % 3 === 0;
+    ticks.push(
+      <path
+        key={i}
+        d={`M${(12 + Math.cos(a) * 10.1).toFixed(2)} ${(12 + Math.sin(a) * 10.1).toFixed(2)} L${(12 + Math.cos(a) * (long ? 11.6 : 11.0)).toFixed(2)} ${(12 + Math.sin(a) * (long ? 11.6 : 11.0)).toFixed(2)}`}
+        strokeWidth={long ? 1.2 : 0.7}
+        opacity={long ? 0.85 : 0.5}
+      />
+    );
+  }
+  // The lemniscate, twice, offset on Y -- the two strands of the weave.
+  const lemni = (dy: number) =>
+    `M12 ${12 + dy} C12 ${8.4 + dy} 14.6 ${6.6 + dy} 17.0 ${6.6 + dy} C19.6 ${6.6 + dy} 21.6 ${9.0 + dy} 21.6 ${12 + dy} C21.6 ${15.0 + dy} 19.6 ${17.4 + dy} 17.0 ${17.4 + dy} C14.6 ${17.4 + dy} 12 ${15.6 + dy} 12 ${12 + dy} C12 ${8.4 + dy} 9.4 ${6.6 + dy} 7.0 ${6.6 + dy} C4.4 ${6.6 + dy} 2.4 ${9.0 + dy} 2.4 ${12 + dy} C2.4 ${15.0 + dy} 4.4 ${17.4 + dy} 7.0 ${17.4 + dy} C9.4 ${17.4 + dy} 12 ${15.6 + dy} 12 ${12 + dy} Z`;
+
+  return (
+    <GlyphShell {...props}>
+      {/* Dial ticks -- twelve positions, none of them a beginning. */}
+      <g stroke={INM_TURQ}>{ticks}</g>
+
+      {/* Orbital ring behind the figure. */}
+      <ellipse cx="12" cy="12" rx="10.1" ry="4.0" stroke={INM_DEEP} strokeWidth={0.9} opacity={0.55} fill="none" transform="rotate(-16 12 12)" />
+
+      {/* Woven double band. The lower strand is drawn first and darker, so the
+          two cross rather than overlap. */}
+      <path d={lemni(1.1)} fill={INM_DEEP} fillOpacity={0.32} stroke={INM_DEEP} strokeWidth={1.15} opacity={0.85} />
+      <path d={lemni(-1.1)} fill={INM_TURQ} fillOpacity={0.22} strokeWidth={1.5} />
+
+      {/* Waist crossing -- the knot that makes the weave legible at card size. */}
+      <path d="M9.6 9.4 L14.4 14.6" stroke={INM_LIGHT} strokeWidth={1} opacity={0.8} />
+      <path d="M14.4 9.4 L9.6 14.6" stroke={INM_LIGHT} strokeWidth={1} opacity={0.8} />
+
+      {/* Travelling node -- the streak's current position on a loop with no end. */}
+      <circle cx="20.4" cy="10.0" r="1.5" fill={INM_LIGHT} stroke="none" />
+      <circle cx="20.4" cy="10.0" r="2.6" stroke={INM_LIGHT} strokeWidth={0.6} fill="none" opacity={0.5} />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * M4. DawnBreakMythic -- Early Bird, MYTHIC. Genesis solar.
+ * The family's Clock -> Sun -> AlarmClock line resolves into the event those
+ * three were counting down to. The sun is no longer a disc floating in space
+ * (that is `Sun`, SUPER): it is BREAKING A HORIZON -- the horizon line is the
+ * structural addition -- with a twelve-ray corona, a returning-light band on
+ * the water below, and one bird crossing the disc.
+ * DRAWN FOR A LIGHT CARD: accents are deep amber, not bright.
+ * ------------------------------------------------------------------------ */
+const DBM_DEEP = "#7a4f00";
+const DBM_MID = "#c98a00";
+const DBM_PALE = "#fff0b8";
+
+export function IconDawnBreakMythic(props: BadgeGlyphProps) {
+  const rays = [];
+  for (let i = 0; i < 11; i++) {
+    // Half-wheel only: rays above the horizon, which is what makes it a
+    // sunRISE rather than a sun.
+    const a = Math.PI + (i / 10) * Math.PI;
+    const long = i % 2 === 0;
+    rays.push(
+      <path
+        key={i}
+        d={`M${(12 + Math.cos(a) * 7.4).toFixed(2)} ${(15.4 + Math.sin(a) * 7.4).toFixed(2)} L${(12 + Math.cos(a) * (long ? 11.2 : 9.4)).toFixed(2)} ${(15.4 + Math.sin(a) * (long ? 11.2 : 9.4)).toFixed(2)}`}
+        strokeWidth={long ? 1.3 : 0.75}
+        opacity={long ? 0.9 : 0.5}
+      />
+    );
+  }
+  return (
+    <GlyphShell {...props}>
+      <g stroke={DBM_MID}>{rays}</g>
+
+      {/* Sun disc, clipped by the horizon: the arc stops at y = 15.4. */}
+      <path d="M6.2 15.4 A5.8 5.8 0 0 1 17.8 15.4 Z" fill={DBM_MID} fillOpacity={0.4} strokeWidth={1.5} />
+      <path d="M8.6 15.4 A3.4 3.4 0 0 1 15.4 15.4 Z" fill={DBM_PALE} fillOpacity={0.85} stroke={DBM_DEEP} strokeWidth={0.7} />
+
+      {/* Horizon -- the whole point of the mark. Heavier than anything else. */}
+      <path d="M0.8 15.4 H23.2" strokeWidth={1.7} />
+
+      {/* Returning light on the water: a band of decreasing dashes. */}
+      <g stroke={DBM_MID} strokeLinecap="round">
+        <path d="M7.6 17.4 H16.4" strokeWidth={1.15} opacity={0.75} />
+        <path d="M8.8 19.2 H15.2" strokeWidth={0.95} opacity={0.6} />
+        <path d="M9.8 20.9 H14.2" strokeWidth={0.8} opacity={0.45} />
+      </g>
+      {/* Far shoreline, so the horizon reads as a place and not as a rule. */}
+      <path d="M0.8 15.4 L3.6 13.6 L5.4 15.4" strokeWidth={0.85} opacity={0.55} fill="none" />
+      <path d="M18.8 15.4 L20.8 13.9 L23.2 15.4" strokeWidth={0.85} opacity={0.55} fill="none" />
+
+      {/* One bird crossing the disc -- the badge is called Early Bird. */}
+      <path d="M9.6 9.2 Q11.0 7.9 12.2 9.2 Q13.4 7.9 14.8 9.2" strokeWidth={1.1} fill="none" stroke={DBM_DEEP} />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * M5. PhoenixSurgeMythic -- Comeback Kid, MYTHIC. Phoenix ember.
+ * The family's whole line is arrows going up (TrendingUp -> ArrowUpRight ->
+ * ChevronsUp). At MYTHIC the arrow GROWS WINGS: the ascending chevron stack is
+ * still the spine of the mark, but a pair of swept wings opens off it and an
+ * updraft of three decaying chevrons feeds it from below. Rebirth, not just
+ * recovery.
+ * ------------------------------------------------------------------------ */
+const PSM_EMBER = "#dd5c3b";
+const PSM_HOT = "#ffb391";
+const PSM_DEEP = "#6d230f";
+
+export function IconPhoenixSurgeMythic(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Wings. Swept back and up; the far wing is darker so the bird has
+          depth rather than reading as a flat butterfly. */}
+      <path
+        d="M11.2 9.4 C8.2 7.4 4.6 6.8 1.4 8.2 C3.6 9.4 4.6 11.0 4.8 13.0 C6.4 11.8 8.4 11.6 10.4 12.4 Z"
+        fill={PSM_DEEP}
+        fillOpacity={0.55}
+        strokeWidth={1.15}
+      />
+      <path
+        d="M12.8 9.4 C15.8 7.4 19.4 6.8 22.6 8.2 C20.4 9.4 19.4 11.0 19.2 13.0 C17.6 11.8 15.6 11.6 13.6 12.4 Z"
+        fill={PSM_EMBER}
+        fillOpacity={0.5}
+        strokeWidth={1.15}
+      />
+      {/* Primary feathers -- three strokes per wing, unequal. */}
+      <g stroke={PSM_HOT} strokeWidth={0.7} opacity={0.7} fill="none">
+        <path d="M9.8 9.8 L5.2 9.0" />
+        <path d="M9.4 11.2 L5.8 11.2" />
+        <path d="M14.2 9.8 L18.8 9.0" />
+        <path d="M14.6 11.2 L18.2 11.2" />
+      </g>
+
+      {/* Spine: the ascending chevron stack, tightening as it rises. */}
+      <path d="M12 1.4 L16.4 6.6 H13.9 L13.9 9.6 H10.1 L10.1 6.6 H7.6 Z" fill={PSM_EMBER} fillOpacity={0.55} strokeWidth={1.4} />
+      <path d="M12 4.2 L12 8.8" strokeWidth={0.75} opacity={0.55} />
+
+      {/* Body / tail, tapering to a point so the whole mark still reads as an
+          upward arrow at 32px. */}
+      <path d="M10.6 12.2 L13.4 12.2 L12.6 17.4 L12 19.2 L11.4 17.4 Z" fill={PSM_EMBER} fillOpacity={0.6} strokeWidth={1.15} />
+
+      {/* Updraft: three decaying chevrons feeding the rise. */}
+      <g strokeWidth={1.25} fill="none" stroke={PSM_HOT}>
+        <path d="M8.2 18.4 L12 15.6 L15.8 18.4" opacity={0.75} />
+        <path d="M9.4 21.0 L12 19.0 L14.6 21.0" opacity={0.5} />
+        <path d="M10.4 23.2 L12 21.8 L13.6 23.2" opacity={0.3} />
+      </g>
+
+      {/* Ignition point at the sternum. */}
+      <circle cx="12" cy="11.0" r="1.35" fill={PSM_HOT} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * M6. LaurelCrownMythic -- Podium Finisher, MYTHIC ("The Immortal").
+ * LEGENDARY is "The Champion" and its mark is a closed wreath. Immortality is
+ * not a bigger wreath, so the structural addition is a MONUMENT: the wreath now
+ * encircles a standing stele with the winner's star cut into it, on a stepped
+ * plinth. The wreath is what you win; the stele is what outlives you.
+ * DRAWN FOR A LIGHT CARD: accents are deep olive, not bright.
+ * ------------------------------------------------------------------------ */
+const LCM_DEEP = "#41521a";
+const LCM_MID = "#8ba336";
+const LCM_PALE = "#eeffc4";
+
+export function IconLaurelCrownMythic(props: BadgeGlyphProps) {
+  // Six leaves per side, mirrored. Deterministic -- this renders on every card.
+  const leaf = (side: 1 | -1, i: number) => {
+    const a = -1.15 + (i / 5) * 2.0; // radians, sweeping up the side
+    const cx = 12 + side * (7.6 + Math.cos(a) * 0.6);
+    const cy = 13.4 + Math.sin(a) * 6.6;
+    const rot = (side === 1 ? 34 : -34) + i * (side === 1 ? -11 : 11);
+    return (
+      <ellipse
+        key={`${side}-${i}`}
+        cx={cx.toFixed(2)}
+        cy={cy.toFixed(2)}
+        rx="2.5"
+        ry="1.15"
+        transform={`rotate(${rot} ${cx.toFixed(2)} ${cy.toFixed(2)})`}
+        fill={i % 2 === 0 ? LCM_MID : LCM_DEEP}
+        fillOpacity={i % 2 === 0 ? 0.7 : 0.5}
+        stroke={LCM_DEEP}
+        strokeWidth={0.5}
+      />
+    );
+  };
+  return (
+    <GlyphShell {...props}>
+      {/* Wreath branches -- the two arcs the leaves are set on. */}
+      <path d="M8.4 21.0 C3.8 18.4 3.4 10.6 7.8 4.8" strokeWidth={1.2} fill="none" opacity={0.8} />
+      <path d="M15.6 21.0 C20.2 18.4 20.6 10.6 16.2 4.8" strokeWidth={1.2} fill="none" opacity={0.8} />
+      <g stroke="none">
+        {[0, 1, 2, 3, 4, 5].map((i) => leaf(1, i))}
+        {[0, 1, 2, 3, 4, 5].map((i) => leaf(-1, i))}
+      </g>
+      {/* Tie at the foot of the wreath. */}
+      <path d="M9.6 21.2 L12 22.6 L14.4 21.2" strokeWidth={1.1} fill="none" />
+
+      {/* The stele -- the element LEGENDARY does not have. */}
+      <path d="M9.5 18.2 V6.6 L12 3.6 L14.5 6.6 V18.2 Z" fill={LCM_DEEP} fillOpacity={0.45} strokeWidth={1.35} />
+      {/* Stepped plinth. */}
+      <path d="M8.4 18.2 H15.6 V19.7 H8.4 Z" fill={LCM_DEEP} fillOpacity={0.6} strokeWidth={1} />
+
+      {/* The winner's star, cut INTO the stone (pale, so it reads as a void). */}
+      <path
+        d="M12 8.0 L13.05 11.0 L16.2 11.0 L13.65 12.9 L14.6 15.9 L12 14.05 L9.4 15.9 L10.35 12.9 L7.8 11.0 L10.95 11.0 Z"
+        fill={LCM_PALE}
+        stroke={LCM_DEEP}
+        strokeWidth={0.55}
+      />
+      {/* Two carved rules above and below the star -- an inscription that is
+          deliberately unreadable at this size. */}
+      <g stroke={LCM_DEEP} strokeWidth={0.6} opacity={0.6}>
+        <path d="M10.2 6.2 H13.8" />
+        <path d="M10.2 17.0 H13.8" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * M7. PrecisionCoreMythic -- Sharpshooter, MYTHIC. Singularity rose.
+ * Crosshair -> Aperture -> Radar all SEARCH. This one has already found it: the
+ * reticle has COLLAPSED. Four heavy lock brackets have closed all the way in on
+ * a core barely a pixel across, the concentric rings are drawn as broken arcs
+ * (a lock, not a target) and every ring is inside the previous one. The
+ * structural addition is the bracket set -- nothing below this tier has it.
+ * ------------------------------------------------------------------------ */
+const PCM_ROSE = "#ea7ba9";
+const PCM_DEEP = "#7c2748";
+const PCM_LIGHT = "#ffdcea";
+
+export function IconPrecisionCoreMythic(props: BadgeGlyphProps) {
+  // Four corner brackets, closed in tight on the core.
+  const bracket = (sx: 1 | -1, sy: 1 | -1, i: number) => {
+    const x = 12 + sx * 5.4;
+    const y = 12 + sy * 5.4;
+    return (
+      <path
+        key={i}
+        d={`M${x} ${y - sy * 2.6} L${x} ${y} L${x - sx * 2.6} ${y}`}
+        strokeWidth={1.8}
+        fill="none"
+      />
+    );
+  };
+  return (
+    <GlyphShell {...props}>
+      {/* Outer arcs -- broken, because a lock reads as segments and a target
+          reads as full circles. Each pair is rotated off the last. */}
+      <g stroke={PCM_ROSE} fill="none">
+        <path d="M12 1.6 A10.4 10.4 0 0 1 22.4 12" strokeWidth={1.15} opacity={0.6} />
+        <path d="M12 22.4 A10.4 10.4 0 0 1 1.6 12" strokeWidth={1.15} opacity={0.6} />
+        <path d="M19.4 4.6 A10.4 10.4 0 0 1 21.2 7.4" strokeWidth={0.8} opacity={0.4} />
+        <path d="M4.6 19.4 A10.4 10.4 0 0 1 2.8 16.6" strokeWidth={0.8} opacity={0.4} />
+      </g>
+      <g stroke={PCM_DEEP} fill="none" opacity={0.75}>
+        <path d="M4.4 8.0 A8.2 8.2 0 0 1 16.0 4.4" strokeWidth={1} />
+        <path d="M19.6 16.0 A8.2 8.2 0 0 1 8.0 19.6" strokeWidth={1} />
+      </g>
+
+      {/* Lock brackets -- the tier's structural addition. */}
+      <g stroke="currentColor">
+        {bracket(-1, -1, 0)}
+        {bracket(1, -1, 1)}
+        {bracket(-1, 1, 2)}
+        {bracket(1, 1, 3)}
+      </g>
+
+      {/* Cross hairs, cut away from the centre so the core is never touched. */}
+      <g strokeWidth={0.9} opacity={0.7}>
+        <path d="M12 6.2 V9.4" />
+        <path d="M12 14.6 V17.8" />
+        <path d="M6.2 12 H9.4" />
+        <path d="M14.6 12 H17.8" />
+      </g>
+
+      {/* The collapsed core: a tiny, absolutely bright point with a halo. The
+          smallness IS the statement -- everything else in the family is big. */}
+      <circle cx="12" cy="12" r="3.1" fill={PCM_DEEP} fillOpacity={0.35} stroke={PCM_ROSE} strokeWidth={0.7} />
+      <circle cx="12" cy="12" r="1.25" fill={PCM_LIGHT} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * M8. SummitMythic -- Underdog, MYTHIC. Summit sky.
+ * LEGENDARY's `Mountain` is a ridge. This is the same ridge SUMMITED: the
+ * structural addition is the switchback route drawn all the way up the face and
+ * the planted banner at the top, plus a second, higher peak behind that the
+ * route has already crossed. Cornice snow on the lee side keeps it from
+ * reading as a triangle.
+ * ------------------------------------------------------------------------ */
+const SUM_SKY = "#8dbfff";
+const SUM_DEEP = "#16407a";
+const SUM_SNOW = "#eef5ff";
+
+export function IconSummitMythic(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Stars -- altitude. Small, few, asymmetric. */}
+      <g fill={SUM_SNOW} stroke="none" opacity={0.9}>
+        <circle cx="4.2" cy="3.2" r="0.65" />
+        <circle cx="19.4" cy="2.4" r="0.5" />
+        <circle cx="21.4" cy="6.0" r="0.4" />
+      </g>
+
+      {/* Far peak, behind and to the right -- already crossed. */}
+      <path d="M12.8 14.8 L17.4 5.8 L22.8 14.8 Z" fill={SUM_DEEP} fillOpacity={0.45} strokeWidth={1} opacity={0.7} />
+
+      {/* Hero peak. */}
+      <path d="M1.2 20.6 L9.4 4.2 L17.6 20.6 Z" fill={SUM_SKY} fillOpacity={0.28} strokeWidth={1.5} />
+      {/* Cornice snow on the lee side only -- asymmetric, like real snow. */}
+      <path d="M9.4 4.2 L12.6 10.6 L10.6 9.8 L8.6 11.2 L6.6 9.4 Z" fill={SUM_SNOW} fillOpacity={0.9} stroke={SUM_DEEP} strokeWidth={0.5} />
+      {/* Face facet, so the mountain has a lit and an unlit side. */}
+      <path d="M9.4 4.2 L9.4 20.6 L1.2 20.6 Z" fill={SUM_DEEP} fillOpacity={0.25} stroke="none" />
+
+      {/* The route: a switchback climbing the face. This is the badge -- the
+          underdog did not arrive at the top, they walked it. */}
+      <path
+        d="M4.0 20.2 L7.6 18.2 L4.8 16.0 L8.6 13.6 L6.2 11.4 L9.2 8.4"
+        stroke={SUM_SNOW}
+        strokeWidth={1.05}
+        strokeDasharray="1.9 1.3"
+        fill="none"
+        opacity={0.95}
+      />
+
+      {/* Planted banner at the summit. */}
+      <path d="M9.4 4.2 V0.9" strokeWidth={1.25} />
+      <path d="M9.4 1.1 L14.2 2.2 L9.4 3.6 Z" fill={SUM_SKY} fillOpacity={0.95} strokeWidth={0.9} />
+
+      {/* Ground line, so the summit has something to be above. */}
+      <path d="M0.6 20.9 H23.4" strokeWidth={1.15} opacity={0.6} />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * M9. OracleMythic -- High Achiever (`polymath`), MYTHIC.
+ * Brain -> Lightbulb -> Library goes private thought -> single insight ->
+ * collected knowledge. The ceiling is knowing it ALL AT ONCE, so the mark is an
+ * open eye set in a mandorla, its iris built from the same node-and-edge
+ * lattice the BASE `Brain` mark uses (that lattice is the family thread), with
+ * eight rays and three orbiting archive nodes.
+ * DRAWN FOR A LIGHT CARD: accents are deep violet, not bright.
+ * ------------------------------------------------------------------------ */
+const ORM_DEEP = "#4b1f6b";
+const ORM_MID = "#9d5cc8";
+const ORM_PALE = "#f6e2ff";
+
+export function IconOracleMythic(props: BadgeGlyphProps) {
+  const rays = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+    const long = i % 2 === 0;
+    rays.push(
+      <path
+        key={i}
+        d={`M${(12 + Math.cos(a) * 8.6).toFixed(2)} ${(12 + Math.sin(a) * 8.6).toFixed(2)} L${(12 + Math.cos(a) * (long ? 11.4 : 10.1)).toFixed(2)} ${(12 + Math.sin(a) * (long ? 11.4 : 10.1)).toFixed(2)}`}
+        strokeWidth={long ? 1.25 : 0.7}
+        opacity={long ? 0.85 : 0.5}
+      />
+    );
+  }
+  // Iris lattice -- same construction language as IconMindLattice (BASE).
+  const nodes: [number, number][] = [
+    [12, 8.6],
+    [15.0, 10.8],
+    [13.9, 14.4],
+    [10.1, 14.4],
+    [9.0, 10.8],
+  ];
+  return (
+    <GlyphShell {...props}>
+      <g stroke={ORM_MID}>{rays}</g>
+
+      {/* Mandorla -- two arcs meeting at points, not an ellipse. */}
+      <path d="M1.6 12 C5.2 5.6 18.8 5.6 22.4 12 C18.8 18.4 5.2 18.4 1.6 12 Z" fill={ORM_DEEP} fillOpacity={0.22} strokeWidth={1.5} />
+      {/* Lid crease above, so it reads as an eye and not as a lens. */}
+      <path d="M3.6 10.2 C7.4 6.0 16.6 6.0 20.4 10.2" strokeWidth={0.7} opacity={0.45} fill="none" />
+
+      {/* Iris. */}
+      <circle cx="12" cy="12" r="5.0" fill={ORM_DEEP} fillOpacity={0.3} strokeWidth={1.2} />
+      <g stroke={ORM_MID} strokeWidth={0.7} opacity={0.85} fill="none">
+        <path d={`M${nodes[0][0]} ${nodes[0][1]} L${nodes[1][0]} ${nodes[1][1]} L${nodes[2][0]} ${nodes[2][1]} L${nodes[3][0]} ${nodes[3][1]} L${nodes[4][0]} ${nodes[4][1]} Z`} />
+        <path d={`M${nodes[0][0]} ${nodes[0][1]} L${nodes[2][0]} ${nodes[2][1]}`} opacity={0.6} />
+        <path d={`M${nodes[1][0]} ${nodes[1][1]} L${nodes[3][0]} ${nodes[3][1]}`} opacity={0.6} />
+        <path d={`M${nodes[4][0]} ${nodes[4][1]} L${nodes[1][0]} ${nodes[1][1]}`} opacity={0.45} />
+      </g>
+      <g stroke="none" fill={ORM_DEEP}>
+        {nodes.map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={0.72} />
+        ))}
+      </g>
+
+      {/* Pupil, and the single catchlight that makes the eye look open. */}
+      <circle cx="12" cy="12" r="1.9" fill={ORM_DEEP} stroke="none" />
+      <circle cx="11.2" cy="11.2" r="0.62" fill={ORM_PALE} stroke="none" />
+
+      {/* Three archive nodes in orbit -- the library, reduced to its index. */}
+      <g fill={ORM_MID} stroke="none">
+        <circle cx="4.4" cy="7.4" r="0.85" />
+        <circle cx="20.0" cy="8.2" r="0.7" />
+        <circle cx="17.2" cy="18.4" r="0.75" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+/**
+ * Phase-1 MYTHIC keys. Same "brand-new iconName" contract as
+ * `referenceBatchGlyphs` rather than the "reuse the backend's existing string"
+ * contract of the two mock-exam batches: all nine strings below were seeded by
+ * the backend with the nine new MYTHIC AchievementBadge rows, and each is owned
+ * by exactly one row. Kept as one export so `badgeVisuals.ts` and
+ * `BadgeInspectionModal.tsx` cannot drift on which glyph a key resolves to.
+ */
+export const mythicPhase1Glyphs = {
+  SpeedCometMythic: IconSpeedCometMythic,      // speed_demon        MYTHIC
+  CrownMythic: IconCrownMythic,                // competitor         MYTHIC
+  InfinityMythic: IconInfinityMythic,          // unstoppable_streak MYTHIC
+  DawnBreakMythic: IconDawnBreakMythic,        // early_bird         MYTHIC
+  PhoenixSurgeMythic: IconPhoenixSurgeMythic,  // comeback_kid       MYTHIC
+  LaurelCrownMythic: IconLaurelCrownMythic,    // podium_finisher    MYTHIC ("The Immortal")
+  PrecisionCoreMythic: IconPrecisionCoreMythic,// sharpshooter       MYTHIC
+  SummitMythic: IconSummitMythic,              // underdog           MYTHIC
+  OracleMythic: IconOracleMythic,              // polymath           MYTHIC
+} as const;

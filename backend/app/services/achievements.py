@@ -58,6 +58,7 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "perfectionist", "BASE", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "perfectionist", "SUPER", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "perfectionist", "LEGENDARY", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "perfectionist", "MYTHIC", count, newly_unlocked)
 
         # 2. The Speed Demon
         if result_summary.percentage >= 80 and result_summary.time_utilization_percentage and result_summary.time_utilization_percentage < 50:
@@ -65,12 +66,14 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "speed_demon", "BASE", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "speed_demon", "SUPER", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "speed_demon", "LEGENDARY", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "speed_demon", "MYTHIC", count, newly_unlocked)
 
         # 3. The Competitor (Participation)
         count = cls._increment_stat(db, student_id, "mock_exams_completed")
         cls._award_badge_if_qualified(db, student_id, "competitor", "BASE", count, newly_unlocked)
         cls._award_badge_if_qualified(db, student_id, "competitor", "SUPER", count, newly_unlocked)
         cls._award_badge_if_qualified(db, student_id, "competitor", "LEGENDARY", count, newly_unlocked)
+        cls._award_badge_if_qualified(db, student_id, "competitor", "MYTHIC", count, newly_unlocked)
 
         # 4. The Unstoppable Streak
         if result_summary.percentage > 90:
@@ -78,6 +81,7 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "unstoppable_streak", "BASE", streak, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "unstoppable_streak", "SUPER", streak, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "unstoppable_streak", "LEGENDARY", streak, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "unstoppable_streak", "MYTHIC", streak, newly_unlocked)
         else:
             cls._set_stat(db, student_id, "unstoppable_mock_streak", 0)
 
@@ -93,6 +97,7 @@ class AchievementEngine:
                     cls._award_badge_if_qualified(db, student_id, "early_bird", "BASE", count, newly_unlocked)
                     cls._award_badge_if_qualified(db, student_id, "early_bird", "SUPER", count, newly_unlocked)
                     cls._award_badge_if_qualified(db, student_id, "early_bird", "LEGENDARY", count, newly_unlocked)
+                    cls._award_badge_if_qualified(db, student_id, "early_bird", "MYTHIC", count, newly_unlocked)
 
         # The Comeback Kid (improvement)
         # Fetch previous attempt
@@ -107,6 +112,7 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "comeback_kid", "BASE", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "comeback_kid", "SUPER", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "comeback_kid", "LEGENDARY", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "comeback_kid", "MYTHIC", count, newly_unlocked)
 
         # 6. Podium Finisher
         # Calculate rank dynamically against peers in the same level
@@ -139,6 +145,7 @@ class AchievementEngine:
                 if rank == 1:
                     champ_count = cls._increment_stat(db, student_id, "champion_mocks")
                     cls._award_badge_if_qualified(db, student_id, "podium_finisher", "LEGENDARY", champ_count, newly_unlocked)
+                    cls._award_badge_if_qualified(db, student_id, "podium_finisher", "MYTHIC", champ_count, newly_unlocked)
 
         # 7. The Sharpshooter
         if result_summary.percentage == 100 and result_summary.time_utilization_percentage and result_summary.time_utilization_percentage > 90:
@@ -146,6 +153,7 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "sharpshooter", "BASE", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "sharpshooter", "SUPER", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "sharpshooter", "LEGENDARY", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "sharpshooter", "MYTHIC", count, newly_unlocked)
 
         # 8. The Underdog
         if previous_summary and previous_summary.percentage < 50 and result_summary.percentage > 80:
@@ -153,15 +161,17 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "underdog", "BASE", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "underdog", "SUPER", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "underdog", "LEGENDARY", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "underdog", "MYTHIC", count, newly_unlocked)
 
         # 9. The High Achiever (formerly Polymath)
         if result_summary.percentage > 80 and result_summary.mock_exam:
             # Just increment the count for scoring > 80% on any mock exam
             count = cls._increment_stat(db, student_id, "polymath_count")
-            
+
             cls._award_badge_if_qualified(db, student_id, "polymath", "BASE", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "polymath", "SUPER", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "polymath", "LEGENDARY", count, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "polymath", "MYTHIC", count, newly_unlocked)
 
         db.commit()
 
@@ -230,6 +240,28 @@ class AchievementEngine:
             ("polymath", "BASE", "The High Achiever", "Score > 80% on 3 Mock Exams", "Brain", 3),
             ("polymath", "SUPER", "Super Achiever", "Score > 80% on 15 Mock Exams", "Lightbulb", 15),
             ("polymath", "LEGENDARY", "Legendary Achiever", "Score > 80% on 30 Mock Exams", "Library", 30),
+
+            # ================================================================
+            # MYTHIC TIER (2026-07-28, Phase 1 of the 69-badge build-out) --
+            # a 4th tier above Legendary for all 10 existing families, roughly
+            # 2-3x each family's Legendary threshold per
+            # docs/GAMIFICATION_BADGE_CATALOG_PROPOSAL_2026-07-25.md. Every
+            # icon_name below is a brand-new string (verified against every
+            # icon_name above) so none of the 30 existing badges change
+            # appearance. "perfectionist"/MYTHIC reuses "PerfectionistGemMythic",
+            # the glyph/environment/colour already built and signed off in the
+            # reference batch -- the other 9 are new frontend work.
+            # ================================================================
+            ("perfectionist", "MYTHIC", "Mythic Perfectionist", "Score 100% on 25 Mock Exams", "PerfectionistGemMythic", 25),
+            ("speed_demon", "MYTHIC", "Mythic Speed Demon", "Achieve Speed Demon 40 times", "SpeedCometMythic", 40),
+            ("competitor", "MYTHIC", "Mythic Competitor", "Complete 150 Mock Exams", "CrownMythic", 150),
+            ("unstoppable_streak", "MYTHIC", "Mythic Streak", "Score > 90% on 25 consecutive Mock Exams", "InfinityMythic", 25),
+            ("early_bird", "MYTHIC", "Mythic Early Bird", "Submit early 30 times", "DawnBreakMythic", 30),
+            ("comeback_kid", "MYTHIC", "Mythic Comeback Kid", "Achieve 12 comeback improvements", "PhoenixSurgeMythic", 12),
+            ("podium_finisher", "MYTHIC", "The Immortal", "Rank 1st Place on 15 Mock Exams", "LaurelCrownMythic", 15),
+            ("sharpshooter", "MYTHIC", "Mythic Sharpshooter", "Achieve Sharpshooter 25 times", "PrecisionCoreMythic", 25),
+            ("underdog", "MYTHIC", "Mythic Underdog", "Achieve Underdog 12 times", "SummitMythic", 12),
+            ("polymath", "MYTHIC", "Mythic Achiever", "Score > 80% on 75 Mock Exams", "OracleMythic", 75),
         ]
 
         for code, tier, name, desc, icon, req in badges_data:

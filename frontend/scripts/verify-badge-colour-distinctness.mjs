@@ -296,16 +296,62 @@ const BATCH2_NEW = [
   { key: "polymath_LEGENDARY",        name: "Legendary Achiever",       primary: "#6c1260", note: "imperial violet" },
 ];
 
+/**
+ * 9 newly graded PHASE-1 MYTHIC badges (2026-07-28) -- the MYTHIC tier for the
+ * 9 skill-badge families that did not already have one. (The 10th,
+ * perfectionist_MYTHIC, shipped with the reference batch and is a frozen input
+ * here; it stays in REFERENCE_BATCH above and is NOT re-graded.)
+ *
+ * METHOD INVERTED FROM BATCHES 1 AND 2, and it matters for reading these hexes.
+ * Those batches solved for colour and then drew glyphs. Here the hand-drawn
+ * MYTHIC glyphs already existed in lib/gamification/badgeGlyphs.tsx with a
+ * palette baked into their accent constants (tachyon violet, imperial
+ * sapphire, eternal turquoise, singularity rose, summit sky, ...) and with
+ * three of the nine annotated "DRAWN FOR A LIGHT CARD". The committed artwork
+ * was therefore the fixed input, and each hex below is the best-separated
+ * point available inside its own glyph's hue family at the lightness that
+ * glyph assumes -- a constrained search, not a free one.
+ *
+ * WHY THIS SET DOES NOT REACH dE00 18, AND WHY THAT IS NOT A REGRESSION.
+ * The gate is now 42 colours. A free farthest-point CIEDE2000 search over the
+ * whole colour solid -- 9 points placed anywhere, no thematic constraint at
+ * all, holding the existing 33 fixed -- maximises the smallest new distance at
+ * dE00 16.06. Batch 1's ">= 18 for every gated pair" is thus arithmetically
+ * impossible at this catalogue size for ANY 9 colours, thematic or not, and no
+ * choice of hexes here could have produced 0 WARN. This palette reaches 12.50
+ * while also respecting the nine glyphs. Every pair still clears the FAIL line
+ * (dE00 >= 12, and no pair is simultaneously HSL-triple-near and < 18), which
+ * is the property that actually means "these cannot be confused".
+ *
+ * The WARN band is populated deliberately, and every WARN pair is justified
+ * per-entry in the phase-1 MYTHIC block of lib/gamification/badgeVisuals.ts
+ * (which axis holds it apart: lightness, chroma, or hue). This follows the
+ * precedent batch 2 already set with sharpshooter_SUPER at 18.6 -- name the
+ * tight pair, show the axis, do not move the threshold.
+ */
+const PHASE1_MYTHIC_NEW = [
+  { key: "speed_demon_MYTHIC",         name: "Mythic Speed Demon",  primary: "#c83efe", note: "tachyon violet (highest chroma in catalogue)" },
+  { key: "competitor_MYTHIC",          name: "Mythic Competitor",   primary: "#1d7aaf", note: "imperial sapphire (stone, not the metal)" },
+  { key: "unstoppable_streak_MYTHIC",  name: "Mythic Streak",       primary: "#0ccf98", note: "eternal turquoise (still not fire; 59.1 off the demo chain)" },
+  { key: "early_bird_MYTHIC",          name: "Mythic Early Bird",   primary: "#fed671", note: "genesis solar (ink glyph)" },
+  { key: "comeback_kid_MYTHIC",        name: "Mythic Comeback Kid", primary: "#b7591a", note: "phoenix ember" },
+  { key: "podium_finisher_MYTHIC",     name: "The Immortal",        primary: "#d4ffa4", note: "immortal laurel (ink glyph)" },
+  { key: "sharpshooter_MYTHIC",        name: "Mythic Sharpshooter", primary: "#ff2989", note: "singularity rose (family's only warm tier)" },
+  { key: "underdog_MYTHIC",            name: "Mythic Underdog",     primary: "#0058bd", note: "summit sky (family's only non-earth tier)" },
+  { key: "polymath_MYTHIC",            name: "Mythic Achiever",     primary: "#ded3f8", note: "oracle violet (ink glyph)" },
+];
+
 // ---------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------
 
-const GATED = [...BATCH1_NEW, ...BATCH1_FROZEN, ...REFERENCE_BATCH, ...BATCH2_NEW];
+const GATED = [...BATCH1_NEW, ...BATCH1_FROZEN, ...REFERENCE_BATCH, ...BATCH2_NEW, ...PHASE1_MYTHIC_NEW];
 // Both batches count as "newly graded" for gating purposes, so re-running this
 // script re-checks batch 1 as well as batch 2 rather than only the latest pass.
 const NEW_KEYS = new Set([
   ...BATCH1_NEW.map((e) => e.key),
   ...BATCH2_NEW.map((e) => e.key),
+  ...PHASE1_MYTHIC_NEW.map((e) => e.key),
 ]);
 
 const decorate = (e) => {
@@ -438,6 +484,10 @@ for (const e of BATCH1_NEW.map(decorate)) {
 }
 console.log("-- batch 2 --");
 for (const e of BATCH2_NEW.map(decorate)) {
+  console.log(`${e.key.padEnd(34)} ${e.primary}   ${e.note}`);
+}
+console.log("-- phase-1 mythic --");
+for (const e of PHASE1_MYTHIC_NEW.map(decorate)) {
   console.log(`${e.key.padEnd(34)} ${e.primary}   ${e.note}`);
 }
 
