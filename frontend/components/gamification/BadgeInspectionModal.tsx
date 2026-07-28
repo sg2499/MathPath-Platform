@@ -15,6 +15,7 @@ import {
   referenceBatchGlyphs,
   mockExamBatch1Glyphs,
   mockExamBatch2Glyphs,
+  mythicPhase1Glyphs,
 } from "@/lib/gamification/badgeGlyphs";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -62,7 +63,16 @@ const IconMap: Record<string, React.ElementType> = {
   // The remaining 15 backend iconName strings, same contract and same single
   // source of truth. With this spread, IconMap contains no stock lucide glyph
   // at all -- every badge in the product renders a hand-drawn mark.
-  ...mockExamBatch2Glyphs
+  ...mockExamBatch2Glyphs,
+
+  // --- Phase-1 MYTHIC tier (2026-07-28) -----------------------------------
+  // The 9 new MYTHIC iconName keys. Without this spread the cinematic would
+  // fall through to the `IconMap[badge.iconName] || Target` fallback and show a
+  // lucide Target over a bespoke MYTHIC environment, while the Trophy Room card
+  // (which reads BadgeIconMap in lib/gamification/badgeVisuals.ts) showed the
+  // correct hand-drawn mark -- exactly the card/cinematic disagreement these
+  // shared glyph exports exist to make impossible. Same source of truth.
+  ...mythicPhase1Glyphs
 };
 
 export interface BadgeInspectionModalProps {
@@ -2708,6 +2718,1404 @@ function WebGLLifecycleGuard() {
 }
 
 // ============================================================================
+// PHASE-1 MYTHIC ENVIRONMENTS (2026-07-28)
+// ----------------------------------------------------------------------------
+// Nine bespoke ceiling-tier cinematics, one per skill-badge family that did not
+// already have a MYTHIC. (Perfectionist's EnvPerfectionistGemMythic shipped
+// with the reference batch and is untouched.)
+//
+// THE ONE MECHANICAL RULE THEY ALL SHARE: every scene below has its own
+// "something snaps" beat at T_REVEAL = 1.7s, which is the exact timestamp
+// MythicCameraRig recoils on. The rig is generic and badge-agnostic -- it just
+// pushes in until 1.7s and then gets shoved back -- so if a scene's own
+// eruption did NOT land on that mark the camera would look like it was
+// flinching at nothing. Each component therefore splits its useFrame into
+// pre-reveal (tension: things converge, tighten, wind up) and post-reveal
+// (release: things blow outward and then settle), with `now >= T_REVEAL` as
+// the switch. `e` is always "seconds since the reveal".
+//
+// Craft level is EnvSurgeColumn's: procedural geometry assembled from the drei
+// primitives already imported at the top of this file, animated per-frame, no
+// custom shaders and no physics engine. Geometry counts are deliberately above
+// each family's LEGENDARY -- the shared Sparkles/Stars/Bloom scaling for MYTHIC
+// is handled elsewhere, so these fill the extra headroom with structure.
+// ============================================================================
+
+// --- M1. "SpeedCometMythic" -- Speed Demon MYTHIC ---------------------------
+// BASE's EnvSpeedComet is a dart with trails. This is the same dart at the
+// moment it stops being a dart: light-speed streaks compress into a wall ahead
+// of it, and at 1.7s it punches THROUGH -- the Mach cone inverts, a shock ring
+// snaps outward and the comet sheds a shell of crystalline shards. Same comet
+// DNA (raked dart silhouette, cool electric palette), taken to rupture.
+const EnvSpeedCometMythic = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const HOT = "#f0b3ff";
+  const CORE = "#ffffff";
+
+  const streaksRef = useRef<THREE.Group>(null);
+  const ringsRef = useRef<THREE.Group>(null);
+  const dartRef = useRef<THREE.Group>(null);
+  const shardsRef = useRef<THREE.Group>(null);
+  const flashRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const STREAKS = 54;
+  const streaks = useMemo(
+    () =>
+      [...Array(STREAKS)].map((_, i) => {
+        const a = (i / STREAKS) * Math.PI * 2 + (i % 3) * 0.21;
+        const r = 5.5 + (i % 8) * 2.4;
+        return { a, r, len: 9 + (i % 6) * 6, speed: 30 + (i % 5) * 11, phase: (i * 5.7) % 70 };
+      }),
+    []
+  );
+
+  const RINGS = 5;
+  const shards = useMemo(
+    () =>
+      [...Array(34)].map((_, i) => {
+        const a = (i / 34) * Math.PI * 2;
+        const tilt = ((i % 5) - 2) * 0.42;
+        return {
+          dir: new THREE.Vector3(Math.cos(a) * Math.cos(tilt), Math.sin(tilt), Math.sin(a) * Math.cos(tilt)),
+          size: 0.5 + (i % 4) * 0.28,
+          spin: 1.4 + (i % 6) * 0.5,
+        };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    // Streaks: before the break they pile up AHEAD of the dart (compression).
+    // After, they rip past it. Length and speed both jump on the beat.
+    if (streaksRef.current) {
+      streaksRef.current.children.forEach((child, i) => {
+        const s = streaks[i];
+        const spd = s.speed * (broken ? 2.6 : 0.55 + pre * 0.8);
+        const z = ((now * spd + s.phase) % 90) - 52;
+        child.position.set(Math.cos(s.a) * s.r, Math.sin(s.a) * s.r, z);
+        const stretch = broken ? 1 + Math.min(e * 5, 4.2) : 0.35 + pre * 0.5;
+        child.scale.set(1, 1, stretch);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = broken ? 7 : 1.4 + pre * 3;
+        mat.opacity = broken ? 0.85 : 0.2 + pre * 0.45;
+      });
+    }
+
+    // Shock rings sit stacked and still until the beat, then fire outward in
+    // sequence -- a cone of pressure leaving the impact point.
+    if (ringsRef.current) {
+      ringsRef.current.children.forEach((child, i) => {
+        const delay = i * 0.09;
+        const k = broken ? Math.max(0, e - delay) : 0;
+        const grow = 1 + k * 15;
+        child.scale.setScalar(broken ? grow : 0.5 + pre * 0.32);
+        child.position.z = broken ? 4 - k * 26 : 4 + i * 1.4;
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 0.85 - k * 0.72) : 0.1 + pre * 0.22;
+      });
+    }
+
+    // The dart. Vibrates harder and harder against the barrier, then lurches
+    // forward and settles into a slow hero roll.
+    if (dartRef.current) {
+      const jitter = broken ? 0 : Math.pow(pre, 3) * 0.55;
+      dartRef.current.position.set(
+        (Math.random() - 0.5) * jitter,
+        (Math.random() - 0.5) * jitter,
+        broken ? 6 - Math.min(e * 9, 10) : 8 - pre * 2
+      );
+      dartRef.current.rotation.z = now * (broken ? 0.9 : 0.25 + pre * 1.4);
+      dartRef.current.rotation.x = Math.sin(now * 0.6) * 0.18;
+      const sc = broken ? 1 + Math.min(e, 0.25) * 0.7 : 0.8 + pre * 0.2;
+      dartRef.current.scale.setScalar(sc);
+    }
+
+    // Shell of shards: welded to the dart until the break, then blown off.
+    if (shardsRef.current) {
+      shardsRef.current.children.forEach((child, i) => {
+        const s = shards[i];
+        const d = broken ? 3.2 + e * (11 + i % 7) : 2.6 + pre * 0.5;
+        child.position.set(s.dir.x * d, s.dir.y * d, s.dir.z * d + (broken ? -e * 5 : 7));
+        child.rotation.x += delta * s.spin * (broken ? 3.1 : 0.4);
+        child.rotation.y += delta * s.spin * (broken ? 2.3 : 0.3);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = broken ? Math.max(0, 1 - e * 0.32) : 0.55;
+      });
+    }
+
+    // Single-frame-ish white blowout on the beat.
+    if (flashRef.current) {
+      const f = broken ? Math.max(0, 1 - e * 3.4) : 0;
+      flashRef.current.scale.setScalar(0.1 + f * 30);
+      ((flashRef.current.material as THREE.MeshBasicMaterial).opacity = f * 0.9);
+    }
+  });
+
+  return (
+    <group position={[0, 0, -2]}>
+      {/* Light-speed streaks -- thin boxes stretched along the travel axis. */}
+      <group ref={streaksRef}>
+        {streaks.map((s, i) => (
+          <Box key={i} args={[0.16, 0.16, s.len]}>
+            <meshStandardMaterial
+              color={i % 4 === 0 ? HOT : color}
+              emissive={i % 4 === 0 ? HOT : color}
+              emissiveIntensity={2}
+              transparent
+              opacity={0.4}
+              toneMapped={false}
+            />
+          </Box>
+        ))}
+      </group>
+
+      {/* Shock rings. Open tori, face-on to camera. */}
+      <group ref={ringsRef}>
+        {[...Array(RINGS)].map((_, i) => (
+          <Torus key={i} args={[6.5, 0.22, 8, 72]}>
+            <meshBasicMaterial
+              color={i % 2 ? CORE : color}
+              transparent
+              opacity={0.2}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </Torus>
+        ))}
+      </group>
+
+      {/* The comet itself: a raked cone with a faceted core, nose toward us. */}
+      <group ref={dartRef}>
+        <Cone args={[2.4, 9, 4]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3.4} flatShading toneMapped={false} />
+        </Cone>
+        <Octahedron args={[1.5, 0]} position={[0, 0, 1.6]}>
+          <meshStandardMaterial color={CORE} emissive={CORE} emissiveIntensity={6} flatShading toneMapped={false} />
+        </Octahedron>
+      </group>
+
+      {/* Crystalline shell. */}
+      <group ref={shardsRef}>
+        {shards.map((s, i) => (
+          <Tetrahedron key={i} args={[s.size, 0]}>
+            <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={4.5} flatShading transparent opacity={0.55} toneMapped={false} />
+          </Tetrahedron>
+        ))}
+      </group>
+
+      {/* Rupture flash. */}
+      <Sphere ref={flashRef} args={[1, 20, 20]} position={[0, 0, 2]}>
+        <meshBasicMaterial color={CORE} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Sphere>
+
+      <Sparkles count={620} scale={[54, 34, 90]} size={5} speed={4.2} color={color} opacity={0.7} />
+      <Sparkles count={240} scale={[22, 18, 70]} size={3} speed={6.5} color={HOT} opacity={0.9} />
+    </group>
+  );
+};
+
+// --- M2. "CrownMythic" -- Competitor MYTHIC ---------------------------------
+// LEGENDARY's EnvCrownVault is a crown held in a vault. Here the vault is gone
+// and the crown is being PUT ON: it descends through a colonnade onto an empty
+// throne dais, and at 1.7s it seats -- the dais rings ignite outward, every
+// pillar fires a light shaft, and the crown's points strike alight one by one.
+const EnvCrownMythic = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const GOLD = "#d6ecff";
+  const DEEP = "#0b4f77";
+
+  const crownRef = useRef<THREE.Group>(null);
+  const pointsRef = useRef<THREE.Group>(null);
+  const pillarsRef = useRef<THREE.Group>(null);
+  const shaftsRef = useRef<THREE.Group>(null);
+  const daisRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const POINTS = 12;
+  const PILLARS = 14;
+  const pillars = useMemo(
+    () =>
+      [...Array(PILLARS)].map((_, i) => {
+        const a = (i / PILLARS) * Math.PI * 2;
+        return { a, x: Math.cos(a) * 20, z: Math.sin(a) * 20, h: 26 + (i % 4) * 5 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    // The crown falls the whole pre-roll and lands exactly on the beat.
+    if (crownRef.current) {
+      const drop = THREE.MathUtils.lerp(26, 2.4, easeOutCubic(pre));
+      crownRef.current.position.y = broken ? 2.4 - Math.min(e, 0.12) * 3 + Math.sin(now * 1.2) * 0.25 * clamp01(e - 0.4) : drop;
+      crownRef.current.rotation.y = now * (broken ? 0.32 : 1.5 - pre * 1.1);
+      const squash = broken ? 1 + Math.max(0, 0.22 - e) * 1.4 : 1;
+      crownRef.current.scale.set(squash, 2 - squash, squash);
+    }
+
+    // Crown points strike alight in sequence after the seating.
+    if (pointsRef.current) {
+      pointsRef.current.children.forEach((child, i) => {
+        const lit = broken ? clamp01((e - i * 0.045) * 6) : 0;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 1 + lit * 9;
+        child.scale.setScalar(1 + lit * 0.28);
+      });
+    }
+
+    // Pillars breathe upward before, then hold tall.
+    if (pillarsRef.current) {
+      pillarsRef.current.children.forEach((child, i) => {
+        const p = pillars[i];
+        const rise = broken ? 1 : 0.35 + pre * 0.65;
+        child.scale.y = rise;
+        child.position.y = -18 + (p.h * rise) / 2;
+      });
+    }
+
+    // Light shafts only exist after the coronation.
+    if (shaftsRef.current) {
+      shaftsRef.current.children.forEach((child, i) => {
+        const k = broken ? clamp01((e - i * 0.03) * 3.2) : 0;
+        child.scale.set(k, 1, k);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = k * (0.34 + Math.sin(now * 2 + i) * 0.06);
+      });
+    }
+
+    // Dais rings: tight and dim, then a hard outward pulse on the beat.
+    if (daisRef.current) {
+      daisRef.current.children.forEach((child, i) => {
+        const delay = i * 0.11;
+        const k = broken ? Math.max(0, e - delay) : 0;
+        child.scale.setScalar(broken ? 1 + k * 3.6 : 0.7 + pre * 0.3);
+        child.rotation.z = now * (0.1 + i * 0.05);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 0.8 - k * 0.5) : 0.12 + pre * 0.2;
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -2, -4]}>
+      {/* Throne dais -- stacked slabs. */}
+      {[...Array(4)].map((_, i) => (
+        <Cylinder key={i} args={[13 - i * 2.2, 13.6 - i * 2.2, 1.6, 8]} position={[0, -17 + i * 1.6, 0]}>
+          <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.7} flatShading />
+        </Cylinder>
+      ))}
+
+      {/* Coronation rings on the dais floor. */}
+      <group ref={daisRef} position={[0, -11.6, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        {[...Array(4)].map((_, i) => (
+          <Torus key={i} args={[9 + i * 1.6, 0.24, 8, 80]}>
+            <meshBasicMaterial color={GOLD} transparent opacity={0.15} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* Colonnade. */}
+      <group ref={pillarsRef}>
+        {pillars.map((p, i) => (
+          <Cylinder key={i} args={[1.1, 1.4, p.h, 7]} position={[p.x, -18 + p.h / 2, p.z]}>
+            <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={1.1} flatShading />
+          </Cylinder>
+        ))}
+      </group>
+
+      {/* Light shafts, one per pillar. */}
+      <group ref={shaftsRef}>
+        {pillars.map((p, i) => (
+          <Cylinder key={i} args={[1.9, 0.5, 44, 10, 1, true]} position={[p.x, 4, p.z]}>
+            <meshBasicMaterial color={color} transparent opacity={0} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Cylinder>
+        ))}
+      </group>
+
+      {/* The crown: a band, twelve points, and an inner jewel. */}
+      <group ref={crownRef} position={[0, 26, 0]}>
+        <Torus args={[6.4, 0.85, 10, 60]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.6} flatShading toneMapped={false} />
+        </Torus>
+        <group ref={pointsRef}>
+          {[...Array(POINTS)].map((_, i) => {
+            const a = (i / POINTS) * Math.PI * 2;
+            const tall = i % 2 === 0;
+            return (
+              <Cone
+                key={i}
+                args={[0.95, tall ? 6.4 : 4.1, 4]}
+                position={[Math.cos(a) * 6.4, tall ? 3.2 : 2.05, Math.sin(a) * 6.4]}
+              >
+                <meshStandardMaterial color={GOLD} emissive={GOLD} emissiveIntensity={1} flatShading toneMapped={false} />
+              </Cone>
+            );
+          })}
+        </group>
+        <Octahedron args={[2.1, 0]} position={[0, 1.4, 0]}>
+          <meshStandardMaterial color={GOLD} emissive={GOLD} emissiveIntensity={5} flatShading toneMapped={false} />
+        </Octahedron>
+      </group>
+
+      <Sparkles count={560} scale={[52, 50, 52]} size={5} speed={1.4} color={color} opacity={0.7} />
+      <Sparkles count={220} scale={[26, 30, 26]} size={3} speed={2.6} color={GOLD} opacity={0.9} />
+    </group>
+  );
+};
+
+// --- M3. "InfinityMythic" -- Unstoppable Streak MYTHIC -----------------------
+// LEGENDARY's Infinity is a ribbon that loops. MYTHIC is that loop EATING
+// ITSELF: a torus knot spins up while nested figure-8 lobes tighten inward, and
+// at 1.7s the whole thing collapses through its own centre and re-emerges as a
+// recursive stack of shrinking loops -- a streak that has stopped being a count
+// and become a singularity. Deliberately turquoise/cobalt, never fire: the
+// separate `unstoppable_streak_chain` demo owns orange and must stay distinct.
+const EnvInfinityMythic = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const LIGHT = "#9ffbe6";
+  const DEEP = "#06705d";
+
+  const knotRef = useRef<THREE.Mesh>(null);
+  const lobesRef = useRef<THREE.Group>(null);
+  const nestRef = useRef<THREE.Group>(null);
+  const motesRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const NEST = 9;
+  const motes = useMemo(
+    () =>
+      [...Array(40)].map((_, i) => ({
+        a: (i / 40) * Math.PI * 2,
+        r: 9 + (i % 6) * 2.1,
+        y: ((i % 9) - 4) * 1.7,
+        spd: 0.5 + (i % 5) * 0.24,
+      })),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    // The knot winds up, then snaps to a fast, steady eternal spin.
+    if (knotRef.current) {
+      const spin = broken ? 1.5 : 0.35 + Math.pow(pre, 2.2) * 3.6;
+      knotRef.current.rotation.x += delta * spin;
+      knotRef.current.rotation.y += delta * spin * 0.62;
+      // Collapse to a point on the beat, then rebound.
+      const collapse = broken ? clamp01(e / 0.16) : 0;
+      const rebound = broken ? easeOutCubic(clamp01((e - 0.16) / 0.5)) : 0;
+      const s = broken ? THREE.MathUtils.lerp(1, 0.08, collapse) + rebound * 1.05 : 0.6 + pre * 0.4;
+      knotRef.current.scale.setScalar(s);
+    }
+
+    // Two counter-rotating lobes make the figure-8 read.
+    if (lobesRef.current) {
+      lobesRef.current.children.forEach((child, i) => {
+        const dir = i % 2 === 0 ? 1 : -1;
+        child.rotation.z += delta * dir * (broken ? 1.1 : 0.3 + pre * 1.7);
+        const tighten = broken ? 1 : 1 - pre * 0.34;
+        child.scale.setScalar(tighten);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = broken ? 4.5 : 1.6 + pre * 2.2;
+      });
+    }
+
+    // The recursion: rings that only exist after the collapse, each a scaled
+    // copy of the last, drifting outward forever.
+    if (nestRef.current) {
+      nestRef.current.children.forEach((child, i) => {
+        const k = broken ? clamp01((e - i * 0.07) * 2.4) : 0;
+        const s = 0.22 + i * 0.26;
+        child.scale.setScalar(k * s * 3.1);
+        child.rotation.x = now * (0.3 + i * 0.09) * (i % 2 ? 1 : -1);
+        child.rotation.y = now * (0.22 + i * 0.05);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = k * Math.max(0, 0.55 - i * 0.045);
+      });
+    }
+
+    if (motesRef.current) {
+      motesRef.current.children.forEach((child, i) => {
+        const m = motes[i];
+        const a = m.a + now * m.spd * (broken ? 1.6 : 0.5);
+        const r = broken ? m.r + Math.sin(now * 0.9 + i) * 1.5 : m.r * (1 - pre * 0.3);
+        child.position.set(Math.cos(a) * r, m.y + Math.sin(now * 0.7 + i) * 0.9, Math.sin(a) * r);
+      });
+    }
+  });
+
+  return (
+    <group position={[0, 0, -3]}>
+      {/* The singularity knot. p=2,q=3 gives a genuine self-threading loop. */}
+      <TorusKnot ref={knotRef} args={[6.2, 1.15, 190, 26, 2, 3]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3.2} flatShading toneMapped={false} />
+      </TorusKnot>
+
+      {/* Figure-8 lobes -- two offset tori sharing a waist. */}
+      <group ref={lobesRef}>
+        <Torus args={[5.4, 0.42, 10, 70]} position={[-4.6, 0, 0]} rotation={[0.5, 0.3, 0]}>
+          <meshStandardMaterial color={LIGHT} emissive={LIGHT} emissiveIntensity={2} flatShading transparent opacity={0.8} toneMapped={false} />
+        </Torus>
+        <Torus args={[5.4, 0.42, 10, 70]} position={[4.6, 0, 0]} rotation={[-0.5, -0.3, 0]}>
+          <meshStandardMaterial color={LIGHT} emissive={LIGHT} emissiveIntensity={2} flatShading transparent opacity={0.8} toneMapped={false} />
+        </Torus>
+      </group>
+
+      {/* Recursive after-loops. */}
+      <group ref={nestRef}>
+        {[...Array(NEST)].map((_, i) => (
+          <Torus key={i} args={[9, 0.2, 8, 64]}>
+            <meshBasicMaterial color={i % 2 ? LIGHT : color} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* Orbiting motes -- the individual days in the streak. */}
+      <group ref={motesRef}>
+        {motes.map((_, i) => (
+          <Octahedron key={i} args={[0.34, 0]}>
+            <meshStandardMaterial color={DEEP} emissive={LIGHT} emissiveIntensity={3} flatShading toneMapped={false} />
+          </Octahedron>
+        ))}
+      </group>
+
+      <Sparkles count={600} scale={[46, 46, 46]} size={4.6} speed={1.9} color={color} opacity={0.72} />
+      <Sparkles count={230} scale={[18, 18, 18]} size={3} speed={3.4} color={LIGHT} opacity={0.92} />
+    </group>
+  );
+};
+
+// --- M4. "DawnBreakMythic" -- Early Bird MYTHIC -----------------------------
+// SUPER's Sun is a disc. This is a WORLD: a planet limb across the lower frame
+// with the star still below it, atmosphere banding the horizon. At 1.7s the
+// star breaches -- the corona ring snaps outward, ray fans sweep up over the
+// curve, and the terminator line races across the surface. Genesis, not
+// morning.
+const EnvDawnBreakMythic = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const PALE = "#fff0b8";
+  const DEEP = "#7a4f00";
+
+  const sunRef = useRef<THREE.Mesh>(null);
+  const coronaRef = useRef<THREE.Group>(null);
+  const raysRef = useRef<THREE.Group>(null);
+  const worldRef = useRef<THREE.Mesh>(null);
+  const bandsRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const RAYS = 20;
+  const rays = useMemo(
+    () =>
+      [...Array(RAYS)].map((_, i) => {
+        const spread = (i / (RAYS - 1) - 0.5) * Math.PI * 1.05;
+        return { spread, len: 34 + (i % 4) * 12, w: 0.7 + (i % 3) * 0.5 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    // The star climbs to the horizon line and breaks it exactly on the beat.
+    if (sunRef.current) {
+      const y = broken ? -6 + Math.min(e * 3.4, 5.6) : THREE.MathUtils.lerp(-19, -6, easeOutCubic(pre));
+      sunRef.current.position.y = y;
+      const s = broken ? 1 + Math.min(e * 0.5, 0.55) : 0.72 + pre * 0.28;
+      sunRef.current.scale.setScalar(s);
+      const mat = sunRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = broken ? 1 : 0.5 + pre * 0.5;
+    }
+
+    // Corona: nothing, then a hard expanding halo.
+    if (coronaRef.current) {
+      coronaRef.current.children.forEach((child, i) => {
+        const k = broken ? Math.max(0, e - i * 0.1) : 0;
+        child.scale.setScalar(broken ? 1 + k * 5.2 : 0.4);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 0.7 - k * 0.5) : 0;
+      });
+      coronaRef.current.position.y = sunRef.current ? sunRef.current.position.y : -6;
+    }
+
+    // Ray fan sweeps up and out of the breach point.
+    if (raysRef.current) {
+      raysRef.current.children.forEach((child, i) => {
+        const k = broken ? clamp01((e - Math.abs(i - RAYS / 2) * 0.03) * 2.1) : 0;
+        child.scale.set(1, k, 1);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = k * (0.3 + Math.sin(now * 1.7 + i * 0.6) * 0.09);
+      });
+      raysRef.current.position.y = sunRef.current ? sunRef.current.position.y : -6;
+      raysRef.current.rotation.z = Math.sin(now * 0.16) * 0.06;
+    }
+
+    // The world turns, slowly, always.
+    if (worldRef.current) {
+      worldRef.current.rotation.y += delta * 0.055;
+      const mat = worldRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = broken ? 0.85 + Math.min(e, 1) * 1.5 : 0.2 + pre * 0.45;
+    }
+
+    // Atmosphere bands brighten with the breach.
+    if (bandsRef.current) {
+      bandsRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        const base = 0.06 + i * 0.035;
+        mat.opacity = broken ? base + Math.min(e * 0.9, 0.42) : base * (0.4 + pre * 0.6);
+        child.rotation.z = Math.sin(now * 0.1 + i) * 0.03;
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -4, -6]}>
+      {/* The planet. Big enough that only its limb is in frame. */}
+      <Sphere ref={worldRef} args={[30, 48, 48]} position={[0, -36, 0]}>
+        <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.25} flatShading />
+      </Sphere>
+
+      {/* Atmosphere bands hugging the limb. */}
+      <group ref={bandsRef} position={[0, -36, 0]}>
+        {[...Array(4)].map((_, i) => (
+          <Torus key={i} args={[30.4 + i * 0.9, 0.36 + i * 0.16, 8, 96]} rotation={[Math.PI / 2, 0, 0]}>
+            <meshBasicMaterial color={i < 2 ? PALE : color} transparent opacity={0.08} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* Ray fan -- long thin cones pinned at the breach point. */}
+      <group ref={raysRef}>
+        {rays.map((r, i) => (
+          <Cone key={i} args={[r.w, r.len, 3]} position={[Math.sin(r.spread) * (r.len / 2), Math.cos(r.spread) * (r.len / 2), -2]} rotation={[0, 0, -r.spread]}>
+            <meshBasicMaterial color={i % 3 === 0 ? PALE : color} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Cone>
+        ))}
+      </group>
+
+      {/* Corona halos. */}
+      <group ref={coronaRef}>
+        {[...Array(3)].map((_, i) => (
+          <Torus key={i} args={[7.5, 0.3, 8, 84]}>
+            <meshBasicMaterial color={PALE} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* The star. */}
+      <Sphere ref={sunRef} args={[6.2, 36, 36]} position={[0, -19, 0]}>
+        <meshBasicMaterial color={PALE} transparent opacity={0.5} toneMapped={false} />
+      </Sphere>
+
+      <Sparkles count={620} scale={[80, 44, 60]} size={5} speed={0.9} color={color} opacity={0.68} />
+      <Sparkles count={240} scale={[40, 24, 40]} size={3.2} speed={1.8} color={PALE} opacity={0.9} />
+    </group>
+  );
+};
+
+// --- M5. "PhoenixSurgeMythic" -- Comeback Kid MYTHIC ------------------------
+// LEGENDARY's EnvSurgeColumn is a rising column of chevrons -- momentum. This
+// is the literal source of that momentum: a bed of dead ash sits cold and
+// sinking for the whole pre-roll, and at 1.7s the bird comes OUT of it. Wings
+// unfurl as two swept torus arcs, the body lances upward, and the ash bed is
+// blown apart from underneath.
+const EnvPhoenixSurgeMythic = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const HOT = "#ffb391";
+  const DEEP = "#6d230f";
+
+  const ashRef = useRef<THREE.Group>(null);
+  const bodyRef = useRef<THREE.Group>(null);
+  const wingLRef = useRef<THREE.Mesh>(null);
+  const wingRRef = useRef<THREE.Mesh>(null);
+  const plumesRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const ash = useMemo(
+    () =>
+      [...Array(64)].map((_, i) => {
+        const a = (i / 64) * Math.PI * 2 * 3.3;
+        const r = 2 + (i % 11) * 1.5;
+        return {
+          x: Math.cos(a) * r,
+          z: Math.sin(a) * r,
+          y: -20 + (i % 4) * 0.7,
+          size: 0.35 + (i % 5) * 0.22,
+          out: new THREE.Vector3(Math.cos(a), 0.5 + (i % 6) * 0.22, Math.sin(a)),
+          spin: 0.8 + (i % 7) * 0.4,
+        };
+      }),
+    []
+  );
+
+  const PLUMES = 14;
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    // Ash: settles and dims, then is thrown outward and upward.
+    if (ashRef.current) {
+      ashRef.current.children.forEach((child, i) => {
+        const a = ash[i];
+        if (broken) {
+          const d = e * (9 + (i % 9) * 2.4);
+          child.position.set(a.x + a.out.x * d, a.y + a.out.y * d - e * e * 1.6, a.z + a.out.z * d);
+          child.rotation.x += delta * a.spin * 3;
+          child.rotation.z += delta * a.spin * 2.2;
+        } else {
+          child.position.set(a.x, a.y - pre * 0.9, a.z);
+          child.rotation.y += delta * 0.2;
+        }
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = broken ? Math.max(0.4, 6 - e * 2.2) : 0.35 + pre * 0.5;
+        mat.opacity = broken ? Math.max(0, 1 - e * 0.26) : 0.85;
+      });
+    }
+
+    // The bird. Hidden inside the bed, then a hard vertical launch.
+    if (bodyRef.current) {
+      const y = broken ? -19 + Math.min(e * 14, 20) - Math.max(0, e - 1.4) * 2.2 : -21;
+      bodyRef.current.position.y = y;
+      bodyRef.current.rotation.y = now * (broken ? 0.55 : 0);
+      const s = broken ? clamp01(e * 5) : 0;
+      bodyRef.current.scale.setScalar(s);
+    }
+
+    // Wings sweep open on the beat and then beat slowly.
+    const openK = broken ? easeOutCubic(clamp01(e / 0.45)) : 0;
+    const flap = broken ? Math.sin(Math.max(0, e - 0.45) * 2.6) * 0.22 : 0;
+    if (wingLRef.current) {
+      wingLRef.current.rotation.z = THREE.MathUtils.lerp(-0.1, 0.95, openK) + flap;
+      wingLRef.current.scale.setScalar(0.2 + openK * 0.8);
+    }
+    if (wingRRef.current) {
+      wingRRef.current.rotation.z = THREE.MathUtils.lerp(0.1, -0.95, openK) - flap;
+      wingRRef.current.scale.setScalar(0.2 + openK * 0.8);
+    }
+
+    // Tail plumes trail the launch.
+    if (plumesRef.current) {
+      plumesRef.current.children.forEach((child, i) => {
+        const k = broken ? clamp01((e - i * 0.035) * 3) : 0;
+        child.scale.set(k, k * (1 + i * 0.16), k);
+        child.rotation.y = now * 0.7 + i * 0.5;
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = k * Math.max(0, 0.6 - e * 0.11);
+      });
+      plumesRef.current.position.y = bodyRef.current ? bodyRef.current.position.y - 5 : -19;
+    }
+  });
+
+  return (
+    <group position={[0, 1, -4]}>
+      {/* The ash bed. */}
+      <group ref={ashRef}>
+        {ash.map((a, i) => (
+          <Tetrahedron key={i} args={[a.size, 0]}>
+            <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.4} flatShading transparent opacity={0.85} toneMapped={false} />
+          </Tetrahedron>
+        ))}
+      </group>
+
+      {/* Cold floor the ash sits on. */}
+      <Torus args={[15, 0.4, 8, 80]} rotation={[Math.PI / 2, 0, 0]} position={[0, -20.6, 0]}>
+        <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={1.4} flatShading />
+      </Torus>
+
+      {/* The phoenix. */}
+      <group ref={bodyRef} position={[0, -21, 0]}>
+        <Cone args={[2.2, 11, 5]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={4.2} flatShading toneMapped={false} />
+        </Cone>
+        <Octahedron args={[1.7, 0]} position={[0, 4.4, 0]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={7} flatShading toneMapped={false} />
+        </Octahedron>
+        {/* Wings -- half-tori read as swept feathers in silhouette. */}
+        <Torus ref={wingLRef} args={[7.5, 0.5, 8, 44, Math.PI * 0.72]} position={[-1.2, 1.2, 0]} rotation={[0, 0.35, -0.1]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={3.4} flatShading transparent opacity={0.9} toneMapped={false} />
+        </Torus>
+        <Torus ref={wingRRef} args={[7.5, 0.5, 8, 44, Math.PI * 0.72]} position={[1.2, 1.2, 0]} rotation={[0, -0.35, 0.1]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={3.4} flatShading transparent opacity={0.9} toneMapped={false} />
+        </Torus>
+      </group>
+
+      {/* Tail plumes. */}
+      <group ref={plumesRef}>
+        {[...Array(PLUMES)].map((_, i) => {
+          const a = (i / PLUMES) * Math.PI * 2;
+          return (
+            <Cone key={i} args={[0.75, 9, 4]} position={[Math.cos(a) * 2.4, -4, Math.sin(a) * 2.4]} rotation={[Math.PI, 0, 0]}>
+              <meshBasicMaterial color={i % 2 ? HOT : color} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </Cone>
+          );
+        })}
+      </group>
+
+      <Sparkles count={640} scale={[44, 60, 44]} size={5} speed={3.4} color={color} opacity={0.72} />
+      <Sparkles count={260} scale={[20, 44, 20]} size={3} speed={5.2} color={HOT} opacity={0.92} />
+    </group>
+  );
+};
+
+// --- M6. "LaurelCrownMythic" -- Podium Finisher MYTHIC ("The Immortal") -----
+// LEGENDARY is "The Champion" (EnvChampionWreath): a wreath, awarded. MYTHIC is
+// what happens to a champion who is never unseated -- they stop being a winner
+// and become a MONUMENT. A plinth stands in an empty colonnade; the wreath
+// descends and at 1.7s locks onto it, and the stone lights up from the inside
+// as the name is cut into it. Nothing is thrown; this beat is a SEAL, which is
+// deliberately the quietest reveal of the nine.
+const EnvLaurelCrownMythic = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const PALE = "#eeffc4";
+  const DEEP = "#41521a";
+
+  const wreathRef = useRef<THREE.Group>(null);
+  const leavesRef = useRef<THREE.Group>(null);
+  const monumentRef = useRef<THREE.Mesh>(null);
+  const glyphsRef = useRef<THREE.Group>(null);
+  const haloRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const LEAVES = 30;
+  const leaves = useMemo(
+    () =>
+      [...Array(LEAVES)].map((_, i) => {
+        const a = (i / LEAVES) * Math.PI * 2;
+        return { a, side: i % 2 === 0 ? 1 : -1, len: 1.5 + (i % 4) * 0.42 };
+      }),
+    []
+  );
+
+  const GLYPHS = 16;
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    // Wreath descends onto the plinth and seats on the beat.
+    if (wreathRef.current) {
+      const y = broken ? 8.6 : THREE.MathUtils.lerp(30, 8.6, easeOutCubic(pre));
+      wreathRef.current.position.y = y + (broken ? Math.sin(now * 0.9) * 0.16 * clamp01(e - 0.5) : 0);
+      wreathRef.current.rotation.y = now * (broken ? 0.14 : 0.9 - pre * 0.74);
+    }
+
+    // Leaves flare open at the moment of seating and then hold, gilded.
+    if (leavesRef.current) {
+      leavesRef.current.children.forEach((child, i) => {
+        const k = broken ? clamp01((e - i * 0.012) * 5) : 0;
+        child.scale.setScalar(0.75 + k * 0.45);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 1.2 + k * 6;
+      });
+    }
+
+    // The monument lights from within once sealed.
+    if (monumentRef.current) {
+      const mat = monumentRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = broken ? 0.5 + Math.min(e * 1.6, 2.6) + Math.sin(now * 1.3) * 0.18 : 0.14 + pre * 0.22;
+    }
+
+    // Inscription marks cut themselves into the plinth, one after another.
+    if (glyphsRef.current) {
+      glyphsRef.current.children.forEach((child, i) => {
+        const k = broken ? clamp01((e - 0.15 - i * 0.05) * 7) : 0;
+        child.scale.set(k, 1, 1);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = k * 0.85;
+      });
+    }
+
+    // A slow eternal halo, the only thing still moving at the end.
+    if (haloRef.current) {
+      haloRef.current.children.forEach((child, i) => {
+        const k = broken ? clamp01((e - 0.3 - i * 0.14) * 1.6) : 0;
+        child.scale.setScalar(1 + k * (0.5 + i * 0.32));
+        child.rotation.z = now * (0.08 + i * 0.04) * (i % 2 ? 1 : -1);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = k * (0.3 - i * 0.06);
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -3, -4]}>
+      {/* Colonnade, wide and sparse -- this is a hall, not an arena. */}
+      {[...Array(10)].map((_, i) => {
+        const a = (i / 10) * Math.PI * 2;
+        return (
+          <Cylinder key={i} args={[0.85, 1.05, 30, 6]} position={[Math.cos(a) * 24, -2, Math.sin(a) * 24]}>
+            <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.5} flatShading />
+          </Cylinder>
+        );
+      })}
+
+      {/* The plinth. */}
+      <Cylinder ref={monumentRef} args={[5, 5.8, 18, 8]} position={[0, -8, 0]}>
+        <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.2} flatShading />
+      </Cylinder>
+      <Cylinder args={[7.4, 8, 1.8, 8]} position={[0, -17.2, 0]}>
+        <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.7} flatShading />
+      </Cylinder>
+
+      {/* Inscription bands around the plinth. */}
+      <group ref={glyphsRef}>
+        {[...Array(GLYPHS)].map((_, i) => {
+          const a = (i / GLYPHS) * Math.PI * 2;
+          const y = -4 - (i % 4) * 2.4;
+          return (
+            <Box key={i} args={[1.7, 0.3, 0.2]} position={[Math.cos(a) * 5.2, y, Math.sin(a) * 5.2]} rotation={[0, -a, 0]}>
+              <meshBasicMaterial color={PALE} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </Box>
+          );
+        })}
+      </group>
+
+      {/* Eternal halo rings above the monument. */}
+      <group ref={haloRef} position={[0, 9, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        {[...Array(3)].map((_, i) => (
+          <Torus key={i} args={[10 + i * 2.4, 0.18, 8, 90]}>
+            <meshBasicMaterial color={PALE} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* The wreath: an open ring of paired leaves. */}
+      <group ref={wreathRef} position={[0, 30, 0]}>
+        <Torus args={[8, 0.34, 8, 80]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.4} flatShading toneMapped={false} />
+        </Torus>
+        <group ref={leavesRef}>
+          {leaves.map((l, i) => (
+            <Cone
+              key={i}
+              args={[0.6, l.len * 2.6, 4]}
+              position={[Math.cos(l.a) * 8, 0, Math.sin(l.a) * 8]}
+              rotation={[Math.PI / 2, 0, -l.a + l.side * 0.55]}
+            >
+              <meshStandardMaterial color={PALE} emissive={PALE} emissiveIntensity={1.2} flatShading toneMapped={false} />
+            </Cone>
+          ))}
+        </group>
+      </group>
+
+      <Sparkles count={560} scale={[54, 56, 54]} size={4.4} speed={0.75} color={color} opacity={0.66} />
+      <Sparkles count={210} scale={[24, 30, 24]} size={2.8} speed={1.3} color={PALE} opacity={0.88} />
+    </group>
+  );
+};
+
+// --- M7. "PrecisionCoreMythic" -- Sharpshooter MYTHIC -----------------------
+// The family's three tiers are all about AIMING (reticle, iris, radar). MYTHIC
+// is the shot. Nine reticle rings hang at different depths and different
+// angles, tumbling out of true, while a lattice of space bends inward around
+// them; at 1.7s every ring snaps coaxial in a single frame and a lance fires
+// straight down the barrel. The reveal here is ALIGNMENT, not explosion.
+const EnvPrecisionCoreMythic = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const LIGHT = "#ffdcea";
+  const DEEP = "#7c2748";
+
+  const ringsRef = useRef<THREE.Group>(null);
+  const latticeRef = useRef<THREE.Group>(null);
+  const lanceRef = useRef<THREE.Mesh>(null);
+  const coreRef = useRef<THREE.Mesh>(null);
+  const ticksRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const RINGS = 9;
+  const rings = useMemo(
+    () =>
+      [...Array(RINGS)].map((_, i) => ({
+        z: -22 + i * 5.2,
+        r: 3.4 + i * 1.15,
+        rx: ((i % 5) - 2) * 0.5,
+        ry: ((i % 3) - 1) * 0.62,
+        spin: 0.4 + (i % 4) * 0.33,
+      })),
+    []
+  );
+
+  const lattice = useMemo(
+    () =>
+      [...Array(52)].map((_, i) => {
+        const a = (i / 52) * Math.PI * 2 * 2.7;
+        const r = 14 + (i % 7) * 2.6;
+        return { a, r, y: ((i % 11) - 5) * 3.1, size: 0.4 + (i % 3) * 0.24 };
+      }),
+    []
+  );
+
+  const TICKS = 24;
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+    // Snap is near-instant: 90ms from tumbling to perfectly coaxial.
+    const lock = broken ? easeOutCubic(clamp01(e / 0.09)) : 0;
+
+    if (ringsRef.current) {
+      ringsRef.current.children.forEach((child, i) => {
+        const r = rings[i];
+        // Pre-roll: drifting off-axis and tumbling. Post: dead true.
+        const wob = (1 - lock) * (1 - pre * 0.45);
+        child.rotation.x = r.rx * wob + Math.sin(now * r.spin + i) * 0.22 * wob;
+        child.rotation.y = r.ry * wob + Math.cos(now * r.spin * 0.8 + i) * 0.22 * wob;
+        child.rotation.z = broken ? now * 0.22 * (i % 2 ? 1 : -1) : now * r.spin * 0.5;
+        child.position.x = Math.sin(now * 0.6 + i) * 1.9 * wob;
+        child.position.y = Math.cos(now * 0.5 + i * 1.3) * 1.9 * wob;
+        child.position.z = r.z + (broken ? 0 : Math.sin(now * 0.4 + i) * 1.2);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 1.4 + lock * 7 + pre * 1.6;
+      });
+    }
+
+    // Lattice pulls inward under the aim, then holds bent.
+    if (latticeRef.current) {
+      latticeRef.current.children.forEach((child, i) => {
+        const l = lattice[i];
+        const pull = broken ? 0.55 : 1 - pre * 0.34;
+        const a = l.a + now * 0.12;
+        child.position.set(Math.cos(a) * l.r * pull, l.y * pull, Math.sin(a) * l.r * pull);
+        child.rotation.x += delta * 0.5;
+        child.rotation.y += delta * 0.35;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = broken ? 3.4 : 0.7 + pre * 1.2;
+      });
+    }
+
+    // The lance: exists only after the lock.
+    if (lanceRef.current) {
+      const k = broken ? clamp01(e / 0.12) : 0;
+      const decay = Math.max(0, 1 - Math.max(0, e - 0.3) * 0.5);
+      lanceRef.current.scale.set(k * decay, 1, k * decay);
+      (lanceRef.current.material as THREE.MeshBasicMaterial).opacity = k * decay * 0.9;
+    }
+
+    if (coreRef.current) {
+      const s = broken ? 1 + Math.max(0, 0.4 - e) * 3.4 : 0.35 + pre * 0.35;
+      coreRef.current.scale.setScalar(s);
+      coreRef.current.rotation.y += delta * (broken ? 2.4 : 0.7);
+      coreRef.current.rotation.x += delta * 0.5;
+    }
+
+    // Range ticks around the outermost ring count in, then lock.
+    if (ticksRef.current) {
+      ticksRef.current.rotation.z = broken ? 0 : -now * 0.5 * (1 - pre);
+      ticksRef.current.children.forEach((child, i) => {
+        const on = broken ? 1 : (i / TICKS < pre ? 1 : 0);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = on * (broken ? 0.85 : 0.4);
+        child.scale.setScalar(0.8 + on * 0.5);
+      });
+    }
+  });
+
+  return (
+    <group position={[0, 0, 0]}>
+      {/* Reticle rings receding down the barrel. */}
+      <group ref={ringsRef}>
+        {rings.map((r, i) => (
+          <Torus key={i} args={[r.r, 0.16, 8, 64, Math.PI * (i % 3 === 0 ? 1.7 : 2)]}>
+            <meshStandardMaterial color={i % 3 === 0 ? LIGHT : color} emissive={i % 3 === 0 ? LIGHT : color} emissiveIntensity={1.4} flatShading toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* Bent space. */}
+      <group ref={latticeRef}>
+        {lattice.map((l, i) => (
+          <Box key={i} args={[l.size, l.size, l.size * 3.4]}>
+            <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.8} flatShading toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Range ticks. */}
+      <group ref={ticksRef} position={[0, 0, -22]}>
+        {[...Array(TICKS)].map((_, i) => {
+          const a = (i / TICKS) * Math.PI * 2;
+          return (
+            <Box key={i} args={[0.22, 1.5, 0.22]} position={[Math.cos(a) * 15.5, Math.sin(a) * 15.5, 0]} rotation={[0, 0, -a]}>
+              <meshBasicMaterial color={LIGHT} transparent opacity={0.4} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </Box>
+          );
+        })}
+      </group>
+
+      {/* The shot. */}
+      <Cylinder ref={lanceRef} args={[0.55, 0.55, 90, 14, 1, true]} rotation={[Math.PI / 2, 0, 0]}>
+        <meshBasicMaterial color={LIGHT} transparent opacity={0} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Cylinder>
+
+      {/* Singularity at the focus. */}
+      <Icosahedron ref={coreRef} args={[2.4, 0]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={6} flatShading toneMapped={false} />
+      </Icosahedron>
+
+      <Sparkles count={580} scale={[44, 44, 70]} size={4.4} speed={1.5} color={color} opacity={0.7} />
+      <Sparkles count={220} scale={[14, 14, 60]} size={2.6} speed={3.1} color={LIGHT} opacity={0.92} />
+    </group>
+  );
+};
+
+// --- M8. "SummitMythic" -- Underdog MYTHIC ----------------------------------
+// LEGENDARY's Mountain is a peak seen from outside. Here we are ON it and above
+// the weather: a stacked ridge climbs out of a cloud deck that is still closed
+// over the top for the whole pre-roll. At 1.7s the summit BREAKS the deck --
+// the cloud ring blows outward, the sun clears behind the peak, and a marker
+// plants itself on the highest stone. The one badge whose reveal is a view.
+const EnvSummitMythic = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const SNOW = "#eef5ff";
+  const DEEP = "#16407a";
+
+  const ridgeRef = useRef<THREE.Group>(null);
+  const cloudsRef = useRef<THREE.Group>(null);
+  const sunRef = useRef<THREE.Mesh>(null);
+  const markerRef = useRef<THREE.Group>(null);
+  const burstRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const RIDGE = 7;
+  const ridge = useMemo(
+    () =>
+      [...Array(RIDGE)].map((_, i) => {
+        const off = (i - (RIDGE - 1) / 2);
+        return {
+          x: off * 5.6 + (i % 2 ? 1.4 : -1.4),
+          z: -Math.abs(off) * 3.2 - 2,
+          h: 26 - Math.abs(off) * 4.4,
+          r: 5.2 - Math.abs(off) * 0.5,
+        };
+      }),
+    []
+  );
+
+  const CLOUDS = 22;
+  const clouds = useMemo(
+    () =>
+      [...Array(CLOUDS)].map((_, i) => {
+        const a = (i / CLOUDS) * Math.PI * 2;
+        return { a, r: 15 + (i % 5) * 3.4, y: -4 + (i % 3) * 1.5, s: 4 + (i % 6) * 1.6 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    // Ridge pushes up through the whole pre-roll -- the climb.
+    if (ridgeRef.current) {
+      ridgeRef.current.children.forEach((child, i) => {
+        const r = ridge[i];
+        const rise = broken ? 1 : easeOutCubic(pre) * 0.88;
+        child.position.y = -20 + (r.h * rise) / 2;
+        child.scale.y = Math.max(0.06, rise);
+      });
+    }
+
+    // Cloud deck: closed and churning, then blown outward and down.
+    if (cloudsRef.current) {
+      cloudsRef.current.children.forEach((child, i) => {
+        const c = clouds[i];
+        const a = c.a + now * 0.11;
+        const push = broken ? 1 + e * 1.5 : 1 - pre * 0.12;
+        child.position.set(Math.cos(a) * c.r * push, c.y - (broken ? e * 3.1 : 0) + Math.sin(now * 0.5 + i) * 0.5, Math.sin(a) * c.r * push);
+        child.rotation.y = a;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = broken ? Math.max(0, 0.5 - e * 0.16) : 0.42 + pre * 0.16;
+      });
+    }
+
+    // Sun clears from behind the peak on the beat.
+    if (sunRef.current) {
+      const y = broken ? 10 + Math.min(e * 2.4, 5) : 1.5;
+      sunRef.current.position.y = y;
+      const mat = sunRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = broken ? Math.min(1, e * 2.2) : 0.1;
+      sunRef.current.scale.setScalar(broken ? 1 + Math.min(e * 0.3, 0.4) : 0.8);
+    }
+
+    // Marker plants on the highest stone.
+    if (markerRef.current) {
+      const k = broken ? easeOutCubic(clamp01((e - 0.1) / 0.35)) : 0;
+      markerRef.current.scale.setScalar(k);
+      markerRef.current.position.y = 8 + (1 - k) * 12;
+      markerRef.current.rotation.y = now * 0.5;
+    }
+
+    // Shock ring across the cloud tops.
+    if (burstRef.current) {
+      burstRef.current.children.forEach((child, i) => {
+        const k = broken ? Math.max(0, e - i * 0.12) : 0;
+        child.scale.setScalar(broken ? 1 + k * 6.5 : 0.3);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 0.6 - k * 0.42) : 0;
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -1, -5]}>
+      {/* The ridge -- a stack of faceted cones, tallest at centre. */}
+      <group ref={ridgeRef}>
+        {ridge.map((r, i) => (
+          <Cone key={i} args={[r.r, r.h, 5]} position={[r.x, -20 + r.h / 2, r.z]} rotation={[0, i * 0.4, 0]}>
+            <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={i === Math.floor(RIDGE / 2) ? 1.6 : 0.8} flatShading />
+          </Cone>
+        ))}
+      </group>
+
+      {/* Snow caps on the three tallest. */}
+      {[2, 3, 4].map((i) => (
+        <Cone key={i} args={[ridge[i].r * 0.42, ridge[i].h * 0.2, 5]} position={[ridge[i].x, -20 + ridge[i].h * 0.9, ridge[i].z]}>
+          <meshStandardMaterial color={SNOW} emissive={SNOW} emissiveIntensity={1.4} flatShading />
+        </Cone>
+      ))}
+
+      {/* Cloud deck. Flattened spheres read as cloud at this scale. */}
+      <group ref={cloudsRef}>
+        {clouds.map((c, i) => (
+          <Sphere key={i} args={[c.s, 10, 8]} scale={[1, 0.32, 1]}>
+            <meshStandardMaterial color={SNOW} emissive={color} emissiveIntensity={0.35} flatShading transparent opacity={0.45} />
+          </Sphere>
+        ))}
+      </group>
+
+      {/* Breach shock rings, flat across the deck. */}
+      <group ref={burstRef} position={[0, -2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        {[...Array(3)].map((_, i) => (
+          <Torus key={i} args={[13, 0.3, 8, 90]}>
+            <meshBasicMaterial color={SNOW} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* The sun behind the peak. */}
+      <Sphere ref={sunRef} args={[7, 32, 32]} position={[0, 1.5, -26]}>
+        <meshBasicMaterial color={SNOW} transparent opacity={0.1} toneMapped={false} />
+      </Sphere>
+
+      {/* Summit marker. */}
+      <group ref={markerRef} position={[ridge[3].x, 8, ridge[3].z]}>
+        <Cylinder args={[0.22, 0.22, 7, 6]}>
+          <meshStandardMaterial color={SNOW} emissive={SNOW} emissiveIntensity={3} flatShading toneMapped={false} />
+        </Cylinder>
+        <Octahedron args={[1.5, 0]} position={[0, 4.4, 0]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={6} flatShading toneMapped={false} />
+        </Octahedron>
+      </group>
+
+      <Sparkles count={600} scale={[70, 46, 60]} size={4.6} speed={1.1} color={color} opacity={0.68} />
+      <Sparkles count={240} scale={[34, 26, 34]} size={3} speed={2.2} color={SNOW} opacity={0.9} />
+    </group>
+  );
+};
+
+// --- M9. "OracleMythic" -- High Achiever (`polymath`) MYTHIC -----------------
+// The family goes private thought (Brain) -> single insight (Lightbulb) ->
+// collected knowledge (Library). MYTHIC is knowing it ALL AT ONCE, so the scene
+// is a great closed eye inside a shell of archive nodes. For the whole pre-roll
+// the lids are shut and the nodes orbit at random; at 1.7s the eye OPENS -- the
+// lids sweep apart, the iris rings spin up, and every node snaps onto a single
+// lattice shell and points inward at the pupil.
+const EnvOracleMythic = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const PALE = "#f6e2ff";
+  const MID = "#9d5cc8";
+
+  const lidTopRef = useRef<THREE.Mesh>(null);
+  const lidBotRef = useRef<THREE.Mesh>(null);
+  const irisRef = useRef<THREE.Group>(null);
+  const pupilRef = useRef<THREE.Mesh>(null);
+  const nodesRef = useRef<THREE.Group>(null);
+  const raysRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const NODES = 46;
+  const nodes = useMemo(
+    () =>
+      [...Array(NODES)].map((_, i) => {
+        // Fibonacci sphere -- the "settled" target position for each node.
+        const y = 1 - (i / (NODES - 1)) * 2;
+        const rad = Math.sqrt(Math.max(0, 1 - y * y));
+        const theta = i * 2.399963;
+        return {
+          target: new THREE.Vector3(Math.cos(theta) * rad, y, Math.sin(theta) * rad),
+          chaosA: (i * 1.7) % (Math.PI * 2),
+          chaosR: 10 + (i % 9) * 2.2,
+          chaosY: ((i % 13) - 6) * 2.2,
+          spd: 0.3 + (i % 6) * 0.19,
+          size: 0.36 + (i % 4) * 0.18,
+        };
+      }),
+    []
+  );
+
+  const RAYS = 16;
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+    const open = broken ? easeOutCubic(clamp01(e / 0.4)) : 0;
+
+    // Lids sweep apart. Before the beat they only twitch, which reads as
+    // something about to wake rather than something asleep.
+    const twitch = Math.sin(now * 3.1) * 0.05 * Math.pow(pre, 3);
+    if (lidTopRef.current) {
+      lidTopRef.current.position.y = open * 11 + twitch;
+      lidTopRef.current.rotation.z = open * 0.16;
+    }
+    if (lidBotRef.current) {
+      lidBotRef.current.position.y = -open * 11 - twitch;
+      lidBotRef.current.rotation.z = -open * 0.16;
+    }
+
+    // Iris rings spin up hard on opening.
+    if (irisRef.current) {
+      irisRef.current.children.forEach((child, i) => {
+        const dir = i % 2 ? 1 : -1;
+        child.rotation.z += delta * dir * (0.2 + open * (1.4 + i * 0.5));
+        child.scale.setScalar(0.45 + open * 0.55);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 1 + open * 6;
+      });
+    }
+
+    if (pupilRef.current) {
+      const s = broken ? 1 + Math.max(0, 0.3 - e) * 4 : 0.25 + pre * 0.3;
+      pupilRef.current.scale.setScalar(s);
+      pupilRef.current.rotation.y += delta * 0.9;
+      pupilRef.current.rotation.x += delta * 0.4;
+    }
+
+    // Nodes: chaotic orbit -> snapped onto one shell, all facing the pupil.
+    if (nodesRef.current) {
+      const SHELL = 15.5;
+      nodesRef.current.children.forEach((child, i) => {
+        const n = nodes[i];
+        const a = n.chaosA + now * n.spd;
+        const cx = Math.cos(a) * n.chaosR;
+        const cy = n.chaosY + Math.sin(now * 0.4 + i) * 1.4;
+        const cz = Math.sin(a) * n.chaosR;
+        const k = broken ? easeOutCubic(clamp01((e - i * 0.006) / 0.5)) : 0;
+        // Settled shell also rotates slowly, so the lattice is never static.
+        const sa = now * 0.14;
+        const tx = n.target.x * Math.cos(sa) - n.target.z * Math.sin(sa);
+        const tz = n.target.x * Math.sin(sa) + n.target.z * Math.cos(sa);
+        child.position.set(
+          THREE.MathUtils.lerp(cx, tx * SHELL, k),
+          THREE.MathUtils.lerp(cy, n.target.y * SHELL, k),
+          THREE.MathUtils.lerp(cz, tz * SHELL, k)
+        );
+        child.lookAt(0, 0, 0);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 1.2 + k * 5;
+      });
+    }
+
+    // Rays of regard, out from the open eye.
+    if (raysRef.current) {
+      raysRef.current.rotation.z = now * 0.09;
+      raysRef.current.children.forEach((child, i) => {
+        const k = broken ? clamp01((e - 0.2 - i * 0.02) * 2.4) : 0;
+        child.scale.set(1, k, 1);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = k * (0.22 + Math.sin(now * 1.4 + i) * 0.07);
+      });
+    }
+  });
+
+  return (
+    <group position={[0, 0, -3]}>
+      {/* Rays of regard. */}
+      <group ref={raysRef}>
+        {[...Array(RAYS)].map((_, i) => {
+          const a = (i / RAYS) * Math.PI * 2;
+          const len = i % 2 === 0 ? 40 : 28;
+          return (
+            <Cone key={i} args={[1.1, len, 3]} position={[Math.cos(a) * (len / 2), Math.sin(a) * (len / 2), -3]} rotation={[0, 0, -a + Math.PI / 2]}>
+              <meshBasicMaterial color={i % 2 ? PALE : color} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </Cone>
+          );
+        })}
+      </group>
+
+      {/* Archive nodes. */}
+      <group ref={nodesRef}>
+        {nodes.map((n, i) => (
+          <Box key={i} args={[n.size * 2.6, n.size * 3.4, n.size]}>
+            <meshStandardMaterial color={MID} emissive={color} emissiveIntensity={1.2} flatShading toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Iris rings. */}
+      <group ref={irisRef}>
+        {[...Array(4)].map((_, i) => (
+          <Torus key={i} args={[5 + i * 1.5, 0.24, 8, 72, Math.PI * (i % 2 ? 1.55 : 2)]}>
+            <meshStandardMaterial color={i % 2 ? PALE : color} emissive={i % 2 ? PALE : color} emissiveIntensity={1} flatShading toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* Pupil. */}
+      <Icosahedron ref={pupilRef} args={[3, 0]}>
+        <meshStandardMaterial color={MID} emissive={PALE} emissiveIntensity={5} flatShading toneMapped={false} />
+      </Icosahedron>
+
+      {/* Lids -- wide flattened spheres that meet across the middle. */}
+      <Sphere ref={lidTopRef} args={[13, 28, 16]} scale={[1.5, 0.42, 0.5]} position={[0, 0, 0]}>
+        <meshStandardMaterial color={MID} emissive={color} emissiveIntensity={0.8} flatShading />
+      </Sphere>
+      <Sphere ref={lidBotRef} args={[13, 28, 16]} scale={[1.5, 0.42, 0.5]} position={[0, 0, 0]}>
+        <meshStandardMaterial color={MID} emissive={color} emissiveIntensity={0.8} flatShading />
+      </Sphere>
+
+      <Sparkles count={620} scale={[52, 44, 44]} size={4.4} speed={1.2} color={color} opacity={0.7} />
+      <Sparkles count={240} scale={[26, 22, 22]} size={2.8} speed={2.4} color={PALE} opacity={0.9} />
+    </group>
+  );
+};
+
+// ============================================================================
 // MYTHIC CAMERA CHOREOGRAPHY (2026-07-27)
 // ----------------------------------------------------------------------------
 // The parent <Canvas> camera is otherwise fixed at [0,0,30]/fov 45 and never
@@ -2869,6 +4277,27 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
       case "Radar": return <EnvRadarSweep color={color} />;
       case "Anchor": return <EnvAnchorDepths color={color} />;
 
+      // --- Phase-1 MYTHIC tier (2026-07-28) ------------------------------
+      // The 9 new ceiling-tier badges. All nine iconName strings are brand-new
+      // (seeded by the backend with the 9 new MYTHIC rows) so none of these
+      // cases can shadow or steal an existing badge's environment -- every case
+      // above still resolves exactly as it did before.
+      //
+      // Each of these scenes has its own reveal beat at T_REVEAL = 1.7s to line
+      // up with MythicCameraRig's recoil; see the block comment above
+      // EnvSpeedCometMythic for why that timing is load-bearing rather than
+      // decorative. PerfectionistGemMythic (the 10th family) already has its
+      // case further up and is untouched.
+      case "SpeedCometMythic": return <EnvSpeedCometMythic color={color} />;
+      case "CrownMythic": return <EnvCrownMythic color={color} />;
+      case "InfinityMythic": return <EnvInfinityMythic color={color} />;
+      case "DawnBreakMythic": return <EnvDawnBreakMythic color={color} />;
+      case "PhoenixSurgeMythic": return <EnvPhoenixSurgeMythic color={color} />;
+      case "LaurelCrownMythic": return <EnvLaurelCrownMythic color={color} />;
+      case "PrecisionCoreMythic": return <EnvPrecisionCoreMythic color={color} />;
+      case "SummitMythic": return <EnvSummitMythic color={color} />;
+      case "OracleMythic": return <EnvOracleMythic color={color} />;
+
       default: return <EnvDefault color={color} />;
     }
   };
@@ -2888,9 +4317,18 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
 
       <TimeDilationEngine isLegendary={isApex} />
 
-      {/* Scripted camera move -- ONE badge only. Every other iconName leaves
-          the camera exactly where the <Canvas> put it. */}
-      {iconName === "PerfectionistGemMythic" && <MythicCameraRig />}
+      {/* Scripted camera move. Generalized 2026-07-28 (Phase 1) from a single
+          hardcoded iconName check to `isMythic`: the rig itself was already
+          badge-agnostic (orbits/pushes relative to world origin, no geometry
+          references), and its T_FRACTURE=1.7s "push-in then recoil" beat is a
+          generic reveal-impact timing, not something specific to the
+          Perfectionist gem. Every MYTHIC badge's environment is expected to
+          have its own "something snaps/ignites/erupts" moment around that
+          same beat so the camera recoil reads as reacting to it. LEGENDARY
+          and below are untouched -- this only widens the MYTHIC set, and the
+          only MYTHIC badge that existed before this change
+          (PerfectionistGemMythic) keeps exactly the camera move it had. */}
+      {isMythic && <MythicCameraRig />}
 
       {/* Render the specific procedural environment for this badge */}
       {renderScene()}

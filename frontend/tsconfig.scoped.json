@@ -10,6 +10,7 @@
     "global.d.ts",
     "lib/gamification/badgeGlyphs.tsx",
     "lib/gamification/badgeVisuals.ts",
-    "components/gamification/BadgeInspectionModal.tsx"
+    "components/gamification/BadgeInspectionModal.tsx",
+    "app/student/achievements/page.tsx"
   ]
 }

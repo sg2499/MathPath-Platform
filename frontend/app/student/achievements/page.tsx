@@ -83,6 +83,7 @@ export default function TrophyRoomPage() {
   const baseBadges = badges.filter(b => b.tier === "BASE");
   const superBadges = badges.filter(b => b.tier === "SUPER");
   const legendaryBadges = badges.filter(b => b.tier === "LEGENDARY");
+  const mythicBadges = badges.filter(b => b.tier === "MYTHIC");
 
   return (
     <AppShell>
@@ -153,6 +154,9 @@ export default function TrophyRoomPage() {
           
           {/* Legendary Tier Shelf */}
           <Shelf title="Legendary Badges" badges={legendaryBadges} tier="LEGENDARY" onSelectBadge={setSelectedBadge} />
+
+          {/* Mythic Tier Shelf -- Phase 1 (2026-07-28), the 4th tier above Legendary */}
+          <Shelf title="Mythic Badges" badges={mythicBadges} tier="MYTHIC" onSelectBadge={setSelectedBadge} />
         </div>
       ) : (
         <div className="text-center py-24 animate-in fade-in duration-500">
@@ -183,13 +187,17 @@ function Shelf({ title, badges, tier, onSelectBadge }: { title: string, badges: 
   const bgStyles = {
     BASE: "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800",
     SUPER: "bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/50",
-    LEGENDARY: "bg-yellow-50/50 dark:bg-yellow-900/10 border-yellow-100 dark:border-yellow-900/50"
+    LEGENDARY: "bg-yellow-50/50 dark:bg-yellow-900/10 border-yellow-100 dark:border-yellow-900/50",
+    // Phase 1 (2026-07-28): MYTHIC is the 4th tier, above Legendary. Fuchsia/
+    // violet deliberately doesn't overlap any shelf above it (slate/indigo/gold).
+    MYTHIC: "bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border-fuchsia-100 dark:border-fuchsia-900/50"
   };
 
   const textStyles = {
     BASE: "text-slate-800 dark:text-slate-200",
     SUPER: "text-indigo-800 dark:text-indigo-300",
-    LEGENDARY: "text-yellow-800 dark:text-yellow-300"
+    LEGENDARY: "text-yellow-800 dark:text-yellow-300",
+    MYTHIC: "text-fuchsia-800 dark:text-fuchsia-300"
   };
 
   return (
@@ -299,7 +307,40 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
       "Mountain": { clipPath: "polygon(50% 0%, 100% 20%, 90% 80%, 50% 100%, 10% 80%, 0% 20%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
       "Brain": { clipPath: "polygon(20% 20%, 80% 20%, 100% 80%, 0% 80%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
       "Lightbulb": { clipPath: "polygon(30% 0%, 70% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
-      "Library": { clipPath: "polygon(0% 0%, 100% 0%, 90% 50%, 100% 100%, 0% 100%, 10% 50%)", w: "w-20 md:w-24", h: "h-24 md:h-28" }
+      "Library": { clipPath: "polygon(0% 0%, 100% 0%, 90% 50%, 100% 100%, 0% 100%, 10% 50%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+
+      // --- MYTHIC tier silhouettes (2026-07-28) ---------------------------
+      // One per MYTHIC iconName. These are the 2D card silhouettes only -- the
+      // cinematic geometry lives in BadgeInspectionModal. Each is deliberately
+      // BUSIER than its own family's lower tiers (more vertices, sharper
+      // points) so the ceiling tier is legible as a shape at thumbnail size
+      // before any colour or label is read.
+      //
+      // PerfectionistGemMythic was previously MISSING from this map entirely
+      // and silently fell through to the `shapes["Target"]` octagon below --
+      // the one already-shipped MYTHIC badge was wearing the Perfectionist
+      // BASE silhouette. It now gets the split-gem outline its glyph and its
+      // cinematic both use: a stone with a jagged fracture down the centre.
+      "PerfectionistGemMythic": { clipPath: "polygon(36% 0%, 64% 0%, 100% 34%, 58% 100%, 54% 62%, 46% 62%, 42% 100%, 0% 34%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+
+      // Speed Demon -- the dart, torn open by the rupture into a swept delta.
+      "SpeedCometMythic": { clipPath: "polygon(100% 0%, 74% 46%, 92% 52%, 30% 100%, 44% 56%, 20% 62%, 62% 22%, 46% 30%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      // Competitor -- a five-point coronation crown on a seated band.
+      "CrownMythic": { clipPath: "polygon(0% 22%, 16% 0%, 32% 26%, 50% 0%, 68% 26%, 84% 0%, 100% 22%, 92% 100%, 8% 100%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      // Unstoppable Streak -- a pinched figure-8 waist, the loop folding in.
+      "InfinityMythic": { clipPath: "polygon(24% 0%, 42% 22%, 58% 22%, 76% 0%, 100% 30%, 100% 70%, 76% 100%, 58% 78%, 42% 78%, 24% 100%, 0% 70%, 0% 30%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      // Early Bird -- a sun cresting a horizon line, rays above the curve.
+      "DawnBreakMythic": { clipPath: "polygon(50% 0%, 62% 20%, 84% 10%, 80% 34%, 100% 44%, 100% 100%, 0% 100%, 0% 44%, 20% 34%, 16% 10%, 38% 20%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      // Comeback Kid -- a rising phoenix: swept wings over a lifting body.
+      "PhoenixSurgeMythic": { clipPath: "polygon(50% 0%, 66% 24%, 100% 14%, 78% 48%, 90% 96%, 50% 66%, 10% 96%, 22% 48%, 0% 14%, 34% 24%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      // Podium Finisher ("The Immortal") -- a closed wreath around a plinth.
+      "LaurelCrownMythic": { clipPath: "polygon(50% 0%, 74% 10%, 90% 30%, 96% 58%, 76% 84%, 62% 100%, 38% 100%, 24% 84%, 4% 58%, 10% 30%, 26% 10%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      // Sharpshooter -- concentric lock: a notched ring around a hard centre.
+      "PrecisionCoreMythic": { clipPath: "polygon(44% 0%, 56% 0%, 56% 14%, 78% 22%, 86% 44%, 100% 44%, 100% 56%, 86% 56%, 78% 78%, 56% 86%, 56% 100%, 44% 100%, 44% 86%, 22% 78%, 14% 56%, 0% 56%, 0% 44%, 14% 44%, 22% 22%, 44% 14%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      // Underdog -- a twin-spur summit breaking a flat cloud line.
+      "SummitMythic": { clipPath: "polygon(50% 0%, 68% 34%, 78% 22%, 100% 68%, 100% 100%, 0% 100%, 0% 68%, 22% 22%, 32% 34%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      // High Achiever -- an open eye in a pointed mandorla.
+      "OracleMythic": { clipPath: "polygon(0% 50%, 22% 22%, 50% 12%, 78% 22%, 100% 50%, 78% 78%, 50% 88%, 22% 78%)", w: "w-24 md:w-28", h: "h-20 md:h-24" }
     };
     return shapes[iconName] || shapes["Target"];
   };
@@ -320,7 +361,7 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
         style={{
           rotateX: isUnlocked ? rx : 0,
           rotateY: isUnlocked ? ry : 0,
-          boxShadow: isUnlocked ? (badge.tier === 'LEGENDARY' ? '0 30px 60px -12px rgba(234, 179, 8, 0.5)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)') : ''
+          boxShadow: isUnlocked ? (badge.tier === 'MYTHIC' ? '0 30px 70px -10px rgba(217, 70, 239, 0.55)' : badge.tier === 'LEGENDARY' ? '0 30px 60px -12px rgba(234, 179, 8, 0.5)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)') : ''
         }}
       >
         
@@ -335,8 +376,12 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
           />
         )}
 
-        {/* Legendary Foil Sweep & Sparks */}
-        {isUnlocked && badge.tier === "LEGENDARY" && (
+        {/* Legendary/Mythic Foil Sweep & Sparks. MYTHIC reuses this baseline
+            treatment for now (2026-07-28, Phase 1) rather than shipping with
+            no effect at all -- a distinct prismatic/holographic sweep to
+            match each MYTHIC badge's own identity is design follow-up work,
+            not a blocker for these badges being live and functional. */}
+        {isUnlocked && (badge.tier === "LEGENDARY" || badge.tier === "MYTHIC") && (
            <>
              {/* Holographic foil sweep tied to rotation */}
              <motion.div 
