@@ -16,13 +16,15 @@ The platform's intended structure is 5 modules, confirmed directly in `seed_mast
 | IM (Intermediate) | Live | L1, L2, L3, L4 — 4 levels |
 | MM (Master, terminal module) | Live | L1 only — 1 level (30 lessons inside it) |
 
-**8 real levels across the 3 live modules today.** Every progression-badge count below is built off real `Level`/`Module` rows, not hardcoded lists — so Preparatory and Bridge badges appear on their own the day those modules ship real content, with no redesign needed.
+**8 real levels across the 3 live modules today.** Every progression-badge count below is built off real `Level`/`Module` rows, not hardcoded lists — so Preparatory and Bridge badges appear on their own the day those modules ship real content, with no redesign needed. Preparatory will have 4 levels; Bridge will have 1 level, once built.
 
-**Critical structural fact, confirmed by Shailesh: Bridge is not a 5th sequential step — it's an alternate entry point.** There are two mutually exclusive student journeys, never both for the same student:
-- **Path 1 (Foundational):** YLM → Preparatory → Intermediate → Master
-- **Path 2 (Direct-Entry):** Bridge → Intermediate → Master
+**Critical structural fact, corrected by Shailesh: there are three mutually exclusive student journeys, not two — a student takes exactly one, never a combination:**
 
-A student takes exactly one path. Bridge exists specifically for students who skip YLM/Preparatory entirely. This means no student's "complete every module" ever literally means all 5 — it means "every module on the path they actually took." This directly shapes how the capstone badges below are defined (Section 1c/1d, revised).
+- **Path 1 (YLM entry):** YLM (all levels) → Preparatory starting at **Level 2** (Level 1 is structurally skipped — YLM already covers that ground) → remaining Preparatory levels → Intermediate → Master.
+- **Path 2 (Preparatory direct-entry):** Preparatory starting at Level 1, all 4 levels → Intermediate → Master.
+- **Path 3 (Bridge entry):** Bridge (single level) → Intermediate → Master.
+
+This means no student's "complete every module" ever literally means all 5, and — the sharper point — "complete Preparatory" doesn't mean the same set of levels for every student: a Path 1 student who never touched Preparatory Level 1 has still completed Preparatory, because Level 1 was never applicable to their journey, not because they're missing progress. A completion check that requires Level 1 for everyone would make Preparatory permanently unearnable for every YLM-path student. This directly shapes how the level/module/capstone badges below are defined (Section 1b/1c/1d, revised) — path determination must come from real enrollment/assignment history, never inferred from which levels a student happens to have attempted.
 
 ## Part 1 — The expanded badge catalog
 
@@ -81,17 +83,21 @@ Applied to all 8 real levels:
 
 One 3-tier badge per module (built for every module as it ships, including Preparatory/Bridge once they exist):
 
-- **[Module] Bronze Graduate** — clear every Level Mastery "Cleared" badge in that module.
-- **[Module] Silver Graduate** — clear every Level Mastery "Mastered" badge in that module.
-- **[Module] Gold Graduate** — clear every Level Mastery "Perfected" badge in that module.
+- **[Module] Bronze Graduate** — clear every *applicable* Level Mastery "Cleared" badge in that module for the student's own path.
+- **[Module] Silver Graduate** — clear every *applicable* Level Mastery "Mastered" badge in that module for the student's own path.
+- **[Module] Gold Graduate** — clear every *applicable* Level Mastery "Perfected" badge in that module for the student's own path.
 
-**Grand Master of MathPath** (single, ultimate, no tiers) is **path-aware, not a fixed module list** — since Bridge is an alternate entry point to Preparatory/YLM (never both for the same student), requiring literally all 5 modules would make this badge permanently unearnable for every student. Instead:
+"Applicable" matters specifically for Preparatory: a Path 1 (YLM-entry) student's applicable level set is Levels 2-4 only — Level 1 is structurally skipped, not required, so it's excluded from their completion check entirely rather than treated as an unearned badge. A Path 2 (Preparatory direct-entry) student's applicable set is all 4 levels, Level 1 included. Same completion bar, different applicable-level set per path — determined by real enrollment/assignment history, never by which levels a student happened to attempt.
+
+**Grand Master of MathPath** (single, ultimate, no tiers) is **path-aware, not a fixed module list** — since Bridge and Preparatory-direct-entry are alternate entry points to the YLM route (never combined for the same student), requiring literally all 5 modules would make this badge permanently unearnable for every student. Instead, per the 3 real paths:
 
 - IM and MM always count (every path converges through both).
-- YLM + Preparatory count only for a student who was actually routed through them; Bridge counts only for a student routed through it instead — determined by which of those modules the student has real enrollment/assignment history in, not inferred from attempts alone.
-- **Grand Master of MathPath = hold Gold Graduate in every module on the student's own actual path.** A YLM-path student never needs Bridge; a Bridge-path student never needs YLM/Preparatory. Same real bar for everyone, scoped to the path they were actually on.
+- **Path 1 (YLM entry):** YLM Gold Graduate + Preparatory Gold Graduate (Levels 2-4 only, per the applicable-set rule above) + IM + MM.
+- **Path 2 (Preparatory direct-entry):** Preparatory Gold Graduate (all 4 levels) + IM + MM. YLM never required.
+- **Path 3 (Bridge entry):** Bridge Gold Graduate + IM + MM. YLM and Preparatory never required.
+- **Grand Master of MathPath = hold Gold Graduate in every module applicable to the student's own actual path.** Same real bar for everyone, scoped to the path they were actually on — determined by enrollment history, not inferred from attempts.
 
-**Total Module Completion (against today's 3 live modules): (3 x 3 tiers) + 1 = 10 badges** — grows by 3 more per module (plus the existing Grand Master logic auto-extending) once Preparatory/Bridge ship.
+**Total Module Completion (against today's 3 live modules): (3 x 3 tiers) + 1 = 10 badges** — grows by 3 more per module (plus the existing Grand Master logic auto-extending across all 3 paths) once Preparatory/Bridge ship.
 
 ### 1d. Cross-module meta badges (Axis B, new) — also path-aware
 
@@ -103,7 +109,7 @@ One 3-tier badge per module (built for every module as it ships, including Prepa
 | Full Spectrum | Unlock at least one badge from every skill family (Axis A) — unaffected by path, since skill badges aren't module-scoped |
 | MathPath Legend | Unlock every badge available on the student's own path — the true 100%-completion capstone, same path-aware logic as Grand Master |
 
-**Total meta: 5 badges.** Same path-scoping rule applies throughout: "every module" always means "every module on this student's real path," never a hardcoded list.
+**Total meta: 5 badges.** Same path-scoping rule applies throughout: "every module" always means "every module applicable to whichever of the 3 real paths this student is actually on," never a hardcoded list.
 
 ### 1e. Grand total
 
