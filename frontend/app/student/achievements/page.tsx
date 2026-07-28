@@ -356,27 +356,50 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
            </>
         )}
 
-        {/* The Badge Graphic (Clipped Polygon + Drop Shadow) */}
-        <motion.div 
-          className={`relative flex items-center justify-center mb-5 transition-all duration-300 ${shape.w} ${shape.h} z-20`} 
-          style={{ 
-            filter: isUnlocked ? `drop-shadow(0 0 25px ${config.bloomColor}) drop-shadow(0 15px 15px rgba(0,0,0,0.5))` : 'none',
+        {/* The Badge Graphic (Clipped Polygon + Drop Shadow)
+            2026-07-28 clarity fix: the glow filter used to sit on THIS
+            wrapper, which meant it applied to the flattened composite of
+            the background shape AND the icon together. At the ~32px size
+            this renders at (vs. 120px in the unlock cutscene, where the
+            same style of glow reads fine), a 25px blur radius is close to
+            the icon's own size -- it didn't blur the icon's pixels, but the
+            glow's halo and offset shadow sat close enough behind/around the
+            thin icon linework that it read as "hazy" rather than "glowing",
+            on every single unlocked badge across every tier. Fix: the glow
+            now lives only on the background-shape div below (so it follows
+            the badge's clean polygon silhouette, isolated from the icon's
+            own rendering layer), tuned down to a size that suits a small
+            card instead of a cinematic reveal. The icon itself no longer
+            gets any filter at all -- rarity/tier is already communicated by
+            color, shape, and this glow; the icon linework stays exactly as
+            crisp unlocked as it is locked. */}
+        <motion.div
+          className={`relative flex items-center justify-center mb-5 transition-all duration-300 ${shape.w} ${shape.h} z-20`}
+          style={{
             x: isUnlocked ? px : 0,
             y: isUnlocked ? py : 0,
             z: isUnlocked ? 40 : 0
           }}
         >
-          {/* Clipped Background Geometry */}
-          <div 
-            className={`absolute inset-0 transition-all duration-500 ${!isUnlocked ? 'bg-slate-200 dark:bg-slate-800 shadow-[inset_0_4px_4px_rgba(0,0,0,0.1)]' : 'shadow-[inset_0_8px_16px_rgba(255,255,255,0.4)]'}`} 
-            style={{ clipPath: shape.clipPath, ...(isUnlocked ? { background: config.customBg } : {}) }} 
+          {/* Clipped Background Geometry -- glow lives here now, isolated
+              from the icon (see note above). */}
+          <div
+            className={`absolute inset-0 transition-all duration-500 ${!isUnlocked ? 'bg-slate-200 dark:bg-slate-800 shadow-[inset_0_4px_4px_rgba(0,0,0,0.1)]' : 'shadow-[inset_0_8px_16px_rgba(255,255,255,0.4)]'}`}
+            style={{
+              clipPath: shape.clipPath,
+              ...(isUnlocked ? { background: config.customBg } : {}),
+              filter: isUnlocked ? `drop-shadow(0 0 8px ${config.bloomColor}) drop-shadow(0 6px 8px rgba(0,0,0,0.35))` : 'none',
+            }}
           />
 
-          {/* Icon with Chromatic Aberration/Glitch */}
-          <Icon size={32} className={`relative z-10 ${!isUnlocked ? 'text-slate-400 dark:text-slate-600' : ''} transition-all duration-300`} style={{ 
+          {/* Icon -- always rendered crystal-clear, locked or unlocked. No
+              blur, no chromatic-aberration/glitch filter at this size: that
+              stylistic RGB-split effect (still used in the big cutscene
+              reveal, where it reads as an intentional flourish on a much
+              larger icon) just looked like ghosting/blur on a 32px glyph. */}
+          <Icon size={32} className={`relative z-10 ${!isUnlocked ? 'text-slate-400 dark:text-slate-600' : ''} transition-all duration-300`} style={{
             transform: isUnlocked ? 'scale(1.15) rotate(12deg)' : 'scale(1) rotate(0deg)',
             color: isUnlocked ? config.iconColorHex : undefined,
-            filter: isUnlocked && config.glitch ? 'drop-shadow(-3px 0px 0px rgba(255,0,0,0.8)) drop-shadow(3px 0px 0px rgba(0,255,255,0.8))' : 'none'
           }} />
         </motion.div>
         
