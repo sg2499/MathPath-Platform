@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": "./tsconfig.scoped.tmp.tsbuildinfo",
+    "noEmit": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "global.d.ts",
+    "lib/gamification/badgeGlyphs.tsx",
+    "lib/gamification/badgeVisuals.ts",
+    "components/gamification/BadgeInspectionModal.tsx"
+  ]
+}
