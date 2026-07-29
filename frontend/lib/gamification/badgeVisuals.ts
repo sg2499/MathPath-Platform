@@ -10,6 +10,7 @@ import {
   mockExamBatch1Glyphs,
   mockExamBatch2Glyphs,
   mythicPhase1Glyphs,
+  phase2Glyphs,
 } from "./badgeGlyphs";
 
 // Map our backend icon names to badge glyph components.
@@ -84,6 +85,21 @@ export const BadgeIconMap: Record<string, any> = {
   // (The 10th MYTHIC family, Perfectionist, already resolves through
   // `referenceBatchGlyphs`' PerfectionistGemMythic and is untouched here.)
   ...mythicPhase1Glyphs,
+
+  // --- Phase 2: five new families (2026-07-28) ---------------------------
+  // 20 brand-new iconName strings, seeded by the backend with the 20 new
+  // AchievementBadge rows for Marathoner, Iron Wall, The Veteran, Last-Minute
+  // Hero and Section Specialist -- same additive contract as
+  // `referenceBatchGlyphs` and `mythicPhase1Glyphs`. Each key is owned by
+  // exactly one row (checked against the seed list in
+  // backend/app/services/achievements.py), so this spread cannot change the
+  // appearance of any of the original 30 badges or of any phase-1 MYTHIC:
+  //   MarathonTrail/Surge/Horizon/Eternal            -> marathoner
+  //   IronWallBrick/Bastion/Rampart/Citadel          -> iron_wall
+  //   VeteranChevron/Medallion/Standard/Legacy       -> veteran
+  //   LastMinuteSpark/Flash/Blaze/Eclipse            -> last_minute_hero
+  //   SectionSpecialistNode/Grid/Matrix/Nexus        -> section_specialist
+  ...phase2Glyphs,
 };
 
 // ===========================================================================
@@ -540,6 +556,248 @@ export const badgeColorConfig: Record<string, any> = {
   // comeback_kid_LEGENDARY 16.3, its own SUPER periwinkle 16.3 and
   // perfectionist_MYTHIC's pearl 16.4. INK GLYPH, relative luminance 0.689.
   "polymath_MYTHIC": { customBg: "linear-gradient(125deg, #ded3f8 0%, #f6e2ff 24%, #ffffff 42%, #9d5cc8 72%, #4b1f6b 100%)", customShadow: "0 10px 40px -3px rgba(222, 211, 248, 0.6)", customBorder: "4px solid rgba(75, 31, 107, 0.85)", iconColorHex: "#2b1240", bloomColor: "rgba(246, 226, 255, 0.95)", glitch: true, burst: ["#ded3f8", "#9d5cc8", "#f6e2ff", "#ffffff"] },
+
+  // ===================================================================
+  // PHASE 2 -- FIVE NEW FAMILIES, FOUR TIERS EACH (2026-07-28)
+  // -------------------------------------------------------------------
+  // Marathoner, Iron Wall, The Veteran, Last-Minute Hero and Section
+  // Specialist. Every entry above is a FIXED INPUT and none is re-graded --
+  // no existing badge's code, tier, colour or glyph is touched by this pass.
+  //
+  // HOW THESE 20 COLOURS WERE CHOSEN, and the arithmetic first.
+  // The gate is now 62 colours. A FREE farthest-point CIEDE2000 search -- 20
+  // points placed anywhere in sRGB with the existing 42 held fixed and no
+  // thematic constraint at all -- maximises the smallest new distance at
+  // dE00 13.50 (greedy over a 23k-point grid restricted to CIELAB L* 22..97,
+  // i.e. excluding the near-blacks and near-whites that cannot light a 3D
+  // scene). This palette lands at 13.46: 99.7% of the unconstrained ceiling,
+  // while ALSO keeping every badge inside a hue window its theme survives.
+  // Batch 1's "every gated pair >= 18" has been arithmetically unreachable
+  // since phase 1 measured its own ceiling at 16.06 for nine colours; at 62
+  // colours it is not close. The WARN band is therefore populated on purpose,
+  // documented per entry, and the property that actually holds is the one that
+  // means "these cannot be confused": every gated pair clears FAIL (dE00 >= 12,
+  // and no pair is simultaneously HSL-triple-near and < 18).
+  //
+  // The method: seed from the holes the free search actually found, assign each
+  // hole to the badge whose theme could justify it, then re-optimise by
+  // coordinate ascent inside a per-badge thematic box. Two family themes moved
+  // as a direct result of the measurement rather than of taste, exactly as
+  // batch 2's champagne/platinum and three-cold-colours findings did:
+  //
+  //   * LAST-MINUTE HERO IS NOT FOUR HOT COLOURS. Only two genuinely hot holes
+  //     were left in the whole catalogue -- after signal red, vermillion,
+  //     incandescent rose, orange, ember rust, phoenix ember, plasma rose,
+  //     singularity rose, dawn peach, citron, gold, genesis solar, bronze and
+  //     tan, the warm band is full. So the family runs struck amber ->
+  //     flashbulb lime -> scorched gold -> eclipse plum: a DEADLINE arc (the
+  //     spark, the blown-out flash, fire seen through smoke, and finally the
+  //     dark of the deadline itself) instead of a heat ramp. The brief's own
+  //     MYTHIC direction -- an eclipse, dark-before-light -- is what made that
+  //     arc available, and it is still the exact opposite temperature from
+  //     Early Bird, which was the actual requirement.
+  //   * IRON WALL IS THREE NEUTRALS PLUS ONE. Brick, quarry stone and pale
+  //     limestone are the masonry; the near-neutral band cannot hold a fourth
+  //     entry alongside competitor_BASE's pewter, sharpshooter_BASE's gunmetal
+  //     and underdog_BASE's basalt, so MYTHIC leaves it for verdigris -- the
+  //     citadel's aged bronze rather than its stone.
+  //
+  // MYTHIC's shared language is unchanged from phase 1: all four new MYTHIC
+  // entries are MULTI-STOP gradients passing through a white or near-white
+  // blowout at the centre, which is what makes a MYTHIC card read as above its
+  // own LEGENDARY without needing a hue nobody else has.
+  //
+  // burst[0] is the graded primary in every case (BadgeInspectionModal feeds it
+  // to the scene lights and ambient particles), and iconColorHex is set by WCAG
+  // relative luminance against that primary, not by eye. The SIX ink marks
+  // below are the six cards over 0.45.
+  // ===================================================================
+
+  // --- Marathoner ------------------------------------------------------
+  // Cumulative time on task, lifetime. A journey read as four separate lights:
+  // the road surface, the heat of the effort, the distance, and the light at
+  // the end of it.
+  //
+  // BASE -- TRAIL GREY. Chroma 2.1: the LOWEST-CHROMA COLOUR IN THE ENTIRE
+  // CATALOGUE, below competitor_BASE's pewter (9.2) and underdog_BASE's basalt
+  // (9.7). That is the point -- three hours is the entry rung and this is
+  // packed gravel, not a jewel. Nearest neighbours are underdog_BASE at dE00
+  // 16.1 and last_minute_hero_MYTHIC at 17.0, both held on lightness (L* 44.9
+  // vs 28.5 / 34.1) since none of the three has enough chroma to separate on.
+  "marathoner_BASE": { customBg: "linear-gradient(135deg, #6e6969 0%, #3f3c3c 100%)", customShadow: "0 10px 15px -3px rgba(110, 105, 105, 0.2)", customBorder: "none", iconColorHex: "#f7f5f5", bloomColor: "rgba(110, 105, 105, 0.6)", glitch: false, burst: ["#6e6969", "#3f3c3c", "#211f1f"] },
+  // SUPER -- SUN-BAKED OCHRE. The road at the hottest part of the run. This is
+  // the colour that LOST the amber to last_minute_hero_BASE: only two hot holes
+  // remained and the heat family had first claim, so Marathoner took the softer
+  // high-key one above it (L* 71.3 vs 53.5). Nearest are competitor_LEGENDARY's
+  // imperial gold at dE00 13.5 and the demo chain badge's orange at 13.8 (WARN,
+  // accepted) -- cleared on lightness against the gold (71.3 vs 65.1) and on
+  // chroma against the orange (52.2 vs 87.0).
+  "marathoner_SUPER": { customBg: "linear-gradient(135deg, #e6a055 0%, #7a4c14 100%)", customShadow: "0 10px 15px -3px rgba(230, 160, 85, 0.35)", customBorder: "2px solid rgba(255,255,255,0.72)", iconColorHex: "#fff8ef", bloomColor: "rgba(230, 160, 85, 0.8)", glitch: true, burst: ["#e6a055", "#7a4c14", "#ffe0bd"] },
+  // LEGENDARY -- HORIZON BLUE. Atmospheric perspective: at twenty-five hours
+  // the badge stops being about the road and starts being about how far you can
+  // see down it. INK GLYPH (relative luminance 0.557) and a DARK border, same
+  // reason sharpshooter_LEGENDARY has one -- nothing pale reads on this card.
+  // Nearest is perfectionist_LEGENDARY's azure scan-beam at 15.8 (WARN), which
+  // it clears on chroma and lightness together (28.9 vs 58.6, L* 79.4 vs 58.7):
+  // haze versus instrument beam.
+  "marathoner_LEGENDARY": { customBg: "linear-gradient(135deg, #a0c8fa 0%, #234066 100%)", customShadow: "0 10px 15px -3px rgba(160, 200, 250, 0.45)", customBorder: "4px solid #14273f", iconColorHex: "#0d2038", bloomColor: "rgba(160, 200, 250, 0.9)", glitch: true, burst: ["#a0c8fa", "#5b86c4", "#dbe9ff", "#ffffff"] },
+  // MYTHIC -- ENDLESS DAWN. Sixty hours; the family's last tier is the only one
+  // allowed to be pure light, because it is the only one where the trail has
+  // closed into a loop and there is no end of the road left to reach. L* 96.8.
+  // INK GLYPH (relative luminance 0.920) + dark border. Nearest are
+  // perfectionist_MYTHIC's opal pearl at 14.4 and early_bird_SUPER's dawn peach
+  // at 14.5 (WARN): the pearl is COOL near-white (b* +1.3) and this is WARM
+  // (b* +10.8), and the peach is 15 L* darker.
+  "marathoner_MYTHIC": { customBg: "linear-gradient(125deg, #fff5e1 0%, #ffe9c2 22%, #ffffff 40%, #b98d3e 72%, #5c3f12 100%)", customShadow: "0 10px 40px -3px rgba(255, 245, 225, 0.6)", customBorder: "4px solid rgba(92, 63, 18, 0.85)", iconColorHex: "#3a2810", bloomColor: "rgba(255, 245, 225, 0.95)", glitch: true, burst: ["#fff5e1", "#b98d3e", "#ffe9c2", "#ffffff"] },
+
+  // --- Iron Wall -------------------------------------------------------
+  // Never drops below an escalating floor. Masonry, and deliberately NOT a
+  // light source: this family is the only one in the catalogue whose whole
+  // identity is that it does not move. Distinct from Unstoppable Streak by
+  // construction -- that family is offence (cobalt cold-flame, vital green,
+  // orchid, turquoise) and reads as forward motion; this one is defence.
+  //
+  // BASE -- FIRED BRICK. Deep russet clay, L* 21.6. Nearest are
+  // early_bird_BASE's antique bronze at 15.5 and underdog_BASE's basalt at 15.7
+  // (WARN): the bronze is 15 L* brighter and a lit metal, the basalt is nearly
+  // achromatic (chroma 9.7 vs 28.6). Unlit fired clay is not either of them.
+  "iron_wall_BASE": { customBg: "linear-gradient(135deg, #4b2d0a 0%, #1d1103 100%)", customShadow: "0 10px 15px -3px rgba(75, 45, 10, 0.2)", customBorder: "none", iconColorHex: "#faf3ea", bloomColor: "rgba(75, 45, 10, 0.6)", glitch: false, burst: ["#4b2d0a", "#1d1103", "#0d0801"] },
+  // SUPER -- QUARRY STONE. Chroma 5.0, the second-lowest in the catalogue after
+  // this phase's own trail grey. Nearest is competitor_BASE's pewter at dE00
+  // 14.3 (WARN) and it is the tight pair worth naming: both are near-neutrals,
+  // and they are held apart almost entirely on lightness (L* 63.0 vs 61.0 is
+  // NOT the axis -- the separation is hue and chroma, pewter being a cool
+  // violet-grey at a* +2.9 / b* -6.1 against this warm stone at a* -1.7 /
+  // b* +4.7, an 11-unit b* swing). Struck trophy metal versus cut rock.
+  "iron_wall_SUPER": { customBg: "linear-gradient(135deg, #999990 0%, #4c4c46 100%)", customShadow: "0 10px 15px -3px rgba(153, 153, 144, 0.35)", customBorder: "2px solid rgba(255,255,255,0.72)", iconColorHex: "#f9f9f6", bloomColor: "rgba(153, 153, 144, 0.8)", glitch: true, burst: ["#999990", "#4c4c46", "#d8d8d1"] },
+  // LEGENDARY -- PALE LIMESTONE. Sun-bleached ashlar, chroma 3.7. The family's
+  // in-family SUPER->LEGENDARY step (dE00 15.0) is the tightest in this phase
+  // and is carried on lightness alone (63.0 -> 79.6), which is a deliberate
+  // consequence of both tiers being near-neutral; the wall gets paler as it
+  // gets bigger, which is what stone does. INK GLYPH (relative luminance 0.559)
+  // + dark border. Nearest outside the family is early_bird_SUPER's dawn peach
+  // at 14.4, cleared on chroma (3.7 vs 30.2).
+  "iron_wall_LEGENDARY": { customBg: "linear-gradient(135deg, #cdc3c3 0%, #5c5252 100%)", customShadow: "0 10px 15px -3px rgba(205, 195, 195, 0.45)", customBorder: "4px solid #2b2323", iconColorHex: "#241d1d", bloomColor: "rgba(205, 195, 195, 0.9)", glitch: true, burst: ["#cdc3c3", "#8d8080", "#eee8e8", "#ffffff"] },
+  // MYTHIC -- VERDIGRIS. The family's only non-masonry tier, and the reason is
+  // measured rather than aesthetic: the near-neutral band is full at three
+  // (pewter, gunmetal, basalt, plus this family's own stone and limestone) and
+  // a fourth grey would have measured inside the FAIL line. So the ceiling tier
+  // takes the citadel's aged bronze -- gates and roof, not walls. Nearest are
+  // underdog_LEGENDARY's granite moss and veteran_LEGENDARY's regimental
+  // bottle green, both at dE00 15.2 (WARN). The moss is warm-shifted (b* +17.3
+  // vs +8.3) and the bottle green is 18 L* darker.
+  "iron_wall_MYTHIC": { customBg: "linear-gradient(125deg, #3c735a 0%, #7fd0a8 26%, #eafff5 46%, #1c4535 74%, #08201a 100%)", customShadow: "0 10px 40px -3px rgba(60, 115, 90, 0.6)", customBorder: "4px solid rgba(234, 255, 245, 0.9)", iconColorHex: "#eefff8", bloomColor: "rgba(127, 208, 168, 0.95)", glitch: true, burst: ["#3c735a", "#7fd0a8", "#eafff5", "#ffffff"] },
+
+  // --- The Veteran -----------------------------------------------------
+  // Lifetime question volume. Service colours, in the literal military sense:
+  // the drab you are issued, the ribbon a medal hangs from, the standard a
+  // regiment is granted, and what is left when the person has gone. Every
+  // metal this family would naturally want (pewter, gold, bronze, steel,
+  // gunmetal) is already spoken for, so the family is built on CLOTH instead --
+  // which is also the more honest read for a badge about time served.
+  //
+  // BASE -- OLIVE DRAB. L* 20.4, the darkest card in this phase. Nearest is
+  // podium_finisher_LEGENDARY's imperial laurel at dE00 14.7 (WARN): both are
+  // dark greens, and they are held apart on hue (b* +28.2 versus +23.7 at very
+  // different a*, -17.5 versus -37.5) -- a yellow-shifted khaki against a true
+  // bottle green. The laurel is a wreath; this is a uniform.
+  "veteran_BASE": { customBg: "linear-gradient(135deg, #233700 0%, #0d1500 100%)", customShadow: "0 10px 15px -3px rgba(35, 55, 0, 0.2)", customBorder: "none", iconColorHex: "#f6faea", bloomColor: "rgba(35, 55, 0, 0.6)", glitch: false, burst: ["#233700", "#0d1500", "#060a00"] },
+  // SUPER -- CAMPAIGN CRIMSON. The medal's suspension ribbon, not the medal.
+  // Comfortably the most-separated colour in this phase: nearest neighbours are
+  // speed_demon_LEGENDARY's plasma rose and competitor_SUPER's signal red, both
+  // at dE00 16.6, and it clears each of them by more than 50 units of chroma
+  // (31.8 versus 66.5 and 86.6). A washed ribbon and a signal light are never
+  // the same object.
+  "veteran_SUPER": { customBg: "linear-gradient(135deg, #a55f5a 0%, #4a2320 100%)", customShadow: "0 10px 15px -3px rgba(165, 95, 90, 0.35)", customBorder: "2px solid rgba(255,255,255,0.72)", iconColorHex: "#fdf2f1", bloomColor: "rgba(165, 95, 90, 0.8)", glitch: true, burst: ["#a55f5a", "#4a2320", "#e8bfbb"] },
+  // LEGENDARY -- REGIMENTAL BOTTLE GREEN. The colours, in the heraldic sense.
+  // L* 26.0. Nearest are early_bird_LEGENDARY's blue-hour petrol and this
+  // phase's own iron_wall_MYTHIC verdigris, both at 15.2 (WARN): the petrol is
+  // 12 L* brighter and blue-shifted (b* -6.4 against +4.0), the verdigris is 18
+  // L* brighter. Its own BASE olive drab is 15.3 away, held on hue -- a* -21.8
+  // here against -17.5 with a 24-unit b* swing, i.e. green against khaki.
+  "veteran_LEGENDARY": { customBg: "linear-gradient(135deg, #0f4637 0%, #041c15 100%)", customShadow: "0 10px 15px -3px rgba(15, 70, 55, 0.45)", customBorder: "4px solid #8fd9be", iconColorHex: "#eefaf5", bloomColor: "rgba(15, 70, 55, 0.9)", glitch: true, burst: ["#0f4637", "#072a20", "#8fd9be", "#ffffff"] },
+  // MYTHIC -- HONOUR MAUVE. 7,500 questions. The ribbon, raised off the object
+  // and into the light: the honour rather than the medal. This is the family's
+  // widest in-family step (BASE->MYTHIC dE00 56.6, the widest anywhere in this
+  // phase), which is the point of a ceiling tier. Nearest are
+  // sharpshooter_MYTHIC's singularity rose at 16.2 and polymath_BASE's lapis
+  // ink at 16.3 -- cleared on chroma against the rose (28.5 vs 80.6) and on
+  // hue against the lapis (a* +27.8 vs +18.0 at b* -6.6 vs -18.9).
+  "veteran_MYTHIC": { customBg: "linear-gradient(125deg, #b97d9b 0%, #eabfd6 24%, #ffffff 42%, #6d3a55 72%, #2e1424 100%)", customShadow: "0 10px 40px -3px rgba(185, 125, 155, 0.6)", customBorder: "4px solid rgba(234, 191, 214, 0.9)", iconColorHex: "#fdf1f7", bloomColor: "rgba(234, 191, 214, 0.95)", glitch: true, burst: ["#b97d9b", "#eabfd6", "#6d3a55", "#ffffff"] },
+
+  // --- Last-Minute Hero ------------------------------------------------
+  // Submits in the final 10% of the window and still scores 80%+. The mirror
+  // image of Early Bird, which is calm, warm and dawn-lit. See the block note
+  // above for why this is a DEADLINE arc rather than the heat ramp the brief's
+  // first sketch asked for: the hot band of sRGB is full, and no arrangement of
+  // four hot colours exists that clears the FAIL line at 62 gated colours.
+  //
+  // BASE -- STRUCK AMBER. Chroma 62.5. This badge got the last real warm hole
+  // in the catalogue ahead of marathoner_SUPER, because a family about heat
+  // needs one more than a family about distance does. Nearest are
+  // competitor_LEGENDARY's imperial gold at dE00 13.6 and comeback_kid_MYTHIC's
+  // phoenix ember at 13.8 (WARN): the gold is 12 L* brighter at lower chroma,
+  // the ember is far redder (a* +37.7 against +16.7).
+  "last_minute_hero_BASE": { customBg: "linear-gradient(135deg, #b07300 0%, #4a3000 100%)", customShadow: "0 10px 15px -3px rgba(176, 115, 0, 0.2)", customBorder: "none", iconColorHex: "#fff8e8", bloomColor: "rgba(176, 115, 0, 0.6)", glitch: false, burst: ["#b07300", "#4a3000", "#221600"] },
+  // SUPER -- FLASHBULB LIME. The overexposed instant, not a colour anyone
+  // chooses to look at -- which is exactly right for the badge. Chroma 84.2,
+  // second only to speed_demon_MYTHIC's tachyon violet among this phase's
+  // neighbours. INK GLYPH (relative luminance 0.569) and a dark border.
+  // Nearest are podium_finisher_SUPER's gilt laurel at dE00 13.5 and
+  // speed_demon_SUPER's electric citron at 13.6 (WARN): the gilt laurel is 25
+  // L* darker, and the citron -- the one genuinely close call -- is 15 L*
+  // brighter and 20 hue-degrees yellower (a* -40.4 here against -21.6).
+  "last_minute_hero_SUPER": { customBg: "linear-gradient(135deg, #a2d824 0%, #4e6a0c 100%)", customShadow: "0 10px 15px -3px rgba(162, 216, 36, 0.35)", customBorder: "2px solid #3f5309", iconColorHex: "#2b3a05", bloomColor: "rgba(162, 216, 36, 0.8)", glitch: true, burst: ["#a2d824", "#6b8f14", "#3f5309"] },
+  // LEGENDARY -- SCORCHED GOLD. Fire seen through its own smoke: the hue of a
+  // blaze with the lightness taken out of it. L* 40.9 against SUPER's 80.1,
+  // which is what makes "the flash" and "the fire" different events rather than
+  // two brightnesses of one. Nearest are early_bird_BASE's antique bronze and
+  // underdog_LEGENDARY's granite moss, both at 16.2 -- the bronze is far redder
+  // (a* +12.4 against -10.8), the moss is a third the chroma.
+  "last_minute_hero_LEGENDARY": { customBg: "linear-gradient(135deg, #646400 0%, #2b2b00 100%)", customShadow: "0 10px 15px -3px rgba(100, 100, 0, 0.45)", customBorder: "4px solid #dcd857", iconColorHex: "#fbfbe4", bloomColor: "rgba(100, 100, 0, 0.9)", glitch: true, burst: ["#646400", "#3a3a00", "#dcd857", "#ffffff"] },
+  // MYTHIC -- ECLIPSE PLUM. The deadline itself: dark before light. Chroma 17.7
+  // makes this the quietest card in the phase, and that is deliberate -- an
+  // eclipse is defined by what it takes AWAY, and the multi-stop gradient's
+  // white blowout is the corona. Nearest are comeback_kid_BASE's ember rust at
+  // dE00 14.1 and polymath_BASE's lapis ink at 14.4 (WARN): the rust is warm
+  // (b* +12.2 against -2.8) and the lapis is 12 L* brighter and violet-shifted.
+  "last_minute_hero_MYTHIC": { customBg: "linear-gradient(125deg, #694655 0%, #b98aa0 24%, #f6e6ee 42%, #331d28 74%, #120810 100%)", customShadow: "0 10px 40px -3px rgba(105, 70, 85, 0.6)", customBorder: "4px solid rgba(246, 230, 238, 0.9)", iconColorHex: "#fbf0f5", bloomColor: "rgba(185, 138, 160, 0.95)", glitch: true, burst: ["#694655", "#b98aa0", "#f6e6ee", "#ffffff"] },
+
+  // --- Section Specialist ----------------------------------------------
+  // 100% on every question of one concept, N times over. Precision mastery of a
+  // single domain, read as a data structure lighting up: a dim terminal, a
+  // grid, a matrix, a nexus. The family is green-cyan on purpose -- phosphor,
+  // not foliage -- and it is the last family in the catalogue that could still
+  // fit there, which is why podium_finisher (laurel, the other green family) is
+  // its nearest neighbour three separate times below.
+  //
+  // BASE -- DIM PHOSPHOR. One node, barely lit. Nearest are
+  // perfectionist_BASE's jade at dE00 13.9 and podium_finisher_BASE's pale
+  // laurel at 14.1 (WARN): the jade is far more saturated and blue-shifted
+  // (b* +11.8 against +23.6), the pale laurel is 13 L* brighter at half the
+  // chroma. A lit cell, an unlit stone, and a leaf.
+  "section_specialist_BASE": { customBg: "linear-gradient(135deg, #7daa73 0%, #3b5535 100%)", customShadow: "0 10px 15px -3px rgba(125, 170, 115, 0.2)", customBorder: "none", iconColorHex: "#f4faf2", bloomColor: "rgba(125, 170, 115, 0.6)", glitch: false, burst: ["#7daa73", "#3b5535", "#1e2c1a"] },
+  // SUPER -- GRID CYAN-GREEN. The lattice comes up. The family's in-family
+  // BASE->SUPER step is 15.8 dE00 -- the second-tightest in this phase -- and
+  // is carried by hue plus lightness together: b* +23.6 (a warm green) against
+  // -0.7 (a true blue-green), across 8 L*. INK GLYPH: relative luminance 0.453,
+  // just over the line, exactly like unstoppable_streak_MYTHIC's 0.470.
+  "section_specialist_SUPER": { customBg: "linear-gradient(135deg, #87beb4 0%, #2f504a 100%)", customShadow: "0 10px 15px -3px rgba(135, 190, 180, 0.35)", customBorder: "2px solid #163832", iconColorHex: "#0f2b26", bloomColor: "rgba(135, 190, 180, 0.8)", glitch: true, burst: ["#87beb4", "#3f6660", "#12332d"] },
+  // LEGENDARY -- MATRIX GREEN. Chroma 69.5, the family's saturation ceiling and
+  // the tier where the structure stops having holes in it. Nearest is its own
+  // BASE at 15.4 (a 34-unit chroma step) and podium_finisher_SUPER's gilt
+  // laurel at 15.6, cleared on hue -- a* -53.4 here against -25.4, i.e. a true
+  // green against a chartreuse.
+  "section_specialist_LEGENDARY": { customBg: "linear-gradient(135deg, #0f9128 0%, #054a13 100%)", customShadow: "0 10px 15px -3px rgba(15, 145, 40, 0.45)", customBorder: "4px solid #a8f3b8", iconColorHex: "#eefdf1", bloomColor: "rgba(15, 145, 40, 0.9)", glitch: true, burst: ["#0f9128", "#075c19", "#a8f3b8", "#ffffff"] },
+  // MYTHIC -- NEXUS WHITE. L* 97.4, the brightest card in the entire catalogue,
+  // ahead of podium_finisher_MYTHIC's immortal laurel (95.2) and
+  // perfectionist_MYTHIC's opal pearl (96.7). Fifty sections is a network that
+  // has stopped being a diagram and become a light source. INK GLYPH (relative
+  // luminance 0.935) + dark border -- nothing pale survives here. Nearest are
+  // sharpshooter_LEGENDARY's ice at 14.2 and podium_finisher_BASE's pale laurel
+  // at 14.5 (WARN): the ice is 5 L* darker at three times the chroma (44.7 vs
+  // 14.8), the laurel 19 L* darker.
+  "section_specialist_MYTHIC": { customBg: "linear-gradient(125deg, #e1ffeb 0%, #f2fff7 22%, #ffffff 40%, #3f9a63 72%, #113322 100%)", customShadow: "0 10px 40px -3px rgba(225, 255, 235, 0.6)", customBorder: "4px solid rgba(17, 51, 34, 0.85)", iconColorHex: "#0d2a1c", bloomColor: "rgba(225, 255, 235, 0.95)", glitch: true, burst: ["#e1ffeb", "#3f9a63", "#f2fff7", "#ffffff"] },
 
   // ===================================================================
   // REFERENCE BATCH (2026-07-27) -- brand-new codes, purely additive.

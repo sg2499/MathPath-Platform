@@ -38,7 +38,7 @@ The existing 10 families stay as-is (Perfectionist, Speed Demon, Competitor, Uns
 
 | New family | Signal | BASE | SUPER | LEGENDARY | MYTHIC |
 |---|---|---|---|---|---|
-| **Marathoner** | Multiple mocks completed in a single calendar day | 3 mocks, 1 day | 5 such days (any time) | 15 such days | 30 such days |
+| **Marathoner** | Cumulative time spent across all mock attempts, lifetime (revised 2026-07-28: the original same-calendar-day-volume signal turned out to be unrealistic — mock assignment on this platform is fully manual/ad-hoc and bulk-to-a-level, so a student rarely if ever has 3+ mocks available to complete in one day. Time-on-task is immune to that, since it accumulates regardless of how bursty or sparse assignment is) | 3 hrs | 10 hrs | 25 hrs | 60 hrs |
 | **Iron Wall** | Never drops below a score floor across a run of mocks (consistency, distinct from the existing >90% streak badge) | 5 straight mocks ≥60% | 10 straight ≥70% | 20 straight ≥75% | 40 straight ≥80% |
 | **The Veteran** | Lifetime question volume across all mocks (rewards sheer time invested, not just accuracy) | 250 questions answered | 1,000 | 3,000 | 7,500 |
 | **Last-Minute Hero** | Submits within the final 10% of the assignment window and still scores ≥80% (mirrors Early Bird's opposite) | 1 time | 5 times | 15 times | 30 times |

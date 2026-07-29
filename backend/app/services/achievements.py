@@ -1,3 +1,4 @@
+import json
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import List, Dict, Any
@@ -173,6 +174,109 @@ class AchievementEngine:
             cls._award_badge_if_qualified(db, student_id, "polymath", "LEGENDARY", count, newly_unlocked)
             cls._award_badge_if_qualified(db, student_id, "polymath", "MYTHIC", count, newly_unlocked)
 
+        # ====================================================================
+        # PHASE 2 (2026-07-28) -- 5 brand-new skill-badge families, 4 tiers
+        # each. See docs/GAMIFICATION_BADGE_CATALOG_PROPOSAL_2026-07-25.md
+        # Section 1a for the full design rationale.
+        # ====================================================================
+
+        # 10. Marathoner -- cumulative time invested across every mock attempt,
+        # lifetime. Stat is stored in raw seconds (StudentAchievementStat.
+        # stat_value is an Integer column, and time_taken_seconds already is
+        # one, so this avoids any float-precision drift) -- required_count on
+        # the seeded badge rows is therefore also in seconds, not hours.
+        # Revised 2026-07-28 from the original "3+ mocks in one calendar day"
+        # design: mock assignment on this platform is fully manual/ad-hoc and
+        # bulk-to-a-level (see CompetitionMockAssignment / AssignCompetitionMockExams),
+        # so a student essentially never has 3+ mocks available to complete in
+        # a single day. Cumulative time-on-task is immune to that -- it
+        # accumulates regardless of how bursty or sparse assignment is.
+        if result_summary.time_taken_seconds:
+            total_seconds = cls._increment_stat(db, student_id, "marathoner_seconds", result_summary.time_taken_seconds)
+            cls._award_badge_if_qualified(db, student_id, "marathoner", "BASE", total_seconds, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "marathoner", "SUPER", total_seconds, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "marathoner", "LEGENDARY", total_seconds, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "marathoner", "MYTHIC", total_seconds, newly_unlocked)
+
+        # 11. Iron Wall -- consistency across a run of mocks, distinct from
+        # Unstoppable Streak (fixed >90% floor). Each tier has BOTH its own
+        # score floor AND its own run length (60%/70%/75%/80%,
+        # 5/10/20/40 mocks), so a single shared streak counter would be wrong
+        # -- e.g. a 12-mock run that's all >=60% but dips to 65% partway
+        # through still qualifies for BASE but must NOT silently count toward
+        # SUPER's >=70% requirement. Four fully independent streak stats,
+        # each evaluated against the same submission sequence, is the correct
+        # (and simplest) way to keep the tiers from leaking into each other.
+        _IRON_WALL_TIERS = (("BASE", 60), ("SUPER", 70), ("LEGENDARY", 75), ("MYTHIC", 80))
+        for _tier_name, _floor in _IRON_WALL_TIERS:
+            _stat_name = f"iron_wall_streak_{_tier_name.lower()}"
+            if result_summary.percentage >= _floor:
+                _streak = cls._increment_stat(db, student_id, _stat_name)
+                cls._award_badge_if_qualified(db, student_id, "iron_wall", _tier_name, _streak, newly_unlocked)
+            else:
+                cls._set_stat(db, student_id, _stat_name, 0)
+
+        # 12. The Veteran -- lifetime question volume across all mocks
+        # (rewards sheer time/effort invested, distinct from Competitor's raw
+        # mock COUNT and from Marathoner's raw TIME -- this one counts
+        # individual questions answered). mock_exam.total_questions is the
+        # exam's fixed question count, already relied on elsewhere in this
+        # same method (see the High Achiever block above).
+        if result_summary.mock_exam and result_summary.mock_exam.total_questions:
+            total_questions_lifetime = cls._increment_stat(db, student_id, "veteran_questions", result_summary.mock_exam.total_questions)
+            cls._award_badge_if_qualified(db, student_id, "veteran", "BASE", total_questions_lifetime, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "veteran", "SUPER", total_questions_lifetime, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "veteran", "LEGENDARY", total_questions_lifetime, newly_unlocked)
+            cls._award_badge_if_qualified(db, student_id, "veteran", "MYTHIC", total_questions_lifetime, newly_unlocked)
+
+        # 13. Last-Minute Hero -- submits within the final 10% of the
+        # assignment window and still scores >=80% (mirror of Early Bird).
+        # Only fires when the assignment actually has a due_at -- many
+        # assignments don't set one (nullable), in which case there is no
+        # "window" to be late/early against and this family simply never
+        # fires for that submission, same pattern Early Bird already uses for
+        # assignments with no assigned_at.
+        if (result_summary.percentage >= 80 and result_summary.mock_assignment
+                and result_summary.mock_assignment.assigned_at and result_summary.mock_assignment.due_at
+                and result_summary.completed_at):
+            _completed = _make_aware(result_summary.completed_at)
+            _assigned = _make_aware(result_summary.mock_assignment.assigned_at)
+            _due = _make_aware(result_summary.mock_assignment.due_at)
+            if _completed and _assigned and _due and _due > _assigned:
+                _window = (_due - _assigned).total_seconds()
+                _remaining = (_due - _completed).total_seconds()
+                # In the final 10% of the window, and not submitted after the
+                # deadline (remaining < 0 means late, not "last-minute").
+                if 0 <= _remaining <= _window * 0.1:
+                    count = cls._increment_stat(db, student_id, "last_minute_hero_mocks")
+                    cls._award_badge_if_qualified(db, student_id, "last_minute_hero", "BASE", count, newly_unlocked)
+                    cls._award_badge_if_qualified(db, student_id, "last_minute_hero", "SUPER", count, newly_unlocked)
+                    cls._award_badge_if_qualified(db, student_id, "last_minute_hero", "LEGENDARY", count, newly_unlocked)
+                    cls._award_badge_if_qualified(db, student_id, "last_minute_hero", "MYTHIC", count, newly_unlocked)
+
+        # 14. Section Specialist -- 100% on every question of one
+        # concept/section within a mock, at least N times across different
+        # mocks. concept_performance_json is populated at grading time (see
+        # competition_mock_attempt_service.py) as a list of
+        # {"concept", "correct", "total", "percentage"} -- a clean section
+        # clear is total > 0 and correct == total. Counts once per QUALIFYING
+        # MOCK (any one clean section is enough), not once per clean section,
+        # matching the family's "N times across different mocks" wording.
+        if result_summary.concept_performance_json:
+            try:
+                _concept_perf = json.loads(result_summary.concept_performance_json)
+            except (TypeError, ValueError):
+                _concept_perf = []
+            if isinstance(_concept_perf, list) and any(
+                isinstance(_c, dict) and _c.get("total", 0) > 0 and _c.get("correct", 0) == _c.get("total", 0)
+                for _c in _concept_perf
+            ):
+                count = cls._increment_stat(db, student_id, "section_specialist_mocks")
+                cls._award_badge_if_qualified(db, student_id, "section_specialist", "BASE", count, newly_unlocked)
+                cls._award_badge_if_qualified(db, student_id, "section_specialist", "SUPER", count, newly_unlocked)
+                cls._award_badge_if_qualified(db, student_id, "section_specialist", "LEGENDARY", count, newly_unlocked)
+                cls._award_badge_if_qualified(db, student_id, "section_specialist", "MYTHIC", count, newly_unlocked)
+
         db.commit()
 
         # Format output
@@ -262,6 +366,47 @@ class AchievementEngine:
             ("sharpshooter", "MYTHIC", "Mythic Sharpshooter", "Achieve Sharpshooter 25 times", "PrecisionCoreMythic", 25),
             ("underdog", "MYTHIC", "Mythic Underdog", "Achieve Underdog 12 times", "SummitMythic", 12),
             ("polymath", "MYTHIC", "Mythic Achiever", "Score > 80% on 75 Mock Exams", "OracleMythic", 75),
+
+            # ================================================================
+            # PHASE 2 (2026-07-28) -- 5 brand-new skill-badge families, all 4
+            # tiers each, per docs/GAMIFICATION_BADGE_CATALOG_PROPOSAL_2026-07-25.md
+            # Section 1a. icon_name strings are final bespoke marks (this
+            # project's established convention after the mock-exam elevation
+            # batches -- no badge resolves through a stock lucide icon
+            # anymore), not placeholders to be swapped later.
+            # ================================================================
+
+            # Marathoner -- cumulative time invested (seconds; see the
+            # matching comment in evaluate_mock_exam_submission for why
+            # required_count is in raw seconds rather than hours).
+            ("marathoner", "BASE", "Marathoner", "Spend 3 hours total completing Mock Exams", "MarathonTrail", 10800),
+            ("marathoner", "SUPER", "Super Marathoner", "Spend 10 hours total completing Mock Exams", "MarathonSurge", 36000),
+            ("marathoner", "LEGENDARY", "Legendary Marathoner", "Spend 25 hours total completing Mock Exams", "MarathonHorizon", 90000),
+            ("marathoner", "MYTHIC", "Mythic Marathoner", "Spend 60 hours total completing Mock Exams", "MarathonEternal", 216000),
+
+            # Iron Wall -- escalating consistency floor + run length.
+            ("iron_wall", "BASE", "Iron Wall", "Never score below 60% across 5 straight Mock Exams", "IronWallBrick", 5),
+            ("iron_wall", "SUPER", "Super Iron Wall", "Never score below 70% across 10 straight Mock Exams", "IronWallBastion", 10),
+            ("iron_wall", "LEGENDARY", "Legendary Iron Wall", "Never score below 75% across 20 straight Mock Exams", "IronWallRampart", 20),
+            ("iron_wall", "MYTHIC", "Mythic Iron Wall", "Never score below 80% across 40 straight Mock Exams", "IronWallCitadel", 40),
+
+            # The Veteran -- lifetime question volume.
+            ("veteran", "BASE", "The Veteran", "Answer 250 questions across all Mock Exams", "VeteranChevron", 250),
+            ("veteran", "SUPER", "Super Veteran", "Answer 1,000 questions across all Mock Exams", "VeteranMedallion", 1000),
+            ("veteran", "LEGENDARY", "Legendary Veteran", "Answer 3,000 questions across all Mock Exams", "VeteranStandard", 3000),
+            ("veteran", "MYTHIC", "Mythic Veteran", "Answer 7,500 questions across all Mock Exams", "VeteranLegacy", 7500),
+
+            # Last-Minute Hero -- mirror of Early Bird.
+            ("last_minute_hero", "BASE", "Last-Minute Hero", "Submit in the final 10% of the assignment window and score 80%+", "LastMinuteSpark", 1),
+            ("last_minute_hero", "SUPER", "Super Last-Minute Hero", "Achieve Last-Minute Hero 5 times", "LastMinuteFlash", 5),
+            ("last_minute_hero", "LEGENDARY", "Legendary Last-Minute Hero", "Achieve Last-Minute Hero 15 times", "LastMinuteBlaze", 15),
+            ("last_minute_hero", "MYTHIC", "Mythic Last-Minute Hero", "Achieve Last-Minute Hero 30 times", "LastMinuteEclipse", 30),
+
+            # Section Specialist -- a clean 100% section within a mock.
+            ("section_specialist", "BASE", "Section Specialist", "Score 100% on one full concept/section within a Mock Exam, 3 times", "SectionSpecialistNode", 3),
+            ("section_specialist", "SUPER", "Super Section Specialist", "Achieve Section Specialist 10 times", "SectionSpecialistGrid", 10),
+            ("section_specialist", "LEGENDARY", "Legendary Section Specialist", "Achieve Section Specialist 25 times", "SectionSpecialistMatrix", 25),
+            ("section_specialist", "MYTHIC", "Mythic Section Specialist", "Achieve Section Specialist 50 times", "SectionSpecialistNexus", 50),
         ]
 
         for code, tier, name, desc, icon, req in badges_data:
