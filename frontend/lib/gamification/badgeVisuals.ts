@@ -469,7 +469,17 @@ export const badgeColorConfig: Record<string, any> = {
   // 45.4/65.6, chroma 105.3 vs 99.4/78.6) and neither is HSL-triple-near.
   // Violet at this lightness is boxed in on all sides by those two; 12.5 is the
   // widest gap that exists between them.
-  "speed_demon_MYTHIC": { customBg: "linear-gradient(125deg, #c83efe 0%, #e79bff 24%, #ffffff 42%, #8a12d8 68%, #2a0350 100%)", customShadow: "0 10px 40px -3px rgba(200, 62, 254, 0.6)", customBorder: "4px solid rgba(240, 179, 255, 0.9)", iconColorHex: "#fdf2ff", bloomColor: "rgba(200, 62, 254, 0.95)", glitch: true, burst: ["#c83efe", "#f0b3ff", "#8a12d8", "#ffffff"] },
+  // ICON-CONTRAST FIX (2026-07-29): iconColorHex was #fdf2ff (near-white)
+  // against a background that passes through #ffffff at 42% -- a WCAG
+  // contrast of 1.01, i.e. the icon was visually invisible against its own
+  // badge, confirmed live via browser screenshot. Every other badge using
+  // this "opal, light-center" gradient shape (perfectionist_MYTHIC,
+  // unstoppable_streak_MYTHIC, etc.) correctly uses a DARK ink glyph for
+  // exactly this reason -- this one just missed it. Fixed to #2a0350, which
+  // is not an arbitrary black but the gradient's own 100% stop (deep
+  // violet), so the icon reads as "the dark end of this badge's own
+  // palette" rather than a mismatched color. New contrast: 15.9.
+  "speed_demon_MYTHIC": { customBg: "linear-gradient(125deg, #c83efe 0%, #e79bff 24%, #ffffff 42%, #8a12d8 68%, #2a0350 100%)", customShadow: "0 10px 40px -3px rgba(200, 62, 254, 0.6)", customBorder: "4px solid rgba(240, 179, 255, 0.9)", iconColorHex: "#2a0350", bloomColor: "rgba(200, 62, 254, 0.95)", glitch: true, burst: ["#c83efe", "#f0b3ff", "#8a12d8", "#ffffff"] },
 
   // competitor_MYTHIC -- IMPERIAL SAPPHIRE. The family's LEGENDARY is struck
   // gold, so MYTHIC deliberately does NOT go "more gold": a brighter gold is
@@ -479,7 +489,11 @@ export const badgeColorConfig: Record<string, any> = {
   // LEGENDARY, the widest in-family MYTHIC step in this batch.
   // Nearest neighbour is perfectionist_LEGENDARY's azure at dE00 13.1 (WARN):
   // separated on chroma, 36.1 vs 58.6, i.e. a stone versus an instrument beam.
-  "competitor_MYTHIC": { customBg: "linear-gradient(125deg, #1d7aaf 0%, #4aa8e8 26%, #d6ecff 46%, #0b4f77 74%, #03243a 100%)", customShadow: "0 10px 40px -3px rgba(29, 122, 175, 0.6)", customBorder: "4px solid rgba(214, 236, 255, 0.9)", iconColorHex: "#eff8ff", bloomColor: "rgba(74, 168, 232, 0.95)", glitch: true, burst: ["#1d7aaf", "#4aa8e8", "#d6ecff", "#ffffff"] },
+  // ICON-CONTRAST FIX (2026-07-29): same class of bug as speed_demon_MYTHIC
+  // above -- iconColorHex was #eff8ff (near-white) against this gradient's
+  // pale-blue centre (#d6ecff at 46%), contrast 1.17. Fixed to #03243a, the
+  // gradient's own 100% stop (deep navy). New contrast: 12.7.
+  "competitor_MYTHIC": { customBg: "linear-gradient(125deg, #1d7aaf 0%, #4aa8e8 26%, #d6ecff 46%, #0b4f77 74%, #03243a 100%)", customShadow: "0 10px 40px -3px rgba(29, 122, 175, 0.6)", customBorder: "4px solid rgba(214, 236, 255, 0.9)", iconColorHex: "#03243a", bloomColor: "rgba(74, 168, 232, 0.95)", glitch: true, burst: ["#1d7aaf", "#4aa8e8", "#d6ecff", "#ffffff"] },
 
   // unstoppable_streak_MYTHIC -- ETERNAL TURQUOISE. STILL NOT FIRE: this family
   // is fenced off from orange/crimson because the separate demo badge on code
@@ -511,7 +525,12 @@ export const badgeColorConfig: Record<string, any> = {
   // 14.6, and the demo chain badge's orange at 14.9 (all WARN). The chain pair
   // is the one worth naming: they share a hue region, and they are held apart
   // by lightness (L* 48.6 vs 63.0) plus this badge's much deeper red cast.
-  "comeback_kid_MYTHIC": { customBg: "linear-gradient(125deg, #b7591a 0%, #ff8c3c 26%, #ffb391 46%, #6d230f 76%, #2b0c05 100%)", customShadow: "0 10px 40px -3px rgba(183, 89, 26, 0.6)", customBorder: "4px solid rgba(255, 179, 145, 0.9)", iconColorHex: "#fff3ea", bloomColor: "rgba(255, 140, 60, 0.95)", glitch: true, burst: ["#b7591a", "#ff8c3c", "#ffb391", "#ffffff"] },
+  // ICON-CONTRAST FIX (2026-07-29): iconColorHex was #fff3ea (near-white)
+  // against this gradient's peachy centre (#ffb391 at 46%), contrast 1.62
+  // -- lower severity than the pure-white cases above but still a real
+  // mesh. Fixed to #2b0c05, the gradient's own 100% stop (deep umber). New
+  // contrast: 10.3.
+  "comeback_kid_MYTHIC": { customBg: "linear-gradient(125deg, #b7591a 0%, #ff8c3c 26%, #ffb391 46%, #6d230f 76%, #2b0c05 100%)", customShadow: "0 10px 40px -3px rgba(183, 89, 26, 0.6)", customBorder: "4px solid rgba(255, 179, 145, 0.9)", iconColorHex: "#2b0c05", bloomColor: "rgba(255, 140, 60, 0.95)", glitch: true, burst: ["#b7591a", "#ff8c3c", "#ffb391", "#ffffff"] },
 
   // podium_finisher_MYTHIC -- IMMORTAL LAUREL ("The Immortal"). This family was
   // already the documented exception that keeps all its tiers in the
@@ -533,7 +552,11 @@ export const badgeColorConfig: Record<string, any> = {
   // Nearest are comeback_kid_SUPER 14.0, unstoppable_streak_LEGENDARY's orchid
   // 14.0 and speed_demon_LEGENDARY's plasma rose 14.1 (all WARN). It is 80.0
   // dE00 from its own LEGENDARY -- the widest in-family step in the catalogue.
-  "sharpshooter_MYTHIC": { customBg: "linear-gradient(125deg, #ff2989 0%, #ff7bb4 24%, #ffdcea 44%, #7c2748 76%, #2c0a1a 100%)", customShadow: "0 10px 40px -3px rgba(255, 41, 137, 0.6)", customBorder: "4px solid rgba(255, 220, 234, 0.9)", iconColorHex: "#fff0f6", bloomColor: "rgba(255, 41, 137, 0.95)", glitch: true, burst: ["#ff2989", "#ff7bb4", "#ffdcea", "#ffffff"] },
+  // ICON-CONTRAST FIX (2026-07-29): iconColorHex was #fff0f6 (near-white)
+  // against this gradient's pale-rose centre (#ffdcea at 44%), contrast
+  // 1.20. Fixed to #2c0a1a, the gradient's own 100% stop (deep maroon). New
+  // contrast: 13.6.
+  "sharpshooter_MYTHIC": { customBg: "linear-gradient(125deg, #ff2989 0%, #ff7bb4 24%, #ffdcea 44%, #7c2748 76%, #2c0a1a 100%)", customShadow: "0 10px 40px -3px rgba(255, 41, 137, 0.6)", customBorder: "4px solid rgba(255, 220, 234, 0.9)", iconColorHex: "#2c0a1a", bloomColor: "rgba(255, 41, 137, 0.95)", glitch: true, burst: ["#ff2989", "#ff7bb4", "#ffdcea", "#ffffff"] },
 
   // underdog_MYTHIC -- SUMMIT SKY. The family is deliberately the earthy one
   // (basalt, weathered tan, granite moss) because it is dirt and rope and rock.
@@ -543,7 +566,11 @@ export const badgeColorConfig: Record<string, any> = {
   // same badge. Nearest are unstoppable_streak_BASE's cobalt at 12.9 and the
   // level-mastery demo's indigo at 13.4 (WARN): cleared on chroma (61.8 vs
   // 44.9) and on this badge being 10 L* brighter than the cobalt.
-  "underdog_MYTHIC": { customBg: "linear-gradient(125deg, #0058bd 0%, #8dbfff 30%, #eef5ff 48%, #16407a 76%, #06172e 100%)", customShadow: "0 10px 40px -3px rgba(0, 88, 189, 0.6)", customBorder: "4px solid rgba(238, 245, 255, 0.9)", iconColorHex: "#f2f7ff", bloomColor: "rgba(141, 191, 255, 0.95)", glitch: true, burst: ["#0058bd", "#8dbfff", "#eef5ff", "#ffffff"] },
+  // ICON-CONTRAST FIX (2026-07-29): iconColorHex was #f2f7ff (near-white)
+  // against this gradient's pale-blue centre (#eef5ff at 48%), contrast
+  // 1.11. Fixed to #06172e, the gradient's own 100% stop (deep navy). New
+  // contrast: 15.0.
+  "underdog_MYTHIC": { customBg: "linear-gradient(125deg, #0058bd 0%, #8dbfff 30%, #eef5ff 48%, #16407a 76%, #06172e 100%)", customShadow: "0 10px 40px -3px rgba(0, 88, 189, 0.6)", customBorder: "4px solid rgba(238, 245, 255, 0.9)", iconColorHex: "#06172e", bloomColor: "rgba(141, 191, 255, 0.95)", glitch: true, burst: ["#0058bd", "#8dbfff", "#eef5ff", "#ffffff"] },
 
   // polymath_MYTHIC -- ORACLE VIOLET. The family is built on the blue side of
   // violet and on LIGHTNESS contrast rather than hue (lapis ink -> periwinkle
@@ -686,7 +713,12 @@ export const badgeColorConfig: Record<string, any> = {
   // underdog_LEGENDARY's granite moss and veteran_LEGENDARY's regimental
   // bottle green, both at dE00 15.2 (WARN). The moss is warm-shifted (b* +17.3
   // vs +8.3) and the bottle green is 18 L* darker.
-  "iron_wall_MYTHIC": { customBg: "linear-gradient(125deg, #3c735a 0%, #7fd0a8 26%, #eafff5 46%, #1c4535 74%, #08201a 100%)", customShadow: "0 10px 40px -3px rgba(60, 115, 90, 0.6)", customBorder: "4px solid rgba(234, 255, 245, 0.9)", iconColorHex: "#eefff8", bloomColor: "rgba(127, 208, 168, 0.95)", glitch: true, burst: ["#3c735a", "#7fd0a8", "#eafff5", "#ffffff"] },
+  // ICON-CONTRAST FIX (2026-07-29): iconColorHex was #eefff8 (near-white)
+  // against this gradient's near-white mint centre (#eafff5 at 46%),
+  // contrast 1.03 -- confirmed live via browser screenshot as one of the
+  // worst offenders. Fixed to #08201a, the gradient's own 100% stop (deep
+  // forest green). New contrast: 16.0.
+  "iron_wall_MYTHIC": { customBg: "linear-gradient(125deg, #3c735a 0%, #7fd0a8 26%, #eafff5 46%, #1c4535 74%, #08201a 100%)", customShadow: "0 10px 40px -3px rgba(60, 115, 90, 0.6)", customBorder: "4px solid rgba(234, 255, 245, 0.9)", iconColorHex: "#08201a", bloomColor: "rgba(127, 208, 168, 0.95)", glitch: true, burst: ["#3c735a", "#7fd0a8", "#eafff5", "#ffffff"] },
 
   // --- The Veteran -----------------------------------------------------
   // Lifetime question volume. Service colours, in the literal military sense:
@@ -723,7 +755,12 @@ export const badgeColorConfig: Record<string, any> = {
   // sharpshooter_MYTHIC's singularity rose at 16.2 and polymath_BASE's lapis
   // ink at 16.3 -- cleared on chroma against the rose (28.5 vs 80.6) and on
   // hue against the lapis (a* +27.8 vs +18.0 at b* -6.6 vs -18.9).
-  "veteran_MYTHIC": { customBg: "linear-gradient(125deg, #b97d9b 0%, #eabfd6 24%, #ffffff 42%, #6d3a55 72%, #2e1424 100%)", customShadow: "0 10px 40px -3px rgba(185, 125, 155, 0.6)", customBorder: "4px solid rgba(234, 191, 214, 0.9)", iconColorHex: "#fdf1f7", bloomColor: "rgba(234, 191, 214, 0.95)", glitch: true, burst: ["#b97d9b", "#eabfd6", "#6d3a55", "#ffffff"] },
+  // ICON-CONTRAST FIX (2026-07-29): iconColorHex was #fdf1f7 (near-white)
+  // against a background that passes through #ffffff at 42%, contrast 1.05
+  // -- this is the exact badge Shailesh flagged live (the monument/star
+  // icon was reading as a barely-visible smudge). Fixed to #2e1424, the
+  // gradient's own 100% stop (deep plum). New contrast: 16.1.
+  "veteran_MYTHIC": { customBg: "linear-gradient(125deg, #b97d9b 0%, #eabfd6 24%, #ffffff 42%, #6d3a55 72%, #2e1424 100%)", customShadow: "0 10px 40px -3px rgba(185, 125, 155, 0.6)", customBorder: "4px solid rgba(234, 191, 214, 0.9)", iconColorHex: "#2e1424", bloomColor: "rgba(234, 191, 214, 0.95)", glitch: true, burst: ["#b97d9b", "#eabfd6", "#6d3a55", "#ffffff"] },
 
   // --- Last-Minute Hero ------------------------------------------------
   // Submits in the final 10% of the window and still scores 80%+. The mirror
@@ -761,7 +798,12 @@ export const badgeColorConfig: Record<string, any> = {
   // white blowout is the corona. Nearest are comeback_kid_BASE's ember rust at
   // dE00 14.1 and polymath_BASE's lapis ink at 14.4 (WARN): the rust is warm
   // (b* +12.2 against -2.8) and the lapis is 12 L* brighter and violet-shifted.
-  "last_minute_hero_MYTHIC": { customBg: "linear-gradient(125deg, #694655 0%, #b98aa0 24%, #f6e6ee 42%, #331d28 74%, #120810 100%)", customShadow: "0 10px 40px -3px rgba(105, 70, 85, 0.6)", customBorder: "4px solid rgba(246, 230, 238, 0.9)", iconColorHex: "#fbf0f5", bloomColor: "rgba(185, 138, 160, 0.95)", glitch: true, burst: ["#694655", "#b98aa0", "#f6e6ee", "#ffffff"] },
+  // ICON-CONTRAST FIX (2026-07-29): iconColorHex was #fbf0f5 (near-white)
+  // against this gradient's near-white center (#f6e6ee at 42%), contrast
+  // 1.06. Fixed to #331d28, the gradient's own 74% stop (deep wine), which
+  // sits closer to where a centered icon actually renders than the even
+  // darker 100% stop. New contrast: 11.9 against the 35-65% span.
+  "last_minute_hero_MYTHIC": { customBg: "linear-gradient(125deg, #694655 0%, #b98aa0 24%, #f6e6ee 42%, #331d28 74%, #120810 100%)", customShadow: "0 10px 40px -3px rgba(105, 70, 85, 0.6)", customBorder: "4px solid rgba(246, 230, 238, 0.9)", iconColorHex: "#331d28", bloomColor: "rgba(185, 138, 160, 0.95)", glitch: true, burst: ["#694655", "#b98aa0", "#f6e6ee", "#ffffff"] },
 
   // --- Section Specialist ----------------------------------------------
   // 100% on every question of one concept, N times over. Precision mastery of a
