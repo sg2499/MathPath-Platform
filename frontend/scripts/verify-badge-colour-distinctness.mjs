@@ -341,17 +341,90 @@ const PHASE1_MYTHIC_NEW = [
   { key: "polymath_MYTHIC",            name: "Mythic Achiever",     primary: "#ded3f8", note: "oracle violet (ink glyph)" },
 ];
 
+/**
+ * 20 newly graded PHASE-2 badges (2026-07-28) -- five BRAND-NEW families
+ * (Marathoner, Iron Wall, The Veteran, Last-Minute Hero, Section Specialist),
+ * four tiers each. Every one of the 42 colours above is a FIXED INPUT and none
+ * of them is re-graded.
+ *
+ * THE ARITHMETIC, STATED UP FRONT. The gate is now 62 colours. A free
+ * farthest-point CIEDE2000 search -- 20 points placed anywhere in sRGB with the
+ * existing 42 held fixed, no thematic constraint whatsoever -- maximises the
+ * smallest new distance at dE00 13.50 (greedy over a 23k-point grid restricted
+ * to CIELAB L* 22..97, i.e. excluding the near-blacks and near-whites that
+ * cannot light a 3D scene). This palette lands at 13.46, which is 99.7% of that
+ * unconstrained ceiling WHILE ALSO keeping every badge inside a hue window its
+ * theme can survive. There is no set of 20 hexes, thematic or not, that could
+ * have done materially better, and >= 18 has been arithmetically out of reach
+ * since phase 1 (which measured its own ceiling at 16.06 for 9 colours).
+ *
+ * So: the WARN band is heavily populated by construction, exactly as phase 1
+ * documented, and the property that actually matters is the one this palette
+ * does hold -- every gated pair clears the FAIL line (dE00 >= 12, and no pair is
+ * simultaneously HSL-triple-near and < 18).
+ *
+ * WHERE THE COLOURS CAME FROM. Seeded from that same free farthest-point run
+ * (i.e. from the holes actually left in sRGB), then each seed was assigned to
+ * the badge whose theme could justify it, then re-optimised by coordinate
+ * ascent inside a per-badge thematic box (max dE00 drift from the seed, plus an
+ * L* window set by the card's intended polarity). Two allocations moved during
+ * that pass and are worth naming:
+ *   * THE AMBER went to last_minute_hero_BASE, not to marathoner_SUPER. Only
+ *     two genuinely hot holes were left in the whole catalogue and Last-Minute
+ *     Hero is the heat family, so it got first claim; Marathoner's SUPER took
+ *     the softer sun-baked ochre above it (L* 71.3 vs 53.5).
+ *   * LAST-MINUTE HERO IS NOT FOUR HOT COLOURS, for the same reason batch 2
+ *     found "sharpshooter cannot be three cold colours". After signal red,
+ *     vermillion, incandescent rose, orange, ember rust, phoenix ember, plasma
+ *     rose, singularity rose, dawn peach, citron, gold, genesis solar, bronze
+ *     and tan, the warm band is full. The family is therefore struck amber ->
+ *     flashbulb lime -> scorched gold -> eclipse plum: a DEADLINE arc (spark,
+ *     blown-out flash, fire seen through smoke, and the dark of the deadline
+ *     itself) rather than a heat ramp. The brief's own MYTHIC direction --
+ *     an eclipse, dark-before-light -- is what made that arc available.
+ *
+ * IRON WALL is likewise three near-neutrals plus one: brick, quarry stone and
+ * limestone are the masonry, and MYTHIC leaves the neutral band for verdigris
+ * because the neutral band cannot hold a fourth entry next to pewter, gunmetal
+ * and basalt. iron_wall SUPER->LEGENDARY (15.0) and section_specialist
+ * BASE->SUPER (15.8) are the two tightest in-family steps here; both are
+ * carried by L* (63.0 vs 79.6, and 65.2 vs 73.1) plus chroma.
+ */
+const PHASE2_NEW = [
+  { key: "marathoner_BASE",              name: "Marathoner",                    primary: "#6e6969", note: "trail grey (lowest chroma in the catalogue, C 2.1)" },
+  { key: "marathoner_SUPER",             name: "Super Marathoner",              primary: "#e6a055", note: "sun-baked ochre" },
+  { key: "marathoner_LEGENDARY",         name: "Legendary Marathoner",          primary: "#a0c8fa", note: "horizon blue (ink glyph)" },
+  { key: "marathoner_MYTHIC",            name: "Mythic Marathoner",             primary: "#fff5e1", note: "endless dawn (ink glyph)" },
+  { key: "iron_wall_BASE",               name: "Iron Wall",                     primary: "#4b2d0a", note: "fired brick" },
+  { key: "iron_wall_SUPER",              name: "Super Iron Wall",               primary: "#999990", note: "quarry stone" },
+  { key: "iron_wall_LEGENDARY",          name: "Legendary Iron Wall",           primary: "#cdc3c3", note: "pale limestone (ink glyph)" },
+  { key: "iron_wall_MYTHIC",             name: "Mythic Iron Wall",              primary: "#3c735a", note: "verdigris (the family's only non-masonry tier)" },
+  { key: "veteran_BASE",                 name: "The Veteran",                   primary: "#233700", note: "olive drab" },
+  { key: "veteran_SUPER",                name: "Super Veteran",                 primary: "#a55f5a", note: "campaign crimson (ribbon, not metal)" },
+  { key: "veteran_LEGENDARY",            name: "Legendary Veteran",             primary: "#0f4637", note: "regimental bottle green" },
+  { key: "veteran_MYTHIC",               name: "Mythic Veteran",                primary: "#b97d9b", note: "honour mauve" },
+  { key: "last_minute_hero_BASE",        name: "Last-Minute Hero",              primary: "#b07300", note: "struck amber" },
+  { key: "last_minute_hero_SUPER",       name: "Super Last-Minute Hero",        primary: "#a2d824", note: "flashbulb lime (ink glyph)" },
+  { key: "last_minute_hero_LEGENDARY",   name: "Legendary Last-Minute Hero",    primary: "#646400", note: "scorched gold (fire through smoke)" },
+  { key: "last_minute_hero_MYTHIC",      name: "Mythic Last-Minute Hero",       primary: "#694655", note: "eclipse plum" },
+  { key: "section_specialist_BASE",      name: "Section Specialist",            primary: "#7daa73", note: "dim phosphor" },
+  { key: "section_specialist_SUPER",     name: "Super Section Specialist",      primary: "#87beb4", note: "grid cyan-green (ink glyph)" },
+  { key: "section_specialist_LEGENDARY", name: "Legendary Section Specialist",  primary: "#0f9128", note: "matrix green" },
+  { key: "section_specialist_MYTHIC",    name: "Mythic Section Specialist",     primary: "#e1ffeb", note: "nexus white (ink glyph)" },
+];
+
 // ---------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------
 
-const GATED = [...BATCH1_NEW, ...BATCH1_FROZEN, ...REFERENCE_BATCH, ...BATCH2_NEW, ...PHASE1_MYTHIC_NEW];
+const GATED = [...BATCH1_NEW, ...BATCH1_FROZEN, ...REFERENCE_BATCH, ...BATCH2_NEW, ...PHASE1_MYTHIC_NEW, ...PHASE2_NEW];
 // Both batches count as "newly graded" for gating purposes, so re-running this
 // script re-checks batch 1 as well as batch 2 rather than only the latest pass.
 const NEW_KEYS = new Set([
   ...BATCH1_NEW.map((e) => e.key),
   ...BATCH2_NEW.map((e) => e.key),
   ...PHASE1_MYTHIC_NEW.map((e) => e.key),
+  ...PHASE2_NEW.map((e) => e.key),
 ]);
 
 const decorate = (e) => {
@@ -369,7 +442,7 @@ const DE_FAIL = 12;
 const DE_WARN = 18;
 
 console.log("=".repeat(96));
-console.log("BADGE COLOUR DISTINCTNESS -- all 30 mock-exam badges + 5 reference-batch demos");
+console.log("BADGE COLOUR DISTINCTNESS -- 15 skill-badge families x up to 4 tiers + 2 demos");
 console.log("=".repeat(96));
 
 console.log("\nPALETTE UNDER TEST\n" + "-".repeat(96));
@@ -488,6 +561,10 @@ for (const e of BATCH2_NEW.map(decorate)) {
 }
 console.log("-- phase-1 mythic --");
 for (const e of PHASE1_MYTHIC_NEW.map(decorate)) {
+  console.log(`${e.key.padEnd(34)} ${e.primary}   ${e.note}`);
+}
+console.log("-- phase-2 (5 new families) --");
+for (const e of PHASE2_NEW.map(decorate)) {
   console.log(`${e.key.padEnd(34)} ${e.primary}   ${e.note}`);
 }
 

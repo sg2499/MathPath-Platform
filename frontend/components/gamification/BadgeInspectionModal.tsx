@@ -16,6 +16,7 @@ import {
   mockExamBatch1Glyphs,
   mockExamBatch2Glyphs,
   mythicPhase1Glyphs,
+  phase2Glyphs,
 } from "@/lib/gamification/badgeGlyphs";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -72,7 +73,16 @@ const IconMap: Record<string, React.ElementType> = {
   // (which reads BadgeIconMap in lib/gamification/badgeVisuals.ts) showed the
   // correct hand-drawn mark -- exactly the card/cinematic disagreement these
   // shared glyph exports exist to make impossible. Same source of truth.
-  ...mythicPhase1Glyphs
+  ...mythicPhase1Glyphs,
+
+  // --- Phase 2: five new families (2026-07-28) ----------------------------
+  // The 20 new iconName keys. Same reason this spread has to exist as the
+  // phase-1 one: without it the cinematic would fall through to the
+  // `IconMap[badge.iconName] || Target` fallback and show a lucide Target over
+  // a bespoke Phase-2 environment while the Trophy Room card (which reads
+  // BadgeIconMap in lib/gamification/badgeVisuals.ts) showed the correct
+  // hand-drawn mark. Same single source of truth, so the two cannot disagree.
+  ...phase2Glyphs
 };
 
 export interface BadgeInspectionModalProps {
@@ -4188,6 +4198,2669 @@ const MythicCameraRig = () => {
 };
 
 // ============================================================================
+// PHASE-2 ENVIRONMENTS (2026-07-28) -- five new families, four tiers each
+// ----------------------------------------------------------------------------
+// Twenty bespoke cinematics for Marathoner, Iron Wall, The Veteran, Last-Minute
+// Hero and Section Specialist. Craft baseline is EnvSurgeColumn's: procedural
+// geometry assembled from the drei primitives already imported at the top of
+// this file, seeded once in `useMemo`, animated per frame in `useFrame`, no
+// custom shaders and no physics engine.
+//
+// TWO DIFFERENT CONTRACTS IN THIS BLOCK, and the split is deliberate:
+//
+//   * THE FOUR MYTHIC SCENES (EnvMarathonEternal, EnvIronWallCitadel,
+//     EnvVeteranLegacy, EnvLastMinuteEclipse, EnvSectionSpecialistNexus -- five,
+//     one per family) each carry their own "something snaps" beat at
+//     T_REVEAL = 1.7s, because `isMythic` mounts MythicCameraRig automatically
+//     and that rig recoils on exactly that timestamp. Without a matching event
+//     the camera would look like it was flinching at nothing. Each splits its
+//     useFrame into pre-reveal (tension: things converge, charge, tighten) and
+//     post-reveal (release: things blow outward and settle), with
+//     `now >= T_REVEAL` as the switch and `e` always meaning "seconds since".
+//
+//   * THE FIFTEEN BASE/SUPER/LEGENDARY SCENES get NO camera rig and therefore
+//     no reveal beat -- they are continuous loops, like every other non-apex
+//     environment in this file. Richness escalates inside each family instead
+//     (element counts, particle fields, how much of the structure is built).
+//
+// Each family also has one motif it does not break, so a badge is recognisable
+// from its cinematic alone: Marathoner is always a road receding on -Z; Iron
+// Wall is always masonry absorbing incoming fire; The Veteran is always
+// chevrons plus a field of counted motes; Last-Minute Hero is always a dial
+// with its final wedge lit; Section Specialist is always hexagon-adjacent nodes
+// joined by links carrying pulses.
+// ============================================================================
+
+// --- MA1. "MarathonTrail" -- Marathoner BASE --------------------------------
+// The road itself, seen from just above the surface, running away from camera
+// on -Z forever. Centre dashes and verge posts stream toward the viewer at a
+// deliberately UNHURRIED rate: this badge is three hours, and the one thing it
+// must not read as is speed (speed_demon owns that, and its dart scenes move an
+// order of magnitude faster).
+const EnvMarathonTrail = ({ color }: { color: THREE.Color }) => {
+  const SPAN = 150;
+  const DASHES = 20;
+  const POSTS = 18;
+  const dashesRef = useRef<THREE.Group>(null);
+  const postsRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const INK = "#3f3c3c";
+  const HOT = "#f2efef";
+
+  const dashes = useMemo(() => [...Array(DASHES)].map((_, i) => ({ off: (i / DASHES) * SPAN })), []);
+  const posts = useMemo(
+    () =>
+      [...Array(POSTS)].map((_, i) => ({
+        off: (i / POSTS) * SPAN,
+        side: i % 2 ? 1 : -1,
+        h: 3.4 + (i % 3) * 0.8,
+      })),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    if (dashesRef.current) {
+      dashesRef.current.children.forEach((child, i) => {
+        const raw = (now * 13 + dashes[i].off) % SPAN;
+        const z = raw - 118;
+        child.position.set(0, 0.05, z);
+        const u = clamp01(raw / SPAN);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = 0.1 + Math.sin(u * Math.PI) * 0.85;
+        mat.emissiveIntensity = 0.6 + (1 - u) * 3.2;
+      });
+    }
+
+    if (postsRef.current) {
+      postsRef.current.children.forEach((child, i) => {
+        const p = posts[i];
+        const raw = (now * 13 + p.off) % SPAN;
+        const z = raw - 118;
+        child.position.set(p.side * 10.5, p.h / 2, z);
+        const u = clamp01(raw / SPAN);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = 0.08 + Math.sin(u * Math.PI) * 0.75;
+        mat.emissiveIntensity = 0.5 + (1 - u) * 2.4;
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -7, 0]} rotation={[0.17, 0, 0]}>
+      {/* Road bed and its two verges. One long box each -- the sense of
+          distance comes from the streaming markers, not from the geometry. */}
+      <Box args={[17, 0.5, 200]} position={[0, -0.35, -60]}>
+        <meshStandardMaterial color={INK} emissive={color} emissiveIntensity={0.3} flatShading />
+      </Box>
+      <Box args={[0.7, 0.9, 200]} position={[-8.6, 0, -60]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.4} flatShading toneMapped={false} />
+      </Box>
+      <Box args={[0.7, 0.9, 200]} position={[8.6, 0, -60]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.4} flatShading toneMapped={false} />
+      </Box>
+
+      {/* Centre dashes. */}
+      <group ref={dashesRef}>
+        {dashes.map((_, i) => (
+          <Box key={i} args={[1.3, 0.14, 8]}>
+            <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={2} transparent opacity={0.6} toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Verge posts, alternating sides. */}
+      <group ref={postsRef}>
+        {posts.map((p, i) => (
+          <Cylinder key={i} args={[0.28, 0.34, p.h, 6]}>
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.8} flatShading transparent opacity={0.6} toneMapped={false} />
+          </Cylinder>
+        ))}
+      </group>
+
+      {/* Road dust, wide and low. */}
+      <Sparkles count={280} scale={[52, 12, 150]} size={4} speed={0.55} color={color} opacity={0.4} />
+    </group>
+  );
+};
+
+// --- MA2. "MarathonSurge" -- Marathoner SUPER -------------------------------
+// The same road with something moving on it. A lit runner-mass holds station
+// ahead of camera while the world rips past it 2.6x faster than BASE, shedding
+// seven wake rings that decay behind it, and the verge posts have become
+// paired pylons that FLARE as the runner passes them.
+const EnvMarathonSurge = ({ color }: { color: THREE.Color }) => {
+  const SPAN = 150;
+  const DASHES = 26;
+  const PYLONS = 22;
+  const WAKE = 7;
+  const dashesRef = useRef<THREE.Group>(null);
+  const pylonsRef = useRef<THREE.Group>(null);
+  const wakeRef = useRef<THREE.Group>(null);
+  const runnerRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const INK = "#3b2408";
+  const HOT = "#ffe0bd";
+
+  const dashes = useMemo(() => [...Array(DASHES)].map((_, i) => ({ off: (i / DASHES) * SPAN })), []);
+  const pylons = useMemo(
+    () => [...Array(PYLONS)].map((_, i) => ({ off: (i / PYLONS) * SPAN, side: i % 2 ? 1 : -1, h: 5 + (i % 4) * 1.1 })),
+    []
+  );
+  const wake = useMemo(() => [...Array(WAKE)].map((_, i) => ({ lag: i * 0.13 })), []);
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const SPEED = 34;
+
+    if (dashesRef.current) {
+      dashesRef.current.children.forEach((child, i) => {
+        const raw = (now * SPEED + dashes[i].off) % SPAN;
+        child.position.set(0, 0.05, raw - 118);
+        const u = clamp01(raw / SPAN);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = 0.12 + Math.sin(u * Math.PI) * 0.85;
+        mat.emissiveIntensity = 1 + (1 - u) * 5;
+        // Stretch with speed -- the dash smears as it comes past.
+        child.scale.z = 1 + (1 - u) * 0.4;
+      });
+    }
+
+    if (pylonsRef.current) {
+      pylonsRef.current.children.forEach((child, i) => {
+        const p = pylons[i];
+        const raw = (now * SPEED + p.off) % SPAN;
+        const z = raw - 118;
+        child.position.set(p.side * 12, p.h / 2, z);
+        const u = clamp01(raw / SPAN);
+        // Flare window: the pylon is level with the runner (which sits at z=-14).
+        const passing = clamp01(1 - Math.abs(z + 14) / 14);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = 0.1 + Math.sin(u * Math.PI) * 0.7;
+        mat.emissiveIntensity = 1 + passing * 9;
+      });
+    }
+
+    if (wakeRef.current) {
+      wakeRef.current.children.forEach((child, i) => {
+        const k = (now * 1.6 + wake[i].lag * 6) % 1;
+        child.position.z = -14 + k * 46;
+        child.scale.setScalar(1 + k * 1.5);
+        child.rotation.z = k * 0.9;
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.max(0, 0.7 - k * 0.68);
+      });
+    }
+
+    if (runnerRef.current) {
+      runnerRef.current.position.y = 3.6 + Math.sin(now * 5.4) * 0.55;
+      runnerRef.current.rotation.y = Math.sin(now * 1.3) * 0.22;
+      runnerRef.current.scale.setScalar(1 + Math.sin(now * 5.4) * 0.05);
+    }
+  });
+
+  return (
+    <group position={[0, -7, 0]} rotation={[0.16, 0, 0]}>
+      <Box args={[19, 0.5, 200]} position={[0, -0.35, -60]}>
+        <meshStandardMaterial color={INK} emissive={color} emissiveIntensity={0.45} flatShading />
+      </Box>
+      <Box args={[0.8, 1, 200]} position={[-9.6, 0, -60]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.2} flatShading toneMapped={false} />
+      </Box>
+      <Box args={[0.8, 1, 200]} position={[9.6, 0, -60]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.2} flatShading toneMapped={false} />
+      </Box>
+
+      <group ref={dashesRef}>
+        {dashes.map((_, i) => (
+          <Box key={i} args={[1.4, 0.16, 9]}>
+            <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={3} transparent opacity={0.7} toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      <group ref={pylonsRef}>
+        {pylons.map((p, i) => (
+          <Box key={i} args={[0.7, p.h, 0.7]}>
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} flatShading transparent opacity={0.7} toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Wake rings shed by the runner. */}
+      <group ref={wakeRef}>
+        {wake.map((_, i) => (
+          <Torus key={i} args={[5.5, 0.2, 8, 40]} rotation={[0, 0, 0]}>
+            <meshBasicMaterial color={i % 2 ? HOT : color} transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* The runner: a raked wedge with a hot core, holding station. */}
+      <group ref={runnerRef} position={[0, 3.6, -14]}>
+        <Cone args={[2.6, 6, 3]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={4} flatShading toneMapped={false} />
+        </Cone>
+        <Octahedron args={[1.1, 0]} position={[0, 0, 1.4]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={7} flatShading toneMapped={false} />
+        </Octahedron>
+      </group>
+
+      <Sparkles count={420} scale={[56, 20, 150]} size={5} speed={2.1} color={color} opacity={0.55} />
+      <Sparkles count={160} scale={[18, 10, 90]} size={3} speed={3.4} color={HOT} opacity={0.8} />
+    </group>
+  );
+};
+
+// --- MA3. "MarathonHorizon" -- Marathoner LEGENDARY -------------------------
+// The tier where the badge stops being about the road. Three layers of ridge
+// silhouettes recede toward a huge horizon ring, atmospheric-perspective style
+// (further layers are dimmer and move slower, which is the whole trick), and
+// the road's markers now run all the way out to it instead of vanishing into
+// the dark.
+const EnvMarathonHorizon = ({ color }: { color: THREE.Color }) => {
+  const SPAN = 190;
+  const DASHES = 26;
+  const ridgesRef = useRef<THREE.Group>(null);
+  const dashesRef = useRef<THREE.Group>(null);
+  const haloRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const INK = "#234066";
+  const HOT = "#dbe9ff";
+
+  const dashes = useMemo(() => [...Array(DASHES)].map((_, i) => ({ off: (i / DASHES) * SPAN })), []);
+  // Three parallax layers; each is a row of cones at its own depth and drift.
+  const ridges = useMemo(
+    () =>
+      [...Array(3)].flatMap((_, layer) =>
+        [...Array(9)].map((__, i) => ({
+          layer,
+          x: -70 + i * 17.5 + (layer % 2) * 8,
+          z: -70 - layer * 22,
+          h: 16 - layer * 3.5 + (i % 3) * 4,
+          drift: 0.55 - layer * 0.16,
+        }))
+      ),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    if (dashesRef.current) {
+      dashesRef.current.children.forEach((child, i) => {
+        const raw = (now * 16 + dashes[i].off) % SPAN;
+        const z = raw - 150;
+        child.position.set(0, 0.06, z);
+        const u = clamp01(raw / SPAN);
+        // Shrink with distance so the markers describe the perspective.
+        child.scale.set(0.25 + u * 0.9, 1, 0.3 + u * 0.85);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = 0.06 + Math.sin(u * Math.PI) * 0.9;
+        mat.emissiveIntensity = 0.8 + u * 4;
+      });
+    }
+
+    if (ridgesRef.current) {
+      ridgesRef.current.children.forEach((child, i) => {
+        const r = ridges[i];
+        // Slow lateral drift, slower the further back -- parallax.
+        child.position.x = r.x + Math.sin(now * 0.08 + r.layer) * r.drift * 12;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = (0.9 - r.layer * 0.22) * (1 + Math.sin(now * 0.6 + i) * 0.12);
+      });
+    }
+
+    if (haloRef.current) {
+      haloRef.current.scale.setScalar(1 + Math.sin(now * 0.5) * 0.05);
+      const mat = haloRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.28 + Math.sin(now * 0.5) * 0.08;
+    }
+  });
+
+  return (
+    <group position={[0, -8, 0]} rotation={[0.13, 0, 0]}>
+      {/* The horizon: a wide, low ring far back, plus a diffuse halo behind it. */}
+      <Torus args={[46, 0.55, 8, 90]} position={[0, 4, -142]} rotation={[0, 0, 0]}>
+        <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={5} flatShading toneMapped={false} />
+      </Torus>
+      <Sphere ref={haloRef} args={[30, 24, 24]} position={[0, 6, -152]}>
+        <meshBasicMaterial color={color} transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Sphere>
+
+      {/* Three parallax ridge layers. */}
+      <group ref={ridgesRef}>
+        {ridges.map((r, i) => (
+          <Cone key={i} args={[9 - r.layer * 1.4, r.h, 4]} position={[r.x, r.h / 2 - 1, r.z]}>
+            <meshStandardMaterial
+              color={r.layer === 0 ? INK : color}
+              emissive={color}
+              emissiveIntensity={0.9 - r.layer * 0.22}
+              flatShading
+              transparent
+              opacity={0.85 - r.layer * 0.22}
+            />
+          </Cone>
+        ))}
+      </group>
+
+      {/* Road bed running out to the horizon. */}
+      <Box args={[20, 0.5, 300]} position={[0, -0.35, -110]}>
+        <meshStandardMaterial color={INK} emissive={color} emissiveIntensity={0.35} flatShading />
+      </Box>
+      <Box args={[0.8, 1, 300]} position={[-10, 0, -110]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} flatShading toneMapped={false} />
+      </Box>
+      <Box args={[0.8, 1, 300]} position={[10, 0, -110]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} flatShading toneMapped={false} />
+      </Box>
+
+      <group ref={dashesRef}>
+        {dashes.map((_, i) => (
+          <Box key={i} args={[1.5, 0.16, 10]}>
+            <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={3} transparent opacity={0.7} toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Haze field -- thin, wide and slow, so the depth reads as air. */}
+      <Sparkles count={520} scale={[130, 34, 200]} size={5} speed={0.35} color={color} opacity={0.4} />
+      <Sparkles count={180} scale={[70, 10, 120]} size={3} speed={0.8} color={HOT} opacity={0.55} />
+    </group>
+  );
+};
+
+// --- MA4. "MarathonEternal" -- Marathoner MYTHIC (T_REVEAL beat) ------------
+// The trail closes. Before 1.7s the loop is an INCOMPLETE circuit: markers
+// light in sequence round a huge banked ring and stop dead at a gap, and an
+// obelisk on the near kerb dims as the gap refuses to close. At 1.7s the seam
+// WELDS -- every marker on the ring ignites at once, a bright pulse tears round
+// the circuit at high speed, four shock rings blow outward and the obelisk
+// fires a column of light. That is the event MythicCameraRig recoils from.
+const EnvMarathonEternal = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const NODES = 40;
+  const R = 26;
+  const HOT = "#ffe9c2";
+  const CORE = "#ffffff";
+
+  const nodesRef = useRef<THREE.Group>(null);
+  const ringsRef = useRef<THREE.Group>(null);
+  const pulseRef = useRef<THREE.Mesh>(null);
+  const obeliskRef = useRef<THREE.Group>(null);
+  const beamRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const nodes = useMemo(
+    () =>
+      [...Array(NODES)].map((_, i) => {
+        const a = (i / NODES) * Math.PI * 2 - Math.PI / 2;
+        return { a, x: Math.cos(a) * R, z: Math.sin(a) * R, big: i % 5 === 0 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    if (nodesRef.current) {
+      nodesRef.current.children.forEach((child, i) => {
+        const frac = i / NODES;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        if (!broken) {
+          // The circuit fills to 92% and stops -- the gap is the whole point.
+          const lit = frac < pre * 0.92;
+          mat.emissiveIntensity = lit ? 2.4 + Math.sin(now * 4 + i) * 0.6 : 0.15;
+          mat.opacity = lit ? 0.95 : 0.25;
+          child.scale.setScalar(lit ? 1 : 0.55);
+        } else {
+          // A bright pulse laps the closed circuit, twice a second.
+          const head = (e * 1.9) % 1;
+          const d = Math.abs(((frac - head + 1.5) % 1) - 0.5);
+          const hot = clamp01(1 - d * 7);
+          mat.emissiveIntensity = 3.2 + hot * 12 + Math.max(0, 6 - e * 8);
+          mat.opacity = 1;
+          child.scale.setScalar(1 + hot * 0.9 + Math.max(0, 0.8 - e * 1.6));
+        }
+      });
+    }
+
+    if (ringsRef.current) {
+      ringsRef.current.children.forEach((child, i) => {
+        const delay = i * 0.11;
+        const k = broken ? Math.max(0, e - delay) : 0;
+        child.scale.setScalar(broken ? 0.4 + k * 5.5 : 0.3);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 0.8 - k * 0.62) : 0;
+      });
+    }
+
+    if (pulseRef.current) {
+      // The weld flash itself.
+      const f = broken ? Math.max(0, 1 - e * 2.6) : 0;
+      pulseRef.current.scale.setScalar(0.2 + f * 34);
+      (pulseRef.current.material as THREE.MeshBasicMaterial).opacity = f * 0.85;
+    }
+
+    if (obeliskRef.current) {
+      obeliskRef.current.rotation.y = now * 0.22;
+      const lift = broken ? Math.min(e * 5, 3.5) : -pre * 1.2;
+      obeliskRef.current.position.y = 3 + lift;
+    }
+
+    if (beamRef.current) {
+      const on = broken ? Math.min(1, e * 3) : 0;
+      beamRef.current.scale.set(1, 0.05 + on * 1, 1);
+      (beamRef.current.material as THREE.MeshBasicMaterial).opacity = on * (0.4 + Math.sin(now * 6) * 0.08);
+    }
+  });
+
+  return (
+    <group position={[0, -6, -6]} rotation={[0.42, 0, 0]}>
+      {/* The banked loop: two concentric tori make a carriageway, not a wire. */}
+      <Torus args={[R, 2.4, 10, 90]} rotation={[Math.PI / 2, 0, 0]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.1} flatShading transparent opacity={0.55} />
+      </Torus>
+      <Torus args={[R - 5.5, 0.5, 8, 80]} rotation={[Math.PI / 2, 0, 0]}>
+        <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={2} flatShading transparent opacity={0.5} toneMapped={false} />
+      </Torus>
+
+      {/* Circuit markers. */}
+      <group ref={nodesRef}>
+        {nodes.map((n, i) => (
+          <Octahedron key={i} args={[n.big ? 1.5 : 0.95, 0]} position={[n.x, 0.9, n.z]}>
+            <meshStandardMaterial color={n.big ? CORE : HOT} emissive={n.big ? CORE : HOT} emissiveIntensity={0.2} flatShading transparent opacity={0.3} toneMapped={false} />
+          </Octahedron>
+        ))}
+      </group>
+
+      {/* Shock rings, flat to the loop's plane. */}
+      <group ref={ringsRef}>
+        {[...Array(4)].map((_, i) => (
+          <Torus key={i} args={[R, 0.5, 8, 80]} rotation={[Math.PI / 2, 0, 0]}>
+            <meshBasicMaterial color={i % 2 ? CORE : color} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* Weld flash. */}
+      <Sphere ref={pulseRef} args={[1, 20, 20]} position={[0, 2, 0]}>
+        <meshBasicMaterial color={CORE} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Sphere>
+
+      {/* The obelisk on the near kerb, and the column it fires. */}
+      <group ref={obeliskRef} position={[0, 3, 0]}>
+        <Cone args={[2.2, 13, 4]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.6} flatShading toneMapped={false} />
+        </Cone>
+        <Octahedron args={[1.6, 0]} position={[0, 8.4, 0]}>
+          <meshStandardMaterial color={CORE} emissive={CORE} emissiveIntensity={7} flatShading toneMapped={false} />
+        </Octahedron>
+      </group>
+      <Cylinder ref={beamRef} args={[2.6, 5.5, 60, 20, 1, true]} position={[0, 32, 0]}>
+        <meshBasicMaterial color={CORE} transparent opacity={0} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Cylinder>
+
+      <Sparkles count={560} scale={[80, 30, 80]} size={5} speed={1.4} color={color} opacity={0.6} />
+      <Sparkles count={220} scale={[46, 46, 46]} size={3} speed={2.6} color={HOT} opacity={0.85} />
+    </group>
+  );
+};
+
+// --- IW1. "IronWallBrick" -- Iron Wall BASE ---------------------------------
+// One reinforced unit, and the thing it is for. Twenty-four projectiles fly in
+// from every direction, strike the face and DEFLECT -- they never pass through
+// and the slab never moves, which is the entire badge in one loop. The rivets
+// flash on impact.
+const EnvIronWallBrick = ({ color }: { color: THREE.Color }) => {
+  const SHOTS = 24;
+  const shotsRef = useRef<THREE.Group>(null);
+  const slabRef = useRef<THREE.Mesh>(null);
+  const rivetsRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const CLAY = "#d18b4a";
+  const DEEP = "#1d1103";
+
+  const shots = useMemo(
+    () =>
+      [...Array(SHOTS)].map((_, i) => {
+        const a = (i / SHOTS) * Math.PI * 2 + (i % 3) * 0.3;
+        const tilt = ((i % 5) - 2) * 0.34;
+        return {
+          dir: new THREE.Vector3(Math.cos(a) * Math.cos(tilt), Math.sin(tilt), Math.sin(a) * Math.cos(tilt)),
+          phase: (i / SHOTS) * 1.6 + (i % 4) * 0.11,
+          size: 0.5 + (i % 4) * 0.22,
+          spin: 1.6 + (i % 5) * 0.5,
+        };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    let impact = 0;
+
+    if (shotsRef.current) {
+      shotsRef.current.children.forEach((child, i) => {
+        const s = shots[i];
+        // 0 -> 0.55 inbound, 0.55 -> 1 deflected back out and fading.
+        const k = ((now * 0.55 + s.phase) % 1.6) / 1.6;
+        const inbound = k < 0.55;
+        const d = inbound ? 42 - (k / 0.55) * 30 : 12 + ((k - 0.55) / 0.45) * 34;
+        child.position.set(s.dir.x * d, s.dir.y * d, s.dir.z * d);
+        child.rotation.x += delta * s.spin * (inbound ? 1 : 3.4);
+        child.rotation.z += delta * s.spin * (inbound ? 0.7 : 2.6);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = inbound ? 0.35 + (k / 0.55) * 0.6 : Math.max(0, 0.9 - (k - 0.55) * 2.4);
+        mat.emissiveIntensity = inbound ? 1.4 + (k / 0.55) * 4 : 5.5;
+        if (Math.abs(k - 0.55) < 0.05) impact = 1;
+      });
+    }
+
+    if (slabRef.current) {
+      slabRef.current.rotation.y = now * 0.26;
+      slabRef.current.rotation.x = Math.sin(now * 0.4) * 0.1;
+      // A wall that shrugs: the shake is tiny on purpose.
+      slabRef.current.position.x = impact ? (Math.random() - 0.5) * 0.28 : 0;
+    }
+
+    if (rivetsRef.current) {
+      rivetsRef.current.rotation.y = now * 0.26;
+      rivetsRef.current.rotation.x = Math.sin(now * 0.4) * 0.1;
+      rivetsRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 3 + Math.sin(now * 3 + i * 1.3) * 1.2 + impact * 8;
+      });
+    }
+  });
+
+  const rivetPos: [number, number, number][] = [
+    [-6, 3, 2.1], [6, 3, 2.1], [-6, -3, 2.1], [6, -3, 2.1],
+    [-6, 3, -2.1], [6, 3, -2.1], [-6, -3, -2.1], [6, -3, -2.1],
+  ];
+
+  return (
+    <group>
+      {/* The unit. */}
+      <Box ref={slabRef} args={[16, 8, 4]}>
+        <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={1.3} flatShading />
+      </Box>
+      <group ref={rivetsRef}>
+        {rivetPos.map((p, i) => (
+          <Sphere key={i} args={[0.65, 10, 10]} position={p}>
+            <meshStandardMaterial color={CLAY} emissive={CLAY} emissiveIntensity={3} flatShading toneMapped={false} />
+          </Sphere>
+        ))}
+      </group>
+
+      {/* The offset course it is bedded on -- masonry, not a floating box. */}
+      <Box args={[9, 4, 4]} position={[-5.2, -6.4, 0]}>
+        <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.5} flatShading transparent opacity={0.7} />
+      </Box>
+      <Box args={[9, 4, 4]} position={[5.2, -6.4, 0]}>
+        <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.5} flatShading transparent opacity={0.7} />
+      </Box>
+
+      {/* Incoming fire. */}
+      <group ref={shotsRef}>
+        {shots.map((s, i) => (
+          <Tetrahedron key={i} args={[s.size, 0]}>
+            <meshStandardMaterial color={CLAY} emissive={CLAY} emissiveIntensity={2} flatShading transparent opacity={0.6} toneMapped={false} />
+          </Tetrahedron>
+        ))}
+      </group>
+
+      <Sparkles count={220} scale={[46, 34, 46]} size={4} speed={0.7} color={color} opacity={0.45} />
+    </group>
+  );
+};
+
+// --- IW2. "IronWallBastion" -- Iron Wall SUPER ------------------------------
+// The unit has become a structure: five courses of blocks in true running bond
+// (every other course offset by half a block), five merlons crenellating the
+// top and a splayed plinth, rotating slowly under a heavier barrage. Blocks
+// flash individually where they are hit, so the tower reads as absorbing rather
+// than as ignoring.
+const EnvIronWallBastion = ({ color }: { color: THREE.Color }) => {
+  const SHOTS = 40;
+  const towerRef = useRef<THREE.Group>(null);
+  const shotsRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const STONE = "#d8d8d1";
+  const DEEP = "#4c4c46";
+
+  // Five courses of 4/5 blocks, alternating half-block offset.
+  const blocks = useMemo(() => {
+    const out: { x: number; y: number; w: number }[] = [];
+    for (let c = 0; c < 5; c++) {
+      const odd = c % 2 === 1;
+      const n = odd ? 4 : 5;
+      const w = 5.2;
+      for (let i = 0; i < n; i++) {
+        const x = (i - (n - 1) / 2) * (w + 0.5);
+        out.push({ x, y: -8 + c * 4.2, w });
+      }
+    }
+    return out;
+  }, []);
+
+  const shots = useMemo(
+    () =>
+      [...Array(SHOTS)].map((_, i) => {
+        const a = (i / SHOTS) * Math.PI * 2 + (i % 4) * 0.22;
+        const tilt = ((i % 6) - 2.5) * 0.28;
+        return {
+          dir: new THREE.Vector3(Math.cos(a) * Math.cos(tilt), Math.sin(tilt), Math.sin(a) * Math.cos(tilt)),
+          phase: (i / SHOTS) * 1.4 + (i % 5) * 0.09,
+          size: 0.45 + (i % 4) * 0.24,
+          spin: 1.8 + (i % 6) * 0.45,
+          hits: i % blocks.length,
+        };
+      }),
+    [blocks.length]
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const flash: Record<number, number> = {};
+
+    if (shotsRef.current) {
+      shotsRef.current.children.forEach((child, i) => {
+        const s = shots[i];
+        const k = ((now * 0.75 + s.phase) % 1.4) / 1.4;
+        const inbound = k < 0.6;
+        const d = inbound ? 50 - (k / 0.6) * 34 : 16 + ((k - 0.6) / 0.4) * 40;
+        child.position.set(s.dir.x * d, s.dir.y * d + 1, s.dir.z * d);
+        child.rotation.x += delta * s.spin * (inbound ? 1 : 3.6);
+        child.rotation.y += delta * s.spin * (inbound ? 0.6 : 2.4);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = inbound ? 0.3 + (k / 0.6) * 0.65 : Math.max(0, 0.9 - (k - 0.6) * 2.6);
+        mat.emissiveIntensity = inbound ? 1.2 + (k / 0.6) * 5 : 6;
+        if (Math.abs(k - 0.6) < 0.06) flash[s.hits] = 1;
+      });
+    }
+
+    if (towerRef.current) {
+      towerRef.current.rotation.y = now * 0.3;
+      // Per-block flash on impact.
+      towerRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+        if (!mat || !mat.emissive) return;
+        const base = 1 + Math.sin(now * 1.4 + i * 0.6) * 0.25;
+        mat.emissiveIntensity = base + (flash[i] ? 9 : 0);
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -1, 0]}>
+      <group ref={towerRef}>
+        {blocks.map((b, i) => (
+          <Box key={i} args={[b.w, 3.8, 5]} position={[b.x, b.y, 0]}>
+            <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={1} flatShading />
+          </Box>
+        ))}
+        {/* Crenellation. */}
+        {[...Array(5)].map((_, i) => (
+          <Box key={`m${i}`} args={[3.4, 3.4, 5]} position={[(i - 2) * 5.7, 14, 0]}>
+            <meshStandardMaterial color={STONE} emissive={STONE} emissiveIntensity={1.6} flatShading toneMapped={false} />
+          </Box>
+        ))}
+        {/* Splayed plinth. */}
+        <Box args={[32, 2.4, 8]} position={[0, -11.4, 0]}>
+          <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={0.8} flatShading />
+        </Box>
+        {/* Arrow slit, lit from inside. */}
+        <Box args={[0.9, 6, 0.6]} position={[0, 0, 2.7]}>
+          <meshBasicMaterial color={STONE} toneMapped={false} />
+        </Box>
+      </group>
+
+      <group ref={shotsRef}>
+        {shots.map((s, i) => (
+          <Tetrahedron key={i} args={[s.size, 0]}>
+            <meshStandardMaterial color={STONE} emissive={STONE} emissiveIntensity={2} flatShading transparent opacity={0.55} toneMapped={false} />
+          </Tetrahedron>
+        ))}
+      </group>
+
+      <Sparkles count={320} scale={[54, 44, 54]} size={4} speed={1} color={color} opacity={0.5} />
+      <Sparkles count={130} scale={[30, 24, 30]} size={3} speed={1.9} color={STONE} opacity={0.7} />
+    </group>
+  );
+};
+
+// --- IW3. "IronWallRampart" -- Iron Wall LEGENDARY --------------------------
+// One tower has become a defended FRONTAGE: eighteen blocks laid on a shallow
+// arc so the wall curves away on both sides, nine merlons along the top, two
+// flanking tower drums and a lit gate. The barrage is now a rolling one -- it
+// arrives in waves from a single quarter that sweeps around the wall, which is
+// what makes a siege read differently from scattered fire.
+const EnvIronWallRampart = ({ color }: { color: THREE.Color }) => {
+  const SHOTS = 60;
+  const wallRef = useRef<THREE.Group>(null);
+  const shotsRef = useRef<THREE.Group>(null);
+  const gateRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const MID = "#8d8080";
+  const HOT = "#eee8e8";
+
+  const ARC = 0.055; // radians per block
+  const blocks = useMemo(() => {
+    const out: { a: number; y: number; w: number }[] = [];
+    for (let c = 0; c < 4; c++) {
+      const odd = c % 2 === 1;
+      const n = odd ? 8 : 9;
+      for (let i = 0; i < n; i++) {
+        const a = (i - (n - 1) / 2) * (ARC * 4.4);
+        out.push({ a, y: -7 + c * 4.4, w: odd ? 4.6 : 5 });
+      }
+    }
+    return out;
+  }, []);
+
+  const shots = useMemo(
+    () =>
+      [...Array(SHOTS)].map((_, i) => ({
+        band: (i % 12) / 12,
+        y: -6 + (i % 9) * 2.6,
+        phase: (i / SHOTS) * 1.2 + (i % 7) * 0.07,
+        size: 0.42 + (i % 5) * 0.22,
+        spin: 2 + (i % 6) * 0.4,
+      })),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    let anyImpact = 0;
+
+    if (shotsRef.current) {
+      // The quarter the barrage comes from sweeps slowly around the wall.
+      const sweep = Math.sin(now * 0.22) * 0.9;
+      shotsRef.current.children.forEach((child, i) => {
+        const s = shots[i];
+        const k = ((now * 0.95 + s.phase) % 1.2) / 1.2;
+        const inbound = k < 0.62;
+        const d = inbound ? 62 - (k / 0.62) * 42 : 20 + ((k - 0.62) / 0.38) * 46;
+        const a = sweep + (s.band - 0.5) * 1.3;
+        child.position.set(Math.sin(a) * d, s.y + (inbound ? 0 : (k - 0.62) * 16), Math.cos(a) * d);
+        child.rotation.x += delta * s.spin * (inbound ? 1 : 4);
+        child.rotation.z += delta * s.spin * (inbound ? 0.5 : 2.8);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = inbound ? 0.28 + (k / 0.62) * 0.68 : Math.max(0, 0.9 - (k - 0.62) * 2.8);
+        mat.emissiveIntensity = inbound ? 1.2 + (k / 0.62) * 6 : 7;
+        if (Math.abs(k - 0.62) < 0.05) anyImpact = 1;
+      });
+    }
+
+    if (wallRef.current) {
+      wallRef.current.rotation.y = Math.sin(now * 0.16) * 0.42;
+      wallRef.current.position.x = anyImpact ? (Math.random() - 0.5) * 0.22 : 0;
+      wallRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+        if (!mat || !mat.emissive) return;
+        mat.emissiveIntensity = 1.1 + Math.sin(now * 1.6 + i * 0.4) * 0.3 + anyImpact * 1.6;
+      });
+    }
+
+    if (gateRef.current) {
+      const mat = gateRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.65 + Math.sin(now * 2.2) * 0.2;
+    }
+  });
+
+  const RAD = 26;
+
+  return (
+    <group position={[0, 0, -8]}>
+      <group ref={wallRef}>
+        {blocks.map((b, i) => (
+          <Box
+            key={i}
+            args={[b.w, 4, 5]}
+            position={[Math.sin(b.a) * RAD, b.y, Math.cos(b.a) * RAD - RAD]}
+            rotation={[0, b.a, 0]}
+          >
+            <meshStandardMaterial color={MID} emissive={color} emissiveIntensity={1.1} flatShading />
+          </Box>
+        ))}
+        {/* Merlons. */}
+        {[...Array(9)].map((_, i) => {
+          const a = (i - 4) * (ARC * 4.4);
+          return (
+            <Box key={`m${i}`} args={[3.2, 3.4, 5]} position={[Math.sin(a) * RAD, 11.4, Math.cos(a) * RAD - RAD]} rotation={[0, a, 0]}>
+              <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={1.8} flatShading toneMapped={false} />
+            </Box>
+          );
+        })}
+        {/* Flanking tower drums, taller than the curtain they anchor. */}
+        <Cylinder args={[4.4, 5, 30, 8]} position={[Math.sin(-0.28) * RAD - 3, 0, Math.cos(-0.28) * RAD - RAD]}>
+          <meshStandardMaterial color={MID} emissive={color} emissiveIntensity={1.3} flatShading />
+        </Cylinder>
+        <Cylinder args={[4.4, 5, 30, 8]} position={[Math.sin(0.28) * RAD + 3, 0, Math.cos(0.28) * RAD - RAD]}>
+          <meshStandardMaterial color={MID} emissive={color} emissiveIntensity={1.3} flatShading />
+        </Cylinder>
+      </group>
+
+      {/* Lit gate. */}
+      <Box ref={gateRef} args={[6, 9, 1]} position={[0, -5, 3.4]}>
+        <meshBasicMaterial color={HOT} transparent opacity={0.7} toneMapped={false} />
+      </Box>
+
+      <group ref={shotsRef}>
+        {shots.map((s, i) => (
+          <Tetrahedron key={i} args={[s.size, 0]}>
+            <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={2} flatShading transparent opacity={0.5} toneMapped={false} />
+          </Tetrahedron>
+        ))}
+      </group>
+
+      <Sparkles count={430} scale={[70, 48, 60]} size={5} speed={1.2} color={color} opacity={0.5} />
+      <Sparkles count={170} scale={[40, 28, 34]} size={3} speed={2.2} color={HOT} opacity={0.75} />
+    </group>
+  );
+};
+
+// --- IW4. "IronWallCitadel" -- Iron Wall MYTHIC (T_REVEAL beat) -------------
+// Three concentric ring-walls around a keep. Before 1.7s a siege CONVERGES:
+// eighty projectiles spiral inward and tighten, the walls dim, the keep's spire
+// dims with them. At 1.7s the aegis fires -- every projectile is annihilated on
+// the spot, five shock rings blow outward through the walls, all three rings of
+// blocks flash from the inside out, and the spire opens a column of light. The
+// badge is 40 mocks without ever dropping below 80%; the scene is a siege that
+// simply does not land.
+const EnvIronWallCitadel = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const SHOTS = 80;
+  const HOT = "#7fd0a8";
+  const CORE = "#eafff5";
+
+  const wallsRef = useRef<THREE.Group>(null);
+  const shotsRef = useRef<THREE.Group>(null);
+  const ringsRef = useRef<THREE.Group>(null);
+  const spireRef = useRef<THREE.Group>(null);
+  const beamRef = useRef<THREE.Mesh>(null);
+  const flashRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  // Three rings of blocks: 16 / 12 / 8, each at its own radius and height.
+  const walls = useMemo(() => {
+    const out: { x: number; y: number; z: number; a: number; ring: number; w: number }[] = [];
+    const spec = [
+      { n: 16, r: 24, y: -9, w: 6.5 },
+      { n: 12, r: 16, y: -3, w: 6 },
+      { n: 8, r: 9, y: 3, w: 5.4 },
+    ];
+    spec.forEach((s, ring) => {
+      for (let i = 0; i < s.n; i++) {
+        const a = (i / s.n) * Math.PI * 2 + (ring % 2) * 0.2;
+        out.push({ x: Math.cos(a) * s.r, y: s.y, z: Math.sin(a) * s.r, a, ring, w: s.w });
+      }
+    });
+    return out;
+  }, []);
+
+  const shots = useMemo(
+    () =>
+      [...Array(SHOTS)].map((_, i) => {
+        const a = (i / SHOTS) * Math.PI * 2 * 3;
+        const tilt = ((i % 7) - 3) * 0.24;
+        return { a, tilt, r0: 48 + (i % 9) * 5, size: 0.5 + (i % 4) * 0.26, spin: 2 + (i % 6) * 0.5 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    if (shotsRef.current) {
+      shotsRef.current.children.forEach((child, i) => {
+        const s = shots[i];
+        // Pre: spiral inward and tighten. Post: annihilated where they stand.
+        const r = broken ? 0 : s.r0 * (1 - Math.pow(pre, 1.5) * 0.62);
+        const a = s.a + now * (broken ? 0 : 1.1 + pre * 1.6);
+        child.position.set(Math.cos(a) * r * Math.cos(s.tilt), Math.sin(s.tilt) * r * 0.5, Math.sin(a) * r * Math.cos(s.tilt));
+        child.rotation.x += delta * s.spin;
+        child.rotation.y += delta * s.spin * 0.7;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = broken ? Math.max(0, 0.9 - e * 6) : 0.25 + pre * 0.65;
+        mat.emissiveIntensity = broken ? 12 : 1.4 + pre * 4;
+        child.scale.setScalar(broken ? Math.max(0.01, 1 - e * 4) : 1);
+      });
+    }
+
+    if (wallsRef.current) {
+      wallsRef.current.rotation.y = now * 0.14;
+      wallsRef.current.children.forEach((child, i) => {
+        const w = walls[i];
+        if (!w) return;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        if (!broken) {
+          mat.emissiveIntensity = 1.4 - pre * 0.9;
+        } else {
+          // Flash sweeps outward, inner ring first.
+          const wave = clamp01(e * 3.4 - (2 - w.ring) * 0.28);
+          mat.emissiveIntensity = 1 + wave * 9 * Math.max(0.25, 1 - e * 0.55);
+        }
+      });
+    }
+
+    if (ringsRef.current) {
+      ringsRef.current.children.forEach((child, i) => {
+        const delay = i * 0.1;
+        const k = broken ? Math.max(0, e - delay) : 0;
+        child.scale.setScalar(broken ? 0.3 + k * 8 : 0.2);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 0.85 - k * 0.66) : 0;
+      });
+    }
+
+    if (spireRef.current) {
+      spireRef.current.rotation.y = now * 0.4;
+      const s = broken ? 1 + Math.min(e, 0.3) * 0.9 : 0.75 + pre * 0.2;
+      spireRef.current.scale.setScalar(s);
+    }
+
+    if (beamRef.current) {
+      const on = broken ? Math.min(1, e * 4) : 0;
+      beamRef.current.scale.set(1, 0.02 + on, 1);
+      (beamRef.current.material as THREE.MeshBasicMaterial).opacity = on * (0.42 + Math.sin(now * 7) * 0.08);
+    }
+
+    if (flashRef.current) {
+      const f = broken ? Math.max(0, 1 - e * 3) : 0;
+      flashRef.current.scale.setScalar(0.2 + f * 40);
+      (flashRef.current.material as THREE.MeshBasicMaterial).opacity = f * 0.9;
+    }
+  });
+
+  return (
+    <group position={[0, -2, -4]} rotation={[0.22, 0, 0]}>
+      <group ref={wallsRef}>
+        {walls.map((w, i) => (
+          <Box key={i} args={[w.w, 5.4, 4]} position={[w.x, w.y, w.z]} rotation={[0, -w.a, 0]}>
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.4} flatShading />
+          </Box>
+        ))}
+      </group>
+
+      {/* The keep and its spire. */}
+      <group ref={spireRef} position={[0, 8, 0]}>
+        <Cylinder args={[4.2, 5.2, 12, 8]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.2} flatShading toneMapped={false} />
+        </Cylinder>
+        <Cone args={[4.6, 9, 8]} position={[0, 10, 0]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={4} flatShading toneMapped={false} />
+        </Cone>
+        <Octahedron args={[1.5, 0]} position={[0, 16, 0]}>
+          <meshStandardMaterial color={CORE} emissive={CORE} emissiveIntensity={8} flatShading toneMapped={false} />
+        </Octahedron>
+      </group>
+
+      <Cylinder ref={beamRef} args={[3, 7, 70, 20, 1, true]} position={[0, 50, 0]}>
+        <meshBasicMaterial color={CORE} transparent opacity={0} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Cylinder>
+
+      {/* Aegis shock rings, flat to the ground plane. */}
+      <group ref={ringsRef}>
+        {[...Array(5)].map((_, i) => (
+          <Torus key={i} args={[10, 0.6, 8, 70]} rotation={[Math.PI / 2, 0, 0]} position={[0, -4, 0]}>
+            <meshBasicMaterial color={i % 2 ? CORE : HOT} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      <group ref={shotsRef}>
+        {shots.map((s, i) => (
+          <Tetrahedron key={i} args={[s.size, 0]}>
+            <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={2} flatShading transparent opacity={0.4} toneMapped={false} />
+          </Tetrahedron>
+        ))}
+      </group>
+
+      <Sphere ref={flashRef} args={[1, 20, 20]} position={[0, 4, 0]}>
+        <meshBasicMaterial color={CORE} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Sphere>
+
+      <Sparkles count={600} scale={[86, 60, 86]} size={5} speed={1.6} color={color} opacity={0.6} />
+      <Sparkles count={230} scale={[40, 50, 40]} size={3} speed={3} color={HOT} opacity={0.85} />
+    </group>
+  );
+};
+
+// --- VT1. "VeteranChevron" -- The Veteran BASE ------------------------------
+// A sleeve patch, floating. Two chevrons (each built from two raked bars, which
+// is what keeps them from reading as arrows) sit on a field plate, and a slow
+// column of counted motes drifts up past them -- the questions. It rotates
+// gently and does nothing else, because BASE Veteran is 250 questions and the
+// badge's claim is patience, not spectacle.
+const EnvVeteranChevron = ({ color }: { color: THREE.Color }) => {
+  const patchRef = useRef<THREE.Group>(null);
+  const chevronsRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const KHAKI = "#a6b862";
+  const LIGHT = "#f4f9e0";
+
+  // Two chevrons; each is two bars meeting at the apex.
+  const bars = useMemo(
+    () =>
+      [0, 1].flatMap((row) =>
+        [-1, 1].map((side) => ({
+          row,
+          side,
+          y: 2.5 - row * 6.5,
+          len: 13 - row * 1.6,
+        }))
+      ),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    if (patchRef.current) {
+      patchRef.current.rotation.y = Math.sin(now * 0.35) * 0.42;
+      patchRef.current.rotation.x = Math.sin(now * 0.27) * 0.14;
+    }
+    if (chevronsRef.current) {
+      chevronsRef.current.children.forEach((child, i) => {
+        const b = bars[i];
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 2.4 + Math.sin(now * 1.5 - b.row * 0.8) * 0.9;
+      });
+    }
+  });
+
+  return (
+    <group ref={patchRef}>
+      {/* Field plate. */}
+      <Box args={[26, 30, 1.2]} position={[0, -1, -3]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.8} flatShading transparent opacity={0.5} />
+      </Box>
+      <Torus args={[16, 0.4, 8, 4]} position={[0, -1, -2]} rotation={[0, 0, Math.PI / 4]}>
+        <meshStandardMaterial color={KHAKI} emissive={KHAKI} emissiveIntensity={2} flatShading toneMapped={false} />
+      </Torus>
+
+      {/* Two chevrons. */}
+      <group ref={chevronsRef}>
+        {bars.map((b, i) => (
+          <Box
+            key={i}
+            args={[b.len, 2.6, 2]}
+            position={[b.side * (b.len / 2) * 0.72, b.y - (b.len / 2) * 0.36, 0]}
+            rotation={[0, 0, b.side * -0.46]}
+          >
+            <meshStandardMaterial
+              color={b.row === 0 ? KHAKI : LIGHT}
+              emissive={b.row === 0 ? KHAKI : LIGHT}
+              emissiveIntensity={2.4}
+              flatShading
+              toneMapped={false}
+            />
+          </Box>
+        ))}
+      </group>
+
+      {/* Rocker bar under the chevrons. */}
+      <Box args={[17, 1.6, 2]} position={[0, -12.5, 0]}>
+        <meshStandardMaterial color={KHAKI} emissive={KHAKI} emissiveIntensity={2} flatShading toneMapped={false} />
+      </Box>
+
+      {/* Counted motes -- narrow, slow, upward. */}
+      <Sparkles count={260} scale={[24, 46, 24]} size={4} speed={0.6} color={color} opacity={0.5} />
+      <Sparkles count={90} scale={[12, 40, 12]} size={2.5} speed={1.1} color={LIGHT} opacity={0.7} />
+    </group>
+  );
+};
+
+// --- VT2. "VeteranMedallion" -- The Veteran SUPER ---------------------------
+// The chevron struck into metal. A ribbon bar of five stripes hangs a notched
+// disc (twelve rim ticks on their own drum) that turns steadily on its
+// suspension, with the BASE chevron raised off its face. Deliberately NOT
+// EnvMedal (competitor BASE), which is a circular colonnade seen side-on: this
+// is one object, face-on, hanging.
+const EnvVeteranMedallion = ({ color }: { color: THREE.Color }) => {
+  const discRef = useRef<THREE.Group>(null);
+  const ticksRef = useRef<THREE.Group>(null);
+  const ribbonRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const ROSE = "#e8bfbb";
+  const DEEP = "#4a2320";
+
+  const ticks = useMemo(
+    () =>
+      [...Array(12)].map((_, i) => {
+        const a = (i / 12) * Math.PI * 2;
+        return { a, x: Math.cos(a) * 11.4, y: Math.sin(a) * 11.4, big: i % 3 === 0 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    // A hanging medal swings; it does not spin freely.
+    const swing = Math.sin(now * 0.9) * 0.34;
+    if (ribbonRef.current) ribbonRef.current.rotation.z = swing * 0.25;
+    if (discRef.current) {
+      discRef.current.rotation.y = Math.sin(now * 0.55) * 0.9;
+      discRef.current.rotation.z = swing * 0.4;
+    }
+    if (ticksRef.current) {
+      ticksRef.current.rotation.z = -now * 0.35;
+      ticksRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 2.2 + Math.sin(now * 2.4 + i * 0.6) * 1.4;
+      });
+    }
+  });
+
+  return (
+    <group position={[0, 2, 0]}>
+      {/* Ribbon bar, five stripes. */}
+      <group ref={ribbonRef} position={[0, 17, 0]}>
+        <Box args={[18, 4.4, 1.6]}>
+          <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={1.2} flatShading />
+        </Box>
+        {[-2, -1, 0, 1, 2].map((k) => (
+          <Box key={k} args={[2.4, 4.6, 1.9]} position={[k * 3.3, 0, 0.2]}>
+            <meshStandardMaterial
+              color={k === 0 ? ROSE : color}
+              emissive={k === 0 ? ROSE : color}
+              emissiveIntensity={k === 0 ? 4 : 2.2}
+              flatShading
+              toneMapped={false}
+            />
+          </Box>
+        ))}
+        {/* Suspension drop. */}
+        <Cone args={[3.4, 6, 4]} position={[0, -5, 0]} rotation={[0, Math.PI / 4, Math.PI]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} flatShading toneMapped={false} />
+        </Cone>
+      </group>
+
+      {/* The disc. */}
+      <group ref={discRef} position={[0, 0, 0]}>
+        <Cylinder args={[10.5, 10.5, 2.4, 32]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={1.4} flatShading />
+        </Cylinder>
+        <Torus args={[10.5, 0.7, 10, 48]}>
+          <meshStandardMaterial color={ROSE} emissive={ROSE} emissiveIntensity={3} flatShading toneMapped={false} />
+        </Torus>
+        <Torus args={[7.4, 0.35, 8, 40]} position={[0, 0, 0.6]}>
+          <meshStandardMaterial color={ROSE} emissive={ROSE} emissiveIntensity={2} flatShading transparent opacity={0.7} toneMapped={false} />
+        </Torus>
+
+        {/* The chevron, raised off the face. */}
+        {[-1, 1].map((side) => (
+          <Box key={side} args={[8.4, 1.9, 1.4]} position={[side * 3, -1.1, 2]} rotation={[0, 0, side * -0.46]}>
+            <meshStandardMaterial color="#fff0ee" emissive="#fff0ee" emissiveIntensity={5} flatShading toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Rim ticks on their own counter-rotating drum. */}
+      <group ref={ticksRef}>
+        {ticks.map((tk, i) => (
+          <Box key={i} args={[tk.big ? 1 : 0.6, tk.big ? 2.6 : 1.6, 0.8]} position={[tk.x, tk.y, 0]} rotation={[0, 0, tk.a + Math.PI / 2]}>
+            <meshStandardMaterial color={ROSE} emissive={ROSE} emissiveIntensity={2.5} flatShading toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      <Sparkles count={340} scale={[36, 50, 36]} size={4} speed={0.9} color={color} opacity={0.55} />
+      <Sparkles count={120} scale={[18, 30, 18]} size={2.5} speed={1.6} color={ROSE} opacity={0.8} />
+    </group>
+  );
+};
+
+// --- VT3. "VeteranStandard" -- The Veteran LEGENDARY ------------------------
+// The colours, granted. A pike carries a hanging standard whose cloth is
+// SEGMENTED into eleven slats so a travelling sine can run through it -- that
+// is how the banner flies without a cloth simulation. Three chevrons ride the
+// cloth and flex with it, a fringe of eight tassels swings under it, and two
+// flanking torch drums light it from below.
+const EnvVeteranStandard = ({ color }: { color: THREE.Color }) => {
+  const SLATS = 11;
+  const clothRef = useRef<THREE.Group>(null);
+  const fringeRef = useRef<THREE.Group>(null);
+  const chevRef = useRef<THREE.Group>(null);
+  const torchRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const GREEN = "#8fd9be";
+  const DEEP = "#072a20";
+
+  const slats = useMemo(() => [...Array(SLATS)].map((_, i) => ({ y: 11 - i * 2.2, u: i / (SLATS - 1) })), []);
+  const fringe = useMemo(() => [...Array(8)].map((_, i) => ({ x: (i - 3.5) * 2.4 })), []);
+  const chevs = useMemo(
+    () => [0, 1, 2].flatMap((row) => [-1, 1].map((side) => ({ row, side, y: 6 - row * 6.4 }))),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const wave = (u: number, amp: number) => Math.sin(now * 2.1 - u * 3.4) * amp * (0.35 + u * 0.9);
+
+    if (clothRef.current) {
+      clothRef.current.children.forEach((child, i) => {
+        const s = slats[i];
+        child.position.z = wave(s.u, 2.4);
+        child.rotation.y = wave(s.u, 0.22);
+      });
+    }
+    if (chevRef.current) {
+      chevRef.current.children.forEach((child, i) => {
+        const c = chevs[i];
+        const u = 0.15 + c.row * 0.3;
+        child.position.z = wave(u, 2.4) + 1.4;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 3 + Math.sin(now * 1.8 - c.row * 0.9) * 1.2;
+      });
+    }
+    if (fringeRef.current) {
+      fringeRef.current.children.forEach((child, i) => {
+        child.rotation.x = wave(1, 0.4) + Math.sin(now * 3 + i * 0.7) * 0.16;
+      });
+    }
+    if (torchRef.current) {
+      torchRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 5 + Math.sin(now * 7 + i * 2.3) * 2.2;
+        child.scale.y = 1 + Math.sin(now * 6.4 + i * 1.7) * 0.14;
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -2, 0]}>
+      {/* Pike and spear finial. */}
+      <Cylinder args={[0.5, 0.5, 46, 8]} position={[0, 0, 0]}>
+        <meshStandardMaterial color={GREEN} emissive={GREEN} emissiveIntensity={2.4} flatShading toneMapped={false} />
+      </Cylinder>
+      <Octahedron args={[2.2, 0]} position={[0, 25, 0]}>
+        <meshStandardMaterial color="#eefaf5" emissive="#eefaf5" emissiveIntensity={7} flatShading toneMapped={false} />
+      </Octahedron>
+      {/* Cross-bar the cloth hangs from. */}
+      <Box args={[22, 0.9, 0.9]} position={[0, 13, 0]}>
+        <meshStandardMaterial color={GREEN} emissive={GREEN} emissiveIntensity={3} flatShading toneMapped={false} />
+      </Box>
+
+      {/* Cloth, as slats. */}
+      <group ref={clothRef}>
+        {slats.map((s, i) => (
+          <Box key={i} args={[19, 2.1, 0.35]} position={[0, s.y, 0]}>
+            <meshStandardMaterial color={DEEP} emissive={color} emissiveIntensity={1.2} flatShading transparent opacity={0.88} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Three chevrons on the field. */}
+      <group ref={chevRef}>
+        {chevs.map((c, i) => (
+          <Box key={i} args={[9.2, 1.7, 0.8]} position={[c.side * 3.3, c.y, 1.4]} rotation={[0, 0, c.side * -0.46]}>
+            <meshStandardMaterial
+              color={c.row === 2 ? "#eefaf5" : GREEN}
+              emissive={c.row === 2 ? "#eefaf5" : GREEN}
+              emissiveIntensity={3}
+              flatShading
+              toneMapped={false}
+            />
+          </Box>
+        ))}
+      </group>
+
+      {/* Fringe. */}
+      <group ref={fringeRef} position={[0, -11.4, 0]}>
+        {fringe.map((f, i) => (
+          <Cone key={i} args={[0.55, 3.4, 5]} position={[f.x, -1.7, 0]} rotation={[0, 0, Math.PI]}>
+            <meshStandardMaterial color={GREEN} emissive={GREEN} emissiveIntensity={2.4} flatShading toneMapped={false} />
+          </Cone>
+        ))}
+      </group>
+
+      {/* Two flanking torches. */}
+      <group ref={torchRef}>
+        <Cone args={[2, 6, 6]} position={[-15, -14, 2]}>
+          <meshStandardMaterial color={GREEN} emissive={GREEN} emissiveIntensity={5} flatShading toneMapped={false} />
+        </Cone>
+        <Cone args={[2, 6, 6]} position={[15, -14, 2]}>
+          <meshStandardMaterial color={GREEN} emissive={GREEN} emissiveIntensity={5} flatShading toneMapped={false} />
+        </Cone>
+      </group>
+
+      <Sparkles count={430} scale={[46, 60, 40]} size={5} speed={1.1} color={color} opacity={0.55} />
+      <Sparkles count={160} scale={[26, 36, 22]} size={3} speed={2} color={GREEN} opacity={0.8} />
+    </group>
+  );
+};
+
+// --- VT4. "VeteranLegacy" -- The Veteran MYTHIC (T_REVEAL beat) -------------
+// The chevron becomes architecture. Before 1.7s a lifetime of counted motes
+// SPIRALS IN and packs around a dark obelisk built of four chevron courses;
+// the apex star is unlit and the courses are cold. At 1.7s the star ignites:
+// the courses light bottom-to-top in a fast cascade, six light shafts leave the
+// apex, the packed motes are thrown outward, and three shock rings cross the
+// plinth. 7,500 questions, finally standing up.
+const EnvVeteranLegacy = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const MOTES = 90;
+  const LILAC = "#eabfd6";
+  const CORE = "#ffffff";
+
+  const coursesRef = useRef<THREE.Group>(null);
+  const motesRef = useRef<THREE.Group>(null);
+  const starRef = useRef<THREE.Mesh>(null);
+  const shaftsRef = useRef<THREE.Group>(null);
+  const ringsRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  // Four chevron courses, each two bars, narrowing as they rise.
+  const courses = useMemo(
+    () =>
+      [0, 1, 2, 3].flatMap((row) =>
+        [-1, 1].map((side) => ({ row, side, y: -12 + row * 7.4, len: 15 - row * 2.6 }))
+      ),
+    []
+  );
+
+  const motes = useMemo(
+    () =>
+      [...Array(MOTES)].map((_, i) => {
+        const a = (i / MOTES) * Math.PI * 2 * 4;
+        return { a, r0: 34 + (i % 11) * 3.4, y: -16 + (i % 17) * 2.4, size: 0.32 + (i % 4) * 0.16, spin: 1.4 + (i % 5) * 0.4 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    if (motesRef.current) {
+      motesRef.current.children.forEach((child, i) => {
+        const m = motes[i];
+        const r = broken ? 5 + e * (24 + (i % 9) * 5) : m.r0 * (1 - Math.pow(pre, 1.6) * 0.78);
+        const a = m.a + now * (broken ? 0.5 : 1 + pre * 2.2);
+        child.position.set(Math.cos(a) * r, m.y * (broken ? 1 : 1 - pre * 0.4) + (broken ? e * 5 : 0), Math.sin(a) * r);
+        child.rotation.x += delta * m.spin;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = broken ? Math.max(0, 0.95 - e * 0.5) : 0.3 + pre * 0.6;
+        mat.emissiveIntensity = broken ? 8 : 1.2 + pre * 3.4;
+      });
+    }
+
+    if (coursesRef.current) {
+      coursesRef.current.rotation.y = now * 0.24;
+      coursesRef.current.children.forEach((child, i) => {
+        const c = courses[i];
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        if (!broken) {
+          mat.emissiveIntensity = 0.5;
+        } else {
+          // Cascade upward: bottom course lights first.
+          const wave = clamp01(e * 4.5 - c.row * 0.22);
+          mat.emissiveIntensity = 0.6 + wave * 8 * Math.max(0.3, 1 - e * 0.4);
+        }
+      });
+    }
+
+    if (starRef.current) {
+      const on = broken ? 1 : pre * 0.1;
+      const mat = starRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = broken ? 14 * Math.max(0.35, 1 - e * 0.5) : 0.4;
+      starRef.current.scale.setScalar(broken ? 1 + Math.min(e, 0.25) * 2.2 : 0.5 + on);
+      starRef.current.rotation.y = now * 1.2;
+      starRef.current.rotation.z = now * 0.7;
+    }
+
+    if (shaftsRef.current) {
+      shaftsRef.current.rotation.y = now * 0.3;
+      shaftsRef.current.children.forEach((child, i) => {
+        const on = broken ? Math.min(1, (e - i * 0.03) * 4) : 0;
+        child.scale.set(1, Math.max(0.001, on), 1);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.max(0, on * 0.42);
+      });
+    }
+
+    if (ringsRef.current) {
+      ringsRef.current.children.forEach((child, i) => {
+        const k = broken ? Math.max(0, e - i * 0.12) : 0;
+        child.scale.setScalar(broken ? 0.3 + k * 6 : 0.2);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 0.8 - k * 0.65) : 0;
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -1, -3]} rotation={[0.12, 0, 0]}>
+      {/* Obelisk, as four chevron courses. */}
+      <group ref={coursesRef}>
+        {courses.map((c, i) => (
+          <Box
+            key={i}
+            args={[c.len, 2.4, 2.4]}
+            position={[c.side * (c.len / 2) * 0.7, c.y - (c.len / 2) * 0.34, 0]}
+            rotation={[0, 0, c.side * -0.46]}
+          >
+            <meshStandardMaterial color={color} emissive={CORE} emissiveIntensity={0.5} flatShading />
+          </Box>
+        ))}
+      </group>
+
+      {/* Plinth. */}
+      <Box args={[26, 2.6, 12]} position={[0, -19, 0]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.1} flatShading />
+      </Box>
+      <Box args={[32, 1.8, 16]} position={[0, -21.4, 0]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.7} flatShading transparent opacity={0.75} />
+      </Box>
+
+      {/* Apex star. */}
+      <Octahedron ref={starRef} args={[3, 0]} position={[0, 17, 0]}>
+        <meshStandardMaterial color={CORE} emissive={CORE} emissiveIntensity={0.4} flatShading toneMapped={false} />
+      </Octahedron>
+
+      {/* Six light shafts leaving the apex. */}
+      <group ref={shaftsRef} position={[0, 17, 0]}>
+        {[...Array(6)].map((_, i) => {
+          const a = (i / 6) * Math.PI * 2;
+          return (
+            <Cylinder key={i} args={[0.8, 3.4, 46, 10, 1, true]} position={[Math.cos(a) * 9, 16, Math.sin(a) * 9]} rotation={[0, 0, -Math.cos(a) * 0.34]}>
+              <meshBasicMaterial color={LILAC} transparent opacity={0} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </Cylinder>
+          );
+        })}
+      </group>
+
+      {/* Shock rings across the plinth. */}
+      <group ref={ringsRef} position={[0, -18, 0]}>
+        {[...Array(3)].map((_, i) => (
+          <Torus key={i} args={[12, 0.6, 8, 64]} rotation={[Math.PI / 2, 0, 0]}>
+            <meshBasicMaterial color={i % 2 ? CORE : LILAC} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* The counted lifetime. */}
+      <group ref={motesRef}>
+        {motes.map((m, i) => (
+          <Octahedron key={i} args={[m.size, 0]}>
+            <meshStandardMaterial color={LILAC} emissive={LILAC} emissiveIntensity={2} flatShading transparent opacity={0.5} toneMapped={false} />
+          </Octahedron>
+        ))}
+      </group>
+
+      <Sparkles count={560} scale={[70, 66, 70]} size={5} speed={1.3} color={color} opacity={0.6} />
+      <Sparkles count={220} scale={[34, 56, 34]} size={3} speed={2.4} color={LILAC} opacity={0.85} />
+    </group>
+  );
+};
+
+// --- LM1. "LastMinuteSpark" -- Last-Minute Hero BASE ------------------------
+// A dial the size of the room, seen face-on. Twelve ticks, two hands, and a
+// FINAL WEDGE built from six radial bars at the top of the face -- that wedge is
+// the badge's unlock rule drawn to scale (the last ~10% of the window). The
+// hands accelerate as they approach it and a spark fires the instant they cross.
+const EnvLastMinuteSpark = ({ color }: { color: THREE.Color }) => {
+  const ticksRef = useRef<THREE.Group>(null);
+  const wedgeRef = useRef<THREE.Group>(null);
+  const handRef = useRef<THREE.Group>(null);
+  const sparkRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const AMBER = "#f6bc4c";
+  const HOT = "#fff4dc";
+  const R = 17;
+
+  const ticks = useMemo(
+    () =>
+      [...Array(12)].map((_, i) => {
+        const a = (i / 12) * Math.PI * 2;
+        return { a, big: i % 3 === 0 };
+      }),
+    []
+  );
+  const wedge = useMemo(
+    () => [...Array(6)].map((_, i) => ({ a: -Math.PI / 2 + (i / 5) * 0.63 })),
+    []
+  );
+  const sparks = useMemo(
+    () =>
+      [...Array(18)].map((_, i) => {
+        const a = -Math.PI / 2 + 0.31 + ((i / 18) - 0.5) * 2.2;
+        return { a, speed: 12 + (i % 5) * 6, size: 0.36 + (i % 3) * 0.2 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    // Sweep period 3.4s, easing hard into the wedge.
+    const cyc = (now % 3.4) / 3.4;
+    const eased = Math.pow(cyc, 0.55);
+    const ang = eased * Math.PI * 2;
+    const inWedge = cyc > 0.9;
+
+    if (handRef.current) handRef.current.rotation.z = -ang;
+
+    if (wedgeRef.current) {
+      wedgeRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = (inWedge ? 9 : 2.6) + Math.sin(now * 3 + i) * 0.8;
+      });
+    }
+
+    if (ticksRef.current) {
+      ticksRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 2 + Math.sin(now * 1.6 + i * 0.5) * 0.6;
+      });
+    }
+
+    if (sparkRef.current) {
+      const k = inWedge ? (cyc - 0.9) / 0.1 : 0;
+      sparkRef.current.children.forEach((child, i) => {
+        const s = sparks[i];
+        const d = R + k * s.speed;
+        child.position.set(Math.cos(s.a) * d, Math.sin(s.a) * d, 1.5);
+        child.rotation.z += delta * 6;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = inWedge ? Math.max(0, 1 - k * 1.1) : 0;
+      });
+    }
+  });
+
+  return (
+    <group position={[0, 0, -3]}>
+      {/* Dial rim and inner ring. */}
+      <Torus args={[R, 0.75, 10, 80]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.4} flatShading toneMapped={false} />
+      </Torus>
+      <Torus args={[R - 6, 0.3, 8, 64]}>
+        <meshStandardMaterial color={AMBER} emissive={AMBER} emissiveIntensity={1.6} flatShading transparent opacity={0.6} toneMapped={false} />
+      </Torus>
+      <Cylinder args={[R - 0.8, R - 0.8, 0.5, 48]} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -1.4]}>
+        <meshStandardMaterial color="#221600" emissive={color} emissiveIntensity={0.5} flatShading transparent opacity={0.75} />
+      </Cylinder>
+
+      {/* Ticks. */}
+      <group ref={ticksRef}>
+        {ticks.map((tk, i) => (
+          <Box
+            key={i}
+            args={[tk.big ? 1.2 : 0.6, tk.big ? 3.6 : 2.2, 0.7]}
+            position={[Math.cos(tk.a) * (R - 2.4), Math.sin(tk.a) * (R - 2.4), 0.6]}
+            rotation={[0, 0, tk.a + Math.PI / 2]}
+          >
+            <meshStandardMaterial color={AMBER} emissive={AMBER} emissiveIntensity={2} flatShading toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* The final wedge, six radial bars. */}
+      <group ref={wedgeRef}>
+        {wedge.map((w, i) => (
+          <Box
+            key={i}
+            args={[9.5, 0.9, 0.8]}
+            position={[Math.cos(w.a) * (R - 5), Math.sin(w.a) * (R - 5), 0.9]}
+            rotation={[0, 0, w.a]}
+          >
+            <meshStandardMaterial color={AMBER} emissive={AMBER} emissiveIntensity={2.6} flatShading toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Hands. */}
+      <group ref={handRef} position={[0, 0, 1.6]}>
+        <Box args={[1, 14, 0.8]} position={[0, 7, 0]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={5} flatShading toneMapped={false} />
+        </Box>
+        <Box args={[0.8, 9, 0.8]} position={[0, 4.5, -0.9]} rotation={[0, 0, 0.5]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={3.4} flatShading transparent opacity={0.85} toneMapped={false} />
+        </Box>
+      </group>
+      <Sphere args={[1.5, 14, 14]} position={[0, 0, 2]}>
+        <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={6} flatShading toneMapped={false} />
+      </Sphere>
+
+      {/* Spark shed at the wedge. */}
+      <group ref={sparkRef}>
+        {sparks.map((s, i) => (
+          <Tetrahedron key={i} args={[s.size, 0]}>
+            <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={7} flatShading transparent opacity={0} toneMapped={false} />
+          </Tetrahedron>
+        ))}
+      </group>
+
+      <Sparkles count={260} scale={[52, 52, 26]} size={4} speed={1} color={color} opacity={0.45} />
+    </group>
+  );
+};
+
+// --- LM2. "LastMinuteFlash" -- Last-Minute Hero SUPER -----------------------
+// Same dial, but the spark has become a FLASH: on every crossing the whole
+// frame blows out from a sphere at the wedge, ten streak bars rip outward, and
+// the dial itself over-brightens for a few frames before falling back. Five
+// times means it stops being an accident, so this scene repeats on a hard,
+// regular 2.6s beat rather than easing.
+const EnvLastMinuteFlash = ({ color }: { color: THREE.Color }) => {
+  const ticksRef = useRef<THREE.Group>(null);
+  const wedgeRef = useRef<THREE.Group>(null);
+  const handRef = useRef<THREE.Group>(null);
+  const streaksRef = useRef<THREE.Group>(null);
+  const flashRef = useRef<THREE.Mesh>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const INK = "#3f5309";
+  const MID = "#6b8f14";
+  const R = 17;
+  const WEDGE_A = -Math.PI / 2 + 0.31;
+
+  const ticks = useMemo(() => [...Array(12)].map((_, i) => ({ a: (i / 12) * Math.PI * 2, big: i % 3 === 0 })), []);
+  const wedge = useMemo(() => [...Array(7)].map((_, i) => ({ a: -Math.PI / 2 + (i / 6) * 0.63 })), []);
+  const streaks = useMemo(
+    () => [...Array(10)].map((_, i) => ({ a: WEDGE_A + ((i / 10) - 0.5) * 2.6, len: 10 + (i % 4) * 8 })),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const cyc = (now % 2.6) / 2.6;
+    const ang = cyc * Math.PI * 2;
+    // Flash window is the last 8% of every cycle.
+    const f = cyc > 0.92 ? 1 - (cyc - 0.92) / 0.08 : 0;
+
+    if (handRef.current) handRef.current.rotation.z = -ang;
+
+    if (wedgeRef.current) {
+      wedgeRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 3 + f * 16 + Math.sin(now * 4 + i) * 0.7;
+      });
+    }
+    if (ticksRef.current) {
+      ticksRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 2.2 + f * 6 + Math.sin(now * 2 + i * 0.5) * 0.5;
+      });
+    }
+    if (streaksRef.current) {
+      streaksRef.current.children.forEach((child, i) => {
+        const s = streaks[i];
+        const k = 1 - f;
+        child.position.set(Math.cos(s.a) * (R + 6 + k * 26), Math.sin(s.a) * (R + 6 + k * 26), 2);
+        child.scale.set(1, 0.3 + f * 2.4, 1);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = f * 0.9;
+      });
+    }
+    if (flashRef.current) {
+      flashRef.current.position.set(Math.cos(WEDGE_A) * (R - 4), Math.sin(WEDGE_A) * (R - 4), 3);
+      flashRef.current.scale.setScalar(0.3 + f * f * 26);
+      (flashRef.current.material as THREE.MeshBasicMaterial).opacity = f * 0.95;
+    }
+    if (ringRef.current) {
+      ringRef.current.scale.setScalar(0.3 + (1 - f) * (f > 0 ? 3.4 : 0.3));
+      (ringRef.current.material as THREE.MeshBasicMaterial).opacity = f * 0.75;
+    }
+  });
+
+  return (
+    <group position={[0, 0, -3]}>
+      <Torus args={[R, 0.85, 10, 80]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} flatShading toneMapped={false} />
+      </Torus>
+      <Torus args={[R - 6, 0.35, 8, 64]}>
+        <meshStandardMaterial color={MID} emissive={MID} emissiveIntensity={2} flatShading transparent opacity={0.6} toneMapped={false} />
+      </Torus>
+      <Cylinder args={[R - 0.8, R - 0.8, 0.5, 48]} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -1.4]}>
+        <meshStandardMaterial color={INK} emissive={color} emissiveIntensity={0.6} flatShading transparent opacity={0.7} />
+      </Cylinder>
+
+      <group ref={ticksRef}>
+        {ticks.map((tk, i) => (
+          <Box
+            key={i}
+            args={[tk.big ? 1.3 : 0.65, tk.big ? 3.8 : 2.4, 0.7]}
+            position={[Math.cos(tk.a) * (R - 2.4), Math.sin(tk.a) * (R - 2.4), 0.6]}
+            rotation={[0, 0, tk.a + Math.PI / 2]}
+          >
+            <meshStandardMaterial color={MID} emissive={MID} emissiveIntensity={2.2} flatShading toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      <group ref={wedgeRef}>
+        {wedge.map((w, i) => (
+          <Box key={i} args={[10, 1, 0.9]} position={[Math.cos(w.a) * (R - 5), Math.sin(w.a) * (R - 5), 0.9]} rotation={[0, 0, w.a]}>
+            <meshStandardMaterial color={MID} emissive={MID} emissiveIntensity={3} flatShading toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      <group ref={handRef} position={[0, 0, 1.6]}>
+        <Box args={[1.1, 14.5, 0.9]} position={[0, 7.2, 0]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={6} flatShading toneMapped={false} />
+        </Box>
+        <Box args={[0.85, 9.5, 0.85]} position={[0, 4.7, -0.9]} rotation={[0, 0, 0.5]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={4} flatShading transparent opacity={0.85} toneMapped={false} />
+        </Box>
+      </group>
+      <Sphere args={[1.6, 14, 14]} position={[0, 0, 2]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={7} flatShading toneMapped={false} />
+      </Sphere>
+
+      {/* Flash streaks. */}
+      <group ref={streaksRef}>
+        {streaks.map((s, i) => (
+          <Box key={i} args={[1.1, s.len, 0.6]} rotation={[0, 0, s.a - Math.PI / 2]}>
+            <meshBasicMaterial color={color} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* The blowout and its ring. */}
+      <Sphere ref={flashRef} args={[1, 20, 20]}>
+        <meshBasicMaterial color="#ffffff" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Sphere>
+      <Torus ref={ringRef} args={[R, 0.5, 8, 72]} position={[0, 0, 2.4]}>
+        <meshBasicMaterial color="#ffffff" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Torus>
+
+      <Sparkles count={380} scale={[58, 58, 30]} size={4} speed={2} color={color} opacity={0.55} />
+      <Sparkles count={140} scale={[30, 30, 18]} size={3} speed={3.4} color={MID} opacity={0.75} />
+    </group>
+  );
+};
+
+// --- LM3. "LastMinuteBlaze" -- Last-Minute Hero LEGENDARY -------------------
+// The dial is burning and the ring no longer closes: the rim is drawn as a
+// 300-degree arc with a hard break exactly where the wedge is, three flame
+// plumes climb out of the break, and embers stream up past the whole face. The
+// hands are still turning inside it -- fifteen times means this is now the
+// normal state of affairs, not a crisis.
+const EnvLastMinuteBlaze = ({ color }: { color: THREE.Color }) => {
+  const PLUMES = 3;
+  const EMBERS = 46;
+  const plumesRef = useRef<THREE.Group>(null);
+  const embersRef = useRef<THREE.Group>(null);
+  const handRef = useRef<THREE.Group>(null);
+  const ticksRef = useRef<THREE.Group>(null);
+  const heatRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const FLAME = "#dcd857";
+  const HOT = "#fcfbdb";
+  const R = 17;
+  const WEDGE_A = -Math.PI / 2 + 0.31;
+
+  const ticks = useMemo(() => [...Array(12)].map((_, i) => ({ a: (i / 12) * Math.PI * 2, big: i % 3 === 0 })), []);
+  const plumes = useMemo(
+    () => [...Array(PLUMES)].map((_, i) => ({ off: (i - 1) * 3.6, phase: i * 0.7, h: 12 + i * 3 })),
+    []
+  );
+  const embers = useMemo(
+    () =>
+      [...Array(EMBERS)].map((_, i) => ({
+        x: Math.cos(WEDGE_A) * (R - 3) + ((i % 9) - 4) * 1.9,
+        phase: (i / EMBERS) * 3,
+        speed: 6 + (i % 6) * 3,
+        size: 0.3 + (i % 4) * 0.18,
+        drift: ((i % 7) - 3) * 0.5,
+      })),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    if (handRef.current) handRef.current.rotation.z = -(now % 4) / 4 * Math.PI * 2;
+
+    if (ticksRef.current) {
+      ticksRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 2.2 + Math.sin(now * 5 + i * 0.9) * 1.2;
+      });
+    }
+
+    if (plumesRef.current) {
+      plumesRef.current.children.forEach((child, i) => {
+        const p = plumes[i];
+        const flick = Math.sin(now * 6.5 + p.phase) * 0.5 + Math.sin(now * 11 + p.phase * 2) * 0.22;
+        child.scale.set(1 + flick * 0.16, 1 + flick * 0.4, 1 + flick * 0.16);
+        child.rotation.z = Math.sin(now * 3.2 + p.phase) * 0.2;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 4.5 + flick * 3;
+      });
+    }
+
+    if (embersRef.current) {
+      embersRef.current.children.forEach((child, i) => {
+        const em = embers[i];
+        const k = ((now * em.speed * 0.06 + em.phase) % 1);
+        const y = Math.sin(WEDGE_A) * (R - 3) + k * 40;
+        child.position.set(em.x + Math.sin(now * 2 + i) * em.drift * 3, y, 3);
+        child.rotation.z += delta * 4;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = Math.max(0, 0.95 - k * 0.95);
+        mat.emissiveIntensity = 5 - k * 3;
+      });
+    }
+
+    if (heatRef.current) {
+      heatRef.current.children.forEach((child, i) => {
+        const k = ((now * 0.5 + i * 0.33) % 1);
+        child.scale.setScalar(0.6 + k * 1.5);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.max(0, 0.4 - k * 0.4);
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -2, -3]}>
+      {/* The BROKEN rim: 300 degrees of arc, open exactly at the wedge. */}
+      <Torus args={[R, 0.85, 10, 80, Math.PI * 1.67]} rotation={[0, 0, -Math.PI / 2 + 0.94]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.6} flatShading toneMapped={false} />
+      </Torus>
+      <Torus args={[R - 6, 0.35, 8, 60]}>
+        <meshStandardMaterial color={FLAME} emissive={FLAME} emissiveIntensity={2} flatShading transparent opacity={0.5} toneMapped={false} />
+      </Torus>
+      <Cylinder args={[R - 0.8, R - 0.8, 0.5, 48]} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -1.4]}>
+        <meshStandardMaterial color="#2b2b00" emissive={color} emissiveIntensity={0.6} flatShading transparent opacity={0.7} />
+      </Cylinder>
+
+      <group ref={ticksRef}>
+        {ticks.map((tk, i) => (
+          <Box
+            key={i}
+            args={[tk.big ? 1.3 : 0.65, tk.big ? 3.8 : 2.4, 0.7]}
+            position={[Math.cos(tk.a) * (R - 2.4), Math.sin(tk.a) * (R - 2.4), 0.6]}
+            rotation={[0, 0, tk.a + Math.PI / 2]}
+          >
+            <meshStandardMaterial color={FLAME} emissive={FLAME} emissiveIntensity={2.2} flatShading toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      <group ref={handRef} position={[0, 0, 1.6]}>
+        <Box args={[1.1, 14.5, 0.9]} position={[0, 7.2, 0]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={5} flatShading toneMapped={false} />
+        </Box>
+        <Box args={[0.85, 9.5, 0.85]} position={[0, 4.7, -0.9]} rotation={[0, 0, 0.5]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={3.5} flatShading transparent opacity={0.85} toneMapped={false} />
+        </Box>
+      </group>
+      <Sphere args={[1.6, 14, 14]} position={[0, 0, 2]}>
+        <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={6} flatShading toneMapped={false} />
+      </Sphere>
+
+      {/* Flame plumes out of the break. */}
+      <group ref={plumesRef} position={[Math.cos(WEDGE_A) * (R - 2), Math.sin(WEDGE_A) * (R - 2), 2]}>
+        {plumes.map((p, i) => (
+          <Cone key={i} args={[2.6 - i * 0.5, p.h, 6]} position={[p.off, p.h / 2, 0]}>
+            <meshStandardMaterial color={i === 1 ? HOT : FLAME} emissive={i === 1 ? HOT : FLAME} emissiveIntensity={4.5} flatShading transparent opacity={0.75} toneMapped={false} />
+          </Cone>
+        ))}
+      </group>
+
+      {/* Embers. */}
+      <group ref={embersRef}>
+        {embers.map((em, i) => (
+          <Tetrahedron key={i} args={[em.size, 0]}>
+            <meshStandardMaterial color={FLAME} emissive={FLAME} emissiveIntensity={5} flatShading transparent opacity={0.7} toneMapped={false} />
+          </Tetrahedron>
+        ))}
+      </group>
+
+      {/* Heat rings expanding off the break. */}
+      <group ref={heatRef} position={[Math.cos(WEDGE_A) * (R - 2), Math.sin(WEDGE_A) * (R - 2), 2]}>
+        {[...Array(3)].map((_, i) => (
+          <Torus key={i} args={[4, 0.3, 8, 40]}>
+            <meshBasicMaterial color={FLAME} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      <Sparkles count={480} scale={[60, 66, 30]} size={5} speed={2.6} color={color} opacity={0.6} />
+      <Sparkles count={180} scale={[26, 50, 18]} size={3} speed={4.2} color={FLAME} opacity={0.85} />
+    </group>
+  );
+};
+
+// --- LM4. "LastMinuteEclipse" -- Last-Minute Hero MYTHIC (T_REVEAL beat) ----
+// The deadline as an eclipse. Before 1.7s a dark disc slides across a bright
+// source: the light DIMS, the corona ring tightens, the dial's ticks fall away
+// one by one. At 1.7s totality seats -- the source snaps off, a diamond-ring
+// bead flares at the wedge angle, twelve corona streamers erupt, and three shock
+// rings cross the frame. The scene then relights entirely from the corona, which
+// is the point: the darkest instant is where the badge is won.
+const EnvLastMinuteEclipse = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const STREAMERS = 12;
+  const CORONA = "#b98aa0";
+  const CORE = "#f6e6ee";
+  const R = 15;
+  const BEAD_A = -Math.PI / 2 + 0.31;
+
+  const sunRef = useRef<THREE.Mesh>(null);
+  const discRef = useRef<THREE.Mesh>(null);
+  const coronaRef = useRef<THREE.Mesh>(null);
+  const streamersRef = useRef<THREE.Group>(null);
+  const beadRef = useRef<THREE.Mesh>(null);
+  const ringsRef = useRef<THREE.Group>(null);
+  const ticksRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const ticks = useMemo(() => [...Array(12)].map((_, i) => ({ a: (i / 12) * Math.PI * 2, big: i % 3 === 0 })), []);
+  const streamers = useMemo(
+    () => [...Array(STREAMERS)].map((_, i) => ({ a: (i / STREAMERS) * Math.PI * 2, len: 12 + (i % 3) * 9 })),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    if (sunRef.current) {
+      const mat = sunRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = broken ? 0 : 0.95 - pre * 0.35;
+      sunRef.current.scale.setScalar(broken ? 0.01 : 1 + Math.sin(now * 3) * 0.02);
+    }
+
+    if (discRef.current) {
+      // Slides in from the right and seats dead centre on the beat.
+      const x = broken ? 0 : (1 - Math.pow(pre, 1.4)) * 34;
+      discRef.current.position.set(x, 0, 1.2);
+      discRef.current.scale.setScalar(broken ? 1 + Math.min(e, 0.2) * 0.15 : 1);
+    }
+
+    if (coronaRef.current) {
+      const s = broken ? 1.06 + Math.min(e * 1.4, 0.5) : 1.24 - pre * 0.2;
+      coronaRef.current.scale.setScalar(s);
+      const mat = coronaRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = broken ? 0.7 * Math.max(0.45, 1 - e * 0.22) : 0.1 + pre * 0.12;
+    }
+
+    if (streamersRef.current) {
+      streamersRef.current.rotation.z = now * 0.14;
+      streamersRef.current.children.forEach((child, i) => {
+        const on = broken ? Math.min(1, (e - i * 0.015) * 3.2) : 0;
+        child.scale.set(1, Math.max(0.001, on * (0.7 + Math.sin(now * 2 + i) * 0.3)), 1);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.max(0, on * 0.6);
+      });
+    }
+
+    if (beadRef.current) {
+      // The diamond ring: one hard bead at the wedge angle on the beat.
+      const f = broken ? Math.max(0, 1 - e * 2.2) : 0;
+      beadRef.current.position.set(Math.cos(BEAD_A) * R, Math.sin(BEAD_A) * R, 2.4);
+      beadRef.current.scale.setScalar(0.4 + f * 7);
+      (beadRef.current.material as THREE.MeshBasicMaterial).opacity = f;
+    }
+
+    if (ringsRef.current) {
+      ringsRef.current.children.forEach((child, i) => {
+        const k = broken ? Math.max(0, e - i * 0.13) : 0;
+        child.scale.setScalar(broken ? 0.4 + k * 7 : 0.3);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 0.8 - k * 0.6) : 0;
+      });
+    }
+
+    if (ticksRef.current) {
+      ticksRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        if (!broken) {
+          // Ticks drop out in sequence as the light goes.
+          const gone = pre > (i + 1) / 13;
+          mat.emissiveIntensity = gone ? 0.15 : 2.6;
+          mat.opacity = gone ? 0.2 : 0.9;
+        } else {
+          mat.emissiveIntensity = 1.6 + Math.sin(now * 2 + i * 0.6) * 0.8;
+          mat.opacity = 0.7;
+        }
+      });
+    }
+  });
+
+  return (
+    <group position={[0, 0, -4]}>
+      {/* The source. */}
+      <Sphere ref={sunRef} args={[R - 1, 32, 32]}>
+        <meshBasicMaterial color={CORE} transparent opacity={0.95} toneMapped={false} />
+      </Sphere>
+
+      {/* Corona shell, sitting just outside the disc. */}
+      <Sphere ref={coronaRef} args={[R, 32, 32]}>
+        <meshBasicMaterial color={CORONA} transparent opacity={0.1} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.BackSide} toneMapped={false} />
+      </Sphere>
+
+      {/* The occulting disc -- the only genuinely black object in the phase. */}
+      <Sphere ref={discRef} args={[R, 40, 40]}>
+        <meshBasicMaterial color="#120810" toneMapped={false} />
+      </Sphere>
+
+      {/* Corona streamers. */}
+      <group ref={streamersRef}>
+        {streamers.map((s, i) => (
+          <Box key={i} args={[1.4, s.len, 0.8]} position={[Math.cos(s.a) * (R + s.len / 2), Math.sin(s.a) * (R + s.len / 2), 0]} rotation={[0, 0, s.a - Math.PI / 2]}>
+            <meshBasicMaterial color={i % 3 === 0 ? CORE : CORONA} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Diamond-ring bead. */}
+      <Sphere ref={beadRef} args={[1, 18, 18]}>
+        <meshBasicMaterial color="#ffffff" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </Sphere>
+
+      {/* Shock rings. */}
+      <group ref={ringsRef}>
+        {[...Array(3)].map((_, i) => (
+          <Torus key={i} args={[R, 0.55, 8, 72]} position={[0, 0, 1.6]}>
+            <meshBasicMaterial color={i % 2 ? CORE : CORONA} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* The family's dial, surviving only as ticks at the rim. */}
+      <group ref={ticksRef}>
+        {ticks.map((tk, i) => (
+          <Box
+            key={i}
+            args={[tk.big ? 1.2 : 0.6, tk.big ? 3.6 : 2.2, 0.7]}
+            position={[Math.cos(tk.a) * (R + 8), Math.sin(tk.a) * (R + 8), 0]}
+            rotation={[0, 0, tk.a + Math.PI / 2]}
+          >
+            <meshStandardMaterial color={CORONA} emissive={CORONA} emissiveIntensity={2.6} flatShading transparent opacity={0.9} toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      <Sparkles count={540} scale={[76, 76, 40]} size={5} speed={1.1} color={color} opacity={0.55} />
+      <Sparkles count={200} scale={[46, 46, 26]} size={3} speed={2.2} color={CORONA} opacity={0.8} />
+    </group>
+  );
+};
+
+// --- SS1. "SectionSpecialistNode" -- Section Specialist BASE ----------------
+// One cell, resolved. A faceted core sits inside two counter-rotating shells,
+// wired to three unlit neighbours by link bars that carry a visible PULSE
+// inward -- the pulse is the badge's actual mechanic (a section's questions
+// arriving, all correct). Nothing here is round-node-plexus: polymath BASE owns
+// that, so this family's cells are hard-edged icosahedra in cages.
+const EnvSectionSpecialistNode = ({ color }: { color: THREE.Color }) => {
+  const SATS = 3;
+  const coreRef = useRef<THREE.Mesh>(null);
+  const cageRef = useRef<THREE.Group>(null);
+  const satsRef = useRef<THREE.Group>(null);
+  const pulsesRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const LEAF = "#d3ecc9";
+  const HOT = "#f5fff0";
+
+  const sats = useMemo(
+    () =>
+      [...Array(SATS)].map((_, i) => {
+        const a = (i / SATS) * Math.PI * 2 + 0.4;
+        return { a, x: Math.cos(a) * 22, y: Math.sin(a) * 12, z: Math.sin(a * 1.7) * 8, phase: i * 0.44 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    if (coreRef.current) {
+      coreRef.current.rotation.y = now * 0.5;
+      coreRef.current.rotation.x = now * 0.24;
+      const mat = coreRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 3.4 + Math.sin(now * 2.2) * 1;
+    }
+    if (cageRef.current) {
+      cageRef.current.rotation.y = -now * 0.34;
+      cageRef.current.rotation.z = now * 0.18;
+    }
+    if (satsRef.current) {
+      satsRef.current.children.forEach((child, i) => {
+        const s = sats[i];
+        child.rotation.x += delta * 0.6;
+        child.position.y = s.y + Math.sin(now * 0.9 + i) * 1.4;
+      });
+    }
+    if (pulsesRef.current) {
+      pulsesRef.current.children.forEach((child, i) => {
+        const s = sats[i];
+        const k = 1 - ((now * 0.5 + s.phase) % 1);
+        child.position.set(s.x * k, (s.y + Math.sin(now * 0.9 + i) * 1.4) * k, s.z * k);
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = Math.sin((1 - k) * Math.PI) * 0.95;
+      });
+    }
+  });
+
+  return (
+    <group>
+      {/* The resolved cell: core, plus two cage shells. */}
+      <Icosahedron ref={coreRef} args={[6.4, 0]}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3.4} flatShading toneMapped={false} />
+      </Icosahedron>
+      <group ref={cageRef}>
+        <Icosahedron args={[9.4, 0]}>
+          <meshStandardMaterial color={LEAF} emissive={LEAF} emissiveIntensity={1.4} wireframe transparent opacity={0.6} toneMapped={false} />
+        </Icosahedron>
+        <Torus args={[11.4, 0.22, 8, 60]} rotation={[Math.PI / 2.3, 0, 0]}>
+          <meshStandardMaterial color={LEAF} emissive={LEAF} emissiveIntensity={2} flatShading transparent opacity={0.55} toneMapped={false} />
+        </Torus>
+      </group>
+      <Sphere args={[2.1, 16, 16]}>
+        <meshBasicMaterial color={HOT} toneMapped={false} />
+      </Sphere>
+
+      {/* Three unlit neighbours, wired in. */}
+      <group ref={satsRef}>
+        {sats.map((s, i) => (
+          <Octahedron key={i} args={[2.4, 0]} position={[s.x, s.y, s.z]}>
+            <meshStandardMaterial color={LEAF} emissive={LEAF} emissiveIntensity={0.9} flatShading transparent opacity={0.7} toneMapped={false} />
+          </Octahedron>
+        ))}
+      </group>
+      {sats.map((s, i) => {
+        const len = Math.hypot(s.x, s.y, s.z);
+        return (
+          <Box key={i} args={[len, 0.28, 0.28]} position={[s.x / 2, s.y / 2, s.z / 2]} rotation={[0, -Math.atan2(s.z, s.x), Math.atan2(s.y, Math.hypot(s.x, s.z))]}>
+            <meshStandardMaterial color={LEAF} emissive={LEAF} emissiveIntensity={1.6} flatShading transparent opacity={0.5} toneMapped={false} />
+          </Box>
+        );
+      })}
+
+      {/* Pulses travelling inward along the links. */}
+      <group ref={pulsesRef}>
+        {sats.map((_, i) => (
+          <Sphere key={i} args={[0.7, 12, 12]}>
+            <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={8} transparent opacity={0} toneMapped={false} />
+          </Sphere>
+        ))}
+      </group>
+
+      <Sparkles count={280} scale={[46, 40, 46]} size={4} speed={0.8} color={color} opacity={0.5} />
+    </group>
+  );
+};
+
+// --- SS2. "SectionSpecialistGrid" -- Section Specialist SUPER ---------------
+// The cell has become a 3x3 LATTICE on a slowly-tumbling plane: nine cells,
+// twelve link bars, and a pulse train that walks the lattice cell-to-cell on a
+// fixed route rather than radiating. The centre cell is the hub and is the only
+// one caged.
+const EnvSectionSpecialistGrid = ({ color }: { color: THREE.Color }) => {
+  const latticeRef = useRef<THREE.Group>(null);
+  const cellsRef = useRef<THREE.Group>(null);
+  const pulseRef = useRef<THREE.Mesh>(null);
+  const hubRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const INK = "#12332d";
+  const HOT = "#87beb4";
+  const STEP = 12;
+
+  const cells = useMemo(() => {
+    const out: { x: number; y: number; hub: boolean; idx: number }[] = [];
+    let idx = 0;
+    for (let r = -1; r <= 1; r++) for (let c = -1; c <= 1; c++) out.push({ x: c * STEP, y: -r * STEP, hub: r === 0 && c === 0, idx: idx++ });
+    return out;
+  }, []);
+
+  // Route the pulse walks: a spiral through the nine cells.
+  const route = useMemo(() => [0, 1, 2, 5, 8, 7, 6, 3, 4], []);
+
+  const links = useMemo(() => {
+    const out: { x: number; y: number; horiz: boolean }[] = [];
+    for (let r = -1; r <= 1; r++) for (let c = -1; c <= 0; c++) out.push({ x: c * STEP + STEP / 2, y: -r * STEP, horiz: true });
+    for (let c = -1; c <= 1; c++) for (let r = -1; r <= 0; r++) out.push({ x: c * STEP, y: -r * STEP - STEP / 2, horiz: false });
+    return out;
+  }, []);
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    if (latticeRef.current) {
+      latticeRef.current.rotation.y = Math.sin(now * 0.34) * 0.6;
+      latticeRef.current.rotation.x = Math.sin(now * 0.27) * 0.24;
+    }
+
+    const seg = (now * 1.5) % route.length;
+    const from = cells[route[Math.floor(seg)]];
+    const to = cells[route[(Math.floor(seg) + 1) % route.length]];
+    const k = seg % 1;
+
+    if (pulseRef.current) {
+      pulseRef.current.position.set(from.x + (to.x - from.x) * k, from.y + (to.y - from.y) * k, 2.4);
+      pulseRef.current.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.5);
+    }
+
+    if (cellsRef.current) {
+      cellsRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        const isHead = i === from.idx;
+        mat.emissiveIntensity = (cells[i].hub ? 3.4 : 1.6) + (isHead ? 8 * (1 - k) : 0) + Math.sin(now * 1.8 + i) * 0.4;
+        child.rotation.y += delta * (cells[i].hub ? 0.8 : 0.4);
+      });
+    }
+
+    if (hubRef.current) {
+      hubRef.current.rotation.z = now * 0.55;
+      hubRef.current.rotation.x = now * 0.3;
+    }
+  });
+
+  return (
+    <group ref={latticeRef} position={[0, 0, -2]}>
+      {/* Links. */}
+      {links.map((l, i) => (
+        <Box key={i} args={l.horiz ? [STEP, 0.3, 0.3] : [0.3, STEP, 0.3]} position={[l.x, l.y, 0]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={1.5} flatShading transparent opacity={0.5} toneMapped={false} />
+        </Box>
+      ))}
+
+      {/* Cells. */}
+      <group ref={cellsRef}>
+        {cells.map((c, i) => (
+          <Icosahedron key={i} args={[c.hub ? 4.4 : 2.9, 0]} position={[c.x, c.y, 0]}>
+            <meshStandardMaterial color={c.hub ? color : INK} emissive={color} emissiveIntensity={c.hub ? 3.4 : 1.6} flatShading toneMapped={false} />
+          </Icosahedron>
+        ))}
+      </group>
+
+      {/* Hub cage. */}
+      <group ref={hubRef}>
+        <Torus args={[6.6, 0.22, 8, 50]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={2.4} flatShading transparent opacity={0.6} toneMapped={false} />
+        </Torus>
+        <Torus args={[6.6, 0.22, 8, 50]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={2.4} flatShading transparent opacity={0.6} toneMapped={false} />
+        </Torus>
+      </group>
+
+      {/* The walking pulse. */}
+      <Sphere ref={pulseRef} args={[1.2, 14, 14]}>
+        <meshBasicMaterial color="#eafffb" toneMapped={false} />
+      </Sphere>
+
+      <Sparkles count={340} scale={[52, 52, 30]} size={4} speed={1} color={color} opacity={0.5} />
+      <Sparkles count={120} scale={[28, 28, 18]} size={2.5} speed={1.8} color={HOT} opacity={0.7} />
+    </group>
+  );
+};
+
+// --- SS3. "SectionSpecialistMatrix" -- Section Specialist LEGENDARY ---------
+// The grid rotates into a DIAMOND and densifies: thirteen cells laid on
+// 1/3/5/3/1 rows with diagonal links, an outer diamond frame, and THREE pulses
+// walking independent routes at different speeds so the structure reads as busy
+// rather than as one worm. The whole lattice counter-rotates against its frame.
+const EnvSectionSpecialistMatrix = ({ color }: { color: THREE.Color }) => {
+  const PULSES = 3;
+  const latticeRef = useRef<THREE.Group>(null);
+  const frameRef = useRef<THREE.Group>(null);
+  const cellsRef = useRef<THREE.Group>(null);
+  const pulsesRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const MINT = "#a8f3b8";
+  const HOT = "#eefdf1";
+  const SP = 8.4;
+
+  const cells = useMemo(() => {
+    const rows = [1, 3, 5, 3, 1];
+    const out: { x: number; y: number; r: number }[] = [];
+    rows.forEach((n, r) => {
+      for (let i = 0; i < n; i++) out.push({ x: (i - (n - 1) / 2) * SP, y: (2 - r) * SP, r });
+    });
+    return out;
+  }, []);
+
+  // Three routes threading the diamond.
+  const routes = useMemo(
+    () => [
+      [0, 2, 6, 10, 12],
+      [1, 5, 9, 11, 8, 4],
+      [3, 7, 6, 5, 2],
+    ],
+    []
+  );
+
+  const links = useMemo(() => {
+    const out: { a: number; b: number }[] = [];
+    for (let i = 0; i < cells.length; i++) {
+      for (let j = i + 1; j < cells.length; j++) {
+        const d = Math.hypot(cells[i].x - cells[j].x, cells[i].y - cells[j].y);
+        if (d < SP * 1.25) out.push({ a: i, b: j });
+      }
+    }
+    return out;
+  }, [cells]);
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    if (latticeRef.current) latticeRef.current.rotation.z = now * 0.13;
+    if (frameRef.current) frameRef.current.rotation.z = -now * 0.2;
+
+    const heads: number[] = [];
+    if (pulsesRef.current) {
+      pulsesRef.current.children.forEach((child, p) => {
+        const route = routes[p];
+        const seg = (now * (1.1 + p * 0.45)) % route.length;
+        const from = cells[route[Math.floor(seg)]];
+        const to = cells[route[(Math.floor(seg) + 1) % route.length]];
+        const k = seg % 1;
+        child.position.set(from.x + (to.x - from.x) * k, from.y + (to.y - from.y) * k, 2.2);
+        child.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.55);
+        heads.push(route[Math.floor(seg)]);
+      });
+    }
+
+    if (cellsRef.current) {
+      cellsRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        const hit = heads.includes(i);
+        mat.emissiveIntensity = 1.8 + (hit ? 9 : 0) + Math.sin(now * 2 + i * 0.7) * 0.5;
+        child.rotation.y += delta * 0.5;
+        child.rotation.x += delta * 0.24;
+      });
+    }
+  });
+
+  return (
+    <group position={[0, 0, -2]}>
+      <group ref={frameRef}>
+        {/* Outer diamond frame -- four bars, rotated 45 degrees. */}
+        {[0, 1, 2, 3].map((i) => {
+          const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+          return (
+            <Box key={i} args={[30, 0.5, 0.5]} position={[Math.cos(a) * 15, Math.sin(a) * 15, 0]} rotation={[0, 0, a + Math.PI / 2]}>
+              <meshStandardMaterial color={MINT} emissive={MINT} emissiveIntensity={2.4} flatShading transparent opacity={0.6} toneMapped={false} />
+            </Box>
+          );
+        })}
+      </group>
+
+      <group ref={latticeRef}>
+        {/* Diagonal links. */}
+        {links.map((l, i) => {
+          const A = cells[l.a];
+          const B = cells[l.b];
+          const len = Math.hypot(B.x - A.x, B.y - A.y);
+          const ang = Math.atan2(B.y - A.y, B.x - A.x);
+          return (
+            <Box key={i} args={[len, 0.24, 0.24]} position={[(A.x + B.x) / 2, (A.y + B.y) / 2, 0]} rotation={[0, 0, ang]}>
+              <meshStandardMaterial color={MINT} emissive={MINT} emissiveIntensity={1.4} flatShading transparent opacity={0.45} toneMapped={false} />
+            </Box>
+          );
+        })}
+
+        {/* Cells. */}
+        <group ref={cellsRef}>
+          {cells.map((c, i) => (
+            <Icosahedron key={i} args={[c.r === 2 ? 3 : 2.4, 0]} position={[c.x, c.y, 0]}>
+              <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.8} flatShading toneMapped={false} />
+            </Icosahedron>
+          ))}
+        </group>
+
+        {/* Three independent pulses. */}
+        <group ref={pulsesRef}>
+          {[...Array(PULSES)].map((_, i) => (
+            <Sphere key={i} args={[1.05, 14, 14]}>
+              <meshBasicMaterial color={i === 0 ? HOT : MINT} toneMapped={false} />
+            </Sphere>
+          ))}
+        </group>
+      </group>
+
+      <Sparkles count={430} scale={[58, 58, 32]} size={4} speed={1.4} color={color} opacity={0.55} />
+      <Sparkles count={160} scale={[32, 32, 20]} size={3} speed={2.4} color={MINT} opacity={0.75} />
+    </group>
+  );
+};
+
+// --- SS4. "SectionSpecialistNexus" -- Section Specialist MYTHIC (T_REVEAL) --
+// Twelve perimeter cells feed twelve spokes into one core. Before 1.7s the
+// network CHARGES: pulses run inward along every spoke and pack into the core,
+// which swells and brightens while the perimeter dims. At 1.7s the core
+// detonates -- the flow reverses, all twelve spokes light full-length outward,
+// the perimeter cells flare in sequence, five shock rings leave the centre and
+// six long beams escape the structure entirely.
+const EnvSectionSpecialistNexus = ({ color }: { color: THREE.Color }) => {
+  const T_REVEAL = 1.7;
+  const N = 12;
+  const R = 22;
+  const MID = "#3f9a63";
+  const CORE = "#f2fff7";
+
+  const perimRef = useRef<THREE.Group>(null);
+  const spokesRef = useRef<THREE.Group>(null);
+  const pulsesRef = useRef<THREE.Group>(null);
+  const coreRef = useRef<THREE.Mesh>(null);
+  const cageRef = useRef<THREE.Group>(null);
+  const ringsRef = useRef<THREE.Group>(null);
+  const beamsRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  const nodes = useMemo(
+    () =>
+      [...Array(N)].map((_, i) => {
+        const a = (i / N) * Math.PI * 2;
+        return { a, x: Math.cos(a) * R, y: Math.sin(a) * R, big: i % 3 === 0, phase: (i * 7) % 10 / 10 };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const pre = clamp01(now / T_REVEAL);
+    const broken = now >= T_REVEAL;
+    const e = Math.max(0, now - T_REVEAL);
+
+    if (pulsesRef.current) {
+      pulsesRef.current.children.forEach((child, i) => {
+        const n = nodes[i];
+        // Pre: outside -> in, accelerating. Post: inside -> out, once, fast.
+        const k = broken
+          ? clamp01(e * 1.9 - n.phase * 0.25)
+          : 1 - ((now * (0.7 + pre * 1.4) + n.phase) % 1);
+        const d = broken ? k * R : k * R;
+        child.position.set(Math.cos(n.a) * d, Math.sin(n.a) * d, 1.6);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 1 - e * 0.7) : Math.sin((1 - k) * Math.PI) * 0.95;
+        child.scale.setScalar(broken ? 1 + k * 1.6 : 1);
+      });
+    }
+
+    if (spokesRef.current) {
+      spokesRef.current.children.forEach((child, i) => {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = broken ? 2 + Math.max(0, 12 - e * 9) : 1.2 - pre * 0.6;
+        mat.opacity = broken ? 0.9 : 0.35 + pre * 0.2;
+      });
+    }
+
+    if (perimRef.current) {
+      perimRef.current.rotation.z = now * 0.08;
+      perimRef.current.children.forEach((child, i) => {
+        const n = nodes[i];
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        if (!broken) {
+          mat.emissiveIntensity = 1.8 - pre * 1.3;
+        } else {
+          const flare = clamp01(e * 4 - n.phase * 0.6);
+          mat.emissiveIntensity = 1.4 + flare * 10 * Math.max(0.3, 1 - e * 0.5);
+        }
+        child.rotation.y += delta * 0.6;
+      });
+    }
+
+    if (coreRef.current) {
+      coreRef.current.rotation.y = now * 0.7;
+      coreRef.current.rotation.x = now * 0.35;
+      const mat = coreRef.current.material as THREE.MeshStandardMaterial;
+      if (!broken) {
+        // Charging: swells and brightens as everything packs into it.
+        coreRef.current.scale.setScalar(1 + Math.pow(pre, 2) * 0.75);
+        mat.emissiveIntensity = 2 + Math.pow(pre, 3) * 14;
+      } else {
+        coreRef.current.scale.setScalar(1.75 + Math.min(e, 0.18) * 3.2 - Math.min(e, 1.2) * 0.7);
+        mat.emissiveIntensity = 18 * Math.max(0.3, 1 - e * 0.55);
+      }
+    }
+
+    if (cageRef.current) {
+      cageRef.current.rotation.y = -now * 0.5;
+      cageRef.current.rotation.z = now * 0.28;
+      cageRef.current.scale.setScalar(broken ? 1 + Math.min(e * 2.4, 1.4) : 1 - pre * 0.28);
+    }
+
+    if (ringsRef.current) {
+      ringsRef.current.children.forEach((child, i) => {
+        const k = broken ? Math.max(0, e - i * 0.1) : 0;
+        child.scale.setScalar(broken ? 0.3 + k * 8 : 0.2);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = broken ? Math.max(0, 0.85 - k * 0.68) : 0;
+      });
+    }
+
+    if (beamsRef.current) {
+      beamsRef.current.rotation.z = now * 0.1;
+      beamsRef.current.children.forEach((child, i) => {
+        const on = broken ? Math.min(1, (e - i * 0.02) * 3.4) : 0;
+        child.scale.set(1, Math.max(0.001, on), 1);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.max(0, on * 0.5);
+      });
+    }
+  });
+
+  return (
+    <group position={[0, 0, -3]}>
+      {/* Spokes. */}
+      <group ref={spokesRef}>
+        {nodes.map((n, i) => (
+          <Box key={i} args={[R, 0.3, 0.3]} position={[Math.cos(n.a) * (R / 2), Math.sin(n.a) * (R / 2), 0]} rotation={[0, 0, n.a]}>
+            <meshStandardMaterial color={MID} emissive={MID} emissiveIntensity={1.2} flatShading transparent opacity={0.35} toneMapped={false} />
+          </Box>
+        ))}
+      </group>
+
+      {/* Perimeter cells. */}
+      <group ref={perimRef}>
+        {nodes.map((n, i) => (
+          <Icosahedron key={i} args={[n.big ? 2.9 : 1.9, 0]} position={[n.x, n.y, 0]}>
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.8} flatShading toneMapped={false} />
+          </Icosahedron>
+        ))}
+      </group>
+
+      {/* Two orbit rings. */}
+      <Torus args={[R, 0.22, 8, 90]}>
+        <meshStandardMaterial color={MID} emissive={MID} emissiveIntensity={1.6} flatShading transparent opacity={0.45} toneMapped={false} />
+      </Torus>
+      <Torus args={[R - 7, 0.16, 8, 70]}>
+        <meshStandardMaterial color={MID} emissive={MID} emissiveIntensity={1.2} flatShading transparent opacity={0.3} toneMapped={false} />
+      </Torus>
+
+      {/* The core and its cage. */}
+      <Icosahedron ref={coreRef} args={[5.2, 0]}>
+        <meshStandardMaterial color={CORE} emissive={CORE} emissiveIntensity={2} flatShading toneMapped={false} />
+      </Icosahedron>
+      <group ref={cageRef}>
+        <Icosahedron args={[7.8, 0]}>
+          <meshStandardMaterial color={MID} emissive={MID} emissiveIntensity={2} wireframe transparent opacity={0.55} toneMapped={false} />
+        </Icosahedron>
+      </group>
+
+      {/* Pulses on the spokes. */}
+      <group ref={pulsesRef}>
+        {nodes.map((_, i) => (
+          <Sphere key={i} args={[0.8, 12, 12]}>
+            <meshBasicMaterial color={CORE} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Sphere>
+        ))}
+      </group>
+
+      {/* Detonation rings. */}
+      <group ref={ringsRef}>
+        {[...Array(5)].map((_, i) => (
+          <Torus key={i} args={[8, 0.55, 8, 72]}>
+            <meshBasicMaterial color={i % 2 ? CORE : MID} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </Torus>
+        ))}
+      </group>
+
+      {/* Six escaping beams. */}
+      <group ref={beamsRef}>
+        {[...Array(6)].map((_, i) => {
+          const a = (i / 6) * Math.PI * 2 + 0.26;
+          return (
+            <Cylinder key={i} args={[0.7, 3, 56, 10, 1, true]} position={[Math.cos(a) * 34, Math.sin(a) * 34, 0]} rotation={[0, 0, a - Math.PI / 2]}>
+              <meshBasicMaterial color={CORE} transparent opacity={0} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </Cylinder>
+          );
+        })}
+      </group>
+
+      <Sparkles count={600} scale={[80, 80, 44]} size={5} speed={1.8} color={color} opacity={0.6} />
+      <Sparkles count={240} scale={[44, 44, 26]} size={3} speed={3.2} color={MID} opacity={0.85} />
+    </group>
+  );
+};
+
+// ============================================================================
 // END REFERENCE BATCH
 // ============================================================================
 
@@ -4297,6 +6970,38 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
       case "PrecisionCoreMythic": return <EnvPrecisionCoreMythic color={color} />;
       case "SummitMythic": return <EnvSummitMythic color={color} />;
       case "OracleMythic": return <EnvOracleMythic color={color} />;
+
+      // --- Phase 2: five new families (2026-07-28) -----------------------
+      // 20 bespoke environments, one per new badge. All 20 iconName strings
+      // are brand-new (seeded by the backend with the 20 new rows) so none of
+      // these cases can shadow or steal an existing badge's environment --
+      // every case above still resolves exactly as it did before.
+      //
+      // Only the five MYTHIC scenes carry a T_REVEAL = 1.7s beat, because only
+      // MYTHIC mounts MythicCameraRig. The other fifteen are continuous loops
+      // like every non-apex environment in this file; see the block comment
+      // above EnvMarathonTrail for why that split is deliberate rather than an
+      // omission.
+      case "MarathonTrail": return <EnvMarathonTrail color={color} />;
+      case "MarathonSurge": return <EnvMarathonSurge color={color} />;
+      case "MarathonHorizon": return <EnvMarathonHorizon color={color} />;
+      case "MarathonEternal": return <EnvMarathonEternal color={color} />;
+      case "IronWallBrick": return <EnvIronWallBrick color={color} />;
+      case "IronWallBastion": return <EnvIronWallBastion color={color} />;
+      case "IronWallRampart": return <EnvIronWallRampart color={color} />;
+      case "IronWallCitadel": return <EnvIronWallCitadel color={color} />;
+      case "VeteranChevron": return <EnvVeteranChevron color={color} />;
+      case "VeteranMedallion": return <EnvVeteranMedallion color={color} />;
+      case "VeteranStandard": return <EnvVeteranStandard color={color} />;
+      case "VeteranLegacy": return <EnvVeteranLegacy color={color} />;
+      case "LastMinuteSpark": return <EnvLastMinuteSpark color={color} />;
+      case "LastMinuteFlash": return <EnvLastMinuteFlash color={color} />;
+      case "LastMinuteBlaze": return <EnvLastMinuteBlaze color={color} />;
+      case "LastMinuteEclipse": return <EnvLastMinuteEclipse color={color} />;
+      case "SectionSpecialistNode": return <EnvSectionSpecialistNode color={color} />;
+      case "SectionSpecialistGrid": return <EnvSectionSpecialistGrid color={color} />;
+      case "SectionSpecialistMatrix": return <EnvSectionSpecialistMatrix color={color} />;
+      case "SectionSpecialistNexus": return <EnvSectionSpecialistNexus color={color} />;
 
       default: return <EnvDefault color={color} />;
     }

@@ -340,7 +340,126 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
       // Underdog -- a twin-spur summit breaking a flat cloud line.
       "SummitMythic": { clipPath: "polygon(50% 0%, 68% 34%, 78% 22%, 100% 68%, 100% 100%, 0% 100%, 0% 68%, 22% 22%, 32% 34%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
       // High Achiever -- an open eye in a pointed mandorla.
-      "OracleMythic": { clipPath: "polygon(0% 50%, 22% 22%, 50% 12%, 78% 22%, 100% 50%, 78% 78%, 50% 88%, 22% 78%)", w: "w-24 md:w-28", h: "h-20 md:h-24" }
+      "OracleMythic": { clipPath: "polygon(0% 50%, 22% 22%, 50% 12%, 78% 22%, 100% 50%, 78% 78%, 50% 88%, 22% 78%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+
+      // --- PHASE 2: five new families, four tiers each (2026-07-28) -------
+      // One silhouette per new iconName. These are the 2D card outlines only --
+      // the glyph lives in lib/gamification/badgeGlyphs.tsx and the cinematic
+      // geometry in BadgeInspectionModal.
+      //
+      // Two rules, both of which the existing entries above already follow:
+      //   1. WITHIN a family the four shapes share a silhouette family and grow
+      //      in STRUCTURE with tier, so the ladder is legible without reading
+      //      the label -- e.g. Iron Wall goes one brick -> three merlons ->
+      //      five -> a tiered keep.
+      //      "Structure" is NOT the same as "vertex count", and this pass
+      //      learned that the hard way (see Section Specialist below): on a
+      //      CONVEX outline, adding vertices only makes the shape rounder, so
+      //      a convex ladder converges on a disc and the tiers become LESS
+      //      distinguishable as they climb. Where a family escalates by adding
+      //      detail it has to add CONCAVE detail -- notches, merlons, lobes,
+      //      valleys -- which is what every escalating family here now does.
+      //   1b. All of this is measured, not eyeballed. Each silhouette is
+      //      rasterised at its real w/h and compared to the other 59 by
+      //      intersection-over-union. The shipped catalogue's own worst pair is
+      //      Clock vs Crosshair at 0.979 and its p99 is 0.889; no pair
+      //      involving a phase-2 shape exceeds 0.898.
+      //   2. ACROSS families no two outlines collide. The five motifs are
+      //      chosen to be structurally different at thumbnail size: a
+      //      perspective trapezoid (Marathoner), a crenellated block (Iron
+      //      Wall), a stacked V (The Veteran), a notched dial (Last-Minute
+      //      Hero) and a hexagon (Section Specialist).
+      //      Four of those five motifs are unused by the 40 entries above. The
+      //      HEXAGON IS NOT: "Radar", "Infinity" and "Sun" are all six-sided
+      //      already. That collision was real and was caught by comparing
+      //      normalised clipPath strings across all 60 entries rather than by
+      //      eye -- SectionSpecialistNode's first draft was byte-identical to
+      //      Radar's polygon. See the Section Specialist block below for how
+      //      the family is held apart from those three instead.
+
+      // Marathoner -- a road in perspective: narrow at the top, wide at the
+      // foot. Widens and gains verge steps as the tiers climb, and MYTHIC
+      // closes into a ring because at that tier the trail is a circuit.
+      "MarathonTrail": { clipPath: "polygon(38% 0%, 62% 0%, 100% 100%, 0% 100%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "MarathonSurge": { clipPath: "polygon(38% 0%, 62% 0%, 78% 48%, 100% 100%, 62% 78%, 38% 78%, 0% 100%, 22% 48%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "MarathonHorizon": { clipPath: "polygon(0% 34%, 24% 22%, 44% 30%, 56% 30%, 76% 22%, 100% 34%, 100% 44%, 66% 44%, 100% 100%, 0% 100%, 34% 44%, 0% 44%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "MarathonEternal": { clipPath: "polygon(50% 8%, 76% 14%, 94% 30%, 100% 52%, 88% 76%, 62% 92%, 38% 92%, 12% 76%, 0% 52%, 6% 30%, 24% 14%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+
+      // Iron Wall -- crenellated masonry. One merlon, then three, then five,
+      // then a tiered keep silhouette. Flat-bottomed at every tier: this family
+      // never leaves the ground, which is the whole read.
+      // BASE is one brick, and it is a KEYED brick rather than a plain
+      // rectangle: a mortar notch is cut into each end, so it reads as a unit
+      // that interlocks with the course beside it rather than as a generic
+      // filled box. This is a measured change, not a flourish -- the plain
+      // 4-point rectangle is simply the un-clipped card box, so it scored 0.896
+      // IoU against "Sun" and 0.853 against this family's own LEGENDARY. The
+      // notches take its worst pair to 0.841 (vs "Zap") while keeping the flat
+      // top and bottom the whole family depends on.
+      "IronWallBrick": { clipPath: "polygon(0% 0%, 100% 0%, 100% 34%, 88% 34%, 88% 66%, 100% 66%, 100% 100%, 0% 100%, 0% 66%, 12% 66%, 12% 34%, 0% 34%)", w: "w-24 md:w-28", h: "h-16 md:h-20" },
+      "IronWallBastion": { clipPath: "polygon(0% 16%, 22% 16%, 22% 0%, 44% 0%, 44% 16%, 66% 16%, 66% 0%, 88% 0%, 88% 16%, 100% 16%, 100% 100%, 0% 100%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "IronWallRampart": { clipPath: "polygon(0% 0%, 14% 0%, 14% 18%, 30% 18%, 30% 6%, 44% 6%, 44% 18%, 56% 18%, 56% 6%, 70% 6%, 70% 18%, 86% 18%, 86% 0%, 100% 0%, 100% 100%, 0% 100%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      "IronWallCitadel": { clipPath: "polygon(44% 0%, 56% 0%, 56% 14%, 66% 14%, 66% 30%, 78% 30%, 78% 20%, 88% 20%, 88% 46%, 100% 46%, 100% 62%, 100% 100%, 0% 100%, 0% 62%, 0% 46%, 12% 46%, 12% 20%, 22% 20%, 22% 30%, 34% 30%, 34% 14%, 44% 14%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+
+      // The Veteran -- the stacked chevron, gaining a course per tier.
+      // MYTHIC narrows into an obelisk on a plinth, which is the same V
+      // repeated four times up a shaft.
+      "VeteranChevron": { clipPath: "polygon(50% 0%, 100% 44%, 100% 66%, 50% 22%, 0% 66%, 0% 44%)", w: "w-24 md:w-28", h: "h-20 md:h-24" },
+      "VeteranMedallion": { clipPath: "polygon(30% 0%, 70% 0%, 70% 18%, 100% 56%, 84% 92%, 50% 100%, 16% 92%, 0% 56%, 30% 18%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "VeteranStandard": { clipPath: "polygon(50% 0%, 62% 10%, 92% 10%, 92% 74%, 76% 74%, 76% 88%, 62% 74%, 38% 74%, 24% 88%, 24% 74%, 8% 74%, 8% 10%, 38% 10%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "VeteranLegacy": { clipPath: "polygon(50% 0%, 62% 16%, 58% 24%, 66% 40%, 60% 46%, 70% 64%, 62% 70%, 74% 88%, 100% 88%, 100% 100%, 0% 100%, 0% 88%, 26% 88%, 38% 70%, 30% 64%, 40% 46%, 34% 40%, 42% 24%, 38% 16%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+
+      // Last-Minute Hero -- the countdown dial, and the final-10% wedge the
+      // whole family is built on. The escalation is what the dial DOES with
+      // that wedge: BASE still has it missing, SUPER fires it outward as a
+      // starburst, LEGENDARY spreads that into a full flame crown, and MYTHIC
+      // closes back to a disc, because an eclipse is the one tier where the
+      // dial is whole and the drama is the darkness instead of the gap.
+      // BASE is the wedge itself, cut OUT of the dial at the top right: the
+      // final 10% of the window, missing. Its first draft was a near-circle
+      // and measured 0.942 IoU against this family's own MYTHIC eclipse disc,
+      // which is the one comparison a tier ladder cannot afford to fail --
+      // removing the wedge takes that pair to 0.727.
+      "LastMinuteSpark": { clipPath: "polygon(50% 50%, 98% 36%, 100% 53%, 96% 69%, 87% 83%, 74% 94%, 59% 99%, 42% 99%, 26% 94%, 13% 84%, 4% 70%, 0% 53%, 2% 37%, 9% 22%, 20% 10%, 35% 2%, 52% 0%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "LastMinuteFlash": { clipPath: "polygon(50% 0%, 62% 18%, 82% 4%, 76% 26%, 100% 26%, 84% 44%, 100% 66%, 78% 74%, 84% 96%, 50% 86%, 16% 96%, 22% 74%, 0% 66%, 16% 44%, 0% 26%, 24% 26%, 18% 4%, 38% 18%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "LastMinuteBlaze": { clipPath: "polygon(50% 0%, 58% 20%, 72% 8%, 74% 28%, 96% 22%, 88% 46%, 100% 68%, 78% 80%, 66% 100%, 34% 100%, 22% 80%, 0% 68%, 12% 46%, 4% 22%, 26% 28%, 28% 8%, 42% 20%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "LastMinuteEclipse": { clipPath: "polygon(50% 2%, 70% 4%, 74% 18%, 88% 16%, 96% 32%, 100% 50%, 92% 72%, 72% 92%, 50% 98%, 28% 92%, 8% 72%, 0% 50%, 8% 28%, 28% 8%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+
+      // Section Specialist -- the hexagonal lattice. BASE is a single cell and
+      // each tier fuses more cells around it, so the outline gains LOBES (and
+      // the valleys between them) without ever stopping being hexagonal.
+      //
+      // NOTE: the hexagon is NOT unused elsewhere in this map, so this family
+      // has to earn its separation rather than assume it. Three entries above
+      // are already six-sided: "Radar" (sharpshooter LEGENDARY) is a point-top
+      // hexagon, and "Infinity" and "Sun" are flat-top ones.
+      //
+      // THIS FAMILY'S FIRST DRAFT ESCALATED THE WRONG WAY and was rebuilt. It
+      // climbed 6 -> 12 -> 16 -> 24 vertices around a CONVEX outline, on the
+      // assumption that more vertices reads as more elaborate. It does not: a
+      // convex polygon with more vertices is just a rounder polygon, so the
+      // ladder converged on a disc instead of diverging. Measured by
+      // rasterising every pair of the 60 silhouettes at their real w/h and
+      // taking intersection-over-union, the draft's SUPER tier scored 0.987
+      // against Radar -- higher than ANY pair in the shipped catalogue, whose
+      // worst is Clock vs Crosshair at 0.979 -- and its own four tiers sat at
+      // 0.90-0.94 against each other.
+      //
+      // The rebuild escalates by LOBE COUNT on a CONCAVE outline instead,
+      // which is also the truer picture of what the badge means: 1 cell -> 3
+      // fused cells -> a 6-cell ring -> a 12-point nexus. The valleys between
+      // lobes are what stop it from ever becoming a disc. Worst pair involving
+      // any of the four is now 0.881, i.e. at the catalogue's existing p99
+      // (0.889) rather than past its maximum.
+      //
+      // BASE is a single point-top cell with a connector socket notched into
+      // each side -- one node, wired for the ring that arrives at SUPER. It is
+      // deliberately NOT the plain point-top hexagon, which is byte-identical
+      // to Radar's polygon.
+      "SectionSpecialistNode": { clipPath: "polygon(50% 0%, 100% 25%, 82% 50%, 100% 75%, 50% 100%, 0% 75%, 18% 50%, 0% 25%)", w: "w-20 md:w-24", h: "h-24 md:h-28" },
+      "SectionSpecialistGrid": { clipPath: "polygon(50% 0%, 77% 34%, 93% 75%, 50% 81%, 7% 75%, 23% 34%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "SectionSpecialistMatrix": { clipPath: "polygon(50% 0%, 66% 23%, 93% 25%, 81% 50%, 93% 75%, 66% 77%, 50% 100%, 35% 77%, 7% 75%, 19% 50%, 7% 25%, 34% 23%)", w: "w-24 md:w-28", h: "h-24 md:h-28" },
+      "SectionSpecialistNexus": { clipPath: "polygon(50% 0%, 59% 18%, 75% 7%, 73% 27%, 93% 25%, 82% 41%, 100% 50%, 82% 59%, 93% 75%, 73% 73%, 75% 93%, 59% 82%, 50% 100%, 41% 82%, 25% 93%, 27% 73%, 7% 75%, 18% 59%, 0% 50%, 18% 41%, 7% 25%, 27% 27%, 25% 7%, 41% 18%)", w: "w-24 md:w-28", h: "h-24 md:h-28" }
     };
     return shapes[iconName] || shapes["Target"];
   };

@@ -2474,3 +2474,1195 @@ export const mythicPhase1Glyphs = {
   SummitMythic: IconSummitMythic,              // underdog           MYTHIC
   OracleMythic: IconOracleMythic,              // polymath           MYTHIC
 } as const;
+
+/* ==========================================================================
+ * PHASE 2 -- FIVE NEW BADGE FAMILIES, FOUR TIERS EACH (2026-07-28)
+ * --------------------------------------------------------------------------
+ * Twenty hand-drawn marks for Marathoner, Iron Wall, The Veteran, Last-Minute
+ * Hero and Section Specialist. Same "brand-new iconName" contract as the
+ * reference batch and phase-1 MYTHIC: all twenty strings below were seeded by
+ * the backend alongside the twenty new AchievementBadge rows (see the seed list
+ * in backend/app/services/achievements.py), each is owned by exactly one row,
+ * and none of them can shadow -- or be shadowed by -- a key an existing badge
+ * resolves through.
+ *
+ * DRAWING RULE FOR THIS PHASE: a family is ONE OBJECT redrawn four times, not
+ * four objects sharing a colour ramp. Each family therefore has a single
+ * structural motif that every tier is obliged to keep, and the tier step is
+ * carried by adding structure to that motif rather than by swapping it:
+ *
+ *   Marathoner         -- a trail in one-point perspective. BASE has one
+ *                         milestone; MYTHIC's trail has closed into a loop.
+ *   Iron Wall          -- running-bond masonry. BASE is a single brick;
+ *                         MYTHIC is a walled citadel built of the same course.
+ *   The Veteran        -- the chevron. It is stacked, struck into a medal,
+ *                         flown on a standard, and finally built into a
+ *                         monument -- but it is the same chevron every time.
+ *   Last-Minute Hero   -- a dial with its FINAL WEDGE marked (the last 10% of
+ *                         the window, which is literally the unlock rule).
+ *                         The wedge sparks, flashes, burns, then eclipses.
+ *   Section Specialist -- HEXAGONAL nodes and straight links. Hexagons, not
+ *                         circles, specifically so this never reads as
+ *                         polymath BASE's round-node plexus (IconMindLattice),
+ *                         which is the nearest existing mark.
+ *
+ * SIX OF THE TWENTY ARE DRAWN FOR A LIGHT CARD -- MarathonHorizon,
+ * MarathonEternal, IronWallRampart, LastMinuteFlash, SectionSpecialistGrid and
+ * SectionSpecialistNexus. Their badge colour has WCAG relative luminance above
+ * 0.45, so those six take an INK `iconColorHex` and every baked accent constant
+ * below them is DEEP rather than bright. The accents are literal hexes, not
+ * `currentColor`, so they do not follow the ink automatically -- a pale accent
+ * that reads on a navy card is invisible on a near-white one.
+ * ========================================================================== */
+
+/** Pointy-top hexagon as a closed path. Used only by the Section Specialist
+ *  family, whose whole visual argument is "these are cells in a structure",
+ *  and which needs a primitive no other badge in the catalogue uses. */
+function hexPath(cx: number, cy: number, r: number) {
+  const pts: string[] = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 2;
+    pts.push(`${(cx + Math.cos(a) * r).toFixed(2)} ${(cy + Math.sin(a) * r).toFixed(2)}`);
+  }
+  return `M${pts.join(" L")} Z`;
+}
+
+/* --------------------------------------------------------------------------
+ * MARATHONER -- cumulative time invested, lifetime.
+ * Motif: a trail in one-point perspective, vanishing at (12, 6.6). Every tier
+ * keeps the two converging edges and the decaying centre dashes; what changes
+ * is how far down it you can see. NOT a track or a lap -- a lap is a sprint
+ * shape, and this badge is about distance that does not come back round.
+ * (Except at MYTHIC, where it does, on purpose.)
+ * ------------------------------------------------------------------------ */
+
+/** P1. MarathonTrail -- Marathoner BASE (trail grey). The entry rung: one
+ *  milestone, two footfalls, and a horizon you cannot see anything past. The
+ *  deliberately plain mark of the deliberately plainest colour in the set. */
+const MTR_DUST = "#bdb6b6";
+const MTR_DEEP = "#2b2828";
+const MTR_LIGHT = "#f5f2f2";
+
+export function IconMarathonTrail(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Ground the trail crosses. */}
+      <path d="M0.8 22.2 H23.2" stroke={MTR_DUST} strokeWidth={1} opacity={0.5} />
+
+      {/* Trail bed. */}
+      <path d="M2.6 22.2 L10.6 6.6 L13.4 6.6 L21.4 22.2 Z" fill={MTR_DEEP} fillOpacity={0.45} strokeWidth={1.4} />
+
+      {/* Centre markings -- five dashes, shrinking with distance. That decay is
+          what turns two converging lines into perspective; equal dashes read as
+          a ladder. */}
+      <g stroke={MTR_DUST}>
+        <path d="M12 21.4 V19.0" strokeWidth={1.7} opacity={0.95} />
+        <path d="M12 17.2 V15.4" strokeWidth={1.3} opacity={0.8} />
+        <path d="M12 14.0 V12.7" strokeWidth={1} opacity={0.65} />
+        <path d="M12 11.6 V10.7" strokeWidth={0.75} opacity={0.5} />
+        <path d="M12 9.8 V9.1" strokeWidth={0.55} opacity={0.35} />
+      </g>
+
+      {/* One milestone. Three hours in, there is exactly one. */}
+      <path d="M5.6 20.0 V15.2" strokeWidth={1.35} stroke={MTR_LIGHT} />
+      <path d="M5.6 15.2 L8.7 14.4 L8.7 16.9 L5.6 17.7 Z" fill={MTR_LIGHT} opacity={0.85} stroke="none" />
+
+      {/* Two footfalls on the near verge, so the trail is being walked rather
+          than photographed. */}
+      <g fill={MTR_DUST} stroke="none" opacity={0.85}>
+        <ellipse cx="15.7" cy="19.4" rx="0.95" ry="1.5" transform="rotate(14 15.7 19.4)" />
+        <ellipse cx="17.2" cy="16.5" rx="0.7" ry="1.15" transform="rotate(14 17.2 16.5)" />
+      </g>
+
+      {/* Horizon. */}
+      <path d="M8.2 6.6 H15.8" strokeWidth={1.1} stroke={MTR_LIGHT} opacity={0.7} />
+    </GlyphShell>
+  );
+}
+
+/** P2. MarathonSurge -- Marathoner SUPER (sun-baked ochre). The same trail with
+ *  something moving on it: a forward chevron mid-road trailing three decaying
+ *  wake arcs, plus a second milestone further up. Ten hours is where the trail
+ *  stops being a walk. */
+const MSU_EMBER = "#ffd39a";
+const MSU_DEEP = "#3b2408";
+const MSU_LIGHT = "#fff6e8";
+
+export function IconMarathonSurge(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M0.8 22.2 H23.2" stroke={MSU_EMBER} strokeWidth={1} opacity={0.5} />
+
+      {/* Heat shimmer over the road surface -- two low arcs, opposite phase. */}
+      <g stroke={MSU_EMBER} strokeWidth={0.7} opacity={0.45} fill="none">
+        <path d="M4.6 20.4 Q7.2 19.2 9.8 20.4" />
+        <path d="M14.4 20.4 Q17.0 19.2 19.6 20.4" />
+      </g>
+
+      <path d="M2.6 22.2 L10.6 6.6 L13.4 6.6 L21.4 22.2 Z" fill={MSU_DEEP} fillOpacity={0.5} strokeWidth={1.4} />
+
+      <g stroke={MSU_EMBER}>
+        <path d="M12 21.4 V19.0" strokeWidth={1.7} opacity={0.95} />
+        <path d="M12 17.2 V15.4" strokeWidth={1.3} opacity={0.8} />
+        <path d="M12 14.0 V12.7" strokeWidth={1} opacity={0.65} />
+        <path d="M12 11.6 V10.7" strokeWidth={0.75} opacity={0.5} />
+        <path d="M12 9.8 V9.1" strokeWidth={0.55} opacity={0.35} />
+      </g>
+
+      {/* Wake -- three arcs behind the runner, decaying downroad. */}
+      <g stroke={MSU_EMBER} fill="none">
+        <path d="M8.9 17.8 Q12 16.6 15.1 17.8" strokeWidth={1.25} opacity={0.8} />
+        <path d="M8.0 19.6 Q12 18.2 16.0 19.6" strokeWidth={0.95} opacity={0.55} />
+        <path d="M7.1 21.4 Q12 19.8 16.9 21.4" strokeWidth={0.7} opacity={0.3} />
+      </g>
+
+      {/* The runner, as the trail's own chevron pushed up off the surface. */}
+      <path d="M12 10.6 L16.2 16.2 L12 14.4 L7.8 16.2 Z" fill={MSU_LIGHT} stroke="none" />
+      <path d="M12 13.0 L14.6 16.4 L12 15.3 L9.4 16.4 Z" fill={MSU_DEEP} opacity={0.7} stroke="none" />
+
+      {/* Two milestones now, the far one smaller. */}
+      <g stroke={MSU_LIGHT}>
+        <path d="M4.9 20.6 V15.6" strokeWidth={1.35} />
+        <path d="M18.6 14.6 V11.2" strokeWidth={0.95} opacity={0.85} />
+      </g>
+      <path d="M4.9 15.6 L8.1 14.7 L8.1 17.3 L4.9 18.2 Z" fill={MSU_LIGHT} opacity={0.85} stroke="none" />
+      <path d="M18.6 11.2 L16.3 10.6 L16.3 12.4 L18.6 13.0 Z" fill={MSU_LIGHT} opacity={0.6} stroke="none" />
+
+      <path d="M8.2 6.6 H15.8" strokeWidth={1.1} stroke={MSU_LIGHT} opacity={0.7} />
+    </GlyphShell>
+  );
+}
+
+/** P3. MarathonHorizon -- Marathoner LEGENDARY (horizon blue).
+ *  INK MARK: pale card, so every accent below is a DEEP navy. The tier step is
+ *  that you can now see PAST the trail: three receding ridge layers, the
+ *  curvature arc of the earth, and a marker planted at the vanishing point.
+ *  Twenty-five hours buys you a view. */
+const MHZ_INK = "#12243c";
+const MHZ_MID = "#2f4f78";
+const MHZ_DEEP = "#070f1c";
+
+export function IconMarathonHorizon(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Curvature arc -- the reason this reads as a horizon and not a shelf. */}
+      <path d="M0.6 9.4 Q12 4.6 23.4 9.4" stroke={MHZ_MID} strokeWidth={0.85} opacity={0.5} fill="none" />
+
+      {/* Three receding ridge layers, palest furthest back. */}
+      <path d="M0.8 10.4 L5.0 7.8 L9.0 10.0 L13.4 7.2 L18.0 9.8 L23.2 7.6 V11.2 H0.8 Z" fill={MHZ_MID} opacity={0.28} stroke="none" />
+      <path d="M0.8 12.0 L4.2 9.8 L8.6 11.8 L12.6 9.4 L17.4 11.6 L23.2 9.6 V12.6 H0.8 Z" fill={MHZ_MID} opacity={0.45} stroke="none" />
+
+      {/* The horizon itself, full width -- the widest single line in the mark. */}
+      <path d="M0.6 12.6 H23.4" strokeWidth={1.7} stroke={MHZ_INK} />
+
+      {/* Trail, now running all the way out to that line. */}
+      <path d="M3.2 22.4 L10.8 12.6 L13.2 12.6 L20.8 22.4 Z" fill={MHZ_DEEP} fillOpacity={0.42} strokeWidth={1.35} />
+      <g stroke={MHZ_MID}>
+        <path d="M12 21.8 V19.6" strokeWidth={1.6} opacity={0.95} />
+        <path d="M12 18.2 V16.6" strokeWidth={1.2} opacity={0.78} />
+        <path d="M12 15.5 V14.4" strokeWidth={0.85} opacity={0.58} />
+        <path d="M12 13.6 V13.0" strokeWidth={0.6} opacity={0.4} />
+      </g>
+
+      {/* Marker planted at the vanishing point, with a small pennant. */}
+      <path d="M12 12.6 V8.6" strokeWidth={1.15} stroke={MHZ_INK} />
+      <path d="M12 8.6 L15.2 9.6 L12 10.8 Z" fill={MHZ_INK} stroke="none" />
+
+      {/* Distance ticks along the horizon -- every one is a hour already run. */}
+      <g stroke={MHZ_INK} strokeWidth={0.9} opacity={0.65}>
+        <path d="M3.4 12.6 V11.2" />
+        <path d="M7.0 12.6 V11.5" />
+        <path d="M17.0 12.6 V11.5" />
+        <path d="M20.6 12.6 V11.2" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+/** P4. MarathonEternal -- Marathoner MYTHIC (endless dawn).
+ *  INK MARK: near-white card, so all accents are DEEP umber. The structural
+ *  addition that only a ceiling tier earns: THE TRAIL CLOSES. The two
+ *  converging edges bend round into a banked loop with sixteen dashes and no
+ *  start line, a light source rises from behind its far side, and the single
+ *  BASE milestone has become an obelisk. Sixty hours is not a distance any
+ *  more, it is a circuit. */
+const MET_INK = "#4a3410";
+const MET_MID = "#8a6520";
+const MET_DEEP = "#231705";
+
+export function IconMarathonEternal(props: BadgeGlyphProps) {
+  const dashes = [];
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const long = i % 4 === 0;
+    const x1 = 12 + Math.cos(a) * 7.4;
+    const y1 = 14.6 + Math.sin(a) * 3.5;
+    const x2 = 12 + Math.cos(a) * 9.2;
+    const y2 = 14.6 + Math.sin(a) * 4.4;
+    dashes.push(
+      <path
+        key={i}
+        d={`M${x1.toFixed(2)} ${y1.toFixed(2)} L${x2.toFixed(2)} ${y2.toFixed(2)}`}
+        strokeWidth={long ? 1.2 : 0.7}
+        opacity={long ? 0.9 : 0.5}
+      />
+    );
+  }
+  return (
+    <GlyphShell {...props}>
+      {/* Light rising from behind the far side of the loop -- seven rays,
+          alternating length, clipped to the upper half. */}
+      <g stroke={MET_MID} strokeWidth={0.9} opacity={0.5}>
+        <path d="M12 10.2 V2.6" />
+        <path d="M8.6 10.8 L5.8 4.6" />
+        <path d="M15.4 10.8 L18.2 4.6" />
+        <path d="M5.6 12.0 L1.4 7.6" />
+        <path d="M18.4 12.0 L22.6 7.6" />
+      </g>
+
+      {/* Horizon behind the loop. */}
+      <path d="M0.8 11.4 H23.2" stroke={MET_INK} strokeWidth={1.05} opacity={0.6} />
+
+      {/* The banked loop: outer and inner ellipse make a road, not a wire. */}
+      <ellipse cx="12" cy="14.6" rx="9.2" ry="4.4" fill={MET_DEEP} fillOpacity={0.34} strokeWidth={1.45} />
+      <ellipse cx="12" cy="14.6" rx="5.6" ry="2.5" strokeWidth={1.1} opacity={0.8} fill="none" />
+
+      {/* Sixteen dashes across the carriageway. No start line anywhere. */}
+      <g stroke={MET_MID}>{dashes}</g>
+
+      {/* The BASE milestone, grown into an obelisk on the near kerb. */}
+      <path d="M10.6 21.8 H13.4 L12.9 14.2 L12 12.6 L11.1 14.2 Z" fill={MET_INK} fillOpacity={0.75} strokeWidth={1.2} />
+      <path d="M9.6 21.8 H14.4" strokeWidth={1.4} stroke={MET_INK} />
+      <path d="M11.2 16.6 H12.8" strokeWidth={0.7} opacity={0.7} />
+
+      {/* Apex light on the obelisk -- the one bright thing on an ink mark. */}
+      <circle cx="12" cy="12.2" r="1.2" fill={MET_MID} stroke="none" />
+      <circle cx="12" cy="12.2" r="2.2" stroke={MET_MID} strokeWidth={0.55} fill="none" opacity={0.55} />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * IRON WALL -- never drops below an escalating score floor.
+ * Motif: running-bond masonry. Every tier is built out of the same brick unit
+ * with the same half-brick offset per course; the tier step is how much of the
+ * fortification you can see. This is DEFENCE, not dominance -- it never points
+ * at anything, it only holds a line, which is what separates it from
+ * Unstoppable Streak's forward-moving marks.
+ * ------------------------------------------------------------------------ */
+
+/** P5. IronWallBrick -- Iron Wall BASE (fired brick). One reinforced unit:
+ *  a single bevelled brick with four corner rivets, sitting on the offset
+ *  half-bricks of the course below. Five mocks is one brick. */
+const IWB_CLAY = "#d18b4a";
+const IWB_DEEP = "#2a1705";
+const IWB_LIGHT = "#ffe6cd";
+
+export function IconIronWallBrick(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Course below, in offset bond -- the reason this reads as masonry
+          rather than as a box. */}
+      <g stroke={IWB_CLAY} strokeWidth={1.1} opacity={0.55} fill="none">
+        <rect x="1.4" y="16.6" width="8.2" height="4.6" rx="0.5" />
+        <rect x="10.4" y="16.6" width="8.2" height="4.6" rx="0.5" />
+        <path d="M19.4 16.6 H22.6 V21.2 H19.4" />
+      </g>
+
+      {/* The hero brick. */}
+      <rect x="3.2" y="6.4" width="17.6" height="9.4" rx="0.8" fill={IWB_DEEP} fillOpacity={0.55} strokeWidth={1.6} />
+      {/* Bevel -- a lit top-left edge and a shadowed bottom-right one, so the
+          unit has thickness. */}
+      <path d="M4.4 14.8 V7.4 H19.6" stroke={IWB_CLAY} strokeWidth={1} opacity={0.8} fill="none" />
+      <path d="M4.4 14.8 H19.6 V7.4" stroke={IWB_DEEP} strokeWidth={1} opacity={0.7} fill="none" />
+
+      {/* Four rivets -- "reinforced", which is the whole point of the family. */}
+      <g fill={IWB_LIGHT} stroke="none">
+        <circle cx="6.2" cy="9.2" r="1" />
+        <circle cx="17.8" cy="9.2" r="1" />
+        <circle cx="6.2" cy="13.0" r="1" />
+        <circle cx="17.8" cy="13.0" r="1" />
+      </g>
+
+      {/* Mortar bed the brick is set into. */}
+      <path d="M1.4 16.0 H22.6" strokeWidth={1.5} stroke={IWB_CLAY} opacity={0.85} />
+      <path d="M1.4 22.0 H22.6" strokeWidth={1.1} stroke={IWB_CLAY} opacity={0.55} />
+    </GlyphShell>
+  );
+}
+
+/** P6. IronWallBastion -- Iron Wall SUPER (quarry stone). The brick has become
+ *  a structure: four courses in running bond, three merlons crenellating the
+ *  top, one arrow slit, and a splayed plinth. Still a single tower -- the wall
+ *  itself does not arrive until LEGENDARY. */
+const IWS_STONE = "#dcdcd4";
+const IWS_DEEP = "#33332e";
+const IWS_LIGHT = "#fbfbf6";
+
+export function IconIronWallBastion(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Crenellations. Three merlons, two embrasures. */}
+      <path
+        d="M5.2 6.4 H8.0 V4.0 H11.0 V6.4 H13.0 V4.0 H16.0 V6.4 H18.8 V8.0 H5.2 Z"
+        fill={IWS_DEEP}
+        fillOpacity={0.45}
+        strokeWidth={1.35}
+      />
+
+      {/* Tower body -- four courses, alternating offset. */}
+      <rect x="5.2" y="8.0" width="13.6" height="11.2" fill={IWS_DEEP} fillOpacity={0.3} strokeWidth={1.5} />
+      <g stroke={IWS_STONE} strokeWidth={0.9} opacity={0.75} fill="none">
+        <path d="M5.2 10.8 H18.8" />
+        <path d="M5.2 13.6 H18.8" />
+        <path d="M5.2 16.4 H18.8" />
+        {/* Perpends, offset half a brick per course. */}
+        <path d="M9.7 8.0 V10.8 M14.3 8.0 V10.8" />
+        <path d="M7.4 10.8 V13.6 M12.0 10.8 V13.6 M16.6 10.8 V13.6" />
+        <path d="M9.7 13.6 V16.4 M14.3 13.6 V16.4" />
+        <path d="M7.4 16.4 V19.2 M16.6 16.4 V19.2" />
+      </g>
+
+      {/* Arrow slit -- a cross-slit, so it reads as defensive rather than as a
+          window. */}
+      <path d="M12 14.2 V18.4" strokeWidth={1.5} stroke={IWS_LIGHT} />
+      <path d="M10.6 16.0 H13.4" strokeWidth={1.1} stroke={IWS_LIGHT} opacity={0.85} />
+
+      {/* Splayed plinth. */}
+      <path d="M5.2 19.2 L3.4 21.8 H20.6 L18.8 19.2 Z" fill={IWS_DEEP} fillOpacity={0.5} strokeWidth={1.35} />
+      <path d="M2.4 22.4 H21.6" strokeWidth={1.2} stroke={IWS_STONE} opacity={0.7} />
+    </GlyphShell>
+  );
+}
+
+/** P7. IronWallRampart -- Iron Wall LEGENDARY (pale limestone).
+ *  INK MARK: near-white card, so all accents are DEEP slate. The bastion is now
+ *  a curtain wall spanning the full grid: five merlons, two flanking towers and
+ *  a gate arch with a portcullis. Twenty mocks is a defended frontage, not a
+ *  building. */
+const IWR_INK = "#2a2222";
+const IWR_MID = "#5e5252";
+const IWR_DEEP = "#141010";
+
+export function IconIronWallRampart(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Curtain wall, edge to edge. */}
+      <rect x="0.8" y="10.4" width="22.4" height="9.6" fill={IWR_DEEP} fillOpacity={0.28} strokeWidth={1.35} />
+
+      {/* Crenellation along the whole frontage. */}
+      <path
+        d="M0.8 10.4 V8.2 H3.2 V10.4 H5.6 V8.2 H8.0 V10.4 H10.6 V8.2 H13.4 V10.4 H16.0 V8.2 H18.4 V10.4 H20.8 V8.2 H23.2 V10.4"
+        strokeWidth={1.3}
+        stroke={IWR_INK}
+        fill="none"
+      />
+
+      {/* Two flanking towers, taller than the wall they anchor. */}
+      <g strokeWidth={1.4} stroke={IWR_INK}>
+        <path d="M1.6 20.0 V5.6 H4.0 V7.2 H6.0 V5.6 H6.8 V20.0" fill={IWR_DEEP} fillOpacity={0.4} />
+        <path d="M17.2 20.0 V5.6 H18.0 V7.2 H20.0 V5.6 H22.4 V20.0" fill={IWR_DEEP} fillOpacity={0.4} />
+      </g>
+
+      {/* Masonry courses across the curtain. */}
+      <g stroke={IWR_MID} strokeWidth={0.75} opacity={0.7} fill="none">
+        <path d="M6.8 13.4 H17.2" />
+        <path d="M6.8 16.4 H17.2" />
+        <path d="M9.2 10.4 V13.4 M14.8 10.4 V13.4" />
+        <path d="M7.9 13.4 V16.4 M16.1 13.4 V16.4" />
+      </g>
+
+      {/* Gate arch, closed, with a portcullis grid behind it. */}
+      <path d="M9.2 20.0 V15.4 A2.8 2.8 0 0 1 14.8 15.4 V20.0 Z" fill={IWR_INK} fillOpacity={0.6} strokeWidth={1.3} />
+      <g stroke={IWR_MID} strokeWidth={0.7} opacity={0.85} fill="none">
+        <path d="M10.4 15.0 V20.0 M12 14.4 V20.0 M13.6 15.0 V20.0" />
+        <path d="M9.5 17.0 H14.5 M9.3 18.6 H14.7" />
+      </g>
+
+      {/* Ground line the wall is founded on. */}
+      <path d="M0.6 20.0 H23.4" strokeWidth={1.6} stroke={IWR_INK} />
+      <path d="M0.6 22.2 H23.4" strokeWidth={0.9} stroke={IWR_MID} opacity={0.55} />
+
+      {/* Two arrow slits in the towers. */}
+      <g stroke={IWR_INK} strokeWidth={1.15}>
+        <path d="M4.2 11.4 V14.2" />
+        <path d="M19.8 11.4 V14.2" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+/** P8. IronWallCitadel -- Iron Wall MYTHIC (verdigris).
+ *  The structural addition that earns the ceiling tier: DEPTH. Where LEGENDARY
+ *  is one frontage, this is two concentric rings of wall with a keep rising
+ *  behind them, pennants on the towers, a lit gate and a corona off the keep's
+ *  spire. Same running-bond courses, same crenellation rhythm, three storeys of
+ *  it. Forty mocks without dropping below 80% is a city, not a wall. */
+const IWC_BRONZE = "#8fe6c2";
+const IWC_DEEP = "#0b3527";
+const IWC_LIGHT = "#e9fff7";
+
+export function IconIronWallCitadel(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Corona off the spire -- six rays, alternating length. */}
+      <g stroke={IWC_BRONZE} strokeWidth={0.8} opacity={0.55}>
+        <path d="M12 3.4 V0.7" />
+        <path d="M9.4 4.2 L7.7 2.0" />
+        <path d="M14.6 4.2 L16.3 2.0" />
+        <path d="M7.4 5.8 L5.2 4.4" />
+        <path d="M16.6 5.8 L18.8 4.4" />
+      </g>
+
+      {/* The keep, furthest back and tallest. */}
+      <path
+        d="M8.6 13.6 V6.8 H10.4 V8.2 H11.2 V6.8 H12.8 V8.2 H13.6 V6.8 H15.4 V13.6 Z"
+        fill={IWC_DEEP}
+        fillOpacity={0.55}
+        strokeWidth={1.3}
+      />
+      <path d="M12 6.8 L12 3.6" strokeWidth={1.15} stroke={IWC_BRONZE} />
+      <path d="M12 3.6 L15.0 4.6 L12 5.7 Z" fill={IWC_LIGHT} stroke="none" />
+      <circle cx="12" cy="3.3" r="0.85" fill={IWC_LIGHT} stroke="none" />
+
+      {/* Inner ring of wall. */}
+      <path
+        d="M5.4 18.4 V12.6 H7.0 V11.2 H8.2 V12.6 H15.8 V11.2 H17.0 V12.6 H18.6 V18.4 Z"
+        fill={IWC_DEEP}
+        fillOpacity={0.4}
+        strokeWidth={1.35}
+      />
+      <g stroke={IWC_BRONZE} strokeWidth={0.7} opacity={0.7} fill="none">
+        <path d="M5.4 15.2 H18.6" />
+        <path d="M8.7 12.6 V15.2 M15.3 12.6 V15.2" />
+        <path d="M7.0 15.2 V18.4 M12 15.2 V18.4 M17.0 15.2 V18.4" />
+      </g>
+
+      {/* Outer ring, lower and wider -- the depth that LEGENDARY does not have. */}
+      <path
+        d="M1.2 22.0 V17.0 H2.8 V15.8 H4.2 V17.0 H19.8 V15.8 H21.2 V17.0 H22.8 V22.0 Z"
+        fill={IWC_DEEP}
+        fillOpacity={0.28}
+        strokeWidth={1.35}
+      />
+      <g stroke={IWC_BRONZE} strokeWidth={0.7} opacity={0.6} fill="none">
+        <path d="M1.2 19.4 H22.8" />
+        <path d="M5.6 17.0 V19.4 M18.4 17.0 V19.4" />
+      </g>
+
+      {/* Lit gate in the outer ring. */}
+      <path d="M10.0 22.0 V19.4 A2.0 2.0 0 0 1 14.0 19.4 V22.0 Z" fill={IWC_LIGHT} opacity={0.85} stroke="none" />
+      <path d="M10.0 22.0 V19.4 A2.0 2.0 0 0 1 14.0 19.4 V22.0" strokeWidth={1.2} fill="none" />
+
+      {/* Pennants on the inner towers. */}
+      <g stroke={IWC_BRONZE} strokeWidth={0.9}>
+        <path d="M7.0 11.2 V8.8" />
+        <path d="M17.0 11.2 V8.8" />
+      </g>
+      <path d="M7.0 8.8 L9.2 9.6 L7.0 10.4 Z" fill={IWC_BRONZE} stroke="none" opacity={0.9} />
+      <path d="M17.0 8.8 L14.8 9.6 L17.0 10.4 Z" fill={IWC_BRONZE} stroke="none" opacity={0.9} />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * THE VETERAN -- lifetime question volume.
+ * Motif: THE CHEVRON. It appears in all four tiers and is the only thing the
+ * four have in common: stacked on a sleeve, struck into a medal's field, flown
+ * on a standard, and finally coursed up a monument. Service, then rank, then
+ * colours, then legacy.
+ * ------------------------------------------------------------------------ */
+
+/** P9. VeteranChevron -- The Veteran BASE (olive drab). Two stacked chevrons
+ *  over a rocker arc and a service bar. Deliberately flat and issued-looking:
+ *  this is a sleeve patch, not a trophy. */
+const VTB_KHAKI = "#a6b862";
+const VTB_DEEP = "#141c00";
+const VTB_LIGHT = "#f4f9e0";
+
+export function IconVeteranChevron(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Patch backing -- a shield-ish field so the chevrons are ON something. */}
+      <path d="M3.2 2.6 H20.8 V17.2 L12 22.2 L3.2 17.2 Z" fill={VTB_DEEP} fillOpacity={0.45} strokeWidth={1.35} />
+      <path d="M4.9 4.3 H19.1 V16.3 L12 20.3 L4.9 16.3 Z" strokeWidth={0.7} opacity={0.5} fill="none" stroke={VTB_KHAKI} />
+
+      {/* Upper chevron. */}
+      <path d="M12 5.0 L19.0 11.0 L19.0 13.4 L12 7.4 L5.0 13.4 L5.0 11.0 Z" fill={VTB_KHAKI} opacity={0.95} stroke="none" />
+      {/* Lower chevron, same rake, slightly shorter span. */}
+      <path d="M12 10.2 L17.6 15.0 L17.6 17.0 L12 12.2 L6.4 17.0 L6.4 15.0 Z" fill={VTB_LIGHT} opacity={0.85} stroke="none" />
+
+      {/* Rocker arc under the chevrons -- the service band. */}
+      <path d="M6.8 18.6 Q12 21.0 17.2 18.6" strokeWidth={1.4} stroke={VTB_KHAKI} fill="none" />
+
+      {/* Two issue studs. */}
+      <g fill={VTB_LIGHT} stroke="none" opacity={0.8}>
+        <circle cx="5.6" cy="3.9" r="0.6" />
+        <circle cx="18.4" cy="3.9" r="0.6" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+/** P10. VeteranMedallion -- The Veteran SUPER (campaign crimson). A SUSPENSION
+ *  medal: striped ribbon bar at the top, a trapezoid drop, and a notched disc
+ *  carrying the BASE chevron struck into its field.
+ *
+ *  Deliberately NOT competitor BASE's `IconStruckMedallion`, which is a fluted
+ *  disc on two CROSSED ribbon straps with a laurel pair inside. This one hangs
+ *  straight down from a horizontal bar and has a chevron, not laurels -- the
+ *  two never share a silhouette. Metals were unavailable to this family for
+ *  colour reasons (see badgeVisuals.ts), so the ribbon is doing the work. */
+const VTS_ROSE = "#e79a94";
+const VTS_DEEP = "#3a1210";
+const VTS_LIGHT = "#fff0ee";
+
+export function IconVeteranMedallion(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Ribbon bar, with five vertical campaign stripes. */}
+      <rect x="4.6" y="1.6" width="14.8" height="3.6" rx="0.5" fill={VTS_DEEP} fillOpacity={0.5} strokeWidth={1.35} />
+      <g stroke={VTS_ROSE} strokeWidth={1.15} opacity={0.9}>
+        <path d="M7.4 1.9 V4.9" />
+        <path d="M9.7 1.9 V4.9" />
+        <path d="M14.3 1.9 V4.9" />
+        <path d="M16.6 1.9 V4.9" />
+      </g>
+      <path d="M12 1.9 V4.9" strokeWidth={1.3} stroke={VTS_LIGHT} />
+
+      {/* Suspension drop. */}
+      <path d="M9.8 5.2 H14.2 L13.2 9.0 H10.8 Z" fill={VTS_ROSE} opacity={0.55} strokeWidth={1.15} />
+
+      {/* Notched rim -- twelve short radial cuts, so the disc is struck metal
+          rather than a coin outline. */}
+      <g stroke={VTS_ROSE} strokeWidth={0.9} opacity={0.8}>
+        <path d="M12 8.4 V9.6" />
+        <path d="M15.6 9.4 L15.0 10.4" />
+        <path d="M18.1 12.0 L17.0 12.6" />
+        <path d="M18.1 17.0 L17.0 16.4" />
+        <path d="M15.6 19.6 L15.0 18.6" />
+        <path d="M12 20.6 V19.4" />
+        <path d="M8.4 19.6 L9.0 18.6" />
+        <path d="M5.9 17.0 L7.0 16.4" />
+        <path d="M5.9 12.0 L7.0 12.6" />
+        <path d="M8.4 9.4 L9.0 10.4" />
+      </g>
+
+      {/* Disc. */}
+      <circle cx="12" cy="14.5" r="5.5" fill={VTS_DEEP} fillOpacity={0.4} strokeWidth={1.5} />
+      <circle cx="12" cy="14.5" r="4.0" strokeWidth={0.8} opacity={0.6} fill="none" />
+
+      {/* The BASE chevron, struck into the field. */}
+      <path d="M12 11.6 L15.6 14.8 L15.6 16.3 L12 13.1 L8.4 16.3 L8.4 14.8 Z" fill={VTS_LIGHT} stroke="none" />
+      <circle cx="12" cy="17.9" r="0.7" fill={VTS_LIGHT} stroke="none" opacity={0.85} />
+    </GlyphShell>
+  );
+}
+
+/** P11. VeteranStandard -- The Veteran LEGENDARY (regimental bottle green).
+ *  The colours. A pike with a spear finial and a cross-bar, a hanging standard
+ *  with a fringed foot, and THREE chevrons on the field (BASE has two, this has
+ *  three -- the count is the rank).
+ *
+ *  Deliberately NOT competitor SUPER's `IconStartBanner`, which is a race
+ *  banner flying HORIZONTALLY off a mast with a checker block and a
+ *  swallow-tail. This one hangs vertically from a cross-bar and is fringed. */
+const VTL_GREEN = "#57c99a";
+const VTL_DEEP = "#03211a";
+const VTL_LIGHT = "#e8fff6";
+
+export function IconVeteranStandard(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Pike, spear finial, cross-bar. */}
+      <path d="M12 3.4 V22.4" strokeWidth={1.5} />
+      <path d="M12 0.8 L13.5 3.0 L12 4.4 L10.5 3.0 Z" fill={VTL_LIGHT} stroke="none" />
+      <path d="M5.4 4.2 H18.6" strokeWidth={1.35} stroke={VTL_GREEN} />
+      <g fill={VTL_GREEN} stroke="none">
+        <circle cx="5.4" cy="4.2" r="0.85" />
+        <circle cx="18.6" cy="4.2" r="0.85" />
+      </g>
+
+      {/* The standard, hanging. */}
+      <path d="M6.0 4.6 H18.0 V18.0 H6.0 Z" fill={VTL_DEEP} fillOpacity={0.55} strokeWidth={1.4} />
+      <path d="M7.3 5.9 H16.7 V16.7 H7.3 Z" strokeWidth={0.7} opacity={0.5} stroke={VTL_GREEN} fill="none" />
+
+      {/* Three chevrons on the field -- BASE's two, plus one. */}
+      <g fill={VTL_GREEN} stroke="none">
+        <path d="M12 6.8 L16.0 9.9 L16.0 11.1 L12 8.0 L8.0 11.1 L8.0 9.9 Z" opacity={0.95} />
+        <path d="M12 10.2 L16.0 13.3 L16.0 14.5 L12 11.4 L8.0 14.5 L8.0 13.3 Z" opacity={0.8} />
+      </g>
+      <path d="M12 13.6 L16.0 16.7 L16.0 17.9 L12 14.8 L8.0 17.9 L8.0 16.7 Z" fill={VTL_LIGHT} stroke="none" opacity={0.9} />
+
+      {/* Fringe -- five tassels, so the foot of the standard reads as cloth. */}
+      <g stroke={VTL_GREEN} strokeWidth={1} opacity={0.85}>
+        <path d="M7.4 18.0 V20.0" />
+        <path d="M9.7 18.0 V20.6" />
+        <path d="M14.3 18.0 V20.6" />
+        <path d="M16.6 18.0 V20.0" />
+      </g>
+
+      {/* Ground the pike is planted in. */}
+      <path d="M8.6 22.4 H15.4" strokeWidth={1.2} stroke={VTL_GREEN} opacity={0.7} />
+    </GlyphShell>
+  );
+}
+
+/** P12. VeteranLegacy -- The Veteran MYTHIC (honour mauve).
+ *  The structural addition: the chevron stops being worn and becomes
+ *  ARCHITECTURE. Four chevron courses, tapering, form an obelisk on a stepped
+ *  plinth; two of the LEGENDARY standards flank it; a struck star burns at the
+ *  apex with six rays. 7,500 questions is a monument to somebody who kept
+ *  showing up.
+ *
+ *  Distinct from the reference batch's `IconLevelMonument` (a wide four-tier
+ *  ziggurat, symmetrical trapezoids, no chevrons): this is narrow, vertical,
+ *  and every course is a V. */
+const VTM_LILAC = "#f3c9e0";
+const VTM_DEEP = "#3a1a2d";
+const VTM_LIGHT = "#ffffff";
+
+export function IconVeteranLegacy(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Six rays off the apex star. */}
+      <g stroke={VTM_LILAC} strokeWidth={0.8} opacity={0.55}>
+        <path d="M12 2.4 V0.5" />
+        <path d="M9.6 3.2 L8.2 1.5" />
+        <path d="M14.4 3.2 L15.8 1.5" />
+        <path d="M8.2 5.0 L6.2 4.0" />
+        <path d="M15.8 5.0 L17.8 4.0" />
+      </g>
+
+      {/* Apex star. */}
+      <path d="M12 2.0 L13.1 4.6 L15.9 4.9 L13.8 6.8 L14.4 9.6 L12 8.2 L9.6 9.6 L10.2 6.8 L8.1 4.9 L10.9 4.6 Z" fill={VTM_LIGHT} stroke="none" />
+
+      {/* Obelisk shaft: four chevron courses, each narrower than the one below.
+          The V is the family's mark, load-bearing here in the literal sense. */}
+      <g fill={VTM_LILAC} stroke="none">
+        <path d="M12 9.4 L14.3 11.5 L14.3 12.6 L12 10.5 L9.7 12.6 L9.7 11.5 Z" opacity={0.95} />
+        <path d="M12 12.0 L15.0 14.2 L15.0 15.3 L12 13.1 L9.0 15.3 L9.0 14.2 Z" opacity={0.85} />
+        <path d="M12 14.6 L15.7 16.9 L15.7 18.0 L12 15.7 L8.3 18.0 L8.3 16.9 Z" opacity={0.75} />
+      </g>
+      <path d="M12 17.2 L16.4 19.6 L16.4 20.7 L12 18.3 L7.6 20.7 L7.6 19.6 Z" fill={VTM_DEEP} fillOpacity={0.7} strokeWidth={1} />
+
+      {/* Shaft outline, so the four courses read as one object. */}
+      <path d="M9.4 21.0 L10.9 9.2 H13.1 L14.6 21.0 Z" strokeWidth={1.25} fill="none" opacity={0.85} />
+
+      {/* Stepped plinth. */}
+      <path d="M7.4 21.0 H16.6 L17.4 22.4 H6.6 Z" fill={VTM_DEEP} fillOpacity={0.6} strokeWidth={1.2} />
+      <path d="M5.4 23.2 H18.6" strokeWidth={1.2} stroke={VTM_LILAC} opacity={0.7} />
+
+      {/* Two flanking standards -- the LEGENDARY mark, kept as honour guard. */}
+      <g stroke={VTM_LILAC} strokeWidth={1}>
+        <path d="M3.6 21.0 V10.6" />
+        <path d="M20.4 21.0 V10.6" />
+      </g>
+      <path d="M3.6 10.6 L6.6 11.6 L3.6 13.0 Z" fill={VTM_LILAC} stroke="none" opacity={0.8} />
+      <path d="M20.4 10.6 L17.4 11.6 L20.4 13.0 Z" fill={VTM_LILAC} stroke="none" opacity={0.8} />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * LAST-MINUTE HERO -- submits in the final 10% of the window, still scores 80%+.
+ * Motif: a dial with its FINAL WEDGE marked. The wedge spans the last ~10% of
+ * the face (12 o'clock round to about 1:10), which is not decoration -- it is
+ * literally the unlock condition drawn. Every tier keeps the ring, the twelve
+ * ticks and that wedge; what changes is what is happening inside the wedge.
+ *
+ * Mirror image of Early Bird by construction: that family is a dial you BEAT,
+ * calm and warm-lit; this one is a dial that is about to run out.
+ * ------------------------------------------------------------------------ */
+
+// Shared geometry so the four tiers cannot drift: centre (12, 12.6), outer
+// radius 8.6, inner radius 5.4, wedge from -90deg to -54deg.
+const LM_WEDGE = "M12 4.00 A8.6 8.6 0 0 1 17.06 5.64 L15.17 8.23 A5.4 5.4 0 0 0 12 7.20 Z";
+
+function lmTicks(stroke: string) {
+  const out = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+    const long = i % 3 === 0;
+    const r1 = long ? 9.0 : 9.4;
+    const r2 = 10.6;
+    out.push(
+      <path
+        key={i}
+        d={`M${(12 + Math.cos(a) * r1).toFixed(2)} ${(12.6 + Math.sin(a) * r1).toFixed(2)} L${(12 + Math.cos(a) * r2).toFixed(2)} ${(12.6 + Math.sin(a) * r2).toFixed(2)}`}
+        strokeWidth={long ? 1.25 : 0.7}
+        opacity={long ? 0.9 : 0.55}
+        stroke={stroke}
+      />
+    );
+  }
+  return out;
+}
+
+/** P13. LastMinuteSpark -- Last-Minute Hero BASE (struck amber). The dial, the
+ *  wedge, and one four-point spark struck off the wedge's outer edge. Both
+ *  hands are already inside the wedge. Done it once. */
+const LMB_AMBER = "#f6bc4c";
+const LMB_DEEP = "#2f1c00";
+const LMB_LIGHT = "#fff4dc";
+
+export function IconLastMinuteSpark(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <g>{lmTicks(LMB_AMBER)}</g>
+
+      {/* Dial face. */}
+      <circle cx="12" cy="12.6" r="8.6" fill={LMB_DEEP} fillOpacity={0.45} strokeWidth={1.5} />
+      <circle cx="12" cy="12.6" r="5.4" strokeWidth={0.8} opacity={0.5} fill="none" />
+
+      {/* The final wedge. */}
+      <path d={LM_WEDGE} fill={LMB_AMBER} opacity={0.85} stroke="none" />
+      <path d={LM_WEDGE} strokeWidth={1} opacity={0.9} fill="none" />
+
+      {/* Hands, both inside the wedge. */}
+      <path d="M12 12.6 L12 6.4" strokeWidth={1.5} stroke={LMB_LIGHT} />
+      <path d="M12 12.6 L15.4 8.2" strokeWidth={1.15} stroke={LMB_LIGHT} opacity={0.85} />
+      <circle cx="12" cy="12.6" r="1.05" fill={LMB_LIGHT} stroke="none" />
+
+      {/* One spark, struck off the wedge's outer edge. */}
+      <path d="M14.9 3.1 L15.6 5.2 L17.7 5.9 L15.6 6.6 L14.9 8.7 L14.2 6.6 L12.1 5.9 L14.2 5.2 Z" fill={LMB_LIGHT} stroke="none" />
+      <circle cx="14.9" cy="5.9" r="0.75" fill={LMB_AMBER} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/** P14. LastMinuteFlash -- Last-Minute Hero SUPER (flashbulb lime).
+ *  INK MARK: this sits on the second-highest-luminance card in the family, so
+ *  every accent below is a DARK olive. BASE's single spark has become a
+ *  full-frame FLASH: an eight-point burst over the wedge with six escaping
+ *  flash lines, and the wedge itself blown out. Five times is not luck. */
+const LMS_INK = "#2b3a05";
+const LMS_MID = "#5c7a0d";
+const LMS_DEEP = "#131a02";
+
+export function IconLastMinuteFlash(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Flash lines escaping the wedge, alternating length. */}
+      <g stroke={LMS_MID} strokeWidth={1} opacity={0.7}>
+        <path d="M15.6 3.4 L17.4 0.9" />
+        <path d="M18.4 6.0 L21.6 4.6" />
+        <path d="M19.4 9.0 L22.9 9.2" />
+        <path d="M13.2 1.9 L13.6 0.6" />
+        <path d="M18.9 11.6 L21.4 12.6" />
+      </g>
+
+      <g>{lmTicks(LMS_MID)}</g>
+
+      <circle cx="12" cy="12.6" r="8.6" fill={LMS_DEEP} fillOpacity={0.3} strokeWidth={1.5} />
+      <circle cx="12" cy="12.6" r="5.4" strokeWidth={0.8} opacity={0.45} fill="none" />
+
+      {/* Wedge, blown out. */}
+      <path d={LM_WEDGE} fill={LMS_INK} opacity={0.9} stroke="none" />
+      <path d={LM_WEDGE} strokeWidth={1.05} opacity={0.95} fill="none" />
+
+      <path d="M12 12.6 L12 6.4" strokeWidth={1.5} stroke={LMS_INK} />
+      <path d="M12 12.6 L15.4 8.2" strokeWidth={1.15} stroke={LMS_INK} opacity={0.8} />
+      <circle cx="12" cy="12.6" r="1.05" fill={LMS_INK} stroke="none" />
+
+      {/* Eight-point burst, sitting on the wedge. Four long arms and four
+          short diagonals -- a four-point star reads as a sparkle, eight reads
+          as an overexposure. */}
+      <path
+        d="M14.9 0.9 L15.9 4.5 L19.5 5.5 L15.9 6.5 L14.9 10.1 L13.9 6.5 L10.3 5.5 L13.9 4.5 Z"
+        fill={LMS_INK}
+        stroke="none"
+      />
+      <path
+        d="M14.9 2.6 L16.5 4.4 L17.6 3.2 L16.5 6.6 L18.2 5.5 L14.9 9.0 L13.3 6.6 L12.2 7.8 L13.3 4.4 L11.6 5.5 Z"
+        fill={LMS_MID}
+        opacity={0.55}
+        stroke="none"
+      />
+      <circle cx="14.9" cy="5.5" r="1.1" fill={LMS_DEEP} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/** P15. LastMinuteBlaze -- Last-Minute Hero LEGENDARY (scorched gold). The
+ *  wedge is now on fire and the dial is being consumed by it: three flame
+ *  tongues climb out of the wedge, two smoke curls drift off them, and the ring
+ *  is BROKEN across the wedge -- the only tier where the dial does not close.
+ *  Fifteen times means the deadline is not a deadline any more. */
+const LMLG_FLAME = "#dcd857";
+const LMLG_DEEP = "#1c1c00";
+const LMLG_LIGHT = "#fcfbdb";
+
+export function IconLastMinuteBlaze(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Smoke, drawn first so the flame sits in front of it. */}
+      <g stroke={LMLG_FLAME} strokeWidth={0.8} opacity={0.4} fill="none">
+        <path d="M16.4 3.0 Q19.2 1.8 18.6 0.4" />
+        <path d="M13.6 1.6 Q11.6 0.8 12.4 -0.2" />
+      </g>
+
+      <g>{lmTicks(LMLG_FLAME)}</g>
+
+      {/* Dial, BROKEN across the wedge: the arc runs from 1:10 all the way
+          round to 12 the long way, and simply stops. */}
+      <path
+        d="M17.06 5.64 A8.6 8.6 0 1 1 12 4.00"
+        strokeWidth={1.5}
+        fill={LMLG_DEEP}
+        fillOpacity={0.4}
+      />
+      <circle cx="12" cy="12.6" r="5.4" strokeWidth={0.8} opacity={0.5} fill="none" />
+
+      {/* The wedge, glowing rather than filled flat. */}
+      <path d={LM_WEDGE} fill={LMLG_FLAME} opacity={0.6} stroke="none" />
+
+      {/* Three flame tongues climbing out of the break. */}
+      <path
+        d="M13.2 5.6 C13.0 2.8 14.4 1.4 14.0 -0.4 C16.4 1.6 17.4 3.6 17.0 6.0 C16.4 4.8 15.8 4.2 15.0 3.8 C15.4 5.0 15.2 5.8 14.6 6.6 Z"
+        fill={LMLG_FLAME}
+        fillOpacity={0.7}
+        strokeWidth={1.05}
+      />
+      <path
+        d="M14.2 5.4 C14.2 3.8 14.9 3.0 14.9 1.8 C16.0 3.2 16.2 4.4 15.8 5.8 Z"
+        fill={LMLG_LIGHT}
+        opacity={0.9}
+        stroke="none"
+      />
+      <path d="M11.4 5.0 C11.2 3.6 11.8 2.8 11.6 1.8 C12.6 3.0 12.7 4.0 12.3 5.2 Z" fill={LMLG_FLAME} opacity={0.65} stroke="none" />
+
+      {/* Hands. The hour hand is inside the wedge and burning with it. */}
+      <path d="M12 12.6 L12 7.2" strokeWidth={1.5} stroke={LMLG_LIGHT} />
+      <path d="M12 12.6 L15.6 8.6" strokeWidth={1.15} stroke={LMLG_LIGHT} opacity={0.85} />
+      <circle cx="12" cy="12.6" r="1.05" fill={LMLG_LIGHT} stroke="none" />
+
+      {/* Embers falling off the break. */}
+      <g fill={LMLG_FLAME} stroke="none">
+        <circle cx="19.4" cy="8.0" r="0.7" opacity={0.85} />
+        <circle cx="20.6" cy="11.2" r="0.5" opacity={0.6} />
+        <circle cx="18.4" cy="4.4" r="0.45" opacity={0.5} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+/** P16. LastMinuteEclipse -- Last-Minute Hero MYTHIC (eclipse plum).
+ *  The structural addition that earns the ceiling tier: the dial's face has
+ *  become an OCCULTING DISC. The ring survives as a corona, eight streamers
+ *  leave it at alternating length, and the final wedge survives as the single
+ *  bright bead where the last of the light gets out -- the diamond-ring instant.
+ *  Dark before light, which is the brief's own reading of a deadline. */
+const LME_CORONA = "#eebfd6";
+const LME_DEEP = "#2a1420";
+const LME_LIGHT = "#ffffff";
+
+export function IconLastMinuteEclipse(props: BadgeGlyphProps) {
+  const streamers = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    const long = i % 2 === 0;
+    const r1 = 9.2;
+    const r2 = long ? 12.4 : 10.8;
+    streamers.push(
+      <path
+        key={i}
+        d={`M${(12 + Math.cos(a) * r1).toFixed(2)} ${(12.6 + Math.sin(a) * r1).toFixed(2)} L${(12 + Math.cos(a) * r2).toFixed(2)} ${(12.6 + Math.sin(a) * r2).toFixed(2)}`}
+        strokeWidth={long ? 1.15 : 0.7}
+        opacity={long ? 0.8 : 0.45}
+      />
+    );
+  }
+  return (
+    <GlyphShell {...props}>
+      {/* Residual dial ticks, pushed right out to the rim -- the family's DNA,
+          surviving as the only thing still measuring time. */}
+      <g>{lmTicks(LME_DEEP)}</g>
+
+      {/* Corona streamers. */}
+      <g stroke={LME_CORONA}>{streamers}</g>
+
+      {/* Corona: two rings, the outer one diffuse. */}
+      <circle cx="12" cy="12.6" r="9.0" stroke={LME_CORONA} strokeWidth={0.7} opacity={0.4} fill="none" />
+      <circle cx="12" cy="12.6" r="8.6" strokeWidth={1.6} fill="none" />
+
+      {/* The occulting disc. The one solid black shape in the whole phase. */}
+      <circle cx="12" cy="12.6" r="8.0" fill={LME_DEEP} fillOpacity={0.96} stroke="none" />
+      <circle cx="12" cy="12.6" r="8.0" stroke={LME_CORONA} strokeWidth={0.9} opacity={0.65} fill="none" />
+
+      {/* The final wedge, surviving only as light leaking round the limb. */}
+      <path d="M12 4.00 A8.6 8.6 0 0 1 17.06 5.64 L15.17 8.23 A5.4 5.4 0 0 0 12 7.20 Z" fill={LME_CORONA} opacity={0.35} stroke="none" />
+      <path d="M12 4.0 A8.6 8.6 0 0 1 17.06 5.64" strokeWidth={1.7} stroke={LME_LIGHT} fill="none" />
+
+      {/* The diamond-ring bead, at the wedge's midpoint. */}
+      <circle cx="14.71" cy="4.45" r="1.7" fill={LME_LIGHT} stroke="none" />
+      <circle cx="14.71" cy="4.45" r="2.9" fill={LME_CORONA} opacity={0.3} stroke="none" />
+
+      {/* Two inner corona wisps against the disc, so it is not a flat hole. */}
+      <g stroke={LME_CORONA} strokeWidth={0.6} opacity={0.35} fill="none">
+        <path d="M6.2 15.6 Q9.0 17.6 11.4 17.0" />
+        <path d="M17.2 16.6 Q15.0 18.8 12.6 18.6" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
+ * SECTION SPECIALIST -- 100% on every question of one concept, N times over.
+ * Motif: HEXAGONAL nodes joined by straight links. Hexagons specifically,
+ * because polymath BASE's `IconMindLattice` already owns round nodes inside a
+ * cranial silhouette and the two must never be confused: that one is a mind,
+ * this one is a structure being mastered cell by cell. The tier step is the
+ * count of cells and how many of them are lit.
+ * ------------------------------------------------------------------------ */
+
+/** P17. SectionSpecialistNode -- Section Specialist BASE (dim phosphor). ONE
+ *  cell, resolved: a large hexagon with a concentric inner hexagon and a lit
+ *  core, wired to three unlit neighbours. Three sections mastered is one node
+ *  and the beginnings of a neighbourhood. */
+const SCB_LEAF = "#d3ecc9";
+const SCB_DEEP = "#1c3216";
+const SCB_LIGHT = "#f5fff0";
+
+export function IconSectionSpecialistNode(props: BadgeGlyphProps) {
+  const sats: [number, number][] = [[19.4, 6.0], [4.4, 9.6], [7.2, 20.2]];
+  return (
+    <GlyphShell {...props}>
+      {/* Links out to the unlit neighbours, drawn first. */}
+      <g stroke={SCB_LEAF} strokeWidth={1} opacity={0.6}>
+        <path d="M15.6 9.2 L18.6 6.9" />
+        <path d="M7.4 10.6 L5.2 10.0" />
+        <path d="M9.6 16.4 L7.7 19.0" />
+      </g>
+
+      {/* Three unlit neighbours -- outline only, so "unresolved" is legible. */}
+      <g stroke={SCB_LEAF} strokeWidth={1.1} fill="none" opacity={0.8}>
+        {sats.map(([x, y], i) => (
+          <path key={i} d={hexPath(x, y, 1.9)} />
+        ))}
+      </g>
+
+      {/* The resolved cell. */}
+      <path d={hexPath(12, 12.6, 6.4)} fill={SCB_DEEP} fillOpacity={0.5} strokeWidth={1.6} />
+      <path d={hexPath(12, 12.6, 4.0)} stroke={SCB_LEAF} strokeWidth={1} opacity={0.85} fill="none" />
+      <path d={hexPath(12, 12.6, 2.0)} fill={SCB_LIGHT} stroke="none" />
+
+      {/* Six vertex pips -- every corner of the cell accounted for. */}
+      <g fill={SCB_LEAF} stroke="none" opacity={0.9}>
+        {[...Array(6)].map((_, i) => {
+          const a = (Math.PI / 3) * i - Math.PI / 2;
+          return <circle key={i} cx={12 + Math.cos(a) * 6.4} cy={12.6 + Math.sin(a) * 6.4} r={0.75} />;
+        })}
+      </g>
+    </GlyphShell>
+  );
+}
+
+/** P18. SectionSpecialistGrid -- Section Specialist SUPER (grid cyan-green).
+ *  INK MARK: this card's relative luminance is 0.453, just over the line, so
+ *  every accent below is a DEEP teal. One cell has become a 3x3 LATTICE with
+ *  orthogonal links; the centre cell is filled and haloed and four others are
+ *  resolved, the corners are not. Ten sections is a grid with holes in it. */
+const SCS_INK = "#12332d";
+const SCS_MID = "#2e6058";
+const SCS_DEEP = "#071e1a";
+
+export function IconSectionSpecialistGrid(props: BadgeGlyphProps) {
+  const cols = [5.4, 12, 18.6];
+  const rows = [6.0, 12.6, 19.2];
+  const cells: { x: number; y: number; lit: number }[] = [];
+  rows.forEach((y, r) =>
+    cols.forEach((x, c) => {
+      // Centre is the hub; the four edge-centres are resolved; corners are not.
+      const isCorner = (r === 0 || r === 2) && (c === 0 || c === 2);
+      cells.push({ x, y, lit: r === 1 && c === 1 ? 2 : isCorner ? 0 : 1 });
+    })
+  );
+  return (
+    <GlyphShell {...props}>
+      {/* Orthogonal links. */}
+      <g stroke={SCS_MID} strokeWidth={1} opacity={0.75}>
+        <path d="M7.7 6.0 H9.7 M14.3 6.0 H16.3" />
+        <path d="M7.7 12.6 H9.7 M14.3 12.6 H16.3" />
+        <path d="M7.7 19.2 H9.7 M14.3 19.2 H16.3" />
+        <path d="M5.4 8.3 V10.3 M5.4 14.9 V16.9" />
+        <path d="M12 8.3 V10.3 M12 14.9 V16.9" />
+        <path d="M18.6 8.3 V10.3 M18.6 14.9 V16.9" />
+      </g>
+
+      {/* Cells. */}
+      {cells.map((c, i) => (
+        <g key={i}>
+          <path
+            d={hexPath(c.x, c.y, c.lit === 2 ? 3.0 : 2.3)}
+            fill={c.lit === 0 ? "none" : SCS_INK}
+            fillOpacity={c.lit === 2 ? 0.9 : 0.45}
+            stroke={c.lit === 0 ? SCS_MID : undefined}
+            strokeWidth={c.lit === 2 ? 1.5 : 1.15}
+            opacity={c.lit === 0 ? 0.65 : 1}
+          />
+        </g>
+      ))}
+
+      {/* Hub halo and core. */}
+      <path d={hexPath(12, 12.6, 4.4)} stroke={SCS_MID} strokeWidth={0.7} fill="none" opacity={0.6} />
+      <circle cx="12" cy="12.6" r="1.1" fill={SCS_DEEP} stroke="none" />
+
+      {/* Baseline rule -- the lattice is mounted on something. */}
+      <path d="M1.6 22.6 H22.4" strokeWidth={0.9} stroke={SCS_MID} opacity={0.45} />
+    </GlyphShell>
+  );
+}
+
+/** P19. SectionSpecialistMatrix -- Section Specialist LEGENDARY (matrix green).
+ *  The grid rotates 45 degrees and densifies into a DIAMOND lattice of thirteen
+ *  cells on diagonal links, with a resolved path traced through four of them
+ *  and an outer diamond frame closing the structure. Twenty-five sections is
+ *  no longer a grid with holes; it is a solved shape. */
+const SCL_MINT = "#8bf7a4";
+const SCL_DEEP = "#032b18";
+const SCL_LIGHT = "#e9fff0";
+
+export function IconSectionSpecialistMatrix(props: BadgeGlyphProps) {
+  // Diamond arrangement: rows of 1 / 3 / 5 / 3 / 1.
+  const rowsDef: [number, number][] = [[12.6, 1], [8.0, 3], [3.4, 5], [8.0, 3], [12.6, 1]];
+  const nodes: [number, number][] = [];
+  const yRows = [3.0, 7.8, 12.6, 17.4, 22.2];
+  rowsDef.forEach(([, n], r) => {
+    const span = 4.6;
+    const startX = 12 - ((n - 1) * span) / 2;
+    for (let i = 0; i < n; i++) nodes.push([startX + i * span, yRows[r]]);
+  });
+  // A resolved path threading the lattice bottom-left to top-right.
+  const litIdx = [5, 7, 9, 11];
+  return (
+    <GlyphShell {...props}>
+      {/* Outer diamond frame. */}
+      <path d="M12 1.2 L22.8 12.6 L12 24.0 L1.2 12.6 Z" stroke={SCL_MINT} strokeWidth={0.8} opacity={0.45} fill={SCL_DEEP} fillOpacity={0.22} />
+
+      {/* Diagonal links -- every cell to its neighbours on the diagonal. */}
+      <g stroke={SCL_MINT} strokeWidth={0.75} opacity={0.6}>
+        <path d="M12 3.0 L9.7 7.8 M12 3.0 L14.3 7.8" />
+        <path d="M7.4 7.8 L5.1 12.6 M7.4 7.8 L9.7 12.6" />
+        <path d="M12 7.8 L9.7 12.6 M12 7.8 L14.3 12.6" />
+        <path d="M16.6 7.8 L14.3 12.6 M16.6 7.8 L18.9 12.6" />
+        <path d="M4.8 12.6 L7.1 17.4 M9.4 12.6 L7.1 17.4 M9.4 12.6 L11.7 17.4" />
+        <path d="M14.6 12.6 L12.3 17.4 M14.6 12.6 L16.9 17.4 M19.2 12.6 L16.9 17.4" />
+        <path d="M7.4 17.4 L9.7 22.2 M16.6 17.4 L14.3 22.2 M12 17.4 L12 22.2" />
+      </g>
+
+      {/* Cells. */}
+      {nodes.map(([x, y], i) => {
+        const lit = litIdx.includes(i);
+        return (
+          <path
+            key={i}
+            d={hexPath(x, y, lit ? 2.1 : 1.6)}
+            fill={lit ? SCL_LIGHT : SCL_DEEP}
+            fillOpacity={lit ? 0.95 : 0.55}
+            strokeWidth={lit ? 1.2 : 0.95}
+            opacity={lit ? 1 : 0.8}
+          />
+        );
+      })}
+
+      {/* The resolved path itself, drawn over the links it uses. */}
+      <path d="M4.8 12.6 L9.4 12.6 L14.6 12.6 L19.2 12.6" stroke={SCL_LIGHT} strokeWidth={1.3} opacity={0.85} fill="none" />
+    </GlyphShell>
+  );
+}
+
+/** P20. SectionSpecialistNexus -- Section Specialist MYTHIC (nexus white).
+ *  INK MARK: near-white card, so every accent is a DEEP forest teal. The
+ *  structural addition: the lattice stops being flat and CONVERGES. Twelve
+ *  perimeter cells feed twelve spokes into one core cell, two orbit rings hold
+ *  the ring together, and six long rays leave the core -- the only tier where
+ *  anything escapes the structure. Fifty sections is a network with a centre. */
+const SSM_INK = "#0e2b1d";
+const SSM_MID = "#215c3f";
+const SSM_DEEP = "#04140d";
+
+export function IconSectionSpecialistNexus(props: BadgeGlyphProps) {
+  const ring = [...Array(12)].map((_, i) => {
+    const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+    return { x: 12 + Math.cos(a) * 9.3, y: 12 + Math.sin(a) * 9.3, a, big: i % 3 === 0 };
+  });
+  return (
+    <GlyphShell {...props}>
+      {/* Six long rays escaping the core. */}
+      <g stroke={SSM_MID} strokeWidth={0.75} opacity={0.5}>
+        {[...Array(6)].map((_, i) => {
+          const a = (i / 6) * Math.PI * 2 - Math.PI / 2 + 0.26;
+          return (
+            <path
+              key={i}
+              d={`M${(12 + Math.cos(a) * 4.6).toFixed(2)} ${(12 + Math.sin(a) * 4.6).toFixed(2)} L${(12 + Math.cos(a) * 12.2).toFixed(2)} ${(12 + Math.sin(a) * 12.2).toFixed(2)}`}
+            />
+          );
+        })}
+      </g>
+
+      {/* Two orbit rings. */}
+      <circle cx="12" cy="12" r="9.3" stroke={SSM_MID} strokeWidth={0.7} opacity={0.5} fill="none" />
+      <circle cx="12" cy="12" r="6.6" stroke={SSM_MID} strokeWidth={0.55} opacity={0.32} fill="none" />
+
+      {/* Twelve spokes, all the way in. */}
+      <g stroke={SSM_MID} strokeWidth={0.85} opacity={0.7}>
+        {ring.map((n, i) => (
+          <path
+            key={i}
+            d={`M${(12 + Math.cos(n.a) * 7.7).toFixed(2)} ${(12 + Math.sin(n.a) * 7.7).toFixed(2)} L${(12 + Math.cos(n.a) * 3.6).toFixed(2)} ${(12 + Math.sin(n.a) * 3.6).toFixed(2)}`}
+          />
+        ))}
+      </g>
+
+      {/* Perimeter cells. */}
+      {ring.map((n, i) => (
+        <path
+          key={i}
+          d={hexPath(n.x, n.y, n.big ? 1.85 : 1.3)}
+          fill={SSM_INK}
+          fillOpacity={n.big ? 0.85 : 0.5}
+          strokeWidth={n.big ? 1.15 : 0.85}
+        />
+      ))}
+
+      {/* The core. Three concentric hexagons, the innermost solid. */}
+      <path d={hexPath(12, 12, 5.0)} fill={SSM_DEEP} fillOpacity={0.35} strokeWidth={1.55} />
+      <path d={hexPath(12, 12, 3.3)} stroke={SSM_MID} strokeWidth={0.9} fill="none" opacity={0.85} />
+      <path d={hexPath(12, 12, 1.7)} fill={SSM_INK} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/**
+ * Phase-2 keys -- five new families, four tiers each. Same "brand-new iconName"
+ * contract as `referenceBatchGlyphs` and `mythicPhase1Glyphs`: every string
+ * below was seeded by the backend alongside its own AchievementBadge row and is
+ * owned by exactly one row, so this spread cannot change the appearance of any
+ * badge from the original 30 or from phase 1. Kept as one export so
+ * `badgeVisuals.ts` and `BadgeInspectionModal.tsx` cannot drift on which glyph
+ * a key resolves to.
+ */
+export const phase2Glyphs = {
+  MarathonTrail: IconMarathonTrail,                          // marathoner         BASE
+  MarathonSurge: IconMarathonSurge,                          // marathoner         SUPER
+  MarathonHorizon: IconMarathonHorizon,                      // marathoner         LEGENDARY
+  MarathonEternal: IconMarathonEternal,                      // marathoner         MYTHIC
+  IronWallBrick: IconIronWallBrick,                          // iron_wall          BASE
+  IronWallBastion: IconIronWallBastion,                      // iron_wall          SUPER
+  IronWallRampart: IconIronWallRampart,                      // iron_wall          LEGENDARY
+  IronWallCitadel: IconIronWallCitadel,                      // iron_wall          MYTHIC
+  VeteranChevron: IconVeteranChevron,                        // veteran            BASE
+  VeteranMedallion: IconVeteranMedallion,                    // veteran            SUPER
+  VeteranStandard: IconVeteranStandard,                      // veteran            LEGENDARY
+  VeteranLegacy: IconVeteranLegacy,                          // veteran            MYTHIC
+  LastMinuteSpark: IconLastMinuteSpark,                      // last_minute_hero   BASE
+  LastMinuteFlash: IconLastMinuteFlash,                      // last_minute_hero   SUPER
+  LastMinuteBlaze: IconLastMinuteBlaze,                      // last_minute_hero   LEGENDARY
+  LastMinuteEclipse: IconLastMinuteEclipse,                  // last_minute_hero   MYTHIC
+  SectionSpecialistNode: IconSectionSpecialistNode,          // section_specialist BASE
+  SectionSpecialistGrid: IconSectionSpecialistGrid,          // section_specialist SUPER
+  SectionSpecialistMatrix: IconSectionSpecialistMatrix,      // section_specialist LEGENDARY
+  SectionSpecialistNexus: IconSectionSpecialistNexus,        // section_specialist MYTHIC
+} as const;
