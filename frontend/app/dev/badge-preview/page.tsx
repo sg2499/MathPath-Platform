@@ -97,6 +97,37 @@ const LEVEL_MASTERY_BATCH3_YLM: PreviewBadge[] = [
   { code: "level_mastery_ylm_l3", tier: "LEGENDARY", name: "YLM L3 -- Perfected", description: "Complete at least 30 Mock Exams within YLM L3, averaging 95% or higher (or score 100% on at least one)", iconName: "LevelMasteryYlmL3Perfected" },
 ];
 
+const LEVEL_MASTERY_BATCH4_PM: PreviewBadge[] = [
+  { code: "level_mastery_pm_l1", tier: "BASE", name: "PM L1 -- Cleared", description: "Complete at least 12 Mock Exams within PM L1", iconName: "LevelMasteryPmL1Cleared" },
+  { code: "level_mastery_pm_l1", tier: "SUPER", name: "PM L1 -- Mastered", description: "Complete at least 20 Mock Exams within PM L1, averaging 85% or higher", iconName: "LevelMasteryPmL1Mastered" },
+  { code: "level_mastery_pm_l1", tier: "LEGENDARY", name: "PM L1 -- Perfected", description: "Complete at least 30 Mock Exams within PM L1, averaging 95% or higher", iconName: "LevelMasteryPmL1Perfected" },
+  { code: "level_mastery_pm_l2", tier: "BASE", name: "PM L2 -- Cleared", description: "Complete at least 12 Mock Exams within PM L2", iconName: "LevelMasteryPmL2Cleared" },
+  { code: "level_mastery_pm_l2", tier: "SUPER", name: "PM L2 -- Mastered", description: "Complete at least 20 Mock Exams within PM L2, averaging 85% or higher", iconName: "LevelMasteryPmL2Mastered" },
+  { code: "level_mastery_pm_l2", tier: "LEGENDARY", name: "PM L2 -- Perfected", description: "Complete at least 30 Mock Exams within PM L2, averaging 95% or higher", iconName: "LevelMasteryPmL2Perfected" },
+  { code: "level_mastery_pm_l3", tier: "BASE", name: "PM L3 -- Cleared", description: "Complete at least 12 Mock Exams within PM L3", iconName: "LevelMasteryPmL3Cleared" },
+  { code: "level_mastery_pm_l3", tier: "SUPER", name: "PM L3 -- Mastered", description: "Complete at least 20 Mock Exams within PM L3, averaging 85% or higher", iconName: "LevelMasteryPmL3Mastered" },
+  { code: "level_mastery_pm_l3", tier: "LEGENDARY", name: "PM L3 -- Perfected", description: "Complete at least 30 Mock Exams within PM L3, averaging 95% or higher", iconName: "LevelMasteryPmL3Perfected" },
+  { code: "level_mastery_pm_l4", tier: "BASE", name: "PM L4 -- Cleared", description: "Complete at least 12 Mock Exams within PM L4", iconName: "LevelMasteryPmL4Cleared" },
+  { code: "level_mastery_pm_l4", tier: "SUPER", name: "PM L4 -- Mastered", description: "Complete at least 20 Mock Exams within PM L4, averaging 85% or higher", iconName: "LevelMasteryPmL4Mastered" },
+  { code: "level_mastery_pm_l4", tier: "LEGENDARY", name: "PM L4 -- Perfected", description: "Complete at least 30 Mock Exams within PM L4, averaging 95% or higher", iconName: "LevelMasteryPmL4Perfected" },
+];
+
+
+const LEVEL_MASTERY_BATCH5_IM: PreviewBadge[] = [
+  { code: "level_mastery_im_l1", tier: "BASE", name: "IM L1 -- Cleared", description: "Complete at least 12 Mock Exams within IM L1", iconName: "LevelMasteryImL1Cleared" },
+  { code: "level_mastery_im_l1", tier: "SUPER", name: "IM L1 -- Mastered", description: "Complete at least 20 Mock Exams within IM L1, averaging 85% or higher", iconName: "LevelMasteryImL1Mastered" },
+  { code: "level_mastery_im_l1", tier: "LEGENDARY", name: "IM L1 -- Perfected", description: "Complete at least 30 Mock Exams within IM L1, averaging 95% or higher", iconName: "LevelMasteryImL1Perfected" },
+  { code: "level_mastery_im_l2", tier: "BASE", name: "IM L2 -- Cleared", description: "Complete at least 12 Mock Exams within IM L2", iconName: "LevelMasteryImL2Cleared" },
+  { code: "level_mastery_im_l2", tier: "SUPER", name: "IM L2 -- Mastered", description: "Complete at least 20 Mock Exams within IM L2, averaging 85% or higher", iconName: "LevelMasteryImL2Mastered" },
+  { code: "level_mastery_im_l2", tier: "LEGENDARY", name: "IM L2 -- Perfected", description: "Complete at least 30 Mock Exams within IM L2, averaging 95% or higher", iconName: "LevelMasteryImL2Perfected" },
+  { code: "level_mastery_im_l3", tier: "BASE", name: "IM L3 -- Cleared", description: "Complete at least 12 Mock Exams within IM L3", iconName: "LevelMasteryImL3Cleared" },
+  { code: "level_mastery_im_l3", tier: "SUPER", name: "IM L3 -- Mastered", description: "Complete at least 20 Mock Exams within IM L3, averaging 85% or higher", iconName: "LevelMasteryImL3Mastered" },
+  { code: "level_mastery_im_l3", tier: "LEGENDARY", name: "IM L3 -- Perfected", description: "Complete at least 30 Mock Exams within IM L3, averaging 95% or higher", iconName: "LevelMasteryImL3Perfected" },
+  { code: "level_mastery_im_l4", tier: "BASE", name: "IM L4 -- Cleared", description: "Complete at least 12 Mock Exams within IM L4", iconName: "LevelMasteryImL4Cleared" },
+  { code: "level_mastery_im_l4", tier: "SUPER", name: "IM L4 -- Mastered", description: "Complete at least 20 Mock Exams within IM L4, averaging 85% or higher", iconName: "LevelMasteryImL4Mastered" },
+  { code: "level_mastery_im_l4", tier: "LEGENDARY", name: "IM L4 -- Perfected", description: "Complete at least 30 Mock Exams within IM L4, averaging 95% or higher", iconName: "LevelMasteryImL4Perfected" },
+];
+
 const TIER_CHIP_STYLE: Record<string, string> = {
   BASE: "bg-slate-700 text-slate-200",
   SUPER: "bg-indigo-700 text-indigo-100",
@@ -161,6 +192,8 @@ export default function BadgePreviewPage() {
       <Section title="Phase 3 -- Level Mastery, batch 1: BM-L1 (3 badges)" badges={LEVEL_MASTERY_BATCH1_BM} onOpen={setSelected} />
       <Section title="Phase 3 -- Level Mastery, batch 2: MM-L1 (3 badges)" badges={LEVEL_MASTERY_BATCH2_MM} onOpen={setSelected} />
       <Section title="Phase 3 -- Level Mastery, batch 3: YLM-L1/L2/L3 (9 badges)" badges={LEVEL_MASTERY_BATCH3_YLM} onOpen={setSelected} />
+      <Section title="Phase 3 -- Level Mastery, batch 4: PM-L1/L2/L3/L4 (12 badges)" badges={LEVEL_MASTERY_BATCH4_PM} onOpen={setSelected} />
+      <Section title="Phase 3 -- Level Mastery, batch 5: IM-L1/L2/L3/L4 (12 badges)" badges={LEVEL_MASTERY_BATCH5_IM} onOpen={setSelected} />
 
       {selected && (
         <BadgeInspectionModal

@@ -1062,6 +1062,674 @@ export function IconStreakChainLegendary(props: BadgeGlyphProps) {
  * apart on which glyph a key resolves to (they previously each maintained
  * their own hand-written copy of these five lines).
  */
+
+/* ==========================================================================
+ * PM-L1 -- A foundation block / cornerstone. 
+ * Base: Small, low-detail wireframe cube outline.
+ * Super: Massive, heavy stone ashlar banded with thick iron straps (breaks silhouette).
+ * Legendary: Block split by a forge hammer, exposing a glowing red-hot core and sparks.
+ * ========================================================================== */
+const PM_L1_BASE_COLOR = "#ff3a19"; 
+const PM_L1_SUPER_COLOR = "#df2946";
+const PM_L1_LEG_COLOR = "#02b804";
+
+export function IconLevelMasteryPmL1Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Small, unimposing wireframe cube */}
+      <path d="M12 9 L17 11.5 L12 14 L7 11.5 Z" fill="none" strokeWidth={1.5} />
+      <path d="M7 11.5 L12 14 L12 19 L7 16.5 Z" fill="none" strokeWidth={1.5} />
+      <path d="M17 11.5 L12 14 L12 19 L17 16.5 Z" fill="none" strokeWidth={1.5} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryPmL1Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Massive block, physically larger than Base */}
+      <path d="M12 4 L20 8 L12 12 L4 8 Z" fill={PM_L1_SUPER_COLOR} opacity={0.6} stroke="none" />
+      <path d="M4 8 L12 12 L12 21 L4 17 Z" fill={PM_L1_BASE_COLOR} opacity={0.9} stroke="none" />
+      <path d="M20 8 L12 12 L12 21 L20 17 Z" fill={PM_L1_SUPER_COLOR} opacity={0.4} stroke="none" />
+      
+      {/* Heavy iron bands wrapping the block, breaking the straight silhouette */}
+      <path d="M3.5 12 L12 16.5 L20.5 12 L20.5 14 L12 18.5 L3.5 14 Z" fill="#291b18" opacity={0.8} stroke="none" />
+      <path d="M8 6 L16 10 L16 19 L8 15 Z" fill="none" stroke="#291b18" strokeWidth={1.5} opacity={0.6} />
+
+      {/* Outer block wireframe over the fills */}
+      <path d="M12 4 L20 8 L20 17 L12 21 L4 17 L4 8 Z" fill="none" strokeWidth={1.6} />
+      <path d="M4 8 L12 12 L20 8 M12 12 L12 21" fill="none" strokeWidth={1.6} />
+      
+      {/* Iron band rivets */}
+      <circle cx="7" cy="13.5" r="0.6" fill="#fff" opacity={0.7} />
+      <circle cx="12" cy="16" r="0.6" fill="#fff" opacity={0.7} />
+      <circle cx="17" cy="13.5" r="0.6" fill="#fff" opacity={0.7} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryPmL1Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Glowing split core */}
+      <path d="M12 5 L16 10 L12 21 L8 10 Z" fill={PM_L1_LEG_COLOR} opacity={0.9} stroke="none" />
+      <circle cx="12" cy="12" r="5" fill={PM_L1_SUPER_COLOR} opacity={0.5} stroke="none" />
+      <circle cx="12" cy="12" r="3" fill="#fff" opacity={0.8} stroke="none" />
+
+      {/* Left split half (angled away) */}
+      <path d="M10 3 L10 11 L10 21 L3 17 L3 8 Z" fill={PM_L1_BASE_COLOR} opacity={0.8} stroke="none" />
+      <path d="M10 3 L10 11 L10 21 L3 17 L3 8 Z" fill="none" strokeWidth={1.6} />
+      <path d="M3 8 L10 11 L10 21" fill="none" strokeWidth={1.2} opacity={0.5} />
+
+      {/* Right split half (angled away) */}
+      <path d="M14 5 L21 8 L21 17 L14 21 L14 13 Z" fill={PM_L1_SUPER_COLOR} opacity={0.6} stroke="none" />
+      <path d="M14 5 L21 8 L21 17 L14 21 L14 13 Z" fill="none" strokeWidth={1.6} />
+      <path d="M21 8 L14 13 L14 21" fill="none" strokeWidth={1.2} opacity={0.5} />
+      
+      {/* Forge sparks flying out of the gap */}
+      <path d="M12 2 L12 -2 M9 6 L6 3 M15 6 L18 3" fill="none" stroke={PM_L1_LEG_COLOR} strokeWidth={1.5} strokeLinecap="round" opacity={0.9} />
+      <circle cx="7" cy="0" r="0.8" fill="#fff" stroke="none" />
+      <circle cx="17" cy="-1" r="1.2" fill={PM_L1_LEG_COLOR} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/* ==========================================================================
+ * PM-L2 -- Classical Pillar
+ * Base: A plain, perfectly straight column outline (no base, no capital).
+ * Super: A full Ionic column (stepped wide base, fluting, massive volutes poking out).
+ * Legendary: Pillar ablaze with celestial fire, glowing aura, ivy climbing.
+ * ========================================================================== */
+const PM_L2_BASE = "#0c8281";
+const PM_L2_SUPER = "#aa012d";
+const PM_L2_LEG = "#765449";
+
+export function IconLevelMasteryPmL2Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Simple, straight rectangle. No architectural detail. */}
+      <path d="M9 21 L9 5 L15 5 L15 21 Z" fill="none" strokeWidth={1.5} />
+      {/* One simple detail line inside */}
+      <path d="M12 5 L12 21" fill="none" strokeWidth={0.8} opacity={0.4} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryPmL2Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Pillar Fills (solid to prevent overlap issues) */}
+      <path d="M7 19 L7 18 L8 18 L8 6 L5 6 L5 4 L19 4 L19 6 L16 6 L16 18 L17 18 L17 19 Z" fill={PM_L2_BASE} opacity={0.6} stroke="none" />
+      {/* Stepped Base at the bottom to widen the footprint */}
+      <path d="M5 21 L5 19 L19 19 L19 21 Z" fill={PM_L2_SUPER} opacity={0.5} stroke="none" />
+      <path d="M8 6 L16 6 L16 18 L8 18 Z" fill={PM_L2_SUPER} opacity={0.5} stroke="none" />
+      
+      {/* Fluting */}
+      <path d="M10 6 L10 18 M12 6 L12 18 M14 6 L14 18" fill="none" stroke="#fff" strokeWidth={0.8} opacity={0.4} />
+      
+      {/* Outlines (layered over fills to maintain clean lines) */}
+      <path d="M7 19 L7 18 L8 18 L8 6 M16 18 L16 6 L19 6 M5 6 L8 6" fill="none" strokeWidth={1.6} />
+      <path d="M5 4 L19 4 M5 19 L19 19 M5 21 L5 19 M19 21 L19 19" fill="none" strokeWidth={1.6} />
+      <path d="M16 18 L17 18 L17 19" fill="none" strokeWidth={1.6} />
+      
+      {/* Volutes (solid fill blocks lines underneath) */}
+      <circle cx="5" cy="5" r="2.5" fill={PM_L2_BASE} stroke="none" />
+      <circle cx="5" cy="5" r="2.5" fill="none" strokeWidth={1.2} />
+      <path d="M5 5 A 1 1 0 0 1 5 2.5" fill="none" strokeWidth={1} opacity={0.7} />
+      
+      <circle cx="19" cy="5" r="2.5" fill={PM_L2_BASE} stroke="none" />
+      <circle cx="19" cy="5" r="2.5" fill="none" strokeWidth={1.2} />
+      <path d="M19 5 A 1 1 0 0 0 19 2.5" fill="none" strokeWidth={1} opacity={0.7} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryPmL2Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Aura / Flame core */}
+      <path d="M12 -3 L10 -7 L14 -7 Z" fill={PM_L2_LEG} opacity={0.8} stroke="none" />
+      <circle cx="12" cy="0" r="4" fill={PM_L2_LEG} opacity={0.3} stroke="none" />
+      <circle cx="12" cy="1" r="2" fill="#fff" opacity={0.9} stroke="none" />
+
+      {/* Pillar Fills */}
+      <path d="M7 19 L7 18 L8 18 L8 6 L5 6 L5 4 L19 4 L19 6 L16 6 L16 18 L17 18 L17 19 Z" fill={PM_L2_BASE} opacity={0.7} stroke="none" />
+      <path d="M5 21 L5 19 L19 19 L19 21 Z" fill={PM_L2_SUPER} opacity={0.6} stroke="none" />
+      <path d="M8 6 L16 6 L16 18 L8 18 Z" fill={PM_L2_SUPER} opacity={0.4} stroke="none" />
+      
+      {/* Pillar wireframe */}
+      <path d="M7 19 L7 18 L8 18 L8 6 M16 18 L16 6 L19 6 M5 6 L8 6" fill="none" strokeWidth={1.6} />
+      <path d="M5 4 L19 4 M5 19 L19 19 M5 21 L5 19 M19 21 L19 19" fill="none" strokeWidth={1.6} />
+      <path d="M16 18 L17 18 L17 19" fill="none" strokeWidth={1.6} />
+      
+      <circle cx="5" cy="5" r="2.5" fill={PM_L2_BASE} stroke="none" />
+      <circle cx="5" cy="5" r="2.5" fill="none" strokeWidth={1.2} />
+      <circle cx="19" cy="5" r="2.5" fill={PM_L2_BASE} stroke="none" />
+      <circle cx="19" cy="5" r="2.5" fill="none" strokeWidth={1.2} />
+
+      {/* Celestial flame rays */}
+      <path d="M12 4 L12 -5 M9 3 L6 -2 M15 3 L18 -2" fill="none" stroke={PM_L2_LEG} strokeWidth={1.5} strokeLinecap="round" opacity={0.9} />
+      
+      {/* Glowing ivy wrapping around */}
+      <path d="M7 20 C 13 18, 15 15, 8 13 C 3 11, 15 9, 17 6" fill="none" stroke={PM_L2_LEG} strokeWidth={1.8} strokeLinecap="round" opacity={0.9} />
+    </GlyphShell>
+  );
+}
+
+/* ==========================================================================
+ * PM-L3 -- Staircase
+ * Base: A narrow, simple 2-step profile outline.
+ * Super: A massive 3-step solid staircase with glowing braziers breaking the silhouette.
+ * Legendary: Stairs ascending into a glowing cosmic archway portal.
+ * ========================================================================== */
+const PM_L3_BASE = "#ff9c72";
+const PM_L3_SUPER = "#052a4f";
+const PM_L3_LEG = "#412c5b";
+
+export function IconLevelMasteryPmL3Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Narrow 2-step outline */}
+      <path d="M7 21 L7 14 L13 14 L13 7 L19 7 L19 21 Z" fill="none" strokeWidth={1.5} strokeLinejoin="miter" />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryPmL3Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Wide 3-step solid staircase */}
+      <path d="M2 21 L2 16 L8 16 L8 21 Z" fill={PM_L3_BASE} opacity={0.9} stroke="none" />
+      <path d="M8 21 L8 11 L14 11 L14 21 Z" fill={PM_L3_SUPER} opacity={0.7} stroke="none" />
+      <path d="M14 21 L14 6 L20 6 L20 21 Z" fill={PM_L3_BASE} opacity={0.9} stroke="none" />
+      
+      {/* Base Silhouette */}
+      <path d="M2 21 L2 16 L8 16 L8 11 L14 11 L14 6 L20 6 L20 21 Z" fill="none" strokeWidth={1.6} strokeLinejoin="miter" />
+      
+      {/* Treads (Highlights) */}
+      <path d="M2 16 L8 16 M8 11 L14 11 M14 6 L20 6" fill="none" stroke="#fff" strokeWidth={1.5} opacity={0.4} />
+      
+      {/* Braziers resting on each step, protruding up */}
+      <path d="M4 16 L4 14 L6 14 L6 16 Z" fill={PM_L3_SUPER} stroke="none" />
+      <path d="M4 16 L4 14 L6 14 L6 16 Z" fill="none" strokeWidth={1} />
+      <circle cx="5" cy="13" r="1.5" fill="#fff" opacity={0.8} stroke="none" />
+      
+      <path d="M10 11 L10 9 L12 9 L12 11 Z" fill={PM_L3_SUPER} stroke="none" />
+      <path d="M10 11 L10 9 L12 9 L12 11 Z" fill="none" strokeWidth={1} />
+      <circle cx="11" cy="8" r="1.5" fill="#fff" opacity={0.8} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryPmL3Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Cosmic Archway / Portal Core */}
+      <path d="M14 6 A 3 5 0 0 1 20 6 Z" fill={PM_L3_LEG} opacity={0.9} stroke="none" />
+      <circle cx="17" cy="1" r="5" fill={PM_L3_SUPER} opacity={0.3} stroke="none" />
+      <circle cx="17" cy="1" r="3" fill="#fff" opacity={0.7} stroke="none" />
+      
+      {/* Archway rings */}
+      <path d="M13 6 A 4 7 0 0 1 21 6" fill="none" stroke={PM_L3_LEG} strokeWidth={1.5} opacity={0.8} />
+
+      {/* Step columns */}
+      <path d="M2 21 L2 16 L8 16 L8 21 Z M14 21 L14 6 L20 6 L20 21 Z" fill={PM_L3_BASE} opacity={0.8} stroke="none" />
+      <path d="M8 21 L8 11 L14 11 L14 21 Z" fill={PM_L3_SUPER} opacity={0.6} stroke="none" />
+      
+      {/* Silhouette */}
+      <path d="M2 21 L2 16 L8 16 L8 11 L14 11 L14 6 L20 6 L20 21 Z" fill="none" strokeWidth={1.6} strokeLinejoin="miter" />
+      
+      {/* Glowing Treads spilling light */}
+      <path d="M2 16 L8 16 M8 11 L14 11 M14 6 L20 6" fill="none" stroke={PM_L3_LEG} strokeWidth={2} opacity={0.9} strokeLinecap="round" />
+      <path d="M8 16 L8 21 M14 11 L14 21 M20 6 L20 21" fill="none" stroke="#000" strokeWidth={1} opacity={0.6} />
+      
+      {/* Floating stardust */}
+      <circle cx="6" cy="7" r="0.8" fill={PM_L3_LEG} stroke="none" />
+      <circle cx="21" cy="-2" r="1.2" fill="#fff" stroke="none" />
+      <circle cx="22" cy="8" r="0.8" fill={PM_L3_LEG} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/* ==========================================================================
+ * PM-L4 -- Observatory Dome
+ * Base: A plain semi-circle dome outline.
+ * Super: A massive facility with a giant telescope poking out of a split dome.
+ * Legendary: Telescope firing a massive beam into the sky with orbiting rings.
+ * ========================================================================== */
+const PM_L4_BASE = "#fe7eaa";
+const PM_L4_SUPER = "#044967";
+const PM_L4_LEG = "#514303";
+
+export function IconLevelMasteryPmL4Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Plain semi-circle outline */}
+      <path d="M6 21 L6 16 A 6 6 0 0 1 18 16 L18 21 Z" fill="none" strokeWidth={1.5} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryPmL4Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Giant protruding telescope barrel */}
+      <path d="M14 13 L21 4 L23 5.5 L16 14 Z" fill={PM_L4_SUPER} opacity={0.8} stroke="none" />
+      <path d="M14 13 L21 4 L23 5.5 L16 14 Z" fill="none" strokeWidth={1.2} />
+      <path d="M21 4 L23 5.5" fill="none" stroke="#fff" strokeWidth={2} opacity={0.8} />
+
+      {/* Massive facility base */}
+      <path d="M4 21 L4 12 L20 12 L20 21 Z" fill={PM_L4_BASE} opacity={0.7} stroke="none" />
+      <path d="M4 21 L4 12 L20 12 L20 21 Z" fill="none" strokeWidth={1.6} />
+      
+      {/* Split dome housing the telescope */}
+      <path d="M6 12 A 6 6 0 0 1 18 12 Z" fill={PM_L4_SUPER} opacity={0.5} stroke="none" />
+      <path d="M6 12 A 6 6 0 0 1 13 6.5 L13 12 Z" fill="none" strokeWidth={1.5} />
+      <path d="M15 6.5 A 6 6 0 0 1 18 12" fill="none" strokeWidth={1.5} />
+
+      {/* Heavy blast door detail */}
+      <path d="M10 21 L10 16 L14 16 L14 21" fill="none" strokeWidth={1.2} opacity={0.6} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryPmL4Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Energy Beam */}
+      <path d="M21 5 L25 -4 L27 -3 L23 6 Z" fill={PM_L4_LEG} opacity={0.6} stroke="none" />
+      <path d="M22 4 L26 -3" fill="none" stroke="#fff" strokeWidth={2} opacity={0.9} />
+      
+      {/* Telescope barrel */}
+      <path d="M14 13 L21 4 L23 5.5 L16 14 Z" fill={PM_L4_SUPER} opacity={0.9} stroke="none" />
+      <path d="M14 13 L21 4 L23 5.5 L16 14 Z" fill="none" strokeWidth={1.2} />
+
+      {/* Facility base */}
+      <path d="M4 21 L4 12 L20 12 L20 21 Z" fill={PM_L4_BASE} opacity={0.8} stroke="none" />
+      <path d="M4 21 L4 12 L20 12 L20 21 Z" fill="none" strokeWidth={1.6} />
+      
+      {/* Dome */}
+      <path d="M6 12 A 6 6 0 0 1 18 12 Z" fill={PM_L4_SUPER} opacity={0.6} stroke="none" />
+      <path d="M6 12 A 6 6 0 0 1 13 6.5 L13 12 Z" fill="none" strokeWidth={1.5} />
+      <path d="M15 6.5 A 6 6 0 0 1 18 12" fill="none" strokeWidth={1.5} />
+      
+      {/* Orbital Rings around the beam */}
+      <ellipse cx="23" cy="1" rx="4" ry="1.5" transform="rotate(-30 23 1)" fill="none" stroke={PM_L4_LEG} strokeWidth={1.5} opacity={0.8} />
+      
+      {/* Glowing stars */}
+      <circle cx="7" cy="2" r="1" fill="#fff" opacity={0.9} stroke="none" />
+      <circle cx="12" cy="-2" r="0.8" fill={PM_L4_LEG} opacity={0.7} stroke="none" />
+    </GlyphShell>
+  );
+}
+/* ==========================================================================
+ * IM-L1 -- The Compass
+ * Base: Flat wireframe compass needle and ring.
+ * Super: Solid brass compass housing, glass dome, ticking gears.
+ * Legendary: Shattered glass, glowing star map hologram projecting up.
+ * ========================================================================== */
+const IM_L1_BASE_COLOR = "#004c6a";
+const IM_L1_SUPER_COLOR = "#ff9b73";
+const IM_L1_LEG_COLOR = "#00b60b";
+
+export function IconLevelMasteryImL1Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Flat wireframe compass ring */}
+      <circle cx="12" cy="12" r="7" fill="none" strokeWidth={1.5} />
+      {/* Flat Needle */}
+      <path d="M12 5 L14 12 L12 19 L10 12 Z" fill="none" strokeWidth={1.5} />
+      <circle cx="12" cy="12" r="1.5" fill="none" strokeWidth={1.5} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryImL1Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Heavy brass housing */}
+      <circle cx="12" cy="13" r="8" fill={IM_L1_BASE_COLOR} opacity={0.8} stroke="none" />
+      <circle cx="12" cy="12" r="8" fill={IM_L1_SUPER_COLOR} opacity={0.9} stroke="none" />
+      <circle cx="12" cy="12" r="8" fill="none" strokeWidth={1.6} />
+      <circle cx="12" cy="13" r="8" fill="none" strokeWidth={1.6} />
+      
+      {/* Ticking gears inside */}
+      <circle cx="12" cy="12" r="6" fill="#222" opacity={0.6} stroke="none" />
+      <path d="M9 12 A 3 3 0 0 1 12 9" fill="none" stroke="#fff" strokeWidth={1} opacity={0.4} strokeDasharray="1 1" />
+      <path d="M15 12 A 3 3 0 0 1 12 15" fill="none" stroke="#fff" strokeWidth={1} opacity={0.4} strokeDasharray="1 1" />
+      <circle cx="12" cy="12" r="3" fill="none" stroke={IM_L1_SUPER_COLOR} strokeWidth={1.5} opacity={0.5} />
+      
+      {/* 3D Needle */}
+      <path d="M12 6 L14.5 12 L12 12 Z" fill="#ff4444" opacity={0.9} stroke="none" />
+      <path d="M12 6 L9.5 12 L12 12 Z" fill="#aa0000" opacity={0.9} stroke="none" />
+      <path d="M12 18 L14.5 12 L12 12 Z" fill="#ccc" opacity={0.9} stroke="none" />
+      <path d="M12 18 L9.5 12 L12 12 Z" fill="#888" opacity={0.9} stroke="none" />
+      <path d="M12 6 L14.5 12 L12 18 L9.5 12 Z" fill="none" strokeWidth={1.2} />
+      <circle cx="12" cy="12" r="2" fill={IM_L1_SUPER_COLOR} strokeWidth={1} />
+      
+      {/* Glass dome glare */}
+      <path d="M7 8 A 5 5 0 0 1 11 5" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" opacity={0.6} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryImL1Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Shattered housing bottom */}
+      <path d="M4 12 C 4 17, 8 21, 12 21 C 16 21, 20 17, 20 12 C 20 10, 18 10, 16 11 L 12 9 L 8 11 C 6 10, 4 10, 4 12 Z" fill={IM_L1_BASE_COLOR} opacity={0.9} stroke="none" />
+      <path d="M4 12 C 4 17, 8 21, 12 21 C 16 21, 20 17, 20 12 C 20 10, 18 10, 16 11 L 12 9 L 8 11 C 6 10, 4 10, 4 12 Z" fill="none" strokeWidth={1.6} />
+      
+      {/* Glowing core emitting hologram */}
+      <circle cx="12" cy="10" r="4" fill={IM_L1_LEG_COLOR} opacity={0.6} stroke="none" />
+      <circle cx="12" cy="10" r="2" fill="#fff" opacity={0.9} stroke="none" />
+      
+      {/* Holographic Star Map Projecting Upward */}
+      <path d="M12 10 L4 -2 M12 10 L10 -4 M12 10 L14 -4 M12 10 L20 -2" fill="none" stroke={IM_L1_LEG_COLOR} strokeWidth={1} opacity={0.6} />
+      
+      {/* Constellations */}
+      <circle cx="6" cy="2" r="1.5" fill="#fff" stroke="none" />
+      <circle cx="9" cy="-1" r="1" fill="#fff" stroke="none" />
+      <circle cx="14" cy="3" r="1.2" fill="#fff" stroke="none" />
+      <circle cx="18" cy="0" r="1.5" fill="#fff" stroke="none" />
+      <path d="M6 2 L9 -1 M14 3 L18 0" fill="none" stroke={IM_L1_LEG_COLOR} strokeWidth={1.5} opacity={0.8} />
+      
+      {/* Floating shattered glass shards */}
+      <path d="M5 6 L7 4 L6 7 Z" fill="#fff" opacity={0.7} stroke="none" />
+      <path d="M18 5 L20 6 L19 8 Z" fill="#fff" opacity={0.7} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/* ==========================================================================
+ * IM-L2 -- The Spyglass
+ * Base: Simple collapsed cylinder outline.
+ * Super: Fully extended 3-segment brass and leather telescope.
+ * Legendary: Burning starlight beam firing out of the lens, leather burning away.
+ * ========================================================================== */
+const IM_L2_BASE_COLOR = "#402848";
+const IM_L2_SUPER_COLOR = "#899ec8";
+const IM_L2_LEG_COLOR = "#f1ebaf";
+
+export function IconLevelMasteryImL2Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      {/* Collapsed simple cylinder outline */}
+      <path d="M8 21 L8 14 L16 14 L16 21 Z" fill="none" strokeWidth={1.5} strokeLinejoin="miter" />
+      <path d="M7 14 L17 14 L17 12 L7 12 Z" fill="none" strokeWidth={1.5} strokeLinejoin="miter" />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryImL2Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Base segment (Leather wrapped) */}
+      <path d="M7 21 L7 13 L17 13 L17 21 Z" fill={IM_L2_BASE_COLOR} opacity={0.8} stroke="none" />
+      <path d="M7 21 L7 13 L17 13 L17 21 Z" fill="none" strokeWidth={1.6} />
+      <path d="M9 13 L9 21 M12 13 L12 21 M15 13 L15 21" fill="none" stroke="#000" strokeWidth={0.8} opacity={0.3} />
+      
+      {/* Middle segment (Brass) */}
+      <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill={IM_L2_SUPER_COLOR} opacity={0.8} stroke="none" />
+      <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill="none" strokeWidth={1.6} />
+      <path d="M9.5 7 L9.5 13" fill="none" stroke="#fff" strokeWidth={1} opacity={0.5} />
+      
+      {/* Top segment (Lens housing) */}
+      <path d="M10 7 L10 2 L14 2 L14 7 Z" fill={IM_L2_SUPER_COLOR} opacity={0.9} stroke="none" />
+      <path d="M9 2 L15 2 L15 0 L9 0 Z" fill={IM_L2_SUPER_COLOR} opacity={0.7} stroke="none" />
+      <path d="M10 7 L10 2 L14 2 L14 7 Z" fill="none" strokeWidth={1.6} />
+      <path d="M9 2 L15 2 L15 0 L9 0 Z" fill="none" strokeWidth={1.6} />
+      
+      {/* Glass Lens */}
+      <ellipse cx="12" cy="0" rx="2.5" ry="1" fill="#44ccff" opacity={0.8} />
+      <path d="M11 0 L13 0" fill="none" stroke="#fff" strokeWidth={1} opacity={0.9} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryImL2Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Starlight Beam firing up */}
+      <path d="M12 -2 L6 -8 L18 -8 Z" fill={IM_L2_LEG_COLOR} opacity={0.5} stroke="none" />
+      <path d="M12 -2 L9 -8 L15 -8 Z" fill="#fff" opacity={0.8} stroke="none" />
+      <circle cx="12" cy="-2" r="3" fill={IM_L2_LEG_COLOR} opacity={0.8} stroke="none" />
+      
+      {/* Burned Base segment */}
+      <path d="M7 21 L7 13 L17 13 L17 21 Z" fill={IM_L2_BASE_COLOR} opacity={0.9} stroke="none" />
+      <path d="M7 21 L7 13 C 10 16, 14 12, 17 13 L17 21 Z" fill="#222" opacity={0.8} stroke="none" /> {/* Charred leather */}
+      <path d="M7 21 L7 13 L17 13 L17 21 Z" fill="none" strokeWidth={1.6} />
+      
+      {/* Overheating Middle segment (Brass) */}
+      <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill={IM_L2_SUPER_COLOR} opacity={0.5} stroke="none" />
+      <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill={IM_L2_LEG_COLOR} opacity={0.4} stroke="none" />
+      <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill="none" strokeWidth={1.6} />
+      
+      {/* Top segment (Melting/Glowing) */}
+      <path d="M10 7 L10 2 L14 2 L14 7 Z" fill={IM_L2_LEG_COLOR} opacity={0.8} stroke="none" />
+      <path d="M9 2 L15 2 L15 0 L9 0 Z" fill={IM_L2_SUPER_COLOR} opacity={0.8} stroke="none" />
+      <path d="M10 7 L10 2 L14 2 L14 7 Z" fill="none" strokeWidth={1.6} />
+      <path d="M9 2 L15 2 L15 0 L9 0 Z" fill="none" strokeWidth={1.6} />
+      
+      {/* Floating glowing embers */}
+      <circle cx="8" cy="8" r="0.8" fill={IM_L2_LEG_COLOR} stroke="none" />
+      <circle cx="15" cy="4" r="1.2" fill="#fff" stroke="none" />
+      <circle cx="17" cy="11" r="0.8" fill={IM_L2_LEG_COLOR} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/* ==========================================================================
+ * IM-L3 -- The Ship's Helm
+ * Base: Basic 4-spoke wheel outline.
+ * Super: Heavy 8-spoke solid wheel with iron banding.
+ * Legendary: Wheel spinning violently, ethereal energy vortex.
+ * ========================================================================== */
+const IM_L3_BASE_COLOR = "#8e707a";
+const IM_L3_SUPER_COLOR = "#950437";
+const IM_L3_LEG_COLOR = "#913f77";
+
+export function IconLevelMasteryImL3Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      <circle cx="12" cy="11" r="7" fill="none" strokeWidth={1.5} />
+      <circle cx="12" cy="11" r="5" fill="none" strokeWidth={1.5} />
+      <path d="M12 2 L12 20 M3 11 L21 11" fill="none" strokeWidth={1.5} />
+      <circle cx="12" cy="11" r="1.5" fill="none" strokeWidth={1.5} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryImL3Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* 8 Spokes (thick) */}
+      <g strokeWidth={1.6}>
+        <path d="M12 2 L12 20 M3 11 L21 11 M5.5 4.5 L18.5 17.5 M5.5 17.5 L18.5 4.5" fill="none" />
+      </g>
+      <g stroke={IM_L3_BASE_COLOR} strokeWidth={3} opacity={0.8}>
+        <path d="M12 2 L12 20 M3 11 L21 11 M5.5 4.5 L18.5 17.5 M5.5 17.5 L18.5 4.5" fill="none" />
+      </g>
+      
+      {/* Outer wooden rim */}
+      <circle cx="12" cy="11" r="6.5" fill={IM_L3_BASE_COLOR} opacity={0.9} stroke="none" />
+      <circle cx="12" cy="11" r="5" fill="#111" opacity={0.5} stroke="none" />
+      <circle cx="12" cy="11" r="6.5" fill="none" strokeWidth={1.6} />
+      <circle cx="12" cy="11" r="5" fill="none" strokeWidth={1.6} />
+      
+      {/* Iron hub */}
+      <circle cx="12" cy="11" r="2.5" fill={IM_L3_SUPER_COLOR} opacity={0.9} stroke="none" />
+      <circle cx="12" cy="11" r="2.5" fill="none" strokeWidth={1.6} />
+      <circle cx="12" cy="11" r="1" fill="#fff" opacity={0.5} stroke="none" />
+      
+      {/* Peg highlights */}
+      <circle cx="12" cy="3" r="0.8" fill={IM_L3_SUPER_COLOR} stroke="none" />
+      <circle cx="12" cy="19" r="0.8" fill={IM_L3_SUPER_COLOR} stroke="none" />
+      <circle cx="4" cy="11" r="0.8" fill={IM_L3_SUPER_COLOR} stroke="none" />
+      <circle cx="20" cy="11" r="0.8" fill={IM_L3_SUPER_COLOR} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryImL3Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Glowing Ethereal Vortex Behind */}
+      <path d="M12 11 A 8 8 0 0 1 20 11 A 8 8 0 0 1 12 19 A 8 8 0 0 1 4 11 A 8 8 0 0 1 12 11 Z" fill={IM_L3_LEG_COLOR} opacity={0.3} stroke="none" />
+      <path d="M12 11 A 6 6 0 0 0 6 5 A 6 6 0 0 0 12 17 A 6 6 0 0 0 18 11 Z" fill={IM_L3_LEG_COLOR} opacity={0.5} stroke="none" />
+      
+      {/* Motion Blur Spokes */}
+      <g stroke={IM_L3_LEG_COLOR} strokeWidth={2} opacity={0.7} strokeDasharray="4 2">
+        <path d="M12 1 L12 21 M2 11 L22 11 M5 4 L19 18 M5 18 L19 4" fill="none" />
+        <path d="M10 2 L14 20 M4 9 L20 13 M7 4 L17 18 M5 16 L19 6" fill="none" />
+      </g>
+      
+      {/* Outer wooden rim (breaking apart) */}
+      <path d="M12 4.5 A 6.5 6.5 0 0 1 18.5 11" fill="none" strokeWidth={1.6} />
+      <path d="M18.5 11 A 6.5 6.5 0 0 1 12 17.5" fill="none" strokeWidth={1.6} strokeDasharray="3 3" />
+      <path d="M12 17.5 A 6.5 6.5 0 0 1 5.5 11" fill="none" strokeWidth={1.6} />
+      <path d="M5.5 11 A 6.5 6.5 0 0 1 12 4.5" fill="none" strokeWidth={1.6} strokeDasharray="4 2" />
+      
+      {/* Iron hub exploding */}
+      <circle cx="12" cy="11" r="3" fill={IM_L3_LEG_COLOR} opacity={0.9} stroke="none" />
+      <circle cx="12" cy="11" r="1.5" fill="#fff" opacity={0.9} stroke="none" />
+      <path d="M12 8 L13 11 L16 11 L13 12 L14 15 L12 13 L10 15 L11 12 L8 11 L11 11 Z" fill="#fff" stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/* ==========================================================================
+ * IM-L4 -- The Astrolabe / Armillary Sphere
+ * Base: Simple 2D circle with equator.
+ * Super: Interlocking 3D brass rings.
+ * Legendary: Brass rings align, glowing miniature solar system in center.
+ * ========================================================================== */
+const IM_L4_BASE_COLOR = "#56782c";
+const IM_L4_SUPER_COLOR = "#708f7f";
+const IM_L4_LEG_COLOR = "#64aece";
+
+export function IconLevelMasteryImL4Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      <circle cx="12" cy="11" r="8" fill="none" strokeWidth={1.5} />
+      <path d="M4 11 L20 11" fill="none" strokeWidth={1.5} />
+      <path d="M12 3 L12 19" fill="none" strokeWidth={1.5} />
+      <circle cx="12" cy="11" r="2" fill="none" strokeWidth={1.5} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryImL4Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Outer Meridian Ring */}
+      <circle cx="12" cy="11" r="8.5" fill="none" stroke={IM_L4_BASE_COLOR} strokeWidth={2.5} opacity={0.8} />
+      <circle cx="12" cy="11" r="8.5" fill="none" strokeWidth={1.6} />
+      
+      {/* Equator Ring (3D ellipse) */}
+      <ellipse cx="12" cy="11" rx="8" ry="3" fill="none" stroke={IM_L4_SUPER_COLOR} strokeWidth={2} opacity={0.9} />
+      <ellipse cx="12" cy="11" rx="8" ry="3" fill="none" strokeWidth={1.2} />
+      
+      {/* Ecliptic Ring (Tilted) */}
+      <ellipse cx="12" cy="11" rx="7.5" ry="2.5" transform="rotate(30 12 11)" fill="none" stroke={IM_L4_SUPER_COLOR} strokeWidth={2} opacity={0.7} />
+      <ellipse cx="12" cy="11" rx="7.5" ry="2.5" transform="rotate(30 12 11)" fill="none" strokeWidth={1.2} />
+      
+      {/* Center Earth globe */}
+      <circle cx="12" cy="11" r="2.5" fill={IM_L4_BASE_COLOR} stroke="none" />
+      <circle cx="12" cy="11" r="2.5" fill="none" strokeWidth={1.6} />
+      <path d="M11 9 C 13 10, 14 12, 11 13" fill="none" stroke="#fff" strokeWidth={0.8} opacity={0.5} />
+      
+      {/* Support Stand */}
+      <path d="M12 19.5 L12 21 M9 21 L15 21" fill="none" strokeWidth={2} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryImL4Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21 H23" strokeWidth={1.5} />
+      
+      {/* Center Sun glowing */}
+      <circle cx="12" cy="11" r="5" fill={IM_L4_LEG_COLOR} opacity={0.4} stroke="none" />
+      <circle cx="12" cy="11" r="3.5" fill={IM_L4_SUPER_COLOR} opacity={0.8} stroke="none" />
+      <circle cx="12" cy="11" r="2" fill="#fff" opacity={0.9} stroke="none" />
+      
+      {/* Outer Meridian Ring (Gold/Glowing) */}
+      <circle cx="12" cy="11" r="8.5" fill="none" stroke={IM_L4_SUPER_COLOR} strokeWidth={2.5} opacity={0.9} />
+      <circle cx="12" cy="11" r="8.5" fill="none" strokeWidth={1.6} />
+      
+      {/* Ethereal Orbital Paths */}
+      <ellipse cx="12" cy="11" rx="8" ry="3" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={1.5} opacity={0.8} />
+      <ellipse cx="12" cy="11" rx="7.5" ry="2.5" transform="rotate(45 12 11)" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={1.5} opacity={0.6} />
+      <ellipse cx="12" cy="11" rx="7.5" ry="2.5" transform="rotate(-45 12 11)" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={1.5} opacity={0.6} />
+      
+      {/* Orbiting Planets (Dots) */}
+      <circle cx="19.5" cy="10" r="1.5" fill="#fff" stroke="none" />
+      <circle cx="4.5" cy="12" r="1" fill={IM_L4_LEG_COLOR} stroke="none" />
+      <circle cx="12" cy="5" r="1.2" fill={IM_L4_SUPER_COLOR} stroke="none" />
+      <circle cx="15" cy="16" r="0.8" fill="#fff" stroke="none" />
+      
+      {/* Magic Runes floating on the edge */}
+      <path d="M11 2 L13 2 M12 1 L12 3" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={1} />
+      <path d="M20 11 L22 11 M21 10 L21 12" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={1} />
+      
+      {/* Support Stand (Intact) */}
+      <path d="M12 19.5 L12 21 M9 21 L15 21" fill="none" strokeWidth={2} />
+    </GlyphShell>
+  );
+}
+
+
+export const levelMasteryImGlyphs = {
+  LevelMasteryImL1Cleared: IconLevelMasteryImL1Base,
+  LevelMasteryImL1Mastered: IconLevelMasteryImL1Super,
+  LevelMasteryImL1Perfected: IconLevelMasteryImL1Legendary,
+  LevelMasteryImL2Cleared: IconLevelMasteryImL2Base,
+  LevelMasteryImL2Mastered: IconLevelMasteryImL2Super,
+  LevelMasteryImL2Perfected: IconLevelMasteryImL2Legendary,
+  LevelMasteryImL3Cleared: IconLevelMasteryImL3Base,
+  LevelMasteryImL3Mastered: IconLevelMasteryImL3Super,
+  LevelMasteryImL3Perfected: IconLevelMasteryImL3Legendary,
+  LevelMasteryImL4Cleared: IconLevelMasteryImL4Base,
+  LevelMasteryImL4Mastered: IconLevelMasteryImL4Super,
+  LevelMasteryImL4Perfected: IconLevelMasteryImL4Legendary,
+};
+
 export const referenceBatchGlyphs = {
   SpeedComet: IconSpeedComet,
   PerfectionistGem: IconPerfectionistGem,
@@ -1092,6 +1760,20 @@ export const referenceBatchGlyphs = {
   LevelMasteryYlmL3Cleared: IconLevelMasteryYlmL3Base,
   LevelMasteryYlmL3Mastered: IconLevelMasteryYlmL3Super,
   LevelMasteryYlmL3Perfected: IconLevelMasteryYlmL3Legendary,
+  // PHASE 3, Batch 4 (2026-07-30) -- Level Mastery, PM-L1/L2/L3/L4.
+  LevelMasteryPmL1Cleared: IconLevelMasteryPmL1Base,
+  LevelMasteryPmL1Mastered: IconLevelMasteryPmL1Super,
+  LevelMasteryPmL1Perfected: IconLevelMasteryPmL1Legendary,
+  LevelMasteryPmL2Cleared: IconLevelMasteryPmL2Base,
+  LevelMasteryPmL2Mastered: IconLevelMasteryPmL2Super,
+  LevelMasteryPmL2Perfected: IconLevelMasteryPmL2Legendary,
+  LevelMasteryPmL3Cleared: IconLevelMasteryPmL3Base,
+  LevelMasteryPmL3Mastered: IconLevelMasteryPmL3Super,
+  LevelMasteryPmL3Perfected: IconLevelMasteryPmL3Legendary,
+  LevelMasteryPmL4Cleared: IconLevelMasteryPmL4Base,
+  LevelMasteryPmL4Mastered: IconLevelMasteryPmL4Super,
+  LevelMasteryPmL4Perfected: IconLevelMasteryPmL4Legendary,
+
 } as const;
 
 /* ==========================================================================
