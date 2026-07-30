@@ -965,6 +965,28 @@ def get_student_achievements(
             if level and level.level_code:
                 level_mastery_progress_by_code[f"level_mastery_{_level_mastery_key(level.level_code)}"] = count
 
+    # Level Mastery badge visibility: real students already had progress
+    # before this platform existed, and mock exams are only ever assigned
+    # for a student's CURRENT level -- so a badge for an already-passed
+    # level with zero in-app history is permanently unearnable and
+    # shouldn't be shown. Rule (deliberately simple, no curriculum-path
+    # knowledge needed): a locked, zero-progress Level Mastery badge is
+    # only shown if it's for the student's CURRENT level. Already-unlocked
+    # or in-progress badges always show regardless. As the student advances
+    # to a new current level, that level's badge becomes visible on its own
+    # (this check re-runs on every request), and the level they just left
+    # stays visible because it now has progress > 0 (or is unlocked) --
+    # no path resolution or "reachable levels ahead" projection required.
+    # Not filtered to is_active only: a level a student is currently on
+    # must still resolve here even if an admin deactivates it later (e.g.
+    # retiring a level after students have already progressed onto it) --
+    # otherwise that student's own current-level badge would wrongly
+    # disappear. Deactivated levels nobody is on just sit unused in the map.
+    level_mastery_level_id_by_code = {}
+    for lvl in db.query(Level).all():
+        if lvl.level_code:
+            level_mastery_level_id_by_code[f"level_mastery_{_level_mastery_key(lvl.level_code)}"] = lvl.id
+
     badge_progress_map = {
         "perfectionist": "perfect_mock_scores",
         "speed_demon": "speed_demon_scores",
@@ -992,6 +1014,12 @@ def get_student_achievements(
             current_progress = stats_map.get(stat_name, 0) if stat_name else 0
 
         is_unlocked = badge.id in earned_ids
+
+        if badge.code.startswith("level_mastery_") and not is_unlocked and current_progress == 0:
+            badge_level_id = level_mastery_level_id_by_code.get(badge.code)
+            if badge_level_id != student.current_level_id:
+                continue
+
         result.append({
             "id": badge.id,
             "code": badge.code,
