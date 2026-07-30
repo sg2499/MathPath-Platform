@@ -1,4 +1,5 @@
 // Shared badge visual config -- extracted 2026-07-25 from
+// Shared badge visual config -- extracted 2026-07-25 from
 // app/student/achievements/page.tsx so the mock-result page's new in-moment
 // badge reveal (Round 1 gamification fix) can render badges with the exact
 // same colors/icons/glow as the Trophy Room, instead of duplicating (and
@@ -11,6 +12,7 @@ import {
   mockExamBatch2Glyphs,
   mythicPhase1Glyphs,
   phase2Glyphs,
+  levelMasteryImGlyphs,
 } from "./badgeGlyphs";
 
 // Map our backend icon names to badge glyph components.
@@ -100,6 +102,7 @@ export const BadgeIconMap: Record<string, any> = {
   //   LastMinuteSpark/Flash/Blaze/Eclipse            -> last_minute_hero
   //   SectionSpecialistNode/Grid/Matrix/Nexus        -> section_specialist
   ...phase2Glyphs,
+  ...levelMasteryImGlyphs,
 };
 
 // ===========================================================================
@@ -147,6 +150,19 @@ export const BadgeIconMap: Record<string, any> = {
 
 // 30 Unique Colors based on Badge Code and Tier (Distinct Spectrum)
 export const badgeColorConfig: Record<string, any> = {
+  "level_mastery_im_l1_BASE": { customBg: "linear-gradient(to bottom right, #004c6a, #111)", customShadow: "0 8px 20px -4px #004c6a88", customBorder: "3px solid #004c6a", iconColorHex: "#fff", bloomColor: "rgba(0, 76, 106, 0.55)", glitch: false, burst: ["#004c6a", "#111", "#004c6a", "#fff"] },
+  "level_mastery_im_l1_SUPER": { customBg: "linear-gradient(to bottom right, #ff9b73, #111)", customShadow: "0 10px 24px -4px #ff9b7388", customBorder: "4px solid #ff9b73", iconColorHex: "#fff", bloomColor: "rgba(255, 155, 115, 0.75)", glitch: false, burst: ["#ff9b73", "#111", "#ff9b73", "#fff"] },
+  "level_mastery_im_l1_LEGENDARY": { customBg: "linear-gradient(to bottom right, #00b60b, #111)", customShadow: "0 12px 30px -4px #00b60b88", customBorder: "4px solid #00b60b", iconColorHex: "#fff", bloomColor: "rgba(0, 182, 11, 0.9)", glitch: false, burst: ["#00b60b", "#111", "#00b60b", "#fff"] },
+  "level_mastery_im_l2_BASE": { customBg: "linear-gradient(to bottom right, #402848, #111)", customShadow: "0 8px 20px -4px #40284888", customBorder: "3px solid #402848", iconColorHex: "#fff", bloomColor: "rgba(64, 40, 72, 0.55)", glitch: false, burst: ["#402848", "#111", "#402848", "#fff"] },
+  "level_mastery_im_l2_SUPER": { customBg: "linear-gradient(to bottom right, #899ec8, #111)", customShadow: "0 10px 24px -4px #899ec888", customBorder: "4px solid #899ec8", iconColorHex: "#fff", bloomColor: "rgba(137, 158, 200, 0.75)", glitch: false, burst: ["#899ec8", "#111", "#899ec8", "#fff"] },
+  "level_mastery_im_l2_LEGENDARY": { customBg: "linear-gradient(to bottom right, #f1ebaf, #111)", customShadow: "0 12px 30px -4px #f1ebaf88", customBorder: "4px solid #f1ebaf", iconColorHex: "#fff", bloomColor: "rgba(241, 235, 175, 0.9)", glitch: false, burst: ["#f1ebaf", "#111", "#f1ebaf", "#fff"] },
+  "level_mastery_im_l3_BASE": { customBg: "linear-gradient(to bottom right, #8e707a, #111)", customShadow: "0 8px 20px -4px #8e707a88", customBorder: "3px solid #8e707a", iconColorHex: "#fff", bloomColor: "rgba(142, 112, 122, 0.55)", glitch: false, burst: ["#8e707a", "#111", "#8e707a", "#fff"] },
+  "level_mastery_im_l3_SUPER": { customBg: "linear-gradient(to bottom right, #950437, #111)", customShadow: "0 10px 24px -4px #95043788", customBorder: "4px solid #950437", iconColorHex: "#fff", bloomColor: "rgba(149, 4, 55, 0.75)", glitch: false, burst: ["#950437", "#111", "#950437", "#fff"] },
+  "level_mastery_im_l3_LEGENDARY": { customBg: "linear-gradient(to bottom right, #913f77, #111)", customShadow: "0 12px 30px -4px #913f7788", customBorder: "4px solid #913f77", iconColorHex: "#fff", bloomColor: "rgba(145, 63, 119, 0.9)", glitch: false, burst: ["#913f77", "#111", "#913f77", "#fff"] },
+  "level_mastery_im_l4_BASE": { customBg: "linear-gradient(to bottom right, #56782c, #111)", customShadow: "0 8px 20px -4px #56782c88", customBorder: "3px solid #56782c", iconColorHex: "#fff", bloomColor: "rgba(86, 120, 44, 0.55)", glitch: false, burst: ["#56782c", "#111", "#56782c", "#fff"] },
+  "level_mastery_im_l4_SUPER": { customBg: "linear-gradient(to bottom right, #708f7f, #111)", customShadow: "0 10px 24px -4px #708f7f88", customBorder: "4px solid #708f7f", iconColorHex: "#fff", bloomColor: "rgba(112, 143, 127, 0.75)", glitch: false, burst: ["#708f7f", "#111", "#708f7f", "#fff"] },
+  "level_mastery_im_l4_LEGENDARY": { customBg: "linear-gradient(to bottom right, #64aece, #111)", customShadow: "0 12px 30px -4px #64aece88", customBorder: "4px solid #64aece", iconColorHex: "#fff", bloomColor: "rgba(100, 174, 206, 0.9)", glitch: false, burst: ["#64aece", "#111", "#64aece", "#fff"] },
+
   // --- Perfectionist ---------------------------------------------------
   // Shape narrative (Target -> gem -> Scan) escalates precision; colour
   // deliberately does NOT follow it. jade / amethyst / azure / opal.
@@ -919,6 +935,20 @@ export const badgeColorConfig: Record<string, any> = {
   // -- still reads as "dark soil", just warmer-red than gold. Verified via
   // the real script after the fix: 0 FAIL. burst[0] is the primary swatch.
   "level_mastery_ylm_l1_BASE": { customBg: "linear-gradient(to bottom right, #350d03, #180601)", customShadow: "0 8px 20px -4px rgba(90, 30, 8, 0.4)", customBorder: "3px solid #7a2c0c", iconColorHex: "#fbe4d9", bloomColor: "rgba(90, 30, 8, 0.55)", glitch: false, burst: ["#350d03", "#180601", "#7a2c0c", "#ffffff"] },
+  // PHASE 3, Batch 4 (2026-07-30) -- Level Mastery, PM-L1/L2/L3/L4
+  // Tier escalations mapped properly (border thickness, shadow spread, glow intensity, and gradient history)
+"level_mastery_pm_l1_BASE": { customBg: "linear-gradient(to bottom right, #ff3a19, #111)", customShadow: "0 8px 20px -4px #ff3a1988", customBorder: "3px solid #ff3a19", iconColorHex: "#fff", bloomColor: "rgba(255, 58, 25, 0.55)", glitch: false, burst: ["#ff3a19", "#111", "#ff3a19", "#fff"] },
+  "level_mastery_pm_l1_SUPER": { customBg: "linear-gradient(to bottom right, #df2946, #111)", customShadow: "0 10px 24px -4px #df294688", customBorder: "4px solid #df2946", iconColorHex: "#fff", bloomColor: "rgba(223, 41, 70, 0.75)", glitch: false, burst: ["#df2946", "#111", "#df2946", "#fff"] },
+  "level_mastery_pm_l1_LEGENDARY": { customBg: "linear-gradient(to bottom right, #02b804, #111)", customShadow: "0 12px 30px -4px #02b80488", customBorder: "4px solid #02b804", iconColorHex: "#fff", bloomColor: "rgba(2, 184, 4, 0.9)", glitch: false, burst: ["#02b804", "#111", "#02b804", "#fff"] },
+  "level_mastery_pm_l2_BASE": { customBg: "linear-gradient(to bottom right, #0c8281, #111)", customShadow: "0 8px 20px -4px #0c828188", customBorder: "3px solid #0c8281", iconColorHex: "#fff", bloomColor: "rgba(12, 130, 129, 0.55)", glitch: false, burst: ["#0c8281", "#111", "#0c8281", "#fff"] },
+  "level_mastery_pm_l2_SUPER": { customBg: "linear-gradient(to bottom right, #aa012d, #111)", customShadow: "0 10px 24px -4px #aa012d88", customBorder: "4px solid #aa012d", iconColorHex: "#fff", bloomColor: "rgba(170, 1, 45, 0.75)", glitch: false, burst: ["#aa012d", "#111", "#aa012d", "#fff"] },
+  "level_mastery_pm_l2_LEGENDARY": { customBg: "linear-gradient(to bottom right, #765449, #111)", customShadow: "0 12px 30px -4px #76544988", customBorder: "4px solid #765449", iconColorHex: "#fff", bloomColor: "rgba(118, 84, 73, 0.9)", glitch: false, burst: ["#765449", "#111", "#765449", "#fff"] },
+  "level_mastery_pm_l3_BASE": { customBg: "linear-gradient(to bottom right, #ff9c72, #111)", customShadow: "0 8px 20px -4px #ff9c7288", customBorder: "3px solid #ff9c72", iconColorHex: "#fff", bloomColor: "rgba(255, 156, 114, 0.55)", glitch: false, burst: ["#ff9c72", "#111", "#ff9c72", "#fff"] },
+  "level_mastery_pm_l3_SUPER": { customBg: "linear-gradient(to bottom right, #052a4f, #111)", customShadow: "0 10px 24px -4px #052a4f88", customBorder: "4px solid #052a4f", iconColorHex: "#fff", bloomColor: "rgba(5, 42, 79, 0.75)", glitch: false, burst: ["#052a4f", "#111", "#052a4f", "#fff"] },
+  "level_mastery_pm_l3_LEGENDARY": { customBg: "linear-gradient(to bottom right, #412c5b, #111)", customShadow: "0 12px 30px -4px #412c5b88", customBorder: "4px solid #412c5b", iconColorHex: "#fff", bloomColor: "rgba(65, 44, 91, 0.9)", glitch: false, burst: ["#412c5b", "#111", "#412c5b", "#fff"] },
+  "level_mastery_pm_l4_BASE": { customBg: "linear-gradient(to bottom right, #fe7eaa, #111)", customShadow: "0 8px 20px -4px #fe7eaa88", customBorder: "3px solid #fe7eaa", iconColorHex: "#fff", bloomColor: "rgba(254, 126, 170, 0.55)", glitch: false, burst: ["#fe7eaa", "#111", "#fe7eaa", "#fff"] },
+  "level_mastery_pm_l4_SUPER": { customBg: "linear-gradient(to bottom right, #044967, #111)", customShadow: "0 10px 24px -4px #04496788", customBorder: "4px solid #044967", iconColorHex: "#fff", bloomColor: "rgba(4, 73, 103, 0.75)", glitch: false, burst: ["#044967", "#111", "#044967", "#fff"] },
+  "level_mastery_pm_l4_LEGENDARY": { customBg: "linear-gradient(to bottom right, #514303, #111)", customShadow: "0 12px 30px -4px #51430388", customBorder: "4px solid #514303", iconColorHex: "#fff", bloomColor: "rgba(81, 67, 3, 0.9)", glitch: false, burst: ["#514303", "#111", "#514303", "#fff"] },
   "level_mastery_ylm_l1_SUPER": { customBg: "linear-gradient(to bottom right, #a29c38, #350d03)", customShadow: "0 10px 24px -4px rgba(193, 187, 68, 0.5)", customBorder: "4px solid #ded87f", iconColorHex: "#fffef0", bloomColor: "rgba(193, 187, 68, 0.75)", glitch: false, burst: ["#c1bb44", "#350d03", "#ded87f", "#ffffff"] },
   "level_mastery_ylm_l1_LEGENDARY": { customBg: "linear-gradient(to bottom right, #a08e63, #350d03)", customShadow: "0 12px 30px -4px rgba(206, 183, 133, 0.55)", customBorder: "4px solid #ceb785", iconColorHex: "#ffffff", bloomColor: "rgba(206, 183, 133, 0.9)", glitch: false, burst: ["#ceb785", "#350d03", "#e8dcc0", "#ffffff"] },
   "level_mastery_ylm_l2_BASE": { customBg: "linear-gradient(to bottom right, #0d2c35, #051318)", customShadow: "0 8px 20px -4px rgba(15, 90, 110, 0.4)", customBorder: "3px solid #1f6d82", iconColorHex: "#dff7fb", bloomColor: "rgba(15, 90, 110, 0.55)", glitch: false, burst: ["#0d2c35", "#051318", "#1f6d82", "#ffffff"] },
