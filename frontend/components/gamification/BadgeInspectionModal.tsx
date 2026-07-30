@@ -1109,6 +1109,1057 @@ const EnvLevelMonument = ({ color }: { color: THREE.Color }) => {
   );
 };
 
+/* ===========================================================================
+ * PHASE 3 -- Level Mastery cinematics. OPUS ELEVATION PASS (2026-07-29).
+ * ---------------------------------------------------------------------------
+ * The first build of these five environments shared ONE choreography engine
+ * verbatim -- staggered rise-and-fade blocks, a mirrored dimmer reflection at
+ * SUPER, and at LEGENDARY two rotating Torus halos (args [6,0.4,8,32] and
+ * [8.4,0.25,8,32]) plus an upward beam (Cylinder [1.2,1.2,44,12,1,true]) plus
+ * Sparkles at 420/260/140. Those exact primitives appeared five times each.
+ * Sharing an engine is sound engineering; shipping the same climactic beat to
+ * a student who unlocks three of these in a week is not, and LEGENDARY is the
+ * badge they screenshot.
+ *
+ * So each family now owns all three of its beats:
+ *
+ *   family   assembly (all tiers)      SUPER adds            LEGENDARY set-piece
+ *   -------  ------------------------  --------------------  -------------------------
+ *   BM-L1    span built OUTWARD-IN     water reflection      light pulse TRAVERSING the
+ *            from both piers                                 span + lit suspension
+ *                                                            hangers + deck light bar
+ *   MM-L1    geological uplift, low    wind-rippled lake     AURORA curtain + periodic
+ *            strata settle first       reflection            shooting stars
+ *   YLM-L1   husks CONVERGE inward     soil strata rings     the husk CRACKS OPEN --
+ *            from off-frame                                  blocks fly apart, roots
+ *                                                            drill down, shoot climbs
+ *   YLM-L2   stem grows first, then    dew beads on the      RAINFALL + expanding
+ *            leaves UNFURL by rotating leaves                ground ripple rings
+ *   YLM-L3   petals UNFURL from a      sepal ring below      POLLEN DISPERSAL: stamens
+ *            folded bud                the bloom             extend, a spiral cloud
+ *                                                            carries outward and up
+ *
+ * Note the shapes of the beats differ, not just their colours: BM's is
+ * horizontal, MM's is atmospheric, YLM-L1's is a disassembly (the only one
+ * where the built object comes apart), YLM-L2's is falling, YLM-L3's is
+ * outward dispersal. Float and Sparkles parameters are tuned per family for
+ * the same reason -- BM sits wide and low over a river, MM is tall and almost
+ * still, YLM-L1 is agitated, L2 gentle, L3 turning.
+ * =========================================================================== */
+
+// --- P3-BM1. "LevelMasteryBmL1" -- Level Mastery: BM-L1, all 3 tiers -------
+// A single arch spanning two piers -- BM's own "crossing/transition" identity
+// as the shortest, single-level alternate entry into IM. The 9 voussoirs do
+// not drop from below: they arrive ALONG the arc from the two banks inward,
+// meeting last at the keystone, which is how an arch is actually built and
+// what makes the assembly read as a crossing being completed.
+const EnvLevelMasteryBmL1 = ({ color, tier }: { color: THREE.Color; tier: string }) => {
+  const richness = tier === "LEGENDARY" ? 2 : tier === "SUPER" ? 1 : 0;
+
+  const archRef = useRef<THREE.Group>(null);
+  const reflectionRef = useRef<THREE.Group>(null);
+  const pulseRef = useRef<THREE.Mesh>(null);
+  const hangerRef = useRef<THREE.Group>(null);
+  const deckLightRef = useRef<THREE.Mesh>(null);
+  const keystoneRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const VOUSSOIRS = 9;
+  const RADIUS = 15;
+
+  const blocks = useMemo(() => {
+    const plum = new THREE.Color("#7d123d");
+    const magenta = new THREE.Color("#cf17aa");
+    return [...Array(VOUSSOIRS)].map((_, i) => {
+      const k = i / (VOUSSOIRS - 1);
+      // 180deg (left pier) sweeping down to 0deg (right pier), over the top.
+      const angle = Math.PI - k * Math.PI;
+      // Distance from the nearer bank drives BOTH the delay and where the
+      // block starts: outer voussoirs land first, the keystone-adjacent pair
+      // last, and every block travels along the arc from its own bank.
+      const fromBank = Math.min(i, VOUSSOIRS - 1 - i);
+      return {
+        angle,
+        startAngle: i < (VOUSSOIRS - 1) / 2 ? Math.PI : 0,
+        delay: fromBank * 0.15,
+        phase: i * 0.65,
+        rate: 1.1 + (i % 3) * 0.28,
+        hex: "#" + plum.clone().lerp(magenta, k).getHexString(),
+      };
+    });
+  }, []);
+
+  // 4 suspension hangers, at the real chord heights for r=15 about the origin.
+  const hangers = useMemo(
+    () =>
+      [-10, -5, 5, 10].map((x) => {
+        const h = Math.sqrt(RADIUS * RADIUS - x * x);
+        return { x, h };
+      }),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    // LEGENDARY: a bright bead runs the span, left bank to right bank, and
+    // every voussoir it passes flares. This is the set-piece -- horizontal
+    // travel, because that is what a bridge is for.
+    const pulseU = richness >= 2 ? (now * 0.34) % 1.35 : -1;
+    const pulseAngle = Math.PI - clamp01(pulseU) * Math.PI;
+
+    const applyBlocks = (group: THREE.Group | null, mirrored: boolean) => {
+      if (!group) return;
+      group.children.forEach((child, i) => {
+        const b = blocks[i];
+        const p = clamp01((now - b.delay) / 0.8);
+        const grow = easeOutCubic(p);
+        const slide = easeOutBack(p);
+        const a = THREE.MathUtils.lerp(b.startAngle, b.angle, slide);
+        const x = Math.cos(a) * RADIUS;
+        const yTop = Math.sin(a) * RADIUS;
+        child.position.x = x;
+        child.position.y = mirrored ? -yTop : yTop;
+        child.rotation.z = a - Math.PI / 2;
+        child.scale.setScalar(Math.max(0.001, grow));
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        const pulse = Math.sin(now * b.rate + b.phase);
+        // Flare as the traversing pulse passes this voussoir.
+        const near =
+          pulseU >= 0 && pulseU <= 1
+            ? Math.exp(-Math.pow((b.angle - pulseAngle) / 0.24, 2))
+            : 0;
+        mat.emissiveIntensity =
+          (mirrored ? 0.5 : 1.2) + pulse * (mirrored ? 0.2 : 0.6) + near * (mirrored ? 1.2 : 3.4);
+        mat.opacity = Math.min(1, (mirrored ? 0.24 : 0.5 + pulse * 0.12) + near * 0.4) * grow;
+      });
+    };
+
+    applyBlocks(archRef.current, false);
+    if (richness >= 1) applyBlocks(reflectionRef.current, true);
+
+    if (richness >= 2 && pulseRef.current) {
+      const live = pulseU >= 0 && pulseU <= 1;
+      pulseRef.current.visible = live;
+      if (live) {
+        pulseRef.current.position.x = Math.cos(pulseAngle) * RADIUS;
+        pulseRef.current.position.y = Math.sin(pulseAngle) * RADIUS;
+        pulseRef.current.scale.setScalar(1 + Math.sin(pulseU * Math.PI) * 0.7);
+      }
+    }
+
+    // Hangers light in sequence behind the pulse.
+    if (richness >= 2 && hangerRef.current) {
+      hangerRef.current.children.forEach((child, i) => {
+        const hx = hangers[i].x;
+        const px = pulseU >= 0 && pulseU <= 1 ? Math.cos(pulseAngle) * RADIUS : -999;
+        const near = Math.exp(-Math.pow((hx - px) / 7, 2));
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = 0.16 + near * 0.6;
+      });
+    }
+
+    if (richness >= 2 && deckLightRef.current) {
+      const mat = deckLightRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.14 + Math.abs(Math.sin(now * 0.7)) * 0.16;
+    }
+
+    if (keystoneRef.current) {
+      const mat = keystoneRef.current.material as THREE.MeshStandardMaterial;
+      const pulse = Math.sin(now * 1.8);
+      // The keystone answers the traversing pulse as it arrives overhead.
+      const crest = richness >= 2 ? Math.exp(-Math.pow((pulseU - 0.5) / 0.09, 2)) : 0;
+      mat.emissiveIntensity = 1.6 + pulse * (richness >= 1 ? 1.1 : 0.5) + crest * 4;
+      keystoneRef.current.rotation.y += delta * (0.3 + richness * 0.25);
+    }
+  });
+
+  return (
+    // Wide, low and slow: this badge sits over a river valley, so the float is
+    // more yaw than bob.
+    <Float speed={0.4} rotationIntensity={0.16} floatIntensity={0.5}>
+      <group>
+        {/* Piers. */}
+        <Cylinder args={[3.2, 3.6, 30, 8]} position={[-RADIUS, -15, 0]}>
+          <meshStandardMaterial color={'#7d123d'} emissive={'#7d123d'} emissiveIntensity={1.4} transparent opacity={0.55} />
+        </Cylinder>
+        <Cylinder args={[3.2, 3.6, 30, 8]} position={[RADIUS, -15, 0]}>
+          <meshStandardMaterial color={'#cf17aa'} emissive={'#cf17aa'} emissiveIntensity={1.4} transparent opacity={0.55} />
+        </Cylinder>
+
+        {/* The deck itself -- the thing the arch is holding up. Present at
+            every tier: it is structure, not reward. */}
+        <Box args={[44, 1.4, 5]} position={[0, -1, 0]}>
+          <meshStandardMaterial color={'#7d123d'} emissive={'#cf17aa'} emissiveIntensity={0.9} transparent opacity={0.6} />
+        </Box>
+
+        {/* Arch, assembled from 9 voussoir blocks arriving along the arc. */}
+        <group ref={archRef}>
+          {blocks.map((b, i) => (
+            <Box key={i} args={[5.4, 3.2, 4]}>
+              <meshStandardMaterial color={b.hex} emissive={b.hex} emissiveIntensity={1} transparent opacity={0.5} />
+            </Box>
+          ))}
+        </group>
+
+        {/* Keystone. */}
+        <Octahedron ref={keystoneRef} args={[3.4, 0]} position={[0, RADIUS + 3, 0]}>
+          <meshStandardMaterial color={'#ffffff'} emissive={color} emissiveIntensity={2} flatShading />
+        </Octahedron>
+
+        {/* SUPER+: water reflection -- mirrored, dimmer arch below the line. */}
+        {richness >= 1 && (
+          <group ref={reflectionRef} position={[0, -34, 0]}>
+            {blocks.map((b, i) => (
+              <Box key={i} args={[5.4, 3.2, 4]}>
+                <meshStandardMaterial color={b.hex} emissive={b.hex} emissiveIntensity={0.6} transparent opacity={0.2} />
+              </Box>
+            ))}
+          </group>
+        )}
+
+        {/* LEGENDARY set-piece: the light that crosses. */}
+        {richness >= 2 && (
+          <>
+            <Sphere ref={pulseRef} args={[2.1, 16, 16]}>
+              <meshBasicMaterial color={'#f3d4ce'} transparent opacity={0.95} toneMapped={false} />
+            </Sphere>
+            <group ref={hangerRef}>
+              {hangers.map((h, i) => (
+                <Cylinder key={i} args={[0.22, 0.22, h.h, 6]} position={[h.x, h.h / 2, 0]}>
+                  <meshBasicMaterial color={'#f3d4ce'} transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+                </Cylinder>
+              ))}
+            </group>
+            {/* Deck light bar -- runs past both piers, the 3D answer to the
+                icon's horizontal span-light breaking the viewBox edges. */}
+            <Box ref={deckLightRef} args={[64, 1.1, 1.1]} position={[0, -1, 0]}>
+              <meshBasicMaterial color={'#dfa69f'} transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </Box>
+          </>
+        )}
+
+        {/* River haze: wide and shallow, hugging the deck. */}
+        <Sparkles count={richness === 2 ? 380 : richness === 1 ? 240 : 130} scale={[52, 26, 20]} size={3.2} speed={0.35 + richness * 0.22} color={color} opacity={0.7} />
+        {richness >= 1 && (
+          <Sparkles count={richness === 2 ? 170 : 85} scale={[46, 12, 16]} size={2.2} speed={0.8} color={'#f3d4ce'} opacity={0.6} />
+        )}
+      </group>
+    </Float>
+  );
+};
+
+// --- PHASE 3, Batch 2 -- Level Mastery: MM-L1 ------------------------------
+// "Ascent into the night sky". MM is the capstone module every student path
+// ends in (IM -> MM, always). The strata do not rise in index order: they rise
+// in HEIGHT order, so the mountain builds from its base upward like real
+// uplift and the summit is the last thing to arrive. The apex set-piece is an
+// aurora curtain with shooting stars -- a sky event, deliberately nothing like
+// BM's horizontal light run.
+const EnvLevelMasteryMmL1 = ({ color, tier }: { color: THREE.Color; tier: string }) => {
+  const richness = tier === "LEGENDARY" ? 2 : tier === "SUPER" ? 1 : 0;
+
+  const peakRef = useRef<THREE.Group>(null);
+  const reflectionRef = useRef<THREE.Group>(null);
+  const auroraRef = useRef<THREE.Group>(null);
+  const meteorRef = useRef<THREE.Group>(null);
+  const summitRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const STRATA = 9;
+  const RADIUS = 15;
+
+  const blocks = useMemo(() => {
+    const night = new THREE.Color("#100637");
+    const sapphire = new THREE.Color("#7578d7");
+    return [...Array(STRATA)].map((_, i) => {
+      const k = i / (STRATA - 1);
+      let x: number;
+      let y: number;
+      let tilt: number;
+      if (k <= 0.5) {
+        const kk = k / 0.5;
+        x = -RADIUS + kk * RADIUS;
+        y = -15 + kk * 30;
+        tilt = -1.0 + kk * 0.3;
+      } else {
+        const kk = (k - 0.5) / 0.5;
+        x = kk * RADIUS;
+        y = 15 - kk * 30;
+        tilt = -0.7 - kk * 0.3;
+      }
+      return {
+        x, y, tilt,
+        // Height-ordered, not index-ordered: uplift, not a conveyor belt.
+        delay: ((y + 15) / 30) * 1.0,
+        phase: i * 0.65,
+        rate: 1.1 + (i % 3) * 0.28,
+        hex: "#" + night.clone().lerp(sapphire, k).getHexString(),
+      };
+    });
+  }, []);
+
+  const curtains = useMemo(
+    () =>
+      [...Array(7)].map((_, i) => ({
+        x: -36 + i * 12,
+        phase: i * 0.8,
+        hex: i % 2 === 0 ? "#a9bec6" : "#7578d7",
+      })),
+    []
+  );
+
+  const meteors = useMemo(
+    () => [
+      { off: 0.0, y0: 36, y1: 16, speed: 0.21 },
+      { off: 0.41, y0: 30, y1: 12, speed: 0.17 },
+      { off: 0.73, y0: 40, y1: 22, speed: 0.26 },
+    ],
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    const applyBlocks = (group: THREE.Group | null, mirrored: boolean) => {
+      if (!group) return;
+      group.children.forEach((child, i) => {
+        const b = blocks[i];
+        const p = clamp01((now - b.delay) / 0.7);
+        const grow = easeOutCubic(p);
+        const rise = easeOutBack(p);
+        // A late settle -- rock lands and stops, it does not glide in.
+        const settle = p >= 1 ? Math.sin((now - b.delay - 0.7) * 9) * Math.exp(-(now - b.delay - 0.7) * 5) * 0.9 : 0;
+        child.position.x = mirrored ? b.x + Math.sin(now * 1.2 + i * 0.7) * 1.9 : b.x;
+        child.position.y = mirrored
+          ? THREE.MathUtils.lerp(-b.y - 20, -b.y, rise)
+          : THREE.MathUtils.lerp(b.y - 26, b.y, rise) + settle;
+        child.rotation.z = b.tilt;
+        child.scale.setScalar(Math.max(0.001, grow));
+        // The lake image is squashed and smeared by wind, not a clean mirror.
+        if (mirrored) child.scale.y *= 0.55;
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        const pulse = Math.sin(now * b.rate + b.phase);
+        mat.emissiveIntensity = (mirrored ? 0.5 : 1.2) + pulse * (mirrored ? 0.2 : 0.6);
+        mat.opacity = (mirrored ? 0.2 : 0.5 + pulse * 0.12) * grow;
+      });
+    };
+
+    applyBlocks(peakRef.current, false);
+    if (richness >= 1) applyBlocks(reflectionRef.current, true);
+
+    // LEGENDARY set-piece 1: the aurora. Each curtain breathes on its own
+    // phase and drifts, so the wave travels across the sky rather than all
+    // seven pulsing together.
+    if (richness >= 2 && auroraRef.current) {
+      auroraRef.current.children.forEach((child, i) => {
+        const c = curtains[i];
+        const wave = Math.sin(now * 0.75 - i * 0.62);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = 0.06 + Math.max(0, wave) * 0.19;
+        child.scale.y = 0.75 + Math.sin(now * 0.5 + c.phase) * 0.28;
+        child.position.x = c.x + Math.sin(now * 0.3 + c.phase) * 3.2;
+        child.rotation.z = Math.sin(now * 0.24 + c.phase) * 0.09;
+      });
+    }
+
+    // LEGENDARY set-piece 2: shooting stars on long, offset cycles, so they
+    // read as rare events rather than as a particle system.
+    if (richness >= 2 && meteorRef.current) {
+      meteorRef.current.children.forEach((child, i) => {
+        const m = meteors[i];
+        const u = (now * m.speed + m.off) % 1;
+        child.position.x = THREE.MathUtils.lerp(-46, 46, u);
+        child.position.y = THREE.MathUtils.lerp(m.y0, m.y1, u);
+        child.position.z = -14;
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.pow(Math.sin(clamp01(u) * Math.PI), 3) * 0.95;
+      });
+    }
+
+    if (summitRef.current) {
+      const mat = summitRef.current.material as THREE.MeshStandardMaterial;
+      // A cold star twinkle rather than a steady throb.
+      const twinkle = Math.sin(now * 1.8) * 0.6 + Math.sin(now * 4.7) * 0.4;
+      mat.emissiveIntensity = 1.6 + twinkle * (richness >= 1 ? 1.3 : 0.5);
+      summitRef.current.rotation.y += delta * (0.22 + richness * 0.18);
+    }
+  });
+
+  return (
+    // Tall, cold and nearly still -- the opposite of BM's yaw.
+    <Float speed={0.28} rotationIntensity={0.05} floatIntensity={1.0}>
+      <group>
+        {/* LEGENDARY: aurora curtains, far behind everything else. */}
+        {richness >= 2 && (
+          <group ref={auroraRef} position={[0, 16, -28]}>
+            {curtains.map((c, i) => (
+              <Box key={i} args={[8, 52, 0.5]} position={[c.x, 0, 0]}>
+                <meshBasicMaterial color={c.hex} transparent opacity={0.12} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+              </Box>
+            ))}
+          </group>
+        )}
+        {richness >= 2 && (
+          <group ref={meteorRef}>
+            {meteors.map((_, i) => (
+              <Box key={i} args={[9, 0.34, 0.34]} rotation={[0, 0, -0.32]}>
+                <meshBasicMaterial color={'#a9bec6'} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+              </Box>
+            ))}
+          </group>
+        )}
+
+        {/* Base camps. */}
+        <Cylinder args={[3.2, 3.6, 30, 8]} position={[-RADIUS, -15, 0]}>
+          <meshStandardMaterial color={"#100637"} emissive={"#100637"} emissiveIntensity={1.4} transparent opacity={0.55} />
+        </Cylinder>
+        <Cylinder args={[3.2, 3.6, 30, 8]} position={[RADIUS, -15, 0]}>
+          <meshStandardMaterial color={"#7578d7"} emissive={"#7578d7"} emissiveIntensity={1.4} transparent opacity={0.55} />
+        </Cylinder>
+
+        {/* Peak, assembled from 9 rock-strata blocks uplifting into place. */}
+        <group ref={peakRef}>
+          {blocks.map((b, i) => (
+            <Box key={i} args={[5.4, 3.2, 4]}>
+              <meshStandardMaterial color={b.hex} emissive={b.hex} emissiveIntensity={1} transparent opacity={0.5} />
+            </Box>
+          ))}
+        </group>
+
+        {/* Summit crystal. */}
+        <Octahedron ref={summitRef} args={[3.4, 0]} position={[0, RADIUS + 3, 0]}>
+          <meshStandardMaterial color={"#ffffff"} emissive={color} emissiveIntensity={2} flatShading />
+        </Octahedron>
+
+        {/* SUPER+: the alpine lake -- squashed and wind-smeared, not a clean
+            mirror (that difference is what stops it reading as BM's water). */}
+        {richness >= 1 && (
+          <group ref={reflectionRef} position={[0, -34, 0]}>
+            {blocks.map((b, i) => (
+              <Box key={i} args={[5.4, 3.2, 4]}>
+                <meshStandardMaterial color={b.hex} emissive={b.hex} emissiveIntensity={0.6} transparent opacity={0.2} />
+              </Box>
+            ))}
+          </group>
+        )}
+
+        {/* Thin, high, cold air: fewer and slower motes than BM, spread tall. */}
+        <Sparkles count={richness === 2 ? 340 : richness === 1 ? 220 : 120} scale={[34, 58, 22]} size={2.6} speed={0.22 + richness * 0.16} color={color} opacity={0.7} />
+        {richness >= 1 && (
+          <Sparkles count={richness === 2 ? 200 : 100} scale={[44, 52, 24]} size={1.7} speed={0.1} color={"#a9bec6"} opacity={0.75} />
+        )}
+      </group>
+    </Float>
+  );
+};
+
+// --- PHASE 3, Batch 3 -- Level Mastery: YLM-L1/L2/L3 -----------------------
+// "Seed -> sprout -> blossom". YLM is the very first module in every student
+// path. The three share a soil plane and nothing else: L1 is a closed husk
+// that converges inward and then BREAKS OPEN, L2 grows a stem and unfurls
+// leaves under falling rain, L3 unfolds a bud and disperses pollen.
+
+// YLM-L1. The husks fly IN from off-frame -- the only assembly in the set that
+// converges rather than rises -- and at LEGENDARY the finished object comes
+// APART again, which is the only disassembly set-piece in the whole family.
+const EnvLevelMasterySeed = ({ color, tier }: { color: THREE.Color; tier: string }) => {
+  const richness = tier === "LEGENDARY" ? 2 : tier === "SUPER" ? 1 : 0;
+
+  const huskRef = useRef<THREE.Group>(null);
+  const strataRef = useRef<THREE.Group>(null);
+  const rootRef = useRef<THREE.Group>(null);
+  const shootRef = useRef<THREE.Group>(null);
+  const sparkRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const HUSKS = 9;
+  const RX = 11;
+  const RY = 16;
+  // When the coat splits, on the LEGENDARY cinematic only.
+  const T_CRACK = 2.3;
+
+  const blocks = useMemo(() => {
+    const husk = new THREE.Color("#350d03");
+    const spark = new THREE.Color("#c1bb44");
+    return [...Array(HUSKS)].map((_, i) => {
+      const k = i / (HUSKS - 1);
+      const angle = Math.PI / 2 - k * Math.PI * 2;
+      // Ogive, not an ellipse: pinch the x-radius as the angle approaches the
+      // top so the assembled husk is a teardrop with a real apex, matching
+      // the rebuilt 2D glyph. A pure ellipse read as an egg from every angle
+      // and gave the shoot nowhere in particular to emerge from.
+      const taper = 1 - 0.5 * Math.max(0, Math.sin(angle)) ** 1.4;
+      return {
+        angle,
+        taper,
+        delay: i * 0.07,
+        phase: i * 0.65,
+        rate: 1.1 + (i % 3) * 0.28,
+        hex: "#" + husk.clone().lerp(spark, k).getHexString(),
+      };
+    });
+  }, []);
+
+  const roots = useMemo(
+    () => [
+      { ang: -0.95, len: 30, delay: 0.0 },
+      { ang: -0.45, len: 38, delay: 0.08 },
+      { ang: 0.0, len: 46, delay: 0.14 },
+      { ang: 0.45, len: 38, delay: 0.08 },
+      { ang: 0.95, len: 30, delay: 0.0 },
+    ],
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+    const crack = richness >= 2 ? easeOutCubic(clamp01((now - T_CRACK) / 1.6)) : 0;
+
+    if (huskRef.current) {
+      huskRef.current.children.forEach((child, i) => {
+        const b = blocks[i];
+        const p = clamp01((now - b.delay) / 0.75);
+        const grow = easeOutCubic(p);
+        const settle = easeOutBack(p);
+        // Converge: start at 2.7x radius, off-frame, and close in on the seed.
+        const spread = THREE.MathUtils.lerp(2.7, 1, settle) + crack * 1.35;
+        child.position.x = Math.cos(b.angle) * RX * b.taper * spread;
+        child.position.y = Math.sin(b.angle) * RY * spread;
+        child.rotation.z = b.angle + crack * 1.5;
+        child.scale.setScalar(Math.max(0.001, grow));
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        const pulse = Math.sin(now * b.rate + b.phase);
+        mat.emissiveIntensity = 1.2 + pulse * 0.6 + crack * 2.2;
+        mat.opacity = (0.5 + pulse * 0.12) * grow * (1 - crack * 0.86);
+      });
+    }
+
+    // SUPER: soil strata. A buried seed has no reflection -- it has earth
+    // layers, so that is what this tier's extra layer actually is.
+    if (richness >= 1 && strataRef.current) {
+      strataRef.current.children.forEach((child, i) => {
+        const p = clamp01((now - 0.5 - i * 0.16) / 0.8);
+        child.scale.setScalar(Math.max(0.001, easeOutCubic(p)));
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = easeOutCubic(p) * (0.3 - i * 0.06) * (1 + Math.sin(now * 0.9 + i) * 0.2);
+      });
+    }
+
+    // LEGENDARY: roots drill down out of frame as the husk lets go.
+    if (richness >= 2 && rootRef.current) {
+      rootRef.current.children.forEach((child, i) => {
+        const r = roots[i];
+        const k = easeOutCubic(clamp01((now - T_CRACK - r.delay) / 1.5));
+        child.scale.y = Math.max(0.001, k);
+        // Cylinders are centred, so the tip stays anchored at the seed while
+        // the root pushes downward.
+        child.position.y = -(r.len * k) / 2;
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = k * 0.65;
+      });
+    }
+
+    // LEGENDARY: and the shoot climbs the other way at the same moment.
+    if (richness >= 2 && shootRef.current) {
+      const k = easeOutCubic(clamp01((now - T_CRACK - 0.2) / 1.5));
+      shootRef.current.scale.setScalar(Math.max(0.001, k));
+      shootRef.current.position.y = RY + 4 + k * 12;
+      shootRef.current.rotation.y += delta * 0.7;
+    }
+
+    if (sparkRef.current) {
+      const mat = sparkRef.current.material as THREE.MeshStandardMaterial;
+      const pulse = Math.sin(now * 1.8);
+      mat.emissiveIntensity = 1.6 + pulse * (richness >= 1 ? 1.1 : 0.5) + crack * 3;
+      // The core swells as the coat that was holding it in retreats.
+      sparkRef.current.scale.setScalar(1 + crack * 0.85);
+      sparkRef.current.rotation.y += delta * (0.3 + richness * 0.25);
+    }
+  });
+
+  return (
+    // The most agitated float of the five: something is trying to get out.
+    <Float speed={0.7} rotationIntensity={0.09} floatIntensity={0.95}>
+      <group>
+        {/* Seed husk, 9 blocks converging inward into an elliptical coat. */}
+        <group ref={huskRef}>
+          {blocks.map((b, i) => (
+            <Box key={i} args={[4.6, 2.8, 4]}>
+              <meshStandardMaterial color={b.hex} emissive={b.hex} emissiveIntensity={1} transparent opacity={0.5} />
+            </Box>
+          ))}
+        </group>
+
+        {/* The living core inside the coat. */}
+        <Octahedron ref={sparkRef} args={[3.2, 0]} position={[0, 0, 0]}>
+          <meshStandardMaterial color={"#ffffff"} emissive={color} emissiveIntensity={2} flatShading />
+        </Octahedron>
+
+        {/* SUPER+: soil strata rings below the seed. */}
+        {richness >= 1 && (
+          <group ref={strataRef}>
+            {[0, 1, 2].map((i) => (
+              <Torus key={i} args={[14 + i * 7, 0.5, 6, 40]} position={[0, -20 - i * 8, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <meshBasicMaterial color={"#c1bb44"} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+              </Torus>
+            ))}
+          </group>
+        )}
+
+        {/* LEGENDARY: the root system, drilling down past the frame. */}
+        {richness >= 2 && (
+          <group ref={rootRef} position={[0, -6, 0]}>
+            {roots.map((r, i) => (
+              <Cylinder key={i} args={[0.75, 0.2, r.len, 6]} rotation={[0, 0, r.ang]}>
+                <meshBasicMaterial color={"#ceb785"} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+              </Cylinder>
+            ))}
+          </group>
+        )}
+
+        {/* LEGENDARY: the shoot and its first pair of leaves, climbing. */}
+        {richness >= 2 && (
+          <group ref={shootRef} position={[0, RY + 4, 0]}>
+            <Cylinder args={[0.5, 0.9, 16, 6]}>
+              <meshBasicMaterial color={"#ceb785"} transparent opacity={0.8} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </Cylinder>
+            <Box args={[9, 1.2, 3]} position={[-4.6, 7, 0]} rotation={[0, 0, 0.5]}>
+              <meshStandardMaterial color={"#ceb785"} emissive={"#c1bb44"} emissiveIntensity={2.2} transparent opacity={0.85} />
+            </Box>
+            <Box args={[9, 1.2, 3]} position={[4.6, 7, 0]} rotation={[0, 0, -0.5]}>
+              <meshStandardMaterial color={"#ceb785"} emissive={"#c1bb44"} emissiveIntensity={2.2} transparent opacity={0.85} />
+            </Box>
+          </group>
+        )}
+
+        {/* Warm dust, tight around the seed at BASE and thrown wide once the
+            coat breaks. */}
+        <Sparkles count={richness === 2 ? 400 : richness === 1 ? 230 : 120} scale={richness === 2 ? [46, 52, 28] : [26, 34, 20]} size={3.6} speed={0.45 + richness * 0.45} color={color} opacity={0.7} />
+        {richness >= 1 && (
+          <Sparkles count={richness === 2 ? 190 : 90} scale={[30, 44, 20]} size={2.3} speed={1.3} color={"#ceb785"} opacity={0.6} />
+        )}
+      </group>
+    </Float>
+  );
+};
+
+// YLM-L2. Growth in two acts -- the stem climbs first, then the leaves UNFURL
+// by rotating open from folded. The apex set-piece is weather: rain falling
+// through the frame and expanding ripple rings where it lands.
+const EnvLevelMasterySprout = ({ color, tier }: { color: THREE.Color; tier: string }) => {
+  const richness = tier === "LEGENDARY" ? 2 : tier === "SUPER" ? 1 : 0;
+
+  const leavesRef = useRef<THREE.Group>(null);
+  const dewRef = useRef<THREE.Group>(null);
+  const rainRef = useRef<THREE.Group>(null);
+  const rippleRef = useRef<THREE.Group>(null);
+  const budRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const LEAVES = 9;
+  const R = 13;
+
+  const blocks = useMemo(() => {
+    const moss = new THREE.Color("#0d2c35");
+    const teal = new THREE.Color("#11a8b1");
+    return [...Array(LEAVES)].map((_, i) => {
+      const k = i / (LEAVES - 1);
+      let x: number;
+      let y: number;
+      let stem: boolean;
+      let open: number;
+      if (k <= 0.34) {
+        const kk = k / 0.34;
+        x = 0;
+        y = -16 + kk * 20;
+        stem = true;
+        open = 0;
+      } else if (k <= 0.67) {
+        const kk = (k - 0.34) / 0.33;
+        x = -kk * R;
+        y = 4 + kk * 12;
+        stem = false;
+        open = 0.9;
+      } else {
+        const kk = (k - 0.67) / 0.33;
+        x = kk * R;
+        y = 4 + kk * 12;
+        stem = false;
+        open = -0.9;
+      }
+      return {
+        x, y, stem, open,
+        // Two acts: stem 0 -> 0.45s, leaves only from 0.9s.
+        delay: stem ? k * 1.3 : 0.9 + (k - 0.34) * 1.1,
+        phase: i * 0.65,
+        rate: 1.1 + (i % 3) * 0.28,
+        hex: "#" + moss.clone().lerp(teal, k).getHexString(),
+      };
+    });
+  }, []);
+
+  const drops = useMemo(
+    () =>
+      [...Array(22)].map((_, i) => ({
+        x: -26 + Math.random() * 52,
+        z: -14 + Math.random() * 28,
+        speed: 0.32 + Math.random() * 0.3,
+        off: Math.random(),
+      })),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    if (leavesRef.current) {
+      leavesRef.current.children.forEach((child, i) => {
+        const b = blocks[i];
+        const p = clamp01((now - b.delay) / 0.7);
+        const grow = easeOutCubic(p);
+        const rise = easeOutBack(p);
+        child.position.x = b.stem ? 0 : THREE.MathUtils.lerp(0, b.x, rise);
+        child.position.y = b.stem
+          ? THREE.MathUtils.lerp(b.y - 18, b.y, rise)
+          : THREE.MathUtils.lerp(4, b.y, rise);
+        // Leaves start folded upright against the stem and rotate open.
+        child.rotation.z = b.stem ? 0 : THREE.MathUtils.lerp(Math.sign(b.open) * 1.55, b.open, rise);
+        child.scale.setScalar(Math.max(0.001, grow));
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        const pulse = Math.sin(now * b.rate + b.phase);
+        mat.emissiveIntensity = 1.2 + pulse * 0.6;
+        mat.opacity = (0.5 + pulse * 0.12) * grow;
+      });
+    }
+
+    // SUPER: dew beads sitting on the open leaves, trembling.
+    if (richness >= 1 && dewRef.current) {
+      dewRef.current.children.forEach((child, i) => {
+        const p = clamp01((now - 1.8 - i * 0.2) / 0.7);
+        child.scale.setScalar(Math.max(0.001, easeOutBack(p)));
+        child.position.y = child.userData.baseY + Math.sin(now * 2.1 + i * 1.4) * 0.5;
+      });
+    }
+
+    // LEGENDARY: rain.
+    if (richness >= 2 && rainRef.current) {
+      rainRef.current.children.forEach((child, i) => {
+        const d = drops[i];
+        const u = (now * d.speed + d.off) % 1;
+        child.position.x = d.x;
+        child.position.z = d.z;
+        child.position.y = THREE.MathUtils.lerp(40, -26, u);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = 0.85 * (1 - Math.pow(u, 6));
+      });
+    }
+
+    // LEGENDARY: and the ripples it leaves on the soil.
+    if (richness >= 2 && rippleRef.current) {
+      rippleRef.current.children.forEach((child, i) => {
+        const u = (now * 0.5 + i * 0.34) % 1;
+        child.scale.setScalar(0.25 + u * 3.2);
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.pow(1 - u, 1.6) * 0.5;
+      });
+    }
+
+    if (budRef.current) {
+      const mat = budRef.current.material as THREE.MeshStandardMaterial;
+      const pulse = Math.sin(now * 1.8);
+      mat.emissiveIntensity = 1.6 + pulse * (richness >= 1 ? 1.1 : 0.5);
+      budRef.current.rotation.y += delta * (0.3 + richness * 0.25);
+    }
+  });
+
+  return (
+    // Gentle and slightly nodding, like something light in a breeze.
+    <Float speed={0.45} rotationIntensity={0.13} floatIntensity={0.6}>
+      <group>
+        {/* Stem, then leaves unfurling. */}
+        <group ref={leavesRef}>
+          {blocks.map((b, i) => (
+            <Box key={i} args={b.stem ? [3, 5, 3.4] : [7.2, 2.4, 4]}>
+              <meshStandardMaterial color={b.hex} emissive={b.hex} emissiveIntensity={1} transparent opacity={0.5} />
+            </Box>
+          ))}
+        </group>
+
+        {/* Bud, at the leaf junction. */}
+        <Octahedron ref={budRef} args={[3, 0]} position={[0, 20, 0]}>
+          <meshStandardMaterial color={"#ffffff"} emissive={color} emissiveIntensity={2} flatShading />
+        </Octahedron>
+
+        {/* SUPER+: dew beads on the leaves -- and the seed of the LEGENDARY
+            weather beat, rather than yet another mirrored reflection. */}
+        {richness >= 1 && (
+          <group ref={dewRef}>
+            {[
+              [-12.4, 15.4, 1.4],
+              [-7.2, 10.6, 1.0],
+              [12.4, 15.4, 1.4],
+              [7.2, 10.6, 1.0],
+              [0, 24.6, 0.9],
+            ].map(([x, y, r], i) => (
+              <Sphere
+                key={i}
+                args={[r as number, 14, 14]}
+                position={[x as number, y as number, 2.4]}
+                userData={{ baseY: y }}
+              >
+                <meshBasicMaterial color={"#b6eff7"} transparent opacity={0.85} toneMapped={false} />
+              </Sphere>
+            ))}
+          </group>
+        )}
+
+        {/* LEGENDARY: rainfall through the whole frame. */}
+        {richness >= 2 && (
+          <group ref={rainRef}>
+            {drops.map((_, i) => (
+              <Box key={i} args={[0.34, 3.4, 0.34]}>
+                <meshBasicMaterial color={"#b6eff7"} transparent opacity={0.8} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+              </Box>
+            ))}
+          </group>
+        )}
+
+        {/* LEGENDARY: impact ripples on the soil plane. */}
+        {richness >= 2 && (
+          <group ref={rippleRef} position={[0, -20, 0]}>
+            {[0, 1, 2, 3].map((i) => (
+              <Torus key={i} args={[9, 0.4, 6, 44]} rotation={[Math.PI / 2, 0, 0]}>
+                <meshBasicMaterial color={"#b6eff7"} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+              </Torus>
+            ))}
+          </group>
+        )}
+
+        <Sparkles count={richness === 2 ? 300 : richness === 1 ? 200 : 110} scale={[34, 46, 24]} size={3} speed={0.5 + richness * 0.2} color={color} opacity={0.7} />
+        {richness >= 1 && (
+          <Sparkles count={richness === 2 ? 150 : 80} scale={[30, 26, 18]} size={2.1} speed={0.9} color={"#b6eff7"} opacity={0.6} />
+        )}
+      </group>
+    </Float>
+  );
+};
+
+// YLM-L3. The bud UNFOLDS: five petals start closed, pointing straight up and
+// stacked at the axis, then swing down and out. The apex set-piece is
+// dispersal -- six stamens extend and a real spiral of pollen carries outward
+// and upward and never comes back, which is the opposite gesture from
+// YLM-L1's coat collapsing inward-then-outward.
+const EnvLevelMasteryBlossom = ({ color, tier }: { color: THREE.Color; tier: string }) => {
+  const richness = tier === "LEGENDARY" ? 2 : tier === "SUPER" ? 1 : 0;
+
+  const petalsRef = useRef<THREE.Group>(null);
+  const sepalRef = useRef<THREE.Group>(null);
+  const stamenRef = useRef<THREE.Group>(null);
+  const pollenRef = useRef<THREE.Group>(null);
+  const coreRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  const PETALS = 5;
+  const STAMENS = 6;
+  const POLLEN = 44;
+  const R = 15;
+
+  const blocks = useMemo(() => {
+    const orchid = new THREE.Color("#a678c2");
+    const fuchsia = new THREE.Color("#f69eee");
+    return [...Array(PETALS)].map((_, i) => {
+      const k = i / (PETALS - 1);
+      const angle = (i / PETALS) * Math.PI * 2;
+      return {
+        angle,
+        delay: 0.35 + i * 0.13,
+        phase: i * 0.8,
+        rate: 1.1 + (i % 3) * 0.28,
+        hex: "#" + orchid.clone().lerp(fuchsia, k).getHexString(),
+      };
+    });
+  }, []);
+
+  const stamens = useMemo(
+    () =>
+      [...Array(STAMENS)].map((_, i) => ({
+        // 6 stamens against 5 petals never lines up -- same off-phase trick
+        // the icon uses, for the same reason.
+        angle: (i / STAMENS) * Math.PI * 2,
+        delay: i * 0.06,
+      })),
+    []
+  );
+
+  const pollen = useMemo(
+    () =>
+      [...Array(POLLEN)].map((_, i) => ({
+        seed: i / POLLEN,
+        // Golden-angle spacing, so the cloud never bands.
+        theta: i * 2.39996,
+        wobble: 0.6 + Math.random() * 0.9,
+      })),
+    []
+  );
+
+  useFrame((_, delta) => {
+    t.current += delta;
+    const now = t.current;
+
+    if (petalsRef.current) {
+      petalsRef.current.children.forEach((child, i) => {
+        const b = blocks[i];
+        const p = clamp01((now - b.delay) / 0.9);
+        const grow = easeOutCubic(p);
+        const openK = easeOutBack(p);
+        // Closed bud -> open bloom: the petal starts vertical at the axis and
+        // both rotates down and travels out. It is one motion, not a slide.
+        const radius = R * openK;
+        child.position.x = Math.cos(b.angle) * radius;
+        child.position.z = Math.sin(b.angle) * radius;
+        child.position.y = THREE.MathUtils.lerp(11, 8, openK);
+        child.rotation.set(
+          THREE.MathUtils.lerp(-Math.PI / 2.1, 0, openK),
+          -b.angle,
+          Math.sin(now * 0.8 + b.phase) * 0.06
+        );
+        child.scale.setScalar(Math.max(0.001, grow));
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        const pulse = Math.sin(now * b.rate + b.phase);
+        mat.emissiveIntensity = 1.2 + pulse * 0.6;
+        mat.opacity = (0.5 + pulse * 0.12) * grow;
+      });
+      // LEGENDARY: the whole bloom turns slowly, which reads as the camera
+      // orbiting it -- the differentiated "camera behaviour" for this badge.
+      if (richness >= 2) petalsRef.current.rotation.y += delta * 0.16;
+    }
+
+    // SUPER: the calyx -- five sepals cupping the bloom from underneath.
+    if (richness >= 1 && sepalRef.current) {
+      sepalRef.current.children.forEach((child, i) => {
+        const p = clamp01((now - 0.15 - i * 0.09) / 0.7);
+        child.scale.setScalar(Math.max(0.001, easeOutCubic(p)));
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        mat.opacity = easeOutCubic(p) * 0.42;
+      });
+    }
+
+    // LEGENDARY: stamens extend once the petals are open.
+    if (richness >= 2 && stamenRef.current) {
+      stamenRef.current.children.forEach((child, i) => {
+        const k = easeOutBack(clamp01((now - 1.5 - stamens[i].delay) / 0.8));
+        child.scale.setScalar(Math.max(0.001, k));
+      });
+      stamenRef.current.rotation.y += delta * 0.16;
+    }
+
+    // LEGENDARY: the pollen spiral. r and y both climb with u while the
+    // angle advances, so each mote traces a real helix outward and up and
+    // fades at the end of its life rather than looping visibly.
+    if (richness >= 2 && pollenRef.current) {
+      pollenRef.current.children.forEach((child, i) => {
+        const q = pollen[i];
+        const u = (now * 0.17 + q.seed) % 1;
+        const rad = 4 + u * 34;
+        const a = q.theta + u * 6.4;
+        child.position.x = Math.cos(a) * rad;
+        child.position.z = Math.sin(a) * rad;
+        child.position.y = 8 + u * 30 + Math.sin(now * q.wobble + i) * 1.4;
+        const s = (1 - u) * 1.05;
+        child.scale.setScalar(Math.max(0.001, s));
+        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.sin(clamp01(u) * Math.PI) * 0.85;
+      });
+    }
+
+    if (coreRef.current) {
+      const mat = coreRef.current.material as THREE.MeshStandardMaterial;
+      const pulse = Math.sin(now * 1.8);
+      mat.emissiveIntensity = 1.6 + pulse * (richness >= 1 ? 1.1 : 0.5);
+      coreRef.current.rotation.y += delta * (0.3 + richness * 0.25);
+    }
+  });
+
+  return (
+    // The most rotational float of the five -- this badge is about turning
+    // and opening.
+    <Float speed={0.55} rotationIntensity={0.22} floatIntensity={0.5}>
+      <group>
+        {/* 5 petals, unfolding from a closed bud. */}
+        <group ref={petalsRef}>
+          {blocks.map((b, i) => (
+            <Box key={i} args={[6, 3, 5]}>
+              <meshStandardMaterial color={b.hex} emissive={b.hex} emissiveIntensity={1} transparent opacity={0.5} />
+            </Box>
+          ))}
+        </group>
+
+        {/* Pollen core, at the flower's heart. */}
+        <Octahedron ref={coreRef} args={[3.2, 0]} position={[0, 8, 0]}>
+          <meshStandardMaterial color={"#ffffff"} emissive={color} emissiveIntensity={2} flatShading />
+        </Octahedron>
+
+        {/* SUPER+: the calyx. A real organ under the bloom, in place of the
+            mirrored reflection that made no botanical sense here. */}
+        {richness >= 1 && (
+          <group ref={sepalRef} position={[0, 1.5, 0]}>
+            {[...Array(5)].map((_, i) => {
+              const a = (i / 5) * Math.PI * 2 + Math.PI / 5;
+              return (
+                <Box
+                  key={i}
+                  args={[7, 1.6, 3.2]}
+                  position={[Math.cos(a) * 9, 0, Math.sin(a) * 9]}
+                  rotation={[0, -a, -0.42]}
+                >
+                  <meshStandardMaterial color={"#20131c"} emissive={"#a678c2"} emissiveIntensity={1.3} transparent opacity={0} />
+                </Box>
+              );
+            })}
+          </group>
+        )}
+
+        {/* LEGENDARY: stamens with anthers. */}
+        {richness >= 2 && (
+          <group ref={stamenRef} position={[0, 8, 0]}>
+            {stamens.map((s, i) => (
+              <group key={i} rotation={[0, -s.angle, 0]}>
+                <Cylinder args={[0.24, 0.24, 11, 6]} position={[5.5, 3, 0]} rotation={[0, 0, -1.05]}>
+                  <meshBasicMaterial color={"#f69eee"} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+                </Cylinder>
+                <Octahedron args={[1.25, 0]} position={[9.6, 5.4, 0]}>
+                  <meshStandardMaterial color={"#ffffff"} emissive={"#f69eee"} emissiveIntensity={2.6} flatShading />
+                </Octahedron>
+              </group>
+            ))}
+          </group>
+        )}
+
+        {/* LEGENDARY: the pollen leaving. */}
+        {richness >= 2 && (
+          <group ref={pollenRef}>
+            {pollen.map((_, i) => (
+              <Octahedron key={i} args={[0.85, 0]}>
+                <meshBasicMaterial color={i % 3 === 0 ? "#ffffff" : "#f69eee"} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+              </Octahedron>
+            ))}
+          </group>
+        )}
+
+        <Sparkles count={richness === 2 ? 360 : richness === 1 ? 230 : 120} scale={[44, 40, 44]} size={3.4} speed={0.55 + richness * 0.3} color={color} opacity={0.7} />
+        {richness >= 1 && (
+          <Sparkles count={richness === 2 ? 180 : 90} scale={[38, 24, 38]} size={2.4} speed={1.2} color={"#f69eee"} opacity={0.6} />
+        )}
+      </group>
+    </Float>
+  );
+};
+
 // --- R5. "StreakChainLegendary" -- Unstoppable Streak, LEGENDARY ------------
 // Full spectacle. A Mobius-twisted loop of interlocking chain links wrapped
 // around a torus-knot ion trail, with two comets running the loop in opposition
@@ -6917,6 +7968,34 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
       case "LevelMonument": return <EnvLevelMonument color={color} />;
       case "StreakChainLegendary": return <EnvStreakChain color={color} />;
 
+      // --- PHASE 3 (2026-07-29) -- Level Mastery, real badges -------------
+      // All 3 tiers of a level share one icon_name-keyed case block but
+      // resolve to the SAME env component with `tier` passed through, since
+      // (per Shailesh) shapes are per-level and cutscenes are per-badge --
+      // the env component itself does the tier-level escalation internally.
+      case "LevelMasteryBmL1Cleared":
+      case "LevelMasteryBmL1Mastered":
+      case "LevelMasteryBmL1Perfected":
+        return <EnvLevelMasteryBmL1 color={color} tier={tier} />;
+
+      case "LevelMasteryMmL1Cleared":
+      case "LevelMasteryMmL1Mastered":
+      case "LevelMasteryMmL1Perfected":
+        return <EnvLevelMasteryMmL1 color={color} tier={tier} />;
+
+      case "LevelMasteryYlmL1Cleared":
+      case "LevelMasteryYlmL1Mastered":
+      case "LevelMasteryYlmL1Perfected":
+        return <EnvLevelMasterySeed color={color} tier={tier} />;
+      case "LevelMasteryYlmL2Cleared":
+      case "LevelMasteryYlmL2Mastered":
+      case "LevelMasteryYlmL2Perfected":
+        return <EnvLevelMasterySprout color={color} tier={tier} />;
+      case "LevelMasteryYlmL3Cleared":
+      case "LevelMasteryYlmL3Mastered":
+      case "LevelMasteryYlmL3Perfected":
+        return <EnvLevelMasteryBlossom color={color} tier={tier} />;
+
       // --- Mock-exam elevation, batch 1 (2026-07-27) ---------------------
       // Three bespoke environments, plus two cases that previously fell
       // through to EnvDefault and now reach the already-approved
@@ -8813,7 +9892,43 @@ export function BadgeInspectionModal({ badge, config, onClose, enableSound = tru
       "LevelMonument": { clipPath: "polygon(38% 0%, 62% 0%, 62% 18%, 78% 18%, 78% 42%, 92% 42%, 92% 68%, 100% 68%, 100% 100%, 0% 100%, 0% 68%, 8% 68%, 8% 42%, 22% 42%, 22% 18%, 38% 18%)", w: "w-56 md:w-72", h: "h-56 md:h-72" },
       // Wide horizontal chevron -- the only landscape silhouette of the five,
       // which is what lets it survive the 15vh letterbox crop.
-      "StreakChainLegendary": { clipPath: "polygon(14% 0%, 100% 0%, 86% 50%, 100% 100%, 14% 100%, 0% 50%)", w: "w-64 md:w-80", h: "h-40 md:h-52" }
+      "StreakChainLegendary": { clipPath: "polygon(14% 0%, 100% 0%, 86% 50%, 100% 100%, 14% 100%, 0% 50%)", w: "w-64 md:w-80", h: "h-40 md:h-52" },
+
+      // --- PHASE 3 (2026-07-29) -- Level Mastery, real badges -------------
+      // Rounded arch/bridge span -- deliberately curved rather than stepped,
+      // the only rounded-top silhouette in the set, wide+short like a real
+      // bridge rather than tall+narrow like LevelMonument.
+      "LevelMasteryBmL1Cleared": { clipPath: "polygon(0% 100%, 0% 55%, 8% 40%, 20% 22%, 35% 10%, 50% 5%, 65% 10%, 80% 22%, 92% 40%, 100% 55%, 100% 100%)", w: "w-60 md:w-80", h: "h-48 md:h-64" },
+      "LevelMasteryBmL1Mastered": { clipPath: "polygon(0% 100%, 0% 55%, 8% 40%, 20% 22%, 35% 10%, 50% 5%, 65% 10%, 80% 22%, 92% 40%, 100% 55%, 100% 100%)", w: "w-60 md:w-80", h: "h-48 md:h-64" },
+      "LevelMasteryBmL1Perfected": { clipPath: "polygon(0% 100%, 0% 55%, 8% 40%, 20% 22%, 35% 10%, 50% 5%, 65% 10%, 80% 22%, 92% 40%, 100% 55%, 100% 100%)", w: "w-60 md:w-80", h: "h-48 md:h-64" },
+
+      // Jagged multi-peak mountain-range silhouette -- deliberately angular
+      // rather than curved (the opposite read from BM-L1's rounded arch),
+      // tall+narrow with the highest peak off-center like a real range.
+      "LevelMasteryMmL1Cleared": { clipPath: "polygon(0% 100%, 0% 82%, 18% 55%, 30% 68%, 45% 30%, 58% 50%, 72% 12%, 86% 48%, 100% 82%, 100% 100%)", w: "w-60 md:w-80", h: "h-48 md:h-64" },
+      "LevelMasteryMmL1Mastered": { clipPath: "polygon(0% 100%, 0% 82%, 18% 55%, 30% 68%, 45% 30%, 58% 50%, 72% 12%, 86% 48%, 100% 82%, 100% 100%)", w: "w-60 md:w-80", h: "h-48 md:h-64" },
+      "LevelMasteryMmL1Perfected": { clipPath: "polygon(0% 100%, 0% 82%, 18% 55%, 30% 68%, 45% 30%, 58% 50%, 72% 12%, 86% 48%, 100% 82%, 100% 100%)", w: "w-60 md:w-80", h: "h-48 md:h-64" },
+
+      // Teardrop/ogive silhouette (seed) -- pointed apex, full round base.
+      // Re-cut 2026-07-30 to track the rebuilt glyph: the previous 14-gon was
+      // so close to a circle that it was the least characterful container in
+      // the whole set, and it no longer matched the icon it masks.
+      "LevelMasteryYlmL1Cleared": { clipPath: "polygon(50% 0%, 62% 7%, 73% 19%, 83% 34%, 88% 50%, 87% 68%, 78% 85%, 62% 97%, 50% 100%, 38% 97%, 22% 85%, 13% 68%, 12% 50%, 17% 34%, 27% 19%, 38% 7%)", w: "w-56 md:w-72", h: "h-56 md:h-72" },
+      "LevelMasteryYlmL1Mastered": { clipPath: "polygon(50% 0%, 62% 7%, 73% 19%, 83% 34%, 88% 50%, 87% 68%, 78% 85%, 62% 97%, 50% 100%, 38% 97%, 22% 85%, 13% 68%, 12% 50%, 17% 34%, 27% 19%, 38% 7%)", w: "w-56 md:w-72", h: "h-56 md:h-72" },
+      "LevelMasteryYlmL1Perfected": { clipPath: "polygon(50% 0%, 62% 7%, 73% 19%, 83% 34%, 88% 50%, 87% 68%, 78% 85%, 62% 97%, 50% 100%, 38% 97%, 22% 85%, 13% 68%, 12% 50%, 17% 34%, 27% 19%, 38% 7%)", w: "w-56 md:w-72", h: "h-56 md:h-72" },
+
+      // Leafy crown tapering to a stem-point at the base -- a "butterfly"
+      // silhouette, wide at top narrow at bottom, the opposite taper from
+      // the blossom's star shape below.
+      "LevelMasteryYlmL2Cleared": { clipPath: "polygon(50% 100%, 46% 60%, 20% 55%, 5% 30%, 15% 8%, 40% 20%, 50% 40%, 60% 20%, 85% 8%, 95% 30%, 80% 55%, 54% 60%)", w: "w-60 md:w-80", h: "h-56 md:h-72" },
+      "LevelMasteryYlmL2Mastered": { clipPath: "polygon(50% 100%, 46% 60%, 20% 55%, 5% 30%, 15% 8%, 40% 20%, 50% 40%, 60% 20%, 85% 8%, 95% 30%, 80% 55%, 54% 60%)", w: "w-60 md:w-80", h: "h-56 md:h-72" },
+      "LevelMasteryYlmL2Perfected": { clipPath: "polygon(50% 100%, 46% 60%, 20% 55%, 5% 30%, 15% 8%, 40% 20%, 50% 40%, 60% 20%, 85% 8%, 95% 30%, 80% 55%, 54% 60%)", w: "w-60 md:w-80", h: "h-56 md:h-72" },
+
+      // 5-petal scalloped flower silhouette -- the only star/scalloped
+      // outline in the set.
+      "LevelMasteryYlmL3Cleared": { clipPath: "polygon(50% 0%, 61% 20%, 82% 12%, 78% 34%, 98% 42%, 80% 58%, 90% 78%, 68% 74%, 62% 96%, 50% 78%, 38% 96%, 32% 74%, 10% 78%, 20% 58%, 2% 42%, 22% 34%, 18% 12%, 39% 20%)", w: "w-60 md:w-80", h: "h-60 md:h-80" },
+      "LevelMasteryYlmL3Mastered": { clipPath: "polygon(50% 0%, 61% 20%, 82% 12%, 78% 34%, 98% 42%, 80% 58%, 90% 78%, 68% 74%, 62% 96%, 50% 78%, 38% 96%, 32% 74%, 10% 78%, 20% 58%, 2% 42%, 22% 34%, 18% 12%, 39% 20%)", w: "w-60 md:w-80", h: "h-60 md:h-80" },
+      "LevelMasteryYlmL3Perfected": { clipPath: "polygon(50% 0%, 61% 20%, 82% 12%, 78% 34%, 98% 42%, 80% 58%, 90% 78%, 68% 74%, 62% 96%, 50% 78%, 38% 96%, 32% 74%, 10% 78%, 20% 58%, 2% 42%, 22% 34%, 18% 12%, 39% 20%)", w: "w-60 md:w-80", h: "h-60 md:h-80" }
     };
     return shapes[iconName] || shapes["Target"];
   };

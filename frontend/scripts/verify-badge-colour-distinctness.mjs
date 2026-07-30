@@ -255,7 +255,12 @@ const BATCH1_FROZEN = [
 /** Already-graded reference-batch entries this pass must clear. */
 const REFERENCE_BATCH = [
   { key: "perfectionist_MYTHIC",                 name: "Perfectionist (Mythic)",  primary: "#eaf6ff", note: "opal pearl (prismatic)" },
-  { key: "level_mastery_intermediate_1_LEGENDARY", name: "Intermediate L1 Perfected", primary: "#6366f1", note: "indigo->emerald" },
+  // "level_mastery_intermediate_1_LEGENDARY" (indigo->emerald demo) removed
+  // 2026-07-29 -- its badgeVisuals.ts config entry was deleted, superseded
+  // by the real Level Mastery build (level_mastery_{level_code}, see
+  // LEVEL_MASTERY_NEW below). IconLevelMonument/EnvLevelMonument components
+  // themselves are untouched -- still real reference-batch work product,
+  // just no longer wired to a config key that pretends to be a real badge.
   { key: "unstoppable_streak_chain_LEGENDARY",   name: "Unstoppable Streak (demo chain)", primary: "#f97316", note: "orange-crimson fire" },
 ];
 
@@ -413,11 +418,33 @@ const PHASE2_NEW = [
   { key: "section_specialist_MYTHIC",    name: "Mythic Section Specialist",     primary: "#e1ffeb", note: "nexus white (ink glyph)" },
 ];
 
+// PHASE 3 (2026-07-29) -- Level Mastery, built in small batches so Shailesh
+// can review each one live before the next starts. This array grows with
+// each batch (now: BM-L1, MM-L1) rather than being replaced, so re-running
+// this script re-checks every prior batch too.
+const LEVEL_MASTERY_NEW = [
+  { key: "level_mastery_bm_l1_BASE",      name: "BM L1 -- Cleared",   primary: "#590d2b", note: "deep plum (twilight-crossing identity, dusk begins) -- 2nd pick, see badgeVisuals.ts comment for why teal->violet failed" },
+  { key: "level_mastery_bm_l1_SUPER",     name: "BM L1 -- Mastered",  primary: "#cf17aa", note: "rich magenta, deep twilight" },
+  { key: "level_mastery_bm_l1_LEGENDARY", name: "BM L1 -- Perfected", primary: "#dfa69f", note: "pale dusty rose -- apex-tier high-key jump, same motif as this palette's other LEGENDARY/MYTHIC pastels" },
+  { key: "level_mastery_mm_l1_BASE",      name: "MM L1 -- Cleared",   primary: "#100637", note: "obsidian-indigo night -- ascent-into-the-night-sky identity, MM's capstone motif, blue-violet register chosen for breathing room on a saturated wheel" },
+  { key: "level_mastery_mm_l1_SUPER",     name: "MM L1 -- Mastered",  primary: "#7578d7", note: "royal sapphire climb, mid-tier" },
+  { key: "level_mastery_mm_l1_LEGENDARY", name: "MM L1 -- Perfected", primary: "#a9bec6", note: "pale icy silver-blue frost/starlight summit -- apex-tier high-key jump, same motif as this palette's other LEGENDARY/MYTHIC pastels" },
+  { key: "level_mastery_ylm_l1_BASE",      name: "YLM L1 -- Cleared",   primary: "#350d03", note: "dark rust/burnt-umber -- seed/sprout/blossom identity, YLM is the first module in every path; shifted off amber (30-80deg) after the real script's HSL-triple-near check FAILed the first dE00-only pick there -- that whole band had zero safe dark candidates" },
+  { key: "level_mastery_ylm_l1_SUPER",     name: "YLM L1 -- Mastered",  primary: "#c1bb44", note: "muted mustard-gold spark" },
+  { key: "level_mastery_ylm_l1_LEGENDARY", name: "YLM L1 -- Perfected", primary: "#ceb785", note: "pale warm wheat dawn -- apex-tier high-key jump" },
+  { key: "level_mastery_ylm_l2_BASE",      name: "YLM L2 -- Cleared",   primary: "#0d2c35", note: "deep teal-navy roots" },
+  { key: "level_mastery_ylm_l2_SUPER",     name: "YLM L2 -- Mastered",  primary: "#11a8b1", note: "vivid teal current" },
+  { key: "level_mastery_ylm_l2_LEGENDARY", name: "YLM L2 -- Perfected", primary: "#b6eff7", note: "pale ice-cyan bloom -- apex-tier high-key jump" },
+  { key: "level_mastery_ylm_l3_BASE",      name: "YLM L3 -- Cleared",   primary: "#20131c", note: "deep blackish-plum closed bud" },
+  { key: "level_mastery_ylm_l3_SUPER",     name: "YLM L3 -- Mastered",  primary: "#a678c2", note: "muted orchid opening blossom" },
+  { key: "level_mastery_ylm_l3_LEGENDARY", name: "YLM L3 -- Perfected", primary: "#f69eee", note: "bright pink-magenta full bloom -- apex-tier high-key jump" },
+];
+
 // ---------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------
 
-const GATED = [...BATCH1_NEW, ...BATCH1_FROZEN, ...REFERENCE_BATCH, ...BATCH2_NEW, ...PHASE1_MYTHIC_NEW, ...PHASE2_NEW];
+const GATED = [...BATCH1_NEW, ...BATCH1_FROZEN, ...REFERENCE_BATCH, ...BATCH2_NEW, ...PHASE1_MYTHIC_NEW, ...PHASE2_NEW, ...LEVEL_MASTERY_NEW];
 // Both batches count as "newly graded" for gating purposes, so re-running this
 // script re-checks batch 1 as well as batch 2 rather than only the latest pass.
 const NEW_KEYS = new Set([
@@ -425,6 +452,7 @@ const NEW_KEYS = new Set([
   ...BATCH2_NEW.map((e) => e.key),
   ...PHASE1_MYTHIC_NEW.map((e) => e.key),
   ...PHASE2_NEW.map((e) => e.key),
+  ...LEVEL_MASTERY_NEW.map((e) => e.key),
 ]);
 
 const decorate = (e) => {
