@@ -11,6 +11,7 @@
     "lib/gamification/badgeGlyphs.tsx",
     "lib/gamification/badgeVisuals.ts",
     "components/gamification/BadgeInspectionModal.tsx",
-    "app/student/achievements/page.tsx"
+    "app/student/achievements/page.tsx",
+    "app/dev/badge-preview/page.tsx"
   ]
 }
