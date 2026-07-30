@@ -31,6 +31,60 @@ Last updated: 2026-06-29
 - Mock generation must follow the finalized section and concept conventions.
 - Do not let competition mock generation inherit stale or unrelated DPS section mappings.
 
+## Curriculum Progression Paths (background for gamification, esp. Level Mastery badges)
+
+Added 2026-07-30, directly from Shailesh. A student progresses through the
+curriculum via exactly one of 3 fixed entry paths. Modules referenced: YLM (3
+levels), PM (4 levels), BM (1 level), IM (4 levels), MM (currently 1 level,
+expected to grow). The module order after entry is always the same (…→ IM →
+MM); only the entry point and whether PM-L1 is included differ.
+
+- **Path 1:** Starts at **YLM-L1**, completes all of YLM (L1-L3), then enters
+  PM at **PM-L2** (PM-L1 is *never assigned* to this path — skipped
+  entirely), completes PM-L2 through PM-L4, then IM (all 4 levels), then MM.
+  This path **never touches BM**, and **never touches PM-L1**.
+- **Path 2:** Starts at **PM-L1**, completes the full PM module (L1-L4), then
+  IM (all 4 levels), then MM. This path **never touches YLM or BM**.
+- **Path 3:** Starts at **BM-L1** (BM is a single-level module), then
+  straight to IM (all 4 levels), then MM. This path **never touches YLM or
+  PM at all**.
+
+For now only IM and MM students exist in the platform; all 3 paths will be
+populated over time, so any feature reasoning about student position should
+not assume a flat 13-level sequence.
+
+**Level Mastery badge visibility — the actual rule shipped, deliberately NOT
+path-based:** a first attempt (PR #410, 2026-07-30) tried to solve "which
+badges should a student see" by resolving which of the 3 paths a student is
+on and projecting which levels are reachable ahead, backed by a new
+`Student.entry_path` schema column + migration. That shipped, broke
+production (the migration silently didn't apply against the live DB, causing
+500s on every `Student` lookup across the app, not just achievements), and
+was rolled back (PR #411). It also turned out to be solving a harder problem
+than necessary — the feature never needs to reason about levels beyond the
+student's current one.
+
+**Rule actually shipped (no schema change, no migration):** a locked,
+zero-progress Level Mastery badge is shown only if it is for the student's
+CURRENT level (`badge's level_id == Student.current_level_id`).
+Already-unlocked badges and badges with real progress > 0 always show
+regardless of level. This alone produces the right behavior: a badge for an
+already-passed level with no in-app history (real students had progress
+before this platform existed) stays hidden since it has neither unlock nor
+progress; a badge for a level completed in-app stays visible via progress >
+0; and as a student advances to a new current level, that level's badge
+appears automatically on the next request. No path inference, no
+entry-point tracking, no schema field.
+
+**Standard to follow for future "which badges/levels should this student
+see" features:** prefer "current position + already-earned progress" over
+"resolve path then project forward" unless a real requirement forces the
+latter — it avoids an entire class of ambiguity (which path is this student
+on?) and schema/migration risk for no behavioral benefit in this case. The 3
+paths above remain true product facts and may still matter for other
+features (e.g. a curriculum roadmap UI that needs to show the *whole* path
+ahead, not just the next unlock).
+
 ## Deployment Standards
 
 - Render backend and Vercel frontend are redeployed from GitHub pushes.
