@@ -851,11 +851,82 @@ export const badgeColorConfig: Record<string, any> = {
   // not dev-only scaffolding).
   // ===================================================================
 
-  // Level Mastery -- its own visual axis (deep indigo -> emerald), kept
-  // deliberately outside every skill-badge palette so a level badge can
-  // never read as a reskinned skill badge. "Perfected" maps to LEGENDARY
-  // in the existing tier enum for this preview.
-  "level_mastery_intermediate_1_LEGENDARY": { customBg: "linear-gradient(to bottom right, #4338ca, #0f766e)", customShadow: "0 10px 25px -3px rgba(79, 70, 229, 0.45)", customBorder: "4px solid #5eead4", iconColorHex: "#ecfeff", bloomColor: "rgba(67, 56, 202, 0.9)", glitch: false, burst: ["#6366f1", "#14b8a6", "#a5f3fc", "#ffffff"] },
+  // Level Mastery -- its own visual axis (architectural, per-level shapes),
+  // kept deliberately outside every skill-badge palette so a level badge can
+  // never read as a reskinned skill badge. The reference-batch demo entry
+  // that used to sit here ("level_mastery_intermediate_1_LEGENDARY") never
+  // matched a real backend code and is superseded by the real Level Mastery
+  // build starting below (real codes: level_mastery_{level_code}, derived
+  // dynamically from the live Level table -- see seed_badges() in
+  // backend/app/services/achievements.py).
+
+  // ===================================================================
+  // PHASE 3 (2026-07-29) -- Level Mastery, real badges, built in small
+  // batches per Shailesh's request (batch N reviewed live before batch N+1
+  // starts). Batch 1: BM-L1 (Bridge module, 1 level -- teal->violet
+  // "crossing" identity, distinct from every skill-badge palette and from
+  // IM's indigo-emerald). Same icon shape across all 3 tiers (per-LEVEL
+  // shapes, not per-tier -- Shailesh's explicit call); tier is expressed
+  // entirely through color richness + the environment/cutscene escalation.
+  // ===================================================================
+  // burst[0] is this project's "primary swatch" convention (verified against
+  // verify-badge-colour-distinctness.mjs, not eyeballed). First draft of
+  // this family used teal->violet, which measured 8 real FAILs against the
+  // existing 61-colour palette (closest: polymath_MYTHIC vs LEGENDARY at
+  // dE00 3.0 -- effectively the same chip). That whole hue register turned
+  // out to be saturated across the catalogue already (teal/cyan/blue: speed
+  // demon, competitor, veteran, iron_wall, unstoppable_streak, marathoner,
+  // section_specialist all live there). Re-picked via an actual constrained
+  // search against all 61 existing primaries (not eyeballed) -- landed on a
+  // "twilight crossing" register instead: deep plum (BASE, dusk begins) ->
+  // rich magenta (SUPER, deep twilight) -> pale dusty rose (LEGENDARY, dawn
+  // light on the far bank -- apex-tier high-key motif, same pattern as this
+  // palette's other pale LEGENDARY/MYTHIC tiers). Every pair clears dE00>=12
+  // against the whole existing palette (worst: 12.4, comeback_kid_LEGENDARY)
+  // and the 3 tiers clear each other by 29-54 dE00.
+  "level_mastery_bm_l1_BASE": { customBg: "linear-gradient(to bottom right, #3f0a1e, #1a0a12)", customShadow: "0 8px 20px -4px rgba(89, 13, 43, 0.4)", customBorder: "3px solid #9d2955", iconColorHex: "#fce7ef", bloomColor: "rgba(89, 13, 43, 0.55)", glitch: false, burst: ["#590d2b", "#1a0a12", "#9d2955", "#ffffff"] },
+  "level_mastery_bm_l1_SUPER": { customBg: "linear-gradient(to bottom right, #7d0f66, #2d0a24)", customShadow: "0 10px 24px -4px rgba(207, 23, 170, 0.5)", customBorder: "4px solid #ec6fd1", iconColorHex: "#fdf4fb", bloomColor: "rgba(207, 23, 170, 0.75)", glitch: false, burst: ["#cf17aa", "#2d0a24", "#f0a4e0", "#ffffff"] },
+  "level_mastery_bm_l1_LEGENDARY": { customBg: "linear-gradient(to bottom right, #b9564a, #590d2b)", customShadow: "0 12px 30px -4px rgba(223, 166, 159, 0.55)", customBorder: "4px solid #f3d4ce", iconColorHex: "#ffffff", bloomColor: "rgba(223, 166, 159, 0.9)", glitch: false, burst: ["#dfa69f", "#590d2b", "#f3d4ce", "#ffffff"] },
+
+  // PHASE 3, Batch 2 (2026-07-29) -- Level Mastery, MM-L1. "Ascent into the
+  // night sky": obsidian/indigo night (BASE) -> royal sapphire climb (SUPER)
+  // -> pale frost/starlight summit (LEGENDARY). Deliberately a different hue
+  // family and structural motif from BM-L1's magenta arch/bridge -- MM is
+  // the capstone module every student path ends in (IM -> MM, always).
+  // burst[0] is the primary swatch checked by verify-badge-colour-distinctness.mjs.
+  "level_mastery_mm_l1_BASE": { customBg: "linear-gradient(to bottom right, #100637, #05020f)", customShadow: "0 8px 20px -4px rgba(37, 20, 110, 0.45)", customBorder: "3px solid #4a3399", iconColorHex: "#e8e6fb", bloomColor: "rgba(37, 20, 110, 0.55)", glitch: false, burst: ["#100637", "#05020f", "#4a3399", "#ffffff"] },
+  "level_mastery_mm_l1_SUPER": { customBg: "linear-gradient(to bottom right, #4b4ec4, #201f5e)", customShadow: "0 10px 24px -4px rgba(117, 120, 215, 0.5)", customBorder: "4px solid #a5a8ec", iconColorHex: "#fbfbff", bloomColor: "rgba(117, 120, 215, 0.75)", glitch: false, burst: ["#7578d7", "#201f5e", "#b3b6f0", "#ffffff"] },
+  "level_mastery_mm_l1_LEGENDARY": { customBg: "linear-gradient(to bottom right, #3a5560, #0d1418)", customShadow: "0 12px 30px -4px rgba(169, 190, 198, 0.55)", customBorder: "4px solid #a9bec6", iconColorHex: "#ffffff", bloomColor: "rgba(169, 190, 198, 0.9)", glitch: false, burst: ["#a9bec6", "#0d1418", "#d7e4e8", "#ffffff"] },
+
+  // PHASE 3, Batch 3 (2026-07-29) -- Level Mastery, YLM-L1/L2/L3. "Seed ->
+  // sprout -> blossom": YLM is the very first module in every student path.
+  // L1 rust-to-gold "first light", L2 teal-cyan "clear water", L3 orchid-
+  // magenta "full bloom" -- 3 hue families, none overlapping BM's magenta/
+  // plum/rose or MM's indigo/sapphire/frost. Colors found via a scripted
+  // constrained search against the real existing palette (67 colors incl.
+  // BM-L1/MM-L1) -- the mid/high-lightness bands turned out to be dense
+  // across nearly the whole hue wheel. First pass (dE00-only search) placed
+  // 5 of the 9 in territory that the real script's HSL-triple-near
+  // heuristic (hue/sat/light all simultaneously close to an existing badge)
+  // escalated to FAIL despite clearing the raw 12.0 dE00 floor -- caught
+  // only by actually running `node scripts/verify-badge-colour-
+  // distinctness.mjs`, not the scratch re-implementation, which only
+  // checked raw dE00. Re-searched those 5 with the same HSL-suspect rule
+  // added as a hard filter (not just dE00); L1's BASE also could not find
+  // any safe candidate anywhere in the 30-80deg amber/gold band at dark
+  // lightness (every point there is HSL-close to some existing dark BASE
+  // tier), so it shifted to a rust/burnt-umber dark tone at ~12deg instead
+  // -- still reads as "dark soil", just warmer-red than gold. Verified via
+  // the real script after the fix: 0 FAIL. burst[0] is the primary swatch.
+  "level_mastery_ylm_l1_BASE": { customBg: "linear-gradient(to bottom right, #350d03, #180601)", customShadow: "0 8px 20px -4px rgba(90, 30, 8, 0.4)", customBorder: "3px solid #7a2c0c", iconColorHex: "#fbe4d9", bloomColor: "rgba(90, 30, 8, 0.55)", glitch: false, burst: ["#350d03", "#180601", "#7a2c0c", "#ffffff"] },
+  "level_mastery_ylm_l1_SUPER": { customBg: "linear-gradient(to bottom right, #a29c38, #350d03)", customShadow: "0 10px 24px -4px rgba(193, 187, 68, 0.5)", customBorder: "4px solid #ded87f", iconColorHex: "#fffef0", bloomColor: "rgba(193, 187, 68, 0.75)", glitch: false, burst: ["#c1bb44", "#350d03", "#ded87f", "#ffffff"] },
+  "level_mastery_ylm_l1_LEGENDARY": { customBg: "linear-gradient(to bottom right, #a08e63, #350d03)", customShadow: "0 12px 30px -4px rgba(206, 183, 133, 0.55)", customBorder: "4px solid #ceb785", iconColorHex: "#ffffff", bloomColor: "rgba(206, 183, 133, 0.9)", glitch: false, burst: ["#ceb785", "#350d03", "#e8dcc0", "#ffffff"] },
+  "level_mastery_ylm_l2_BASE": { customBg: "linear-gradient(to bottom right, #0d2c35, #051318)", customShadow: "0 8px 20px -4px rgba(15, 90, 110, 0.4)", customBorder: "3px solid #1f6d82", iconColorHex: "#dff7fb", bloomColor: "rgba(15, 90, 110, 0.55)", glitch: false, burst: ["#0d2c35", "#051318", "#1f6d82", "#ffffff"] },
+  "level_mastery_ylm_l2_SUPER": { customBg: "linear-gradient(to bottom right, #0e8890, #0d2c35)", customShadow: "0 10px 24px -4px rgba(17, 168, 177, 0.5)", customBorder: "4px solid #6ce0e6", iconColorHex: "#f0feff", bloomColor: "rgba(17, 168, 177, 0.75)", glitch: false, burst: ["#11a8b1", "#0d2c35", "#6ce0e6", "#ffffff"] },
+  "level_mastery_ylm_l2_LEGENDARY": { customBg: "linear-gradient(to bottom right, #4f9aab, #0d2c35)", customShadow: "0 12px 30px -4px rgba(182, 239, 247, 0.55)", customBorder: "4px solid #b6eff7", iconColorHex: "#ffffff", bloomColor: "rgba(182, 239, 247, 0.9)", glitch: false, burst: ["#b6eff7", "#0d2c35", "#e3faff", "#ffffff"] },
+  "level_mastery_ylm_l3_BASE": { customBg: "linear-gradient(to bottom right, #20131c, #0d080c)", customShadow: "0 8px 20px -4px rgba(90, 50, 80, 0.4)", customBorder: "3px solid #5c3a52", iconColorHex: "#f7e9f3", bloomColor: "rgba(90, 50, 80, 0.55)", glitch: false, burst: ["#20131c", "#0d080c", "#5c3a52", "#ffffff"] },
+  "level_mastery_ylm_l3_SUPER": { customBg: "linear-gradient(to bottom right, #8452a3, #20131c)", customShadow: "0 10px 24px -4px rgba(166, 120, 194, 0.5)", customBorder: "4px solid #cba8e0", iconColorHex: "#fdf7ff", bloomColor: "rgba(166, 120, 194, 0.75)", glitch: false, burst: ["#a678c2", "#20131c", "#cba8e0", "#ffffff"] },
+  "level_mastery_ylm_l3_LEGENDARY": { customBg: "linear-gradient(to bottom right, #ba63ac, #20131c)", customShadow: "0 12px 30px -4px rgba(246, 158, 238, 0.55)", customBorder: "4px solid #f69eee", iconColorHex: "#ffffff", bloomColor: "rgba(246, 158, 238, 0.9)", glitch: false, burst: ["#f69eee", "#20131c", "#fcdcf8", "#ffffff"] },
 
   // Unstoppable Streak, re-elevated as a fire orange -> crimson comet chain.
   // `letterbox: true` is read by BadgeInspectionModal and is scoped to THIS

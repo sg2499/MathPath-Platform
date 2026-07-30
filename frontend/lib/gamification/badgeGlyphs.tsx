@@ -240,6 +240,750 @@ export function IconLevelMonument(props: BadgeGlyphProps) {
 }
 
 /* --------------------------------------------------------------------------
+ * PHASE 3 (2026-07-29) -- Level Mastery, per-level icons.
+ * OPUS ELEVATION PASS (2026-07-29, second pass): the first build of these 15
+ * glyphs got the *structure* right -- per-level silhouettes, and a real
+ * BASE -> SUPER -> LEGENDARY escalation within each level -- but every
+ * LEGENDARY tier reached for the SAME flourish: a 6-ray radial starburst
+ * whose ray offsets were literally identical numbers in all five families
+ * (+/-3.3,-1.7 and +/-4.7,+0.9 off the anchor), plus the same twin diamond
+ * flares and the same dashed line at y=22.6. That is a template, not five
+ * designs, and LEGENDARY is precisely the badge a student screenshots.
+ *
+ * What is PRESERVED (this is the project convention, arrived at after
+ * Shailesh rejected an all-tiers-recoloured version -- "the student should
+ * feel the difference and that should make them feel good being a higher
+ * achievement"):
+ *   BASE       -- hollow outline only, zero fill anywhere, sparsest glyph.
+ *   SUPER      -- solid single-tone fill + a soft glow + exactly one extra
+ *                 structural detail. Calm, finished, but single-tone.
+ *   LEGENDARY  -- two-band layered fill + light that deliberately BREAKS PAST
+ *                 the glyph's own silhouette and past the 24x24 viewBox edge
+ *                 + a small particle scatter + an environmental echo.
+ *
+ * What CHANGED: the *form* that escaping light takes is now argued per badge
+ * from what the badge is actually about, and every one of the five escapes
+ * the frame along a different axis:
+ *   BM-L1   -- a bridge is about SPANNING, so its apex light runs HORIZONTALLY
+ *              along the deck and exits both side edges. Plus real suspension
+ *              hangers and pier-top lanterns.
+ *   MM-L1   -- a summit at night: AURORA ribbons sweeping across the sky out
+ *              of both side edges, one 4-point concave beacon star piercing
+ *              the top edge, a varied starfield, a secondary ridge.
+ *   YLM-L1  -- germination is the only motif here that acts DOWNWARD: the
+ *              seed coat splits into two parted halves, roots break past the
+ *              BOTTOM edge and the shoot's first leaves break past the TOP.
+ *              Both vertical extremes, which nothing else in the set does.
+ *   YLM-L2  -- water: dew droplets on the leaf tips, one drop falling in
+ *              through the TOP edge, grass blades arcing out of both side
+ *              edges, an impact ripple on the soil. No radial rays at all.
+ *   YLM-L3  -- dispersal: six CURVED stamens with anthers (built from one
+ *              path rotated 6x at 60deg, deliberately off-phase from the 5
+ *              petals at 72deg so it reads organic), and a true Archimedean
+ *              pollen spiral of nine decaying motes that exits the RIGHT edge.
+ *
+ * Colours are unchanged from the first pass and remain the real
+ * verify-badge-colour-distinctness.mjs numbers (0 FAIL); see the
+ * LEVEL_MASTERY_NEW block in that script for each pick's rationale.
+ *
+ * THIRD PASS (2026-07-30) -- render-and-look. The two passes above were both
+ * argued from the code; this one rendered all 15 glyphs to real SVG at badge
+ * size, on their real gradients, and judged them side by side. Three findings,
+ * two acted on:
+ *   1. YLM-L1 was plainly the worst mark in the set. The "asymmetric bean with
+ *      a hilum notch" read as a potato at 130px, and its LEGENDARY jagged
+ *      crack read as a lightning bolt through a walnut. Rebuilt as a symmetric
+ *      OGIVE with a curved suture -- see the SEED_BODY block below. Container
+ *      clip-path and the 3D husk radius were re-cut to match.
+ *   2. BM-L1 LEGENDARY had two real defects, both invisible in source: the 4
+ *      suspension ties at strokeWidth 0.75/alpha 0.85 closed the arch void and
+ *      read as a portcullis, and the "water reflection" arc was drawn at a
+ *      radius that put almost all of it outside the 24x24 viewBox, surviving
+ *      on screen as two disconnected squiggles. Both fixed in place.
+ *   3. MM-L1, YLM-L2 and YLM-L3 held up at size and were left alone. Saying so
+ *      is part of the judgement, not an omission from it.
+ * ------------------------------------------------------------------------ */
+
+/* ==========================================================================
+ * BM-L1 -- a single stone arch (bridge). BM is the shortest, single-level
+ * alternate entry path into IM, so the motif is a CROSSING: two piers, a
+ * deck, one arch, and (at the apex tier) light that travels along the span.
+ * ========================================================================== */
+const BRIDGE_PLUM = "#7d123d";
+const BRIDGE_MAGENTA = "#cf17aa";
+const BRIDGE_ROSE = "#dfa69f";
+const BRIDGE_MIST = "#f3d4ce";
+
+// Shared arch geometry, so all three tiers are provably the same structure:
+// outer radius 6.4 and inner radius 4.9 about (12, 8.6) -- a true semicircular
+// voussoir band springing from the pier tops at x=5.6 and x=18.4.
+const ARCH_OUTER = "M5.6 8.6 A6.4 6.4 0 0 1 18.4 8.6";
+const ARCH_BAND = "M5.6 8.6 A6.4 6.4 0 0 1 18.4 8.6 L18.4 8.6 A4.9 4.9 0 0 0 5.6 8.6 Z";
+const ARCH_BAND_INNER = "M7.1 8.6 A4.9 4.9 0 0 1 16.9 8.6 L16.9 8.6 A3.4 3.4 0 0 0 7.1 8.6 Z";
+
+export function IconLevelMasteryBmL1Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Piers -- outline only, no fill. Nothing here reads as "finished"
+          yet. */}
+      <path d="M2.2 8.6 L2.2 20.6 L5.6 20.6 L5.6 8.6 Z" strokeWidth={1.15} />
+      <path d="M18.4 8.6 L18.4 20.6 L21.8 20.6 L21.8 8.6 Z" strokeWidth={1.15} />
+
+      {/* Plain deck, no parapet railing. */}
+      <path d="M1 8.6 H23" strokeWidth={1.5} />
+
+      {/* The arch -- outline only, unfilled, no keystone. */}
+      <path d={ARCH_OUTER} fill="none" strokeWidth={1.6} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryBmL1Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Piers, now solidly filled -- a finished structure, not a sketch. */}
+      <path d="M2.2 8.6 L2.2 20.6 L5.6 20.6 L5.6 8.6 Z" fill={BRIDGE_PLUM} opacity={0.55} stroke="none" />
+      <path d="M18.4 8.6 L18.4 20.6 L21.8 20.6 L21.8 8.6 Z" fill={BRIDGE_MAGENTA} opacity={0.55} stroke="none" />
+      <path d="M2.2 8.6 L2.2 20.6 L5.6 20.6 L5.6 8.6 Z" strokeWidth={1.15} />
+      <path d="M18.4 8.6 L18.4 20.6 L21.8 20.6 L21.8 8.6 Z" strokeWidth={1.15} />
+
+      {/* The arch, solidly filled -- one even wash, calm and finished. */}
+      <path d={ARCH_BAND} fill={BRIDGE_MAGENTA} opacity={0.4} stroke="none" />
+      <path d={ARCH_OUTER} fill="none" strokeWidth={1.6} />
+
+      {/* Deck + parapet railing -- BASE's plain bar becomes a real railing. */}
+      <path d="M1 8.6 H23" strokeWidth={1.5} />
+      <g strokeWidth={0.9} opacity={0.75}>
+        <path d="M3.9 8.6 L3.9 7.1" />
+        <path d="M7.4 8.6 L7.4 7.1" />
+        <path d="M10.9 8.6 L10.9 7.1" />
+        <path d="M13.1 8.6 L13.1 7.1" />
+        <path d="M16.6 8.6 L16.6 7.1" />
+        <path d="M20.1 8.6 L20.1 7.1" />
+      </g>
+
+      {/* Soft single glow at the crown -- the first hint of "lit up". */}
+      <circle cx="12" cy="3.1" r="2.4" fill={BRIDGE_MAGENTA} opacity={0.3} stroke="none" />
+      {/* Keystone -- set at the true crown of the band (between r=6.4 and
+          r=4.9), not floating in the opening. The arch is now a completed
+          crossing. */}
+      <path d="M10.6 2.2 L13.4 2.2 L12.9 4 L11.1 4 Z" fill={BRIDGE_PLUM} stroke="none" />
+      <path d="M10.6 2.2 L13.4 2.2 L12.9 4 L11.1 4 Z" strokeWidth={0.85} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryBmL1Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* SPAN-LIGHT. A bridge's axis is horizontal, so this family's escaping
+          light travels ALONG the deck and exits both side edges of the
+          viewBox -- it does not radiate isotropically. Drawn first so the
+          structure sits on top of it. */}
+      <g strokeLinecap="round" fill="none">
+        <path d="M12 8.6 H26.4" stroke={BRIDGE_ROSE} strokeWidth={1.9} opacity={0.45} />
+        <path d="M12 8.6 H-2.4" stroke={BRIDGE_ROSE} strokeWidth={1.9} opacity={0.45} />
+        <path d="M12 7.5 H25.2" stroke={BRIDGE_MIST} strokeWidth={0.65} opacity={0.7} />
+        <path d="M12 9.7 H-1.2" stroke={BRIDGE_MIST} strokeWidth={0.65} opacity={0.7} />
+      </g>
+
+      {/* Piers, richest fill of the three. */}
+      <path d="M2.2 8.6 L2.2 20.6 L5.6 20.6 L5.6 8.6 Z" fill={BRIDGE_PLUM} opacity={0.65} stroke="none" />
+      <path d="M18.4 8.6 L18.4 20.6 L21.8 20.6 L21.8 8.6 Z" fill={BRIDGE_MAGENTA} opacity={0.65} stroke="none" />
+      <path d="M2.2 8.6 L2.2 20.6 L5.6 20.6 L5.6 8.6 Z" strokeWidth={1.15} />
+      <path d="M18.4 8.6 L18.4 20.6 L21.8 20.6 L21.8 8.6 Z" strokeWidth={1.15} />
+
+      {/* The arch -- two layered fill bands (echoing the 3D scene's voussoir
+          stack), richer than SUPER's single flat wash. */}
+      <path d={ARCH_BAND} fill={BRIDGE_MAGENTA} opacity={0.5} stroke="none" />
+      <path d={ARCH_BAND_INNER} fill={BRIDGE_ROSE} opacity={0.45} stroke="none" />
+      <path d={ARCH_OUTER} fill="none" strokeWidth={1.6} />
+
+      {/* SUSPENSION CABLES -- vertical ties dropped from the arch's inner
+          face down to the deck. Their lengths are the real chord solution
+          for r=4.9 about (12, 8.6), which is what stops them reading as
+          arbitrary decoration. LEGENDARY-only structural addition.
+          Deliberately HAIRLINE (0.45 at 0.55 alpha): at 0.75/0.85 these four
+          ties filled the arch opening and read as a portcullis -- the void
+          under an arch is the whole point of an arch, so the cables have to
+          be legible without closing it. */}
+      <g strokeWidth={0.45} opacity={0.55} stroke={BRIDGE_MIST}>
+        <path d="M8.4 5.3 L8.4 8.6" />
+        <path d="M10.2 4.0 L10.2 8.6" />
+        <path d="M13.8 4.0 L13.8 8.6" />
+        <path d="M15.6 5.3 L15.6 8.6" />
+      </g>
+
+      {/* Deck + parapet railing. */}
+      <path d="M1 8.6 H23" strokeWidth={1.5} />
+      <g strokeWidth={0.9} opacity={0.8}>
+        <path d="M3.9 8.6 L3.9 7.1" />
+        <path d="M7.4 8.6 L7.4 7.1" />
+        <path d="M10.9 8.6 L10.9 7.1" />
+        <path d="M13.1 8.6 L13.1 7.1" />
+        <path d="M16.6 8.6 L16.6 7.1" />
+        <path d="M20.1 8.6 L20.1 7.1" />
+      </g>
+
+      {/* PIER-TOP LANTERNS -- a lit crossing is lit end to end, and a real
+          lantern (cup + flame) is a bridge object, where the generic diamond
+          flare this slot used to hold was not. */}
+      <g>
+        <circle cx="3.9" cy="4.9" r="2" fill={BRIDGE_ROSE} opacity={0.25} stroke="none" />
+        <path d="M3.2 7.1 H4.6 L4.3 5.7 H3.5 Z" fill={BRIDGE_ROSE} opacity={0.9} stroke="none" />
+        <path d="M3.9 5.7 C4.6 4.8 4.7 4.2 3.9 3.1 C3.1 4.2 3.2 4.8 3.9 5.7 Z" fill={BRIDGE_MIST} stroke="none" />
+        <circle cx="20.1" cy="4.9" r="2" fill={BRIDGE_ROSE} opacity={0.25} stroke="none" />
+        <path d="M19.4 7.1 H20.8 L20.5 5.7 H19.7 Z" fill={BRIDGE_ROSE} opacity={0.9} stroke="none" />
+        <path d="M20.1 5.7 C20.8 4.8 20.9 4.2 20.1 3.1 C19.3 4.2 19.4 4.8 20.1 5.7 Z" fill={BRIDGE_MIST} stroke="none" />
+      </g>
+
+      {/* Keystone, at the true crown, blazing. It carries a PLUM core inside a
+          mist rim: filled flat mist it was white-on-white against the lit
+          crown and the one stone that completes the crossing simply vanished. */}
+      <circle cx="12" cy="3.1" r="3" fill={BRIDGE_ROSE} opacity={0.3} stroke="none" />
+      <path d="M10.6 2.2 L13.4 2.2 L12.9 4 L11.1 4 Z" fill={BRIDGE_PLUM} stroke="none" />
+      <path d="M10.6 2.2 L13.4 2.2 L12.9 4 L11.1 4 Z" fill="none" stroke={BRIDGE_MIST} strokeWidth={0.9} />
+      <path d="M12 2.2 L12 -1" stroke={BRIDGE_MIST} strokeWidth={0.8} opacity={0.75} strokeLinecap="round" />
+
+      {/* WATER. The waterline is now at the pier feet (y=20.8), so the piers
+          actually stand IN the river instead of hovering above a rule, and
+          the reflection is the real arch's own span (x=5.6..18.4, the same
+          springing points) vertically squashed into the 3.2 units of frame
+          that remain. The previous version drew a full-radius arc from
+          y=22.2, which fell almost entirely outside the 24x24 viewBox and
+          survived on screen as two disconnected squiggles. */}
+      <path d="M0.6 20.8 H23.4" strokeWidth={0.7} opacity={0.55} strokeDasharray="1.2 1.4" stroke={BRIDGE_MIST} />
+      <path d="M5.6 20.8 A6.4 2.6 0 0 0 18.4 20.8" fill="none" strokeWidth={0.9} opacity={0.5} stroke={BRIDGE_MIST} />
+      <path d="M7.1 20.8 A4.9 2 0 0 0 16.9 20.8" fill="none" strokeWidth={0.6} opacity={0.32} stroke={BRIDGE_ROSE} />
+      {/* Pier reflections -- broken by the current, so dashed, not solid. */}
+      <g stroke={BRIDGE_MIST} strokeWidth={0.9} opacity={0.32} strokeDasharray="0.9 1.1">
+        <path d="M3.9 20.8 L3.9 23.6" />
+        <path d="M20.1 20.8 L20.1 23.6" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+/* ==========================================================================
+ * MM-L1 -- a summit at night. MM is the capstone module every student path
+ * ends in (IM -> MM, always), so this is the "final peak", and its apex
+ * flourish is a SKY EVENT (aurora + a beacon star) rather than a sunburst:
+ * the light belongs to the night around the mountain, not to the rock.
+ * ========================================================================== */
+const PEAK_NIGHT = "#100637";
+const PEAK_SAPPHIRE = "#7578d7";
+const PEAK_FROST = "#a9bec6";
+
+const PEAK_OUTLINE = "M2.2 21.4 L12 3.2 L21.8 21.4 Z";
+
+export function IconLevelMasteryMmL1Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Base-camp markers -- outline only, no fill. */}
+      <path d="M2.2 21.4 L2.2 18.4 L4.4 21.4 Z" fill="none" strokeWidth={1.15} />
+      <path d="M21.8 21.4 L21.8 18.4 L19.6 21.4 Z" fill="none" strokeWidth={1.15} />
+
+      {/* Plain ground line, no snow contour. */}
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+
+      {/* The peak -- outline only, unfilled. */}
+      <path d={PEAK_OUTLINE} fill="none" strokeWidth={1.6} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryMmL1Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Base-camp markers, now solidly filled. */}
+      <path d="M2.2 21.4 L2.2 18.4 L4.4 21.4 Z" fill={PEAK_NIGHT} opacity={0.55} stroke="none" />
+      <path d="M21.8 21.4 L21.8 18.4 L19.6 21.4 Z" fill={PEAK_SAPPHIRE} opacity={0.55} stroke="none" />
+      <path d="M2.2 21.4 L2.2 18.4 L4.4 21.4 Z" fill="none" strokeWidth={1.15} />
+      <path d="M21.8 21.4 L21.8 18.4 L19.6 21.4 Z" fill="none" strokeWidth={1.15} />
+
+      {/* Ground line + snow-line contour -- BASE's plain line gains a
+          dashed contour partway up the slope. */}
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M6.8 13.4 H17.2" strokeWidth={0.9} opacity={0.75} strokeDasharray="1.4 1.2" />
+
+      {/* The peak, solidly filled -- one even wash, calm and finished. */}
+      <path d={PEAK_OUTLINE} fill={PEAK_SAPPHIRE} opacity={0.4} stroke="none" />
+      <path d={PEAK_OUTLINE} fill="none" strokeWidth={1.6} />
+
+      {/* Soft single glow behind the summit -- first hint of "lit up". */}
+      <circle cx="12" cy="5.4" r="2.6" fill={PEAK_SAPPHIRE} opacity={0.3} stroke="none" />
+      {/* Summit cap -- the peak is now a finished climb. */}
+      <path d="M12 3.2 L13.5 6.7 L10.5 6.7 Z" fill={PEAK_FROST} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryMmL1Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* AURORA. Two ribbons sweeping the whole sky and exiting BOTH side
+          edges of the viewBox -- this family's escaping light is horizontal
+          and atmospheric, drawn behind the mountain so the translucent peak
+          fill veils it exactly the way a real ridge veils an aurora. */}
+      <g fill="none" strokeLinecap="round">
+        <path
+          d="M-2.4 5.6 C2.4 1.4 5.6 7.4 9.4 4.6 C13 2 16.4 6.6 20.2 3.8 C22.4 2.2 24.6 3 26.4 1.6"
+          stroke={PEAK_FROST}
+          strokeWidth={1.5}
+          opacity={0.5}
+        />
+        <path
+          d="M-2.4 8.6 C2.6 4.6 5.4 10.2 9.6 7.4 C13.4 4.8 16.2 9.4 20.4 6.6 C22.6 5 24.4 6 26.4 4.6"
+          stroke={PEAK_SAPPHIRE}
+          strokeWidth={1.1}
+          opacity={0.55}
+        />
+        <path
+          d="M-2.4 11.4 C3 7.8 5.2 12.8 9.8 10.2 C13.8 7.9 16 12.2 20.6 9.4"
+          stroke={PEAK_FROST}
+          strokeWidth={0.6}
+          opacity={0.35}
+        />
+      </g>
+
+      {/* STARFIELD -- varied radii and opacities so it reads as depth rather
+          than as three identical dots. */}
+      <g stroke="none" fill={PEAK_FROST}>
+        <circle cx="3.4" cy="3.0" r="0.5" opacity={0.85} />
+        <circle cx="5.9" cy="1.4" r="0.32" opacity={0.55} />
+        <circle cx="8.2" cy="1.6" r="0.28" opacity={0.45} />
+        <circle cx="16.4" cy="0.9" r="0.38" opacity={0.6} />
+        <circle cx="18.9" cy="2.2" r="0.45" opacity={0.75} />
+        <circle cx="21.4" cy="4.6" r="0.3" opacity={0.5} />
+      </g>
+
+      {/* Base-camp markers, richest fill of the three. */}
+      <path d="M2.2 21.4 L2.2 18.4 L4.4 21.4 Z" fill={PEAK_NIGHT} opacity={0.65} stroke="none" />
+      <path d="M21.8 21.4 L21.8 18.4 L19.6 21.4 Z" fill={PEAK_SAPPHIRE} opacity={0.65} stroke="none" />
+      <path d="M2.2 21.4 L2.2 18.4 L4.4 21.4 Z" fill="none" strokeWidth={1.15} />
+      <path d="M21.8 21.4 L21.8 18.4 L19.6 21.4 Z" fill="none" strokeWidth={1.15} />
+
+      {/* Camp beacons: a lit point with a rising smoke wisp at each base
+          camp -- a camp object, replacing the generic twin diamond flare. */}
+      <g>
+        <circle cx="3.3" cy="17.7" r="0.62" fill={PEAK_FROST} stroke="none" />
+        <path d="M3.3 17.0 C3.9 16.1 3.0 15.5 3.4 14.5" stroke={PEAK_FROST} strokeWidth={0.6} opacity={0.7} fill="none" />
+        <circle cx="20.7" cy="17.7" r="0.62" fill={PEAK_FROST} stroke="none" />
+        <path d="M20.7 17.0 C21.3 16.1 20.4 15.5 20.8 14.5" stroke={PEAK_FROST} strokeWidth={0.6} opacity={0.7} fill="none" />
+      </g>
+
+      {/* Ground line + snow-line contour. */}
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M6.8 13.4 H17.2" strokeWidth={0.9} opacity={0.8} strokeDasharray="1.4 1.2" />
+
+      {/* The peak -- two layered fill bands (echoing the 3D scene's rock
+          strata), richer than SUPER's single flat wash. */}
+      <path d={PEAK_OUTLINE} fill={PEAK_SAPPHIRE} opacity={0.5} stroke="none" />
+      <path d="M6.4 13.4 L12 3.2 L17.6 13.4 Z" fill={PEAK_FROST} opacity={0.45} stroke="none" />
+      <path d={PEAK_OUTLINE} fill="none" strokeWidth={1.6} />
+
+      {/* SECONDARY RIDGE -- a mountain without a subsidiary spur is a
+          triangle. LEGENDARY-only structural addition. */}
+      <path
+        d="M12 3.2 L14.7 10.4 L12.9 12.6 L15.4 17.2 L14.2 21.4"
+        fill="none"
+        strokeWidth={0.75}
+        opacity={0.6}
+      />
+
+      {/* BEACON STAR -- a single four-point star with concave sides, pierced
+          through the top edge of the viewBox. One deliberate, shaped light
+          instead of six interchangeable straight rays. */}
+      <circle cx="12" cy="3.4" r="3.2" fill={PEAK_FROST} opacity={0.25} stroke="none" />
+      <path
+        d="M12 -1.2 C12.6 2.2 13.2 2.8 16.6 3.4 C13.2 4 12.6 4.6 12 8 C11.4 4.6 10.8 4 7.4 3.4 C10.8 2.8 11.4 2.2 12 -1.2 Z"
+        fill={PEAK_FROST}
+        stroke="none"
+      />
+
+      {/* Dashed frost-line beneath the ground -- the family's environmental
+          echo, held over because a frozen lake below a peak is real. */}
+      <path d="M0.6 22.6 H23.4" strokeWidth={0.7} opacity={0.5} strokeDasharray="1.2 1.4" stroke={PEAK_FROST} />
+    </GlyphShell>
+  );
+}
+
+/* ==========================================================================
+ * YLM-L1/L2/L3 -- "seed -> sprout -> blossom". YLM is the very first module
+ * in every student path, so the three levels are one growth story told in
+ * three genuinely different structures. They deliberately SHARE the soil line
+ * at y=21.4 (that continuity is the point of a trilogy) and differ in
+ * everything else, including which direction each level's apex light escapes.
+ * ========================================================================== */
+const SEED_HUSK = "#350d03";
+const SEED_SPARK = "#c1bb44";
+const SEED_DAWN = "#ceb785";
+
+// SEED CONTOUR -- rebuilt 2026-07-30 after looking at all 15 glyphs rendered
+// side by side at badge size. The previous "asymmetric bean with a concave
+// hilum notch" was argued well on paper and failed in the eye: at 130px the
+// lumpy left flank read as a potato, and next to L2's clean sprout and L3's
+// clean blossom it was plainly the worst mark in the family.
+//
+// This is a symmetric ogive -- pointed apex, full round base. A teardrop is
+// the one silhouette that reads as "seed" instantly at any size, it gives the
+// shoot a natural place to emerge (the point), and it is a genuinely new
+// silhouette in the set: BM is an arch, MM a triangle, L2 a two-leaf crown,
+// L3 a five-fold rosette, L1 now a drop. Widest at y=14.3, which puts the
+// visual mass low, the way a seed sits.
+const SEED_BODY =
+  "M12 4.2 C15.9 7.9 18.2 11.1 18.2 14.3 C18.2 18 15.4 20.9 12 20.9 C8.6 20.9 5.8 18 5.8 14.3 C5.8 11.1 8.1 7.9 12 4.2 Z";
+// The suture: the line a real seed splits along, running base -> apex. A
+// gentle double curve, NOT the previous zig-zag polyline -- at badge size
+// that polyline read as a lightning bolt struck through a walnut rather than
+// as a coat opening. Both halves are closed against this same curve, so they
+// still interlock exactly when parted.
+const SEED_SUTURE = "C13.3 17.4 10.9 13.6 12.9 10 C13.7 8.4 12.6 6.2 12 4.2";
+const SEED_HALF_R =
+  "M12 4.2 C15.9 7.9 18.2 11.1 18.2 14.3 C18.2 18 15.4 20.9 12 20.9 " + SEED_SUTURE + " Z";
+const SEED_HALF_L =
+  "M12 4.2 C8.1 7.9 5.8 11.1 5.8 14.3 C5.8 18 8.6 20.9 12 20.9 " + SEED_SUTURE + " Z";
+// Drawn as a groove (SUPER) rather than as a cut.
+const SEED_SEAM = "M12 20.9 " + SEED_SUTURE;
+
+export function IconLevelMasteryYlmL1Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Soil line -- plain, no glow. */}
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      {/* Seed coat -- outline only, unfilled, intact, dormant. */}
+      <path d={SEED_BODY} fill="none" strokeWidth={1.6} />
+      {/* A single hairline radicle just reaching the soil. Nothing has
+          germinated yet. */}
+      <path d="M12 20.9 C12.2 21.6 12 22.1 11.7 22.7" fill="none" strokeWidth={0.85} opacity={0.7} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryYlmL1Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      {/* Seed, solidly filled -- one even wash. */}
+      <path d={SEED_BODY} fill={SEED_SPARK} opacity={0.42} stroke="none" />
+      <path d={SEED_BODY} fill="none" strokeWidth={1.6} />
+      {/* The one extra structural detail: the suture drawn as a GROOVE running
+          the seed's own long axis, plus the hilum scar low on the left flank
+          where a seed's attachment point actually is. */}
+      <path d={SEED_SEAM} fill="none" strokeWidth={0.9} opacity={0.7} />
+      <ellipse cx="8.6" cy="17.6" rx="0.6" ry="1.35" transform="rotate(-38 8.6 17.6)" strokeWidth={0.7} opacity={0.8} />
+      {/* Roots: the radicle has pierced the soil and forked. Heavier stroke
+          than the previous 0.8 hairlines, which vanished into the soil line
+          at badge size and left the tier looking like a frayed tassel. */}
+      <g fill="none" strokeWidth={1} opacity={0.85} strokeLinecap="round">
+        <path d="M11.4 20.8 C10.6 21.9 9.8 22.4 8.9 23.2" />
+        <path d="M12 21 C12.1 22 12 22.8 11.9 23.7" />
+        <path d="M12.6 20.8 C13.4 21.9 14.2 22.4 15.1 23.2" />
+      </g>
+      {/* Shoot tip just breaking the apex, with a soft glow. It leaves from
+          the POINT of the drop, which is the whole reason the contour is an
+          ogive rather than a blob. */}
+      <circle cx="13.2" cy="2.6" r="2.1" fill={SEED_SPARK} opacity={0.3} stroke="none" />
+      <path d="M12 4.2 C12.3 3 13 2.3 13.7 1.9" fill="none" strokeWidth={1.15} opacity={0.9} />
+      <path d="M13.7 1.9 C14.7 1.7 15.4 2.2 15.6 3.1 C14.5 3.3 13.9 2.8 13.7 1.9 Z" fill={SEED_SPARK} opacity={0.9} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryYlmL1Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+
+      {/* ROOT GLOW below the soil -- germination is the only motif in this
+          whole family that acts DOWNWARD, so this is where its escaping light
+          goes. The fan and the two outer roots both break past the BOTTOM
+          edge of the viewBox. */}
+      <path d="M12 21 L5.2 25.6 L18.8 25.6 Z" fill={SEED_DAWN} opacity={0.18} stroke="none" />
+      <g fill="none" strokeWidth={1} opacity={0.9} stroke={SEED_DAWN} strokeLinecap="round">
+        <path d="M11.5 20.9 C10.2 22 8.6 22.8 6.6 25.2" />
+        <path d="M11.8 20.9 C11.2 22.2 10.4 23.2 9.4 24.8" />
+        <path d="M12 20.9 C12.1 22.4 12 23.6 11.9 25.6" />
+        <path d="M12.2 20.9 C12.8 22.2 13.6 23.2 14.6 24.8" />
+        <path d="M12.5 20.9 C13.8 22 15.4 22.8 17.4 25.2" />
+      </g>
+      <g fill="none" strokeWidth={0.55} opacity={0.5} stroke={SEED_DAWN} strokeLinecap="round">
+        <path d="M10.7 22.6 L9.4 22.3" />
+        <path d="M13.3 22.6 L14.6 22.3" />
+      </g>
+
+      {/* The inner body, showing through the split coat -- this is the second
+          fill band, and it is MOTIVATED here rather than decorative: it is
+          the living seed the coat has just opened onto. */}
+      <path d={SEED_BODY} fill={SEED_DAWN} opacity={0.5} stroke="none" />
+      {/* Light escaping from between the two halves, thrown along the suture's
+          own normal at three points so it reads as one seam glowing rather
+          than as three unrelated ticks. */}
+      <g strokeLinecap="round" stroke={SEED_DAWN} fill="none" opacity={0.85}>
+        <path d="M12.5 7.6 L14.7 6.9" strokeWidth={0.7} />
+        <path d="M12.4 11.4 L9.9 10.7" strokeWidth={0.75} />
+        <path d="M12.6 15.6 L15 15" strokeWidth={0.7} />
+        <path d="M12.1 18.8 L9.8 18.4" strokeWidth={0.6} />
+      </g>
+
+      {/* THE COAT, SPLIT. The two halves are cut from the same contour along
+          one shared jagged crack and parted along its normal -- the same
+          "the shell breaks and there is still light inside" technique this
+          file already uses for PerfectionistGemMythic, argued here from
+          germination rather than borrowed as a formula. */}
+      <g transform="rotate(3.5 12 20.9) translate(1.25 0)">
+        <path d={SEED_HALF_R} fill={SEED_SPARK} opacity={0.55} stroke="none" />
+        <path d={SEED_HALF_R} fill="none" strokeWidth={1.4} />
+      </g>
+      <g transform="rotate(-3.5 12 20.9) translate(-1.25 0)">
+        <path d={SEED_HALF_L} fill={SEED_SPARK} opacity={0.55} stroke="none" />
+        <path d={SEED_HALF_L} fill="none" strokeWidth={1.4} />
+        <ellipse cx="8.6" cy="17.6" rx="0.6" ry="1.35" transform="rotate(-38 8.6 17.6)" strokeWidth={0.7} opacity={0.8} />
+      </g>
+
+      {/* THE SHOOT, risen -- stem and first true leaves break past the TOP
+          edge. Between this and the roots, YLM-L1 is the only glyph in the
+          set whose light escapes both vertical extremes at once. The leaves
+          are ~60% larger than the first version's: at badge size those read
+          as a nail head sitting on the seed, not as a plant. */}
+      <circle cx="12" cy="2.4" r="3.4" fill={SEED_DAWN} opacity={0.28} stroke="none" />
+      <path d="M12 5.4 C12.3 3.6 12.1 1.2 12 -2.2" fill="none" strokeWidth={1.3} stroke={SEED_DAWN} strokeLinecap="round" />
+      <path d="M11.9 2.6 C9.7 2.4 8.1 0.9 7.6 -1.6 C10.1 -1.1 11.6 0.3 11.9 2.6 Z" fill={SEED_DAWN} opacity={0.9} stroke="none" />
+      <path d="M12.1 2.6 C14.3 2.4 15.9 0.9 16.4 -1.6 C13.9 -1.1 12.4 0.3 12.1 2.6 Z" fill={SEED_DAWN} opacity={0.9} stroke="none" />
+
+      {/* Soil dust kicked up by the break. */}
+      <g stroke="none" fill={SEED_DAWN}>
+        <circle cx="4.5" cy="19.4" r="0.45" opacity={0.75} />
+        <circle cx="19.4" cy="18.6" r="0.38" opacity={0.6} />
+        <circle cx="17.2" cy="20.6" r="0.3" opacity={0.5} />
+      </g>
+      {/* Dashed subsoil glow. */}
+      <path d="M0.6 23.6 H23.4" strokeWidth={0.7} opacity={0.45} strokeDasharray="1.2 1.4" stroke={SEED_DAWN} />
+    </GlyphShell>
+  );
+}
+
+const SPROUT_MOSS = "#0d2c35";
+const SPROUT_TEAL = "#11a8b1";
+const SPROUT_MIST = "#b6eff7";
+
+// Lanceolate cotyledons with a real taper, and a stem with a slight natural
+// lean rather than a ruled vertical -- the first pass's leaves were symmetric
+// blobs on a plumb line, which is what made this glyph read as clip-art next
+// to the arch and the peak.
+const LEAF_L = "M12 11.9 C8.3 11.2 5.5 8.5 5.1 4.3 C8.8 5.3 11.4 8.2 12 11.9 Z";
+const LEAF_R = "M12 11.9 C15.7 11.2 18.5 8.5 18.9 4.3 C15.2 5.3 12.6 8.2 12 11.9 Z";
+const LEAF_L_INNER = "M12 11.4 C9.5 10.8 7.5 8.8 7.2 5.9 C9.7 6.6 11.6 8.8 12 11.4 Z";
+const LEAF_R_INNER = "M12 11.4 C14.5 10.8 16.5 8.8 16.8 5.9 C14.3 6.6 12.4 8.8 12 11.4 Z";
+const SPROUT_STEM = "M12 21.4 C12.3 17.4 11.6 14 12 10.8";
+
+export function IconLevelMasteryYlmL2Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      {/* Stem -- outline only. */}
+      <path d={SPROUT_STEM} fill="none" strokeWidth={1.4} />
+      {/* Twin cotyledon leaves -- outline only, unfilled, no venation. */}
+      <path d={LEAF_L} fill="none" strokeWidth={1.15} />
+      <path d={LEAF_R} fill="none" strokeWidth={1.15} />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryYlmL2Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d={SPROUT_STEM} fill="none" strokeWidth={1.4} />
+      {/* Leaves, solidly filled. */}
+      <path d={LEAF_L} fill={SPROUT_TEAL} opacity={0.45} stroke="none" />
+      <path d={LEAF_R} fill={SPROUT_TEAL} opacity={0.45} stroke="none" />
+      <path d={LEAF_L} fill="none" strokeWidth={1.15} />
+      <path d={LEAF_R} fill="none" strokeWidth={1.15} />
+      {/* The one extra structural detail: midribs. */}
+      <path d="M11.7 11.4 C9.4 10.1 7.1 7.7 5.7 5.0" strokeWidth={0.8} opacity={0.7} fill="none" />
+      <path d="M12.3 11.4 C14.6 10.1 16.9 7.7 18.3 5.0" strokeWidth={0.8} opacity={0.7} fill="none" />
+      {/* Bud at the leaf junction, with a soft glow. */}
+      <circle cx="12" cy="10.8" r="1.9" fill={SPROUT_TEAL} opacity={0.35} stroke="none" />
+      <circle cx="12" cy="10.8" r="1.1" fill={SPROUT_TEAL} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryYlmL2Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+
+      {/* COMPANION GRASS -- the sprout is no longer alone. Four blades arc out
+          of the soil and exit BOTH side edges of the viewBox: this family's
+          escaping light is lateral and living, not radial. */}
+      <g fill="none" strokeLinecap="round" stroke={SPROUT_MIST}>
+        <path d="M12.4 21.4 C8 20.6 3.4 18.6 -1.6 14.2" strokeWidth={0.85} opacity={0.6} />
+        <path d="M11.6 21.4 C16 20.6 20.6 18.6 25.6 14.2" strokeWidth={0.85} opacity={0.6} />
+        <path d="M12.2 21.4 C9 21 5.6 19.8 1.4 17.4" strokeWidth={0.55} opacity={0.4} />
+        <path d="M11.8 21.4 C15 21 18.4 19.8 22.6 17.4" strokeWidth={0.55} opacity={0.4} />
+      </g>
+
+      <path d={SPROUT_STEM} fill="none" strokeWidth={1.4} />
+      {/* Leaves -- two layered fill bands. */}
+      <path d={LEAF_L} fill={SPROUT_TEAL} opacity={0.5} stroke="none" />
+      <path d={LEAF_R} fill={SPROUT_TEAL} opacity={0.5} stroke="none" />
+      <path d={LEAF_L_INNER} fill={SPROUT_MIST} opacity={0.45} stroke="none" />
+      <path d={LEAF_R_INNER} fill={SPROUT_MIST} opacity={0.45} stroke="none" />
+      <path d={LEAF_L} fill="none" strokeWidth={1.15} />
+      <path d={LEAF_R} fill="none" strokeWidth={1.15} />
+      {/* Midribs plus secondary venation -- LEGENDARY-only structural step. */}
+      <path d="M11.7 11.4 C9.4 10.1 7.1 7.7 5.7 5.0" strokeWidth={0.8} opacity={0.75} fill="none" />
+      <path d="M12.3 11.4 C14.6 10.1 16.9 7.7 18.3 5.0" strokeWidth={0.8} opacity={0.75} fill="none" />
+      <g strokeWidth={0.5} opacity={0.55} fill="none">
+        <path d="M10.2 10.2 C9.7 9.3 9.3 8.7 9.0 8.0" />
+        <path d="M8.4 8.4 C8.0 7.6 7.7 6.9 7.5 6.2" />
+        <path d="M13.8 10.2 C14.3 9.3 14.7 8.7 15.0 8.0" />
+        <path d="M15.6 8.4 C16.0 7.6 16.3 6.9 16.5 6.2" />
+      </g>
+
+      {/* DEW. Two drops hanging off the leaf tips, one drop falling IN through
+          the top edge, and the impact ripple its predecessor left on the soil.
+          A drop is a shape; the six straight rays this slot used to hold
+          were not. */}
+      <g stroke="none">
+        <path d="M5.4 4.6 C6.5 6 6.7 6.9 6.2 7.6 C5.7 8.3 4.7 8.3 4.3 7.6 C3.8 6.9 4.3 6 5.4 4.6 Z" fill={SPROUT_MIST} opacity={0.85} />
+        <circle cx="4.9" cy="6.6" r="0.4" fill="#ffffff" opacity={0.9} />
+        <path d="M18.6 4.6 C19.7 6 19.9 6.9 19.4 7.6 C18.9 8.3 17.9 8.3 17.5 7.6 C17 6.9 17.5 6 18.6 4.6 Z" fill={SPROUT_MIST} opacity={0.85} />
+        <circle cx="18.1" cy="6.6" r="0.35" fill="#ffffff" opacity={0.8} />
+        <path d="M14.8 -1.8 C15.7 -0.7 15.9 0 15.4 0.6 C15 1.1 14.3 1.1 13.9 0.6 C13.5 0 14 -0.7 14.8 -1.8 Z" fill={SPROUT_MIST} opacity={0.8} />
+      </g>
+      <path d="M14.8 -3.2 L14.8 -2.2" stroke={SPROUT_MIST} strokeWidth={0.55} opacity={0.6} strokeLinecap="round" />
+
+      {/* Bud, brightest element, with its own halo. */}
+      <circle cx="12" cy="10.8" r="2.6" fill={SPROUT_MIST} opacity={0.28} stroke="none" />
+      <circle cx="12" cy="10.8" r="1.3" fill={SPROUT_MIST} stroke="none" />
+
+      {/* Impact ripple on the soil -- this family's environmental echo,
+          concentric rather than a dashed rule. */}
+      <g fill="none" stroke={SPROUT_MIST} strokeLinecap="round">
+        <path d="M13.4 21.4 A3.2 1.1 0 0 0 19.8 21.4" strokeWidth={0.65} opacity={0.55} />
+        <path d="M14.8 21.4 A1.8 0.7 0 0 0 18.4 21.4" strokeWidth={0.5} opacity={0.4} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+const BLOOM_PLUM = "#20131c";
+const BLOOM_ORCHID = "#a678c2";
+const BLOOM_FUCHSIA = "#f69eee";
+
+// Single petal, pointing up from the flower's center (12, 10) -- reused 5x
+// at 72deg increments via a wrapping <g transform="rotate(...)">.
+const PETAL_PATH = "M12 10 C9.8 9 9 6.6 10.3 4.1 C11 2.8 13 2.8 13.7 4.1 C15 6.6 14.2 9 12 10 Z";
+const PETAL_INNER_PATH = "M12 10 C10.3 9.4 9.8 7.6 10.7 5.7 C11.2 4.9 12.8 4.9 13.3 5.7 C14.2 7.6 13.7 9.4 12 10 Z";
+const PETAL_ANGLES = [0, 72, 144, 216, 288];
+// Petal-tip highlight, reused at the same 5 angles.
+const PETAL_TIP = "M12 2.6 C12.7 3.4 12.9 4 12.6 4.6 C12.3 5.1 11.7 5.1 11.4 4.6 C11.1 4 11.3 3.4 12 2.6 Z";
+// One stamen -- a CURVED filament with an anther at its end -- reused 6x at
+// 60deg. 6-on-60 against 5-petals-on-72 never lines up, which is exactly why
+// the flower reads as grown rather than as a diagram.
+const STAMEN_PATH = "M12 10 C13.4 8.6 14.6 7.2 15.8 5.4";
+const STAMEN_ANGLES = [0, 60, 120, 180, 240, 300];
+// A true Archimedean pollen trail: r = 3 + 1.5i, theta = -60deg - 38deg*i.
+// The last two motes leave the 24x24 frame on the right, which is this
+// family's silhouette break -- dispersal, not radiance.
+const POLLEN: Array<[number, number, number, number]> = [
+  [13.5, 7.4, 0.55, 0.9],
+  [11.37, 5.55, 0.5, 0.85],
+  [7.69, 5.83, 0.46, 0.78],
+  [4.54, 9.22, 0.42, 0.7],
+  [4.37, 14.77, 0.38, 0.62],
+  [8.41, 19.87, 0.34, 0.54],
+  [15.71, 21.41, 0.3, 0.46],
+  [23.19, 17.55, 0.26, 0.38],
+  [26.97, 8.95, 0.22, 0.3],
+];
+
+export function IconLevelMasteryYlmL3Base(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M12 21.4 L12 14" fill="none" strokeWidth={1.4} />
+      {/* 5 petals -- outline only, unfilled. */}
+      {PETAL_ANGLES.map((a) => (
+        <path key={a} d={PETAL_PATH} fill="none" strokeWidth={1.05} transform={`rotate(${a} 12 10)`} />
+      ))}
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryYlmL3Super(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M12 21.4 L12 14" fill="none" strokeWidth={1.4} />
+      {/* Petals, solidly filled. */}
+      {PETAL_ANGLES.map((a) => (
+        <path key={a} d={PETAL_PATH} fill={BLOOM_ORCHID} opacity={0.45} stroke="none" transform={`rotate(${a} 12 10)`} />
+      ))}
+      {PETAL_ANGLES.map((a) => (
+        <path key={`o${a}`} d={PETAL_PATH} fill="none" strokeWidth={1.05} transform={`rotate(${a} 12 10)`} />
+      ))}
+      {/* The one extra structural detail: the bloom ring. */}
+      <circle cx="12" cy="10" r="7.4" fill="none" strokeWidth={0.8} opacity={0.6} strokeDasharray="1.3 1.4" />
+      <circle cx="12" cy="10" r="1.9" fill={BLOOM_ORCHID} opacity={0.35} stroke="none" />
+      <circle cx="12" cy="10" r="1.1" fill={BLOOM_ORCHID} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+export function IconLevelMasteryYlmL3Legendary(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M12 21.4 L12 14" fill="none" strokeWidth={1.4} />
+
+      {/* POLLEN SPIRAL -- drawn first so the flower sits inside its own
+          dispersal. Motes decay in radius and opacity along a real spiral and
+          the outermost two leave the frame on the right. */}
+      <g stroke="none" fill={BLOOM_FUCHSIA}>
+        {POLLEN.map(([cx, cy, r, o], i) => (
+          <circle key={i} cx={cx} cy={cy} r={r} opacity={o} />
+        ))}
+      </g>
+
+      {/* Petals -- two layered fill bands. */}
+      {PETAL_ANGLES.map((a) => (
+        <path key={a} d={PETAL_PATH} fill={BLOOM_ORCHID} opacity={0.5} stroke="none" transform={`rotate(${a} 12 10)`} />
+      ))}
+      {PETAL_ANGLES.map((a) => (
+        <path key={`i${a}`} d={PETAL_INNER_PATH} fill={BLOOM_FUCHSIA} opacity={0.5} stroke="none" transform={`rotate(${a} 12 10)`} />
+      ))}
+      {PETAL_ANGLES.map((a) => (
+        <path key={`o${a}`} d={PETAL_PATH} fill="none" strokeWidth={1.05} transform={`rotate(${a} 12 10)`} />
+      ))}
+      <circle cx="12" cy="10" r="7.4" fill="none" strokeWidth={0.8} opacity={0.65} strokeDasharray="1.3 1.4" />
+
+      {/* Every petal tip lit, not an arbitrary two of five. */}
+      {PETAL_ANGLES.map((a) => (
+        <path key={`t${a}`} d={PETAL_TIP} fill={BLOOM_FUCHSIA} opacity={0.85} stroke="none" transform={`rotate(${a} 12 10)`} />
+      ))}
+
+      {/* STAMENS -- six curved filaments with anthers, off-phase from the five
+          petals. This is the LEGENDARY-only structural addition and it is a
+          real floral organ, which the six straight rays it replaces were not. */}
+      {STAMEN_ANGLES.map((a) => (
+        <g key={`s${a}`} transform={`rotate(${a} 12 10)`}>
+          <path d={STAMEN_PATH} fill="none" strokeWidth={0.75} opacity={0.9} stroke={BLOOM_FUCHSIA} />
+          <circle cx="15.8" cy="5.4" r="0.62" fill={BLOOM_FUCHSIA} stroke="none" />
+        </g>
+      ))}
+
+      {/* Pollen core. */}
+      <circle cx="12" cy="10" r="2.8" fill={BLOOM_FUCHSIA} opacity={0.28} stroke="none" />
+      <circle cx="12" cy="10" r="1.3" fill={BLOOM_FUCHSIA} stroke="none" />
+    </GlyphShell>
+  );
+}
+
+/* --------------------------------------------------------------------------
  * 5. StreakChainLegendary -- Unstoppable Streak, LEGENDARY.
  * Fire is the obvious read and it is the wrong one on its own: the badge is
  * about a chain that has not broken. So the chain is the structure and the
@@ -324,6 +1068,30 @@ export const referenceBatchGlyphs = {
   PerfectionistGemMythic: IconPerfectionistGemMythic,
   LevelMonument: IconLevelMonument,
   StreakChainLegendary: IconStreakChainLegendary,
+
+  // PHASE 3 (2026-07-29) -- Level Mastery, BM-L1. Each tier is its own
+  // escalated icon (corrected after live review -- see the header comment
+  // above IconLevelMasteryBmL1Base for why), not one shape recolored 3
+  // times.
+  LevelMasteryBmL1Cleared: IconLevelMasteryBmL1Base,
+  LevelMasteryBmL1Mastered: IconLevelMasteryBmL1Super,
+  LevelMasteryBmL1Perfected: IconLevelMasteryBmL1Legendary,
+
+  // PHASE 3, Batch 2 (2026-07-29) -- Level Mastery, MM-L1.
+  LevelMasteryMmL1Cleared: IconLevelMasteryMmL1Base,
+  LevelMasteryMmL1Mastered: IconLevelMasteryMmL1Super,
+  LevelMasteryMmL1Perfected: IconLevelMasteryMmL1Legendary,
+
+  // PHASE 3, Batch 3 (2026-07-29) -- Level Mastery, YLM-L1/L2/L3.
+  LevelMasteryYlmL1Cleared: IconLevelMasteryYlmL1Base,
+  LevelMasteryYlmL1Mastered: IconLevelMasteryYlmL1Super,
+  LevelMasteryYlmL1Perfected: IconLevelMasteryYlmL1Legendary,
+  LevelMasteryYlmL2Cleared: IconLevelMasteryYlmL2Base,
+  LevelMasteryYlmL2Mastered: IconLevelMasteryYlmL2Super,
+  LevelMasteryYlmL2Perfected: IconLevelMasteryYlmL2Legendary,
+  LevelMasteryYlmL3Cleared: IconLevelMasteryYlmL3Base,
+  LevelMasteryYlmL3Mastered: IconLevelMasteryYlmL3Super,
+  LevelMasteryYlmL3Perfected: IconLevelMasteryYlmL3Legendary,
 } as const;
 
 /* ==========================================================================
