@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 from app.models.models import (
     Student, CompetitionMockResultSummary, AchievementBadge, StudentBadge,
-    StudentAchievementStat, CompetitionMockExam, Level, Module,
+    StudentAchievementStat, CompetitionMockExam, Level,
 )
 from sqlalchemy import or_
 
@@ -50,135 +50,6 @@ def _level_mastery_description(tier: str, display: str) -> str:
     if tier == "SUPER":
         return f"Complete at least 20 Mock Exams within {display}, averaging 85% or higher"
     return f"Complete at least 30 Mock Exams within {display}, averaging 95% or higher (or score 100% on at least one)"
-
-# ============================================================================
-# LEVEL MASTERY REACHABILITY -- added 2026-07-30 per Shailesh: real students
-# already have progress from before this platform existed, and mock exams
-# are only ever assigned for a student's CURRENT level, so a Level Mastery
-# badge for a level a student has already moved past (with no real in-app
-# history) is permanently unearnable and must not be shown. See
-# docs/project-memory/PRODUCT_RULES.md, "Curriculum Progression Paths", for
-# the full business rule this implements -- 3 fixed entry paths that all
-# converge before IM:
-#   PATH_1_YLM -- YLM (all 3) -> PM entering at PM-L2 (PM-L1 SKIPPED) -> IM -> MM
-#   PATH_2_PM  -- PM entering at PM-L1 (full module) -> IM -> MM
-#   PATH_3_BM  -- BM-L1 only -> IM -> MM
-#
-# IMPORTANT: this only gates badges the student hasn't touched yet. Callers
-# must ALWAYS show a badge that is already unlocked or has real progress > 0
-# regardless of what this returns -- never hide something a student has
-# actually earned or is actively working on.
-# ============================================================================
-_LEVEL_MASTERY_MODULE_ONWARD = {
-    "YLM": {"YLM", "PM", "IM", "MM"},
-    "PM": {"PM", "IM", "MM"},
-    "BM": {"BM", "IM", "MM"},
-    "IM": {"IM", "MM"},
-    # IM is NOT path-dependent -- every one of the 3 paths passes through it
-    # before MM, so it must stay visible to an MM-current student the same
-    # way MM's own current-module levels do. (Caught in review 2026-07-30:
-    # this previously read {"MM"} only, which would have hidden every
-    # zero-progress IM badge for every real student today, since all of
-    # them are already in IM or MM.)
-    "MM": {"IM", "MM"},
-}
-
-def resolve_student_entry_path(db: Session, student: Student) -> str | None:
-    """Resolve which of the 3 curriculum entry paths a student is on.
-
-    Resolution order: (1) an explicit human-set Student.entry_path always
-    wins: (2) otherwise, derive it where the answer is unambiguous from the
-    student's current position or real mock-attempt history -- each of YLM,
-    BM, and PM-L1 is exclusive to exactly one path, so evidence of any of
-    them is definitive regardless of where the student is now; (3) if none
-    of that resolves it (e.g. a student bulk-imported directly into PM-L2+/
-    IM/MM with no in-app history for earlier levels -- real prior progress
-    this platform simply never recorded), returns None. Callers must treat
-    None as "unknown" and fall back to a conservative default, not a guess.
-    """
-    if student.entry_path:
-        return student.entry_path
-
-    current_module = db.query(Module).filter_by(id=student.current_module_id).first() if student.current_module_id else None
-    current_level = db.query(Level).filter_by(id=student.current_level_id).first() if student.current_level_id else None
-    current_module_code = current_module.module_code if current_module else None
-    current_level_code = current_level.level_code if current_level else None
-
-    if current_module_code == "YLM":
-        return "PATH_1_YLM"
-    if current_module_code == "BM":
-        return "PATH_3_BM"
-    if current_module_code == "PM" and current_level_code == "PM-L1":
-        return "PATH_2_PM"
-
-    # Real historical evidence -- each check is exclusive to one path, so a
-    # single hit is definitive no matter how far the student has progressed
-    # since.
-    has_ylm = (
-        db.query(CompetitionMockResultSummary.id)
-        .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
-        .join(Level, CompetitionMockExam.level_id == Level.id)
-        .join(Module, Level.module_id == Module.id)
-        .filter(CompetitionMockResultSummary.student_id == student.id, Module.module_code == "YLM")
-        .first()
-    )
-    if has_ylm:
-        return "PATH_1_YLM"
-
-    has_pm_l1 = (
-        db.query(CompetitionMockResultSummary.id)
-        .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
-        .join(Level, CompetitionMockExam.level_id == Level.id)
-        .filter(CompetitionMockResultSummary.student_id == student.id, Level.level_code == "PM-L1")
-        .first()
-    )
-    if has_pm_l1:
-        return "PATH_2_PM"
-
-    has_bm = (
-        db.query(CompetitionMockResultSummary.id)
-        .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
-        .join(Level, CompetitionMockExam.level_id == Level.id)
-        .join(Module, Level.module_id == Module.id)
-        .filter(CompetitionMockResultSummary.student_id == student.id, Module.module_code == "BM")
-        .first()
-    )
-    if has_bm:
-        return "PATH_3_BM"
-
-    return None
-
-def is_level_mastery_level_reachable(
-    level_module_code: str,
-    level_code: str,
-    current_module_code: str | None,
-    current_level_code: str | None,
-    resolved_path: str | None,
-) -> bool:
-    """Whether a not-yet-started Level Mastery badge for this level should
-    be shown to a student at this position. Only meaningful for badges with
-    zero progress and not yet unlocked -- see the module docstring above.
-    """
-    if not current_module_code:
-        return False
-
-    if level_code == "PM-L1":
-        # Checked BEFORE the general module-onward gate below, deliberately
-        # -- PM-L1's reachability depends on the student's resolved PATH,
-        # not on whether "PM" happens to still be in their current module's
-        # onward set. Without this, a confirmed Path-2 student (real
-        # evidence they were assigned PM-L1) who has since advanced into
-        # IM/MM and has zero *completed* PM-L1 attempts (e.g. one abandoned
-        # attempt -- enough to prove assignment for path resolution, not
-        # enough to count as progress) would have that badge wrongly hidden,
-        # since neither "IM" nor "MM"'s onward set includes "PM". Caught in
-        # review 2026-07-30.
-        if current_module_code == "PM" and current_level_code == "PM-L1":
-            return True
-        return resolved_path == "PATH_2_PM"
-
-    onward = _LEVEL_MASTERY_MODULE_ONWARD.get(current_module_code, {current_module_code})
-    return level_module_code in onward
 
 class AchievementEngine:
     @staticmethod
