@@ -929,10 +929,12 @@ def get_student_achievements(
 ):
     from app.models.models import (
         StudentBadge, AchievementBadge, StudentAchievementStat,
-        CompetitionMockResultSummary, CompetitionMockExam, Level,
+        CompetitionMockResultSummary, CompetitionMockExam, Level, Module,
     )
     from sqlalchemy import func as sa_func
-    from app.services.achievements import _level_mastery_key
+    from app.services.achievements import (
+        _level_mastery_key, resolve_student_entry_path, is_level_mastery_level_reachable,
+    )
 
     all_badges = db.query(AchievementBadge).all()
     earned_badges = db.query(StudentBadge).filter(StudentBadge.student_id == student.id).all()
@@ -965,6 +967,33 @@ def get_student_achievements(
             if level and level.level_code:
                 level_mastery_progress_by_code[f"level_mastery_{_level_mastery_key(level.level_code)}"] = count
 
+    # Level Mastery visibility -- a badge for a level the student can never
+    # be assigned again (already behind their current position, or PM-L1
+    # for a student not confirmed to be on Path 2) is permanently
+    # unearnable and shouldn't be shown at all. See
+    # docs/project-memory/PRODUCT_RULES.md ("Curriculum Progression Paths")
+    # and achievements.py's is_level_mastery_level_reachable() for the full
+    # rule. This NEVER hides a badge that's already unlocked or has real
+    # progress > 0 -- only badges the student hasn't touched yet.
+    level_mastery_module_by_code = {}
+    all_levels_with_modules = (
+        db.query(Level, Module)
+        .join(Module, Level.module_id == Module.id)
+        .filter(Level.is_active == True)
+        .all()
+    )
+    for level, module in all_levels_with_modules:
+        if level.level_code:
+            level_mastery_module_by_code[f"level_mastery_{_level_mastery_key(level.level_code)}"] = (
+                module.module_code, level.level_code,
+            )
+
+    _current_module = db.query(Module).filter_by(id=student.current_module_id).first() if student.current_module_id else None
+    _current_level = db.query(Level).filter_by(id=student.current_level_id).first() if student.current_level_id else None
+    current_module_code = _current_module.module_code if _current_module else None
+    current_level_code = _current_level.level_code if _current_level else None
+    resolved_entry_path = resolve_student_entry_path(db, student)
+
     badge_progress_map = {
         "perfectionist": "perfect_mock_scores",
         "speed_demon": "speed_demon_scores",
@@ -992,6 +1021,17 @@ def get_student_achievements(
             current_progress = stats_map.get(stat_name, 0) if stat_name else 0
 
         is_unlocked = badge.id in earned_ids
+
+        if badge.code.startswith("level_mastery_") and not is_unlocked and current_progress == 0:
+            module_and_level = level_mastery_module_by_code.get(badge.code)
+            if module_and_level:
+                level_module_code, level_code = module_and_level
+                reachable = is_level_mastery_level_reachable(
+                    level_module_code, level_code, current_module_code, current_level_code, resolved_entry_path,
+                )
+                if not reachable:
+                    continue
+
         result.append({
             "id": badge.id,
             "code": badge.code,
