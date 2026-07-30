@@ -438,6 +438,18 @@ const LEVEL_MASTERY_NEW = [
   { key: "level_mastery_ylm_l3_BASE",      name: "YLM L3 -- Cleared",   primary: "#20131c", note: "deep blackish-plum closed bud" },
   { key: "level_mastery_ylm_l3_SUPER",     name: "YLM L3 -- Mastered",  primary: "#a678c2", note: "muted orchid opening blossom" },
   { key: "level_mastery_ylm_l3_LEGENDARY", name: "YLM L3 -- Perfected", primary: "#f69eee", note: "bright pink-magenta full bloom -- apex-tier high-key jump" },
+  { key: "level_mastery_pm_l1_BASE",      name: "PM L1 -- Cleared",    primary: "#473632", note: "quarry earth" },
+  { key: "level_mastery_pm_l1_SUPER",     name: "PM L1 -- Mastered",   primary: "#7f3301", note: "fired clay" },
+  { key: "level_mastery_pm_l1_LEGENDARY", name: "PM L1 -- Perfected",  primary: "#d1755a", note: "forge spark" },
+  { key: "level_mastery_pm_l2_BASE",      name: "PM L2 -- Cleared",    primary: "#515f5a", note: "basalt pillar" },
+  { key: "level_mastery_pm_l2_SUPER",     name: "PM L2 -- Mastered",   primary: "#5e6b87", note: "slate column" },
+  { key: "level_mastery_pm_l2_LEGENDARY", name: "PM L2 -- Perfected",  primary: "#3a3bff", note: "lapis lazuli" },
+  { key: "level_mastery_pm_l3_BASE",      name: "PM L3 -- Cleared",    primary: "#6a4192", note: "dusk steps" },
+  { key: "level_mastery_pm_l3_SUPER",     name: "PM L3 -- Mastered",   primary: "#4a0381", note: "deep royal purple" },
+  { key: "level_mastery_pm_l3_LEGENDARY", name: "PM L3 -- Perfected",  primary: "#c0a4c1", note: "pale amethyst" },
+  { key: "level_mastery_pm_l4_BASE",      name: "PM L4 -- Cleared",    primary: "#485935", note: "dark bronze" },
+  { key: "level_mastery_pm_l4_SUPER",     name: "PM L4 -- Mastered",   primary: "#8b8529", note: "tarnished brass" },
+  { key: "level_mastery_pm_l4_LEGENDARY", name: "PM L4 -- Perfected",  primary: "#a2dead", note: "pale verdigris" },
 ];
 
 // ---------------------------------------------------------------------------

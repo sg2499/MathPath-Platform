@@ -17,6 +17,7 @@ import {
   mockExamBatch2Glyphs,
   mythicPhase1Glyphs,
   phase2Glyphs,
+  levelMasteryImGlyphs
 } from "@/lib/gamification/badgeGlyphs";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -51,8 +52,7 @@ const IconMap: Record<string, React.ElementType> = {
   // badgeVisuals.ts uses so the card and the cinematic can never show two
   // different icons for one badge.
   ...referenceBatchGlyphs,
-
-  // --- Mock-exam elevation, batch 1 (2026-07-27) --------------------------
+  // --- Mock-exam elevation, batch 1 (2026-07-27) --------------------------
   // Same object, same spread order, same rationale as BadgeIconMap in
   // lib/gamification/badgeVisuals.ts -- imported from the single source of
   // truth so the card and the cinematic can never disagree about which glyph a
@@ -80,9 +80,9 @@ const IconMap: Record<string, React.ElementType> = {
   // phase-1 one: without it the cinematic would fall through to the
   // `IconMap[badge.iconName] || Target` fallback and show a lucide Target over
   // a bespoke Phase-2 environment while the Trophy Room card (which reads
-  // BadgeIconMap in lib/gamification/badgeVisuals.ts) showed the correct
   // hand-drawn mark. Same single source of truth, so the two cannot disagree.
-  ...phase2Glyphs
+  ...phase2Glyphs,
+  ...levelMasteryImGlyphs
 };
 
 export interface BadgeInspectionModalProps {
@@ -101,7 +101,7 @@ export interface BadgeInspectionModalProps {
 
 function TimeDilationEngine({ isLegendary }: { isLegendary: boolean }) {
   const [timeScale, setTimeScale] = useState(isLegendary ? 4.0 : 2.0);
-  
+
   useEffect(() => {
     // Zack Snyder Slow Mo
     const timer = setTimeout(() => {
@@ -2157,6 +2157,149 @@ const EnvLevelMasteryBlossom = ({ color, tier }: { color: THREE.Color; tier: str
         )}
       </group>
     </Float>
+  );
+};
+
+
+// --- PHASE 3 PM FORGE (2026-07-30) ------------------------------------------
+const EnvLevelMasteryPmForge = ({ color, tier }: { color: THREE.Color; tier: string }) => {
+  const richness = tier === "LEGENDARY" ? 2 : tier === "SUPER" ? 1 : 0;
+
+  const forgeRef = useRef<THREE.Group>(null);
+  const blocksRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+
+  // Zack Snyder slow-mo for Legendary
+  const [timeScale, setTimeScale] = useState(richness === 2 ? 4.0 : 1.0);
+  useEffect(() => {
+    if (richness === 2) {
+      const timer = setTimeout(() => setTimeScale(0.2), 900);
+      return () => clearTimeout(timer);
+    }
+  }, [richness]);
+
+  useFrame((_, delta) => {
+    t.current += delta * timeScale;
+    const now = t.current;
+
+    if (forgeRef.current) {
+      forgeRef.current.rotation.y = now * 0.15;
+    }
+    if (blocksRef.current) {
+      blocksRef.current.children.forEach((child, i) => {
+        child.position.y += Math.sin(now * 2 + i) * 0.02;
+        child.rotation.x += delta * timeScale * (i % 2 === 0 ? 0.2 : -0.2);
+        child.rotation.z += delta * timeScale * (i % 3 === 0 ? 0.15 : -0.15);
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -2, 0]}>
+      {/* Central forge anvil core */}
+      <group ref={forgeRef}>
+        <Cylinder args={[8, 12, 4, 6]} position={[0, -12, 0]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.5} wireframe={richness === 0} />
+        </Cylinder>
+        {richness >= 1 && (
+          <Cylinder args={[9, 13, 1, 6]} position={[0, -10.5, 0]}>
+            <meshStandardMaterial color={'#ffffff'} emissive={'#ffffff'} emissiveIntensity={3} />
+          </Cylinder>
+        )}
+      </group>
+
+      {/* Orbiting stone blocks */}
+      <group ref={blocksRef}>
+        {[...Array(richness === 2 ? 16 : richness === 1 ? 8 : 4)].map((_, i) => {
+          const a = (i / (richness === 2 ? 16 : richness === 1 ? 8 : 4)) * Math.PI * 2;
+          const r = 16 + (i % 2) * 4;
+          return (
+            <Box key={i} args={[3, 4, 3]} position={[Math.cos(a)*r, (i%3)*4 - 6, Math.sin(a)*r]}>
+              <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe={i % 2 === 0} transparent opacity={0.8} />
+            </Box>
+          );
+        })}
+      </group>
+
+      {/* Sparks flying up from the forge */}
+      <Sparkles count={richness === 2 ? 500 : 200} scale={[30, 40, 30]} size={6} speed={2} color={richness === 2 ? '#ffb95e' : color} position={[0, 10, 0]} opacity={0.8} />
+      {richness === 2 && (
+        <Sparkles count={200} scale={[20, 50, 20]} size={12} speed={4} color={'#ffffff'} position={[0, 15, 0]} opacity={0.9} />
+      )}
+    </group>
+  );
+};
+
+// --- PHASE 3 IM NAVIGATION (2026-07-30) -------------------------------------
+const EnvLevelMasteryImNavigation = ({ color, tier }: { color: THREE.Color; tier: string }) => {
+  const richness = tier === "LEGENDARY" ? 2 : tier === "SUPER" ? 1 : 0;
+
+  const ringsRef = useRef<THREE.Group>(null);
+  const coreRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  // Time dilation shockwave for Legendary
+  const [timeScale, setTimeScale] = useState(richness === 2 ? 3.0 : 1.0);
+  useEffect(() => {
+    if (richness === 2) {
+      const timer = setTimeout(() => setTimeScale(0.15), 1100);
+      return () => clearTimeout(timer);
+    }
+  }, [richness]);
+
+  useFrame((_, delta) => {
+    t.current += delta * timeScale;
+    const now = t.current;
+
+    if (ringsRef.current) {
+      ringsRef.current.children.forEach((child, i) => {
+        // Each ring rotates on a different axis
+        if (i === 0) child.rotation.x = now * 0.3;
+        if (i === 1) child.rotation.y = now * -0.4;
+        if (i === 2) child.rotation.z = now * 0.5;
+        if (i === 3) {
+           child.rotation.x = now * 0.2;
+           child.rotation.y = now * 0.6;
+        }
+      });
+    }
+
+    if (coreRef.current) {
+      const mat = coreRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 2 + Math.sin(now * 3) * (richness === 2 ? 6 : 1);
+    }
+  });
+
+  return (
+    <group>
+      {/* Central astrolabe core */}
+      <Icosahedron ref={coreRef} args={[4, richness === 2 ? 2 : 1]}>
+        <meshStandardMaterial color={richness >= 1 ? '#ffffff' : color} emissive={richness >= 1 ? '#ffffff' : color} emissiveIntensity={3} wireframe={richness === 0} toneMapped={false} />
+      </Icosahedron>
+
+      {/* Gyroscopic rings */}
+      <group ref={ringsRef}>
+        <Torus args={[12, 0.2, 16, 64]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
+        </Torus>
+        <Torus args={[15, 0.4, 16, 64]} rotation={[Math.PI/4, 0, 0]}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1} wireframe />
+        </Torus>
+        {richness >= 1 && (
+          <Torus args={[18, 0.1, 16, 64]} rotation={[0, Math.PI/3, 0]}>
+            <meshStandardMaterial color={'#ffffff'} emissive={'#ffffff'} emissiveIntensity={4} toneMapped={false} />
+          </Torus>
+        )}
+        {richness === 2 && (
+          <Torus args={[22, 0.05, 16, 128]} rotation={[0, 0, Math.PI/4]}>
+            <meshStandardMaterial color={'#a5f3fc'} emissive={'#a5f3fc'} emissiveIntensity={6} toneMapped={false} />
+          </Torus>
+        )}
+      </group>
+
+      {/* Celestial stardust orbiting the mechanism */}
+      <Sparkles count={richness === 2 ? 600 : 300} scale={[40, 40, 40]} size={richness >= 1 ? 4 : 2} speed={0.4} color={color} opacity={0.6} />
+    </group>
   );
 };
 
@@ -7996,6 +8139,35 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
       case "LevelMasteryYlmL3Perfected":
         return <EnvLevelMasteryBlossom color={color} tier={tier} />;
 
+      // --- PHASE 3 PM/IM (2026-07-30) -------------------------------------
+      case "LevelMasteryPmL1Cleared":
+      case "LevelMasteryPmL1Mastered":
+      case "LevelMasteryPmL1Perfected":
+      case "LevelMasteryPmL2Cleared":
+      case "LevelMasteryPmL2Mastered":
+      case "LevelMasteryPmL2Perfected":
+      case "LevelMasteryPmL3Cleared":
+      case "LevelMasteryPmL3Mastered":
+      case "LevelMasteryPmL3Perfected":
+      case "LevelMasteryPmL4Cleared":
+      case "LevelMasteryPmL4Mastered":
+      case "LevelMasteryPmL4Perfected":
+        return <EnvLevelMasteryPmForge color={color} tier={tier} />;
+
+      case "LevelMasteryImL1Cleared":
+      case "LevelMasteryImL1Mastered":
+      case "LevelMasteryImL1Perfected":
+      case "LevelMasteryImL2Cleared":
+      case "LevelMasteryImL2Mastered":
+      case "LevelMasteryImL2Perfected":
+      case "LevelMasteryImL3Cleared":
+      case "LevelMasteryImL3Mastered":
+      case "LevelMasteryImL3Perfected":
+      case "LevelMasteryImL4Cleared":
+      case "LevelMasteryImL4Mastered":
+      case "LevelMasteryImL4Perfected":
+        return <EnvLevelMasteryImNavigation color={color} tier={tier} />;
+
       // --- Mock-exam elevation, batch 1 (2026-07-27) ---------------------
       // Three bespoke environments, plus two cases that previously fell
       // through to EnvDefault and now reach the already-approved
@@ -10166,7 +10338,7 @@ export function BadgeInspectionModal({ badge, config, onClose, enableSound = tru
                ))}
             </motion.h1>
 
-            <motion.p 
+            <motion.p
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                transition={{ delay: 1.5, duration: 1 }}
@@ -10174,8 +10346,8 @@ export function BadgeInspectionModal({ badge, config, onClose, enableSound = tru
             >
                {badge.description}
             </motion.p>
-            
-            <motion.div 
+
+            <motion.div
                initial={{ opacity: 0, scale: 0.8 }}
                animate={{ opacity: 1, scale: 1 }}
                transition={{ delay: 1.8, type: "spring" }}
