@@ -927,15 +927,44 @@ def get_student_achievements(
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student)
 ):
-    from app.models.models import StudentBadge, AchievementBadge, StudentAchievementStat
-    
+    from app.models.models import (
+        StudentBadge, AchievementBadge, StudentAchievementStat,
+        CompetitionMockResultSummary, CompetitionMockExam, Level,
+    )
+    from sqlalchemy import func as sa_func
+    from app.services.achievements import _level_mastery_key
+
     all_badges = db.query(AchievementBadge).all()
     earned_badges = db.query(StudentBadge).filter(StudentBadge.student_id == student.id).all()
     earned_ids = {eb.badge_id: eb.unlocked_at for eb in earned_badges}
-    
+
     stats = db.query(StudentAchievementStat).filter(StudentAchievementStat.student_id == student.id).all()
     stats_map = {s.stat_name: s.stat_value for s in stats}
-    
+
+    # Level Mastery badges aren't tracked via StudentAchievementStat -- their
+    # detection (AchievementEngine._evaluate_level_mastery) computes a live
+    # per-Level mock count instead of a stored counter, so "currentProgress"
+    # for a locked Level Mastery badge is computed the same way here, rather
+    # than always reading 0 (which is what fell out of badge_progress_map
+    # below not knowing about this family at all).
+    level_mastery_counts_by_level_id = dict(
+        db.query(CompetitionMockExam.level_id, sa_func.count(CompetitionMockResultSummary.id))
+        .join(CompetitionMockResultSummary, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
+        .filter(
+            CompetitionMockResultSummary.student_id == student.id,
+            CompetitionMockResultSummary.completed_at.isnot(None),
+        )
+        .group_by(CompetitionMockExam.level_id)
+        .all()
+    )
+    level_mastery_progress_by_code = {}
+    if level_mastery_counts_by_level_id:
+        levels_by_id = {lvl.id: lvl for lvl in db.query(Level).filter(Level.id.in_(level_mastery_counts_by_level_id.keys())).all()}
+        for level_id, count in level_mastery_counts_by_level_id.items():
+            level = levels_by_id.get(level_id)
+            if level and level.level_code:
+                level_mastery_progress_by_code[f"level_mastery_{_level_mastery_key(level.level_code)}"] = count
+
     badge_progress_map = {
         "perfectionist": "perfect_mock_scores",
         "speed_demon": "speed_demon_scores",
@@ -957,8 +986,11 @@ def get_student_achievements(
         if badge.code == "podium_finisher" and badge.tier == "LEGENDARY":
             stat_name = "champion_mocks"
             
-        current_progress = stats_map.get(stat_name, 0) if stat_name else 0
-        
+        if badge.code.startswith("level_mastery_"):
+            current_progress = level_mastery_progress_by_code.get(badge.code, 0)
+        else:
+            current_progress = stats_map.get(stat_name, 0) if stat_name else 0
+
         is_unlocked = badge.id in earned_ids
         result.append({
             "id": badge.id,
