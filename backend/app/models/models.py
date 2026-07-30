@@ -51,6 +51,13 @@ class Student(Base):
     student_code = Column(String(50), unique=True, nullable=False)
     current_module_id = Column(String, ForeignKey("modules.id"), nullable=True, index=True)
     current_level_id = Column(String, ForeignKey("levels.id"), nullable=True, index=True)
+    # One of "PATH_1_YLM" / "PATH_2_PM" / "PATH_3_BM", or NULL if unknown/not
+    # yet resolved. See docs/project-memory/PRODUCT_RULES.md ("Curriculum
+    # Progression Paths") and the reachability logic in
+    # app/services/achievements.py for what this drives (Level Mastery badge
+    # visibility) and why it's safe to leave NULL -- read-time logic falls
+    # back to a conservative default rather than requiring this be set.
+    entry_path = Column(String(20), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Student profile information
