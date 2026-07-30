@@ -2,7 +2,10 @@ import json
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import List, Dict, Any
-from app.models.models import Student, CompetitionMockResultSummary, AchievementBadge, StudentBadge, StudentAchievementStat
+from app.models.models import (
+    Student, CompetitionMockResultSummary, AchievementBadge, StudentBadge,
+    StudentAchievementStat, CompetitionMockExam, Level,
+)
 from sqlalchemy import or_
 
 def _make_aware(dt: datetime | None) -> datetime | None:
@@ -11,6 +14,42 @@ def _make_aware(dt: datetime | None) -> datetime | None:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
+
+# ============================================================================
+# LEVEL MASTERY -- shared derivation, used by both seed_badges() (creates the
+# 3 badge rows per active Level) and _evaluate_level_mastery() (detection).
+# Re-implemented 2026-07-30: the original backend piece of this feature was
+# designed and reportedly verified in an earlier session but never actually
+# committed, so it silently never shipped -- the frontend icons/colors/3D
+# environments for 15 of these 39 badges went live in production with no
+# backend able to create or award them. This is the missing half.
+#
+# Naming convention (load-bearing -- must exactly match the frontend's
+# badgeGlyphs.tsx / badgeVisuals.ts / dev preview harness, which were built
+# against this exact contract):
+#   level_code "YLM-L1" -> key "ylm_l1" -> badge code "level_mastery_ylm_l1"
+#   -> icon_name "LevelMastery" + PascalKey ("YlmL1") + TierLabel
+#   TierLabel: BASE -> "Cleared", SUPER -> "Mastered", LEGENDARY -> "Perfected"
+#   display name: level_code with "-" -> " " (e.g. "YLM L1 -- Cleared")
+# ============================================================================
+_LEVEL_MASTERY_TIER_LABELS = {"BASE": "Cleared", "SUPER": "Mastered", "LEGENDARY": "Perfected"}
+_LEVEL_MASTERY_REQUIRED_COUNT = {"BASE": 12, "SUPER": 20, "LEGENDARY": 30}
+
+def _level_mastery_key(level_code: str) -> str:
+    return level_code.strip().lower().replace("-", "_").replace(" ", "_")
+
+def _level_mastery_pascal(level_code: str) -> str:
+    return "".join(part.capitalize() for part in level_code.strip().replace(" ", "-").split("-") if part)
+
+def _level_mastery_display(level_code: str) -> str:
+    return level_code.strip().replace("-", " ")
+
+def _level_mastery_description(tier: str, display: str) -> str:
+    if tier == "BASE":
+        return f"Complete at least 12 Mock Exams within {display}"
+    if tier == "SUPER":
+        return f"Complete at least 20 Mock Exams within {display}, averaging 85% or higher"
+    return f"Complete at least 30 Mock Exams within {display}, averaging 95% or higher (or score 100% on at least one)"
 
 class AchievementEngine:
     @staticmethod
@@ -48,6 +87,68 @@ class AchievementEngine:
                 sb = StudentBadge(student_id=student_id, badge_id=badge.id)
                 db.add(sb)
                 newly_unlocked.append(badge)
+
+    @staticmethod
+    def _has_badge(db: Session, student_id: str, badge_code: str, tier: str) -> bool:
+        badge = db.query(AchievementBadge).filter_by(code=badge_code, tier=tier).first()
+        if not badge:
+            return False
+        return db.query(StudentBadge).filter_by(student_id=student_id, badge_id=badge.id).first() is not None
+
+    @classmethod
+    def _evaluate_level_mastery(cls, db: Session, student_id: str, result_summary: CompetitionMockResultSummary, newly_unlocked: list):
+        """Level Mastery -- one badge family per active Level, 3 tiers each,
+        volume-based with a score floor on SUPER/LEGENDARY. Strict cascade
+        gating: SUPER can only be awarded once BASE is already held, and
+        LEGENDARY only once SUPER is already held -- an independent score
+        gate layered on top of a count threshold would otherwise let a
+        student skip straight to a higher tier (e.g. 29 low-scoring mocks
+        plus one 100% run could hit LEGENDARY's "avg>=95 OR one 100%" clause
+        without ever having averaged 85%+ across 20 mocks for SUPER). Per
+        Shailesh's explicit instruction: "nothing can be skipped in order to
+        get something that comes after it."
+        """
+        mock_exam = result_summary.mock_exam
+        level = mock_exam.level if mock_exam else None
+        if not level or not level.level_code:
+            return
+        key = _level_mastery_key(level.level_code)
+        badge_code = f"level_mastery_{key}"
+
+        # Live aggregate across every completed mock this student has ever
+        # taken within this level (not a running stat counter -- avoids any
+        # drift between a stored counter and reality, and this table is
+        # small enough per student/level that a fresh query each submission
+        # is cheap, same pattern already used above for Podium Finisher).
+        summaries = (
+            db.query(CompetitionMockResultSummary)
+            .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
+            .filter(
+                CompetitionMockResultSummary.student_id == student_id,
+                CompetitionMockExam.level_id == level.id,
+                CompetitionMockResultSummary.completed_at.isnot(None),
+            )
+            .all()
+        )
+        count = len(summaries)
+        if count == 0:
+            return
+        avg_pct = sum(s.percentage for s in summaries) / count
+        has_perfect = any(s.percentage == 100 for s in summaries)
+
+        # BASE -- pure volume gate, no cascade dependency (it's the floor).
+        cls._award_badge_if_qualified(db, student_id, badge_code, "BASE", count, newly_unlocked)
+
+        # SUPER -- volume + average score, only once BASE is already held.
+        if (cls._has_badge(db, student_id, badge_code, "BASE")
+                and count >= _LEVEL_MASTERY_REQUIRED_COUNT["SUPER"] and avg_pct >= 85):
+            cls._award_badge_if_qualified(db, student_id, badge_code, "SUPER", count, newly_unlocked)
+
+        # LEGENDARY -- volume + (average >=95 OR at least one 100%), only
+        # once SUPER is already held.
+        if (cls._has_badge(db, student_id, badge_code, "SUPER")
+                and count >= _LEVEL_MASTERY_REQUIRED_COUNT["LEGENDARY"] and (avg_pct >= 95 or has_perfect)):
+            cls._award_badge_if_qualified(db, student_id, badge_code, "LEGENDARY", count, newly_unlocked)
 
     @classmethod
     def evaluate_mock_exam_submission(cls, db: Session, student_id: str, result_summary: CompetitionMockResultSummary) -> list[dict[str, Any]]:
@@ -277,6 +378,14 @@ class AchievementEngine:
                 cls._award_badge_if_qualified(db, student_id, "section_specialist", "LEGENDARY", count, newly_unlocked)
                 cls._award_badge_if_qualified(db, student_id, "section_specialist", "MYTHIC", count, newly_unlocked)
 
+        # ====================================================================
+        # PHASE 3 (2026-07-30, re-implemented) -- Level Mastery: one badge
+        # family per active Level (BASE/SUPER/LEGENDARY), dynamically derived
+        # rather than a hardcoded list so a newly-added Level never needs a
+        # code change here. See _evaluate_level_mastery() above.
+        # ====================================================================
+        cls._evaluate_level_mastery(db, student_id, result_summary, newly_unlocked)
+
         db.commit()
 
         # Format output
@@ -424,3 +533,42 @@ class AchievementEngine:
             except Exception as e:
                 db.rollback()
                 print(f"Failed to seed badge {code}-{tier}: {e}")
+
+        # ====================================================================
+        # PHASE 3 (2026-07-30, re-implemented) -- Level Mastery, seeded
+        # dynamically from the Level table rather than a hardcoded list, so
+        # this never needs a code change when a Level is added (e.g. future
+        # MM levels beyond MM-L1). One row per tier per active Level -- today
+        # that's 13 active Levels (YLM x3, PM x4, BM x1, IM x4, MM x1) x 3
+        # tiers = 39 badges. icon_name/code derivation must exactly match
+        # what the frontend (badgeGlyphs.tsx / badgeVisuals.ts / the dev
+        # preview harness) was built against -- see the derivation helpers
+        # above this class.
+        # ====================================================================
+        active_levels = db.query(Level).filter(Level.is_active == True).all()
+        for level in active_levels:
+            if not level.level_code:
+                continue
+            key = _level_mastery_key(level.level_code)
+            pascal = _level_mastery_pascal(level.level_code)
+            display = _level_mastery_display(level.level_code)
+            code = f"level_mastery_{key}"
+            for tier, tier_label in _LEVEL_MASTERY_TIER_LABELS.items():
+                try:
+                    name = f"{display} -- {tier_label}"
+                    desc = _level_mastery_description(tier, display)
+                    icon = f"LevelMastery{pascal}{tier_label}"
+                    req = _LEVEL_MASTERY_REQUIRED_COUNT[tier]
+                    existing = db.query(AchievementBadge).filter_by(code=code, tier=tier).first()
+                    if not existing:
+                        b = AchievementBadge(code=code, tier=tier, name=name, description=desc, icon_name=icon, required_count=req)
+                        db.add(b)
+                    else:
+                        existing.name = name
+                        existing.description = desc
+                        existing.icon_name = icon
+                        existing.required_count = req
+                    db.commit()
+                except Exception as e:
+                    db.rollback()
+                    print(f"Failed to seed level mastery badge {code}-{tier}: {e}")
