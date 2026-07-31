@@ -17,8 +17,41 @@ import {
   mockExamBatch2Glyphs,
   mythicPhase1Glyphs,
   phase2Glyphs,
-  levelMasteryImGlyphs
+  levelMasteryImGlyphs,
+  dpsBatch1Glyphs,
+  dpsBatch2Glyphs,
+  dpsBatch3Glyphs,
+  dpsBatch4Glyphs,
+  dpsBatch5Glyphs
 } from "@/lib/gamification/badgeGlyphs";
+
+import {
+  EnvDpsIronAnvil, EnvDpsSteelAnvil, EnvDpsObsidianAnvil, EnvDpsCelestialAnvil,
+  EnvDpsLeatherTome,
+  EnvDpsSilverTome,
+  EnvDpsAstralTome,
+  EnvDpsBoundlessTome,
+  EnvDpsBronzeQuill,
+  EnvDpsSilverQuill,
+  EnvDpsRadiantQuill,
+  EnvDpsLightningQuill,
+  EnvDpsBronzeHourglass,
+  EnvDpsSilverHourglass,
+  EnvDpsGoldenHourglass,
+  EnvDpsCelestialEye,
+  EnvDpsIronChain,
+  EnvDpsSteelChain,
+  EnvDpsDiamondChain,
+  EnvDpsUnbrokenMechanism,
+
+  EnvDpsQuartzCrystal, EnvDpsSapphireCrystal, EnvDpsRubyCrystal, EnvDpsDiamondCrystal,
+
+  EnvDpsAshFeather, EnvDpsEmberWing, EnvDpsGoldenPhoenix, EnvDpsSolarRebirth,
+  EnvDpsResilienceHammer, EnvDpsResilienceAnvil, EnvDpsResilienceForge, EnvDpsResilienceCore,
+  EnvDpsMidnightLantern, EnvDpsMidnightStar, EnvDpsMidnightMoon, EnvDpsMidnightGalaxy,
+  EnvDpsCompassBronze, EnvDpsCompassSilver, EnvDpsCompassGold, EnvDpsCompassAstral,
+
+} from './DpsEnvironments';
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float, Sparkles, Stars, Torus, Octahedron, Icosahedron, Sphere, Grid, Box, Cone, Cylinder, TorusKnot, Tetrahedron } from "@react-three/drei";
@@ -52,7 +85,9 @@ const IconMap: Record<string, React.ElementType> = {
   // badgeVisuals.ts uses so the card and the cinematic can never show two
   // different icons for one badge.
   ...referenceBatchGlyphs,
-  // --- Mock-exam elevation, batch 1 (2026-07-27) --------------------------
+  ...dpsBatch1Glyphs,
+
+  // --- Mock-exam elevation, batch 1 (2026-07-27) --------------------------
   // Same object, same spread order, same rationale as BadgeIconMap in
   // lib/gamification/badgeVisuals.ts -- imported from the single source of
   // truth so the card and the cinematic can never disagree about which glyph a
@@ -82,7 +117,12 @@ const IconMap: Record<string, React.ElementType> = {
   // a bespoke Phase-2 environment while the Trophy Room card (which reads
   // hand-drawn mark. Same single source of truth, so the two cannot disagree.
   ...phase2Glyphs,
-  ...levelMasteryImGlyphs
+  ...levelMasteryImGlyphs,
+  ...dpsBatch1Glyphs,
+  ...dpsBatch2Glyphs,
+  ...dpsBatch3Glyphs,
+  ...dpsBatch4Glyphs,
+  ...dpsBatch5Glyphs
 };
 
 export interface BadgeInspectionModalProps {
@@ -8254,6 +8294,56 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
       case "SectionSpecialistMatrix": return <EnvSectionSpecialistMatrix color={color} />;
       case "SectionSpecialistNexus": return <EnvSectionSpecialistNexus color={color} />;
 
+      // --- Phase 4 DPS Batch 1 (2026-07-31) -------------------------------
+      case "DpsIronAnvil": return <EnvDpsIronAnvil color={color} />;
+      case "DpsResilienceAnvil": return <EnvDpsResilienceAnvil color={color} />;
+      case "DpsObsidianAnvil": return <EnvDpsObsidianAnvil color={color} />;
+      case "DpsCelestialAnvil": return <EnvDpsCelestialAnvil color={color} />;
+
+      case "DpsQuartzCrystal": return <EnvDpsQuartzCrystal color={color} />;
+      case "DpsSapphireCrystal": return <EnvDpsSapphireCrystal color={color} />;
+      case "DpsRubyCrystal": return <EnvDpsRubyCrystal color={color} />;
+      case "DpsDiamondCrystal": return <EnvDpsDiamondCrystal color={color} />;
+      // --- Phase 5 DPS Batch 2 (2026-07-31) -------------------------------
+      case "DpsLeatherTome": return <EnvDpsLeatherTome color={color} />;
+      case "DpsSilverTome": return <EnvDpsSilverTome color={color} />;
+      case "DpsAstralTome": return <EnvDpsAstralTome color={color} />;
+      case "DpsBoundlessTome": return <EnvDpsBoundlessTome color={color} />;
+
+      case "DpsBronzeQuill": return <EnvDpsBronzeQuill color={color} />;
+      case "DpsSilverQuill": return <EnvDpsSilverQuill color={color} />;
+      case "DpsRadiantQuill": return <EnvDpsRadiantQuill color={color} />;
+      case "DpsLightningQuill": return <EnvDpsLightningQuill color={color} />;
+      case "DpsBronzeHourglass": return <EnvDpsBronzeHourglass color={color} />;
+      case "DpsSilverHourglass": return <EnvDpsSilverHourglass color={color} />;
+      case "DpsGoldenHourglass": return <EnvDpsGoldenHourglass color={color} />;
+      case "DpsCelestialEye": return <EnvDpsCelestialEye color={color} />;
+      case "DpsIronChain": return <EnvDpsIronChain color={color} />;
+      case "DpsSteelChain": return <EnvDpsSteelChain color={color} />;
+      case "DpsDiamondChain": return <EnvDpsDiamondChain color={color} />;
+      case "DpsUnbrokenMechanism": return <EnvDpsUnbrokenMechanism color={color} />;
+
+      // --- Phase 7 DPS Batch 4 (Rising Phoenix & Master's Anvil) ---
+      case "DpsAshFeather": return <EnvDpsAshFeather color={color} />;
+      case "DpsEmberWing": return <EnvDpsEmberWing color={color} />;
+      case "DpsGoldenPhoenix": return <EnvDpsGoldenPhoenix color={color} />;
+      case "DpsSolarRebirth": return <EnvDpsSolarRebirth color={color} />;
+      case "DpsResilienceHammer": return <EnvDpsResilienceHammer color={color} />;
+      case "DpsResilienceAnvil": return <EnvDpsResilienceAnvil color={color} />;
+      case "DpsResilienceForge": return <EnvDpsResilienceForge color={color} />;
+      case "DpsResilienceCore": return <EnvDpsResilienceCore color={color} />;
+
+      // --- Phase 8 DPS Batch 5 (Midnight Oil & Golden Compass) ---
+      case "DpsMidnightLantern": return <EnvDpsMidnightLantern color={color} />;
+      case "DpsMidnightStar": return <EnvDpsMidnightStar color={color} />;
+      case "DpsMidnightMoon": return <EnvDpsMidnightMoon color={color} />;
+      case "DpsMidnightGalaxy": return <EnvDpsMidnightGalaxy color={color} />;
+      case "DpsCompassBronze": return <EnvDpsCompassBronze color={color} />;
+      case "DpsCompassSilver": return <EnvDpsCompassSilver color={color} />;
+      case "DpsCompassGold": return <EnvDpsCompassGold color={color} />;
+      case "DpsCompassAstral": return <EnvDpsCompassAstral color={color} />;
+
+
       default: return <EnvDefault color={color} />;
     }
   };
@@ -9807,6 +9897,13 @@ const AUDIO_FILE_BY_TIER: Record<string, string> = {
   MYTHIC: "/audio/badge-unlock/mythic.mp3",
 };
 
+const AUDIO_FILE_BY_TIER_DPS: Record<string, string> = {
+  BASE: "/audio/badge-unlock/dps_base.mp3",
+  SUPER: "/audio/badge-unlock/dps_super.mp3",
+  LEGENDARY: "/audio/badge-unlock/dps_legendary.mp3",
+  MYTHIC: "/audio/badge-unlock/dps_mythic.mp3",
+};
+
 // Sourced tracks are now purpose-picked short cuts (58-73s natively), not
 // trimmed-down 2-5 minute stock tracks -- so these caps are a safety ceiling
 // above each real track's own length, not a forced trim. In normal operation
@@ -9824,7 +9921,7 @@ const AUDIO_FADE_MS = 900;
 // sounding right now -- the real file, or (if it 404'd/failed to decode and
 // fell back mid-flight) the synthesized chime -- instantly, rather than
 // letting either one's own fade/teardown timer run out on its own schedule.
-function playUnlockAudio(tier: string): () => void {
+function playUnlockAudio(tier: string, iconName?: string): () => void {
   let stopped = false;
   let activeStop: () => void = () => {};
   let fadeTimeoutId: number | null = null;
@@ -9839,7 +9936,9 @@ function playUnlockAudio(tier: string): () => void {
   };
 
   try {
-    const src = AUDIO_FILE_BY_TIER[tier] ?? AUDIO_FILE_BY_TIER.BASE;
+    const isDps = iconName?.startsWith("Dps");
+    const fileMap = isDps ? AUDIO_FILE_BY_TIER_DPS : AUDIO_FILE_BY_TIER;
+    const src = fileMap[tier] ?? fileMap.BASE;
     const el = new Audio(src);
     el.preload = "auto";
     const targetVolume = 0.85;
@@ -9962,7 +10061,7 @@ export function BadgeInspectionModal({ badge, config, onClose, enableSound = tru
   useEffect(() => {
     if (!enableSound || chimedRef.current) return;
     chimedRef.current = true;
-    stopAudioRef.current = playUnlockAudio(badge?.tier ?? "BASE");
+    stopAudioRef.current = playUnlockAudio(badge?.tier ?? "BASE", badge?.iconName);
     // Deliberately NO cleanup return here. This effect fires exactly once
     // per mount by design (the chimedRef guard is what makes that true even
     // under React 18/19 Strict Mode's dev-only double-invoke, which runs
@@ -10272,9 +10371,7 @@ export function BadgeInspectionModal({ badge, config, onClose, enableSound = tru
                        the full opal spectrum, so the halo is literally the
                        badge's identity turning rather than a second badge's
                        colours borrowed for the ceiling tier. */}
-                   <div className="absolute inset-[-85%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_40deg,rgba(95,251,241,0.5)_95deg,rgba(124,255,158,0.5)_150deg,rgba(255,209,102,0.5)_205deg,rgba(255,123,213,0.55)_260deg,rgba(142,162,255,0.5)_315deg,transparent_360deg)] rounded-full pointer-events-none mix-blend-color-dodge blur-[6px]" />
-                   <div className="absolute inset-[-55%] animate-[spin_7s_linear_infinite_reverse] bg-[conic-gradient(from_180deg,transparent_0_200deg,rgba(234,246,255,0.75)_360deg)] rounded-full pointer-events-none mix-blend-color-dodge blur-[3px]" />
-                 </motion.div>
+                  </motion.div>
               )}
            </motion.div>
         </motion.div>

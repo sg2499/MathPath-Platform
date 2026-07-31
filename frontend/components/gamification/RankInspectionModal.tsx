@@ -61,14 +61,14 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
           >
             {/* Top-Right Action Buttons */}
             <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => setShowGuide(true)}
                 className="px-4 py-2 bg-indigo-600/20 border border-indigo-500/50 hover:bg-indigo-600/40 rounded-full text-indigo-300 hover:text-white transition-all hover:scale-105 shadow-xl hover:shadow-[0_0_15px_rgba(79,70,229,0.4)] flex items-center gap-2 backdrop-blur-md"
               >
                 <Info className="w-5 h-5" />
                 <span className="text-sm font-black uppercase tracking-widest hidden md:block">System Guide</span>
               </button>
-              <button 
+              <button
                 onClick={onClose}
                 className="p-3 bg-slate-900/80 border border-slate-800 hover:border-slate-600 rounded-full text-slate-400 hover:text-white transition-all hover:scale-105 shadow-xl hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] backdrop-blur-md"
               >
@@ -79,7 +79,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             {/* Header Section */}
             <div className="relative p-6 md:p-8 pb-6 overflow-hidden border-b border-slate-800/60 bg-gradient-to-b from-slate-900/80 to-slate-950">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
-              
+
               <div className="flex items-center gap-3 mb-3">
                 <Award className="w-6 h-6 text-indigo-400" />
                 <span className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] shadow-indigo-500/50">RANK CONQUEST ROADMAP</span>
@@ -90,7 +90,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
               <p className="text-slate-400 text-lg mt-2 max-w-none md:whitespace-nowrap">
                 Track your ascension through the MathPath divisions. Conquer lessons to unlock legendary tiers.
               </p>
-              
+
               <div className="absolute right-10 bottom-8 hidden md:flex flex-col items-end gap-1.5">
                 <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-[0.2em] shadow-indigo-500/50 drop-shadow-sm">TOTAL ACQUIRED XP</span>
                 <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl px-5 py-2 flex items-center gap-2 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-md">
@@ -108,14 +108,14 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
               <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
               {/* Navigation Arrows */}
-              <button 
+              <button
                 onClick={() => scrollContainerRef.current?.scrollBy({ left: -400, behavior: 'smooth' })}
                 className="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-900/90 border border-indigo-500/50 hover:bg-indigo-600 rounded-full text-indigo-400 hover:text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:scale-110 hidden md:block"
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
-              
-              <button 
+
+              <button
                 onClick={() => scrollContainerRef.current?.scrollBy({ left: 400, behavior: 'smooth' })}
                 className="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-900/90 border border-indigo-500/50 hover:bg-indigo-600 rounded-full text-indigo-400 hover:text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:scale-110 hidden md:block"
               >
@@ -127,7 +127,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
                   {/* Connecting Line (Underneath Badges) */}
                 <div className="absolute top-1/2 left-0 right-0 h-2 -translate-y-1/2 bg-slate-900 rounded-full overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
                   {/* Glowing progress fill */}
-                  <motion.div 
+                  <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${(currentIndex / (RANK_LIST.length - 1)) * 100}%` }}
                     transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
@@ -146,19 +146,19 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
 
                     return (
                       <div key={rankName} className="flex flex-col items-center justify-center relative group">
-                        
+
                         {/* Hover/Active Spotlight */}
                         {isActive && (
                           <div className="absolute -inset-10 bg-indigo-500/20 rounded-full blur-[40px] pointer-events-none animate-pulse" />
                         )}
 
-                        <div 
+                        <div
                           className={cn(
                             "relative z-10 transition-all duration-500 transform-gpu will-change-transform",
-                            isLocked 
-                              ? "grayscale opacity-40 hover:opacity-100 transition-all duration-300 cursor-not-allowed" 
-                              : isActive 
-                                ? "scale-110 md:scale-125 z-20 hover:scale-125 cursor-pointer" 
+                            isLocked
+                              ? "grayscale opacity-40 hover:opacity-100 transition-all duration-300 cursor-not-allowed"
+                              : isActive
+                                ? "scale-110 md:scale-125 z-20 hover:scale-125 cursor-pointer"
                                 : "opacity-90 hover:scale-110 hover:z-20 cursor-pointer"
                           )}
                           onClick={() => {
@@ -168,12 +168,12 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
                             }
                           }}
                         >
-                          <RankBadge 
-                            tier={isActive ? currentRankTier : rankName} 
+                          <RankBadge
+                            tier={isActive ? currentRankTier : rankName}
                             size="lg"
                             className={cn("pointer-events-none", isActive && "drop-shadow-[0_0_40px_rgba(99,102,241,0.6)]")}
                           />
-                          
+
                           {/* Status Icon Overlay */}
                           {isCompleted && (
                             <div className="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-1 border border-indigo-500 shadow-lg pointer-events-none">
@@ -238,12 +238,12 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
         </div>
       )}
       {activeCinematicTier && (
-        <RankCinematicOverlay 
-          tier={activeCinematicTier} 
-          onComplete={() => setActiveCinematicTier(null)} 
+        <RankCinematicOverlay
+          tier={activeCinematicTier}
+          onComplete={() => setActiveCinematicTier(null)}
         />
       )}
-      <RankGuideModal 
+      <RankGuideModal
         isOpen={showGuide}
         onClose={() => setShowGuide(false)}
       />

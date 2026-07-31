@@ -63,7 +63,7 @@ export function getRankTierFromXp(xp: number): string {
 
 export function StudentWallet({ currentXp, currentRankTier, coinBalance, className, isLoading }: StudentWalletProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   // Resolve rank tier dynamically if not explicitly provided
   const resolvedRankTier = currentRankTier || getRankTierFromXp(currentXp);
 
@@ -114,7 +114,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
       )}>
         {/* Skeleton Badge */}
         <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-slate-200 dark:bg-slate-800/80 animate-pulse shrink-0 shadow-inner" />
-        
+
         {/* Skeleton Center */}
         <div className="flex flex-col gap-4 flex-1 min-w-[280px] w-full">
           <div className="flex items-center justify-between">
@@ -154,9 +154,9 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           className
         )}
       >
-        
+
         {/* Left Side: Interactive Rank Badge Core */}
-        <div 
+        <div
           onClick={() => setIsModalOpen(true)}
           className="relative flex items-center justify-center group cursor-pointer"
           style={{ transform: "translateZ(40px)" }}
@@ -164,16 +164,16 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           {/* Neon energy rings around badge */}
           <div className="absolute w-28 h-28 md:w-36 md:h-36 border-2 border-indigo-500/40 dark:border-indigo-500/60 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="absolute w-24 h-24 md:w-32 md:h-32 border border-purple-500/50 dark:border-purple-500/70 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-          
-          <RankBadge 
-            tier={resolvedRankTier} 
-            size="md" 
-            className="transition-transform duration-500 group-hover:scale-110" 
+
+          <RankBadge
+            tier={resolvedRankTier}
+            size="md"
+            className="transition-transform duration-500 group-hover:scale-110"
           />
         </div>
 
         {/* Center: HUD XP Bar info */}
-        <div 
+        <div
           className="flex flex-col gap-4 flex-1 min-w-[280px] w-full"
           style={{ transform: "translateZ(20px)" }}
         >
@@ -182,7 +182,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
               <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">RANK</span>
               <span className="text-2xl sm:text-3xl font-black uppercase text-slate-900 dark:text-white tracking-tighter drop-shadow-sm mt-1">{rankDisplayName}</span>
             </div>
-            
+
             {/* Divider */}
             <div className="hidden sm:block w-px h-10 bg-slate-200 dark:bg-slate-700 mx-4" />
 
@@ -197,7 +197,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
 
           {/* Heavy Chiseled Shimmering Progress Bar */}
           <div className="relative w-full h-6 bg-slate-200 dark:bg-slate-800/80 rounded-full overflow-hidden border border-slate-300 dark:border-slate-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] group hover:ring-2 hover:ring-indigo-500/40 transition-all">
-            <motion.div 
+            <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 1.5, ease: 'easeOut' }}
@@ -205,7 +205,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
             >
               {/* Inner highlight for 3D pop */}
               <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/20 rounded-t-full" />
-              
+
               {/* Internal diagonal stripes for game-like texture */}
               <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, #000 10px, #000 20px)' }} />
             </motion.div>
@@ -213,13 +213,13 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
         </div>
 
         {/* Right Side: Game Ledger Coins Chip */}
-        <div 
+        <div
           className="group flex flex-col md:flex-row items-center gap-4 px-5 md:px-6 py-3 md:py-4 rounded-[1.5rem] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/60 shadow-md hover:shadow-[0_15px_30px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[160px]"
           style={{ transform: "translateZ(30px)" }}
         >
           {/* Shiny overlay sweep */}
           <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-400/10 dark:via-amber-400/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-          
+
           <div className="w-14 h-14 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_6px_12px_rgba(249,115,22,0.4)] group-hover:rotate-[360deg] transition-transform duration-700 shrink-0">
              <Coins className="w-8 h-8 text-white drop-shadow-md" />
           </div>
@@ -229,11 +229,11 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
             <span className="text-3xl font-black text-slate-900 dark:text-white mt-1 drop-shadow-sm tracking-tight">{coinBalance.toLocaleString()}</span>
           </div>
         </div>
-        
+
       </motion.div>
 
       {/* Cinematic Modal Overlay */}
-      <RankInspectionModal 
+      <RankInspectionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         currentXp={currentXp}

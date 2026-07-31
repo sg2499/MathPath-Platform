@@ -38,7 +38,7 @@ export default function TrophyRoomPage() {
         const data = response.data;
         if (data.achievements) {
           setBadges(data.achievements);
-          
+
           // Check for deep link
           if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
@@ -79,11 +79,18 @@ export default function TrophyRoomPage() {
     );
   }
 
+  // Separate into categories based on badge code prefix
+  const isDpsBadge = (b: any) => b.code.startsWith("dps_");
+
+  const activeBadges = activeTab === "dps"
+    ? badges.filter(isDpsBadge)
+    : badges.filter(b => !isDpsBadge(b));
+
   // Group by tier
-  const baseBadges = badges.filter(b => b.tier === "BASE");
-  const superBadges = badges.filter(b => b.tier === "SUPER");
-  const legendaryBadges = badges.filter(b => b.tier === "LEGENDARY");
-  const mythicBadges = badges.filter(b => b.tier === "MYTHIC");
+  const baseBadges = activeBadges.filter(b => b.tier === "BASE");
+  const superBadges = activeBadges.filter(b => b.tier === "SUPER");
+  const legendaryBadges = activeBadges.filter(b => b.tier === "LEGENDARY");
+  const mythicBadges = activeBadges.filter(b => b.tier === "MYTHIC");
 
   return (
     <AppShell>
@@ -91,14 +98,14 @@ export default function TrophyRoomPage() {
         <section className="math-dashboard-hero math-dashboard-hero-student math-dashboard-hero-clean">
           <div className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-orange-300/18 blur-3xl" />
           <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-pink-300/16 blur-3xl" />
-          
+
           <div className="relative flex items-start justify-between gap-5">
             <div className="flex flex-col gap-5">
               <div className="math-block-header w-fit">
                 <Award size={14} />
                 Student Achievements
               </div>
-              
+
               <div className="flex flex-col gap-3">
                 <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem]">
                   The Trophy Room
@@ -122,21 +129,21 @@ export default function TrophyRoomPage() {
 
         {/* Tabs */}
         <div className="flex items-center space-x-4 mb-8">
-          <button 
+          <button
             onClick={() => setActiveTab("mock")}
             className={`px-8 py-3 rounded-full font-bold transition-all ${
-              activeTab === "mock" 
-                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
+              activeTab === "mock"
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105"
                 : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500"
             }`}
           >
             Mock Exams
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab("dps")}
             className={`px-8 py-3 rounded-full font-bold transition-all ${
-              activeTab === "dps" 
-                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105" 
+              activeTab === "dps"
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105"
                 : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500"
             }`}
           >
@@ -144,37 +151,41 @@ export default function TrophyRoomPage() {
           </button>
         </div>
 
-      {activeTab === "mock" ? (
-        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {/* Base Tier Shelf */}
-          <Shelf title="Base Badges" badges={baseBadges} tier="BASE" onSelectBadge={setSelectedBadge} />
-          
-          {/* Super Tier Shelf */}
-          <Shelf title="Super Badges" badges={superBadges} tier="SUPER" onSelectBadge={setSelectedBadge} />
-          
-          {/* Legendary Tier Shelf */}
-          <Shelf title="Legendary Badges" badges={legendaryBadges} tier="LEGENDARY" onSelectBadge={setSelectedBadge} />
+      <div key={activeTab} className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* Base Tier Shelf */}
+        <Shelf title="Base Badges" badges={baseBadges} tier="BASE" onSelectBadge={setSelectedBadge} />
 
-          {/* Mythic Tier Shelf -- Phase 1 (2026-07-28), the 4th tier above Legendary */}
-          <Shelf title="Mythic Badges" badges={mythicBadges} tier="MYTHIC" onSelectBadge={setSelectedBadge} />
-        </div>
-      ) : (
-        <div className="text-center py-24 animate-in fade-in duration-500">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mb-4">
-            <Lock size={32} />
+        {/* Super Tier Shelf */}
+        <Shelf title="Super Badges" badges={superBadges} tier="SUPER" onSelectBadge={setSelectedBadge} />
+
+        {/* Legendary Tier Shelf */}
+        <Shelf title="Legendary Badges" badges={legendaryBadges} tier="LEGENDARY" onSelectBadge={setSelectedBadge} />
+
+        {/* Mythic Tier Shelf -- Phase 1 (2026-07-28), the 4th tier above Legendary */}
+        <Shelf title="Mythic Badges" badges={mythicBadges} tier="MYTHIC" onSelectBadge={setSelectedBadge} />
+
+        {activeBadges.length === 0 && (
+          <div className="text-center py-24 animate-in fade-in duration-500">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mb-4">
+              <Lock size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">No Badges Yet</h2>
+            <p className="text-slate-500">
+              {activeTab === "dps"
+                ? "Keep completing your daily practice sheets to earn these badges!"
+                : "Complete mock exams to start building your collection."}
+            </p>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">DPS Badges Coming Soon</h2>
-          <p className="text-slate-500">Daily practice streak and mastery badges are currently being forged.</p>
-        </div>
-      )}
+        )}
+      </div>
       </main>
 
       {/* Epic Badge Inspection Modal */}
       {selectedBadge && (
-        <BadgeInspectionModal 
-          badge={selectedBadge.badge} 
-          config={selectedBadge.config} 
-          onClose={() => setSelectedBadge(null)} 
+        <BadgeInspectionModal
+          badge={selectedBadge.badge}
+          config={selectedBadge.config}
+          onClose={() => setSelectedBadge(null)}
         />
       )}
     </AppShell>
@@ -215,16 +226,16 @@ function Shelf({ title, badges, tier, onSelectBadge }: { title: string, badges: 
 function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data: { badge: any, config: any }) => void }) {
   const Icon = (IconMap[badge.iconName] || Target) as any;
   const isUnlocked = badge.isUnlocked;
-  
+
   const cardRef = React.useRef<HTMLDivElement>(null);
-  
+
   // High-performance Framer Motion Values
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const opacity = useMotionValue(0);
 
   const springConfig = { damping: 20, stiffness: 150, mass: 0.5 };
-  
+
   const smoothX = useSpring(mouseX, springConfig);
   const smoothY = useSpring(mouseY, springConfig);
   const smoothOpacity = useSpring(opacity, { damping: 20, stiffness: 100 });
@@ -232,11 +243,11 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
   // Rotate based on mouse (Max 25deg)
   const rx = useTransform(smoothY, [-0.5, 0.5], [25, -25]);
   const ry = useTransform(smoothX, [-0.5, 0.5], [-25, 25]);
-  
+
   // Parallax (Max 20px)
   const px = useTransform(smoothX, [-0.5, 0.5], [-20, 20]);
   const py = useTransform(smoothY, [-0.5, 0.5], [-20, 20]);
-  
+
   // Dynamic Specular Highlight / Volumetric Flashlight
   const glareX = useTransform(smoothX, [-0.5, 0.5], [0, 100]);
   const glareY = useTransform(smoothY, [-0.5, 0.5], [0, 100]);
@@ -247,7 +258,7 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
     const rect = cardRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
-    
+
     mouseX.set(x);
     mouseY.set(y);
     opacity.set(1);
@@ -273,7 +284,7 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
       onSelectBadge({ badge, config });
     }, 150);
   };
-  
+
   const progressPercent = Math.min(100, Math.round((badge.currentProgress / badge.requiredCount) * 100));
 
   const getShapeStyles = (iconName: string) => {
@@ -466,7 +477,7 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
   const shape = getShapeStyles(badge.iconName);
 
   return (
-    <motion.div 
+    <motion.div
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
@@ -475,7 +486,7 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
       whileTap={isUnlocked ? { scale: 0.85 } : {}}
       className={`relative group [perspective:1000px] h-full ${isUnlocked ? 'cursor-pointer' : ''}`}
     >
-      <motion.div 
+      <motion.div
         className={`relative flex flex-col items-center text-center p-5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] border border-slate-100/50 dark:border-slate-800/50 h-full overflow-hidden`}
         style={{
           rotateX: isUnlocked ? rx : 0,
@@ -483,10 +494,10 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
           boxShadow: isUnlocked ? (badge.tier === 'MYTHIC' ? '0 30px 70px -10px rgba(217, 70, 239, 0.55)' : badge.tier === 'LEGENDARY' ? '0 30px 60px -12px rgba(234, 179, 8, 0.5)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)') : ''
         }}
       >
-        
+
         {/* Dynamic Volumetric Flashlight */}
         {isUnlocked && (
-          <motion.div 
+          <motion.div
             className="absolute inset-0 pointer-events-none z-10 mix-blend-overlay"
             style={{
               background,
@@ -503,12 +514,12 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
         {isUnlocked && (badge.tier === "LEGENDARY" || badge.tier === "MYTHIC") && (
            <>
              {/* Holographic foil sweep tied to rotation */}
-             <motion.div 
-                className="absolute inset-[-100%] z-0 pointer-events-none mix-blend-color-dodge opacity-50" 
-                style={{ 
+             <motion.div
+                className="absolute inset-[-100%] z-0 pointer-events-none mix-blend-color-dodge opacity-50"
+                style={{
                    background: "linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.8) 50%, transparent 60%)",
-                   x: px, 
-                   y: py 
+                   x: px,
+                   y: py
                 }}
              />
              <div className="absolute inset-[-100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,rgba(234,179,8,0.3)_360deg)] z-0 pointer-events-none mix-blend-color-dodge" />
@@ -566,14 +577,14 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
             color: isUnlocked ? config.iconColorHex : undefined,
           }} />
         </motion.div>
-        
-        <motion.h3 
-          className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-600'}`} 
+
+        <motion.h3
+          className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-600'}`}
           style={{ z: isUnlocked ? 20 : 0 }}
         >
           {badge.name}
         </motion.h3>
-        
+
         <p className="relative text-[10px] md:text-xs text-slate-500 mb-4 min-h-[2.5rem] flex-grow z-20">
           {badge.description}
         </p>
@@ -589,7 +600,7 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
             </div>
           </div>
         )}
-        
+
         {isUnlocked && (
           <div className="relative w-full mt-auto pt-2 border-t border-slate-100 dark:border-slate-800 z-20">
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
