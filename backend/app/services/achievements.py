@@ -516,6 +516,67 @@ class AchievementEngine:
             ("section_specialist", "SUPER", "Super Section Specialist", "Achieve Section Specialist 10 times", "SectionSpecialistGrid", 10),
             ("section_specialist", "LEGENDARY", "Legendary Section Specialist", "Achieve Section Specialist 25 times", "SectionSpecialistMatrix", 25),
             ("section_specialist", "MYTHIC", "Mythic Section Specialist", "Achieve Section Specialist 50 times", "SectionSpecialistNexus", 50),
+
+            # 1. The Ironclad Discipline
+            ("dps_discipline", "BASE", "Ironclad Discipline", "Complete all 5 DPS sheets in a single week", "DpsIronAnvil", 1),
+            ("dps_discipline", "SUPER", "Super Ironclad Discipline", "Complete all 5 DPS sheets for 4 consecutive weeks", "DpsSteelAnvil", 4),
+            ("dps_discipline", "LEGENDARY", "Legendary Ironclad Discipline", "Complete all 5 DPS sheets for 12 consecutive weeks", "DpsObsidianAnvil", 12),
+            ("dps_discipline", "MYTHIC", "Mythic Ironclad Discipline", "Complete all 5 DPS sheets for 36 consecutive weeks", "DpsCelestialAnvil", 36),
+
+            # 2. The Pure Crystal
+            ("dps_crystal", "BASE", "Pure Crystal", "Score 100% on 5 different DPS sheets", "DpsQuartzCrystal", 5),
+            ("dps_crystal", "SUPER", "Super Pure Crystal", "Score 100% on 25 different DPS sheets", "DpsSapphireCrystal", 25),
+            ("dps_crystal", "LEGENDARY", "Legendary Pure Crystal", "Score 100% on 75 different DPS sheets", "DpsRubyCrystal", 75),
+            ("dps_crystal", "MYTHIC", "Mythic Pure Crystal", "Score 100% on 200 different DPS sheets", "DpsDiamondCrystal", 200),
+
+            # 3. The Boundless Tome
+            ("dps_tome", "BASE", "Boundless Tome", "Complete 25 DPS sheets", "DpsLeatherTome", 25),
+            ("dps_tome", "SUPER", "Super Boundless Tome", "Complete 100 DPS sheets", "DpsSilverTome", 100),
+            ("dps_tome", "LEGENDARY", "Legendary Boundless Tome", "Complete 350 DPS sheets", "DpsAstralTome", 350),
+            ("dps_tome", "MYTHIC", "Mythic Boundless Tome", "Complete 500 DPS sheets", "DpsBoundlessTome", 500),
+
+            # 4. The Lightning Quill
+            ("dps_quill", "BASE", "Lightning Quill", "Finish 5 DPS sheets in under 50% of the allocated time with >90% accuracy", "DpsBronzeQuill", 5),
+            ("dps_quill", "SUPER", "Super Lightning Quill", "Achieve Lightning Quill on 25 DPS sheets", "DpsSilverQuill", 25),
+            ("dps_quill", "LEGENDARY", "Legendary Lightning Quill", "Achieve Lightning Quill on 75 DPS sheets", "DpsRadiantQuill", 75),
+            ("dps_quill", "MYTHIC", "Mythic Lightning Quill", "Achieve Lightning Quill on 150 DPS sheets", "DpsLightningQuill", 150),
+
+            # 5. The Sage's Eye
+            ("dps_sage", "BASE", "Sage's Eye", "Use >95% of the allocated time and score exactly 100% accuracy on 5 DPS sheets", "DpsBronzeHourglass", 5),
+            ("dps_sage", "SUPER", "Super Sage's Eye", "Achieve Sage's Eye on 20 DPS sheets", "DpsSilverHourglass", 20),
+            ("dps_sage", "LEGENDARY", "Legendary Sage's Eye", "Achieve Sage's Eye on 50 DPS sheets", "DpsGoldenHourglass", 50),
+            ("dps_sage", "MYTHIC", "Mythic Sage's Eye", "Achieve Sage's Eye on 100 DPS sheets", "DpsCelestialEye", 100),
+
+            # 6. The Unbroken Chain
+            ("dps_chain", "BASE", "Unbroken Chain", "Attempt 100% of the questions (zero unanswered) on 10 consecutive DPS sheets", "DpsIronChain", 10),
+            ("dps_chain", "SUPER", "Super Unbroken Chain", "Attempt 100% of the questions on 50 consecutive DPS sheets", "DpsSteelChain", 50),
+            ("dps_chain", "LEGENDARY", "Legendary Unbroken Chain", "Attempt 100% of the questions on 120 consecutive DPS sheets", "DpsDiamondChain", 120),
+            ("dps_chain", "MYTHIC", "Mythic Unbroken Chain", "Attempt 100% of the questions on 250 consecutive DPS sheets", "DpsUnbrokenMechanism", 250),
+
+            # 7. The Rising Phoenix
+            ("dps_phoenix", "BASE", "Rising Phoenix", "Score <50% on a DPS, then score >90% on your very next DPS", "DpsAshFeather", 1),
+            ("dps_phoenix", "SUPER", "Super Rising Phoenix", "Achieve The Phoenix 5 times", "DpsEmberWing", 5),
+            ("dps_phoenix", "LEGENDARY", "Legendary Rising Phoenix", "Achieve The Phoenix 15 times", "DpsSolarRebirth", 15),
+            ("dps_phoenix", "MYTHIC", "Mythic Rising Phoenix", "Achieve The Phoenix 30 times", "DpsGoldenPhoenix", 30),
+
+            # 8. The Master's Anvil
+            ("dps_anvil", "BASE", "Master's Anvil", "Fail a DPS attempt, but immediately use a retry and score 100%", "DpsResilienceHammer", 1),
+            ("dps_anvil", "SUPER", "Super Master's Anvil", "Achieve Master's Anvil 10 times", "DpsResilienceAnvil", 10),
+            ("dps_anvil", "LEGENDARY", "Legendary Master's Anvil", "Achieve Master's Anvil 30 times", "DpsResilienceForge", 30),
+            ("dps_anvil", "MYTHIC", "Mythic Master's Anvil", "Achieve Master's Anvil 60 times", "DpsResilienceCore", 60),
+
+            # 9. The Midnight Oil
+            ("dps_midnight", "BASE", "Midnight Oil", "Complete 5 DPS sheets on a weekend (Saturday/Sunday)", "DpsMidnightLantern", 5),
+            ("dps_midnight", "SUPER", "Super Midnight Oil", "Complete 25 DPS sheets on weekends", "DpsMidnightStar", 25),
+            ("dps_midnight", "LEGENDARY", "Legendary Midnight Oil", "Complete 75 DPS sheets on weekends", "DpsMidnightMoon", 75),
+            ("dps_midnight", "MYTHIC", "Mythic Midnight Oil", "Complete 150 DPS sheets on weekends", "DpsMidnightGalaxy", 150),
+
+            # 10. The Golden Compass
+            ("dps_compass", "BASE", "Golden Compass", "Score >90% on the very first attempt (no retries) for 10 DPS sheets", "DpsCompassBronze", 10),
+            ("dps_compass", "SUPER", "Super Golden Compass", "Score >90% on the very first attempt for 40 DPS sheets", "DpsCompassSilver", 40),
+            ("dps_compass", "LEGENDARY", "Legendary Golden Compass", "Score >90% on the very first attempt for 100 DPS sheets", "DpsCompassGold", 100),
+            ("dps_compass", "MYTHIC", "Mythic Golden Compass", "Score >90% on the very first attempt for 250 DPS sheets", "DpsCompassAstral", 250),
+
         ]
 
         for code, tier, name, desc, icon, req in badges_data:
