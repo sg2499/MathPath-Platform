@@ -42,7 +42,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
             className="relative w-full max-w-4xl max-h-[90vh] bg-slate-950/80 border border-indigo-500/30 rounded-[2rem] shadow-[0_0_100px_rgba(79,70,229,0.2)] overflow-hidden flex flex-col z-10"
           >
             {/* Top-Right Close Button */}
-            <button 
+            <button
               onClick={onClose}
               className="absolute top-6 right-6 z-50 p-3 bg-slate-900/80 border border-slate-800 hover:border-slate-600 rounded-full text-slate-400 hover:text-white transition-all hover:scale-105 shadow-xl hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
             >
@@ -52,7 +52,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
             {/* Header Section */}
             <div className="relative p-8 md:p-10 pb-8 overflow-hidden border-b border-slate-800/60 bg-gradient-to-b from-slate-900/80 to-slate-950 shrink-0">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
-              
+
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
                   <Compass className="w-5 h-5 text-indigo-400" />
@@ -69,9 +69,9 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
 
             {/* Scrollable Content Body */}
             <div className="flex-1 overflow-y-auto overscroll-contain transform-gpu will-change-scroll p-8 md:p-10 relative bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-indigo-950/10 via-transparent to-transparent [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              
+
               <div className="flex flex-col gap-8">
-                
+
                 {/* Rule 1: The Ascension Hierarchy */}
                 <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-indigo-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(79,70,229,0.15)] hover:-translate-y-1 overflow-hidden transform-gpu">
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -127,8 +127,8 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
 
             {/* Footer */}
             <div className="p-6 md:p-8 border-t border-slate-800/60 bg-slate-950 shrink-0 flex justify-end">
-              <button 
-                onClick={onClose} 
+              <button
+                onClick={onClose}
                 className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-black uppercase tracking-widest rounded-xl transition-colors shadow-[0_0_20px_rgba(79,70,229,0.4)] flex items-center gap-2"
               >
                 Acknowledge Directive <ChevronRight className="w-5 h-5" />

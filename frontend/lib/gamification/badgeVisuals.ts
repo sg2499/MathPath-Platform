@@ -998,7 +998,7 @@ export const badgeColorConfig: Record<string, any> = {
   "dps_quill_LEGENDARY": { customBg: "linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)", customShadow: "0 12px 30px -4px rgba(185, 28, 28, 0.7)", customBorder: "4px solid #f59e0b", iconColorHex: "#fffbeb", bloomColor: "#f59e0b", glitch: true, burst: ["#b91c1c", "#f59e0b", "#fffbeb", "#ffffff"] },
   "dps_quill_MYTHIC": { customBg: "linear-gradient(125deg, #0891b2 0%, #0e7490 20%, #155e75 40%, #164e63 60%, #083344 80%, #020617 100%)", customShadow: "0 15px 40px -4px rgba(8, 145, 178, 0.8)", customBorder: "4px solid rgba(255, 255, 255, 0.9)", iconColorHex: "#cffafe", bloomColor: "#06b6d4", glitch: true, burst: ["#0891b2", "#06b6d4", "#cffafe", "#ffffff"] },
 
-  
+
   // THE MIDNIGHT OIL
   "dps_midnight_BASE": { customBg: "linear-gradient(135deg, #b45309 0%, #78350f 100%)", customShadow: "0 10px 20px -5px rgba(180, 83, 9, 0.5)", customBorder: "2px solid #d97706", iconColorHex: "#fcd34d", bloomColor: "#f59e0b", glitch: false, burst: ["#b45309", "#d97706", "#fef3c7"] },
   "dps_midnight_SUPER": { customBg: "linear-gradient(135deg, #334155 0%, #0f172a 100%)", customShadow: "0 10px 20px -5px rgba(51, 65, 85, 0.5)", customBorder: "2px solid #94a3b8", iconColorHex: "#f8fafc", bloomColor: "#e2e8f0", glitch: false, burst: ["#94a3b8", "#cbd5e1", "#f8fafc"] },

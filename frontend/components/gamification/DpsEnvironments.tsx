@@ -13,7 +13,7 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 export const EnvDpsIronAnvil = ({ color }: { color: THREE.Color }) => {
   const meshRef = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (meshRef.current) {
@@ -34,7 +34,7 @@ export const EnvDpsIronAnvil = ({ color }: { color: THREE.Color }) => {
           <boxGeometry args={[12.2, 5.2, 7.2]} />
           <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
         </mesh>
-        
+
         {/* Upper strike face */}
         <mesh position={[0, 2, 0]}>
           <cylinderGeometry args={[4, 5, 3, 4]} />
@@ -56,7 +56,7 @@ export const EnvDpsSteelAnvil = ({ color }: { color: THREE.Color }) => {
   const groupRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (groupRef.current) {
@@ -90,13 +90,13 @@ export const EnvDpsSteelAnvil = ({ color }: { color: THREE.Color }) => {
           <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
         </mesh>
       </group>
-      
+
       {/* Scanning heat ring */}
       <mesh ref={ringRef} position={[0, 0, 0]}>
         <torusGeometry args={[9, 0.1, 16, 100]} />
         <meshStandardMaterial color={color} emissive={color} />
       </mesh>
-      
+
       {/* Intense rising heat sparks */}
       <Sparkles count={80} scale={20} size={5} speed={0.8} color="#bae6fd" noise={2} />
       <pointLight position={[0, 5, 5]} intensity={20} color={color} distance={50} />
@@ -110,22 +110,22 @@ export const EnvDpsObsidianAnvil = ({ color }: { color: THREE.Color }) => {
   const coreRef = useRef<THREE.Group>(null);
   const t = useRef(0);
 
-  const shards = useMemo(() => 
+  const shards = useMemo(() =>
     [...Array(24)].map((_, i) => {
       const a = (i / 24) * Math.PI * 2;
-      return { 
-        x: Math.cos(a) * 10, 
+      return {
+        x: Math.cos(a) * 10,
         z: Math.sin(a) * 10,
         y: (Math.random() - 0.5) * 8,
         rotSpeed: (Math.random() - 0.5) * 4
       };
-    }), 
+    }),
   []);
 
   useFrame((_, delta) => {
     t.current += delta;
     const now = t.current;
-    
+
     // Minor fracture event at T_MINOR
     const broken = now >= T_MINOR;
     const e = Math.max(0, now - T_MINOR);
@@ -176,7 +176,7 @@ export const EnvDpsObsidianAnvil = ({ color }: { color: THREE.Color }) => {
           <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} wireframe />
         </mesh>
       </group>
-      
+
       <group ref={shardsRef}>
         {shards.map((_, i) => (
           <mesh key={i}>
@@ -185,7 +185,7 @@ export const EnvDpsObsidianAnvil = ({ color }: { color: THREE.Color }) => {
           </mesh>
         ))}
       </group>
-      
+
       <Sparkles count={150} scale={25} size={6} speed={1.5} color="#f97316" noise={3} />
       <pointLight position={[0, 0, 0]} intensity={30} color={color} distance={60} />
     </group>
@@ -195,7 +195,7 @@ export const EnvDpsObsidianAnvil = ({ color }: { color: THREE.Color }) => {
 export const EnvDpsCelestialAnvil = ({ color }: { color: THREE.Color }) => {
   const T_REVEAL = 1.7;
   const HOT = "#fcd34d";
-  
+
   const coreRef = useRef<THREE.Mesh>(null);
   const shockRef = useRef<THREE.Mesh>(null);
   const trailsRef = useRef<THREE.Group>(null);
@@ -274,7 +274,7 @@ export const EnvDpsCelestialAnvil = ({ color }: { color: THREE.Color }) => {
           </mesh>
         ))}
       </group>
-      
+
       <Sparkles count={300} scale={40} size={4} speed={4} color={HOT} />
       <pointLight position={[0, 0, 0]} intensity={30} color={color} distance={150} />
     </group>
@@ -288,7 +288,7 @@ export const EnvDpsCelestialAnvil = ({ color }: { color: THREE.Color }) => {
 export const EnvDpsQuartzCrystal = ({ color }: { color: THREE.Color }) => {
   const meshRef = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (meshRef.current) {
@@ -319,7 +319,7 @@ export const EnvDpsSapphireCrystal = ({ color }: { color: THREE.Color }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const bandsRef = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (meshRef.current) {
@@ -344,7 +344,7 @@ export const EnvDpsSapphireCrystal = ({ color }: { color: THREE.Color }) => {
           <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} wireframe />
         </mesh>
       </mesh>
-      
+
       {/* Scanning laser bands */}
       <group ref={bandsRef}>
         <mesh rotation={[Math.PI/2, 0, 0]}>
@@ -423,7 +423,7 @@ export const EnvDpsRubyCrystal = ({ color }: { color: THREE.Color }) => {
           </mesh>
         ))}
       </group>
-      
+
       {/* Red energy pulse at fracture */}
       <mesh ref={pulseRef}>
         <sphereGeometry args={[4, 32, 32]} />
@@ -439,7 +439,7 @@ export const EnvDpsRubyCrystal = ({ color }: { color: THREE.Color }) => {
 export const EnvDpsDiamondCrystal = ({ color }: { color: THREE.Color }) => {
   const T_REVEAL = 1.7;
   const HOT = "#ffffff";
-  
+
   const cubeRef = useRef<THREE.Group>(null);
   const laserRef = useRef<THREE.Mesh>(null);
   const scatterRef = useRef<THREE.Group>(null);
@@ -487,7 +487,7 @@ export const EnvDpsDiamondCrystal = ({ color }: { color: THREE.Color }) => {
           child.position.set(0,0,0);
         } else {
           // Slowmo explosion
-          const dist = Math.min(e * d.speed, 20 + d.speed * 0.2); 
+          const dist = Math.min(e * d.speed, 20 + d.speed * 0.2);
           child.position.set(d.dir.x * dist, d.dir.y * dist, d.dir.z * dist);
           child.scale.setScalar(Math.max(0, 1 - e * 0.2));
         }
@@ -539,7 +539,7 @@ export const EnvDpsLeatherTome = ({ color }: { color: THREE.Color }) => {
   const HOT = "#ffffff";
   const ref = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (ref.current) {
@@ -578,7 +578,7 @@ export const EnvDpsSilverTome = ({ color }: { color: THREE.Color }) => {
   const ref = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (ref.current) {
@@ -608,13 +608,13 @@ export const EnvDpsSilverTome = ({ color }: { color: THREE.Color }) => {
           <meshStandardMaterial color="#1e293b" metalness={0.9} />
         </mesh>
       </group>
-      
+
       {/* Magical scanning ring */}
       <mesh ref={ringRef} position={[0, 0, 0]}>
         <torusGeometry args={[12, 0.2, 16, 100]} />
         <meshStandardMaterial color={color} emissive={color} />
       </mesh>
-      
+
       <pointLight position={[0, 0, 0]} intensity={25} color={HOT} distance={60} />
       <Sparkles count={100} scale={25} size={6} speed={1.5} opacity={0.8} color={HOT} />
     </group>
@@ -627,7 +627,7 @@ export const EnvDpsAstralTome = ({ color }: { color: THREE.Color }) => {
   const pagesRef = useRef<THREE.Group>(null);
   const T_MINOR = 1.0;
   const t = useRef(0);
-  
+
   const loosePages = useMemo(() => [...Array(24)].map((_, i) => {
     return { a: (i / 24) * Math.PI * 2, yOffset: (Math.random() - 0.5) * 10, speed: 1 + Math.random() * 2 };
   }), []);
@@ -647,7 +647,7 @@ export const EnvDpsAstralTome = ({ color }: { color: THREE.Color }) => {
         (Math.random() - 0.5) * jitter
       );
       ref.current.rotation.y = broken ? now * 0.5 : now * 0.2;
-      
+
       // Book opens/expands on break
       if (broken) {
         ref.current.scale.y = 1 + Math.min(e * 5, 2);
@@ -709,11 +709,11 @@ export const EnvDpsBoundlessTome = ({ color }: { color: THREE.Color }) => {
   const flashRef = useRef<THREE.PointLight>(null);
   const T_REVEAL = 1.7;
   const t = useRef(0);
-  
+
   const pages = useMemo(() => [...Array(60)].map((_, i) => {
-    return { 
-      radius: 5 + Math.random() * 20, 
-      angle: Math.random() * Math.PI * 2, 
+    return {
+      radius: 5 + Math.random() * 20,
+      angle: Math.random() * Math.PI * 2,
       y: (Math.random() - 0.5) * 30,
       speed: 2 + Math.random() * 3
     };
@@ -729,7 +729,7 @@ export const EnvDpsBoundlessTome = ({ color }: { color: THREE.Color }) => {
     if (ref.current) {
       // Violent spin and suck in
       ref.current.rotation.y = broken ? now * 0.2 : now * (1 + pre * 10);
-      
+
       if (!broken) {
         // Shaking intensely
         ref.current.position.set(
@@ -743,7 +743,7 @@ export const EnvDpsBoundlessTome = ({ color }: { color: THREE.Color }) => {
         ref.current.scale.setScalar(1 + e * 0.5);
       }
     }
-    
+
     if (vortexRef.current) {
       vortexRef.current.children.forEach((child, i) => {
         const p = pages[i];
@@ -784,7 +784,7 @@ export const EnvDpsBoundlessTome = ({ color }: { color: THREE.Color }) => {
           <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} wireframe />
         </mesh>
       </group>
-      
+
       <group ref={vortexRef}>
         {pages.map((_, i) => (
           <mesh key={i}>
@@ -808,7 +808,7 @@ export const EnvDpsBronzeQuill = ({ color }: { color: THREE.Color }) => {
   const HOT = "#ffffff";
   const ref = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (ref.current) {
@@ -817,7 +817,7 @@ export const EnvDpsBronzeQuill = ({ color }: { color: THREE.Color }) => {
       ref.current.position.y = Math.sin(t.current * 2) * 1.5;
     }
   });
-  
+
   return (
     <group scale={1.5}>
       <group ref={ref} position={[0, 2, 0]}>
@@ -843,7 +843,7 @@ export const EnvDpsSilverQuill = ({ color }: { color: THREE.Color }) => {
   const ref = useRef<THREE.Group>(null);
   const ringsRef = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (ref.current) {
@@ -859,7 +859,7 @@ export const EnvDpsSilverQuill = ({ color }: { color: THREE.Color }) => {
       });
     }
   });
-  
+
   return (
     <group scale={1.5}>
       <group ref={ref} position={[0, 2, 0]}>
@@ -872,7 +872,7 @@ export const EnvDpsSilverQuill = ({ color }: { color: THREE.Color }) => {
           <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
         </mesh>
       </group>
-      
+
       <group ref={ringsRef}>
         {[0, 1, 2].map((i) => (
           <mesh key={i}>
@@ -894,13 +894,13 @@ export const EnvDpsRadiantQuill = ({ color }: { color: THREE.Color }) => {
   const clonesRef = useRef<THREE.Group>(null);
   const T_MINOR = 1.0;
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     const now = t.current;
     const broken = now >= T_MINOR;
     const pre = clamp01(now / T_MINOR);
-    
+
     if (ref.current) {
       if (!broken) {
         ref.current.position.set(
@@ -965,7 +965,7 @@ export const EnvDpsLightningQuill = ({ color }: { color: THREE.Color }) => {
   const boltsRef = useRef<THREE.Group>(null);
   const T_REVEAL = 1.7;
   const t = useRef(0);
-  
+
   const bolts = useMemo(() => [...Array(12)].map((_, i) => {
     return { angle: (i / 12) * Math.PI * 2, delay: Math.random() * 0.5 };
   }), []);
@@ -995,7 +995,7 @@ export const EnvDpsLightningQuill = ({ color }: { color: THREE.Color }) => {
         ref.current.scale.setScalar(1 + Math.sin(now * 30) * 0.1);
       }
     }
-    
+
     if (flashRef.current) {
       flashRef.current.intensity = broken ? 150 + Math.random() * 50 : 20 + pre * 80;
     }
@@ -1009,16 +1009,16 @@ export const EnvDpsLightningQuill = ({ color }: { color: THREE.Color }) => {
           // Lightning bolt crashes down
           child.scale.setScalar(1);
           const localE = e - b.delay;
-          
+
           child.position.x = Math.cos(b.angle) * 12;
           child.position.z = Math.sin(b.angle) * 12;
           // Strike from high above to below
-          child.position.y = 20 - localE * 80; 
-          
+          child.position.y = 20 - localE * 80;
+
           // Jitter the bolt heavily
           child.rotation.x = (Math.random() - 0.5) * 0.5;
           child.rotation.z = (Math.random() - 0.5) * 0.5;
-          
+
           // Reset loop
           if (child.position.y < -20) {
             b.delay = e + Math.random() * 0.5; // schedule next strike
@@ -1041,7 +1041,7 @@ export const EnvDpsLightningQuill = ({ color }: { color: THREE.Color }) => {
           <meshStandardMaterial color="#020617" roughness={0.1} metalness={1.0} />
         </mesh>
       </group>
-      
+
       <group ref={boltsRef}>
         {bolts.map((_, i) => (
           <mesh key={i}>
@@ -1064,7 +1064,7 @@ export const EnvDpsLightningQuill = ({ color }: { color: THREE.Color }) => {
 
 export const EnvDpsBronzeHourglass = ({ color }: { color: THREE.Color }) => {
   const groupRef = useRef<THREE.Group>(null);
-  
+
   useFrame((state) => {
     if (!groupRef.current) return;
     const t = state.clock.getElapsedTime();
@@ -1077,7 +1077,7 @@ export const EnvDpsBronzeHourglass = ({ color }: { color: THREE.Color }) => {
       <ambientLight intensity={2} />
       <directionalLight position={[0, 0, 5]} intensity={3} />
       <directionalLight position={[0, 5, 0]} intensity={2} />
-      
+
       <Float speed={4} rotationIntensity={1} floatIntensity={1.5}>
         <group ref={groupRef}>
           {/* Top/Bottom Solid Gold Caps */}
@@ -1089,7 +1089,7 @@ export const EnvDpsBronzeHourglass = ({ color }: { color: THREE.Color }) => {
             <cylinderGeometry args={[2.5, 2.5, 0.6, 32]} />
             <meshStandardMaterial color="#fbbf24" metalness={0.8} roughness={0.2} emissive="#b45309" emissiveIntensity={1.5} />
           </mesh>
-          
+
           {/* Central Bright Glowing Core (No transparency, bold) */}
           <mesh position={[0, 0, 0]}>
             <sphereGeometry args={[1.2, 32, 32]} />
@@ -1114,7 +1114,7 @@ export const EnvDpsBronzeHourglass = ({ color }: { color: THREE.Color }) => {
 
 export const EnvDpsSilverHourglass = ({ color }: { color: THREE.Color }) => {
   const groupRef = useRef<THREE.Group>(null);
-  
+
   useFrame((state) => {
     if (!groupRef.current) return;
     const t = state.clock.getElapsedTime();
@@ -1126,7 +1126,7 @@ export const EnvDpsSilverHourglass = ({ color }: { color: THREE.Color }) => {
     <group scale={3.5}>
       <ambientLight intensity={2} />
       <directionalLight position={[0, 0, 5]} intensity={4} />
-      
+
       <Float speed={5} rotationIntensity={1.5} floatIntensity={2}>
         <group ref={groupRef}>
           {/* Bright Core */}
@@ -1134,7 +1134,7 @@ export const EnvDpsSilverHourglass = ({ color }: { color: THREE.Color }) => {
             <sphereGeometry args={[1.5, 32, 32]} />
             <meshStandardMaterial color="#ffffff" emissive={color} emissiveIntensity={3} />
           </mesh>
-          
+
           {/* Emissive Rings */}
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[3, 0.2, 16, 100]} />
@@ -1160,12 +1160,12 @@ export const EnvDpsGoldenHourglass = ({ color }: { color: THREE.Color }) => {
   const shardsRef = useRef<THREE.Group>(null);
   const T_MINOR = 0.5;
   const tTime = useRef(0);
-  
+
   useFrame((_, delta) => {
     tTime.current += delta;
     const now = tTime.current;
     if (!groupRef.current || !shardsRef.current) return;
-    
+
     if (now < T_MINOR) {
       groupRef.current.position.set((Math.random()-0.5)*0.8, (Math.random()-0.5)*0.8, (Math.random()-0.5)*0.8);
       shardsRef.current.scale.set(0,0,0);
@@ -1181,7 +1181,7 @@ export const EnvDpsGoldenHourglass = ({ color }: { color: THREE.Color }) => {
     <group scale={3}>
       <ambientLight intensity={3} />
       <directionalLight position={[0, 0, 5]} intensity={5} />
-      
+
       <Float speed={5} rotationIntensity={1} floatIntensity={2}>
         <group ref={groupRef}>
           <mesh>
@@ -1209,12 +1209,12 @@ export const EnvDpsCelestialEye = ({ color }: { color: THREE.Color }) => {
   const vortexRef = useRef<THREE.Group>(null);
   const T_REVEAL = 1.7;
   const tTime = useRef(0);
-  
+
   useFrame((_, delta) => {
     tTime.current += delta;
     const now = tTime.current;
     if (!vortexRef.current) return;
-    
+
     if (now < T_REVEAL) {
       vortexRef.current.rotation.z -= 0.3;
       vortexRef.current.scale.set(0.5, 0.5, 0.5);
@@ -1230,13 +1230,13 @@ export const EnvDpsCelestialEye = ({ color }: { color: THREE.Color }) => {
     <group scale={3.5}>
       <ambientLight intensity={3} />
       <directionalLight position={[0, 0, 5]} intensity={6} color="#ffffff" />
-      
+
       <Float speed={6} rotationIntensity={2} floatIntensity={3}>
         <mesh>
           <sphereGeometry args={[1.5, 64, 64]} />
           <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={5} />
         </mesh>
-        
+
         <group ref={vortexRef}>
           <mesh>
             <icosahedronGeometry args={[1.5, 1]} />
@@ -1259,7 +1259,7 @@ export const EnvDpsCelestialEye = ({ color }: { color: THREE.Color }) => {
 
 export const EnvDpsIronChain = ({ color }: { color: THREE.Color }) => {
   const groupRef = useRef<THREE.Group>(null);
-  
+
   useFrame((state) => {
     if (!groupRef.current) return;
     const t = state.clock.getElapsedTime();
@@ -1271,7 +1271,7 @@ export const EnvDpsIronChain = ({ color }: { color: THREE.Color }) => {
     <group scale={3.5}>
       <ambientLight intensity={2} />
       <directionalLight position={[0, 0, 5]} intensity={4} />
-      
+
       <Float speed={3} rotationIntensity={1} floatIntensity={1.5}>
         <group ref={groupRef}>
           <mesh position={[0, 0, 0]} rotation={[0, Math.PI/4, 0]}>
@@ -1297,7 +1297,7 @@ export const EnvDpsSteelChain = ({ color }: { color: THREE.Color }) => {
   const gear1Ref = useRef<THREE.Mesh>(null);
   const gear2Ref = useRef<THREE.Mesh>(null);
   const gear3Ref = useRef<THREE.Mesh>(null);
-  
+
   useFrame((state) => {
     if (!gear1Ref.current || !gear2Ref.current || !gear3Ref.current) return;
     const t = state.clock.getElapsedTime();
@@ -1311,7 +1311,7 @@ export const EnvDpsSteelChain = ({ color }: { color: THREE.Color }) => {
     <group scale={3.5}>
       <ambientLight intensity={3} />
       <directionalLight position={[0, 0, 5]} intensity={5} />
-      
+
       <Float speed={4} rotationIntensity={1.5} floatIntensity={2}>
         <mesh ref={gear3Ref} position={[0, 0, 0]}>
           <torusKnotGeometry args={[2, 0.6, 128, 32]} />
@@ -1336,12 +1336,12 @@ export const EnvDpsDiamondChain = ({ color }: { color: THREE.Color }) => {
   const laserRef = useRef<THREE.Mesh>(null);
   const T_MINOR = 0.5;
   const tTime = useRef(0);
-  
+
   useFrame((_, delta) => {
     tTime.current += delta;
     const now = tTime.current;
     if (!groupRef.current || !laserRef.current) return;
-    
+
     if (now < T_MINOR) {
       groupRef.current.position.set((Math.random()-0.5)*1, (Math.random()-0.5)*1, (Math.random()-0.5)*1);
       laserRef.current.scale.set(0, 0, 0);
@@ -1358,7 +1358,7 @@ export const EnvDpsDiamondChain = ({ color }: { color: THREE.Color }) => {
     <group scale={3.5}>
       <ambientLight intensity={3} />
       <directionalLight position={[0, 0, 5]} intensity={5} />
-      
+
       <Float speed={5} rotationIntensity={1.5} floatIntensity={2.5}>
         <group ref={groupRef}>
           <mesh position={[0, 2.5, 0]} rotation={[Math.PI/2, 0, 0]}>
@@ -1369,7 +1369,7 @@ export const EnvDpsDiamondChain = ({ color }: { color: THREE.Color }) => {
             <torusGeometry args={[2.5, 0.5, 32, 32]} />
             <meshStandardMaterial color="#ffffff" transparent opacity={0.9} emissive="#ffffff" emissiveIntensity={2} />
           </mesh>
-          
+
           <mesh ref={laserRef}>
             <cylinderGeometry args={[1, 1, 15, 64]} />
             <meshStandardMaterial color={color} emissive={color} emissiveIntensity={4} />
@@ -1386,22 +1386,22 @@ export const EnvDpsUnbrokenMechanism = ({ color }: { color: THREE.Color }) => {
   const coreRef = useRef<THREE.Mesh>(null);
   const T_REVEAL = 1.7;
   const tTime = useRef(0);
-  
+
   useFrame((_, delta) => {
     tTime.current += delta;
     const now = tTime.current;
     if (!loopRef.current || !coreRef.current) return;
-    
+
     if (now < T_REVEAL) {
       loopRef.current.rotation.x -= 0.6;
       coreRef.current.scale.set(0.5, 0.5, 0.5);
     } else {
       loopRef.current.rotation.x += 0.2;
       loopRef.current.rotation.y += 0.15;
-      
+
       const burstScale = 3.5 + Math.sin(now * 10) * 0.2;
       loopRef.current.scale.lerp(new THREE.Vector3(burstScale, burstScale, burstScale), 0.2);
-      
+
       const coreScale = 3 + Math.sin(now * 25) * 0.4;
       coreRef.current.scale.set(coreScale, coreScale, coreScale);
     }
@@ -1411,13 +1411,13 @@ export const EnvDpsUnbrokenMechanism = ({ color }: { color: THREE.Color }) => {
     <group scale={3.5}>
       <ambientLight intensity={4} />
       <directionalLight position={[0, 0, 5]} intensity={6} color="#ffffff" />
-      
+
       <Float speed={6} rotationIntensity={2} floatIntensity={3}>
         <mesh ref={coreRef}>
           <sphereGeometry args={[1.5, 64, 64]} />
           <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={5} />
         </mesh>
-        
+
         <group ref={loopRef}>
           <mesh rotation={[Math.PI/4, 0, 0]}>
             <torusGeometry args={[4, 0.3, 64, 100]} />
@@ -1452,13 +1452,13 @@ export const EnvDpsAshFeather = ({ color }: { color: THREE.Color }) => {
   const HOT = "#fca5a5";
   const ref = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (ref.current) {
       ref.current.rotation.y = Math.sin(t.current * 0.5) * 0.2;
       ref.current.position.y = Math.sin(t.current * 2) * 0.5;
-      
+
       // Animate the barbs (children 1 to 10)
       ref.current.children.forEach((child, index) => {
         if (index > 0) {
@@ -1476,7 +1476,7 @@ export const EnvDpsAshFeather = ({ color }: { color: THREE.Color }) => {
           <cylinderGeometry args={[0.2, 0.1, 10, 8]} />
           <meshStandardMaterial color="#7f1d1d" emissive="#7f1d1d" emissiveIntensity={2} />
         </mesh>
-        
+
         {/* Geometric Barbs */}
         {[...Array(10)].map((_, i) => (
           <mesh key={i} position={[(i%2===0?1:-1) * (1.5 + (i/10)), 3 - i*0.8, 0]} rotation={[0, 0, (i%2===0?1:-1) * Math.PI/4]}>
@@ -1495,7 +1495,7 @@ export const EnvDpsEmberWing = ({ color }: { color: THREE.Color }) => {
   const HOT = "#fca5a5";
   const wingRef = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (wingRef.current) {
@@ -1529,7 +1529,7 @@ export const EnvDpsGoldenPhoenix = ({ color }: { color: THREE.Color }) => {
   const coreRef = useRef<THREE.Mesh>(null);
   const wingsRef = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (coreRef.current) {
@@ -1548,7 +1548,7 @@ export const EnvDpsGoldenPhoenix = ({ color }: { color: THREE.Color }) => {
         <icosahedronGeometry args={[2, 0]} />
         <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={3} />
       </mesh>
-      
+
       <group ref={wingsRef}>
         {/* Left Wing */}
         <group position={[-2, 0, 0]}>
@@ -1569,7 +1569,7 @@ export const EnvDpsGoldenPhoenix = ({ color }: { color: THREE.Color }) => {
           ))}
         </group>
       </group>
-      
+
       <pointLight position={[0, 0, 0]} intensity={40} color={HOT} distance={80} />
       <Sparkles count={300} scale={25} size={5} speed={4} opacity={0.9} color={HOT} />
     </group>
@@ -1582,7 +1582,7 @@ export const EnvDpsSolarRebirth = ({ color }: { color: THREE.Color }) => {
   const shell1Ref = useRef<THREE.Mesh>(null);
   const shell2Ref = useRef<THREE.Mesh>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (sunRef.current) {
@@ -1594,7 +1594,7 @@ export const EnvDpsSolarRebirth = ({ color }: { color: THREE.Color }) => {
       shell1Ref.current.rotation.x = t.current * 0.3;
       shell2Ref.current.rotation.y = -t.current * 0.6;
       shell2Ref.current.rotation.z = t.current * 0.4;
-      
+
       // Drift apart
       const drift = Math.min(2, t.current * 0.5);
       shell1Ref.current.scale.setScalar(1 + drift*0.2);
@@ -1608,12 +1608,12 @@ export const EnvDpsSolarRebirth = ({ color }: { color: THREE.Color }) => {
         <sphereGeometry args={[2, 32, 32]} />
         <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={4} />
       </mesh>
-      
+
       <mesh ref={shell1Ref}>
         <icosahedronGeometry args={[2.5, 1]} />
         <meshStandardMaterial color="#fef08a" emissive="#fbbf24" emissiveIntensity={1} wireframe />
       </mesh>
-      
+
       <mesh ref={shell2Ref}>
         <icosahedronGeometry args={[3, 0]} />
         <meshStandardMaterial color="#ef4444" emissive="#dc2626" emissiveIntensity={1} wireframe />
@@ -1630,7 +1630,7 @@ export const EnvDpsResilienceHammer = ({ color }: { color: THREE.Color }) => {
   const rigRef = useRef<THREE.Group>(null);
   const lightRef = useRef<THREE.PointLight>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (rigRef.current) {
@@ -1692,7 +1692,7 @@ export const EnvDpsResilienceAnvil = ({ color }: { color: THREE.Color }) => {
   const anvilRef = useRef<THREE.Group>(null);
   const scanlinesRef = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (anvilRef.current) {
@@ -1728,7 +1728,7 @@ export const EnvDpsResilienceAnvil = ({ color }: { color: THREE.Color }) => {
            <meshStandardMaterial color="#3f3f46" metalness={0.9} />
         </mesh>
       </group>
-      
+
       <group ref={scanlinesRef}>
         <mesh position={[0, 1.5, 0]} rotation={[Math.PI/2, 0, 0]}>
           <torusGeometry args={[5, 0.1, 16, 100]} />
@@ -1746,7 +1746,7 @@ export const EnvDpsResilienceForge = ({ color }: { color: THREE.Color }) => {
   const HOT = "#fca5a5";
   const fireRef = useRef<THREE.Group>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (fireRef.current) {
@@ -1800,7 +1800,7 @@ export const EnvDpsResilienceCore = ({ color }: { color: THREE.Color }) => {
   const fragRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const t = useRef(0);
-  
+
   useFrame((_, delta) => {
     t.current += delta;
     if (coreRef.current) {
@@ -1829,7 +1829,7 @@ export const EnvDpsResilienceCore = ({ color }: { color: THREE.Color }) => {
         <octahedronGeometry args={[1.5, 0]} />
         <meshStandardMaterial color={HOT} emissive={HOT} emissiveIntensity={5} />
       </mesh>
-      
+
       <group ref={fragRef}>
         <mesh position={[-4, 2, -4]}><boxGeometry args={[3, 3, 3]} /><meshStandardMaterial color="#27272a" metalness={0.9} /></mesh>
         <mesh position={[4, 2, 4]}><boxGeometry args={[4, 2, 2]} /><meshStandardMaterial color="#27272a" metalness={0.9} /></mesh>
@@ -1934,7 +1934,7 @@ export const EnvDpsMidnightStar = ({ color }: { color: THREE.Color }) => {
       const jitter = broken ? 0 : Math.pow(pre, 5) * 0.6;
       ref.current.position.set((Math.random()-0.5)*jitter, (Math.random()-0.5)*jitter, (Math.random()-0.5)*jitter);
       ref.current.rotation.z = broken ? now * 2 : now * 0.5;
-      
+
       ref.current.children.forEach((child, i) => {
          child.scale.setScalar(broken ? 1 + Math.sin(now * 15 + i)*0.3 : 0.5 + pre*0.5);
       });
@@ -2037,11 +2037,11 @@ export const EnvDpsMidnightGalaxy = ({ color }: { color: THREE.Color }) => {
       coreRef.current.scale.setScalar(broken ? 1.5 + Math.sin(now*15)*0.3 : 0.1 + pre*0.9);
       (coreRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = broken ? 10 : pre * 5;
     }
-    
+
     if (spiralRef.current) {
       spiralRef.current.rotation.y = broken ? -now * 2 : -now * 0.5 * pre;
       spiralRef.current.scale.setScalar(broken ? 1 : pre);
-      
+
       spiralRef.current.children.forEach((child, i) => {
          if (broken) {
             child.position.y = stars[i].y + Math.sin(now*5 + i*0.1)*0.2;
@@ -2091,7 +2091,7 @@ export const EnvDpsCompassBronze = ({ color }: { color: THREE.Color }) => {
       const lockJitter = broken ? 0 : (Math.random()-0.5)*0.2 * pre;
       ring1.current.rotation.x = broken ? now * 1.5 : Math.PI/4 + lockJitter;
       ring2.current.rotation.y = broken ? -now * 2.0 : -Math.PI/4 + lockJitter;
-      
+
       (ring1.current.material as THREE.MeshStandardMaterial).emissiveIntensity = broken ? 2 : pre;
       (ring2.current.material as THREE.MeshStandardMaterial).emissiveIntensity = broken ? 2 : pre;
     }
@@ -2187,7 +2187,7 @@ export const EnvDpsCompassGold = ({ color }: { color: THREE.Color }) => {
     if (ref.current) {
       const jitter = broken ? 0 : Math.pow(pre, 5) * 0.5;
       ref.current.position.set((Math.random()-0.5)*jitter, (Math.random()-0.5)*jitter, (Math.random()-0.5)*jitter);
-      
+
       ref.current.children.forEach((child, i) => {
          if (i < 24) { // Runes
             child.rotation.y = broken ? now * 3 : now * 0.5;

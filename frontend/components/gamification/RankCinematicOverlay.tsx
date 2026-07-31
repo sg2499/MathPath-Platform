@@ -3,10 +3,10 @@
 import React, { useEffect, useState, useRef, Suspense, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
-import { 
-  Environment, 
-  Sparkles, 
-  Stars, 
+import {
+  Environment,
+  Sparkles,
+  Stars,
   Float,
   useProgress
 } from '@react-three/drei';
@@ -27,10 +27,10 @@ const CinematicMasterRig = ({ tier }: { tier: string }) => {
   const { camera } = useThree();
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  
+
   // Preload the AI Master Asset. Suspense will block rendering until this is ready!
   const texture = useLoader(THREE.TextureLoader, `/assets/ranks/${tier}.png`);
-  
+
   // VERY IMPORTANT: Set correct color space so the image is perfectly clear and not washed out!
   useEffect(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -44,13 +44,13 @@ const CinematicMasterRig = ({ tier }: { tier: string }) => {
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    
+
     // --- CAMERA MATHEMATICS ---
     // 0.0s - 1.5s: The Intense Buildup (Rapid Pullback)
     if (t < 1.5) {
       const z = THREE.MathUtils.lerp(1, 15, Math.pow(t / 1.5, 3)); // Cubic ease out
       const fov = THREE.MathUtils.lerp(120, 50, Math.pow(t / 1.5, 2));
-      
+
       // Absolute deterministic shake (Fixes the extreme stutter/lag)
       let shakeX = 0;
       let shakeY = 0;
@@ -62,7 +62,7 @@ const CinematicMasterRig = ({ tier }: { tier: string }) => {
       (camera as THREE.PerspectiveCamera).fov = fov;
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
       camera.lookAt(0, 0, 0);
-    } 
+    }
     // 1.5s - 2.5s: The Impact Shake
     else if (t >= 1.5 && t < 2.5) {
       const shake = (2.5 - t) * 1.5;
@@ -72,7 +72,7 @@ const CinematicMasterRig = ({ tier }: { tier: string }) => {
         15
       );
       camera.lookAt(0, 0, 0);
-    } 
+    }
     // 2.5s onwards: The God-Tier Cinematic Drift
     else {
       camera.position.lerp(new THREE.Vector3(Math.sin(t * 0.2) * 2, Math.cos(t * 0.1) * 1, 16), 0.01);
@@ -120,12 +120,12 @@ const CinematicMasterRig = ({ tier }: { tier: string }) => {
     <>
       <ambientLight intensity={1} />
       <pointLight position={[0, 0, 5]} intensity={50} color={colors.light} distance={20} />
-      
+
       <Float speed={2} rotationIntensity={0.2} floatIntensity={0.2}>
         <mesh ref={meshRef}>
           <planeGeometry args={[12, 12]} />
           {/* Custom GLSL Shader to perfectly key out the black background while keeping shadows/clarity! */}
-          <shaderMaterial 
+          <shaderMaterial
             ref={materialRef}
             uniforms={uniforms}
             transparent={true}
@@ -176,7 +176,7 @@ const Scene = ({ tier }: { tier: string }) => {
         <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} intensity={0.5} />
         <Vignette eskil={false} offset={0.1} darkness={1.2} />
       </EffectComposer>
-      
+
       <Suspense fallback={null}>
         <CinematicMasterRig tier={tier} />
       </Suspense>
@@ -190,7 +190,7 @@ const Scene = ({ tier }: { tier: string }) => {
 const TypographyOverlay = ({ tier }: { tier: string }) => {
   const [showText, setShowText] = useState(false);
   const { active } = useProgress(); // Waits for suspense to finish!
-  
+
   useEffect(() => {
     // Only start the 1.5s countdown AFTER all assets are completely loaded
     if (!active) {
@@ -251,7 +251,7 @@ export function RankCinematicOverlay({ tier, onComplete }: RankCinematicOverlayP
 
   return createPortal(
     <AnimatePresence>
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -265,8 +265,8 @@ export function RankCinematicOverlay({ tier, onComplete }: RankCinematicOverlayP
           </Canvas>
         </div>
         <TypographyOverlay tier={tier} />
-        
-        <motion.div 
+
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.5 }}
           transition={{ delay: 3, duration: 2 }}

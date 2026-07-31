@@ -8299,7 +8299,7 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
       case "DpsResilienceAnvil": return <EnvDpsResilienceAnvil color={color} />;
       case "DpsObsidianAnvil": return <EnvDpsObsidianAnvil color={color} />;
       case "DpsCelestialAnvil": return <EnvDpsCelestialAnvil color={color} />;
-      
+
       case "DpsQuartzCrystal": return <EnvDpsQuartzCrystal color={color} />;
       case "DpsSapphireCrystal": return <EnvDpsSapphireCrystal color={color} />;
       case "DpsRubyCrystal": return <EnvDpsRubyCrystal color={color} />;
@@ -8309,7 +8309,7 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
       case "DpsSilverTome": return <EnvDpsSilverTome color={color} />;
       case "DpsAstralTome": return <EnvDpsAstralTome color={color} />;
       case "DpsBoundlessTome": return <EnvDpsBoundlessTome color={color} />;
-      
+
       case "DpsBronzeQuill": return <EnvDpsBronzeQuill color={color} />;
       case "DpsSilverQuill": return <EnvDpsSilverQuill color={color} />;
       case "DpsRadiantQuill": return <EnvDpsRadiantQuill color={color} />;
@@ -8322,7 +8322,7 @@ function BadgeEnvironment3D({ iconName, tier, colorHex }: { iconName: string, ti
       case "DpsSteelChain": return <EnvDpsSteelChain color={color} />;
       case "DpsDiamondChain": return <EnvDpsDiamondChain color={color} />;
       case "DpsUnbrokenMechanism": return <EnvDpsUnbrokenMechanism color={color} />;
-      
+
       // --- Phase 7 DPS Batch 4 (Rising Phoenix & Master's Anvil) ---
       case "DpsAshFeather": return <EnvDpsAshFeather color={color} />;
       case "DpsEmberWing": return <EnvDpsEmberWing color={color} />;

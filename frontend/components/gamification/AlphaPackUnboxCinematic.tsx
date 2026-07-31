@@ -31,16 +31,16 @@ const RarityColors: Record<string, string> = {
 function QuantumCore({ progress, phase, color }: { progress: number, phase: string, color: string }) {
   const coreRef = useRef<THREE.Mesh>(null);
   const shellRef = useRef<THREE.Mesh>(null);
-  
+
   useFrame((state) => {
     if (!coreRef.current || !shellRef.current) return;
     const time = state.clock.getElapsedTime();
-    
+
     // Rotation speeds up as progress increases
     const speed = 1 + (progress / 20);
     coreRef.current.rotation.x = time * speed;
     coreRef.current.rotation.y = time * speed * 1.5;
-    
+
     shellRef.current.rotation.x = -time * (speed * 0.5);
     shellRef.current.rotation.y = -time * (speed * 0.5);
 
@@ -48,7 +48,7 @@ function QuantumCore({ progress, phase, color }: { progress: number, phase: stri
     if (phase === 'DECRYPTING') {
       const pulse = 1 + Math.sin(time * 20) * (progress / 1000);
       coreRef.current.scale.setScalar(pulse);
-      
+
       // Shake
       const shakeX = (Math.random() - 0.5) * (progress / 500);
       const shakeY = (Math.random() - 0.5) * (progress / 500);
@@ -63,10 +63,10 @@ function QuantumCore({ progress, phase, color }: { progress: number, phase: stri
     <group>
       {/* Outer Shell */}
       <Icosahedron ref={shellRef} args={[2, 1]} position={[0, 0, 0]}>
-        <meshStandardMaterial 
-          color="#0f172a" 
-          wireframe={progress > 50} 
-          roughness={0.2} 
+        <meshStandardMaterial
+          color="#0f172a"
+          wireframe={progress > 50}
+          roughness={0.2}
           metalness={0.8}
           transparent
           opacity={1 - (progress/200)}
@@ -75,25 +75,25 @@ function QuantumCore({ progress, phase, color }: { progress: number, phase: stri
 
       {/* Inner Glowing Core */}
       <Sphere ref={coreRef} args={[1.5, 32, 32]}>
-        <MeshDistortMaterial 
-          color={color} 
+        <MeshDistortMaterial
+          color={color}
           emissive={color}
           emissiveIntensity={1 + (progress / 10)}
-          distort={0.2 + (progress / 200)} 
-          speed={2 + (progress / 10)} 
+          distort={0.2 + (progress / 200)}
+          speed={2 + (progress / 10)}
           roughness={0}
         />
       </Sphere>
 
       {/* Sparks flying off as it decrypts */}
       {progress > 10 && (
-        <Sparkles 
-          count={Math.floor(progress * 2)} 
-          scale={5} 
-          size={4} 
-          speed={2} 
-          color={color} 
-          opacity={0.8} 
+        <Sparkles
+          count={Math.floor(progress * 2)}
+          scale={5}
+          size={4}
+          speed={2}
+          color={color}
+          opacity={0.8}
         />
       )}
     </group>
@@ -102,7 +102,7 @@ function QuantumCore({ progress, phase, color }: { progress: number, phase: stri
 
 function RevealItem({ item, color }: { item: PackItem, color: string }) {
   const ref = useRef<THREE.Group>(null);
-  
+
   useFrame((state) => {
     if (ref.current) {
       ref.current.rotation.y += 0.01;
@@ -114,12 +114,12 @@ function RevealItem({ item, color }: { item: PackItem, color: string }) {
     <group ref={ref}>
       <Float speed={2} rotationIntensity={1} floatIntensity={2}>
         <Icosahedron args={[1.5, 0]}>
-          <meshStandardMaterial 
-            color="#ffffff" 
-            emissive={color} 
-            emissiveIntensity={0.5} 
-            roughness={0.1} 
-            metalness={1} 
+          <meshStandardMaterial
+            color="#ffffff"
+            emissive={color}
+            emissiveIntensity={0.5}
+            roughness={0.1}
+            metalness={1}
           />
         </Icosahedron>
       </Float>
@@ -151,9 +151,9 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
         currentProgress -= 3; // Fast decay if let go
         if (currentProgress < 0) currentProgress = 0;
       }
-      
+
       setProgress(currentProgress);
-      
+
       if (phase === 'DECRYPTING' || (phase === 'IDLE' && currentProgress > 0)) {
         animationFrame = requestAnimationFrame(loop);
       }
@@ -175,7 +175,7 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
   }, [phase]);
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[99999] bg-black select-none overflow-hidden touch-none"
       onPointerDown={() => phase === 'IDLE' && setPhase('DECRYPTING')}
       onPointerUp={() => phase === 'DECRYPTING' && setPhase('IDLE')}
@@ -186,22 +186,22 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
           <color attach="background" args={['#020617']} />
           <ambientLight intensity={0.5} />
           <directionalLight position={[10, 10, 10]} intensity={1} />
-          
+
           <QuantumCore progress={progress} phase={phase} color={color} />
-          
+
           {phase === 'REVEAL' && <RevealItem item={pack} color={color} />}
 
           <EffectComposer>
-            <Bloom 
-              luminanceThreshold={0.2} 
-              luminanceSmoothing={0.9} 
-              intensity={phase === 'FLASH' ? 50 : 2 + (progress / 20)} 
+            <Bloom
+              luminanceThreshold={0.2}
+              luminanceSmoothing={0.9}
+              intensity={phase === 'FLASH' ? 50 : 2 + (progress / 20)}
             />
-            <ChromaticAberration 
+            <ChromaticAberration
               offset={new THREE.Vector2(
-                (progress / 5000) + (phase === 'FLASH' ? 0.05 : 0), 
+                (progress / 5000) + (phase === 'FLASH' ? 0.05 : 0),
                 (progress / 5000)
-              )} 
+              )}
             />
             <Noise opacity={0.2 + (progress / 500)} />
             <Vignette eskil={false} offset={0.1} darkness={1.1} />
@@ -212,7 +212,7 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
       {/* Overlay UI */}
       <AnimatePresence>
         {(phase === 'IDLE' || phase === 'DECRYPTING') && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -221,12 +221,12 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
             <h2 className="text-3xl font-black uppercase tracking-[0.3em] text-white/50 mb-8 animate-pulse">
               {phase === 'IDLE' ? 'Hold to Decrypt' : 'Overloading Core...'}
             </h2>
-            
+
             {/* Progress Bar */}
             <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden border border-white/20">
-              <div 
+              <div
                 className="h-full transition-all duration-75 ease-out"
-                style={{ 
+                style={{
                   width: `${progress}%`,
                   backgroundColor: color,
                   boxShadow: `0 0 20px ${color}`
@@ -237,7 +237,7 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
         )}
 
         {phase === 'FLASH' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -246,7 +246,7 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
         )}
 
         {phase === 'REVEAL' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1, duration: 1 }}

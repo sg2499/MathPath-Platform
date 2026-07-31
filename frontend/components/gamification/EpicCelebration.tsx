@@ -69,7 +69,7 @@ const generate3DShadow = (color: string) => {
 // 1. APEX FLAWLESS: Shattered Convergence
 function ConvergeText({ text, extrusionColor }: { text: string; extrusionColor: string }) {
   const letters = text.split("");
-  
+
   return (
     <motion.div
       initial={{ scale: 1.1 }}
@@ -83,7 +83,7 @@ function ConvergeText({ text, extrusionColor }: { text: string; extrusionColor: 
         const startX = (Math.random() - 0.5) * 1000;
         const startY = (Math.random() - 0.5) * 1000;
         const startRotate = (Math.random() - 0.5) * 180;
-        
+
         return (
           <motion.span
             key={i}
@@ -134,20 +134,20 @@ function DecryptText({ text, extrusionColor }: { text: string; extrusionColor: s
   useEffect(() => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+0123456789";
     let iterations = 0;
-    
+
     const interval = setInterval(() => {
-      setDisplayText((prev) => 
+      setDisplayText((prev) =>
         prev.split("").map((letter, index) => {
           if (index < iterations / 2) return text[index];
           return text[index] === " " ? " " : chars[Math.floor(Math.random() * chars.length)];
         }).join("")
       );
-      
+
       if (iterations >= text.length * 2) {
         clearInterval(interval);
         setIsDecrypted(true);
       }
-      
+
       iterations++;
     }, 40); // Fast scrambling
 
@@ -156,13 +156,13 @@ function DecryptText({ text, extrusionColor }: { text: string; extrusionColor: s
 
   return (
     <div className="relative p-8" style={{ textShadow: generate3DShadow(extrusionColor) }}>
-      <motion.h1 
+      <motion.h1
         className={`${TextBaseClass} ${isDecrypted ? "" : "text-cyan-200 drop-shadow-[0_0_10px_#22d3ee]"}`}
         style={TextStrokeStyle}
       >
         {displayText}
       </motion.h1>
-      
+
       {/* Glitch flash on successful decrypt */}
       {isDecrypted && (
         <>
@@ -197,10 +197,10 @@ function MeteorText({ text, extrusionColor }: { text: string; extrusionColor: st
           key={i}
           initial={{ y: -300, opacity: 0, scale: 2 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          transition={{ 
-            duration: 0.5, 
-            delay: i * 0.1, 
-            type: "spring", 
+          transition={{
+            duration: 0.5,
+            delay: i * 0.1,
+            type: "spring",
             bounce: 0.5 // Heavy bounce when hitting the floor
           }}
           className={TextBaseClass}
@@ -258,14 +258,14 @@ export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebra
       <div className="absolute inset-0 bg-black/70 backdrop-blur-md pointer-events-auto" />
 
       {/* Cinematic Letterboxing */}
-      <motion.div 
+      <motion.div
         initial={{ y: "-100%" }}
         animate={{ y: 0 }}
         exit={{ y: "-100%", transition: { duration: 0.8, ease: "easeInOut" } }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="absolute top-0 left-0 right-0 h-[15vh] bg-black z-0 pointer-events-none"
       />
-      <motion.div 
+      <motion.div
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%", transition: { duration: 0.8, ease: "easeInOut" } }}
@@ -279,8 +279,8 @@ export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebra
         animate={{ rotate: 360 }}
         transition={{ repeat: Infinity, duration: isFlawless ? 25 : 12, ease: "linear" }}
       >
-        <div 
-          className="w-[1000px] h-[1000px] rounded-full blur-[140px]" 
+        <div
+          className="w-[1000px] h-[1000px] rounded-full blur-[140px]"
           style={{ background: `radial-gradient(circle, ${tier.shadowColor} 0%, transparent 70%)` }}
         />
       </motion.div>
@@ -298,9 +298,9 @@ export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebra
             {tier.id === "IMMORTAL" && <RiseText text={tier.text} extrusionColor={tier.extrusionColor} />}
             {tier.id === "ASCENDANT" && <DecryptText text={tier.text} extrusionColor={tier.extrusionColor} />}
             {tier.id === "DOMINATING" && <MeteorText text={tier.text} extrusionColor={tier.extrusionColor} />}
-            
+
             {/* Subtitle */}
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               transition={{ delay: 2.2 }}
