@@ -38,7 +38,7 @@ export function LootNotification({ isOpen, onClose, packType }: LootNotification
           <div className={`relative flex items-center gap-4 p-4 pr-8 rounded-xl border-2 backdrop-blur-md shadow-2xl ${glowColor} ${bgColor}`}>
             {/* Spinning Light Effect */}
             <div className="absolute inset-0 overflow-hidden rounded-xl">
-              <motion.div 
+              <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                 className={`absolute inset-[-100%] opacity-20 ${isElite ? 'bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(253,224,71,1)_360deg)]' : 'bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(34,211,238,1)_360deg)]'}`}

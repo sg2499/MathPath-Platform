@@ -114,18 +114,47 @@ const LEVEL_MASTERY_BATCH4_PM: PreviewBadge[] = [
 
 
 const LEVEL_MASTERY_BATCH5_IM: PreviewBadge[] = [
-  { code: "level_mastery_im_l1", tier: "BASE", name: "IM L1 -- Cleared", description: "Complete at least 12 Mock Exams within IM L1", iconName: "LevelMasteryImL1Cleared" },
-  { code: "level_mastery_im_l1", tier: "SUPER", name: "IM L1 -- Mastered", description: "Complete at least 20 Mock Exams within IM L1, averaging 85% or higher", iconName: "LevelMasteryImL1Mastered" },
-  { code: "level_mastery_im_l1", tier: "LEGENDARY", name: "IM L1 -- Perfected", description: "Complete at least 30 Mock Exams within IM L1, averaging 95% or higher", iconName: "LevelMasteryImL1Perfected" },
-  { code: "level_mastery_im_l2", tier: "BASE", name: "IM L2 -- Cleared", description: "Complete at least 12 Mock Exams within IM L2", iconName: "LevelMasteryImL2Cleared" },
-  { code: "level_mastery_im_l2", tier: "SUPER", name: "IM L2 -- Mastered", description: "Complete at least 20 Mock Exams within IM L2, averaging 85% or higher", iconName: "LevelMasteryImL2Mastered" },
-  { code: "level_mastery_im_l2", tier: "LEGENDARY", name: "IM L2 -- Perfected", description: "Complete at least 30 Mock Exams within IM L2, averaging 95% or higher", iconName: "LevelMasteryImL2Perfected" },
-  { code: "level_mastery_im_l3", tier: "BASE", name: "IM L3 -- Cleared", description: "Complete at least 12 Mock Exams within IM L3", iconName: "LevelMasteryImL3Cleared" },
-  { code: "level_mastery_im_l3", tier: "SUPER", name: "IM L3 -- Mastered", description: "Complete at least 20 Mock Exams within IM L3, averaging 85% or higher", iconName: "LevelMasteryImL3Mastered" },
-  { code: "level_mastery_im_l3", tier: "LEGENDARY", name: "IM L3 -- Perfected", description: "Complete at least 30 Mock Exams within IM L3, averaging 95% or higher", iconName: "LevelMasteryImL3Perfected" },
-  { code: "level_mastery_im_l4", tier: "BASE", name: "IM L4 -- Cleared", description: "Complete at least 12 Mock Exams within IM L4", iconName: "LevelMasteryImL4Cleared" },
-  { code: "level_mastery_im_l4", tier: "SUPER", name: "IM L4 -- Mastered", description: "Complete at least 20 Mock Exams within IM L4, averaging 85% or higher", iconName: "LevelMasteryImL4Mastered" },
-  { code: "level_mastery_im_l4", tier: "LEGENDARY", name: "IM L4 -- Perfected", description: "Complete at least 30 Mock Exams within IM L4, averaging 95% or higher", iconName: "LevelMasteryImL4Perfected" },
+  { code: "im_l1_cleared", tier: "BASE", name: "L1 Cleared (IM)", description: "Cleared L1", iconName: "LevelMasteryImL1Cleared" },
+  { code: "im_l1_mastered", tier: "SUPER", name: "L1 Mastered (IM)", description: "Mastered L1", iconName: "LevelMasteryImL1Mastered" },
+  { code: "im_l1_perfected", tier: "LEGENDARY", name: "L1 Perfected (IM)", description: "Perfected L1", iconName: "LevelMasteryImL1Perfected" },
+  { code: "im_l2_cleared", tier: "BASE", name: "L2 Cleared (IM)", description: "Cleared L2", iconName: "LevelMasteryImL2Cleared" },
+  { code: "im_l2_mastered", tier: "SUPER", name: "L2 Mastered (IM)", description: "Mastered L2", iconName: "LevelMasteryImL2Mastered" },
+  { code: "im_l2_perfected", tier: "LEGENDARY", name: "L2 Perfected (IM)", description: "Perfected L2", iconName: "LevelMasteryImL2Perfected" },
+  { code: "im_l3_cleared", tier: "BASE", name: "L3 Cleared (IM)", description: "Cleared L3", iconName: "LevelMasteryImL3Cleared" },
+  { code: "im_l3_mastered", tier: "SUPER", name: "L3 Mastered (IM)", description: "Mastered L3", iconName: "LevelMasteryImL3Mastered" },
+  { code: "im_l3_perfected", tier: "LEGENDARY", name: "L3 Perfected (IM)", description: "Perfected L3", iconName: "LevelMasteryImL3Perfected" },
+  { code: "im_l4_cleared", tier: "BASE", name: "L4 Cleared (IM)", description: "Cleared L4", iconName: "LevelMasteryImL4Cleared" },
+  { code: "im_l4_mastered", tier: "SUPER", name: "L4 Mastered (IM)", description: "Mastered L4", iconName: "LevelMasteryImL4Mastered" },
+  { code: "im_l4_perfected", tier: "LEGENDARY", name: "L4 Perfected (IM)", description: "Perfected L4", iconName: "LevelMasteryImL4Perfected" },
+];
+
+
+const DPS_BATCH_2: PreviewBadge[] = [
+  // Family 3: The Boundless Tome (25 - 100 - 350 - 500)
+  { code: "dps_tome", tier: "BASE", name: "The Leather Tome", description: "Complete 25 DPS sheets.", iconName: "DpsLeatherTome" },
+  { code: "dps_tome", tier: "SUPER", name: "The Silver Tome", description: "Complete 100 DPS sheets.", iconName: "DpsSilverTome" },
+  { code: "dps_tome", tier: "LEGENDARY", name: "The Astral Tome", description: "Complete 350 DPS sheets.", iconName: "DpsAstralTome" },
+  { code: "dps_tome", tier: "MYTHIC", name: "The Boundless Tome", description: "Complete 500 DPS sheets.", iconName: "DpsBoundlessTome" },
+
+  // Family 4: The Lightning Quill
+  { code: "dps_quill", tier: "BASE", name: "The Bronze Quill", description: "Finish 5 DPS sheets in under 50% of the allocated time with >90% accuracy.", iconName: "DpsBronzeQuill" },
+  { code: "dps_quill", tier: "SUPER", name: "The Silver Quill", description: "Achieve Lightning Quill on 25 DPS sheets.", iconName: "DpsSilverQuill" },
+  { code: "dps_quill", tier: "LEGENDARY", name: "The Radiant Quill", description: "Achieve Lightning Quill on 75 DPS sheets.", iconName: "DpsRadiantQuill" },
+  { code: "dps_quill", tier: "MYTHIC", name: "The Lightning Quill", description: "Achieve Lightning Quill on 150 DPS sheets.", iconName: "DpsLightningQuill" },
+];
+
+const DPS_BATCH_1: PreviewBadge[] = [
+  // Family 1: The Ironclad Discipline
+  { code: "dps_discipline", tier: "BASE", name: "The Ironclad Discipline", description: "Complete all 5 DPS sheets in a single week.", iconName: "DpsIronAnvil" },
+  { code: "dps_discipline", tier: "SUPER", name: "Super Ironclad Discipline", description: "Complete all 5 DPS sheets for 4 consecutive weeks.", iconName: "DpsSteelAnvil" },
+  { code: "dps_discipline", tier: "LEGENDARY", name: "Legendary Ironclad Discipline", description: "Complete all 5 DPS sheets for 12 consecutive weeks.", iconName: "DpsObsidianAnvil" },
+  { code: "dps_discipline", tier: "MYTHIC", name: "Mythic Ironclad Discipline", description: "Complete all 5 DPS sheets for 36 consecutive weeks.", iconName: "DpsCelestialAnvil" },
+
+  // Family 2: The Pure Crystal
+  { code: "dps_crystal", tier: "BASE", name: "The Pure Crystal", description: "Score 100% on 5 different DPS sheets.", iconName: "DpsQuartzCrystal" },
+  { code: "dps_crystal", tier: "SUPER", name: "Super Pure Crystal", description: "Score 100% on 25 different DPS sheets.", iconName: "DpsSapphireCrystal" },
+  { code: "dps_crystal", tier: "LEGENDARY", name: "Legendary Pure Crystal", description: "Score 100% on 75 different DPS sheets.", iconName: "DpsRubyCrystal" },
+  { code: "dps_crystal", tier: "MYTHIC", name: "Mythic Pure Crystal", description: "Score 100% on 200 different DPS sheets.", iconName: "DpsDiamondCrystal" },
 ];
 
 const TIER_CHIP_STYLE: Record<string, string> = {
@@ -174,6 +203,188 @@ function Section({ title, badges, onOpen }: { title: string; badges: PreviewBadg
   );
 }
 
+const DPS_BATCH_3: PreviewBadge[] = [
+  // Family 5: The Sage's Eye
+  {
+    code: "dps_sage",
+    iconName: "DpsBronzeHourglass",
+    name: "The Sage's Eye",
+    description: "Use >95% of the allocated time and score exactly 100% accuracy on 5 DPS sheets.",
+    tier: "BASE"
+  },
+  {
+    code: "dps_sage",
+    iconName: "DpsSilverHourglass",
+    name: "The Sage's Eye",
+    description: "Achieve Sage's Eye on 20 DPS sheets.",
+    tier: "SUPER"
+  },
+  {
+    code: "dps_sage",
+    iconName: "DpsGoldenHourglass",
+    name: "The Sage's Eye",
+    description: "Achieve Sage's Eye on 50 DPS sheets.",
+    tier: "LEGENDARY"
+  },
+  {
+    code: "dps_sage",
+    iconName: "DpsCelestialEye",
+    name: "The Sage's Eye",
+    description: "Achieve Sage's Eye on 100 DPS sheets.",
+    tier: "MYTHIC"
+  },
+  
+  // Family 6: The Unbroken Chain
+  {
+    code: "dps_chain",
+    iconName: "DpsIronChain",
+    name: "The Unbroken Chain",
+    description: "Attempt 100% of the questions (zero unanswered) on 10 consecutive DPS sheets.",
+    tier: "BASE"
+  },
+  {
+    code: "dps_chain",
+    iconName: "DpsSteelChain",
+    name: "The Unbroken Chain",
+    description: "Attempt 100% of the questions on 50 consecutive DPS sheets.",
+    tier: "SUPER"
+  },
+  {
+    code: "dps_chain",
+    iconName: "DpsDiamondChain",
+    name: "The Unbroken Chain",
+    description: "Attempt 100% of the questions on 120 consecutive DPS sheets.",
+    tier: "LEGENDARY"
+  },
+  {
+    code: "dps_chain",
+    iconName: "DpsUnbrokenMechanism",
+    name: "The Unbroken Chain",
+    description: "Attempt 100% of the questions on 250 consecutive DPS sheets.",
+    tier: "MYTHIC"
+  }
+];
+
+
+const DPS_BATCH_4: PreviewBadge[] = [
+  {
+    code: "dps_phoenix",
+    tier: "BASE",
+    name: "The Rising Phoenix",
+    description: "Score <50% on a DPS, then score >90% on your very next DPS.",
+    iconName: "DpsAshFeather"
+  },
+  {
+    code: "dps_phoenix",
+    tier: "SUPER",
+    name: "The Rising Phoenix",
+    description: "Achieve The Phoenix 5 times.",
+    iconName: "DpsEmberWing"
+  },
+  {
+    code: "dps_phoenix",
+    tier: "LEGENDARY",
+    name: "The Rising Phoenix",
+    description: "Achieve The Phoenix 15 times.",
+    iconName: "DpsGoldenPhoenix"
+  },
+  {
+    code: "dps_phoenix",
+    tier: "MYTHIC",
+    name: "The Rising Phoenix",
+    description: "Achieve The Phoenix 30 times.",
+    iconName: "DpsSolarRebirth"
+  },
+  {
+    code: "dps_anvil",
+    tier: "BASE",
+    name: "The Master's Anvil",
+    description: "Fail a DPS attempt, but immediately use a retry and score 100%.",
+    iconName: "DpsResilienceHammer"
+  },
+  {
+    code: "dps_anvil",
+    tier: "SUPER",
+    name: "The Master's Anvil",
+    description: "Achieve Master's Anvil 10 times.",
+    iconName: "DpsResilienceAnvil"
+  },
+  {
+    code: "dps_anvil",
+    tier: "LEGENDARY",
+    name: "The Master's Anvil",
+    description: "Achieve Master's Anvil 30 times.",
+    iconName: "DpsResilienceForge"
+  },
+  {
+    code: "dps_anvil",
+    tier: "MYTHIC",
+    name: "The Master's Anvil",
+    description: "Achieve Master's Anvil 60 times.",
+    iconName: "DpsResilienceCore"
+  },
+];
+
+const DPS_BATCH_5: PreviewBadge[] = [
+  {
+    code: "dps_midnight",
+    tier: "BASE",
+    name: "The Midnight Oil",
+    description: "Complete 5 DPS sheets on a weekend (Saturday/Sunday).",
+    iconName: "DpsMidnightLantern"
+  },
+  {
+    code: "dps_midnight",
+    tier: "SUPER",
+    name: "The Midnight Oil",
+    description: "Complete 25 DPS sheets on weekends.",
+    iconName: "DpsMidnightStar"
+  },
+  {
+    code: "dps_midnight",
+    tier: "LEGENDARY",
+    name: "The Midnight Oil",
+    description: "Complete 75 DPS sheets on weekends.",
+    iconName: "DpsMidnightMoon"
+  },
+  {
+    code: "dps_midnight",
+    tier: "MYTHIC",
+    name: "The Midnight Oil",
+    description: "Complete 150 DPS sheets on weekends.",
+    iconName: "DpsMidnightGalaxy"
+  },
+  {
+    code: "dps_compass",
+    tier: "BASE",
+    name: "The Golden Compass",
+    description: "Score >90% on the very first attempt (no retries) for 10 DPS sheets.",
+    iconName: "DpsCompassBronze"
+  },
+  {
+    code: "dps_compass",
+    tier: "SUPER",
+    name: "The Golden Compass",
+    description: "Score >90% on the very first attempt for 40 DPS sheets.",
+    iconName: "DpsCompassSilver"
+  },
+  {
+    code: "dps_compass",
+    tier: "LEGENDARY",
+    name: "The Golden Compass",
+    description: "Score >90% on the very first attempt for 100 DPS sheets.",
+    iconName: "DpsCompassGold"
+  },
+  {
+    code: "dps_compass",
+    tier: "MYTHIC",
+    name: "The Golden Compass",
+    description: "Score >90% on the very first attempt for 250 DPS sheets.",
+    iconName: "DpsCompassAstral"
+  },
+];
+
+
 export default function BadgePreviewPage() {
   const [selected, setSelected] = useState<PreviewBadge | null>(null);
 
@@ -194,6 +405,9 @@ export default function BadgePreviewPage() {
       <Section title="Phase 3 -- Level Mastery, batch 3: YLM-L1/L2/L3 (9 badges)" badges={LEVEL_MASTERY_BATCH3_YLM} onOpen={setSelected} />
       <Section title="Phase 3 -- Level Mastery, batch 4: PM-L1/L2/L3/L4 (12 badges)" badges={LEVEL_MASTERY_BATCH4_PM} onOpen={setSelected} />
       <Section title="Phase 3 -- Level Mastery, batch 5: IM-L1/L2/L3/L4 (12 badges)" badges={LEVEL_MASTERY_BATCH5_IM} onOpen={setSelected} />
+      <Section title="Phase 5 -- DPS Batch 2 (Boundless Tome & Lightning Quill - 8 badges)" badges={DPS_BATCH_2} onOpen={setSelected} />
+      <Section title="Phase 6 -- DPS Batch 3 (Sage's Eye & Unbroken Chain - 8 badges)" badges={DPS_BATCH_3} onOpen={setSelected} />
+      <Section title="Phase 4 -- DPS Batch 1 (Ironclad Discipline & Pure Crystal - 8 badges)" badges={DPS_BATCH_1} onOpen={setSelected} />
 
       {selected && (
         <BadgeInspectionModal
@@ -208,6 +422,8 @@ export default function BadgePreviewPage() {
           onClose={() => setSelected(null)}
         />
       )}
-    </main>
+          <Section title="Phase 7 -- DPS Batch 4 (Rising Phoenix & Master's Anvil - 8 badges)" badges={DPS_BATCH_4} onOpen={setSelected} />
+          <Section title="Phase 8 -- DPS Batch 5 (Midnight Oil & Golden Compass - 8 badges)" badges={DPS_BATCH_5} onOpen={setSelected} />
+      </main>
   );
 }

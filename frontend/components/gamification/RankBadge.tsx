@@ -36,7 +36,7 @@ const getRankBadgeDesign = (rank: string) => {
               <stop offset="0%" stopColor="#f59e0b" stopOpacity="1"/>
               <stop offset="100%" stopColor="#78350f" stopOpacity="0.9"/>
             </radialGradient>
-            
+
             {/* L1: Deep Drop Shadow */}
             <path d="M 50 2 L 85 15 L 98 50 L 85 85 L 50 98 L 15 85 L 2 50 L 15 15 Z" fill="#2d1300" filter="url(#intense-blur)" transform="translate(0, 4)"/>
             {/* L2: Outer Heavy Gear Frame */}
@@ -65,7 +65,7 @@ const getRankBadgeDesign = (rank: string) => {
             {/* L10: Volumetric Lighting Highlight */}
             <path d="M 50 2 L 85 15 L 98 50" fill="none" stroke="#fff" strokeWidth="1.5" opacity="0.6" style={{ filter: 'drop-shadow(0 0 4px #fff)' }}/>
             {/* L11: Animated Gear Ring (Outer) */}
-            <motion.circle cx="50" cy="50" r="36" fill="none" stroke="#f59e0b" strokeWidth="1" strokeDasharray="4 8" opacity="0.7" 
+            <motion.circle cx="50" cy="50" r="36" fill="none" stroke="#f59e0b" strokeWidth="1" strokeDasharray="4 8" opacity="0.7"
               animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} style={{ originX: '50px', originY: '50px' }}
             />
             {/* L12: Animated Gear Ring (Inner) */}
@@ -253,7 +253,7 @@ const getRankBadgeDesign = (rank: string) => {
               <stop offset="50%" stopColor="#c084fc" stopOpacity="0.8"/>
               <stop offset="100%" stopColor="#3b0764" stopOpacity="0"/>
             </radialGradient>
-            
+
             {/* L1: Deep Shadow */}
             <path d="M 50 0 L 100 25 L 100 75 L 50 100 L 0 75 L 0 25 Z" fill="#1e013a" filter="url(#intense-blur)" transform="translate(0, 6)"/>
             {/* L2: Hexagonal Matrix Base */}
@@ -305,7 +305,7 @@ const getRankBadgeDesign = (rank: string) => {
               <stop offset="40%" stopColor="#10b981" stopOpacity="0.8"/>
               <stop offset="100%" stopColor="#022c22" stopOpacity="0"/>
             </radialGradient>
-            
+
             {/* L1: Toxic Blur Shadow */}
             <polygon points="50,0 100,50 50,100 0,50" fill="#011812" filter="url(#intense-blur)" transform="translate(0, 6)"/>
             {/* L2: Mystic Diamond Base */}
@@ -355,7 +355,7 @@ const getRankBadgeDesign = (rank: string) => {
               <stop offset="60%" stopColor="#0284c7" stopOpacity="0.5"/>
               <stop offset="100%" stopColor="#082f49" stopOpacity="0"/>
             </radialGradient>
-            
+
             {/* L1: Refractive Blur Shadow */}
             <polygon points="50,0 90,30 50,100 10,30" fill="#041b2e" filter="url(#intense-blur)" transform="translate(0, 8)"/>
             {/* L2: Prism Base */}
@@ -405,7 +405,7 @@ const getRankBadgeDesign = (rank: string) => {
               <stop offset="50%" stopColor="#e11d48" stopOpacity="0.6"/>
               <stop offset="100%" stopColor="#4c0519" stopOpacity="0"/>
             </radialGradient>
-            
+
             {/* L1: Supernova Shadow */}
             <path d="M 50 0 L 85 15 L 100 50 L 85 85 L 50 100 L 15 85 L 0 50 L 15 15 Z" fill="#2a030d" filter="url(#intense-blur)" transform="translate(0, 10) scale(1.1)"/>
             {/* L2: Winged Base Left */}
@@ -449,7 +449,7 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
   const numeral = parts[1] || '';
 
   const design = getRankBadgeDesign(baseRank);
-  
+
   if (!design) return null;
 
   const sizeClasses = {
@@ -468,8 +468,8 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
 
   return (
     <div className={cn('relative group flex items-center justify-center transform-gpu will-change-transform', sizeClasses[size], className)}>
-      <svg 
-        viewBox="-10 -10 120 120" 
+      <svg
+        viewBox="-10 -10 120 120"
         className="w-full h-full drop-shadow-2xl overflow-visible"
         style={{ filter: `drop-shadow(0 0 30px ${design.glowColor})` }}
       >
@@ -481,7 +481,7 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
             <feGaussianBlur stdDeviation="8" result="blur" />
           </filter>
         </defs>
-        
+
         {/* Render the insanely complex SVG shape layers */}
         {design.shape}
       </svg>
@@ -489,7 +489,7 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
       {/* 3D Roman Numeral Rendering with deep text-shadow */}
       {numeral && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <motion.span 
+          <motion.span
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", bounce: 0.6 }}
@@ -497,7 +497,7 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
               "font-black uppercase tracking-tighter mix-blend-plus-lighter",
               numeralSizeClasses[size]
             )}
-            style={{ 
+            style={{
               color: design.textColor,
               textShadow: design.textShadow,
               fontFamily: 'serif'
@@ -507,10 +507,10 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
           </motion.span>
         </div>
       )}
-      
+
       {/* Global Rank Ribbon (if applicable) */}
       {globalRank && globalRank <= 100 && (
-        <motion.div 
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5, type: "spring" }}

@@ -30,9 +30,9 @@ export function CollectorVaultWorkspace() {
 
   if (unboxingPack) {
     return (
-      <AlphaPackUnboxCinematic 
-        pack={unboxingPack} 
-        onComplete={() => setUnboxingPack(null)} 
+      <AlphaPackUnboxCinematic
+        pack={unboxingPack}
+        onComplete={() => setUnboxingPack(null)}
       />
     );
   }
@@ -43,14 +43,14 @@ export function CollectorVaultWorkspace() {
       <section className="math-dashboard-hero math-dashboard-hero-student math-dashboard-hero-clean shrink-0">
         <div className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-indigo-300/18 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-cyan-300/16 blur-3xl" />
-        
+
         <div className="relative flex items-start justify-between gap-5">
           <div className="flex flex-col gap-5">
             <div className="math-block-header w-fit">
               <Sparkles size={14} />
               Collector's Vault
             </div>
-            
+
             <div className="flex flex-col gap-3">
               <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem]">
                 Unlock <span className="text-orange-500 dark:text-orange-400">Mythic</span> Rewards
@@ -65,7 +65,7 @@ export function CollectorVaultWorkspace() {
 
       {/* Tabs (Standardized to Global math-role-tab) */}
       <div className="flex items-center space-x-4 shrink-0">
-        <button 
+        <button
           onClick={() => setActiveTab("UNBOX")}
           data-active={activeTab === "UNBOX" ? "true" : undefined}
           className={`px-8 py-3 rounded-full font-bold transition-all math-role-tab ${
@@ -74,7 +74,7 @@ export function CollectorVaultWorkspace() {
         >
           Decrypt Caches ({packs.length})
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab("COLLECTION")}
           data-active={activeTab === "COLLECTION" ? "true" : undefined}
           className={`px-8 py-3 rounded-full font-bold transition-all math-role-tab ${
@@ -106,7 +106,7 @@ export function CollectorVaultWorkspace() {
                     onClick={() => setUnboxingPack(pack)}
                     className={cn(
                       "relative group flex flex-col items-center justify-center p-8 rounded-[2rem] cursor-pointer transition-all overflow-hidden h-72",
-                      pack.rarity === 'LEGENDARY' 
+                      pack.rarity === 'LEGENDARY'
                         ? "bg-gradient-to-b from-yellow-500/20 to-black/50 border border-yellow-500/30 hover:shadow-[0_0_40px_rgba(234,179,8,0.3)] hover:border-yellow-400"
                         : pack.rarity === 'EPIC'
                         ? "bg-gradient-to-b from-purple-500/20 to-black/50 border border-purple-500/30 hover:shadow-[0_0_40px_rgba(168,85,247,0.3)] hover:border-purple-400"
@@ -121,7 +121,7 @@ export function CollectorVaultWorkspace() {
                     <span className="text-xs text-white/50 mt-2 font-bold uppercase z-10 tracking-[0.2em]">Hold to Decrypt</span>
                   </motion.div>
                 ))}
-                
+
                 {packs.length === 0 && (
                   <div className="col-span-full flex flex-col items-center justify-center h-full text-slate-500 pt-20">
                     <PackageOpen className="w-16 h-16 mb-4 opacity-50" />
@@ -141,14 +141,14 @@ export function CollectorVaultWorkspace() {
                   >
                     <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                     <div className="w-24 h-4 bg-white/5 rounded-[100%] absolute bottom-8 blur-md" />
-                    
+
                     <Trophy className="w-16 h-16 mb-6 text-white/80 z-10 relative drop-shadow-2xl group-hover:scale-110 transition-transform duration-500" />
                     <span className="font-black uppercase tracking-widest text-center text-sm z-10 text-white leading-tight">
                       {item.name}
                     </span>
                     <span className={cn(
                       "text-[10px] mt-2 font-black uppercase tracking-[0.2em] z-10",
-                      item.rarity === 'LEGENDARY' ? 'text-yellow-400' : 
+                      item.rarity === 'LEGENDARY' ? 'text-yellow-400' :
                       item.rarity === 'EPIC' ? 'text-purple-400' :
                       item.rarity === 'RARE' ? 'text-cyan-400' : 'text-slate-400'
                     )}>
