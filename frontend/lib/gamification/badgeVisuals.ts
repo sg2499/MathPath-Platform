@@ -7,12 +7,17 @@
 // imports from here too -- this file is the single source of truth for how
 // a badge's code+tier maps to its visual identity.
 import {
+  dpsBatch2Glyphs,
   referenceBatchGlyphs,
   mockExamBatch1Glyphs,
   mockExamBatch2Glyphs,
   mythicPhase1Glyphs,
   phase2Glyphs,
   levelMasteryImGlyphs,
+  dpsBatch1Glyphs,
+  dpsBatch3Glyphs,
+  dpsBatch4Glyphs,
+  dpsBatch5Glyphs
 } from "./badgeGlyphs";
 
 // Map our backend icon names to badge glyph components.
@@ -103,6 +108,11 @@ export const BadgeIconMap: Record<string, any> = {
   //   SectionSpecialistNode/Grid/Matrix/Nexus        -> section_specialist
   ...phase2Glyphs,
   ...levelMasteryImGlyphs,
+  ...dpsBatch1Glyphs,
+  ...dpsBatch2Glyphs,
+  ...dpsBatch3Glyphs,
+  ...dpsBatch4Glyphs,
+  ...dpsBatch5Glyphs,
 };
 
 // ===========================================================================
@@ -150,6 +160,8 @@ export const BadgeIconMap: Record<string, any> = {
 
 // 30 Unique Colors based on Badge Code and Tier (Distinct Spectrum)
 export const badgeColorConfig: Record<string, any> = {
+
+
   "level_mastery_im_l1_BASE": { customBg: "linear-gradient(to bottom right, #004c6a, #111)", customShadow: "0 8px 20px -4px #004c6a88", customBorder: "3px solid #004c6a", iconColorHex: "#fff", bloomColor: "rgba(0, 76, 106, 0.55)", glitch: false, burst: ["#004c6a", "#111", "#004c6a", "#fff"] },
   "level_mastery_im_l1_SUPER": { customBg: "linear-gradient(to bottom right, #ff9b73, #111)", customShadow: "0 10px 24px -4px #ff9b7388", customBorder: "4px solid #ff9b73", iconColorHex: "#fff", bloomColor: "rgba(255, 155, 115, 0.75)", glitch: false, burst: ["#ff9b73", "#111", "#ff9b73", "#fff"] },
   "level_mastery_im_l1_LEGENDARY": { customBg: "linear-gradient(to bottom right, #00b60b, #111)", customShadow: "0 12px 30px -4px #00b60b88", customBorder: "4px solid #00b60b", iconColorHex: "#fff", bloomColor: "rgba(0, 182, 11, 0.9)", glitch: false, burst: ["#00b60b", "#111", "#00b60b", "#fff"] },
@@ -963,6 +975,66 @@ export const badgeColorConfig: Record<string, any> = {
   // entry on purpose -- making letterboxing a blanket LEGENDARY behaviour
   // would silently re-crop every existing LEGENDARY badge cinematic.
   "unstoppable_streak_chain_LEGENDARY": { customBg: "linear-gradient(to bottom right, #f97316, #7f1d1d)", customShadow: "0 10px 25px -3px rgba(249, 115, 22, 0.45)", customBorder: "4px solid #fed7aa", iconColorHex: "#fff7ed", bloomColor: "rgba(220, 38, 38, 0.9)", glitch: true, letterbox: true, burst: ["#f97316", "#dc2626", "#fed7aa", "#ffffff"] },
+
+  // --- Phase 4: DPS Gamification Overhaul ------------------------------
+  // IRONCLAD DISCIPLINE (Anvil)
+  "dps_discipline_BASE": { customBg: "linear-gradient(135deg, #71717a 0%, #3f3f46 50%, #18181b 100%)", customShadow: "0 10px 15px -3px rgba(63, 63, 70, 0.4)", customBorder: "none", iconColorHex: "#f4f4f5", bloomColor: "rgba(113, 113, 122, 0.6)", glitch: false, burst: ["#71717a", "#3f3f46", "#18181b", "#ffffff"] },
+  "dps_discipline_SUPER": { customBg: "linear-gradient(135deg, #38bdf8 0%, #0284c7 45%, #082f49 100%)", customShadow: "0 10px 24px -4px rgba(2, 132, 199, 0.6)", customBorder: "2px solid rgba(186, 230, 253, 0.6)", iconColorHex: "#f0f9ff", bloomColor: "rgba(2, 132, 199, 0.8)", glitch: true, revealPulse: true, burst: ["#38bdf8", "#0284c7", "#bae6fd", "#ffffff"] },
+  "dps_discipline_LEGENDARY": { customBg: "linear-gradient(135deg, #f97316 0%, #991b1b 40%, #450a0a 100%)", customShadow: "0 12px 30px -4px rgba(153, 27, 27, 0.7)", customBorder: "4px solid #fca5a5", iconColorHex: "#fff7ed", bloomColor: "rgba(153, 27, 27, 0.9)", glitch: true, burst: ["#f97316", "#991b1b", "#fca5a5", "#ffffff"] },
+  "dps_discipline_MYTHIC": { customBg: "linear-gradient(125deg, #a855f7 0%, #ec4899 25%, #f43f5e 50%, #f97316 75%, #fcd34d 100%)", customShadow: "0 15px 40px -4px rgba(236, 72, 153, 0.8)", customBorder: "4px solid rgba(255, 255, 255, 0.9)", iconColorHex: "#1a1033", bloomColor: "rgba(244, 63, 94, 1.0)", glitch: true, burst: ["#f43f5e", "#ec4899", "#fcd34d", "#ffffff"] },
+
+  // PURE CRYSTAL
+  "dps_crystal_BASE": { customBg: "linear-gradient(135deg, #a5f3fc 0%, #2dd4bf 50%, #115e59 100%)", customShadow: "0 10px 15px -3px rgba(45, 212, 191, 0.4)", customBorder: "none", iconColorHex: "#f0fdfa", bloomColor: "rgba(45, 212, 191, 0.6)", glitch: false, burst: ["#2dd4bf", "#115e59", "#a5f3fc", "#ffffff"] },
+  "dps_crystal_SUPER": { customBg: "linear-gradient(135deg, #3b82f6 0%, #4338ca 50%, #1e1b4b 100%)", customShadow: "0 10px 24px -4px rgba(67, 56, 202, 0.6)", customBorder: "2px solid rgba(199, 210, 254, 0.6)", iconColorHex: "#eef2ff", bloomColor: "rgba(67, 56, 202, 0.8)", glitch: true, revealPulse: true, burst: ["#4338ca", "#3b82f6", "#c7d2fe", "#ffffff"] },
+  "dps_crystal_LEGENDARY": { customBg: "linear-gradient(135deg, #f43f5e 0%, #be123c 50%, #4c0519 100%)", customShadow: "0 12px 30px -4px rgba(190, 18, 60, 0.7)", customBorder: "4px solid #fda4af", iconColorHex: "#fff1f2", bloomColor: "rgba(190, 18, 60, 0.9)", glitch: true, burst: ["#f43f5e", "#be123c", "#fda4af", "#ffffff"] },
+  "dps_crystal_MYTHIC": { customBg: "linear-gradient(125deg, #fdf4ff 0%, #fbcfe8 20%, #f472b6 40%, #c084fc 60%, #818cf8 80%, #2dd4bf 100%)", customShadow: "0 15px 40px -4px rgba(192, 132, 252, 0.8)", customBorder: "4px solid rgba(255, 255, 255, 0.9)", iconColorHex: "#1a1033", bloomColor: "rgba(192, 132, 252, 1.0)", glitch: true, burst: ["#fbcfe8", "#c084fc", "#2dd4bf", "#ffffff"] },
+  "dps_tome_BASE": { customBg: "linear-gradient(135deg, #78350f 0%, #451a03 100%)", customShadow: "0 10px 20px -5px rgba(120, 53, 15, 0.5)", customBorder: "2px solid #b45309", iconColorHex: "#fef3c7", bloomColor: "#b45309", glitch: false, burst: ["#78350f", "#b45309", "#fef3c7"] },
+  "dps_tome_SUPER": { customBg: "linear-gradient(135deg, #475569 0%, #1e293b 100%)", customShadow: "0 10px 20px -5px rgba(71, 85, 105, 0.6)", customBorder: "2px solid #94a3b8", iconColorHex: "#f8fafc", bloomColor: "#94a3b8", glitch: true, revealPulse: true, burst: ["#475569", "#94a3b8", "#ffffff"] },
+  "dps_tome_LEGENDARY": { customBg: "linear-gradient(135deg, #5b21b6 0%, #2e1065 100%)", customShadow: "0 12px 30px -4px rgba(91, 33, 182, 0.7)", customBorder: "4px solid #8b5cf6", iconColorHex: "#f5f3ff", bloomColor: "#8b5cf6", glitch: true, burst: ["#5b21b6", "#8b5cf6", "#f5f3ff", "#ffffff"] },
+  "dps_tome_MYTHIC": { customBg: "linear-gradient(125deg, #0284c7 0%, #0369a1 20%, #075985 40%, #0c4a6e 60%, #082f49 80%, #020617 100%)", customShadow: "0 15px 40px -4px rgba(2, 132, 199, 0.8)", customBorder: "4px solid rgba(255, 255, 255, 0.9)", iconColorHex: "#f0f9ff", bloomColor: "#38bdf8", glitch: true, burst: ["#0284c7", "#38bdf8", "#020617", "#ffffff"] },
+
+  "dps_quill_BASE": { customBg: "linear-gradient(135deg, #854d0e 0%, #422006 100%)", customShadow: "0 10px 20px -5px rgba(133, 77, 14, 0.5)", customBorder: "2px solid #ca8a04", iconColorHex: "#fefce8", bloomColor: "#ca8a04", glitch: false, burst: ["#854d0e", "#ca8a04", "#fefce8"] },
+  "dps_quill_SUPER": { customBg: "linear-gradient(135deg, #64748b 0%, #334155 100%)", customShadow: "0 10px 20px -5px rgba(100, 116, 139, 0.6)", customBorder: "2px solid #cbd5e1", iconColorHex: "#f8fafc", bloomColor: "#cbd5e1", glitch: true, revealPulse: true, burst: ["#64748b", "#cbd5e1", "#ffffff"] },
+  "dps_quill_LEGENDARY": { customBg: "linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)", customShadow: "0 12px 30px -4px rgba(185, 28, 28, 0.7)", customBorder: "4px solid #f59e0b", iconColorHex: "#fffbeb", bloomColor: "#f59e0b", glitch: true, burst: ["#b91c1c", "#f59e0b", "#fffbeb", "#ffffff"] },
+  "dps_quill_MYTHIC": { customBg: "linear-gradient(125deg, #0891b2 0%, #0e7490 20%, #155e75 40%, #164e63 60%, #083344 80%, #020617 100%)", customShadow: "0 15px 40px -4px rgba(8, 145, 178, 0.8)", customBorder: "4px solid rgba(255, 255, 255, 0.9)", iconColorHex: "#cffafe", bloomColor: "#06b6d4", glitch: true, burst: ["#0891b2", "#06b6d4", "#cffafe", "#ffffff"] },
+
+  
+  // THE MIDNIGHT OIL
+  "dps_midnight_BASE": { customBg: "linear-gradient(135deg, #b45309 0%, #78350f 100%)", customShadow: "0 10px 20px -5px rgba(180, 83, 9, 0.5)", customBorder: "2px solid #d97706", iconColorHex: "#fcd34d", bloomColor: "#f59e0b", glitch: false, burst: ["#b45309", "#d97706", "#fef3c7"] },
+  "dps_midnight_SUPER": { customBg: "linear-gradient(135deg, #334155 0%, #0f172a 100%)", customShadow: "0 10px 20px -5px rgba(51, 65, 85, 0.5)", customBorder: "2px solid #94a3b8", iconColorHex: "#f8fafc", bloomColor: "#e2e8f0", glitch: false, burst: ["#94a3b8", "#cbd5e1", "#f8fafc"] },
+  "dps_midnight_LEGENDARY": { customBg: "linear-gradient(135deg, #a16207 0%, #422006 100%)", customShadow: "0 10px 20px -5px rgba(161, 98, 7, 0.5)", customBorder: "2px solid #eab308", iconColorHex: "#fef08a", bloomColor: "#fde047", glitch: false, burst: ["#eab308", "#fde047", "#fef08a"] },
+  "dps_midnight_MYTHIC": { customBg: "linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)", customShadow: "0 15px 30px -5px rgba(124, 58, 237, 0.7)", customBorder: "2px solid #a78bfa", iconColorHex: "#ddd6fe", bloomColor: "#c4b5fd", glitch: true, burst: ["#8b5cf6", "#a78bfa", "#ddd6fe"] },
+
+  // THE GOLDEN COMPASS
+  "dps_compass_BASE": { customBg: "linear-gradient(135deg, #b45309 0%, #78350f 100%)", customShadow: "0 10px 20px -5px rgba(180, 83, 9, 0.5)", customBorder: "2px solid #d97706", iconColorHex: "#fcd34d", bloomColor: "#f59e0b", glitch: false, burst: ["#b45309", "#d97706", "#fef3c7"] },
+  "dps_compass_SUPER": { customBg: "linear-gradient(135deg, #334155 0%, #0f172a 100%)", customShadow: "0 10px 20px -5px rgba(51, 65, 85, 0.5)", customBorder: "2px solid #94a3b8", iconColorHex: "#f8fafc", bloomColor: "#e2e8f0", glitch: false, burst: ["#94a3b8", "#cbd5e1", "#f8fafc"] },
+  "dps_compass_LEGENDARY": { customBg: "linear-gradient(135deg, #a16207 0%, #422006 100%)", customShadow: "0 10px 20px -5px rgba(161, 98, 7, 0.5)", customBorder: "2px solid #eab308", iconColorHex: "#fef08a", bloomColor: "#fde047", glitch: false, burst: ["#eab308", "#fde047", "#fef08a"] },
+  "dps_compass_MYTHIC": { customBg: "linear-gradient(135deg, #be123c 0%, #881337 100%)", customShadow: "0 15px 30px -5px rgba(190, 18, 60, 0.7)", customBorder: "2px solid #fb7185", iconColorHex: "#ffe4e6", bloomColor: "#fda4af", glitch: true, burst: ["#e11d48", "#fb7185", "#ffe4e6"] },
+
+
+// SAGE'S EYE
+  "dps_sage_BASE": { customBg: "linear-gradient(135deg, #b45309 0%, #78350f 100%)", customShadow: "0 10px 20px -5px rgba(180, 83, 9, 0.5)", customBorder: "2px solid #d97706", iconColorHex: "#fcd34d", bloomColor: "#f59e0b", glitch: false, burst: ["#b45309", "#d97706", "#fef3c7"] },
+  "dps_sage_SUPER": { customBg: "linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%)", customShadow: "0 10px 20px -5px rgba(59, 130, 246, 0.6)", customBorder: "2px solid #60a5fa", iconColorHex: "#bfdbfe", bloomColor: "#38bdf8", glitch: true, revealPulse: true, burst: ["#3b82f6", "#60a5fa", "#ffffff"] },
+  "dps_sage_LEGENDARY": { customBg: "linear-gradient(135deg, #f59e0b 0%, #92400e 100%)", customShadow: "0 12px 30px -4px rgba(245, 158, 11, 0.7)", customBorder: "4px solid #fcd34d", iconColorHex: "#fef3c7", bloomColor: "#fbbf24", glitch: true, burst: ["#f59e0b", "#fbbf24", "#fef3c7", "#ffffff"] },
+  "dps_sage_MYTHIC": { customBg: "linear-gradient(125deg, #0ea5e9 0%, #0284c7 20%, #0369a1 40%, #075985 60%, #082f49 80%, #020617 100%)", customShadow: "0 15px 40px -4px rgba(2, 132, 199, 0.8)", customBorder: "4px solid rgba(255, 255, 255, 0.9)", iconColorHex: "#e0f2fe", bloomColor: "#0ea5e9", glitch: true, burst: ["#0ea5e9", "#0284c7", "#e0f2fe", "#ffffff"] },
+
+  // UNBROKEN CHAIN
+  "dps_chain_BASE": { customBg: "linear-gradient(135deg, #52525b 0%, #27272a 100%)", customShadow: "0 10px 20px -5px rgba(82, 82, 91, 0.5)", customBorder: "2px solid #71717a", iconColorHex: "#e4e4e7", bloomColor: "#a1a1aa", glitch: false, burst: ["#52525b", "#71717a", "#e4e4e7"] },
+  "dps_chain_SUPER": { customBg: "linear-gradient(135deg, #475569 0%, #1e293b 100%)", customShadow: "0 10px 20px -5px rgba(71, 85, 105, 0.6)", customBorder: "2px solid #94a3b8", iconColorHex: "#f8fafc", bloomColor: "#94a3b8", glitch: true, revealPulse: true, burst: ["#475569", "#94a3b8", "#ffffff"] },
+  "dps_chain_LEGENDARY": { customBg: "linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)", customShadow: "0 12px 30px -4px rgba(2, 132, 199, 0.7)", customBorder: "4px solid #7dd3fc", iconColorHex: "#bae6fd", bloomColor: "#38bdf8", glitch: true, burst: ["#0ea5e9", "#38bdf8", "#bae6fd", "#ffffff"] },
+  "dps_chain_MYTHIC": { customBg: "linear-gradient(125deg, #a855f7 0%, #7e22ce 20%, #6b21a8 40%, #581c87 60%, #3b0764 80%, #020617 100%)", customShadow: "0 15px 40px -4px rgba(126, 34, 206, 0.8)", customBorder: "4px solid rgba(255, 255, 255, 0.9)", iconColorHex: "#f3e8ff", bloomColor: "#d946ef", glitch: true, burst: ["#a855f7", "#d946ef", "#f3e8ff", "#ffffff"] },
+
+  // THE RISING PHOENIX (The Bounce-Back)
+  "dps_phoenix_BASE": { customBg: "linear-gradient(135deg, #450a0a 0%, #171717 100%)", customShadow: "0 10px 20px -5px rgba(69, 10, 10, 0.5)", customBorder: "2px solid #7f1d1d", iconColorHex: "#fca5a5", bloomColor: "#b91c1c", glitch: false, burst: ["#450a0a", "#7f1d1d", "#fca5a5"] },
+  "dps_phoenix_SUPER": { customBg: "linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%)", customShadow: "0 10px 20px -5px rgba(220, 38, 38, 0.6)", customBorder: "2px solid #ef4444", iconColorHex: "#fee2e2", bloomColor: "#ef4444", glitch: true, revealPulse: true, burst: ["#dc2626", "#ef4444", "#ffffff"] },
+  "dps_phoenix_LEGENDARY": { customBg: "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)", customShadow: "0 12px 30px -4px rgba(245, 158, 11, 0.7)", customBorder: "4px solid #fcd34d", iconColorHex: "#fef3c7", bloomColor: "#fbbf24", glitch: true, burst: ["#f59e0b", "#fbbf24", "#fef3c7", "#ffffff"] },
+  "dps_phoenix_MYTHIC": { customBg: "linear-gradient(125deg, #fef08a 0%, #f97316 25%, #e11d48 50%, #4c0519 75%, #020617 100%)", customShadow: "0 15px 40px -4px rgba(225, 29, 72, 0.8)", customBorder: "4px solid rgba(255, 255, 255, 0.9)", iconColorHex: "#fff1f2", bloomColor: "#e11d48", glitch: true, burst: ["#e11d48", "#f97316", "#fef08a", "#ffffff"] },
+
+  // THE MASTER'S ANVIL (Resilience)
+  "dps_anvil_BASE": { customBg: "linear-gradient(135deg, #27272a 0%, #09090b 100%)", customShadow: "0 10px 20px -5px rgba(39, 39, 42, 0.5)", customBorder: "2px solid #52525b", iconColorHex: "#d4d4d8", bloomColor: "#71717a", glitch: false, burst: ["#27272a", "#52525b", "#d4d4d8"] },
+  "dps_anvil_SUPER": { customBg: "linear-gradient(135deg, #3f3f46 0%, #18181b 100%)", customShadow: "0 10px 20px -5px rgba(63, 63, 70, 0.6)", customBorder: "2px solid #71717a", iconColorHex: "#f4f4f5", bloomColor: "#a1a1aa", glitch: true, revealPulse: true, burst: ["#3f3f46", "#71717a", "#ffffff"] },
+  "dps_anvil_LEGENDARY": { customBg: "linear-gradient(135deg, #991b1b 0%, #431407 100%)", customShadow: "0 12px 30px -4px rgba(153, 27, 27, 0.7)", customBorder: "4px solid #ef4444", iconColorHex: "#fee2e2", bloomColor: "#dc2626", glitch: true, burst: ["#991b1b", "#dc2626", "#fee2e2", "#ffffff"] },
+  "dps_anvil_MYTHIC": { customBg: "linear-gradient(125deg, #facc15 0%, #ea580c 25%, #9a3412 50%, #450a0a 75%, #000000 100%)", customShadow: "0 15px 40px -4px rgba(234, 88, 12, 0.8)", customBorder: "4px solid rgba(255, 255, 255, 0.9)", iconColorHex: "#fff7ed", bloomColor: "#ea580c", glitch: true, burst: ["#ea580c", "#facc15", "#fff7ed", "#ffffff"] },
 };
 
 // Fallback Config just in case a badge is missing

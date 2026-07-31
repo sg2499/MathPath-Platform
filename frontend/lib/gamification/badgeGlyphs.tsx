@@ -78,14 +78,14 @@ export function IconSpeedComet(props: BadgeGlyphProps) {
       {/* Motion trails -- drawn first so the dart sits on top of them. All
           three run parallel to the dart's own axis, which is what makes them
           read as speed rather than as decoration. */}
-      <g stroke={SPEED_ICE} strokeWidth={1.15} opacity={0.5} fill="none">
+      <g stroke={SPEED_ICE} strokeWidth={1.15} opacity={0.8} fill="none">
         <path d="M8.1 4.9 Q6.2 7.5 4.3 10.1" />
         <path d="M19.3 15.6 Q17.2 18.4 15.1 21.2" />
       </g>
       <path
         d="M9.6 8.4 Q7 12 4.3 15.7"
         stroke={SPEED_CYAN}
-        strokeWidth={1.5}
+        strokeWidth={2.5}
         opacity={0.85}
         fill="none"
       />
@@ -138,7 +138,7 @@ export function IconPerfectionistGem(props: BadgeGlyphProps) {
       <path d="M17.1 8.2 L12 21" strokeWidth={1} opacity={0.8} />
       {/* Step cuts -- two horizontal breaks tracking the taper. */}
       <path d="M5.8 11.5 L18.2 11.5" strokeWidth={0.85} opacity={0.6} />
-      <path d="M8.1 15 L15.9 15" strokeWidth={0.85} opacity={0.5} />
+      <path d="M8.1 15 L15.9 15" strokeWidth={0.85} opacity={0.8} />
       {/* Table glint. */}
       <path d="M9.7 4.6 L12.3 4.6 L10.9 6.8 L8.3 6.8 Z" fill={GEM_LILAC} opacity={0.75} stroke="none" />
     </GlyphShell>
@@ -330,7 +330,7 @@ export function IconLevelMasteryBmL1Base(props: BadgeGlyphProps) {
       <path d="M18.4 8.6 L18.4 20.6 L21.8 20.6 L21.8 8.6 Z" strokeWidth={1.15} />
 
       {/* Plain deck, no parapet railing. */}
-      <path d="M1 8.6 H23" strokeWidth={1.5} />
+      <path d="M1 8.6 H23" strokeWidth={2.5} />
 
       {/* The arch -- outline only, unfilled, no keystone. */}
       <path d={ARCH_OUTER} fill="none" strokeWidth={1.6} />
@@ -352,7 +352,7 @@ export function IconLevelMasteryBmL1Super(props: BadgeGlyphProps) {
       <path d={ARCH_OUTER} fill="none" strokeWidth={1.6} />
 
       {/* Deck + parapet railing -- BASE's plain bar becomes a real railing. */}
-      <path d="M1 8.6 H23" strokeWidth={1.5} />
+      <path d="M1 8.6 H23" strokeWidth={2.5} />
       <g strokeWidth={0.9} opacity={0.75}>
         <path d="M3.9 8.6 L3.9 7.1" />
         <path d="M7.4 8.6 L7.4 7.1" />
@@ -395,7 +395,7 @@ export function IconLevelMasteryBmL1Legendary(props: BadgeGlyphProps) {
 
       {/* The arch -- two layered fill bands (echoing the 3D scene's voussoir
           stack), richer than SUPER's single flat wash. */}
-      <path d={ARCH_BAND} fill={BRIDGE_MAGENTA} opacity={0.5} stroke="none" />
+      <path d={ARCH_BAND} fill={BRIDGE_MAGENTA} opacity={0.8} stroke="none" />
       <path d={ARCH_BAND_INNER} fill={BRIDGE_ROSE} opacity={0.45} stroke="none" />
       <path d={ARCH_OUTER} fill="none" strokeWidth={1.6} />
 
@@ -415,7 +415,7 @@ export function IconLevelMasteryBmL1Legendary(props: BadgeGlyphProps) {
       </g>
 
       {/* Deck + parapet railing. */}
-      <path d="M1 8.6 H23" strokeWidth={1.5} />
+      <path d="M1 8.6 H23" strokeWidth={2.5} />
       <g strokeWidth={0.9} opacity={0.8}>
         <path d="M3.9 8.6 L3.9 7.1" />
         <path d="M7.4 8.6 L7.4 7.1" />
@@ -453,7 +453,7 @@ export function IconLevelMasteryBmL1Legendary(props: BadgeGlyphProps) {
           y=22.2, which fell almost entirely outside the 24x24 viewBox and
           survived on screen as two disconnected squiggles. */}
       <path d="M0.6 20.8 H23.4" strokeWidth={0.7} opacity={0.55} strokeDasharray="1.2 1.4" stroke={BRIDGE_MIST} />
-      <path d="M5.6 20.8 A6.4 2.6 0 0 0 18.4 20.8" fill="none" strokeWidth={0.9} opacity={0.5} stroke={BRIDGE_MIST} />
+      <path d="M5.6 20.8 A6.4 2.6 0 0 0 18.4 20.8" fill="none" strokeWidth={0.9} opacity={0.8} stroke={BRIDGE_MIST} />
       <path d="M7.1 20.8 A4.9 2 0 0 0 16.9 20.8" fill="none" strokeWidth={0.6} opacity={0.32} stroke={BRIDGE_ROSE} />
       {/* Pier reflections -- broken by the current, so dashed, not solid. */}
       <g stroke={BRIDGE_MIST} strokeWidth={0.9} opacity={0.32} strokeDasharray="0.9 1.1">
@@ -484,7 +484,7 @@ export function IconLevelMasteryMmL1Base(props: BadgeGlyphProps) {
       <path d="M21.8 21.4 L21.8 18.4 L19.6 21.4 Z" fill="none" strokeWidth={1.15} />
 
       {/* Plain ground line, no snow contour. */}
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
 
       {/* The peak -- outline only, unfilled. */}
       <path d={PEAK_OUTLINE} fill="none" strokeWidth={1.6} />
@@ -503,7 +503,7 @@ export function IconLevelMasteryMmL1Super(props: BadgeGlyphProps) {
 
       {/* Ground line + snow-line contour -- BASE's plain line gains a
           dashed contour partway up the slope. */}
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
       <path d="M6.8 13.4 H17.2" strokeWidth={0.9} opacity={0.75} strokeDasharray="1.4 1.2" />
 
       {/* The peak, solidly filled -- one even wash, calm and finished. */}
@@ -529,8 +529,8 @@ export function IconLevelMasteryMmL1Legendary(props: BadgeGlyphProps) {
         <path
           d="M-2.4 5.6 C2.4 1.4 5.6 7.4 9.4 4.6 C13 2 16.4 6.6 20.2 3.8 C22.4 2.2 24.6 3 26.4 1.6"
           stroke={PEAK_FROST}
-          strokeWidth={1.5}
-          opacity={0.5}
+          strokeWidth={2.5}
+          opacity={0.8}
         />
         <path
           d="M-2.4 8.6 C2.6 4.6 5.4 10.2 9.6 7.4 C13.4 4.8 16.2 9.4 20.4 6.6 C22.6 5 24.4 6 26.4 4.6"
@@ -554,7 +554,7 @@ export function IconLevelMasteryMmL1Legendary(props: BadgeGlyphProps) {
         <circle cx="8.2" cy="1.6" r="0.28" opacity={0.45} />
         <circle cx="16.4" cy="0.9" r="0.38" opacity={0.6} />
         <circle cx="18.9" cy="2.2" r="0.45" opacity={0.75} />
-        <circle cx="21.4" cy="4.6" r="0.3" opacity={0.5} />
+        <circle cx="21.4" cy="4.6" r="0.3" opacity={0.8} />
       </g>
 
       {/* Base-camp markers, richest fill of the three. */}
@@ -573,12 +573,12 @@ export function IconLevelMasteryMmL1Legendary(props: BadgeGlyphProps) {
       </g>
 
       {/* Ground line + snow-line contour. */}
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
       <path d="M6.8 13.4 H17.2" strokeWidth={0.9} opacity={0.8} strokeDasharray="1.4 1.2" />
 
       {/* The peak -- two layered fill bands (echoing the 3D scene's rock
           strata), richer than SUPER's single flat wash. */}
-      <path d={PEAK_OUTLINE} fill={PEAK_SAPPHIRE} opacity={0.5} stroke="none" />
+      <path d={PEAK_OUTLINE} fill={PEAK_SAPPHIRE} opacity={0.8} stroke="none" />
       <path d="M6.4 13.4 L12 3.2 L17.6 13.4 Z" fill={PEAK_FROST} opacity={0.45} stroke="none" />
       <path d={PEAK_OUTLINE} fill="none" strokeWidth={1.6} />
 
@@ -603,7 +603,7 @@ export function IconLevelMasteryMmL1Legendary(props: BadgeGlyphProps) {
 
       {/* Dashed frost-line beneath the ground -- the family's environmental
           echo, held over because a frozen lake below a peak is real. */}
-      <path d="M0.6 22.6 H23.4" strokeWidth={0.7} opacity={0.5} strokeDasharray="1.2 1.4" stroke={PEAK_FROST} />
+      <path d="M0.6 22.6 H23.4" strokeWidth={0.7} opacity={0.8} strokeDasharray="1.2 1.4" stroke={PEAK_FROST} />
     </GlyphShell>
   );
 }
@@ -650,7 +650,7 @@ export function IconLevelMasteryYlmL1Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
       {/* Soil line -- plain, no glow. */}
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
       {/* Seed coat -- outline only, unfilled, intact, dormant. */}
       <path d={SEED_BODY} fill="none" strokeWidth={1.6} />
       {/* A single hairline radicle just reaching the soil. Nothing has
@@ -663,7 +663,7 @@ export function IconLevelMasteryYlmL1Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryYlmL1Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
       {/* Seed, solidly filled -- one even wash. */}
       <path d={SEED_BODY} fill={SEED_SPARK} opacity={0.42} stroke="none" />
       <path d={SEED_BODY} fill="none" strokeWidth={1.6} />
@@ -693,7 +693,7 @@ export function IconLevelMasteryYlmL1Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryYlmL1Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
 
       {/* ROOT GLOW below the soil -- germination is the only motif in this
           whole family that acts DOWNWARD, so this is where its escaping light
@@ -707,7 +707,7 @@ export function IconLevelMasteryYlmL1Legendary(props: BadgeGlyphProps) {
         <path d="M12.2 20.9 C12.8 22.2 13.6 23.2 14.6 24.8" />
         <path d="M12.5 20.9 C13.8 22 15.4 22.8 17.4 25.2" />
       </g>
-      <g fill="none" strokeWidth={0.55} opacity={0.5} stroke={SEED_DAWN} strokeLinecap="round">
+      <g fill="none" strokeWidth={0.55} opacity={0.8} stroke={SEED_DAWN} strokeLinecap="round">
         <path d="M10.7 22.6 L9.4 22.3" />
         <path d="M13.3 22.6 L14.6 22.3" />
       </g>
@@ -715,7 +715,7 @@ export function IconLevelMasteryYlmL1Legendary(props: BadgeGlyphProps) {
       {/* The inner body, showing through the split coat -- this is the second
           fill band, and it is MOTIVATED here rather than decorative: it is
           the living seed the coat has just opened onto. */}
-      <path d={SEED_BODY} fill={SEED_DAWN} opacity={0.5} stroke="none" />
+      <path d={SEED_BODY} fill={SEED_DAWN} opacity={0.8} stroke="none" />
       {/* Light escaping from between the two halves, thrown along the suture's
           own normal at three points so it reads as one seam glowing rather
           than as three unrelated ticks. */}
@@ -755,7 +755,7 @@ export function IconLevelMasteryYlmL1Legendary(props: BadgeGlyphProps) {
       <g stroke="none" fill={SEED_DAWN}>
         <circle cx="4.5" cy="19.4" r="0.45" opacity={0.75} />
         <circle cx="19.4" cy="18.6" r="0.38" opacity={0.6} />
-        <circle cx="17.2" cy="20.6" r="0.3" opacity={0.5} />
+        <circle cx="17.2" cy="20.6" r="0.3" opacity={0.8} />
       </g>
       {/* Dashed subsoil glow. */}
       <path d="M0.6 23.6 H23.4" strokeWidth={0.7} opacity={0.45} strokeDasharray="1.2 1.4" stroke={SEED_DAWN} />
@@ -780,7 +780,7 @@ const SPROUT_STEM = "M12 21.4 C12.3 17.4 11.6 14 12 10.8";
 export function IconLevelMasteryYlmL2Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
       {/* Stem -- outline only. */}
       <path d={SPROUT_STEM} fill="none" strokeWidth={1.4} />
       {/* Twin cotyledon leaves -- outline only, unfilled, no venation. */}
@@ -793,7 +793,7 @@ export function IconLevelMasteryYlmL2Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryYlmL2Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
       <path d={SPROUT_STEM} fill="none" strokeWidth={1.4} />
       {/* Leaves, solidly filled. */}
       <path d={LEAF_L} fill={SPROUT_TEAL} opacity={0.45} stroke="none" />
@@ -813,7 +813,7 @@ export function IconLevelMasteryYlmL2Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryYlmL2Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
 
       {/* COMPANION GRASS -- the sprout is no longer alone. Four blades arc out
           of the soil and exit BOTH side edges of the viewBox: this family's
@@ -827,8 +827,8 @@ export function IconLevelMasteryYlmL2Legendary(props: BadgeGlyphProps) {
 
       <path d={SPROUT_STEM} fill="none" strokeWidth={1.4} />
       {/* Leaves -- two layered fill bands. */}
-      <path d={LEAF_L} fill={SPROUT_TEAL} opacity={0.5} stroke="none" />
-      <path d={LEAF_R} fill={SPROUT_TEAL} opacity={0.5} stroke="none" />
+      <path d={LEAF_L} fill={SPROUT_TEAL} opacity={0.8} stroke="none" />
+      <path d={LEAF_R} fill={SPROUT_TEAL} opacity={0.8} stroke="none" />
       <path d={LEAF_L_INNER} fill={SPROUT_MIST} opacity={0.45} stroke="none" />
       <path d={LEAF_R_INNER} fill={SPROUT_MIST} opacity={0.45} stroke="none" />
       <path d={LEAF_L} fill="none" strokeWidth={1.15} />
@@ -904,7 +904,7 @@ const POLLEN: Array<[number, number, number, number]> = [
 export function IconLevelMasteryYlmL3Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
       <path d="M12 21.4 L12 14" fill="none" strokeWidth={1.4} />
       {/* 5 petals -- outline only, unfilled. */}
       {PETAL_ANGLES.map((a) => (
@@ -917,7 +917,7 @@ export function IconLevelMasteryYlmL3Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryYlmL3Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
       <path d="M12 21.4 L12 14" fill="none" strokeWidth={1.4} />
       {/* Petals, solidly filled. */}
       {PETAL_ANGLES.map((a) => (
@@ -937,7 +937,7 @@ export function IconLevelMasteryYlmL3Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryYlmL3Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={1.5} />
+      <path d="M1 21.4 H23" strokeWidth={2.5} />
       <path d="M12 21.4 L12 14" fill="none" strokeWidth={1.4} />
 
       {/* POLLEN SPIRAL -- drawn first so the flower sits inside its own
@@ -951,10 +951,10 @@ export function IconLevelMasteryYlmL3Legendary(props: BadgeGlyphProps) {
 
       {/* Petals -- two layered fill bands. */}
       {PETAL_ANGLES.map((a) => (
-        <path key={a} d={PETAL_PATH} fill={BLOOM_ORCHID} opacity={0.5} stroke="none" transform={`rotate(${a} 12 10)`} />
+        <path key={a} d={PETAL_PATH} fill={BLOOM_ORCHID} opacity={0.8} stroke="none" transform={`rotate(${a} 12 10)`} />
       ))}
       {PETAL_ANGLES.map((a) => (
-        <path key={`i${a}`} d={PETAL_INNER_PATH} fill={BLOOM_FUCHSIA} opacity={0.5} stroke="none" transform={`rotate(${a} 12 10)`} />
+        <path key={`i${a}`} d={PETAL_INNER_PATH} fill={BLOOM_FUCHSIA} opacity={0.8} stroke="none" transform={`rotate(${a} 12 10)`} />
       ))}
       {PETAL_ANGLES.map((a) => (
         <path key={`o${a}`} d={PETAL_PATH} fill="none" strokeWidth={1.05} transform={`rotate(${a} 12 10)`} />
@@ -1076,11 +1076,11 @@ const PM_L1_LEG_COLOR = "#02b804";
 export function IconLevelMasteryPmL1Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Small, unimposing wireframe cube */}
-      <path d="M12 9 L17 11.5 L12 14 L7 11.5 Z" fill="none" strokeWidth={1.5} />
-      <path d="M7 11.5 L12 14 L12 19 L7 16.5 Z" fill="none" strokeWidth={1.5} />
-      <path d="M17 11.5 L12 14 L12 19 L17 16.5 Z" fill="none" strokeWidth={1.5} />
+      <path d="M12 9 L17 11.5 L12 14 L7 11.5 Z" fill="none" strokeWidth={2.5} />
+      <path d="M7 11.5 L12 14 L12 19 L7 16.5 Z" fill="none" strokeWidth={2.5} />
+      <path d="M17 11.5 L12 14 L12 19 L17 16.5 Z" fill="none" strokeWidth={2.5} />
     </GlyphShell>
   );
 }
@@ -1088,7 +1088,7 @@ export function IconLevelMasteryPmL1Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryPmL1Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Massive block, physically larger than Base */}
       <path d="M12 4 L20 8 L12 12 L4 8 Z" fill={PM_L1_SUPER_COLOR} opacity={0.6} stroke="none" />
       <path d="M4 8 L12 12 L12 21 L4 17 Z" fill={PM_L1_BASE_COLOR} opacity={0.9} stroke="none" />
@@ -1096,7 +1096,7 @@ export function IconLevelMasteryPmL1Super(props: BadgeGlyphProps) {
 
       {/* Heavy iron bands wrapping the block, breaking the straight silhouette */}
       <path d="M3.5 12 L12 16.5 L20.5 12 L20.5 14 L12 18.5 L3.5 14 Z" fill="#291b18" opacity={0.8} stroke="none" />
-      <path d="M8 6 L16 10 L16 19 L8 15 Z" fill="none" stroke="#291b18" strokeWidth={1.5} opacity={0.6} />
+      <path d="M8 6 L16 10 L16 19 L8 15 Z" fill="none" stroke="#291b18" strokeWidth={2.5} opacity={0.6} />
 
       {/* Outer block wireframe over the fills */}
       <path d="M12 4 L20 8 L20 17 L12 21 L4 17 L4 8 Z" fill="none" strokeWidth={1.6} />
@@ -1113,25 +1113,25 @@ export function IconLevelMasteryPmL1Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryPmL1Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Glowing split core */}
       <path d="M12 5 L16 10 L12 21 L8 10 Z" fill={PM_L1_LEG_COLOR} opacity={0.9} stroke="none" />
-      <circle cx="12" cy="12" r="5" fill={PM_L1_SUPER_COLOR} opacity={0.5} stroke="none" />
+      <circle cx="12" cy="12" r="5" fill={PM_L1_SUPER_COLOR} opacity={0.8} stroke="none" />
       <circle cx="12" cy="12" r="3" fill="#fff" opacity={0.8} stroke="none" />
 
       {/* Left split half (angled away) */}
       <path d="M10 3 L10 11 L10 21 L3 17 L3 8 Z" fill={PM_L1_BASE_COLOR} opacity={0.8} stroke="none" />
       <path d="M10 3 L10 11 L10 21 L3 17 L3 8 Z" fill="none" strokeWidth={1.6} />
-      <path d="M3 8 L10 11 L10 21" fill="none" strokeWidth={1.2} opacity={0.5} />
+      <path d="M3 8 L10 11 L10 21" fill="none" strokeWidth={1.2} opacity={0.8} />
 
       {/* Right split half (angled away) */}
       <path d="M14 5 L21 8 L21 17 L14 21 L14 13 Z" fill={PM_L1_SUPER_COLOR} opacity={0.6} stroke="none" />
       <path d="M14 5 L21 8 L21 17 L14 21 L14 13 Z" fill="none" strokeWidth={1.6} />
-      <path d="M21 8 L14 13 L14 21" fill="none" strokeWidth={1.2} opacity={0.5} />
+      <path d="M21 8 L14 13 L14 21" fill="none" strokeWidth={1.2} opacity={0.8} />
 
       {/* Forge sparks flying out of the gap */}
-      <path d="M12 2 L12 -2 M9 6 L6 3 M15 6 L18 3" fill="none" stroke={PM_L1_LEG_COLOR} strokeWidth={1.5} strokeLinecap="round" opacity={0.9} />
+      <path d="M12 2 L12 -2 M9 6 L6 3 M15 6 L18 3" fill="none" stroke={PM_L1_LEG_COLOR} strokeWidth={2.5} strokeLinecap="round" opacity={0.9} />
       <circle cx="7" cy="0" r="0.8" fill="#fff" stroke="none" />
       <circle cx="17" cy="-1" r="1.2" fill={PM_L1_LEG_COLOR} stroke="none" />
     </GlyphShell>
@@ -1151,9 +1151,9 @@ const PM_L2_LEG = "#765449";
 export function IconLevelMasteryPmL2Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Simple, straight rectangle. No architectural detail. */}
-      <path d="M9 21 L9 5 L15 5 L15 21 Z" fill="none" strokeWidth={1.5} />
+      <path d="M9 21 L9 5 L15 5 L15 21 Z" fill="none" strokeWidth={2.5} />
       {/* One simple detail line inside */}
       <path d="M12 5 L12 21" fill="none" strokeWidth={0.8} opacity={0.4} />
     </GlyphShell>
@@ -1163,12 +1163,12 @@ export function IconLevelMasteryPmL2Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryPmL2Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Pillar Fills (solid to prevent overlap issues) */}
       <path d="M7 19 L7 18 L8 18 L8 6 L5 6 L5 4 L19 4 L19 6 L16 6 L16 18 L17 18 L17 19 Z" fill={PM_L2_BASE} opacity={0.6} stroke="none" />
       {/* Stepped Base at the bottom to widen the footprint */}
-      <path d="M5 21 L5 19 L19 19 L19 21 Z" fill={PM_L2_SUPER} opacity={0.5} stroke="none" />
-      <path d="M8 6 L16 6 L16 18 L8 18 Z" fill={PM_L2_SUPER} opacity={0.5} stroke="none" />
+      <path d="M5 21 L5 19 L19 19 L19 21 Z" fill={PM_L2_SUPER} opacity={0.8} stroke="none" />
+      <path d="M8 6 L16 6 L16 18 L8 18 Z" fill={PM_L2_SUPER} opacity={0.8} stroke="none" />
 
       {/* Fluting */}
       <path d="M10 6 L10 18 M12 6 L12 18 M14 6 L14 18" fill="none" stroke="#fff" strokeWidth={0.8} opacity={0.4} />
@@ -1193,7 +1193,7 @@ export function IconLevelMasteryPmL2Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryPmL2Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Aura / Flame core */}
       <path d="M12 -3 L10 -7 L14 -7 Z" fill={PM_L2_LEG} opacity={0.8} stroke="none" />
@@ -1216,7 +1216,7 @@ export function IconLevelMasteryPmL2Legendary(props: BadgeGlyphProps) {
       <circle cx="19" cy="5" r="2.5" fill="none" strokeWidth={1.2} />
 
       {/* Celestial flame rays */}
-      <path d="M12 4 L12 -5 M9 3 L6 -2 M15 3 L18 -2" fill="none" stroke={PM_L2_LEG} strokeWidth={1.5} strokeLinecap="round" opacity={0.9} />
+      <path d="M12 4 L12 -5 M9 3 L6 -2 M15 3 L18 -2" fill="none" stroke={PM_L2_LEG} strokeWidth={2.5} strokeLinecap="round" opacity={0.9} />
 
       {/* Glowing ivy wrapping around */}
       <path d="M7 20 C 13 18, 15 15, 8 13 C 3 11, 15 9, 17 6" fill="none" stroke={PM_L2_LEG} strokeWidth={1.8} strokeLinecap="round" opacity={0.9} />
@@ -1237,9 +1237,9 @@ const PM_L3_LEG = "#412c5b";
 export function IconLevelMasteryPmL3Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Narrow 2-step outline */}
-      <path d="M7 21 L7 14 L13 14 L13 7 L19 7 L19 21 Z" fill="none" strokeWidth={1.5} strokeLinejoin="miter" />
+      <path d="M7 21 L7 14 L13 14 L13 7 L19 7 L19 21 Z" fill="none" strokeWidth={2.5} strokeLinejoin="miter" />
     </GlyphShell>
   );
 }
@@ -1247,7 +1247,7 @@ export function IconLevelMasteryPmL3Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryPmL3Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Wide 3-step solid staircase */}
       <path d="M2 21 L2 16 L8 16 L8 21 Z" fill={PM_L3_BASE} opacity={0.9} stroke="none" />
@@ -1258,7 +1258,7 @@ export function IconLevelMasteryPmL3Super(props: BadgeGlyphProps) {
       <path d="M2 21 L2 16 L8 16 L8 11 L14 11 L14 6 L20 6 L20 21 Z" fill="none" strokeWidth={1.6} strokeLinejoin="miter" />
 
       {/* Treads (Highlights) */}
-      <path d="M2 16 L8 16 M8 11 L14 11 M14 6 L20 6" fill="none" stroke="#fff" strokeWidth={1.5} opacity={0.4} />
+      <path d="M2 16 L8 16 M8 11 L14 11 M14 6 L20 6" fill="none" stroke="#fff" strokeWidth={2.5} opacity={0.4} />
 
       {/* Braziers resting on each step, protruding up */}
       <path d="M4 16 L4 14 L6 14 L6 16 Z" fill={PM_L3_SUPER} stroke="none" />
@@ -1275,7 +1275,7 @@ export function IconLevelMasteryPmL3Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryPmL3Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Cosmic Archway / Portal Core */}
       <path d="M14 6 A 3 5 0 0 1 20 6 Z" fill={PM_L3_LEG} opacity={0.9} stroke="none" />
@@ -1283,7 +1283,7 @@ export function IconLevelMasteryPmL3Legendary(props: BadgeGlyphProps) {
       <circle cx="17" cy="1" r="3" fill="#fff" opacity={0.7} stroke="none" />
 
       {/* Archway rings */}
-      <path d="M13 6 A 4 7 0 0 1 21 6" fill="none" stroke={PM_L3_LEG} strokeWidth={1.5} opacity={0.8} />
+      <path d="M13 6 A 4 7 0 0 1 21 6" fill="none" stroke={PM_L3_LEG} strokeWidth={2.5} opacity={0.8} />
 
       {/* Step columns */}
       <path d="M2 21 L2 16 L8 16 L8 21 Z M14 21 L14 6 L20 6 L20 21 Z" fill={PM_L3_BASE} opacity={0.8} stroke="none" />
@@ -1317,9 +1317,9 @@ const PM_L4_LEG = "#514303";
 export function IconLevelMasteryPmL4Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Plain semi-circle outline */}
-      <path d="M6 21 L6 16 A 6 6 0 0 1 18 16 L18 21 Z" fill="none" strokeWidth={1.5} />
+      <path d="M6 21 L6 16 A 6 6 0 0 1 18 16 L18 21 Z" fill="none" strokeWidth={2.5} />
     </GlyphShell>
   );
 }
@@ -1327,7 +1327,7 @@ export function IconLevelMasteryPmL4Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryPmL4Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Giant protruding telescope barrel */}
       <path d="M14 13 L21 4 L23 5.5 L16 14 Z" fill={PM_L4_SUPER} opacity={0.8} stroke="none" />
@@ -1339,9 +1339,9 @@ export function IconLevelMasteryPmL4Super(props: BadgeGlyphProps) {
       <path d="M4 21 L4 12 L20 12 L20 21 Z" fill="none" strokeWidth={1.6} />
 
       {/* Split dome housing the telescope */}
-      <path d="M6 12 A 6 6 0 0 1 18 12 Z" fill={PM_L4_SUPER} opacity={0.5} stroke="none" />
-      <path d="M6 12 A 6 6 0 0 1 13 6.5 L13 12 Z" fill="none" strokeWidth={1.5} />
-      <path d="M15 6.5 A 6 6 0 0 1 18 12" fill="none" strokeWidth={1.5} />
+      <path d="M6 12 A 6 6 0 0 1 18 12 Z" fill={PM_L4_SUPER} opacity={0.8} stroke="none" />
+      <path d="M6 12 A 6 6 0 0 1 13 6.5 L13 12 Z" fill="none" strokeWidth={2.5} />
+      <path d="M15 6.5 A 6 6 0 0 1 18 12" fill="none" strokeWidth={2.5} />
 
       {/* Heavy blast door detail */}
       <path d="M10 21 L10 16 L14 16 L14 21" fill="none" strokeWidth={1.2} opacity={0.6} />
@@ -1352,7 +1352,7 @@ export function IconLevelMasteryPmL4Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryPmL4Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Energy Beam */}
       <path d="M21 5 L25 -4 L27 -3 L23 6 Z" fill={PM_L4_LEG} opacity={0.6} stroke="none" />
@@ -1368,11 +1368,11 @@ export function IconLevelMasteryPmL4Legendary(props: BadgeGlyphProps) {
 
       {/* Dome */}
       <path d="M6 12 A 6 6 0 0 1 18 12 Z" fill={PM_L4_SUPER} opacity={0.6} stroke="none" />
-      <path d="M6 12 A 6 6 0 0 1 13 6.5 L13 12 Z" fill="none" strokeWidth={1.5} />
-      <path d="M15 6.5 A 6 6 0 0 1 18 12" fill="none" strokeWidth={1.5} />
+      <path d="M6 12 A 6 6 0 0 1 13 6.5 L13 12 Z" fill="none" strokeWidth={2.5} />
+      <path d="M15 6.5 A 6 6 0 0 1 18 12" fill="none" strokeWidth={2.5} />
 
       {/* Orbital Rings around the beam */}
-      <ellipse cx="23" cy="1" rx="4" ry="1.5" transform="rotate(-30 23 1)" fill="none" stroke={PM_L4_LEG} strokeWidth={1.5} opacity={0.8} />
+      <ellipse cx="23" cy="1" rx="4" ry="1.5" transform="rotate(-30 23 1)" fill="none" stroke={PM_L4_LEG} strokeWidth={2.5} opacity={0.8} />
 
       {/* Glowing stars */}
       <circle cx="7" cy="2" r="1" fill="#fff" opacity={0.9} stroke="none" />
@@ -1393,12 +1393,12 @@ const IM_L1_LEG_COLOR = "#00b60b";
 export function IconLevelMasteryImL1Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Flat wireframe compass ring */}
-      <circle cx="12" cy="12" r="7" fill="none" strokeWidth={1.5} />
+      <circle cx="12" cy="12" r="7" fill="none" strokeWidth={2.5} />
       {/* Flat Needle */}
-      <path d="M12 5 L14 12 L12 19 L10 12 Z" fill="none" strokeWidth={1.5} />
-      <circle cx="12" cy="12" r="1.5" fill="none" strokeWidth={1.5} />
+      <path d="M12 5 L14 12 L12 19 L10 12 Z" fill="none" strokeWidth={2.5} />
+      <circle cx="12" cy="12" r="1.5" fill="none" strokeWidth={2.5} />
     </GlyphShell>
   );
 }
@@ -1406,7 +1406,7 @@ export function IconLevelMasteryImL1Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryImL1Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Heavy brass housing */}
       <circle cx="12" cy="13" r="8" fill={IM_L1_BASE_COLOR} opacity={0.8} stroke="none" />
       <circle cx="12" cy="12" r="8" fill={IM_L1_SUPER_COLOR} opacity={0.9} stroke="none" />
@@ -1417,7 +1417,7 @@ export function IconLevelMasteryImL1Super(props: BadgeGlyphProps) {
       <circle cx="12" cy="12" r="6" fill="#222" opacity={0.6} stroke="none" />
       <path d="M9 12 A 3 3 0 0 1 12 9" fill="none" stroke="#fff" strokeWidth={1} opacity={0.4} strokeDasharray="1 1" />
       <path d="M15 12 A 3 3 0 0 1 12 15" fill="none" stroke="#fff" strokeWidth={1} opacity={0.4} strokeDasharray="1 1" />
-      <circle cx="12" cy="12" r="3" fill="none" stroke={IM_L1_SUPER_COLOR} strokeWidth={1.5} opacity={0.5} />
+      <circle cx="12" cy="12" r="3" fill="none" stroke={IM_L1_SUPER_COLOR} strokeWidth={2.5} opacity={0.8} />
 
       {/* 3D Needle */}
       <path d="M12 6 L14.5 12 L12 12 Z" fill="#ff4444" opacity={0.9} stroke="none" />
@@ -1436,7 +1436,7 @@ export function IconLevelMasteryImL1Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryImL1Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Shattered housing bottom */}
       <path d="M4 12 C 4 17, 8 21, 12 21 C 16 21, 20 17, 20 12 C 20 10, 18 10, 16 11 L 12 9 L 8 11 C 6 10, 4 10, 4 12 Z" fill={IM_L1_BASE_COLOR} opacity={0.9} stroke="none" />
       <path d="M4 12 C 4 17, 8 21, 12 21 C 16 21, 20 17, 20 12 C 20 10, 18 10, 16 11 L 12 9 L 8 11 C 6 10, 4 10, 4 12 Z" fill="none" strokeWidth={1.6} />
@@ -1453,7 +1453,7 @@ export function IconLevelMasteryImL1Legendary(props: BadgeGlyphProps) {
       <circle cx="9" cy="-1" r="1" fill="#fff" stroke="none" />
       <circle cx="14" cy="3" r="1.2" fill="#fff" stroke="none" />
       <circle cx="18" cy="0" r="1.5" fill="#fff" stroke="none" />
-      <path d="M6 2 L9 -1 M14 3 L18 0" fill="none" stroke={IM_L1_LEG_COLOR} strokeWidth={1.5} opacity={0.8} />
+      <path d="M6 2 L9 -1 M14 3 L18 0" fill="none" stroke={IM_L1_LEG_COLOR} strokeWidth={2.5} opacity={0.8} />
 
       {/* Floating shattered glass shards */}
       <path d="M5 6 L7 4 L6 7 Z" fill="#fff" opacity={0.7} stroke="none" />
@@ -1475,10 +1475,10 @@ const IM_L2_LEG_COLOR = "#f1ebaf";
 export function IconLevelMasteryImL2Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
       {/* Collapsed simple cylinder outline */}
-      <path d="M8 21 L8 14 L16 14 L16 21 Z" fill="none" strokeWidth={1.5} strokeLinejoin="miter" />
-      <path d="M7 14 L17 14 L17 12 L7 12 Z" fill="none" strokeWidth={1.5} strokeLinejoin="miter" />
+      <path d="M8 21 L8 14 L16 14 L16 21 Z" fill="none" strokeWidth={2.5} strokeLinejoin="miter" />
+      <path d="M7 14 L17 14 L17 12 L7 12 Z" fill="none" strokeWidth={2.5} strokeLinejoin="miter" />
     </GlyphShell>
   );
 }
@@ -1486,7 +1486,7 @@ export function IconLevelMasteryImL2Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryImL2Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Base segment (Leather wrapped) */}
       <path d="M7 21 L7 13 L17 13 L17 21 Z" fill={IM_L2_BASE_COLOR} opacity={0.8} stroke="none" />
@@ -1496,7 +1496,7 @@ export function IconLevelMasteryImL2Super(props: BadgeGlyphProps) {
       {/* Middle segment (Brass) */}
       <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill={IM_L2_SUPER_COLOR} opacity={0.8} stroke="none" />
       <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill="none" strokeWidth={1.6} />
-      <path d="M9.5 7 L9.5 13" fill="none" stroke="#fff" strokeWidth={1} opacity={0.5} />
+      <path d="M9.5 7 L9.5 13" fill="none" stroke="#fff" strokeWidth={1} opacity={0.8} />
 
       {/* Top segment (Lens housing) */}
       <path d="M10 7 L10 2 L14 2 L14 7 Z" fill={IM_L2_SUPER_COLOR} opacity={0.9} stroke="none" />
@@ -1514,10 +1514,10 @@ export function IconLevelMasteryImL2Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryImL2Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Starlight Beam firing up */}
-      <path d="M12 -2 L6 -8 L18 -8 Z" fill={IM_L2_LEG_COLOR} opacity={0.5} stroke="none" />
+      <path d="M12 -2 L6 -8 L18 -8 Z" fill={IM_L2_LEG_COLOR} opacity={0.8} stroke="none" />
       <path d="M12 -2 L9 -8 L15 -8 Z" fill="#fff" opacity={0.8} stroke="none" />
       <circle cx="12" cy="-2" r="3" fill={IM_L2_LEG_COLOR} opacity={0.8} stroke="none" />
 
@@ -1527,7 +1527,7 @@ export function IconLevelMasteryImL2Legendary(props: BadgeGlyphProps) {
       <path d="M7 21 L7 13 L17 13 L17 21 Z" fill="none" strokeWidth={1.6} />
 
       {/* Overheating Middle segment (Brass) */}
-      <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill={IM_L2_SUPER_COLOR} opacity={0.5} stroke="none" />
+      <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill={IM_L2_SUPER_COLOR} opacity={0.8} stroke="none" />
       <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill={IM_L2_LEG_COLOR} opacity={0.4} stroke="none" />
       <path d="M8.5 13 L8.5 7 L15.5 7 L15.5 13 Z" fill="none" strokeWidth={1.6} />
 
@@ -1558,11 +1558,11 @@ const IM_L3_LEG_COLOR = "#913f77";
 export function IconLevelMasteryImL3Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
-      <circle cx="12" cy="11" r="7" fill="none" strokeWidth={1.5} />
-      <circle cx="12" cy="11" r="5" fill="none" strokeWidth={1.5} />
-      <path d="M12 2 L12 20 M3 11 L21 11" fill="none" strokeWidth={1.5} />
-      <circle cx="12" cy="11" r="1.5" fill="none" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
+      <circle cx="12" cy="11" r="7" fill="none" strokeWidth={2.5} />
+      <circle cx="12" cy="11" r="5" fill="none" strokeWidth={2.5} />
+      <path d="M12 2 L12 20 M3 11 L21 11" fill="none" strokeWidth={2.5} />
+      <circle cx="12" cy="11" r="1.5" fill="none" strokeWidth={2.5} />
     </GlyphShell>
   );
 }
@@ -1570,7 +1570,7 @@ export function IconLevelMasteryImL3Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryImL3Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* 8 Spokes (thick) */}
       <g strokeWidth={1.6}>
@@ -1582,14 +1582,14 @@ export function IconLevelMasteryImL3Super(props: BadgeGlyphProps) {
 
       {/* Outer wooden rim */}
       <circle cx="12" cy="11" r="6.5" fill={IM_L3_BASE_COLOR} opacity={0.9} stroke="none" />
-      <circle cx="12" cy="11" r="5" fill="#111" opacity={0.5} stroke="none" />
+      <circle cx="12" cy="11" r="5" fill="#111" opacity={0.8} stroke="none" />
       <circle cx="12" cy="11" r="6.5" fill="none" strokeWidth={1.6} />
       <circle cx="12" cy="11" r="5" fill="none" strokeWidth={1.6} />
 
       {/* Iron hub */}
       <circle cx="12" cy="11" r="2.5" fill={IM_L3_SUPER_COLOR} opacity={0.9} stroke="none" />
       <circle cx="12" cy="11" r="2.5" fill="none" strokeWidth={1.6} />
-      <circle cx="12" cy="11" r="1" fill="#fff" opacity={0.5} stroke="none" />
+      <circle cx="12" cy="11" r="1" fill="#fff" opacity={0.8} stroke="none" />
 
       {/* Peg highlights */}
       <circle cx="12" cy="3" r="0.8" fill={IM_L3_SUPER_COLOR} stroke="none" />
@@ -1603,11 +1603,11 @@ export function IconLevelMasteryImL3Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryImL3Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Glowing Ethereal Vortex Behind */}
       <path d="M12 11 A 8 8 0 0 1 20 11 A 8 8 0 0 1 12 19 A 8 8 0 0 1 4 11 A 8 8 0 0 1 12 11 Z" fill={IM_L3_LEG_COLOR} opacity={0.3} stroke="none" />
-      <path d="M12 11 A 6 6 0 0 0 6 5 A 6 6 0 0 0 12 17 A 6 6 0 0 0 18 11 Z" fill={IM_L3_LEG_COLOR} opacity={0.5} stroke="none" />
+      <path d="M12 11 A 6 6 0 0 0 6 5 A 6 6 0 0 0 12 17 A 6 6 0 0 0 18 11 Z" fill={IM_L3_LEG_COLOR} opacity={0.8} stroke="none" />
 
       {/* Motion Blur Spokes */}
       <g stroke={IM_L3_LEG_COLOR} strokeWidth={2} opacity={0.7} strokeDasharray="4 2">
@@ -1642,11 +1642,11 @@ const IM_L4_LEG_COLOR = "#64aece";
 export function IconLevelMasteryImL4Base(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
-      <circle cx="12" cy="11" r="8" fill="none" strokeWidth={1.5} />
-      <path d="M4 11 L20 11" fill="none" strokeWidth={1.5} />
-      <path d="M12 3 L12 19" fill="none" strokeWidth={1.5} />
-      <circle cx="12" cy="11" r="2" fill="none" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
+      <circle cx="12" cy="11" r="8" fill="none" strokeWidth={2.5} />
+      <path d="M4 11 L20 11" fill="none" strokeWidth={2.5} />
+      <path d="M12 3 L12 19" fill="none" strokeWidth={2.5} />
+      <circle cx="12" cy="11" r="2" fill="none" strokeWidth={2.5} />
     </GlyphShell>
   );
 }
@@ -1654,7 +1654,7 @@ export function IconLevelMasteryImL4Base(props: BadgeGlyphProps) {
 export function IconLevelMasteryImL4Super(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Outer Meridian Ring */}
       <circle cx="12" cy="11" r="8.5" fill="none" stroke={IM_L4_BASE_COLOR} strokeWidth={2.5} opacity={0.8} />
@@ -1671,7 +1671,7 @@ export function IconLevelMasteryImL4Super(props: BadgeGlyphProps) {
       {/* Center Earth globe */}
       <circle cx="12" cy="11" r="2.5" fill={IM_L4_BASE_COLOR} stroke="none" />
       <circle cx="12" cy="11" r="2.5" fill="none" strokeWidth={1.6} />
-      <path d="M11 9 C 13 10, 14 12, 11 13" fill="none" stroke="#fff" strokeWidth={0.8} opacity={0.5} />
+      <path d="M11 9 C 13 10, 14 12, 11 13" fill="none" stroke="#fff" strokeWidth={0.8} opacity={0.8} />
 
       {/* Support Stand */}
       <path d="M12 19.5 L12 21 M9 21 L15 21" fill="none" strokeWidth={2} />
@@ -1682,7 +1682,7 @@ export function IconLevelMasteryImL4Super(props: BadgeGlyphProps) {
 export function IconLevelMasteryImL4Legendary(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M1 21 H23" strokeWidth={1.5} />
+      <path d="M1 21 H23" strokeWidth={2.5} />
 
       {/* Center Sun glowing */}
       <circle cx="12" cy="11" r="5" fill={IM_L4_LEG_COLOR} opacity={0.4} stroke="none" />
@@ -1694,9 +1694,9 @@ export function IconLevelMasteryImL4Legendary(props: BadgeGlyphProps) {
       <circle cx="12" cy="11" r="8.5" fill="none" strokeWidth={1.6} />
 
       {/* Ethereal Orbital Paths */}
-      <ellipse cx="12" cy="11" rx="8" ry="3" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={1.5} opacity={0.8} />
-      <ellipse cx="12" cy="11" rx="7.5" ry="2.5" transform="rotate(45 12 11)" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={1.5} opacity={0.6} />
-      <ellipse cx="12" cy="11" rx="7.5" ry="2.5" transform="rotate(-45 12 11)" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={1.5} opacity={0.6} />
+      <ellipse cx="12" cy="11" rx="8" ry="3" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={2.5} opacity={0.8} />
+      <ellipse cx="12" cy="11" rx="7.5" ry="2.5" transform="rotate(45 12 11)" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={2.5} opacity={0.6} />
+      <ellipse cx="12" cy="11" rx="7.5" ry="2.5" transform="rotate(-45 12 11)" fill="none" stroke={IM_L4_LEG_COLOR} strokeWidth={2.5} opacity={0.6} />
 
       {/* Orbiting Planets (Dots) */}
       <circle cx="19.5" cy="10" r="1.5" fill="#fff" stroke="none" />
@@ -1825,7 +1825,7 @@ export function IconPrecisionTarget(props: BadgeGlyphProps) {
       <circle cx="11" cy="13" r="5.1" fill={TGT_JADE} opacity={0.22} stroke="none" />
 
       {/* Rings. */}
-      <circle cx="11" cy="13" r="8.6" strokeWidth={1.5} />
+      <circle cx="11" cy="13" r="8.6" strokeWidth={2.5} />
       <circle cx="11" cy="13" r="5.1" strokeWidth={1.15} opacity={0.9} />
       <circle cx="11" cy="13" r="2.1" strokeWidth={1} opacity={0.8} />
 
@@ -1886,13 +1886,13 @@ export function IconResolveScan(props: BadgeGlyphProps) {
       </g>
 
       {/* Sweep bar with a hot leading edge and a decaying wake behind it. */}
-      <path d="M3.4 12 H20.6" stroke={SCN_HOT} strokeWidth={1.5} />
+      <path d="M3.4 12 H20.6" stroke={SCN_HOT} strokeWidth={2.5} />
       <path d="M3.4 13.5 H20.6" stroke={SCN_ICE} strokeWidth={0.9} opacity={0.55} />
       <path d="M3.4 14.8 H20.6" stroke={SCN_ICE} strokeWidth={0.6} opacity={0.28} />
 
       {/* Locked target: a diamond, not another circle -- Target already owns
           the circle, and the family must not repeat a primitive. */}
-      <path d="M12 8.5 L14.6 11.1 L12 13.7 L9.4 11.1 Z" fill={SCN_ICE} opacity={0.5} stroke={SCN_HOT} strokeWidth={1.05} />
+      <path d="M12 8.5 L14.6 11.1 L12 13.7 L9.4 11.1 Z" fill={SCN_ICE} opacity={0.8} stroke={SCN_HOT} strokeWidth={1.05} />
       <circle cx="12" cy="11.1" r="0.75" fill={SCN_HOT} stroke="none" />
 
       {/* Two resolved confirmations. */}
@@ -1923,9 +1923,9 @@ export function IconAfterburnerChevron(props: BadgeGlyphProps) {
       {/* Trail bars -- lengths decay left to right, which is what encodes
           "receding" without needing perspective. */}
       <g stroke={FF_MID} strokeLinecap="round" opacity={0.75}>
-        <path d="M0.9 7.4 H5.4" strokeWidth={1.5} />
+        <path d="M0.9 7.4 H5.4" strokeWidth={2.5} />
         <path d="M1.9 12 H5.0" strokeWidth={1.8} />
-        <path d="M0.9 16.6 H5.4" strokeWidth={1.5} />
+        <path d="M0.9 16.6 H5.4" strokeWidth={2.5} />
         <path d="M3.4 4.6 H6.2" strokeWidth={0.9} opacity={0.55} />
         <path d="M3.4 19.4 H6.2" strokeWidth={0.9} opacity={0.55} />
       </g>
@@ -1977,7 +1977,7 @@ export function IconRocketApex(props: BadgeGlyphProps) {
       <circle cx="12" cy="6.3" r="1.9" fill={RKT_DEEP} opacity={0.55} strokeWidth={1.15} />
       <circle cx="11.3" cy="5.7" r="0.6" fill={RKT_HOT} stroke="none" />
       {/* Engine skirt. */}
-      <path d="M8.5 16.9 L15.5 16.9" strokeWidth={1.5} />
+      <path d="M8.5 16.9 L15.5 16.9" strokeWidth={2.5} />
     </GlyphShell>
   );
 }
@@ -1998,7 +1998,7 @@ export function IconStruckMedallion(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
       {/* Ribbon -- two straps meeting at the disc, one folded behind. */}
-      <path d="M7.6 1.2 L11.1 10.4 L8.0 11.6 L4.6 3.0 Z" fill={MED_SHADOW} opacity={0.5} strokeWidth={1.15} />
+      <path d="M7.6 1.2 L11.1 10.4 L8.0 11.6 L4.6 3.0 Z" fill={MED_SHADOW} opacity={0.8} strokeWidth={1.15} />
       <path d="M16.4 1.2 L12.9 10.4 L16.0 11.6 L19.4 3.0 Z" fill={MED_STEEL} opacity={0.4} strokeWidth={1.15} />
 
       {/* Fluted rim: eight short radial cuts around the disc. */}
@@ -2015,7 +2015,7 @@ export function IconStruckMedallion(props: BadgeGlyphProps) {
 
       {/* Disc. */}
       <circle cx="12" cy="15.3" r="5.7" fill={MED_SHADOW} opacity={0.35} stroke="none" />
-      <circle cx="12" cy="15.3" r="5.7" strokeWidth={1.5} />
+      <circle cx="12" cy="15.3" r="5.7" strokeWidth={2.5} />
       <circle cx="12" cy="15.3" r="3.9" strokeWidth={0.9} opacity={0.7} />
 
       {/* Laurel pair inside the field -- the "awarded" mark. */}
@@ -2098,7 +2098,7 @@ export function IconSovereignCrown(props: BadgeGlyphProps) {
       <path d="M12 4.2 L12 10.4" strokeWidth={1.1} opacity={0.7} />
 
       {/* Arched band. */}
-      <path d="M3.6 17.6 Q12 19.4 20.4 17.6" strokeWidth={1.5} />
+      <path d="M3.6 17.6 Q12 19.4 20.4 17.6" strokeWidth={2.5} />
       <path d="M3.9 14.5 Q12 16.3 20.1 14.5" strokeWidth={1.15} opacity={0.8} />
 
       {/* Three gem lozenges set into the band. */}
@@ -2195,7 +2195,7 @@ export function IconVitalTrace(props: BadgeGlyphProps) {
       {/* Monitor bezel. */}
       <rect x="1.5" y="4.6" width="21" height="14.8" rx="2.4" fill={VT_DARK} opacity={0.16} strokeWidth={1.35} />
       {/* Screen inset. */}
-      <rect x="3.1" y="6.2" width="17.8" height="11.6" rx="1.4" stroke={VT_MID} strokeWidth={0.7} opacity={0.5} fill="none" />
+      <rect x="3.1" y="6.2" width="17.8" height="11.6" rx="1.4" stroke={VT_MID} strokeWidth={0.7} opacity={0.8} fill="none" />
 
       {/* Echo of the previous beat -- shifted left and faded. */}
       <path
@@ -2241,12 +2241,12 @@ export function IconEndlessRibbon(props: BadgeGlyphProps) {
       {/* Inner edge, scaled slightly toward the centre -- the two edges
           together are what make this a band rather than a wire. */}
       <g transform="translate(12 12) scale(0.72) translate(-12 -12)">
-        <path d={LOOP} stroke={INF_ORCHID} strokeWidth={1.5} opacity={0.75} fill="none" />
+        <path d={LOOP} stroke={INF_ORCHID} strokeWidth={2.5} opacity={0.75} fill="none" />
       </g>
 
       {/* Crossing plate at the waist -- resolves the over/under. */}
       <path d="M10.1 9.9 L13.9 14.1" stroke={INF_DEEP} strokeWidth={2.6} opacity={0.85} />
-      <path d="M10.1 14.1 L13.9 9.9" stroke={INF_HOT} strokeWidth={1.5} />
+      <path d="M10.1 14.1 L13.9 9.9" stroke={INF_HOT} strokeWidth={2.5} />
 
       {/* Two light nodes, on opposite lobes. */}
       <circle cx="3.6" cy="10.4" r="1.35" fill={INF_HOT} stroke="none" />
@@ -2303,7 +2303,7 @@ export function IconDawnDial(props: BadgeGlyphProps) {
       <g stroke={CLK_BRASS}>{ticks}</g>
 
       {/* Hands -- just before five, i.e. the hour this badge is about. */}
-      <path d="M12 12.6 L12 6.8" strokeWidth={1.5} stroke={CLK_LIGHT} />
+      <path d="M12 12.6 L12 6.8" strokeWidth={2.5} stroke={CLK_LIGHT} />
       <path d="M12 12.6 L15.4 16.6" strokeWidth={1.9} stroke={CLK_LIGHT} />
       <circle cx="12" cy="12.6" r="1.05" fill={CLK_LIGHT} stroke="none" />
     </GlyphShell>
@@ -2701,7 +2701,7 @@ export function IconLaurelStar(props: BadgeGlyphProps) {
         <path d="M17.0 19.9 Q18.9 19.6 19.1 17.6 Q17.0 17.9 17.0 19.9 Z" />
       </g>
       {/* Tie at the bottom of the wreath. */}
-      <path d="M10.4 21.6 H13.6" strokeWidth={1.5} stroke={PDS_LIGHT} />
+      <path d="M10.4 21.6 H13.6" strokeWidth={2.5} stroke={PDS_LIGHT} />
 
       {pips}
 
@@ -2819,7 +2819,7 @@ export function IconPrecisionReticle(props: BadgeGlyphProps) {
       <path
         d="M12 1.6 A10.4 10.4 0 1 1 9.4 1.9"
         stroke={SSB_STEEL}
-        strokeWidth={1.5}
+        strokeWidth={2.5}
         opacity={0.7}
         fill="none"
       />
@@ -2919,7 +2919,7 @@ export function IconApertureIris(props: BadgeGlyphProps) {
       <circle cx="12" cy="12" r="1.05" fill={SSS_ICE} stroke="none" />
 
       {/* Specular streak across the glass. */}
-      <path d="M6.4 16.4 L14.6 6.4" stroke={SSS_ICE} strokeWidth={1.15} opacity={0.5} />
+      <path d="M6.4 16.4 L14.6 6.4" stroke={SSS_ICE} strokeWidth={1.15} opacity={0.8} />
     </GlyphShell>
   );
 }
@@ -2962,7 +2962,7 @@ export function IconRadarSweep(props: BadgeGlyphProps) {
           pie slice so the leading edge is hard and the trailing edge is not. */}
       <path d="M12 12 L21.6 8.6 A10.2 10.2 0 0 0 19.2 4.8 Z" fill={SSL_MID} opacity={0.45} stroke="none" />
       <path d="M12 12 L19.2 4.8 A10.2 10.2 0 0 0 15.4 2.4 Z" fill={SSL_MID} opacity={0.2} stroke="none" />
-      <path d="M12 12 L21.6 8.6" strokeWidth={1.5} stroke={SSL_INK} />
+      <path d="M12 12 L21.6 8.6" strokeWidth={2.5} stroke={SSL_INK} />
 
       {/* Contacts at three ranges. */}
       <circle cx="8.0" cy="15.6" r="1.25" fill={SSL_INK} stroke="none" />
@@ -3000,7 +3000,7 @@ export function IconBatteredShield(props: BadgeGlyphProps) {
     "M12 1.6 L21.2 4.6 L21.2 11.6 C21.2 17.2 17.2 21.0 12 22.6 C6.8 21.0 2.8 17.2 2.8 11.6 L2.8 4.6 Z";
   return (
     <GlyphShell {...props}>
-      <path d={SHIELD} fill={UDB_DEEP} fillOpacity={0.5} strokeWidth={1.5} />
+      <path d={SHIELD} fill={UDB_DEEP} fillOpacity={0.5} strokeWidth={2.5} />
       {/* Inner border + rivets. */}
       <path
         d="M12 3.6 L19.3 6.0 L19.3 11.6 C19.3 16.2 16.1 19.4 12 20.7 C7.9 19.4 4.7 16.2 4.7 11.6 L4.7 6.0 Z"
@@ -3027,7 +3027,7 @@ export function IconBatteredShield(props: BadgeGlyphProps) {
       <path d="M15.8 7.4 L10.6 12.6" stroke={UDB_HOT} strokeWidth={0.9} opacity={0.6} />
 
       {/* Chevron device in the chief. */}
-      <path d="M7.8 7.0 L12 4.6 L16.2 7.0" strokeWidth={1.5} stroke={UDB_STONE} fill="none" />
+      <path d="M7.8 7.0 L12 4.6 L16.2 7.0" strokeWidth={2.5} stroke={UDB_STONE} fill="none" />
     </GlyphShell>
   );
 }
@@ -3061,7 +3061,7 @@ export function IconAnchorHold(props: BadgeGlyphProps) {
       <path d="M3.9 12.4 L1.9 14.6 L6.0 15.0 Z" fill={UDS_ROPE} stroke="none" />
       <path d="M20.1 12.4 L22.1 14.6 L18.0 15.0 Z" fill={UDS_ROPE} stroke="none" />
       {/* Crown at the base of the shank. */}
-      <path d="M9.9 19.4 H14.1" strokeWidth={1.5} />
+      <path d="M9.9 19.4 H14.1" strokeWidth={2.5} />
 
       {/* Rope: one pass in front, one behind, then off to the left. */}
       <g stroke={UDS_ROPE} strokeWidth={1.15} fill="none">
@@ -3070,7 +3070,7 @@ export function IconAnchorHold(props: BadgeGlyphProps) {
         <path d="M15.4 10.6 Q18.4 9.6 19.4 6.6" />
         <path d="M14.2 16.4 Q9.2 18.4 4.6 20.6" opacity={0.8} />
       </g>
-      <path d="M11.2 12.4 L13.0 11.6" stroke={UDS_DEEP} strokeWidth={1.5} opacity={0.7} />
+      <path d="M11.2 12.4 L13.0 11.6" stroke={UDS_DEEP} strokeWidth={2.5} opacity={0.7} />
     </GlyphShell>
   );
 }
@@ -3094,7 +3094,7 @@ export function IconSummitRidge(props: BadgeGlyphProps) {
       <path d="M1.4 20.4 L7.6 11.0 L12.2 17.2 L15.4 13.2 L22.6 20.4 Z" fill={UDL_DEEP} opacity={0.4} stroke={UDL_MOSS} strokeWidth={0.9} />
 
       {/* Near massif -- the hero. */}
-      <path d="M2.4 21.8 L11.2 4.2 L20.6 21.8 Z" fill={UDL_DEEP} fillOpacity={0.55} strokeWidth={1.5} />
+      <path d="M2.4 21.8 L11.2 4.2 L20.6 21.8 Z" fill={UDL_DEEP} fillOpacity={0.55} strokeWidth={2.5} />
 
       {/* Snow cap, broken by two exposed rock teeth. */}
       <path d="M8.0 10.6 L11.2 4.2 L14.6 11.0 L12.9 9.6 L11.6 11.2 L10.1 9.4 Z" fill={UDL_SNOW} stroke="none" opacity={0.95} />
@@ -3276,7 +3276,7 @@ export function IconGreatLibrary(props: BadgeGlyphProps) {
     <GlyphShell {...props}>
       {/* Stone arch. */}
       <path d="M2.6 21.6 V10.4 A9.4 9.4 0 0 1 21.4 10.4 V21.6" strokeWidth={1.45} fill="none" />
-      <path d="M4.2 21.6 V10.6 A7.8 7.8 0 0 1 19.8 10.6 V21.6" strokeWidth={0.7} opacity={0.5} fill="none" />
+      <path d="M4.2 21.6 V10.6 A7.8 7.8 0 0 1 19.8 10.6 V21.6" strokeWidth={0.7} opacity={0.8} fill="none" />
 
       {/* Two shelves of spines. */}
       <g stroke="none">{spines(upper, 8.4, 4.6, "u")}</g>
@@ -3291,7 +3291,7 @@ export function IconGreatLibrary(props: BadgeGlyphProps) {
       <path d="M12 22.4 L7.4 20.9 L7.4 19.2 L12 20.7 Z" fill={PML_LIGHT} stroke="none" />
       <path d="M12 22.4 L16.6 20.9 L16.6 19.2 L12 20.7 Z" fill={PML_ORCHID} stroke="none" opacity={0.9} />
       <path d="M12 20.7 V22.4" strokeWidth={0.85} stroke={PML_DEEP} />
-      <g stroke={PML_LIGHT} strokeWidth={0.75} opacity={0.5}>
+      <g stroke={PML_LIGHT} strokeWidth={0.75} opacity={0.8}>
         <path d="M12 19.4 V17.4" />
         <path d="M9.6 19.8 L8.4 18.2" />
         <path d="M14.4 19.8 L15.6 18.2" />
@@ -3376,7 +3376,7 @@ export function IconSpeedCometMythic(props: BadgeGlyphProps) {
       {/* Mach cone -- the shock envelope the dart is outrunning. Drawn first
           and filled faintly so the dart reads as being INSIDE it. */}
       <path d="M21.4 2.4 L4.6 11.2 L7.8 22.4 Z" fill={SDM_VIOLET} opacity={0.14} stroke="none" />
-      <g stroke={SDM_VIOLET} strokeWidth={1} opacity={0.5} fill="none">
+      <g stroke={SDM_VIOLET} strokeWidth={1} opacity={0.8} fill="none">
         <path d="M21.4 2.4 L4.6 11.2" />
         <path d="M21.4 2.4 L7.8 22.4" />
       </g>
@@ -3397,7 +3397,7 @@ export function IconSpeedCometMythic(props: BadgeGlyphProps) {
       <path d="M22.3 1.5 L19.8 10.9 L9.5 18.9 L13.8 6.5 Z" fill={SDM_VIOLET} fillOpacity={0.3} />
       <path d="M22.3 1.5 L9.5 18.9" strokeWidth={1.05} opacity={0.9} />
       <path d="M13.8 6.5 L19.8 10.9" strokeWidth={1.05} opacity={0.7} />
-      <path d="M16.1 4.0 L15.3 12.3" strokeWidth={0.75} opacity={0.5} />
+      <path d="M16.1 4.0 L15.3 12.3" strokeWidth={0.75} opacity={0.8} />
 
       {/* Four-point flare where BASE had a plain round core. */}
       <path
@@ -3454,7 +3454,7 @@ export function IconCrownMythic(props: BadgeGlyphProps) {
         strokeWidth={1.45}
       />
       {/* Interior facets: each point drops a line to the band. */}
-      <g strokeWidth={0.75} opacity={0.5}>
+      <g strokeWidth={0.75} opacity={0.8}>
         <path d="M7.5 5.4 L8.2 14.4" />
         <path d="M12 2.9 L12 14.4" />
         <path d="M16.5 5.4 L15.8 14.4" />
@@ -3520,7 +3520,7 @@ export function IconInfinityMythic(props: BadgeGlyphProps) {
       {/* Woven double band. The lower strand is drawn first and darker, so the
           two cross rather than overlap. */}
       <path d={lemni(1.1)} fill={INM_DEEP} fillOpacity={0.32} stroke={INM_DEEP} strokeWidth={1.15} opacity={0.85} />
-      <path d={lemni(-1.1)} fill={INM_TURQ} fillOpacity={0.22} strokeWidth={1.5} />
+      <path d={lemni(-1.1)} fill={INM_TURQ} fillOpacity={0.22} strokeWidth={2.5} />
 
       {/* Waist crossing -- the knot that makes the weave legible at card size. */}
       <path d="M9.6 9.4 L14.4 14.6" stroke={INM_LIGHT} strokeWidth={1} opacity={0.8} />
@@ -3528,7 +3528,7 @@ export function IconInfinityMythic(props: BadgeGlyphProps) {
 
       {/* Travelling node -- the streak's current position on a loop with no end. */}
       <circle cx="20.4" cy="10.0" r="1.5" fill={INM_LIGHT} stroke="none" />
-      <circle cx="20.4" cy="10.0" r="2.6" stroke={INM_LIGHT} strokeWidth={0.6} fill="none" opacity={0.5} />
+      <circle cx="20.4" cy="10.0" r="2.6" stroke={INM_LIGHT} strokeWidth={0.6} fill="none" opacity={0.8} />
     </GlyphShell>
   );
 }
@@ -3567,7 +3567,7 @@ export function IconDawnBreakMythic(props: BadgeGlyphProps) {
       <g stroke={DBM_MID}>{rays}</g>
 
       {/* Sun disc, clipped by the horizon: the arc stops at y = 15.4. */}
-      <path d="M6.2 15.4 A5.8 5.8 0 0 1 17.8 15.4 Z" fill={DBM_MID} fillOpacity={0.4} strokeWidth={1.5} />
+      <path d="M6.2 15.4 A5.8 5.8 0 0 1 17.8 15.4 Z" fill={DBM_MID} fillOpacity={0.4} strokeWidth={2.5} />
       <path d="M8.6 15.4 A3.4 3.4 0 0 1 15.4 15.4 Z" fill={DBM_PALE} fillOpacity={0.85} stroke={DBM_DEEP} strokeWidth={0.7} />
 
       {/* Horizon -- the whole point of the mark. Heavier than anything else. */}
@@ -3637,7 +3637,7 @@ export function IconPhoenixSurgeMythic(props: BadgeGlyphProps) {
       {/* Updraft: three decaying chevrons feeding the rise. */}
       <g strokeWidth={1.25} fill="none" stroke={PSM_HOT}>
         <path d="M8.2 18.4 L12 15.6 L15.8 18.4" opacity={0.75} />
-        <path d="M9.4 21.0 L12 19.0 L14.6 21.0" opacity={0.5} />
+        <path d="M9.4 21.0 L12 19.0 L14.6 21.0" opacity={0.8} />
         <path d="M10.4 23.2 L12 21.8 L13.6 23.2" opacity={0.3} />
       </g>
 
@@ -3806,7 +3806,7 @@ export function IconSummitMythic(props: BadgeGlyphProps) {
       <path d="M12.8 14.8 L17.4 5.8 L22.8 14.8 Z" fill={SUM_DEEP} fillOpacity={0.45} strokeWidth={1} opacity={0.7} />
 
       {/* Hero peak. */}
-      <path d="M1.2 20.6 L9.4 4.2 L17.6 20.6 Z" fill={SUM_SKY} fillOpacity={0.28} strokeWidth={1.5} />
+      <path d="M1.2 20.6 L9.4 4.2 L17.6 20.6 Z" fill={SUM_SKY} fillOpacity={0.28} strokeWidth={2.5} />
       {/* Cornice snow on the lee side only -- asymmetric, like real snow. */}
       <path d="M9.4 4.2 L12.6 10.6 L10.6 9.8 L8.6 11.2 L6.6 9.4 Z" fill={SUM_SNOW} fillOpacity={0.9} stroke={SUM_DEEP} strokeWidth={0.5} />
       {/* Face facet, so the mountain has a lit and an unlit side. */}
@@ -3873,7 +3873,7 @@ export function IconOracleMythic(props: BadgeGlyphProps) {
       <g stroke={ORM_MID}>{rays}</g>
 
       {/* Mandorla -- two arcs meeting at points, not an ellipse. */}
-      <path d="M1.6 12 C5.2 5.6 18.8 5.6 22.4 12 C18.8 18.4 5.2 18.4 1.6 12 Z" fill={ORM_DEEP} fillOpacity={0.22} strokeWidth={1.5} />
+      <path d="M1.6 12 C5.2 5.6 18.8 5.6 22.4 12 C18.8 18.4 5.2 18.4 1.6 12 Z" fill={ORM_DEEP} fillOpacity={0.22} strokeWidth={2.5} />
       {/* Lid crease above, so it reads as an eye and not as a lens. */}
       <path d="M3.6 10.2 C7.4 6.0 16.6 6.0 20.4 10.2" strokeWidth={0.7} opacity={0.45} fill="none" />
 
@@ -3997,7 +3997,7 @@ export function IconMarathonTrail(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
       {/* Ground the trail crosses. */}
-      <path d="M0.8 22.2 H23.2" stroke={MTR_DUST} strokeWidth={1} opacity={0.5} />
+      <path d="M0.8 22.2 H23.2" stroke={MTR_DUST} strokeWidth={1} opacity={0.8} />
 
       {/* Trail bed. */}
       <path d="M2.6 22.2 L10.6 6.6 L13.4 6.6 L21.4 22.2 Z" fill={MTR_DEEP} fillOpacity={0.45} strokeWidth={1.4} />
@@ -4009,7 +4009,7 @@ export function IconMarathonTrail(props: BadgeGlyphProps) {
         <path d="M12 21.4 V19.0" strokeWidth={1.7} opacity={0.95} />
         <path d="M12 17.2 V15.4" strokeWidth={1.3} opacity={0.8} />
         <path d="M12 14.0 V12.7" strokeWidth={1} opacity={0.65} />
-        <path d="M12 11.6 V10.7" strokeWidth={0.75} opacity={0.5} />
+        <path d="M12 11.6 V10.7" strokeWidth={0.75} opacity={0.8} />
         <path d="M12 9.8 V9.1" strokeWidth={0.55} opacity={0.35} />
       </g>
 
@@ -4041,7 +4041,7 @@ const MSU_LIGHT = "#fff6e8";
 export function IconMarathonSurge(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      <path d="M0.8 22.2 H23.2" stroke={MSU_EMBER} strokeWidth={1} opacity={0.5} />
+      <path d="M0.8 22.2 H23.2" stroke={MSU_EMBER} strokeWidth={1} opacity={0.8} />
 
       {/* Heat shimmer over the road surface -- two low arcs, opposite phase. */}
       <g stroke={MSU_EMBER} strokeWidth={0.7} opacity={0.45} fill="none">
@@ -4055,7 +4055,7 @@ export function IconMarathonSurge(props: BadgeGlyphProps) {
         <path d="M12 21.4 V19.0" strokeWidth={1.7} opacity={0.95} />
         <path d="M12 17.2 V15.4" strokeWidth={1.3} opacity={0.8} />
         <path d="M12 14.0 V12.7" strokeWidth={1} opacity={0.65} />
-        <path d="M12 11.6 V10.7" strokeWidth={0.75} opacity={0.5} />
+        <path d="M12 11.6 V10.7" strokeWidth={0.75} opacity={0.8} />
         <path d="M12 9.8 V9.1" strokeWidth={0.55} opacity={0.35} />
       </g>
 
@@ -4096,7 +4096,7 @@ export function IconMarathonHorizon(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
       {/* Curvature arc -- the reason this reads as a horizon and not a shelf. */}
-      <path d="M0.6 9.4 Q12 4.6 23.4 9.4" stroke={MHZ_MID} strokeWidth={0.85} opacity={0.5} fill="none" />
+      <path d="M0.6 9.4 Q12 4.6 23.4 9.4" stroke={MHZ_MID} strokeWidth={0.85} opacity={0.8} fill="none" />
 
       {/* Three receding ridge layers, palest furthest back. */}
       <path d="M0.8 10.4 L5.0 7.8 L9.0 10.0 L13.4 7.2 L18.0 9.8 L23.2 7.6 V11.2 H0.8 Z" fill={MHZ_MID} opacity={0.28} stroke="none" />
@@ -4162,7 +4162,7 @@ export function IconMarathonEternal(props: BadgeGlyphProps) {
     <GlyphShell {...props}>
       {/* Light rising from behind the far side of the loop -- seven rays,
           alternating length, clipped to the upper half. */}
-      <g stroke={MET_MID} strokeWidth={0.9} opacity={0.5}>
+      <g stroke={MET_MID} strokeWidth={0.9} opacity={0.8}>
         <path d="M12 10.2 V2.6" />
         <path d="M8.6 10.8 L5.8 4.6" />
         <path d="M15.4 10.8 L18.2 4.6" />
@@ -4235,7 +4235,7 @@ export function IconIronWallBrick(props: BadgeGlyphProps) {
       </g>
 
       {/* Mortar bed the brick is set into. */}
-      <path d="M1.4 16.0 H22.6" strokeWidth={1.5} stroke={IWB_CLAY} opacity={0.85} />
+      <path d="M1.4 16.0 H22.6" strokeWidth={2.5} stroke={IWB_CLAY} opacity={0.85} />
       <path d="M1.4 22.0 H22.6" strokeWidth={1.1} stroke={IWB_CLAY} opacity={0.55} />
     </GlyphShell>
   );
@@ -4261,7 +4261,7 @@ export function IconIronWallBastion(props: BadgeGlyphProps) {
       />
 
       {/* Tower body -- four courses, alternating offset. */}
-      <rect x="5.2" y="8.0" width="13.6" height="11.2" fill={IWS_DEEP} fillOpacity={0.3} strokeWidth={1.5} />
+      <rect x="5.2" y="8.0" width="13.6" height="11.2" fill={IWS_DEEP} fillOpacity={0.3} strokeWidth={2.5} />
       <g stroke={IWS_STONE} strokeWidth={0.9} opacity={0.75} fill="none">
         <path d="M5.2 10.8 H18.8" />
         <path d="M5.2 13.6 H18.8" />
@@ -4275,7 +4275,7 @@ export function IconIronWallBastion(props: BadgeGlyphProps) {
 
       {/* Arrow slit -- a cross-slit, so it reads as defensive rather than as a
           window. */}
-      <path d="M12 14.2 V18.4" strokeWidth={1.5} stroke={IWS_LIGHT} />
+      <path d="M12 14.2 V18.4" strokeWidth={2.5} stroke={IWS_LIGHT} />
       <path d="M10.6 16.0 H13.4" strokeWidth={1.1} stroke={IWS_LIGHT} opacity={0.85} />
 
       {/* Splayed plinth. */}
@@ -4435,7 +4435,7 @@ export function IconVeteranChevron(props: BadgeGlyphProps) {
     <GlyphShell {...props}>
       {/* Patch backing -- a shield-ish field so the chevrons are ON something. */}
       <path d="M3.2 2.6 H20.8 V17.2 L12 22.2 L3.2 17.2 Z" fill={VTB_DEEP} fillOpacity={0.45} strokeWidth={1.35} />
-      <path d="M4.9 4.3 H19.1 V16.3 L12 20.3 L4.9 16.3 Z" strokeWidth={0.7} opacity={0.5} fill="none" stroke={VTB_KHAKI} />
+      <path d="M4.9 4.3 H19.1 V16.3 L12 20.3 L4.9 16.3 Z" strokeWidth={0.7} opacity={0.8} fill="none" stroke={VTB_KHAKI} />
 
       {/* Upper chevron. */}
       <path d="M12 5.0 L19.0 11.0 L19.0 13.4 L12 7.4 L5.0 13.4 L5.0 11.0 Z" fill={VTB_KHAKI} opacity={0.95} stroke="none" />
@@ -4499,7 +4499,7 @@ export function IconVeteranMedallion(props: BadgeGlyphProps) {
       </g>
 
       {/* Disc. */}
-      <circle cx="12" cy="14.5" r="5.5" fill={VTS_DEEP} fillOpacity={0.4} strokeWidth={1.5} />
+      <circle cx="12" cy="14.5" r="5.5" fill={VTS_DEEP} fillOpacity={0.4} strokeWidth={2.5} />
       <circle cx="12" cy="14.5" r="4.0" strokeWidth={0.8} opacity={0.6} fill="none" />
 
       {/* The BASE chevron, struck into the field. */}
@@ -4525,7 +4525,7 @@ export function IconVeteranStandard(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
       {/* Pike, spear finial, cross-bar. */}
-      <path d="M12 3.4 V22.4" strokeWidth={1.5} />
+      <path d="M12 3.4 V22.4" strokeWidth={2.5} />
       <path d="M12 0.8 L13.5 3.0 L12 4.4 L10.5 3.0 Z" fill={VTL_LIGHT} stroke="none" />
       <path d="M5.4 4.2 H18.6" strokeWidth={1.35} stroke={VTL_GREEN} />
       <g fill={VTL_GREEN} stroke="none">
@@ -4535,7 +4535,7 @@ export function IconVeteranStandard(props: BadgeGlyphProps) {
 
       {/* The standard, hanging. */}
       <path d="M6.0 4.6 H18.0 V18.0 H6.0 Z" fill={VTL_DEEP} fillOpacity={0.55} strokeWidth={1.4} />
-      <path d="M7.3 5.9 H16.7 V16.7 H7.3 Z" strokeWidth={0.7} opacity={0.5} stroke={VTL_GREEN} fill="none" />
+      <path d="M7.3 5.9 H16.7 V16.7 H7.3 Z" strokeWidth={0.7} opacity={0.8} stroke={VTL_GREEN} fill="none" />
 
       {/* Three chevrons on the field -- BASE's two, plus one. */}
       <g fill={VTL_GREEN} stroke="none">
@@ -4662,15 +4662,15 @@ export function IconLastMinuteSpark(props: BadgeGlyphProps) {
       <g>{lmTicks(LMB_AMBER)}</g>
 
       {/* Dial face. */}
-      <circle cx="12" cy="12.6" r="8.6" fill={LMB_DEEP} fillOpacity={0.45} strokeWidth={1.5} />
-      <circle cx="12" cy="12.6" r="5.4" strokeWidth={0.8} opacity={0.5} fill="none" />
+      <circle cx="12" cy="12.6" r="8.6" fill={LMB_DEEP} fillOpacity={0.45} strokeWidth={2.5} />
+      <circle cx="12" cy="12.6" r="5.4" strokeWidth={0.8} opacity={0.8} fill="none" />
 
       {/* The final wedge. */}
       <path d={LM_WEDGE} fill={LMB_AMBER} opacity={0.85} stroke="none" />
       <path d={LM_WEDGE} strokeWidth={1} opacity={0.9} fill="none" />
 
       {/* Hands, both inside the wedge. */}
-      <path d="M12 12.6 L12 6.4" strokeWidth={1.5} stroke={LMB_LIGHT} />
+      <path d="M12 12.6 L12 6.4" strokeWidth={2.5} stroke={LMB_LIGHT} />
       <path d="M12 12.6 L15.4 8.2" strokeWidth={1.15} stroke={LMB_LIGHT} opacity={0.85} />
       <circle cx="12" cy="12.6" r="1.05" fill={LMB_LIGHT} stroke="none" />
 
@@ -4704,14 +4704,14 @@ export function IconLastMinuteFlash(props: BadgeGlyphProps) {
 
       <g>{lmTicks(LMS_MID)}</g>
 
-      <circle cx="12" cy="12.6" r="8.6" fill={LMS_DEEP} fillOpacity={0.3} strokeWidth={1.5} />
+      <circle cx="12" cy="12.6" r="8.6" fill={LMS_DEEP} fillOpacity={0.3} strokeWidth={2.5} />
       <circle cx="12" cy="12.6" r="5.4" strokeWidth={0.8} opacity={0.45} fill="none" />
 
       {/* Wedge, blown out. */}
       <path d={LM_WEDGE} fill={LMS_INK} opacity={0.9} stroke="none" />
       <path d={LM_WEDGE} strokeWidth={1.05} opacity={0.95} fill="none" />
 
-      <path d="M12 12.6 L12 6.4" strokeWidth={1.5} stroke={LMS_INK} />
+      <path d="M12 12.6 L12 6.4" strokeWidth={2.5} stroke={LMS_INK} />
       <path d="M12 12.6 L15.4 8.2" strokeWidth={1.15} stroke={LMS_INK} opacity={0.8} />
       <circle cx="12" cy="12.6" r="1.05" fill={LMS_INK} stroke="none" />
 
@@ -4758,11 +4758,11 @@ export function IconLastMinuteBlaze(props: BadgeGlyphProps) {
           round to 12 the long way, and simply stops. */}
       <path
         d="M17.06 5.64 A8.6 8.6 0 1 1 12 4.00"
-        strokeWidth={1.5}
+        strokeWidth={2.5}
         fill={LMLG_DEEP}
         fillOpacity={0.4}
       />
-      <circle cx="12" cy="12.6" r="5.4" strokeWidth={0.8} opacity={0.5} fill="none" />
+      <circle cx="12" cy="12.6" r="5.4" strokeWidth={0.8} opacity={0.8} fill="none" />
 
       {/* The wedge, glowing rather than filled flat. */}
       <path d={LM_WEDGE} fill={LMLG_FLAME} opacity={0.6} stroke="none" />
@@ -4783,7 +4783,7 @@ export function IconLastMinuteBlaze(props: BadgeGlyphProps) {
       <path d="M11.4 5.0 C11.2 3.6 11.8 2.8 11.6 1.8 C12.6 3.0 12.7 4.0 12.3 5.2 Z" fill={LMLG_FLAME} opacity={0.65} stroke="none" />
 
       {/* Hands. The hour hand is inside the wedge and burning with it. */}
-      <path d="M12 12.6 L12 7.2" strokeWidth={1.5} stroke={LMLG_LIGHT} />
+      <path d="M12 12.6 L12 7.2" strokeWidth={2.5} stroke={LMLG_LIGHT} />
       <path d="M12 12.6 L15.6 8.6" strokeWidth={1.15} stroke={LMLG_LIGHT} opacity={0.85} />
       <circle cx="12" cy="12.6" r="1.05" fill={LMLG_LIGHT} stroke="none" />
 
@@ -4791,7 +4791,7 @@ export function IconLastMinuteBlaze(props: BadgeGlyphProps) {
       <g fill={LMLG_FLAME} stroke="none">
         <circle cx="19.4" cy="8.0" r="0.7" opacity={0.85} />
         <circle cx="20.6" cy="11.2" r="0.5" opacity={0.6} />
-        <circle cx="18.4" cy="4.4" r="0.45" opacity={0.5} />
+        <circle cx="18.4" cy="4.4" r="0.45" opacity={0.8} />
       </g>
     </GlyphShell>
   );
@@ -5040,7 +5040,7 @@ export function IconSectionSpecialistNexus(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
       {/* Six long rays escaping the core. */}
-      <g stroke={SSM_MID} strokeWidth={0.75} opacity={0.5}>
+      <g stroke={SSM_MID} strokeWidth={0.75} opacity={0.8}>
         {[...Array(6)].map((_, i) => {
           const a = (i / 6) * Math.PI * 2 - Math.PI / 2 + 0.26;
           return (
@@ -5053,7 +5053,7 @@ export function IconSectionSpecialistNexus(props: BadgeGlyphProps) {
       </g>
 
       {/* Two orbit rings. */}
-      <circle cx="12" cy="12" r="9.3" stroke={SSM_MID} strokeWidth={0.7} opacity={0.5} fill="none" />
+      <circle cx="12" cy="12" r="9.3" stroke={SSM_MID} strokeWidth={0.7} opacity={0.8} fill="none" />
       <circle cx="12" cy="12" r="6.6" stroke={SSM_MID} strokeWidth={0.55} opacity={0.32} fill="none" />
 
       {/* Twelve spokes, all the way in. */}
@@ -5116,3 +5116,1050 @@ export const phase2Glyphs = {
   SectionSpecialistMatrix: IconSectionSpecialistMatrix,      // section_specialist LEGENDARY
   SectionSpecialistNexus: IconSectionSpecialistNexus,        // section_specialist MYTHIC
 } as const;
+
+
+// --- Phase 4 DPS Batch 1 (2026-07-31) ---
+
+// 1. IRONCLAD DISCIPLINE FAMILY (Anvils)
+const IA_DEEP = "#18181b";
+const IA_MID = "#71717a";
+
+export function IconIronAnvil(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M4.5 16.5 L7.5 12.5 C8.5 10.5 8.5 8.5 8.5 8.5 H16.5 C16.5 8.5 16.5 10.5 17.5 12.5 L19.5 16.5 H4.5 Z" fill={IA_MID} opacity={0.4} />
+      <path d="M3.5 16.5 H20.5 L22.5 20.5 H1.5 Z" fill={IA_DEEP} opacity={0.8} />
+      <path d="M1.5 8.5 C4.5 8.5 7.5 6.5 7.5 6.5 H21.5 V8.5 H1.5 Z" fill="currentColor" />
+      <path d="M1.5 8.5 C4.5 8.5 7.5 6.5 7.5 6.5 H21.5 V8.5 H1.5 Z" stroke="currentColor" strokeWidth={1.2} fill="none" />
+      <path d="M3.5 16.5 H20.5 L22.5 20.5 H1.5 Z" stroke="currentColor" strokeWidth={1.2} fill="none" />
+      <circle cx="16.5" cy="3.5" r="1.2" fill="currentColor" />
+    </GlyphShell>
+  );
+}
+
+const SA_DEEP = "#082f49";
+const SA_MID = "#38bdf8";
+const SA_HOT = "#bae6fd";
+
+export function IconSteelAnvil(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M6.5 15.5 L17.5 15.5 L15.5 10.5 L8.5 10.5 Z" fill={SA_DEEP} opacity={0.6} />
+      <path d="M2.5 15.5 H21.5 L23.5 20.5 H0.5 Z" fill={SA_DEEP} opacity={0.9} />
+      <path d="M1.5 9.5 L7.5 5.5 H21.5 L19.5 9.5 Z" fill={SA_MID} opacity={0.4} />
+      <path d="M2.5 7.5 H20.5" stroke={SA_HOT} strokeWidth={2.5} opacity={0.9} />
+      <path d="M1.5 9.5 L7.5 5.5 H21.5 L19.5 9.5 Z" stroke="currentColor" strokeWidth={1.2} fill="none" />
+      <path d="M2.5 15.5 H21.5 L23.5 20.5 H0.5 Z" stroke="currentColor" strokeWidth={1.2} fill="none" />
+      <circle cx="15.5" cy="3.5" r="1.5" fill={SA_HOT} />
+      <circle cx="18.5" cy="2.5" r="1.0" fill={SA_MID} />
+      <circle cx="12.5" cy="4.5" r="0.8" fill={SA_HOT} />
+    </GlyphShell>
+  );
+}
+
+const OA_DEEP = "#450a0a";
+const OA_MID = "#991b1b";
+const OA_HOT = "#f97316";
+
+export function IconObsidianAnvil(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M4.5 15.5 L7.5 12.5 C8.5 10.5 8.5 8.5 8.5 8.5 H16.5 C16.5 8.5 16.5 10.5 17.5 12.5 L19.5 15.5 H4.5 Z" fill={OA_DEEP} opacity={0.9} />
+      <path d="M2.5 15.5 H21.5 L23.5 21.5 H0.5 Z" fill={OA_DEEP} opacity={0.95} />
+      <path d="M0.5 8.5 L6.5 5.5 L10.5 7.5 L15.5 4.5 L22.5 8.5 L19.5 11.5 H2.5 Z" fill={OA_MID} opacity={0.7} />
+      <path d="M10.5 7.5 L12.5 11.5 L14.5 15.5" stroke={OA_HOT} strokeWidth={2.5} fill="none" />
+      <path d="M15.5 4.5 L16.5 8.5 L19.5 10.5" stroke={OA_HOT} strokeWidth={1.2} fill="none" />
+      <path d="M8.5 15.5 L11.5 20.5" stroke={OA_HOT} strokeWidth={2.5} fill="none" />
+      <rect x="5.5" y="14.5" width="2" height="7" fill="currentColor" opacity={0.8} />
+      <rect x="16.5" y="14.5" width="2" height="7" fill="currentColor" opacity={0.8} />
+      <circle cx="12.5" cy="3.5" r="1.5" fill={OA_HOT} />
+      <circle cx="7.5" cy="2.5" r="1.0" fill={OA_HOT} />
+    </GlyphShell>
+  );
+}
+
+const CA_DEEP = "#4c1d95";
+const CA_MID = "#db2777";
+const CA_HOT = "#fcd34d";
+
+export function IconCelestialAnvil(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <ellipse cx="12" cy="18" rx="9" ry="3" fill={CA_DEEP} opacity={0.8} />
+      <ellipse cx="12" cy="18" rx="6" ry="1.5" fill={CA_DEEP} opacity={0.9} />
+      <ellipse cx="12" cy="8" rx="10" ry="3" stroke={CA_MID} strokeWidth={2.5} fill="none" />
+      <ellipse cx="12" cy="8" rx="11" ry="4" stroke={CA_HOT} strokeWidth={0.8} fill="none" opacity={0.7} />
+      <ellipse cx="12" cy="8" rx="7" ry="2" fill={CA_MID} opacity={0.4} />
+      <circle cx="12" cy="8" r="3.5" fill={CA_DEEP} stroke={CA_HOT} strokeWidth={1.2} />
+      <path d="M12 11 L12 17" stroke={CA_HOT} strokeWidth={2} opacity={0.8} />
+      <path d="M9.5 10.5 L10.5 17" stroke={CA_MID} strokeWidth={1} opacity={0.6} />
+      <path d="M14.5 10.5 L13.5 17" stroke={CA_MID} strokeWidth={1} opacity={0.6} />
+      <circle cx="12" cy="2" r="1.5" fill={CA_HOT} />
+      <circle cx="18" cy="4" r="1" fill={CA_MID} />
+      <circle cx="5" cy="5" r="1.2" fill={CA_HOT} />
+    </GlyphShell>
+  );
+}
+
+// 2. PURE CRYSTAL FAMILY
+const QC_DEEP = "#115e59";
+const QC_MID = "#2dd4bf";
+
+export function IconQuartzCrystal(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Solid bright backing to separate from dark backgrounds */}
+      <path d="M5.5 10.5 L9.5 3.5 L15.5 2.5 L19.5 9.5 L14.5 21.5 L7.5 15.5 Z" fill="currentColor" opacity={0.15} />
+      <path d="M5.5 10.5 L9.5 3.5 L12.5 6.5 L12.5 18.5 L7.5 15.5 Z" fill={QC_DEEP} opacity={0.9} />
+      <path d="M11.5 8.5 L15.5 2.5 L19.5 9.5 L17.5 17.5 L11.5 14.5 Z" fill={QC_MID} opacity={0.85} />
+      <path d="M8.5 12.5 L12.5 1.5 L16.5 10.5 L14.5 21.5 L9.5 18.5 Z" fill="#ffffff" opacity={0.3} />
+      <path d="M8.5 12.5 L12.5 1.5 L16.5 10.5 L14.5 21.5 L9.5 18.5 Z" stroke="currentColor" strokeWidth={2.5} fill="none" />
+      <path d="M12.5 1.5 L12.5 20.5" stroke="currentColor" strokeWidth={2.5} fill="none" opacity={0.8} />
+      <path d="M8.5 12.5 L12.5 14.5 L16.5 10.5" stroke="currentColor" strokeWidth={2.5} fill="none" opacity={0.8} />
+      <path d="M12.5 4.5 L13.5 8.5" stroke="currentColor" strokeWidth={2.5} />
+    </GlyphShell>
+  );
+}
+
+const SC_DEEP = "#1e1b4b";
+const SC_MID = "#3b82f6";
+const SC_HOT = "#c7d2fe";
+
+export function IconSapphireCrystal(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M12.5 1.5 L20.5 7.5 L12.5 21.5 L4.5 7.5 Z" fill={SC_DEEP} opacity={0.8} />
+      <path d="M12.5 5.5 L17.5 8.5 L12.5 18.5 L7.5 8.5 Z" fill={SC_MID} opacity={0.8} />
+      <path d="M10.5 8.5 L14.5 8.5 L12.5 14.5 Z" fill={SC_HOT} opacity={0.8} />
+      <path d="M12.5 1.5 L20.5 7.5 L12.5 21.5 L4.5 7.5 Z" stroke="currentColor" strokeWidth={2.5} fill="none" />
+      <path d="M12.5 1.5 L12.5 5.5" stroke="currentColor" strokeWidth={1.2} fill="none" />
+      <path d="M4.5 7.5 L7.5 8.5 L12.5 5.5 L17.5 8.5 L20.5 7.5" stroke="currentColor" strokeWidth={1.2} fill="none" />
+      <path d="M7.5 8.5 L12.5 18.5 L17.5 8.5" stroke="currentColor" strokeWidth={1.2} fill="none" />
+      <path d="M12.5 21.5 L12.5 18.5" stroke="currentColor" strokeWidth={1.2} fill="none" />
+      <path d="M2.5 5.5 L5.5 7.5" stroke={SC_HOT} strokeWidth={2.5} />
+      <path d="M22.5 5.5 L19.5 7.5" stroke={SC_HOT} strokeWidth={2.5} />
+    </GlyphShell>
+  );
+}
+
+const RC_DEEP = "#4c0519";
+const RC_MID = "#be123c";
+const RC_HOT = "#fda4af";
+
+export function IconRubyCrystal(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <circle cx="12.5" cy="11.5" r="9" stroke={RC_DEEP} strokeWidth={2.5} fill="none" opacity={0.6} />
+      <path d="M12.5 2.5 L21.5 11.5 L12.5 20.5 L3.5 11.5 Z" stroke={RC_MID} strokeWidth={1.2} fill="none" opacity={0.8} />
+      <path d="M12.5 5.5 L17.5 9.5 L15.5 16.5 L9.5 16.5 L7.5 9.5 Z" fill={RC_MID} opacity={0.7} />
+      <path d="M12.5 8.5 L14.5 11.5 L12.5 14.5 L10.5 11.5 Z" fill={RC_HOT} opacity={0.9} />
+      <path d="M2.5 11.5 L22.5 11.5" stroke="currentColor" strokeWidth={2.5} opacity={0.9} />
+      <path d="M12.5 1.5 L12.5 21.5" stroke="currentColor" strokeWidth={2.5} opacity={0.9} />
+      <path d="M14.5 11.5 L18.5 7.5" stroke={RC_HOT} strokeWidth={2.5} />
+      <path d="M10.5 11.5 L6.5 15.5" stroke={RC_HOT} strokeWidth={2.5} />
+    </GlyphShell>
+  );
+}
+
+const DC_DEEP = "#c084fc";
+const DC_MID = "#2dd4bf";
+const DC_HOT = "#fdf4ff";
+
+export function IconDiamondCrystal(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <path d="M12 2 L22 12 L12 22 L2 12 Z" stroke={DC_MID} strokeWidth={2.5} fill="none" opacity={0.8} />
+      <path d="M12 5 L19 12 L12 19 L5 12 Z" stroke={DC_DEEP} strokeWidth={1.2} fill="none" opacity={0.9} />
+      <path d="M2 12 L5 12 M22 12 L19 12 M12 2 L12 5 M12 22 L12 19" stroke={DC_MID} strokeWidth={1} opacity={0.6} />
+      <path d="M5 12 L19 12 M12 5 L12 19" stroke={DC_DEEP} strokeWidth={1} opacity={0.8} />
+      <circle cx="12" cy="12" r="3.5" fill={DC_HOT} />
+      <path d="M12 7 L13 11 L17 12 L13 13 L12 17 L11 13 L7 12 L11 11 Z" fill="currentColor" />
+      <path d="M12 2 L12 6 M12 18 L12 22 M2 12 L6 12 M18 12 L22 12" stroke="currentColor" strokeWidth={2.5} />
+    </GlyphShell>
+  );
+}
+
+export const dpsBatch1Glyphs = {
+  DpsIronAnvil: IconIronAnvil,
+  DpsSteelAnvil: IconSteelAnvil,
+  DpsObsidianAnvil: IconObsidianAnvil,
+  DpsCelestialAnvil: IconCelestialAnvil,
+  DpsQuartzCrystal: IconQuartzCrystal,
+  DpsSapphireCrystal: IconSapphireCrystal,
+  DpsRubyCrystal: IconRubyCrystal,
+  DpsDiamondCrystal: IconDiamondCrystal,
+} as const;
+
+
+// ============================================================================
+// PHASE 5: DPS BATCH 2 (Tomes & Quills)
+// ============================================================================
+
+// 3. THE BOUNDLESS TOME FAMILY
+const LT_DEEP = "#451a03";
+const LT_MID = "#b45309";
+
+export function IconLeatherTome(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Heavy shadow and back cover */}
+      <path d="M5 5 L17 5 A3 3 0 0 1 20 8 L20 18 A3 3 0 0 1 17 21 L5 21 Z" fill={LT_DEEP} />
+      {/* Pages block */}
+      <path d="M16 6 L16 20 M18 8 L18 18" stroke={LT_MID} strokeWidth={1} opacity={0.6} />
+      <path d="M4 6 L16 6 A2 2 0 0 1 18 8 L18 18 A2 2 0 0 1 16 20 L4 20 A2 2 0 0 1 2 18 L2 8 A2 2 0 0 1 4 6 Z" fill={LT_MID} />
+      {/* Heavy Spine */}
+      <path d="M2 6 L6 6 L6 20 L2 20 Z" fill={LT_DEEP} opacity={0.9} />
+      {/* Clasp and runes */}
+      <path d="M16 11 L19 11 L19 15 L16 15 Z" fill={LT_DEEP} />
+      <path d="M9 10 L13 10 M9 13 L14 13 M9 16 L12 16" stroke="currentColor" strokeWidth={2.5} opacity={0.8} strokeLinecap="round" />
+      {/* Core glowing rune */}
+      <circle cx="11.5" cy="13" r="2.5" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.8} />
+      <path d="M11.5 11.5 L11.5 14.5 M10 13 L13 13" stroke="currentColor" strokeWidth={1.2} />
+      
+      {/* Master Outline */}
+      <path d="M4 6 L16 6 A2 2 0 0 1 18 8 L18 18 A2 2 0 0 1 16 20 L4 20 A2 2 0 0 1 2 18 L2 8 A2 2 0 0 1 4 6 Z" stroke="currentColor" strokeWidth={2.5} fill="none" />
+      <path d="M6 6 L6 20 M16 11 L19 11 L19 15 L16 15" stroke="currentColor" strokeWidth={2.5} fill="none" />
+    </GlyphShell>
+  );
+}
+
+const ST_DEEP = "#334155";
+const ST_MID = "#94a3b8";
+
+export function IconSilverTome(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Scanning geometric rings */}
+      <circle cx="12" cy="12" r="10" stroke={ST_DEEP} strokeWidth={0.5} fill="none" />
+      <path d="M2 12 A10 10 0 0 1 22 12" stroke="currentColor" strokeWidth={2.5} opacity={0.8} fill="none" strokeLinecap="round" strokeDasharray="4 6" />
+      
+      <path d="M5 4 L17 4 A3 3 0 0 1 20 7 L20 17 A3 3 0 0 1 17 20 L5 20 Z" fill={ST_DEEP} opacity={0.8} />
+      <path d="M4 5 L16 5 A2 2 0 0 1 18 7 L18 17 A2 2 0 0 1 16 19 L4 19 A2 2 0 0 1 2 17 L2 7 A2 2 0 0 1 4 5 Z" fill={ST_MID} />
+      <path d="M2 5 L6 5 L6 19 L2 19 Z" fill={ST_DEEP} opacity={0.9} />
+      
+      {/* High-tech lock */}
+      <path d="M16 10 L21 10 L21 14 L16 14 Z" fill={ST_DEEP} />
+      <circle cx="18.5" cy="12" r="1" fill="currentColor" />
+      
+      {/* Energy core */}
+      <polygon points="11,8 14,12 11,16 8,12" fill="none" stroke="currentColor" strokeWidth={2.5} opacity={0.8} />
+      <circle cx="11" cy="12" r="1" fill="currentColor" />
+      
+      <path d="M4 5 L16 5 A2 2 0 0 1 18 7 L18 17 A2 2 0 0 1 16 19 L4 19 A2 2 0 0 1 2 17 L2 7 A2 2 0 0 1 4 5 Z" stroke="currentColor" strokeWidth={2.5} fill="none" />
+      <path d="M6 5 L6 19 M16 10 L21 10 L21 14 L16 14" stroke="currentColor" strokeWidth={2.5} fill="none" />
+    </GlyphShell>
+  );
+}
+
+const AT_DEEP = "#2e1065";
+const AT_MID = "#8b5cf6";
+
+export function IconAstralTome(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Astral glowing backdrop */}
+      <circle cx="12" cy="12" r="8" fill={AT_DEEP} opacity={0.6} />
+      
+      {/* Exploded / Opened Pages */}
+      <path d="M12 21 L1 15 L1 4 L12 10 Z" fill={AT_DEEP} />
+      <path d="M12 21 L23 15 L23 4 L12 10 Z" fill={AT_DEEP} />
+      <path d="M12 19 L3 14 L3 5 L12 10 Z" fill={AT_MID} opacity={0.8} />
+      <path d="M12 19 L21 14 L21 5 L12 10 Z" fill={AT_MID} opacity={0.8} />
+      
+      {/* Celestial energy erupting */}
+      <path d="M12 10 L12 2" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      <path d="M9 7 L12 2 L15 7" fill="none" stroke="currentColor" strokeWidth={2.5} opacity={0.8} />
+      <circle cx="12" cy="0" r="1.5" fill="currentColor" />
+      <circle cx="6" cy="6" r="1" fill="currentColor" opacity={0.8} />
+      <circle cx="18" cy="6" r="1" fill="currentColor" opacity={0.8} />
+      <circle cx="8" cy="3" r="0.8" fill="currentColor" opacity={0.6} />
+      <circle cx="16" cy="3" r="0.8" fill="currentColor" opacity={0.6} />
+      
+      {/* Outlines */}
+      <path d="M12 21 L1 15 L1 4 L12 10 Z" stroke="currentColor" strokeWidth={2.5} fill="none" strokeLinejoin="round" />
+      <path d="M12 21 L23 15 L23 4 L12 10 Z" stroke="currentColor" strokeWidth={2.5} fill="none" strokeLinejoin="round" />
+      <path d="M12 10 L12 21" stroke="currentColor" strokeWidth={2.5} strokeLinejoin="round" />
+    </GlyphShell>
+  );
+}
+
+const BT_DEEP = "#020617";
+const BT_MID = "#0ea5e9";
+const BT_HOT = "#38bdf8";
+
+export function IconBoundlessTome(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Swirling Mythic Vortex */}
+      <path d="M12 0 C18 0 24 6 24 12 C24 18 18 24 12 24 C6 24 0 18 0 12" stroke={BT_MID} strokeWidth={0.8} fill="none" opacity={0.8} strokeDasharray="2 4" />
+      <path d="M3 12 C3 7 7 3 12 3 C17 3 21 7 21 12 C21 17 17 21 12 21" stroke="currentColor" strokeWidth={1.2} fill="none" opacity={0.8} strokeDasharray="6 3" />
+      
+      {/* Shattered Core */}
+      <path d="M12 20 L2 15 L3 8 L12 12 Z" fill={BT_DEEP} />
+      <path d="M12 20 L22 15 L21 8 L12 12 Z" fill={BT_DEEP} />
+      
+      {/* Disintegrating Pages */}
+      <path d="M12 18 L5 14 L5 11 L12 13 Z" fill={BT_MID} />
+      <path d="M12 18 L19 14 L19 11 L12 13 Z" fill={BT_MID} />
+      
+      {/* Levitating Runes and Pages orbiting */}
+      <polygon points="12,2 14,6 12,10 10,6" fill="currentColor" />
+      <rect x="4" y="2" width="2" height="3" fill="currentColor" transform="rotate(30 5 3.5)" />
+      <rect x="18" y="3" width="2" height="2" fill="currentColor" transform="rotate(60 19 4)" />
+      <rect x="20" y="16" width="3" height="4" fill="currentColor" transform="rotate(-20 21.5 18)" opacity={0.7} />
+      <rect x="1" y="16" width="2" height="3" fill="currentColor" transform="rotate(45 2 17.5)" opacity={0.7} />
+      <circle cx="12" cy="15" r="1.5" fill={BT_HOT} />
+      
+      {/* Lightning strikes out of book */}
+      <path d="M12 12 L9 7 L12 5 L10 1" stroke="currentColor" strokeWidth={1.2} fill="none" strokeLinecap="round" />
+      <path d="M12 12 L16 8 L14 5 L17 2" stroke="currentColor" strokeWidth={1.2} fill="none" strokeLinecap="round" />
+      
+      {/* Outlines */}
+      <path d="M12 20 L2 15 L3 8 L12 12 Z" stroke="currentColor" strokeWidth={2.5} fill="none" strokeLinejoin="round" />
+      <path d="M12 20 L22 15 L21 8 L12 12 Z" stroke="currentColor" strokeWidth={2.5} fill="none" strokeLinejoin="round" />
+      <path d="M12 12 L12 20" stroke="currentColor" strokeWidth={2.5} />
+    </GlyphShell>
+  );
+}
+
+// 4. THE LIGHTNING QUILL FAMILY
+const BQ_DEEP = "#713f12";
+const BQ_MID = "#ca8a04";
+
+export function IconBronzeQuill(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Ink splat */}
+      <circle cx="6" cy="20" r="1.5" fill={BQ_DEEP} opacity={0.6} />
+      <circle cx="4" cy="18" r="0.8" fill={BQ_DEEP} opacity={0.4} />
+      <circle cx="9" cy="22" r="1" fill={BQ_DEEP} opacity={0.4} />
+
+      {/* Main Feather Body */}
+      <path d="M19 3 C13 7 11 12 9 17 C13 13 17 10 21 6 Z" fill={BQ_DEEP} opacity={0.7} />
+      <path d="M21 2 C15 5 12 10 7 21 L5 23 L9 18 C13 12 17 7 21 2 Z" fill={BQ_MID} opacity={0.9} />
+      
+      {/* Ribs / Vanes */}
+      <path d="M18 4 L14 7 M16 7 L12 10 M14 10 L10 13 M11 14 L9 16" stroke="currentColor" strokeWidth={1.2} opacity={0.6} strokeLinecap="round" />
+      
+      <path d="M21 2 C15 5 12 10 7 21 L5 23 L9 18 C13 12 17 7 21 2 Z" stroke="currentColor" strokeWidth={2.5} fill="none" />
+      {/* Spine */}
+      <path d="M21 2 L5 23" stroke="currentColor" strokeWidth={2.5} />
+    </GlyphShell>
+  );
+}
+
+const SQ_DEEP = "#334155";
+const SQ_MID = "#cbd5e1";
+
+export function IconSilverQuill(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* 3 Glowing Orbit Rings */}
+      <ellipse cx="14" cy="10" rx="6" ry="2" transform="rotate(-45 14 10)" stroke={SQ_DEEP} strokeWidth={1} fill="none" />
+      <ellipse cx="12" cy="12" rx="7" ry="2.5" transform="rotate(-45 12 12)" stroke={SQ_MID} strokeWidth={2.5} opacity={0.8} fill="none" />
+      <ellipse cx="10" cy="14" rx="5" ry="1.5" transform="rotate(-45 10 14)" stroke={SQ_DEEP} strokeWidth={1} fill="none" />
+
+      {/* Sleek metallic quill */}
+      <path d="M22 2 C16 4 12 9 6 20 L4 23 L9 18 C13 11 18 6 22 2 Z" fill={SQ_DEEP} />
+      <path d="M22 2 C16 4 12 9 6 20 L4 23 L9 18 C13 11 18 6 22 2 Z" fill={SQ_MID} opacity={0.6} />
+      
+      {/* Geometric etching */}
+      <path d="M19 4 L16 8 M16 8 L17 10 M14 11 L11 15 M11 15 L12 17" stroke="currentColor" strokeWidth={1.2} fill="none" />
+      
+      <path d="M22 2 C16 4 12 9 6 20 L4 23 L9 18 C13 11 18 6 22 2 Z" stroke="currentColor" strokeWidth={2.5} fill="none" />
+      <path d="M22 2 L4 23" stroke="currentColor" strokeWidth={2.5} />
+      
+      {/* Ink Star */}
+      <path d="M3 17 L4 19 L6 20 L4 21 L3 23 L2 21 L0 20 L2 19 Z" fill="currentColor" opacity={0.8} />
+    </GlyphShell>
+  );
+}
+
+const RQ_DEEP = "#991b1b";
+const RQ_MID = "#f59e0b";
+
+export function IconRadiantQuill(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Blazing aura */}
+      <circle cx="12" cy="12" r="9" fill={RQ_DEEP} opacity={0.3} />
+      
+      {/* Four-winged radiant layers */}
+      <path d="M23 1 C17 3 13 8 7 19 L2 24 L8 17 C13 10 19 5 23 1 Z" fill={RQ_DEEP} />
+      <path d="M21 4 C15 7 11 12 6 20 L2 24 L7 18 C11 12 17 8 21 4 Z" fill={RQ_MID} opacity={0.9} />
+      <path d="M24 2 C18 5 14 10 8 18 L2 24 L9 16 C14 9 20 6 24 2 Z" fill={RQ_MID} opacity={0.6} />
+
+      {/* Ember trail */}
+      <circle cx="21" cy="0" r="1" fill="currentColor" />
+      <circle cx="18" cy="2" r="1.5" fill="currentColor" />
+      <circle cx="23" cy="5" r="0.8" fill="currentColor" />
+      <circle cx="15" cy="5" r="1" fill="currentColor" opacity={0.8} />
+      
+      {/* Wing ridges */}
+      <path d="M19 6 L14 9 M15 11 L10 14 M11 15 L7 18" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" />
+      
+      {/* Main Core */}
+      <path d="M23 1 C17 3 13 8 7 19 L2 24 L8 17 C13 10 19 5 23 1 Z" stroke="currentColor" strokeWidth={2.5} fill="none" />
+      <path d="M23 1 L2 24" stroke="currentColor" strokeWidth={2.5} />
+    </GlyphShell>
+  );
+}
+
+const LQ_DEEP = "#083344";
+const LQ_MID = "#06b6d4";
+
+export function IconLightningQuill(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      {/* Giant Fractal Lightning branching through the whole icon */}
+      <path d="M2 12 L6 10 L8 14 L14 8 L18 12 L22 6" stroke={LQ_MID} strokeWidth={2.5} fill="none" opacity={0.6} />
+      <path d="M4 2 L8 6 L6 12 L12 16 L10 22" stroke={LQ_MID} strokeWidth={2.5} fill="none" opacity={0.6} />
+      
+      {/* Asymmetrical Jagged Quill Core */}
+      <path d="M22 2 L14 10 L17 10 L10 18 L3 23 L10 16 L7 16 L15 8 L18 8 Z" fill={LQ_DEEP} />
+      <path d="M22 2 L14 10 L17 10 L10 18 L3 23 L8 17 L5 17 L13 9 L16 9 Z" fill={LQ_MID} opacity={0.8} />
+      
+      {/* Intense Core Bolts */}
+      <path d="M22 2 L14 10 L17 10 L10 18 L3 23 L10 16 L7 16 L15 8 L18 8 Z" stroke="currentColor" strokeWidth={2.5} fill="none" />
+      
+      {/* Crackle Details */}
+      <path d="M15 8 L11 4 M12 12 L7 10 M10 18 L6 20" stroke="currentColor" strokeWidth={2.5} fill="none" strokeLinecap="round" />
+      
+      {/* Center Strike */}
+      <path d="M22 2 L12 12 M12 12 L3 23" stroke="currentColor" strokeWidth={2} />
+    </GlyphShell>
+  );
+}
+
+export const dpsBatch2Glyphs = {
+  DpsLeatherTome: IconLeatherTome,
+  DpsSilverTome: IconSilverTome,
+  DpsAstralTome: IconAstralTome,
+  DpsBoundlessTome: IconBoundlessTome,
+  
+  DpsBronzeQuill: IconBronzeQuill,
+  DpsSilverQuill: IconSilverQuill,
+  DpsRadiantQuill: IconRadiantQuill,
+  DpsLightningQuill: IconLightningQuill,
+};
+
+// ============================================================================
+// BATCH 3: THE SAGE'S EYE (FAMILY 5) & THE UNBROKEN CHAIN (FAMILY 6)
+// ============================================================================
+
+// 5. THE SAGE'S EYE (Hourglass)
+const BH_DEEP = "#d97706"; // bronze deep
+const BH_MID = "#d97706"; // amber
+
+export function IconBronzeHourglass(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      
+      <g transform="scale(1.4) translate(-3.4, -3.4)">
+{/* Wooden/Bronze Frame */}
+      <path d="M4 2 L20 2 L20 4 L4 4 Z" fill={BH_DEEP} />
+      <path d="M4 20 L20 20 L20 22 L4 22 Z" fill={BH_DEEP} />
+      <path d="M6 4 L6 20 M18 4 L18 20" stroke={BH_DEEP} strokeWidth={1.2} />
+      
+      {/* Glass Bulb */}
+      <path d="M7 4 C7 10 11 11 12 12 C13 11 17 10 17 4 Z" fill="currentColor" opacity={0.1} />
+      <path d="M7 20 C7 14 11 13 12 12 C13 13 17 14 17 20 Z" fill="currentColor" opacity={0.1} />
+      <path d="M7 4 C7 10 11 11 12 12 C13 13 17 14 17 20" stroke="currentColor" strokeWidth={1.5} fill="none" opacity={0.8} />
+      <path d="M17 4 C17 10 13 11 12 12 C11 11 7 10 7 4" stroke="currentColor" strokeWidth={1.5} fill="none" opacity={0.8} />
+      
+      {/* Sand */}
+      <path d="M8 8 C9 10 11 11 12 11 C13 11 15 10 16 8 Z" fill={BH_MID} opacity={0.9} />
+      <path d="M8 20 C9 16 11 15 12 14 C13 15 15 16 16 20 Z" fill={BH_MID} opacity={0.9} />
+      <line x1="12" y1="11" x2="12" y2="15" stroke={BH_MID} strokeWidth={1} strokeDasharray="1 1" />
+      
+      {/* Outlines */}
+      <path d="M4 2 L20 2 L20 4 L4 4 Z M4 20 L20 20 L20 22 L4 22 Z" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+const SH_DEEP = "#1e293b";
+const SH_MID = "#38bdf8";
+
+export function IconSilverHourglass(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      
+      <g transform="scale(1.4) translate(-3.4, -3.4)">
+{/* Orbital Rings */}
+      <ellipse cx="12" cy="12" rx="10" ry="3" transform="rotate(-20 12 12)" stroke={SH_MID} strokeWidth={1} fill="none" opacity={0.6} />
+      <ellipse cx="12" cy="12" rx="10" ry="3" transform="rotate(20 12 12)" stroke="currentColor" strokeWidth={1.5} fill="none" strokeDasharray="4 4" opacity={0.8} />
+      
+      {/* Silver Frame */}
+      <path d="M5 3 L19 3 L18 5 L6 5 Z" fill={SH_DEEP} />
+      <path d="M5 21 L19 21 L18 19 L6 19 Z" fill={SH_DEEP} />
+      
+      {/* Sleek Glass */}
+      <path d="M8 5 C8 10 11 11 12 12 C13 13 16 14 16 19 L8 19 C8 14 11 13 12 12 C13 11 16 10 16 5 Z" fill={SH_MID} opacity={0.15} />
+      <path d="M8 5 C8 10 11 11 12 12 C13 13 16 14 16 19" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <path d="M16 5 C16 10 13 11 12 12 C11 13 8 14 8 19" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      
+      {/* Cyan Sand */}
+      <path d="M9 7 C10 9 11 10 12 11 C13 10 14 9 15 7 Z" fill={SH_MID} />
+      <path d="M9 19 C10 16 11 15 12 14 C13 15 14 16 15 19 Z" fill={SH_MID} />
+      <line x1="12" y1="11" x2="12" y2="15" stroke={SH_MID} strokeWidth={1.5} />
+      
+      {/* Runes / Lights */}
+      <circle cx="12" cy="4" r="0.8" fill="currentColor" />
+      <circle cx="12" cy="20" r="0.8" fill="currentColor" />
+      <path d="M5 3 L19 3 L18 5 L6 5 Z M5 21 L19 21 L18 19 L6 19 Z" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+const GH_DEEP = "#854d0e";
+const GH_MID = "#fbbf24";
+
+export function IconGoldenHourglass(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      
+      <g transform="scale(1.4) translate(-3.4, -3.4)">
+{/* Celestial Map Background */}
+      <circle cx="12" cy="12" r="10" stroke={GH_DEEP} strokeWidth={0.5} fill="none" opacity={0.8} />
+      <path d="M12 2 L12 22 M2 12 L22 12 M5 5 L19 19 M5 19 L19 5" stroke={GH_MID} strokeWidth={0.5} opacity={0.3} />
+      <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" opacity={0.7} />
+      
+      {/* Golden Frame */}
+      <path d="M4 2 L20 2 A2 2 0 0 1 18 6 L6 6 A2 2 0 0 1 4 2 Z" fill={GH_DEEP} />
+      <path d="M4 22 L20 22 A2 2 0 0 0 18 18 L6 18 A2 2 0 0 0 4 22 Z" fill={GH_DEEP} />
+      <path d="M4 2 L20 2 A2 2 0 0 1 18 6 L6 6 A2 2 0 0 1 4 2 Z" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <path d="M4 22 L20 22 A2 2 0 0 0 18 18 L6 18 A2 2 0 0 0 4 22 Z" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      
+      {/* Cracked Radiant Glass */}
+      <path d="M7 6 C7 10 11 11 12 12 C13 13 17 14 17 18 L7 18 C7 14 11 13 12 12 C13 11 17 10 17 6 Z" fill={GH_MID} opacity={0.3} />
+      <path d="M7 6 C7 10 11 11 12 12 C13 13 17 14 17 18" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <path d="M17 6 C17 10 13 11 12 12 C11 13 7 14 7 18" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      
+      {/* Glass Cracks */}
+      <path d="M8 8 L10 10 L9 11 M16 16 L14 14 L15 13" stroke="currentColor" strokeWidth={1} fill="none" opacity={0.8} />
+      
+      {/* Intense Glowing Sand Core */}
+      <circle cx="12" cy="12" r="3" fill={GH_MID} opacity={0.8} />
+      <polygon points="12,5 14,9 12,11 10,9" fill={GH_MID} />
+      <polygon points="12,19 14,15 12,13 10,15" fill={GH_MID} />
+      
+      {/* Radiant Stars */}
+      <circle cx="4" cy="4" r="1" fill="currentColor" />
+      <circle cx="20" cy="20" r="1" fill="currentColor" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+const CE_DEEP = "#38bdf8";
+const CE_MID = "#2dd4bf";
+
+export function IconCelestialEye(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      
+      <g transform="scale(1.4) translate(-3.4, -3.4)">
+{/* Shattered Outer Shell / Void */}
+      <path d="M12 0 L14 4 L20 3 L17 8 L23 12 L18 16 L21 21 L14 19 L12 24 L10 19 L3 21 L6 16 L1 12 L6 8 L3 3 L10 4 Z" fill={CE_DEEP} opacity={0.8} />
+      <path d="M12 0 L14 4 L20 3 L17 8 L23 12 L18 16 L21 21 L14 19 L12 24 L10 19 L3 21 L6 16 L1 12 L6 8 L3 3 L10 4 Z" stroke={CE_MID} strokeWidth={1} strokeDasharray="4 2" fill="none" />
+      
+      {/* The Celestial Eye (Center) */}
+      <path d="M4 12 C8 6 16 6 20 12 C16 18 8 18 4 12 Z" fill={CE_MID} opacity={0.4} />
+      <path d="M4 12 C8 6 16 6 20 12 C16 18 8 18 4 12 Z" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <circle cx="12" cy="12" r="3" fill={CE_MID} />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <circle cx="12" cy="12" r="1" fill={CE_DEEP} />
+      
+      {/* Frozen Glass Shards Floating */}
+      <polygon points="12,2 14,5 11,4" fill="currentColor" opacity={0.8} />
+      <polygon points="20,7 22,9 19,10" fill="currentColor" opacity={0.6} />
+      <polygon points="3,17 5,15 6,19" fill="currentColor" opacity={0.7} />
+      <polygon points="13,22 15,20 12,19" fill="currentColor" opacity={0.9} />
+      
+      {/* Light rays piercing out */}
+      <line x1="12" y1="9" x2="12" y2="4" stroke="currentColor" strokeWidth={1.5} />
+      <line x1="12" y1="15" x2="12" y2="20" stroke="currentColor" strokeWidth={1.5} />
+      <line x1="7" y1="12" x2="2" y2="12" stroke="currentColor" strokeWidth={1.5} />
+      <line x1="17" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth={1.5} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+// 6. THE UNBROKEN CHAIN (Family 6)
+const IC_DEEP = "#3f3f46";
+const IC_MID = "#a1a1aa";
+
+export function IconIronChain(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      
+      <g transform="scale(1.4) translate(-3.4, -3.4)">
+{/* Link 1 (Top Left) */}
+      <rect x="3" y="4" width="8" height="14" rx="4" transform="rotate(-45 7 11)" fill={IC_DEEP} />
+      <rect x="3" y="4" width="8" height="14" rx="4" transform="rotate(-45 7 11)" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <rect x="5" y="6" width="4" height="10" rx="2" transform="rotate(-45 7 11)" stroke="currentColor" strokeWidth={1.5} fill="none" />
+
+      {/* Link 2 (Center) */}
+      <rect x="8" y="5" width="8" height="14" rx="4" fill={IC_MID} opacity={0.9} />
+      <rect x="8" y="5" width="8" height="14" rx="4" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <rect x="10" y="7" width="4" height="10" rx="2" stroke="currentColor" strokeWidth={1.5} fill="none" />
+
+      {/* Link 3 (Bottom Right) */}
+      <rect x="13" y="6" width="8" height="14" rx="4" transform="rotate(-45 17 13)" fill={IC_DEEP} />
+      <rect x="13" y="6" width="8" height="14" rx="4" transform="rotate(-45 17 13)" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <rect x="15" y="8" width="4" height="10" rx="2" transform="rotate(-45 17 13)" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+const SCHAIN_DEEP = "#38bdf8";
+const SCHAIN_MID = "#bae6fd";
+
+export function IconSteelChain(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      
+      <g transform="scale(1.4) translate(-3.4, -3.4)">
+{/* Background Gears */}
+      <circle cx="6" cy="6" r="4" stroke={SCHAIN_DEEP} strokeWidth={1.2} strokeDasharray="2 2" fill="none" />
+      <circle cx="18" cy="18" r="4" stroke={SCHAIN_DEEP} strokeWidth={1.2} strokeDasharray="2 2" fill="none" />
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth={0.5} strokeDasharray="4 4" fill="none" opacity={0.8} />
+      
+      {/* Precise Steel Links */}
+      <path d="M4 8 L8 4 L14 10 L10 14 Z" fill={SCHAIN_DEEP} stroke="currentColor" strokeWidth={1.5} />
+      <path d="M10 14 L14 10 L20 16 L16 20 Z" fill={SCHAIN_DEEP} stroke="currentColor" strokeWidth={1.5} />
+      
+      {/* Center Hexagonal Gear-Link */}
+      <polygon points="12,7 16,9 16,15 12,17 8,15 8,9" fill={SCHAIN_MID} opacity={0.8} stroke="currentColor" strokeWidth={1.5} />
+      <circle cx="12" cy="12" r="2" fill={SCHAIN_DEEP} />
+      <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      
+      {/* Connecting Bolts */}
+      <circle cx="10" cy="10" r="1" fill="currentColor" />
+      <circle cx="14" cy="14" r="1" fill="currentColor" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+const DCHAIN_DEEP = "#38bdf8";
+const DCHAIN_MID = "#e0f2fe";
+
+export function IconDiamondChain(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      
+      <g transform="scale(1.4) translate(-3.4, -3.4)">
+{/* Radiant Glow Behind */}
+      <path d="M2 22 L22 2" stroke={DCHAIN_MID} strokeWidth={6} opacity={0.2} strokeLinecap="round" />
+      
+      {/* Crystalline Links */}
+      {/* Link 1 */}
+      <polygon points="3,21 7,21 11,17 11,13 7,13 3,17" fill={DCHAIN_DEEP} opacity={0.9} stroke="currentColor" strokeWidth={1.5} />
+      <polygon points="5,19 7,19 9,17 9,15 7,15 5,17" fill={DCHAIN_MID} opacity={0.8} stroke="currentColor" strokeWidth={1} />
+      
+      {/* Link 2 */}
+      <polygon points="9,15 13,15 17,11 17,7 13,7 9,11" fill={DCHAIN_DEEP} opacity={0.9} stroke="currentColor" strokeWidth={1.5} />
+      <polygon points="11,13 13,13 15,11 15,9 13,9 11,11" fill={DCHAIN_MID} opacity={0.8} stroke="currentColor" strokeWidth={1} />
+      
+      {/* Link 3 */}
+      <polygon points="15,9 19,9 23,5 23,1 19,1 15,5" fill={DCHAIN_DEEP} opacity={0.9} stroke="currentColor" strokeWidth={1.5} />
+      <polygon points="17,7 19,7 21,5 21,3 19,3 17,5" fill={DCHAIN_MID} opacity={0.8} stroke="currentColor" strokeWidth={1} />
+      
+      {/* Diamond Sparkles */}
+      <path d="M13 11 L13 5 M10 8 L16 8" stroke="currentColor" strokeWidth={1.5} />
+      <path d="M7 17 L7 11 M4 14 L10 14" stroke="currentColor" strokeWidth={1.5} />
+      <path d="M19 5 L19 -1 M16 2 L22 2" stroke="currentColor" strokeWidth={1.5} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+const UM_DEEP = "#450a0a";
+const UM_MID = "#fde047";
+const UM_HOT = "#ffffff";
+
+export function IconUnbrokenMechanism(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      
+      <g transform="scale(1.4) translate(-3.4, -3.4)">
+{/* Blinding Golden Heat Aura */}
+      <circle cx="12" cy="12" r="10" fill={UM_DEEP} opacity={0.9} />
+      <circle cx="12" cy="12" r="8" fill={UM_MID} opacity={0.4} />
+      
+      {/* Infinite Loop Track (Figure 8) */}
+      <path d="M7 12 C7 7 11 7 12 12 C13 17 17 17 17 12 C17 7 13 7 12 12 C11 17 7 17 7 12 Z" stroke={UM_HOT} strokeWidth={1.5} fill="none" opacity={0.8} />
+      
+      {/* Massive Gear Teeth surrounding */}
+      <path d="M12 1 L14 4 M12 23 L14 20 M1 12 L4 14 M23 12 L20 14 M4 4 L7 6 M20 20 L17 18 M20 4 L17 6 M4 20 L7 18" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" />
+      
+      {/* Glowing Mechanism Links */}
+      <circle cx="7" cy="12" r="3" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <circle cx="17" cy="12" r="3" stroke="currentColor" strokeWidth={1.5} fill="none" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      <path d="M7 9 L17 9 M7 15 L17 15" stroke="currentColor" strokeWidth={1.5} />
+      
+      {/* Center Strike / Extreme Heat Sparks */}
+      <line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" strokeWidth={1.5} />
+      <line x1="14" y1="10" x2="10" y2="14" stroke="currentColor" strokeWidth={1.5} />
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={1.5} fill="none" strokeDasharray="8 4" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+export const dpsBatch3Glyphs = {
+  DpsBronzeHourglass: IconBronzeHourglass,
+  DpsSilverHourglass: IconSilverHourglass,
+  DpsGoldenHourglass: IconGoldenHourglass,
+  DpsCelestialEye: IconCelestialEye,
+  
+  DpsIronChain: IconIronChain,
+  DpsSteelChain: IconSteelChain,
+  DpsDiamondChain: IconDiamondChain,
+  DpsUnbrokenMechanism: IconUnbrokenMechanism,
+};
+
+
+
+// ==============================================================================
+// BATCH 4: RISING PHOENIX & MASTER'S ANVIL (8 Badges)
+// ==============================================================================
+
+
+const PHOENIX_DEEP = "#7f1d1d";
+const PHOENIX_MID = "#fca5a5";
+
+export function IconAshFeather(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <g transform="scale(1.2) translate(-2, -2)">
+        {/* Ash Particles */}
+        <circle cx="6" cy="18" r="1.5" fill={PHOENIX_MID} opacity={0.6} />
+        <circle cx="4" cy="14" r="1" fill={PHOENIX_MID} opacity={0.4} />
+        <circle cx="10" cy="22" r="1.2" fill={PHOENIX_MID} opacity={0.7} />
+        <circle cx="16" cy="4" r="0.8" fill={PHOENIX_MID} opacity={0.5} />
+        <circle cx="19" cy="8" r="1" fill={PHOENIX_MID} opacity={0.3} />
+        
+        {/* Central Quill */}
+        <path d="M4 20 L20 4" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+        
+        {/* Feather Barbs */}
+        <path d="M7 17 L9 12 M9 15 L12 9 M11 13 L15 6 M13 11 L18 4" stroke={PHOENIX_DEEP} strokeWidth={1.5} strokeLinecap="round" />
+        <path d="M6 18 L12 19 M8 16 L15 15 M10 14 L18 12 M13 11 L20 8" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+        
+        {/* Glowing Tip */}
+        <circle cx="20" cy="4" r="2" fill={PHOENIX_MID} opacity={0.8} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+export function IconEmberWing(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <g transform="scale(1.3) translate(-2.7, -2.7)">
+        {/* Outer Wing Sweep */}
+        <path d="M3 21 C8 15 12 5 21 3 C17 10 11 16 3 21 Z" fill={PHOENIX_DEEP} opacity={0.9} stroke="currentColor" strokeWidth={1} />
+        {/* Inner Wing Blades */}
+        <path d="M5 19 C10 15 13 8 20 6 C16 11 11 15 5 19 Z" fill={PHOENIX_MID} opacity={0.8} stroke="currentColor" strokeWidth={1} />
+        <path d="M7 17 C11 14 13 10 18 9 C15 12 11 15 7 17 Z" fill="#ffffff" opacity={0.5} stroke="currentColor" strokeWidth={0.5} />
+        
+        {/* Swirling Embers */}
+        <path d="M8 21 C10 23 14 20 12 18" stroke={PHOENIX_MID} strokeWidth={1.5} fill="none" strokeLinecap="round" />
+        <circle cx="15" cy="18" r="1" fill={PHOENIX_MID} />
+        <circle cx="18" cy="14" r="1.5" fill={PHOENIX_MID} opacity={0.7} />
+        <circle cx="12" cy="14" r="0.8" fill="#ffffff" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+export function IconGoldenPhoenix(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <g transform="scale(1.2) translate(-2, -2)">
+        {/* Phoenix Base Aura */}
+        <path d="M12 2 L22 12 L12 22 L2 12 Z" fill={PHOENIX_MID} opacity={0.2} />
+        
+        {/* Wings */}
+        <path d="M12 12 C18 6 22 2 22 2 C22 2 20 8 16 12 C20 14 22 18 22 18 C22 18 16 14 12 14" fill={PHOENIX_DEEP} stroke="currentColor" strokeWidth={1} />
+        <path d="M12 12 C6 6 2 2 2 2 C2 2 4 8 8 12 C4 14 2 18 2 18 C2 18 8 14 12 14" fill={PHOENIX_DEEP} stroke="currentColor" strokeWidth={1} />
+        
+        {/* Tail */}
+        <path d="M12 14 C14 18 15 22 15 22 C12 19 12 19 12 22 C12 19 12 19 9 22 C10 18 12 14 12 14 Z" fill={PHOENIX_MID} stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />
+        
+        {/* Body and Head */}
+        <path d="M12 14 L10 10 L12 4 L14 10 Z" fill="#ffffff" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />
+        {/* Crown / Beak */}
+        <polygon points="12,2 14,5 10,5" fill={PHOENIX_MID} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+export function IconSolarRebirth(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <g transform="scale(1.2) translate(-2, -2)">
+        {/* Solar Flare Rays */}
+        <path d="M12 2 L12 6 M12 18 L12 22 M2 12 L6 12 M18 12 L22 12 M5 5 L8 8 M16 16 L19 19 M5 19 L8 16 M16 8 L19 5" stroke={PHOENIX_MID} strokeWidth={1.5} opacity={0.6} strokeLinecap="round" />
+        
+        {/* Central Sun Disc */}
+        <circle cx="12" cy="12" r="6" fill="#ffffff" stroke={PHOENIX_DEEP} strokeWidth={1.5} />
+        <circle cx="12" cy="12" r="4" fill={PHOENIX_MID} opacity={0.8} />
+        
+        {/* Wraparound Phoenix Wings */}
+        <path d="M12 20 C6 20 2 15 2 10 C5 14 9 15 12 14 C15 15 19 14 22 10 C22 15 18 20 12 20 Z" fill={PHOENIX_DEEP} stroke="currentColor" strokeWidth={1.5} />
+        
+        {/* Phoenix Head breaking the Sun */}
+        <path d="M12 14 L10 9 L12 5 L14 9 Z" fill="#ffffff" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />
+        <circle cx="12" cy="5" r="1.5" fill={PHOENIX_MID} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+const ANVIL_DEEP = "#52525b";
+const ANVIL_MID = "#d4d4d8";
+const ANVIL_HOT = "#ef4444";
+
+export function IconResilienceHammer(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <g transform="scale(1.2) translate(-2, -2)">
+        {/* Motion Blur / Arc */}
+        <path d="M2 12 C5 6 12 2 18 2" stroke={ANVIL_MID} strokeWidth={1.5} fill="none" strokeDasharray="4 4" opacity={0.5} />
+        
+        {/* Wooden Handle */}
+        <path d="M6 22 L16 12" stroke={ANVIL_DEEP} strokeWidth={4} strokeLinecap="round" />
+        <path d="M7 21 L15 13" stroke="#ffffff" strokeWidth={1} opacity={0.3} />
+        
+        {/* Hammer Head */}
+        <polygon points="12,12 16,8 22,14 18,18" fill={ANVIL_DEEP} stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />
+        {/* Strike Face */}
+        <polygon points="20,16 22,14 24,16 22,18" fill={ANVIL_MID} stroke="currentColor" strokeWidth={1} strokeLinejoin="round" />
+        
+        {/* Glowing Runes on Head */}
+        <path d="M15 11 L17 13 M16 10 L18 12" stroke={ANVIL_HOT} strokeWidth={1} strokeLinecap="round" />
+        
+        {/* Impact Sparks */}
+        <circle cx="23" cy="17" r="1" fill={ANVIL_HOT} />
+        <circle cx="21" cy="20" r="0.8" fill={ANVIL_MID} />
+        <circle cx="18" cy="21" r="1.2" fill={ANVIL_HOT} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+export function IconResilienceAnvil(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <g transform="scale(1.3) translate(-2.7, -2.7)">
+        {/* Background Heat Glow */}
+        <ellipse cx="12" cy="18" rx="8" ry="3" fill={ANVIL_HOT} opacity={0.3} />
+        
+        {/* Anvil Base */}
+        <path d="M6 20 L18 20 L16 16 L8 16 Z" fill={ANVIL_DEEP} stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />
+        
+        {/* Anvil Body */}
+        <path d="M9 16 C9 12 11 12 11 12 L13 12 C13 12 15 12 15 16 Z" fill={ANVIL_MID} stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />
+        
+        {/* Anvil Top / Horn */}
+        <path d="M13 12 L20 12 L20 9 L13 9 Z" fill={ANVIL_DEEP} stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />
+        <path d="M13 9 L13 12 C10 12 6 13 3 11 C4 9 8 9 13 9 Z" fill={ANVIL_MID} stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />
+        
+        {/* Glowing Strike Line */}
+        <line x1="6" y1="9" x2="18" y2="9" stroke={ANVIL_HOT} strokeWidth={1} opacity={0.8} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+export function IconResilienceForge(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <g transform="scale(1.2) translate(-2, -2)">
+        {/* Brick Forge Archway */}
+        <path d="M4 22 L4 10 C4 4 20 4 20 10 L20 22" stroke={ANVIL_DEEP} strokeWidth={2} fill="none" strokeLinecap="round" />
+        <path d="M7 22 L7 11 C7 7 17 7 17 11 L17 22" stroke={ANVIL_DEEP} strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={0.7} />
+        
+        {/* Raging Fire Inside */}
+        <path d="M8 22 C8 15 10 12 12 8 C14 12 16 15 16 22 Z" fill={ANVIL_HOT} opacity={0.8} />
+        <path d="M10 22 C10 17 11 15 12 12 C13 15 14 17 14 22 Z" fill="#ffffff" opacity={0.9} />
+        
+        {/* Foreground Anvil Silhouette */}
+        <path d="M8 22 L16 22 L14 18 C14 18 15 15 20 15 L20 13 L12 13 C8 13 4 15 4 15 C6 15 9 15 9 15 C9 15 10 18 8 22 Z" fill="#18181b" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+        
+        {/* Edge Highlight from Fire */}
+        <path d="M12 13 L20 13" stroke={ANVIL_HOT} strokeWidth={1.5} />
+      </g>
+    </GlyphShell>
+  );
+}
+
+export function IconResilienceCore(props: BadgeGlyphProps) {
+  return (
+    <GlyphShell {...props}>
+      <g transform="scale(1.2) translate(-2, -2)">
+        {/* Shockwave Rings */}
+        <circle cx="12" cy="12" r="10" stroke={ANVIL_HOT} strokeWidth={1} fill="none" strokeDasharray="4 4" opacity={0.6} />
+        <circle cx="12" cy="12" r="7" stroke={ANVIL_MID} strokeWidth={1.5} fill="none" strokeDasharray="8 4" opacity={0.8} />
+        
+        {/* Shattered Anvil Fragments */}
+        <polygon points="4,12 8,8 10,10 6,14" fill={ANVIL_DEEP} stroke="currentColor" strokeWidth={1} />
+        <polygon points="20,12 16,8 14,10 18,14" fill={ANVIL_DEEP} stroke="currentColor" strokeWidth={1} />
+        <polygon points="12,20 8,16 10,14 14,14 16,16" fill={ANVIL_DEEP} stroke="currentColor" strokeWidth={1} />
+        
+        {/* Molten Core Crystal */}
+        <polygon points="12,6 16,12 12,18 8,12" fill="#ffffff" stroke={ANVIL_HOT} strokeWidth={2} strokeLinejoin="round" />
+        <polygon points="12,8 14,12 12,16 10,12" fill={ANVIL_HOT} />
+        
+        {/* Intense Rays */}
+        <line x1="12" y1="2" x2="12" y2="5" stroke="#ffffff" strokeWidth={1.5} strokeLinecap="round" />
+        <line x1="12" y1="22" x2="12" y2="19" stroke="#ffffff" strokeWidth={1.5} strokeLinecap="round" />
+        <line x1="2" y1="12" x2="5" y2="12" stroke="#ffffff" strokeWidth={1.5} strokeLinecap="round" />
+        <line x1="22" y1="12" x2="19" y2="12" stroke="#ffffff" strokeWidth={1.5} strokeLinecap="round" />
+      </g>
+    </GlyphShell>
+  );
+}
+
+
+export const dpsBatch4Glyphs = {
+  DpsAshFeather: IconAshFeather,
+  DpsEmberWing: IconEmberWing,
+  DpsGoldenPhoenix: IconGoldenPhoenix,
+  DpsSolarRebirth: IconSolarRebirth,
+  DpsResilienceHammer: IconResilienceHammer,
+  DpsResilienceAnvil: IconResilienceAnvil,
+  DpsResilienceForge: IconResilienceForge,
+  DpsResilienceCore: IconResilienceCore,
+};
+
+
+// ============================================================================
+// Phase 8 DPS Batch 5 (Midnight Oil & Golden Compass)
+// ============================================================================
+
+export const IconMidnightLantern = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <g transform="scale(1.4) translate(-14, -14)">
+      <path d="M40 25 L60 25 M35 30 L65 30 L60 70 L40 70 Z M45 20 A 5 5 0 0 1 55 20 M42 70 L58 70 M45 35 L45 65 M55 35 L55 65" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="50" cy="50" r="8" fill="currentColor" opacity="0.8" />
+      <path d="M30 40 L33 43 M70 40 L67 43 M30 60 L33 57 M70 60 L67 57" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </g>
+  </svg>
+);
+
+export const IconMidnightStar = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <g transform="scale(1.4) translate(-14, -14)">
+      <path d="M50 20 L55 45 L80 50 L55 55 L50 80 L45 55 L20 50 L45 45 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M50 35 L52 48 L65 50 L52 52 L50 65 L48 52 L35 50 L48 48 Z" fill="currentColor" opacity="0.7" />
+      <circle cx="50" cy="50" r="3" fill="currentColor" />
+    </g>
+  </svg>
+);
+
+export const IconMidnightMoon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <g transform="scale(1.4) translate(-14, -14)">
+      <path d="M60 25 A 25 25 0 1 0 75 60 A 20 20 0 1 1 60 25 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="currentColor" opacity="0.6" />
+      <circle cx="35" cy="35" r="2" fill="currentColor" />
+      <circle cx="70" cy="30" r="1.5" fill="currentColor" />
+      <circle cx="45" cy="70" r="2.5" fill="currentColor" />
+      <path d="M25 50 Q 50 20 80 40" stroke="currentColor" strokeWidth="1" strokeDasharray="3 3" />
+    </g>
+  </svg>
+);
+
+export const IconMidnightGalaxy = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <g transform="scale(1.4) translate(-14, -14)">
+      <circle cx="50" cy="50" r="10" fill="currentColor" opacity="0.9" />
+      <path d="M50 40 C 70 40, 80 50, 75 65" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M50 60 C 30 60, 20 50, 25 35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M40 50 C 40 30, 50 20, 65 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M60 50 C 60 70, 50 80, 35 75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="75" cy="65" r="2" fill="currentColor" />
+      <circle cx="25" cy="35" r="2" fill="currentColor" />
+      <circle cx="65" cy="25" r="2" fill="currentColor" />
+      <circle cx="35" cy="75" r="2" fill="currentColor" />
+    </g>
+  </svg>
+);
+
+export const IconCompassBronze = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <g transform="scale(1.4) translate(-14, -14)">
+      <circle cx="50" cy="50" r="28" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="24" stroke="currentColor" strokeWidth="1" strokeDasharray="2 4" />
+      <path d="M50 30 L54 50 L50 70 L46 50 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M50 30 L54 50 L50 50 Z" fill="currentColor" opacity="0.8" />
+      <circle cx="50" cy="50" r="4" fill="currentColor" />
+    </g>
+  </svg>
+);
+
+export const IconCompassSilver = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <g transform="scale(1.4) translate(-14, -14)">
+      <circle cx="50" cy="50" r="30" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="26" stroke="currentColor" strokeWidth="1" />
+      <path d="M50 20 L50 24 M50 76 L50 80 M20 50 L24 50 M76 50 L80 50" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M50 26 L56 50 L50 74 L44 50 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M50 26 L56 50 L44 50 Z" fill="currentColor" opacity="0.7" />
+      <circle cx="50" cy="50" r="5" fill="currentColor" />
+      <path d="M35 35 L65 65 M35 65 L65 35" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" />
+    </g>
+  </svg>
+);
+
+export const IconCompassGold = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <g transform="scale(1.4) translate(-14, -14)">
+      <circle cx="50" cy="50" r="32" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="28" stroke="currentColor" strokeWidth="1" />
+      <path d="M50 18 L50 24 M50 76 L50 82 M18 50 L24 50 M76 50 L82 50" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M50 28 L58 50 L50 72 L42 50 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M28 50 L50 58 L72 50 L50 42 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M50 28 L58 50 L42 50 Z" fill="currentColor" opacity="0.9" />
+      <circle cx="50" cy="50" r="6" fill="currentColor" />
+      <circle cx="50" cy="50" r="16" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" />
+    </g>
+  </svg>
+);
+
+export const IconCompassAstral = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <g transform="scale(1.4) translate(-14, -14)">
+      <circle cx="50" cy="50" r="34" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="30" stroke="currentColor" strokeWidth="1" />
+      <path d="M50 16 L53 22 L47 22 Z M50 84 L53 78 L47 78 Z M16 50 L22 47 L22 53 Z M84 50 L78 47 L78 53 Z" fill="currentColor" />
+      <path d="M30 30 L70 70 M30 70 L70 30" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M50 20 L60 50 L50 80 L40 50 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M20 50 L50 60 L80 50 L50 40 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M50 20 L60 50 L50 60 L40 50 Z" fill="currentColor" opacity="0.8" />
+      <circle cx="50" cy="50" r="8" fill="currentColor" />
+      <circle cx="50" cy="50" r="4" fill="#020617" />
+    </g>
+  </svg>
+);
+
+export const dpsBatch5Glyphs = {
+  "DpsMidnightLantern": IconMidnightLantern,
+  "DpsMidnightStar": IconMidnightStar,
+  "DpsMidnightMoon": IconMidnightMoon,
+  "DpsMidnightGalaxy": IconMidnightGalaxy,
+  "DpsCompassBronze": IconCompassBronze,
+  "DpsCompassSilver": IconCompassSilver,
+  "DpsCompassGold": IconCompassGold,
+  "DpsCompassAstral": IconCompassAstral,
+};

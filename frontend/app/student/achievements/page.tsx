@@ -79,11 +79,18 @@ export default function TrophyRoomPage() {
     );
   }
 
+  // Separate into categories based on badge code prefix
+  const isDpsBadge = (b: any) => b.code.startsWith("dps_");
+  
+  const activeBadges = activeTab === "dps" 
+    ? badges.filter(isDpsBadge) 
+    : badges.filter(b => !isDpsBadge(b));
+
   // Group by tier
-  const baseBadges = badges.filter(b => b.tier === "BASE");
-  const superBadges = badges.filter(b => b.tier === "SUPER");
-  const legendaryBadges = badges.filter(b => b.tier === "LEGENDARY");
-  const mythicBadges = badges.filter(b => b.tier === "MYTHIC");
+  const baseBadges = activeBadges.filter(b => b.tier === "BASE");
+  const superBadges = activeBadges.filter(b => b.tier === "SUPER");
+  const legendaryBadges = activeBadges.filter(b => b.tier === "LEGENDARY");
+  const mythicBadges = activeBadges.filter(b => b.tier === "MYTHIC");
 
   return (
     <AppShell>
@@ -144,29 +151,33 @@ export default function TrophyRoomPage() {
           </button>
         </div>
 
-      {activeTab === "mock" ? (
-        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {/* Base Tier Shelf */}
-          <Shelf title="Base Badges" badges={baseBadges} tier="BASE" onSelectBadge={setSelectedBadge} />
-          
-          {/* Super Tier Shelf */}
-          <Shelf title="Super Badges" badges={superBadges} tier="SUPER" onSelectBadge={setSelectedBadge} />
-          
-          {/* Legendary Tier Shelf */}
-          <Shelf title="Legendary Badges" badges={legendaryBadges} tier="LEGENDARY" onSelectBadge={setSelectedBadge} />
+      <div key={activeTab} className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* Base Tier Shelf */}
+        <Shelf title="Base Badges" badges={baseBadges} tier="BASE" onSelectBadge={setSelectedBadge} />
+        
+        {/* Super Tier Shelf */}
+        <Shelf title="Super Badges" badges={superBadges} tier="SUPER" onSelectBadge={setSelectedBadge} />
+        
+        {/* Legendary Tier Shelf */}
+        <Shelf title="Legendary Badges" badges={legendaryBadges} tier="LEGENDARY" onSelectBadge={setSelectedBadge} />
 
-          {/* Mythic Tier Shelf -- Phase 1 (2026-07-28), the 4th tier above Legendary */}
-          <Shelf title="Mythic Badges" badges={mythicBadges} tier="MYTHIC" onSelectBadge={setSelectedBadge} />
-        </div>
-      ) : (
-        <div className="text-center py-24 animate-in fade-in duration-500">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mb-4">
-            <Lock size={32} />
+        {/* Mythic Tier Shelf -- Phase 1 (2026-07-28), the 4th tier above Legendary */}
+        <Shelf title="Mythic Badges" badges={mythicBadges} tier="MYTHIC" onSelectBadge={setSelectedBadge} />
+        
+        {activeBadges.length === 0 && (
+          <div className="text-center py-24 animate-in fade-in duration-500">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mb-4">
+              <Lock size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">No Badges Yet</h2>
+            <p className="text-slate-500">
+              {activeTab === "dps" 
+                ? "Keep completing your daily practice sheets to earn these badges!" 
+                : "Complete mock exams to start building your collection."}
+            </p>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">DPS Badges Coming Soon</h2>
-          <p className="text-slate-500">Daily practice streak and mastery badges are currently being forged.</p>
-        </div>
-      )}
+        )}
+      </div>
       </main>
 
       {/* Epic Badge Inspection Modal */}
