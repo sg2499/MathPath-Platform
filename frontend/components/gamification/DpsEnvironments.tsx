@@ -25,24 +25,27 @@ export const EnvDpsIronAnvil = ({ color }: { color: THREE.Color }) => {
   return (
     <group scale={1.5}>
       <group ref={meshRef}>
-        {/* Core block */}
+        {/* Core block -- glow mesh was a wireframe box only fractionally
+            larger than the solid core (same tangle-causing pattern as the
+            2026-08-03 Tome fix), so its edges crosshatched the core's own
+            edges. Solid inset emissive slab instead. */}
         <mesh position={[0, -2, 0]}>
           <boxGeometry args={[12, 5, 7]} />
           <meshStandardMaterial color="#3f3f46" roughness={0.8} metalness={0.5} />
         </mesh>
         <mesh position={[0, -2, 0]}>
-          <boxGeometry args={[12.2, 5.2, 7.2]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
+          <boxGeometry args={[11.2, 4.2, 6.2]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
         </mesh>
 
-        {/* Upper strike face */}
+        {/* Upper strike face -- same fix applied to the cylinder pair */}
         <mesh position={[0, 2, 0]}>
           <cylinderGeometry args={[4, 5, 3, 4]} />
           <meshStandardMaterial color="#3f3f46" roughness={0.8} metalness={0.5} />
         </mesh>
         <mesh position={[0, 2, 0]}>
-          <cylinderGeometry args={[4.2, 5.2, 3.2, 4]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.5} wireframe />
+          <cylinderGeometry args={[3.4, 4.3, 2.4, 4]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.5} />
         </mesh>
       </group>
       {/* Heavy descending embers */}
@@ -73,21 +76,23 @@ export const EnvDpsSteelAnvil = ({ color }: { color: THREE.Color }) => {
   return (
     <group scale={1.5}>
       <group ref={groupRef}>
+        {/* Same tangle-causing wireframe-hugging-solid-box pattern as the
+            2026-08-03 Tome fix -- solid inset emissive slab instead. */}
         <mesh position={[0, -2, 0]}>
           <boxGeometry args={[12, 5, 7]} />
           <meshStandardMaterial color="#0c4a6e" roughness={0.3} metalness={0.9} />
         </mesh>
         <mesh position={[0, -2, 0]}>
-          <boxGeometry args={[12.3, 5.3, 7.3]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} wireframe />
+          <boxGeometry args={[11.2, 4.2, 6.2]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} />
         </mesh>
         <mesh position={[0, 2.5, 0]}>
           <cylinderGeometry args={[4.5, 6, 4, 6]} />
           <meshStandardMaterial color="#0c4a6e" roughness={0.3} metalness={0.9} />
         </mesh>
         <mesh position={[0, 2.5, 0]}>
-          <cylinderGeometry args={[4.7, 6.2, 4.2, 6]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
+          <cylinderGeometry args={[3.9, 5.2, 3.2, 6]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
         </mesh>
       </group>
 
@@ -167,13 +172,15 @@ export const EnvDpsObsidianAnvil = ({ color }: { color: THREE.Color }) => {
   return (
     <group scale={1.5}>
       <group ref={coreRef}>
+        {/* Same tangle-causing wireframe-hugging-solid-box pattern as the
+            2026-08-03 Tome fix -- solid inset emissive slab instead. */}
         <mesh position={[0, -1, 0]}>
           <boxGeometry args={[13, 8, 8]} />
           <meshStandardMaterial color="#450a0a" roughness={0.1} metalness={1.0} />
         </mesh>
         <mesh position={[0, -1, 0]}>
-          <boxGeometry args={[13.3, 8.3, 8.3]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} wireframe />
+          <boxGeometry args={[12.2, 7.2, 7.2]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} />
         </mesh>
       </group>
 
@@ -683,13 +690,16 @@ export const EnvDpsAstralTome = ({ color }: { color: THREE.Color }) => {
   return (
     <group scale={1.5}>
       <group ref={ref}>
+        {/* Same tangle-causing wireframe-hugging-solid-box pattern as the
+            2026-08-03 Tome fix (this tier was missed in that pass) --
+            solid inset emissive slab instead. */}
         <mesh>
           <boxGeometry args={[15, 4, 11]} />
           <meshStandardMaterial color="#2e1065" roughness={0.2} metalness={0.5} />
         </mesh>
         <mesh>
-          <boxGeometry args={[15.4, 3.4, 11.4]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} wireframe />
+          <boxGeometry args={[14.2, 3.2, 10.2]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} />
         </mesh>
       </group>
 
@@ -781,13 +791,16 @@ export const EnvDpsBoundlessTome = ({ color }: { color: THREE.Color }) => {
   return (
     <group scale={1.5}>
       <group ref={ref}>
+        {/* Same tangle-causing wireframe-hugging-solid-box pattern as the
+            2026-08-03 Tome fix (this tier was missed in that pass) --
+            solid inset emissive slab instead. */}
         <mesh>
           <boxGeometry args={[16, 5, 12]} />
           <meshStandardMaterial color="#082f49" roughness={0.1} metalness={0.8} />
         </mesh>
         <mesh>
-          <boxGeometry args={[16.5, 5.5, 12.5]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} wireframe />
+          <boxGeometry args={[15.2, 4.2, 11.2]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} />
         </mesh>
       </group>
 
