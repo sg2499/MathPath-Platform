@@ -308,14 +308,19 @@ async function RunControlledPracticeMutationWorkflow(Admin: AuthState, Teacher: 
   expect(AttemptId, "Practice start response should include attemptId.").toBeTruthy();
   expect(Questions.length, "Practice start response should include generated questions.").toBeGreaterThan(0);
 
+  // DPS questions are typed free-text answers now, not MCQ picks -- see
+  // OPEN_ISSUES.md 2026-08-03e. This regression test exercises the
+  // save/submit/result pipeline end-to-end, same as it always did when it
+  // picked an arbitrary MCQ option; the typed value here is likewise
+  // arbitrary (not asserted for correctness), just non-empty so it counts
+  // as answered.
   let SavedCount = 0;
   for (const Question of Questions) {
-    const Option = AsArray(Question?.options)[0];
-    if (!Question?.questionId || !Option?.optionId) continue;
+    if (!Question?.questionId) continue;
     const SaveResponse = await Student.Api.post(ApiPath(`/student/attempts/${AttemptId}/answers`), {
       data: {
         questionId: Question.questionId,
-        selectedOptionId: Option.optionId,
+        answerText: "1",
       },
     });
     if (SaveResponse.ok()) SavedCount += 1;

@@ -42,7 +42,10 @@ class StartAttemptRequest(BaseModel):
 
 class SaveAnswerRequest(BaseModel):
     questionId: str
-    selectedOptionId: str
+    # DPS questions are typed free-text answers, not MCQ picks -- see
+    # OPEN_ISSUES.md 2026-08-03e. Defaults to "" so clearing the box and
+    # letting auto-save fire is a valid (unanswered) save, not a 422.
+    answerText: str = ""
 
 class SubmitRequest(BaseModel):
     confirmSubmit: bool = True
@@ -767,7 +770,7 @@ def questions(attempt_id: str, db: Session = Depends(get_db), student: Student =
 
 @router.post("/attempts/{attempt_id}/answers")
 def answer(attempt_id: str, payload: SaveAnswerRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
-    return save_answer(db, student, attempt_id, payload.questionId, payload.selectedOptionId)
+    return save_answer(db, student, attempt_id, payload.questionId, payload.answerText)
 
 @router.post("/attempts/{attempt_id}/submit")
 def submit(attempt_id: str, payload: SubmitRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):

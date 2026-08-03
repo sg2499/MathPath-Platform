@@ -31,9 +31,10 @@ import json
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.core.errors import api_error
-from app.models import Attempt, AttemptAnswer, GeneratedQuestion, QuestionOption, DPS, DPSSection, Assignment, AssignmentReattemptPermission, Student, Lesson, Level, Module
+from app.models import Attempt, AttemptAnswer, GeneratedQuestion, DPS, DPSSection, Assignment, AssignmentReattemptPermission, Student, Lesson, Level, Module
 from app.services.assignment_service import validate_assignment_access, create_auto_retry_assignment_for_attempt
 from app.services.generation_service import build_attempt_question_seed, persist_question_set
+from app.services.answer_matching import answers_match
 from app.services.audit_service import log_event
 from app.services.attempt_chain_service import (
     ApplyAttemptChainMetadata,
@@ -128,13 +129,17 @@ def attempt_context_payload(db: Session, attempt: Attempt) -> dict:
 
 def safe_questions_payload(db: Session, attempt: Attempt) -> list[dict]:
     questions = db.query(GeneratedQuestion).filter(GeneratedQuestion.question_set_id == attempt.question_set_id).order_by(GeneratedQuestion.question_number).all()
-    answers = {a.question_id: a.selected_option_id for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
+    # DPS questions are typed free-text answers now, not MCQ picks -- see
+    # OPEN_ISSUES.md 2026-08-03e. This intentionally never includes
+    # GeneratedQuestion.correct_answer: the in-progress attempt payload must
+    # never leak the answer to the client, exactly as it never leaked
+    # QuestionOption.is_correct before.
+    answers = {a.question_id: (a.selected_value or "") for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
     dps_sections = db.query(DPSSection).filter(DPSSection.dps_id == attempt.dps_id).order_by(DPSSection.section_number.asc()).all()
     section_count = len(dps_sections)
     section_by_id = {section.id: section for section in dps_sections}
     payload = []
     for q in questions:
-        options = db.query(QuestionOption).filter(QuestionOption.question_id == q.id).order_by(QuestionOption.display_order).all()
         metadata = json.loads(q.metadata_json or "{}")
         linked_section = section_by_id.get(q.dps_section_id) if q.dps_section_id else None
         if linked_section:
@@ -148,8 +153,7 @@ def safe_questions_payload(db: Session, attempt: Attempt) -> list[dict]:
             "operands": json.loads(q.operands_json or "[]"),
             "operators": json.loads(q.operators_json or "[]"),
             "metadata": metadata,
-            "options": [{"optionId": o.id, "label": o.option_label, "value": o.option_value} for o in options],
-            "savedOptionId": answers.get(q.id),
+            "savedAnswerText": answers.get(q.id) or None,
         })
     return payload
 
@@ -221,26 +225,37 @@ def get_attempt_for_student(db: Session, student, attempt_id: str) -> Attempt:
         api_error(404, "NOT_FOUND", "Attempt not found.")
     return ensure_active_or_auto_submit(db, attempt)
 
-def save_answer(db: Session, student, attempt_id: str, question_id: str, selected_option_id: str):
+def save_answer(db: Session, student, attempt_id: str, question_id: str, answer_text: str):
+    """DPS questions are typed free-text answers, not MCQ picks -- see
+    OPEN_ISSUES.md 2026-08-03e. answer_text is stored as-is (only trimmed)
+    in AttemptAnswer.selected_value; grading against GeneratedQuestion.
+    correct_answer happens later in submit_attempt via answers_match(), not
+    here, so saving never needs to know (or leak) the correct answer."""
     attempt = get_attempt_for_student(db, student, attempt_id)
     if attempt.status != "IN_PROGRESS":
         return {"saved": False, "status": attempt.status, "message": "Attempt is no longer active.", "resultAvailable": True}
     question = db.get(GeneratedQuestion, question_id)
     if not question or question.question_set_id != attempt.question_set_id:
         api_error(400, "INVALID_QUESTION", "Question does not belong to this attempt.")
-    option = db.get(QuestionOption, selected_option_id)
-    if not option or option.question_id != question.id:
-        api_error(400, "INVALID_OPTION", "Option does not belong to this question.")
+    cleaned_answer = (answer_text or "").strip()
     answer = db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id, AttemptAnswer.question_id == question.id).first()
     if not answer:
         answer = AttemptAnswer(attempt_id=attempt.id, question_id=question.id)
         db.add(answer)
-    answer.selected_option_id = option.id
-    answer.selected_value = option.option_value
+    answer.selected_option_id = None
+    answer.selected_value = cleaned_answer
     log_event(db, "ANSWER_SAVED", student_id=student.id, attempt_id=attempt.id, data={"questionId": question.id})
     db.commit()
-    answered_count = db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).count()
-    return {"saved": True, "attemptId": attempt.id, "questionId": question.id, "selectedOptionId": option.id, "answeredCount": answered_count, "remainingSeconds": remaining_seconds(attempt)}
+    answered_count = (
+        db.query(AttemptAnswer)
+        .filter(
+            AttemptAnswer.attempt_id == attempt.id,
+            AttemptAnswer.selected_value.isnot(None),
+            AttemptAnswer.selected_value != "",
+        )
+        .count()
+    )
+    return {"saved": True, "attemptId": attempt.id, "questionId": question.id, "answerText": cleaned_answer, "answeredCount": answered_count, "remainingSeconds": remaining_seconds(attempt)}
 
 def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt:
     if attempt.status in ["SUBMITTED", "AUTO_SUBMITTED"]:
@@ -264,11 +279,17 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
         question_marks = _SectionMarksPerQuestion(section, dps_default_marks)
         max_score += question_marks
         ans = answers.get(q.id)
-        if not ans or not ans.selected_option_id:
+        student_value = (ans.selected_value or "").strip() if ans else ""
+        if not student_value:
             unanswered += 1
+            if ans:
+                ans.is_correct = False
+                ans.marks_awarded = 0
             continue
-        opt = db.get(QuestionOption, ans.selected_option_id)
-        if opt and opt.is_correct:
+        # DPS grading is typed-answer comparison now, not an MCQ option
+        # lookup -- see OPEN_ISSUES.md 2026-08-03e and answer_matching.py for
+        # the single shared normalization/comparison function.
+        if answers_match(q.correct_answer, student_value):
             correct += 1
             ans.is_correct = True
             ans.marks_awarded = question_marks
@@ -521,18 +542,21 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
         questions = db.query(GeneratedQuestion).filter(GeneratedQuestion.question_set_id == attempt.question_set_id).order_by(GeneratedQuestion.question_number).all()
         answers = {a.question_id: a for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
         for q in questions:
-            options = db.query(QuestionOption).filter(QuestionOption.question_id == q.id).order_by(QuestionOption.display_order).all()
+            # DPS questions are typed free-text answers now, not MCQ picks --
+            # see OPEN_ISSUES.md 2026-08-03e. The result view (student,
+            # teacher, and admin all share this same result_payload) shows
+            # the plain typed value against the plain correct value instead
+            # of a lettered option.
             selected = answers.get(q.id)
-            selected_option = db.get(QuestionOption, selected.selected_option_id) if selected and selected.selected_option_id else None
-            correct_option = next((o for o in options if o.is_correct), None)
+            student_value = (selected.selected_value or "").strip() if selected else ""
             questions_review.append({
                 "questionNumber": q.question_number,
                 "questionId": q.id,
                 "displayType": q.display_type,
                 "operands": json.loads(q.operands_json or "[]"),
                 "operators": json.loads(q.operators_json or "[]"),
-                "selectedOption": {"label": selected_option.option_label, "value": selected_option.option_value} if selected_option else None,
-                "correctOption": {"label": correct_option.option_label, "value": correct_option.option_value} if correct_option else None,
+                "studentAnswer": student_value or None,
+                "correctAnswer": q.correct_answer,
                 "isCorrect": bool(selected.is_correct) if selected else False,
             })
     retry_assignment = latest_retry_assignment_for_attempt(db, attempt)

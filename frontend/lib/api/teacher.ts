@@ -150,8 +150,10 @@ export type TeacherAttemptResult = {
     displayType: string;
     operands: number[];
     operators: string[];
-    selectedOption: { label: string; value: string } | null;
-    correctOption: { label: string; value: string } | null;
+    // DPS questions are typed free-text answers now, not MCQ picks -- see
+    // OPEN_ISSUES.md 2026-08-03e.
+    studentAnswer?: string | null;
+    correctAnswer?: string | number | null;
     isCorrect: boolean;
   }>;
   message: string;

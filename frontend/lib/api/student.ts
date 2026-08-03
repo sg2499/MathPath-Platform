@@ -25,7 +25,7 @@ export async function resumeAttempt(attemptId: string): Promise<AttemptPayload |
   return data;
 }
 
-export async function saveAnswer(attemptId: string, payload: { questionId: string; selectedOptionId: string }) {
+export async function saveAnswer(attemptId: string, payload: { questionId: string; answerText: string }) {
   const { data } = await api.post(`/student/attempts/${attemptId}/answers`, payload);
   return data;
 }

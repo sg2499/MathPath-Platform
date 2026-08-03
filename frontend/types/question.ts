@@ -14,8 +14,10 @@ export type StudentQuestion = {
   questionText?: string | null;
   question_text?: string | null;
   display_type?: string | null;
-  options: McqOption[];
-  savedOptionId?: string | null;
+  // DPS questions are typed free-text answers, not MCQ picks -- see
+  // OPEN_ISSUES.md 2026-08-03e. The correct answer is never included here;
+  // this is the in-progress attempt payload, not the result payload.
+  savedAnswerText?: string | null;
 };
 
 export type AdminPreviewOption = {
