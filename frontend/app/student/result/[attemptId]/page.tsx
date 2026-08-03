@@ -8,6 +8,7 @@ import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAttemptResult } from "@/lib/api/student";
+import { formatAnswerValue } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, BookOpenCheck } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -73,13 +74,13 @@ export default function ResultPage() {
                     <div className="rounded-[22px] bg-slate-50 p-4">
                       <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-500">Your answer</p>
                       <p className="mt-2 text-lg font-black text-slate-900">
-                        {q.selectedOption ? `${q.selectedOption.label}. ${q.selectedOption.value}` : "Not Answered"}
+                        {q.studentAnswer ? formatAnswerValue(q.studentAnswer) : "Not Answered"}
                       </p>
                     </div>
                     <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">
                       <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct answer</p>
                       <p className="mt-2 text-lg font-black">
-                        {q.correctOption ? `${q.correctOption.label}. ${q.correctOption.value}` : "Hidden"}
+                        {q.correctAnswer !== undefined && q.correctAnswer !== null ? formatAnswerValue(q.correctAnswer) : "Hidden"}
                       </p>
                     </div>
                   </div>

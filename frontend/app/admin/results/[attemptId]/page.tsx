@@ -9,6 +9,7 @@ import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
+import { formatAnswerValue } from "@/lib/utils";
 import { getAdminAttemptResult } from "@/lib/api/admin";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, BookOpenCheck, CalendarClock, CheckCircle2, Clock, UserRound, XCircle } from "lucide-react";
@@ -81,13 +82,13 @@ export default function AdminAttemptDetailPage() {
 
             <div className="space-y-5">
               {query.data.questionReview?.map((q) => {
-                const statusLabel = q.selectedOption ? (q.isCorrect ? "Correct" : "Wrong") : "Unanswered";
+                const statusLabel = q.studentAnswer ? (q.isCorrect ? "Correct" : "Wrong") : "Unanswered";
 
                 return (
                   <div key={q.questionId} className="math-card p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <h3 className="text-xl font-black text-slate-950">Question {q.questionNumber}</h3>
-                      <span className={`math-badge ${q.isCorrect ? "border-emerald-200 bg-emerald-50 text-emerald-700" : q.selectedOption ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                      <span className={`math-badge ${q.isCorrect ? "border-emerald-200 bg-emerald-50 text-emerald-700" : q.studentAnswer ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                         {q.isCorrect ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
                         {statusLabel}
                       </span>
@@ -98,16 +99,16 @@ export default function AdminAttemptDetailPage() {
                     </div>
 
                     <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                      <div className={`rounded-[22px] p-4 ${q.isCorrect ? "bg-emerald-50 text-emerald-900" : q.selectedOption ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
+                      <div className={`rounded-[22px] p-4 ${q.isCorrect ? "bg-emerald-50 text-emerald-900" : q.studentAnswer ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
                         <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Student answer</p>
                         <p className="mt-2 text-lg font-black">
-                          {q.selectedOption ? `${q.selectedOption.label}. ${q.selectedOption.value}` : "Not Answered"}
+                          {q.studentAnswer ? formatAnswerValue(q.studentAnswer) : "Not Answered"}
                         </p>
                       </div>
 
                       <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">
                         <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct answer</p>
-                        <p className="mt-2 text-lg font-black">{q.correctOption ? `${q.correctOption.label}. ${q.correctOption.value}` : "Hidden"}</p>
+                        <p className="mt-2 text-lg font-black">{q.correctAnswer !== undefined && q.correctAnswer !== null ? formatAnswerValue(q.correctAnswer) : "Hidden"}</p>
                       </div>
                     </div>
                   </div>

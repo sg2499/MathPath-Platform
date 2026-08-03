@@ -1,24 +1,26 @@
 "use client";
 
-import type { StudentQuestion } from "@/types/question";
+import type { DpsStudentQuestion } from "@/types/question";
 import { CheckCircle2, Save, Layers3 } from "lucide-react";
-import { OptionButton } from "./OptionButton";
+import { AnswerInputBox } from "./AnswerInputBox";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 
 export function QuestionCard({
   question,
-  selectedOptionId,
+  savedAnswerText,
   disabled,
   saving,
   compact = false,
-  onSelect,
+  onSave,
+  onAdvance,
 }: {
-  question: StudentQuestion;
-  selectedOptionId?: string | null;
+  question: DpsStudentQuestion;
+  savedAnswerText?: string | null;
   disabled: boolean;
   saving: boolean;
   compact?: boolean;
-  onSelect: (optionId: string) => void;
+  onSave: (answerText: string) => void;
+  onAdvance: (answerText: string) => void;
 }) {
   const Metadata = question.metadata || {};
   const SectionTitle = String(Metadata.section_title || Metadata.sectionTitle || "").trim();
@@ -56,16 +58,14 @@ export function QuestionCard({
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
 
-        <div className="flex-auto lg:flex-1 min-w-[280px] w-full lg:w-auto grid content-center gap-3 sm:grid-cols-2 h-[400px] sm:h-[450px] overflow-y-auto overflow-x-hidden p-1">
-          {question.options.map((option) => (
-            <OptionButton
-              key={option.optionId}
-              option={option}
-              selected={selectedOptionId === option.optionId}
-              disabled={disabled}
-              onClick={() => onSelect(option.optionId)}
-            />
-          ))}
+        <div className="flex-auto lg:flex-1 min-w-[280px] w-full lg:w-auto flex items-center justify-center h-[400px] sm:h-[450px] overflow-y-auto overflow-x-hidden p-1">
+          <AnswerInputBox
+            key={question.questionId}
+            initialValue={savedAnswerText}
+            disabled={disabled}
+            onSave={onSave}
+            onAdvance={onAdvance}
+          />
         </div>
       </div>
     </div>

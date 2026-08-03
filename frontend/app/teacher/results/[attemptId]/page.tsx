@@ -10,6 +10,7 @@ import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
+import { formatAnswerValue } from "@/lib/utils";
 import { getTeacherAttemptResult } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -135,7 +136,7 @@ export default function TeacherAttemptDetailPage() {
             {questionReview.length ? (
               <div className="space-y-5">
                 {questionReview.map((q: any) => {
-                  const statusLabel = q.selectedOption ? (q.isCorrect ? "Correct" : "Wrong") : "Unanswered";
+                  const statusLabel = q.studentAnswer ? (q.isCorrect ? "Correct" : "Wrong") : "Unanswered";
 
                   return (
                     <div key={q.questionId || q.questionNumber} className="math-card p-6">
@@ -145,7 +146,7 @@ export default function TeacherAttemptDetailPage() {
                           className={`math-badge ${
                             q.isCorrect
                               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : q.selectedOption
+                              : q.studentAnswer
                                 ? "border-rose-200 bg-rose-50 text-rose-700"
                                 : "border-amber-200 bg-amber-50 text-amber-700"
                           }`}
@@ -160,14 +161,14 @@ export default function TeacherAttemptDetailPage() {
                       </div>
 
                       <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                        <div className={`rounded-[22px] p-4 ${q.isCorrect ? "bg-emerald-50 text-emerald-900" : q.selectedOption ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
+                        <div className={`rounded-[22px] p-4 ${q.isCorrect ? "bg-emerald-50 text-emerald-900" : q.studentAnswer ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
                           <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Student answer</p>
-                          <p className="mt-2 text-lg font-black">{q.selectedOption ? `${q.selectedOption.label}. ${q.selectedOption.value}` : "Not Answered"}</p>
+                          <p className="mt-2 text-lg font-black">{q.studentAnswer ? formatAnswerValue(q.studentAnswer) : "Not Answered"}</p>
                         </div>
 
                         <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">
                           <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct answer</p>
-                          <p className="mt-2 text-lg font-black">{q.correctOption ? `${q.correctOption.label}. ${q.correctOption.value}` : "Not available"}</p>
+                          <p className="mt-2 text-lg font-black">{q.correctAnswer !== undefined && q.correctAnswer !== null ? formatAnswerValue(q.correctAnswer) : "Not available"}</p>
                         </div>
                       </div>
                     </div>

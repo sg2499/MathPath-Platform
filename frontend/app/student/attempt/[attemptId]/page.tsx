@@ -16,7 +16,7 @@ import {
   saveAnswer,
   submitAttempt,
 } from "@/lib/api/student";
-import type { AttemptPayload } from "@/types/attempt";
+import type { DpsAttemptPayload } from "@/types/attempt";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ClipboardCheck, Gauge, Layers3, Clock3, BookOpenCheck } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -40,7 +40,7 @@ export default function AttemptPage() {
   });
 
   const attempt =
-    query.data && "questions" in query.data ? (query.data as AttemptPayload) : null;
+    query.data && "questions" in query.data ? (query.data as DpsAttemptPayload) : null;
 
   const autoSubmitMutation = useMutation({
     mutationFn: () => autoSubmitAttempt(attemptId),
@@ -67,40 +67,32 @@ export default function AttemptPage() {
   const questions = attempt?.questions || [];
   const currentQuestion = questions[currentIndex];
 
-  const selectedAnswers = useMemo(() => {
+  // DPS questions are typed free-text answers now, not MCQ picks -- see
+  // OPEN_ISSUES.md 2026-08-03e. savedAnswers is keyed by questionId -> the
+  // typed text (server-saved value merged with anything typed locally this
+  // session but not yet round-tripped).
+  const savedAnswers = useMemo(() => {
     const saved: Record<string, string> = {};
 
     questions.forEach((q) => {
-      if (q.savedOptionId) saved[q.questionId] = q.savedOptionId;
+      if (q.savedAnswerText) saved[q.questionId] = q.savedAnswerText;
     });
 
     return { ...saved, ...localAnswers };
   }, [questions, localAnswers]);
 
   const answeredNumbers = questions
-    .filter((q) => selectedAnswers[q.questionId])
+    .filter((q) => (savedAnswers[q.questionId] || "").trim())
     .map((q) => q.questionNumber);
 
-  async function handleSelect(questionId: string, selectedOptionId: string) {
+  async function persistAnswer(questionId: string, answerText: string) {
     if (!attempt || remainingSeconds <= 0) return;
 
-    const selectedQuestionIndex = questions.findIndex(
-      (question) => question.questionId === questionId
-    );
-
-    setLocalAnswers((prev) => ({ ...prev, [questionId]: selectedOptionId }));
-
-    if (selectedQuestionIndex >= 0 && selectedQuestionIndex < questions.length - 1) {
-      setCurrentIndex(selectedQuestionIndex + 1);
-    }
-
+    setLocalAnswers((prev) => ({ ...prev, [questionId]: answerText }));
     setSavingQuestionId(questionId);
 
     try {
-      const response = await saveAnswer(attemptId, {
-        questionId,
-        selectedOptionId,
-      });
+      const response = await saveAnswer(attemptId, { questionId, answerText });
 
       if (response?.status === "AUTO_SUBMITTED") {
         router.replace(`/student/result/${attemptId}`);
@@ -108,6 +100,32 @@ export default function AttemptPage() {
     } finally {
       setSavingQuestionId(null);
     }
+  }
+
+  // Fired on a shorter pause while typing -- just persists so nothing is
+  // ever lost, without moving the student anywhere.
+  function handleSaveAnswer(questionId: string, answerText: string) {
+    void persistAnswer(questionId, answerText);
+  }
+
+  // Fired on a longer pause once the typed text looks like a finished
+  // number, or immediately on Enter -- mirrors the old MCQ flow where
+  // picking an option instantly saved and moved to the next question.
+  async function handleAdvanceAnswer(questionId: string, answerText: string) {
+    await persistAnswer(questionId, answerText);
+
+    const answeredQuestionIndex = questions.findIndex(
+      (question) => question.questionId === questionId
+    );
+    if (answeredQuestionIndex < 0 || answeredQuestionIndex >= questions.length - 1) return;
+
+    // Only actually move forward if the student is still on the question
+    // they just answered -- if they'd already manually navigated elsewhere
+    // while this save was in flight, don't yank them away from wherever
+    // they went.
+    setCurrentIndex((prevIndex) =>
+      prevIndex === answeredQuestionIndex ? answeredQuestionIndex + 1 : prevIndex
+    );
   }
 
   if (!ready) return null;
@@ -231,16 +249,20 @@ export default function AttemptPage() {
 
         <div>
           <QuestionCard
+            key={currentQuestion.questionId}
             question={currentQuestion}
-            selectedOptionId={selectedAnswers[currentQuestion.questionId]}
+            savedAnswerText={savedAnswers[currentQuestion.questionId]}
             disabled={
               manualSubmitMutation.isPending ||
               autoSubmitMutation.isPending ||
               remainingSeconds <= 0
             }
             saving={savingQuestionId === currentQuestion.questionId}
-            onSelect={(optionId) =>
-              handleSelect(currentQuestion.questionId, optionId)
+            onSave={(answerText) =>
+              handleSaveAnswer(currentQuestion.questionId, answerText)
+            }
+            onAdvance={(answerText) =>
+              handleAdvanceAnswer(currentQuestion.questionId, answerText)
             }
           />
         </div>
