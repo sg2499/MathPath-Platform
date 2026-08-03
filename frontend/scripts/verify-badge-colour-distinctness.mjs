@@ -452,11 +452,72 @@ const LEVEL_MASTERY_NEW = [
   { key: "level_mastery_pm_l4_LEGENDARY", name: "PM L4 -- Perfected",  primary: "#a2dead", note: "pale verdigris" },
 ];
 
+// DPS_NEW (2026-08-03) -- full 40-badge repalette of the 10 DPS practice-sheet
+// families (Ironclad Discipline, Pure Crystal, Boundless Tome, Lightning
+// Quill, The Midnight Oil, The Golden Compass, Sage's Eye, Unbroken Chain,
+// The Rising Phoenix, The Master's Anvil). The 07-31 original had 8
+// byte-identical duplicate pairs (dps_midnight/dps_compass/dps_sage were
+// near-total copy-pastes of each other, plus 2 more exact matches against
+// dps_phoenix/dps_chain/dps_crystal/dps_discipline) and dozens more sub-12
+// dE00 collisions -- this script was never run against it before it shipped.
+// Regenerated via the same max-min CIEDE2000 solver methodology as every
+// other batch here (see scripts/_badge_palette_solver.mjs): every family
+// keeps one thematic hue lane with real tier-to-tier drift, verified
+// mutually distinct (worst DPS-vs-DPS pair dE00 15.99, zero FAILs).
+// NOT chased to a strict pass against the other ~88 badges below -- DPS and
+// non-DPS badges only ever co-occurred in the mock-exam leaderboard's
+// topBadges chips, and that leaderboard now excludes DPS badges entirely
+// (backend/app/api/routes_student.py), so cross-category similarity is no
+// longer user-visible. Full numbers in
+// docs/project-memory/DPS_BADGE_COLOR_AUDIT_2026-08-03.md.
+const DPS_NEW = [
+  { key: "dps_discipline_BASE",      name: "Ironclad Discipline -- Base",      primary: "#1e4048", note: "cold steel-blue" },
+  { key: "dps_discipline_SUPER",     name: "Ironclad Discipline -- Super",     primary: "#32cef5", note: "electric steel-cyan (ink glyph)" },
+  { key: "dps_discipline_LEGENDARY", name: "Ironclad Discipline -- Legendary", primary: "#1c7287", note: "deep tempered steel" },
+  { key: "dps_discipline_MYTHIC",    name: "Ironclad Discipline -- Mythic",    primary: "#8c9dde", note: "pale periwinkle steel-shine (ink glyph)" },
+  { key: "dps_crystal_BASE",         name: "Pure Crystal -- Base",             primary: "#30a1a1", note: "teal gem" },
+  { key: "dps_crystal_SUPER",        name: "Pure Crystal -- Super",            primary: "#0a96d1", note: "sapphire facet" },
+  { key: "dps_crystal_LEGENDARY",    name: "Pure Crystal -- Legendary",        primary: "#0b7a64", note: "deep emerald-teal" },
+  { key: "dps_crystal_MYTHIC",       name: "Pure Crystal -- Mythic",           primary: "#22fcfc", note: "brilliant cyan prism (ink glyph)" },
+  { key: "dps_tome_BASE",            name: "Boundless Tome -- Base",           primary: "#4b331b", note: "aged leather brown" },
+  { key: "dps_tome_SUPER",           name: "Boundless Tome -- Super",          primary: "#f57724", note: "burning page ember (ink glyph)" },
+  { key: "dps_tome_LEGENDARY",       name: "Boundless Tome -- Legendary",      primary: "#8c5217", note: "rich oxblood-brown binding" },
+  { key: "dps_tome_MYTHIC",          name: "Boundless Tome -- Mythic",         primary: "#dead8c", note: "sunlit parchment (ink glyph)" },
+  { key: "dps_quill_BASE",           name: "Lightning Quill -- Base",          primary: "#888849", note: "faded gold-olive ink" },
+  { key: "dps_quill_SUPER",          name: "Lightning Quill -- Super",         primary: "#bdaf2e", note: "bright gold ink (ink glyph)" },
+  { key: "dps_quill_LEGENDARY",      name: "Lightning Quill -- Legendary",     primary: "#aa7909", note: "deep amber ink" },
+  { key: "dps_quill_MYTHIC",         name: "Lightning Quill -- Mythic",        primary: "#fbb104", note: "radiant gold flourish (ink glyph)" },
+  { key: "dps_midnight_BASE",        name: "The Midnight Oil -- Base",         primary: "#78447e", note: "twilight violet (fully redesigned, was a copy of dps_compass/dps_sage)" },
+  { key: "dps_midnight_SUPER",       name: "The Midnight Oil -- Super",        primary: "#d80bef", note: "witching-hour magenta (ink glyph)" },
+  { key: "dps_midnight_LEGENDARY",   name: "The Midnight Oil -- Legendary",    primary: "#620ce4", note: "deep indigo night" },
+  { key: "dps_midnight_MYTHIC",      name: "The Midnight Oil -- Mythic",       primary: "#c788e2", note: "pale cosmic lilac (ink glyph)" },
+  { key: "dps_compass_BASE",         name: "The Golden Compass -- Base",       primary: "#545a1b", note: "aged brass (fully redesigned, was a copy of dps_midnight/dps_sage)" },
+  { key: "dps_compass_SUPER",        name: "The Golden Compass -- Super",      primary: "#e0f524", note: "verdigris-bright patina (ink glyph)" },
+  { key: "dps_compass_LEGENDARY",    name: "The Golden Compass -- Legendary",  primary: "#2a7e07", note: "polished brass-green" },
+  { key: "dps_compass_MYTHIC",       name: "The Golden Compass -- Mythic",     primary: "#71b30f", note: "starburst chartreuse (ink glyph)" },
+  { key: "dps_sage_BASE",            name: "Sage's Eye -- Base",               primary: "#1e482f", note: "forest jade (fully redesigned, was a copy of dps_midnight/dps_compass)" },
+  { key: "dps_sage_SUPER",           name: "Sage's Eye -- Super",              primary: "#28a466", note: "owl-eye emerald (ink glyph)" },
+  { key: "dps_sage_LEGENDARY",       name: "Sage's Eye -- Legendary",          primary: "#0ce4a3", note: "luminous jade" },
+  { key: "dps_sage_MYTHIC",          name: "Sage's Eye -- Mythic",             primary: "#04fb1d", note: "mystic insight green (ink glyph)" },
+  { key: "dps_chain_BASE",           name: "Unbroken Chain -- Base",           primary: "#2d2442", note: "slate-violet forged link" },
+  { key: "dps_chain_SUPER",          name: "Unbroken Chain -- Super",          primary: "#7b65d2", note: "bright chain-glint violet (ink glyph)" },
+  { key: "dps_chain_LEGENDARY",      name: "Unbroken Chain -- Legendary",      primary: "#07077e", note: "deep cobalt-indigo" },
+  { key: "dps_chain_MYTHIC",         name: "Unbroken Chain -- Mythic",         primary: "#26499c", note: "royal chain-blue (ink glyph)" },
+  { key: "dps_phoenix_BASE",         name: "The Rising Phoenix -- Base",       primary: "#4f171d", note: "charred ember" },
+  { key: "dps_phoenix_SUPER",        name: "The Rising Phoenix -- Super",      primary: "#d55360", note: "living flame red (ink glyph)" },
+  { key: "dps_phoenix_LEGENDARY",    name: "The Rising Phoenix -- Legendary",  primary: "#8d1507", note: "deep blood-fire" },
+  { key: "dps_phoenix_MYTHIC",       name: "The Rising Phoenix -- Mythic",     primary: "#dd2f03", note: "solar rebirth orange-red (ink glyph)" },
+  { key: "dps_anvil_BASE",           name: "The Master's Anvil -- Base",       primary: "#161513", note: "cold charcoal forge" },
+  { key: "dps_anvil_SUPER",          name: "The Master's Anvil -- Super",      primary: "#535053", note: "worked steel-grey (ink glyph)" },
+  { key: "dps_anvil_LEGENDARY",      name: "The Master's Anvil -- Legendary",  primary: "#a40e4a", note: "quenched ember-red" },
+  { key: "dps_anvil_MYTHIC",         name: "The Master's Anvil -- Mythic",     primary: "#de8ca5", note: "molten rose-gold glow (ink glyph)" },
+];
+
 // ---------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------
 
-const GATED = [...BATCH1_NEW, ...BATCH1_FROZEN, ...REFERENCE_BATCH, ...BATCH2_NEW, ...PHASE1_MYTHIC_NEW, ...PHASE2_NEW, ...LEVEL_MASTERY_NEW];
+const GATED = [...BATCH1_NEW, ...BATCH1_FROZEN, ...REFERENCE_BATCH, ...BATCH2_NEW, ...PHASE1_MYTHIC_NEW, ...PHASE2_NEW, ...LEVEL_MASTERY_NEW, ...DPS_NEW];
 // Both batches count as "newly graded" for gating purposes, so re-running this
 // script re-checks batch 1 as well as batch 2 rather than only the latest pass.
 const NEW_KEYS = new Set([
@@ -465,6 +526,7 @@ const NEW_KEYS = new Set([
   ...PHASE1_MYTHIC_NEW.map((e) => e.key),
   ...PHASE2_NEW.map((e) => e.key),
   ...LEVEL_MASTERY_NEW.map((e) => e.key),
+  ...DPS_NEW.map((e) => e.key),
 ]);
 
 const decorate = (e) => {

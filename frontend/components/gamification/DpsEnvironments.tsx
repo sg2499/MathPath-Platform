@@ -556,10 +556,14 @@ export const EnvDpsLeatherTome = ({ color }: { color: THREE.Color }) => {
           <boxGeometry args={[14, 3, 10]} />
           <meshStandardMaterial color="#78350f" roughness={0.9} />
         </mesh>
-        {/* Magical glowing pages */}
+        {/* Magical glowing pages -- was a wireframe box only fractionally
+            larger than the solid cover in one axis and smaller in the other
+            two, so its 12 edges crisscrossed the cover's own edges into a
+            tangled mess. Solid inset emissive slab reads as a clean glow
+            instead (2026-08-03 fix). */}
         <mesh position={[0, -1, 0]}>
-          <boxGeometry args={[14.2, 2.5, 9.8]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1} wireframe />
+          <boxGeometry args={[13.4, 2.5, 9.4]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1} />
         </mesh>
         {/* Book Binding/Spine */}
         <mesh position={[-7.2, -1, 0]}>
@@ -599,9 +603,11 @@ export const EnvDpsSilverTome = ({ color }: { color: THREE.Color }) => {
           <boxGeometry args={[14, 3, 10]} />
           <meshStandardMaterial color="#334155" roughness={0.4} metalness={0.8} />
         </mesh>
+        {/* Same wireframe-hugging-solid-box tangle as the Leather Tome fix
+            above -- solid inset emissive slab instead (2026-08-03 fix). */}
         <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[14.3, 2.6, 9.9]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} wireframe />
+          <boxGeometry args={[13.4, 2.6, 9.4]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
         </mesh>
         <mesh position={[-7.2, 0, 0]}>
           <boxGeometry args={[1.5, 3.5, 10.5]} />

@@ -860,9 +860,16 @@ def get_mock_exam_leaderboard(
     student: Student = Depends(get_current_student)
 ):
     from app.models.models import CompetitionMockResultSummary, Student, User, StudentBadge, AchievementBadge
-    
-    # Pre-fetch all legendary and super badges for performance
-    all_badges = db.query(AchievementBadge).all()
+
+    # Pre-fetch all legendary and super badges for performance.
+    # This is the MOCK EXAM leaderboard specifically -- DPS (practice sheet)
+    # badges are a different category (see isDpsBadge() in the frontend
+    # achievements page, code.startswith("dps_")) and must never appear in a
+    # mock-exam-scoped topBadges list, both because it's the wrong category
+    # for this page and because several DPS badge colours are still close
+    # enough to existing badge colours that showing them side by side here
+    # risks two visually-identical chips (see DPS_BADGE_COLOR_AUDIT_2026-08-03.md).
+    all_badges = db.query(AchievementBadge).filter(~AchievementBadge.code.like('dps\\_%', escape='\\')).all()
     badge_map = {b.id: {"id": b.id, "code": b.code, "name": b.name, "tier": b.tier, "iconName": b.icon_name} for b in all_badges}
 
     results = (
@@ -1206,7 +1213,9 @@ def get_cumulative_leaderboard(
     # altered here, only looked up for display.
     shown_student_ids = [entry["studentId"] for entry in leaderboard]
     if shown_student_ids:
-        all_badges = db.query(AchievementBadge).all()
+        # Same mock-exam-only scoping as get_mock_exam_leaderboard() above --
+        # DPS badges are a different category and must not appear here.
+        all_badges = db.query(AchievementBadge).filter(~AchievementBadge.code.like('dps\\_%', escape='\\')).all()
         badge_lookup = {
             b.id: {"id": b.id, "code": b.code, "name": b.name, "tier": b.tier, "iconName": b.icon_name}
             for b in all_badges
