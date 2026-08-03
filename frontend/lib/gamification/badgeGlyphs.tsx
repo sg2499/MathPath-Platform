@@ -5309,12 +5309,15 @@ export function IconLeatherTome(props: BadgeGlyphProps) {
       <path d="M4 6 L16 6 A2 2 0 0 1 18 8 L18 18 A2 2 0 0 1 16 20 L4 20 A2 2 0 0 1 2 18 L2 8 A2 2 0 0 1 4 6 Z" fill={LT_MID} />
       {/* Heavy Spine */}
       <path d="M2 6 L6 6 L6 20 L2 20 Z" fill={LT_DEEP} opacity={0.9} />
-      {/* Clasp and runes */}
+      {/* Clasp and runes -- text lines and the glowing rune symbol are kept in
+          separate vertical bands (was: a r=2.5 circle centred exactly on the
+          middle text line, all in currentColor, reading as tangled overlapping
+          strokes at icon scale -- 2026-08-03 fix). */}
       <path d="M16 11 L19 11 L19 15 L16 15 Z" fill={LT_DEEP} />
-      <path d="M9 10 L13 10 M9 13 L14 13 M9 16 L12 16" stroke="currentColor" strokeWidth={2.5} opacity={0.8} strokeLinecap="round" />
+      <path d="M9 9 L13 9 M9 11.3 L14 11.3" stroke="currentColor" strokeWidth={2.2} opacity={0.8} strokeLinecap="round" />
       {/* Core glowing rune */}
-      <circle cx="11.5" cy="13" r="2.5" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.8} />
-      <path d="M11.5 11.5 L11.5 14.5 M10 13 L13 13" stroke="currentColor" strokeWidth={1.2} />
+      <circle cx="10.5" cy="15.5" r="1.8" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.8} />
+      <path d="M10.5 14.2 L10.5 16.8 M9.2 15.5 L11.8 15.5" stroke="currentColor" strokeWidth={1.1} />
 
       {/* Master Outline */}
       <path d="M4 6 L16 6 A2 2 0 0 1 18 8 L18 18 A2 2 0 0 1 16 20 L4 20 A2 2 0 0 1 2 18 L2 8 A2 2 0 0 1 4 6 Z" stroke="currentColor" strokeWidth={2.5} fill="none" />
@@ -5329,9 +5332,11 @@ const ST_MID = "#94a3b8";
 export function IconSilverTome(props: BadgeGlyphProps) {
   return (
     <GlyphShell {...props}>
-      {/* Scanning geometric rings */}
+      {/* Scanning geometric rings -- the bold dashed sweep arc that used to sit
+          here was the same radius as the thin backing ring but 5x the stroke
+          weight, reading as a loud tangle against the book/lock/core at icon
+          scale; removed 2026-08-03, keeping only the subtle backing ring. */}
       <circle cx="12" cy="12" r="10" stroke={ST_DEEP} strokeWidth={0.5} fill="none" />
-      <path d="M2 12 A10 10 0 0 1 22 12" stroke="currentColor" strokeWidth={2.5} opacity={0.8} fill="none" strokeLinecap="round" strokeDasharray="4 6" />
 
       <path d="M5 4 L17 4 A3 3 0 0 1 20 7 L20 17 A3 3 0 0 1 17 20 L5 20 Z" fill={ST_DEEP} opacity={0.8} />
       <path d="M4 5 L16 5 A2 2 0 0 1 18 7 L18 17 A2 2 0 0 1 16 19 L4 19 A2 2 0 0 1 2 17 L2 7 A2 2 0 0 1 4 5 Z" fill={ST_MID} />

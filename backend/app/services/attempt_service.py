@@ -400,6 +400,15 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
     shared by assessments and mock exams -- see that function's docstring
     for why reward is based on the DPS's allotted duration rather than the
     student's actual time taken.
+
+    Also evaluates the 10 DPS badge families (AchievementEngine.
+    evaluate_dps_attempt_submission -- added 2026-08-02, see OPEN_ISSUES.md's
+    matching entry) under the same one-time claim as the economy award,
+    since both are "gamification side effects of this attempt" and neither
+    needs its own separate idempotency column. Badge evaluation is wrapped
+    in its own try/except so a bug in badge detection can never take down
+    the economy award it shares a claim with -- the two are independent
+    once the claim succeeds.
     """
     from sqlalchemy import update as _sa_update
 
@@ -415,13 +424,14 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
     if claim.rowcount == 0:
         return None
 
+    econ_result = None
     try:
         from app.services.economy_service import EconomyService
 
         student = db.get(Student, attempt.student_id)
         if not student:
             return None
-        return EconomyService.evaluate_activity_performance(
+        econ_result = EconomyService.evaluate_activity_performance(
             db=db,
             user_id=student.user_id,
             accuracy_percent=float(attempt.accuracy_percentage or 0),
@@ -433,7 +443,38 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
         db.rollback()
         import logging
         logging.error(f"Failed to award economy for attempt {attempt.id}: {e}")
-        return None
+
+    try:
+        from app.services.achievements import AchievementEngine
+        from app.services.notification_service import CreateNotification
+
+        unlocked_badges = AchievementEngine.evaluate_dps_attempt_submission(db, attempt.student_id, attempt)
+        student_for_notify = db.get(Student, attempt.student_id)
+        for b in (unlocked_badges if student_for_notify else []):
+            try:
+                CreateNotification(
+                    db,
+                    recipient_user_id=student_for_notify.user_id,
+                    recipient_role="STUDENT",
+                    type="BADGE_UNLOCKED",
+                    category="GAMIFICATION",
+                    title=f"New Badge Unlocked: {b.get('name')}",
+                    message=f"You unlocked the {b.get('tier')} tier '{b.get('name')}' badge for: {b.get('description')}!",
+                    target_route=f"/student/achievements?tab=dps&badge={b.get('code')}_{b.get('tier')}",
+                    color_variant="PURPLE",
+                    metadata={"badgeId": b.get("id"), "tier": b.get("tier"), "code": b.get("code"), "icon": b.get("icon_name", "Target")},
+                )
+                db.commit()
+            except Exception as ne:
+                db.rollback()
+                import logging
+                logging.error(f"Failed to notify DPS badge unlock for attempt {attempt.id}: {ne}")
+    except Exception as e:
+        db.rollback()
+        import logging
+        logging.error(f"Failed to evaluate DPS badges for attempt {attempt.id}: {e}")
+
+    return econ_result
 
 
 def latest_retry_assignment_for_attempt(db: Session, attempt: Attempt):

@@ -1,12 +1,20 @@
 import json
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 from app.models.models import (
     Student, CompetitionMockResultSummary, AchievementBadge, StudentBadge,
-    StudentAchievementStat, CompetitionMockExam, Level,
+    StudentAchievementStat, CompetitionMockExam, Level, Attempt,
 )
 from sqlalchemy import or_
+
+# Attempt.status values that count as "this DPS sheet was completed" --
+# matches the exact set attempt_service.py's submit_attempt() ever sets
+# (see Attempt.status assignment there). A still-IN_PROGRESS attempt never
+# reaches this file at all (only called from the post-submit hook), but the
+# explicit filter is kept everywhere a fresh query is built, in case this
+# method is ever called from a backfill/replay script against historic rows.
+_DPS_COMPLETED_STATUSES = ("SUBMITTED", "AUTO_SUBMITTED")
 
 def _make_aware(dt: datetime | None) -> datetime | None:
     if not dt:
@@ -94,6 +102,328 @@ class AchievementEngine:
         if not badge:
             return False
         return db.query(StudentBadge).filter_by(student_id=student_id, badge_id=badge.id).first() is not None
+
+    @staticmethod
+    def _get_stat(db: Session, student_id: str, stat_name: str) -> int:
+        """Read-only counterpart to _increment_stat/_set_stat -- returns 0 for
+        a stat that doesn't exist yet, never creates a row (unlike the other
+        two). Needed by the DPS badge families below, which have to inspect a
+        previously-stored value (a week marker, a streak) before deciding
+        whether to bump it, rather than unconditionally incrementing."""
+        stat = db.query(StudentAchievementStat).filter_by(student_id=student_id, stat_name=stat_name).first()
+        return stat.stat_value if stat else 0
+
+    @classmethod
+    def _award_all_tiers(cls, db: Session, student_id: str, badge_code: str, count: int, newly_unlocked: list):
+        """Shared tail call for every monotonic-counter DPS badge family below
+        -- same pattern already used for every mock-exam badge family above
+        (perfectionist, speed_demon, competitor, etc.): each tier's threshold
+        is just a bigger number on the same counter, so calling all 4 tiers
+        with the same value every time is sufficient -- no explicit cascade
+        check needed (a student can't reach the SUPER count without already
+        having passed BASE's smaller count on some earlier call). This is
+        deliberately NOT used for Level Mastery above, which has an
+        independent score gate layered on top of its count and needs the
+        explicit cascade guard instead."""
+        for tier in ("BASE", "SUPER", "LEGENDARY", "MYTHIC"):
+            cls._award_badge_if_qualified(db, student_id, badge_code, tier, count, newly_unlocked)
+
+    # ========================================================================
+    # DPS BADGES -- detection logic for the 10 families whose definitions
+    # were seeded into seed_badges() on 2026-07-31 (PR #416) with a full
+    # frontend/audio treatment shipped alongside them (PR #415, #417), but
+    # with ZERO evaluation logic anywhere in the backend -- confirmed by
+    # grepping this file and attempt_service.py before this fix: the 40
+    # seeded badge rows had no code path that could ever set is_unlocked for
+    # any of them. Every DPS student would have seen 40 permanently-locked
+    # badges in the Trophy Room's "DPS Sheets" tab, worse than the honest
+    # "Coming Soon" placeholder it replaced. See OPEN_ISSUES.md's matching
+    # 2026-07-31/08-02 entry for the full incident writeup.
+    #
+    # Wired from attempt_service.py's _process_attempt_gamification_side_effects(),
+    # the same atomically-claimed, exactly-once-per-attempt hook that already
+    # awards DPS XP/coins -- mirrors evaluate_mock_exam_submission()'s shape
+    # exactly (same _award_badge_if_qualified/_increment_stat primitives,
+    # same {id, code, name, description, icon_name, tier} return shape) so
+    # the calling code and the notification loop can treat both the same way.
+    #
+    # IMPORTANT -- several of these families were seeded with a real-world
+    # description (e.g. "4 consecutive weeks", "immediately use a retry")
+    # that the schema doesn't literally store a flag for. Every interpretation
+    # below is documented at its definition and is a reasonable, defensible
+    # reading of the seeded description against the fields DPS Attempt
+    # actually has (see models.py's Attempt class) -- but none of these were
+    # confirmed with Shailesh before being built, unlike every other
+    # gamification threshold in this file (Level Mastery's cascade rule,
+    # the Phase 2 families, etc., which all have an explicit sign-off
+    # documented in COWORK_HANDOFF.md). Flagged in OPEN_ISSUES.md as needing
+    # a product-owner read-through before being treated as final.
+    # ========================================================================
+
+    @classmethod
+    def _dps_week_start(cls, dt: datetime) -> datetime:
+        """Monday 00:00 UTC of dt's calendar week. Used only to bucket DPS
+        completions into weeks for Ironclad Discipline -- deliberately keyed
+        off a plain 7-day-aligned epoch rather than an ISO (year, week)
+        tuple, so there's no year-boundary wraparound bug to reason about
+        (ISO week 52/53 -> week 1 would otherwise need special-casing to
+        detect "consecutive"). Evaluated in UTC, not the student's local
+        time zone -- this app has no per-student timezone field anywhere
+        else either, so this matches the platform's existing convention
+        (e.g. Midnight Oil below), not a new limitation introduced here."""
+        start = dt - timedelta(days=dt.weekday())
+        return start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    @classmethod
+    def _evaluate_dps_discipline(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """1. Ironclad Discipline -- consecutive weeks with all 5 DPS sheets
+        (5 distinct dps_id) completed. "Complete all 5 DPS sheets in a
+        single week" is read as: at least 5 distinct DPS sheets completed
+        (any accuracy) within one Mon-Sun week -- not tied to a specific
+        lesson's own 5-sheet structure, since the badge description doesn't
+        say "for one lesson" and a lesson's 5 sheets are typically done well
+        within a week anyway once a student is active. Re-evaluates the
+        current week's distinct-sheet count on every submission but only
+        ever advances the streak once per week (guarded by
+        dps_discipline_last_counted_week_epoch), so submitting sheet #6 or
+        #7 in an already-qualifying week doesn't double-count."""
+        submitted = _make_aware(attempt.submitted_at)
+        if not submitted:
+            return
+        week_start = cls._dps_week_start(submitted)
+        week_epoch = int(week_start.timestamp())
+
+        last_counted = cls._get_stat(db, student_id, "dps_discipline_last_counted_week_epoch")
+        if last_counted == week_epoch:
+            return
+
+        week_end = week_start + timedelta(days=7)
+        distinct_sheets = (
+            db.query(Attempt.dps_id)
+            .filter(
+                Attempt.student_id == student_id,
+                Attempt.status.in_(_DPS_COMPLETED_STATUSES),
+                Attempt.submitted_at >= week_start,
+                Attempt.submitted_at < week_end,
+            )
+            .distinct()
+            .count()
+        )
+        if distinct_sheets < 5:
+            return
+
+        prior_week_epoch = cls._get_stat(db, student_id, "dps_discipline_prior_week_epoch")
+        streak = cls._get_stat(db, student_id, "dps_discipline_streak")
+        streak = streak + 1 if prior_week_epoch == week_epoch - 7 * 86400 else 1
+        cls._set_stat(db, student_id, "dps_discipline_streak", streak)
+        cls._set_stat(db, student_id, "dps_discipline_prior_week_epoch", week_epoch)
+        cls._set_stat(db, student_id, "dps_discipline_last_counted_week_epoch", week_epoch)
+        cls._award_all_tiers(db, student_id, "dps_discipline", streak, newly_unlocked)
+
+    @classmethod
+    def _evaluate_dps_crystal(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """2. Pure Crystal -- 100% accuracy on N distinct DPS sheets (lifetime,
+        not consecutive). Recomputed as a live distinct-sheet count each time
+        (same "don't trust a drifting counter" discipline Level Mastery uses
+        above), not an incremented stat -- a student can score 100% on the
+        same sheet across several retries and that must only count once."""
+        if float(attempt.accuracy_percentage or 0) != 100:
+            return
+        distinct_count = (
+            db.query(Attempt.dps_id)
+            .filter(
+                Attempt.student_id == student_id,
+                Attempt.status.in_(_DPS_COMPLETED_STATUSES),
+                Attempt.accuracy_percentage == 100,
+            )
+            .distinct()
+            .count()
+        )
+        cls._award_all_tiers(db, student_id, "dps_crystal", distinct_count, newly_unlocked)
+
+    @classmethod
+    def _evaluate_dps_tome(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """3. Boundless Tome -- lifetime DPS sheets completed. Mirrors
+        Competitor's mock-exam pattern exactly: every completed attempt
+        (original or retry) increments a simple running counter, matching
+        the seeded "Complete N DPS sheets" wording (volume of effort, not
+        distinct sheets -- retries of the same sheet still represent real
+        completed work)."""
+        count = cls._increment_stat(db, student_id, "dps_tome_completed")
+        cls._award_all_tiers(db, student_id, "dps_tome", count, newly_unlocked)
+
+    @classmethod
+    def _evaluate_dps_quill(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """4. Lightning Quill -- finished in under 50% of the allocated time
+        with >90% accuracy. Direct DPS analogue of the mock-exam Speed Demon
+        family. duration_seconds is this attempt's allocated time (same
+        field EconomyService already keys reward calculation off of, per
+        attempt_service.py's own comment); time_taken_seconds is the real
+        elapsed time."""
+        allocated = float(attempt.duration_seconds or 0)
+        if allocated <= 0:
+            return
+        taken = float(attempt.time_taken_seconds or 0)
+        accuracy = float(attempt.accuracy_percentage or 0)
+        if (taken / allocated) < 0.5 and accuracy > 90:
+            count = cls._increment_stat(db, student_id, "dps_quill_count")
+            cls._award_all_tiers(db, student_id, "dps_quill", count, newly_unlocked)
+
+    @classmethod
+    def _evaluate_dps_sage(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """5. Sage's Eye -- used almost the entire allocated time (>=95%) and
+        still scored a flawless 100%. Direct DPS analogue of the mock-exam
+        Sharpshooter family (100% + high time-utilization), just with DPS's
+        raw time_taken/duration ratio in place of mocks' stored
+        time_utilization_percentage field."""
+        allocated = float(attempt.duration_seconds or 0)
+        if allocated <= 0:
+            return
+        taken = float(attempt.time_taken_seconds or 0)
+        accuracy = float(attempt.accuracy_percentage or 0)
+        if (taken / allocated) >= 0.95 and accuracy == 100:
+            count = cls._increment_stat(db, student_id, "dps_sage_count")
+            cls._award_all_tiers(db, student_id, "dps_sage", count, newly_unlocked)
+
+    @classmethod
+    def _evaluate_dps_chain(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """6. Unbroken Chain -- consecutive DPS sheets with zero unanswered
+        questions. Direct DPS analogue of the mock-exam Unstoppable Streak
+        family's streak-with-reset pattern: a qualifying submission extends
+        the streak, any other submission resets it to 0 rather than just
+        skipping (an unanswered question is a real break, not a
+        non-qualifying-but-harmless attempt)."""
+        if (attempt.unanswered_count or 0) == 0:
+            streak = cls._increment_stat(db, student_id, "dps_chain_streak")
+            cls._award_all_tiers(db, student_id, "dps_chain", streak, newly_unlocked)
+        else:
+            cls._set_stat(db, student_id, "dps_chain_streak", 0)
+
+    @classmethod
+    def _evaluate_dps_phoenix(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """7. Rising Phoenix -- a sub-50% DPS immediately followed by the
+        student's very next DPS submission (any sheet) scoring >90%. Direct
+        DPS analogue of the mock-exam Comeback Kid family's "previous
+        submission" lookup, just with fixed absolute floors (<50 then >90)
+        instead of Comeback Kid's relative +20-point jump, matching the
+        seeded description literally. Not restricted to the same dps_id or
+        the same retry chain -- "your very next DPS" is read as the next
+        DPS submission chronologically, on any sheet, same scope Comeback
+        Kid already uses for mocks."""
+        accuracy = float(attempt.accuracy_percentage or 0)
+        if accuracy <= 90 or not attempt.submitted_at:
+            return
+        previous = (
+            db.query(Attempt)
+            .filter(
+                Attempt.student_id == student_id,
+                Attempt.status.in_(_DPS_COMPLETED_STATUSES),
+                Attempt.id != attempt.id,
+                Attempt.submitted_at.isnot(None),
+                Attempt.submitted_at < attempt.submitted_at,
+            )
+            .order_by(Attempt.submitted_at.desc())
+            .first()
+        )
+        if previous and float(previous.accuracy_percentage or 0) < 50:
+            count = cls._increment_stat(db, student_id, "dps_phoenix_count")
+            cls._award_all_tiers(db, student_id, "dps_phoenix", count, newly_unlocked)
+
+    @classmethod
+    def _evaluate_dps_anvil(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """8. Master's Anvil -- failed a DPS attempt, then the very next
+        retry in that SAME attempt chain scores 100%. Unlike Phoenix above,
+        this one is explicitly scoped to one retry chain (attempt_group_id)
+        per the seeded description's "immediately use a retry" -- a retry
+        is a same-sheet, same-chain concept on this platform (see
+        attempt_chain_service.py), not just the next DPS chronologically.
+        "Fail" is read as the platform's own pass/fail line (benchmark_status
+        != CLEARED, i.e. < 70%, per attempt_service.BENCHMARK_PERCENTAGE),
+        not the <50% floor Phoenix uses for its unrelated "low score" case."""
+        if int(attempt.attempt_number or 0) <= 0 or not attempt.attempt_group_id:
+            return
+        if float(attempt.accuracy_percentage or 0) != 100:
+            return
+        previous = (
+            db.query(Attempt)
+            .filter(
+                Attempt.attempt_group_id == attempt.attempt_group_id,
+                Attempt.student_id == student_id,
+                Attempt.attempt_number == attempt.attempt_number - 1,
+            )
+            .first()
+        )
+        if previous and previous.benchmark_status != "CLEARED":
+            count = cls._increment_stat(db, student_id, "dps_anvil_count")
+            cls._award_all_tiers(db, student_id, "dps_anvil", count, newly_unlocked)
+
+    @classmethod
+    def _evaluate_dps_midnight(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """9. Midnight Oil -- DPS sheets completed on a weekend. Evaluated
+        against submitted_at's UTC weekday (Saturday=5, Sunday=6) -- see
+        _dps_week_start()'s docstring above for why this app has no
+        per-student local time zone to evaluate "weekend" against instead;
+        this is an approximation flagged the same way, not a silent gap."""
+        submitted = _make_aware(attempt.submitted_at)
+        if not submitted or submitted.weekday() < 5:
+            return
+        count = cls._increment_stat(db, student_id, "dps_midnight_count")
+        cls._award_all_tiers(db, student_id, "dps_midnight", count, newly_unlocked)
+
+    @classmethod
+    def _evaluate_dps_compass(cls, db: Session, student_id: str, attempt: Attempt, newly_unlocked: list):
+        """10. Golden Compass -- scored >90% on the very first attempt (no
+        retry needed) for N different DPS sheets. attempt_number == 0 is
+        this platform's own definition of "first/original attempt" (see
+        attempt_chain_service.ATTEMPT_SOURCE_ORIGINAL) -- each qualifying
+        sheet has exactly one attempt_number==0 row, so a simple increment
+        per qualifying submission already counts distinct sheets without a
+        separate dedup query."""
+        if int(attempt.attempt_number or 0) != 0:
+            return
+        if float(attempt.accuracy_percentage or 0) <= 90:
+            return
+        count = cls._increment_stat(db, student_id, "dps_compass_count")
+        cls._award_all_tiers(db, student_id, "dps_compass", count, newly_unlocked)
+
+    @classmethod
+    def evaluate_dps_attempt_submission(cls, db: Session, student_id: str, attempt: Attempt) -> list[dict[str, Any]]:
+        """Entry point for the 10 DPS badge families above -- call exactly
+        once per completed DPS attempt, from the same atomically-claimed
+        hook attempt_service.py already uses for DPS XP/coins
+        (_process_attempt_gamification_side_effects), so this can never
+        double-fire for the same attempt any more than the economy award
+        can. Returns the same {id, code, name, description, icon_name, tier}
+        shape evaluate_mock_exam_submission() does, so callers can reuse the
+        exact same BADGE_UNLOCKED notification loop."""
+        newly_unlocked: list = []
+        if attempt.status not in _DPS_COMPLETED_STATUSES:
+            return []
+
+        cls._evaluate_dps_discipline(db, student_id, attempt, newly_unlocked)
+        cls._evaluate_dps_crystal(db, student_id, attempt, newly_unlocked)
+        cls._evaluate_dps_tome(db, student_id, attempt, newly_unlocked)
+        cls._evaluate_dps_quill(db, student_id, attempt, newly_unlocked)
+        cls._evaluate_dps_sage(db, student_id, attempt, newly_unlocked)
+        cls._evaluate_dps_chain(db, student_id, attempt, newly_unlocked)
+        cls._evaluate_dps_phoenix(db, student_id, attempt, newly_unlocked)
+        cls._evaluate_dps_anvil(db, student_id, attempt, newly_unlocked)
+        cls._evaluate_dps_midnight(db, student_id, attempt, newly_unlocked)
+        cls._evaluate_dps_compass(db, student_id, attempt, newly_unlocked)
+
+        db.commit()
+
+        unlocked_list = []
+        for b in newly_unlocked:
+            unlocked_list.append({
+                "id": b.id,
+                "code": b.code,
+                "name": b.name,
+                "description": b.description,
+                "icon_name": b.icon_name,
+                "tier": b.tier,
+            })
+        return unlocked_list
 
     @classmethod
     def _evaluate_level_mastery(cls, db: Session, student_id: str, result_summary: CompetitionMockResultSummary, newly_unlocked: list):
