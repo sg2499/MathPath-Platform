@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import type { Assignment, AttemptHistoryEntry } from "@/types/assignment";
-import type { AttemptPayload } from "@/types/attempt";
+import type { AttemptPayload, DpsAttemptPayload } from "@/types/attempt";
 import type { AttemptResult } from "@/types/result";
 
 type AssignmentsResponse = { assignments: Assignment[] };
@@ -15,12 +15,12 @@ export async function getDpsInstructions(dpsId: string) {
   return data;
 }
 
-export async function startAttempt(payload: { assignmentId: string; dpsId: string; mode: string }): Promise<AttemptPayload> {
-  const { data } = await api.post<AttemptPayload>("/student/attempts/start", payload);
+export async function startAttempt(payload: { assignmentId: string; dpsId: string; mode: string }): Promise<DpsAttemptPayload> {
+  const { data } = await api.post<DpsAttemptPayload>("/student/attempts/start", payload);
   return data;
 }
 
-export async function resumeAttempt(attemptId: string): Promise<AttemptPayload | { attemptId: string; status: string; message?: string; resultAvailable?: boolean }> {
+export async function resumeAttempt(attemptId: string): Promise<DpsAttemptPayload | { attemptId: string; status: string; message?: string; resultAvailable?: boolean }> {
   const { data } = await api.get(`/student/attempts/${attemptId}`);
   return data;
 }

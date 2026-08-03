@@ -16,7 +16,7 @@ import {
   saveAnswer,
   submitAttempt,
 } from "@/lib/api/student";
-import type { AttemptPayload } from "@/types/attempt";
+import type { DpsAttemptPayload } from "@/types/attempt";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ClipboardCheck, Gauge, Layers3, Clock3, BookOpenCheck } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -40,7 +40,7 @@ export default function AttemptPage() {
   });
 
   const attempt =
-    query.data && "questions" in query.data ? (query.data as AttemptPayload) : null;
+    query.data && "questions" in query.data ? (query.data as DpsAttemptPayload) : null;
 
   const autoSubmitMutation = useMutation({
     mutationFn: () => autoSubmitAttempt(attemptId),

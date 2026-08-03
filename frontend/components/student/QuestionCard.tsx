@@ -1,6 +1,6 @@
 "use client";
 
-import type { StudentQuestion } from "@/types/question";
+import type { DpsStudentQuestion } from "@/types/question";
 import { CheckCircle2, Save, Layers3 } from "lucide-react";
 import { AnswerInputBox } from "./AnswerInputBox";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
@@ -14,7 +14,7 @@ export function QuestionCard({
   onSave,
   onAdvance,
 }: {
-  question: StudentQuestion;
+  question: DpsStudentQuestion;
   savedAnswerText?: string | null;
   disabled: boolean;
   saving: boolean;
