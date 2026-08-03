@@ -909,22 +909,6 @@ class AchievementEngine:
 
         ]
 
-        for code, tier, name, desc, icon, req in badges_data:
-            try:
-                existing = db.query(AchievementBadge).filter_by(code=code, tier=tier).first()
-                if not existing:
-                    b = AchievementBadge(code=code, tier=tier, name=name, description=desc, icon_name=icon, required_count=req)
-                    db.add(b)
-                else:
-                    existing.name = name
-                    existing.description = desc
-                    existing.icon_name = icon
-                    existing.required_count = req
-                db.commit()
-            except Exception as e:
-                db.rollback()
-                print(f"Failed to seed badge {code}-{tier}: {e}")
-
         # ====================================================================
         # PHASE 3 (2026-07-30, re-implemented) -- Level Mastery, seeded
         # dynamically from the Level table rather than a hardcoded list, so
@@ -936,6 +920,8 @@ class AchievementEngine:
         # preview harness) was built against -- see the derivation helpers
         # above this class.
         # ====================================================================
+        target_badges: list[tuple[str, str, str, str, str, int]] = list(badges_data)
+
         active_levels = db.query(Level).filter(Level.is_active == True).all()
         for level in active_levels:
             if not level.level_code:
@@ -945,21 +931,39 @@ class AchievementEngine:
             display = _level_mastery_display(level.level_code)
             code = f"level_mastery_{key}"
             for tier, tier_label in _LEVEL_MASTERY_TIER_LABELS.items():
-                try:
-                    name = f"{display} -- {tier_label}"
-                    desc = _level_mastery_description(tier, display)
-                    icon = f"LevelMastery{pascal}{tier_label}"
-                    req = _LEVEL_MASTERY_REQUIRED_COUNT[tier]
-                    existing = db.query(AchievementBadge).filter_by(code=code, tier=tier).first()
-                    if not existing:
-                        b = AchievementBadge(code=code, tier=tier, name=name, description=desc, icon_name=icon, required_count=req)
-                        db.add(b)
-                    else:
-                        existing.name = name
-                        existing.description = desc
-                        existing.icon_name = icon
-                        existing.required_count = req
-                    db.commit()
-                except Exception as e:
-                    db.rollback()
-                    print(f"Failed to seed level mastery badge {code}-{tier}: {e}")
+                name = f"{display} -- {tier_label}"
+                desc = _level_mastery_description(tier, display)
+                icon = f"LevelMastery{pascal}{tier_label}"
+                req = _LEVEL_MASTERY_REQUIRED_COUNT[tier]
+                target_badges.append((code, tier, name, desc, icon, req))
+
+        # 2026-08-03 fix: this used to be one SELECT + one commit PER badge
+        # (up to ~139 of each, ~278 blocking round-trips total) in the two
+        # loops above, run synchronously in on_startup() on every single
+        # server boot. That was fine when there were a couple dozen badges;
+        # it became a real cold-start cost as Level Mastery (+39) and the
+        # DPS batches (+40) landed on top of the original ~60. On Render's
+        # free tier (this deploy's actual plan -- confirmed 2026-08-03),
+        # the instance spins down on idle, so every cold boot re-paid this
+        # in full, and that's what "login suddenly feels sluggish" traced
+        # back to (not the login endpoint itself, which never changed).
+        # One bulk SELECT + one commit at the end is behaviourally identical
+        # (still upserts every badge's name/description/icon/required_count
+        # every boot) but cuts ~278 round-trips down to 2.
+        existing_by_key = {(b.code, b.tier): b for b in db.query(AchievementBadge).all()}
+        for code, tier, name, desc, icon, req in target_badges:
+            existing = existing_by_key.get((code, tier))
+            if not existing:
+                b = AchievementBadge(code=code, tier=tier, name=name, description=desc, icon_name=icon, required_count=req)
+                db.add(b)
+                existing_by_key[(code, tier)] = b
+            else:
+                existing.name = name
+                existing.description = desc
+                existing.icon_name = icon
+                existing.required_count = req
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"Failed to seed badges: {e}")
