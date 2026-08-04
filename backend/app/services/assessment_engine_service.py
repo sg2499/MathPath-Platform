@@ -37,11 +37,15 @@ from app.models import (
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, OperationFocusForConcept as MmOperationFocusForConcept
 from app.question_engine.im import IMConfig, GenerateImQuestionSet, OperationFocusForConcept as ImOperationFocusForConcept
+from app.question_engine.pm import PMConfig, generate_pm_question_set
 from app.services.competition_mock_generation_service import (
     IM_COMPETITION_LEVEL_REGISTRY,
     MM_COMPETITION_LEVEL_REGISTRY,
     _MmCompetitionDigitConfig,
     _MmCompetitionAddLessConfig,
+)
+from app.services.pm_competition_mock_generation_service import (
+    PM_COMPETITION_LEVEL_REGISTRY,
 )
 
 # Kept as a literal duplicate of assessment_blueprint_service.py's
@@ -50,10 +54,11 @@ from app.services.competition_mock_generation_service import (
 # so importing back would create a circular import. Both sets must be changed
 # together -- a module only ever gets added to section-wise assessments once,
 # and grep for SECTION_WISE_ASSESSMENT_MODULES finds both call sites.
-_SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM"}
+_SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM"}
 _SECTION_WISE_REGISTRIES: dict[str, dict[str, Any]] = {
     "IM": IM_COMPETITION_LEVEL_REGISTRY,
     "MM": MM_COMPETITION_LEVEL_REGISTRY,
+    "PM": PM_COMPETITION_LEVEL_REGISTRY,
 }
 
 ASSESSMENT_VERSION_STATUSES = {"DRAFT", "PREVIEW", "PUBLISHED", "ARCHIVED"}
@@ -143,13 +148,15 @@ def ResolvedAssessmentQuestionMark(Db: Session, Version: AssessmentVersion | Non
     per-answer save, and final grading, so the three can never silently
     disagree (the exact class of bug Shailesh flagged: a student seeing one
     mark value mid-attempt and a different one at grading). Three paths:
-    MM is always flat 1 mark; _CONCEPT_WEIGHTED_MODULES (IM today) resolves
-    via ImConceptWeightedQuestionMark(); everything else (YLM, and any
-    unlisted future module) keeps the original flat evenly-balanced-100
-    behavior via AssessmentQuestionMark(), byte-for-byte unchanged.
+    MM and PM are always flat 1 mark (PM has no Skill Stacker/Concept Drill
+    concepts, per product decision 2026-08-04, so it gets MM's exact
+    treatment); _CONCEPT_WEIGHTED_MODULES (IM today) resolves via
+    ImConceptWeightedQuestionMark(); everything else (YLM, and any unlisted
+    future module) keeps the original flat evenly-balanced-100 behavior via
+    AssessmentQuestionMark(), byte-for-byte unchanged.
     """
     ModuleCode = _AssessmentModuleCodeForVersion(Db, Version)
-    if ModuleCode == "MM":
+    if ModuleCode in {"MM", "PM"}:
         return MM_FLAT_QUESTION_MARKS
     if ModuleCode in _CONCEPT_WEIGHTED_MODULES:
         ConceptTag = Question.concept_tag if Question else None
@@ -496,6 +503,76 @@ def ImSectionRegistryConfig(LevelItem: Level | None, SectionDefinition: dict[str
             **ConceptSpecFlags,
         },
     )
+
+
+def PmSectionRegistryConfig(LevelItem: Level | None, SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], QuestionCount: int, Seed: str) -> PMConfig:
+    """PM counterpart of MmSectionRegistryConfig/ImSectionRegistryConfig
+    above. Same reasoning: sourced from that level's
+    PM_COMPETITION_LEVEL_REGISTRY concept-pool entry (see
+    pm_competition_mock_generation_service.py), no DPSSection lookup --
+    there is no single DPSSection a whole "Section 1 - Addition" /
+    "Section 2 - Subtraction" spans several lessons' worth of concepts.
+    PM's ConceptSpec entries are already flat PMConfig-shaped fields
+    (conceptFamily, operationFocus, abacusRule, targetNumbers, digitPattern,
+    generationTemplate, revisionTemplates) with no title-derived digit-width
+    guessing needed (unlike MM's DigitConfig/AddLessConfig), since PM's
+    engine reads its own generation_template/revision_templates directly
+    rather than inferring them from a title string.
+    """
+    ConceptFamily = str(ConceptSpec.get("conceptFamily") or "DIRECT_ADD_LESS")
+    return PMConfig(
+        module_code="PM",
+        level_code=getattr(LevelItem, "level_code", "PM-L1") or "PM-L1",
+        lesson_number=0,
+        dps_number=int(SectionDefinition.get("number") or 1),
+        question_count=QuestionCount,
+        concept_family=ConceptFamily,
+        operation_focus=str(ConceptSpec.get("operationFocus") or "ADD_LESS"),
+        abacus_rule=ConceptSpec.get("abacusRule"),
+        target_numbers=list(ConceptSpec.get("targetNumbers") or []),
+        place_value="MIXED",
+        digit_pattern=str(ConceptSpec.get("digitPattern") or "1D"),
+        allow_negative_operands=True,
+        allow_negative_answer=False,
+        seed=Seed,
+        lesson_title=str(SectionDefinition.get("title") or ""),
+        dps_title=str(ConceptSpec.get("title") or SectionDefinition.get("title") or ""),
+        generation_template=str(ConceptSpec.get("generationTemplate") or "DIRECT"),
+        revision_templates=tuple(ConceptSpec.get("revisionTemplates") or ()),
+    )
+
+
+def _GeneratePmAssessmentBatch(Config: PMConfig, Count: int) -> list[dict[str, Any]]:
+    """PM counterpart of _GenerateMmAssessmentBatch/_GenerateImAssessmentBatch.
+    Same fallback shape, routed through PM's own dedicated generator.
+    """
+    if Count <= 0:
+        return []
+    FullConfig = replace(Config, question_count=Count)
+    try:
+        Questions = generate_pm_question_set(FullConfig)
+        if len(Questions) == Count:
+            return Questions
+    except Exception:
+        Questions = []
+
+    Questions = []
+    for QuestionIndex in range(1, Count + 1):
+        LastError: Exception | None = None
+        for RetryIndex in range(1, 16):
+            SingleConfig = replace(Config, question_count=1, seed=f"{Config.seed}-AQ{QuestionIndex}-R{RetryIndex}-{uuid4().hex}")
+            try:
+                Generated = generate_pm_question_set(SingleConfig)
+                if Generated:
+                    Row = Generated[0]
+                    Row["question_number"] = QuestionIndex
+                    Questions.append(Row)
+                    break
+            except Exception as Exc:
+                LastError = Exc
+        else:
+            raise ValueError(str(LastError) if LastError else f"Could not generate assessment question {QuestionIndex}")
+    return Questions
 
 
 def AssessmentModuleCode(Db: Session, Blueprint: AssessmentBlueprint) -> str:
@@ -991,6 +1068,9 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     if ModuleCode == "MM":
                         Config = MmSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
                         GeneratedQuestions = _GenerateMmAssessmentBatch(Config, Count)
+                    elif ModuleCode == "PM":
+                        Config = PmSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
+                        GeneratedQuestions = _GeneratePmAssessmentBatch(Config, Count)
                     else:
                         Config = ImSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
                         GeneratedQuestions = _GenerateImAssessmentBatch(Config, Count)
@@ -1009,6 +1089,9 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     if ModuleCode == "MM":
                         QuestionMarks = MM_FLAT_QUESTION_MARKS
                         MarksMode = "MM_FLAT"
+                    elif ModuleCode == "PM":
+                        QuestionMarks = MM_FLAT_QUESTION_MARKS
+                        MarksMode = "PM_FLAT"
                     else:
                         QuestionMarks = ImConceptWeightedQuestionMark(ConceptTag)
                         MarksMode = "CONCEPT_WEIGHTED"
@@ -1165,10 +1248,11 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
         # assessment_blueprint_service.py) with the true sum of this
         # version's question marks, so every downstream reader of
         # Version.total_marks (grading's MaxScore, result screens, reports)
-        # reflects reality. For MM this always equals total_questions exactly
-        # (flat 1 each); for IM it reflects the real concept-weighted total.
+        # reflects reality. For MM and PM this always equals total_questions
+        # exactly (flat 1 each); for IM it reflects the real concept-weighted
+        # total.
         Version.total_marks = RunningWeightedMarksTotal
-        Version.marks_per_question = MM_FLAT_QUESTION_MARKS if ModuleCode == "MM" else _CONCEPT_WEIGHTED_DEFAULT_MARKS
+        Version.marks_per_question = MM_FLAT_QUESTION_MARKS if ModuleCode in {"MM", "PM"} else _CONCEPT_WEIGHTED_DEFAULT_MARKS
         Db.add(Version)
     Db.flush()
     return Version
