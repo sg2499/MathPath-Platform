@@ -609,7 +609,7 @@ function AdminCurriculumPageContent() {
       <div className="mt-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-black text-slate-900">
-            Generated MCQ Preview
+            Generated Question Preview
           </h2>
 
           <p className="text-sm text-slate-500">
@@ -661,10 +661,13 @@ function PreviewQuestionCard({
   question: AdminPreviewQuestion;
   showCorrectAnswers: boolean;
 }) {
-  const options = [...(question.options ?? [])].sort(
-    (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0),
-  );
-
+  // DPS questions are typed free-text answers now, not MCQ picks -- see
+  // OPEN_ISSUES.md 2026-08-03e. The Learning Path Studio preview used to
+  // always render the generator's MCQ options here regardless of the
+  // "Show Answers" toggle -- that's stale; students never see options
+  // anymore, so this preview shouldn't either. It now mirrors exactly
+  // what a student sees (an answer box) and only reveals the correct
+  // value when showCorrectAnswers is on.
   return (
     <div className="math-card p-4 sm:p-5">
       <p className="mb-3 text-sm font-bold text-slate-900 dark:text-white">
@@ -688,49 +691,32 @@ function PreviewQuestionCard({
           />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:self-center">
-          {options.map((option) => {
-            const isCorrect = Boolean(option.is_correct);
-            const optionStateClass =
-              showCorrectAnswers && isCorrect
-                ? "math-mcq-correct-option border-emerald-300 bg-emerald-50 text-emerald-900 shadow-[0_10px_24px_rgba(16,185,129,0.12)] dark:border-emerald-400/70 dark:bg-emerald-700/70 dark:text-emerald-50"
-                : "border-slate-200 bg-white text-slate-800 shadow-sm hover:border-blue-300 hover:bg-blue-50/70 dark:border-slate-700/70 dark:bg-slate-800/88 dark:text-slate-100 dark:hover:border-cyan-400/50 dark:hover:bg-slate-700/88";
+        <div className="flex flex-col items-center justify-center gap-3 rounded-[22px] border-2 border-dashed border-slate-200 bg-slate-50/60 px-4 py-6 dark:border-slate-700/70 dark:bg-slate-900/55 lg:self-center">
+          <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+            Student Answer Box
+          </span>
 
-            const pillClass =
-              showCorrectAnswers && isCorrect
-                ? "math-mcq-option-pill bg-emerald-100 text-emerald-800 dark:bg-emerald-100/20 dark:text-emerald-50"
-                : "bg-slate-100 text-slate-700 dark:bg-slate-700/80 dark:text-slate-100";
+          <div
+            className={`w-full max-w-[220px] rounded-[18px] border-2 px-4 py-3 text-center text-2xl font-black transition-colors duration-200 ${
+              showCorrectAnswers
+                ? "math-mcq-correct-option border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-400/70 dark:bg-emerald-700/40 dark:text-emerald-50"
+                : "border-slate-200 bg-white text-slate-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-600"
+            }`}
+          >
+            {showCorrectAnswers ? FormatMcqOptionValue(question.correct_answer) : "?"}
+          </div>
 
-            return (
-              <div
-                key={`${option.label}-${option.value}`}
-                className={`flex min-h-[70px] items-center gap-3 rounded-2xl border px-4 py-3.5 text-base font-semibold transition-all duration-200 ${optionStateClass}`}
-              >
-                <span
-                  className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${pillClass}`}
-                >
-                  {option.label}
-                </span>
-
-                <span className="flex-1 leading-6">{FormatMcqOptionValue(option.value)}</span>
-
-                {showCorrectAnswers && isCorrect ? (
-                  <span className="math-mcq-correct-pill rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-100/20 dark:text-emerald-50">
-                    Correct
-                  </span>
-                ) : null}
-              </div>
-            );
-          })}
+          {showCorrectAnswers ? (
+            <span className="math-mcq-correct-pill rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-100/20 dark:text-emerald-50">
+              Correct Answer
+            </span>
+          ) : (
+            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">
+              Hidden -- toggle Show Answers to reveal
+            </span>
+          )}
         </div>
       </div>
-
-      {showCorrectAnswers ? (
-        <div className="math-correct-answer-strip mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-cyan-400/30 dark:bg-cyan-400/10 dark:text-cyan-100">
-          Correct answer:{" "}
-          <span className="font-black">{question.correct_answer}</span>
-        </div>
-      ) : null}
     </div>
   );
 }
