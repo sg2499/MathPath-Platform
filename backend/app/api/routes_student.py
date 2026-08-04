@@ -734,16 +734,19 @@ def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = D
             "questionCount": question_count,
             "durationSeconds": payload["defaultDurationSeconds"],
             "marksPerQuestion": payload["marksPerQuestion"],
-            "answerType": "MCQ",
-            "optionsPerQuestion": 4,
+            # DPS questions are typed free-text answers, not MCQ picks -- see
+            # OPEN_ISSUES.md 2026-08-03e. Kept as "TYPED" (not "MCQ") since
+            # this flows straight into the instructions page's Practice
+            # Details panel.
+            "answerType": "TYPED",
             "negativeMarking": False,
             "navigationAllowed": True,
             "autoSubmit": True,
         },
         "instructions": [
             f"You will get {question_count} question{'s' if question_count != 1 else ''}.",
-            "Each question has 4 options.",
-            "Choose the correct answer.",
+            "Type your answer for each question -- no options to pick from.",
+            "Your answers auto-save as you type.",
             "The test will auto-submit when time is up.",
         ],
     }

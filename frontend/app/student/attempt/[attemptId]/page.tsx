@@ -18,7 +18,7 @@ import {
 } from "@/lib/api/student";
 import type { DpsAttemptPayload } from "@/types/attempt";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ClipboardCheck, Gauge, Layers3, Clock3, BookOpenCheck } from "lucide-react";
+import { ClipboardCheck, Gauge, Layers3, BookOpenCheck } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
@@ -187,7 +187,7 @@ export default function AttemptPage() {
 
   return (
     <AppShell title="Practice Attempt">
-      <section className="math-slide-up math-card flex flex-col gap-4 !overflow-visible p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)] relative">
+      <section className="math-slide-up math-card flex flex-col gap-3 !overflow-visible p-3 sm:p-4 lg:h-[calc(100svh-11rem)] relative">
         {/* Floating Side Navigation Arrows -- matches the mock exam attempt screen */}
         <button
           onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
@@ -206,48 +206,43 @@ export default function AttemptPage() {
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
 
-        <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-sky-50 to-cyan-100 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
-          <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
-          <div className="relative z-10">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <p className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
-                Question {currentQuestion.questionNumber} Of {questions.length}
-              </p>
-            </div>
-            <h1 className="mt-2 max-w-5xl text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
+        <div className="relative flex shrink-0 flex-wrap items-center justify-between gap-3 overflow-hidden rounded-[20px] border border-white/70 bg-gradient-to-br from-white via-sky-50 to-cyan-100 px-4 py-2.5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:px-5">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-32 w-32 rounded-full bg-cyan-300/20 blur-3xl" />
+          <div className="relative z-10 flex min-w-0 items-center gap-2.5">
+            {contextLine ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
+                <BookOpenCheck size={12} /> {contextLine}
+              </span>
+            ) : null}
+            <h1 className="truncate text-base font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-lg" title={sheetTitle}>
               {sheetTitle}
             </h1>
-            <div className="math-subtitle !mt-3 max-w-3xl flex flex-col gap-1">
-              {contextLine ? (
-                <p className="font-bold inline-flex items-center gap-1.5"><BookOpenCheck size={14} /> {contextLine}</p>
-              ) : null}
-              <p className="opacity-80">
-                Answer with focus and move through each question using the navigator.
-              </p>
-            </div>
           </div>
+          <p className="relative z-10 shrink-0 rounded-full bg-white/80 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+            Question {currentQuestion.questionNumber} of {questions.length}
+          </p>
         </div>
 
-        <div className="sticky top-[80px] sm:top-[104px] 2xl:top-[144px] z-[90] grid gap-3 rounded-3xl bg-slate-50 p-2 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            icon={<ClipboardCheck size={16} />}
-            label="ANSWERED"
+        <div className="grid shrink-0 grid-cols-2 gap-2 rounded-2xl bg-slate-50 p-2 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 sm:grid-cols-4">
+          <CompactStat
+            icon={<ClipboardCheck size={14} />}
+            label="Answered"
             value={answeredNumbers.length}
           />
-          <StatCard
-            icon={<Layers3 size={16} />}
-            label="REMAINING"
+          <CompactStat
+            icon={<Layers3 size={14} />}
+            label="Remaining"
             value={questions.length - answeredNumbers.length}
           />
-          <StatCard
-            icon={<Gauge size={16} />}
-            label="CURRENT"
+          <CompactStat
+            icon={<Gauge size={14} />}
+            label="Current"
             value={`Q${currentQuestion.questionNumber}`}
           />
-          <TimerMetricCard remainingSeconds={remainingSeconds} />
+          <CompactTimerStat remainingSeconds={remainingSeconds} />
         </div>
 
-        <div>
+        <div className="min-h-0 flex-1">
           <QuestionCard
             key={currentQuestion.questionId}
             question={currentQuestion}
@@ -258,6 +253,7 @@ export default function AttemptPage() {
               remainingSeconds <= 0
             }
             saving={savingQuestionId === currentQuestion.questionId}
+            compact
             onSave={(answerText) =>
               handleSaveAnswer(currentQuestion.questionId, answerText)
             }
@@ -267,7 +263,7 @@ export default function AttemptPage() {
           />
         </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-white/92 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/85">
+        <div className="shrink-0 rounded-[18px] border border-slate-200 bg-white/92 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/85">
           <QuestionNavigator
             totalQuestions={questions.length}
             currentQuestionNumber={currentQuestion.questionNumber}
@@ -275,28 +271,8 @@ export default function AttemptPage() {
             onSelectQuestion={(number) => setCurrentIndex(number - 1)}
           />
 
-          <div className="mt-4 flex flex-wrap justify-between gap-3">
-            <button
-              className="math-button-secondary"
-              disabled={currentIndex === 0}
-              onClick={() => setCurrentIndex((v) => Math.max(0, v - 1))}
-            >
-              Previous
-            </button>
-
-            <button
-              className="math-button-secondary"
-              disabled={currentIndex >= questions.length - 1}
-              onClick={() =>
-                setCurrentIndex((v) => Math.min(questions.length - 1, v + 1))
-              }
-            >
-              Next
-            </button>
-          </div>
-
           <button
-            className="math-button-primary mt-4 w-full py-3"
+            className="math-button-primary mt-3 w-full py-2.5"
             onClick={() => setShowConfirm(true)}
             disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}
           >
@@ -317,20 +293,17 @@ export default function AttemptPage() {
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
+function CompactStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex min-h-[96px] items-center gap-3 rounded-[24px]" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
-      {/* Gamified hover shine */}
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
-
-      <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md h-11 w-11 flex items-center justify-center rounded-2xl text-cyan-700 dark:text-cyan-300">
+    <div className="flex min-w-0 items-center gap-2 rounded-xl bg-white px-2.5 py-2 dark:bg-slate-950/60">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300">
         {icon}
       </div>
-      <div>
-        <p className="relative z-10 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <div className="min-w-0">
+        <p className="truncate text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
           {label}
         </p>
-        <p className="relative z-10 mt-1 origin-left text-3xl font-black leading-none text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+        <p className="truncate text-sm font-black leading-tight text-slate-950 dark:text-white">
           {value}
         </p>
       </div>
@@ -338,24 +311,10 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function TimerMetricCard({ remainingSeconds }: { remainingSeconds: number }) {
+function CompactTimerStat({ remainingSeconds }: { remainingSeconds: number }) {
   return (
-    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex min-h-[96px] items-center justify-between gap-3" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
-      {/* Gamified hover shine */}
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
-
-      <div className="flex items-center gap-3 relative z-10">
-        <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
-          <Clock3 size={18} />
-        </div>
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">TIME LEFT</p>
-          <p className="mt-1 text-sm font-bold text-slate-700 transition-colors duration-300 group-hover:text-slate-900 dark:text-slate-300 dark:group-hover:text-slate-100">Practice timer</p>
-        </div>
-      </div>
-      <div className="relative z-10 shrink-0">
-        <TestTimer remainingSeconds={remainingSeconds} />
-      </div>
+    <div className="flex min-w-0 items-center justify-center rounded-xl bg-white px-2 py-2 dark:bg-slate-950/60">
+      <TestTimer remainingSeconds={remainingSeconds} className="!px-2.5 !py-1.5 !text-xs" />
     </div>
   );
 }

@@ -83,9 +83,9 @@ export function AnswerInputBox({
   }
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-4 rounded-[24px] border-2 border-dashed border-slate-200 bg-white/70 p-6 dark:border-slate-700 dark:bg-slate-900/40">
-      <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-        Type Your Answer
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/50 sm:p-5">
+      <label className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+        Your Answer
       </label>
       <input
         type="text"
@@ -98,12 +98,12 @@ export function AnswerInputBox({
         onChange={(event) => handleChange(event.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
-        placeholder="Enter your answer"
+        placeholder="Type here"
         aria-label="Your answer"
-        className="w-full max-w-[280px] rounded-[20px] border-2 border-slate-200 bg-white px-5 py-4 text-center text-3xl font-black tracking-wide text-slate-950 shadow-inner outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-orange-400 dark:focus:ring-orange-900/40"
+        className="w-full max-w-[220px] rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-center text-2xl font-black tracking-wide text-slate-950 shadow-inner outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-orange-400 dark:focus:ring-orange-900/40"
       />
-      <p className="flex items-center gap-1.5 text-center text-xs font-semibold text-slate-400 dark:text-slate-500">
-        <CornerDownLeft size={13} /> Press Enter, or pause after typing to move on automatically
+      <p className="flex items-center gap-1.5 text-center text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+        <CornerDownLeft size={12} /> Enter to continue
       </p>
     </div>
   );

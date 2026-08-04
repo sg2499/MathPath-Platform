@@ -72,59 +72,61 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
   }
 
   return (
-    <div className="math-card math-card-hover overflow-hidden p-5 sm:p-6 bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all duration-500 relative group hover:-translate-y-1">
+    <div className="math-card math-card-hover flex h-full flex-col overflow-hidden p-5 sm:p-6 bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all duration-500 relative group hover:-translate-y-1">
       <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-      <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700">
-            <Sparkles size={12} />
-            {assignment.mode === "ASSESSMENT" ? "ASSESSMENT" : assignment.mode}
+      <div className="relative z-10 flex flex-1 flex-col">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700">
+              <Sparkles size={12} />
+              {assignment.mode === "ASSESSMENT" ? "ASSESSMENT" : assignment.mode}
+            </div>
+
+            <h3 className="mt-4 text-xl font-black text-slate-950 dark:text-white sm:text-2xl">
+              {assignment.title}
+            </h3>
+
+            <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200 sm:text-base">
+              Lesson {assignment.lessonNumber} · DPS {assignment.dpsNumber}
+            </p>
+
+            <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              {assignment.dpsTitle}
+            </p>
           </div>
 
-          <h3 className="mt-4 text-xl font-black text-slate-950 dark:text-white sm:text-2xl">
-            {assignment.title}
-          </h3>
-
-          <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200 sm:text-base">
-            Lesson {assignment.lessonNumber} · DPS {assignment.dpsNumber}
-          </p>
-
-          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
-            {assignment.dpsTitle}
-          </p>
+          <span className={`math-badge w-fit ${getStatusStyle(assignment.status)}`}>
+            {assignment.status.replace("_", " ")}
+          </span>
         </div>
 
-        <span className={`math-badge w-fit ${getStatusStyle(assignment.status)}`}>
-          {assignment.status.replace("_", " ")}
-        </span>
-      </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-white/60 p-4 dark:bg-slate-900/70 border border-white/50 dark:border-white/5 shadow-sm">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+              <ClipboardList size={16} /> Questions
+            </span>
+            <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
+              {assignment.questionCount}
+            </p>
+          </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3 relative z-10">
-        <div className="rounded-2xl bg-white/60 p-4 dark:bg-slate-900/70 border border-white/50 dark:border-white/5 shadow-sm">
-          <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
-            <ClipboardList size={16} /> Questions
-          </span>
-          <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
-            {assignment.questionCount}
-          </p>
-        </div>
+          <div className="rounded-2xl bg-white/60 p-4 dark:bg-slate-900/70 border border-white/50 dark:border-white/5 shadow-sm">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+              <Clock3 size={16} /> Duration
+            </span>
+            <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
+              {Math.floor(assignment.durationSeconds / 60)} min
+            </p>
+          </div>
 
-        <div className="rounded-2xl bg-white/60 p-4 dark:bg-slate-900/70 border border-white/50 dark:border-white/5 shadow-sm">
-          <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
-            <Clock3 size={16} /> Duration
-          </span>
-          <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
-            {Math.floor(assignment.durationSeconds / 60)} min
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-white/60 p-4 dark:bg-slate-900/70 border border-white/50 dark:border-white/5 shadow-sm">
-          <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
-            <Sparkles size={16} /> Level
-          </span>
-          <p className="mt-2 text-lg font-black text-slate-900 dark:text-white">
-            {assignment.levelCode}
-          </p>
+          <div className="rounded-2xl bg-white/60 p-4 dark:bg-slate-900/70 border border-white/50 dark:border-white/5 shadow-sm">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+              <Sparkles size={16} /> Level
+            </span>
+            <p className="mt-2 text-lg font-black text-slate-900 dark:text-white">
+              {assignment.levelCode}
+            </p>
+          </div>
         </div>
       </div>
 
