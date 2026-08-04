@@ -5,11 +5,25 @@ product decision (2026-08-04): every module gets fully dedicated curriculum
 logic so a failure or future change in one module's mock/assessment
 generation can never silently affect another.
 
-PM-L1 has exactly 2 sections (Section 1 - Addition, Section 2 -
-Subtraction), covering every addition/subtraction pattern taught across its
-15 lessons (see app/seed/preparatory_module_l1_config.py), flat 1 mark per
-question -- there is no Skill Stacker/Concept Drill equivalent in PM, so
-none of IM's weighting machinery applies here.
+PM-L1 has exactly 3 sections (Section 1 - Addition, Section 2 -
+Subtraction, Section 3 - Add/Less), covering every addition/subtraction
+pattern taught across its 15 lessons (see
+app/seed/preparatory_module_l1_config.py), flat 1 mark per question --
+there is no Skill Stacker/Concept Drill equivalent in PM, so none of IM's
+weighting machinery applies here.
+
+Section 3 - Add/Less is not "some of each direction" -- it is the native,
+genuinely-mixed generation (both + and - within the very same question)
+that only exists in three places across all 15 lessons: Lesson 1's 1D/
+1D_AND_2D direct add-less, Lesson 2's 2D_FULL/3D_HUNDREDS/3D_FULL direct
+add-less, and Lesson 11 DPS5's complement-of-10 add-less for target 5.
+Every other lesson (3-10, 12-15) is locked to a single direction per
+lesson even where its own DPS5 is labelled "MIXED_REVISION" (that mixes
+COMP5/COMP10 technique, not addition/subtraction direction) -- those stay
+exclusive to Sections 1/2 via the operation-focus-split entries already
+in _addition_pool()/_subtraction_pool() below. Section 3 reuses the same
+underlying DPS concepts with their native operation_focus="ADD_LESS"
+instead of the artificially split ADDITION/SUBTRACTION-only versions.
 
 The only things imported from the shared MM/IM file are two generic,
 doc-confirmed-as-shared distribution utilities
@@ -38,6 +52,7 @@ PM_COMPETITION_MARKS_PER_QUESTION = 1
 PM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
     {"key": "PM_ADDITION", "number": 1, "title": "Section 1 - Addition"},
     {"key": "PM_SUBTRACTION", "number": 2, "title": "Section 2 - Subtraction"},
+    {"key": "PM_ADD_LESS", "number": 3, "title": "Section 3 - Add/Less"},
 ]
 
 PM_COMPETITION_SECTION_BY_KEY = {Row["key"]: Row for Row in PM_COMPETITION_SECTION_DEFINITIONS}
@@ -97,9 +112,41 @@ def _subtraction_pool() -> list[dict[str, Any]]:
     return entries
 
 
+def _add_less_pool() -> list[dict[str, Any]]:
+    """Section 3 - Add/Less: the genuinely-mixed generation (both + and -
+    within the same question) that exists in exactly three places across
+    PM-L1's 15 lessons -- Lesson 1's direct add-less (1D, 1D_AND_2D),
+    Lesson 2's direct add-less (2D_FULL, 3D_HUNDREDS, 3D_FULL), and Lesson
+    11 DPS5's complement-of-10 add-less for target 5. Each entry below
+    reuses the exact concept_family/digit_pattern/generation_template of
+    the matching DPS in preparatory_module_l1_config.py, but with the
+    native operation_focus="ADD_LESS" instead of the ADDITION/SUBTRACTION
+    split used by _addition_pool()/_subtraction_pool() above -- so Section
+    3 tests the real mixed-direction skill, not a relabelled single
+    direction. Round Hundreds is included here (unlike _subtraction_pool(),
+    which omits it -- see that function's comment) because add-less mixing
+    from a round-hundred base is achievable even though pure subtraction
+    alone from one is not.
+    """
+    return [
+        {"title": "Direct Add/Less (Single Digit)", "conceptFamily": "DIRECT_ADD_LESS", "operationFocus": "ADD_LESS", "digitPattern": "1D", "generationTemplate": "DIRECT", "targetNumbers": []},
+        {"title": "Direct Add/Less (Double Digit, Ones & Tens)", "conceptFamily": "DIRECT_ADD_LESS", "operationFocus": "ADD_LESS", "digitPattern": "1D_AND_2D", "generationTemplate": "DIRECT", "targetNumbers": []},
+        {"title": "Direct Add/Less (Double Digit)", "conceptFamily": "DIRECT_ADD_LESS", "operationFocus": "ADD_LESS", "digitPattern": "2D_FULL", "generationTemplate": "DIRECT", "targetNumbers": []},
+        {"title": "Direct Add/Less (Round Hundreds)", "conceptFamily": "DIRECT_ADD_LESS", "operationFocus": "ADD_LESS", "digitPattern": "3D_HUNDREDS", "generationTemplate": "DIRECT", "targetNumbers": []},
+        {"title": "Direct Add/Less (Triple Digit)", "conceptFamily": "DIRECT_ADD_LESS", "operationFocus": "ADD_LESS", "digitPattern": "3D_FULL", "generationTemplate": "DIRECT", "targetNumbers": []},
+        {
+            "title": "Add/Less of 5 using Complement of 10",
+            "conceptFamily": "MIXED_REVISION", "operationFocus": "ADD_LESS",
+            "abacusRule": None, "targetNumbers": [5], "digitPattern": "1D", "generationTemplate": "REVISION",
+            "revisionTemplates": ["COMP10_ADD", "COMP10_SUB"],
+        },
+    ]
+
+
 PM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
     "PM_ADDITION": _addition_pool(),
     "PM_SUBTRACTION": _subtraction_pool(),
+    "PM_ADD_LESS": _add_less_pool(),
 }
 
 PM_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
@@ -290,7 +337,7 @@ def CollectPmCompetitionSectionLockedQuestions(
     CoveragePayload = {
         "targetQuestionCount": TargetQuestionCount,
         "selectedQuestionCount": len(Selected),
-        "competitionStructure": "PM_2_SECTION_COMPETITION_MOCK_SECTION_LOCKED",
+        "competitionStructure": "PM_3_SECTION_COMPETITION_MOCK_SECTION_LOCKED",
         "sectionCount": len(SectionCoverage),
         "sections": SectionCoverage,
         "generationErrors": [],
