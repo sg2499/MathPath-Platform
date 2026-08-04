@@ -372,7 +372,7 @@ function StudentPracticePageContent() {
               return (
                 <div
                   key={Assignment.assignmentId}
-                  className={`math-pop-in rounded-[30px] transition ${IsTarget ? "ring-2 ring-blue-300/70 ring-offset-2 ring-offset-blue-50/50 dark:ring-blue-400/50 dark:ring-offset-slate-950" : ""}`}
+                  className={`math-pop-in h-full rounded-[30px] transition ${IsTarget ? "ring-2 ring-blue-300/70 ring-offset-2 ring-offset-blue-50/50 dark:ring-blue-400/50 dark:ring-offset-slate-950" : ""}`}
                   style={{ animationDelay: `${Index * 70}ms` }}
                 >
                   <AssignmentCard assignment={Assignment} />

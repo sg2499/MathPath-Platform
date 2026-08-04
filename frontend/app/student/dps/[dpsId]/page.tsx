@@ -67,7 +67,7 @@ function DpsInstructionPageContent() {
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10">
               <div className="math-block-header mb-2"><BookOpenCheck size={14} /> Lesson {Query.data.lessonNumber} · DPS {Query.data.dpsNumber}</div>
-              <h1 className="mt-2 max-w-5xl text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
+              <h1 className="mt-2 w-full text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
                 {Query.data.title}
               </h1>
               <p className="math-subtitle !mt-2 max-w-3xl">
@@ -76,7 +76,7 @@ function DpsInstructionPageContent() {
             </div>
           </div>
 
-          <div className="grid min-h-0 gap-4 xl:grid-cols-[1fr_420px]">
+          <div className="grid min-h-0 items-start gap-4 xl:grid-cols-[1fr_420px]">
             <div className="rounded-[32px] border border-white/70 bg-white/92 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
               <div>
                 <div className="math-block-header mb-2"><Brain size={14} /> Concept Focus</div>
@@ -91,9 +91,14 @@ function DpsInstructionPageContent() {
                       return (
                         <div
                           key={`${Item.sectionNumber || Index}-${Item.sectionTitle || Index}`}
-                          className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 font-black leading-6 text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100"
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 font-black leading-6 text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100"
                         >
-                          Section {SectionNumber} - {SectionTitle}
+                          <span>Section {SectionNumber} - {SectionTitle}</span>
+                          {typeof Item.questionCount === "number" ? (
+                            <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
+                              {Item.questionCount} Qs
+                            </span>
+                          ) : null}
                         </div>
                       );
                     })}
@@ -118,9 +123,9 @@ function DpsInstructionPageContent() {
               <div className="rounded-[32px] border border-white/70 bg-white/92 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
                 <h3 className="text-xl font-black text-slate-950 dark:text-white">Practice Details</h3>
                 <div className="mt-4 grid gap-3">
-                  <InfoCard icon={<ClipboardList size={17} />} label="Questions" value={Query.data.testSettings?.questionCount ?? "—"} />
-                  <InfoCard icon={<Clock3 size={17} />} label="Time" value={`${Math.floor((Query.data.testSettings?.durationSeconds || 600) / 60)} Mins`} />
-                  <InfoCard icon={<Brain size={17} />} label="Type" value="Type Your Answer" />
+                  <InfoCard icon={<ClipboardList size={17} />} label="Questions" value={Query.data.testSettings?.questionCount ?? "—"} tone="blue" />
+                  <InfoCard icon={<Clock3 size={17} />} label="Time" value={`${Math.floor((Query.data.testSettings?.durationSeconds || 600) / 60)} Mins`} tone="amber" />
+                  <InfoCard icon={<Brain size={17} />} label="Type" value="Type Your Answer" tone="emerald" />
                 </div>
               </div>
 
@@ -143,11 +148,40 @@ function DpsInstructionPageContent() {
   );
 }
 
-function InfoCard({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
+const INFO_CARD_TONES = {
+  blue: {
+    chip: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200",
+    label: "text-blue-700 dark:text-blue-300",
+  },
+  amber: {
+    chip: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200",
+    label: "text-amber-700 dark:text-amber-300",
+  },
+  emerald: {
+    chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200",
+    label: "text-emerald-700 dark:text-emerald-300",
+  },
+} as const;
+
+function InfoCard({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string | number;
+  tone: keyof typeof INFO_CARD_TONES;
+}) {
+  const Tone = INFO_CARD_TONES[tone];
   return (
-    <div className="rounded-[22px] bg-slate-50/90 p-4 dark:bg-slate-900/70">
-      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">{icon}{label}</div>
-      <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{value}</p>
+    <div className="flex items-center gap-3 rounded-[22px] bg-slate-50/90 p-4 dark:bg-slate-900/70">
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${Tone.chip}`}>{icon}</div>
+      <div className="min-w-0">
+        <p className={`text-xs font-black uppercase tracking-[0.12em] ${Tone.label}`}>{label}</p>
+        <p className="mt-1 truncate text-xl font-black text-slate-900 dark:text-white">{value}</p>
+      </div>
     </div>
   );
 }
