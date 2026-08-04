@@ -211,7 +211,7 @@ export default function AttemptPage() {
           onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
           disabled={currentIndex === 0}
           aria-label="Previous question"
-          className="hidden md:flex absolute -left-6 lg:-left-16 xl:-left-20 top-1/2 z-[100] -translate-y-1/2 h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="hidden md:flex absolute -left-3 lg:-left-16 xl:-left-20 top-1/2 z-[100] -translate-y-1/2 h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
@@ -219,7 +219,7 @@ export default function AttemptPage() {
           onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
           disabled={currentIndex >= questions.length - 1}
           aria-label="Next question"
-          className="hidden md:flex absolute -right-6 lg:-right-16 xl:-right-20 top-1/2 z-[100] -translate-y-1/2 h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="hidden md:flex absolute -right-3 lg:-right-16 xl:-right-20 top-1/2 z-[100] -translate-y-1/2 h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
@@ -291,6 +291,29 @@ export default function AttemptPage() {
             answeredQuestionNumbers={answeredNumbers}
             onSelectQuestion={(number) => setCurrentIndex(number - 1)}
           />
+
+          {/* The floating side arrows above are hidden below md (there's no
+              room for their off-card offset on narrow screens), and Enter
+              only advances forward -- so without this, phone/small-tablet
+              students would have no way to go back except tapping question
+              numbers one at a time. Hidden at md+ where the floating arrows
+              already cover it, so larger screens keep the cleaner look. */}
+          <div className="mt-3 flex gap-3 md:hidden">
+            <button
+              className="math-button-secondary flex-1"
+              disabled={currentIndex === 0}
+              onClick={() => setCurrentIndex((v) => Math.max(0, v - 1))}
+            >
+              Previous
+            </button>
+            <button
+              className="math-button-secondary flex-1"
+              disabled={currentIndex >= questions.length - 1}
+              onClick={() => setCurrentIndex((v) => Math.min(questions.length - 1, v + 1))}
+            >
+              Next
+            </button>
+          </div>
 
           <button
             className="math-button-primary mt-3 w-full py-2.5"

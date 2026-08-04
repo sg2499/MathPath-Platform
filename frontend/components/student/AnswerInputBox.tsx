@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CornerDownLeft } from "lucide-react";
 
 // DPS questions are typed free-text answers now, not MCQ picks -- see
@@ -45,6 +45,18 @@ export function AnswerInputBox({
   const [value, setValue] = useState(initialValue || "");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // QuestionCard remounts this component with a fresh key on every question
+  // change, so a mount-time focus fires exactly once per question -- the
+  // student never has to click the box first before typing. Skipped while
+  // disabled (e.g. time's already up) since focusing a disabled field is a
+  // no-op anyway and would be misleading.
+  useEffect(() => {
+    if (disabled) return;
+    inputRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function clearTimers() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -88,6 +100,7 @@ export function AnswerInputBox({
         Your Answer
       </label>
       <input
+        ref={inputRef}
         type="text"
         inputMode="decimal"
         autoComplete="off"
