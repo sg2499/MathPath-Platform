@@ -179,6 +179,19 @@ def on_startup():
     finally:
         db.close()
 
+    # Always run the Preparatory Module Level 1 curriculum sync independently from
+    # demo/legacy seed flags, mirroring the Master/Intermediate Module syncs above.
+    # This is idempotent: it only creates or completes PM -> PM-L1 -> Lessons 1-15 ->
+    # DPS 1-5. PM-L1's first 15 lessons intentionally replicate Bridge Module's first
+    # 15 lessons exactly -- see app/seed/preparatory_module_l1_config.py for why. It
+    # does not create students, teachers, assignments, attempts, or demo records.
+    from app.seed.seed_preparatory_module import seed as seed_preparatory_module
+    db = SessionLocal()
+    try:
+        seed_preparatory_module(db)
+    finally:
+        db.close()
+
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(admin_router)

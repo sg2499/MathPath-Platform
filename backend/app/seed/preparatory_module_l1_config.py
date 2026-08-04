@@ -1,0 +1,187 @@
+"""Curriculum config for Preparatory Module (PM) Level 1, Lessons 1-15.
+
+Per product decision (2026-08-04): PM-L1's first 15 lessons must be an exact
+replica of Bridge Module's first 15 lessons (BL-1..BL15), because a student
+can enter the platform via three separate paths -- YLM, Bridge, or PM-L1 --
+and all three must land students at the same competency level before
+Intermediate/Master Module. PM-L1's own prior/legacy 26-lesson curriculum is
+intentionally not used or referenced here.
+
+Source of truth: Bridge Module Excel (Bridge Level.xlsx), first 15 sheets,
+cross-checked against the matching lesson image assets (Lesson-1..Lesson-15,
+5 DPS each) supplied alongside it. Every DPS below reproduces that lesson's
+taught concept, complement technique, and target number(s) -- not the exact
+literal numbers from the spreadsheet (those are a fixed static worksheet;
+the platform generates a fresh, validated worksheet per publish/attempt the
+same way every other module does), but the same Golden-Step-style concept
+family, movement type, and difficulty pattern.
+
+PM has no dedicated question_engine package (unlike YLM/IM/MM). Any module
+code other than "MM"/"IM" falls back to the YLM generator
+(see generation_service.generate_preview/persist_question_set), driven
+entirely by the DPSSection row's own concept_family/operation_focus/
+abacus_rule/target_numbers/digit_pattern/generation_template fields -- there
+is no YLM-specific "safety net" lesson-rule override for module_code="PM"
+(enrich_config_with_lesson_rule() only applies when module_code == "YLM"),
+so this config is the actual, only source of generation behavior for PM-L1.
+
+Two small additions were made to the shared engine to support this:
+  - question_engine/ylm/operands.py: `_direct_bases()` gained "2D_FULL"
+    (arbitrary two-digit bases 10-99), "3D_HUNDREDS" (round hundreds
+    100-900), and "3D_FULL" (arbitrary three-digit bases 100-999) digit
+    patterns, needed for Lesson 2's double/triple-digit direct practice.
+    Purely additive -- YLM's own 32 lessons never use these values.
+  - question_engine/ylm/operands.py: `_lesson_templates()` now scopes
+    REVISION_TEMPLATE_SCHEDULES lookups to module_code == "YLM". That table
+    is keyed only by a bare lesson_number (1-32) and was authored for YLM's
+    own lesson map; without this scope, PM-L1 lessons 7/12/13 (which reuse
+    those same lesson numbers) would have silently inherited YLM's unrelated
+    revision-template rotation for that number instead of falling back to
+    their own configured revision_templates.
+"""
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class PmDpsRule:
+    dps_title: str
+    concept_family: str
+    operation_focus: str
+    abacus_rule: str | None
+    target_numbers: list[int]
+    digit_pattern: str
+    generation_template: str
+    revision_templates: tuple[str, ...] = ()
+    place_value: str = "ONES"
+    rows: int = 3
+    question_count: int = 10
+
+
+@dataclass(frozen=True)
+class PmLessonRule:
+    lesson_number: int
+    lesson_title: str
+    dps: dict[int, PmDpsRule]
+
+
+PM_L1_LESSONS: dict[int, PmLessonRule] = {}
+
+# ---------------------------------------------------------------------------
+# Lesson 1 -- Bead Recognition & Single Digit Addition-Subtraction (1-4)
+# Matches BL-1 exactly (this is the one Bridge lesson that is also a verified
+# byte-for-byte match with PM-L1's own former Lesson 1).
+# ---------------------------------------------------------------------------
+PM_L1_LESSONS[1] = PmLessonRule(
+    lesson_number=1,
+    lesson_title="Bead Recognition & Single Digit Addition-Subtraction (1-4)",
+    dps={
+        1: PmDpsRule("Bead Recognition & Single Digit Addition-Subtraction (1, 2, 3, 4)", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "1D", "DIRECT"),
+        2: PmDpsRule("Bead Recognition & Single Digit Addition-Subtraction (1, 2, 3, 4)", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "1D", "DIRECT"),
+        3: PmDpsRule("Bead Recognition Number '5', '6', '7', '8' & '9' & Direct Add-Less Using 5", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "1D", "DIRECT"),
+        4: PmDpsRule("Bead Recognition 5 to 9 & Addition-Subtraction", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "1D", "DIRECT"),
+        5: PmDpsRule("Bead Recognition & Double Digit Addition-Subtraction (Ones & Tens)", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "1D_AND_2D", "DIRECT", place_value="MIXED"),
+    },
+)
+
+# ---------------------------------------------------------------------------
+# Lesson 2 -- Double & Triple Digit Direct Addition-Subtraction
+# Bridge introduces 3-digit direct addition/subtraction here, a full lesson
+# earlier than PM-L1's own former curriculum did.
+# ---------------------------------------------------------------------------
+PM_L1_LESSONS[2] = PmLessonRule(
+    lesson_number=2,
+    lesson_title="Double & Triple Digit Direct Addition-Subtraction",
+    dps={
+        1: PmDpsRule("Bead Recognition & Double Digit Direct Addition-Subtraction", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "2D_FULL", "DIRECT", place_value="MIXED"),
+        2: PmDpsRule("Bead Recognition & Double Digit Direct Addition-Subtraction", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "2D_FULL", "DIRECT", place_value="MIXED"),
+        3: PmDpsRule("Bead Recognition & Double Digit Direct Addition-Subtraction", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "2D_FULL", "DIRECT", place_value="MIXED"),
+        4: PmDpsRule("Bead Recognition & Double Digit Direct Addition-Subtraction", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "3D_HUNDREDS", "DIRECT", place_value="MIXED"),
+        5: PmDpsRule("Bead Recognition & Triple Digit Direct Addition-Subtraction", "DIRECT_ADD_LESS", "ADD_LESS", None, [], "3D_FULL", "DIRECT", place_value="MIXED"),
+    },
+)
+
+
+def _complement_pair_lesson(lesson_number: int, lesson_title: str, target: int, operation_focus: str, abacus5: str | None, abacus10: str, dps5_title: str) -> PmLessonRule:
+    """Shared shape for lessons 3-10: DPS1-2 = complement of 5 (SB; only
+    exists for targets 1-4), DPS3-4 = complement of 10 (BB), DPS5 = mixed
+    double-digit practice blending both techniques for the same target
+    number. This is exactly where Bridge diverges from PM-L1's own former
+    curriculum, which taught SB and BB for a given target several lessons
+    apart with two targets grouped per lesson instead of one.
+    """
+    comp5_template = "COMP5_ADD" if operation_focus == "ADDITION" else "COMP5_SUB"
+    comp10_template = "COMP10_ADD" if operation_focus == "ADDITION" else "COMP10_SUB"
+    title5 = f"Addition of {target} using Complement of 5 (Add 5, Less {5 - target})" if operation_focus == "ADDITION" else f"Subtraction of {target} using Complement of 5 (Less 5, Add {5 - target})"
+    title10 = f"Addition of {target} using Complement of 10 (Add 10, Less {10 - target})" if operation_focus == "ADDITION" else f"Subtraction of {target} using Complement of 10 (Less 10, Add {10 - target})"
+    return PmLessonRule(
+        lesson_number=lesson_number,
+        lesson_title=lesson_title,
+        dps={
+            1: PmDpsRule(title5, "COMPLEMENT_OF_5", operation_focus, abacus5, [target], "1D", comp5_template),
+            2: PmDpsRule(title5, "COMPLEMENT_OF_5", operation_focus, abacus5, [target], "1D", comp5_template),
+            3: PmDpsRule(title10, "COMPLEMENT_OF_10", operation_focus, abacus10, [target], "1D", comp10_template),
+            4: PmDpsRule(title10, "COMPLEMENT_OF_10", operation_focus, abacus10, [target], "1D", comp10_template),
+            5: PmDpsRule(dps5_title, "MIXED_REVISION", operation_focus, None, [target], "1D_AND_2D", "REVISION", revision_templates=(comp5_template, comp10_template), place_value="MIXED"),
+        },
+    )
+
+
+PM_L1_LESSONS[3] = _complement_pair_lesson(3, "Addition of 1 (Complement of 5 & 10)", 1, "ADDITION", "ADD_5_LESS_4", "ADD_10_LESS_9", "Bead Recognition & Double Digit Addition of 1 using Complements of 5 & 10")
+PM_L1_LESSONS[4] = _complement_pair_lesson(4, "Subtraction of 1 (Complement of 5 & 10)", 1, "SUBTRACTION", "LESS_5_ADD_4", "LESS_10_ADD_9", "Bead Recognition & Double Digit Subtraction of 1 using Complements of 5 & 10")
+PM_L1_LESSONS[5] = _complement_pair_lesson(5, "Addition of 2 (Complement of 5 & 10)", 2, "ADDITION", "ADD_5_LESS_3", "ADD_10_LESS_8", "Double Digit Addition of 2 using Complements of 5 & 10")
+PM_L1_LESSONS[6] = _complement_pair_lesson(6, "Subtraction of 2 (Complement of 5 & 10)", 2, "SUBTRACTION", "LESS_5_ADD_3", "LESS_10_ADD_8", "Double Digit Subtraction of 2 using Complements of 5 & 10")
+PM_L1_LESSONS[7] = _complement_pair_lesson(7, "Addition of 3 (Complement of 5 & 10)", 3, "ADDITION", "ADD_5_LESS_2", "ADD_10_LESS_7", "Double Digit Addition of 3 using Complements of 5 & 10")
+PM_L1_LESSONS[8] = _complement_pair_lesson(8, "Subtraction of 3 (Complement of 5 & 10)", 3, "SUBTRACTION", "LESS_5_ADD_2", "LESS_10_ADD_7", "Double Digit Subtraction of 3 using Complements of 5 & 10")
+PM_L1_LESSONS[9] = _complement_pair_lesson(9, "Addition of 4 (Complement of 5 & 10)", 4, "ADDITION", "ADD_5_LESS_1", "ADD_10_LESS_6", "Double Digit Addition of 4 using Complements of 5 & 10")
+PM_L1_LESSONS[10] = _complement_pair_lesson(10, "Subtraction of 4 (Complement of 5 & 10)", 4, "SUBTRACTION", "LESS_5_ADD_1", "LESS_10_ADD_6", "Double Digit Subtraction of 4 using Complements of 5 & 10")
+
+# ---------------------------------------------------------------------------
+# Lesson 11 -- Addition & Subtraction of 5 (Complement of 10 only; 5 is the
+# anchor number, so there is no complement-of-5 sub-technique for it).
+# ---------------------------------------------------------------------------
+PM_L1_LESSONS[11] = PmLessonRule(
+    lesson_number=11,
+    lesson_title="Addition & Subtraction of 5 (Complement of 10)",
+    dps={
+        1: PmDpsRule("Addition of 5 using Complement of 10 (Add 10, Less 5)", "COMPLEMENT_OF_10", "ADDITION", "ADD_10_LESS_5", [5], "1D", "COMP10_ADD"),
+        2: PmDpsRule("Addition of 5 using Complement of 10 (Add 10, Less 5)", "COMPLEMENT_OF_10", "ADDITION", "ADD_10_LESS_5", [5], "1D", "COMP10_ADD"),
+        3: PmDpsRule("Subtraction of 5 using Complement of 10 (Less 10, Add 5)", "COMPLEMENT_OF_10", "SUBTRACTION", "LESS_10_ADD_5", [5], "1D", "COMP10_SUB"),
+        4: PmDpsRule("Subtraction of 5 using Complement of 10 (Less 10, Add 5)", "COMPLEMENT_OF_10", "SUBTRACTION", "LESS_10_ADD_5", [5], "1D", "COMP10_SUB"),
+        5: PmDpsRule("Addition & Subtraction of 5 using Complement of 10", "MIXED_REVISION", "ADD_LESS", None, [5], "1D", "REVISION", revision_templates=("COMP10_ADD", "COMP10_SUB")),
+    },
+)
+
+
+def _paired_complement10_lesson(lesson_number: int, lesson_title: str, targets: tuple[int, int], operation_focus: str) -> PmLessonRule:
+    """Lessons 12-15: paired complement-of-10 numbers (6&7, then 8&9), one
+    addition lesson and one subtraction lesson per pair. DPS5 covers both
+    numbers of the pair in a single sheet; since both share one technique
+    (COMP10_ADD or COMP10_SUB), no REVISION rotation is needed -- the
+    template's own multi-target support (config.target_numbers = [a, b])
+    handles it directly and was verified to draw from both targets.
+    """
+    template = "COMP10_ADD" if operation_focus == "ADDITION" else "COMP10_SUB"
+    verb = "Addition" if operation_focus == "ADDITION" else "Subtraction"
+    prep = "Add" if operation_focus == "ADDITION" else "Less"
+    counter = "Less" if operation_focus == "ADDITION" else "Add"
+    a, b = targets
+    title_a = f"{verb} of {a} using Complement of 10 ({prep} 10, {counter} {10 - a})"
+    title_b = f"{verb} of {b} using Complement of 10 ({prep} 10, {counter} {10 - b})"
+    title_both = f"{verb} of {a} & {b} using Complement of 10"
+    return PmLessonRule(
+        lesson_number=lesson_number,
+        lesson_title=lesson_title,
+        dps={
+            1: PmDpsRule(title_a, "COMPLEMENT_OF_10", operation_focus, f"{prep.upper()}_10_{counter.upper()}_{10 - a}", [a], "1D", template),
+            2: PmDpsRule(title_a, "COMPLEMENT_OF_10", operation_focus, f"{prep.upper()}_10_{counter.upper()}_{10 - a}", [a], "1D", template),
+            3: PmDpsRule(title_b, "COMPLEMENT_OF_10", operation_focus, f"{prep.upper()}_10_{counter.upper()}_{10 - b}", [b], "1D", template),
+            4: PmDpsRule(title_b, "COMPLEMENT_OF_10", operation_focus, f"{prep.upper()}_10_{counter.upper()}_{10 - b}", [b], "1D", template),
+            5: PmDpsRule(title_both, "COMPLEMENT_OF_10", operation_focus, None, [a, b], "1D", template),
+        },
+    )
+
+
+PM_L1_LESSONS[12] = _paired_complement10_lesson(12, "Addition of 6 & 7 (Complement of 10)", (6, 7), "ADDITION")
+PM_L1_LESSONS[13] = _paired_complement10_lesson(13, "Subtraction of 6 & 7 (Complement of 10)", (6, 7), "SUBTRACTION")
+PM_L1_LESSONS[14] = _paired_complement10_lesson(14, "Addition of 8 & 9 (Complement of 10)", (8, 9), "ADDITION")
+PM_L1_LESSONS[15] = _paired_complement10_lesson(15, "Subtraction of 8 & 9 (Complement of 10)", (8, 9), "SUBTRACTION")

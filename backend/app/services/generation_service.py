@@ -6,6 +6,7 @@ from app.models import DPS, DPSSection, GeneratedQuestionSet, GeneratedQuestion,
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, IsPackage1Supported
 from app.question_engine.im import IMConfig, GenerateImQuestionSet, IsImConceptSupported
+from app.question_engine.pm import PMConfig, generate_pm_question_set
 from app.core.errors import api_error
 
 def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
@@ -110,6 +111,52 @@ def build_im_config_from_dps(db: Session, dps: DPS, seed: str) -> IMConfig:
     )
 
 
+def build_pm_config_from_dps(db: Session, dps: DPS, seed: str) -> PMConfig:
+    """PM's own config builder -- deliberately not shared with
+    build_config_from_dps() (YLM's) even though the shape looks similar.
+    Keeping this separate means a future change to YLM's builder (e.g. a new
+    field, a new default) can never silently change what PM reads from its
+    DPSSection row, and vice versa.
+    """
+    LessonRecord = db.get(Lesson, dps.lesson_id)
+    LevelRecord = db.get(Level, LessonRecord.level_id) if LessonRecord else None
+    ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
+    SectionRecord = (
+        db.query(DPSSection)
+        .filter(DPSSection.dps_id == dps.id)
+        .order_by(DPSSection.section_number)
+        .first()
+    )
+    GeneratorConfig = {}
+    if SectionRecord and SectionRecord.generator_config_json:
+        try:
+            GeneratorConfig = json.loads(SectionRecord.generator_config_json or "{}")
+        except Exception:
+            GeneratorConfig = {}
+
+    return PMConfig(
+        module_code=getattr(ModuleRecord, "module_code", "PM") or "PM",
+        level_code=getattr(LevelRecord, "level_code", "PM-L1") or "PM-L1",
+        lesson_number=int(getattr(LessonRecord, "lesson_number", 0) or 0),
+        dps_number=int(getattr(dps, "dps_number", 0) or 0),
+        question_count=int(getattr(dps, "default_question_count", 10) or 10),
+        rows=int(getattr(SectionRecord, "rows_count", 3) or 3) if SectionRecord else 3,
+        concept_family=getattr(SectionRecord, "concept_family", None) or GeneratorConfig.get("conceptFamily", "DIRECT_ADD_LESS"),
+        operation_focus=getattr(SectionRecord, "operation_focus", None) or "ADD_LESS",
+        abacus_rule=getattr(SectionRecord, "abacus_rule", None),
+        target_numbers=json.loads(SectionRecord.target_numbers_json or "[]") if SectionRecord else [],
+        place_value=getattr(SectionRecord, "place_value", None) or "ONES",
+        digit_pattern=getattr(SectionRecord, "digit_pattern", None) or "1D",
+        allow_negative_operands=getattr(SectionRecord, "allow_negative_operands", True) if SectionRecord else True,
+        allow_negative_answer=getattr(SectionRecord, "allow_negative_answer", False) if SectionRecord else False,
+        seed=seed,
+        lesson_title=getattr(LessonRecord, "lesson_title", "") or GeneratorConfig.get("lessonTitle", ""),
+        dps_title=getattr(dps, "dps_title", "") or GeneratorConfig.get("dpsTitle", ""),
+        generation_template=GeneratorConfig.get("generationTemplate") or "DIRECT",
+        revision_templates=tuple(GeneratorConfig.get("revisionTemplates") or ()),
+    )
+
+
 def build_attempt_question_seed(dps: DPS, assignment, student_id: str, attempt, started_at) -> str:
     """Build the question seed for a student attempt.
 
@@ -151,6 +198,8 @@ def _module_code_for_dps(db: Session, dps: DPS) -> str:
 def _is_dynamic_generator_supported(db: Session, dps: DPS) -> bool:
     ModuleCode = _module_code_for_dps(db, dps)
     if ModuleCode == "YLM":
+        return True
+    if ModuleCode == "PM":
         return True
     if ModuleCode == "MM":
         Config = build_mm_config_from_dps(db, dps, build_preview_seed(dps))
@@ -195,6 +244,9 @@ def generate_preview(db: Session, dps: DPS, seed: str | None = None) -> list[dic
     if ModuleCode == "IM":
         Config = build_im_config_from_dps(db, dps, seed)
         return GenerateImQuestionSet(Config)
+    if ModuleCode == "PM":
+        Config = build_pm_config_from_dps(db, dps, seed)
+        return generate_pm_question_set(Config)
     config = build_config_from_dps(db, dps, seed)
     return generate_ylm_question_set(config)
 
@@ -211,6 +263,9 @@ def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, stude
     elif ModuleCode == "IM":
         Config = build_im_config_from_dps(db, dps, seed)
         generated = GenerateImQuestionSet(Config)
+    elif ModuleCode == "PM":
+        Config = build_pm_config_from_dps(db, dps, seed)
+        generated = generate_pm_question_set(Config)
     else:
         config = build_config_from_dps(db, dps, seed)
         generated = generate_ylm_question_set(config)
