@@ -185,9 +185,27 @@ export default function AttemptPage() {
     .filter(Boolean)
     .join(" · ");
 
+  // The instructions page (which the student already saw before starting)
+  // is where the sheet's concept names live -- repeating dpsTitle here is
+  // redundant, so this bar shows the current question's section instead
+  // (same derivation QuestionCard uses internally).
+  const currentMetadata = (currentQuestion.metadata || {}) as Record<string, unknown>;
+  const currentSectionTitle = String(
+    currentMetadata.section_title || currentMetadata.sectionTitle || ""
+  ).trim();
+  const currentSectionNumber = currentMetadata.section_number || currentMetadata.sectionNumber;
+  const currentTotalSections = Number(
+    currentMetadata.dps_total_sections || currentMetadata.dpsTotalSections || 0
+  );
+  const sectionLabel = currentSectionTitle
+    ? currentTotalSections > 1
+      ? `Section ${currentSectionNumber || 1} · ${currentSectionTitle}`
+      : currentSectionTitle
+    : sheetTitle;
+
   return (
     <AppShell title="Practice Attempt">
-      <section className="math-slide-up math-card flex flex-col gap-3 !overflow-visible p-3 sm:p-4 lg:h-[calc(100svh-11rem)] relative">
+      <section className="math-slide-up math-card flex flex-col gap-3 !overflow-visible p-3 sm:p-4 relative">
         {/* Floating Side Navigation Arrows -- matches the mock exam attempt screen */}
         <button
           onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
@@ -206,43 +224,46 @@ export default function AttemptPage() {
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
 
-        <div className="relative flex shrink-0 flex-wrap items-center justify-between gap-3 overflow-hidden rounded-[20px] border border-white/70 bg-gradient-to-br from-white via-sky-50 to-cyan-100 px-4 py-2.5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:px-5">
+        <div className="relative flex shrink-0 flex-col gap-3 overflow-hidden rounded-[24px] border border-white/70 bg-gradient-to-br from-white via-sky-50 to-cyan-100 px-5 py-4 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:px-6">
           <div className="pointer-events-none absolute -right-16 -top-20 h-32 w-32 rounded-full bg-cyan-300/20 blur-3xl" />
-          <div className="relative z-10 flex min-w-0 items-center gap-2.5">
-            {contextLine ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
-                <BookOpenCheck size={12} /> {contextLine}
-              </span>
-            ) : null}
-            <h1 className="truncate text-base font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-lg" title={sheetTitle}>
-              {sheetTitle}
-            </h1>
+
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              {contextLine ? (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
+                  <BookOpenCheck size={12} /> {contextLine}
+                </span>
+              ) : null}
+              <h1 className="mt-1.5 truncate text-lg font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-xl" title={sectionLabel}>
+                {sectionLabel}
+              </h1>
+            </div>
+            <p className="shrink-0 rounded-full bg-white/80 px-3.5 py-1.5 text-sm font-black text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+              Question {currentQuestion.questionNumber} of {questions.length}
+            </p>
           </div>
-          <p className="relative z-10 shrink-0 rounded-full bg-white/80 px-3 py-1 text-xs font-black text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-            Question {currentQuestion.questionNumber} of {questions.length}
-          </p>
+
+          <div className="relative z-10 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <CompactStat
+              icon={<ClipboardCheck size={14} />}
+              label="Answered"
+              value={answeredNumbers.length}
+            />
+            <CompactStat
+              icon={<Layers3 size={14} />}
+              label="Remaining"
+              value={questions.length - answeredNumbers.length}
+            />
+            <CompactStat
+              icon={<Gauge size={14} />}
+              label="Current"
+              value={`Q${currentQuestion.questionNumber}`}
+            />
+            <CompactTimerStat remainingSeconds={remainingSeconds} />
+          </div>
         </div>
 
-        <div className="grid shrink-0 grid-cols-2 gap-2 rounded-2xl bg-slate-50 p-2 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 sm:grid-cols-4">
-          <CompactStat
-            icon={<ClipboardCheck size={14} />}
-            label="Answered"
-            value={answeredNumbers.length}
-          />
-          <CompactStat
-            icon={<Layers3 size={14} />}
-            label="Remaining"
-            value={questions.length - answeredNumbers.length}
-          />
-          <CompactStat
-            icon={<Gauge size={14} />}
-            label="Current"
-            value={`Q${currentQuestion.questionNumber}`}
-          />
-          <CompactTimerStat remainingSeconds={remainingSeconds} />
-        </div>
-
-        <div className="min-h-0 flex-1">
+        <div className="shrink-0">
           <QuestionCard
             key={currentQuestion.questionId}
             question={currentQuestion}

@@ -168,7 +168,7 @@ function FinancialTableQuestion({ operands, operators, questionText }: { operand
         </div>
       </div>
       <div className="mt-4 rounded-2xl border border-dashed border-slate-300 px-4 py-3 text-center text-sm font-bold text-slate-600 dark:border-slate-600 dark:text-slate-300">
-        Select the correct calculated result from the options.
+        Work out the result and type your answer.
       </div>
     </div>
   );
