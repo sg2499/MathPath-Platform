@@ -39,6 +39,9 @@ from app.services.competition_mock_generation_service import (
     IM_COMPETITION_LEVEL_REGISTRY,
     MM_COMPETITION_LEVEL_REGISTRY,
 )
+from app.services.pm_competition_mock_generation_service import (
+    PM_COMPETITION_LEVEL_REGISTRY,
+)
 
 TOTAL_ASSESSMENT_MARKS = 100.0
 PASSING_PERCENTAGE = 70.0
@@ -53,11 +56,12 @@ BLUEPRINT_STATUSES = {"DRAFT", "PUBLISHED", "ARCHIVED"}
 # section-wise assessments before it actually has a mock section registry to
 # mirror -- it would fail loudly instead, exactly like the mock generators
 # already do for an unconfigured level.
-SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM"}
+SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM"}
 
 _SECTION_WISE_REGISTRIES: dict[str, dict[str, Any]] = {
     "IM": IM_COMPETITION_LEVEL_REGISTRY,
     "MM": MM_COMPETITION_LEVEL_REGISTRY,
+    "PM": PM_COMPETITION_LEVEL_REGISTRY,
 }
 
 
@@ -345,12 +349,15 @@ def validate_section_distribution(
                     "weightedSectionKeys": sorted(weighted_keys),
                 },
             )
-    elif module_upper == "MM":
+    elif module_upper in {"MM", "PM"}:
+        # PM has no Skill Stacker/Concept Drill concepts (per product decision
+        # 2026-08-04), so it is flat 1 mark/question exactly like MM -- same
+        # "always 100 questions" invariant, same error code.
         if total_questions != int(TOTAL_ASSESSMENT_MARKS):
             api_error(
                 400,
                 "ASSESSMENT_QUESTION_COUNT_MUST_BE_100",
-                f"MM assessments are always {int(TOTAL_ASSESSMENT_MARKS)} questions at 1 mark each, so total "
+                f"{module_upper} assessments are always {int(TOTAL_ASSESSMENT_MARKS)} questions at 1 mark each, so total "
                 f"marks are always {int(TOTAL_ASSESSMENT_MARKS)}. Adjust the section distribution so it sums to "
                 f"exactly {int(TOTAL_ASSESSMENT_MARKS)} questions.",
                 {"totalQuestions": total_questions, "required": int(TOTAL_ASSESSMENT_MARKS)},

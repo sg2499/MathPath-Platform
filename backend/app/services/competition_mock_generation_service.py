@@ -28,6 +28,16 @@ from app.models import (
 from app.services.generation_service import generate_preview
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, OperationFocusForConcept
 from app.question_engine.im import IMConfig, GenerateImQuestionSet, OperationFocusForConcept as ImOperationFocusForConcept
+# PM's own dedicated mock section registry/collector -- see that module's
+# docstring for why this lives in a separate file instead of being authored
+# inline here alongside MM/IM's curriculum-specific logic.
+from app.services.pm_competition_mock_generation_service import (
+    PM_COMPETITION_LEVEL_REGISTRY,
+    PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+    PM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS,
+    PmCompetitionLevelConfig,
+    CollectPmCompetitionSectionLockedQuestions,
+)
 
 
 DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 60
@@ -1821,6 +1831,37 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
             "sections": Sections,
         }
 
+    if _IsPreparatoryModule(ModuleRecord):
+        # Same reasoning as the MM/IM branches above -- resolve via PM's own
+        # level registry so an unconfigured PM level fails loudly at preview
+        # time instead of silently falling through to the generic
+        # non-sectioned pool below.
+        PmLevelConfig = PmCompetitionLevelConfig(LevelRecord)
+        PmSectionDefinitions = PmLevelConfig["sectionDefinitions"]
+        RequestedQuestionCount = int(TotalQuestions or PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+        Base = RequestedQuestionCount // len(PmSectionDefinitions)
+        Remainder = RequestedQuestionCount % len(PmSectionDefinitions)
+        Sections = []
+        for Index, Section in enumerate(PmSectionDefinitions):
+            Sections.append({
+                "sectionKey": Section["key"],
+                "sectionNumber": Section["number"],
+                "sectionTitle": Section["title"],
+                "questionCount": Base + (1 if Index < Remainder else 0),
+                "locked": True,
+            })
+        return {
+            "moduleId": ModuleRecord.id,
+            "moduleCode": ModuleRecord.module_code,
+            "moduleName": ModuleRecord.module_name,
+            "levelId": LevelRecord.id,
+            "levelCode": LevelRecord.level_code,
+            "levelName": LevelRecord.level_name,
+            "totalQuestions": RequestedQuestionCount,
+            "structure": "PM_2_SECTION_COMPETITION_MOCK",
+            "sections": Sections,
+        }
+
     RequestedQuestionCount = int(TotalQuestions or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
     SectionsByDps = _ActiveSectionsByDps(db, DpsRows)
     UniqueSections: dict[str, dict[str, Any]] = {}
@@ -1904,6 +1945,12 @@ def _IsIntermediateModule(ModuleRecord: Module) -> bool:
     ModuleCode = _NormalizeText(getattr(ModuleRecord, "module_code", "")).upper()
     ModuleName = _NormalizeText(getattr(ModuleRecord, "module_name", "")).lower()
     return ModuleCode == "IM" or "intermediate module" in ModuleName
+
+
+def _IsPreparatoryModule(ModuleRecord: Module) -> bool:
+    ModuleCode = _NormalizeText(getattr(ModuleRecord, "module_code", "")).upper()
+    ModuleName = _NormalizeText(getattr(ModuleRecord, "module_name", "")).lower()
+    return ModuleCode == "PM" or "preparatory module" in ModuleName
 
 
 def _QuestionSourceText(Question: dict[str, Any], FallbackTitle: str) -> str:
@@ -2267,6 +2314,19 @@ def _CompetitionInstructions(ModuleRecord: Module, LevelRecord: Level, TotalQues
 def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: Level, Lessons: list[Lesson], DpsRows: list[DPS], TargetQuestionCount: int, SectionCountsOverride: dict[str, int] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     IsMmMock = _IsMasterModule(ModuleRecord)
     IsImMock = _IsIntermediateModule(ModuleRecord)
+    IsPmMock = _IsPreparatoryModule(ModuleRecord)
+
+    if IsPmMock:
+        # PM-L1 gets its own section-locked collector too, following the
+        # identical early-return shape as the IM branch below -- the generic
+        # per-DPS round-robin path further down produces a flat, unsectioned
+        # pool and would silently drop PM's Addition/Subtraction section
+        # structure entirely.
+        return CollectPmCompetitionSectionLockedQuestions(
+            LevelRecord,
+            TargetQuestionCount,
+            SectionCountsOverride,
+        )
 
     if IsImMock:
         # IM Level 4 gets the same dedicated, section-locked treatment as MM --
@@ -2586,14 +2646,17 @@ def GenerateCompetitionMockDraft(
     SectionCountsOverride = _NormalizeSectionCounts(SectionCounts)
     IsMmMock = _IsMasterModule(ModuleRecord)
     IsImMock = _IsIntermediateModule(ModuleRecord)
+    IsPmMock = _IsPreparatoryModule(ModuleRecord)
     DefaultQuestionCount = (
         MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsMmMock
         else IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsImMock
+        else PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsPmMock
         else DEFAULT_COMPETITION_MOCK_QUESTION_COUNT
     )
     DefaultDurationSeconds = (
         MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsMmMock
         else IM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsImMock
+        else PM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsPmMock
         else DEFAULT_COMPETITION_MOCK_DURATION_SECONDS
     )
     RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)
