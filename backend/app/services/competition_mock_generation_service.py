@@ -1858,7 +1858,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
             "levelCode": LevelRecord.level_code,
             "levelName": LevelRecord.level_name,
             "totalQuestions": RequestedQuestionCount,
-            "structure": "PM_2_SECTION_COMPETITION_MOCK",
+            "structure": "PM_3_SECTION_COMPETITION_MOCK",
             "sections": Sections,
         }
 
