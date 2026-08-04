@@ -84,6 +84,56 @@ def shares_last_digit(candidate: Decimal, correct_answer: Decimal) -> bool:
     return _last_digit_signature_at(candidate, unit) == _last_digit_signature_at(correct_answer, unit)
 
 
+def _digit_count(value: Decimal, unit: Decimal) -> int:
+    """Number of significant digits in value at the given precision unit,
+    sign-independent -- e.g. 63 at unit=1 has 2 digits, -203 at unit=1 has
+    3, 0 always counts as 1. Uses the same unit-scaling _digit_string()
+    already applies for digit-transpose/middle-digit-shift, so "digit
+    count" means the same thing everywhere in this module."""
+    scaled = abs(int((value / unit).to_integral_value()))
+    return len(str(scaled)) if scaled != 0 else 1
+
+
+def shares_digit_count(candidate: Decimal, correct_answer: Decimal) -> bool:
+    unit = _unit_step(correct_answer)
+    return _digit_count(candidate, unit) == _digit_count(correct_answer, unit)
+
+
+def generate_same_width_candidates(
+    correct_answer: Decimal,
+    rng: random.Random,
+    allow_negative: bool = False,
+    count: int = 40,
+) -> list[Decimal]:
+    """Distractors that always match the correct answer's digit count,
+    varying freely within that width -- the fallback for enforce_same_digit_count
+    callers. generate_same_signature_candidates() above (tens-step deltas)
+    cannot be reused for this: its smallest step is one order of magnitude,
+    so for a single-digit correct answer every one of its candidates is
+    necessarily two digits or more -- exactly the shape mismatch this mode
+    exists to prevent.
+    """
+    unit = _unit_step(correct_answer)
+    digit_count = _digit_count(correct_answer, unit)
+    scaled_correct = int((correct_answer / unit).to_integral_value())
+    sign = -1 if scaled_correct < 0 else 1
+    low = 10 ** (digit_count - 1) if digit_count > 1 else 0
+    high = (10 ** digit_count) - 1
+    pool = list(range(low, high + 1))
+    rng.shuffle(pool)
+    candidates: list[Decimal] = []
+    for scaled in pool:
+        if scaled == abs(scaled_correct):
+            continue
+        value = Decimal(sign * scaled) * unit
+        if not allow_negative and value < 0:
+            continue
+        candidates.append(value)
+        if len(candidates) >= count:
+            break
+    return candidates
+
+
 def _within_plausible_band(candidate: Decimal, correct_answer: Decimal) -> bool:
     """Keep distractors in the same rough neighbourhood as the correct
     answer -- close enough to feel like a real contender, never so far off
@@ -259,18 +309,41 @@ def select_best_distractors(
     rng: random.Random,
     allow_negative: bool = False,
     count: int = 3,
+    enforce_same_digit_count: bool = False,
 ) -> list[Decimal]:
+    """enforce_same_digit_count (2026-08-04, opt-in, default off so MM/IM/YLM's
+    already-shipped behavior is byte-for-byte unchanged): additionally
+    requires every distractor to have the same digit count as the correct
+    answer -- for a foundational-level question with a small, simple
+    answer, a distractor of a visibly different width (e.g. correct=9,
+    options 9/29/39/59) can be picked out on sight with zero arithmetic,
+    which defeats the whole point of an MCQ meant to test computation.
+
+    For single-digit correct answers this mode drops the shares_last_digit
+    requirement instead of adding to it: a 1-digit number's last digit IS
+    the number itself, so requiring both same-last-digit and same-digit-
+    count at once would leave zero valid candidates by construction (no
+    other single-digit value shares a single digit's own "last digit").
+    There's also no smaller "check just the ones place" shortcut to guard
+    against when the whole answer is one digit, so digit-count alone is the
+    correct and sufficient constraint there.
+    """
     selected: list[Decimal] = []
     seen = {correct_answer}
+    unit = _unit_step(correct_answer)
+    correct_digit_count = _digit_count(correct_answer, unit)
+    require_last_digit = not (enforce_same_digit_count and correct_digit_count <= 1)
 
     def _try_add(candidate: Decimal) -> None:
         if len(selected) >= count or candidate in seen:
             return
         if not allow_negative and candidate < 0:
             return
-        if not shares_last_digit(candidate, correct_answer):
+        if enforce_same_digit_count and not shares_digit_count(candidate, correct_answer):
             return
-        if not _within_plausible_band(candidate, correct_answer):
+        if require_last_digit and not shares_last_digit(candidate, correct_answer):
+            return
+        if not enforce_same_digit_count and not _within_plausible_band(candidate, correct_answer):
             return
         selected.append(candidate)
         seen.add(candidate)
@@ -283,28 +356,51 @@ def select_best_distractors(
         if len(selected) >= count:
             break
 
-    # Stage 2: same-signature magnitude variants (still last-digit-safe by
+    # Stage 2: a same-width fallback pool when enforcing digit count (the
+    # tens-step same-signature generator below can't be reused here -- its
+    # smallest step is one order of magnitude, so for a single-digit correct
+    # answer every candidate it produces is two digits or more, exactly the
+    # shape mismatch this mode exists to prevent). Otherwise, the original
+    # same-signature magnitude variants (still last-digit-safe by
     # construction, so the plausibility-band/last-digit gate above is
     # effectively a no-op here, but kept for a single code path).
     if len(selected) < count:
-        for candidate in generate_same_signature_candidates(correct_answer, rng, allow_negative, count=30):
-            _try_add(candidate)
-            if len(selected) >= count:
-                break
+        if enforce_same_digit_count:
+            for candidate in generate_same_width_candidates(correct_answer, rng, allow_negative, count=60):
+                _try_add(candidate)
+                if len(selected) >= count:
+                    break
+        else:
+            for candidate in generate_same_signature_candidates(correct_answer, rng, allow_negative, count=30):
+                _try_add(candidate)
+                if len(selected) >= count:
+                    break
 
-    # Stage 3: relax the plausibility band (keep the last-digit rule, which
-    # is the one property that must never be dropped).
+    # Stage 3: relax the plausibility band / last-digit rule as needed, but
+    # never relax the one property each mode must never drop -- digit count
+    # when enforcing it, last digit otherwise.
     if len(selected) < count:
-        for pool in candidate_pools:
-            for candidate in pool:
+        if enforce_same_digit_count:
+            for candidate in generate_same_width_candidates(correct_answer, rng, allow_negative, count=400):
                 if len(selected) >= count or candidate in seen:
                     continue
                 if not allow_negative and candidate < 0:
                     continue
-                if not shares_last_digit(candidate, correct_answer):
+                if not shares_digit_count(candidate, correct_answer):
                     continue
                 selected.append(candidate)
                 seen.add(candidate)
+        else:
+            for pool in candidate_pools:
+                for candidate in pool:
+                    if len(selected) >= count or candidate in seen:
+                        continue
+                    if not allow_negative and candidate < 0:
+                        continue
+                    if not shares_last_digit(candidate, correct_answer):
+                        continue
+                    selected.append(candidate)
+                    seen.add(candidate)
 
     # Stage 4: last resort, old-style small numeric offsets. Should be
     # extremely rare (tiny correct answers with almost no room to work
@@ -314,22 +410,35 @@ def select_best_distractors(
             "smart_distractors: fell back to naive offsets for correct_answer=%s (only found %d/%d safe candidates)",
             correct_answer, len(selected), count,
         )
-        unit = _unit_step(correct_answer)
-        guard = 0
-        offset = unit
-        while len(selected) < count and guard < 300:
-            guard += 1
-            for delta in (offset, -offset):
-                candidate = correct_answer + delta
-                if candidate in seen:
-                    continue
-                if not allow_negative and candidate < 0:
-                    continue
-                selected.append(candidate)
-                seen.add(candidate)
-                if len(selected) >= count:
-                    break
-            offset += unit
+        if enforce_same_digit_count:
+            digit_count = _digit_count(correct_answer, unit)
+            scaled_correct = int((correct_answer / unit).to_integral_value())
+            sign_val = -1 if scaled_correct < 0 else 1
+            low = 10 ** (digit_count - 1) if digit_count > 1 else 0
+            high = (10 ** digit_count) - 1
+            scaled = low
+            while len(selected) < count and scaled <= high:
+                value = Decimal(sign_val * scaled) * unit
+                if value not in seen and (allow_negative or value >= 0):
+                    selected.append(value)
+                    seen.add(value)
+                scaled += 1
+        else:
+            guard = 0
+            offset = unit
+            while len(selected) < count and guard < 300:
+                guard += 1
+                for delta in (offset, -offset):
+                    candidate = correct_answer + delta
+                    if candidate in seen:
+                        continue
+                    if not allow_negative and candidate < 0:
+                        continue
+                    selected.append(candidate)
+                    seen.add(candidate)
+                    if len(selected) >= count:
+                        break
+                offset += unit
 
     rng.shuffle(selected)
     return selected[:count]
@@ -345,6 +454,7 @@ def generate_smart_distractors(
     operation: str,
     operands: list[Decimal] | None = None,
     allow_negative: bool = False,
+    enforce_same_digit_count: bool = False,
 ) -> list[Decimal]:
     """Main entry point used by every module. `operation` selects which
     structural-mistake strategy runs first; every strategy sits on top of the
@@ -357,6 +467,9 @@ def generate_smart_distractors(
     plus the same-signature fallback).
     operands: for ADD_SUBTRACT, the real signed row values (summing to
     correct_answer). For DIVIDE, [dividend, divisor]. Unused otherwise.
+    enforce_same_digit_count: opt-in, default off -- see select_best_distractors()
+    for what this adds and why it's off by default (PM is the only caller
+    that turns it on today; MM/IM/YLM are byte-for-byte unchanged).
     """
     operands = operands or []
     pools: list[list[Decimal]] = []
@@ -375,4 +488,7 @@ def generate_smart_distractors(
         pools.append(digit_transpose_candidates(correct_answer, rng))
         pools.append(middle_digit_shift_candidates(correct_answer, rng))
 
-    return select_best_distractors(correct_answer, pools, rng, allow_negative, count=3)
+    return select_best_distractors(
+        correct_answer, pools, rng, allow_negative, count=3,
+        enforce_same_digit_count=enforce_same_digit_count,
+    )

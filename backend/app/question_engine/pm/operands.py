@@ -6,7 +6,11 @@ from app.question_engine.pm.config import PMConfig
 from app.question_engine.pm.validators import (
     DIRECT_ADD_ALLOWED,
     DIRECT_SUB_ALLOWED,
+    MOVEMENT_DIRECT,
+    MOVEMENT_ZERO,
     validate_question,
+    movement_profile,
+    _digits as _pm_place_digits,
 )
 
 TEMPLATE_DIRECT = "DIRECT"
@@ -15,6 +19,12 @@ TEMPLATE_COMP5_SUB = "COMP5_SUB"
 TEMPLATE_COMP10_ADD = "COMP10_ADD"
 TEMPLATE_COMP10_SUB = "COMP10_SUB"
 TEMPLATE_REVISION = "REVISION"
+
+# Bridge Module Lesson 2's own digit patterns -- genuine multi-digit direct
+# addition/subtraction, not just a multi-digit *starting* value with
+# single-digit adds (see _wide_direct_stems() below for why that distinction
+# matters and what changed).
+WIDE_DIRECT_PATTERNS = {"2D_FULL", "3D_HUNDREDS", "3D_FULL"}
 
 
 DIFFICULTY_STAGES: tuple[str, ...] = (
@@ -84,6 +94,171 @@ def _direct_bases(config: PMConfig) -> list[int]:
     if digit_pattern in {"2D", "1D_AND_2D"} or place_value in {"MIXED", "ONES_AND_TENS"}:
         return list(range(1, 10)) + [10, 20, 30, 40, 50, 60, 70, 80, 90]
     return list(range(1, 10))
+
+
+def _is_wide_direct_pattern(digit_pattern: str | None) -> bool:
+    return (digit_pattern or "").upper() in WIDE_DIRECT_PATTERNS
+
+
+def _wide_target_width(digit_pattern: str | None) -> int:
+    return 3 if (digit_pattern or "").upper() in {"3D_HUNDREDS", "3D_FULL"} else 2
+
+
+def _wide_row0_choices(width: int, digit_pattern: str | None) -> list[int]:
+    """Values usable for row 0 (the starting display value -- no bead
+    movement of its own, so no DIRECT_ADD_ALLOWED/DIRECT_SUB_ALLOWED
+    constraint applies) at exactly `width` digits."""
+    if width == 3 and (digit_pattern or "").upper() == "3D_HUNDREDS":
+        return [100, 200, 300, 400, 500, 600, 700, 800, 900]
+    if width == 1:
+        return list(range(1, 10))
+    if width == 2:
+        return list(range(10, 100))
+    return list(range(100, 1000))
+
+
+def _digit_width(value: int) -> int:
+    return len(str(abs(int(value)))) if value != 0 else 1
+
+
+def _direct_delta_options_for_digit(digit: int, sign: int) -> list[int]:
+    """Legal DIRECT delta magnitudes at a single digit place, for the given
+    sign (+1 add, -1 subtract) -- 0 always included (that place doesn't move
+    for this operand)."""
+    allowed = DIRECT_ADD_ALLOWED.get(digit, set()) if sign > 0 else DIRECT_SUB_ALLOWED.get(digit, set())
+    return [0] + sorted(allowed)
+
+
+def _build_direct_operand(current_value: int, width: int, sign: int, rng: random.Random) -> int | None:
+    """A `width`-digit-place delta against current_value that is a pure
+    DIRECT bead movement at every one of those places independently -- each
+    place's delta is drawn straight from that place's own
+    DIRECT_ADD_ALLOWED/DIRECT_SUB_ALLOWED options (0 permitted, meaning that
+    place doesn't move for this operand), so the result is direct-only by
+    construction rather than by rejection sampling. The top place is forced
+    nonzero so the operand actually displays at `width` digits (never
+    silently collapses to a shorter number). Returns None if this
+    current_value's own top-place digit is 4 or 9 (DIRECT_ADD_ALLOWED has no
+    entries at all for those, so no nonzero top-place delta is possible from
+    here) -- the caller should just try a different current_value.
+    """
+    base_digits = _pm_place_digits(current_value, width)
+    top_options = [option for option in _direct_delta_options_for_digit(base_digits[width - 1], sign) if option != 0]
+    if not top_options:
+        return None
+    for _attempt in range(8):
+        delta_digits = [
+            rng.choice(top_options) if place == width - 1
+            else rng.choice(_direct_delta_options_for_digit(base_digits[place], sign))
+            for place in range(width)
+        ]
+        value = sum(digit * (10 ** place) for place, digit in enumerate(delta_digits))
+        if _digit_width(value) == width:
+            return value
+    return None
+
+
+def _is_pure_direct_movement(operands: list[int]) -> bool:
+    """True only if every row-to-row transition is a plain DIRECT bead move
+    (or no movement at all) -- validate_question() alone is not enough here
+    since it's the generic checker every PM template shares (COMP5/COMP10
+    movements are 'valid' questions too, just not DIRECT ones), and a
+    'Direct Addition/Subtraction' sheet must never silently include a
+    complement-technique step.
+    """
+    valid, profile = movement_profile(operands)
+    if not valid:
+        return False
+    return all(
+        movement_type in (MOVEMENT_DIRECT, MOVEMENT_ZERO)
+        for step_types in profile
+        for movement_type in step_types
+    )
+
+
+def _wide_direct_stems(config: PMConfig) -> list[tuple[int, int, int]]:
+    """PM-native construction for Bridge Module Lesson 2's genuine 2/3-digit
+    direct addition-subtraction stacks (2D_FULL / 3D_HUNDREDS / 3D_FULL).
+    Every other DIRECT sheet's 2nd/3rd rows come from the single-digit
+    DIRECT_ADD_ALLOWED/DIRECT_SUB_ALLOWED tables (one bead move), which is
+    correct there but meant these particular sheets' 2nd/3rd rows never
+    actually carried the lesson's own digit width -- only the starting row
+    did (e.g. every generated question was base=40ish + a single-digit +/-,
+    never a genuine two-digit addition).
+
+    Requirement (2026-08-04, Shailesh): at least 2 of the stack's 3 rows
+    must be exactly the lesson's target digit width (2 for 2D_FULL, 3 for
+    3D_HUNDREDS/3D_FULL) -- optionally all 3 -- with any remaining row a mix
+    of 1/2/3 digits, and which row is the odd one out varying question to
+    question rather than being fixed to always the base or always the last
+    row.
+
+    Each operand row is built via _build_direct_operand(), which draws a
+    per-digit-place delta straight from that place's own
+    DIRECT_ADD_ALLOWED/DIRECT_SUB_ALLOWED options -- direct by construction,
+    not by rejection sampling, so this doesn't waste attempts on doomed
+    candidates the way naively guessing a random 2/3-digit number and
+    checking it afterwards would. _is_pure_direct_movement() is still
+    re-checked on the assembled triple as a hard gate before anything here
+    is ever handed to the caller, since validate_question() alone accepts
+    any movement type (it's the generic checker every PM template shares),
+    not just DIRECT.
+    """
+    target_width = _wide_target_width(config.digit_pattern)
+    focus = (config.operation_focus or "ADD_LESS").upper()
+    sampler = random.Random(
+        f"WIDE-DIRECT-{config.module_code}-{config.level_code}-L{config.lesson_number}-D{config.dps_number}-{config.digit_pattern}"
+    )
+
+    def _row_sign() -> int:
+        if focus == "ADDITION":
+            return 1
+        if focus == "SUBTRACTION":
+            return -1
+        return sampler.choice((1, -1))
+
+    stems: list[tuple[int, int, int]] = []
+    seen: set[tuple[int, int, int]] = set()
+    attempts = 0
+    target_pool_size = 80
+    max_attempts = 3000
+    while len(stems) < target_pool_size and attempts < max_attempts:
+        attempts += 1
+        # 2 wide rows + 1 mixed row most of the time, but "can be all 3
+        # rows as well" per the requirement -- occasionally skip the mixed
+        # row entirely and make every row the target width.
+        wide_count = sampler.choice((2, 2, 2, 3))
+        mixed_slot = sampler.choice((0, 1, 2)) if wide_count == 2 else None
+        mixed_width = sampler.choice((1, 2, 3)) if mixed_slot is not None else target_width
+
+        row0_width = mixed_width if mixed_slot == 0 else target_width
+        row0 = sampler.choice(_wide_row0_choices(row0_width, config.digit_pattern))
+
+        row1_width = mixed_width if mixed_slot == 1 else target_width
+        row1_sign = _row_sign()
+        row1_delta = _build_direct_operand(row0, row1_width, row1_sign, sampler)
+        if row1_delta is None:
+            continue
+        row1 = row1_sign * row1_delta
+        current_after_row1 = row0 + row1
+        if current_after_row1 < 0:
+            continue
+
+        row2_width = mixed_width if mixed_slot == 2 else target_width
+        row2_sign = _row_sign()
+        row2_delta = _build_direct_operand(current_after_row1, row2_width, row2_sign, sampler)
+        if row2_delta is None:
+            continue
+        row2 = row2_sign * row2_delta
+
+        key = (row0, row1, row2)
+        if key in seen:
+            continue
+        if not _is_pure_direct_movement(list(key)):
+            continue
+        seen.add(key)
+        stems.append(key)
+    return stems
 
 
 def _safe_supports(current: int, template: str) -> list[int]:
@@ -185,6 +360,19 @@ def _candidate_pool_for_templates(config: PMConfig, templates: tuple[str, ...]) 
     pool: list[list[int]] = []
     seen: set[tuple[int, ...]] = set()
     for template in templates:
+        if template == TEMPLATE_DIRECT and _is_wide_direct_pattern(config.digit_pattern):
+            # Bridge Module Lesson 2's genuine 2/3-digit direct stacks --
+            # see _wide_direct_stems()'s own docstring for why this needs a
+            # dedicated builder instead of the single-digit base+support
+            # pipeline below.
+            for operands in _wide_direct_stems(config):
+                key = operands
+                if key in seen:
+                    continue
+                if validate_question(config, list(operands)):
+                    pool.append(list(operands))
+                    seen.add(key)
+            continue
         for base, primary, source_template in _template_stems(config, template):
             current = base + primary
             if current < 0:
