@@ -230,11 +230,11 @@ export default function AttemptPage() {
           <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               {contextLine ? (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
-                  <BookOpenCheck size={12} /> {contextLine}
+                <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50/90 px-3.5 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
+                  <BookOpenCheck size={14} /> {contextLine}
                 </span>
               ) : null}
-              <h1 className="mt-1.5 truncate text-lg font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-xl" title={sectionLabel}>
+              <h1 className="mt-1.5 truncate text-base font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-lg" title={sectionLabel}>
                 {sectionLabel}
               </h1>
             </div>
@@ -243,19 +243,19 @@ export default function AttemptPage() {
             </p>
           </div>
 
-          <div className="relative z-10 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="relative z-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <CompactStat
-              icon={<ClipboardCheck size={14} />}
+              icon={<ClipboardCheck size={18} />}
               label="Answered"
               value={answeredNumbers.length}
             />
             <CompactStat
-              icon={<Layers3 size={14} />}
+              icon={<Layers3 size={18} />}
               label="Remaining"
               value={questions.length - answeredNumbers.length}
             />
             <CompactStat
-              icon={<Gauge size={14} />}
+              icon={<Gauge size={18} />}
               label="Current"
               value={`Q${currentQuestion.questionNumber}`}
             />
@@ -316,15 +316,15 @@ export default function AttemptPage() {
 
 function CompactStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-xl bg-white px-2.5 py-2 dark:bg-slate-950/60">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300">
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-white px-3.5 py-3 dark:bg-slate-950/60">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+        <p className="truncate text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
           {label}
         </p>
-        <p className="truncate text-sm font-black leading-tight text-slate-950 dark:text-white">
+        <p className="truncate text-lg font-black leading-tight text-slate-950 dark:text-white">
           {value}
         </p>
       </div>
@@ -334,8 +334,8 @@ function CompactStat({ icon, label, value }: { icon: React.ReactNode; label: str
 
 function CompactTimerStat({ remainingSeconds }: { remainingSeconds: number }) {
   return (
-    <div className="flex min-w-0 items-center justify-center rounded-xl bg-white px-2 py-2 dark:bg-slate-950/60">
-      <TestTimer remainingSeconds={remainingSeconds} className="!px-2.5 !py-1.5 !text-xs" />
+    <div className="flex min-w-0 items-center justify-center rounded-2xl bg-white px-3 py-3 dark:bg-slate-950/60">
+      <TestTimer remainingSeconds={remainingSeconds} className="!px-3.5 !py-2 !text-sm" />
     </div>
   );
 }
