@@ -45,7 +45,17 @@ export function QuestionCard({
         </div>
       </div>
 
-      <div className={`${compact ? "mt-2 gap-3" : "mt-3 gap-5"} flex flex-col lg:h-[360px] lg:flex-row`}>
+      {/*
+        Fixed pixel breakpoint jumps (e.g. "lg:h-[360px]") only had one size
+        for every screen above lg -- a 1366x768 laptop and a 3440x1440
+        monitor got the identical pane height. clamp(min, preferred, max)
+        instead scales continuously with the viewport: never below 320px
+        (tested margin above the ~306px a worst-case 5-row question needs),
+        never above 380px (no point growing forever on huge monitors), and
+        fluid in between via vh so it actually adapts per-device instead of
+        snapping between a couple of hardcoded sizes.
+      */}
+      <div className={`${compact ? "mt-2 gap-3" : "mt-3 gap-5"} flex flex-col lg:h-[clamp(320px,36vh,380px)] lg:flex-row`}>
         <div className={`flex min-h-[300px] flex-1 items-center justify-center overflow-auto rounded-[22px] bg-slate-50/90 dark:bg-slate-900/70 lg:h-full lg:min-h-0 ${compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4"}`}>
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
