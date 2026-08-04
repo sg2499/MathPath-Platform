@@ -45,7 +45,7 @@ export function QuestionCard({
         </div>
       </div>
 
-      <div className={`${compact ? "mt-2 gap-3" : "mt-3 gap-5"} flex flex-col lg:h-[380px] lg:flex-row`}>
+      <div className={`${compact ? "mt-2 gap-3" : "mt-3 gap-5"} flex flex-col lg:h-[360px] lg:flex-row`}>
         <div className={`flex min-h-[300px] flex-1 items-center justify-center overflow-auto rounded-[22px] bg-slate-50/90 dark:bg-slate-900/70 lg:h-full lg:min-h-0 ${compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4"}`}>
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
