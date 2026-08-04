@@ -226,13 +226,21 @@ def _wide_direct_stems(config: PMConfig) -> list[tuple[int, int, int]]:
         attempts += 1
         # 2 wide rows + 1 mixed row most of the time, but "can be all 3
         # rows as well" per the requirement -- occasionally skip the mixed
-        # row entirely and make every row the target width.
+        # row entirely and make every row the target width. The mixed row's
+        # own width is capped at target_width (never above it) -- a "double
+        # digit" concept must never show a triple-digit row, but a "triple
+        # digit" concept may legitimately show a single, double, or triple
+        # digit row (per the explicit 2026-08-04 correction: the first cut
+        # of this let the mixed row roll a width of 1-3 unconditionally,
+        # which silently let a 2D_FULL sheet show a 3-digit row).
         wide_count = sampler.choice((2, 2, 2, 3))
         mixed_slot = sampler.choice((0, 1, 2)) if wide_count == 2 else None
-        mixed_width = sampler.choice((1, 2, 3)) if mixed_slot is not None else target_width
+        mixed_width = sampler.choice(tuple(range(1, target_width + 1))) if mixed_slot is not None else target_width
 
         row0_width = mixed_width if mixed_slot == 0 else target_width
         row0 = sampler.choice(_wide_row0_choices(row0_width, config.digit_pattern))
+        if _digit_width(row0) > target_width:
+            continue
 
         row1_width = mixed_width if mixed_slot == 1 else target_width
         row1_sign = _row_sign()
@@ -241,7 +249,13 @@ def _wide_direct_stems(config: PMConfig) -> list[tuple[int, int, int]]:
             continue
         row1 = row1_sign * row1_delta
         current_after_row1 = row0 + row1
-        if current_after_row1 < 0:
+        # Every running value the student ever sees on this sheet -- not
+        # just each row's own printed number -- must stay within the
+        # concept's own digit width. A "double digit" sheet must never let
+        # two legitimately double-digit rows add up to a triple-digit
+        # running total; that's still "not in scope of the concept" even
+        # though no single row itself exceeded the width.
+        if current_after_row1 < 0 or _digit_width(current_after_row1) > target_width:
             continue
 
         row2_width = mixed_width if mixed_slot == 2 else target_width
@@ -250,6 +264,9 @@ def _wide_direct_stems(config: PMConfig) -> list[tuple[int, int, int]]:
         if row2_delta is None:
             continue
         row2 = row2_sign * row2_delta
+        final_answer = current_after_row1 + row2
+        if final_answer < 0 or _digit_width(final_answer) > target_width:
+            continue
 
         key = (row0, row1, row2)
         if key in seen:

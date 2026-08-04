@@ -92,6 +92,24 @@ def test_wide_direct_dps_rows_have_at_least_two_at_target_width(pm_lesson2_dps, 
                 f"DPS {dps.dps_number} ({dps_rule.dps_title}): expected at least 2 of 3 rows at "
                 f"{target_width} digits, got widths={widths} for operands={operands}"
             )
+            # 2026-08-04 correction: no row -- and no running total, including
+            # the final answer -- may ever exceed the concept's own digit
+            # width. A "double digit" sheet must never show a triple-digit
+            # row or a triple-digit running total, even if that triple-digit
+            # value only ever appeared as an intermediate/final total rather
+            # than a single printed row. This is the exact glitch caught
+            # after the first cut of this fix: the mixed row's width was
+            # sampled from {1,2,3} unconditionally, so a 2D_FULL sheet could
+            # (and did) show a 3-digit row.
+            running = operands[0]
+            widths_seen = [widths[0]]
+            for operand in operands[1:]:
+                running += operand
+                widths_seen.append(len(str(abs(running))) if running != 0 else 1)
+            assert max(widths_seen) <= target_width, (
+                f"DPS {dps.dps_number} ({dps_rule.dps_title}): a row or running total exceeded "
+                f"{target_width} digits -- operands={operands}, running totals width sequence={widths_seen}"
+            )
             non_matching = [index for index in range(3) if index not in matching_rows]
             odd_row_positions_seen.add(non_matching[0] if non_matching else None)
 
@@ -134,11 +152,21 @@ def test_wide_direct_pattern_also_fixes_mock_assessment_concept_pool_entries():
             questions = generate_pm_question_set(config)
             assert len(questions) == 10
             for question in questions:
-                widths = _row_widths(question["operands"])
+                operands = question["operands"]
+                widths = _row_widths(operands)
                 matching = sum(1 for width in widths if width == target_width)
                 assert matching >= 2, (
                     f"{digit_pattern}/{operation_focus}: expected >=2 rows at {target_width} digits, "
-                    f"got widths={widths} operands={question['operands']}"
+                    f"got widths={widths} operands={operands}"
+                )
+                running = operands[0]
+                widths_seen = [widths[0]]
+                for operand in operands[1:]:
+                    running += operand
+                    widths_seen.append(len(str(abs(running))) if running != 0 else 1)
+                assert max(widths_seen) <= target_width, (
+                    f"{digit_pattern}/{operation_focus}: a row or running total exceeded "
+                    f"{target_width} digits -- operands={operands}, widths seen={widths_seen}"
                 )
 
 
