@@ -48,3 +48,7 @@ htmlcov/
 Thumbs.db
 .vscode/
 .idea/
+
+# Persistent reference materials (source Excel/images uploaded via Cowork,
+# kept on disk for cross-session recall, not version-controlled)
+docs/reference-materials/

@@ -290,31 +290,74 @@ def _safe_supports(current: int, template: str) -> list[int]:
     return _direct_operands_for_focus(current, "ADDITION") or _direct_operands_for_focus(current, "SUBTRACTION")
 
 
-def _comp5_add_bases(target: int) -> list[int]:
+def _comp_tens_values(all_tens_values: list[int], digit_pattern: str | None) -> list[int]:
+    """Digit-width gate for a complement-template base's tens component.
+
+    Confirmed against Bridge Level.xlsx + the matching Lesson-1..15 DPS
+    images (2026-08-05 audit): within every complement lesson (3-15), DPS1/
+    DPS3 are single-digit-only practice of a technique and DPS2/DPS4 are a
+    strict double-digit escalation of that *same* technique -- e.g. Lesson
+    3 DPS1 "Addition of 1 using Complement of 5" bases are exactly {4}
+    (single digit), DPS2 (identical title/technique) bases are exactly
+    {14,24,...,94} (double digit only), never both in the same sheet. DPS5
+    (revision, both techniques) is likewise pure double-digit, not a 1D/2D
+    mix. "1D" therefore restricts to the single-digit base (tens=0) only,
+    "2D" restricts to double-digit bases (tens != 0) only; any other value
+    (e.g. "1D_AND_2D", used by mock/assessment concept pools that
+    deliberately want both widths for broader coverage) is unrestricted,
+    matching this function's pre-fix behavior.
+
+    COMP10_SUB is a structural exception: subtracting via complement of 10
+    requires an actual tens place to borrow from, so its own tens pool
+    (see _comp10_sub_bases) never contains 0 in the first place -- there is
+    no mathematically valid single-digit base for that one template. Rather
+    than hardcode "1D means tens==0", both branches key off whichever tens
+    value is *narrowest in this specific pool* (0 for every other
+    complement template, 10 for COMP10_SUB): "1D" keeps only that narrowest
+    tier, "2D" keeps everything else. This makes COMP10_SUB's "1D" DPS
+    (e.g. Lesson 4 DPS3, Lesson 13 DPS1/DPS3) fall back to the smallest
+    two-digit trigger (10-19) instead of an impossible empty set, while its
+    "2D" sibling is still correctly disjoint from that tier (20-99) instead
+    of accidentally re-including 10-19 by only ever checking for a literal
+    zero that this pool never had.
+    """
+    pattern = (digit_pattern or "").upper()
+    if not all_tens_values:
+        return []
+    narrowest = min(all_tens_values)
+    if pattern == "1D":
+        return [narrowest]
+    if pattern == "2D":
+        wide = [tens for tens in all_tens_values if tens != narrowest]
+        return wide or all_tens_values
+    return all_tens_values
+
+
+def _comp5_add_bases(target: int, digit_pattern: str | None = None) -> list[int]:
     ones = 5 - target
-    tens_values = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+    tens_values = _comp_tens_values([0, 10, 20, 30, 40, 50, 60, 70, 80, 90], digit_pattern)
     return [tens + ones for tens in tens_values if 0 < tens + ones <= 99]
 
 
-def _comp5_sub_bases(target: int) -> list[int]:
+def _comp5_sub_bases(target: int, digit_pattern: str | None = None) -> list[int]:
     ones_values = list(range(5, 5 + target))
-    tens_values = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+    tens_values = _comp_tens_values([0, 10, 20, 30, 40, 50, 60, 70, 80, 90], digit_pattern)
     return [tens + ones for tens in tens_values for ones in ones_values if 0 < tens + ones <= 99]
 
 
-def _comp10_add_bases(target: int) -> list[int]:
+def _comp10_add_bases(target: int, digit_pattern: str | None = None) -> list[int]:
     # +target using complement of 10 must start from the exact trigger unit.
     # Example: +4 => 6 + 4, 16 + 4, 26 + 4. Not 38 + 4.
     ones = 10 - target
-    tens_values = [0, 10, 20, 30, 40, 50, 60]
+    tens_values = _comp_tens_values([0, 10, 20, 30, 40, 50, 60], digit_pattern)
     return [tens + ones for tens in tens_values if tens + ones > 0]
 
 
-def _comp10_sub_bases(target: int) -> list[int]:
+def _comp10_sub_bases(target: int, digit_pattern: str | None = None) -> list[int]:
     # -target using complement of 10 must start from the exact borrow trigger range.
     # Example: -3 => 12 - 3, 22 - 3, 32 - 3. Not random two-digit subtraction.
     ones_values = list(range(0, target))
-    tens_values = [10, 20, 30, 40, 50, 60, 70, 80, 90]
+    tens_values = _comp_tens_values([10, 20, 30, 40, 50, 60, 70, 80, 90], digit_pattern)
     return [tens + ones for tens in tens_values for ones in ones_values]
 
 
@@ -326,28 +369,85 @@ def _direct_stems(config: PMConfig) -> list[tuple[int, int, str]]:
     return stems
 
 
-def _template_stems(config: PMConfig, template: str) -> list[tuple[int, int, str]]:
-    template = (template or TEMPLATE_DIRECT).upper()
-    stems: list[tuple[int, int, str]] = []
-    if template == TEMPLATE_DIRECT:
-        return _direct_stems(config)
-    if template == TEMPLATE_COMP5_ADD:
-        for target in _targets(config, [1, 2, 3, 4]):
-            for base in _comp5_add_bases(target):
-                stems.append((base, target, template))
-    elif template == TEMPLATE_COMP5_SUB:
-        for target in _targets(config, [1, 2, 3, 4]):
-            for base in _comp5_sub_bases(target):
-                stems.append((base, -target, template))
-    elif template == TEMPLATE_COMP10_ADD:
-        for target in _targets(config, [1, 2, 3, 4, 5, 6, 7, 8, 9]):
-            for base in _comp10_add_bases(target):
-                stems.append((base, target, template))
-    elif template == TEMPLATE_COMP10_SUB:
-        for target in _targets(config, [1, 2, 3, 4, 5, 6, 7, 8, 9]):
-            for base in _comp10_sub_bases(target):
-                stems.append((base, -target, template))
-    return stems
+COMPLEMENT_BASE_BUILDERS = {
+    TEMPLATE_COMP5_ADD: (_comp5_add_bases, [1, 2, 3, 4], 1),
+    TEMPLATE_COMP5_SUB: (_comp5_sub_bases, [1, 2, 3, 4], -1),
+    TEMPLATE_COMP10_ADD: (_comp10_add_bases, [1, 2, 3, 4, 5, 6, 7, 8, 9], 1),
+    TEMPLATE_COMP10_SUB: (_comp10_sub_bases, [1, 2, 3, 4, 5, 6, 7, 8, 9], -1),
+}
+
+
+def _setup_reaching(trigger_value: int) -> list[tuple[int, int]]:
+    """Every legal (predecessor, delta) pair that reaches `trigger_value` via
+    exactly one pure DIRECT bead move at the ones place -- the "setup" half
+    of the trigger-position-varies pattern confirmed against Bridge
+    Level.xlsx + the Lesson-1..15 images (2026-08-05 redesign). Real example
+    traced from Lesson 3 DPS1 ("Addition of 1 using Complement of 5"), where
+    the technique fires at whichever row happens to land on ones-digit 4:
+    column A1 is 2 -> (+2, DIRECT) -> 4 -> (+1, COMP5_ADD); column A4 is
+    9 -> (-5, DIRECT) -> 4 -> (+1, COMP5_ADD) -- an addition lesson whose
+    setup move is itself a subtraction, which is why both DIRECT_ADD_ALLOWED
+    and DIRECT_SUB_ALLOWED are searched here regardless of the template's
+    own operation_focus (only the *trigger* step's direction is locked to
+    the lesson's technique, never the setup step's).
+
+    Stays within `trigger_value`'s own tens/hundreds block by construction
+    (only the ones digit changes), so this can never widen a DPS past its
+    already digit-pattern-gated scope -- a 2D trigger like 24 only ever
+    proposes 2D predecessors (20-29), never a 1D or 3D one.
+    """
+    ones = trigger_value % 10
+    prefix = trigger_value - ones
+    results: list[tuple[int, int]] = []
+    for before_ones in range(10):
+        if before_ones == ones:
+            continue
+        row0 = prefix + before_ones
+        if row0 <= 0:
+            continue
+        delta = ones - before_ones
+        if delta > 0 and delta in DIRECT_ADD_ALLOWED.get(before_ones, set()):
+            results.append((row0, delta))
+        elif delta < 0 and abs(delta) in DIRECT_SUB_ALLOWED.get(before_ones, set()):
+            results.append((row0, delta))
+    return results
+
+
+def _complement_operand_triples(config: PMConfig, template: str) -> list[list[int]]:
+    """Every candidate 3-row question for a complement template, covering
+    both positions the technique step is observed to occupy in the real
+    worksheet (2026-08-05 redesign, see _setup_reaching()'s docstring):
+
+    MODE A -- trigger first: row0 is already sitting at the technique's own
+    trigger digit, row1 *is* the technique move, row2 is a trailing direct
+    support step (the pre-redesign shape, unchanged).
+
+    MODE B -- trigger second: row0 is any digit reachable one direct move
+    away from the trigger digit, row1 is that direct setup move, row2 *is*
+    the technique move. This is what gives single-digit DPS genuine
+    question-to-question variety (e.g. Lesson 3 DPS1's base is no longer
+    pinned to the single value 4 -- it can legitimately be 2, 3, 9, ... as
+    long as one direct step reaches 4) instead of the same fixed trigger
+    value repeated with only the trailing support varying.
+
+    Every candidate is still filtered through the same validate_question()
+    every other PM template uses -- this function only proposes richer
+    shapes, it does not relax what counts as a legal one.
+    """
+    base_builder, default_targets, sign = COMPLEMENT_BASE_BUILDERS[template]
+    triples: list[list[int]] = []
+    for target in _targets(config, default_targets):
+        signed_target = sign * target
+        for trigger_value in base_builder(target, config.digit_pattern):
+            # MODE A: trigger first, trailing support.
+            after_trigger = trigger_value + signed_target
+            if after_trigger >= 0:
+                for support in _safe_supports(after_trigger, template):
+                    triples.append([trigger_value, signed_target, support])
+            # MODE B: setup first, trigger last.
+            for setup_row0, setup_delta in _setup_reaching(trigger_value):
+                triples.append([setup_row0, setup_delta, signed_target])
+    return triples
 
 
 def _lesson_templates(config: PMConfig) -> tuple[str, ...]:
@@ -376,6 +476,15 @@ def _template_for_question(config: PMConfig, question_index: int) -> str | None:
 def _candidate_pool_for_templates(config: PMConfig, templates: tuple[str, ...]) -> list[list[int]]:
     pool: list[list[int]] = []
     seen: set[tuple[int, ...]] = set()
+
+    def _consider(operands: list[int]) -> None:
+        key = tuple(operands)
+        if key in seen:
+            return
+        if validate_question(config, operands):
+            pool.append(operands)
+            seen.add(key)
+
     for template in templates:
         if template == TEMPLATE_DIRECT and _is_wide_direct_pattern(config.digit_pattern):
             # Bridge Module Lesson 2's genuine 2/3-digit direct stacks --
@@ -383,25 +492,22 @@ def _candidate_pool_for_templates(config: PMConfig, templates: tuple[str, ...]) 
             # dedicated builder instead of the single-digit base+support
             # pipeline below.
             for operands in _wide_direct_stems(config):
-                key = operands
-                if key in seen:
-                    continue
-                if validate_question(config, list(operands)):
-                    pool.append(list(operands))
-                    seen.add(key)
+                _consider(list(operands))
             continue
-        for base, primary, source_template in _template_stems(config, template):
+        if template in COMPLEMENT_BASE_BUILDERS:
+            # 2026-08-05 redesign -- see _complement_operand_triples()'s own
+            # docstring: these are already complete 3-row triples (MODE A
+            # and MODE B both), not a base+primary stem needing a further
+            # support step appended.
+            for operands in _complement_operand_triples(config, template):
+                _consider(operands)
+            continue
+        for base, primary, source_template in _direct_stems(config):
             current = base + primary
             if current < 0:
                 continue
             for support in _safe_supports(current, source_template):
-                operands = [base, primary, support]
-                key = tuple(operands)
-                if key in seen:
-                    continue
-                if validate_question(config, operands):
-                    pool.append(operands)
-                    seen.add(key)
+                _consider([base, primary, support])
     return pool
 
 

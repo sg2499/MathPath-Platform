@@ -70,13 +70,13 @@ def _addition_pool() -> list[dict[str, Any]]:
         entries.append({
             "title": f"Addition of {target} using Complement of 5",
             "conceptFamily": "COMPLEMENT_OF_5", "operationFocus": "ADDITION",
-            "abacusRule": abacus, "targetNumbers": [target], "digitPattern": "1D", "generationTemplate": "COMP5_ADD",
+            "abacusRule": abacus, "targetNumbers": [target], "digitPattern": "1D_AND_2D", "generationTemplate": "COMP5_ADD",
         })
     for target, abacus in ((1, "ADD_10_LESS_9"), (2, "ADD_10_LESS_8"), (3, "ADD_10_LESS_7"), (4, "ADD_10_LESS_6"), (5, "ADD_10_LESS_5"), (6, "ADD_10_LESS_4"), (7, "ADD_10_LESS_3"), (8, "ADD_10_LESS_2"), (9, "ADD_10_LESS_1")):
         entries.append({
             "title": f"Addition of {target} using Complement of 10",
             "conceptFamily": "COMPLEMENT_OF_10", "operationFocus": "ADDITION",
-            "abacusRule": abacus, "targetNumbers": [target], "digitPattern": "1D", "generationTemplate": "COMP10_ADD",
+            "abacusRule": abacus, "targetNumbers": [target], "digitPattern": "1D_AND_2D", "generationTemplate": "COMP10_ADD",
         })
     return entries
 
@@ -101,13 +101,13 @@ def _subtraction_pool() -> list[dict[str, Any]]:
         entries.append({
             "title": f"Subtraction of {target} using Complement of 5",
             "conceptFamily": "COMPLEMENT_OF_5", "operationFocus": "SUBTRACTION",
-            "abacusRule": abacus, "targetNumbers": [target], "digitPattern": "1D", "generationTemplate": "COMP5_SUB",
+            "abacusRule": abacus, "targetNumbers": [target], "digitPattern": "1D_AND_2D", "generationTemplate": "COMP5_SUB",
         })
     for target, abacus in ((1, "LESS_10_ADD_9"), (2, "LESS_10_ADD_8"), (3, "LESS_10_ADD_7"), (4, "LESS_10_ADD_6"), (5, "LESS_10_ADD_5"), (6, "LESS_10_ADD_4"), (7, "LESS_10_ADD_3"), (8, "LESS_10_ADD_2"), (9, "LESS_10_ADD_1")):
         entries.append({
             "title": f"Subtraction of {target} using Complement of 10",
             "conceptFamily": "COMPLEMENT_OF_10", "operationFocus": "SUBTRACTION",
-            "abacusRule": abacus, "targetNumbers": [target], "digitPattern": "1D", "generationTemplate": "COMP10_SUB",
+            "abacusRule": abacus, "targetNumbers": [target], "digitPattern": "1D_AND_2D", "generationTemplate": "COMP10_SUB",
         })
     return entries
 
@@ -137,7 +137,7 @@ def _add_less_pool() -> list[dict[str, Any]]:
         {
             "title": "Add/Less of 5 using Complement of 10",
             "conceptFamily": "MIXED_REVISION", "operationFocus": "ADD_LESS",
-            "abacusRule": None, "targetNumbers": [5], "digitPattern": "1D", "generationTemplate": "REVISION",
+            "abacusRule": None, "targetNumbers": [5], "digitPattern": "1D_AND_2D", "generationTemplate": "REVISION",
             "revisionTemplates": ["COMP10_ADD", "COMP10_SUB"],
         },
     ]

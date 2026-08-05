@@ -328,6 +328,102 @@ def ensure_assessment_reattempt_columns() -> None:
                     connection.execute(text(f"ALTER TABLE assessment_reattempt_approvals ADD COLUMN {name} {ddl}"))
 
 
+def ensure_assessment_questions_lesson_id_nullable() -> None:
+    """Relax assessment_questions.lesson_id to nullable.
+
+    2026-08-05, Cowork verification session: alembic revision
+    e5a2c9f14b7d (2026-07-22, "Add assessment_blueprint_sections, make
+    assessment_questions.lesson_id nullable") was authored for exactly
+    this column, but this deployment's actual DB was never migrated to
+    it -- its stamped alembic_version predates that revision entirely,
+    and Base.metadata.create_all() at startup only creates *missing*
+    tables, it never alters an existing table's columns. The result:
+    assessment_blueprint_sections existed (a brand-new table, so
+    create_all() made it), but assessment_questions.lesson_id stayed
+    NOT NULL from the table's original creation -- invisible until a
+    section-wise assessment (IM/MM/PM) actually tried to INSERT a
+    question with lesson_id=None, which threw a raw IntegrityError the
+    global exception handler flattened into an opaque "Something went
+    wrong" 500 with no trace of the real cause. Found while exhaustively
+    verifying PM-L1's three workflows (DPS/assessments/mocks) end to end
+    before a production push, per explicit instruction not to ship
+    anything that would need reactive fixing later.
+
+    Postgres path is a plain ALTER COLUMN. SQLite has no ALTER COLUMN
+    at all, so it needs the same create-copy-swap rebuild alembic's own
+    batch_alter_table does under the hood, preserving every column,
+    constraint, and index exactly as they exist today.
+    """
+    inspector = inspect(engine)
+    if "assessment_questions" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"]: column for column in inspector.get_columns("assessment_questions")}
+    lesson_id_column = columns.get("lesson_id")
+    if lesson_id_column is None or lesson_id_column.get("nullable"):
+        return  # Column missing (unexpected) or already nullable -- nothing to do.
+
+    if engine.dialect.name == "sqlite":
+        with engine.begin() as connection:
+            connection.execute(text("PRAGMA foreign_keys=off"))
+            connection.execute(text("ALTER TABLE assessment_questions RENAME TO assessment_questions_legacy_notnull"))
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE assessment_questions (
+                        id VARCHAR NOT NULL,
+                        assessment_version_id VARCHAR NOT NULL,
+                        lesson_id VARCHAR,
+                        question_number INTEGER NOT NULL,
+                        lesson_question_number INTEGER NOT NULL,
+                        display_type VARCHAR(50) NOT NULL,
+                        question_text TEXT,
+                        operands_json TEXT,
+                        operators_json TEXT,
+                        correct_answer TEXT NOT NULL,
+                        explanation TEXT,
+                        difficulty VARCHAR(50),
+                        concept_tag VARCHAR(100),
+                        source_type VARCHAR(50) NOT NULL,
+                        source_reference_id VARCHAR,
+                        seed TEXT NOT NULL,
+                        metadata_json TEXT,
+                        created_at DATETIME DEFAULT (CURRENT_TIMESTAMP),
+                        PRIMARY KEY (id),
+                        CONSTRAINT uq_assessment_version_question_number UNIQUE (assessment_version_id, question_number),
+                        FOREIGN KEY(assessment_version_id) REFERENCES assessment_versions (id) ON DELETE CASCADE,
+                        FOREIGN KEY(lesson_id) REFERENCES lessons (id)
+                    )
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO assessment_questions (
+                        id, assessment_version_id, lesson_id, question_number, lesson_question_number,
+                        display_type, question_text, operands_json, operators_json, correct_answer,
+                        explanation, difficulty, concept_tag, source_type, source_reference_id, seed,
+                        metadata_json, created_at
+                    )
+                    SELECT
+                        id, assessment_version_id, lesson_id, question_number, lesson_question_number,
+                        display_type, question_text, operands_json, operators_json, correct_answer,
+                        explanation, difficulty, concept_tag, source_type, source_reference_id, seed,
+                        metadata_json, created_at
+                    FROM assessment_questions_legacy_notnull
+                    """
+                )
+            )
+            connection.execute(text("DROP TABLE assessment_questions_legacy_notnull"))
+            connection.execute(text("CREATE INDEX ix_assessment_questions_assessment_version_id ON assessment_questions (assessment_version_id)"))
+            connection.execute(text("CREATE INDEX ix_assessment_questions_lesson_id ON assessment_questions (lesson_id)"))
+            connection.execute(text("PRAGMA foreign_keys=on"))
+    else:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE assessment_questions ALTER COLUMN lesson_id DROP NOT NULL"))
+
+
 def ensure_student_level_promotions_table() -> None:
     """SQLite-safe promotion history table for Admin-controlled level progression."""
     inspector = inspect(engine)
