@@ -157,6 +157,329 @@ PM_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# PM-L2 -- added 2026-08-05, Shailesh. Structurally different from PM-L1's
+# Addition/Subtraction/Add-Less split: PM-L2's sections are keyed by
+# *practice mode* (Abacus vs Visual), not by operation direction, because
+# that is the axis Shailesh explicitly asked for -- "for the assessment and
+# mock workflows the sections need to follow the underlying concepts...
+# Section 1 - Add/Less (Abacus)... Section 2 - Add/Less (Visual)... Section
+# 3 - Concept Drill". Unlike PM-L1's Addition/Subtraction sections (true
+# mirror images of the same technique set), Sections 1 and 2 here are NOT
+# expected to be symmetric -- which specific target/technique lands in
+# which section is dictated by which DPS sheet the workbook happened to tag
+# ABACUS vs VISUAL, confirmed and accepted by Shailesh as expected, not a
+# defect to "fix" into a mirrored shape.
+#
+# Section 1/2 concept pools are derived programmatically from
+# PM_L2_LESSONS (preparatory_module_l2_config.py) -- the exact same table
+# that drives DPS seeding -- rather than hand-duplicated here, so the two
+# can never silently drift apart. Section 3 (Concept Drill) uses wide
+# generation ranges (not the DPS table's pinned literal values) per
+# Shailesh's explicit "assessment/mock need concept-driven generation, not
+# workbook-literal replay" instruction.
+#
+# Question generation for PM-L2 routes through question_engine/pm_l2 (its
+# own dedicated engine, zero imports from question_engine/pm) via
+# CollectPmL2CompetitionSectionLockedQuestions below -- a separate function
+# from PM-L1's CollectPmCompetitionSectionLockedQuestions above, so PM-L1's
+# already-verified mock/assessment code path is never touched by anything
+# added here.
+# ---------------------------------------------------------------------------
+from app.question_engine.pm_l2 import (  # noqa: E402
+    PML2Config,
+    PML2ConceptDrillConfig,
+    DRILL_MULTIPLY,
+    DRILL_DIVIDE,
+    DRILL_RANGE_SUM,
+    generate_pm_l2_question_set,
+)
+from app.question_engine.pm_l2.concept_drill import generate_concept_drill_question  # noqa: E402
+from app.seed.preparatory_module_l2_config import PM_L2_LESSONS  # noqa: E402
+
+PM_L2_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
+    {"key": "PM_L2_ADD_LESS_ABACUS", "number": 1, "title": "Section 1 - Add/Less (Abacus)"},
+    {"key": "PM_L2_ADD_LESS_VISUAL", "number": 2, "title": "Section 2 - Add/Less (Visual)"},
+    {"key": "PM_L2_CONCEPT_DRILL", "number": 3, "title": "Section 3 - Concept Drill"},
+]
+
+
+def _pm_l2_addless_pools() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Walks every normal (non-concept-drill) DPS rule in PM_L2_LESSONS and
+    buckets its concept (family/operationFocus/digitPattern/targetNumbers/
+    abacusRule/generationTemplate/revisionTemplates) into the Abacus or
+    Visual pool by that DPS's own resolved practice_mode, de-duplicating
+    identical concepts that recur across lessons (e.g. multiple lessons
+    reusing DIRECT_ADD_LESS at the same digit pattern). Returns
+    (abacus_pool, visual_pool).
+    """
+    seen_abacus: set[tuple] = set()
+    seen_visual: set[tuple] = set()
+    abacus_pool: list[dict[str, Any]] = []
+    visual_pool: list[dict[str, Any]] = []
+
+    for lesson_number in sorted(PM_L2_LESSONS):
+        lesson_rule = PM_L2_LESSONS[lesson_number]
+        for dps_number, dps_rule in lesson_rule.dps.items():
+            key = (
+                dps_rule.concept_family,
+                dps_rule.operation_focus,
+                dps_rule.digit_pattern,
+                tuple(dps_rule.target_numbers),
+                dps_rule.abacus_rule,
+                dps_rule.generation_template,
+                tuple(dps_rule.revision_templates),
+            )
+            spec = {
+                "title": dps_rule.dps_title,
+                "conceptFamily": dps_rule.concept_family,
+                "operationFocus": dps_rule.operation_focus,
+                "abacusRule": dps_rule.abacus_rule,
+                "targetNumbers": list(dps_rule.target_numbers),
+                "digitPattern": dps_rule.digit_pattern,
+                "generationTemplate": dps_rule.generation_template,
+                "revisionTemplates": list(dps_rule.revision_templates),
+            }
+            mode = (dps_rule.practice_mode or "ABACUS").upper()
+            if mode == "VISUAL":
+                if key not in seen_visual:
+                    seen_visual.add(key)
+                    visual_pool.append(spec)
+            else:
+                if key not in seen_abacus:
+                    seen_abacus.add(key)
+                    abacus_pool.append(spec)
+    return abacus_pool, visual_pool
+
+
+_PM_L2_ABACUS_POOL, _PM_L2_VISUAL_POOL = _pm_l2_addless_pools()
+
+# Concept Drill pool -- wide generation ranges (not the DPS table's pinned
+# literal values), one entry per drill format. "title" doubles as this
+# pool's concept-schedule key (see _ordered_concept_schedule below).
+# conceptFamily="CONCEPT_DRILL" on every entry is load-bearing, not
+# decorative -- assessment_blueprint_service.py's _weighted_section_keys()
+# classifies a whole section as 5-marks-per-question by checking that every
+# concept in its pool has conceptFamily in _CONCEPT_WEIGHTED_FAMILIES (which
+# includes "CONCEPT_DRILL"); without this field the Assessment Blueprint
+# Studio would silently price these questions at 1 mark instead of 5.
+PM_L2_CONCEPT_DRILL_POOL: list[dict[str, Any]] = [
+    {"title": "Concept Drill - Multiply (Repeated Addition)", "conceptFamily": "CONCEPT_DRILL", "drillFormat": DRILL_MULTIPLY, "addMin": 20, "addMax": 200, "timesValue": 12},
+    {"title": "Concept Drill - Divide (Repeated Subtraction)", "conceptFamily": "CONCEPT_DRILL", "drillFormat": DRILL_DIVIDE, "fromMin": 50, "fromMax": 900, "lessMin": 10, "lessMax": 90},
+    {"title": "Concept Drill - Range Sum", "conceptFamily": "CONCEPT_DRILL", "drillFormat": DRILL_RANGE_SUM},
+]
+
+PM_L2_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
+    "PM_L2_ADD_LESS_ABACUS": _PM_L2_ABACUS_POOL,
+    "PM_L2_ADD_LESS_VISUAL": _PM_L2_VISUAL_POOL,
+    "PM_L2_CONCEPT_DRILL": PM_L2_CONCEPT_DRILL_POOL,
+}
+
+PM_COMPETITION_LEVEL_REGISTRY["PM-L2"] = {
+    "sectionDefinitions": PM_L2_COMPETITION_SECTION_DEFINITIONS,
+    "sectionConceptPools": PM_L2_COMPETITION_SECTION_CONCEPT_POOLS,
+}
+
+
+def _build_pm_l2_config(concept_spec: dict[str, Any], question_count: int, seed: str) -> PML2Config:
+    return PML2Config(
+        module_code="PM",
+        level_code="PM-L2",
+        lesson_number=0,
+        dps_number=0,
+        question_count=question_count,
+        concept_family=concept_spec["conceptFamily"],
+        operation_focus=concept_spec["operationFocus"],
+        abacus_rule=concept_spec.get("abacusRule"),
+        target_numbers=list(concept_spec.get("targetNumbers") or []),
+        place_value="MIXED",
+        digit_pattern=concept_spec.get("digitPattern", "1D"),
+        allow_negative_operands=True,
+        allow_negative_answer=False,
+        seed=seed,
+        lesson_title="PM-L2 Competition Mock",
+        dps_title=str(concept_spec["title"]),
+        generation_template=concept_spec.get("generationTemplate", "DIRECT"),
+        revision_templates=tuple(concept_spec.get("revisionTemplates") or ()),
+    )
+
+
+def _generate_pm_l2_concept_drill_batch(concept_spec: dict[str, Any], question_count: int, seed: str) -> list[dict[str, Any]]:
+    drill_format = concept_spec["drillFormat"]
+    drill_config = PML2ConceptDrillConfig(
+        module_code="PM",
+        level_code="PM-L2",
+        lesson_number=0,
+        dps_number=0,
+        drill_format=drill_format,
+        seed=seed,
+        add_min=concept_spec.get("addMin", 1),
+        add_max=concept_spec.get("addMax", 200),
+        times_value=concept_spec.get("timesValue", 12),
+        from_min=concept_spec.get("fromMin", 1),
+        from_max=concept_spec.get("fromMax", 999),
+        less_min=concept_spec.get("lessMin", 2),
+        less_max=concept_spec.get("lessMax", 99),
+    )
+    batch: list[dict[str, Any]] = []
+    for i in range(question_count):
+        q_rng = __import__("random").Random(f"{seed}-Q{i}")
+        question = generate_concept_drill_question(drill_config, q_rng)
+        batch.append(question)
+    return batch
+
+
+def _pm_l2_question_signature(question: dict[str, Any]) -> tuple:
+    """Vertical-stack questions dedupe on their operand tuple; concept-drill
+    questions carry a `drill_operands` dict instead (and, for downstream
+    compatibility with code that unconditionally reads `Generated.get(
+    "operands", [])`, also carry an *empty* `operands` list -- so checking
+    "operands" in question is not enough to distinguish the two shapes, it
+    is true for both. Must check drill_operands first.
+    """
+    if question.get("drill_operands"):
+        return (question.get("display_type"),) + tuple(sorted(question["drill_operands"].items()))
+    return ("VERTICAL",) + tuple(question.get("operands") or [])
+
+
+def CollectPmL2CompetitionSectionLockedQuestions(
+    LevelRecord: Level,
+    TargetQuestionCount: int,
+    SectionCountsOverride: dict[str, int] | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """PM-L2's counterpart to CollectPmCompetitionSectionLockedQuestions
+    above -- deliberately a separate function (not a branch inside that one)
+    so PM-L1's already-verified code path is never touched by anything here.
+    Sections 1/2 (Add/Less Abacus/Visual) generate through
+    question_engine/pm_l2's vertical-stack generator; Section 3 (Concept
+    Drill) generates through the same package's dedicated concept_drill
+    generator, an entirely different question shape (no operands list, no
+    rows) -- both are handled here since they share the same section-count
+    distribution and coverage-reporting logic.
+    """
+    from app.services.competition_mock_generation_service import _RedistributeSectionCounts, _DenseSectionNumbering  # noqa: PLC0415
+
+    LevelConfig = PmCompetitionLevelConfig(LevelRecord)
+    SectionDefinitions = LevelConfig["sectionDefinitions"]
+    SectionConceptPools = LevelConfig["sectionConceptPools"]
+
+    SectionCounts = _RedistributeSectionCounts(TargetQuestionCount, SectionDefinitions, SectionCountsOverride, PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+    DenseNumbers = _DenseSectionNumbering(SectionDefinitions, SectionCounts)
+
+    Selected: list[dict[str, Any]] = []
+    SectionCoverage: list[dict[str, Any]] = []
+    UsedSignatures: set[tuple] = set()
+
+    for SectionDefinition in SectionDefinitions:
+        SectionKey = SectionDefinition["key"]
+        RequiredCount = int(SectionCounts.get(SectionKey, 0) or 0)
+        if RequiredCount <= 0:
+            continue
+        DisplayNumber = DenseNumbers[SectionKey]
+        SectionTitle = SectionDefinition["title"]
+        ConceptPool = SectionConceptPools.get(SectionKey, [])
+        if not ConceptPool:
+            api_error(400, "PM_COMPETITION_SECTION_EMPTY", f"{SectionTitle} has no concept pool configured.")
+
+        IsConceptDrillSection = SectionKey == "PM_L2_CONCEPT_DRILL"
+
+        Schedule = _ordered_concept_schedule(ConceptPool, RequiredCount)
+        CountsByTitle: dict[str, int] = defaultdict(int)
+        for Spec in Schedule:
+            CountsByTitle[Spec["title"]] += 1
+
+        SectionQuestions: list[dict[str, Any]] = []
+        ConceptCoverage: dict[str, int] = defaultdict(int)
+        ConceptCoverageOrder: list[str] = []
+
+        for ConceptSpec in ConceptPool:
+            RequiredForConcept = CountsByTitle.get(ConceptSpec["title"], 0)
+            if RequiredForConcept <= 0:
+                continue
+            Attempts = 0
+            AcceptedForConcept = 0
+            while AcceptedForConcept < RequiredForConcept and Attempts < max(RequiredForConcept * 4, 20):
+                Seed = f"COMPETITION-PM-L2-{SectionKey}-{ConceptSpec['title']}-{uuid4().hex}-{Attempts}"
+                if IsConceptDrillSection:
+                    Batch = _generate_pm_l2_concept_drill_batch(ConceptSpec, RequiredForConcept - AcceptedForConcept, Seed)
+                else:
+                    Config = _build_pm_l2_config(ConceptSpec, RequiredForConcept - AcceptedForConcept, Seed)
+                    Batch = generate_pm_l2_question_set(Config)
+                for Question in Batch:
+                    Signature = _pm_l2_question_signature(Question)
+                    if Signature in UsedSignatures:
+                        continue
+                    UsedSignatures.add(Signature)
+                    Metadata = dict(Question.get("metadata") or {})
+                    Metadata.update({
+                        "competitionConceptKey": ConceptSpec["title"],
+                        "competitionConceptName": ConceptSpec["title"],
+                        "competitionAllowedConceptFamily": Metadata.get("concept_family") or ConceptSpec.get("conceptFamily") or "CONCEPT_DRILL",
+                        "conceptName": ConceptSpec["title"],
+                        "competitionSectionKey": SectionKey,
+                        "competitionSectionNumber": DisplayNumber,
+                        "competitionSectionTitle": SectionTitle,
+                        "competitionSectionDisplayTitle": SectionTitle,
+                        "competitionSectionLocked": True,
+                        "section_number": DisplayNumber,
+                        "section_title": SectionTitle,
+                    })
+                    QuestionCopy = dict(Question)
+                    QuestionCopy["metadata"] = Metadata
+                    SectionQuestions.append(QuestionCopy)
+                    ConceptCoverage[ConceptSpec["title"]] += 1
+                    if ConceptSpec["title"] not in ConceptCoverageOrder:
+                        ConceptCoverageOrder.append(ConceptSpec["title"])
+                    AcceptedForConcept += 1
+                    if AcceptedForConcept >= RequiredForConcept:
+                        break
+                Attempts += 1
+
+            if AcceptedForConcept < RequiredForConcept:
+                api_error(
+                    400,
+                    "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
+                    f"Could not generate the required {RequiredForConcept} fresh questions for "
+                    f"'{ConceptSpec['title']}' in {SectionTitle}.",
+                    {"sectionKey": SectionKey, "concept": ConceptSpec["title"], "required": RequiredForConcept, "generated": AcceptedForConcept},
+                )
+
+        if len(SectionQuestions) < RequiredCount:
+            api_error(
+                400,
+                "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
+                f"Could not generate the required {RequiredCount} questions for {SectionTitle}.",
+                {"sectionKey": SectionKey, "required": RequiredCount, "generated": len(SectionQuestions)},
+            )
+
+        Selected.extend(SectionQuestions)
+        SectionCoverage.append({
+            "sectionKey": SectionKey,
+            "sectionNumber": DisplayNumber,
+            "sectionTitle": SectionTitle,
+            "selectedQuestionCount": len(SectionQuestions),
+            "availableQuestionCount": len(SectionQuestions),
+            "locked": True,
+            "concepts": [
+                {"conceptName": Name, "selectedQuestionCount": ConceptCoverage[Name], "availableQuestionCount": ConceptCoverage[Name]}
+                for Name in ConceptCoverageOrder
+            ],
+        })
+
+    for Index, Question in enumerate(Selected, start=1):
+        Question["question_number"] = Index
+
+    CoveragePayload = {
+        "targetQuestionCount": TargetQuestionCount,
+        "selectedQuestionCount": len(Selected),
+        "competitionStructure": "PM_L2_3_SECTION_COMPETITION_MOCK_SECTION_LOCKED",
+        "sectionCount": len(SectionCoverage),
+        "sections": SectionCoverage,
+        "generationErrors": [],
+    }
+    return Selected, CoveragePayload
+
+
 def PmCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
     LevelCode = str(getattr(LevelRecord, "level_code", "") or "")
     Config = PM_COMPETITION_LEVEL_REGISTRY.get(LevelCode)

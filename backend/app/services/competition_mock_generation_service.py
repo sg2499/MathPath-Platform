@@ -37,6 +37,7 @@ from app.services.pm_competition_mock_generation_service import (
     PM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS,
     PmCompetitionLevelConfig,
     CollectPmCompetitionSectionLockedQuestions,
+    CollectPmL2CompetitionSectionLockedQuestions,
 )
 
 
@@ -2322,6 +2323,19 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: L
         # per-DPS round-robin path further down produces a flat, unsectioned
         # pool and would silently drop PM's Addition/Subtraction section
         # structure entirely.
+        #
+        # PM-L2 (added 2026-08-05, Shailesh) routes to its own separate
+        # collector -- CollectPmL2CompetitionSectionLockedQuestions, in the
+        # same pm_competition_mock_generation_service.py file -- rather than
+        # a branch inside CollectPmCompetitionSectionLockedQuestions, so
+        # PM-L1's already-verified code path above is never touched by
+        # anything PM-L2-specific.
+        if str(getattr(LevelRecord, "level_code", "") or "") == "PM-L2":
+            return CollectPmL2CompetitionSectionLockedQuestions(
+                LevelRecord,
+                TargetQuestionCount,
+                SectionCountsOverride,
+            )
         return CollectPmCompetitionSectionLockedQuestions(
             LevelRecord,
             TargetQuestionCount,

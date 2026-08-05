@@ -236,7 +236,18 @@ def test_pm_assessment_distribution_must_total_100_questions(db, pm_level):
                 {"sectionKey": "PM_ADD_LESS", "questionCount": 30},
             ],
         )
-    assert excinfo.value.detail["code"] == "ASSESSMENT_QUESTION_COUNT_MUST_BE_100"
+    # 2026-08-05, Shailesh: PM now goes through the same weighted-marks
+    # computation path as IM (needed for PM-L2's Concept Drill section,
+    # worth 5 marks/question) instead of its own PM-specific flat-100-
+    # questions branch. For PM-L1 specifically this is a pure code-path
+    # unification with no behavior change -- PM-L1 has zero
+    # CONCEPT_DRILL-tagged sections, so the weighted computation reduces to
+    # exactly the same "must total 100" check, just reported under the
+    # shared ASSESSMENT_MARKS_MISMATCH code (matching IM's own error code
+    # for the identical failure) instead of the old PM-only
+    # ASSESSMENT_QUESTION_COUNT_MUST_BE_100. The distribution is still
+    # correctly rejected either way.
+    assert excinfo.value.detail["code"] == "ASSESSMENT_MARKS_MISMATCH"
 
 
 def test_pm_assessment_missing_section_is_rejected(db, pm_level):

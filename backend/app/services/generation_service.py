@@ -1,4 +1,5 @@
 import json
+import random
 from uuid import uuid4
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
@@ -7,6 +8,8 @@ from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, IsPackage1Supported
 from app.question_engine.im import IMConfig, GenerateImQuestionSet, IsImConceptSupported
 from app.question_engine.pm import PMConfig, generate_pm_question_set
+from app.question_engine.pm_l2 import PML2Config, PML2ConceptDrillConfig, generate_pm_l2_question_set
+from app.question_engine.pm_l2.concept_drill import generate_concept_drill_question, generate_range_sum_question
 from app.core.errors import api_error
 
 def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
@@ -157,6 +160,146 @@ def build_pm_config_from_dps(db: Session, dps: DPS, seed: str) -> PMConfig:
     )
 
 
+def _build_pm_l2_normal_config(dps: DPS, LessonRecord, section: DPSSection, seed: str) -> PML2Config:
+    """PM-L2's own config builder for a single vertical-stack (non-concept-
+    drill) DPSSection row. Deliberately separate from build_pm_config_from_dps
+    (PM-L1's) even though the shape looks similar -- same reasoning as that
+    function's own docstring: a future change to PM-L1's builder must never
+    silently change what PM-L2 reads, and vice versa.
+    """
+    GeneratorConfig = {}
+    if section.generator_config_json:
+        try:
+            GeneratorConfig = json.loads(section.generator_config_json or "{}")
+        except Exception:
+            GeneratorConfig = {}
+    return PML2Config(
+        module_code="PM",
+        level_code="PM-L2",
+        lesson_number=int(getattr(LessonRecord, "lesson_number", 0) or 0),
+        dps_number=int(getattr(dps, "dps_number", 0) or 0),
+        question_count=int(getattr(section, "question_count", None) or getattr(dps, "default_question_count", 10) or 10),
+        rows=int(getattr(section, "rows_count", 3) or 3),
+        concept_family=getattr(section, "concept_family", None) or GeneratorConfig.get("conceptFamily", "DIRECT_ADD_LESS"),
+        operation_focus=getattr(section, "operation_focus", None) or "ADD_LESS",
+        abacus_rule=getattr(section, "abacus_rule", None),
+        target_numbers=json.loads(section.target_numbers_json or "[]"),
+        place_value=getattr(section, "place_value", None) or "ONES",
+        digit_pattern=getattr(section, "digit_pattern", None) or GeneratorConfig.get("digitPattern") or "1D",
+        allow_negative_operands=getattr(section, "allow_negative_operands", True),
+        allow_negative_answer=getattr(section, "allow_negative_answer", False),
+        seed=seed,
+        lesson_title=getattr(LessonRecord, "lesson_title", "") or GeneratorConfig.get("lessonTitle", ""),
+        dps_title=getattr(dps, "dps_title", "") or GeneratorConfig.get("dpsTitle", ""),
+        generation_template=GeneratorConfig.get("generationTemplate") or "DIRECT",
+        revision_templates=tuple(GeneratorConfig.get("revisionTemplates") or ()),
+        practice_mode=GeneratorConfig.get("practiceMode"),
+        digit_pattern_second_half=GeneratorConfig.get("digitPatternSecondHalf"),
+    )
+
+
+def _generate_pm_l2_concept_drill_section_questions(dps: DPS, LessonRecord, section: DPSSection, seed: str) -> list[dict]:
+    """Generates one Concept Drill DPSSection's questions from its literal
+    pinned per-item workbook values (addValue/timesValue, fromValue/lessValue,
+    rangeArchetype/rangeStep/rangeNTerms -- see
+    seed_preparatory_module_l2.py's _ensure_concept_drill_section). PM-L2's
+    Concept Drill format is a genuine literal replica of the workbook, not a
+    randomized-within-range pool like the vertical add/less blocks, per
+    Shailesh's explicit "follow the workbook as is" instruction (2026-08-05).
+    Each item still passes through the real random-distractor/option-shuffle
+    machinery (generate_concept_drill_question), so options vary per seed even
+    though the tested value itself is pinned.
+    """
+    GeneratorConfig = {}
+    if section.generator_config_json:
+        try:
+            GeneratorConfig = json.loads(section.generator_config_json or "{}")
+        except Exception:
+            GeneratorConfig = {}
+    items = GeneratorConfig.get("items") or []
+    lesson_number = int(getattr(LessonRecord, "lesson_number", 0) or 0)
+    dps_number = int(getattr(dps, "dps_number", 0) or 0)
+    questions: list[dict] = []
+    for index, item in enumerate(items):
+        drill_format = item.get("drillFormat")
+        item_seed = f"{seed}-DRILL-{index}"
+        q_rng_seed = item_seed
+        config = PML2ConceptDrillConfig(
+            module_code="PM",
+            level_code="PM-L2",
+            lesson_number=lesson_number,
+            dps_number=dps_number,
+            drill_format=drill_format,
+            seed=item_seed,
+            add_min=item.get("addValue") or 1,
+            add_max=item.get("addValue") or 1,
+            times_value=item.get("timesValue") or 12,
+            from_min=item.get("fromValue") or 1,
+            from_max=item.get("fromValue") or 1,
+            less_min=item.get("lessValue") or 2,
+            less_max=item.get("lessValue") or 2,
+            range_step=item.get("rangeStep"),
+        )
+        rng = random.Random(q_rng_seed)
+        if drill_format == "CONCEPT_DRILL_RANGE_SUM":
+            question = generate_range_sum_question(
+                config, rng,
+                archetype=item.get("rangeArchetype"),
+                n_terms=item.get("rangeNTerms"),
+            )
+        else:
+            question = generate_concept_drill_question(config, rng)
+        question["seed"] = item_seed
+        questions.append(question)
+    return questions
+
+
+def generate_pm_l2_preview(db: Session, dps: DPS, seed: str) -> list[dict]:
+    """PM-L2's DPS question generation entry point -- combines every
+    DPSSection row belonging to this DPS (some PM-L2 DPS carry exactly one:
+    either a normal vertical block or a concept-drill block; a few, e.g.
+    Lesson 1 DPS5, carry both a normal section AND a separate concept-drill
+    section under the same DPS number -- see seed_preparatory_module_l2.py's
+    seed() for exactly which). No other module in this codebase combines
+    multiple DPSSection rows' generated output into a single DPS today (every
+    other build_*_config_from_dps() reads only the first section), so this is
+    new, PM-L2-specific combining logic rather than a generic change to the
+    shared dispatcher below.
+    """
+    LessonRecord = db.get(Lesson, dps.lesson_id)
+    sections = (
+        db.query(DPSSection)
+        .filter(DPSSection.dps_id == dps.id)
+        .order_by(DPSSection.section_number)
+        .all()
+    )
+    all_questions: list[dict] = []
+    question_number = 1
+    for section in sections:
+        section_seed = f"{seed}-S{section.section_number}"
+        if getattr(section, "concept_family", None) == "CONCEPT_DRILL":
+            section_questions = _generate_pm_l2_concept_drill_section_questions(dps, LessonRecord, section, section_seed)
+        else:
+            config = _build_pm_l2_normal_config(dps, LessonRecord, section, section_seed)
+            section_questions = generate_pm_l2_question_set(config)
+        for q in section_questions:
+            q["question_number"] = question_number
+            question_number += 1
+            Metadata = q.get("metadata") or {}
+            Metadata["section_number"] = int(getattr(section, "section_number", 1) or 1)
+            # Admin Learning Path Studio's preview groups questions into
+            # Section N cards keyed by (section_number, section_title) --
+            # without this, DPS carrying two sections (a normal block + a
+            # concept-drill block, e.g. Lesson 1 DPS5) both fall back to the
+            # same DPS-level title, so Section 2 visually mislabels itself
+            # with Section 1's name even though the questions themselves are
+            # correct. Caught via live verification (2026-08-05).
+            Metadata["section_title"] = getattr(section, "section_title", None) or Metadata.get("dps_title")
+            q["metadata"] = Metadata
+            all_questions.append(q)
+    return all_questions
+
+
 def build_attempt_question_seed(dps: DPS, assignment, student_id: str, attempt, started_at) -> str:
     """Build the question seed for a student attempt.
 
@@ -193,6 +336,16 @@ def _module_code_for_dps(db: Session, dps: DPS) -> str:
     LevelRecord = db.get(Level, LessonRecord.level_id) if LessonRecord else None
     ModuleRecord = db.get(Module, LevelRecord.module_id) if LevelRecord else None
     return str(getattr(ModuleRecord, "module_code", "") or "").upper()
+
+
+def _level_code_for_dps(db: Session, dps: DPS) -> str:
+    LessonRecord = db.get(Lesson, dps.lesson_id)
+    LevelRecord = db.get(Level, LessonRecord.level_id) if LessonRecord else None
+    return str(getattr(LevelRecord, "level_code", "") or "").upper()
+
+
+def _is_pm_l2(db: Session, dps: DPS) -> bool:
+    return _level_code_for_dps(db, dps) == "PM-L2"
 
 
 def _is_dynamic_generator_supported(db: Session, dps: DPS) -> bool:
@@ -245,6 +398,8 @@ def generate_preview(db: Session, dps: DPS, seed: str | None = None) -> list[dic
         Config = build_im_config_from_dps(db, dps, seed)
         return GenerateImQuestionSet(Config)
     if ModuleCode == "PM":
+        if _is_pm_l2(db, dps):
+            return generate_pm_l2_preview(db, dps, seed)
         Config = build_pm_config_from_dps(db, dps, seed)
         return generate_pm_question_set(Config)
     config = build_config_from_dps(db, dps, seed)
@@ -264,8 +419,11 @@ def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, stude
         Config = build_im_config_from_dps(db, dps, seed)
         generated = GenerateImQuestionSet(Config)
     elif ModuleCode == "PM":
-        Config = build_pm_config_from_dps(db, dps, seed)
-        generated = generate_pm_question_set(Config)
+        if _is_pm_l2(db, dps):
+            generated = generate_pm_l2_preview(db, dps, seed)
+        else:
+            Config = build_pm_config_from_dps(db, dps, seed)
+            generated = generate_pm_question_set(Config)
     else:
         config = build_config_from_dps(db, dps, seed)
         generated = generate_ylm_question_set(config)

@@ -100,6 +100,11 @@ def _weighted_section_keys(registry_config: dict[str, Any]) -> set[str]:
     section, so "every concept in this section's pool is weighted" is a
     reliable way to classify a whole section without touching per-question
     data (sections are the unit the admin distributes questions across).
+    Also covers PM-L2's own "Section 3 - Concept Drill" pool (see
+    PM_L2_CONCEPT_DRILL_POOL in pm_competition_mock_generation_service.py,
+    every entry tagged conceptFamily="CONCEPT_DRILL") -- same detection,
+    no PM-specific branch needed here since _CONCEPT_WEIGHTED_FAMILIES
+    already includes "CONCEPT_DRILL".
     """
     pools = registry_config.get("sectionConceptPools", {}) or {}
     weighted: set[str] = set()
@@ -116,10 +121,15 @@ def section_marks_metadata(module_code: str, registry_config: dict[str, Any]) ->
     marks-must-equal-100 enforcement below) without hardcoding which sections
     are weighted on the frontend. MM is never weighted -- flat 1 mark
     everywhere, matching MM_FLAT_QUESTION_MARKS in assessment_engine_service.py.
+    PM is included alongside _CONCEPT_WEIGHTED_MODULES (2026-08-05,
+    Shailesh) because PM-L2 introduces its own Concept Drill section; PM-L1
+    is unaffected since none of its sections' concept pools ever carry
+    conceptFamily="CONCEPT_DRILL", so _weighted_section_keys() finds nothing
+    to weight there and every PM-L1 section still resolves to flat 1 mark.
     """
     section_defs = registry_config.get("sectionDefinitions", [])
     module_upper = (module_code or "").upper()
-    if module_upper not in _CONCEPT_WEIGHTED_MODULES:
+    if module_upper not in _CONCEPT_WEIGHTED_MODULES and module_upper != "PM":
         return {row["key"]: {"isWeighted": False, "marksPerQuestion": 1.0} for row in section_defs}
     weighted_keys = _weighted_section_keys(registry_config)
     return {
@@ -329,7 +339,16 @@ def validate_section_distribution(
     # Both checks are hard failures with the same coverage-check philosophy
     # as everything else in this function -- never silently clamp or scale.
     module_upper = (module_code or "").upper()
-    if module_upper in _CONCEPT_WEIGHTED_MODULES:
+    # PM is included alongside _CONCEPT_WEIGHTED_MODULES (2026-08-05,
+    # Shailesh): PM-L2 introduces its own Concept Drill section, weighted
+    # exactly like IM's Skill Stacker/Concept Drill. This does not change
+    # PM-L1's behavior at all -- PM-L1's registry has zero sections whose
+    # concept pool is tagged conceptFamily="CONCEPT_DRILL", so
+    # _weighted_section_keys() returns an empty set for it, which makes the
+    # weighted computation below mathematically identical to the old flat
+    # "total_questions must be 100" check it replaces (computed_marks
+    # reduces to exactly total_questions when nothing is weighted).
+    if module_upper in _CONCEPT_WEIGHTED_MODULES or module_upper == "PM":
         weighted_keys = _weighted_section_keys(registry_config)
         computed_marks = sum(
             (_CONCEPT_WEIGHTED_MARKS if section_def["key"] in weighted_keys else 1.0) * count
@@ -349,10 +368,10 @@ def validate_section_distribution(
                     "weightedSectionKeys": sorted(weighted_keys),
                 },
             )
-    elif module_upper in {"MM", "PM"}:
-        # PM has no Skill Stacker/Concept Drill concepts (per product decision
-        # 2026-08-04), so it is flat 1 mark/question exactly like MM -- same
-        # "always 100 questions" invariant, same error code.
+    elif module_upper == "MM":
+        # MM has no Skill Stacker/Concept Drill concepts and never will
+        # (explicit product decision to keep MM's marking flat everywhere),
+        # so it stays flat 1 mark/question -- "always 100 questions".
         if total_questions != int(TOTAL_ASSESSMENT_MARKS):
             api_error(
                 400,
