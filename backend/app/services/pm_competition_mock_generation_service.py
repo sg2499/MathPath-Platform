@@ -384,16 +384,28 @@ def CollectPmL2CompetitionSectionLockedQuestions(
         IsConceptDrillSection = SectionKey == "PM_L2_CONCEPT_DRILL"
 
         Schedule = _ordered_concept_schedule(ConceptPool, RequiredCount)
-        CountsByTitle: dict[str, int] = defaultdict(int)
+        # Keyed by pool-entry identity (id), not by title: two distinct pool
+        # entries can share the exact same display title (e.g. PM-L2's
+        # "Two Digit Addition-Subtraction (Direct Method)" appears for both
+        # the 1D_AND_2D and 2D_FULL digit patterns). Bucketing by title text
+        # would collapse them into one shared count, and then EACH entry's
+        # loop iteration below would look up and try to fill the FULL
+        # combined count on its own -- silently doubling the attempted
+        # output and starving whichever entry has the narrower operand
+        # range of unique signatures, which is what raised
+        # PM_COMPETITION_SECTION_GENERATION_INCOMPLETE. _ordered_concept_schedule
+        # reuses the same dict object references from ConceptPool, so id()
+        # is a stable per-entry key here.
+        CountsByConcept: dict[int, int] = defaultdict(int)
         for Spec in Schedule:
-            CountsByTitle[Spec["title"]] += 1
+            CountsByConcept[id(Spec)] += 1
 
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
         ConceptCoverageOrder: list[str] = []
 
         for ConceptSpec in ConceptPool:
-            RequiredForConcept = CountsByTitle.get(ConceptSpec["title"], 0)
+            RequiredForConcept = CountsByConcept.get(id(ConceptSpec), 0)
             if RequiredForConcept <= 0:
                 continue
             Attempts = 0
@@ -575,16 +587,20 @@ def CollectPmCompetitionSectionLockedQuestions(
             api_error(400, "PM_COMPETITION_SECTION_EMPTY", f"{SectionTitle} has no concept pool configured.")
 
         Schedule = _ordered_concept_schedule(ConceptPool, RequiredCount)
-        CountsByTitle: dict[str, int] = defaultdict(int)
+        # See the matching comment in CollectPmL2CompetitionSectionLockedQuestions:
+        # bucket by pool-entry identity (id), not by title text, so two
+        # distinct entries that happen to share a display title never get
+        # their required counts merged and double-attempted.
+        CountsByConcept: dict[int, int] = defaultdict(int)
         for Spec in Schedule:
-            CountsByTitle[Spec["title"]] += 1
+            CountsByConcept[id(Spec)] += 1
 
         SectionQuestions: list[dict[str, Any]] = []
         ConceptCoverage: dict[str, int] = defaultdict(int)
         ConceptCoverageOrder: list[str] = []
 
         for ConceptSpec in ConceptPool:
-            RequiredForConcept = CountsByTitle.get(ConceptSpec["title"], 0)
+            RequiredForConcept = CountsByConcept.get(id(ConceptSpec), 0)
             if RequiredForConcept <= 0:
                 continue
             Attempts = 0
