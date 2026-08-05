@@ -1,0 +1,77 @@
+# =============================================================================
+# MathPath — Production frontend BUILD only (runs on GitHub)
+# Does NOT SSH to your server. No PROD_* deploy secrets needed.
+# Laptop script downloads this artifact and syncs to production.
+# =============================================================================
+#
+# HOW TO RUN:
+#   Prefer: bash scripts/prod-deploy/deploy-simple.sh  (triggers this + deploys)
+#   Or:     Actions → "Production Build" → Run workflow
+# =============================================================================
+
+name: Production Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Git ref to build (branch, tag, or SHA). Empty = this branch tip."
+        required: false
+        default: ""
+
+concurrency:
+  group: prod-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Next.js on GitHub
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          # Production Next server talks to local uvicorn behind nginx
+          BACKEND_ORIGIN: ${{ vars.BACKEND_ORIGIN || 'http://127.0.0.1:8000' }}
+          NEXT_TELEMETRY_DISABLED: "1"
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN || '' }}
+        run: npm run build
+
+      - name: Pack frontend build artifact
+        run: |
+          mkdir -p /tmp/mp-frontend-artifact
+          cp -a frontend/.next /tmp/mp-frontend-artifact/.next
+          if [ -d frontend/public ]; then cp -a frontend/public /tmp/mp-frontend-artifact/public; fi
+          cp frontend/package.json /tmp/mp-frontend-artifact/
+          if [ -f frontend/package-lock.json ]; then cp frontend/package-lock.json /tmp/mp-frontend-artifact/; fi
+          if [ -f frontend/next.config.mjs ]; then cp frontend/next.config.mjs /tmp/mp-frontend-artifact/; fi
+          if [ -f frontend/next.config.js ]; then cp frontend/next.config.js /tmp/mp-frontend-artifact/; fi
+          echo "${{ github.sha }}" > /tmp/mp-frontend-artifact/BUILD_SHA.txt
+          tar -C /tmp/mp-frontend-artifact -czf /tmp/mathpath-frontend-build.tgz .
+          ls -lh /tmp/mathpath-frontend-build.tgz
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mathpath-frontend-build
+          path: /tmp/mathpath-frontend-build.tgz
+          retention-days: 7
