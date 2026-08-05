@@ -38,6 +38,8 @@ from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, OperationFocusForConcept as MmOperationFocusForConcept
 from app.question_engine.im import IMConfig, GenerateImQuestionSet, OperationFocusForConcept as ImOperationFocusForConcept
 from app.question_engine.pm import PMConfig, generate_pm_question_set
+from app.question_engine.pm_l2 import PML2Config, PML2ConceptDrillConfig, generate_pm_l2_question_set
+from app.question_engine.pm_l2.concept_drill import generate_concept_drill_question
 from app.services.competition_mock_generation_service import (
     IM_COMPETITION_LEVEL_REGISTRY,
     MM_COMPETITION_LEVEL_REGISTRY,
@@ -127,9 +129,32 @@ _CONCEPT_WEIGHTED_MARKS = 5.0
 _CONCEPT_WEIGHTED_DEFAULT_MARKS = 1.0
 MM_FLAT_QUESTION_MARKS = 1.0
 
+# PM-L2's own Concept Drill weighting (Shailesh, 2026-08-05): PM-L1 has no
+# Skill Stacker/Concept Drill concept at all (stays exactly flat 1, the
+# 2026-08-04 product decision this file's other comments still describe),
+# but PM-L2 introduces its own Concept Drill format and it must be worth 5
+# marks in DPS and assessments, same as IM's, while every other PM-L2
+# question stays flat 1. Deliberately its own function/constant-set rather
+# than folding PM into _CONCEPT_WEIGHTED_MODULES/_CONCEPT_WEIGHTED_FAMILIES
+# above -- those are IM's own allow-list and a change to IM's weighted
+# family set (e.g. adding a new IM concept there) must never accidentally
+# reweight PM, and vice versa.
+_PM_CONCEPT_WEIGHTED_FAMILIES = {"CONCEPT_DRILL"}
+
 
 def ImConceptWeightedQuestionMark(ConceptTag: str | None) -> float:
     return _CONCEPT_WEIGHTED_MARKS if ConceptTag in _CONCEPT_WEIGHTED_FAMILIES else _CONCEPT_WEIGHTED_DEFAULT_MARKS
+
+
+def PmQuestionMark(ConceptTag: str | None) -> float:
+    """PM's own concept-weighted mark lookup. Flat 1 mark for every PM-L1
+    question (no Concept Drill there) and every PM-L2 question except its
+    own Concept Drill format (concept_tag == "CONCEPT_DRILL"), which is
+    worth 5 marks per question -- mirrors IM's Skill Stacker/Concept Drill
+    weighting exactly, in a PM-owned function so a future change to IM's
+    weighted-family set can never silently reweight PM.
+    """
+    return _CONCEPT_WEIGHTED_MARKS if ConceptTag in _PM_CONCEPT_WEIGHTED_FAMILIES else _CONCEPT_WEIGHTED_DEFAULT_MARKS
 
 
 def _AssessmentModuleCodeForVersion(Db: Session, Version: AssessmentVersion | None) -> str:
@@ -148,16 +173,21 @@ def ResolvedAssessmentQuestionMark(Db: Session, Version: AssessmentVersion | Non
     per-answer save, and final grading, so the three can never silently
     disagree (the exact class of bug Shailesh flagged: a student seeing one
     mark value mid-attempt and a different one at grading). Three paths:
-    MM and PM are always flat 1 mark (PM has no Skill Stacker/Concept Drill
-    concepts, per product decision 2026-08-04, so it gets MM's exact
-    treatment); _CONCEPT_WEIGHTED_MODULES (IM today) resolves via
-    ImConceptWeightedQuestionMark(); everything else (YLM, and any unlisted
-    future module) keeps the original flat evenly-balanced-100 behavior via
-    AssessmentQuestionMark(), byte-for-byte unchanged.
+    MM is always flat 1 mark. PM is flat 1 mark for every PM-L1 question
+    (no Skill Stacker/Concept Drill concept exists there, per product
+    decision 2026-08-04) and for every PM-L2 question except its own
+    Concept Drill format, which is worth 5 (Shailesh, 2026-08-05, see
+    PmQuestionMark() above). _CONCEPT_WEIGHTED_MODULES (IM today) resolves
+    via ImConceptWeightedQuestionMark(); everything else (YLM, and any
+    unlisted future module) keeps the original flat evenly-balanced-100
+    behavior via AssessmentQuestionMark(), byte-for-byte unchanged.
     """
     ModuleCode = _AssessmentModuleCodeForVersion(Db, Version)
-    if ModuleCode in {"MM", "PM"}:
+    if ModuleCode == "MM":
         return MM_FLAT_QUESTION_MARKS
+    if ModuleCode == "PM":
+        ConceptTag = Question.concept_tag if Question else None
+        return PmQuestionMark(ConceptTag)
     if ModuleCode in _CONCEPT_WEIGHTED_MODULES:
         ConceptTag = Question.concept_tag if Question else None
         return ImConceptWeightedQuestionMark(ConceptTag)
@@ -600,6 +630,88 @@ def SplitCountAcrossSources(TotalCount: int, SourceCount: int) -> list[int]:
     for Index in range(SourceCount):
         Counts.append(BaseCount + (1 if Index < Remainder else 0))
     return [Count for Count in Counts if Count > 0]
+
+
+def _GeneratePmL2AssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], Count: int, Seed: str) -> list[dict[str, Any]]:
+    """PM-L2 counterpart of _GeneratePmAssessmentBatch above -- a separate
+    function (not a branch inside it) so PM-L1's already-verified assessment
+    generation path is never touched. Dispatches on whether ConceptSpec is a
+    Concept Drill entry (has a "drillFormat" key, see
+    PM_L2_CONCEPT_DRILL_POOL in pm_competition_mock_generation_service.py)
+    or a normal vertical Add/Less entry -- the two use entirely different
+    config types and generators (question_engine/pm_l2's
+    generate_concept_drill_question vs generate_pm_l2_question_set).
+    """
+    if Count <= 0:
+        return []
+    if "drillFormat" in ConceptSpec:
+        DrillConfig = PML2ConceptDrillConfig(
+            module_code="PM",
+            level_code="PM-L2",
+            lesson_number=0,
+            dps_number=int(SectionDefinition.get("number") or 1),
+            drill_format=ConceptSpec["drillFormat"],
+            seed=Seed,
+            add_min=ConceptSpec.get("addMin", 1),
+            add_max=ConceptSpec.get("addMax", 200),
+            times_value=ConceptSpec.get("timesValue", 12),
+            from_min=ConceptSpec.get("fromMin", 1),
+            from_max=ConceptSpec.get("fromMax", 999),
+            less_min=ConceptSpec.get("lessMin", 2),
+            less_max=ConceptSpec.get("lessMax", 99),
+        )
+        Questions: list[dict[str, Any]] = []
+        for QuestionIndex in range(1, Count + 1):
+            QRng = __import__("random").Random(f"{Seed}-Q{QuestionIndex}")
+            Row = generate_concept_drill_question(DrillConfig, QRng)
+            Row["question_number"] = QuestionIndex
+            Questions.append(Row)
+        return Questions
+
+    Config = PML2Config(
+        module_code="PM",
+        level_code="PM-L2",
+        lesson_number=0,
+        dps_number=int(SectionDefinition.get("number") or 1),
+        question_count=Count,
+        concept_family=str(ConceptSpec.get("conceptFamily") or "DIRECT_ADD_LESS"),
+        operation_focus=str(ConceptSpec.get("operationFocus") or "ADD_LESS"),
+        abacus_rule=ConceptSpec.get("abacusRule"),
+        target_numbers=list(ConceptSpec.get("targetNumbers") or []),
+        place_value="MIXED",
+        digit_pattern=str(ConceptSpec.get("digitPattern") or "1D"),
+        allow_negative_operands=True,
+        allow_negative_answer=False,
+        seed=Seed,
+        lesson_title=str(SectionDefinition.get("title") or ""),
+        dps_title=str(ConceptSpec.get("title") or SectionDefinition.get("title") or ""),
+        generation_template=str(ConceptSpec.get("generationTemplate") or "DIRECT"),
+        revision_templates=tuple(ConceptSpec.get("revisionTemplates") or ()),
+    )
+    try:
+        Questions = generate_pm_l2_question_set(Config)
+        if len(Questions) == Count:
+            return Questions
+    except Exception:
+        Questions = []
+
+    Questions = []
+    for QuestionIndex in range(1, Count + 1):
+        LastError: Exception | None = None
+        for RetryIndex in range(1, 16):
+            SingleConfig = replace(Config, question_count=1, seed=f"{Config.seed}-AQ{QuestionIndex}-R{RetryIndex}-{uuid4().hex}")
+            try:
+                Generated = generate_pm_l2_question_set(SingleConfig)
+                if Generated:
+                    Row = Generated[0]
+                    Row["question_number"] = QuestionIndex
+                    Questions.append(Row)
+                    break
+            except Exception as Exc:
+                LastError = Exc
+        else:
+            raise ValueError(str(LastError) if LastError else f"Could not generate assessment question {QuestionIndex}")
+    return Questions
 
 
 def QuestionText(Operands: list, Operators: list | None = None) -> str:
@@ -1068,6 +1180,12 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     if ModuleCode == "MM":
                         Config = MmSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
                         GeneratedQuestions = _GenerateMmAssessmentBatch(Config, Count)
+                    elif ModuleCode == "PM" and str(getattr(LevelItem, "level_code", "") or "") == "PM-L2":
+                        # PM-L2 routes to its own dedicated batch generator
+                        # (question_engine/pm_l2) -- a separate function from
+                        # PM-L1's _GeneratePmAssessmentBatch below, so PM-L1's
+                        # already-verified path is never touched.
+                        GeneratedQuestions = _GeneratePmL2AssessmentBatch(SectionDef, ConceptSpec, Count, ConceptSeed)
                     elif ModuleCode == "PM":
                         Config = PmSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
                         GeneratedQuestions = _GeneratePmAssessmentBatch(Config, Count)
@@ -1090,8 +1208,15 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                         QuestionMarks = MM_FLAT_QUESTION_MARKS
                         MarksMode = "MM_FLAT"
                     elif ModuleCode == "PM":
-                        QuestionMarks = MM_FLAT_QUESTION_MARKS
-                        MarksMode = "PM_FLAT"
+                        # PmQuestionMark() returns flat 1 for every PM-L1
+                        # question (never tagged CONCEPT_DRILL) and for every
+                        # PM-L2 question except its own Concept Drill format,
+                        # which is worth 5 -- see PmQuestionMark()'s
+                        # docstring. Level-agnostic (keyed off the question's
+                        # own concept_tag, not level_code), so PM-L1's marks
+                        # are unaffected by this change.
+                        QuestionMarks = PmQuestionMark(ConceptTag)
+                        MarksMode = "PM_CONCEPT_WEIGHTED" if QuestionMarks != MM_FLAT_QUESTION_MARKS else "PM_FLAT"
                     else:
                         QuestionMarks = ImConceptWeightedQuestionMark(ConceptTag)
                         MarksMode = "CONCEPT_WEIGHTED"

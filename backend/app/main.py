@@ -193,6 +193,20 @@ def on_startup():
     finally:
         db.close()
 
+    # Always run the Preparatory Module Level 2 curriculum sync, mirroring
+    # PM-L1's sync above -- additive only (reuses the "PM" Module row, adds
+    # the "PM-L2" Level). Idempotent: only creates/completes PM -> PM-L2 ->
+    # Lessons 1-12 -> DPS (5 per lesson, 6 for Lesson 8) -> normal +
+    # concept-drill sections. Does not touch PM-L1's Level/Lessons/DPS at
+    # all, and does not create students, teachers, assignments, attempts, or
+    # demo records.
+    from app.seed.seed_preparatory_module_l2 import seed as seed_preparatory_module_l2
+    db = SessionLocal()
+    try:
+        seed_preparatory_module_l2(db)
+    finally:
+        db.close()
+
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
