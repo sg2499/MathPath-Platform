@@ -306,29 +306,6 @@ function PositionNumberTableQuestion({
   );
 }
 
-function ConceptDrillPromptQuestion({ questionText }: { questionText?: string | null }) {
-  // PM-L2's "CONCEPT DRILL (ABACUS)" formats (multiply/divide-remainder/
-  // range-sum) -- see backend/app/question_engine/pm_l2/concept_drill.py.
-  // Unlike every other display mode here, these carry a complete,
-  // already-punctuated natural-language prompt (e.g. "34 x 12 = ?",
-  // "Starting from 108, keep subtracting 13 until you can't do so again
-  // without going below 0. What number are you left with?", "Sum the
-  // numbers from 1 to 30.") -- so this renders questionText as-is, with no
-  // expression-building fallback and no auto-appended "= ?" (ExpressionQuestion's
-  // auto-append would incorrectly tack "= ?" onto range-sum's sentence-style
-  // prompts, which don't end in a question mark). Found via live
-  // verification (2026-08-05): before this, PM-L2 concept-drill questions
-  // fell through to the VerticalQuestion default with empty operands,
-  // rendering as a blank box.
-  return (
-    <div className="mx-auto flex w-full max-w-full justify-center rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
-      <p className="w-full text-center font-mono text-base font-black leading-[1.4] tracking-tight sm:text-lg">
-        {questionText?.trim() || "?"}
-      </p>
-    </div>
-  );
-}
-
 function IsPositionNumberTable(operators: string[]): boolean {
   const Labels = operators.map((Operator) => String(Operator || "").trim().toUpperCase());
   return Labels[0] === "POSITION" && Labels[1] === "NUMBER";
@@ -393,12 +370,28 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
     return <CompactExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} />;
   }
 
-  if (Mode === "SKILL_STACKER_TABLE" || Mode === "CONCEPT_DRILL_TABLE") {
+  if (
+    Mode === "SKILL_STACKER_TABLE" ||
+    Mode === "CONCEPT_DRILL_TABLE" ||
+    // PM-L2's own Concept Drill formats (multiply/divide-remainder/range-sum)
+    // -- see backend/app/question_engine/pm_l2/concept_drill.py. Originally
+    // rendered as a written sentence via a bespoke component; corrected
+    // 2026-08-05 (later still) to reuse this same labeled 2-column box IM's
+    // Skill Stacker (ADD/TIMES) and IM/MM's own Concept Drill (FROM/LESS)
+    // already use, matching the literal workbook image (Lesson 3 DPS5:
+    // SL/ADD/TIMES/ANSWER and SL/FROM/LESS/ANSWER columns, no per-question
+    // caption). RANGE_SUM (FROM/TO) has no IM/MM equivalent, but uses the
+    // same box with the workbook's own column labels; its generator sets a
+    // real questionText caption ("Odd Numbers"/"Consecutive Numbers"/
+    // "Multiples of N") since without it, FROM/TO alone can't distinguish
+    // e.g. odd-numbers-1-to-30 from consecutive-numbers-1-to-30 (confirmed
+    // against the Lesson 2 DPS5 image, which shows identical FROM/TO values
+    // for both rows, disambiguated only by that caption).
+    Mode === "CONCEPT_DRILL_MULTIPLY" ||
+    Mode === "CONCEPT_DRILL_DIVIDE" ||
+    Mode === "CONCEPT_DRILL_RANGE_SUM"
+  ) {
     return <CompactTwoColumnQuestion operands={Operands} operators={Operators} questionText={questionText} />;
-  }
-
-  if (Mode === "CONCEPT_DRILL_MULTIPLY" || Mode === "CONCEPT_DRILL_DIVIDE" || Mode === "CONCEPT_DRILL_RANGE_SUM") {
-    return <ConceptDrillPromptQuestion questionText={questionText} />;
   }
 
   if ((Mode === "VERTICAL" || Mode === "VISUAL_STACK") && IsDecimalStackCandidate(Operands, Operators)) {

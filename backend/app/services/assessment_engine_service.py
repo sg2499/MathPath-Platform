@@ -1232,7 +1232,23 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                             "randomizedAssessment": True,
                         }
                     )
-                    GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands, Generated.get("operators"))
+                    # PM-L2's Concept Drill questions (identified by carrying
+                    # a `drill_operands` dict -- same marker the dedup helper
+                    # in pm_competition_mock_generation_service.py already
+                    # uses) deliberately set question_text to None for
+                    # MULTIPLY/DIVIDE (no caption, matches the workbook's own
+                    # box-only presentation) or a short label for RANGE_SUM.
+                    # The QuestionText() fallback below exists for generators
+                    # that never set their own question_text at all (e.g. IM's
+                    # multiplication/division) -- running it against Concept
+                    # Drill's ["Add","Times"]/["From","Less"]/["From","To"]
+                    # operator labels would synthesize a nonsense sentence
+                    # ("34 Times 12") and persist it as the assessment's
+                    # caption, silently un-fixing the box-only rendering this
+                    # was corrected to match (2026-08-05, later still).
+                    GeneratedQuestionText = Generated.get("question_text") if Generated.get("drill_operands") else (
+                        Generated.get("question_text") or QuestionText(Operands, Generated.get("operators"))
+                    )
                     AssessmentQuestionRow = AssessmentQuestion(
                         assessment_version_id=Version.id,
                         lesson_id=None,
@@ -1307,7 +1323,23 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                             "randomizedAssessment": True,
                         }
                     )
-                    GeneratedQuestionText = Generated.get("question_text") or QuestionText(Operands, Generated.get("operators"))
+                    # PM-L2's Concept Drill questions (identified by carrying
+                    # a `drill_operands` dict -- same marker the dedup helper
+                    # in pm_competition_mock_generation_service.py already
+                    # uses) deliberately set question_text to None for
+                    # MULTIPLY/DIVIDE (no caption, matches the workbook's own
+                    # box-only presentation) or a short label for RANGE_SUM.
+                    # The QuestionText() fallback below exists for generators
+                    # that never set their own question_text at all (e.g. IM's
+                    # multiplication/division) -- running it against Concept
+                    # Drill's ["Add","Times"]/["From","Less"]/["From","To"]
+                    # operator labels would synthesize a nonsense sentence
+                    # ("34 Times 12") and persist it as the assessment's
+                    # caption, silently un-fixing the box-only rendering this
+                    # was corrected to match (2026-08-05, later still).
+                    GeneratedQuestionText = Generated.get("question_text") if Generated.get("drill_operands") else (
+                        Generated.get("question_text") or QuestionText(Operands, Generated.get("operators"))
+                    )
                     AssessmentQuestionRow = AssessmentQuestion(
                         assessment_version_id=Version.id,
                         lesson_id=LessonItem.id,
