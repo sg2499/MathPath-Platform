@@ -393,7 +393,27 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
     return <CompactExpressionQuestion operands={Operands} operators={Operators} questionText={questionText} />;
   }
 
-  if (Mode === "SKILL_STACKER_TABLE" || Mode === "CONCEPT_DRILL_TABLE") {
+  if (
+    Mode === "SKILL_STACKER_TABLE" ||
+    Mode === "CONCEPT_DRILL_TABLE" ||
+    // PM-L2's own Concept Drill formats (multiply/divide-remainder/range-sum)
+    // -- see backend/app/question_engine/pm_l2/concept_drill.py. Originally
+    // rendered as a written sentence via a bespoke component; corrected
+    // 2026-08-05 (later still) to reuse this same labeled 2-column box IM's
+    // Skill Stacker (ADD/TIMES) and IM/MM's own Concept Drill (FROM/LESS)
+    // already use, matching the literal workbook image (Lesson 3 DPS5:
+    // SL/ADD/TIMES/ANSWER and SL/FROM/LESS/ANSWER columns, no per-question
+    // caption). RANGE_SUM (FROM/TO) has no IM/MM equivalent, but uses the
+    // same box with the workbook's own column labels; its generator sets a
+    // real questionText caption ("Odd Numbers"/"Consecutive Numbers"/
+    // "Multiples of N") since without it, FROM/TO alone can't distinguish
+    // e.g. odd-numbers-1-to-30 from consecutive-numbers-1-to-30 (confirmed
+    // against the Lesson 2 DPS5 image, which shows identical FROM/TO values
+    // for both rows, disambiguated only by that caption).
+    Mode === "CONCEPT_DRILL_MULTIPLY" ||
+    Mode === "CONCEPT_DRILL_DIVIDE" ||
+    Mode === "CONCEPT_DRILL_RANGE_SUM"
+  ) {
     return <CompactTwoColumnQuestion operands={Operands} operators={Operators} questionText={questionText} />;
   }
 
