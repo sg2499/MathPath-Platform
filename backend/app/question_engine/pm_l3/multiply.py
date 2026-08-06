@@ -5,6 +5,7 @@ import random
 from app.question_engine.option_utils import build_mcq_options
 from app.question_engine.pm_l3.config import PML3MultiplyConfig
 from app.question_engine.pm_l3.distractors import generate_multiply_table_distractors
+from app.question_engine.pm_l3.operands import is_trivial_scale_operand
 
 """PM-L3's "2D X 1D (ABACUS/VISUAL)" -- the level's dominant new skill, a
 full standalone DPS (not a small teaser like Concept Drill). Plain
@@ -24,6 +25,14 @@ matching IM's WHOLE_NUMBER_MULTIPLICATION (question_engine/im/operands.py),
 which is the platform's own precedent for this exact concept and renders as
 a single "43 × 8 = ?" expression (display_type EXPRESSION_WORKSHEET,
 operators ["", "×"], no question_text so the frontend builds the string).
+
+Trivial-operand guard (added 2026-08-06, Shailesh, from a live admin-preview
+showing round-number products like "80 × 7"): retries while EITHER number or
+multiplier is trivial (x1, or a round value like 20/30/.../90), same OR-guard
+IM's GenerateWholeNumberMultiplication uses. Lesson 1 DPS2 legitimately pins
+multiplier_min=multiplier_max=1 as the workbook's own intro scaffold -- the
+retry loop just exhausts its attempts and falls back to that forced value
+there, it never raises.
 """
 
 
@@ -32,8 +41,12 @@ def compute_multiply_table_answer(number: int, multiplier: int) -> int:
 
 
 def generate_multiply_table_question(config: PML3MultiplyConfig, rng: random.Random) -> dict:
-    number = rng.randint(config.number_min, config.number_max)
-    multiplier = rng.randint(config.multiplier_min, config.multiplier_max)
+    number = multiplier = 0
+    for _attempt in range(60):
+        number = rng.randint(config.number_min, config.number_max)
+        multiplier = rng.randint(config.multiplier_min, config.multiplier_max)
+        if not (is_trivial_scale_operand(number) or is_trivial_scale_operand(multiplier)):
+            break
     correct_answer = compute_multiply_table_answer(number, multiplier)
     distractors = generate_multiply_table_distractors(correct_answer, rng)
     options = build_mcq_options(correct_answer, distractors, rng)

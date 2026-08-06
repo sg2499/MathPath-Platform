@@ -59,6 +59,21 @@ class PML3ConceptDrillConfig:
     lessons pair this with the wider vertical-stack Add/Less DPS, exactly
     the small "teaser" sub-block PM-L2 established (never a full 20-question
     DPS on its own).
+
+    times_value stays a single fixed number for DPS-level seeding (Learning
+    Path Studio previews) -- each DPS only ever embeds ONE Concept Drill
+    Multiply row, and PM-L3's own workbook shows a specific, verified TIMES
+    value per lesson (5, 6, 7, 8, 9 -- see preparatory_module_l3_config.py's
+    _drill_mult calls), unlike PM-L2 whose workbook uses 12 everywhere. But
+    assessments/mocks draw MANY questions from one concept-pool entry
+    (Section 5 - Concept Drill), and pinning all of them to one fixed TIMES
+    (previously always 12, copied from PM-L2's convention without checking
+    PM-L3's own workbook) makes the whole section guessable after the first
+    question -- Shailesh's 2026-08-06 catch. times_min/times_max (both set)
+    override times_value with a fresh random draw per question, sourced from
+    PM-L3's own observed 5-9 range; left None (the default), behavior is
+    unchanged from before -- a single fixed times_value, exactly as DPS-level
+    seeding still needs.
     """
     module_code: str
     level_code: str
@@ -69,6 +84,8 @@ class PML3ConceptDrillConfig:
     add_min: int = 1
     add_max: int = 500
     times_value: int = 12
+    times_min: int | None = None
+    times_max: int | None = None
     from_min: int = 1
     from_max: int = 3999
     less_min: int = 2
