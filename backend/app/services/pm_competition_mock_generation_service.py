@@ -701,6 +701,433 @@ def CollectPmL3CompetitionSectionLockedQuestions(
     return Selected, CoveragePayload
 
 
+# ---------------------------------------------------------------------------
+# PM-L4 (added 2026-08-06, Shailesh) -- the final Preparatory Module level.
+# Six sections, per Shailesh's explicit instruction: "Section 1 - Add/Less
+# (Abacus) : all kinds of sums tagged under the abacus method throughout the
+# level. Section 2 - Add/Less (Visual) : all kinds of sums tagged under the
+# visual method throughout the level. Section 3 - Multiplication : all kinds
+# of multiplication sums throughout the level. Section 4 - Division : all
+# kinds of division sums throughout the level. Section 5 - BODMAS : all
+# kinds of sums throughout the level. Section 6 - Concept Drill : all kinds
+# of sums throughout the level." -- unlike PM-L3's 5-section registry (which
+# pools Division and BODMAS together into one Section 4), PM-L4 keeps every
+# one of these six as its own standalone section, and Section 4 - Division
+# pools ALL THREE division shapes together (2D÷1D exact, 3D÷1D exact, and
+# the new 3D÷1D WITH REMAINDER) rather than splitting them out -- exactly as
+# instructed ("all kinds of division sums throughout the level").
+#
+# Section 1/2/3 concept pools are derived programmatically from
+# PM_L4_LESSONS (preparatory_module_l4_config.py), the exact same table that
+# drives DPS seeding, mirroring PM-L2/PM-L3's own convention. Section 4/5/6
+# are hand-defined wide-range pools (Division/BODMAS/Concept Drill are not
+# literal DPS-table entries the same way Add/Less digit patterns are).
+#
+# Question generation for PM-L4 routes through question_engine/pm_l4 (its
+# own dedicated engine, zero imports from question_engine/pm, pm_l2, or
+# pm_l3) via CollectPmL4CompetitionSectionLockedQuestions below -- a
+# separate function from every earlier level's own collector, so none of
+# their already-verified mock/assessment code paths are ever touched by
+# anything added here.
+# ---------------------------------------------------------------------------
+from app.question_engine.pm_l4 import (  # noqa: E402
+    PML4Config,
+    PML4ConceptDrillConfig,
+    PML4MultiplyConfig,
+    PML4DivideConfig,
+    PML4DivideRemainderConfig,
+    PML4BodmasConfig,
+    DRILL_MULTIPLY,
+    DRILL_DIVIDE,
+    BODMAS_L4_BRACKET_PRODUCT,
+    BODMAS_L4_PLAIN_PRODUCT,
+    BODMAS_L4_BRACKET_SUM,
+    generate_pm_l4_question_set,
+)
+from app.question_engine.pm_l4.multiply import generate_multiply_table_question as generate_pm_l4_multiply_table_question  # noqa: E402
+from app.question_engine.pm_l4.divide import generate_divide_table_question as generate_pm_l4_divide_table_question  # noqa: E402
+from app.question_engine.pm_l4.divide_remainder import generate_divide_remainder_question  # noqa: E402
+from app.question_engine.pm_l4.bodmas import generate_bodmas_question as generate_pm_l4_bodmas_question  # noqa: E402
+from app.question_engine.pm_l4.concept_drill import generate_concept_drill_question as generate_pm_l4_concept_drill_question  # noqa: E402
+from app.seed.preparatory_module_l4_config import PM_L4_LESSONS, ADD_LESS as PM_L4_ADD_LESS, MULTIPLY as PM_L4_MULTIPLY  # noqa: E402
+
+PM_L4_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
+    {"key": "PM_L4_ADD_LESS_ABACUS", "number": 1, "title": "Section 1 - Add/Less (Abacus)"},
+    {"key": "PM_L4_ADD_LESS_VISUAL", "number": 2, "title": "Section 2 - Add/Less (Visual)"},
+    {"key": "PM_L4_MULTIPLICATION", "number": 3, "title": "Section 3 - Multiplication"},
+    {"key": "PM_L4_DIVISION", "number": 4, "title": "Section 4 - Division"},
+    {"key": "PM_L4_BODMAS", "number": 5, "title": "Section 5 - BODMAS"},
+    {"key": "PM_L4_CONCEPT_DRILL", "number": 6, "title": "Section 6 - Concept Drill"},
+]
+
+
+def _pm_l4_addless_and_multiply_pools() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Walks every ADD_LESS and MULTIPLY block in PM_L4_LESSONS, bucketing
+    ADD_LESS into Abacus/Visual pools by practice_mode and MULTIPLY into a
+    single pooled list regardless of practice_mode -- same convention
+    PM-L3's _pm_l3_addless_and_multiply_pools uses. De-duplicates entries
+    with identical generation parameters so a range that recurs across
+    multiple lessons only occupies one pool slot.
+    """
+    seen_abacus: set[tuple] = set()
+    seen_visual: set[tuple] = set()
+    seen_multiply: set[tuple] = set()
+    abacus_pool: list[dict[str, Any]] = []
+    visual_pool: list[dict[str, Any]] = []
+    multiply_pool: list[dict[str, Any]] = []
+
+    for lesson_number in sorted(PM_L4_LESSONS):
+        for dps_number, rule in PM_L4_LESSONS[lesson_number].items():
+            for block in rule.blocks:
+                if block.kind == PM_L4_ADD_LESS:
+                    key = (
+                        block.digit_pattern, block.rows, block.generation_template,
+                        tuple(block.revision_templates), tuple(block.target_numbers),
+                        block.digit_pattern_second_half, block.rows_second_half,
+                    )
+                    spec = {
+                        "title": block.title,
+                        "conceptFamily": "DIRECT_ADD_LESS",
+                        "operationFocus": "ADD_LESS",
+                        "digitPattern": block.digit_pattern,
+                        "rows": block.rows,
+                        "generationTemplate": block.generation_template,
+                        "revisionTemplates": list(block.revision_templates),
+                        "targetNumbers": list(block.target_numbers),
+                        "digitPatternSecondHalf": block.digit_pattern_second_half,
+                        "rowsSecondHalf": block.rows_second_half,
+                    }
+                    mode = (block.practice_mode or "ABACUS").upper()
+                    if mode == "VISUAL":
+                        if key not in seen_visual:
+                            seen_visual.add(key)
+                            visual_pool.append(spec)
+                    else:
+                        if key not in seen_abacus:
+                            seen_abacus.add(key)
+                            abacus_pool.append(spec)
+                elif block.kind == PM_L4_MULTIPLY:
+                    key = (block.number_min, block.number_max, block.multiplier_min, block.multiplier_max)
+                    if key not in seen_multiply:
+                        seen_multiply.add(key)
+                        multiply_pool.append({
+                            "title": "2D X 1D Multiplication",
+                            "conceptFamily": "PM_L4_MULTIPLICATION",
+                            "numberMin": block.number_min, "numberMax": block.number_max,
+                            "multiplierMin": block.multiplier_min, "multiplierMax": block.multiplier_max,
+                        })
+    return abacus_pool, visual_pool, multiply_pool
+
+
+_PM_L4_ABACUS_POOL, _PM_L4_VISUAL_POOL, _PM_L4_MULTIPLY_POOL = _pm_l4_addless_and_multiply_pools()
+
+# Section 4 - Division, ALL THREE division shapes pooled together per
+# Shailesh's explicit instruction ("all kinds of division sums throughout
+# the level"): 2D÷1D exact, 3D÷1D exact, and 3D÷1D WITH REMAINDER. The even
+# 3-way split _ordered_concept_schedule already does means a requested
+# count naturally spreads across all three shapes rather than skewing
+# toward whichever is listed first.
+PM_L4_DIVISION_POOL: list[dict[str, Any]] = [
+    {"title": "2D ÷ 1D Division", "conceptFamily": "PM_L4_DIVISION", "digitWidth": 2, "divisorMin": 2, "divisorMax": 9, "dividendMin": 10, "dividendMax": 99},
+    {"title": "3D ÷ 1D Division", "conceptFamily": "PM_L4_DIVISION", "digitWidth": 3, "divisorMin": 2, "divisorMax": 9, "dividendMin": 100, "dividendMax": 999},
+    {"title": "3D ÷ 1D Division With Remainder", "conceptFamily": "PM_L4_DIVISION_WITH_REMAINDER", "divisorMin": 2, "divisorMax": 9, "dividendMin": 100, "dividendMax": 999},
+]
+
+# Section 5 - BODMAS, standalone (unlike PM-L3, which pooled it with
+# Division). Single entry using bodmasTemplate="MIXED" -- CollectPmL4...'s
+# batch generator randomly picks one of PM-L4's three real templates per
+# question (see _generate_pm_l4_competition_batch below), so the "one
+# concept" the pool sees still produces the level's full template variety.
+PM_L4_BODMAS_POOL: list[dict[str, Any]] = [
+    {"title": "BODMAS", "conceptFamily": "BODMAS", "bodmasTemplate": "MIXED"},
+]
+
+# Section 6 - Concept Drill, alone (same reasoning as PM-L2/L3: it is the
+# sole 5-marks-per-question section in assessments). conceptFamily=
+# "CONCEPT_DRILL" on every entry is load-bearing -- see
+# assessment_blueprint_service.py's _weighted_section_keys().
+# timesMin/timesMax = 5/10 on every entry (2026-08-06, Shailesh): PM-L4's
+# own workbook pins TIMES to a single literal constant (5) everywhere,
+# unlike PM-L3's genuine 5-9 lesson-to-lesson variation -- Shailesh's
+# explicit instruction is to randomize TIMES 5-10 across ALL THREE flows
+# (DPS, assessment, AND mock) for this level specifically, so every
+# question in this section draws a fresh TIMES instead of sharing PM-L4's
+# workbook-literal 5.
+PM_L4_CONCEPT_DRILL_POOL: list[dict[str, Any]] = [
+    {"title": "Concept Drill - Multiply (Repeated Addition)", "conceptFamily": "CONCEPT_DRILL", "drillFormat": DRILL_MULTIPLY, "addMin": 1000, "addMax": 4999, "timesMin": 5, "timesMax": 10},
+    {"title": "Concept Drill - Divide (Repeated Subtraction)", "conceptFamily": "CONCEPT_DRILL", "drillFormat": DRILL_DIVIDE, "fromMin": 1000, "fromMax": 5999, "lessMin": 100, "lessMax": 599},
+]
+
+PM_L4_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
+    "PM_L4_ADD_LESS_ABACUS": _PM_L4_ABACUS_POOL,
+    "PM_L4_ADD_LESS_VISUAL": _PM_L4_VISUAL_POOL,
+    "PM_L4_MULTIPLICATION": _PM_L4_MULTIPLY_POOL,
+    "PM_L4_DIVISION": PM_L4_DIVISION_POOL,
+    "PM_L4_BODMAS": PM_L4_BODMAS_POOL,
+    "PM_L4_CONCEPT_DRILL": PM_L4_CONCEPT_DRILL_POOL,
+}
+
+PM_COMPETITION_LEVEL_REGISTRY["PM-L4"] = {
+    "sectionDefinitions": PM_L4_COMPETITION_SECTION_DEFINITIONS,
+    "sectionConceptPools": PM_L4_COMPETITION_SECTION_CONCEPT_POOLS,
+}
+
+
+def _build_pm_l4_config(concept_spec: dict[str, Any], question_count: int, seed: str) -> PML4Config:
+    return PML4Config(
+        module_code="PM",
+        level_code="PM-L4",
+        lesson_number=0,
+        dps_number=0,
+        question_count=question_count,
+        rows=int(concept_spec.get("rows") or 4),
+        concept_family=concept_spec["conceptFamily"],
+        operation_focus=concept_spec.get("operationFocus", "ADD_LESS"),
+        target_numbers=list(concept_spec.get("targetNumbers") or []),
+        place_value="ONES",
+        digit_pattern=concept_spec.get("digitPattern", "2D_FULL"),
+        allow_negative_operands=True,
+        allow_negative_answer=False,
+        seed=seed,
+        lesson_title="PM Competition Mock",
+        dps_title=str(concept_spec["title"]),
+        generation_template=concept_spec.get("generationTemplate", "DIRECT"),
+        revision_templates=tuple(concept_spec.get("revisionTemplates") or ()),
+        digit_pattern_second_half=concept_spec.get("digitPatternSecondHalf"),
+        rows_second_half=concept_spec.get("rowsSecondHalf"),
+    )
+
+
+def _pm_l4_question_signature(question: dict[str, Any]) -> tuple:
+    """Same shape as PM-L3's _pm_l3_question_signature, extended for
+    DIVIDE_REMAINDER's compound "Q, R" correct_answer -- drill_operands
+    (non-empty) marks Multiply/Divide/Divide-Remainder/Concept-Drill's
+    box-shaped questions (all of them carry NUMBER/DIVISOR or ADD/TIMES or
+    FROM/LESS in drill_operands), so the same signature shape naturally
+    covers the new concept without a special case.
+    """
+    if question.get("drill_operands"):
+        return (question.get("display_type"),) + tuple(sorted(question["drill_operands"].items()))
+    if question.get("metadata", {}).get("concept_family") == "BODMAS":
+        return ("BODMAS", question.get("question_text"))
+    return ("VERTICAL",) + tuple(question.get("operands") or [])
+
+
+def _generate_pm_l4_competition_batch(concept_spec: dict[str, Any], count: int, seed: str) -> list[dict[str, Any]]:
+    """Dispatches one Section 3/4/5/6 concept-pool entry's batch generation
+    to the right question_engine/pm_l4 generator. Section 1/2 (Add/Less)
+    use generate_pm_l4_question_set directly (see
+    CollectPmL4CompetitionSectionLockedQuestions below).
+    """
+    if count <= 0:
+        return []
+    concept_family = concept_spec.get("conceptFamily")
+
+    if concept_family == "PM_L4_MULTIPLICATION":
+        config = PML4MultiplyConfig(
+            module_code="PM", level_code="PM-L4", lesson_number=0, dps_number=0, seed=seed,
+            number_min=int(concept_spec.get("numberMin") or 11), number_max=int(concept_spec.get("numberMax") or 99),
+            multiplier_min=int(concept_spec.get("multiplierMin") or 1), multiplier_max=int(concept_spec.get("multiplierMax") or 9),
+        )
+        return [generate_pm_l4_multiply_table_question(config, random.Random(f"{seed}-Q{i}")) for i in range(1, count + 1)]
+
+    if concept_family == "PM_L4_DIVISION":
+        config = PML4DivideConfig(
+            module_code="PM", level_code="PM-L4", lesson_number=0, dps_number=0, seed=seed,
+            digit_width=int(concept_spec.get("digitWidth") or 3),
+            divisor_min=int(concept_spec.get("divisorMin") or 2), divisor_max=int(concept_spec.get("divisorMax") or 9),
+            dividend_min=int(concept_spec.get("dividendMin") or 100), dividend_max=int(concept_spec.get("dividendMax") or 999),
+        )
+        return [generate_pm_l4_divide_table_question(config, random.Random(f"{seed}-Q{i}")) for i in range(1, count + 1)]
+
+    if concept_family == "PM_L4_DIVISION_WITH_REMAINDER":
+        config = PML4DivideRemainderConfig(
+            module_code="PM", level_code="PM-L4", lesson_number=0, dps_number=0, seed=seed,
+            divisor_min=int(concept_spec.get("divisorMin") or 2), divisor_max=int(concept_spec.get("divisorMax") or 9),
+            dividend_min=int(concept_spec.get("dividendMin") or 100), dividend_max=int(concept_spec.get("dividendMax") or 999),
+        )
+        return [generate_divide_remainder_question(config, random.Random(f"{seed}-Q{i}")) for i in range(1, count + 1)]
+
+    if concept_family == "BODMAS":
+        templates = (BODMAS_L4_BRACKET_PRODUCT, BODMAS_L4_PLAIN_PRODUCT, BODMAS_L4_BRACKET_SUM)
+        questions = []
+        for i in range(1, count + 1):
+            rng = random.Random(f"{seed}-Q{i}")
+            template = concept_spec.get("bodmasTemplate")
+            template = rng.choice(templates) if (not template or template == "MIXED") else template
+            config = PML4BodmasConfig(module_code="PM", level_code="PM-L4", lesson_number=0, dps_number=0, template=template, seed=seed)
+            questions.append(generate_pm_l4_bodmas_question(config, rng))
+        return questions
+
+    if concept_family == "CONCEPT_DRILL":
+        times_min = concept_spec.get("timesMin")
+        times_max = concept_spec.get("timesMax")
+        config = PML4ConceptDrillConfig(
+            module_code="PM", level_code="PM-L4", lesson_number=0, dps_number=0,
+            drill_format=concept_spec["drillFormat"], seed=seed,
+            add_min=int(concept_spec.get("addMin") or 1000), add_max=int(concept_spec.get("addMax") or 4999),
+            times_min=int(times_min) if times_min is not None else 5,
+            times_max=int(times_max) if times_max is not None else 10,
+            from_min=int(concept_spec.get("fromMin") or 1000), from_max=int(concept_spec.get("fromMax") or 5999),
+            less_min=int(concept_spec.get("lessMin") or 100), less_max=int(concept_spec.get("lessMax") or 599),
+        )
+        return [generate_pm_l4_concept_drill_question(config, random.Random(f"{seed}-Q{i}")) for i in range(1, count + 1)]
+
+    # ADD_LESS (Sections 1/2)
+    config = _build_pm_l4_config(concept_spec, count, seed)
+    return generate_pm_l4_question_set(config)
+
+
+def _pm_l4_fill_concept(concept_spec: dict[str, Any], needed_count: int, used_signatures: set[tuple], section_key: str, section_title: str, display_number: int) -> list[dict[str, Any]]:
+    """Same redistribution-safe fill pattern as PM-L3's _pm_l3_fill_concept."""
+    accepted: list[dict[str, Any]] = []
+    if needed_count <= 0:
+        return accepted
+    attempts = 0
+    while len(accepted) < needed_count and attempts < max(needed_count * 4, 20):
+        remaining = needed_count - len(accepted)
+        seed = f"COMPETITION-PM-L4-{section_key}-{concept_spec['title']}-{uuid4().hex}-{attempts}"
+        batch = _generate_pm_l4_competition_batch(concept_spec, remaining, seed)
+        for question in batch:
+            signature = _pm_l4_question_signature(question)
+            if signature in used_signatures:
+                continue
+            used_signatures.add(signature)
+            metadata = dict(question.get("metadata") or {})
+            metadata.update({
+                "competitionConceptKey": concept_spec["title"],
+                "competitionConceptName": concept_spec["title"],
+                "competitionAllowedConceptFamily": metadata.get("concept_family") or concept_spec.get("conceptFamily"),
+                "conceptName": concept_spec["title"],
+                "competitionSectionKey": section_key,
+                "competitionSectionNumber": display_number,
+                "competitionSectionTitle": section_title,
+                "competitionSectionDisplayTitle": section_title,
+                "competitionSectionLocked": True,
+                "section_number": display_number,
+                "section_title": section_title,
+            })
+            question_copy = dict(question)
+            question_copy["metadata"] = metadata
+            accepted.append(question_copy)
+            if len(accepted) >= needed_count:
+                break
+        attempts += 1
+    return accepted
+
+
+def CollectPmL4CompetitionSectionLockedQuestions(
+    LevelRecord: Level,
+    TargetQuestionCount: int,
+    SectionCountsOverride: dict[str, int] | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """PM-L4's counterpart to CollectPmL3CompetitionSectionLockedQuestions --
+    same redistribution-safe, id()-keyed allocation, extended to 6 sections.
+    """
+    from app.services.competition_mock_generation_service import _RedistributeSectionCounts, _DenseSectionNumbering  # noqa: PLC0415
+
+    LevelConfig = PmCompetitionLevelConfig(LevelRecord)
+    SectionDefinitions = LevelConfig["sectionDefinitions"]
+    SectionConceptPools = LevelConfig["sectionConceptPools"]
+
+    SectionCounts = _RedistributeSectionCounts(TargetQuestionCount, SectionDefinitions, SectionCountsOverride, PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+    DenseNumbers = _DenseSectionNumbering(SectionDefinitions, SectionCounts)
+
+    Selected: list[dict[str, Any]] = []
+    SectionCoverage: list[dict[str, Any]] = []
+    UsedSignatures: set[tuple] = set()
+
+    for SectionDefinition in SectionDefinitions:
+        SectionKey = SectionDefinition["key"]
+        RequiredCount = int(SectionCounts.get(SectionKey, 0) or 0)
+        if RequiredCount <= 0:
+            continue
+        DisplayNumber = DenseNumbers[SectionKey]
+        SectionTitle = SectionDefinition["title"]
+        ConceptPool = SectionConceptPools.get(SectionKey, [])
+        if not ConceptPool:
+            api_error(400, "PM_COMPETITION_SECTION_EMPTY", f"{SectionTitle} has no concept pool configured.")
+
+        Schedule = _ordered_concept_schedule(ConceptPool, RequiredCount)
+        CountsByConcept: dict[int, int] = defaultdict(int)
+        for Spec in Schedule:
+            CountsByConcept[id(Spec)] += 1
+
+        SectionQuestions: list[dict[str, Any]] = []
+        ConceptCoverage: dict[str, int] = defaultdict(int)
+        ConceptCoverageOrder: list[str] = []
+
+        def _record(ConceptSpec: dict[str, Any], Questions: list[dict[str, Any]]) -> None:
+            for Question in Questions:
+                SectionQuestions.append(Question)
+                ConceptCoverage[ConceptSpec["title"]] += 1
+                if ConceptSpec["title"] not in ConceptCoverageOrder:
+                    ConceptCoverageOrder.append(ConceptSpec["title"])
+
+        for ConceptSpec in ConceptPool:
+            RequiredForConcept = CountsByConcept.get(id(ConceptSpec), 0)
+            if RequiredForConcept <= 0:
+                continue
+            _record(ConceptSpec, _pm_l4_fill_concept(ConceptSpec, RequiredForConcept, UsedSignatures, SectionKey, SectionTitle, DisplayNumber))
+
+        ExhaustedConceptIds: set[int] = set()
+        for _ in range(len(ConceptPool) + 1):
+            if len(SectionQuestions) >= RequiredCount:
+                break
+            GainedThisSweep = 0
+            for ConceptSpec in ConceptPool:
+                if id(ConceptSpec) in ExhaustedConceptIds:
+                    continue
+                Outstanding = RequiredCount - len(SectionQuestions)
+                if Outstanding <= 0:
+                    break
+                Got = _pm_l4_fill_concept(ConceptSpec, Outstanding, UsedSignatures, SectionKey, SectionTitle, DisplayNumber)
+                if Got:
+                    _record(ConceptSpec, Got)
+                    GainedThisSweep += len(Got)
+                else:
+                    ExhaustedConceptIds.add(id(ConceptSpec))
+            if GainedThisSweep == 0:
+                break
+
+        if len(SectionQuestions) < RequiredCount:
+            api_error(
+                400,
+                "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
+                f"Could not generate the required {RequiredCount} questions for {SectionTitle} -- "
+                f"only {len(SectionQuestions)} unique questions are available across every concept "
+                f"in this section at this mock size. Try a smaller question count for this section.",
+                {"sectionKey": SectionKey, "required": RequiredCount, "generated": len(SectionQuestions)},
+            )
+
+        Selected.extend(SectionQuestions)
+        SectionCoverage.append({
+            "sectionKey": SectionKey,
+            "sectionNumber": DisplayNumber,
+            "sectionTitle": SectionTitle,
+            "selectedQuestionCount": len(SectionQuestions),
+            "availableQuestionCount": len(SectionQuestions),
+            "locked": True,
+            "concepts": [
+                {"conceptName": Name, "selectedQuestionCount": ConceptCoverage[Name], "availableQuestionCount": ConceptCoverage[Name]}
+                for Name in ConceptCoverageOrder
+            ],
+        })
+
+    for Index, Question in enumerate(Selected, start=1):
+        Question["question_number"] = Index
+
+    CoveragePayload = {
+        "targetQuestionCount": TargetQuestionCount,
+        "selectedQuestionCount": len(Selected),
+        "competitionStructure": "PM_L4_6_SECTION_COMPETITION_MOCK_SECTION_LOCKED",
+        "sectionCount": len(SectionCoverage),
+        "sections": SectionCoverage,
+        "generationErrors": [],
+    }
+    return Selected, CoveragePayload
+
+
 def _build_pm_l2_config(concept_spec: dict[str, Any], question_count: int, seed: str) -> PML2Config:
     return PML2Config(
         module_code="PM",

@@ -134,6 +134,72 @@ def test_non_numeric_fallback_rejects_different_words():
 
 
 # ---------------------------------------------------------------------------
+# Quotient/remainder pairs -- PM-L4's "3D ÷ 1D WITH REMAINDER" concept
+# family (question_engine/pm_l4/divide_remainder.py). correct_answer is a
+# "quotient, remainder" pair like "73, 1"; this whole section exists because
+# that shape is genuinely new and the existing single-number path would
+# otherwise silently mangle it (comma stripped as a thousands separator,
+# "73, 1" collapsing to the single number 731) instead of comparing the two
+# values independently.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("correct,student", [
+    ("73, 1", "73, 1"),
+    ("73, 1", "73,1"),            # no space after comma
+    ("73, 1", "73 , 1"),          # space before comma too
+    ("73, 1", "73  ,  1"),        # extra spaces both sides
+    ("73, 1", "073, 1"),          # leading zero on quotient
+    ("73, 1", "73, 01"),          # leading zero on remainder
+    ("73, 1", "073, 001"),        # leading zeros on both
+    ("73, 1", "73.0, 1"),         # trailing decimal zero on quotient
+    ("73, 1", "73, 1.00"),        # trailing decimal zeros on remainder
+    ("73, 1", "7 3, 1"),          # fumbled internal space within quotient
+    ("73, 1", "73, 1 "),          # trailing whitespace on whole answer
+    ("73, 1", " 73, 1"),          # leading whitespace on whole answer
+    ("0, 5", "0, 5"),
+    ("0, 5", "-0, 5"),            # negative zero quotient
+    ("100, 0", "100, 0"),         # zero remainder (exact-looking but still a pair)
+])
+def test_quotient_remainder_pair_formatting_noise_never_marks_correct_wrong(correct, student):
+    assert answers_match(correct, student) is True, (
+        f"correct={correct!r} student={student!r} should have matched -- "
+        "a formatting-only difference in a quotient/remainder pair must "
+        "never cost a student a correct answer"
+    )
+
+
+@pytest.mark.parametrize("correct,student", [
+    ("73, 1", "72, 1"),      # wrong quotient
+    ("73, 1", "73, 2"),      # wrong remainder
+    ("73, 1", "72, 2"),      # both wrong
+    ("73, 1", "1, 73"),      # swapped order -- order matters, not just set membership
+    ("73, 1", "731"),        # collapsed into a single number -- must NOT accidentally match
+    ("73, 1", "73"),         # only the quotient, remainder missing
+    ("73, 1", "1"),          # only the remainder
+])
+def test_quotient_remainder_pair_different_values_never_marked_correct(correct, student):
+    assert answers_match(correct, student) is False, (
+        f"correct={correct!r} student={student!r} are different and must never match"
+    )
+
+
+@pytest.mark.parametrize("student", [
+    "", "   ", None, "abc", "73,", ",1", "7,3,1", "73 r 1", "73/1", "73;1",
+])
+def test_quotient_remainder_pair_malformed_student_input_never_crashes_or_matches(student):
+    assert answers_match("73, 1", student) is False
+
+
+def test_quotient_remainder_pair_does_not_affect_plain_single_number_grading():
+    # A correct_answer with no comma at all must be completely unaffected --
+    # this is the regression guard that the new pair path is gated strictly
+    # on correct_answer's own shape and never fires for ordinary questions.
+    assert answers_match("1234", "1,234") is True   # thousands separator, unchanged behavior
+    assert answers_match("42", "42") is True
+    assert answers_match("42", "43") is False
+
+
+# ---------------------------------------------------------------------------
 # is_complete_plain_number -- the completeness definition the frontend's
 # auto-advance heuristic mirrors (client-side; correct_answer itself is
 # never sent to the client mid-attempt, so this is purely a structural

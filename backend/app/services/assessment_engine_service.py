@@ -49,6 +49,7 @@ from app.services.competition_mock_generation_service import (
 from app.services.pm_competition_mock_generation_service import (
     PM_COMPETITION_LEVEL_REGISTRY,
     _generate_pm_l3_competition_batch,
+    _generate_pm_l4_competition_batch,
 )
 
 # Kept as a literal duplicate of assessment_blueprint_service.py's
@@ -646,6 +647,21 @@ def _GeneratePmL3AssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec:
     return _generate_pm_l3_competition_batch(ConceptSpec, Count, Seed)
 
 
+def _GeneratePmL4AssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], Count: int, Seed: str) -> list[dict[str, Any]]:
+    """PM-L4 counterpart to _GeneratePmL3AssessmentBatch -- thin wrapper
+    around _generate_pm_l4_competition_batch (pm_competition_mock_generation_service.py),
+    which already dispatches on ConceptSpec['conceptFamily'] across all six
+    of PM-L4's section kinds (Add/Less Abacus, Add/Less Visual,
+    Multiplication, Division [2D÷1D/3D÷1D/3D÷1D-with-remainder pooled
+    together], BODMAS, Concept Drill) for mocks; reused as-is here so
+    assessments and mocks can never silently diverge on how a given concept
+    is generated.
+    """
+    if Count <= 0:
+        return []
+    return _generate_pm_l4_competition_batch(ConceptSpec, Count, Seed)
+
+
 def _GeneratePmL2AssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], Count: int, Seed: str) -> list[dict[str, Any]]:
     """PM-L2 counterpart of _GeneratePmAssessmentBatch above -- a separate
     function (not a branch inside it) so PM-L1's already-verified assessment
@@ -1200,6 +1216,12 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                         # PM-L1's and PM-L2's, so neither's already-verified
                         # path is ever touched.
                         GeneratedQuestions = _GeneratePmL3AssessmentBatch(SectionDef, ConceptSpec, Count, ConceptSeed)
+                    elif ModuleCode == "PM" and str(getattr(LevelItem, "level_code", "") or "") == "PM-L4":
+                        # PM-L4 routes to its own dedicated batch generator
+                        # (question_engine/pm_l4) -- separate from every
+                        # earlier level's, so none of their already-verified
+                        # paths are ever touched.
+                        GeneratedQuestions = _GeneratePmL4AssessmentBatch(SectionDef, ConceptSpec, Count, ConceptSeed)
                     elif ModuleCode == "PM" and str(getattr(LevelItem, "level_code", "") or "") == "PM-L2":
                         # PM-L2 routes to its own dedicated batch generator
                         # (question_engine/pm_l2) -- a separate function from

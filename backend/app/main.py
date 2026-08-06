@@ -222,6 +222,21 @@ def on_startup():
     finally:
         db.close()
 
+    # Always run the Preparatory Module Level 4 curriculum sync -- the final
+    # level of the Preparatory Module, mirroring PM-L1/L2/L3's syncs above.
+    # Additive only (reuses the "PM" Module row, adds the "PM-L4" Level).
+    # Idempotent: only creates/completes PM -> PM-L4 -> Lessons 1-12 -> DPS
+    # 1-5 -> normal + concept-drill sections. Does not touch PM-L1/L2/L3's
+    # Levels/Lessons/DPS at all, and does not create students, teachers,
+    # assignments, attempts, or demo records. Uses its own dedicated engine
+    # (question_engine/pm_l4) with zero shared code with any earlier level.
+    from app.seed.seed_preparatory_module_l4 import seed as seed_preparatory_module_l4
+    db = SessionLocal()
+    try:
+        seed_preparatory_module_l4(db)
+    finally:
+        db.close()
+
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(admin_router)

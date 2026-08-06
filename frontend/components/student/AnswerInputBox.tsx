@@ -31,6 +31,23 @@ const ADVANCE_DEBOUNCE_MS = 1100;
 
 const COMPLETE_NUMBER_PATTERN = /^-?(\d+(\.\d+)?|\.\d+)$/;
 
+// PM-L4's "3D ÷ 1D WITH REMAINDER(S)" (added 2026-08-06) is the platform's
+// first DPS concept whose typed answer is a "quotient, remainder" pair
+// (e.g. "73, 1") instead of a single number -- see answer_matching.py's
+// _to_decimal_pair for the backend-side counterpart. Without this, a
+// student's finished pair answer never matches COMPLETE_NUMBER_PATTERN, so
+// the pause-based auto-advance never fires (they'd still be able to save +
+// advance by pressing Enter, but the box would otherwise look "stuck"
+// exactly like every other concept's auto-advance already feels smooth).
+// This is purely a client-side completeness heuristic for UX, same caveat
+// as COMPLETE_NUMBER_PATTERN's own docstring below -- it never influences
+// actual grading, which stays entirely server-side.
+const COMPLETE_PAIR_PATTERN = /^-?(\d+(\.\d+)?|\.\d+)\s*,\s*-?(\d+(\.\d+)?|\.\d+)$/;
+
+function isCompleteAnswer(text: string): boolean {
+  return COMPLETE_NUMBER_PATTERN.test(text) || COMPLETE_PAIR_PATTERN.test(text);
+}
+
 export function AnswerInputBox({
   initialValue,
   disabled,
@@ -74,7 +91,7 @@ export function AnswerInputBox({
 
     saveTimerRef.current = setTimeout(() => onSave(nextValue), SAVE_DEBOUNCE_MS);
 
-    if (COMPLETE_NUMBER_PATTERN.test(trimmed)) {
+    if (isCompleteAnswer(trimmed)) {
       advanceTimerRef.current = setTimeout(() => onAdvance(nextValue), ADVANCE_DEBOUNCE_MS);
     }
   }
