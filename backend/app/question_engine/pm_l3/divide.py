@@ -16,6 +16,11 @@ those 10 rows. Built the same way the workbook itself evidently was: pick
 the divisor and quotient first, multiply them to get the dividend, so
 exactness is guaranteed by construction rather than by filtering random
 dividends for luck.
+
+Display (corrected 2026-08-06, Shailesh): plain division, not a Concept
+Drill teaser -- matching IM's WHOLE_NUMBER_DIVISION precedent, a single
+"2236 ÷ 52 = ?" expression (display_type EXPRESSION_WORKSHEET, operators
+["", "÷"], no question_text), not Concept Drill's labeled box.
 """
 
 
@@ -44,11 +49,11 @@ def generate_divide_table_question(config: PML3DivideConfig, rng: random.Random)
         distractors = generate_divide_table_distractors(number, divisor, correct_answer, rng)
         options = build_mcq_options(correct_answer, distractors, rng)
         return {
-            "display_type": "PM_L3_DIVIDE_TABLE",
+            "display_type": "EXPRESSION_WORKSHEET",
             "question_text": None,
             "drill_operands": {"NUMBER": number, "DIVISOR": divisor},
             "operands": [number, divisor],
-            "operators": ["Number", "Divisor"],
+            "operators": ["", "÷"],
             "correct_answer": correct_answer,
             "options": options,
             "metadata": {

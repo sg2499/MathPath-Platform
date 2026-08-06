@@ -13,10 +13,12 @@ properties verified manually while building it:
   with zero errors, and every generated question's stored correct_answer
   matches its own operands under its display type's formula.
 - Five distinct question shapes work: VERTICAL (Add/Less, now genuinely
-  N-row instead of PM-L1/PM-L2's hardcoded 3), PM_L3_MULTIPLY_TABLE (2D x
-  1D), PM_L3_DIVIDE_TABLE (3D / 1D, always exact), COMPACT_EXPRESSION
-  (BODMAS, three term-shape templates), and the reused CONCEPT_DRILL_MULTIPLY/
-  CONCEPT_DRILL_DIVIDE from PM-L2's own formulas.
+  N-row instead of PM-L1/PM-L2's hardcoded 3), EXPRESSION_WORKSHEET for both
+  plain Multiplication (2D x 1D) and plain Division (3D / 1D, always exact --
+  corrected 2026-08-06, Shailesh, to match IM's WHOLE_NUMBER_MULTIPLICATION/
+  WHOLE_NUMBER_DIVISION precedent instead of a Concept Drill-style box),
+  COMPACT_EXPRESSION (BODMAS, three term-shape templates), and the reused
+  CONCEPT_DRILL_MULTIPLY/CONCEPT_DRILL_DIVIDE from PM-L2's own formulas.
 - Assessments total exactly 100 marks with Concept Drill (Section 5) alone
   weighted 5 marks/question and every other section flat 1 -- Shailesh's
   explicit 2026-08-06 restructure ("only the last section has questions
@@ -104,13 +106,25 @@ def test_pm_l3_all_60_dps_generate_correctly(db, pm_l3_level):
                 assert any(o["is_correct"] for o in q["options"])
                 assert len({o["value"] for o in q["options"]}) == 4
                 dt = q["display_type"]
+                concept_family = q["metadata"].get("concept_family")
                 if dt == "VERTICAL":
                     assert sum(q["operands"]) == q["correct_answer"]
-                elif dt in ("PM_L3_MULTIPLY_TABLE", "CONCEPT_DRILL_MULTIPLY"):
+                elif dt == "CONCEPT_DRILL_MULTIPLY":
                     n, t = q["operands"]
                     assert n * t == q["correct_answer"]
-                elif dt == "PM_L3_DIVIDE_TABLE":
+                elif dt == "EXPRESSION_WORKSHEET" and concept_family == "PM_L3_MULTIPLICATION":
+                    # Plain multiplication (corrected 2026-08-06, Shailesh): renders
+                    # as a single "43 x 8 = ?" expression, not a Concept Drill box --
+                    # matching IM's WHOLE_NUMBER_MULTIPLICATION precedent.
+                    n, t = q["operands"]
+                    assert q["operators"] == ["", "×"]
+                    assert n * t == q["correct_answer"]
+                elif dt == "EXPRESSION_WORKSHEET" and concept_family == "PM_L3_DIVISION":
+                    # Plain division (corrected 2026-08-06, Shailesh): same
+                    # EXPRESSION_WORKSHEET treatment, matching IM's
+                    # WHOLE_NUMBER_DIVISION precedent.
                     n, d = q["operands"]
+                    assert q["operators"] == ["", "÷"]
                     assert n % d == 0
                     assert compute_divide_table_answer(n, d) == q["correct_answer"]
                 elif dt == "CONCEPT_DRILL_DIVIDE":
@@ -214,7 +228,7 @@ def test_pm_l3_mock_section4_splits_division_then_bodmas_sequentially(db, pm_l3_
     section4 = [q for q in questions if q["metadata"]["competitionSectionKey"] == "PM_L3_DIVISION_BODMAS"]
     assert len(section4) == 20
     kinds = [q["metadata"]["competitionConceptKey"] for q in section4]
-    assert kinds == ["3D / 1D Division"] * 10 + ["BODMAS"] * 10
+    assert kinds == ["3D ÷ 1D Division"] * 10 + ["BODMAS"] * 10
     assert coverage["sectionCount"] == 5
 
 

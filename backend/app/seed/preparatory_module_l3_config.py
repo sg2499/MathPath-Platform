@@ -28,7 +28,7 @@ DPS images, 2026-08-06):
 2. MULTIPLY -- "2D X 1D (ABACUS/VISUAL)", the level's dominant new skill, a
    full standalone DPS. Multiplier range escalates lesson to lesson (pinned
    to 1 in Lesson 1's first block, then 1-4, then full 1-9 by Lesson 7+).
-3. DIVIDE -- "3D / 1D (ABACUS)", appears once (Lesson 10 DPS3 only).
+3. DIVIDE -- "3D ÷ 1D (ABACUS)", appears once (Lesson 10 DPS3 only).
 4. BODMAS -- "BODMAS (ABACUS)" / "Brackets First - Maths Rule (ABACUS)",
    three distinct term-shapes across the level (see question_engine/pm_l3/
    bodmas.py for the full derivation): SIMPLE_BRACKET (Lessons 2-4),
@@ -42,6 +42,12 @@ DPS images, 2026-08-06):
    Lessons 2, 3, 4, 5. Lesson 8/9/10/11/12 use only ONE of the two formats
    per instance rather than the paired multiply+divide Lesson 1/6/7 use
    (confirmed directly against each lesson's own header cells).
+
+DPS/lesson title formatting (corrected 2026-08-06, Shailesh): every division
+block uses the proper "÷" symbol, never "/" -- matching the platform-wide
+convention (see seed_master_module.py's own DPS titles, e.g. "4D ÷ 2D").
+Titles that combine more than one concept in a single DPS join them with a
+comma, never "+".
 """
 from dataclasses import dataclass, field
 
@@ -152,11 +158,11 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         3: PmL3DpsRule("2D X 1D (Abacus)", (
             _mult("2D X 1D (Abacus)", nmin=11, nmax=44, mmin=1, mmax=4, count=20),
         )),
-        4: PmL3DpsRule("Visual Add/Less (2D, 3R) + 2D X 1D (Abacus)", (
+        4: PmL3DpsRule("Visual Add/Less (2D, 3R), 2D X 1D (Abacus)", (
             _addless("Visual Add/Less (2D, 3R)", digit_pattern="2D_FULL", rows=3, mode="VISUAL", count=10),
             _mult("2D X 1D (Abacus)", nmin=11, nmax=87, mmin=1, mmax=4, count=10),
         )),
-        5: PmL3DpsRule("Add/Less (Abacus) + 2D X 1D (Abacus)", (
+        5: PmL3DpsRule("Add/Less (Abacus), 2D X 1D (Abacus)", (
             _addless("Add/Less (Abacus)", digit_pattern="2D_FULL", rows=5, count=10),
             _mult("2D X 1D (Abacus)", nmin=11, nmax=79, mmin=1, mmax=4, count=10),
         )),
@@ -173,19 +179,19 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         3: PmL3DpsRule("2D X 1D (Abacus)", (
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=4, count=20),
         )),
-        4: PmL3DpsRule("Visual Add/Less (2D, 3R) + BODMAS (Abacus)", (
+        4: PmL3DpsRule("Visual Add/Less (2D, 3R), BODMAS (Abacus)", (
             _addless("Visual Add/Less 2D, 3R", digit_pattern="2D_FULL", rows=3, mode="VISUAL", count=10),
             _bodmas("Brackets First - Maths Rule (Abacus)", BODMAS_SIMPLE_BRACKET, count=5),
         )),
-        5: PmL3DpsRule("Add/Less 3D,1R + 2D,2R (Abacus) + 2D X 1D (Abacus)", (
-            _addless("Add/Less 3D,1R + 2D,2R (Abacus)", digit_pattern="3D_FULL", rows=3,
+        5: PmL3DpsRule("Add/Less 3D,1R & 2D,2R (Abacus), 2D X 1D (Abacus)", (
+            _addless("Add/Less 3D,1R & 2D,2R (Abacus)", digit_pattern="3D_FULL", rows=3,
                       dp2="2D_FULL", rows2=3, count=10),
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=4, count=10),
         )),
     },
     3: {
-        1: PmL3DpsRule("Add/Less (Abacus), 3D,2R + 2D,2R", (
-            _addless("Add/Less (Abacus), 3D,2R + 2D,2R", digit_pattern="3D_FULL", rows=4,
+        1: PmL3DpsRule("Add/Less (Abacus), 3D,2R & 2D,2R", (
+            _addless("Add/Less (Abacus), 3D,2R & 2D,2R", digit_pattern="3D_FULL", rows=4,
                       dp2="2D_FULL", rows2=4, count=10),
             _drill_mult("Concept Drill (Abacus)", amin=150, amax=300, times=6),
             _drill_div("Concept Drill (Abacus)", fmin=1500, fmax=2800, lmin=120, lmax=240),
@@ -196,19 +202,19 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         3: PmL3DpsRule("2D X 1D (Abacus)", (
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=5, count=20),
         )),
-        4: PmL3DpsRule("Visual Add/Less 2D,3R + BODMAS (Abacus)", (
+        4: PmL3DpsRule("Visual Add/Less 2D,3R, BODMAS (Abacus)", (
             _addless("Visual Add/Less 2D,3R", digit_pattern="2D_FULL", rows=3, mode="VISUAL", count=10),
             _bodmas("Brackets First - Maths Rule (Abacus)", BODMAS_SIMPLE_BRACKET, count=5),
         )),
-        5: PmL3DpsRule("Add/Less 3D,1R + 2D,2R (Abacus) + 2D X 1D (Abacus)", (
-            _addless("Add/Less 3D,1R + 2D,2R (Abacus)", digit_pattern="3D_FULL", rows=3,
+        5: PmL3DpsRule("Add/Less 3D,1R, 2D,2R (Abacus), 2D X 1D (Abacus)", (
+            _addless("Add/Less 3D,1R, 2D,2R (Abacus)", digit_pattern="3D_FULL", rows=3,
                       dp2="2D_FULL", rows2=3, count=10),
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=5, count=10),
         )),
     },
     4: {
-        1: PmL3DpsRule("Add/Less (Abacus), 3D,2R + 2D,2R", (
-            _addless("Add/Less (Abacus), 3D,2R + 2D,2R", digit_pattern="3D_FULL", rows=4,
+        1: PmL3DpsRule("Add/Less (Abacus), 3D,2R & 2D,2R", (
+            _addless("Add/Less (Abacus), 3D,2R & 2D,2R", digit_pattern="3D_FULL", rows=4,
                       dp2="2D_FULL", rows2=4, count=10),
             _drill_mult("Concept Drill (Abacus)", amin=150, amax=320, times=6),
             _drill_div("Concept Drill (Abacus)", fmin=1600, fmax=3000, lmin=130, lmax=250),
@@ -219,18 +225,18 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         3: PmL3DpsRule("2D X 1D (Abacus)", (
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=5, count=20),
         )),
-        4: PmL3DpsRule("Visual Add/Less 2D,3R + BODMAS (Abacus)", (
+        4: PmL3DpsRule("Visual Add/Less 2D,3R, BODMAS (Abacus)", (
             _addless("Visual Add/Less 2D,3R", digit_pattern="2D_FULL", rows=3, mode="VISUAL", count=10),
             _bodmas("Brackets First - Maths Rule (Abacus)", BODMAS_SIMPLE_BRACKET, count=5),
         )),
-        5: PmL3DpsRule("Add/Less 3D,2R + 2D,1R (Abacus) + 2D X 1D (Abacus)", (
-            _addless("Add/Less 3D,2R + 2D,1R (Abacus)", digit_pattern="3D_FULL", rows=3,
+        5: PmL3DpsRule("Add/Less 3D,2R & 2D,1R (Abacus), 2D X 1D (Abacus)", (
+            _addless("Add/Less 3D,2R & 2D,1R (Abacus)", digit_pattern="3D_FULL", rows=3,
                       dp2="2D_FULL", rows2=3, count=10),
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=5, count=10),
         )),
     },
     5: {
-        1: PmL3DpsRule("Add/Less 2D,4R (Visual) + BODMAS (Abacus)", (
+        1: PmL3DpsRule("Add/Less 2D,4R (Visual), BODMAS (Abacus)", (
             _addless("Add/Less 2D,4R (Visual)", digit_pattern="2D_FULL", rows=4, mode="VISUAL", count=10),
             _bodmas("BODMAS (Abacus)", BODMAS_COMPOUND, count=5),
         )),
@@ -259,11 +265,11 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         3: PmL3DpsRule("2D X 1D (Abacus/Visual)", (
             _mult("2D X 1D (Abacus/Visual)", nmin=11, nmax=90, mmin=1, mmax=7, count=20),
         )),
-        4: PmL3DpsRule("Add/Less 2D,3R (Visual) + 2D X 1D (Abacus)", (
+        4: PmL3DpsRule("Add/Less 2D,3R (Visual), 2D X 1D (Abacus)", (
             _addless("Add/Less 2D,3R (Visual)", digit_pattern="2D_FULL", rows=3, mode="VISUAL", count=10),
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=7, count=10),
         )),
-        5: PmL3DpsRule("Add/Less 2D,2R & 3D,1R (Visual) + BODMAS (Abacus)", (
+        5: PmL3DpsRule("Add/Less 2D,2R & 3D,1R (Visual), BODMAS (Abacus)", (
             _addless("Add/Less 2D,2R & 3D,1R (Visual)", digit_pattern="2D_FULL", rows=3,
                       dp2="3D_FULL", rows2=2, mode="VISUAL", count=10),
             _bodmas("BODMAS (Abacus)", BODMAS_CHAINED, count=5),
@@ -276,7 +282,7 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         2: PmL3DpsRule("2D x 1D (Abacus)", (
             _mult("2D x 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=8, count=20),
         )),
-        3: PmL3DpsRule("Add/Less 3D,4R (Abacus) + BODMAS (Abacus)", (
+        3: PmL3DpsRule("Add/Less 3D,4R (Abacus), BODMAS (Abacus)", (
             _addless("Add/Less 3D,4R (Abacus)", digit_pattern="3D_FULL", rows=4, count=10),
             _bodmas("BODMAS (Abacus)", BODMAS_COMPOUND, count=5),
         )),
@@ -294,11 +300,11 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         1: PmL3DpsRule("2D X 1D (Abacus)", (
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=8, count=20),
         )),
-        2: PmL3DpsRule("Add/Less (Abacus) + Concept Drill (Abacus)", (
+        2: PmL3DpsRule("Add/Less (Abacus), Concept Drill (Abacus)", (
             _addless("Add/Less (Abacus)", digit_pattern="3D_FULL", rows=4, count=10),
             _drill_mult("Concept Drill (Abacus)", amin=250, amax=450, times=8),
         )),
-        3: PmL3DpsRule("Add/Less 3D,1R & 2D,2R (Visual) + Concept Drill (Abacus)", (
+        3: PmL3DpsRule("Add/Less 3D,1R & 2D,2R (Visual), Concept Drill (Abacus)", (
             _addless("Add/Less 3D,1R & 2D,2R (Visual)", digit_pattern="3D_FULL", rows=2,
                       dp2="2D_FULL", rows2=3, mode="VISUAL", count=10),
             _drill_div("Concept Drill (Abacus)", fmin=2500, fmax=3999, lmin=180, lmax=299),
@@ -321,7 +327,7 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         3: PmL3DpsRule("2D X 1D (Abacus)", (
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=9, count=20),
         )),
-        4: PmL3DpsRule("Add/Less 2D,2R & 3D,2R (Visual) + Concept Drill (Abacus)", (
+        4: PmL3DpsRule("Add/Less 2D,2R & 3D,2R (Visual), Concept Drill (Abacus)", (
             _addless("Add/Less 2D,2R & 3D,2R (Visual)", digit_pattern="2D_FULL", rows=3,
                       dp2="3D_FULL", rows2=3, mode="VISUAL", count=10),
             _drill_mult("Concept Drill (Abacus)", amin=300, amax=500, times=8),
@@ -338,8 +344,8 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         2: PmL3DpsRule("2D X 1D (Visual)", (
             _mult("2D X 1D (Visual)", nmin=11, nmax=90, mmin=1, mmax=9, count=20, mode="VISUAL"),
         )),
-        3: PmL3DpsRule("3D / 1D (Abacus) + 2D X 1D (Visual)", (
-            _div("3D / 1D (Abacus)", dmin=2, dmax=9, vmin=100, vmax=999, count=10),
+        3: PmL3DpsRule("3D ÷ 1D (Abacus), 2D X 1D (Visual)", (
+            _div("3D ÷ 1D (Abacus)", dmin=2, dmax=9, vmin=100, vmax=999, count=10),
             _mult("2D X 1D (Visual)", nmin=11, nmax=90, mmin=1, mmax=9, count=10, mode="VISUAL"),
         )),
         4: PmL3DpsRule("Add/Less 2D,4R (Visual)", (
@@ -364,7 +370,7 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         4: PmL3DpsRule("2D X 1D (Abacus)", (
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=9, count=20),
         )),
-        5: PmL3DpsRule("Add/Less 2D,2R & 3D,2R (Visual) + Concept Drill (Abacus)", (
+        5: PmL3DpsRule("Add/Less 2D,2R & 3D,2R (Visual), Concept Drill (Abacus)", (
             _addless("Add/Less 2D,2R & 3D,2R (Visual)", digit_pattern="2D_FULL", rows=3,
                       dp2="3D_FULL", rows2=3, mode="VISUAL", count=10),
             _drill_mult("Concept Drill (Abacus)", amin=300, amax=500, times=9),
@@ -374,18 +380,18 @@ PM_L3_LESSONS: dict[int, dict[int, PmL3DpsRule]] = {
         1: PmL3DpsRule("Add/Less 3D,3R (Abacus)", (
             _addless("Add/Less 3D,3R (Abacus)", digit_pattern="3D_FULL", rows=3, count=10),
         )),
-        2: PmL3DpsRule("2D X 1D (Abacus) + BODMAS (Abacus)", (
+        2: PmL3DpsRule("2D X 1D (Abacus), BODMAS (Abacus)", (
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=9, count=10),
             _bodmas("BODMAS (Abacus)", BODMAS_CHAINED, count=5),
         )),
         3: PmL3DpsRule("2D x 1D (Abacus)", (
             _mult("2D x 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=9, count=20),
         )),
-        4: PmL3DpsRule("2D X 1D (Abacus) + Concept Drill (Abacus)", (
+        4: PmL3DpsRule("2D X 1D (Abacus), Concept Drill (Abacus)", (
             _mult("2D X 1D (Abacus)", nmin=11, nmax=90, mmin=1, mmax=9, count=10),
             _drill_mult("Concept Drill (Abacus)", amin=300, amax=500, times=9),
         )),
-        5: PmL3DpsRule("Add/Less 2D,2R & 3D,2R (Visual) + Concept Drill (Abacus)", (
+        5: PmL3DpsRule("Add/Less 2D,2R & 3D,2R (Visual), Concept Drill (Abacus)", (
             _addless("Add/Less 2D,2R & 3D,2R (Visual)", digit_pattern="2D_FULL", rows=3,
                       dp2="3D_FULL", rows2=3, mode="VISUAL", count=10),
             _drill_div("Concept Drill (Abacus)", fmin=3000, fmax=3999, lmin=220, lmax=299),
