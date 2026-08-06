@@ -35,7 +35,13 @@ def is_guessable_divide_pair(from_value: int, less_value: int) -> bool:
 
 def generate_multiply_question(config: PML3ConceptDrillConfig, rng: random.Random) -> dict:
     add_value = rng.randint(config.add_min, config.add_max)
-    times_value = config.times_value
+    # Random per-question TIMES when a range is given (assessments/mocks,
+    # 2026-08-06 fix); otherwise the single literal per-lesson value DPS-level
+    # seeding still relies on (see PML3ConceptDrillConfig's docstring).
+    if config.times_min is not None and config.times_max is not None:
+        times_value = rng.randint(config.times_min, config.times_max)
+    else:
+        times_value = config.times_value
     correct_answer = compute_multiply_answer(add_value, times_value)
     distractors = generate_multiply_distractors(correct_answer, rng)
     options = build_mcq_options(correct_answer, distractors, rng)

@@ -20,6 +20,17 @@ generic string-eval parser): question_text carries the built expression
 string and drill_operands is empty, matching how IM's GenerateBodmas already
 returns `[Expression], [""]` for its own operands/operators.
 
+Display (corrected 2026-08-06, Shailesh): display_type must be
+EXPRESSION_WORKSHEET, not COMPACT_EXPRESSION -- IM and MM's own BODMAS both
+use EXPRESSION_WORKSHEET (see im/generator.py's/mm/generator.py's
+_DisplayMode, both map BODMAS there); COMPACT_EXPRESSION is reserved for
+short single-value expressions (SQUARES/CUBES/roots). The frontend's
+ExpressionQuestion component (EXPRESSION_WORKSHEET) has char-count-aware
+font shrinking specifically so long expressions fit on one line instead of
+wrapping -- CompactExpressionQuestion (COMPACT_EXPRESSION) has no such
+logic, which is what caused BODMAS sums to wrap onto a second line in the
+Assessment Studio preview.
+
 1. SIMPLE_BRACKET (Lessons 2-4): "(a +/- b) x c" or "c x (a +/- b)".
    Verified: L3 "(9-5) x 2" = 4x2 = 8. L4 "(15-5) x 5" = 10x5 = 50.
 2. COMPOUND (Lesson 5): "base + (a x b) - c" or "base - (a x b) + c" or
@@ -56,7 +67,7 @@ def generate_simple_bracket_question(config: PML3BodmasConfig, rng: random.Rando
     distractors = generate_bodmas_distractors(correct_answer, rng)
     options = build_mcq_options(correct_answer, distractors, rng)
     return {
-        "display_type": "COMPACT_EXPRESSION",
+        "display_type": "EXPRESSION_WORKSHEET",
         "question_text": expression,
         "drill_operands": {},
         "operands": [expression],
@@ -110,7 +121,7 @@ def generate_compound_question(config: PML3BodmasConfig, rng: random.Random) -> 
     distractors = generate_bodmas_distractors(correct_answer, rng)
     options = build_mcq_options(correct_answer, distractors, rng)
     return {
-        "display_type": "COMPACT_EXPRESSION",
+        "display_type": "EXPRESSION_WORKSHEET",
         "question_text": expression,
         "drill_operands": {},
         "operands": [expression],
@@ -149,7 +160,7 @@ def generate_chained_question(config: PML3BodmasConfig, rng: random.Random) -> d
     distractors = generate_bodmas_distractors(correct_answer, rng)
     options = build_mcq_options(correct_answer, distractors, rng)
     return {
-        "display_type": "COMPACT_EXPRESSION",
+        "display_type": "EXPRESSION_WORKSHEET",
         "question_text": expression,
         "drill_operands": {},
         "operands": [expression],

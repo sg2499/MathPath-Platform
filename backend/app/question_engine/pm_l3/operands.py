@@ -39,6 +39,31 @@ def _digit_width(value: int) -> int:
     return len(str(abs(int(value)))) if value != 0 else 1
 
 
+def is_trivial_scale_operand(value: int | float) -> bool:
+    """Block operands that turn multiplication/division into place shifting
+    (x1, x10, x100, /10, /100, ...) instead of requiring genuine computation.
+
+    Identical rule to IM's _IsTrivial (question_engine/im/operands.py) and
+    MM's _IsTrivialScaleOperand (question_engine/mm/operands.py) -- same
+    platform-wide convention, ported here 2026-08-06 (Shailesh) after PM-L3's
+    standalone Multiply/Divide DPS (question_engine/pm_l3/multiply.py,
+    divide.py) were found generating guessable operands like "80 x 7" (a
+    round 2-digit number needs no real multiplication) with no guard at all.
+    0, 1, and any value whose only nonzero digit is its leading one (10, 20,
+    50, 100, 300, ...) are trivial; single digits 2-9 remain valid.
+    """
+    try:
+        magnitude = abs(int(value))
+    except Exception:
+        return False
+    if magnitude in (0, 1):
+        return True
+    text = str(magnitude)
+    if len(text) <= 1:
+        return False
+    return text[0] != "0" and set(text[1:]) == {"0"}
+
+
 def _targets(config: PML3Config, fallback: list[int]) -> list[int]:
     values = [abs(int(value)) for value in (config.target_numbers or []) if int(value) != 0]
     return values or fallback

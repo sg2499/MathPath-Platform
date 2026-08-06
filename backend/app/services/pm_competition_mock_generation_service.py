@@ -420,8 +420,16 @@ PM_L3_DIVISION_BODMAS_POOL: list[dict[str, Any]] = [
 # classifies a whole section as weighted by checking every pool entry shares
 # that family, same mechanism PM-L2's own Concept Drill section already
 # relies on.
+# timesMin/timesMax (2026-08-06, Shailesh): a whole section draws MANY
+# questions from this one pool entry, so a single fixed timesValue (the old
+# "12" here was copied from PM-L2's own convention without checking PM-L3's
+# own workbook) made every question in the section share the identical TIMES
+# -- guessable after the first question. PM-L3's own workbook shows TIMES
+# genuinely varying 5-9 lesson to lesson (see preparatory_module_l3_config.py's
+# _drill_mult calls); timesMin/timesMax draws a fresh value per question from
+# that same observed range instead.
 PM_L3_CONCEPT_DRILL_POOL: list[dict[str, Any]] = [
-    {"title": "Concept Drill - Multiply (Repeated Addition)", "conceptFamily": "CONCEPT_DRILL", "drillFormat": DRILL_MULTIPLY, "addMin": 100, "addMax": 500, "timesValue": 12},
+    {"title": "Concept Drill - Multiply (Repeated Addition)", "conceptFamily": "CONCEPT_DRILL", "drillFormat": DRILL_MULTIPLY, "addMin": 100, "addMax": 500, "timesMin": 5, "timesMax": 9},
     {"title": "Concept Drill - Divide (Repeated Subtraction)", "conceptFamily": "CONCEPT_DRILL", "drillFormat": DRILL_DIVIDE, "fromMin": 500, "fromMax": 3999, "lessMin": 50, "lessMax": 299},
 ]
 
@@ -473,7 +481,7 @@ def _pm_l3_question_signature(question: dict[str, Any]) -> tuple:
     """
     if question.get("drill_operands"):
         return (question.get("display_type"),) + tuple(sorted(question["drill_operands"].items()))
-    if question.get("display_type") == "COMPACT_EXPRESSION":
+    if question.get("metadata", {}).get("concept_family") == "BODMAS":
         return ("BODMAS", question.get("question_text"))
     return ("VERTICAL",) + tuple(question.get("operands") or [])
 
@@ -516,11 +524,15 @@ def _generate_pm_l3_competition_batch(concept_spec: dict[str, Any], count: int, 
         return questions
 
     if concept_family == "CONCEPT_DRILL":
+        times_min = concept_spec.get("timesMin")
+        times_max = concept_spec.get("timesMax")
         config = PML3ConceptDrillConfig(
             module_code="PM", level_code="PM-L3", lesson_number=0, dps_number=0,
             drill_format=concept_spec["drillFormat"], seed=seed,
             add_min=int(concept_spec.get("addMin") or 100), add_max=int(concept_spec.get("addMax") or 500),
             times_value=int(concept_spec.get("timesValue") or 12),
+            times_min=int(times_min) if times_min is not None else None,
+            times_max=int(times_max) if times_max is not None else None,
             from_min=int(concept_spec.get("fromMin") or 500), from_max=int(concept_spec.get("fromMax") or 3999),
             less_min=int(concept_spec.get("lessMin") or 50), less_max=int(concept_spec.get("lessMax") or 299),
         )
