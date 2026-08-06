@@ -389,16 +389,13 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
     // for both rows, disambiguated only by that caption).
     Mode === "CONCEPT_DRILL_MULTIPLY" ||
     Mode === "CONCEPT_DRILL_DIVIDE" ||
-    Mode === "CONCEPT_DRILL_RANGE_SUM" ||
-    // PM-L3's "2D X 1D" multiplication and "3D ÷ 1D" division DPS types --
-    // see backend/app/question_engine/pm_l3/. Structurally identical box
-    // shape to PM-L2's Concept Drill MULTIPLY/DIVIDE (SL/operand/operator/
-    // operand/ANSWER), same CompactTwoColumnQuestion reuse, just its own
-    // display_type name since the underlying math is genuinely different
-    // (plain multiplication / exact division here, vs Concept Drill's
-    // ADD*TIMES teaser and FROM-mod-LESS remainder).
-    Mode === "PM_L3_MULTIPLY_TABLE" ||
-    Mode === "PM_L3_DIVIDE_TABLE"
+    Mode === "CONCEPT_DRILL_RANGE_SUM"
+    // Note: PM-L3's "2D X 1D" multiplication and "3D ÷ 1D" division DPS
+    // types do NOT belong here (corrected 2026-08-06, Shailesh) -- they are
+    // plain arithmetic, not a Concept Drill teaser, so they render via
+    // EXPRESSION_WORKSHEET below instead (matching IM's WHOLE_NUMBER_
+    // MULTIPLICATION/WHOLE_NUMBER_DIVISION precedent: a single
+    // "43 × 8 = ?" expression, not a labeled box).
   ) {
     return <CompactTwoColumnQuestion operands={Operands} operators={Operators} questionText={questionText} />;
   }

@@ -409,7 +409,7 @@ _PM_L3_ABACUS_POOL, _PM_L3_VISUAL_POOL, _PM_L3_MULTIPLY_POOL = _pm_l3_addless_an
 # _generate_pm_l3_competition_batch below), so the "one concept" the even
 # split sees still produces the level's full template variety.
 PM_L3_DIVISION_BODMAS_POOL: list[dict[str, Any]] = [
-    {"title": "3D / 1D Division", "conceptFamily": "PM_L3_DIVISION", "divisorMin": 2, "divisorMax": 9, "dividendMin": 100, "dividendMax": 999},
+    {"title": "3D ÷ 1D Division", "conceptFamily": "PM_L3_DIVISION", "divisorMin": 2, "divisorMax": 9, "dividendMin": 100, "dividendMax": 999},
     {"title": "BODMAS", "conceptFamily": "BODMAS", "bodmasTemplate": "MIXED"},
 ]
 

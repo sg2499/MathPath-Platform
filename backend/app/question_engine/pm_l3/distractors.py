@@ -54,7 +54,7 @@ def generate_multiply_table_distractors(correct_answer: int, rng: random.Random)
 
 
 def generate_divide_table_distractors(number: int, divisor: int, correct_answer: int, rng: random.Random) -> list[int]:
-    """PM-L3's standalone "3D / 1D" DPS -- real exact division (a true
+    """PM-L3's standalone "3D ÷ 1D" DPS -- real exact division (a true
     quotient, not a remainder like Concept Drill's DIVIDE), same DIVIDE
     structural-mistake strategy (off-by-one quotient etc.) from the shared
     utility.

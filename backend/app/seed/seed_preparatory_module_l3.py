@@ -30,7 +30,7 @@ LESSON_TITLES = {
     7: "2D X 1D Multiplication, Add/Less 3D 4R (Abacus) & Concept Drill",
     8: "2D X 1D Multiplication, Add/Less (Abacus/Visual) & Concept Drill",
     9: "Add/Less 3D 4R (Abacus), 2D X 1D Multiplication & Concept Drill",
-    10: "Add/Less 3D 3R (Abacus), 3D / 1D Division, 2D X 1D Multiplication & BODMAS",
+    10: "Add/Less 3D 3R (Abacus), 3D ÷ 1D Division, 2D X 1D Multiplication & BODMAS",
     11: "Add/Less (Visual), BODMAS, 2D X 1D Multiplication & Concept Drill",
     12: "Add/Less 3D 3R (Abacus), 2D X 1D Multiplication, BODMAS & Concept Drill",
 }
