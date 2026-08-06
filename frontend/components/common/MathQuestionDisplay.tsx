@@ -306,29 +306,6 @@ function PositionNumberTableQuestion({
   );
 }
 
-function ConceptDrillPromptQuestion({ questionText }: { questionText?: string | null }) {
-  // PM-L2's "CONCEPT DRILL (ABACUS)" formats (multiply/divide-remainder/
-  // range-sum) -- see backend/app/question_engine/pm_l2/concept_drill.py.
-  // Unlike every other display mode here, these carry a complete,
-  // already-punctuated natural-language prompt (e.g. "34 x 12 = ?",
-  // "Starting from 108, keep subtracting 13 until you can't do so again
-  // without going below 0. What number are you left with?", "Sum the
-  // numbers from 1 to 30.") -- so this renders questionText as-is, with no
-  // expression-building fallback and no auto-appended "= ?" (ExpressionQuestion's
-  // auto-append would incorrectly tack "= ?" onto range-sum's sentence-style
-  // prompts, which don't end in a question mark). Found via live
-  // verification (2026-08-05): before this, PM-L2 concept-drill questions
-  // fell through to the VerticalQuestion default with empty operands,
-  // rendering as a blank box.
-  return (
-    <div className="mx-auto flex w-full max-w-full justify-center rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
-      <p className="w-full text-center font-mono text-base font-black leading-[1.4] tracking-tight sm:text-lg">
-        {questionText?.trim() || "?"}
-      </p>
-    </div>
-  );
-}
-
 function IsPositionNumberTable(operators: string[]): boolean {
   const Labels = operators.map((Operator) => String(Operator || "").trim().toUpperCase());
   return Labels[0] === "POSITION" && Labels[1] === "NUMBER";
@@ -412,13 +389,18 @@ export function MathQuestionDisplay({ operands, operators, displayType, question
     // for both rows, disambiguated only by that caption).
     Mode === "CONCEPT_DRILL_MULTIPLY" ||
     Mode === "CONCEPT_DRILL_DIVIDE" ||
-    Mode === "CONCEPT_DRILL_RANGE_SUM"
+    Mode === "CONCEPT_DRILL_RANGE_SUM" ||
+    // PM-L3's "2D X 1D" multiplication and "3D ÷ 1D" division DPS types --
+    // see backend/app/question_engine/pm_l3/. Structurally identical box
+    // shape to PM-L2's Concept Drill MULTIPLY/DIVIDE (SL/operand/operator/
+    // operand/ANSWER), same CompactTwoColumnQuestion reuse, just its own
+    // display_type name since the underlying math is genuinely different
+    // (plain multiplication / exact division here, vs Concept Drill's
+    // ADD*TIMES teaser and FROM-mod-LESS remainder).
+    Mode === "PM_L3_MULTIPLY_TABLE" ||
+    Mode === "PM_L3_DIVIDE_TABLE"
   ) {
     return <CompactTwoColumnQuestion operands={Operands} operators={Operators} questionText={questionText} />;
-  }
-
-  if (Mode === "CONCEPT_DRILL_MULTIPLY" || Mode === "CONCEPT_DRILL_DIVIDE" || Mode === "CONCEPT_DRILL_RANGE_SUM") {
-    return <ConceptDrillPromptQuestion questionText={questionText} />;
   }
 
   if ((Mode === "VERTICAL" || Mode === "VISUAL_STACK") && IsDecimalStackCandidate(Operands, Operators)) {

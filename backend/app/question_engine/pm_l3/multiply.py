@@ -1,0 +1,46 @@
+from __future__ import annotations
+
+import random
+
+from app.question_engine.option_utils import build_mcq_options
+from app.question_engine.pm_l3.config import PML3MultiplyConfig
+from app.question_engine.pm_l3.distractors import generate_multiply_table_distractors
+
+"""PM-L3's "2D X 1D (ABACUS/VISUAL)" -- the level's dominant new skill, a
+full standalone DPS (not a small teaser like Concept Drill). Plain
+multiplication, taught as repeated addition on the abacus, same as PM-L2's
+Concept Drill MULTIPLY formula -- but here it IS the whole DPS, one number
+times one multiplier per question, box columns with no header-label row in
+the literal workbook cells (confirmed: PM-L3 Lesson 1 DPS2 image shows plain
+SL/number/×/multiplier/blank-answer rows, no ADD/TIMES label row above the
+data, unlike Concept Drill's box). Digit-width progression confirmed lesson
+to lesson (Lesson 1: multiplier pinned to 1, then 1-4; Lesson 9-11: full 1-9
+range, 2-digit operand up to the 90s) -- reproduced here via number_min/max
+and multiplier_min/max, not literal replay of the workbook's own digits.
+"""
+
+
+def compute_multiply_table_answer(number: int, multiplier: int) -> int:
+    return number * multiplier
+
+
+def generate_multiply_table_question(config: PML3MultiplyConfig, rng: random.Random) -> dict:
+    number = rng.randint(config.number_min, config.number_max)
+    multiplier = rng.randint(config.multiplier_min, config.multiplier_max)
+    correct_answer = compute_multiply_table_answer(number, multiplier)
+    distractors = generate_multiply_table_distractors(correct_answer, rng)
+    options = build_mcq_options(correct_answer, distractors, rng)
+    return {
+        "display_type": "PM_L3_MULTIPLY_TABLE",
+        "question_text": None,
+        "drill_operands": {"NUMBER": number, "TIMES": multiplier},
+        "operands": [number, multiplier],
+        "operators": ["Number", "Times"],
+        "correct_answer": correct_answer,
+        "options": options,
+        "metadata": {
+            "concept_family": "PM_L3_MULTIPLICATION",
+            "generation_template": "2D_X_1D",
+            "practice_mode": config.practice_mode,
+        },
+    }
