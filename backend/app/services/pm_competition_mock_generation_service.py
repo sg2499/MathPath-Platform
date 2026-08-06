@@ -342,6 +342,64 @@ def _pm_l2_question_signature(question: dict[str, Any]) -> tuple:
     return ("VERTICAL",) + tuple(question.get("operands") or [])
 
 
+def _pm_l2_fill_concept(
+    ConceptSpec: dict[str, Any],
+    NeededCount: int,
+    UsedSignatures: set[tuple],
+    SectionKey: str,
+    SectionTitle: str,
+    DisplayNumber: int,
+    IsConceptDrillSection: bool,
+) -> list[dict[str, Any]]:
+    """Generate up to NeededCount fresh (signature-unique) questions for one
+    concept-pool entry, stamped with the competition metadata every selected
+    question needs. Returns however many it actually managed -- may be fewer
+    than NeededCount if this concept's operand space is exhausted (narrow
+    digit pattern, or overlap with another concept's range via the
+    cross-section UsedSignatures set); the caller decides whether to
+    redistribute the shortfall to other concepts rather than treat a single
+    concept coming up short as fatal.
+    """
+    Accepted: list[dict[str, Any]] = []
+    if NeededCount <= 0:
+        return Accepted
+    Attempts = 0
+    while len(Accepted) < NeededCount and Attempts < max(NeededCount * 4, 20):
+        Remaining = NeededCount - len(Accepted)
+        Seed = f"COMPETITION-PM-L2-{SectionKey}-{ConceptSpec['title']}-{uuid4().hex}-{Attempts}"
+        if IsConceptDrillSection:
+            Batch = _generate_pm_l2_concept_drill_batch(ConceptSpec, Remaining, Seed)
+        else:
+            Config = _build_pm_l2_config(ConceptSpec, Remaining, Seed)
+            Batch = generate_pm_l2_question_set(Config)
+        for Question in Batch:
+            Signature = _pm_l2_question_signature(Question)
+            if Signature in UsedSignatures:
+                continue
+            UsedSignatures.add(Signature)
+            Metadata = dict(Question.get("metadata") or {})
+            Metadata.update({
+                "competitionConceptKey": ConceptSpec["title"],
+                "competitionConceptName": ConceptSpec["title"],
+                "competitionAllowedConceptFamily": Metadata.get("concept_family") or ConceptSpec.get("conceptFamily") or "CONCEPT_DRILL",
+                "conceptName": ConceptSpec["title"],
+                "competitionSectionKey": SectionKey,
+                "competitionSectionNumber": DisplayNumber,
+                "competitionSectionTitle": SectionTitle,
+                "competitionSectionDisplayTitle": SectionTitle,
+                "competitionSectionLocked": True,
+                "section_number": DisplayNumber,
+                "section_title": SectionTitle,
+            })
+            QuestionCopy = dict(Question)
+            QuestionCopy["metadata"] = Metadata
+            Accepted.append(QuestionCopy)
+            if len(Accepted) >= NeededCount:
+                break
+        Attempts += 1
+    return Accepted
+
+
 def CollectPmL2CompetitionSectionLockedQuestions(
     LevelRecord: Level,
     TargetQuestionCount: int,
@@ -404,63 +462,60 @@ def CollectPmL2CompetitionSectionLockedQuestions(
         ConceptCoverage: dict[str, int] = defaultdict(int)
         ConceptCoverageOrder: list[str] = []
 
+        def _record(ConceptSpec: dict[str, Any], Questions: list[dict[str, Any]]) -> None:
+            for Question in Questions:
+                SectionQuestions.append(Question)
+                ConceptCoverage[ConceptSpec["title"]] += 1
+                if ConceptSpec["title"] not in ConceptCoverageOrder:
+                    ConceptCoverageOrder.append(ConceptSpec["title"])
+
+        # Pass 1: give every concept its even-split share from the schedule.
         for ConceptSpec in ConceptPool:
             RequiredForConcept = CountsByConcept.get(id(ConceptSpec), 0)
             if RequiredForConcept <= 0:
                 continue
-            Attempts = 0
-            AcceptedForConcept = 0
-            while AcceptedForConcept < RequiredForConcept and Attempts < max(RequiredForConcept * 4, 20):
-                Seed = f"COMPETITION-PM-L2-{SectionKey}-{ConceptSpec['title']}-{uuid4().hex}-{Attempts}"
-                if IsConceptDrillSection:
-                    Batch = _generate_pm_l2_concept_drill_batch(ConceptSpec, RequiredForConcept - AcceptedForConcept, Seed)
-                else:
-                    Config = _build_pm_l2_config(ConceptSpec, RequiredForConcept - AcceptedForConcept, Seed)
-                    Batch = generate_pm_l2_question_set(Config)
-                for Question in Batch:
-                    Signature = _pm_l2_question_signature(Question)
-                    if Signature in UsedSignatures:
-                        continue
-                    UsedSignatures.add(Signature)
-                    Metadata = dict(Question.get("metadata") or {})
-                    Metadata.update({
-                        "competitionConceptKey": ConceptSpec["title"],
-                        "competitionConceptName": ConceptSpec["title"],
-                        "competitionAllowedConceptFamily": Metadata.get("concept_family") or ConceptSpec.get("conceptFamily") or "CONCEPT_DRILL",
-                        "conceptName": ConceptSpec["title"],
-                        "competitionSectionKey": SectionKey,
-                        "competitionSectionNumber": DisplayNumber,
-                        "competitionSectionTitle": SectionTitle,
-                        "competitionSectionDisplayTitle": SectionTitle,
-                        "competitionSectionLocked": True,
-                        "section_number": DisplayNumber,
-                        "section_title": SectionTitle,
-                    })
-                    QuestionCopy = dict(Question)
-                    QuestionCopy["metadata"] = Metadata
-                    SectionQuestions.append(QuestionCopy)
-                    ConceptCoverage[ConceptSpec["title"]] += 1
-                    if ConceptSpec["title"] not in ConceptCoverageOrder:
-                        ConceptCoverageOrder.append(ConceptSpec["title"])
-                    AcceptedForConcept += 1
-                    if AcceptedForConcept >= RequiredForConcept:
-                        break
-                Attempts += 1
+            _record(ConceptSpec, _pm_l2_fill_concept(ConceptSpec, RequiredForConcept, UsedSignatures, SectionKey, SectionTitle, DisplayNumber, IsConceptDrillSection))
 
-            if AcceptedForConcept < RequiredForConcept:
-                api_error(
-                    400,
-                    "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                    f"Could not generate the required {RequiredForConcept} fresh questions for "
-                    f"'{ConceptSpec['title']}' in {SectionTitle}.",
-                    {"sectionKey": SectionKey, "concept": ConceptSpec["title"], "required": RequiredForConcept, "generated": AcceptedForConcept},
-                )
+        # Redistribution passes: a concept can legitimately run out of unique
+        # signatures before its even-split share is filled -- either its own
+        # digit-pattern range is narrow, or it overlaps another concept's
+        # range (possibly in a *different* section, since UsedSignatures is
+        # shared across the whole mock) and lost the race for shared
+        # combinations. That is not the same as the *section* running out of
+        # capacity: other concepts in the same pool may still have headroom.
+        # Keep sweeping the pool, skipping concepts already confirmed
+        # exhausted, until the section's target is met or every concept has
+        # been confirmed unable to contribute anything more. Each sweep
+        # either hits the target or exhausts at least one more concept, so
+        # this always terminates within len(ConceptPool) sweeps.
+        ExhaustedConceptIds: set[int] = set()
+        for _ in range(len(ConceptPool) + 1):
+            if len(SectionQuestions) >= RequiredCount:
+                break
+            GainedThisSweep = 0
+            for ConceptSpec in ConceptPool:
+                if id(ConceptSpec) in ExhaustedConceptIds:
+                    continue
+                Outstanding = RequiredCount - len(SectionQuestions)
+                if Outstanding <= 0:
+                    break
+                Got = _pm_l2_fill_concept(ConceptSpec, Outstanding, UsedSignatures, SectionKey, SectionTitle, DisplayNumber, IsConceptDrillSection)
+                if Got:
+                    _record(ConceptSpec, Got)
+                    GainedThisSweep += len(Got)
+                else:
+                    ExhaustedConceptIds.add(id(ConceptSpec))
+            if GainedThisSweep == 0:
+                break
 
         if len(SectionQuestions) < RequiredCount:
             api_error(
                 400,
                 "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                f"Could not generate the required {RequiredCount} questions for {SectionTitle}.",
+                f"Could not generate the required {RequiredCount} questions for {SectionTitle} -- "
+                f"only {len(SectionQuestions)} unique questions are available across every concept "
+                f"in this section (and any cross-section overlap) at this mock size. Try a smaller "
+                f"question count for this section.",
                 {"sectionKey": SectionKey, "required": RequiredCount, "generated": len(SectionQuestions)},
             )
 
@@ -550,6 +605,55 @@ def _build_pm_config(concept_spec: dict[str, Any], question_count: int, seed: st
     )
 
 
+def _pm_fill_concept(
+    ConceptSpec: dict[str, Any],
+    NeededCount: int,
+    UsedSignatures: set[tuple[int, ...]],
+    SectionKey: str,
+    SectionTitle: str,
+    DisplayNumber: int,
+) -> list[dict[str, Any]]:
+    """PM-L1's counterpart to _pm_l2_fill_concept -- see that function's
+    docstring for why this returns a possibly-partial result instead of
+    raising, and why that's the caller's decision to make.
+    """
+    Accepted: list[dict[str, Any]] = []
+    if NeededCount <= 0:
+        return Accepted
+    Attempts = 0
+    while len(Accepted) < NeededCount and Attempts < max(NeededCount * 4, 20):
+        Remaining = NeededCount - len(Accepted)
+        Seed = f"COMPETITION-PM-{SectionKey}-{ConceptSpec['title']}-{uuid4().hex}-{Attempts}"
+        Config = _build_pm_config(ConceptSpec, Remaining, Seed)
+        Batch = generate_pm_question_set(Config)
+        for Question in Batch:
+            Signature = tuple(Question["operands"])
+            if Signature in UsedSignatures:
+                continue
+            UsedSignatures.add(Signature)
+            Metadata = dict(Question.get("metadata") or {})
+            Metadata.update({
+                "competitionConceptKey": ConceptSpec["title"],
+                "competitionConceptName": ConceptSpec["title"],
+                "competitionAllowedConceptFamily": ConceptSpec["conceptFamily"],
+                "conceptName": ConceptSpec["title"],
+                "competitionSectionKey": SectionKey,
+                "competitionSectionNumber": DisplayNumber,
+                "competitionSectionTitle": SectionTitle,
+                "competitionSectionDisplayTitle": SectionTitle,
+                "competitionSectionLocked": True,
+                "section_number": DisplayNumber,
+                "section_title": SectionTitle,
+            })
+            QuestionCopy = dict(Question)
+            QuestionCopy["metadata"] = Metadata
+            Accepted.append(QuestionCopy)
+            if len(Accepted) >= NeededCount:
+                break
+        Attempts += 1
+    return Accepted
+
+
 def CollectPmCompetitionSectionLockedQuestions(
     LevelRecord: Level,
     TargetQuestionCount: int,
@@ -599,60 +703,52 @@ def CollectPmCompetitionSectionLockedQuestions(
         ConceptCoverage: dict[str, int] = defaultdict(int)
         ConceptCoverageOrder: list[str] = []
 
+        def _record(ConceptSpec: dict[str, Any], Questions: list[dict[str, Any]]) -> None:
+            for Question in Questions:
+                SectionQuestions.append(Question)
+                ConceptCoverage[ConceptSpec["title"]] += 1
+                if ConceptSpec["title"] not in ConceptCoverageOrder:
+                    ConceptCoverageOrder.append(ConceptSpec["title"])
+
+        # Pass 1: give every concept its even-split share from the schedule.
         for ConceptSpec in ConceptPool:
             RequiredForConcept = CountsByConcept.get(id(ConceptSpec), 0)
             if RequiredForConcept <= 0:
                 continue
-            Attempts = 0
-            AcceptedForConcept = 0
-            while AcceptedForConcept < RequiredForConcept and Attempts < max(RequiredForConcept * 4, 20):
-                Seed = f"COMPETITION-PM-{SectionKey}-{ConceptSpec['title']}-{uuid4().hex}-{Attempts}"
-                Config = _build_pm_config(ConceptSpec, RequiredForConcept - AcceptedForConcept, Seed)
-                Batch = generate_pm_question_set(Config)
-                for Question in Batch:
-                    Signature = tuple(Question["operands"])
-                    if Signature in UsedSignatures:
-                        continue
-                    UsedSignatures.add(Signature)
-                    Metadata = dict(Question.get("metadata") or {})
-                    Metadata.update({
-                        "competitionConceptKey": ConceptSpec["title"],
-                        "competitionConceptName": ConceptSpec["title"],
-                        "competitionAllowedConceptFamily": ConceptSpec["conceptFamily"],
-                        "conceptName": ConceptSpec["title"],
-                        "competitionSectionKey": SectionKey,
-                        "competitionSectionNumber": DisplayNumber,
-                        "competitionSectionTitle": SectionTitle,
-                        "competitionSectionDisplayTitle": SectionTitle,
-                        "competitionSectionLocked": True,
-                        "section_number": DisplayNumber,
-                        "section_title": SectionTitle,
-                    })
-                    QuestionCopy = dict(Question)
-                    QuestionCopy["metadata"] = Metadata
-                    SectionQuestions.append(QuestionCopy)
-                    ConceptCoverage[ConceptSpec["title"]] += 1
-                    if ConceptSpec["title"] not in ConceptCoverageOrder:
-                        ConceptCoverageOrder.append(ConceptSpec["title"])
-                    AcceptedForConcept += 1
-                    if AcceptedForConcept >= RequiredForConcept:
-                        break
-                Attempts += 1
+            _record(ConceptSpec, _pm_fill_concept(ConceptSpec, RequiredForConcept, UsedSignatures, SectionKey, SectionTitle, DisplayNumber))
 
-            if AcceptedForConcept < RequiredForConcept:
-                api_error(
-                    400,
-                    "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                    f"Could not generate the required {RequiredForConcept} fresh questions for "
-                    f"'{ConceptSpec['title']}' in {SectionTitle}.",
-                    {"sectionKey": SectionKey, "concept": ConceptSpec["title"], "required": RequiredForConcept, "generated": AcceptedForConcept},
-                )
+        # Redistribution passes -- see the matching comment in
+        # CollectPmL2CompetitionSectionLockedQuestions for the reasoning:
+        # one concept running dry doesn't mean the section is out of
+        # capacity, so keep sweeping the pool (skipping confirmed-exhausted
+        # concepts) until the target is met or nothing more is available.
+        ExhaustedConceptIds: set[int] = set()
+        for _ in range(len(ConceptPool) + 1):
+            if len(SectionQuestions) >= RequiredCount:
+                break
+            GainedThisSweep = 0
+            for ConceptSpec in ConceptPool:
+                if id(ConceptSpec) in ExhaustedConceptIds:
+                    continue
+                Outstanding = RequiredCount - len(SectionQuestions)
+                if Outstanding <= 0:
+                    break
+                Got = _pm_fill_concept(ConceptSpec, Outstanding, UsedSignatures, SectionKey, SectionTitle, DisplayNumber)
+                if Got:
+                    _record(ConceptSpec, Got)
+                    GainedThisSweep += len(Got)
+                else:
+                    ExhaustedConceptIds.add(id(ConceptSpec))
+            if GainedThisSweep == 0:
+                break
 
         if len(SectionQuestions) < RequiredCount:
             api_error(
                 400,
                 "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                f"Could not generate the required {RequiredCount} questions for {SectionTitle}.",
+                f"Could not generate the required {RequiredCount} questions for {SectionTitle} -- "
+                f"only {len(SectionQuestions)} unique questions are available across every concept "
+                f"in this section at this mock size. Try a smaller question count for this section.",
                 {"sectionKey": SectionKey, "required": RequiredCount, "generated": len(SectionQuestions)},
             )
 
