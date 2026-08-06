@@ -10,6 +10,18 @@ from app.question_engine.im import IMConfig, GenerateImQuestionSet, IsImConceptS
 from app.question_engine.pm import PMConfig, generate_pm_question_set
 from app.question_engine.pm_l2 import PML2Config, PML2ConceptDrillConfig, generate_pm_l2_question_set
 from app.question_engine.pm_l2.concept_drill import generate_concept_drill_question, generate_range_sum_question
+from app.question_engine.pm_l3 import (
+    PML3Config,
+    PML3ConceptDrillConfig,
+    PML3MultiplyConfig,
+    PML3DivideConfig,
+    PML3BodmasConfig,
+    generate_pm_l3_question_set,
+    generate_pm_l3_multiply_set,
+    generate_pm_l3_divide_set,
+    generate_pm_l3_bodmas_set,
+)
+from app.question_engine.pm_l3.concept_drill import generate_concept_drill_question as generate_pm_l3_concept_drill_question
 from app.core.errors import api_error
 
 def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
@@ -254,6 +266,143 @@ def _generate_pm_l2_concept_drill_section_questions(dps: DPS, LessonRecord, sect
     return questions
 
 
+def _pm_l3_generator_config(section: DPSSection) -> dict:
+    if not section.generator_config_json:
+        return {}
+    try:
+        return json.loads(section.generator_config_json or "{}")
+    except Exception:
+        return {}
+
+
+def _generate_pm_l3_section_questions(dps: DPS, LessonRecord, section: DPSSection, seed: str) -> list[dict]:
+    """Generates one PM-L3 DPSSection's questions -- dispatches on the
+    section's blockKind (ADD_LESS/MULTIPLY/DIVIDE/BODMAS/
+    CONCEPT_DRILL_MULTIPLY/CONCEPT_DRILL_DIVIDE), all reading from
+    question_engine/pm_l3, PM-L3's own fully independent engine. Mirrors
+    PM-L2's generate_pm_l2_preview's per-section dispatch, generalized to
+    more than two block kinds since PM-L3 has five (vs PM-L2's two).
+    """
+    GeneratorConfig = _pm_l3_generator_config(section)
+    block_kind = GeneratorConfig.get("blockKind") or ("ADD_LESS" if section.concept_family == "DIRECT_ADD_LESS" else section.concept_family)
+    lesson_number = int(getattr(LessonRecord, "lesson_number", 0) or 0)
+    dps_number = int(getattr(dps, "dps_number", 0) or 0)
+    question_count = int(getattr(section, "question_count", None) or GeneratorConfig.get("questionCount") or 10)
+
+    if block_kind == "ADD_LESS":
+        config = PML3Config(
+            module_code="PM",
+            level_code="PM-L3",
+            lesson_number=lesson_number,
+            dps_number=dps_number,
+            question_count=question_count,
+            rows=int(getattr(section, "rows_count", 4) or GeneratorConfig.get("rows") or 4),
+            concept_family=section.concept_family or "DIRECT_ADD_LESS",
+            operation_focus="ADD_LESS",
+            target_numbers=json.loads(section.target_numbers_json or "[]"),
+            place_value=getattr(section, "place_value", None) or "ONES",
+            digit_pattern=getattr(section, "digit_pattern", None) or GeneratorConfig.get("digitPattern") or "2D_FULL",
+            allow_negative_operands=True,
+            allow_negative_answer=False,
+            seed=seed,
+            lesson_title=getattr(LessonRecord, "lesson_title", "") or GeneratorConfig.get("lessonTitle", ""),
+            dps_title=getattr(dps, "dps_title", "") or GeneratorConfig.get("dpsTitle", ""),
+            generation_template=GeneratorConfig.get("generationTemplate") or "DIRECT",
+            revision_templates=tuple(GeneratorConfig.get("revisionTemplates") or ()),
+            practice_mode=GeneratorConfig.get("practiceMode"),
+            digit_pattern_second_half=GeneratorConfig.get("digitPatternSecondHalf"),
+            rows_second_half=GeneratorConfig.get("rowsSecondHalf"),
+        )
+        return generate_pm_l3_question_set(config)
+
+    if block_kind == "MULTIPLY":
+        config = PML3MultiplyConfig(
+            module_code="PM", level_code="PM-L3", lesson_number=lesson_number, dps_number=dps_number,
+            seed=seed,
+            number_min=int(GeneratorConfig.get("numberMin") or 11),
+            number_max=int(GeneratorConfig.get("numberMax") or 99),
+            multiplier_min=int(GeneratorConfig.get("multiplierMin") or 1),
+            multiplier_max=int(GeneratorConfig.get("multiplierMax") or 9),
+            practice_mode=GeneratorConfig.get("practiceMode"),
+        )
+        return generate_pm_l3_multiply_set(config, question_count)
+
+    if block_kind == "DIVIDE":
+        config = PML3DivideConfig(
+            module_code="PM", level_code="PM-L3", lesson_number=lesson_number, dps_number=dps_number,
+            seed=seed,
+            divisor_min=int(GeneratorConfig.get("divisorMin") or 2),
+            divisor_max=int(GeneratorConfig.get("divisorMax") or 9),
+            dividend_min=int(GeneratorConfig.get("dividendMin") or 100),
+            dividend_max=int(GeneratorConfig.get("dividendMax") or 999),
+        )
+        return generate_pm_l3_divide_set(config, question_count)
+
+    if block_kind == "BODMAS":
+        config = PML3BodmasConfig(
+            module_code="PM", level_code="PM-L3", lesson_number=lesson_number, dps_number=dps_number,
+            template=GeneratorConfig.get("bodmasTemplate") or "PM_L3_SIMPLE_BRACKET",
+            seed=seed,
+        )
+        return generate_pm_l3_bodmas_set(config, question_count)
+
+    if block_kind in ("CONCEPT_DRILL_MULTIPLY", "CONCEPT_DRILL_DIVIDE"):
+        drill_format = block_kind
+        config = PML3ConceptDrillConfig(
+            module_code="PM", level_code="PM-L3", lesson_number=lesson_number, dps_number=dps_number,
+            drill_format=drill_format,
+            seed=seed,
+            add_min=int(GeneratorConfig.get("addMin") or 100),
+            add_max=int(GeneratorConfig.get("addMax") or 500),
+            times_value=int(GeneratorConfig.get("timesValue") or 12),
+            from_min=int(GeneratorConfig.get("fromMin") or 500),
+            from_max=int(GeneratorConfig.get("fromMax") or 3999),
+            less_min=int(GeneratorConfig.get("lessMin") or 50),
+            less_max=int(GeneratorConfig.get("lessMax") or 299),
+        )
+        questions = []
+        for i in range(1, question_count + 1):
+            q_rng = random.Random(f"{seed}-Q{i}")
+            question = generate_pm_l3_concept_drill_question(config, q_rng)
+            question["seed"] = f"{seed}-Q{i}"
+            questions.append(question)
+        return questions
+
+    raise ValueError(f"Unknown PM-L3 block kind: {block_kind}")
+
+
+def generate_pm_l3_preview(db: Session, dps: DPS, seed: str) -> list[dict]:
+    """PM-L3's DPS question generation entry point -- combines every
+    DPSSection row belonging to this DPS (1-3 blocks per DPS: a wide
+    Add/Less or Multiplication/Division/BODMAS block, sometimes paired with
+    a Concept Drill teaser sub-block -- see preparatory_module_l3_config.py
+    for exactly which DPS carry which blocks). Mirrors PM-L2's
+    generate_pm_l2_preview combining pattern, generalized to PM-L3's five
+    block kinds.
+    """
+    LessonRecord = db.get(Lesson, dps.lesson_id)
+    sections = (
+        db.query(DPSSection)
+        .filter(DPSSection.dps_id == dps.id)
+        .order_by(DPSSection.section_number)
+        .all()
+    )
+    all_questions: list[dict] = []
+    question_number = 1
+    for section in sections:
+        section_seed = f"{seed}-S{section.section_number}"
+        section_questions = _generate_pm_l3_section_questions(dps, LessonRecord, section, section_seed)
+        for q in section_questions:
+            q["question_number"] = question_number
+            question_number += 1
+            Metadata = q.get("metadata") or {}
+            Metadata["section_number"] = int(getattr(section, "section_number", 1) or 1)
+            Metadata["section_title"] = getattr(section, "section_title", None) or Metadata.get("dps_title")
+            q["metadata"] = Metadata
+            all_questions.append(q)
+    return all_questions
+
+
 def generate_pm_l2_preview(db: Session, dps: DPS, seed: str) -> list[dict]:
     """PM-L2's DPS question generation entry point -- combines every
     DPSSection row belonging to this DPS (some PM-L2 DPS carry exactly one:
@@ -348,6 +497,10 @@ def _is_pm_l2(db: Session, dps: DPS) -> bool:
     return _level_code_for_dps(db, dps) == "PM-L2"
 
 
+def _is_pm_l3(db: Session, dps: DPS) -> bool:
+    return _level_code_for_dps(db, dps) == "PM-L3"
+
+
 def _is_dynamic_generator_supported(db: Session, dps: DPS) -> bool:
     ModuleCode = _module_code_for_dps(db, dps)
     if ModuleCode == "YLM":
@@ -398,6 +551,8 @@ def generate_preview(db: Session, dps: DPS, seed: str | None = None) -> list[dic
         Config = build_im_config_from_dps(db, dps, seed)
         return GenerateImQuestionSet(Config)
     if ModuleCode == "PM":
+        if _is_pm_l3(db, dps):
+            return generate_pm_l3_preview(db, dps, seed)
         if _is_pm_l2(db, dps):
             return generate_pm_l2_preview(db, dps, seed)
         Config = build_pm_config_from_dps(db, dps, seed)
