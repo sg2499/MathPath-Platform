@@ -39,6 +39,7 @@ from app.services.pm_competition_mock_generation_service import (
     CollectPmCompetitionSectionLockedQuestions,
     CollectPmL2CompetitionSectionLockedQuestions,
     CollectPmL3CompetitionSectionLockedQuestions,
+    CollectPmL4CompetitionSectionLockedQuestions,
 )
 
 
@@ -2344,6 +2345,17 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: L
         # already-verified path below.
         if str(getattr(LevelRecord, "level_code", "") or "") == "PM-L3":
             return CollectPmL3CompetitionSectionLockedQuestions(
+                LevelRecord,
+                TargetQuestionCount,
+                SectionCountsOverride,
+            )
+        # PM-L4 (added 2026-08-06, Shailesh) routes to its own separate
+        # collector -- CollectPmL4CompetitionSectionLockedQuestions -- for
+        # the same reason as the PM-L2/PM-L3 branches above: its own
+        # dedicated engine and 6-section registry, zero shared code with
+        # any earlier level's already-verified path.
+        if str(getattr(LevelRecord, "level_code", "") or "") == "PM-L4":
+            return CollectPmL4CompetitionSectionLockedQuestions(
                 LevelRecord,
                 TargetQuestionCount,
                 SectionCountsOverride,
