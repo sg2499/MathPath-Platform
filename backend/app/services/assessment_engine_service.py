@@ -51,6 +51,10 @@ from app.services.pm_competition_mock_generation_service import (
     _generate_pm_l3_competition_batch,
     _generate_pm_l4_competition_batch,
 )
+from app.services.bm_competition_mock_generation_service import (
+    BM_COMPETITION_LEVEL_REGISTRY,
+    _generate_bm_competition_batch,
+)
 
 # Kept as a literal duplicate of assessment_blueprint_service.py's
 # SECTION_WISE_ASSESSMENT_MODULES rather than imported from it: that module
@@ -58,11 +62,12 @@ from app.services.pm_competition_mock_generation_service import (
 # so importing back would create a circular import. Both sets must be changed
 # together -- a module only ever gets added to section-wise assessments once,
 # and grep for SECTION_WISE_ASSESSMENT_MODULES finds both call sites.
-_SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM"}
+_SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM", "BM"}
 _SECTION_WISE_REGISTRIES: dict[str, dict[str, Any]] = {
     "IM": IM_COMPETITION_LEVEL_REGISTRY,
     "MM": MM_COMPETITION_LEVEL_REGISTRY,
     "PM": PM_COMPETITION_LEVEL_REGISTRY,
+    "BM": BM_COMPETITION_LEVEL_REGISTRY,
 }
 
 ASSESSMENT_VERSION_STATUSES = {"DRAFT", "PREVIEW", "PUBLISHED", "ARCHIVED"}
@@ -143,6 +148,26 @@ MM_FLAT_QUESTION_MARKS = 1.0
 # reweight PM, and vice versa.
 _PM_CONCEPT_WEIGHTED_FAMILIES = {"CONCEPT_DRILL"}
 
+# Bridge Module's own Concept Drill weighting (Shailesh, 2026-08-07: "the
+# concept drill sums again need to be of 5 marks each for the dps and
+# assessment workflows" -- confirmed as the same platform-wide convention
+# already applied uniformly across PM and IM). Deliberately its own
+# function/constant-set, not folded into PM's or IM's -- same reasoning as
+# _PM_CONCEPT_WEIGHTED_FAMILIES above: a future change to IM's or PM's
+# weighted-family set must never accidentally reweight BM, and vice versa.
+_BM_CONCEPT_WEIGHTED_FAMILIES = {"CONCEPT_DRILL"}
+
+
+def BmQuestionMark(ConceptTag: str | None) -> float:
+    """BM's own concept-weighted mark lookup. Flat 1 mark for every BM-L1
+    question except its Concept Drill format (concept_tag ==
+    "CONCEPT_DRILL"), worth 5 marks per question -- mirrors PM-L2+'s and
+    IM's Concept Drill weighting exactly, in a BM-owned function so a
+    future change to PM's or IM's weighted-family set can never silently
+    reweight BM.
+    """
+    return _CONCEPT_WEIGHTED_MARKS if ConceptTag in _BM_CONCEPT_WEIGHTED_FAMILIES else _CONCEPT_WEIGHTED_DEFAULT_MARKS
+
 
 def ImConceptWeightedQuestionMark(ConceptTag: str | None) -> float:
     return _CONCEPT_WEIGHTED_MARKS if ConceptTag in _CONCEPT_WEIGHTED_FAMILIES else _CONCEPT_WEIGHTED_DEFAULT_MARKS
@@ -190,6 +215,9 @@ def ResolvedAssessmentQuestionMark(Db: Session, Version: AssessmentVersion | Non
     if ModuleCode == "PM":
         ConceptTag = Question.concept_tag if Question else None
         return PmQuestionMark(ConceptTag)
+    if ModuleCode == "BM":
+        ConceptTag = Question.concept_tag if Question else None
+        return BmQuestionMark(ConceptTag)
     if ModuleCode in _CONCEPT_WEIGHTED_MODULES:
         ConceptTag = Question.concept_tag if Question else None
         return ImConceptWeightedQuestionMark(ConceptTag)
@@ -660,6 +688,21 @@ def _GeneratePmL4AssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec:
     if Count <= 0:
         return []
     return _generate_pm_l4_competition_batch(ConceptSpec, Count, Seed)
+
+
+def _GenerateBmAssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], Count: int, Seed: str) -> list[dict[str, Any]]:
+    """Bridge Module counterpart to _GeneratePmL4AssessmentBatch -- thin
+    wrapper around _generate_bm_competition_batch
+    (bm_competition_mock_generation_service.py), which already dispatches
+    on ConceptSpec['conceptFamily'] across all six of BM-L1's section kinds
+    (Add/Less Abacus, Add/Less Visual, Multiplication, Division [2D÷1D/
+    3D÷1D/3D÷1D-with-remainder pooled together], BODMAS, Concept Drill) for
+    mocks; reused as-is here so assessments and mocks can never silently
+    diverge on how a given concept is generated.
+    """
+    if Count <= 0:
+        return []
+    return _generate_bm_competition_batch(ConceptSpec, Count, Seed)
 
 
 def _GeneratePmL2AssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], Count: int, Seed: str) -> list[dict[str, Any]]:
@@ -1210,6 +1253,13 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     if ModuleCode == "MM":
                         Config = MmSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
                         GeneratedQuestions = _GenerateMmAssessmentBatch(Config, Count)
+                    elif ModuleCode == "BM":
+                        # Bridge Module routes to its own dedicated batch
+                        # generator (question_engine/bm) -- a separate
+                        # module entirely from PM, so none of PM's
+                        # already-verified per-level branches below are
+                        # ever touched.
+                        GeneratedQuestions = _GenerateBmAssessmentBatch(SectionDef, ConceptSpec, Count, ConceptSeed)
                     elif ModuleCode == "PM" and str(getattr(LevelItem, "level_code", "") or "") == "PM-L3":
                         # PM-L3 routes to its own dedicated batch generator
                         # (question_engine/pm_l3) -- separate from both
@@ -1249,6 +1299,13 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     if ModuleCode == "MM":
                         QuestionMarks = MM_FLAT_QUESTION_MARKS
                         MarksMode = "MM_FLAT"
+                    elif ModuleCode == "BM":
+                        # BmQuestionMark() returns flat 1 for every BM-L1
+                        # question except its own Concept Drill format,
+                        # which is worth 5 -- see BmQuestionMark()'s
+                        # docstring.
+                        QuestionMarks = BmQuestionMark(ConceptTag)
+                        MarksMode = "BM_CONCEPT_WEIGHTED" if QuestionMarks != MM_FLAT_QUESTION_MARKS else "BM_FLAT"
                     elif ModuleCode == "PM":
                         # PmQuestionMark() returns flat 1 for every PM-L1
                         # question (never tagged CONCEPT_DRILL) and for every

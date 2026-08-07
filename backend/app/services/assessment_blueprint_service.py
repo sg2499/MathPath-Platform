@@ -42,6 +42,9 @@ from app.services.competition_mock_generation_service import (
 from app.services.pm_competition_mock_generation_service import (
     PM_COMPETITION_LEVEL_REGISTRY,
 )
+from app.services.bm_competition_mock_generation_service import (
+    BM_COMPETITION_LEVEL_REGISTRY,
+)
 
 TOTAL_ASSESSMENT_MARKS = 100.0
 PASSING_PERCENTAGE = 70.0
@@ -56,12 +59,13 @@ BLUEPRINT_STATUSES = {"DRAFT", "PUBLISHED", "ARCHIVED"}
 # section-wise assessments before it actually has a mock section registry to
 # mirror -- it would fail loudly instead, exactly like the mock generators
 # already do for an unconfigured level.
-SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM"}
+SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM", "BM"}
 
 _SECTION_WISE_REGISTRIES: dict[str, dict[str, Any]] = {
     "IM": IM_COMPETITION_LEVEL_REGISTRY,
     "MM": MM_COMPETITION_LEVEL_REGISTRY,
     "PM": PM_COMPETITION_LEVEL_REGISTRY,
+    "BM": BM_COMPETITION_LEVEL_REGISTRY,
 }
 
 
@@ -121,15 +125,26 @@ def section_marks_metadata(module_code: str, registry_config: dict[str, Any]) ->
     marks-must-equal-100 enforcement below) without hardcoding which sections
     are weighted on the frontend. MM is never weighted -- flat 1 mark
     everywhere, matching MM_FLAT_QUESTION_MARKS in assessment_engine_service.py.
-    PM is included alongside _CONCEPT_WEIGHTED_MODULES (2026-08-05,
-    Shailesh) because PM-L2 introduces its own Concept Drill section; PM-L1
-    is unaffected since none of its sections' concept pools ever carry
-    conceptFamily="CONCEPT_DRILL", so _weighted_section_keys() finds nothing
-    to weight there and every PM-L1 section still resolves to flat 1 mark.
+    PM and BM are included alongside _CONCEPT_WEIGHTED_MODULES (2026-08-05
+    for PM, Shailesh; 2026-08-07 for BM) because PM-L2+ and BM-L1 each
+    introduce their own Concept Drill section; PM-L1 is unaffected since
+    none of its sections' concept pools ever carry conceptFamily=
+    "CONCEPT_DRILL", so _weighted_section_keys() finds nothing to weight
+    there and every PM-L1 section still resolves to flat 1 mark. Without BM
+    here, this fell through to the flat-1-everywhere branch below, so the
+    Assessment Studio's Auto Balance / marks-validation banner silently
+    treated BM's Concept Drill section as worth 1 mark like every other
+    section -- it would evenly split 100 questions across all 6 sections and
+    show "100/100, ready to publish", while the actual generated assessment
+    (via BmQuestionMark() in assessment_engine_service.py, which correctly
+    weights Concept Drill questions at 5 marks) came out to more than 100
+    real marks, tripping GenerateAssessmentVersion's ASSESSMENT_MARKS_MISMATCH
+    guard at publish time. Caught live via Chrome verification before ever
+    reaching a real admin.
     """
     section_defs = registry_config.get("sectionDefinitions", [])
     module_upper = (module_code or "").upper()
-    if module_upper not in _CONCEPT_WEIGHTED_MODULES and module_upper != "PM":
+    if module_upper not in _CONCEPT_WEIGHTED_MODULES and module_upper not in {"PM", "BM"}:
         return {row["key"]: {"isWeighted": False, "marksPerQuestion": 1.0} for row in section_defs}
     weighted_keys = _weighted_section_keys(registry_config)
     return {
@@ -339,16 +354,22 @@ def validate_section_distribution(
     # Both checks are hard failures with the same coverage-check philosophy
     # as everything else in this function -- never silently clamp or scale.
     module_upper = (module_code or "").upper()
-    # PM is included alongside _CONCEPT_WEIGHTED_MODULES (2026-08-05,
-    # Shailesh): PM-L2 introduces its own Concept Drill section, weighted
-    # exactly like IM's Skill Stacker/Concept Drill. This does not change
-    # PM-L1's behavior at all -- PM-L1's registry has zero sections whose
-    # concept pool is tagged conceptFamily="CONCEPT_DRILL", so
-    # _weighted_section_keys() returns an empty set for it, which makes the
-    # weighted computation below mathematically identical to the old flat
-    # "total_questions must be 100" check it replaces (computed_marks
-    # reduces to exactly total_questions when nothing is weighted).
-    if module_upper in _CONCEPT_WEIGHTED_MODULES or module_upper == "PM":
+    # PM and BM are included alongside _CONCEPT_WEIGHTED_MODULES (2026-08-05
+    # for PM, Shailesh; 2026-08-07 for BM): PM-L2+ and BM-L1 each introduce
+    # their own Concept Drill section, weighted exactly like IM's Skill
+    # Stacker/Concept Drill. This does not change PM-L1's behavior at all --
+    # PM-L1's registry has zero sections whose concept pool is tagged
+    # conceptFamily="CONCEPT_DRILL", so _weighted_section_keys() returns an
+    # empty set for it, which makes the weighted computation below
+    # mathematically identical to the old flat "total_questions must be 100"
+    # check it replaces (computed_marks reduces to exactly total_questions
+    # when nothing is weighted). Before BM was added here, this whole check
+    # was skipped for BM (fell through to no marks validation at all),
+    # letting a distribution that doesn't actually sum to 100 real marks
+    # save/publish successfully and only fail later, inside
+    # GenerateAssessmentVersion, with a much less actionable
+    # ASSESSMENT_MARKS_MISMATCH error -- caught live via Chrome verification.
+    if module_upper in _CONCEPT_WEIGHTED_MODULES or module_upper in {"PM", "BM"}:
         weighted_keys = _weighted_section_keys(registry_config)
         computed_marks = sum(
             (_CONCEPT_WEIGHTED_MARKS if section_def["key"] in weighted_keys else 1.0) * count

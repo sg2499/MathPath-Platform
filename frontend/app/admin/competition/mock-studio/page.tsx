@@ -30,10 +30,12 @@ const DefaultQuestionCount = 40;
 const MmDefaultQuestionCount = 100;
 const ImDefaultQuestionCount = 100;
 const PmDefaultQuestionCount = 60;
+const BmDefaultQuestionCount = 60;
 const DefaultDurationMinutes = 20;
 const MmDefaultDurationMinutes = 60;
 const ImDefaultDurationMinutes = 30;
 const PmDefaultDurationMinutes = 30;
+const BmDefaultDurationMinutes = 30;
 
 // 2026-07-19 (Shailesh, repo cleanup): only modules with a real,
 // admin-curated competition-mock section structure (*_COMPETITION_LEVEL_REGISTRY
@@ -44,7 +46,14 @@ const PmDefaultDurationMinutes = 30;
 // Manage/Assign flows for already-created mocks are untouched.
 // 2026-08-04: PM-L1 added (PM_COMPETITION_LEVEL_REGISTRY, 2 sections --
 // Addition/Subtraction, flat 1 mark/question, same as MM).
-const CompetitionMockSupportedModuleCodes = new Set(["MM", "IM", "PM"]);
+// 2026-08-07: BM added (BM_COMPETITION_LEVEL_REGISTRY, 6 sections --
+// Add/Less Abacus, Add/Less Visual, Multiplication, Division, BODMAS,
+// Concept Drill weighted 5 marks/question). This Set is a frontend-only
+// allow-list, separate from the backend's SECTION_WISE_ASSESSMENT_MODULES /
+// _SECTION_WISE_REGISTRIES (assessment_blueprint_service.py) -- building a
+// module's real engine + backend registry does NOT make it selectable here
+// automatically; this Set must be updated too, every time.
+const CompetitionMockSupportedModuleCodes = new Set(["MM", "IM", "PM", "BM"]);
 
 const AdminRowActionButtonClass = "inline-flex items-center justify-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] shadow-sm transition duration-200 hover:-translate-y-px hover:border-[color:var(--mp-role-border-strong)] hover:bg-[image:var(--mp-role-action-bg)] hover:text-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--mp-role-primary)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-[color:var(--mp-role-border)] disabled:hover:bg-white disabled:hover:text-[color:var(--mp-role-primary)] disabled:hover:shadow-sm dark:bg-slate-950/60 dark:text-blue-100 dark:hover:border-[color:var(--mp-role-border-strong)] dark:hover:bg-[image:var(--mp-role-action-bg)] dark:hover:text-white dark:disabled:hover:bg-slate-950/60 dark:disabled:hover:text-blue-100";
 
@@ -163,6 +172,7 @@ export default function AdminCompetitionMockStudioPage() {
   const IsSelectedMasterModule = Boolean(SelectedModule && (SelectedModule.moduleCode?.toUpperCase() === "MM" || SelectedModule.moduleName?.toLowerCase().includes("master module")));
   const IsSelectedIntermediateModule = Boolean(SelectedModule && (SelectedModule.moduleCode?.toUpperCase() === "IM" || SelectedModule.moduleName?.toLowerCase().includes("intermediate module")));
   const IsSelectedPreparatoryModule = Boolean(SelectedModule && (SelectedModule.moduleCode?.toUpperCase() === "PM" || SelectedModule.moduleName?.toLowerCase().includes("preparatory module")));
+  const IsSelectedBridgeModule = Boolean(SelectedModule && (SelectedModule.moduleCode?.toUpperCase() === "BM" || SelectedModule.moduleName?.toLowerCase().includes("bridge module")));
 
   useEffect(() => {
     if (IsSelectedMasterModule) {
@@ -178,8 +188,13 @@ export default function AdminCompetitionMockStudioPage() {
     if (IsSelectedPreparatoryModule) {
       SetQuestionCount((CurrentValue) => CurrentValue === String(DefaultQuestionCount) ? String(PmDefaultQuestionCount) : CurrentValue);
       SetDurationMinutes((CurrentValue) => CurrentValue === String(DefaultDurationMinutes) ? String(PmDefaultDurationMinutes) : CurrentValue);
+      return;
     }
-  }, [IsSelectedMasterModule, IsSelectedIntermediateModule, IsSelectedPreparatoryModule]);
+    if (IsSelectedBridgeModule) {
+      SetQuestionCount((CurrentValue) => CurrentValue === String(DefaultQuestionCount) ? String(BmDefaultQuestionCount) : CurrentValue);
+      SetDurationMinutes((CurrentValue) => CurrentValue === String(DefaultDurationMinutes) ? String(BmDefaultDurationMinutes) : CurrentValue);
+    }
+  }, [IsSelectedMasterModule, IsSelectedIntermediateModule, IsSelectedPreparatoryModule, IsSelectedBridgeModule]);
 
 
   // LiveSections mirrors the backend's _RedistributeSectionCounts +

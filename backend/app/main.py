@@ -237,6 +237,21 @@ def on_startup():
     finally:
         db.close()
 
+    # Always run the Bridge Module curriculum sync -- a distinct Module
+    # (module_code "BM") sitting between PM and IM in the YLM-PM-BM-IM-MM
+    # hierarchy, not another PM level. Idempotent: only creates/completes
+    # BM -> BM-L1 -> Lessons 1-40 -> DPS 1-5 -> normal + concept-drill
+    # sections. Does not touch any PM/IM/MM Module/Level/Lesson/DPS at all,
+    # and does not create students, teachers, assignments, attempts, or
+    # demo records. Uses its own dedicated engine (question_engine/bm) with
+    # zero shared code with any other module or level.
+    from app.seed.seed_bridge_module_l1 import seed as seed_bridge_module_l1
+    db = SessionLocal()
+    try:
+        seed_bridge_module_l1(db)
+    finally:
+        db.close()
+
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(admin_router)

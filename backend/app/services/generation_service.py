@@ -36,6 +36,20 @@ from app.question_engine.pm_l4 import (
     generate_pm_l4_bodmas_set,
 )
 from app.question_engine.pm_l4.concept_drill import generate_concept_drill_question as generate_pm_l4_concept_drill_question
+from app.question_engine.bm import (
+    BMConfig,
+    BMConceptDrillConfig,
+    BMMultiplyConfig,
+    BMDivideConfig,
+    BMDivideRemainderConfig,
+    BMBodmasConfig,
+    generate_bm_question_set,
+    generate_bm_multiply_set,
+    generate_bm_divide_set,
+    generate_bm_divide_remainder_set,
+    generate_bm_bodmas_set,
+)
+from app.question_engine.bm.concept_drill import generate_concept_drill_question as generate_bm_concept_drill_question
 from app.core.errors import api_error
 
 def build_config_from_dps(db: Session, dps: DPS, seed: str) -> YLMConfig:
@@ -580,6 +594,178 @@ def _generate_pm_l4_block_questions(GeneratorConfig: dict, lesson_number: int, d
     raise ValueError(f"Unknown PM-L4 block kind: {block_kind}")
 
 
+def _bm_generator_config(section: DPSSection) -> dict:
+    if not section.generator_config_json:
+        return {}
+    try:
+        return json.loads(section.generator_config_json or "{}")
+    except Exception:
+        return {}
+
+
+def _generate_bm_block_questions(GeneratorConfig: dict, lesson_number: int, dps_number: int, seed: str) -> list[dict]:
+    """Generates questions for exactly one Bridge Module block config --
+    dispatches on blockKind (ADD_LESS/MULTIPLY/DIVIDE/DIVIDE_REMAINDER/
+    BODMAS/CONCEPT_DRILL_MULTIPLY/CONCEPT_DRILL_DIVIDE), all reading from
+    question_engine/bm, BM's own fully independent engine (mirrors PM-L4's
+    _generate_pm_l4_block_questions exactly, ported to BM's own config/
+    generator functions -- zero cross-imports from question_engine/pm_l4).
+
+    Called once per sub-block by _generate_bm_section_questions -- a
+    DPSSection may bundle more than one sub-block under one section (e.g.
+    Concept Drill's MULTIPLY + DIVIDE halves, which must render as ONE
+    section, not two, in Learning Path Studio and the student DPS
+    instructions page -- see seed_bridge_module_l1.py's seed()).
+    """
+    block_kind = GeneratorConfig.get("blockKind")
+    question_count = int(GeneratorConfig.get("questionCount") or 10)
+
+    if block_kind == "ADD_LESS":
+        config = BMConfig(
+            module_code="BM",
+            level_code="BM-L1",
+            lesson_number=lesson_number,
+            dps_number=dps_number,
+            question_count=question_count,
+            rows=int(GeneratorConfig.get("rows") or 4),
+            concept_family="DIRECT_ADD_LESS",
+            operation_focus="ADD_LESS",
+            target_numbers=list(GeneratorConfig.get("targetNumbers") or []),
+            place_value="ONES",
+            digit_pattern=GeneratorConfig.get("digitPattern") or "2D_FULL",
+            allow_negative_operands=True,
+            allow_negative_answer=False,
+            seed=seed,
+            lesson_title=GeneratorConfig.get("lessonTitle", ""),
+            dps_title=GeneratorConfig.get("dpsTitle", ""),
+            generation_template=GeneratorConfig.get("generationTemplate") or "DIRECT",
+            revision_templates=tuple(GeneratorConfig.get("revisionTemplates") or ()),
+            practice_mode=GeneratorConfig.get("practiceMode"),
+            digit_pattern_second_half=GeneratorConfig.get("digitPatternSecondHalf"),
+            rows_second_half=GeneratorConfig.get("rowsSecondHalf"),
+        )
+        return generate_bm_question_set(config)
+
+    if block_kind == "MULTIPLY":
+        config = BMMultiplyConfig(
+            module_code="BM", level_code="BM-L1", lesson_number=lesson_number, dps_number=dps_number,
+            seed=seed,
+            number_min=int(GeneratorConfig.get("numberMin") or 11),
+            number_max=int(GeneratorConfig.get("numberMax") or 99),
+            multiplier_min=int(GeneratorConfig.get("multiplierMin") or 1),
+            multiplier_max=int(GeneratorConfig.get("multiplierMax") or 9),
+            practice_mode=GeneratorConfig.get("practiceMode"),
+        )
+        return generate_bm_multiply_set(config, question_count)
+
+    if block_kind == "DIVIDE":
+        config = BMDivideConfig(
+            module_code="BM", level_code="BM-L1", lesson_number=lesson_number, dps_number=dps_number,
+            digit_width=int(GeneratorConfig.get("digitWidth") or 3),
+            seed=seed,
+            divisor_min=int(GeneratorConfig.get("divisorMin") or 2),
+            divisor_max=int(GeneratorConfig.get("divisorMax") or 9),
+            dividend_min=int(GeneratorConfig.get("dividendMin") or 100),
+            dividend_max=int(GeneratorConfig.get("dividendMax") or 999),
+        )
+        return generate_bm_divide_set(config, question_count)
+
+    if block_kind == "DIVIDE_REMAINDER":
+        config = BMDivideRemainderConfig(
+            module_code="BM", level_code="BM-L1", lesson_number=lesson_number, dps_number=dps_number,
+            seed=seed,
+            divisor_min=int(GeneratorConfig.get("divisorMin") or 2),
+            divisor_max=int(GeneratorConfig.get("divisorMax") or 9),
+            dividend_min=int(GeneratorConfig.get("dividendMin") or 100),
+            dividend_max=int(GeneratorConfig.get("dividendMax") or 999),
+        )
+        return generate_bm_divide_remainder_set(config, question_count)
+
+    if block_kind == "BODMAS":
+        config = BMBodmasConfig(
+            module_code="BM", level_code="BM-L1", lesson_number=lesson_number, dps_number=dps_number,
+            template=GeneratorConfig.get("bodmasTemplate") or "BM_BRACKET_PRODUCT",
+            seed=seed,
+        )
+        return generate_bm_bodmas_set(config, question_count)
+
+    if block_kind in ("CONCEPT_DRILL_MULTIPLY", "CONCEPT_DRILL_DIVIDE"):
+        drill_format = block_kind
+        config = BMConceptDrillConfig(
+            module_code="BM", level_code="BM-L1", lesson_number=lesson_number, dps_number=dps_number,
+            drill_format=drill_format,
+            seed=seed,
+            add_min=int(GeneratorConfig.get("addMin") or 1000),
+            add_max=int(GeneratorConfig.get("addMax") or 4999),
+            times_min=int(GeneratorConfig.get("timesMin") or 5),
+            times_max=int(GeneratorConfig.get("timesMax") or 10),
+            from_min=int(GeneratorConfig.get("fromMin") or 1000),
+            from_max=int(GeneratorConfig.get("fromMax") or 5999),
+            less_min=int(GeneratorConfig.get("lessMin") or 100),
+            less_max=int(GeneratorConfig.get("lessMax") or 599),
+        )
+        questions = []
+        for i in range(1, question_count + 1):
+            q_rng = random.Random(f"{seed}-Q{i}")
+            question = generate_bm_concept_drill_question(config, q_rng)
+            question["seed"] = f"{seed}-Q{i}"
+            questions.append(question)
+        return questions
+
+    raise ValueError(f"Unknown BM block kind: {block_kind}")
+
+
+def _generate_bm_section_questions(dps: DPS, LessonRecord, section: DPSSection, seed: str) -> list[dict]:
+    """Generates one BM DPSSection's questions. A section carries a
+    "subBlocks" list in its generator_config_json (always -- even a normal
+    solo-block section like Add/Less has a 1-entry list, see
+    seed_bridge_module_l1.py's _merge_section_config), built correctly from
+    day one per PM-L4's post-2026-08-07-fix design -- BM's own workbook has
+    the identical multi-concept-per-DPS shape that made the fix necessary
+    there.
+    """
+    GeneratorConfig = _bm_generator_config(section)
+    lesson_number = int(getattr(LessonRecord, "lesson_number", 0) or 0)
+    dps_number = int(getattr(dps, "dps_number", 0) or 0)
+
+    sub_blocks = GeneratorConfig.get("subBlocks") or [GeneratorConfig]
+
+    all_questions: list[dict] = []
+    for sub_index, sub_config in enumerate(sub_blocks, start=1):
+        sub_seed = f"{seed}-B{sub_index}"
+        all_questions.extend(_generate_bm_block_questions(sub_config, lesson_number, dps_number, sub_seed))
+    return all_questions
+
+
+def generate_bm_preview(db: Session, dps: DPS, seed: str) -> list[dict]:
+    """Bridge Module Level 1's DPS question generation entry point --
+    combines every DPSSection row belonging to this DPS. Mirrors PM-L4's
+    generate_pm_l4_preview combining pattern, reading exclusively from
+    question_engine/bm (BM's own fully independent engine).
+    """
+    LessonRecord = db.get(Lesson, dps.lesson_id)
+    sections = (
+        db.query(DPSSection)
+        .filter(DPSSection.dps_id == dps.id)
+        .order_by(DPSSection.section_number)
+        .all()
+    )
+    all_questions: list[dict] = []
+    question_number = 1
+    for section in sections:
+        section_seed = f"{seed}-S{section.section_number}"
+        section_questions = _generate_bm_section_questions(dps, LessonRecord, section, section_seed)
+        for q in section_questions:
+            q["question_number"] = question_number
+            question_number += 1
+            Metadata = q.get("metadata") or {}
+            Metadata["section_number"] = int(getattr(section, "section_number", 1) or 1)
+            Metadata["section_title"] = getattr(section, "section_title", None) or Metadata.get("dps_title")
+            q["metadata"] = Metadata
+            all_questions.append(q)
+    return all_questions
+
+
 def _generate_pm_l4_section_questions(dps: DPS, LessonRecord, section: DPSSection, seed: str) -> list[dict]:
     """Generates one PM-L4 DPSSection's questions. A section carries a
     "subBlocks" list in its generator_config_json (always -- even a normal
@@ -748,6 +934,8 @@ def _is_dynamic_generator_supported(db: Session, dps: DPS) -> bool:
         return True
     if ModuleCode == "PM":
         return True
+    if ModuleCode == "BM":
+        return True
     if ModuleCode == "MM":
         Config = build_mm_config_from_dps(db, dps, build_preview_seed(dps))
         return IsPackage1Supported(Config.ConceptFamily)
@@ -791,6 +979,8 @@ def generate_preview(db: Session, dps: DPS, seed: str | None = None) -> list[dic
     if ModuleCode == "IM":
         Config = build_im_config_from_dps(db, dps, seed)
         return GenerateImQuestionSet(Config)
+    if ModuleCode == "BM":
+        return generate_bm_preview(db, dps, seed)
     if ModuleCode == "PM":
         if _is_pm_l4(db, dps):
             return generate_pm_l4_preview(db, dps, seed)
@@ -816,6 +1006,17 @@ def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, stude
     elif ModuleCode == "IM":
         Config = build_im_config_from_dps(db, dps, seed)
         generated = GenerateImQuestionSet(Config)
+    elif ModuleCode == "BM":
+        # Must mirror generate_preview()'s BM dispatch exactly -- this is
+        # the function that actually backs real student "start attempt"
+        # flow (see attempt_service.py), not just the admin preview. PM-L3/
+        # PM-L4 both had a real bug here (2026-08-06) where this dispatcher
+        # was missing their branch and silently fell through to an earlier
+        # level's engine for real student attempts while the admin preview
+        # (which already had the correct branch) looked fine -- BM's own
+        # branch is added here from day one specifically to avoid repeating
+        # that gap.
+        generated = generate_bm_preview(db, dps, seed)
     elif ModuleCode == "PM":
         # Must mirror generate_preview()'s PM dispatch exactly (same
         # _is_pm_l2/_is_pm_l3/_is_pm_l4 checks, same order, L4 checked
