@@ -1,4 +1,5 @@
 import json
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Module, Level, Lesson, DPS, DPSSection
@@ -207,32 +208,64 @@ def _block_generator_config(lesson_number: int, dps_number: int, lesson_title: s
     return base
 
 
-def _ensure_section(db: Session, dps: DPS, lesson_number: int, dps_number: int, lesson_title: str, block: PmL4DpsBlock, section_number: int) -> None:
+def _merge_section_config(lesson_number: int, dps_number: int, lesson_title: str, blocks: tuple[PmL4DpsBlock, ...]) -> dict:
+    """Builds one DPSSection's generator_config_json from 1+ blocks that
+    share the same section title (see _ensure_section's grouping contract
+    below). Always emits a "subBlocks" list -- even for the common case of
+    exactly one block -- so generation_service.py has exactly one code path
+    to read from, rather than a single-block shape and a separate merged
+    shape.
+    """
+    return {
+        "lessonNumber": lesson_number,
+        "dpsNumber": dps_number,
+        "lessonTitle": lesson_title,
+        "dpsTitle": blocks[0].title,
+        "questionCount": sum(b.question_count for b in blocks),
+        "sourceCurriculum": "PM_L4_PL4_XLSX",
+        "subBlocks": [_block_generator_config(lesson_number, dps_number, lesson_title, b) for b in blocks],
+    }
+
+
+def _ensure_section(db: Session, dps: DPS, lesson_number: int, dps_number: int, lesson_title: str, blocks: tuple[PmL4DpsBlock, ...], section_number: int) -> None:
+    """Creates/updates one DPSSection from a group of 1+ PmL4DpsBlock
+    entries that share the same title -- e.g. a DPS's Concept Drill is
+    authored as two separate blocks (CONCEPT_DRILL_MULTIPLY then
+    CONCEPT_DRILL_DIVIDE, one question each) so each half can carry its own
+    add/times/from/less ranges, but both must render as ONE "Concept Drill"
+    section with both questions listed together -- not two separate
+    single-question sections -- in Learning Path Studio and the student DPS
+    instructions page (both read DPSSection rows directly). seed()'s caller
+    groups consecutive same-titled blocks before calling this function; a
+    normal solo block (e.g. Add/Less) is just a 1-tuple here.
+    """
+    primary = blocks[0]
+    total_count = sum(b.question_count for b in blocks)
     section = db.query(DPSSection).filter(DPSSection.dps_id == dps.id, DPSSection.section_number == section_number).first()
     if not section:
         section = DPSSection(
             dps_id=dps.id,
             section_number=section_number,
-            section_title=block.title,
-            question_count=block.question_count,
-            concept_family=_block_concept_family(block),
+            section_title=primary.title,
+            question_count=total_count,
+            concept_family=_block_concept_family(primary),
         )
         db.add(section)
 
-    section.section_title = block.title
-    section.question_count = block.question_count
-    section.concept_family = _block_concept_family(block)
-    section.operation_focus = "ADD_LESS" if block.kind == ADD_LESS else block.kind
+    section.section_title = primary.title
+    section.question_count = total_count
+    section.concept_family = _block_concept_family(primary)
+    section.operation_focus = "ADD_LESS" if primary.kind == ADD_LESS else primary.kind
     section.abacus_rule = None
-    section.target_numbers_json = json.dumps(list(block.target_numbers) if block.kind == ADD_LESS else [])
+    section.target_numbers_json = json.dumps(list(primary.target_numbers) if primary.kind == ADD_LESS else [])
     section.place_value = "ONES"
-    section.digit_pattern = block.digit_pattern if block.kind == ADD_LESS else None
-    section.rows_count = block.rows if block.kind == ADD_LESS else 0
+    section.digit_pattern = primary.digit_pattern if primary.kind == ADD_LESS else None
+    section.rows_count = primary.rows if primary.kind == ADD_LESS else 0
     section.difficulty = "PM_L4_WORKBOOK_REPLICA"
-    section.allow_negative_operands = block.kind == ADD_LESS
+    section.allow_negative_operands = primary.kind == ADD_LESS
     section.allow_negative_answer = False
-    section.marks_per_question = _block_marks(block)
-    section.generator_config_json = json.dumps(_block_generator_config(lesson_number, dps_number, lesson_title, block))
+    section.marks_per_question = _block_marks(primary)
+    section.generator_config_json = json.dumps(_merge_section_config(lesson_number, dps_number, lesson_title, blocks))
 
 
 def seed(db: Session):
@@ -261,7 +294,41 @@ def seed(db: Session):
             if len(rule.blocks) == 1 and rule.blocks[0].kind in (ADD_LESS, MULTIPLY):
                 display_title = _titled(rule.dps_title, rule.blocks[0].practice_mode)
             dps = _ensure_dps(db, lesson, dps_number, display_title, total_questions)
-            for index, block in enumerate(rule.blocks, start=1):
-                _ensure_section(db, dps, lesson_number, dps_number, lesson_title, block, section_number=index)
+
+            # Group consecutive blocks that share the same section title into
+            # one DPSSection -- this is what keeps a DPS's Concept Drill
+            # (authored as two separate MULTIPLY/DIVIDE blocks so each half
+            # can carry its own ranges) rendering as a single "Concept Drill"
+            # section with both questions together, instead of two
+            # single-question sections. Grouping by *consecutive* title match
+            # (not a title->group dict) deliberately mirrors the blocks'
+            # authored order and never merges same-titled blocks that aren't
+            # adjacent -- no DPS in this level's config has that shape today,
+            # but this keeps the behavior predictable if one ever does.
+            groups: list[tuple[PmL4DpsBlock, ...]] = []
+            for block in rule.blocks:
+                if groups and groups[-1][0].title == block.title:
+                    groups[-1] = groups[-1] + (block,)
+                else:
+                    groups.append((block,))
+
+            for index, group in enumerate(groups, start=1):
+                _ensure_section(db, dps, lesson_number, dps_number, lesson_title, group, section_number=index)
+
+            # A prior run of this seed (before the grouping fix above) may
+            # have left extra one-block-per-section rows behind -- e.g. 3
+            # sections for a DPS that now has only 2 groups. Those stale rows
+            # are otherwise invisible to this idempotent upsert loop (it only
+            # ever touches section_number 1..len(groups)), so they must be
+            # explicitly deleted or Learning Path Studio / the student DPS
+            # instructions page would keep showing the old split.
+            highest_existing = db.query(func.max(DPSSection.section_number)).filter(
+                DPSSection.dps_id == dps.id
+            ).scalar() or 0
+            if highest_existing > len(groups):
+                db.query(DPSSection).filter(
+                    DPSSection.dps_id == dps.id,
+                    DPSSection.section_number > len(groups),
+                ).delete()
 
     db.commit()

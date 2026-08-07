@@ -289,19 +289,26 @@ def _pm_l3_generator_config(section: DPSSection) -> dict:
         return {}
 
 
-def _generate_pm_l3_section_questions(dps: DPS, LessonRecord, section: DPSSection, seed: str) -> list[dict]:
-    """Generates one PM-L3 DPSSection's questions -- dispatches on the
-    section's blockKind (ADD_LESS/MULTIPLY/DIVIDE/BODMAS/
-    CONCEPT_DRILL_MULTIPLY/CONCEPT_DRILL_DIVIDE), all reading from
-    question_engine/pm_l3, PM-L3's own fully independent engine. Mirrors
-    PM-L2's generate_pm_l2_preview's per-section dispatch, generalized to
-    more than two block kinds since PM-L3 has five (vs PM-L2's two).
+def _generate_pm_l3_block_questions(GeneratorConfig: dict, lesson_number: int, dps_number: int, seed: str) -> list[dict]:
+    """Generates questions for exactly one PM-L3 block config -- dispatches
+    on blockKind (ADD_LESS/MULTIPLY/DIVIDE/BODMAS/CONCEPT_DRILL_MULTIPLY/
+    CONCEPT_DRILL_DIVIDE), all reading from question_engine/pm_l3, PM-L3's
+    own fully independent engine. Mirrors PM-L2's generate_pm_l2_preview's
+    per-section dispatch, generalized to more than two block kinds since
+    PM-L3 has five (vs PM-L2's two).
+
+    Called once per sub-block by _generate_pm_l3_section_questions -- a
+    DPSSection may bundle more than one sub-block under one section (e.g.
+    Concept Drill's MULTIPLY + DIVIDE halves, which must render as ONE
+    section, not two, in Learning Path Studio and the student DPS
+    instructions page -- see seed_preparatory_module_l3.py's seed(), fixed
+    2026-08-06). Reads every field from GeneratorConfig (the block's own
+    JSON config, not a parent DPSSection row) so it never depends on a
+    section row correctly reflecting more than one block's worth of
+    settings.
     """
-    GeneratorConfig = _pm_l3_generator_config(section)
-    block_kind = GeneratorConfig.get("blockKind") or ("ADD_LESS" if section.concept_family == "DIRECT_ADD_LESS" else section.concept_family)
-    lesson_number = int(getattr(LessonRecord, "lesson_number", 0) or 0)
-    dps_number = int(getattr(dps, "dps_number", 0) or 0)
-    question_count = int(getattr(section, "question_count", None) or GeneratorConfig.get("questionCount") or 10)
+    block_kind = GeneratorConfig.get("blockKind")
+    question_count = int(GeneratorConfig.get("questionCount") or 10)
 
     if block_kind == "ADD_LESS":
         config = PML3Config(
@@ -310,17 +317,17 @@ def _generate_pm_l3_section_questions(dps: DPS, LessonRecord, section: DPSSectio
             lesson_number=lesson_number,
             dps_number=dps_number,
             question_count=question_count,
-            rows=int(getattr(section, "rows_count", 4) or GeneratorConfig.get("rows") or 4),
-            concept_family=section.concept_family or "DIRECT_ADD_LESS",
+            rows=int(GeneratorConfig.get("rows") or 4),
+            concept_family="DIRECT_ADD_LESS",
             operation_focus="ADD_LESS",
-            target_numbers=json.loads(section.target_numbers_json or "[]"),
-            place_value=getattr(section, "place_value", None) or "ONES",
-            digit_pattern=getattr(section, "digit_pattern", None) or GeneratorConfig.get("digitPattern") or "2D_FULL",
+            target_numbers=list(GeneratorConfig.get("targetNumbers") or []),
+            place_value="ONES",
+            digit_pattern=GeneratorConfig.get("digitPattern") or "2D_FULL",
             allow_negative_operands=True,
             allow_negative_answer=False,
             seed=seed,
-            lesson_title=getattr(LessonRecord, "lesson_title", "") or GeneratorConfig.get("lessonTitle", ""),
-            dps_title=getattr(dps, "dps_title", "") or GeneratorConfig.get("dpsTitle", ""),
+            lesson_title=GeneratorConfig.get("lessonTitle", ""),
+            dps_title=GeneratorConfig.get("dpsTitle", ""),
             generation_template=GeneratorConfig.get("generationTemplate") or "DIRECT",
             revision_templates=tuple(GeneratorConfig.get("revisionTemplates") or ()),
             practice_mode=GeneratorConfig.get("practiceMode"),
@@ -385,6 +392,37 @@ def _generate_pm_l3_section_questions(dps: DPS, LessonRecord, section: DPSSectio
     raise ValueError(f"Unknown PM-L3 block kind: {block_kind}")
 
 
+def _generate_pm_l3_section_questions(dps: DPS, LessonRecord, section: DPSSection, seed: str) -> list[dict]:
+    """Generates one PM-L3 DPSSection's questions. A section carries a
+    "subBlocks" list in its generator_config_json (always -- even a normal
+    solo-block section like Add/Less has a 1-entry list, see
+    seed_preparatory_module_l3.py's _merge_section_config) -- this exists so
+    a DPS's Concept Drill (authored as two separate MULTIPLY/DIVIDE blocks)
+    generates both halves' questions together under one section, rather than
+    each half needing its own DPSSection row (which used to render as two
+    separate "Concept Drill" sections in Learning Path Studio -- fixed
+    2026-08-06, mirroring the identical PM-L4 fix).
+    """
+    GeneratorConfig = _pm_l3_generator_config(section)
+    lesson_number = int(getattr(LessonRecord, "lesson_number", 0) or 0)
+    dps_number = int(getattr(dps, "dps_number", 0) or 0)
+
+    sub_blocks = GeneratorConfig.get("subBlocks")
+    if not sub_blocks:
+        # Backward-compat only: a DPSSection row seeded before the subBlocks
+        # grouping change still carries the old single-block shape
+        # (blockKind at the top level, no subBlocks list). seed()'s startup
+        # re-run rewrites every row to the new shape, so this branch exists
+        # only to avoid a 500 in the brief window before that seed has run.
+        sub_blocks = [GeneratorConfig]
+
+    all_questions: list[dict] = []
+    for sub_index, sub_config in enumerate(sub_blocks, start=1):
+        sub_seed = f"{seed}-B{sub_index}"
+        all_questions.extend(_generate_pm_l3_block_questions(sub_config, lesson_number, dps_number, sub_seed))
+    return all_questions
+
+
 def generate_pm_l3_preview(db: Session, dps: DPS, seed: str) -> list[dict]:
     """PM-L3's DPS question generation entry point -- combines every
     DPSSection row belonging to this DPS (1-3 blocks per DPS: a wide
@@ -426,20 +464,26 @@ def _pm_l4_generator_config(section: DPSSection) -> dict:
         return {}
 
 
-def _generate_pm_l4_section_questions(dps: DPS, LessonRecord, section: DPSSection, seed: str) -> list[dict]:
-    """Generates one PM-L4 DPSSection's questions -- dispatches on the
-    section's blockKind (ADD_LESS/MULTIPLY/DIVIDE/DIVIDE_REMAINDER/BODMAS/
+def _generate_pm_l4_block_questions(GeneratorConfig: dict, lesson_number: int, dps_number: int, seed: str) -> list[dict]:
+    """Generates questions for exactly one PM-L4 block config -- dispatches
+    on blockKind (ADD_LESS/MULTIPLY/DIVIDE/DIVIDE_REMAINDER/BODMAS/
     CONCEPT_DRILL_MULTIPLY/CONCEPT_DRILL_DIVIDE), all reading from
     question_engine/pm_l4, PM-L4's own fully independent engine. Mirrors
     PM-L3's per-section dispatch, extended with DIVIDE_REMAINDER (PM-L4's
     genuinely new "3D ÷ 1D WITH REMAINDER(S)" concept) and DIVIDE's added
     digit_width (2D or 3D, both routed through the same PML4DivideConfig).
+
+    Called once per sub-block by _generate_pm_l4_section_questions -- a
+    DPSSection may bundle more than one sub-block under one section (e.g.
+    Concept Drill's MULTIPLY + DIVIDE halves, which must render as ONE
+    section, not two, in Learning Path Studio and the student DPS
+    instructions page -- see seed_preparatory_module_l4.py's seed()).
+    Reads every field from GeneratorConfig (the block's own JSON config, not
+    a parent DPSSection row) so it never depends on a section row correctly
+    reflecting more than one block's worth of settings.
     """
-    GeneratorConfig = _pm_l4_generator_config(section)
-    block_kind = GeneratorConfig.get("blockKind") or ("ADD_LESS" if section.concept_family == "DIRECT_ADD_LESS" else section.concept_family)
-    lesson_number = int(getattr(LessonRecord, "lesson_number", 0) or 0)
-    dps_number = int(getattr(dps, "dps_number", 0) or 0)
-    question_count = int(getattr(section, "question_count", None) or GeneratorConfig.get("questionCount") or 10)
+    block_kind = GeneratorConfig.get("blockKind")
+    question_count = int(GeneratorConfig.get("questionCount") or 10)
 
     if block_kind == "ADD_LESS":
         config = PML4Config(
@@ -448,17 +492,17 @@ def _generate_pm_l4_section_questions(dps: DPS, LessonRecord, section: DPSSectio
             lesson_number=lesson_number,
             dps_number=dps_number,
             question_count=question_count,
-            rows=int(getattr(section, "rows_count", 4) or GeneratorConfig.get("rows") or 4),
-            concept_family=section.concept_family or "DIRECT_ADD_LESS",
+            rows=int(GeneratorConfig.get("rows") or 4),
+            concept_family="DIRECT_ADD_LESS",
             operation_focus="ADD_LESS",
-            target_numbers=json.loads(section.target_numbers_json or "[]"),
-            place_value=getattr(section, "place_value", None) or "ONES",
-            digit_pattern=getattr(section, "digit_pattern", None) or GeneratorConfig.get("digitPattern") or "2D_FULL",
+            target_numbers=list(GeneratorConfig.get("targetNumbers") or []),
+            place_value="ONES",
+            digit_pattern=GeneratorConfig.get("digitPattern") or "2D_FULL",
             allow_negative_operands=True,
             allow_negative_answer=False,
             seed=seed,
-            lesson_title=getattr(LessonRecord, "lesson_title", "") or GeneratorConfig.get("lessonTitle", ""),
-            dps_title=getattr(dps, "dps_title", "") or GeneratorConfig.get("dpsTitle", ""),
+            lesson_title=GeneratorConfig.get("lessonTitle", ""),
+            dps_title=GeneratorConfig.get("dpsTitle", ""),
             generation_template=GeneratorConfig.get("generationTemplate") or "DIRECT",
             revision_templates=tuple(GeneratorConfig.get("revisionTemplates") or ()),
             practice_mode=GeneratorConfig.get("practiceMode"),
@@ -534,6 +578,37 @@ def _generate_pm_l4_section_questions(dps: DPS, LessonRecord, section: DPSSectio
         return questions
 
     raise ValueError(f"Unknown PM-L4 block kind: {block_kind}")
+
+
+def _generate_pm_l4_section_questions(dps: DPS, LessonRecord, section: DPSSection, seed: str) -> list[dict]:
+    """Generates one PM-L4 DPSSection's questions. A section carries a
+    "subBlocks" list in its generator_config_json (always -- even a normal
+    solo-block section like Add/Less has a 1-entry list, see
+    seed_preparatory_module_l4.py's _merge_section_config) -- this exists so
+    a DPS's Concept Drill (authored as two separate MULTIPLY/DIVIDE blocks)
+    generates both halves' questions together under one section, rather than
+    each half needing its own DPSSection row (which used to render as two
+    separate "Concept Drill" sections in Learning Path Studio -- fixed
+    2026-08-06).
+    """
+    GeneratorConfig = _pm_l4_generator_config(section)
+    lesson_number = int(getattr(LessonRecord, "lesson_number", 0) or 0)
+    dps_number = int(getattr(dps, "dps_number", 0) or 0)
+
+    sub_blocks = GeneratorConfig.get("subBlocks")
+    if not sub_blocks:
+        # Backward-compat only: a DPSSection row seeded before the subBlocks
+        # grouping change still carries the old single-block shape
+        # (blockKind at the top level, no subBlocks list). seed()'s startup
+        # re-run rewrites every row to the new shape, so this branch exists
+        # only to avoid a 500 in the brief window before that seed has run.
+        sub_blocks = [GeneratorConfig]
+
+    all_questions: list[dict] = []
+    for sub_index, sub_config in enumerate(sub_blocks, start=1):
+        sub_seed = f"{seed}-B{sub_index}"
+        all_questions.extend(_generate_pm_l4_block_questions(sub_config, lesson_number, dps_number, sub_seed))
+    return all_questions
 
 
 def generate_pm_l4_preview(db: Session, dps: DPS, seed: str) -> list[dict]:
@@ -742,7 +817,23 @@ def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, stude
         Config = build_im_config_from_dps(db, dps, seed)
         generated = GenerateImQuestionSet(Config)
     elif ModuleCode == "PM":
-        if _is_pm_l2(db, dps):
+        # Must mirror generate_preview()'s PM dispatch exactly (same
+        # _is_pm_l2/_is_pm_l3/_is_pm_l4 checks, same order, L4 checked
+        # before L3 before L2) -- this is the function that actually backs
+        # real student "start attempt" flow (see attempt_service.py), not
+        # just the admin preview. Before this fix, only _is_pm_l2 was
+        # checked here; PM-L3 and PM-L4 DPS attempts silently fell through
+        # to build_pm_config_from_dps/generate_pm_question_set (PM-L1's own
+        # engine), producing wrong questions for every real student attempt
+        # on those two levels -- generate_preview() (admin preview) was
+        # never affected since it already had the correct checks, which is
+        # exactly why this went unnoticed: the admin preview always looked
+        # right. Fixed 2026-08-06.
+        if _is_pm_l4(db, dps):
+            generated = generate_pm_l4_preview(db, dps, seed)
+        elif _is_pm_l3(db, dps):
+            generated = generate_pm_l3_preview(db, dps, seed)
+        elif _is_pm_l2(db, dps):
             generated = generate_pm_l2_preview(db, dps, seed)
         else:
             Config = build_pm_config_from_dps(db, dps, seed)

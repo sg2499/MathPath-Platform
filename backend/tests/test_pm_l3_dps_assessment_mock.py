@@ -334,3 +334,109 @@ def test_pm_l3_registered_in_competition_level_registry():
     assert all(c["conceptFamily"] == "CONCEPT_DRILL" for c in pools["PM_L3_CONCEPT_DRILL"])
     assert all(c["conceptFamily"] != "CONCEPT_DRILL" for c in pools["PM_L3_DIVISION_BODMAS"])
     assert all(c["conceptFamily"] != "CONCEPT_DRILL" for c in pools["PM_L3_MULTIPLICATION"])
+
+
+def test_pm_l3_dps_sections_never_have_duplicate_titles(db, pm_l3_level):
+    """2026-08-06 regression, urgent (PM-L3 is already live in production):
+    identical bug to the one Shailesh reported live for PM-L4 -- a DPS whose
+    Concept Drill was authored as two separate blocks (CONCEPT_DRILL_MULTIPLY
+    then CONCEPT_DRILL_DIVIDE, both titled "Concept Drill (Abacus)") used to
+    get two separate DPSSection rows, which Learning Path Studio and the
+    student DPS instructions page both rendered as two single-question
+    "Concept Drill" sections back to back instead of one combined section.
+    seed_preparatory_module_l3.py's seed() now groups consecutive
+    same-titled blocks into one DPSSection (mirrors PM-L4's fix exactly).
+
+    Note: unlike PM-L4 (which always pairs MULTIPLY+DIVIDE together), PM-L3's
+    workbook sometimes authors a Concept Drill DPS with only ONE of the two
+    drill types -- those legitimately end up with question_count == 1 after
+    the fix, which is correct, not a regression. The real regression signal
+    this test locks in is "no DPS ever has two sections with the same
+    title" -- that's the literal symptom that was reported.
+    """
+    _module, level, _admin = pm_l3_level
+    lessons = db.query(Lesson).filter(Lesson.level_id == level.id).order_by(Lesson.lesson_number).all()
+
+    paired_drill_dps = 0
+    solo_drill_dps = 0
+    for lesson in lessons:
+        dps_list = db.query(DPS).filter(DPS.lesson_id == lesson.id).order_by(DPS.dps_number).all()
+        for dps in dps_list:
+            sections = (
+                db.query(models.DPSSection)
+                .filter(models.DPSSection.dps_id == dps.id)
+                .order_by(models.DPSSection.section_number)
+                .all()
+            )
+            titles = [s.section_title for s in sections]
+            assert len(titles) == len(set(titles)), (
+                f"Lesson {lesson.lesson_number} DPS {dps.dps_number} has duplicate "
+                f"section titles: {titles}"
+            )
+            for section in sections:
+                if section.section_title and "Concept Drill" in section.section_title:
+                    cfg = json.loads(section.generator_config_json or "{}")
+                    sub_kinds = [b.get("blockKind") for b in cfg.get("subBlocks", [])]
+                    if section.question_count == 2:
+                        paired_drill_dps += 1
+                        assert sub_kinds == ["CONCEPT_DRILL_MULTIPLY", "CONCEPT_DRILL_DIVIDE"]
+                    elif section.question_count == 1:
+                        solo_drill_dps += 1
+                        assert sub_kinds in (["CONCEPT_DRILL_MULTIPLY"], ["CONCEPT_DRILL_DIVIDE"])
+                    else:
+                        pytest.fail(
+                            f"Lesson {lesson.lesson_number} DPS {dps.dps_number} Concept "
+                            f"Drill section has unexpected question_count "
+                            f"{section.question_count}"
+                        )
+
+    assert paired_drill_dps == 6, f"expected 6 paired Concept Drill DPS, found {paired_drill_dps}"
+    assert solo_drill_dps == 9, f"expected 9 solo Concept Drill DPS, found {solo_drill_dps}"
+
+
+def test_pm_l3_persist_question_set_uses_pm_l3_engine_not_pm_l1(db, pm_l3_level):
+    """2026-08-06 regression, urgent (PM-L3 is already live in production):
+    generation_service.py's persist_question_set() -- the function that
+    actually backs a real student's "start attempt" flow (see
+    attempt_service.py's StartAttempt), not just the admin preview -- only
+    checked _is_pm_l2 for the PM module branch and silently fell through to
+    build_pm_config_from_dps/generate_pm_question_set (PM-L1's own engine)
+    for every PM-L3 DPS. generate_preview() (the admin Learning Path Studio
+    preview) already had the correct _is_pm_l3 check, which is exactly why
+    this was invisible in the admin UI -- the preview always looked right,
+    but a real student attempting a PM-L3 DPS would have gotten PM-L1-engine
+    output instead. This test exercises persist_question_set() directly
+    (not generate_pm_l3_preview) against every one of the 60 PM-L3 DPS.
+    """
+    from app.services.generation_service import persist_question_set
+    from app.models.models import GeneratedQuestion
+
+    _module, level, _admin = pm_l3_level
+    lessons = db.query(Lesson).filter(Lesson.level_id == level.id).order_by(Lesson.lesson_number).all()
+
+    checked = 0
+    concept_drill_seen = False
+    for lesson in lessons:
+        dps_list = db.query(DPS).filter(DPS.lesson_id == lesson.id).order_by(DPS.dps_number).all()
+        for dps in dps_list:
+            checked += 1
+            qset = persist_question_set(
+                db, dps, None, "REGRESSION-STUDENT-L3", "PRACTICE",
+                f"PERSIST-REGRESSION-L{lesson.lesson_number}-D{dps.dps_number}",
+            )
+            db.flush()
+            gqs = (
+                db.query(GeneratedQuestion)
+                .filter(GeneratedQuestion.question_set_id == qset.id)
+                .order_by(GeneratedQuestion.question_number)
+                .all()
+            )
+            # PM-L1's engine has no concept of this display type at all --
+            # seeing it here proves the PM-L3 engine actually ran.
+            assert len(gqs) == dps.default_question_count
+            for gq in gqs:
+                if gq.display_type in ("CONCEPT_DRILL_MULTIPLY", "CONCEPT_DRILL_DIVIDE"):
+                    concept_drill_seen = True
+
+    assert checked == 60
+    assert concept_drill_seen, "no Concept Drill question seen across all 60 DPS via persist_question_set"

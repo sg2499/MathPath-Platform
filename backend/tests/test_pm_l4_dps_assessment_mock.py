@@ -391,3 +391,163 @@ def test_pm_l4_registered_in_competition_level_registry():
     # Division section pools all three shapes (2D/1D, 3D/1D, WITH REMAINDER).
     division_families = {c["conceptFamily"] for c in pools["PM_L4_DIVISION"]}
     assert division_families == {"PM_L4_DIVISION", "PM_L4_DIVISION_WITH_REMAINDER"}
+
+
+def test_pm_l4_concept_drill_renders_as_a_single_section(db, pm_l4_level):
+    """2026-08-06 regression: a DPS's Concept Drill used to be authored as
+    two separate DPSSection rows (CONCEPT_DRILL_MULTIPLY then
+    CONCEPT_DRILL_DIVIDE, one question each, both titled "Concept Drill
+    (Abacus)"), which Learning Path Studio and the student DPS instructions
+    page both rendered as two separate single-question "Concept Drill"
+    sections instead of one combined section -- reported directly by
+    Shailesh from a live screenshot. seed_preparatory_module_l4.py's seed()
+    now groups consecutive same-titled blocks into one DPSSection (see
+    _ensure_section/_merge_section_config); this locks that in across every
+    DPS in the level, not just the one DPS in the screenshot.
+    """
+    _module, level, _admin = pm_l4_level
+    lessons = db.query(Lesson).filter(Lesson.level_id == level.id).order_by(Lesson.lesson_number).all()
+
+    concept_drill_dps_checked = 0
+    for lesson in lessons:
+        dps_list = db.query(DPS).filter(DPS.lesson_id == lesson.id).order_by(DPS.dps_number).all()
+        for dps in dps_list:
+            sections = (
+                db.query(models.DPSSection)
+                .filter(models.DPSSection.dps_id == dps.id)
+                .order_by(models.DPSSection.section_number)
+                .all()
+            )
+            # No two sections in the same DPS should ever share a title --
+            # that was exactly the visible symptom (two "Concept Drill"
+            # headers back to back).
+            titles = [s.section_title for s in sections]
+            assert len(titles) == len(set(titles)), (
+                f"Lesson {lesson.lesson_number} DPS {dps.dps_number} has duplicate "
+                f"section titles: {titles}"
+            )
+            for section in sections:
+                if section.section_title and "Concept Drill" in section.section_title:
+                    concept_drill_dps_checked += 1
+                    assert section.question_count == 2, (
+                        f"Lesson {lesson.lesson_number} DPS {dps.dps_number}'s Concept "
+                        f"Drill section should bundle both the multiply and divide "
+                        f"questions (2), got {section.question_count}"
+                    )
+                    cfg = json.loads(section.generator_config_json or "{}")
+                    sub_kinds = [b.get("blockKind") for b in cfg.get("subBlocks", [])]
+                    assert sub_kinds == ["CONCEPT_DRILL_MULTIPLY", "CONCEPT_DRILL_DIVIDE"]
+
+            # Cross-check against generation: the actual generated questions
+            # for this DPS must show exactly one section_number carrying the
+            # Concept Drill title (if any), with 2 questions in it -- proves
+            # the fix holds through generate_pm_l4_preview()'s combining
+            # logic too, not just the raw DPSSection rows.
+            seed = build_preview_seed(dps)
+            questions = generate_pm_l4_preview(db, dps, seed)
+            section_numbers_by_title = {}
+            for q in questions:
+                title = q["metadata"].get("section_title")
+                section_numbers_by_title.setdefault(title, set()).add(q["metadata"]["section_number"])
+            for title, nums in section_numbers_by_title.items():
+                assert len(nums) == 1, f"Title {title!r} spans multiple section_numbers: {nums}"
+
+    assert concept_drill_dps_checked == 9, f"expected 9 Concept Drill DPS, found {concept_drill_dps_checked}"
+
+
+def test_pm_l4_persist_question_set_uses_pm_l4_engine_not_pm_l1(db, pm_l4_level):
+    """2026-08-06 regression: generation_service.py's persist_question_set()
+    -- the function that actually backs a real student's "start attempt"
+    flow (see attempt_service.py's StartAttempt), not just the admin
+    preview -- only checked _is_pm_l2 for the PM module branch and silently
+    fell through to build_pm_config_from_dps/generate_pm_question_set
+    (PM-L1's own engine) for every PM-L3 and PM-L4 DPS. generate_preview()
+    (admin Learning Path Studio preview) already had the correct
+    _is_pm_l4/_is_pm_l3/_is_pm_l2 checks, which is exactly why this was
+    invisible in the admin UI -- the preview always looked right, but a real
+    student attempt on PM-L4 (or PM-L3) would have been generated with the
+    wrong engine. This test exercises persist_question_set() directly
+    (not generate_pm_l4_preview) against every one of the 60 PM-L4 DPS.
+    """
+    from app.services.generation_service import persist_question_set
+    from app.models.models import GeneratedQuestion
+
+    _module, level, _admin = pm_l4_level
+    lessons = db.query(Lesson).filter(Lesson.level_id == level.id).order_by(Lesson.lesson_number).all()
+
+    checked = 0
+    concept_drill_seen = False
+    divide_remainder_seen = False
+    for lesson in lessons:
+        dps_list = db.query(DPS).filter(DPS.lesson_id == lesson.id).order_by(DPS.dps_number).all()
+        for dps in dps_list:
+            checked += 1
+            qset = persist_question_set(
+                db, dps, None, "REGRESSION-STUDENT", "PRACTICE",
+                f"PERSIST-REGRESSION-L{lesson.lesson_number}-D{dps.dps_number}",
+            )
+            db.flush()
+            gqs = (
+                db.query(GeneratedQuestion)
+                .filter(GeneratedQuestion.question_set_id == qset.id)
+                .order_by(GeneratedQuestion.question_number)
+                .all()
+            )
+            # PM-L1's engine has no concept of these display types at all --
+            # seeing them here proves the PM-L4 engine actually ran.
+            assert len(gqs) == dps.default_question_count
+            for gq in gqs:
+                if gq.display_type == "CONCEPT_DRILL_MULTIPLY":
+                    concept_drill_seen = True
+                if gq.display_type == "EXPRESSION_WORKSHEET":
+                    meta = json.loads(gq.metadata_json or "{}")
+                    if meta.get("concept_family") == "PM_L4_DIVISION_WITH_REMAINDER":
+                        divide_remainder_seen = True
+                        # "Q, R" pair shape -- PM-L1's engine only ever
+                        # produces a bare number, never a compound string.
+                        assert "," in gq.correct_answer
+
+    assert checked == 60
+    assert concept_drill_seen, "no CONCEPT_DRILL_MULTIPLY question seen across all 60 DPS via persist_question_set"
+    assert divide_remainder_seen, "no divide-with-remainder question seen across all 60 DPS via persist_question_set"
+
+
+def test_pm_l4_mixed_width_addless_produces_one_correctly_composed_stack(db, pm_l4_level):
+    """Regression for the 2026-08-07 bug: a DPS titled e.g. "Add/Less
+    4D,1R & 3D,2R (Visual)" must generate ONE stack per question with
+    exactly 1 row at 4-digit width followed by 2 rows at 3-digit width
+    (3 rows total) -- not two separate pure-width batches split across the
+    DPS's 10 questions, which is what the prior implementation of
+    digit_pattern_second_half/rows_second_half actually did (caught live by
+    Shailesh from a Lesson 6 DPS5 preview screenshot). Covers all 4 DPS in
+    PM-L4 that use this mixed-width feature: Lesson 6 DPS5, Lesson 7 DPS4,
+    Lesson 9 DPS1, Lesson 9 DPS4.
+    """
+    _module, level, _admin = pm_l4_level
+
+    def widths(operands):
+        return [len(str(abs(int(v)))) for v in operands]
+
+    cases = [
+        (6, 5, [4, 3, 3]),   # "Add/Less 4D,1R & 3D,2R (Visual)"
+        (7, 4, [4, 3, 3]),   # "Add/Less 4D,1R & 3D,2R (Visual)"
+        (9, 1, [3, 3, 3, 4]),  # "Add/Less 3D,3R & 4D,1R (Abacus)"
+        (9, 4, [2, 2, 3, 3]),  # "Add/Less 2D,2R & 3D,2R (Visual)"
+    ]
+    for lesson_number, dps_number, expected_widths in cases:
+        lesson = db.query(Lesson).filter(Lesson.level_id == level.id, Lesson.lesson_number == lesson_number).first()
+        dps = db.query(DPS).filter(DPS.lesson_id == lesson.id, DPS.dps_number == dps_number).first()
+        questions = generate_pm_l4_preview(db, dps, build_preview_seed(dps))
+        vertical = [q for q in questions if q["display_type"] == "VERTICAL"]
+        assert vertical, f"L{lesson_number} DPS{dps_number} should have Add/Less questions"
+        for q in vertical:
+            operands = q["operands"]
+            assert len(operands) == len(expected_widths), (
+                f"L{lesson_number} DPS{dps_number} Q{q['question_number']}: "
+                f"expected {len(expected_widths)} rows, got {len(operands)} ({operands})"
+            )
+            assert widths(operands) == expected_widths, (
+                f"L{lesson_number} DPS{dps_number} Q{q['question_number']}: "
+                f"expected row widths {expected_widths}, got {widths(operands)} ({operands})"
+            )
+            assert sum(operands) == q["correct_answer"]
