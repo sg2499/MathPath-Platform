@@ -10,7 +10,7 @@ from app.question_engine.pm_l4.config import (
     PML4DivideRemainderConfig,
     PML4BodmasConfig,
 )
-from app.question_engine.pm_l4.operands import generate_unique_operands, question_difficulty_stage
+from app.question_engine.pm_l4.operands import generate_unique_operands, question_difficulty_stage, total_row_count
 from app.question_engine.pm_l4.validators import question_concept_trace, validate_question
 from app.question_engine.pm_l4.distractors import generate_distractors
 from app.question_engine.pm_l4.concept_drill import generate_concept_drill_question
@@ -29,21 +29,13 @@ def generate_pm_l4_question_set(config: PML4Config) -> list[dict]:
     seen: set[tuple[int, ...]] = set()
     rng = random.Random(config.seed)
 
+    total_rows = total_row_count(config)
+    effective_config = dataclasses.replace(config, rows=total_rows)
+
     for question_number in range(1, config.question_count + 1):
         q_rng = random.Random(f"{config.seed}-Q{question_number}")
         question_index = question_number - 1
-        effective_digit_pattern = (
-            config.digit_pattern_second_half
-            if config.digit_pattern_second_half and question_index >= config.question_count // 2
-            else config.digit_pattern
-        )
-        effective_rows = (
-            config.rows_second_half
-            if config.rows_second_half and question_index >= config.question_count // 2
-            else config.rows
-        )
         operands = generate_unique_operands(config, q_rng, seen)
-        effective_config = dataclasses.replace(config, digit_pattern=effective_digit_pattern, rows=effective_rows)
         if not validate_question(effective_config, operands):
             raise ValueError(f"Generated invalid PM-L4 question for lesson {config.lesson_number} DPS {config.dps_number}")
         concept_trace = question_concept_trace(effective_config, operands)
@@ -63,7 +55,9 @@ def generate_pm_l4_question_set(config: PML4Config) -> list[dict]:
                 "operation_focus": config.operation_focus,
                 "abacus_rule": config.abacus_rule,
                 "target_numbers": config.target_numbers,
-                "digit_pattern": effective_digit_pattern,
+                "digit_pattern": config.digit_pattern,
+                "digit_pattern_second_half": config.digit_pattern_second_half,
+                "rows_second_half": config.rows_second_half,
                 "place_value": config.place_value,
                 "lesson_title": config.lesson_title,
                 "dps_title": config.dps_title,

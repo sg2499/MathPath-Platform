@@ -33,12 +33,15 @@ class PML4Config:
     generation_template: str = "DIRECT"
     revision_templates: tuple[str, ...] = field(default_factory=tuple)
     practice_mode: str | None = None  # "ABACUS" | "VISUAL" | None
-    # Second-half row/digit escalation within one DPS number, same
-    # convention as PM-L2/PM-L3 (e.g. Lesson 9 DPS1's "(3D,3R) & (4D,1R)"
-    # running-total-driven mixed block -- confirmed in the findings report
-    # this is NOT a column-split like some of PM-L3's "&" labels, so the
-    # existing digit-width-gated logic already covers it without needing
-    # rows_second_half; the field is kept for parity/future use).
+    # Mixed-width single-stack Add/Less: e.g. Lesson 6 DPS5's "Add/Less
+    # 4D,1R & 3D,2R (Visual)" means every question is ONE stack of 3 rows --
+    # `rows` rows at `digit_pattern` width, followed by `rows_second_half`
+    # rows at `digit_pattern_second_half` width, all in the same running
+    # total (see operands.py's _row_width_schedule/total_row_count). Fixed
+    # 2026-08-07: an earlier implementation misread this as "generate the
+    # first half of the DPS's questions at one pure width, the second half
+    # at another pure width" -- caught live by Shailesh from a Lesson 6
+    # DPS5 preview screenshot showing exactly that wrong split.
     digit_pattern_second_half: str | None = None
     rows_second_half: int | None = None
 

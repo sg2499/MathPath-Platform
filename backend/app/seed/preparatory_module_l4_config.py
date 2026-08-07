@@ -311,8 +311,14 @@ PM_L4_LESSONS: dict[int, dict[int, PmL4DpsRule]] = {
             _div3d("3D ÷ 1D (Abacus)", vmin=100, vmax=899, count=10),
         )),
         5: PmL4DpsRule("Add/Less 4D,1R & 3D,2R (Visual), BODMAS (Abacus)", (
-            _addless("Add/Less 4D,1R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=2,
-                      dp2="3D_FULL", rows2=3, mode="VISUAL", count=10),
+            # Title reads "4D,1R & 3D,2R": ONE 3-row stack per question --
+            # 1 row at 4-digit width, then 2 rows at 3-digit width. rows/rows2
+            # corrected 2026-08-07 (were 2/3, which didn't even match the
+            # title's own numbers) alongside the generator fix that makes
+            # rows/rows2 combine into a single mixed-width chain instead of
+            # splitting the DPS's 10 questions into two pure-width batches.
+            _addless("Add/Less 4D,1R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=1,
+                      dp2="3D_FULL", rows2=2, mode="VISUAL", count=10),
             _bodmas("BODMAS (Abacus)", count=5),
         )),
     },
@@ -329,8 +335,10 @@ PM_L4_LESSONS: dict[int, dict[int, PmL4DpsRule]] = {
             _bodmas("BODMAS (Abacus)", count=5),
         )),
         4: PmL4DpsRule("Add/Less 4D,1R & 3D,2R (Visual), Concept Drill (Abacus)", (
-            _addless("Add/Less 4D,1R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=2,
-                      dp2="3D_FULL", rows2=3, mode="VISUAL", count=10),
+            # Same correction as Lesson 6 DPS5 above -- rows/rows2 now match
+            # the title's own "1R"/"2R" counts (were 2/3).
+            _addless("Add/Less 4D,1R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=1,
+                      dp2="3D_FULL", rows2=2, mode="VISUAL", count=10),
             _drill_mult("Concept Drill (Abacus)", amin=2500, amax=3000),
             _drill_div("Concept Drill (Abacus)", fmin=2500, fmax=3999, lmin=180, lmax=299),
         )),
