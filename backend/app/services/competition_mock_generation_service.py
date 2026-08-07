@@ -41,6 +41,13 @@ from app.services.pm_competition_mock_generation_service import (
     CollectPmL3CompetitionSectionLockedQuestions,
     CollectPmL4CompetitionSectionLockedQuestions,
 )
+from app.services.bm_competition_mock_generation_service import (
+    BM_COMPETITION_LEVEL_REGISTRY,
+    BM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+    BM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS,
+    BmCompetitionLevelConfig,
+    CollectBmCompetitionSectionLockedQuestions,
+)
 
 
 DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 60
@@ -1865,6 +1872,50 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
             "sections": Sections,
         }
 
+    if _IsBridgeModule(ModuleRecord):
+        # Regression fix (2026-08-07, Shailesh, live-verification session):
+        # BM had no branch here at all, so it fell all the way through to
+        # the generic DPS-title fallback below -- which derives its own
+        # sectionKey per section as `Title.upper().replace(" ", "_")[:80]`,
+        # totally unrelated to BmCompetitionLevelConfig's real section keys
+        # that CollectBmCompetitionSectionLockedQuestions/
+        # _RedistributeSectionCounts actually key off of. The admin's Section
+        # Allocation panel (built from THIS endpoint's sectionKey values) sent
+        # those fallback keys back as SectionCountsOverride at generation
+        # time; every key failed to match a real BmCompetitionLevelConfig
+        # section, so every section's override resolved to 0, no section had
+        # a positive RequiredCount, and CollectBmCompetitionSectionLockedQuestions
+        # returned an empty question list -- with NO error, because "0
+        # required questions" isn't itself invalid. The mock silently saved
+        # as a DRAFT with total_questions = 0. Resolving via the real level
+        # registry, same as MM/IM/PM above, makes the admin's live preview
+        # keys the same keys generation actually understands.
+        BmLevelConfig = BmCompetitionLevelConfig(LevelRecord)
+        BmSectionDefinitions = BmLevelConfig["sectionDefinitions"]
+        RequestedQuestionCount = int(TotalQuestions or BM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+        Base = RequestedQuestionCount // len(BmSectionDefinitions)
+        Remainder = RequestedQuestionCount % len(BmSectionDefinitions)
+        Sections = []
+        for Index, Section in enumerate(BmSectionDefinitions):
+            Sections.append({
+                "sectionKey": Section["key"],
+                "sectionNumber": Section["number"],
+                "sectionTitle": Section["title"],
+                "questionCount": Base + (1 if Index < Remainder else 0),
+                "locked": True,
+            })
+        return {
+            "moduleId": ModuleRecord.id,
+            "moduleCode": ModuleRecord.module_code,
+            "moduleName": ModuleRecord.module_name,
+            "levelId": LevelRecord.id,
+            "levelCode": LevelRecord.level_code,
+            "levelName": LevelRecord.level_name,
+            "totalQuestions": RequestedQuestionCount,
+            "structure": "BM_SECTION_COMPETITION_MOCK",
+            "sections": Sections,
+        }
+
     RequestedQuestionCount = int(TotalQuestions or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
     SectionsByDps = _ActiveSectionsByDps(db, DpsRows)
     UniqueSections: dict[str, dict[str, Any]] = {}
@@ -1954,6 +2005,12 @@ def _IsPreparatoryModule(ModuleRecord: Module) -> bool:
     ModuleCode = _NormalizeText(getattr(ModuleRecord, "module_code", "")).upper()
     ModuleName = _NormalizeText(getattr(ModuleRecord, "module_name", "")).lower()
     return ModuleCode == "PM" or "preparatory module" in ModuleName
+
+
+def _IsBridgeModule(ModuleRecord: Module) -> bool:
+    ModuleCode = _NormalizeText(getattr(ModuleRecord, "module_code", "")).upper()
+    ModuleName = _NormalizeText(getattr(ModuleRecord, "module_name", "")).lower()
+    return ModuleCode == "BM" or "bridge module" in ModuleName
 
 
 def _QuestionSourceText(Question: dict[str, Any], FallbackTitle: str) -> str:
@@ -2318,6 +2375,19 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: L
     IsMmMock = _IsMasterModule(ModuleRecord)
     IsImMock = _IsIntermediateModule(ModuleRecord)
     IsPmMock = _IsPreparatoryModule(ModuleRecord)
+    IsBmMock = _IsBridgeModule(ModuleRecord)
+
+    if IsBmMock:
+        # Bridge Module (added 2026-08-07, Shailesh) routes to its own
+        # separate collector -- CollectBmCompetitionSectionLockedQuestions,
+        # in bm_competition_mock_generation_service.py -- BM's own dedicated
+        # engine and 6-section registry, zero shared code with PM's or any
+        # other module's already-verified mock/assessment path.
+        return CollectBmCompetitionSectionLockedQuestions(
+            LevelRecord,
+            TargetQuestionCount,
+            SectionCountsOverride,
+        )
 
     if IsPmMock:
         # PM-L1 gets its own section-locked collector too, following the
@@ -2685,16 +2755,19 @@ def GenerateCompetitionMockDraft(
     IsMmMock = _IsMasterModule(ModuleRecord)
     IsImMock = _IsIntermediateModule(ModuleRecord)
     IsPmMock = _IsPreparatoryModule(ModuleRecord)
+    IsBmMock = _IsBridgeModule(ModuleRecord)
     DefaultQuestionCount = (
         MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsMmMock
         else IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsImMock
         else PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsPmMock
+        else BM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsBmMock
         else DEFAULT_COMPETITION_MOCK_QUESTION_COUNT
     )
     DefaultDurationSeconds = (
         MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsMmMock
         else IM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsImMock
         else PM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsPmMock
+        else BM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsBmMock
         else DEFAULT_COMPETITION_MOCK_DURATION_SECONDS
     )
     RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)
@@ -2720,6 +2793,26 @@ def GenerateCompetitionMockDraft(
     # student-visible mock.
     SelectedQuestions, CoveragePayload = _CollectGeneratedQuestions(db, ModuleRecord, LevelRecord, Lessons, DpsRows, RequestedQuestionCount, SectionCountsOverride)
     ActualQuestionCount = len(SelectedQuestions)
+    if ActualQuestionCount <= 0:
+        # Defense-in-depth (2026-08-07, Shailesh, live-verification session):
+        # a section-key mismatch between CompetitionMockSectionPlan (what the
+        # admin's Section Allocation panel is built from) and a module's real
+        # generation-time section registry -- exactly the BM bug just fixed
+        # above -- makes every SectionCountsOverride key fail to match, every
+        # section's RequiredCount resolve to 0, and the collector return an
+        # empty list with no error of its own (0 required questions isn't
+        # itself invalid at that layer). Without this check, that silently
+        # saves a DRAFT mock with 0 questions while still showing the admin
+        # a "Draft mock generated" success message. Fail loudly here instead,
+        # for every module, so this bug class can never again ship a
+        # phantom-success empty mock.
+        api_error(
+            400,
+            "COMPETITION_MOCK_GENERATION_EMPTY",
+            "No questions could be generated for this mock. This usually means the section "
+            "allocation sent to the server doesn't match this level's real section keys -- "
+            "please reload the page and try again, or report this if it persists.",
+        )
     DisplayMockCode = _NormalizeMockCodeInput(MockCode) or _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)
     _EnsureUniqueMockCode(db, LevelId=LevelRecord.id, MockCode=DisplayMockCode)
     MockTitle = Title or f"{LevelRecord.level_code} Competition Mock Practice {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
