@@ -65,7 +65,7 @@ export default withSentryConfig(
   nextConfig,
   {
     silent: true,
-    org: process.env.SENTRY_ORG || "mathpath",
+    org: process.env.SENTRY_ORG || "zetta-metrics",
     project: process.env.SENTRY_PROJECT || "javascript-nextjs",
   },
   {
