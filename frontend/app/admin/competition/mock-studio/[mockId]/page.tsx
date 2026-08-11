@@ -16,7 +16,7 @@ import {
   type CompetitionMockQuestion,
 } from "@/lib/api/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Archive, ArrowLeft, CheckCircle2, Clock, Eye, FileText, Layers3, ShieldCheck, Target, Trash2 } from "lucide-react";
+import { AlertTriangle, Archive, ArrowLeft, BadgeCheck, Calculator, CheckCircle2, Clock, Eye, FileText, Hash, Info, Layers3, Search, ShieldCheck, Target, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -329,7 +329,7 @@ export default function AdminCompetitionMockDetailPage() {
                     <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-[10px] font-black">Code: {mock.mockCode || "-"}</span>
                     <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-800 shadow-sm dark:border-emerald-700/70 dark:bg-emerald-950/30 dark:text-emerald-200">MOCK</span>
                   </div>
-                  <p className="math-kicker mt-2 text-[10px]">Mock Details</p>
+                  <p className="math-block-header mt-2"><FileText size={14} />Mock Details</p>
                   <h1 className="mt-0.5 max-w-4xl truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">{mock.title}</h1>
                   <p className="mt-1 max-w-3xl text-sm font-bold leading-5 text-slate-700 dark:text-slate-200">Full-page competition mock preview with section coverage and generated question details.</p>
                 </div>
@@ -396,7 +396,7 @@ function MockOverviewTab({ mock }: { mock: CompetitionMockExamDetail }) {
     <section className="rounded-[32px] border border-white/70 bg-white/90 p-4 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
       <div className="grid gap-4 xl:grid-cols-[0.78fr_1.22fr]">
         <div className="rounded-[26px] border border-slate-200 p-5 dark:border-slate-800">
-          <p className="math-kicker text-[10px]">Instructions</p>
+          <p className="math-block-header"><Info size={14} />Instructions</p>
           <h3 className="mt-2 text-xl font-black text-slate-950 dark:text-white">Student Instructions</h3>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{mock.instructions || "Complete the mock under competition timing without taking breaks."}</p>
           <div className="mt-4 rounded-[22px] bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
@@ -407,7 +407,7 @@ function MockOverviewTab({ mock }: { mock: CompetitionMockExamDetail }) {
         <div className="overflow-hidden rounded-[26px] border border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between gap-3 bg-slate-50 px-5 py-3 dark:bg-slate-900">
             <div>
-              <p className="math-kicker text-[10px]">Section Matrix</p>
+              <p className="math-block-header"><Calculator size={14} />Section Matrix</p>
               <h3 className="text-xl font-black text-slate-950 dark:text-white">Section-Wise Questions</h3>
             </div>
             <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{sections.length} Sections</span>
@@ -451,7 +451,7 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
     <section className="rounded-[32px] border border-white/70 bg-white/90 p-4 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <p className="math-kicker">Question Preview</p>
+          <p className="math-block-header"><Eye size={14} />Question Preview</p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">Generated Mock Paper</h2>
           <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">Review the generated questions in the same clean full-page format used for assessment review.</p>
         </div>
@@ -461,7 +461,7 @@ function MockQuestionPreviewTab({ mock, showAnswers }: { mock: CompetitionMockEx
         <div className="math-card overflow-visible p-4 sm:p-5">
           <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="math-kicker text-[10px]">Mock Preview</p>
+              <p className="math-block-header"><Search size={14} />Mock Preview</p>
               <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Question {currentQuestion.questionNumber} of {questions.length}</h2>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">Section {displaySectionNumberByRealNumber.get(Number(currentQuestion.sectionNumber)) ?? currentQuestion.sectionNumber}</span>
@@ -525,7 +525,7 @@ function MockCoverageTab({ mock, showAnswers }: { mock: CompetitionMockExamDetai
     <section className="rounded-[32px] border border-white/70 bg-white/90 p-4 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <p className="math-kicker">Coverage Check</p>
+          <p className="math-block-header"><BadgeCheck size={14} />Coverage Check</p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">Section And Concept Coverage</h2>
           <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">Verify competition section coverage and generated question allocation before assigning.</p>
         </div>
@@ -537,7 +537,7 @@ function MockCoverageTab({ mock, showAnswers }: { mock: CompetitionMockExamDetai
           <div key={section.sectionNumber} className="overflow-hidden rounded-[26px] border border-slate-200 dark:border-slate-800">
             <div className="flex flex-col gap-2 bg-slate-50 px-5 py-4 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="math-kicker text-[10px]">Section {section.displaySectionNumber}</p>
+                <p className="math-block-header"><Hash size={14} />Section {section.displaySectionNumber}</p>
                 <h3 className="text-lg font-black text-slate-950 dark:text-white">{section.sectionTitle}</h3>
               </div>
               <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{section.questions.length} Questions</span>
@@ -566,7 +566,7 @@ function ArchiveDialog({ busy, onCancel, onConfirm }: { busy: boolean; onCancel:
         <div className="flex items-start gap-4">
           <div className="rounded-2xl bg-amber-50 p-3 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300"><Archive size={22} /></div>
           <div>
-            <p className="math-kicker text-[10px] text-amber-600 dark:text-amber-300">Archive Mock</p>
+            <p className="math-block-header text-amber-600 dark:text-amber-300"><Archive size={14} />Archive Mock</p>
             <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Archive this mock?</h3>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">This keeps the mock history available but removes it from normal assignment selection.</p>
           </div>
@@ -587,7 +587,7 @@ function DeleteDialog({ busy, onCancel, onConfirm }: { busy: boolean; onCancel: 
         <div className="flex items-start gap-4">
           <div className="rounded-2xl bg-red-50 p-3 text-red-600 dark:bg-red-950/40 dark:text-red-300"><AlertTriangle size={22} /></div>
           <div>
-            <p className="math-kicker text-[10px] text-red-600 dark:text-red-300">Delete Mock</p>
+            <p className="math-block-header text-red-600 dark:text-red-300"><Trash2 size={14} />Delete Mock</p>
             <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Delete this mock permanently?</h3>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">This removes the mock, questions, options, assignments, attempts, answers, and result summaries linked to this mock. This action cannot be undone.</p>
           </div>

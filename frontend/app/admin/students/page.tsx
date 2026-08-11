@@ -40,6 +40,8 @@ import {
   Download,
   Eye,
   FileSpreadsheet,
+  FileText,
+  IdCard,
   KeyRound,
   ListChecks,
   Pencil,
@@ -48,7 +50,9 @@ import {
   ShieldCheck,
   Upload,
   Trash2,
+  UserCircle2,
   UserPlus,
+  UserRound,
   UsersRound,
   X,
   XCircle,
@@ -628,7 +632,7 @@ export default function AdminStudentsPage() {
       <section className="math-hero math-slide-up">
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="math-kicker">Student Directory</p>
+            <p className="math-block-header"><UserRound size={14} />Student Directory</p>
             <h1 className="math-title">Student Management</h1>
             <p className="math-subtitle">
               Manage student profiles, login access, teacher mapping, level placement, and onboarding records.
@@ -658,7 +662,7 @@ export default function AdminStudentsPage() {
       <section className="mt-6 math-card p-5 sm:p-6">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
           <div className="min-w-0">
-            <p className="math-kicker">Student Onboarding</p>
+            <p className="math-block-header"><UserPlus size={14} />Student Onboarding</p>
             <h2 className="text-2xl font-black text-slate-950 dark:text-white">
               Add Students
             </h2>
@@ -834,7 +838,7 @@ export default function AdminStudentsPage() {
         <div className="math-card p-5 sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="math-kicker">Student directory</p>
+              <p className="math-block-header"><FileText size={14} />Student Records</p>
               <h2 className="text-2xl font-black text-slate-950 dark:text-white">
                 Student Details
               </h2>
@@ -1155,7 +1159,8 @@ function StudentFormModal({
       <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-[34px] border border-white/60 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-950">
         <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:px-7">
           <div>
-            <p className="math-kicker">
+            <p className="math-block-header">
+              {editingStudentId ? <Pencil size={14} /> : <UserPlus size={14} />}
               {editingStudentId ? "Edit profile" : "Add student"}
             </p>
             <h2 className="text-2xl font-black text-slate-950 dark:text-white">
@@ -1350,7 +1355,7 @@ function StudentFormModal({
 
             <aside className="space-y-5">
               <div className="rounded-[28px] border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-700 dark:bg-slate-900/70">
-                <p className="math-kicker">Photo & Signature</p>
+                <p className="math-block-header"><IdCard size={14} />Photo & Signature</p>
                 <div className="mt-4 grid gap-4">
                   <ImageInput
                     label="Photo"
@@ -1368,7 +1373,7 @@ function StudentFormModal({
               </div>
 
               <div className="rounded-[28px] border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-700 dark:bg-slate-900/70">
-                <p className="math-kicker">Login & Level</p>
+                <p className="math-block-header"><KeyRound size={14} />Login & Level</p>
                 <div className="mt-4 space-y-4">
                   <div>
                     <label className="math-label">
@@ -1728,8 +1733,8 @@ function DeleteStudentModal({
           </div>
 
           <div>
-            <p className="math-kicker text-rose-600 dark:text-rose-300">
-              Delete Student
+            <p className="math-block-header text-rose-600 dark:text-rose-300">
+              <Trash2 size={14} />Delete Student
             </p>
             <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
               Delete {student.studentName}?
@@ -1813,7 +1818,7 @@ function StudentProfileModal({
       >
         <div className="math-admin-light-profile-modal-header sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
           <div>
-            <p className="math-kicker">Student Profile</p>
+            <p className="math-block-header"><UserCircle2 size={14} />Student Profile</p>
             <h2 className="text-3xl font-black text-slate-950 dark:text-white">
               {student.studentName}
             </h2>

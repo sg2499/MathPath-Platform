@@ -42,8 +42,12 @@ import {
   Clock,
   Eye,
   FilePenLine,
+  FileText,
   Gauge,
+  Hash,
+  Info as InfoIcon,
   Layers3,
+  ListChecks,
   RefreshCw,
   Minus,
   PauseCircle,
@@ -500,8 +504,8 @@ export default function AdminAssessmentBlueprintBuilderPage() {
         <div className="math-admin-studio-glow" />
         <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="math-admin-studio-pill">
-              <Sparkles size={13} /> Assessment Studio
+            <div className="math-block-header">
+              <Sparkles size={14} /> Assessment Studio
             </div>
             <h1 className="mt-4 max-w-4xl text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">Assessment Studio</h1>
             <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-slate-600 dark:text-slate-300">Build, validate, publish, and manage level-wide assessments from one focused workspace.</p>
@@ -543,12 +547,12 @@ export default function AdminAssessmentBlueprintBuilderPage() {
       {activeTab === "CREATE" ? (
         <section className="mt-5 rounded-[36px] border border-white/70 bg-white/90 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div><p className="math-kicker">Create Assessment</p><h2 className="text-3xl font-black text-slate-950 dark:text-white">Build Assessment Structure</h2><p className="mt-2 max-w-3xl text-sm font-semibold text-slate-500">Complete the setup, review the distribution matrix, then save as draft or publish.</p></div>
+            <div><p className="math-block-header"><PlayCircle size={14} />Create Assessment</p><h2 className="text-3xl font-black text-slate-950 dark:text-white">Build Assessment Structure</h2><p className="mt-2 max-w-3xl text-sm font-semibold text-slate-500">Complete the setup, review the distribution matrix, then save as draft or publish.</p></div>
             <div className={`rounded-[24px] border px-5 py-4 ${validDistribution ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${validDistribution ? "text-emerald-700" : "text-amber-700"}`}>{validDistribution ? "Ready To Publish" : "Distribution Pending"}</p><p className={`mt-1 text-sm font-black ${validDistribution ? "text-emerald-800" : "text-amber-800"}`}>{isSectionWiseLevel ? `${distributionMarks ?? 0} / 100 marks` : `${distributionTotal} / ${totalQuestions} questions`}</p></div>
           </div>
           <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.4fr)]">
             <div className="rounded-[30px] border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-800 dark:bg-slate-900/40">
-              <p className="math-kicker text-[10px]">Step 1</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Assessment Details</h3>
+              <p className="math-block-header"><Rocket size={14} />Step 1</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Assessment Details</h3>
               <div className="mt-5 space-y-4">
                 <Field label="Assessment Title"><input className="math-input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Example: YLM Level 1 Assessment Set A" /></Field>
                 <Field label="Module"><select className="math-select" value={moduleId} onChange={(event) => setModuleId(event.target.value)}><option value="">Select Module</option>{modules.map((module) => <option key={module.moduleId} value={module.moduleId}>{module.moduleCode} - {module.moduleName}</option>)}</select></Field>
@@ -558,7 +562,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
               </div>
             </div>
             <div className="rounded-[30px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><p className="math-kicker text-[10px]">Step 2</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Distribution Matrix</h3><p className="mt-1 text-sm font-semibold text-slate-500">{isSectionWiseLevel ? "One clean matrix for every section this level's mock exam uses." : "One clean matrix for every active lesson in the selected level."}</p></div><div className="flex flex-wrap gap-2"><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution(isSectionWiseLevel ? (hasWeightedSections ? distributeWeighted100(sections, weightedQuestionCount) : distributeEvenlyFromSections(sections, 100)) : distributeEvenlyFromLessons(lessons, totalQuestions))}><Zap size={15} />Auto Balance</button><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution((current) => current.map((item) => ({ ...item, questionCount: 1 })))}><Minus size={15} />Clear</button></div></div>
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><p className="math-block-header"><Calculator size={14} />Step 2</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Distribution Matrix</h3><p className="mt-1 text-sm font-semibold text-slate-500">{isSectionWiseLevel ? "One clean matrix for every section this level's mock exam uses." : "One clean matrix for every active lesson in the selected level."}</p></div><div className="flex flex-wrap gap-2"><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution(isSectionWiseLevel ? (hasWeightedSections ? distributeWeighted100(sections, weightedQuestionCount) : distributeEvenlyFromSections(sections, 100)) : distributeEvenlyFromLessons(lessons, totalQuestions))}><Zap size={15} />Auto Balance</button><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution((current) => current.map((item) => ({ ...item, questionCount: 1 })))}><Minus size={15} />Clear</button></div></div>
               <div className="mt-5 grid gap-3 sm:grid-cols-4"><Info label="Module" value={selectedModule?.moduleCode || "-"} /><Info label="Level" value={selectedLevel?.levelCode || "-"} /><Info label={isSectionWiseLevel ? "Sections" : "Lessons"} value={distributionSourceCount || "-"} /><Info label="Marks/Question" value={selectedModule ? marksModeLabel(selectedModule.moduleCode) : marksPerQuestion(totalQuestions) || "-"} /></div>
               {isSectionWiseLevel ? <div className="mt-3 grid gap-3 sm:grid-cols-2"><Info label="Total Questions" value={submittedTotalQuestions || "-"} /><Info label="Total Marks" value={distributionMarks ?? "-"} /></div> : null}
               <div className={`mt-5 rounded-[24px] border p-4 ${validDistribution ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className={`text-xs font-black uppercase tracking-[0.14em] ${validDistribution ? "text-emerald-700" : "text-amber-700"}`}>Validation</p><p className={`mt-1 text-sm font-black ${validDistribution ? "text-emerald-800" : "text-amber-800"}`}>{isSectionWiseLevel ? marksValidationCopy(distributionMarks) : differenceCopy(distributionDifference)}</p></div><div className={`rounded-2xl px-4 py-2 text-sm font-black ${validDistribution ? "bg-white text-emerald-700" : "bg-white text-amber-700"}`}>{isSectionWiseLevel ? `Marks: ${distributionMarks ?? 0} / 100` : <>Difference: {distributionDifference > 0 ? "+" : ""}{distributionDifference}</>}</div></div></div>
@@ -572,7 +576,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
 
       {activeTab === "MANAGE" ? (
         <section className="mt-5 rounded-[36px] border border-white/70 bg-white/90 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-6">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><p className="math-kicker">Manage Assessments</p><h2 className="text-3xl font-black text-slate-950 dark:text-white">Assessment Library</h2><p className="mt-2 max-w-3xl text-sm font-semibold text-slate-500">Review draft, published, and archived assessment structures from one focused control panel.</p></div><div className="grid gap-3 sm:grid-cols-3"><MiniCount label="Draft" value={blueprints.filter((item) => item.status === "DRAFT").length} /><MiniCount label="Published" value={blueprints.filter((item) => item.status === "PUBLISHED").length} /><MiniCount label="Archived" value={blueprints.filter((item) => item.status === "ARCHIVED").length} /></div></div>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><p className="math-block-header"><ListChecks size={14} />Manage Assessments</p><h2 className="text-3xl font-black text-slate-950 dark:text-white">Assessment Library</h2><p className="mt-2 max-w-3xl text-sm font-semibold text-slate-500">Review draft, published, and archived assessment structures from one focused control panel.</p></div><div className="grid gap-3 sm:grid-cols-3"><MiniCount label="Draft" value={blueprints.filter((item) => item.status === "DRAFT").length} /><MiniCount label="Published" value={blueprints.filter((item) => item.status === "PUBLISHED").length} /><MiniCount label="Archived" value={blueprints.filter((item) => item.status === "ARCHIVED").length} /></div></div>
           <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_220px_220px_190px]"><div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Manage Assessments" /></div><select className="math-select" value={manageModuleFilter} onChange={(event) => setManageModuleFilter(event.target.value)} title="Filter by module" aria-label="Filter by module"><option value="" disabled>Choose Module</option><option value="ALL">All Modules</option>{manageModuleOptions.map(([ModuleKey, ModuleLabel]) => <option key={ModuleKey} value={ModuleKey}>{ModuleLabel}</option>)}</select><select className="math-select" value={manageLevelFilter} onChange={(event) => setManageLevelFilter(event.target.value)} title="Filter by level" aria-label="Filter by level"><option value="" disabled>Choose Level</option><option value="ALL">All Levels</option>{manageLevelOptions.map(([LevelKey, LevelLabel]) => <option key={LevelKey} value={LevelKey}>{LevelLabel}</option>)}</select><select className="math-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as BlueprintStatusFilter)}><option value="" disabled>Choose Status</option><option value="ALL">All Statuses</option><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></div>
           <div className="mt-6">{blueprintsQuery.isLoading ? <LoadingState label="Loading assessments..." /> : null}{blueprintsQuery.error ? <ErrorState message={apiErrorMessage(blueprintsQuery.error)} /> : null}{!blueprintsQuery.isLoading && !blueprintsQuery.error && !filteredBlueprints.length ? <EmptyState message="Create your first 100-mark level assessment." /> : null}<div className="grid gap-5 xl:grid-cols-2">{filteredBlueprints.map((item) => <AssessmentCard key={item.id} item={item} onView={() => setSelectedBlueprint(item)} onEdit={() => beginEditBlueprint(item)} onPublish={() => publishMutation.mutate(item.id)} onToggleLive={(IsLive) => item.latestPublishedVersionId ? listAvailabilityMutation.mutate({ BlueprintId: item.id, VersionId: item.latestPublishedVersionId, IsLive }) : undefined} onArchive={() => archiveMutation.mutate(item.id)} onDelete={() => setPendingDeleteBlueprint(item)} busy={publishMutation.isPending || listAvailabilityMutation.isPending || archiveMutation.isPending || deleteMutation.isPending} />)}</div></div>
         </section>
@@ -701,7 +705,7 @@ function AssessmentDetailsWorkspace({ item, onBack, onRefreshBlueprints }: { ite
               <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-[10px] font-black">{item.moduleCode} · {item.levelCode}</span>
               {generatedAssessment?.status === "PUBLISHED" ? <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${generatedAssessment.isActive ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>{generatedAssessment.isActive ? "LIVE" : "PAUSED"}</span> : null}
             </div>
-            <p className="math-kicker mt-2 text-[10px]">Assessment Details</p>
+            <p className="math-block-header mt-2"><FileText size={14} />Assessment Details</p>
             <h1 className="mt-0.5 max-w-4xl truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">{item.title}</h1>
             <p className="mt-1 max-w-3xl text-sm font-bold leading-5 text-slate-700 dark:text-slate-200">Full-level assessment generated from the selected lesson distribution and concept rules.</p>
           </div>
@@ -777,7 +781,7 @@ function AssessmentOverviewTab({ item }: { item: AssessmentBlueprint }) {
     <section className="rounded-[32px] border border-white/70 bg-white/90 p-4 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
       <div className="grid gap-4 xl:grid-cols-[0.78fr_1.22fr]">
         <div className="rounded-[26px] border border-slate-200 p-5 dark:border-slate-800">
-          <p className="math-kicker text-[10px]">Instructions</p>
+          <p className="math-block-header"><InfoIcon size={14} />Instructions</p>
           <h3 className="mt-2 text-xl font-black text-slate-950 dark:text-white">Student Instructions</h3>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{item.instructions || "Answer all questions carefully before submitting."}</p>
           <div className="mt-4 rounded-[22px] bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
@@ -788,7 +792,7 @@ function AssessmentOverviewTab({ item }: { item: AssessmentBlueprint }) {
         <div className="overflow-hidden rounded-[26px] border border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between gap-3 bg-slate-50 px-5 py-3 dark:bg-slate-900">
             <div>
-              <p className="math-kicker text-[10px]">Distribution Matrix</p>
+              <p className="math-block-header"><Calculator size={14} />Distribution Matrix</p>
               <h3 className="text-xl font-black text-slate-950 dark:text-white">{isSectionWise ? "Section-Wise Questions" : "Lesson-Wise Questions"}</h3>
             </div>
             <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{entries.length} {isSectionWise ? "Sections" : "Lessons"}</span>
@@ -814,7 +818,7 @@ function QuestionPreviewTab({ item, assessment, showAnswers, isLoading, error }:
     <section className="rounded-[32px] border border-white/70 bg-white/90 p-4 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <p className="math-kicker">Question Preview</p>
+          <p className="math-block-header"><Eye size={14} />Question Preview</p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">Generated Question Paper</h2>
           <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">Review the generated questions in the same vertical format students use during assessment.</p>
         </div>
@@ -866,7 +870,7 @@ function GeneratedQuestionPreview({ item, assessment, showAnswers }: { item: Ass
       <div className="math-card overflow-hidden p-4 sm:p-5">
         <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="math-kicker text-[10px]">Assessment Preview</p>
+            <p className="math-block-header"><Search size={14} />Assessment Preview</p>
             <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
               Question {CurrentQuestion.questionNumber} of {Questions.length}
             </h2>
@@ -993,7 +997,7 @@ function CoverageCheckTab({ assessment, showAnswers, isLoading, error }: { asses
     <section className="rounded-[32px] border border-white/70 bg-white/90 p-4 shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <p className="math-kicker">Coverage Check</p>
+          <p className="math-block-header"><BadgeCheck size={14} />Coverage Check</p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">Lesson And Concept Coverage</h2>
           <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">Verify lesson coverage, concept coverage, and generated question allocation before publishing.</p>
         </div>
@@ -1017,7 +1021,7 @@ function AssessmentCoverageCheck({ assessment, showAnswers }: { assessment: Asse
         <div key={Group.groupKind === "SECTION" ? `section-${Group.sectionKey}` : `lesson-${Group.lessonId}`} className="overflow-hidden rounded-[26px] border border-slate-200 dark:border-slate-800">
           <div className="flex flex-col gap-2 bg-slate-50 px-5 py-4 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="math-kicker text-[10px]">{Group.groupKind === "SECTION" ? `Section ${Group.sectionNumber}` : `Lesson ${Group.lessonNumber}`}</p>
+              <p className="math-block-header"><Hash size={14} />{Group.groupKind === "SECTION" ? `Section ${Group.sectionNumber}` : `Lesson ${Group.lessonNumber}`}</p>
               <h3 className="text-lg font-black text-slate-950 dark:text-white">{Group.groupKind === "SECTION" ? Group.sectionTitle : Group.lessonTitle}</h3>
             </div>
             <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{Group.questionCount} Questions</span>
@@ -1045,7 +1049,7 @@ function DeleteAssessmentDialog({ item, busy, error, onCancel, onConfirm }: { it
         <div className="flex items-start gap-4">
           <div className="rounded-2xl bg-red-50 p-3 text-red-600 dark:bg-red-950/40 dark:text-red-300"><AlertTriangle size={22} /></div>
           <div>
-            <p className="math-kicker text-[10px] text-red-600 dark:text-red-300">Delete Assessment</p>
+            <p className="math-block-header text-red-600 dark:text-red-300"><Trash2 size={14} />Delete Assessment</p>
             <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Delete this assessment?</h3>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">This will permanently remove <span className="font-black text-slate-950 dark:text-white">{item.title}</span> from Assessment Studio. This action cannot be undone.</p>
           </div>

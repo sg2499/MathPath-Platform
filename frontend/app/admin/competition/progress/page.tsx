@@ -9,7 +9,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAdminCompetitionMockTracker, type AdminCompetitionTrackerRow } from "@/lib/api/admin";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { BarChart3, Boxes, ChevronDown, ChevronRight, Clock3, Eye, LineChart, Radar, Route, Search, ShieldCheck, Trophy, UsersRound, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
@@ -482,7 +482,7 @@ function AdminCompetitionProgressContent() {
       <AdminCompetitionDarkHoverStyles />
       <section className="admin-competition-dark-hover-scope space-y-6">
         <div className="math-card p-6 sm:p-8">
-          <p className="math-kicker">Competition</p>
+          <p className="math-block-header"><LineChart size={14} />Performance Insights</p>
           <h1 className="math-title">Mock Performance Insights</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
             Monitor student performance, strengths, and areas to improve across the platform.
@@ -507,7 +507,7 @@ function AdminCompetitionProgressContent() {
               <div className="math-card overflow-hidden p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="math-kicker">Monitor</p>
+                    <p className="math-block-header"><Radar size={14} />Monitor</p>
                     <h2 className="text-2xl font-black text-slate-950 dark:text-white">Student Mock Outcomes</h2>
                     <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       Review completion status, score, accuracy, and time taken for your students.
@@ -609,7 +609,7 @@ function AdminCompetitionProgressContent() {
                                       onClick={() => ToggleExpanded(SetExpandedModules, ModuleGroup.key)}
                                     >
                                       <div className="text-left">
-                                        <p className="math-kicker">Module</p>
+                                        <p className="math-block-header"><Boxes size={14} />Module</p>
                                         <h4 className="text-base font-black text-slate-950 dark:text-white">
                                           {ModuleGroup.label}
                                         </h4>
@@ -633,7 +633,7 @@ function AdminCompetitionProgressContent() {
                                                 onClick={() => ToggleExpanded(SetExpandedLevels, LevelGroup.key)}
                                               >
                                                 <div className="text-left">
-                                                  <p className="math-kicker">Level</p>
+                                                  <p className="math-block-header"><Route size={14} />Level</p>
                                                   <h5 className="text-base font-black text-slate-950 dark:text-white">
                                                     {LevelGroup.label}
                                                   </h5>

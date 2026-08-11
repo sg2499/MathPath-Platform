@@ -9,7 +9,7 @@ import { api, apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
 import { getStoredUser, getStoredUserForRole, setActiveRole } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target } from "lucide-react";
+import { ArrowLeft, Award, CheckCircle2, Clock3, FileCheck2, Rocket, ShieldAlert, Sparkles, Target } from "lucide-react";
 import { PremiumResultFeedbackCard } from "@/components/common/PerformanceFeedback";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
@@ -194,7 +194,7 @@ function StudentAssessmentResultPageContent() {
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="math-kicker">Assessment Result</p>
+                <p className="math-block-header"><FileCheck2 size={14} />Assessment Result</p>
                 <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">Score: {CleanNumber(CappedScore(Query.data.score, Query.data.maxScore))} / {CleanNumber(Query.data.maxScore)}</h1>
                 <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Query.data.assignmentTitle}</p>
               </div>

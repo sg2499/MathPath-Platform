@@ -22,7 +22,7 @@ import {
 import type { LevelItem, ModuleItem } from "@/types/curriculum";
 import type { AdminStudent } from "@/types/student";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Archive, CheckCircle2, Eye, FilePenLine, Loader2, Plus, Search, Send, ShieldCheck, Target, Trash2, UsersRound } from "lucide-react";
+import { AlertTriangle, Archive, CheckCircle2, Eye, FilePenLine, FilePlus, Loader2, PackageOpen, Plus, Search, Send, Settings2, ShieldCheck, Target, Trash2, UserCheck, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -90,10 +90,10 @@ function StatusChip({ status }: { status: string }) {
   );
 }
 
-function SectionTitle({ kicker, title, description }: { kicker: string; title: string; description: string }) {
+function SectionTitle({ kicker, title, description, icon }: { kicker: string; title: string; description: string; icon?: ReactNode }) {
   return (
     <div>
-      <p className="math-kicker">{kicker}</p>
+      <p className="math-block-header">{icon}{kicker}</p>
       <h2 className="text-xl font-black text-slate-950 dark:text-white">{title}</h2>
       <p className="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{description}</p>
     </div>
@@ -412,7 +412,7 @@ export default function AdminCompetitionMockStudioPage() {
     <AppShell title="Competition Mock Studio">
       <section className="space-y-6">
         <div className="math-card p-6">
-          <p className="math-kicker">Competition</p>
+          <p className="math-block-header"><PackageOpen size={14} />Mock Studio</p>
           <h1 className="math-title">Competition Mock Studio</h1>
           <p className="mt-3 max-w-none text-sm font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
             Create draft championship-style mock papers and assign one or multiple mocks directly to students by level. This remains independent from DPS Practice, Assessments, readiness, and progression.
@@ -457,7 +457,7 @@ export default function AdminCompetitionMockStudioPage() {
         {ActiveStudioTab === "CREATE" && (
           <div className="space-y-6">
               <div className="math-card p-5">
-                <SectionTitle kicker="Create Mock" title="Select Module And Level" description="Mock papers are generated at level scope, independent from DPS practice and assessment structures." />
+                <SectionTitle icon={<FilePlus size={14} />} kicker="Create Mock" title="Select Module And Level" description="Mock papers are generated at level scope, independent from DPS practice and assessment structures." />
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Module
@@ -481,7 +481,7 @@ export default function AdminCompetitionMockStudioPage() {
               </div>
 
               <div className="math-card p-5">
-                <SectionTitle kicker="Create Mock" title="Build Mock Paper" description="Create a fresh mock version with varied question combinations for the selected level." />
+                <SectionTitle icon={<FilePlus size={14} />} kicker="Create Mock" title="Build Mock Paper" description="Create a fresh mock version with varied question combinations for the selected level." />
                 <div className="mt-5 grid gap-4">
                   <div className="grid gap-4 sm:grid-cols-[1.35fr_0.65fr]">
                     <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
@@ -570,7 +570,7 @@ export default function AdminCompetitionMockStudioPage() {
         {ActiveStudioTab === "MANAGE" && (
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
               <div className="math-card p-5">
-                <SectionTitle kicker="Manage Mocks" title="Mock Paper Library" description="View, preview, assign, archive, or delete competition mock papers from one focused control panel." />
+                <SectionTitle icon={<Settings2 size={14} />} kicker="Manage Mocks" title="Mock Paper Library" description="View, preview, assign, archive, or delete competition mock papers from one focused control panel." />
 
                 <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_190px_190px]">
                   <div className="relative">
@@ -627,7 +627,7 @@ export default function AdminCompetitionMockStudioPage() {
               </div>
 
               <div className="math-card p-5">
-                <SectionTitle kicker="Assign" title="Assign Selected Mock Exams" description="Admin can assign selected mocks directly, without involving the teacher." />
+                <SectionTitle icon={<UserCheck size={14} />} kicker="Assign" title="Assign Selected Mock Exams" description="Admin can assign selected mocks directly, without involving the teacher." />
                 <div className="mt-5 space-y-5">
                   {SelectedMockIds.length > 0 && !AssignmentScope && (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
@@ -696,7 +696,7 @@ export default function AdminCompetitionMockStudioPage() {
                   <Archive size={22} />
                 </div>
                 <div>
-                  <p className="math-kicker text-amber-600 dark:text-amber-300">Archive Mock Exam</p>
+                  <p className="math-block-header text-amber-600 dark:text-amber-300"><Archive size={14} />Archive Mock Exam</p>
                   <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Archive this mock?</h2>
                   <p className="mt-3 text-sm font-bold leading-6 text-slate-600 dark:text-slate-300">
                     This keeps the mock and its history available for management, but removes it from normal assignment selection. Permanent delete remains available separately.
@@ -724,7 +724,7 @@ export default function AdminCompetitionMockStudioPage() {
                   <AlertTriangle size={22} />
                 </div>
                 <div>
-                  <p className="math-kicker text-rose-600 dark:text-rose-300">Delete Mock Exam</p>
+                  <p className="math-block-header text-rose-600 dark:text-rose-300"><Trash2 size={14} />Delete Mock Exam</p>
                   <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Permanently delete this mock?</h2>
                   <p className="mt-3 text-sm font-bold leading-6 text-slate-600 dark:text-slate-300">
                     This will permanently delete the mock paper, questions, options, assignments, attempts, answers, and result summaries linked to this mock. This action cannot be undone.

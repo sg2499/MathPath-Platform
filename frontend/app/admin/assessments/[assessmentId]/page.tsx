@@ -69,7 +69,7 @@ export default function AdminAssessmentDetailPage() {
           <section className="math-hero">
             <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="math-kicker">Assessment detail</p>
+                <p className="math-block-header"><Eye size={14} />Assessment detail</p>
                 <h1 className="math-title">{assessment.title}</h1>
                 <p className="math-subtitle">
                   {assessment.levelCode || "-"} · Lesson {assessment.lessonNumber ?? "-"} · DPS {assessment.dpsNumber ?? "-"} — re-attempts by admin approval only

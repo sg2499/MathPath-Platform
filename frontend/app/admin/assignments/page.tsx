@@ -8,7 +8,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAdminAssignments } from "@/lib/api/admin";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, BarChart3, CheckCircle2, ClipboardList, Clock3, Plus, Search, UsersRound } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle2, ClipboardList, ClipboardPlus, Clock3, FolderOpen, Plus, Search, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -281,7 +281,7 @@ export default function AdminPracticeAssignmentsPage() {
       <section className="w-full space-y-6">
         <div className="math-hero">
           <div>
-            <p className="math-kicker">Learning Operations</p>
+            <p className="math-block-header"><ClipboardPlus size={14} />Learning Operations</p>
             <h1 className="math-title">Practice Control</h1>
             <p className="math-subtitle">
               Manage practice assignment, completion, and student action needs.
@@ -330,7 +330,7 @@ export default function AdminPracticeAssignmentsPage() {
         <div className="math-operation-panel">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="math-kicker">Practice Directory</p>
+              <p className="math-block-header"><FolderOpen size={14} />Practice Directory</p>
               <h2 className="text-2xl font-black">Practice Overview</h2>
               <p className="mt-1 text-sm font-semibold text-slate-500">
                 Review student-wise practice control status.

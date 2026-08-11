@@ -12,7 +12,7 @@ import { formatMathPathDateTime } from "@/lib/date";
 import { formatAnswerValue } from "@/lib/utils";
 import { getAdminAttemptResult } from "@/lib/api/admin";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpenCheck, CalendarClock, CheckCircle2, Clock, UserRound, XCircle } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, CalendarClock, CheckCircle2, Clock, Stethoscope, UserRound, XCircle } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
 function formatDate(value?: string | null) {
@@ -41,7 +41,7 @@ export default function AdminAttemptDetailPage() {
         <div className="math-admin-attempt-detail-page space-y-6">
           <section className="math-hero">
             <div className="relative z-10">
-              <p className="math-kicker">Admin diagnostic review</p>
+              <p className="math-block-header"><Stethoscope size={14} />Admin diagnostic review</p>
               <h1 className="math-title">Attempt Details</h1>
               <p className="math-subtitle">Review every submitted answer with attempt and completion dates.</p>
             </div>

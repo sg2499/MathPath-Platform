@@ -40,6 +40,7 @@ import {
   ClipboardList,
   ClipboardPlus,
   Camera,
+  FileBarChart,
   FilePenLine,
   GraduationCap,
   KeyRound,
@@ -318,7 +319,7 @@ export function AppShell({
           label: "Learning Path Studio",
           shortLabel: "Path Studio",
           href: "/admin/curriculum",
-          icon: BookOpen,
+          icon: BookOpenCheck,
           tooltip: "Review and publish DPS content",
         },
       ],
@@ -331,7 +332,7 @@ export function AppShell({
         {
           label: "Students",
           href: "/admin/students",
-          icon: UsersRound,
+          icon: UserRound,
           tooltip: "Manage students",
         },
         {
@@ -352,7 +353,7 @@ export function AppShell({
           label: "Practice Control",
           shortLabel: "Practice",
           href: "/admin/assignments",
-          icon: ClipboardPlus,
+          icon: ClipboardCheck,
           tooltip: "Manage practice delivery",
         },
         {
@@ -373,7 +374,7 @@ export function AppShell({
           label: "Assessment Control",
           shortLabel: "Assessments",
           href: "/admin/assessments",
-          icon: GraduationCap,
+          icon: CheckCircle2,
           tooltip: "Manage assessment delivery",
         },
       ],
@@ -387,7 +388,7 @@ export function AppShell({
           label: "Competition Mock Studio",
           shortLabel: "Mock Studio",
           href: "/admin/competition/mock-studio",
-          icon: FilePenLine,
+          icon: PackageOpen,
           tooltip: "Create and publish competition mock exams",
         },
         {
@@ -414,7 +415,7 @@ export function AppShell({
         {
           label: "Performance Reports",
           href: "/admin/results",
-          icon: BarChart3,
+          icon: FileBarChart,
           tooltip: "Generate performance reports",
         },
       ],

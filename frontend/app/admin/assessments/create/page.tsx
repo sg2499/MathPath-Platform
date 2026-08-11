@@ -23,9 +23,11 @@ import {
   GraduationCap,
   Layers3,
   LockKeyhole,
+  Rocket,
   Send,
   UserRound,
   UsersRound,
+  Wrench,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -140,7 +142,7 @@ export default function CreateAssessmentPage() {
         <section className="math-hero math-slide-up">
           <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="math-kicker">Assessment builder</p>
+              <p className="math-block-header"><Wrench size={14} />Assessment builder</p>
               <h1 className="math-title">Create Formal Assessment</h1>
               <p className="math-subtitle">
                 Select a DPS and target. Students receive one normal attempt; extra attempts require admin approval.
@@ -162,7 +164,7 @@ export default function CreateAssessmentPage() {
                 <GraduationCap size={25} />
               </div>
               <div>
-                <p className="math-kicker">Step 1</p>
+                <p className="math-block-header"><Rocket size={14} />Step 1</p>
                 <h2 className="text-3xl font-black text-slate-950 dark:text-white">Assessment Setup</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
                   Formal assessments are separate from daily practice sheets.
@@ -216,7 +218,7 @@ export default function CreateAssessmentPage() {
                   <LockKeyhole size={22} />
                 </div>
                 <div>
-                  <p className="math-kicker">Rules</p>
+                  <p className="math-block-header"><LockKeyhole size={14} />Rules</p>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Controlled Re-Attempts</h2>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                     Teachers cannot reopen assessments. Admin can unlock the same assessment when remediation is needed.

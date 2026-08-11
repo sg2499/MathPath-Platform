@@ -99,7 +99,10 @@ function DeleteConfirmModal({
   return (
     <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-2xl">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-rose-600">Admin Control</p>
+        <p className="math-block-header text-rose-600 dark:text-rose-300">
+          <Trash2 size={14} />
+          Admin Control
+        </p>
         <h3 className="mt-2 text-2xl font-black">Delete assessment record?</h3>
         <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">If attempts exist, type DELETE to confirm removal.</p>
         <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-black">{Target.title}</div>

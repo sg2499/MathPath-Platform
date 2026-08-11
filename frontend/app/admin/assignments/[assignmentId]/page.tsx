@@ -83,7 +83,7 @@ export default function AdminAssignmentDetailPage() {
           <section className="math-hero">
             <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="math-kicker">Assignment detail</p>
+                <p className="math-block-header"><Eye size={14} />Assignment detail</p>
                 <h1 className="math-title">{assignment.title}</h1>
                 <p className="math-subtitle">
                   {assignment.levelCode || "-"} · Lesson {assignment.lessonNumber ?? "-"} · DPS {assignment.dpsNumber ?? "-"} — {assignment.dpsTitle || "-"}
@@ -205,7 +205,7 @@ export default function AdminAssignmentDetailPage() {
                 <RotateCcw size={24} />
               </div>
               <div>
-                <p className="math-kicker">Approval required</p>
+                <p className="math-block-header"><RotateCcw size={14} />Approval required</p>
                 <h2 className="text-2xl font-black text-slate-950">Allow Re-Attempt</h2>
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
                   {FreshPracticeRequest.studentName} has used all 3 available attempts. This action will assign Re-Attempt {NextAttemptNumber} for the same DPS concept with a different question set. Previous attempts will remain preserved in history.
