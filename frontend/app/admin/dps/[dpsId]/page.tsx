@@ -9,6 +9,7 @@ import { apiErrorMessage } from "@/lib/api";
 import { generateDpsPreview, getDpsConfig } from "@/lib/api/admin";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
+import { Layers3 } from "lucide-react";
 
 export default function AdminDpsPage() {
   const ready = useProtectedPage(["ADMIN", "TEACHER", "SUPER_ADMIN"]);
@@ -25,7 +26,10 @@ export default function AdminDpsPage() {
       {config.data ? (
         <div className="space-y-5">
           <div className="math-card p-6">
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">DPS {config.data.dpsNumber}</p>
+            <p className="math-block-header">
+              <Layers3 size={14} />
+              DPS {config.data.dpsNumber}
+            </p>
             <h1 className="mt-1 text-3xl font-black text-slate-900">{config.data.dpsTitle}</h1>
             <div className="mt-5 grid gap-3 md:grid-cols-4">
               <Info label="Questions" value={config.data.defaultQuestionCount} />

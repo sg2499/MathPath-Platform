@@ -22,7 +22,7 @@ import type {
 } from "@/types/curriculum";
 import type { AdminPreviewQuestion } from "@/types/question";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Eye, EyeOff, RefreshCcw } from "lucide-react";
+import { CheckCircle2, Compass, Eye, EyeOff, RefreshCcw } from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -424,7 +424,7 @@ function AdminCurriculumPageContent() {
   return (
     <AppShell>
       <section className="math-hero">
-        <p className="math-kicker">Admin Learning Path</p>
+        <p className="math-block-header"><Compass size={14} />Admin Learning Path</p>
 
         <h1 className="math-title">Learning Path Studio</h1>
 

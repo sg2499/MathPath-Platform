@@ -3,29 +3,31 @@
 import { AppShell } from "@/components/common/AppShell";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
-  BadgeCheck,
   BarChart3,
-  BookOpen,
-  ClipboardEdit,
-  ClipboardList,
+  BookOpenCheck,
+  CheckCircle2,
+  ClipboardCheck,
+  FileBarChart,
+  FilePenLine,
+  Gauge,
   GraduationCap,
+  ListOrdered,
   ShieldCheck,
   Sparkles,
-  Target,
-  UserCheck,
+  UserRound,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 const QuickLinks = [
-  { Icon: <BookOpen size={16} />, Label: "Learning Path", Route: "/admin/curriculum" },
-  { Icon: <GraduationCap size={16} />, Label: "Students", Route: "/admin/students" },
-  { Icon: <UserCheck size={16} />, Label: "Teachers", Route: "/admin/teachers" },
-  { Icon: <ClipboardList size={16} />, Label: "Practice Control", Route: "/admin/assignments" },
-  { Icon: <BadgeCheck size={16} />, Label: "Assessment Readiness", Route: "/admin/assessment-readiness" },
-  { Icon: <ClipboardEdit size={16} />, Label: "Assessment Studio", Route: "/admin/assessment-blueprints" },
-  { Icon: <ShieldCheck size={16} />, Label: "Assessment Control", Route: "/admin/assessments" },
-  { Icon: <BarChart3 size={16} />, Label: "Performance Reports", Route: "/admin/results" },
+  { Icon: <BookOpenCheck size={16} />, Label: "Learning Path", Route: "/admin/curriculum" },
+  { Icon: <UserRound size={16} />, Label: "Students", Route: "/admin/students" },
+  { Icon: <GraduationCap size={16} />, Label: "Teachers", Route: "/admin/teachers" },
+  { Icon: <ClipboardCheck size={16} />, Label: "Practice Control", Route: "/admin/assignments" },
+  { Icon: <ShieldCheck size={16} />, Label: "Assessment Readiness", Route: "/admin/assessment-readiness" },
+  { Icon: <FilePenLine size={16} />, Label: "Assessment Studio", Route: "/admin/assessment-blueprints" },
+  { Icon: <CheckCircle2 size={16} />, Label: "Assessment Control", Route: "/admin/assessments" },
+  { Icon: <FileBarChart size={16} />, Label: "Performance Reports", Route: "/admin/results" },
 ];
 
 import { LiveRadarWidget } from "@/components/admin/LiveRadarWidget";
@@ -44,8 +46,8 @@ export default function AdminDashboardPage() {
           <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-violet-300/14 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
-              <div className="math-dashboard-kicker">
-                <Target size={13} />
+              <div className="math-block-header">
+                <Gauge size={14} />
                 Admin Workspace
               </div>
               <h1 className="mt-3 max-w-4xl text-3xl font-black tracking-[-0.035em] text-slate-950 dark:text-white sm:text-[2.35rem] lg:whitespace-nowrap">
@@ -81,7 +83,10 @@ export default function AdminDashboardPage() {
 
         <section className="math-dashboard-priority-panel">
           <div>
-            <p className="math-dashboard-section-label">Operational Priority</p>
+            <p className="math-block-header">
+              <ListOrdered size={14} />
+              Operational Priority
+            </p>
             <h2 className="mt-1.5 text-xl font-black tracking-tight text-slate-950 dark:text-white">
               Review Readiness And Reports
             </h2>

@@ -1,6 +1,6 @@
 import type { AdminPreviewQuestion } from "@/types/question";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
-import { CheckCircle2, PencilLine } from "lucide-react";
+import { CheckCircle2, Eye, PencilLine, Settings2 } from "lucide-react";
 
 function FormatNumericDisplay(Value: unknown): string {
   const RawValue = String(Value ?? "").trim();
@@ -34,7 +34,7 @@ export function AdminQuestionPreview({ questions }: { questions: AdminPreviewQue
           <div key={q.questionId || q.seed || questionNumber} className="math-card p-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div className="lg:w-[340px]">
-                <p className="math-kicker">Preview Question</p>
+                <p className="math-block-header"><Eye size={14} />Preview Question</p>
                 <h3 className="mt-3 text-2xl font-black text-slate-950">Question {questionNumber}</h3>
                 <div className="mt-5 rounded-[28px] bg-slate-50/90 p-5">
                   <MathQuestionDisplay operands={q.operands} operators={q.operators} displayType={(q as any).displayType ?? (q as any).display_type} questionText={(q as any).questionText ?? (q as any).question_text} />
@@ -42,7 +42,7 @@ export function AdminQuestionPreview({ questions }: { questions: AdminPreviewQue
               </div>
 
               <div className="flex-1">
-                <p className="math-kicker mb-2">Generator Options (Reference Only)</p>
+                <p className="math-block-header mb-2"><Settings2 size={14} />Generator Options (Reference Only)</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {options.map((option) => {
                     const isCorrect = Boolean(option.isCorrect ?? option.is_correct);
@@ -76,7 +76,7 @@ export function AdminQuestionPreview({ questions }: { questions: AdminPreviewQue
                     are kept for the generator/distractor-quality audit; this
                     shows what the student will actually see and answer. */}
                 <div className="mt-5">
-                  <p className="math-kicker mb-2 flex items-center gap-1.5"><PencilLine size={13} /> Student Will See</p>
+                  <p className="math-block-header mb-2"><PencilLine size={14} />Student Will See</p>
                   <div className="flex flex-col items-center gap-3 rounded-[24px] border-2 border-dashed border-slate-200 bg-slate-50/80 p-5">
                     <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
                       Type Your Answer

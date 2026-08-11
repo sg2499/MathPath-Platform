@@ -33,18 +33,27 @@ import { CompareStudentCodes } from "@/lib/studentSort";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  ArrowUpCircle,
   Archive,
+  Boxes,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
   ClipboardList,
+  ClipboardPlus,
   FileText,
+  Gavel,
   History,
+  List,
   Mail,
+  PackageCheck,
   Plus,
+  Scale,
   Search,
+  Send,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Trash2,
   UsersRound,
@@ -1349,7 +1358,7 @@ function AdminAssessmentControlPageContent() {
       <section className="w-full space-y-6">
         <div className="math-hero">
           <div>
-            <p className="math-kicker">Learning Operations</p>
+            <p className="math-block-header"><ClipboardPlus size={14} />Learning Operations</p>
             <h1 className="math-title">Assessment Control</h1>
             <p className="math-subtitle">
               Manage assessment records, re-attempt approval, and assignment
@@ -1462,7 +1471,7 @@ function AdminAssessmentControlPageContent() {
             <div className="math-operation-panel">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="math-kicker">Assessment Control</p>
+                  <p className="math-block-header"><FileText size={14} />Student Records</p>
                   <h2 className="text-2xl font-black">Student Records</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     Review student-wise assessment control status.
@@ -1617,7 +1626,7 @@ function AdminAssessmentControlPageContent() {
             <div className="math-operation-panel">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="math-kicker">Assessment Governance</p>
+                  <p className="math-block-header"><Scale size={14} />Assessment Governance</p>
                   <h2 className="text-2xl font-black">Re-Attempt Approvals</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     Approve re-attempt access only when a different live
@@ -1731,7 +1740,7 @@ function AdminAssessmentControlPageContent() {
             <div className="math-operation-panel">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="math-kicker">Assessment Management</p>
+                  <p className="math-block-header"><SlidersHorizontal size={14} />Assessment Management</p>
                   <h2 className="text-2xl font-black">Manage</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     Archive or permanently delete assessment structures from one
@@ -1843,7 +1852,7 @@ function AdminAssessmentControlPageContent() {
             <div className="math-operation-panel">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="math-kicker">Progression Audit</p>
+                  <p className="math-block-header"><History size={14} />Progression Audit</p>
                   <h2 className="text-2xl font-black">Promotion History</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     Review completed level promotions with assessment result and
@@ -1932,7 +1941,7 @@ function AdminAssessmentControlPageContent() {
             <div className="math-operation-panel math-admin-parent-report-panel">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="math-kicker">Parent Report Center</p>
+                  <p className="math-block-header"><Mail size={14} />Parent Report Center</p>
                   <h2 className="text-2xl font-black">Parent Reports</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     Generate completed-level parent reports and review delivery
@@ -2033,7 +2042,7 @@ function AdminAssessmentControlPageContent() {
                   )}
                 </span>
                 <div>
-                  <p className="math-kicker">Admin Decision</p>
+                  <p className="math-block-header"><Gavel size={14} />Admin Decision</p>
                   <h3 className="text-2xl font-black text-slate-950 dark:text-white">
                     {DecisionTarget.Mode === "APPROVE"
                       ? "Approve Re-Attempt Access?"
@@ -2334,7 +2343,7 @@ function AssessmentHierarchyRecords({
                   )}
                 </span>
                 <div className="min-w-0">
-                  <p className="math-kicker text-[10px]">Assessment Module</p>
+                  <p className="math-block-header"><Boxes size={14} />Assessment Module</p>
                   <h4 className="truncate text-lg font-black text-slate-950 dark:text-white">
                     {ModuleGroup.ModuleLabel}
                   </h4>
@@ -2560,7 +2569,7 @@ function AssessmentManageHierarchy({
                   )}
                 </span>
                 <div className="min-w-0">
-                  <p className="math-kicker text-[10px]">Assessment Module</p>
+                  <p className="math-block-header"><Boxes size={14} />Assessment Module</p>
                   <h4 className="truncate text-lg font-black text-slate-950 dark:text-white">
                     {ModuleGroup.ModuleLabel}
                   </h4>
@@ -3468,7 +3477,7 @@ function ParentReportGenerateTable({
                                 )}
                               </span>
                               <div className="min-w-0">
-                                <p className="math-kicker">Module</p>
+                                <p className="math-block-header"><Boxes size={14} />Module</p>
                                 <p className="truncate text-sm font-black text-slate-950 dark:text-white">
                                   {ModuleGroup.ModuleLabel}
                                 </p>
@@ -3621,7 +3630,7 @@ function ParentReportGenerateTable({
         <div className="math-modal-overlay">
           <div className="math-modal-shell math-modal-shell-sm">
             <div className="math-modal-header">
-              <p className="math-kicker">Send Parent Report</p>
+              <p className="math-block-header"><Send size={14} />Send Parent Report</p>
               <h3 className="text-2xl font-black text-slate-950 dark:text-white">
                 Choose Report Recipient
               </h3>
@@ -4203,7 +4212,7 @@ function ParentReportDeliveryHistoryTable({
       <div className="math-operation-panel">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="math-kicker">Delivery History</p>
+            <p className="math-block-header"><Archive size={14} />Delivery History</p>
             <h3 className="text-2xl font-black text-slate-950 dark:text-white">
               Parent Report Delivery Audit
             </h3>
@@ -4396,7 +4405,7 @@ function ParentReportDeliveryHistoryTable({
                                 )}
                               </span>
                               <div className="min-w-0">
-                                <p className="math-kicker">Module</p>
+                                <p className="math-block-header"><Boxes size={14} />Module</p>
                                 <p className="truncate text-sm font-black text-slate-950 dark:text-white">
                                   {ModuleGroup.ModuleLabel}
                                 </p>
@@ -4534,7 +4543,7 @@ function ParentReportDeliveryHistoryTable({
           <div className="math-modal-shell math-modal-shell-lg">
             <div className="flex items-start justify-between gap-4 math-modal-header">
               <div>
-                <p className="math-kicker">Delivery Details</p>
+                <p className="math-block-header"><PackageCheck size={14} />Delivery Details</p>
                 <h3 className="text-2xl font-black text-slate-950 dark:text-white">
                   Parent Report Email Audit
                 </h3>
@@ -4721,7 +4730,8 @@ function ParentReportDeliveryHistoryTable({
                 <XCircle size={22} />
               </span>
               <div>
-                <p className="math-kicker text-rose-600">
+                <p className="math-block-header text-rose-600">
+                  <XCircle size={14} />
                   Delete Delivery Record
                 </p>
                 <h3 className="text-2xl font-black text-slate-950 dark:text-white">
@@ -4796,7 +4806,7 @@ function ParentReportDeliveryHistoryTable({
         <div className="math-modal-overlay">
           <div className="math-modal-shell math-modal-shell-sm">
             <div className="math-modal-header">
-              <p className="math-kicker">Resend Parent Report</p>
+              <p className="math-block-header"><Send size={14} />Resend Parent Report</p>
               <h3 className="text-2xl font-black text-slate-950 dark:text-white">
                 Confirm Report Resend
               </h3>
@@ -5464,7 +5474,8 @@ function PromoteAssessmentDialog({
             <Sparkles size={22} />
           </div>
           <div>
-            <p className="math-kicker text-[10px] text-violet-700 dark:text-violet-300">
+            <p className="math-block-header text-violet-700 dark:text-violet-300">
+              <ArrowUpCircle size={14} />
               Level Promotion
             </p>
             <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
@@ -5489,7 +5500,8 @@ function PromoteAssessmentDialog({
         </div>
 
         <div className="mt-5 rounded-[24px] border border-violet-100 bg-violet-50/80 p-4 dark:border-violet-900/50 dark:bg-violet-950/30">
-          <p className="math-kicker text-[10px] text-violet-700 dark:text-violet-300">
+          <p className="math-block-header text-violet-700 dark:text-violet-300">
+            <List size={14} />
             Assessment Summary
           </p>
           <div className="mt-3 grid gap-2">
@@ -5511,7 +5523,7 @@ function PromoteAssessmentDialog({
 
         <div className="mt-4 rounded-[24px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40">
           <label
-            className="math-kicker text-[10px] text-slate-500 dark:text-slate-400"
+            className="math-label"
             htmlFor="promotion-target-level"
           >
             Promote To
@@ -5603,7 +5615,8 @@ function DeleteAssessmentDialog({
             <AlertTriangle size={22} />
           </div>
           <div>
-            <p className="math-kicker text-[10px] text-red-600 dark:text-red-300">
+            <p className="math-block-header text-red-600 dark:text-red-300">
+              <AlertTriangle size={14} />
               Permanent Deletion
             </p>
             <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">

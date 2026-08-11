@@ -24,7 +24,9 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  FileStack,
   GraduationCap,
+  Lock,
   Maximize2,
   Minimize2,
   Search,
@@ -377,7 +379,7 @@ export default function AdminAssessmentReadinessPage() {
     <AppShell>
       <section className="math-hero">
         <div className="relative z-10">
-          <p className="math-kicker">Assessment Readiness</p>
+          <p className="math-block-header"><ShieldCheck size={14} />Assessment Readiness</p>
           <h1 className="math-title">Assessment Readiness</h1>
           <p className="math-subtitle">
             Review assessment eligibility by student, teacher, and level.
@@ -915,7 +917,7 @@ function ReadinessDetails({
       <section className="mt-5 rounded-[26px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="math-kicker text-[10px]">Sheet Breakdown</p>
+            <p className="math-block-header"><FileStack size={14} />Sheet Breakdown</p>
             <h3 className="text-lg font-black text-slate-950 dark:text-white">
               DPS Clearance Tracker
             </h3>
@@ -1343,7 +1345,8 @@ function TestingOverrideModal({
       <div className="flex max-h-[calc(100vh-120px)] w-full max-w-3xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl">
         <div className="flex shrink-0 flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="math-kicker text-[10px]">
+            <p className="math-block-header">
+              <Lock size={14} />
               Assessment Readiness Access
             </p>
             <h2 className="text-2xl font-black text-slate-950">

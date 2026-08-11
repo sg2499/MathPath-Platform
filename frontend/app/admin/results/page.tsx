@@ -33,14 +33,24 @@ import type { AdminTeacher } from "@/types/teacher";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  ArrowUpCircle,
   BarChart3,
+  BookText,
+  Boxes,
+  CheckCheck,
   ChevronDown,
   ClipboardCheck,
   Clock3,
+  Database,
   Eye,
+  FileClock,
   FileSpreadsheet,
+  Filter,
+  Gauge,
   GraduationCap,
+  History,
   Layers3,
+  Route,
   Search,
   Sparkles,
   Target,
@@ -1272,7 +1282,7 @@ export default function AdminResultsPage() {
     <AppShell title="Performance Reports">
       <section className="math-hero math-slide-up py-7">
         <div className="relative z-10">
-          <p className="math-kicker">Admin Reports</p>
+          <p className="math-block-header"><BarChart3 size={14} />Admin Reports</p>
           <h1 className="math-title">Performance Reports</h1>
           <p className="math-subtitle">
             Review learning performance and student history with
@@ -1420,7 +1430,7 @@ export default function AdminResultsPage() {
       <section className="mt-5 math-card math-selected-scope-card p-4 sm:p-5">
         <div className="space-y-3">
           <div className="min-w-0">
-            <p className="math-kicker">Selected Scope</p>
+            <p className="math-block-header"><Filter size={14} />Selected Scope</p>
             <h2 className="mt-1 text-xl font-black text-slate-950 sm:text-2xl">
               {ScopeLabel()}
             </h2>
@@ -2168,6 +2178,7 @@ function HistoryHierarchyRow({
         ? "border-cyan-100 bg-cyan-50/40"
         : "border-slate-200 bg-white/80";
   const Kicker = Depth === 0 ? "Module" : Depth === 1 ? "Level" : "Lesson";
+  const KickerIcon = Depth === 0 ? Boxes : Depth === 1 ? Route : BookText;
 
   return (
     <div className={`math-history-hierarchy-row math-history-depth-${Depth} rounded-[24px] border ${Tone} p-3 shadow-sm`}>
@@ -2179,7 +2190,7 @@ function HistoryHierarchyRow({
         <div className="flex min-w-0 items-center gap-3">
           <HierarchyToggle Expanded={Expanded} />
           <div className="min-w-0">
-            <p className="math-kicker">{Kicker}</p>
+            <p className="math-block-header"><KickerIcon size={14} />{Kicker}</p>
             <h4 className="mt-1 truncate text-base font-black text-slate-950">
               {Group.Label}
             </h4>
@@ -2396,7 +2407,7 @@ function StudentHistoryView({
       <div className="math-card p-4">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <p className="math-kicker">Current Level Tracker</p>
+            <p className="math-block-header"><Gauge size={14} />Current Level Tracker</p>
             <h3 className="text-2xl font-black text-slate-950">
               Current Level Progress
             </h3>
@@ -2412,7 +2423,7 @@ function StudentHistoryView({
         <div className="mt-4 rounded-[26px] border border-slate-200 bg-white/75 p-4">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <p className="math-kicker">Completed Level Journey</p>
+              <p className="math-block-header"><CheckCheck size={14} />Completed Level Journey</p>
               <h4 className="text-xl font-black text-slate-950">
                 Cleared Level History
               </h4>
@@ -2450,7 +2461,7 @@ function StudentHistoryView({
       <div className="math-card p-4">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <p className="math-kicker">DPS History</p>
+            <p className="math-block-header"><Database size={14} />DPS History</p>
             <h3 className="text-2xl font-black text-slate-950">
               Learning Attempts
             </h3>
@@ -2475,7 +2486,7 @@ function StudentHistoryView({
       <div className="math-card p-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="math-kicker">Assessment History</p>
+            <p className="math-block-header"><FileClock size={14} />Assessment History</p>
             <h3 className="text-2xl font-black text-slate-950">
               Assessment Attempts
             </h3>
@@ -2508,7 +2519,7 @@ function StudentHistoryView({
         <div className="math-card p-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="math-kicker">Progression Audit</p>
+              <p className="math-block-header"><History size={14} />Progression Audit</p>
               <h3 className="text-2xl font-black text-slate-950">
                 Promotion History
               </h3>
@@ -2989,8 +3000,8 @@ function LevelProgressionSummary({
             <GraduationCap size={22} />
           </div>
           <div>
-            <p className="math-kicker text-violet-700">
-              Level Progression Summary
+            <p className="math-block-header text-violet-700">
+              <ArrowUpCircle size={14} />Level Progression Summary
             </p>
             <h3 className="mt-2 text-2xl font-black text-slate-950">
               {HasPromotion
@@ -3042,7 +3053,7 @@ function CompletedLevelModuleBlock({
         <div className="flex min-w-0 items-center gap-3">
           <HierarchyToggle Expanded={Expanded} />
           <div className="min-w-0">
-            <p className="math-kicker">Module</p>
+            <p className="math-block-header"><Boxes size={14} />Module</p>
             <h4 className="mt-1 truncate text-base font-black text-slate-950">
               {ModuleGroup.Label}
             </h4>
@@ -3103,7 +3114,7 @@ function CompletedLevelSummaryBlock({
         <div className="flex min-w-0 items-center gap-3">
           <HierarchyToggle Expanded={Expanded} />
           <div className="min-w-0">
-            <p className="math-kicker">Level</p>
+            <p className="math-block-header"><Route size={14} />Level</p>
             <h5 className="mt-1 text-base font-black text-slate-950">
               {PickFirstString(Row, ["levelCode"], "Level")} ·{" "}
               {PickFirstString(Row, ["levelName"], "-")}

@@ -9,6 +9,7 @@ import { apiErrorMessage } from "@/lib/api";
 import { getDpsResults } from "@/lib/api/admin";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
+import { Activity } from "lucide-react";
 
 export default function AdminDpsResultsPage() {
   const ready = useProtectedPage(["ADMIN", "TEACHER", "SUPER_ADMIN"]);
@@ -21,7 +22,7 @@ export default function AdminDpsResultsPage() {
       {query.error ? <ErrorState message={apiErrorMessage(query.error)} /> : null}
       {query.data ? (
         <div className="space-y-5">
-          <div className="math-card p-6"><h1 className="text-3xl font-black">{query.data.title}</h1><p className="mt-2 text-slate-600">Total Attempts: {query.data.summary?.totalAttempts || 0} · Average Accuracy: {query.data.summary?.averageAccuracy || 0}%</p></div>
+          <div className="math-card p-6"><p className="math-block-header"><Activity size={14} />DPS Results</p><h1 className="mt-3 text-3xl font-black">{query.data.title}</h1><p className="mt-2 text-slate-600">Total Attempts: {query.data.summary?.totalAttempts || 0} · Average Accuracy: {query.data.summary?.averageAccuracy || 0}%</p></div>
           <ResultTable results={query.data.results || []} />
         </div>
       ) : null}

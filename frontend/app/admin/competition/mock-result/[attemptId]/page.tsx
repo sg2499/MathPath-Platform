@@ -10,10 +10,15 @@ import { apiErrorMessage } from "@/lib/api";
 import { getAdminCompetitionMockResult } from "@/lib/api/admin";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Award,
+  BookMarked,
   BookOpenCheck,
+  Brain,
   CheckCircle2,
   Clock3,
   Flame,
+  Lightbulb,
+  Megaphone,
   Rocket,
   Sparkles,
   Target,
@@ -321,7 +326,7 @@ export default function AdminCompetitionMockResultPage() {
           </button>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="math-kicker">Mock Result</p>
+              <p className="math-block-header"><Award size={14} />Mock Result</p>
               <h1 className="math-title">{mock.title || "Mock Result"}</h1>
               <div className="mt-3 flex flex-wrap gap-2">
                 {mock.mockCode ? <Chip label={mock.mockCode} /> : null}
@@ -432,7 +437,7 @@ function CompetitionMessageBox({
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="math-kicker">Competition Coach</p>
+              <p className="math-block-header"><Megaphone size={14} />Competition Coach</p>
               <span className="rounded-full border border-[#2563eb]/20 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-100">
                 {message.badge}
               </span>
@@ -547,7 +552,7 @@ function QuestionReviewTab({
           <BookOpenCheck size={22} />
         </div>
         <div>
-          <p className="math-kicker">Question Review</p>
+          <p className="math-block-header"><BookMarked size={14} />Question Review</p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">
             Questions, Student Answers And Correct Answers
           </h2>
@@ -704,7 +709,7 @@ function ResultAnalysisTab({
       <div className="math-card overflow-hidden p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="math-kicker">Concept Analysis</p>
+            <p className="math-block-header"><Brain size={14} />Concept Analysis</p>
             <h2 className="text-xl font-black text-slate-950 dark:text-white">
               Section Performance
             </h2>
@@ -803,7 +808,7 @@ function InsightCard({
 }) {
   return (
     <article className="math-card p-5">
-      <p className="math-kicker">Result Insight</p>
+      <p className="math-block-header"><Lightbulb size={14} />Result Insight</p>
       <h3 className="text-lg font-black text-slate-950 dark:text-white">
         {title}
       </h3>

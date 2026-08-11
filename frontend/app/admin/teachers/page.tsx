@@ -27,6 +27,7 @@ import {
   Copy,
   GraduationCap,
   Eye,
+  FileText,
   KeyRound,
   Pencil,
   Plus,
@@ -34,6 +35,7 @@ import {
   ShieldCheck,
   Trash2,
   Upload,
+  UserCircle2,
   UserPlus,
   X,
   XCircle,
@@ -395,7 +397,7 @@ export default function AdminTeachersPage() {
       <section className="math-hero math-slide-up">
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="math-kicker">Teacher Directory</p>
+            <p className="math-block-header"><GraduationCap size={14} />Teacher Directory</p>
             <h1 className="math-title">Teacher Management</h1>
             <p className="math-subtitle">
               Manage teacher profiles, login access, specialization details, and student ownership.
@@ -414,7 +416,7 @@ export default function AdminTeachersPage() {
       <section className="mt-6 math-card p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="math-kicker">Teacher directory</p>
+            <p className="math-block-header"><FileText size={14} />Teacher Records</p>
             <h2 className="text-2xl font-black text-slate-950 dark:text-white">Teacher Details</h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
               Search, add, edit, deactivate, reset passwords, or delete teacher records.
@@ -644,7 +646,7 @@ function TeacherDetailModal({ teacher, onClose }: { teacher: AdminTeacher; onClo
               />
             )}
             <div className="min-w-0">
-              <p className="math-kicker">Teacher Profile</p>
+              <p className="math-block-header"><UserCircle2 size={14} />Teacher Profile</p>
               <h2 className="text-3xl font-black text-slate-950 dark:text-white">
                 {teacher.teacherName}
               </h2>
@@ -732,7 +734,10 @@ function TeacherFormModal({
       <div className="mx-auto max-w-4xl rounded-[34px] border border-white/60 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-950">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-800">
           <div>
-            <p className="math-kicker">{editingTeacherId ? "Edit teacher" : "Add teacher"}</p>
+            <p className="math-block-header">
+              {editingTeacherId ? <Pencil size={14} /> : <UserPlus size={14} />}
+              {editingTeacherId ? "Edit teacher" : "Add teacher"}
+            </p>
             <h2 className="text-2xl font-black text-slate-950 dark:text-white">
               {editingTeacherId ? "Update Teacher" : "Teacher Profile"}
             </h2>
@@ -801,7 +806,7 @@ function DeleteTeacherModal({
         <div className="flex items-start gap-4">
           <div className="rounded-2xl bg-rose-50 p-3 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200"><Trash2 size={24} /></div>
           <div>
-            <p className="math-kicker text-rose-600 dark:text-rose-300">Delete Teacher</p>
+            <p className="math-block-header text-rose-600 dark:text-rose-300"><Trash2 size={14} />Delete Teacher</p>
             <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Delete {teacher.teacherName}?</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
               This will delete the teacher login and unlink their students from this teacher. Student records will not be deleted.

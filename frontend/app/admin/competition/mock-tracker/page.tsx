@@ -9,7 +9,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAdminCompetitionMockTracker, deleteAdminCompetitionMockAssignment, deleteAdminCompetitionMockStudent, type AdminCompetitionTrackerRow } from "@/lib/api/admin";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trash2, Trophy, UsersRound } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Flag, Radar, Search, ShieldCheck, Trash2, Trophy, UsersRound } from "lucide-react";
 import { useMemo, useState, useEffect, Suspense } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -519,7 +519,7 @@ function AdminCompetitionMockTrackerContent() {
       <AdminCompetitionDarkHoverStyles />
       <section className="admin-competition-dark-hover-scope space-y-6">
         <div className="math-card p-6 sm:p-8">
-          <p className="math-kicker">Competition</p>
+          <p className="math-block-header"><Flag size={14} />Competition Tracker</p>
           <h1 className="math-title">Competition Mock Tracker</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
             Monitor Admin-assigned mock exams, student completion, scores, accuracy, timing, strengths, and weak areas. Monitor all student mock exams, completion status, scores, accuracy, timing, strengths, and weak areas across the platform.
@@ -544,7 +544,7 @@ function AdminCompetitionMockTrackerContent() {
               <article className="math-card p-5 sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="math-kicker">Monitor</p>
+                    <p className="math-block-header"><Radar size={14} />Monitor</p>
                     <h2 className="text-2xl font-black text-slate-950 dark:text-white">Student Mock Outcomes</h2>
                     <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       Review completion status, score, accuracy, and time taken for your students.
