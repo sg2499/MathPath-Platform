@@ -73,7 +73,10 @@ export default function TeacherAttemptDetailPage() {
         <div className="mx-auto max-w-[1500px] space-y-6 px-6 py-8">
           <section className="math-hero">
             <div className="relative z-10">
-              <p className="math-kicker">Teacher Result Detail</p>
+              <p className="math-kicker">
+                <FileQuestion size={14} />
+                Teacher Result Detail
+              </p>
               <h1 className="math-title">Attempt Review</h1>
               <p className="math-subtitle">Review the student, DPS, score, accuracy, benchmark outcome, and question-level details for this attempt.</p>
             </div>
@@ -191,9 +194,9 @@ function SummaryMetric({ icon, label, value }: { icon: ReactNode; label: string;
       <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
       <div className="math-teacher-icon-chip relative z-10 flex items-center gap-2 text-slate-500 transition-transform duration-300 group-hover:scale-105 group-hover:-rotate-2">
         {icon}
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] transition-colors duration-300 group-hover:text-[var(--math-role-primary)]">{label}</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] transition-colors duration-300 group-hover:text-[var(--mp-role-primary)]">{label}</p>
       </div>
-      <p className="relative z-10 mt-2 text-2xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">{value}</p>
+      <p className="relative z-10 mt-2 text-2xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">{value}</p>
     </div>
   );
 }
@@ -203,8 +206,8 @@ function InfoCard({ icon, label, value, subValue }: { icon: ReactNode; label: st
     <div className="math-teacher-light-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl math-card border border-rose-200/70 p-5 ring-1 ring-rose-100/80 dark:border-slate-800 dark:ring-0">
       <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
       <div className="math-teacher-icon-chip relative z-10 inline-flex rounded-2xl bg-blue-50 p-3 text-blue-700 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">{icon}</div>
-      <p className="relative z-10 mt-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 transition-colors duration-300 group-hover:text-[var(--math-role-primary)]">{label}</p>
-      <p className="relative z-10 mt-2 text-xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">{value}</p>
+      <p className="relative z-10 mt-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)]">{label}</p>
+      <p className="relative z-10 mt-2 text-xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">{value}</p>
       <p className="relative z-10 mt-1 text-sm text-slate-500">{subValue}</p>
     </div>
   );

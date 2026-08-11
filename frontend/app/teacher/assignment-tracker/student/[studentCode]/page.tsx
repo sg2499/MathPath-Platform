@@ -44,14 +44,20 @@ import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   BarChart3,
+  BookOpen,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
   Clock3,
+  Layers3,
   Lightbulb,
+  PieChart,
+  Route,
   Search,
+  Sliders,
   Target,
   Trophy,
+  UserRound,
 } from "lucide-react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -237,10 +243,10 @@ function Metric({
           {icon}
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {value}
       </p>
     </div>
@@ -751,7 +757,10 @@ function TeacherStudentTrackerWorkspacePageContent() {
         <section className="w-full space-y-6">
           <div className="math-hero">
             <div>
-              <p className="math-kicker">Student Practice Review</p>
+              <p className="math-kicker">
+                <UserRound size={14} />
+                Student Practice Review
+              </p>
               <h1 className="math-title">{StudentName}</h1>
               <p className="math-subtitle">
                 Review assigned practice, completion date, accuracy bands,
@@ -1027,7 +1036,10 @@ function OverviewTab({
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <p className="math-kicker">Practice Control</p>
+        <p className="math-kicker">
+          <Sliders size={14} />
+          Practice Control
+        </p>
         <h2 className="math-teacher-block-title text-2xl font-black text-slate-950 dark:text-white">
           What Needs Attention Now?
         </h2>
@@ -1085,7 +1097,10 @@ function LevelCoverageCard({ Rows }: { Rows: AnyRow[] }) {
     <div className="mt-5 rounded-[24px] border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="math-kicker">Level Coverage</p>
+          <p className="math-kicker">
+            <PieChart size={14} />
+            Level Coverage
+          </p>
           <h3 className="math-teacher-block-title mt-1 text-lg font-black text-slate-950 dark:text-white">
             Cleared DPS Out Of Available Sheets
           </h3>
@@ -1165,10 +1180,10 @@ function MiniMetric({
           {Icon}
         </div>
       </div>
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] opacity-75 transition-colors duration-300 group-hover:text-[var(--math-role-primary)]">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] opacity-75 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)]">
         {Title}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)]">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)]">
         {Value}
       </p>
     </div>
@@ -1287,7 +1302,10 @@ function LessonInsightsTab({
     );
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <p className="math-kicker">Lesson Insights</p>
+      <p className="math-kicker">
+        <Lightbulb size={14} />
+        Lesson Insights
+      </p>
       <h2 className="text-2xl font-black text-slate-950 dark:text-white">
         Module, Level, Lesson And DPS Records
       </h2>
@@ -1345,7 +1363,10 @@ function ModulePracticeBlock({
         className="flex w-full flex-col gap-4 text-left xl:flex-row xl:items-center xl:justify-between"
       >
         <div>
-          <p className="math-kicker">Module</p>
+          <p className="math-kicker">
+            <Layers3 size={14} />
+            Module
+          </p>
           <h3 className="text-xl font-black text-slate-950 dark:text-white">
             {moduleTitle(Group.Sample)}
           </h3>
@@ -1413,7 +1434,10 @@ function LevelPracticeBlock({
         className="math-hierarchy-row flex-col gap-3 px-0 py-0 lg:flex-row lg:items-center lg:justify-between"
       >
         <div>
-          <p className="math-kicker">Level</p>
+          <p className="math-kicker">
+            <Route size={14} />
+            Level
+          </p>
           <h4 className="text-lg font-black text-slate-950 dark:text-white">
             {levelLabel(Group.Sample)}
           </h4>
@@ -1472,7 +1496,10 @@ function LessonInsightBlock({
         className="flex w-full flex-col gap-4 text-left xl:flex-row xl:items-start xl:justify-between"
       >
         <div>
-          <p className="math-kicker">Lesson</p>
+          <p className="math-kicker">
+            <BookOpen size={14} />
+            Lesson
+          </p>
           <h3 className="text-lg font-black text-slate-950 dark:text-white">
             {Group.LessonLabel}
           </h3>

@@ -14,7 +14,7 @@ import {
   type TeacherAvailableAssessment,
 } from "@/lib/api/teacher";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, GraduationCap, RotateCcw, Search, ShieldCheck, UserCheck, UsersRound } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FilePenLine, GraduationCap, ListChecks, RotateCcw, Search, ShieldCheck, UserCheck, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 function Metric({ label, value, helper, icon }: { label: string; value: string | number; helper?: string; icon?: ReactNode }) {
@@ -28,10 +28,10 @@ function Metric({ label, value, helper, icon }: { label: string; value: string |
           {icon}
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {value}
       </p>
       {helper && (
@@ -272,7 +272,10 @@ export default function TeacherAssignAssessmentPage() {
       <section className="w-full space-y-6">
         <div className="math-hero">
           <div>
-            <p className="math-kicker">Assessment Assignment</p>
+            <p className="math-kicker">
+              <FilePenLine size={14} />
+              Assessment Assignment
+            </p>
             <h1 className="math-title">Assign Assessment</h1>
             <p className="math-subtitle">Assign live level assessments to students who have met readiness requirements.</p>
           </div>
@@ -292,7 +295,10 @@ export default function TeacherAssignAssessmentPage() {
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--mp-role-soft)] text-[var(--mp-role-readable)]"><GraduationCap size={20} /></span>
               <div>
-                <p className="math-kicker">Assessment Selection</p>
+                <p className="math-kicker">
+                  <ListChecks size={14} />
+                  Assessment Selection
+                </p>
                 <h2 className="text-xl font-black text-slate-950 dark:text-white">Live Assessments</h2>
               </div>
             </div>
@@ -352,7 +358,10 @@ export default function TeacherAssignAssessmentPage() {
             <div className="rounded-[32px] border border-white/70 bg-white/90 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="math-kicker">Eligible Students</p>
+                  <p className="math-kicker">
+                    <UserCheck size={14} />
+                    Eligible Students
+                  </p>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Assignment Queue</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-300">{Data?.summary.readinessBypassEnabled ? "Readiness bypass is active until the owner explicitly restores strict readiness. Matching students can be assigned for QA." : Data?.summary.testingOverrideEnabled ? "Ready students and learners with controlled access from the selected assessment level can be assigned." : "Only ready students from the selected assessment level can be assigned."}</p>
                 </div>

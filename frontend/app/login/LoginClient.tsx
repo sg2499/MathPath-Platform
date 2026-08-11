@@ -96,7 +96,7 @@ const RoleContent: Record<
     ],
   },
   TEACHER: {
-    Eyebrow: "Teacher Workspace",
+    Eyebrow: "Teacher Guidance Workspace",
     Headline: "Guide Learners With Refined Focus.",
     Description:
       "Guide every learner through practice, readiness, and assessment with full visibility.",
@@ -118,13 +118,13 @@ const RoleContent: Record<
       },
       {
         Icon: <ClipboardPlus size={18} />,
-        Title: "Practice & Assessment",
+        Title: "Assignment Workspace",
         Desc: "Assign practice sheets and assessments from one workspace.",
       },
       {
         Icon: <ShieldCheck size={18} />,
         Title: "Readiness Signals",
-        Desc: "Track completion, progress, and assessment readiness.",
+        Desc: "Monitor completion, progress, and assessment readiness.",
       },
       {
         Icon: <Target size={18} />,

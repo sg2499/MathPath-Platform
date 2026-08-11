@@ -8,7 +8,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherCompetitionMockTracker, type TeacherCompetitionTrackerRow } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Layers3, Radar, Route, Search, ShieldCheck, Trophy, TrendingUp, UsersRound, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
@@ -273,10 +273,10 @@ function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string
           <Icon size={18} />
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {Label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {Value}
       </p>
     </div>
@@ -465,7 +465,10 @@ function TeacherCompetitionProgressContent() {
       <TeacherCompetitionDarkHoverStyles />
       <section className="teacher-competition-dark-hover-scope space-y-6">
         <div className="math-card p-6 sm:p-8">
-          <p className="math-kicker">Competition</p>
+          <p className="math-kicker">
+            <TrendingUp size={14} />
+            Performance Insights
+          </p>
           <h1 className="math-title">Mock Performance Insights</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
             Monitor student performance, strengths, and areas to improve.
@@ -490,7 +493,10 @@ function TeacherCompetitionProgressContent() {
               <div className="math-card overflow-hidden p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="math-kicker">Monitor</p>
+                    <p className="math-kicker">
+                      <Radar size={14} />
+                      Monitor
+                    </p>
                     <h2 className="text-2xl font-black text-slate-950 dark:text-white">Student Mock Outcomes</h2>
                     <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       Review completion status, score, accuracy, and time taken for your students.
@@ -498,8 +504,8 @@ function TeacherCompetitionProgressContent() {
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_180px_180px_180px] xl:w-[800px]">
                     {/* The search and filters remain identical */}
-                    <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[var(--math-role-primary)] focus-within:border-[var(--math-role-primary)] focus-within:ring-2 focus-within:ring-[var(--math-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus-within:border-cyan-300 dark:focus-within:bg-cyan-500/20 dark:focus-within:ring-cyan-300/25">
-                      <Search size={16} className="text-[var(--math-role-primary)] dark:text-cyan-100" />
+                    <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[var(--mp-role-primary)] focus-within:border-[var(--mp-role-primary)] focus-within:ring-2 focus-within:ring-[var(--mp-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus-within:border-cyan-300 dark:focus-within:bg-cyan-500/20 dark:focus-within:ring-cyan-300/25">
+                      <Search size={16} className="text-[var(--mp-role-primary)] dark:text-cyan-100" />
                       <input
                         value={SearchText}
                         onChange={(Event) => SetSearchText(Event.target.value)}
@@ -513,7 +519,7 @@ function TeacherCompetitionProgressContent() {
                         SetModuleFilter(Event.target.value);
                         SetLevelFilter("ALL");
                       }}
-                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--math-role-primary)] focus:border-[var(--math-role-primary)] focus:ring-2 focus:ring-[var(--math-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--mp-role-primary)] focus:border-[var(--mp-role-primary)] focus:ring-2 focus:ring-[var(--mp-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
                     >
                       <option value="ALL">All Modules</option>
                       {ModuleOptions.map((Module) => (
@@ -523,7 +529,7 @@ function TeacherCompetitionProgressContent() {
                     <select
                       value={LevelFilter}
                       onChange={(Event) => SetLevelFilter(Event.target.value)}
-                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--math-role-primary)] focus:border-[var(--math-role-primary)] focus:ring-2 focus:ring-[var(--math-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--mp-role-primary)] focus:border-[var(--mp-role-primary)] focus:ring-2 focus:ring-[var(--mp-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
                     >
                       <option value="ALL">All Levels</option>
                       {LevelOptions.map((Level) => (
@@ -533,7 +539,7 @@ function TeacherCompetitionProgressContent() {
                     <select
                       value={Status}
                       onChange={(Event) => SetStatus(Event.target.value as StatusFilter)}
-                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--math-role-primary)] focus:border-[var(--math-role-primary)] focus:ring-2 focus:ring-[var(--math-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
+                      className="tc-dark-filter rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-[var(--mp-role-primary)] focus:border-[var(--mp-role-primary)] focus:ring-2 focus:ring-[var(--mp-role-primary)]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus:border-cyan-300 dark:focus:bg-cyan-500/20 dark:focus:ring-cyan-300/25"
                     >
                       <option value="ALL">All Statuses</option>
                       <option value="PENDING">Pending</option>
@@ -582,7 +588,10 @@ function TeacherCompetitionProgressContent() {
                                       onClick={() => ToggleExpanded(SetExpandedModules, ModuleGroup.key)}
                                     >
                                       <div className="text-left">
-                                        <p className="math-kicker">Module</p>
+                                        <p className="math-kicker">
+                                          <Layers3 size={12} />
+                                          Module
+                                        </p>
                                         <h4 className="text-base font-black text-slate-950 dark:text-white">
                                           {ModuleGroup.label}
                                         </h4>
@@ -606,7 +615,10 @@ function TeacherCompetitionProgressContent() {
                                                 onClick={() => ToggleExpanded(SetExpandedLevels, LevelGroup.key)}
                                               >
                                                 <div className="text-left">
-                                                  <p className="math-kicker">Level</p>
+                                                  <p className="math-kicker">
+                                                    <Route size={12} />
+                                                    Level
+                                                  </p>
                                                   <h5 className="text-base font-black text-slate-950 dark:text-white">
                                                     {LevelGroup.label}
                                                   </h5>
@@ -623,7 +635,7 @@ function TeacherCompetitionProgressContent() {
                                                   {(() => {
                                                     const insight = computeLevelInsights(LevelGroup.rows);
                                                     if (insight.strongConcepts.length === 0 && insight.weakConcepts.length === 0) return (
-                                                        <div className="relative overflow-hidden rounded-[32px] border border-[var(--math-role-primary)]/20 bg-white/60 py-12 px-4 text-center shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:bg-slate-950/60">
+                                                        <div className="relative overflow-hidden rounded-[32px] border border-[var(--mp-role-primary)]/20 bg-white/60 py-12 px-4 text-center shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:bg-slate-950/60">
                                                           <div className="math-noise-bg mix-blend-overlay" />
                                                           <p className="relative z-10 text-sm font-semibold text-slate-500 dark:text-slate-400">
                                                             No concept data available yet. Student must complete mock exams.
@@ -730,10 +742,10 @@ function MiniMetric({ Label, Value }: { Label: string; Value: string | number })
       {/* Gamified hover shine */}
       <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
       
-      <p className="relative z-10 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {Label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {Value}
       </p>
     </div>

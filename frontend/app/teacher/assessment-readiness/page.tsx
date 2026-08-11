@@ -20,6 +20,8 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  FileStack,
+  Gauge,
   GraduationCap,
   Layers3,
   Maximize2,
@@ -216,7 +218,10 @@ export default function TeacherAssessmentReadinessPage() {
     <AppShell>
       <section className="math-hero">
         <div className="relative z-10">
-          <p className="math-kicker">Assessment Readiness</p>
+          <p className="math-kicker">
+            <Gauge size={14} />
+            Assessment Readiness
+          </p>
           <h1 className="math-title">Assessment Readiness</h1>
           <p className="math-subtitle">
             Review assigned student readiness by level and completion date.
@@ -615,7 +620,10 @@ function ReadinessDetails({ row, persistenceKey }: { row: TeacherAssessmentEligi
       <section className="math-teacher-readiness-sheet-breakdown mt-5 rounded-[26px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="math-kicker text-[10px]">Sheet Breakdown</p>
+            <p className="math-kicker text-[10px]">
+              <FileStack size={12} />
+              Sheet Breakdown
+            </p>
             <h3 className="text-lg font-black text-slate-950 dark:text-white">
               DPS Clearance Tracker
             </h3>
@@ -927,10 +935,10 @@ function Metric({
           {icon}
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {value}
       </p>
     </div>
@@ -948,10 +956,10 @@ function Info({ label, value, icon }: { label: string; value: string | number; i
           {icon}
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {value}
       </p>
     </div>

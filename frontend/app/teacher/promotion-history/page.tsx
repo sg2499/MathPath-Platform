@@ -15,6 +15,7 @@ import { formatMathPathDateTime } from "@/lib/date";
 import { CompareStudentCodes } from "@/lib/studentSort";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Award,
   ChevronDown,
   ChevronRight,
   Search,
@@ -73,10 +74,10 @@ function Metric({
           {Icon}
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {Label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {Value}
       </p>
     </div>
@@ -367,8 +368,11 @@ export default function TeacherPromotionHistoryPage() {
     <AppShell title="Promotion History">
       <section className="mx-auto max-w-[1680px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <div className="math-hero p-6">
-          <p className="math-kicker">Progression Tracking</p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+          <p className="math-kicker">
+            <Award size={14} />
+            Progression Tracking
+          </p>
+          <h1 className="math-title mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
             Promotion History
           </h1>
           <p className="math-subtitle">

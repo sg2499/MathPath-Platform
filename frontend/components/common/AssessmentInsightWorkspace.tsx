@@ -9,19 +9,24 @@ import {
   mathPathTimestampValue,
 } from "@/lib/date";
 import {
+  Activity,
   AlertTriangle,
   Archive,
   CalendarClock,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
+  Clock,
   Eye,
   Layers3,
+  ListOrdered,
   RotateCcw,
   Search,
+  Settings,
   ShieldCheck,
   Target,
   Trash2,
+  TrendingUp,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
@@ -363,7 +368,10 @@ export function AssessmentInsightWorkspace({
     <div className="mx-auto max-w-[1500px] px-6 py-8">
       <div className="math-hero">
         <div>
-          <p className="math-kicker">{role === "student" ? "Student Assessment Review" : role === "teacher" ? "Student Assessment Review" : "Student Assessment Profile"}</p>
+          <p className="math-kicker">
+            {role === "student" ? <TrendingUp size={14} /> : <Activity size={14} />}
+            {role === "student" ? "Student Assessment Review" : role === "teacher" ? "Student Assessment Review" : "Student Assessment Profile"}
+          </p>
           <h1 className="math-title">{title}</h1>
           <p className="math-subtitle">Review module-level assessment completion, outcomes, and re-attempt history for this student.</p>
           {subtitle ? <p className="mt-2 text-sm font-bold text-slate-500">{subtitle}</p> : null}
@@ -437,7 +445,10 @@ function AssessmentOverview({ Rows, onView }: { Rows: AssessmentRow[]; onView?: 
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.15fr]">
       <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <p className="math-kicker">Assessment Control Summary</p>
+        <p className="math-kicker">
+          <Settings size={14} />
+          Assessment Control Summary
+        </p>
         <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Assessment Snapshot</h2>
         <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">Review assigned assessments, completion dates, and assessment outcomes.</p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -453,7 +464,10 @@ function AssessmentOverview({ Rows, onView }: { Rows: AssessmentRow[]; onView?: 
           <div className="flex items-start gap-3">
             <div className="rounded-2xl bg-amber-50 p-3 text-amber-700"><AlertTriangle size={20} /></div>
             <div>
-              <p className="math-kicker">Priority Queue</p>
+              <p className="math-kicker">
+                <ListOrdered size={14} />
+                Priority Queue
+              </p>
               <h3 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Assessment Action Queue</h3>
               <p className="mt-1 text-sm font-semibold text-slate-500">Pending assessments and re-attempt needs appear here.</p>
             </div>
@@ -472,7 +486,10 @@ function AssessmentOverview({ Rows, onView }: { Rows: AssessmentRow[]; onView?: 
           <div className="flex items-start gap-3">
             <div className="rounded-2xl bg-blue-50 p-3 text-blue-700"><CalendarClock size={20} /></div>
             <div>
-              <p className="math-kicker">Recent Activity</p>
+              <p className="math-kicker">
+                <Clock size={14} />
+                Recent Activity
+              </p>
               <h3 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Recent Assessments</h3>
             </div>
           </div>
@@ -515,7 +532,10 @@ function AssessmentInsights({ Groups, OpenModules, OpenLevels, ToggleModule, Tog
         <section key={ModuleGroup.Key} className="rounded-[30px] border border-slate-200 bg-white/90 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
           <button type="button" className="mb-4 flex w-full flex-col gap-3 text-left lg:flex-row lg:items-center lg:justify-between" onClick={() => ToggleModule(ModuleGroup.Key)} aria-expanded={IsModuleOpen} title={IsModuleOpen ? "Collapse assessment module" : "Expand assessment module"}>
             <div>
-              <p className="math-kicker">Assessment Module</p>
+              <p className="math-kicker">
+                <Layers3 size={14} />
+                Assessment Module
+              </p>
               <h3 className="text-xl font-black text-slate-950 dark:text-white">{ModuleLabel(ModuleGroup.Sample)}</h3>
             </div>
             <div className="flex flex-wrap items-center gap-2">

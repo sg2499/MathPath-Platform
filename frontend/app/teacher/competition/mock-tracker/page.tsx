@@ -8,7 +8,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherCompetitionMockTracker, type TeacherCompetitionTrackerRow } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ChevronDown, ChevronRight, Clock3, Eye, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, ClipboardList, Clock3, Eye, Radar, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
 import { useMemo, useState, Suspense } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -269,10 +269,10 @@ function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string
           <Icon size={18} />
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {Label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {Value}
       </p>
     </div>
@@ -484,7 +484,10 @@ function TeacherCompetitionMockTrackerContent() {
       <TeacherCompetitionDarkHoverStyles />
       <section className="teacher-competition-dark-hover-scope space-y-6">
         <div className="math-card p-6 sm:p-8">
-          <p className="math-kicker">Competition</p>
+          <p className="math-kicker">
+            <ClipboardList size={14} />
+            Competition Tracker
+          </p>
           <h1 className="math-title">Competition Mock Tracker</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
             Monitor Admin-assigned mock exams, student completion, scores, accuracy, timing, strengths, and weak areas. Teachers review only; assignment remains Admin-controlled.
@@ -509,7 +512,10 @@ function TeacherCompetitionMockTrackerContent() {
               <article className="math-card p-5 sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="math-kicker">Monitor</p>
+                    <p className="math-kicker">
+                      <Radar size={14} />
+                      Monitor
+                    </p>
                     <h2 className="text-2xl font-black text-slate-950 dark:text-white">Student Mock Outcomes</h2>
                     <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       Review completion status, score, accuracy, and time taken for your students.
@@ -745,10 +751,10 @@ function MiniMetric({ Label, Value }: { Label: string; Value: string | number })
       {/* Gamified hover shine */}
       <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
       
-      <p className="relative z-10 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {Label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {Value}
       </p>
     </div>
