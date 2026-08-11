@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   CheckCircle2,
+  LayoutGrid,
   Search,
   Target,
   TrendingUp,
@@ -449,7 +450,10 @@ export default function TeacherStudentsPage() {
       <section className="math-hero">
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="math-kicker">Teacher Students</p>
+            <p className="math-kicker">
+              <UsersRound size={14} />
+              Teacher Students
+            </p>
             <h1 className="math-title">My Students</h1>
             <p className="math-subtitle">
               Monitor assigned learners through completion, pending work, average accuracy, and follow-up priority.
@@ -468,7 +472,10 @@ export default function TeacherStudentsPage() {
       <section className="mt-6 math-card p-5 sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="math-kicker">Student Overview</p>
+            <p className="math-kicker">
+              <LayoutGrid size={14} />
+              Student Overview
+            </p>
             <h2 className="text-2xl font-black text-slate-950">Learning Progress Snapshot</h2>
             <p className="mt-1 text-sm text-slate-600">
               Focus on pending work, completion, average accuracy, and latest activity.
@@ -644,10 +651,10 @@ function Metric({ label, value, icon }: { label: string; value: number | string;
           {icon}
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {value}
       </p>
     </div>

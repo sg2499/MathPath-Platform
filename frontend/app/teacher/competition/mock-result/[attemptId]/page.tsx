@@ -11,9 +11,12 @@ import { getTeacherCompetitionMockResult } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpenCheck,
+  Brain,
   CheckCircle2,
   Clock3,
   Flame,
+  Lightbulb,
+  Megaphone,
   Rocket,
   Sparkles,
   Target,
@@ -321,7 +324,10 @@ export default function TeacherCompetitionMockResultPage() {
           </button>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="math-kicker">Mock Result</p>
+              <p className="math-kicker">
+                <CheckCircle2 size={14} />
+                Mock Result
+              </p>
               <h1 className="math-title">{mock.title || "Mock Result"}</h1>
               <div className="mt-3 flex flex-wrap gap-2">
                 {mock.mockCode ? <Chip label={mock.mockCode} /> : null}
@@ -432,7 +438,10 @@ function CompetitionMessageBox({
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="math-kicker">Competition Coach</p>
+              <p className="math-kicker">
+                <Megaphone size={14} />
+                Competition Coach
+              </p>
               <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
                 {message.badge}
               </span>
@@ -547,7 +556,10 @@ function QuestionReviewTab({
           <BookOpenCheck size={22} />
         </div>
         <div>
-          <p className="math-kicker">Question Review</p>
+          <p className="math-kicker">
+            <BookOpenCheck size={14} />
+            Question Review
+          </p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">
             Questions, Student Answers And Correct Answers
           </h2>
@@ -704,7 +716,10 @@ function ResultAnalysisTab({
       <div className="math-card overflow-hidden p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="math-kicker">Concept Analysis</p>
+            <p className="math-kicker">
+              <Brain size={14} />
+              Concept Analysis
+            </p>
             <h2 className="text-xl font-black text-slate-950 dark:text-white">
               Section Performance
             </h2>
@@ -777,10 +792,10 @@ function MetricCard({
           {icon}
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {value}
       </p>
       <p className="relative z-10 mt-2 text-xs font-extrabold text-slate-600 dark:text-slate-300">
@@ -808,7 +823,10 @@ function InsightCard({
 }) {
   return (
     <article className="math-card p-5">
-      <p className="math-kicker">Result Insight</p>
+      <p className="math-kicker">
+        <Lightbulb size={14} />
+        Result Insight
+      </p>
       <h3 className="text-lg font-black text-slate-950 dark:text-white">
         {title}
       </h3>

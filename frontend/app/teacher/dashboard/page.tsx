@@ -5,7 +5,9 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
   ClipboardCheck,
   ClipboardPlus,
+  FilePenLine,
   GraduationCap,
+  ListOrdered,
   ShieldCheck,
   Sparkles,
   Target,
@@ -19,8 +21,8 @@ const QuickLinks = [
   { Icon: <ClipboardPlus size={16} />, Label: "Assign Practice", Route: "/teacher/assign-dps" },
   { Icon: <Target size={16} />, Label: "Practice Tracker", Route: "/teacher/assignment-tracker" },
   { Icon: <ShieldCheck size={16} />, Label: "Assessment Readiness", Route: "/teacher/assessment-readiness" },
-  { Icon: <ClipboardPlus size={16} />, Label: "Assign Assessment", Route: "/teacher/assign-assessment" },
-  { Icon: <GraduationCap size={16} />, Label: "Assessment Tracker", Route: "/teacher/assessments" },
+  { Icon: <FilePenLine size={16} />, Label: "Assign Assessment", Route: "/teacher/assign-assessment" },
+  { Icon: <ClipboardCheck size={16} />, Label: "Assessment Tracker", Route: "/teacher/assessments" },
 ];
 
 export default function TeacherDashboardPage() {
@@ -37,9 +39,9 @@ export default function TeacherDashboardPage() {
           <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-[#B76E79]/18 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <div className="math-dashboard-kicker">
-                <Target size={13} />
-                Teacher Workspace
+              <div className="math-block-header">
+                <GraduationCap size={14} />
+                Teacher Guidance Workspace
               </div>
               <h1 className="mt-3 max-w-4xl text-3xl font-black tracking-[-0.035em] text-slate-950 dark:text-white sm:text-[2.35rem] lg:whitespace-nowrap">
                 Teaching Workspace
@@ -53,7 +55,7 @@ export default function TeacherDashboardPage() {
                   onClick={() => Router.push("/teacher/assignment-tracker")}
                   className="math-dashboard-primary-action"
                 >
-                  <Sparkles size={15} />
+                  <Target size={15} />
                   Practice Tracker
                 </button>
                 <button
@@ -67,7 +69,10 @@ export default function TeacherDashboardPage() {
               </div>
             </div>
             <div className="math-dashboard-readable-pulse math-dashboard-readable-pulse-teacher">
-              <p className="math-dashboard-pulse-eyebrow">Teaching Pulse</p>
+              <p className="math-dashboard-pulse-eyebrow inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/16 px-3.5 py-1.5 backdrop-blur-md">
+                <Sparkles size={14} />
+                Teaching Pulse
+              </p>
               <h2>Learner Focus</h2>
               <p>Practice signals and readiness checks stay connected.</p>
             </div>
@@ -76,7 +81,10 @@ export default function TeacherDashboardPage() {
 
         <section className="math-dashboard-priority-panel">
           <div>
-            <p className="math-dashboard-section-label">Teaching Priority</p>
+            <p className="math-dashboard-section-label math-block-header">
+              <ListOrdered size={14} />
+              Teaching Priority
+            </p>
             <h2 className="mt-1.5 text-xl font-black tracking-tight text-slate-950 dark:text-white">
               Review Practice Before Assessment
             </h2>
@@ -86,7 +94,7 @@ export default function TeacherDashboardPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => Router.push("/teacher/assignment-tracker")} className="math-dashboard-primary-action">
-              <Sparkles size={15} />
+              <Target size={15} />
               Practice Tracker
             </button>
             <button type="button" onClick={() => Router.push("/teacher/assessments")} className="math-dashboard-secondary-action">

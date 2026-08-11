@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
   ClipboardList,
+  Maximize2,
   Search,
   ShieldCheck,
   Sparkles,
@@ -615,7 +616,10 @@ function TeacherPracticeTrackerContent() {
       <section className="w-full space-y-6">
         <div className="math-hero">
           <div>
-            <p className="math-kicker">Teacher Practice</p>
+            <p className="math-kicker">
+              <Target size={14} />
+              Teacher Practice
+            </p>
             <h1 className="math-title">Practice Tracker</h1>
             <p className="math-subtitle">
               Track DPS completion, improvement needs, accuracy bands, and
@@ -1174,7 +1178,10 @@ function ExpandedViewHeader({
     <div className="mb-5 math-operation-panel">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="math-kicker">Expanded Practice View</p>
+          <p className="math-kicker">
+            <Maximize2 size={14} />
+            Expanded Practice View
+          </p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">
             {Title}
           </h2>

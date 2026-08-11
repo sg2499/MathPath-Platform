@@ -8,7 +8,7 @@ import { apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { getTeacherAvailableDps, getTeacherStudents, teacherAssignDps } from "@/lib/api/teacher";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ClipboardPlus, Send, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardPlus, Send, UserCheck, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 
@@ -159,8 +159,11 @@ export default function TeacherAssignDpsPage() {
     <AppShell title="Assign DPS">
       <section className="math-hero">
         <div className="relative z-10">
-          <p className="math-kicker">Teacher assignment</p>
-          <h1 className="math-title">Assign Published DPS to My Students</h1>
+          <p className="math-kicker">
+            <ClipboardPlus size={14} />
+            Teacher assignment
+          </p>
+          <h1 className="math-title">Assign Practice</h1>
           <p className="math-subtitle">Choose Admin-published DPS sheets for levels where your students are enrolled.</p>
         </div>
       </section>
@@ -206,7 +209,10 @@ export default function TeacherAssignDpsPage() {
           <section className="math-card p-5 sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="math-kicker">Eligible students</p>
+                <p className="math-kicker">
+                  <UserCheck size={14} />
+                  Eligible students
+                </p>
                 <h2 className="text-2xl font-black text-slate-950">{selectedDps.dpsTitle}</h2>
                 <p className="mt-1 text-sm text-slate-600">Only students in {selectedDps.levelCode} can be selected.</p>
               </div>
@@ -257,7 +263,10 @@ export default function TeacherAssignDpsPage() {
                   <ClipboardPlus size={22} />
                 </div>
                 <div>
-                  <p className="math-kicker">Confirm Assignment</p>
+                  <p className="math-kicker">
+                    <CheckCircle2 size={14} />
+                    Confirm Assignment
+                  </p>
                   <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Assign DPS to eligible students?</h2>
                 </div>
               </div>

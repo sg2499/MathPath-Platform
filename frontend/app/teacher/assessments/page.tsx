@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  ClipboardCheck,
   Clock3,
   Eye,
   Search,
@@ -242,10 +243,10 @@ function Metric({
           {Icon}
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {Label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {Value}
       </p>
     </div>
@@ -1096,7 +1097,10 @@ function TeacherAssessmentAssignmentsContent() {
       <section className="w-full space-y-6">
         <div className="math-hero">
           <div>
-            <p className="math-kicker">Assessment Tracking</p>
+            <p className="math-kicker">
+              <ClipboardCheck size={14} />
+              Assessment Tracking
+            </p>
             <h1 className="math-title">Assessment Tracker</h1>
             <p className="math-subtitle">
               Track assigned level assessments, completion dates, and student

@@ -31,10 +31,12 @@ import {
   Award,
   BarChart3,
   BookOpen,
+  BookOpenCheck,
   ChevronDown,
   ChevronLeft,
   ChevronUp,
   CheckCircle2,
+  ClipboardCheck,
   ClipboardList,
   ClipboardPlus,
   Camera,
@@ -460,7 +462,7 @@ export function AppShell({
     },
     {
       label: "Assessments",
-      icon: GraduationCap,
+      icon: BookOpenCheck,
       tooltip: "Manage Assessments",
       children: [
         {
@@ -474,28 +476,28 @@ export function AppShell({
           label: "Assign Assessment",
           shortLabel: "Assign",
           href: "/teacher/assign-assessment",
-          icon: ClipboardPlus,
+          icon: FilePenLine,
           tooltip: "Assign live assessments",
         },
         {
           label: "Assessment Tracker",
           shortLabel: "Tracker",
           href: "/teacher/assessments",
-          icon: GraduationCap,
+          icon: ClipboardCheck,
           tooltip: "Track assigned assessments",
         },
         {
           label: "Promotion History",
           shortLabel: "Promotions",
           href: "/teacher/promotion-history",
-          icon: ShieldCheck,
+          icon: Award,
           tooltip: "Review student promotion history",
         },
       ],
     },
     {
       label: "Competition",
-      icon: Target,
+      icon: Trophy,
       tooltip: "Track competition mock performance",
       children: [
         {
