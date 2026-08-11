@@ -183,10 +183,13 @@ function marksPerQuestion(totalQuestions: number) {
 // "Flat" here since most of their sections are 1 mark and only Concept Drill
 // deviates (kept as a distinct label from IM's so the admin can tell PM/BM's
 // Concept Drill is the only weighted section, not a whole different scheme).
-// Every other module (YLM) keeps the original fixed-100-total auto-balanced
-// scheme. See ResolvedAssessmentQuestionMark() in assessment_engine_service.py.
+// YLM (added 2026-08-11) joins MM's exact flat scheme -- always 100
+// questions at 1 mark each, no Skill Stacker/Concept Drill-style weighted
+// concept at all. Any future module not listed here keeps the original
+// fixed-100-total auto-balanced scheme. See ResolvedAssessmentQuestionMark()
+// in assessment_engine_service.py.
 function marksModeLabel(moduleCode: string | null | undefined) {
-  if (moduleCode === "MM") return "Flat (1 Each)";
+  if (moduleCode === "MM" || moduleCode === "YLM") return "Flat (1 Each)";
   if (moduleCode === "PM" || moduleCode === "BM") return "Flat (1 Each, 5 For Concept Drill)";
   if (moduleCode === "IM") return "Concept-Weighted";
   return "Auto-Balanced";
@@ -723,7 +726,7 @@ function AssessmentDetailsWorkspace({ item, onBack, onRefreshBlueprints }: { ite
       <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         <DetailMetric icon={<Target size={16} />} label="Questions" value={item.totalQuestions} helper="Assessment Length" />
         <DetailMetric icon={<ShieldCheck size={16} />} label="Total Marks" value={item.totalMarks} helper="Fixed Total" />
-        <DetailMetric icon={<Calculator size={16} />} label="Marks/Question" value={marksModeLabel(item.moduleCode)} helper={item.moduleCode === "MM" ? "Every Question Is 1 Mark" : item.moduleCode === "PM" || item.moduleCode === "BM" ? "5 For Concept Drill, 1 Otherwise" : item.moduleCode === "IM" ? "5 For Skill Stacker/Concept Drill" : "Exact 100-Mark Total"} />
+        <DetailMetric icon={<Calculator size={16} />} label="Marks/Question" value={marksModeLabel(item.moduleCode)} helper={item.moduleCode === "MM" || item.moduleCode === "YLM" ? "Every Question Is 1 Mark" : item.moduleCode === "PM" || item.moduleCode === "BM" ? "5 For Concept Drill, 1 Otherwise" : item.moduleCode === "IM" ? "5 For Skill Stacker/Concept Drill" : "Exact 100-Mark Total"} />
         <DetailMetric icon={<Clock size={16} />} label="Duration" value="60 Mins" helper="Fixed Assessment Time" />
         <DetailMetric icon={<Gauge size={16} />} label="Generated" value={generatedAssessment?.questionCount ?? 0} helper="Preview Set" />
       </section>

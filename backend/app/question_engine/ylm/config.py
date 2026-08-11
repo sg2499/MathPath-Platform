@@ -101,8 +101,73 @@ YLM_LEVEL_LESSON_RANGES: dict[str, range] = {
 }
 
 
+# Found 2026-08-11: every YLM lesson's 5 DPS sheets were generating statistically
+# identical questions. `YLMConfig.dps_number` existed on the dataclass but was never
+# read anywhere in operands.py/validators.py/generator.py -- `digit_pattern` (and
+# therefore the actual base-number width) came only from YLM_LESSON_RULES, keyed by
+# lesson_number alone. Live-confirmed on production (mock.mathpath.in admin panel,
+# Learning Path Studio, YLM-L1 Lesson 2): DPS-1 ("Number 5"), DPS-3 ("50, 60, 70, 80,
+# 90 Direct Add-Less"), and DPS-5 ("Number 50 Double Digit Direct Add-Less") all
+# generated the exact same shape of single-digit-only questions despite DPS-3/DPS-5's
+# own titles promising double-digit content.
+#
+# This table was derived by parsing the real source workbook (`DPS Junior Level.xlsx`)
+# DPS-by-DPS -- not guessed -- for every one of the 32 lessons: for each
+# "DAILY PRACTICE SHEET -N" block, the first addend row (10 values, columns A-J) was
+# extracted and classified 1D (all values < 10), 2D (all values >= 10), or
+# 1D_AND_2D (mixed). Where a DPS's real classification differs from its lesson's
+# YLM_LESSON_RULES.digit_pattern default, that DPS gets an entry here. A DPS not
+# listed for a lesson simply inherits the lesson-level default -- most often DPS-1,
+# which is consistently the single-digit introduction sheet across all 32 lessons.
+YLM_DPS_DIGIT_PATTERN_OVERRIDES: dict[int, dict[int, str]] = {
+    1: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    2: {1: "1D", 2: "1D", 3: "2D", 5: "2D"},
+    3: {2: "2D", 3: "2D", 4: "2D", 5: "1D_AND_2D"},
+    4: {2: "2D", 3: "2D", 4: "2D", 5: "1D_AND_2D"},
+    5: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    6: {2: "2D", 3: "2D", 4: "2D", 5: "1D_AND_2D"},
+    7: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    8: {2: "2D", 3: "2D", 4: "2D", 5: "1D_AND_2D"},
+    9: {2: "2D", 3: "2D", 4: "2D", 5: "1D_AND_2D"},
+    10: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    11: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    12: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    13: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    14: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    15: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    16: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    17: {2: "1D_AND_2D", 3: "2D", 4: "2D", 5: "2D"},
+    18: {2: "1D_AND_2D", 3: "2D", 4: "2D", 5: "2D"},
+    19: {1: "1D_AND_2D", 2: "1D_AND_2D", 3: "2D", 5: "2D"},
+    20: {1: "1D_AND_2D", 2: "1D_AND_2D", 3: "2D", 5: "2D"},
+    21: {1: "1D_AND_2D", 2: "1D_AND_2D", 3: "2D", 5: "2D"},
+    22: {1: "1D_AND_2D", 2: "1D_AND_2D", 3: "2D", 5: "2D"},
+    23: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    24: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    25: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    26: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    27: {2: "2D", 3: "2D", 4: "2D", 5: "2D"},
+    28: {2: "2D", 3: "2D", 4: "1D_AND_2D", 5: "2D"},
+    29: {2: "2D", 3: "2D", 4: "1D_AND_2D", 5: "2D"},
+    30: {2: "2D", 3: "2D", 4: "1D_AND_2D", 5: "2D"},
+    31: {2: "1D_AND_2D", 3: "2D", 4: "1D_AND_2D", 5: "2D"},
+    32: {1: "1D", 3: "2D", 4: "2D", 5: "2D"},
+}
+
+
 def lesson_rule_for(lesson_number: int) -> YLMLessonRule | None:
     return YLM_LESSON_RULES.get(int(lesson_number))
+
+
+def dps_digit_pattern_for(lesson_number: int, dps_number: int, default: str) -> str:
+    """Resolve the real per-DPS digit width, falling back to the lesson default.
+
+    dps_number is 0 or missing for callers that haven't resolved a specific DPS yet
+    (e.g. a bare lesson-level preview) -- those keep the lesson-wide default exactly
+    as before this fix, so this lookup is purely additive.
+    """
+    lesson_overrides = YLM_DPS_DIGIT_PATTERN_OVERRIDES.get(int(lesson_number), {})
+    return lesson_overrides.get(int(dps_number or 0), default)
 
 
 def enrich_config_with_lesson_rule(config: YLMConfig) -> YLMConfig:
@@ -126,7 +191,7 @@ def enrich_config_with_lesson_rule(config: YLMConfig) -> YLMConfig:
     config.abacus_rule = rule.abacus_rule
     config.target_numbers = list(rule.target_numbers)
     config.place_value = rule.place_value
-    config.digit_pattern = rule.digit_pattern
+    config.digit_pattern = dps_digit_pattern_for(config.lesson_number, config.dps_number, rule.digit_pattern)
     config.allow_negative_operands = rule.allow_negative_operands
     config.allow_negative_answer = rule.allow_negative_answer
     config.allowed_movement_types = rule.allowed_movement_types

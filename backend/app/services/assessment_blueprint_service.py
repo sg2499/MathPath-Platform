@@ -45,6 +45,9 @@ from app.services.pm_competition_mock_generation_service import (
 from app.services.bm_competition_mock_generation_service import (
     BM_COMPETITION_LEVEL_REGISTRY,
 )
+from app.services.ylm_competition_mock_generation_service import (
+    YLM_COMPETITION_LEVEL_REGISTRY,
+)
 
 TOTAL_ASSESSMENT_MARKS = 100.0
 PASSING_PERCENTAGE = 70.0
@@ -52,20 +55,24 @@ BLUEPRINT_STATUSES = {"DRAFT", "PUBLISHED", "ARCHIVED"}
 
 # 2026-07-22, Shailesh: assessments for these modules mirror the exact
 # sections that level's competition mock exam uses instead of a lesson-wise
-# split -- see AssessmentBlueprintSection's docstring in models.py. YLM (and
-# any module not listed here) stays on the original AssessmentBlueprintLesson
+# split -- see AssessmentBlueprintSection's docstring in models.py. Any
+# module not listed here stays on the original AssessmentBlueprintLesson
 # path completely unchanged; deliberately an explicit allow-list rather than
-# "everyone except YLM" so a brand-new module never silently gets swept into
+# "everyone except X" so a brand-new module never silently gets swept into
 # section-wise assessments before it actually has a mock section registry to
 # mirror -- it would fail loudly instead, exactly like the mock generators
-# already do for an unconfigured level.
-SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM", "BM"}
+# already do for an unconfigured level. YLM added 2026-08-11 (Shailesh: "go
+# ahead and carefully implement both the flows for all the levels in this
+# entire module") -- its own 2/3-section-per-level registry mirrors its own
+# competition mock exactly, same as every other module here.
+SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM", "BM", "YLM"}
 
 _SECTION_WISE_REGISTRIES: dict[str, dict[str, Any]] = {
     "IM": IM_COMPETITION_LEVEL_REGISTRY,
     "MM": MM_COMPETITION_LEVEL_REGISTRY,
     "PM": PM_COMPETITION_LEVEL_REGISTRY,
     "BM": BM_COMPETITION_LEVEL_REGISTRY,
+    "YLM": YLM_COMPETITION_LEVEL_REGISTRY,
 }
 
 
@@ -389,10 +396,15 @@ def validate_section_distribution(
                     "weightedSectionKeys": sorted(weighted_keys),
                 },
             )
-    elif module_upper == "MM":
+    elif module_upper in {"MM", "YLM"}:
         # MM has no Skill Stacker/Concept Drill concepts and never will
         # (explicit product decision to keep MM's marking flat everywhere),
-        # so it stays flat 1 mark/question -- "always 100 questions".
+        # so it stays flat 1 mark/question -- "always 100 questions". YLM
+        # joins this same flat branch (2026-08-11, Shailesh: "each question
+        # would have 1 mark each for both the flows") rather than
+        # _CONCEPT_WEIGHTED_MODULES -- YLM has no Skill Stacker/Concept
+        # Drill-style weighted concept at all, so it belongs on MM's exact
+        # "always 100 questions, 1 mark each" invariant, not IM's.
         if total_questions != int(TOTAL_ASSESSMENT_MARKS):
             api_error(
                 400,

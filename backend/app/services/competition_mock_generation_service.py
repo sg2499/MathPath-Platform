@@ -48,6 +48,16 @@ from app.services.bm_competition_mock_generation_service import (
     BmCompetitionLevelConfig,
     CollectBmCompetitionSectionLockedQuestions,
 )
+# YLM's own dedicated mock section registry/collector -- see that module's
+# docstring for why this lives in a separate file instead of being authored
+# inline here alongside MM/IM's curriculum-specific logic.
+from app.services.ylm_competition_mock_generation_service import (
+    YLM_COMPETITION_LEVEL_REGISTRY,
+    YLM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+    YLM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS,
+    YlmCompetitionLevelConfig,
+    CollectYlmCompetitionSectionLockedQuestions,
+)
 
 
 DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 60
@@ -1916,6 +1926,43 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
             "sections": Sections,
         }
 
+    if _IsYoungLearnersModule(ModuleRecord):
+        # Added 2026-08-11, Shailesh -- same fix-on-day-one reasoning as the
+        # BM branch just above: without this branch, YLM would fall all the
+        # way through to the generic DPS-title fallback below, whose
+        # sectionKey values (derived from Title.upper().replace(" ", "_"))
+        # would never match YLM_COMPETITION_LEVEL_REGISTRY's real section
+        # keys (YLM_L1_ADDITION etc.), so every SectionCountsOverride the
+        # admin's Section Allocation panel sends back at generation time
+        # would resolve to 0 required questions per section and silently
+        # produce an empty DRAFT mock -- exactly the bug class the BM
+        # regression fix above already documents.
+        YlmLevelConfig = YlmCompetitionLevelConfig(LevelRecord)
+        YlmSectionDefinitions = YlmLevelConfig["sectionDefinitions"]
+        RequestedQuestionCount = int(TotalQuestions or YLM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
+        Base = RequestedQuestionCount // len(YlmSectionDefinitions)
+        Remainder = RequestedQuestionCount % len(YlmSectionDefinitions)
+        Sections = []
+        for Index, Section in enumerate(YlmSectionDefinitions):
+            Sections.append({
+                "sectionKey": Section["key"],
+                "sectionNumber": Section["number"],
+                "sectionTitle": Section["title"],
+                "questionCount": Base + (1 if Index < Remainder else 0),
+                "locked": True,
+            })
+        return {
+            "moduleId": ModuleRecord.id,
+            "moduleCode": ModuleRecord.module_code,
+            "moduleName": ModuleRecord.module_name,
+            "levelId": LevelRecord.id,
+            "levelCode": LevelRecord.level_code,
+            "levelName": LevelRecord.level_name,
+            "totalQuestions": RequestedQuestionCount,
+            "structure": "YLM_SECTION_COMPETITION_MOCK",
+            "sections": Sections,
+        }
+
     RequestedQuestionCount = int(TotalQuestions or DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
     SectionsByDps = _ActiveSectionsByDps(db, DpsRows)
     UniqueSections: dict[str, dict[str, Any]] = {}
@@ -2011,6 +2058,12 @@ def _IsBridgeModule(ModuleRecord: Module) -> bool:
     ModuleCode = _NormalizeText(getattr(ModuleRecord, "module_code", "")).upper()
     ModuleName = _NormalizeText(getattr(ModuleRecord, "module_name", "")).lower()
     return ModuleCode == "BM" or "bridge module" in ModuleName
+
+
+def _IsYoungLearnersModule(ModuleRecord: Module) -> bool:
+    ModuleCode = _NormalizeText(getattr(ModuleRecord, "module_code", "")).upper()
+    ModuleName = _NormalizeText(getattr(ModuleRecord, "module_name", "")).lower()
+    return ModuleCode == "YLM" or "young learners module" in ModuleName
 
 
 def _QuestionSourceText(Question: dict[str, Any], FallbackTitle: str) -> str:
@@ -2376,6 +2429,7 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: L
     IsImMock = _IsIntermediateModule(ModuleRecord)
     IsPmMock = _IsPreparatoryModule(ModuleRecord)
     IsBmMock = _IsBridgeModule(ModuleRecord)
+    IsYlmMock = _IsYoungLearnersModule(ModuleRecord)
 
     if IsBmMock:
         # Bridge Module (added 2026-08-07, Shailesh) routes to its own
@@ -2384,6 +2438,19 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: L
         # engine and 6-section registry, zero shared code with PM's or any
         # other module's already-verified mock/assessment path.
         return CollectBmCompetitionSectionLockedQuestions(
+            LevelRecord,
+            TargetQuestionCount,
+            SectionCountsOverride,
+        )
+
+    if IsYlmMock:
+        # Young Learners Module (added 2026-08-11, Shailesh) routes to its
+        # own separate collector -- CollectYlmCompetitionSectionLockedQuestions,
+        # in ylm_competition_mock_generation_service.py -- YLM's own
+        # dedicated engine and 2/3-section-per-level registry, zero shared
+        # code with any other module's already-verified mock/assessment
+        # path.
+        return CollectYlmCompetitionSectionLockedQuestions(
             LevelRecord,
             TargetQuestionCount,
             SectionCountsOverride,
@@ -2756,11 +2823,13 @@ def GenerateCompetitionMockDraft(
     IsImMock = _IsIntermediateModule(ModuleRecord)
     IsPmMock = _IsPreparatoryModule(ModuleRecord)
     IsBmMock = _IsBridgeModule(ModuleRecord)
+    IsYlmMock = _IsYoungLearnersModule(ModuleRecord)
     DefaultQuestionCount = (
         MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsMmMock
         else IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsImMock
         else PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsPmMock
         else BM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsBmMock
+        else YLM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT if IsYlmMock
         else DEFAULT_COMPETITION_MOCK_QUESTION_COUNT
     )
     DefaultDurationSeconds = (
@@ -2768,6 +2837,7 @@ def GenerateCompetitionMockDraft(
         else IM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsImMock
         else PM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsPmMock
         else BM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsBmMock
+        else YLM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsYlmMock
         else DEFAULT_COMPETITION_MOCK_DURATION_SECONDS
     )
     RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)

@@ -123,13 +123,58 @@ def _direct_operands_for_focus(current: int, operation_focus: str) -> list[int]:
 
 
 def _direct_bases(config: YLMConfig) -> list[int]:
-    digit_pattern = (config.digit_pattern or "1D").upper()
+    # Found 2026-08-11: "2D" used to alias to the same mixed 1D+2D pool as
+    # "1D_AND_2D", so a DPS explicitly scoped to double-digit-only (e.g. "50, 60,
+    # 70, 80, 90 Direct Add-Less") could still draw single-digit bases. Also
+    # widened from the old 9-value tens-only list ([10,20,...90]) to the full
+    # two-digit range: the real DPS Junior Level workbook uses general two-digit
+    # bases like 11, 33, 44, 22, 24, 64, 82 -- not just round multiples of ten
+    # (confirmed against Lesson 1 DPS-2/DPS-4 and Lesson 2 DPS-4's real values).
+    # DIRECT_ADD_ALLOWED/DIRECT_SUB_ALLOWED and classify_step() still gate on the
+    # units digit only, so widening this pool cannot admit an invalid movement --
+    # validate_question() rejects anything that isn't a true direct step.
+    # digit_pattern is resolved per-DPS by enrich_config_with_lesson_rule() and is
+    # always one of the 4 known values below, so it must take priority over
+    # place_value -- otherwise a lesson-level place_value="MIXED" (set once for
+    # the whole lesson) silently overrides a DPS that was just narrowed to "1D"
+    # by YLM_DPS_DIGIT_PATTERN_OVERRIDES, defeating the point of the override.
+    # place_value is now only a fallback for the (currently theoretical) case of
+    # an unrecognized/blank digit_pattern.
+    digit_pattern = (config.digit_pattern or "").upper()
     place_value = (config.place_value or "ONES").upper()
     if digit_pattern == "2D_TENS":
         return [10, 20, 30, 40, 50, 60, 70, 80, 90]
-    if digit_pattern in {"2D", "1D_AND_2D"} or place_value in {"MIXED", "ONES_AND_TENS"}:
-        return list(range(1, 10)) + [10, 20, 30, 40, 50, 60, 70, 80, 90]
+    if digit_pattern == "2D":
+        return list(range(10, 100))
+    if digit_pattern == "1D_AND_2D":
+        return list(range(1, 10)) + list(range(10, 100))
+    if digit_pattern == "1D":
+        return list(range(1, 10))
+    if place_value in {"MIXED", "ONES_AND_TENS"}:
+        return list(range(1, 10)) + list(range(10, 100))
     return list(range(1, 10))
+
+
+def _tens_values_for_digit_pattern(all_tens_values: list[int], digit_pattern: str) -> list[int]:
+    """Filter a complement-template's candidate tens tiers by the DPS's real digit width.
+
+    Found 2026-08-11: _comp5_add_bases/_comp5_sub_bases/_comp10_add_bases/
+    _comp10_sub_bases took `config` as a parameter but never read it -- every
+    complement-of-5/10 DPS in every YLM lesson drew bases from every decade 0-90
+    regardless of the lesson's (or, after this fix, the specific DPS's) declared
+    digit_pattern. Same bug class as the PM-L1 digit-pattern fix from this project's
+    history; same "narrowest available tier" fallback convention for "1D" when the
+    template's own tens_values never include 0 (COMP10_SUB structurally always
+    needs a tens place to borrow from -- there's no true single-digit base for it).
+    """
+    digit_pattern = (digit_pattern or "1D_AND_2D").upper()
+    if digit_pattern == "1D":
+        zero_tier = [t for t in all_tens_values if t == 0]
+        return zero_tier or [min(all_tens_values)]
+    if digit_pattern in {"2D", "2D_TENS"}:
+        non_zero = [t for t in all_tens_values if t != 0]
+        return non_zero or all_tens_values
+    return all_tens_values
 
 
 def _safe_supports(current: int, template: str) -> list[int]:
@@ -150,13 +195,15 @@ def _safe_supports(current: int, template: str) -> list[int]:
 
 def _comp5_add_bases(target: int, config: YLMConfig) -> list[int]:
     ones = 5 - target
-    tens_values = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+    all_tens_values = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+    tens_values = _tens_values_for_digit_pattern(all_tens_values, config.digit_pattern)
     return [tens + ones for tens in tens_values if 0 < tens + ones <= 99]
 
 
 def _comp5_sub_bases(target: int, config: YLMConfig) -> list[int]:
     ones_values = list(range(5, 5 + target))
-    tens_values = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+    all_tens_values = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+    tens_values = _tens_values_for_digit_pattern(all_tens_values, config.digit_pattern)
     return [tens + ones for tens in tens_values for ones in ones_values if 0 < tens + ones <= 99]
 
 
@@ -164,7 +211,8 @@ def _comp10_add_bases(target: int, config: YLMConfig) -> list[int]:
     # +target using complement of 10 must start from the exact trigger unit.
     # Example: +4 => 6 + 4, 16 + 4, 26 + 4. Not 38 + 4.
     ones = 10 - target
-    tens_values = [0, 10, 20, 30, 40, 50, 60]
+    all_tens_values = [0, 10, 20, 30, 40, 50, 60]
+    tens_values = _tens_values_for_digit_pattern(all_tens_values, config.digit_pattern)
     return [tens + ones for tens in tens_values if tens + ones > 0]
 
 
@@ -172,7 +220,8 @@ def _comp10_sub_bases(target: int, config: YLMConfig) -> list[int]:
     # -target using complement of 10 must start from the exact borrow trigger range.
     # Example: -3 => 12 - 3, 22 - 3, 32 - 3. Not random two-digit subtraction.
     ones_values = list(range(0, target))
-    tens_values = [10, 20, 30, 40, 50, 60, 70, 80, 90]
+    all_tens_values = [10, 20, 30, 40, 50, 60, 70, 80, 90]
+    tens_values = _tens_values_for_digit_pattern(all_tens_values, config.digit_pattern)
     return [tens + ones for tens in tens_values for ones in ones_values]
 
 
