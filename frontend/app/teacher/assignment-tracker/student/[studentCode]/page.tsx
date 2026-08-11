@@ -757,7 +757,7 @@ function TeacherStudentTrackerWorkspacePageContent() {
         <section className="w-full space-y-6">
           <div className="math-hero">
             <div>
-              <p className="math-kicker">
+              <p className="math-block-header">
                 <UserRound size={14} />
                 Student Practice Review
               </p>
@@ -1036,7 +1036,7 @@ function OverviewTab({
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <p className="math-kicker">
+        <p className="math-block-header">
           <Sliders size={14} />
           Practice Control
         </p>
@@ -1097,7 +1097,7 @@ function LevelCoverageCard({ Rows }: { Rows: AnyRow[] }) {
     <div className="mt-5 rounded-[24px] border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="math-kicker">
+          <p className="math-block-header">
             <PieChart size={14} />
             Level Coverage
           </p>
@@ -1302,7 +1302,7 @@ function LessonInsightsTab({
     );
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <p className="math-kicker">
+      <p className="math-block-header">
         <Lightbulb size={14} />
         Lesson Insights
       </p>
@@ -1363,7 +1363,7 @@ function ModulePracticeBlock({
         className="flex w-full flex-col gap-4 text-left xl:flex-row xl:items-center xl:justify-between"
       >
         <div>
-          <p className="math-kicker">
+          <p className="math-block-header">
             <Layers3 size={14} />
             Module
           </p>
@@ -1434,7 +1434,7 @@ function LevelPracticeBlock({
         className="math-hierarchy-row flex-col gap-3 px-0 py-0 lg:flex-row lg:items-center lg:justify-between"
       >
         <div>
-          <p className="math-kicker">
+          <p className="math-block-header">
             <Route size={14} />
             Level
           </p>
@@ -1496,7 +1496,7 @@ function LessonInsightBlock({
         className="flex w-full flex-col gap-4 text-left xl:flex-row xl:items-start xl:justify-between"
       >
         <div>
-          <p className="math-kicker">
+          <p className="math-block-header">
             <BookOpen size={14} />
             Lesson
           </p>

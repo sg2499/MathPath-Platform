@@ -484,7 +484,7 @@ function TeacherCompetitionMockTrackerContent() {
       <TeacherCompetitionDarkHoverStyles />
       <section className="teacher-competition-dark-hover-scope space-y-6">
         <div className="math-card p-6 sm:p-8">
-          <p className="math-kicker">
+          <p className="math-block-header">
             <ClipboardList size={14} />
             Competition Tracker
           </p>
@@ -512,7 +512,7 @@ function TeacherCompetitionMockTrackerContent() {
               <article className="math-card p-5 sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="math-kicker">
+                    <p className="math-block-header">
                       <Radar size={14} />
                       Monitor
                     </p>

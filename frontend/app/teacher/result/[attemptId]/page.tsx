@@ -73,7 +73,7 @@ export default function TeacherAttemptDetailPage() {
         <div className="mx-auto max-w-[1500px] space-y-6 px-6 py-8">
           <section className="math-hero">
             <div className="relative z-10">
-              <p className="math-kicker">
+              <p className="math-block-header">
                 <FileQuestion size={14} />
                 Teacher Result Detail
               </p>

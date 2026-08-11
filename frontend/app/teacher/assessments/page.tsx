@@ -1097,7 +1097,7 @@ function TeacherAssessmentAssignmentsContent() {
       <section className="w-full space-y-6">
         <div className="math-hero">
           <div>
-            <p className="math-kicker">
+            <p className="math-block-header">
               <ClipboardCheck size={14} />
               Assessment Tracking
             </p>
