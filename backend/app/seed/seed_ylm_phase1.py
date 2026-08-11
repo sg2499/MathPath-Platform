@@ -19,7 +19,12 @@ from app.models import (
     AuditLog,
     Notification,
 )
-from app.question_engine.ylm.config import YLM_LESSON_RULES, YLM_LEVEL_LESSON_RANGES, rule_metadata
+from app.question_engine.ylm.config import (
+    YLM_LESSON_RULES,
+    YLM_LEVEL_LESSON_RANGES,
+    dps_digit_pattern_for,
+    rule_metadata,
+)
 
 
 def _admin_user_id(db: Session) -> str | None:
@@ -154,7 +159,15 @@ def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str, ad
     return dps
 
 
-def _ensure_section(db: Session, dps: DPS, dps_title: str, rule) -> None:
+def _ensure_section(db: Session, dps: DPS, dps_number: int, dps_title: str, rule) -> None:
+    # Found 2026-08-11: this used to write rule.digit_pattern (lesson-level) onto
+    # every one of a lesson's 5 DPS sections identically, which is the root cause
+    # of DPS-1 through DPS-5 all generating the same shape of question regardless
+    # of what their own title promises. dps_digit_pattern_for() resolves the real
+    # per-DPS width from YLM_DPS_DIGIT_PATTERN_OVERRIDES (derived from the source
+    # Excel), falling back to the lesson default for any DPS not listed there.
+    effective_digit_pattern = dps_digit_pattern_for(rule.lesson_number, dps_number, rule.digit_pattern)
+
     section = db.query(DPSSection).filter(DPSSection.dps_id == dps.id, DPSSection.section_number == 1).first()
     if not section:
         section = DPSSection(
@@ -173,12 +186,12 @@ def _ensure_section(db: Session, dps: DPS, dps_title: str, rule) -> None:
     section.abacus_rule = rule.abacus_rule
     section.target_numbers_json = json.dumps(rule.target_numbers)
     section.place_value = rule.place_value
-    section.digit_pattern = rule.digit_pattern
+    section.digit_pattern = effective_digit_pattern
     section.rows_count = rule.rows
     section.difficulty = "YLM_GOLDEN_STEPS"
     section.allow_negative_operands = rule.allow_negative_operands
     section.allow_negative_answer = rule.allow_negative_answer
-    section.generator_config_json = json.dumps(rule_metadata(rule))
+    section.generator_config_json = json.dumps({**rule_metadata(rule), "digit_pattern": effective_digit_pattern})
 
 
 def _delete_legacy_level_lessons(db: Session, level: Level, valid_lesson_numbers: set[int]) -> None:
@@ -290,6 +303,6 @@ def seed(db: Session):
         for dps_number in range(1, 6):
             dps_title = rule.dps_titles[dps_number - 1] if rule.dps_titles else f"{rule.lesson_title} DPS {dps_number}"
             dps = _ensure_dps(db, lesson, dps_number, dps_title, admin_user_id)
-            _ensure_section(db, dps, dps_title, rule)
+            _ensure_section(db, dps, dps_number, dps_title, rule)
 
     db.commit()

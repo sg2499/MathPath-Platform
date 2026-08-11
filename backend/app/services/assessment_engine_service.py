@@ -55,6 +55,10 @@ from app.services.bm_competition_mock_generation_service import (
     BM_COMPETITION_LEVEL_REGISTRY,
     _generate_bm_competition_batch,
 )
+from app.services.ylm_competition_mock_generation_service import (
+    YLM_COMPETITION_LEVEL_REGISTRY,
+    _generate_ylm_competition_batch,
+)
 
 # Kept as a literal duplicate of assessment_blueprint_service.py's
 # SECTION_WISE_ASSESSMENT_MODULES rather than imported from it: that module
@@ -62,12 +66,13 @@ from app.services.bm_competition_mock_generation_service import (
 # so importing back would create a circular import. Both sets must be changed
 # together -- a module only ever gets added to section-wise assessments once,
 # and grep for SECTION_WISE_ASSESSMENT_MODULES finds both call sites.
-_SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM", "BM"}
+_SECTION_WISE_ASSESSMENT_MODULES = {"IM", "MM", "PM", "BM", "YLM"}
 _SECTION_WISE_REGISTRIES: dict[str, dict[str, Any]] = {
     "IM": IM_COMPETITION_LEVEL_REGISTRY,
     "MM": MM_COMPETITION_LEVEL_REGISTRY,
     "PM": PM_COMPETITION_LEVEL_REGISTRY,
     "BM": BM_COMPETITION_LEVEL_REGISTRY,
+    "YLM": YLM_COMPETITION_LEVEL_REGISTRY,
 }
 
 ASSESSMENT_VERSION_STATUSES = {"DRAFT", "PREVIEW", "PUBLISHED", "ARCHIVED"}
@@ -705,6 +710,22 @@ def _GenerateBmAssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec: d
     return _generate_bm_competition_batch(ConceptSpec, Count, Seed)
 
 
+def _GenerateYlmAssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], Count: int, Seed: str) -> list[dict[str, Any]]:
+    """Young Learners Module counterpart to _GenerateBmAssessmentBatch --
+    thin wrapper around _generate_ylm_competition_batch
+    (ylm_competition_mock_generation_service.py). Unlike BM/PM-L4, YLM has
+    only one generation dispatch path (every concept-pool entry, lesson-
+    sourced or Lesson-32-synthetic, is a YLMConfig consumed by
+    generate_ylm_question_set), so the wrapped function needs no
+    conceptFamily branching of its own -- reused as-is here so assessments
+    and mocks can never silently diverge on how a given concept is
+    generated.
+    """
+    if Count <= 0:
+        return []
+    return _generate_ylm_competition_batch(ConceptSpec, Count, Seed)
+
+
 def _GeneratePmL2AssessmentBatch(SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], Count: int, Seed: str) -> list[dict[str, Any]]:
     """PM-L2 counterpart of _GeneratePmAssessmentBatch above -- a separate
     function (not a branch inside it) so PM-L1's already-verified assessment
@@ -1281,6 +1302,13 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     elif ModuleCode == "PM":
                         Config = PmSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
                         GeneratedQuestions = _GeneratePmAssessmentBatch(Config, Count)
+                    elif ModuleCode == "YLM":
+                        # Young Learners Module routes to its own dedicated
+                        # batch generator (question_engine/ylm), same as BM
+                        # above -- a separate module entirely from IM, so
+                        # none of IM's already-verified branch below is ever
+                        # touched.
+                        GeneratedQuestions = _GenerateYlmAssessmentBatch(SectionDef, ConceptSpec, Count, ConceptSeed)
                     else:
                         Config = ImSectionRegistryConfig(LevelItem, SectionDef, ConceptSpec, Count, ConceptSeed)
                         GeneratedQuestions = _GenerateImAssessmentBatch(Config, Count)
@@ -1316,6 +1344,15 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                         # are unaffected by this change.
                         QuestionMarks = PmQuestionMark(ConceptTag)
                         MarksMode = "PM_CONCEPT_WEIGHTED" if QuestionMarks != MM_FLAT_QUESTION_MARKS else "PM_FLAT"
+                    elif ModuleCode == "YLM":
+                        # YLM joins MM's flat-1-mark-always scheme (2026-08-11,
+                        # Shailesh: "each question would have 1 mark each for
+                        # both the flows") -- deliberately not routed through
+                        # ImConceptWeightedQuestionMark() below, since YLM has
+                        # no Skill Stacker/Concept Drill-style weighted concept
+                        # at all.
+                        QuestionMarks = MM_FLAT_QUESTION_MARKS
+                        MarksMode = "YLM_FLAT"
                     else:
                         QuestionMarks = ImConceptWeightedQuestionMark(ConceptTag)
                         MarksMode = "CONCEPT_WEIGHTED"
@@ -1508,7 +1545,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
         # exactly (flat 1 each); for IM it reflects the real concept-weighted
         # total.
         Version.total_marks = RunningWeightedMarksTotal
-        Version.marks_per_question = MM_FLAT_QUESTION_MARKS if ModuleCode in {"MM", "PM"} else _CONCEPT_WEIGHTED_DEFAULT_MARKS
+        Version.marks_per_question = MM_FLAT_QUESTION_MARKS if ModuleCode in {"MM", "PM", "YLM"} else _CONCEPT_WEIGHTED_DEFAULT_MARKS
         Db.add(Version)
     Db.flush()
     return Version

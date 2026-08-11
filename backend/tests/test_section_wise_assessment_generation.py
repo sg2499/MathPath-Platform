@@ -26,6 +26,9 @@ from app.services.competition_mock_generation_service import (
     MM_COMPETITION_LEVEL_REGISTRY,
     IM_COMPETITION_LEVEL_REGISTRY,
 )
+from app.services.ylm_competition_mock_generation_service import (
+    YLM_COMPETITION_LEVEL_REGISTRY,
+)
 
 WEIGHTED_FAMILIES = {"SKILL_STACKER", "CONCEPT_DRILL"}
 
@@ -328,12 +331,28 @@ def test_generated_preview_groups_section_wise_questions_by_section(db_session):
     assert sum(g["questionCount"] for g in groups) == total_questions
 
 
-def test_ylm_module_stays_on_legacy_lesson_wise_path(db_session):
-    # YLM has no entry in either section registry -- is_section_wise_module()
-    # must return False for it, not silently error looking one up.
-    assert bp_service.is_section_wise_module("YLM") is False
+def test_ylm_module_joined_section_wise_assessment_pipeline(db_session):
+    """2026-08-11: supersedes the old test_ylm_module_stays_on_legacy_lesson_wise_path,
+    which locked in the pre-rework behavior (YLM had no section registry entry
+    anywhere and is_section_wise_module("YLM") had to return False). YLM now
+    has real section-wise assessment support across all 3 levels, mirroring
+    MM/IM/PM/BM -- confirmed both at the boolean-flag level and by checking
+    the actual registry backing it resolves for every YLM level, not just
+    that the flag flipped.
+    """
+    assert bp_service.is_section_wise_module("YLM") is True
     assert bp_service.is_section_wise_module("MM") is True
     assert bp_service.is_section_wise_module("IM") is True
+    # A module with no registry entry at all must still report False, not
+    # error -- the allow-list is deliberately explicit (see the comment above
+    # SECTION_WISE_ASSESSMENT_MODULES), so this keeps that guard meaningful.
+    assert bp_service.is_section_wise_module("NOT_A_REAL_MODULE") is False
+
+    registry = bp_service._SECTION_WISE_REGISTRIES.get("YLM")
+    assert registry is YLM_COMPETITION_LEVEL_REGISTRY
+    for level_code in ("YLM-L1", "YLM-L2", "YLM-L3"):
+        assert level_code in registry
+        assert registry[level_code]["sectionDefinitions"]
 
 
 def test_im_assessment_generation_varies_digit_patterns_and_position_direction(db_session):
