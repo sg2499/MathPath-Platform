@@ -29,6 +29,9 @@ from app.services.competition_mock_generation_service import (
     MM_COMPETITION_LEVEL_REGISTRY,
     IM_COMPETITION_LEVEL_REGISTRY,
 )
+from app.services.ylm_competition_mock_generation_service import (
+    YLM_COMPETITION_LEVEL_REGISTRY,
+)
 
 
 @pytest.fixture()
@@ -206,12 +209,59 @@ def test_im_full_http_round_trip(client):
     assert sum(g["questionCount"] for g in groups) == total_questions
 
 
-def test_ylm_level_reports_lesson_wise_not_section_wise(client):
+def test_ylm_full_http_round_trip(client):
+    """2026-08-11: YLM joined the section-wise assessment pipeline (all 3
+    levels) -- this supersedes the old
+    test_ylm_level_reports_lesson_wise_not_section_wise, which locked in the
+    pre-rework behavior (YLM used to be lesson-wise, reporting
+    isSectionWise=False with an empty section list). YLM-L1 has 3 sections
+    (Addition/Subtraction/Add-Less), mirrors MM's flat 1-mark/question
+    scheme, and always totals exactly 100 questions -- same invariant as
+    test_mm_full_http_round_trip above.
+    """
     test_client, session, admin = client
     module, level = _seed_level(session, "YLM", "Young Learners Module", "YLM-L1", "YLM Level 1")
 
     sections_resp = test_client.get(f"/api/admin/levels/{level.id}/assessment-sections")
     assert sections_resp.status_code == 200, sections_resp.text
-    payload = sections_resp.json()
-    assert payload["isSectionWise"] is False
-    assert payload["sections"] == []
+    sections_payload = sections_resp.json()
+    assert sections_payload["isSectionWise"] is True
+    section_defs = sections_payload["sections"]
+    assert len(section_defs) == len(YLM_COMPETITION_LEVEL_REGISTRY["YLM-L1"]["sectionDefinitions"])
+    assert len(section_defs) == 3
+
+    distribution = _distribute_evenly(section_defs, 100)
+    total_questions = sum(row["questionCount"] for row in distribution)
+    assert total_questions == 100
+
+    create_resp = test_client.post(
+        "/api/admin/assessment-blueprints",
+        json={
+            "title": "YLM-L1 Route Assessment",
+            "moduleId": module.id,
+            "levelId": level.id,
+            "totalQuestions": total_questions,
+            "durationSeconds": 1800,
+            "lessonDistribution": distribution,
+            "instructions": None,
+            "status": "PUBLISHED",
+        },
+    )
+    assert create_resp.status_code == 200, create_resp.text
+    blueprint_payload = create_resp.json()
+    assert blueprint_payload["distributionMode"] == "SECTION_WISE"
+    blueprint_id = blueprint_payload["id"]
+
+    preview_resp = test_client.post(f"/api/admin/assessment-blueprints/{blueprint_id}/generate-preview")
+    assert preview_resp.status_code == 200, preview_resp.text
+
+    generated_resp = test_client.get(f"/api/admin/assessment-blueprints/{blueprint_id}/generated-assessment")
+    assert generated_resp.status_code == 200, generated_resp.text
+    generated = generated_resp.json()
+    assert generated["available"] is True
+    assessment = generated["assessment"]
+    assert assessment["questionCount"] == total_questions
+    assert assessment["totalMarks"] == total_questions  # YLM: flat 1 mark/question, same as MM
+    groups = assessment["lessonGroups"]
+    assert len(groups) == len(section_defs)
+    assert all(g["groupKind"] == "SECTION" for g in groups)
