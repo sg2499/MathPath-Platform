@@ -272,7 +272,7 @@ export default function TeacherAssignAssessmentPage() {
       <section className="w-full space-y-6">
         <div className="math-hero">
           <div>
-            <p className="math-kicker">
+            <p className="math-block-header">
               <FilePenLine size={14} />
               Assessment Assignment
             </p>
@@ -295,7 +295,7 @@ export default function TeacherAssignAssessmentPage() {
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--mp-role-soft)] text-[var(--mp-role-readable)]"><GraduationCap size={20} /></span>
               <div>
-                <p className="math-kicker">
+                <p className="math-block-header">
                   <ListChecks size={14} />
                   Assessment Selection
                 </p>
@@ -358,7 +358,7 @@ export default function TeacherAssignAssessmentPage() {
             <div className="rounded-[32px] border border-white/70 bg-white/90 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="math-kicker">
+                  <p className="math-block-header">
                     <UserCheck size={14} />
                     Eligible Students
                   </p>

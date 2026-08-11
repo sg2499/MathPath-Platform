@@ -324,7 +324,7 @@ export default function TeacherCompetitionMockResultPage() {
           </button>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="math-kicker">
+              <p className="math-block-header">
                 <CheckCircle2 size={14} />
                 Mock Result
               </p>
@@ -438,7 +438,7 @@ function CompetitionMessageBox({
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="math-kicker">
+              <p className="math-block-header">
                 <Megaphone size={14} />
                 Competition Coach
               </p>
@@ -556,7 +556,7 @@ function QuestionReviewTab({
           <BookOpenCheck size={22} />
         </div>
         <div>
-          <p className="math-kicker">
+          <p className="math-block-header">
             <BookOpenCheck size={14} />
             Question Review
           </p>
@@ -716,7 +716,7 @@ function ResultAnalysisTab({
       <div className="math-card overflow-hidden p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="math-kicker">
+            <p className="math-block-header">
               <Brain size={14} />
               Concept Analysis
             </p>
@@ -823,7 +823,7 @@ function InsightCard({
 }) {
   return (
     <article className="math-card p-5">
-      <p className="math-kicker">
+      <p className="math-block-header">
         <Lightbulb size={14} />
         Result Insight
       </p>

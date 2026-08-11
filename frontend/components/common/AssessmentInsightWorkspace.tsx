@@ -368,7 +368,7 @@ export function AssessmentInsightWorkspace({
     <div className="mx-auto max-w-[1500px] px-6 py-8">
       <div className="math-hero">
         <div>
-          <p className="math-kicker">
+          <p className="math-block-header">
             {role === "student" ? <TrendingUp size={14} /> : <Activity size={14} />}
             {role === "student" ? "Student Assessment Review" : role === "teacher" ? "Student Assessment Review" : "Student Assessment Profile"}
           </p>
@@ -445,7 +445,7 @@ function AssessmentOverview({ Rows, onView }: { Rows: AssessmentRow[]; onView?: 
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.15fr]">
       <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <p className="math-kicker">
+        <p className="math-block-header">
           <Settings size={14} />
           Assessment Control Summary
         </p>
@@ -464,7 +464,7 @@ function AssessmentOverview({ Rows, onView }: { Rows: AssessmentRow[]; onView?: 
           <div className="flex items-start gap-3">
             <div className="rounded-2xl bg-amber-50 p-3 text-amber-700"><AlertTriangle size={20} /></div>
             <div>
-              <p className="math-kicker">
+              <p className="math-block-header">
                 <ListOrdered size={14} />
                 Priority Queue
               </p>
@@ -486,7 +486,7 @@ function AssessmentOverview({ Rows, onView }: { Rows: AssessmentRow[]; onView?: 
           <div className="flex items-start gap-3">
             <div className="rounded-2xl bg-blue-50 p-3 text-blue-700"><CalendarClock size={20} /></div>
             <div>
-              <p className="math-kicker">
+              <p className="math-block-header">
                 <Clock size={14} />
                 Recent Activity
               </p>
@@ -532,7 +532,7 @@ function AssessmentInsights({ Groups, OpenModules, OpenLevels, ToggleModule, Tog
         <section key={ModuleGroup.Key} className="rounded-[30px] border border-slate-200 bg-white/90 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
           <button type="button" className="mb-4 flex w-full flex-col gap-3 text-left lg:flex-row lg:items-center lg:justify-between" onClick={() => ToggleModule(ModuleGroup.Key)} aria-expanded={IsModuleOpen} title={IsModuleOpen ? "Collapse assessment module" : "Expand assessment module"}>
             <div>
-              <p className="math-kicker">
+              <p className="math-block-header">
                 <Layers3 size={14} />
                 Assessment Module
               </p>

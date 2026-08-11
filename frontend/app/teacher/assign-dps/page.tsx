@@ -159,7 +159,7 @@ export default function TeacherAssignDpsPage() {
     <AppShell title="Assign DPS">
       <section className="math-hero">
         <div className="relative z-10">
-          <p className="math-kicker">
+          <p className="math-block-header">
             <ClipboardPlus size={14} />
             Teacher assignment
           </p>
@@ -209,7 +209,7 @@ export default function TeacherAssignDpsPage() {
           <section className="math-card p-5 sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="math-kicker">
+                <p className="math-block-header">
                   <UserCheck size={14} />
                   Eligible students
                 </p>
@@ -263,7 +263,7 @@ export default function TeacherAssignDpsPage() {
                   <ClipboardPlus size={22} />
                 </div>
                 <div>
-                  <p className="math-kicker">
+                  <p className="math-block-header">
                     <CheckCircle2 size={14} />
                     Confirm Assignment
                   </p>

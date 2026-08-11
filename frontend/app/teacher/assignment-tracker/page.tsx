@@ -616,7 +616,7 @@ function TeacherPracticeTrackerContent() {
       <section className="w-full space-y-6">
         <div className="math-hero">
           <div>
-            <p className="math-kicker">
+            <p className="math-block-header">
               <Target size={14} />
               Teacher Practice
             </p>
@@ -1178,7 +1178,7 @@ function ExpandedViewHeader({
     <div className="mb-5 math-operation-panel">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="math-kicker">
+          <p className="math-block-header">
             <Maximize2 size={14} />
             Expanded Practice View
           </p>

@@ -2190,7 +2190,7 @@ html.dark .math-login-status {
     font-weight: 800;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: var(--mp-role-primary);
+    color: var(--mp-role-readable);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
     width: fit-content;
   }

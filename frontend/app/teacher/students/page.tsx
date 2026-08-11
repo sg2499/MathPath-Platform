@@ -450,7 +450,7 @@ export default function TeacherStudentsPage() {
       <section className="math-hero">
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="math-kicker">
+            <p className="math-block-header">
               <UsersRound size={14} />
               Teacher Students
             </p>
@@ -472,7 +472,7 @@ export default function TeacherStudentsPage() {
       <section className="mt-6 math-card p-5 sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="math-kicker">
+            <p className="math-block-header">
               <LayoutGrid size={14} />
               Student Overview
             </p>

@@ -465,7 +465,7 @@ function TeacherCompetitionProgressContent() {
       <TeacherCompetitionDarkHoverStyles />
       <section className="teacher-competition-dark-hover-scope space-y-6">
         <div className="math-card p-6 sm:p-8">
-          <p className="math-kicker">
+          <p className="math-block-header">
             <TrendingUp size={14} />
             Performance Insights
           </p>
@@ -493,7 +493,7 @@ function TeacherCompetitionProgressContent() {
               <div className="math-card overflow-hidden p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="math-kicker">
+                    <p className="math-block-header">
                       <Radar size={14} />
                       Monitor
                     </p>
@@ -588,7 +588,7 @@ function TeacherCompetitionProgressContent() {
                                       onClick={() => ToggleExpanded(SetExpandedModules, ModuleGroup.key)}
                                     >
                                       <div className="text-left">
-                                        <p className="math-kicker">
+                                        <p className="math-block-header">
                                           <Layers3 size={12} />
                                           Module
                                         </p>
@@ -615,7 +615,7 @@ function TeacherCompetitionProgressContent() {
                                                 onClick={() => ToggleExpanded(SetExpandedLevels, LevelGroup.key)}
                                               >
                                                 <div className="text-left">
-                                                  <p className="math-kicker">
+                                                  <p className="math-block-header">
                                                     <Route size={12} />
                                                     Level
                                                   </p>

@@ -368,7 +368,7 @@ export default function TeacherPromotionHistoryPage() {
     <AppShell title="Promotion History">
       <section className="mx-auto max-w-[1680px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <div className="math-hero p-6">
-          <p className="math-kicker">
+          <p className="math-block-header">
             <Award size={14} />
             Progression Tracking
           </p>
