@@ -222,14 +222,13 @@ class DriftTests(unittest.TestCase):
             path = Path(tmp) / "render.yaml"
             path.write_text(
                 "healthCheckPath: /api/health\n"
-                "      - key: SEED_ON_STARTUP\n        value: \"true\"\n"
                 "      - key: TEMPORARY_ASSESSMENT_READINESS_BYPASS\n        value: \"false\"\n",
                 encoding="utf-8",
             )
             result = module.audit(path)
             self.assertEqual(result["status"], "review_required")
             self.assertEqual(result["enforcement"], "report_only")
-            self.assertEqual(len(result["drift"]), 2)
+            self.assertEqual(len(result["drift"]), 1)
 
 
 class ExposureAuditTests(unittest.TestCase):

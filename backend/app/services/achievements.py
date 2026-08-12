@@ -962,6 +962,21 @@ class AchievementEngine:
                 existing.description = desc
                 existing.icon_name = icon
                 existing.required_count = req
+
+        # 2026-08-12: the loop above is additive-only (upsert, never delete),
+        # so a level_mastery badge whose Level has since been removed from
+        # the curriculum (e.g. YLM-L2/YLM-L3 folded into a single YLM-L1
+        # level) would otherwise sit as a permanently orphaned row instead of
+        # disappearing along with its level. StudentBadge.badge_id cascades
+        # on delete, so any already-earned copies of a pruned badge go with
+        # it -- acceptable here since this only ever prunes badges for levels
+        # that no longer exist at all, not badges for levels that are merely
+        # inactive.
+        live_level_mastery_codes = {code for code, _tier, *_rest in target_badges if code.startswith("level_mastery_")}
+        for (code, _tier), existing in list(existing_by_key.items()):
+            if code.startswith("level_mastery_") and code not in live_level_mastery_codes:
+                db.delete(existing)
+
         try:
             db.commit()
         except Exception as e:

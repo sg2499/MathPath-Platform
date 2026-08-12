@@ -84,17 +84,15 @@ const LEVEL_MASTERY_BATCH2_MM: PreviewBadge[] = [
 ];
 
 // Batch 3 -- verbatim from seed_badges()'s dynamic Level Mastery derivation
-// for YLM-L1/L2/L3.
+// for YLM-L1. 2026-08-12: YLM collapsed from 3 levels down to a single
+// YLM-L1 level covering all 32 lessons (matching the BM/MM
+// one-level-per-module pattern) -- the L2/L3 preview entries that used to
+// live here were removed along with those levels and their now-deleted
+// glyph components.
 const LEVEL_MASTERY_BATCH3_YLM: PreviewBadge[] = [
   { code: "level_mastery_ylm_l1", tier: "BASE", name: "YLM L1 -- Cleared", description: "Complete at least 12 Mock Exams within YLM L1", iconName: "LevelMasteryYlmL1Cleared" },
   { code: "level_mastery_ylm_l1", tier: "SUPER", name: "YLM L1 -- Mastered", description: "Complete at least 20 Mock Exams within YLM L1, averaging 85% or higher", iconName: "LevelMasteryYlmL1Mastered" },
   { code: "level_mastery_ylm_l1", tier: "LEGENDARY", name: "YLM L1 -- Perfected", description: "Complete at least 30 Mock Exams within YLM L1, averaging 95% or higher (or score 100% on at least one)", iconName: "LevelMasteryYlmL1Perfected" },
-  { code: "level_mastery_ylm_l2", tier: "BASE", name: "YLM L2 -- Cleared", description: "Complete at least 12 Mock Exams within YLM L2", iconName: "LevelMasteryYlmL2Cleared" },
-  { code: "level_mastery_ylm_l2", tier: "SUPER", name: "YLM L2 -- Mastered", description: "Complete at least 20 Mock Exams within YLM L2, averaging 85% or higher", iconName: "LevelMasteryYlmL2Mastered" },
-  { code: "level_mastery_ylm_l2", tier: "LEGENDARY", name: "YLM L2 -- Perfected", description: "Complete at least 30 Mock Exams within YLM L2, averaging 95% or higher (or score 100% on at least one)", iconName: "LevelMasteryYlmL2Perfected" },
-  { code: "level_mastery_ylm_l3", tier: "BASE", name: "YLM L3 -- Cleared", description: "Complete at least 12 Mock Exams within YLM L3", iconName: "LevelMasteryYlmL3Cleared" },
-  { code: "level_mastery_ylm_l3", tier: "SUPER", name: "YLM L3 -- Mastered", description: "Complete at least 20 Mock Exams within YLM L3, averaging 85% or higher", iconName: "LevelMasteryYlmL3Mastered" },
-  { code: "level_mastery_ylm_l3", tier: "LEGENDARY", name: "YLM L3 -- Perfected", description: "Complete at least 30 Mock Exams within YLM L3, averaging 95% or higher (or score 100% on at least one)", iconName: "LevelMasteryYlmL3Perfected" },
 ];
 
 const LEVEL_MASTERY_BATCH4_PM: PreviewBadge[] = [
@@ -402,7 +400,7 @@ export default function BadgePreviewPage() {
       <Section title="Phase 2 -- 5 new families, all 4 tiers (20 badges)" badges={PHASE2_NEW} onOpen={setSelected} />
       <Section title="Phase 3 -- Level Mastery, batch 1: BM-L1 (3 badges)" badges={LEVEL_MASTERY_BATCH1_BM} onOpen={setSelected} />
       <Section title="Phase 3 -- Level Mastery, batch 2: MM-L1 (3 badges)" badges={LEVEL_MASTERY_BATCH2_MM} onOpen={setSelected} />
-      <Section title="Phase 3 -- Level Mastery, batch 3: YLM-L1/L2/L3 (9 badges)" badges={LEVEL_MASTERY_BATCH3_YLM} onOpen={setSelected} />
+      <Section title="Phase 3 -- Level Mastery, batch 3: YLM-L1 (3 badges)" badges={LEVEL_MASTERY_BATCH3_YLM} onOpen={setSelected} />
       <Section title="Phase 3 -- Level Mastery, batch 4: PM-L1/L2/L3/L4 (12 badges)" badges={LEVEL_MASTERY_BATCH4_PM} onOpen={setSelected} />
       <Section title="Phase 3 -- Level Mastery, batch 5: IM-L1/L2/L3/L4 (12 badges)" badges={LEVEL_MASTERY_BATCH5_IM} onOpen={setSelected} />
       <Section title="Phase 5 -- DPS Batch 2 (Boundless Tome & Lightning Quill - 8 badges)" badges={DPS_BATCH_2} onOpen={setSelected} />

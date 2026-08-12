@@ -763,226 +763,11 @@ export function IconLevelMasteryYlmL1Legendary(props: BadgeGlyphProps) {
   );
 }
 
-const SPROUT_MOSS = "#0d2c35";
-const SPROUT_TEAL = "#11a8b1";
-const SPROUT_MIST = "#b6eff7";
-
-// Lanceolate cotyledons with a real taper, and a stem with a slight natural
-// lean rather than a ruled vertical -- the first pass's leaves were symmetric
-// blobs on a plumb line, which is what made this glyph read as clip-art next
-// to the arch and the peak.
-const LEAF_L = "M12 11.9 C8.3 11.2 5.5 8.5 5.1 4.3 C8.8 5.3 11.4 8.2 12 11.9 Z";
-const LEAF_R = "M12 11.9 C15.7 11.2 18.5 8.5 18.9 4.3 C15.2 5.3 12.6 8.2 12 11.9 Z";
-const LEAF_L_INNER = "M12 11.4 C9.5 10.8 7.5 8.8 7.2 5.9 C9.7 6.6 11.6 8.8 12 11.4 Z";
-const LEAF_R_INNER = "M12 11.4 C14.5 10.8 16.5 8.8 16.8 5.9 C14.3 6.6 12.4 8.8 12 11.4 Z";
-const SPROUT_STEM = "M12 21.4 C12.3 17.4 11.6 14 12 10.8";
-
-export function IconLevelMasteryYlmL2Base(props: BadgeGlyphProps) {
-  return (
-    <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={2.5} />
-      {/* Stem -- outline only. */}
-      <path d={SPROUT_STEM} fill="none" strokeWidth={1.4} />
-      {/* Twin cotyledon leaves -- outline only, unfilled, no venation. */}
-      <path d={LEAF_L} fill="none" strokeWidth={1.15} />
-      <path d={LEAF_R} fill="none" strokeWidth={1.15} />
-    </GlyphShell>
-  );
-}
-
-export function IconLevelMasteryYlmL2Super(props: BadgeGlyphProps) {
-  return (
-    <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={2.5} />
-      <path d={SPROUT_STEM} fill="none" strokeWidth={1.4} />
-      {/* Leaves, solidly filled. */}
-      <path d={LEAF_L} fill={SPROUT_TEAL} opacity={0.45} stroke="none" />
-      <path d={LEAF_R} fill={SPROUT_TEAL} opacity={0.45} stroke="none" />
-      <path d={LEAF_L} fill="none" strokeWidth={1.15} />
-      <path d={LEAF_R} fill="none" strokeWidth={1.15} />
-      {/* The one extra structural detail: midribs. */}
-      <path d="M11.7 11.4 C9.4 10.1 7.1 7.7 5.7 5.0" strokeWidth={0.8} opacity={0.7} fill="none" />
-      <path d="M12.3 11.4 C14.6 10.1 16.9 7.7 18.3 5.0" strokeWidth={0.8} opacity={0.7} fill="none" />
-      {/* Bud at the leaf junction, with a soft glow. */}
-      <circle cx="12" cy="10.8" r="1.9" fill={SPROUT_TEAL} opacity={0.35} stroke="none" />
-      <circle cx="12" cy="10.8" r="1.1" fill={SPROUT_TEAL} stroke="none" />
-    </GlyphShell>
-  );
-}
-
-export function IconLevelMasteryYlmL2Legendary(props: BadgeGlyphProps) {
-  return (
-    <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={2.5} />
-
-      {/* COMPANION GRASS -- the sprout is no longer alone. Four blades arc out
-          of the soil and exit BOTH side edges of the viewBox: this family's
-          escaping light is lateral and living, not radial. */}
-      <g fill="none" strokeLinecap="round" stroke={SPROUT_MIST}>
-        <path d="M12.4 21.4 C8 20.6 3.4 18.6 -1.6 14.2" strokeWidth={0.85} opacity={0.6} />
-        <path d="M11.6 21.4 C16 20.6 20.6 18.6 25.6 14.2" strokeWidth={0.85} opacity={0.6} />
-        <path d="M12.2 21.4 C9 21 5.6 19.8 1.4 17.4" strokeWidth={0.55} opacity={0.4} />
-        <path d="M11.8 21.4 C15 21 18.4 19.8 22.6 17.4" strokeWidth={0.55} opacity={0.4} />
-      </g>
-
-      <path d={SPROUT_STEM} fill="none" strokeWidth={1.4} />
-      {/* Leaves -- two layered fill bands. */}
-      <path d={LEAF_L} fill={SPROUT_TEAL} opacity={0.8} stroke="none" />
-      <path d={LEAF_R} fill={SPROUT_TEAL} opacity={0.8} stroke="none" />
-      <path d={LEAF_L_INNER} fill={SPROUT_MIST} opacity={0.45} stroke="none" />
-      <path d={LEAF_R_INNER} fill={SPROUT_MIST} opacity={0.45} stroke="none" />
-      <path d={LEAF_L} fill="none" strokeWidth={1.15} />
-      <path d={LEAF_R} fill="none" strokeWidth={1.15} />
-      {/* Midribs plus secondary venation -- LEGENDARY-only structural step. */}
-      <path d="M11.7 11.4 C9.4 10.1 7.1 7.7 5.7 5.0" strokeWidth={0.8} opacity={0.75} fill="none" />
-      <path d="M12.3 11.4 C14.6 10.1 16.9 7.7 18.3 5.0" strokeWidth={0.8} opacity={0.75} fill="none" />
-      <g strokeWidth={0.5} opacity={0.55} fill="none">
-        <path d="M10.2 10.2 C9.7 9.3 9.3 8.7 9.0 8.0" />
-        <path d="M8.4 8.4 C8.0 7.6 7.7 6.9 7.5 6.2" />
-        <path d="M13.8 10.2 C14.3 9.3 14.7 8.7 15.0 8.0" />
-        <path d="M15.6 8.4 C16.0 7.6 16.3 6.9 16.5 6.2" />
-      </g>
-
-      {/* DEW. Two drops hanging off the leaf tips, one drop falling IN through
-          the top edge, and the impact ripple its predecessor left on the soil.
-          A drop is a shape; the six straight rays this slot used to hold
-          were not. */}
-      <g stroke="none">
-        <path d="M5.4 4.6 C6.5 6 6.7 6.9 6.2 7.6 C5.7 8.3 4.7 8.3 4.3 7.6 C3.8 6.9 4.3 6 5.4 4.6 Z" fill={SPROUT_MIST} opacity={0.85} />
-        <circle cx="4.9" cy="6.6" r="0.4" fill="#ffffff" opacity={0.9} />
-        <path d="M18.6 4.6 C19.7 6 19.9 6.9 19.4 7.6 C18.9 8.3 17.9 8.3 17.5 7.6 C17 6.9 17.5 6 18.6 4.6 Z" fill={SPROUT_MIST} opacity={0.85} />
-        <circle cx="18.1" cy="6.6" r="0.35" fill="#ffffff" opacity={0.8} />
-        <path d="M14.8 -1.8 C15.7 -0.7 15.9 0 15.4 0.6 C15 1.1 14.3 1.1 13.9 0.6 C13.5 0 14 -0.7 14.8 -1.8 Z" fill={SPROUT_MIST} opacity={0.8} />
-      </g>
-      <path d="M14.8 -3.2 L14.8 -2.2" stroke={SPROUT_MIST} strokeWidth={0.55} opacity={0.6} strokeLinecap="round" />
-
-      {/* Bud, brightest element, with its own halo. */}
-      <circle cx="12" cy="10.8" r="2.6" fill={SPROUT_MIST} opacity={0.28} stroke="none" />
-      <circle cx="12" cy="10.8" r="1.3" fill={SPROUT_MIST} stroke="none" />
-
-      {/* Impact ripple on the soil -- this family's environmental echo,
-          concentric rather than a dashed rule. */}
-      <g fill="none" stroke={SPROUT_MIST} strokeLinecap="round">
-        <path d="M13.4 21.4 A3.2 1.1 0 0 0 19.8 21.4" strokeWidth={0.65} opacity={0.55} />
-        <path d="M14.8 21.4 A1.8 0.7 0 0 0 18.4 21.4" strokeWidth={0.5} opacity={0.4} />
-      </g>
-    </GlyphShell>
-  );
-}
-
-const BLOOM_PLUM = "#20131c";
-const BLOOM_ORCHID = "#a678c2";
-const BLOOM_FUCHSIA = "#f69eee";
-
-// Single petal, pointing up from the flower's center (12, 10) -- reused 5x
-// at 72deg increments via a wrapping <g transform="rotate(...)">.
-const PETAL_PATH = "M12 10 C9.8 9 9 6.6 10.3 4.1 C11 2.8 13 2.8 13.7 4.1 C15 6.6 14.2 9 12 10 Z";
-const PETAL_INNER_PATH = "M12 10 C10.3 9.4 9.8 7.6 10.7 5.7 C11.2 4.9 12.8 4.9 13.3 5.7 C14.2 7.6 13.7 9.4 12 10 Z";
-const PETAL_ANGLES = [0, 72, 144, 216, 288];
-// Petal-tip highlight, reused at the same 5 angles.
-const PETAL_TIP = "M12 2.6 C12.7 3.4 12.9 4 12.6 4.6 C12.3 5.1 11.7 5.1 11.4 4.6 C11.1 4 11.3 3.4 12 2.6 Z";
-// One stamen -- a CURVED filament with an anther at its end -- reused 6x at
-// 60deg. 6-on-60 against 5-petals-on-72 never lines up, which is exactly why
-// the flower reads as grown rather than as a diagram.
-const STAMEN_PATH = "M12 10 C13.4 8.6 14.6 7.2 15.8 5.4";
-const STAMEN_ANGLES = [0, 60, 120, 180, 240, 300];
-// A true Archimedean pollen trail: r = 3 + 1.5i, theta = -60deg - 38deg*i.
-// The last two motes leave the 24x24 frame on the right, which is this
-// family's silhouette break -- dispersal, not radiance.
-const POLLEN: Array<[number, number, number, number]> = [
-  [13.5, 7.4, 0.55, 0.9],
-  [11.37, 5.55, 0.5, 0.85],
-  [7.69, 5.83, 0.46, 0.78],
-  [4.54, 9.22, 0.42, 0.7],
-  [4.37, 14.77, 0.38, 0.62],
-  [8.41, 19.87, 0.34, 0.54],
-  [15.71, 21.41, 0.3, 0.46],
-  [23.19, 17.55, 0.26, 0.38],
-  [26.97, 8.95, 0.22, 0.3],
-];
-
-export function IconLevelMasteryYlmL3Base(props: BadgeGlyphProps) {
-  return (
-    <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={2.5} />
-      <path d="M12 21.4 L12 14" fill="none" strokeWidth={1.4} />
-      {/* 5 petals -- outline only, unfilled. */}
-      {PETAL_ANGLES.map((a) => (
-        <path key={a} d={PETAL_PATH} fill="none" strokeWidth={1.05} transform={`rotate(${a} 12 10)`} />
-      ))}
-    </GlyphShell>
-  );
-}
-
-export function IconLevelMasteryYlmL3Super(props: BadgeGlyphProps) {
-  return (
-    <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={2.5} />
-      <path d="M12 21.4 L12 14" fill="none" strokeWidth={1.4} />
-      {/* Petals, solidly filled. */}
-      {PETAL_ANGLES.map((a) => (
-        <path key={a} d={PETAL_PATH} fill={BLOOM_ORCHID} opacity={0.45} stroke="none" transform={`rotate(${a} 12 10)`} />
-      ))}
-      {PETAL_ANGLES.map((a) => (
-        <path key={`o${a}`} d={PETAL_PATH} fill="none" strokeWidth={1.05} transform={`rotate(${a} 12 10)`} />
-      ))}
-      {/* The one extra structural detail: the bloom ring. */}
-      <circle cx="12" cy="10" r="7.4" fill="none" strokeWidth={0.8} opacity={0.6} strokeDasharray="1.3 1.4" />
-      <circle cx="12" cy="10" r="1.9" fill={BLOOM_ORCHID} opacity={0.35} stroke="none" />
-      <circle cx="12" cy="10" r="1.1" fill={BLOOM_ORCHID} stroke="none" />
-    </GlyphShell>
-  );
-}
-
-export function IconLevelMasteryYlmL3Legendary(props: BadgeGlyphProps) {
-  return (
-    <GlyphShell {...props}>
-      <path d="M1 21.4 H23" strokeWidth={2.5} />
-      <path d="M12 21.4 L12 14" fill="none" strokeWidth={1.4} />
-
-      {/* POLLEN SPIRAL -- drawn first so the flower sits inside its own
-          dispersal. Motes decay in radius and opacity along a real spiral and
-          the outermost two leave the frame on the right. */}
-      <g stroke="none" fill={BLOOM_FUCHSIA}>
-        {POLLEN.map(([cx, cy, r, o], i) => (
-          <circle key={i} cx={cx} cy={cy} r={r} opacity={o} />
-        ))}
-      </g>
-
-      {/* Petals -- two layered fill bands. */}
-      {PETAL_ANGLES.map((a) => (
-        <path key={a} d={PETAL_PATH} fill={BLOOM_ORCHID} opacity={0.8} stroke="none" transform={`rotate(${a} 12 10)`} />
-      ))}
-      {PETAL_ANGLES.map((a) => (
-        <path key={`i${a}`} d={PETAL_INNER_PATH} fill={BLOOM_FUCHSIA} opacity={0.8} stroke="none" transform={`rotate(${a} 12 10)`} />
-      ))}
-      {PETAL_ANGLES.map((a) => (
-        <path key={`o${a}`} d={PETAL_PATH} fill="none" strokeWidth={1.05} transform={`rotate(${a} 12 10)`} />
-      ))}
-      <circle cx="12" cy="10" r="7.4" fill="none" strokeWidth={0.8} opacity={0.65} strokeDasharray="1.3 1.4" />
-
-      {/* Every petal tip lit, not an arbitrary two of five. */}
-      {PETAL_ANGLES.map((a) => (
-        <path key={`t${a}`} d={PETAL_TIP} fill={BLOOM_FUCHSIA} opacity={0.85} stroke="none" transform={`rotate(${a} 12 10)`} />
-      ))}
-
-      {/* STAMENS -- six curved filaments with anthers, off-phase from the five
-          petals. This is the LEGENDARY-only structural addition and it is a
-          real floral organ, which the six straight rays it replaces were not. */}
-      {STAMEN_ANGLES.map((a) => (
-        <g key={`s${a}`} transform={`rotate(${a} 12 10)`}>
-          <path d={STAMEN_PATH} fill="none" strokeWidth={0.75} opacity={0.9} stroke={BLOOM_FUCHSIA} />
-          <circle cx="15.8" cy="5.4" r="0.62" fill={BLOOM_FUCHSIA} stroke="none" />
-        </g>
-      ))}
-
-      {/* Pollen core. */}
-      <circle cx="12" cy="10" r="2.8" fill={BLOOM_FUCHSIA} opacity={0.28} stroke="none" />
-      <circle cx="12" cy="10" r="1.3" fill={BLOOM_FUCHSIA} stroke="none" />
-    </GlyphShell>
-  );
-}
-
+// 2026-08-12: YLM collapsed from 3 levels down to a single YLM-L1 level
+// covering all 32 lessons (matching the BM/MM one-level-per-module
+// pattern) -- the IconLevelMasteryYlmL2*/IconLevelMasteryYlmL3* glyphs and
+// their SPROUT_*/LEAF_*/BLOOM_*/PETAL_*/STAMEN_*/POLLEN constants that used
+// to live here were removed along with those levels.
 /* --------------------------------------------------------------------------
  * 5. StreakChainLegendary -- Unstoppable Streak, LEGENDARY.
  * Fire is the obvious read and it is the wrong one on its own: the badge is
@@ -1750,16 +1535,13 @@ export const referenceBatchGlyphs = {
   LevelMasteryMmL1Mastered: IconLevelMasteryMmL1Super,
   LevelMasteryMmL1Perfected: IconLevelMasteryMmL1Legendary,
 
-  // PHASE 3, Batch 3 (2026-07-29) -- Level Mastery, YLM-L1/L2/L3.
+  // PHASE 3, Batch 3 (2026-07-29) -- Level Mastery, YLM-L1.
+  // 2026-08-12: YLM collapsed from 3 levels to 1 (matching BM/MM) -- the
+  // YlmL2/YlmL3 registry entries that used to live here were removed along
+  // with those levels and their now-deleted glyph components above.
   LevelMasteryYlmL1Cleared: IconLevelMasteryYlmL1Base,
   LevelMasteryYlmL1Mastered: IconLevelMasteryYlmL1Super,
   LevelMasteryYlmL1Perfected: IconLevelMasteryYlmL1Legendary,
-  LevelMasteryYlmL2Cleared: IconLevelMasteryYlmL2Base,
-  LevelMasteryYlmL2Mastered: IconLevelMasteryYlmL2Super,
-  LevelMasteryYlmL2Perfected: IconLevelMasteryYlmL2Legendary,
-  LevelMasteryYlmL3Cleared: IconLevelMasteryYlmL3Base,
-  LevelMasteryYlmL3Mastered: IconLevelMasteryYlmL3Super,
-  LevelMasteryYlmL3Perfected: IconLevelMasteryYlmL3Legendary,
   // PHASE 3, Batch 4 (2026-07-30) -- Level Mastery, PM-L1/L2/L3/L4.
   LevelMasteryPmL1Cleared: IconLevelMasteryPmL1Base,
   LevelMasteryPmL1Mastered: IconLevelMasteryPmL1Super,

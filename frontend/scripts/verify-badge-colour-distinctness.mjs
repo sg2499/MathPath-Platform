@@ -432,12 +432,10 @@ const LEVEL_MASTERY_NEW = [
   { key: "level_mastery_ylm_l1_BASE",      name: "YLM L1 -- Cleared",   primary: "#350d03", note: "dark rust/burnt-umber -- seed/sprout/blossom identity, YLM is the first module in every path; shifted off amber (30-80deg) after the real script's HSL-triple-near check FAILed the first dE00-only pick there -- that whole band had zero safe dark candidates" },
   { key: "level_mastery_ylm_l1_SUPER",     name: "YLM L1 -- Mastered",  primary: "#c1bb44", note: "muted mustard-gold spark" },
   { key: "level_mastery_ylm_l1_LEGENDARY", name: "YLM L1 -- Perfected", primary: "#ceb785", note: "pale warm wheat dawn -- apex-tier high-key jump" },
-  { key: "level_mastery_ylm_l2_BASE",      name: "YLM L2 -- Cleared",   primary: "#0d2c35", note: "deep teal-navy roots" },
-  { key: "level_mastery_ylm_l2_SUPER",     name: "YLM L2 -- Mastered",  primary: "#11a8b1", note: "vivid teal current" },
-  { key: "level_mastery_ylm_l2_LEGENDARY", name: "YLM L2 -- Perfected", primary: "#b6eff7", note: "pale ice-cyan bloom -- apex-tier high-key jump" },
-  { key: "level_mastery_ylm_l3_BASE",      name: "YLM L3 -- Cleared",   primary: "#20131c", note: "deep blackish-plum closed bud" },
-  { key: "level_mastery_ylm_l3_SUPER",     name: "YLM L3 -- Mastered",  primary: "#a678c2", note: "muted orchid opening blossom" },
-  { key: "level_mastery_ylm_l3_LEGENDARY", name: "YLM L3 -- Perfected", primary: "#f69eee", note: "bright pink-magenta full bloom -- apex-tier high-key jump" },
+  // 2026-08-12: YLM collapsed from 3 levels down to a single YLM-L1 level
+  // (matching the BM/MM one-level-per-module pattern) -- the ylm_l2/ylm_l3
+  // colour entries that used to live here were removed along with those
+  // levels and their now-deleted badgeVisuals.ts entries.
   { key: "level_mastery_pm_l1_BASE",      name: "PM L1 -- Cleared",    primary: "#473632", note: "quarry earth" },
   { key: "level_mastery_pm_l1_SUPER",     name: "PM L1 -- Mastered",   primary: "#7f3301", note: "fired clay" },
   { key: "level_mastery_pm_l1_LEGENDARY", name: "PM L1 -- Perfected",  primary: "#d1755a", note: "forge spark" },

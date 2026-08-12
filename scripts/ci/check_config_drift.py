@@ -7,9 +7,13 @@ import json
 import re
 from pathlib import Path
 
+# 2026-08-12: SEED_ON_STARTUP dropped from EXPECTED -- the app no longer
+# reads that variable at all (it used to gate YLM's curriculum sync only;
+# YLM now seeds unconditionally on every boot like every other module, so
+# there's nothing left for it to gate, and it's been removed from render.yaml
+# and backend/app/core/config.py). Nothing left to audit here for it.
 EXPECTED = {
     "healthCheckPath": "/api/health",
-    "SEED_ON_STARTUP": "false",
     "TEMPORARY_ASSESSMENT_READINESS_BYPASS": "true",
 }
 
@@ -19,7 +23,7 @@ def extract_render_values(text: str) -> dict[str, str | None]:
     health = re.search(r"(?m)^\s*healthCheckPath:\s*['\"]?([^'\"\s]+)", text)
     if health:
         values["healthCheckPath"] = health.group(1)
-    for key in ("SEED_ON_STARTUP", "TEMPORARY_ASSESSMENT_READINESS_BYPASS"):
+    for key in ("TEMPORARY_ASSESSMENT_READINESS_BYPASS",):
         pattern = rf"(?ms)^\s*-\s*key:\s*{re.escape(key)}\s*$.*?^\s*value:\s*['\"]?([^'\"\s]+)"
         match = re.search(pattern, text)
         if match:

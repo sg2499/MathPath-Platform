@@ -55,10 +55,12 @@ const YlmDefaultDurationMinutes = 30;
 // _SECTION_WISE_REGISTRIES (assessment_blueprint_service.py) -- building a
 // module's real engine + backend registry does NOT make it selectable here
 // automatically; this Set must be updated too, every time.
-// 2026-08-11: YLM added (YLM_COMPETITION_LEVEL_REGISTRY, 3 sections for
-// YLM-L1/YLM-L3 -- Addition, Subtraction, Add/Less -- and 2 sections for
-// YLM-L2 -- Addition, Subtraction, since Level 2 has no Add/Less-flavored
-// lesson -- flat 1 mark/question, same as MM/PM-L1).
+// 2026-08-11: YLM added (YLM_COMPETITION_LEVEL_REGISTRY, 3 sections --
+// Addition, Subtraction, Add/Less -- flat 1 mark/question, same as
+// MM/PM-L1). 2026-08-12: YLM collapsed from 3 levels down to a single
+// YLM-L1 level covering all 32 lessons, matching the BM/MM
+// one-level-per-module pattern -- the 3 sections now pool from the whole
+// level instead of being split per old level boundary.
 const CompetitionMockSupportedModuleCodes = new Set(["MM", "IM", "PM", "BM", "YLM"]);
 
 const AdminRowActionButtonClass = "inline-flex items-center justify-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] shadow-sm transition duration-200 hover:-translate-y-px hover:border-[color:var(--mp-role-border-strong)] hover:bg-[image:var(--mp-role-action-bg)] hover:text-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--mp-role-primary)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-[color:var(--mp-role-border)] disabled:hover:bg-white disabled:hover:text-[color:var(--mp-role-primary)] disabled:hover:shadow-sm dark:bg-slate-950/60 dark:text-blue-100 dark:hover:border-[color:var(--mp-role-border-strong)] dark:hover:bg-[image:var(--mp-role-action-bg)] dark:hover:text-white dark:disabled:hover:bg-slate-950/60 dark:disabled:hover:text-blue-100";

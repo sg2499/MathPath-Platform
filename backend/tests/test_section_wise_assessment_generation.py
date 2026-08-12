@@ -350,7 +350,9 @@ def test_ylm_module_joined_section_wise_assessment_pipeline(db_session):
 
     registry = bp_service._SECTION_WISE_REGISTRIES.get("YLM")
     assert registry is YLM_COMPETITION_LEVEL_REGISTRY
-    for level_code in ("YLM-L1", "YLM-L2", "YLM-L3"):
+    # 2026-08-12: YLM collapsed from 3 levels down to a single YLM-L1 level
+    # covering all 32 lessons, matching the BM/MM one-level-per-module pattern.
+    for level_code in ("YLM-L1",):
         assert level_code in registry
         assert registry[level_code]["sectionDefinitions"]
 

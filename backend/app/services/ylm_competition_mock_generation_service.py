@@ -7,43 +7,48 @@ other modules and levels"): every module gets fully dedicated curriculum
 logic so a failure or future change in one module's mock/assessment
 generation can never silently affect another.
 
-Section design (Shailesh, 2026-08-11), confirmed across several rounds of
-negotiation in that session:
+Section design (Shailesh, 2026-08-11, originally negotiated per-level;
+2026-08-12: YLM collapsed from 3 levels down to a single YLM-L1 level
+covering all 32 lessons, matching the BM/MM one-level-per-module pattern --
+see question_engine/ylm/config.py's YLM_LEVEL_LESSON_RANGES. The section
+design below is the same 3-section shape as before, just pooled across the
+whole level instead of split per old level boundary):
 
-  YLM-L1 (Lessons 1-16) and YLM-L3 (Lessons 25-32) each get 3 sections --
-  Addition, Subtraction, Add/Less. YLM-L2 (Lessons 17-24) gets 2 sections --
-  Addition, Subtraction -- because Level 2 has no Add/Less-flavored lesson at
-  all (every L2 lesson is a pure Complement-of-10 addition or subtraction
-  lesson). Every question in both the section-wise assessment workflow and
-  the competition-mock workflow is worth exactly 1 mark (see
-  YLM_COMPETITION_MARKS_PER_QUESTION below, and assessment_engine_service.py/
-  assessment_blueprint_service.py's "YLM_FLAT" handling, which puts YLM on
-  the same flat-1-mark-always scheme as MM rather than IM's concept-weighted
-  one).
+  YLM-L1 (all 32 lessons) gets 3 sections -- Addition, Subtraction, Add/Less
+  -- each pooling "every kind of X sum taught anywhere in the level," not
+  just within an old level boundary. Every question in both the
+  section-wise assessment workflow and the competition-mock workflow is
+  worth exactly 1 mark (see YLM_COMPETITION_MARKS_PER_QUESTION below, and
+  assessment_engine_service.py/assessment_blueprint_service.py's
+  "YLM_FLAT" handling, which puts YLM on the same flat-1-mark-always scheme
+  as MM rather than IM's concept-weighted one).
 
-  Level 1 and Level 2's Addition/Subtraction sections pool together "every
-  kind of addition/subtraction sum taught anywhere in the level" by pooling
-  one concept-pool entry per contributing lesson, built directly from that
-  lesson's own YLM_LESSON_RULES entry (title, concept family, operation
-  focus, abacus rule, target numbers, digit pattern, generation template) --
-  so a mock/assessment question can never describe a taught pattern that
-  doesn't actually exist in the curriculum.
+  Addition and Subtraction pool one concept-pool entry per contributing
+  lesson across the full 1-32 range, built directly from that lesson's own
+  YLM_LESSON_RULES entry (title, concept family, operation focus, abacus
+  rule, target numbers, digit pattern, generation template) -- so a
+  mock/assessment question can never describe a taught pattern that doesn't
+  actually exist in the curriculum.
 
-  Level 3 has no lesson with a pure Addition focus at all (Lessons 25-31 are
-  all Complement-of-10 Subtraction; Lesson 32 is the final mixed revision).
-  Per Shailesh's explicit direction ("what is the best way forward for level
-  3 then?"), Level 3's Addition and Add/Less sections are instead sourced
-  from Lesson 32's own revision pool, restricted to addition-shaped slots
-  (Direct-addition-only, Complement-of-5 Addition, Complement-of-10 Addition)
-  for the Addition section, and Direct Add/Less slots (mixed +/- in the same
-  sum, matching Shailesh's own "add/less sum stacks" phrasing) for the
-  Add/Less section. This uses lesson_number=0 on every synthetic config,
-  which is the confirmed, already-existing bypass in
-  question_engine/ylm/config.py's enrich_config_with_lesson_rule(): a
-  lesson_number with no entry in YLM_LESSON_RULES leaves every field the
-  caller set completely untouched, so a fully custom generation_template/
-  revision_templates/digit_pattern/etc. combination is honored exactly as
-  given -- no new generator code was needed for this constraint.
+  No lesson from 25-31 has a pure Addition focus (they're all
+  Complement-of-10 Subtraction), and no lesson past 7 has a pure Add/Less
+  focus at all -- Lesson 32 (the level's final mixed revision) is the only
+  place addition-shaped and add/less-shaped content exists past that point.
+  Per Shailesh's explicit direction from the original per-level design
+  ("what is the best way forward for level 3 then?"), the Addition and
+  Add/Less sections both fold in synthetic entries sourced from Lesson 32's
+  own revision pool -- restricted to addition-shaped slots (Direct-addition-
+  only, Complement-of-5 Addition, Complement-of-10 Addition) for Addition,
+  and Direct Add/Less slots (mixed +/- in the same sum, matching Shailesh's
+  own "add/less sum stacks" phrasing) for Add/Less -- on top of the real
+  lesson-sourced entries from earlier in the level. This uses
+  lesson_number=0 on every synthetic config, which is the confirmed,
+  already-existing bypass in question_engine/ylm/config.py's
+  enrich_config_with_lesson_rule(): a lesson_number with no entry in
+  YLM_LESSON_RULES leaves every field the caller set completely untouched,
+  so a fully custom generation_template/revision_templates/digit_pattern/etc.
+  combination is honored exactly as given -- no new generator code was
+  needed for this constraint.
 
 Reads exclusively from question_engine/ylm and this file's own module-level
 constants -- zero imports from any other module's mock/assessment logic.
@@ -116,76 +121,49 @@ def _ylm_pool_from_lessons(lesson_numbers: list[int], level_code: str) -> list[d
     return [_ylm_concept_spec_from_lesson(lesson_number, level_code) for lesson_number in lesson_numbers]
 
 
-YLM_COMPETITION_SECTION_DEFINITIONS_L1: list[dict[str, Any]] = [
-    {"key": "YLM_L1_ADDITION", "number": 1, "title": "Section 1 - Addition"},
-    {"key": "YLM_L1_SUBTRACTION", "number": 2, "title": "Section 2 - Subtraction"},
-    {"key": "YLM_L1_ADD_LESS", "number": 3, "title": "Section 3 - Add/Less"},
+YLM_COMPETITION_SECTION_DEFINITIONS: list[dict[str, Any]] = [
+    {"key": "YLM_ADDITION", "number": 1, "title": "Section 1 - Addition"},
+    {"key": "YLM_SUBTRACTION", "number": 2, "title": "Section 2 - Subtraction"},
+    {"key": "YLM_ADD_LESS", "number": 3, "title": "Section 3 - Add/Less"},
 ]
 
-# Addition: Complement-of-5 Addition (Lessons 3-6), the Complement-of-5
-# Addition revision (Lesson 12), and Complement-of-10 Addition (Lessons
-# 14-16).
-YLM_L1_ADDITION_LESSONS: list[int] = [3, 4, 5, 6, 12, 14, 15, 16]
-# Subtraction: Complement-of-5 Subtraction (Lessons 8-11) and its revision
-# (Lesson 13).
-YLM_L1_SUBTRACTION_LESSONS: list[int] = [8, 9, 10, 11, 13]
+# Addition: every addition-flavored real lesson across the whole level --
+# Complement-of-5 Addition (Lessons 3-6) + its revision (Lesson 12) +
+# Complement-of-10 Addition (Lessons 14-22). Lessons 25-32 have no
+# purely-addition lesson of their own; Lesson 32's synthetic contribution
+# (YLM_LESSON_32_ADDITION_POOL below) is appended separately.
+YLM_ADDITION_LESSONS: list[int] = [3, 4, 5, 6, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+# Subtraction: every subtraction-flavored lesson across the whole level --
+# Complement-of-5 Subtraction (Lessons 8-11) + its revision (Lesson 13) +
+# Complement-of-10 Subtraction (Lessons 23-31). Fully lesson-sourced, no
+# synthetic entries needed -- Subtraction has real coverage everywhere.
+YLM_SUBTRACTION_LESSONS: list[int] = [8, 9, 10, 11, 13, 23, 24, 25, 26, 27, 28, 29, 30, 31]
 # Add/Less: the two Direct Add-Less introduction lessons (1, 2) and the
-# combined Direct Add-Less + Complement-of-5-Addition revision (Lesson 7),
-# which is the only Level 1 lesson that pools true mixed +/- rows.
-YLM_L1_ADD_LESS_LESSONS: list[int] = [1, 2, 7]
+# combined Direct Add-Less + Complement-of-5-Addition revision (Lesson 7) --
+# the only lessons anywhere in the level that pool true mixed +/- rows.
+# Lesson 32's synthetic contribution (YLM_LESSON_32_ADD_LESS_POOL below) is
+# appended separately.
+YLM_ADD_LESS_LESSONS: list[int] = [1, 2, 7]
 
-YLM_COMPETITION_SECTION_CONCEPT_POOLS_L1: dict[str, list[dict[str, Any]]] = {
-    "YLM_L1_ADDITION": _ylm_pool_from_lessons(YLM_L1_ADDITION_LESSONS, "YLM-L1"),
-    "YLM_L1_SUBTRACTION": _ylm_pool_from_lessons(YLM_L1_SUBTRACTION_LESSONS, "YLM-L1"),
-    "YLM_L1_ADD_LESS": _ylm_pool_from_lessons(YLM_L1_ADD_LESS_LESSONS, "YLM-L1"),
-}
-
-
-YLM_COMPETITION_SECTION_DEFINITIONS_L2: list[dict[str, Any]] = [
-    {"key": "YLM_L2_ADDITION", "number": 1, "title": "Section 1 - Addition"},
-    {"key": "YLM_L2_SUBTRACTION", "number": 2, "title": "Section 2 - Subtraction"},
-]
-
-# Level 2 is exclusively Complement-of-10: Lessons 17-22 are all Addition,
-# Lessons 23-24 are all Subtraction. No Add/Less-flavored lesson exists in
-# this level at all, which is exactly why YLM-L2 gets only 2 sections instead
-# of 3 (confirmed explicitly with Shailesh, 2026-08-11).
-YLM_L2_ADDITION_LESSONS: list[int] = [17, 18, 19, 20, 21, 22]
-YLM_L2_SUBTRACTION_LESSONS: list[int] = [23, 24]
-
-YLM_COMPETITION_SECTION_CONCEPT_POOLS_L2: dict[str, list[dict[str, Any]]] = {
-    "YLM_L2_ADDITION": _ylm_pool_from_lessons(YLM_L2_ADDITION_LESSONS, "YLM-L2"),
-    "YLM_L2_SUBTRACTION": _ylm_pool_from_lessons(YLM_L2_SUBTRACTION_LESSONS, "YLM-L2"),
-}
-
-
-YLM_COMPETITION_SECTION_DEFINITIONS_L3: list[dict[str, Any]] = [
-    {"key": "YLM_L3_ADDITION", "number": 1, "title": "Section 1 - Addition"},
-    {"key": "YLM_L3_SUBTRACTION", "number": 2, "title": "Section 2 - Subtraction"},
-    {"key": "YLM_L3_ADD_LESS", "number": 3, "title": "Section 3 - Add/Less"},
-]
-
-# Subtraction: every real Level 3 lesson is Complement-of-10 Subtraction
-# (Lessons 25-31) -- this section is lesson-sourced exactly like every other
-# level's sections above.
-YLM_L3_SUBTRACTION_LESSONS: list[int] = [25, 26, 27, 28, 29, 30, 31]
-
-# Addition and Add/Less have no source lesson at all in Level 3 (see this
-# file's module docstring) -- both are sourced from Lesson 32's own revision
-# pool instead, restricted to the addition-shaped / add-less-shaped slots of
-# that pool respectively. digitPattern="1D_AND_2D" and rows=3 match Lesson
-# 32's own YLM_LESSON_RULES entry; targetNumbers=[] deliberately, so each
-# entry falls back to the generator's own full target range (COMP5_ADD:
-# 1-4, COMP10_ADD: 1-9) for maximum "all kinds of addition sums" coverage.
-# lesson_number=0 on every one of these (set in _build_ylm_config) is what
-# lets generation_template/revision_templates/digit_pattern be honored
-# exactly as given, bypassing Lesson 32's own REVISION_TEMPLATE_SCHEDULES
-# pacing (which is fine here -- that pacing exists for a single 10-question
-# DPS worksheet, not a pooled mock/assessment section).
-YLM_L3_ADDITION_POOL: list[dict[str, Any]] = [
+# Lesson 32 (the level's final mixed revision) has no YLM_LESSON_RULES entry
+# that is purely "Addition" or purely "Add/Less" -- it's deliberately a blend
+# of every movement type taught across all 32 lessons. These synthetic,
+# lesson_number=0 concept-pool entries draw addition-shaped and
+# add/less-shaped slots out of that blend so "all kinds of addition/add-less
+# sums from all 32 lessons" genuinely includes Lesson 32's contribution
+# instead of skipping it for not being single-purpose. digitPattern=
+# "1D_AND_2D" and rows=3 match Lesson 32's own YLM_LESSON_RULES entry;
+# targetNumbers=[] deliberately, so each entry falls back to the generator's
+# own full target range (COMP5_ADD: 1-4, COMP10_ADD: 1-9) for maximum
+# coverage. lesson_number=0 (set in _build_ylm_config) is what lets
+# generation_template/revision_templates/digit_pattern be honored exactly as
+# given, bypassing Lesson 32's own REVISION_TEMPLATE_SCHEDULES pacing (fine
+# here -- that pacing exists for a single 10-question DPS worksheet, not a
+# pooled mock/assessment section).
+YLM_LESSON_32_ADDITION_POOL: list[dict[str, Any]] = [
     {
         "title": "Lesson 32 Revision Pool: Direct Addition",
-        "levelCode": "YLM-L3",
+        "levelCode": "YLM-L1",
         "conceptFamily": "MIXED_REVISION",
         "operationFocus": "ADDITION",
         "abacusRule": None,
@@ -202,7 +180,7 @@ YLM_L3_ADDITION_POOL: list[dict[str, Any]] = [
     },
     {
         "title": "Lesson 32 Revision Pool: Complement of 5 Addition",
-        "levelCode": "YLM-L3",
+        "levelCode": "YLM-L1",
         "conceptFamily": "MIXED_REVISION",
         "operationFocus": "ADDITION",
         "abacusRule": None,
@@ -219,7 +197,7 @@ YLM_L3_ADDITION_POOL: list[dict[str, Any]] = [
     },
     {
         "title": "Lesson 32 Revision Pool: Complement of 10 Addition",
-        "levelCode": "YLM-L3",
+        "levelCode": "YLM-L1",
         "conceptFamily": "MIXED_REVISION",
         "operationFocus": "ADDITION",
         "abacusRule": None,
@@ -238,11 +216,11 @@ YLM_L3_ADDITION_POOL: list[dict[str, Any]] = [
 
 # Add/Less: Lesson 32's Direct slots only -- true mixed +/- rows in the same
 # sum stack (e.g. 36 + 4 - 2), matching Shailesh's own definition of an
-# "add/less sum stack" from earlier in this session.
-YLM_L3_ADD_LESS_POOL: list[dict[str, Any]] = [
+# "add/less sum stack".
+YLM_LESSON_32_ADD_LESS_POOL: list[dict[str, Any]] = [
     {
         "title": "Lesson 32 Revision Pool: Direct Add/Less",
-        "levelCode": "YLM-L3",
+        "levelCode": "YLM-L1",
         "conceptFamily": "MIXED_REVISION",
         "operationFocus": "ADD_LESS",
         "abacusRule": None,
@@ -259,25 +237,17 @@ YLM_L3_ADD_LESS_POOL: list[dict[str, Any]] = [
     },
 ]
 
-YLM_COMPETITION_SECTION_CONCEPT_POOLS_L3: dict[str, list[dict[str, Any]]] = {
-    "YLM_L3_ADDITION": YLM_L3_ADDITION_POOL,
-    "YLM_L3_SUBTRACTION": _ylm_pool_from_lessons(YLM_L3_SUBTRACTION_LESSONS, "YLM-L3"),
-    "YLM_L3_ADD_LESS": YLM_L3_ADD_LESS_POOL,
+YLM_COMPETITION_SECTION_CONCEPT_POOLS: dict[str, list[dict[str, Any]]] = {
+    "YLM_ADDITION": _ylm_pool_from_lessons(YLM_ADDITION_LESSONS, "YLM-L1") + YLM_LESSON_32_ADDITION_POOL,
+    "YLM_SUBTRACTION": _ylm_pool_from_lessons(YLM_SUBTRACTION_LESSONS, "YLM-L1"),
+    "YLM_ADD_LESS": _ylm_pool_from_lessons(YLM_ADD_LESS_LESSONS, "YLM-L1") + YLM_LESSON_32_ADD_LESS_POOL,
 }
 
 
 YLM_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     "YLM-L1": {
-        "sectionDefinitions": YLM_COMPETITION_SECTION_DEFINITIONS_L1,
-        "sectionConceptPools": YLM_COMPETITION_SECTION_CONCEPT_POOLS_L1,
-    },
-    "YLM-L2": {
-        "sectionDefinitions": YLM_COMPETITION_SECTION_DEFINITIONS_L2,
-        "sectionConceptPools": YLM_COMPETITION_SECTION_CONCEPT_POOLS_L2,
-    },
-    "YLM-L3": {
-        "sectionDefinitions": YLM_COMPETITION_SECTION_DEFINITIONS_L3,
-        "sectionConceptPools": YLM_COMPETITION_SECTION_CONCEPT_POOLS_L3,
+        "sectionDefinitions": YLM_COMPETITION_SECTION_DEFINITIONS,
+        "sectionConceptPools": YLM_COMPETITION_SECTION_CONCEPT_POOLS,
     },
 }
 

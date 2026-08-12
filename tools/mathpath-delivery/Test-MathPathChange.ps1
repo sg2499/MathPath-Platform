@@ -57,7 +57,6 @@ if ($runBackend) {
     $backend = Join-Path $WorktreePath 'backend'
     Invoke-Checked 'Backend dependency synchronization' $backend { & $python -m pip install --disable-pip-version-check -r requirements.txt }
     $env:DATABASE_URL = 'sqlite:///./mathpath_delivery_test.db'
-    $env:SEED_ON_STARTUP = 'false'
     Invoke-Checked 'Backend pytest suite' $backend { & $python -m pytest tests -q }
 
     if ($Profile -eq 'backend-mm') {

@@ -125,8 +125,12 @@ export function SortRowsByCurriculum(Rows: AnyRow[]) {
   return [...Rows].sort(CompareRowsByCurriculum);
 }
 
+// 2026-08-12: YLM collapsed from 3 levels down to a single YLM-L1 level
+// covering all 32 lessons (matching the BM/MM one-level-per-module
+// pattern) -- 40 was stale even before the collapse (16 lessons x 5 DPS
+// for the old YLM-L1); now it's 32 lessons x 5 DPS = 160.
 const LEVEL_DPS_REQUIREMENTS: Record<string, number> = {
-  "YLM-L1": 40,
+  "YLM-L1": 160,
 };
 
 export function levelCodeOf(row: AnyRow) {
