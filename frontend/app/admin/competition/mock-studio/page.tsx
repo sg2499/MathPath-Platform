@@ -22,7 +22,7 @@ import {
 import type { LevelItem, ModuleItem } from "@/types/curriculum";
 import type { AdminStudent } from "@/types/student";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Archive, CheckCircle2, Eye, FilePenLine, FilePlus, Loader2, PackageOpen, Plus, Search, Send, Settings2, ShieldCheck, Target, Trash2, UserCheck, UsersRound } from "lucide-react";
+import { AlertTriangle, Archive, CheckCircle2, Eye, FilePenLine, FilePlus, Loader2, PackageOpen, Plus, Search, Send, Settings2, ShieldCheck, SlidersHorizontal, Target, Trash2, UserCheck, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -526,7 +526,7 @@ export default function AdminCompetitionMockStudioPage() {
                   <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--mp-role-primary)]">Section Allocation</p>
+                        <p className="math-block-header"><SlidersHorizontal size={14} />Section Allocation</p>
                         <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Balance question count per competition section before generating.</p>
                       </div>
                       <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${SectionCountTotal >= 10 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"}`}>
@@ -751,7 +751,7 @@ export default function AdminCompetitionMockStudioPage() {
 function MetricCard({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/50">
-      <div className="flex items-center gap-2 text-[var(--mp-role-primary)]">{icon}<span className="text-xs font-black uppercase tracking-[0.2em]">{label}</span></div>
+      <div className="math-role-text flex items-center gap-2">{icon}<span className="text-xs font-black uppercase tracking-[0.2em]">{label}</span></div>
       <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{value}</p>
     </div>
   );

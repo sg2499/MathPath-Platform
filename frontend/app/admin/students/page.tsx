@@ -36,6 +36,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
+  Contact,
   Copy,
   Download,
   Eye,
@@ -44,12 +45,16 @@ import {
   IdCard,
   KeyRound,
   ListChecks,
+  MapPin,
   Pencil,
   Plus,
+  School,
   Search,
   ShieldCheck,
   Upload,
   Trash2,
+  User,
+  UserCheck,
   UserCircle2,
   UserPlus,
   UserRound,
@@ -722,25 +727,25 @@ export default function AdminStudentsPage() {
           </div>
 
           <div className="min-w-0 rounded-[24px] border border-blue-100 bg-blue-50/50 px-5 py-4 shadow-sm dark:border-cyan-400/20 dark:bg-cyan-400/10 xl:px-6">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-800 dark:text-white">
-              Import Checks Include
+            <p className="math-block-header">
+              <ListChecks size={14} />Import Checks Include
             </p>
-            <div className="mt-4 grid min-w-0 gap-x-5 gap-y-3 text-xs font-bold leading-relaxed text-slate-600 dark:text-slate-300 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <div className="mt-4 grid min-w-0 gap-y-3 text-xs font-bold leading-relaxed text-slate-600 dark:text-slate-300">
               <span className="flex min-w-0 items-start gap-2.5">
                 <CheckCircle2 size={16} strokeWidth={2.6} className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                <span className="min-w-0 break-words">Required Information</span>
+                <span className="min-w-0 whitespace-nowrap">Required Information</span>
               </span>
               <span className="flex min-w-0 items-start gap-2.5">
                 <CheckCircle2 size={16} strokeWidth={2.6} className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                <span className="min-w-0 break-words">Duplicate Student Records</span>
+                <span className="min-w-0 whitespace-nowrap">Duplicate Student Records</span>
               </span>
               <span className="flex min-w-0 items-start gap-2.5">
                 <CheckCircle2 size={16} strokeWidth={2.6} className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                <span className="min-w-0 break-words">Teacher Assignment</span>
+                <span className="min-w-0 whitespace-nowrap">Teacher Assignment</span>
               </span>
               <span className="flex min-w-0 items-start gap-2.5">
                 <CheckCircle2 size={16} strokeWidth={2.6} className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                <span className="min-w-0 break-words">Module & Level Placement</span>
+                <span className="min-w-0 whitespace-nowrap">Module & Level Placement</span>
               </span>
             </div>
           </div>
@@ -1177,7 +1182,7 @@ function StudentFormModal({
         <form className="flex-1 overflow-auto p-5 sm:p-7" onSubmit={onSubmit}>
           <div className="grid gap-7 xl:grid-cols-[1fr_320px]">
             <div className="space-y-7">
-              <FormSection title="Student Info">
+              <FormSection title="Student Info" icon={<Contact size={14} />}>
                 <Input
                   label="Custom ID"
                   value={form.customId}
@@ -1247,7 +1252,7 @@ function StudentFormModal({
                 />
               </FormSection>
 
-              <FormSection title="Address">
+              <FormSection title="Address" icon={<MapPin size={14} />}>
                 <Textarea
                   label="Present Address"
                   value={form.presentAddress ?? ""}
@@ -1260,7 +1265,7 @@ function StudentFormModal({
                 />
               </FormSection>
 
-              <FormSection title="School Info">
+              <FormSection title="School Info" icon={<School size={14} />}>
                 <Input
                   label="School Name"
                   value={form.schoolName}
@@ -1286,7 +1291,7 @@ function StudentFormModal({
                 />
               </FormSection>
 
-              <FormSection title="Father's Info">
+              <FormSection title="Father's Info" icon={<User size={14} />}>
                 <Input
                   label="Name"
                   value={form.fatherName}
@@ -1319,7 +1324,7 @@ function StudentFormModal({
                 />
               </FormSection>
 
-              <FormSection title="Mother's Info">
+              <FormSection title="Mother's Info" icon={<UserCheck size={14} />}>
                 <Input
                   label="Name"
                   value={form.motherName}
@@ -1564,7 +1569,7 @@ function ImportMetric({
         : "border-slate-200 bg-white text-slate-800 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-100";
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${ToneClass}`}>
+    <div className={`rounded-2xl border p-4 ${ToneClass}`}>
       <p className="text-xs font-black uppercase tracking-[0.14em] opacity-75">{label}</p>
       <p className="mt-1 text-2xl font-black">{value}</p>
     </div>
@@ -1573,16 +1578,18 @@ function ImportMetric({
 
 function FormSection({
   title,
+  icon,
   children,
 }: {
   title: string;
+  icon: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="rounded-[28px] border border-slate-200 bg-white/80 p-5 dark:border-slate-700 dark:bg-slate-900/50">
-      <h3 className="mb-4 text-sm font-black uppercase tracking-[0.18em] text-blue-600 dark:text-cyan-300">
-        {title}
-      </h3>
+      <p className="math-block-header mb-4">
+        {icon}{title}
+      </p>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
     </section>
   );

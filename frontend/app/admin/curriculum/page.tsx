@@ -22,7 +22,7 @@ import type {
 } from "@/types/curriculum";
 import type { AdminPreviewQuestion } from "@/types/question";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Compass, Eye, EyeOff, RefreshCcw } from "lucide-react";
+import { CheckCircle2, Compass, Eye, EyeOff, Filter, Hash, RefreshCcw } from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -518,8 +518,8 @@ function AdminCurriculumPageContent() {
       <div className="mt-6 math-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-              Selected DPS
+            <p className="math-block-header text-blue-600">
+              <Filter size={14} />Selected DPS
             </p>
 
             <div className="mt-1 flex flex-wrap items-center gap-3">
@@ -628,8 +628,8 @@ function AdminCurriculumPageContent() {
               <div key={Section.key} className="grid gap-4">
                 <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-5 py-4 text-slate-900 shadow-sm dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-50">
                   {previewSections.length > 1 && (
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600 dark:text-cyan-200">
-                      Section {SectionIndex + 1}
+                    <p className="math-block-header text-blue-600 dark:text-cyan-200">
+                      <Hash size={14} />Section {SectionIndex + 1}
                     </p>
                   )}
                   <h3 className="mt-1 text-xl font-black">{Section.title}</h3>

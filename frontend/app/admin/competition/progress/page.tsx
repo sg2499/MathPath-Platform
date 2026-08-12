@@ -753,7 +753,7 @@ function AdminCompetitionProgressContent() {
 
 function MiniMetric({ Label, Value }: { Label: string; Value: string | number }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5">
       <p className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">{Label}</p>
       <p className="mt-1 text-base font-black text-slate-950 dark:text-white">{Value}</p>
     </div>
