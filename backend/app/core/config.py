@@ -13,10 +13,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440
 # a Secure cookie over an insecure origin -- set COOKIE_SECURE=false in
 # backend/.env for local development only, never in a deployed environment.
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
-# Production/demo deployments must not create demo students, demo teachers,
-# demo assignments, or demo attempts automatically on every redeploy.
-# Enable only for intentional local curriculum seeding.
-SEED_ON_STARTUP = os.getenv("SEED_ON_STARTUP", "false").lower() == "true"
+# 2026-08-12: SEED_ON_STARTUP used to gate YLM's curriculum sync only (every
+# other module's sync already ran unconditionally on every boot) -- removed
+# for consistency, so YLM now matches MM/IM/PM/BM exactly. This flag has no
+# remaining reads anywhere in the codebase; kept out entirely rather than
+# left as a dead, misleadingly-named no-op some future .env could still set.
 
 # SMTP / email delivery configuration for parent progress reports.
 # Supports both MathPath SMTP_* variables and common EMAIL_* aliases used by deployment dashboards.

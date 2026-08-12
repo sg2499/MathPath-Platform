@@ -5,7 +5,6 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from app.database import Base, engine, SessionLocal
-from app.core.config import SEED_ON_STARTUP
 from app.models import *  # noqa
 from app.api.routes_health import router as health_router
 from app.api.routes_auth import router as auth_router
@@ -147,15 +146,20 @@ def on_startup():
         AchievementEngine.seed_badges(db)
     finally:
         db.close()
-    if SEED_ON_STARTUP:
-        from app.seed.seed_ylm_phase1 import seed as seed_ylm_phase1
-        db = SessionLocal()
-        try:
-            seed_ylm_phase1(db)
-        finally:
-            db.close()
-
-
+    # 2026-08-12: YLM's curriculum sync used to be gated behind SEED_ON_STARTUP
+    # (opt-in only) while every other module seeded unconditionally on every
+    # boot -- the one inconsistency in this list. Now matches the same
+    # "always run, idempotent, additive-only" pattern as MM/IM/PM/BM below.
+    # Also collapses YLM from 3 levels to 1 (YLM -> YLM-L1 -> Lessons 1-32 ->
+    # DPS 1-5), removing the old YLM-L2/YLM-L3 Level rows if still present.
+    # Does not create students, teachers, assignments, attempts, or demo
+    # records.
+    from app.seed.seed_ylm_phase1 import seed as seed_ylm_phase1
+    db = SessionLocal()
+    try:
+        seed_ylm_phase1(db)
+    finally:
+        db.close()
 
     # Always run the Master Module curriculum sync independently from demo/legacy seed flags.
     # This is idempotent: it only creates or completes MM -> MM-L1 -> Lessons 1-30 -> DPS 1-5.

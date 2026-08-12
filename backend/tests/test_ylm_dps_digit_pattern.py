@@ -91,7 +91,7 @@ def test_comp10_sub_narrowest_tier_fallback_for_1d():
     by this project's PM-L1 digit-pattern fix -- not a bug, an explicit,
     documented exception.
     """
-    config = YLMConfig(module_code="YLM", level_code="YLM-L2", lesson_number=23, dps_number=1, seed="T-L23-D1")
+    config = YLMConfig(module_code="YLM", level_code="YLM-L1", lesson_number=23, dps_number=1, seed="T-L23-D1")
     questions = generate_ylm_question_set(config)
     bases = [abs(q["operands"][0]) for q in questions]
     assert all(10 <= b <= 19 for b in bases), f"expected narrowest COMP10_SUB tier 10-19, got {bases}"

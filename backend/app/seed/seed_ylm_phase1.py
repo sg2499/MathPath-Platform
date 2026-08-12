@@ -18,6 +18,8 @@ from app.models import (
     AttemptAnswer,
     AuditLog,
     Notification,
+    Student,
+    StudentLevelPromotion,
 )
 from app.question_engine.ylm.config import (
     YLM_LESSON_RULES,
@@ -279,6 +281,49 @@ def _delete_legacy_level_lessons(db: Session, level: Level, valid_lesson_numbers
     db.query(Lesson).filter(Lesson.id.in_(lesson_ids)).delete(synchronize_session=False)
     db.flush()
 
+def _delete_obsolete_levels(db: Session, module: Module, valid_level_codes: set[str], fallback_level: Level) -> None:
+    """Hard-delete Level rows for this module that are no longer part of the
+    curriculum definition -- e.g. YLM-L2/YLM-L3 after the 2026-08-12 collapse
+    down to a single YLM-L1 level (matching the BM/MM one-level-per-module
+    pattern).
+
+    Most tables that reference a Level cascade or SET NULL automatically
+    (Lesson, CompetitionMockExam, AssessmentBlueprint, Notification, etc. --
+    see models.py). Two do not, and would otherwise block this delete with a
+    foreign-key error:
+      - Student.current_level_id (nullable, no ondelete) -- any student still
+        parked on the doomed level is repointed to fallback_level (the new
+        merged level) rather than left dangling.
+      - StudentLevelPromotion.from_level_id/to_level_id (NOT NULL, no
+        ondelete) -- historical promotion rows referencing the doomed level
+        are removed outright. Safe here because this only ever runs for
+        levels that no longer exist in the curriculum config, and any such
+        history is against pre-collapse test data, not production students.
+    """
+    obsolete_levels = (
+        db.query(Level)
+        .filter(Level.module_id == module.id, ~Level.level_code.in_(valid_level_codes))
+        .all()
+    )
+    if not obsolete_levels:
+        return
+
+    obsolete_ids = [level.id for level in obsolete_levels]
+
+    db.query(Student).filter(Student.current_level_id.in_(obsolete_ids)).update(
+        {Student.current_level_id: fallback_level.id}, synchronize_session=False
+    )
+    db.query(StudentLevelPromotion).filter(
+        StudentLevelPromotion.from_level_id.in_(obsolete_ids) | StudentLevelPromotion.to_level_id.in_(obsolete_ids)
+    ).delete(synchronize_session=False)
+    db.flush()
+
+    for level in obsolete_levels:
+        _delete_legacy_level_lessons(db, level, set())
+        db.delete(level)
+    db.flush()
+
+
 def seed(db: Session):
     """Seed the complete YLM Golden Steps curriculum.
 
@@ -292,6 +337,11 @@ def seed(db: Session):
     levels: dict[str, Level] = {}
     for level_code in YLM_LEVEL_LESSON_RANGES:
         levels[level_code] = _ensure_level(db, module, level_code)
+
+    # Self-healing: removes any Level row (e.g. legacy YLM-L2/YLM-L3) that is
+    # no longer defined in YLM_LEVEL_LESSON_RANGES, so this seed stays correct
+    # on every future deploy without a separate one-off migration step.
+    _delete_obsolete_levels(db, module, set(YLM_LEVEL_LESSON_RANGES.keys()), levels["YLM-L1"])
 
     for level_code, lesson_range in YLM_LEVEL_LESSON_RANGES.items():
         _delete_legacy_level_lessons(db, levels[level_code], set(lesson_range))
