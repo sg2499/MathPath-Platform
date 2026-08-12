@@ -16,6 +16,7 @@ import {
   Brain,
   CheckCircle2,
   Clock3,
+  ArrowRight,
   Flame,
   Lightbulb,
   Megaphone,
@@ -456,8 +457,8 @@ function CompetitionMessageBox({
 
         <div className="grid min-w-0 gap-3 lg:w-[360px]">
           <div className="rounded-[24px] border border-[#2563eb]/20 bg-white/90 p-4 dark:border-cyan-300/30 dark:bg-slate-950/70">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">
-              Focus Next
+            <p className="math-block-header text-[#2563eb] dark:text-cyan-100">
+              <ArrowRight size={14} />Focus Next
             </p>
             <div className="mt-3 grid gap-2">
               {message.focusAreas.map((area: any) => (
@@ -473,8 +474,8 @@ function CompetitionMessageBox({
             </div>
           </div>
           <div className="rounded-[24px] border border-[#e6b8a2]/50 bg-[#e6b8a2]/15 p-4 dark:border-[#e6b8a2]/30 dark:bg-[#e6b8a2]/10">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">
-              Next Target
+            <p className="math-block-header text-[#2563eb] dark:text-cyan-100">
+              <Target size={14} />Next Target
             </p>
             <p className="mt-2 text-base font-black leading-6 text-slate-950 dark:text-white">
               {message.nextTarget}

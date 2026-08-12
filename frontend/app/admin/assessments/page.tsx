@@ -45,6 +45,7 @@ import {
   FileText,
   Gavel,
   History,
+  Layers3,
   List,
   Mail,
   PackageCheck,
@@ -56,6 +57,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Trash2,
+  UserRound,
   UsersRound,
   XCircle,
 } from "lucide-react";
@@ -2388,8 +2390,8 @@ function AssessmentHierarchyRecords({
                             )}
                           </span>
                           <div className="min-w-0">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-600">
-                              Level Assessment
+                            <p className="math-block-header text-cyan-600">
+                              <Layers3 size={14} />Level Assessment
                             </p>
                             <h5 className="mt-1 truncate text-sm font-black text-slate-950 dark:text-white">
                               {LevelGroup.LevelLabel}
@@ -2614,8 +2616,8 @@ function AssessmentManageHierarchy({
                             )}
                           </span>
                           <div className="min-w-0">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-600">
-                              Level Assessment
+                            <p className="math-block-header text-cyan-600">
+                              <Layers3 size={14} />Level Assessment
                             </p>
                             <h5 className="mt-1 truncate text-sm font-black text-slate-950 dark:text-white">
                               {LevelGroup.LevelLabel}
@@ -3668,8 +3670,8 @@ function ParentReportGenerateTable({
               </div>
 
               <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                <p className="text-[0.72rem] font-black uppercase tracking-[0.18em] text-slate-500">
-                  Recipient
+                <p className="math-block-header text-slate-500">
+                  <Mail size={14} />Recipient
                 </p>
                 <p className="mt-1 text-xs font-bold text-slate-500">
                   Confirm the recipient before sending. The selected report
@@ -4564,8 +4566,8 @@ function ParentReportDeliveryHistoryTable({
             <div className="max-h-[calc(100vh-18rem)] math-modal-body">
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
-                    Student Details
+                  <p className="math-block-header text-blue-600">
+                    <UserRound size={14} />Student Details
                   </p>
                   <div className="mt-4 math-confirm-summary-grid">
                     <div>
@@ -4588,8 +4590,8 @@ function ParentReportDeliveryHistoryTable({
                 </div>
 
                 <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600">
-                    Report Details
+                  <p className="math-block-header text-cyan-600">
+                    <FileText size={14} />Report Details
                   </p>
                   <div className="mt-4 math-confirm-summary-grid">
                     <div>
@@ -4620,8 +4622,8 @@ function ParentReportDeliveryHistoryTable({
                 </div>
 
                 <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-purple-600">
-                    Recipient Details
+                  <p className="math-block-header text-purple-600">
+                    <Mail size={14} />Recipient Details
                   </p>
                   <div className="mt-4 math-confirm-summary-grid">
                     <div>
@@ -4646,8 +4648,8 @@ function ParentReportDeliveryHistoryTable({
                 </div>
 
                 <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">
-                    Delivery Status
+                  <p className="math-block-header text-emerald-600">
+                    <PackageCheck size={14} />Delivery Status
                   </p>
                   <div className="mt-4 math-confirm-summary-grid">
                     <div>
@@ -4687,8 +4689,8 @@ function ParentReportDeliveryHistoryTable({
               <div
                 className={`mt-4 rounded-[24px] border p-4 ${DetailItem.errorMessage ? "border-rose-100 bg-rose-50 text-rose-700" : "border-emerald-100 bg-emerald-50 text-emerald-700"}`}
               >
-                <p className="text-xs font-black uppercase tracking-[0.18em]">
-                  Failure Reason
+                <p className="math-block-header">
+                  <AlertTriangle size={14} />Failure Reason
                 </p>
                 <p className="mt-2 text-sm font-bold leading-6">
                   {DetailItem.errorMessage || "—"}
@@ -4852,8 +4854,8 @@ function ParentReportDeliveryHistoryTable({
                 })}
               </div>
               <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                <p className="text-[0.72rem] font-black uppercase tracking-[0.18em] text-slate-500">
-                  Resend Recipient
+                <p className="math-block-header text-slate-500">
+                  <Send size={14} />Resend Recipient
                 </p>
                 <p className="mt-1 text-xs font-bold text-slate-500">
                   Choose Same Recipient for a direct retry, or select another

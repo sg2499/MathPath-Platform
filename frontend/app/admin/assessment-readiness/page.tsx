@@ -1250,8 +1250,8 @@ function TestingOverridePanel({
       <section className="mt-5 rounded-[26px] border border-violet-200 bg-violet-50/80 p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">
-              Controlled Assessment Access
+            <p className="math-block-header text-violet-700">
+              <Lock size={14} />Controlled Assessment Access
             </p>
             <h3 className="mt-1 text-base font-black text-slate-950">
               Controlled Access Enabled
@@ -1294,8 +1294,8 @@ function TestingOverridePanel({
     <section className="mt-5 rounded-[26px] border border-amber-200 bg-amber-50/80 p-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">
-            Controlled Access
+          <p className="math-block-header text-amber-700">
+            <Lock size={14} />Controlled Access
           </p>
           <h3 className="mt-1 text-base font-black text-slate-950">
             Controlled Access Available

@@ -3175,7 +3175,7 @@ function CurrentLevelProgressBlock({ Row }: { Row: AnyRecord }) {
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm transition dark:border-white/10 dark:bg-slate-900/80 dark:shadow-[0_18px_45px_rgba(2,6,23,0.28)]">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm transition dark:border-white/10 dark:bg-slate-900/80 dark:shadow-[0_18px_45px_rgba(2,6,23,0.28)]">
       <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
         {label}
       </p>

@@ -603,7 +603,7 @@ function DeleteDialog({ busy, onCancel, onConfirm }: { busy: boolean; onCancel: 
 
 function DetailMetric({ icon, label, value, helper }: { icon: ReactNode; label: string; value: string | number; helper: string }) {
   return (
-    <div className="group relative overflow-hidden rounded-[22px] border border-white/70 bg-white/88 p-3 shadow-md transition hover:-translate-y-0.5 hover:shadow-xl dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]">
+    <div className="group relative overflow-hidden rounded-[22px] border border-white/70 bg-white/88 p-4 shadow-md transition hover:-translate-y-0.5 hover:shadow-xl dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]">
       <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full math-admin-studio-card-glow blur-2xl transition" />
       <div className="relative z-10 flex items-start justify-between gap-3">
         <div className="math-icon-shell inline-flex h-9 w-9 items-center justify-center rounded-2xl border shadow-sm">{icon}</div>

@@ -23,11 +23,14 @@ import {
 import type { AdminTeacher, TeacherPayload } from "@/types/teacher";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Briefcase,
   CheckCircle2,
+  Contact,
   Copy,
   GraduationCap,
   Eye,
   FileText,
+  IdCard,
   KeyRound,
   Pencil,
   Plus,
@@ -746,7 +749,7 @@ function TeacherFormModal({
         </div>
 
         <form className="space-y-6 p-6" onSubmit={onSubmit}>
-          <FormSection title="Teacher Info">
+          <FormSection title="Teacher Info" icon={<Contact size={14} />}>
             <Input label="Teacher Name" value={form.teacherName} onChange={(v) => onFieldChange("teacherName", v)} required />
             <div>
               <label className="math-label">Teacher Code <span className="text-red-500">*</span></label>
@@ -763,12 +766,12 @@ function TeacherFormModal({
             <Select label="Status" value={form.status} onChange={(v) => onFieldChange("status", v as "ACTIVE" | "INACTIVE")} options={["ACTIVE", "INACTIVE"]} />
           </FormSection>
 
-          <FormSection title="Photo & Signature">
+          <FormSection title="Photo & Signature" icon={<IdCard size={14} />}>
             <ImageInput label="Photo" file={photoFile} existingUrl={editingTeacher?.photoUrl} onChange={onPhotoChange} />
             <ImageInput label="Signature" file={signatureFile} existingUrl={editingTeacher?.signatureUrl} onChange={onSignatureChange} />
           </FormSection>
 
-          <FormSection title="Professional Info">
+          <FormSection title="Professional Info" icon={<Briefcase size={14} />}>
             <Input label="Designation" value={form.designation ?? ""} onChange={(v) => onFieldChange("designation", v)} />
             <Input label="Subject Specialization" value={form.subjectSpecialization ?? ""} onChange={(v) => onFieldChange("subjectSpecialization", v)} />
             <Input label="Qualification" value={form.qualification ?? ""} onChange={(v) => onFieldChange("qualification", v)} />
@@ -874,10 +877,10 @@ function Metric({ label, value, icon }: { label: string; value: number; icon: Re
   );
 }
 
-function FormSection({ title, children }: { title: string; children: ReactNode }) {
+function FormSection({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
     <section className="rounded-[28px] border border-slate-200 bg-white/80 p-5 dark:border-slate-700 dark:bg-slate-900/50">
-      <h3 className="mb-4 text-sm font-black uppercase tracking-[0.18em] text-blue-600 dark:text-cyan-300">{title}</h3>
+      <p className="math-block-header mb-4">{icon}{title}</p>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
     </section>
   );
