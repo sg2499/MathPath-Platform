@@ -355,21 +355,21 @@ class StudentCreateRequest(BaseModel):
     teacher: str
     teacherCode: str | None = None
     teacherId: str | None = None
-    admissionDate: str
+    admissionDate: str | None = None
     studentName: str
     dob: str
     gender: str
-    bloodGroup: str
+    bloodGroup: str | None = None
     schoolName: str
-    className: str
-    section: str
+    className: str | None = None
+    section: str | None = None
     fatherName: str
     fatherMobile: str
-    fatherEmail: str
+    fatherEmail: str | None = None
     fatherWhatsapp: str
     motherName: str
     motherMobile: str
-    motherEmail: str
+    motherEmail: str | None = None
     motherWhatsapp: str
     studentCode: str
     password: str
@@ -1121,20 +1121,14 @@ def create_student_route(payload: StudentCreateRequest, db: Session = Depends(ge
 
     for value, label in [
         (payload.teacher, "Teacher"),
-        (payload.admissionDate, "Admission date"),
         (payload.dob, "DOB"),
         (payload.gender, "Gender"),
-        (payload.bloodGroup, "Blood group"),
         (payload.schoolName, "School name"),
-        (payload.className, "Class"),
-        (payload.section, "Section"),
         (payload.fatherName, "Father name"),
         (payload.fatherMobile, "Father mobile"),
-        (payload.fatherEmail, "Father email"),
         (payload.fatherWhatsapp, "Father WhatsApp"),
         (payload.motherName, "Mother name"),
         (payload.motherMobile, "Mother mobile"),
-        (payload.motherEmail, "Mother email"),
         (payload.motherWhatsapp, "Mother WhatsApp"),
     ]:
         required_text(value, label)

@@ -1217,7 +1217,6 @@ function StudentFormModal({
                   type="date"
                   value={form.admissionDate}
                   onChange={(v) => onFieldChange("admissionDate", v)}
-                  required
                 />
                 <Input
                   label="Student Name"
@@ -1243,7 +1242,6 @@ function StudentFormModal({
                   label="Blood Group"
                   value={form.bloodGroup}
                   onChange={(v) => onFieldChange("bloodGroup", v)}
-                  required
                 />
                 <Input
                   label="Interest"
@@ -1281,13 +1279,11 @@ function StudentFormModal({
                   label="Class"
                   value={form.className}
                   onChange={(v) => onFieldChange("className", v)}
-                  required
                 />
                 <Input
                   label="Section"
                   value={form.section}
                   onChange={(v) => onFieldChange("section", v)}
-                  required
                 />
               </FormSection>
 
@@ -1314,7 +1310,6 @@ function StudentFormModal({
                   type="email"
                   value={form.fatherEmail}
                   onChange={(v) => onFieldChange("fatherEmail", v)}
-                  required
                 />
                 <Input
                   label="WhatsApp"
@@ -1347,7 +1342,6 @@ function StudentFormModal({
                   type="email"
                   value={form.motherEmail}
                   onChange={(v) => onFieldChange("motherEmail", v)}
-                  required
                 />
                 <Input
                   label="WhatsApp"
