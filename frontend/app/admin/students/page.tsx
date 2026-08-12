@@ -1742,8 +1742,11 @@ function DeleteStudentModal({
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
               This action is permanent. It will remove the student profile,
-              login access, photo/signature records, attempts, answers, and
-              generated test history linked to this student.
+              login access, and photo/signature records, along with every
+              DPS practice attempt, section-wise assessment attempt and
+              result, competition mock exam attempt and result, assignment,
+              and notification linked to this student -- nothing about them
+              is left behind.
             </p>
 
             <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-100">
