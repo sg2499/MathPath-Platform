@@ -28,7 +28,7 @@ from app.core.security import hash_password
 from app.core.rate_limit import limiter
 from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
-from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam, CompetitionMockAssignment
+from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam, CompetitionMockAssignment, CompetitionMockAttempt, CompetitionMockAttemptAnswer, CompetitionMockResultSummary
 from app.services.assignment_service import create_assignment
 from app.services.attempt_service import result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, ClearedConceptAttempts, CurrentOperationalAttempts, NeedsReattemptAttempts
@@ -1382,6 +1382,38 @@ def delete_student_route(
                 GeneratedQuestionSet.id.in_(question_set_ids)
             ).delete(synchronize_session=False)
 
+        # Competition mock exam cleanup. 2026-08-12: these four tables are created
+        # by ensure_competition_mock_tables() (schema_migration.py) via raw SQL that
+        # never declares a real foreign key back to students -- the SQLAlchemy
+        # model's ForeignKey(..., ondelete="CASCADE") is decorative only here, the
+        # live database has no constraint to enforce it. Without this block, a
+        # deleted student's mock assignments/attempts/answers/result summaries were
+        # silently left behind as orphaned rows instead of being removed or even
+        # blocking the delete. Cleaned in dependency order, same manual-cascade
+        # pattern already used for assessments above.
+        mock_attempt_ids = [
+            row[0]
+            for row in db.query(CompetitionMockAttempt.id)
+            .filter(CompetitionMockAttempt.student_id == student.id)
+            .all()
+        ]
+        if mock_attempt_ids:
+            db.query(CompetitionMockAttemptAnswer).filter(
+                CompetitionMockAttemptAnswer.mock_attempt_id.in_(mock_attempt_ids)
+            ).delete(synchronize_session=False)
+            db.query(CompetitionMockResultSummary).filter(
+                CompetitionMockResultSummary.mock_attempt_id.in_(mock_attempt_ids)
+            ).delete(synchronize_session=False)
+            db.query(CompetitionMockAttempt).filter(
+                CompetitionMockAttempt.id.in_(mock_attempt_ids)
+            ).delete(synchronize_session=False)
+        db.query(CompetitionMockResultSummary).filter(
+            CompetitionMockResultSummary.student_id == student.id
+        ).delete(synchronize_session=False)
+        db.query(CompetitionMockAssignment).filter(
+            CompetitionMockAssignment.student_id == student.id
+        ).delete(synchronize_session=False)
+
         # Assignment and readiness governance records linked to the student.
         db.query(AssignmentReattemptPermission).filter(
             AssignmentReattemptPermission.student_id == student.id
@@ -1402,8 +1434,14 @@ def delete_student_route(
         ).delete(synchronize_session=False)
         db.query(StudentBatch).filter(StudentBatch.student_id == student.id).delete(synchronize_session=False)
 
-        # Preserve operational audit/delivery rows without letting nullable references
-        # block permanent deletion.
+        # Audit trail: anonymized, not deleted. AuditLog is a system-wide security/
+        # compliance log of actions taken, not "this student's data" -- nulling the
+        # reference removes every queryable trace back to the deleted student while
+        # preserving the historical record that an action happened, which is the
+        # standard pattern for this kind of log (distinct from Notification/
+        # ParentReportEmailLog below, which exist purely to inform someone about
+        # this specific student and have no reason to survive once that student's
+        # account is gone).
         db.query(AuditLog).filter(AuditLog.student_id == student.id).update(
             {AuditLog.student_id: None},
             synchronize_session=False,
@@ -1413,14 +1451,27 @@ def delete_student_route(
                 {AuditLog.user_id: None},
                 synchronize_session=False,
             )
-        db.query(Notification).filter(Notification.student_id == student.id).update(
-            {Notification.student_id: None},
-            synchronize_session=False,
-        )
-        db.query(ParentReportEmailLog).filter(ParentReportEmailLog.student_id == student.id).update(
-            {ParentReportEmailLog.student_id: None},
-            synchronize_session=False,
-        )
+
+        # 2026-08-12: fully deleted rather than nulled, per explicit direction
+        # ("absolutely no trace related to those accounts should be left on the
+        # entire platform") -- these rows exist only to inform someone about this
+        # student (a completion notification, a parent report email log) and a
+        # notification's own message text can still name the student even after
+        # student_id is nulled, so nulling alone wasn't enough to satisfy that bar.
+        # Covers both directions: notifications ABOUT this student (student_id) and
+        # notifications SENT TO this student's own login (recipient_user_id), since
+        # the latter would otherwise survive as an orphaned row once the student's
+        # User row is deleted below.
+        db.query(Notification).filter(
+            Notification.student_id == student.id
+        ).delete(synchronize_session=False)
+        if student_user:
+            db.query(Notification).filter(
+                Notification.recipient_user_id == student_user.id
+            ).delete(synchronize_session=False)
+        db.query(ParentReportEmailLog).filter(
+            ParentReportEmailLog.student_id == student.id
+        ).delete(synchronize_session=False)
 
         db.delete(student)
         if student_user:
