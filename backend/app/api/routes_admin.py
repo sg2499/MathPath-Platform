@@ -37,12 +37,6 @@ from app.services.generation_service import build_preview_seed, generate_preview
 from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
 from app.services.auth_service import public_profile_photo_url, force_logout_user
 from app.services.report_export_service import BuildWorkbookResponse, BuildParentProgressPdfResponse, BuildParentProgressPdfBytes, ReportGeneratedOn
-from app.services.email_service import (
-    DiagnoseSmtpConfiguration,
-    EmailConfigurationError,
-    EmailSendError,
-    SendEmailWithAttachment,
-)
 from app.services.assessment_blueprint_service import (
     archive_blueprint,
     blueprint_payload,
@@ -80,7 +74,7 @@ from app.services.manual_intervention_service import BuildManualInterventionQueu
 from app.services.assessment_feedback_service import upsert_assessment_remark, delete_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.parent_report_notification_service import (
     NotifyParentReportGenerated,
-    NotifyParentReportDeliveryLogs,
+    NotifyParentReportPublishedToTeacher,
     NotifyParentReportDeliveryDeleted,
 )
 from app.services.competition_mock_generation_service import (
@@ -226,22 +220,6 @@ class AssessmentTestingOverrideCreateRequest(BaseModel):
 class AssessmentTestingOverrideDeactivateRequest(BaseModel):
     reason: str | None = None
 
-
-class ParentReportEmailRequest(BaseModel):
-    studentId: str
-    moduleId: str | None = None
-    levelId: str | None = None
-    lessonId: str | None = None
-    dpsId: str | None = None
-    recipientMode: str
-    customEmail: str | None = None
-    timezone: str | None = None
-    timezoneOffsetMinutes: int | None = None
-
-
-class ParentReportResendRequest(BaseModel):
-    recipientMode: str | None = "SAME"
-    customEmail: str | None = None
 
 UPLOAD_ROOT = Path("uploads/students")
 PHOTO_DIR = UPLOAD_ROOT / "photos"
@@ -4698,6 +4676,13 @@ def export_parent_progress_summary(studentId: str, moduleId: str | None = None, 
     StudentName = StudentValue.get("studentName") or StudentValue.get("studentCode") or "Student"
     ReportLevel = ReportMeta.get("reportLevelCode") or "Level"
     FileName = f"{_admin_safe_filename_part(StudentName)}-Progress_Report-{_admin_safe_level_filename_part(ReportLevel)}"
+    _admin_upsert_parent_report_log(
+        db,
+        StudentValue=StudentRecord,
+        ReportMeta=ReportMeta,
+        FileName=f"{FileName}.pdf",
+        UserValue=user,
+    )
     NotifyParentReportGenerated(
         db,
         actor_user_id=user.id,
@@ -4715,56 +4700,103 @@ def _admin_parent_report_file_name(StudentName: str | None, ReportLevel: str | N
     return f"{_admin_safe_filename_part(StudentName or 'Student')}-Progress_Report-{_admin_safe_level_filename_part(ReportLevel or 'Level')}.pdf"
 
 
-def _admin_clean_email(Value: str | None) -> str:
-    return str(Value or "").strip()
+def _admin_upsert_parent_report_log(
+    db: Session,
+    *,
+    StudentValue: Student,
+    ReportMeta: dict,
+    FileName: str,
+    UserValue: User,
+) -> ParentReportEmailLog:
+    """Record that a parent progress report PDF was generated.
+
+    One log row per (student, module, level). Regenerating an already-published
+    report keeps its PUBLISHED status (the teacher already has access; the
+    PDF is rebuilt fresh from current data on every download anyway, so there
+    is no staleness to worry about) and just refreshes who/when it was last
+    generated.
+    """
+    ModuleCode = ReportMeta.get("reportModuleCode")
+    LevelCode = ReportMeta.get("reportLevelCode")
+    NowValue = datetime.now(datetime_timezone.utc)
+    ExistingLog = (
+        db.query(ParentReportEmailLog)
+        .filter(
+            ParentReportEmailLog.student_id == StudentValue.id,
+            ParentReportEmailLog.module_code == ModuleCode,
+            ParentReportEmailLog.level_code == LevelCode,
+        )
+        .first()
+    )
+    if ExistingLog:
+        ExistingLog.file_name = FileName
+        ExistingLog.sent_by_user_id = UserValue.id
+        ExistingLog.sent_at = NowValue
+        if ExistingLog.status != "PUBLISHED":
+            ExistingLog.status = "GENERATED"
+        db.commit()
+        return ExistingLog
+
+    LogValue = ParentReportEmailLog(
+        student_id=StudentValue.id,
+        student_code=StudentValue.student_code,
+        module_code=ModuleCode,
+        level_code=LevelCode,
+        recipient_email="",
+        recipient_type="GENERATED",
+        file_name=FileName,
+        status="GENERATED",
+        sent_by_user_id=UserValue.id,
+        sent_at=NowValue,
+    )
+    db.add(LogValue)
+    db.commit()
+    db.refresh(LogValue)
+    return LogValue
 
 
-def _admin_valid_email(Value: str) -> bool:
-    CleanValue = Value.strip()
-    if not re.match(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$", CleanValue):
-        return False
-    LocalPart, DomainPart = CleanValue.rsplit("@", 1)
-    if not LocalPart or not DomainPart:
-        return False
-    if ".." in LocalPart or ".." in DomainPart:
-        return False
-    if DomainPart.startswith(".") or DomainPart.endswith(".") or DomainPart.startswith("-") or DomainPart.endswith("-"):
-        return False
-    return True
+def _admin_regenerate_parent_report_from_log(db: Session, delivery_id: str) -> tuple[ParentReportEmailLog, dict, dict, str, str]:
+    """Rebuild the PDF report data for a previously generated report log.
 
+    The PDF is never stored, so both the admin "download again" endpoint and
+    the teacher-facing download endpoint regenerate it fresh from the
+    student's current data, keyed off the module/level codes captured on the
+    log row at generation time. Returns (log, reportMeta, reportData,
+    studentName, reportLevel) so callers can build the filename/response.
+    """
+    ExistingLog = db.get(ParentReportEmailLog, delivery_id)
+    if not ExistingLog:
+        api_error(404, "DELIVERY_LOG_NOT_FOUND", "Parent report record not found.")
 
-def _admin_email_domain_has_mail_server(Value: str) -> bool:
-    CleanValue = Value.strip().lower()
-    if not _admin_valid_email(CleanValue):
-        return False
-    DomainPart = CleanValue.rsplit("@", 1)[1]
-    try:
-        import dns.resolver  # type: ignore
+    StudentValue = db.get(Student, ExistingLog.student_id) if ExistingLog.student_id else None
+    if not StudentValue:
+        api_error(404, "STUDENT_NOT_FOUND", "Student linked to this report record was not found.")
 
-        Resolver = dns.resolver.Resolver()
-        Resolver.lifetime = 3.0
-        Resolver.timeout = 2.0
-        try:
-            MxAnswers = Resolver.resolve(DomainPart, "MX")
-            if list(MxAnswers):
-                return True
-        except Exception:
-            # Some domains accept mail on A/AAAA records even without MX. Use this as a
-            # conservative fallback instead of accepting obviously unresolved domains.
-            pass
-    except Exception:
-        pass
+    StudentUser = db.get(User, StudentValue.user_id) if StudentValue.user_id else None
+    StudentName = StudentUser.full_name if StudentUser and StudentUser.full_name else StudentValue.student_code
 
-    try:
-        socket.getaddrinfo(DomainPart, 25)
-        return True
-    except Exception:
-        return False
+    ModuleValue = None
+    if ExistingLog.module_code and ExistingLog.module_code != "-":
+        ModuleValue = db.query(Module).filter(Module.module_code == ExistingLog.module_code).first()
+    LevelQuery = db.query(Level)
+    if ModuleValue:
+        LevelQuery = LevelQuery.filter(Level.module_id == ModuleValue.id)
+    LevelValue = None
+    if ExistingLog.level_code and ExistingLog.level_code != "-":
+        LevelValue = LevelQuery.filter(Level.level_code == ExistingLog.level_code).first()
 
+    if not ModuleValue:
+        api_error(400, "REPORT_MODULE_NOT_FOUND", "The report module linked to this record could not be found.")
+    if not LevelValue:
+        api_error(400, "REPORT_LEVEL_NOT_FOUND", "The report level linked to this record could not be found.")
 
-def _admin_validate_parent_report_recipient_email(Value: str):
-    if not _admin_valid_email(Value) or not _admin_email_domain_has_mail_server(Value):
-        api_error(400, "INVALID_PARENT_EMAIL", "Invalid recipient email. Please enter a valid email address with an active mail domain.")
+    _admin_validate_parent_report_scope(db, StudentId=StudentValue.id, ModuleId=ModuleValue.id, LevelId=LevelValue.id)
+    Payload = _admin_build_student_report(db, StudentValue.id, ModuleValue.id, LevelValue.id, None, None)
+    ReportData = _admin_build_parent_progress_pdf_data(Payload, None, None, db)
+    ReportMeta, _ = _admin_validate_parent_report_data(ReportData, ExpectedModule=ModuleValue, ExpectedLevel=LevelValue)
+    ReportLevel = ReportMeta.get("reportLevelCode") or ExistingLog.level_code or "Level"
+
+    return ExistingLog, ReportMeta, ReportData, StudentName, ReportLevel
 
 
 def _admin_validate_parent_report_scope(db: Session, *, StudentId: str, ModuleId: str | None = None, LevelId: str | None = None) -> tuple[Student, Module, Level]:
@@ -4833,177 +4865,6 @@ def _admin_validate_parent_report_data(ReportData: dict, *, ExpectedModule: Modu
     return ReportMeta, PerformanceMeta
 
 
-def _admin_clean_delivery_error(ErrorValue: Exception | str | None) -> str:
-    TextValue = str(ErrorValue or "").strip()
-    if not TextValue:
-        return "Email delivery failed. Please check the recipient email or email configuration."
-    LowerValue = TextValue.lower()
-    if "authentication" in LowerValue or "username and password" in LowerValue or "535" in LowerValue:
-        return "SMTP authentication failed. Please check the sender email and app password."
-    if "recipient" in LowerValue or "address" in LowerValue or "invalid" in LowerValue:
-        return "Email delivery failed. Please check the recipient email address."
-    if "timeout" in LowerValue or "timed out" in LowerValue:
-        return "Email delivery timed out. Please try again."
-    if "network" in LowerValue or "unreachable" in LowerValue or "connection failed" in LowerValue:
-        return "Email delivery could not connect to the SMTP service. Please verify the SMTP host, port, and Render outbound email access."
-    if "configure" in LowerValue or "smtp" in LowerValue:
-        return "Email service is not configured. Please check SMTP settings."
-    return TextValue[:500]
-
-
-def _admin_parent_report_recipients(StudentValue: Student, RequestValue: ParentReportEmailRequest) -> list[dict[str, str]]:
-    Mode = str(RequestValue.recipientMode or "").upper().strip()
-    FatherEmail = _admin_clean_email(StudentValue.father_email)
-    MotherEmail = _admin_clean_email(StudentValue.mother_email)
-    CustomEmail = _admin_clean_email(RequestValue.customEmail)
-
-    Recipients: list[dict[str, str]] = []
-    if Mode == "FATHER":
-        if not FatherEmail:
-            api_error(400, "FATHER_EMAIL_MISSING", "Father email is not available for this student.")
-        Recipients.append({"email": FatherEmail, "type": "FATHER"})
-    elif Mode == "MOTHER":
-        if not MotherEmail:
-            api_error(400, "MOTHER_EMAIL_MISSING", "Mother email is not available for this student.")
-        Recipients.append({"email": MotherEmail, "type": "MOTHER"})
-    elif Mode == "BOTH":
-        if FatherEmail:
-            Recipients.append({"email": FatherEmail, "type": "FATHER"})
-        if MotherEmail and MotherEmail.lower() != FatherEmail.lower():
-            Recipients.append({"email": MotherEmail, "type": "MOTHER"})
-        if not Recipients:
-            api_error(400, "PARENT_EMAIL_MISSING", "Parent email is not available for this student.")
-    elif Mode == "CUSTOM":
-        if not CustomEmail:
-            api_error(400, "CUSTOM_EMAIL_MISSING", "Please enter a custom recipient email.")
-        Recipients.append({"email": CustomEmail, "type": "CUSTOM"})
-    else:
-        api_error(400, "INVALID_RECIPIENT_MODE", "Please choose a valid recipient for the parent report.")
-
-    for Recipient in Recipients:
-        _admin_validate_parent_report_recipient_email(Recipient["email"])
-    return Recipients
-
-
-def _admin_parent_report_email_body(StudentName: str, ReportLevel: str) -> str:
-    return (
-        f"Dear Parent,\n\n"
-        f"Please find attached {StudentName}'s MathPath Progress Report for {ReportLevel}.\n\n"
-        "The report includes the completed level summary, assessment outcome, practice performance, "
-        "next learning step, and parent guidance for continued support.\n\n"
-        "Warm regards,\n"
-        "MathPath Team"
-    )
-
-
-def _admin_create_parent_report_email_logs(db: Session, *, StudentValue: Student, ReportMeta: dict, Recipients: list[dict[str, str]], FileName: str, UserValue: User, Status: str = "PENDING", ErrorMessage: str | None = None) -> list[ParentReportEmailLog]:
-    Logs: list[ParentReportEmailLog] = []
-    for Recipient in Recipients:
-        LogValue = ParentReportEmailLog(
-            student_id=StudentValue.id,
-            student_code=StudentValue.student_code,
-            module_code=ReportMeta.get("reportModuleCode"),
-            level_code=ReportMeta.get("reportLevelCode"),
-            recipient_email=Recipient["email"],
-            recipient_type=Recipient["type"],
-            file_name=FileName,
-            status=Status,
-            sent_by_user_id=UserValue.id,
-            error_message=ErrorMessage,
-        )
-        db.add(LogValue)
-        Logs.append(LogValue)
-    db.commit()
-    return Logs
-
-
-def _admin_update_parent_report_email_logs(db: Session, Logs: list[ParentReportEmailLog], *, Status: str, ErrorMessage: str | None = None):
-    NowValue = datetime.now(datetime_timezone.utc)
-    for LogValue in Logs:
-        LogValue.status = Status
-        LogValue.error_message = ErrorMessage
-        LogValue.delivery_status = Status
-        LogValue.last_attempt_at = NowValue
-        LogValue.attempt_count = int(LogValue.attempt_count or 0) + (1 if Status in {"SENT", "FAILED"} else 0)
-        if Status == "SENT":
-            LogValue.sent_at = NowValue
-            LogValue.error_message = None
-        elif Status == "FAILED":
-            LogValue.sent_at = None
-    db.commit()
-
-
-def _admin_deliver_parent_report_email_now(
-    db: Session,
-    *,
-    Logs: list[ParentReportEmailLog],
-    RecipientEmails: list[str],
-    Subject: str,
-    Body: str,
-    AttachmentBytes: bytes,
-    AttachmentFileName: str,
-    ActorUserId: str | None,
-) -> dict:
-    """Deliver a parent report through SMTP and persist a final audit state.
-
-    This intentionally avoids leaving rows stuck in PENDING. The UI receives a
-    final SENT/FAILED result and the delivery-history table remains trustworthy.
-    """
-    try:
-        SendResult = SendEmailWithAttachment(
-            Recipients=RecipientEmails,
-            Subject=Subject,
-            Body=Body,
-            AttachmentBytes=AttachmentBytes,
-            AttachmentFileName=AttachmentFileName,
-        )
-    except (EmailConfigurationError, EmailSendError, Exception) as ErrorValue:
-        MessageValue = _admin_clean_delivery_error(ErrorValue)
-        _admin_update_parent_report_email_logs(db, Logs, Status="FAILED", ErrorMessage=MessageValue)
-        NotifyParentReportDeliveryLogs(
-            db,
-            actor_user_id=ActorUserId,
-            logs=Logs,
-            event="PARENT_REPORT_FAILED",
-            status="FAILED",
-            file_name=AttachmentFileName,
-            error_message=MessageValue,
-        )
-        db.commit()
-        return {
-            "sent": False,
-            "queued": False,
-            "status": "FAILED",
-            "message": MessageValue,
-            "errorMessage": MessageValue,
-            "provider": "SMTP",
-        }
-
-    for LogValue in Logs:
-        LogValue.delivery_provider = str(SendResult.get("provider") or "SMTP")
-        LogValue.provider_message_id = SendResult.get("providerMessageId")
-        LogValue.provider_response = str(SendResult.get("providerResponse") or "SMTP accepted message")
-    _admin_update_parent_report_email_logs(db, Logs, Status="SENT")
-    NotifyParentReportDeliveryLogs(
-        db,
-        actor_user_id=ActorUserId,
-        logs=Logs,
-        event="PARENT_REPORT_SENT",
-        status="SENT",
-        file_name=AttachmentFileName,
-    )
-    db.commit()
-    return {
-        "sent": True,
-        "queued": False,
-        "status": "SENT",
-        "message": "Parent progress report email was sent successfully.",
-        "provider": str(SendResult.get("provider") or "SMTP"),
-        "providerResponse": str(SendResult.get("providerResponse") or "SMTP accepted message"),
-    }
-
-
-
 def _admin_parent_report_module_label(db: Session, ModuleCode: str | None) -> tuple[str, str]:
     SafeCode = str(ModuleCode or "-").strip() or "-"
     ModuleValue = db.query(Module).filter(Module.module_code == SafeCode).first() if SafeCode != "-" else None
@@ -5025,11 +4886,6 @@ def _admin_parent_report_level_label(db: Session, ModuleCode: str | None, LevelC
     LevelName = LevelValue.level_name if LevelValue else SafeCode
     LevelLabel = f"{SafeCode} · {LevelName}" if LevelName and LevelName != SafeCode else SafeCode
     return LevelName, LevelLabel
-
-
-@router.get("/system/smtp-diagnostic")
-def admin_smtp_diagnostic(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    return DiagnoseSmtpConfiguration()
 
 
 @router.get("/results/parent-report-deliveries")
@@ -5055,7 +4911,8 @@ def list_parent_report_deliveries(
     for LogValue in Logs:
         StudentValue = db.get(Student, LogValue.student_id) if LogValue.student_id else None
         StudentUser = db.get(User, StudentValue.user_id) if StudentValue and StudentValue.user_id else None
-        SentByUser = db.get(User, LogValue.sent_by_user_id) if LogValue.sent_by_user_id else None
+        GeneratedByUser = db.get(User, LogValue.sent_by_user_id) if LogValue.sent_by_user_id else None
+        PublishedByUser = db.get(User, LogValue.published_by_user_id) if LogValue.published_by_user_id else None
         StudentName = StudentUser.full_name if StudentUser and StudentUser.full_name else (LogValue.student_code or "Student")
         StudentCode = LogValue.student_code or (StudentValue.student_code if StudentValue else "-")
         ModuleName, ModuleLabel = _admin_parent_report_module_label(db, LogValue.module_code)
@@ -5071,18 +4928,18 @@ def list_parent_report_deliveries(
             "levelCode": LogValue.level_code or "-",
             "levelName": LevelName,
             "levelLabel": LevelLabel,
-            "recipientEmail": LogValue.recipient_email,
-            "recipientType": LogValue.recipient_type,
             "fileName": LogValue.file_name,
             "status": LogValue.status,
-            "sentAt": LogValue.sent_at.isoformat() if LogValue.sent_at else None,
+            "isPublishedToTeacher": bool(LogValue.published_to_teacher_at),
+            "generatedAt": LogValue.sent_at.isoformat() if LogValue.sent_at else None,
+            "generatedBy": GeneratedByUser.full_name if GeneratedByUser and GeneratedByUser.full_name else "MathPath Admin",
+            "publishedToTeacherAt": LogValue.published_to_teacher_at.isoformat() if LogValue.published_to_teacher_at else None,
+            "publishedBy": PublishedByUser.full_name if PublishedByUser and PublishedByUser.full_name else None,
             "createdAt": LogValue.created_at.isoformat() if LogValue.created_at else None,
-            "sentBy": SentByUser.full_name if SentByUser and SentByUser.full_name else "MathPath Admin",
-            "errorMessage": LogValue.error_message,
         }
         if SearchText:
             SearchSource = " ".join(str(RowValue.get(Key) or "") for Key in [
-                "studentName", "studentCode", "moduleCode", "moduleName", "levelCode", "levelName", "recipientEmail", "recipientType", "status", "fileName"
+                "studentName", "studentCode", "moduleCode", "moduleName", "levelCode", "levelName", "status", "fileName"
             ]).lower()
             if SearchText not in SearchSource:
                 continue
@@ -5090,145 +4947,38 @@ def list_parent_report_deliveries(
     return {"logs": Payload}
 
 
-@router.post("/results/send-parent-summary")
-def send_parent_progress_summary_email(
-    RequestValue: ParentReportEmailRequest,
-    BackgroundTasksValue: BackgroundTasks,
-    db: Session = Depends(get_db),
-    user: User = Depends(admin_dep),
-):
-    StudentValue, ModuleValue, LevelValue = _admin_validate_parent_report_scope(
-        db,
-        StudentId=RequestValue.studentId,
-        ModuleId=RequestValue.moduleId,
-        LevelId=RequestValue.levelId,
-    )
-    StudentUser = db.get(User, StudentValue.user_id) if StudentValue.user_id else None
-    StudentName = StudentUser.full_name if StudentUser and StudentUser.full_name else StudentValue.student_code
-
-    Recipients = _admin_parent_report_recipients(StudentValue, RequestValue)
-    Payload = _admin_build_student_report(db, StudentValue.id, ModuleValue.id, LevelValue.id, RequestValue.lessonId, RequestValue.dpsId)
-    ReportData = _admin_build_parent_progress_pdf_data(Payload, RequestValue.timezone, RequestValue.timezoneOffsetMinutes, db)
-    ReportMeta, _ = _admin_validate_parent_report_data(ReportData, ExpectedModule=ModuleValue, ExpectedLevel=LevelValue)
-    ReportLevel = ReportMeta.get("reportLevelCode") or LevelValue.level_code or "Level"
-
+@router.get("/results/parent-report-deliveries/{delivery_id}/download")
+def download_parent_report_delivery(delivery_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    ExistingLog, ReportMeta, ReportData, StudentName, ReportLevel = _admin_regenerate_parent_report_from_log(db, delivery_id)
     FileName = _admin_parent_report_file_name(StudentName, ReportLevel)
-    PdfBytes = BuildParentProgressPdfBytes(FileName, ReportData)
-    Subject = f"MathPath Progress Report - {StudentName} - {ReportLevel}"
-    Body = _admin_parent_report_email_body(StudentName, ReportLevel)
-    Logs = _admin_create_parent_report_email_logs(
-        db,
-        StudentValue=StudentValue,
-        ReportMeta=ReportMeta,
-        Recipients=Recipients,
-        FileName=FileName,
-        UserValue=user,
-        Status="PENDING",
-    )
-
-    DeliveryResult = _admin_deliver_parent_report_email_now(
-        db,
-        Logs=Logs,
-        RecipientEmails=[Item["email"] for Item in Recipients],
-        Subject=Subject,
-        Body=Body,
-        AttachmentBytes=PdfBytes,
-        AttachmentFileName=FileName,
-        ActorUserId=user.id,
-    )
-
-    return {
-        **DeliveryResult,
-        "recipients": [Item["email"] for Item in Recipients],
-        "fileName": FileName,
-        "deliveryIds": [LogValue.id for LogValue in Logs],
-    }
+    return BuildParentProgressPdfResponse(FileName, ReportData)
 
 
-@router.post("/results/parent-report-deliveries/{delivery_id}/resend")
-def resend_parent_report_delivery(delivery_id: str, BackgroundTasksValue: BackgroundTasks, RequestValue: ParentReportResendRequest | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+@router.post("/results/parent-report-deliveries/{delivery_id}/publish-to-teacher")
+def publish_parent_report_to_teacher(delivery_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     ExistingLog = db.get(ParentReportEmailLog, delivery_id)
     if not ExistingLog:
-        api_error(404, "DELIVERY_LOG_NOT_FOUND", "Parent report delivery record not found.")
+        api_error(404, "DELIVERY_LOG_NOT_FOUND", "Parent report record not found.")
 
     StudentValue = db.get(Student, ExistingLog.student_id) if ExistingLog.student_id else None
     if not StudentValue:
-        api_error(404, "STUDENT_NOT_FOUND", "Student linked to this delivery record was not found.")
+        api_error(404, "STUDENT_NOT_FOUND", "Student linked to this report record was not found.")
+    if not StudentValue.teacher_id:
+        api_error(400, "STUDENT_HAS_NO_TEACHER", "This student does not have an assigned teacher to publish the report to.")
 
-    StudentUser = db.get(User, StudentValue.user_id) if StudentValue.user_id else None
-    StudentName = StudentUser.full_name if StudentUser and StudentUser.full_name else StudentValue.student_code
+    ExistingLog.status = "PUBLISHED"
+    ExistingLog.published_to_teacher_at = datetime.now(datetime_timezone.utc)
+    ExistingLog.published_by_user_id = user.id
+    db.commit()
 
-    ResendMode = str((RequestValue.recipientMode if RequestValue else "SAME") or "SAME").upper().strip()
-    if ResendMode in {"", "SAME"}:
-        RecipientEmail = _admin_clean_email(ExistingLog.recipient_email)
-        if not RecipientEmail:
-            api_error(400, "INVALID_PARENT_EMAIL", "The recipient email on this delivery record is missing or invalid.")
-        _admin_validate_parent_report_recipient_email(RecipientEmail)
-        Recipients = [{"email": RecipientEmail, "type": ExistingLog.recipient_type or "CUSTOM"}]
-    else:
-        Recipients = _admin_parent_report_recipients(
-            StudentValue,
-            ParentReportEmailRequest(
-                studentId=StudentValue.id,
-                moduleId=None,
-                levelId=None,
-                recipientMode=ResendMode,
-                customEmail=RequestValue.customEmail if RequestValue else None,
-            ),
-        )
-
-    ModuleValue = None
-    if ExistingLog.module_code and ExistingLog.module_code != "-":
-        ModuleValue = db.query(Module).filter(Module.module_code == ExistingLog.module_code).first()
-    LevelQuery = db.query(Level)
-    if ModuleValue:
-        LevelQuery = LevelQuery.filter(Level.module_id == ModuleValue.id)
-    LevelValue = None
-    if ExistingLog.level_code and ExistingLog.level_code != "-":
-        LevelValue = LevelQuery.filter(Level.level_code == ExistingLog.level_code).first()
-    if ExistingLog.level_code and ExistingLog.level_code != "-" and not LevelValue:
-        api_error(400, "REPORT_LEVEL_NOT_FOUND", "The report level linked to this delivery record could not be found.")
-
-    if not ModuleValue:
-        api_error(400, "REPORT_MODULE_NOT_FOUND", "The report module linked to this delivery record could not be found.")
-    if not LevelValue:
-        api_error(400, "REPORT_LEVEL_NOT_FOUND", "The report level linked to this delivery record could not be found.")
-
-    _admin_validate_parent_report_scope(db, StudentId=StudentValue.id, ModuleId=ModuleValue.id, LevelId=LevelValue.id)
-    Payload = _admin_build_student_report(db, StudentValue.id, ModuleValue.id, LevelValue.id, None, None)
-    ReportData = _admin_build_parent_progress_pdf_data(Payload, None, None, db)
-    ReportMeta, _ = _admin_validate_parent_report_data(ReportData, ExpectedModule=ModuleValue, ExpectedLevel=LevelValue)
-    ReportLevel = ReportMeta.get("reportLevelCode") or ExistingLog.level_code or "Level"
-
-    FileName = _admin_parent_report_file_name(StudentName, ReportLevel)
-    PdfBytes = BuildParentProgressPdfBytes(FileName, ReportData)
-    Subject = f"MathPath Progress Report - {StudentName} - {ReportLevel}"
-    Body = _admin_parent_report_email_body(StudentName, ReportLevel)
-    Logs = _admin_create_parent_report_email_logs(
-        db,
-        StudentValue=StudentValue,
-        ReportMeta=ReportMeta,
-        Recipients=Recipients,
-        FileName=FileName,
-        UserValue=user,
-    )
-
-    DeliveryResult = _admin_deliver_parent_report_email_now(
-        db,
-        Logs=Logs,
-        RecipientEmails=[Item["email"] for Item in Recipients],
-        Subject=Subject,
-        Body=Body,
-        AttachmentBytes=PdfBytes,
-        AttachmentFileName=FileName,
-        ActorUserId=user.id,
-    )
+    NotifyParentReportPublishedToTeacher(db, actor_user_id=user.id, log=ExistingLog)
+    db.commit()
 
     return {
-        **DeliveryResult,
-        "recipients": [Item["email"] for Item in Recipients],
-        "fileName": FileName,
-        "deliveryIds": [LogValue.id for LogValue in Logs],
+        "published": True,
+        "deliveryId": ExistingLog.id,
+        "publishedToTeacherAt": ExistingLog.published_to_teacher_at.isoformat(),
+        "message": "Report published to the student's teacher.",
     }
 
 

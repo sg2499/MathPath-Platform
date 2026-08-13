@@ -364,6 +364,16 @@ function AppendDeepLinkParams(
 
 function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   if (Role === "teacher") {
+    if (IsParentReportNotification(Notification)) {
+      const StudentCode = MetadataString(Notification, "studentCode");
+      const StoredRoute = Notification.targetRoute || "";
+      const Route = StoredRoute.startsWith("/teacher/assessments/student/")
+        ? StoredRoute
+        : StudentCode
+          ? `/teacher/assessments/student/${encodeURIComponent(StudentCode)}`
+          : "/teacher/assessments";
+      return { Route, TargetTab: "", TargetSubTab: "" };
+    }
     if (IsCompetitionMockNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       if (AttemptId) {

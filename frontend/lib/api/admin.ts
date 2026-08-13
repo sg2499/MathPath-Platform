@@ -1124,14 +1124,14 @@ export type ParentReportDeliveryLog = {
   levelCode: string;
   levelName: string;
   levelLabel: string;
-  recipientEmail: string;
-  recipientType: string;
   fileName?: string | null;
   status: string;
-  sentAt?: string | null;
+  isPublishedToTeacher: boolean;
+  generatedAt?: string | null;
+  generatedBy?: string | null;
+  publishedToTeacherAt?: string | null;
+  publishedBy?: string | null;
   createdAt?: string | null;
-  sentBy?: string | null;
-  errorMessage?: string | null;
 };
 
 export type ParentReportDeliveryLogParams = {
@@ -1151,44 +1151,18 @@ export async function getAdminParentReportDeliveryLogs(
   return data;
 }
 
-export type ParentReportRecipientMode = "FATHER" | "MOTHER" | "BOTH" | "CUSTOM";
-export type ParentReportResendRecipientMode = ParentReportRecipientMode | "SAME";
-
-export type SendParentProgressReportPayload = StudentHistoryParams & {
-  recipientMode: ParentReportRecipientMode;
-  customEmail?: string;
-};
-
-export type SendParentProgressReportResponse = {
-  sent: boolean;
-  message: string;
-  recipients: string[];
-  fileName: string;
-};
-
-export async function sendAdminParentProgressReport(
-  payload: SendParentProgressReportPayload,
-): Promise<SendParentProgressReportResponse> {
-  const { data } = await api.post<SendParentProgressReportResponse>(
-    "/admin/results/send-parent-summary",
-    payload,
-    { timeout: 45000 },
-  );
+export async function downloadAdminParentReportDelivery(deliveryId: string): Promise<Blob> {
+  const { data } = await api.get(`/admin/results/parent-report-deliveries/${deliveryId}/download`, {
+    responseType: "blob",
+  });
   return data;
 }
 
-export type ResendParentReportDeliveryPayload = {
-  recipientMode?: ParentReportResendRecipientMode;
-  customEmail?: string;
-};
-
-export async function resendAdminParentReportDelivery(
+export async function publishAdminParentReportToTeacher(
   deliveryId: string,
-  payload: ResendParentReportDeliveryPayload = {},
-): Promise<SendParentProgressReportResponse> {
-  const { data } = await api.post<SendParentProgressReportResponse>(
-    `/admin/results/parent-report-deliveries/${deliveryId}/resend`,
-    payload,
+): Promise<{ published: boolean; deliveryId: string; publishedToTeacherAt: string; message: string }> {
+  const { data } = await api.post<{ published: boolean; deliveryId: string; publishedToTeacherAt: string; message: string }>(
+    `/admin/results/parent-report-deliveries/${deliveryId}/publish-to-teacher`,
   );
   return data;
 }

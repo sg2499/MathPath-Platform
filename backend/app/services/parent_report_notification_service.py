@@ -4,7 +4,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models import Module, ParentReportEmailLog, Student, User
+from app.models import Module, ParentReportEmailLog, Student, Teacher, User
 from app.services.notification_service import ActiveAdminUsers, CreateNotification
 
 
@@ -118,47 +118,63 @@ def NotifyParentReportGenerated(
     )
 
 
-def NotifyParentReportDeliveryLogs(
+def NotifyParentReportPublishedToTeacher(
     db: Session,
     *,
     actor_user_id: str | None,
-    logs: list[ParentReportEmailLog],
-    event: str,
-    status: str,
-    file_name: str | None = None,
-    error_message: str | None = None,
+    log: ParentReportEmailLog,
 ) -> None:
-    EventTitleMap = {
-        "PARENT_REPORT_SENT": "Parent Report Sent",
-        "PARENT_REPORT_RESENT": "Parent Report Resent",
-        "PARENT_REPORT_FAILED": "Parent Report Delivery Failed",
-    }
-    TypeValue = event.upper()
-    CategoryValue = "FAILURE" if status.upper() == "FAILED" or "FAILED" in TypeValue else "PARENT_REPORT"
-    ColorValue = "RED" if CategoryValue == "FAILURE" else "TEAL"
-    for log in logs:
-        student_name, _ = _student_display(db, log.student_id, log.student_code)
-        metadata = _log_metadata(db, log, event=TypeValue, file_name=file_name)
-        if error_message:
-            metadata["errorMessage"] = error_message
-        title = EventTitleMap.get(TypeValue, "Parent Report Update")
-        if CategoryValue == "FAILURE":
-            message = f"Parent report delivery for {student_name} · {log.level_code or 'Level'} failed for {log.recipient_email}."
-        elif TypeValue == "PARENT_REPORT_RESENT":
-            message = f"Parent report for {student_name} · {log.level_code or 'Level'} was resent to {log.recipient_email}."
-        else:
-            message = f"Parent report for {student_name} · {log.level_code or 'Level'} was sent to {log.recipient_email}."
-        _notify_admins(
-            db,
-            actor_user_id=actor_user_id,
-            type=TypeValue,
-            category=CategoryValue,
-            color_variant=ColorValue,
-            title=title,
-            message=message,
-            log=log,
-            metadata=metadata,
-        )
+    """Notify the student's assigned teacher that a progress report is ready to view.
+
+    Fired exactly once, when an admin explicitly publishes a generated report
+    to the teacher (a distinct step from generating/downloading the report,
+    so admins can regenerate/re-check a report without spamming the teacher).
+    """
+    student = db.get(Student, log.student_id) if log.student_id else None
+    if not student or not student.teacher_id:
+        return
+    teacher = db.get(Teacher, student.teacher_id)
+    if not teacher or not teacher.user_id:
+        return
+    teacher_user = db.get(User, teacher.user_id)
+    if not teacher_user:
+        return
+
+    student_name, student_code = _student_display(db, log.student_id, log.student_code)
+    level_label = log.level_code or "Level"
+    module = db.query(Module).filter(Module.module_code == log.module_code).first() if log.module_code else None
+
+    CreateNotification(
+        db,
+        recipient_user_id=teacher_user.id,
+        recipient_role="TEACHER",
+        actor_user_id=actor_user_id,
+        actor_role="ADMIN" if actor_user_id else None,
+        student_id=log.student_id,
+        teacher_id=teacher.id,
+        module_id=module.id if module else None,
+        report_delivery_id=log.id,
+        type="PARENT_REPORT_GENERATED",
+        category="PARENT_REPORT",
+        title=f"{student_name} Progress Report Ready",
+        message=f"{student_name}'s progress report for {level_label} has been generated and is ready to view.",
+        target_route=f"/teacher/assessments/student/{student_code}",
+        target_tab="",
+        color_variant="TEAL",
+        metadata={
+            "event": "PARENT_REPORT_PUBLISHED_TO_TEACHER",
+            "targetAction": "viewParentReport",
+            "reportDeliveryId": log.id,
+            "studentId": log.student_id,
+            "studentCode": student_code,
+            "studentName": student_name,
+            "moduleCode": log.module_code,
+            "levelCode": log.level_code,
+            "highlightId": log.id,
+        },
+    )
+
+
 
 
 def NotifyParentReportDeliveryDeleted(

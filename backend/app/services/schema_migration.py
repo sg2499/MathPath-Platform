@@ -522,6 +522,10 @@ PARENT_REPORT_EMAIL_LOG_COLUMNS = {
     "delivered_at": "TIMESTAMP",
     "bounced_at": "TIMESTAMP",
     "opened_at": "TIMESTAMP",
+    # Added when parent-report email delivery was replaced with admin-generated,
+    # teacher-downloadable PDF reports. See ParentReportEmailLog docstring.
+    "published_to_teacher_at": "TIMESTAMP",
+    "published_by_user_id": "VARCHAR",
 }
 
 
@@ -554,6 +558,8 @@ def ensure_parent_report_email_logs_table() -> None:
                     bounced_at TIMESTAMP,
                     opened_at TIMESTAMP,
                     error_message TEXT,
+                    published_to_teacher_at TIMESTAMP,
+                    published_by_user_id VARCHAR,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """))
