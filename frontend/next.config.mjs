@@ -61,17 +61,22 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(
-  nextConfig,
-  {
-    silent: true,
-    org: process.env.SENTRY_ORG || "zetta-metrics",
-    project: process.env.SENTRY_PROJECT || "javascript-nextjs",
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  org: process.env.SENTRY_ORG || "zetta-metrics",
+  project: process.env.SENTRY_PROJECT || "javascript-nextjs",
+  widenClientFileUpload: true,
+  disableLogger: true,
+  // 2026-08-13: @sentry/nextjs v8's withSentryConfig() only accepts
+  // (nextConfig, sentryBuildOptions) -- the options used to live in a third
+  // argument that v8 silently ignores, so widenClientFileUpload/
+  // disableLogger etc. were never actually applied. Consolidated here.
+  //
+  // errorHandler: without this, a Sentry API hiccup during the release-
+  // creation step (e.g. a 504 from sentry-cli) fails the ENTIRE production
+  // build, even though the Next.js build itself already succeeded. This
+  // downgrades that to a warning so a Sentry outage never blocks a deploy.
+  errorHandler: (error) => {
+    console.warn("[sentry] build-time step failed, continuing anyway:", error);
   },
-  {
-    widenClientFileUpload: true,
-    transpileClientSDK: true,
-    hideSourceMaps: true,
-    disableLogger: true,
-  }
-);
+});
