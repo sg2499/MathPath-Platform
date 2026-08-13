@@ -76,6 +76,7 @@ from app.services.parent_report_notification_service import (
     NotifyParentReportGenerated,
     NotifyParentReportPublishedToTeacher,
     NotifyParentReportDeliveryDeleted,
+    ResolveStudentTeacher,
 )
 from app.services.competition_mock_generation_service import (
     GenerateCompetitionMockDraft,
@@ -4963,7 +4964,7 @@ def publish_parent_report_to_teacher(delivery_id: str, db: Session = Depends(get
     StudentValue = db.get(Student, ExistingLog.student_id) if ExistingLog.student_id else None
     if not StudentValue:
         api_error(404, "STUDENT_NOT_FOUND", "Student linked to this report record was not found.")
-    if not StudentValue.teacher_id:
+    if not ResolveStudentTeacher(db, StudentValue):
         api_error(400, "STUDENT_HAS_NO_TEACHER", "This student does not have an assigned teacher to publish the report to.")
 
     ExistingLog.status = "PUBLISHED"
