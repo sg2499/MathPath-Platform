@@ -1672,7 +1672,6 @@ function PracticeRowsTable({
           sortKey={sortStateToShared(SortStateValue)}
           direction={sortDirectionOf(SortStateValue)}
           onChange={(key, direction) => SetSortStateValue(key === NATURAL_SORT_KEY ? null : { Key: key, Direction: direction })}
-          naturalLabel="Default Order (Curriculum)"
         />
       </div>
       <div

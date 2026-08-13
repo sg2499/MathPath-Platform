@@ -62,7 +62,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type AnyRecord = Record<string, unknown>;
 type ResultsMode = "LEARNING" | "STUDENT";
@@ -298,20 +298,74 @@ function ResultsSortDropdown<Key extends string>({
   OnToggleDirection: () => void;
   ClassName?: string;
 }) {
+  // 2026-08-13: fixed "Sort By" trigger label + plain option text (no
+  // "Sort by ..." prefix), matching the shared components/common/
+  // SortByDropdown.tsx used elsewhere in the app.
+  const [Open, SetOpen] = useState(false);
+  const ContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!Open) return;
+    function HandlePointerDown(Event: MouseEvent) {
+      if (ContainerRef.current && !ContainerRef.current.contains(Event.target as Node)) {
+        SetOpen(false);
+      }
+    }
+    function HandleKeyDown(Event: KeyboardEvent) {
+      if (Event.key === "Escape") SetOpen(false);
+    }
+    document.addEventListener("mousedown", HandlePointerDown);
+    document.addEventListener("keydown", HandleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", HandlePointerDown);
+      document.removeEventListener("keydown", HandleKeyDown);
+    };
+  }, [Open]);
+
   return (
-    <div className={`flex items-stretch gap-2 ${ClassName}`}>
-      <select
-        className="math-select flex-1"
-        value={SortKey}
-        onChange={(Event) => OnSelectField(Event.target.value as Key)}
-        aria-label="Sort by"
-      >
-        {Fields.map((Field) => (
-          <option key={Field.Key} value={Field.Key}>
-            Sort by {Field.Label}
-          </option>
-        ))}
-      </select>
+    <div ref={ContainerRef} className={`flex items-stretch gap-2 ${ClassName}`}>
+      <div className="relative flex-1">
+        <button
+          type="button"
+          onClick={() => SetOpen((Current) => !Current)}
+          className="math-select flex w-full items-center justify-between gap-2"
+          aria-haspopup="listbox"
+          aria-expanded={Open}
+        >
+          <span>Sort By</span>
+          <ChevronDown size={16} className={`shrink-0 transition ${Open ? "rotate-180" : ""}`} />
+        </button>
+        {Open ? (
+          <ul
+            role="listbox"
+            className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900"
+          >
+            {Fields.map((Field) => {
+              const Active = SortKey === Field.Key;
+              return (
+                <li key={Field.Key}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={Active}
+                    onClick={() => {
+                      OnSelectField(Field.Key);
+                      SetOpen(false);
+                    }}
+                    className={`block w-full px-4 py-2 text-left text-sm font-bold transition ${
+                      Active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    {Field.Label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </div>
       <button
         type="button"
         onClick={OnToggleDirection}

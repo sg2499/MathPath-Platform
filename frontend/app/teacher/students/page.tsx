@@ -520,7 +520,6 @@ export default function TeacherStudentsPage() {
               sortKey={sortKey}
               direction={sortDirection}
               onChange={setSortState}
-              naturalLabel="Default Order (Student Code)"
             />
           </div>
         </div>

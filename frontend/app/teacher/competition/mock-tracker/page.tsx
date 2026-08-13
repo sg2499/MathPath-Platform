@@ -557,7 +557,6 @@ function TeacherCompetitionMockTrackerContent() {
                       sortKey={MockTableSort.key}
                       direction={MockTableSort.direction}
                       onChange={(key, direction) => SetMockTableSort({ key, direction })}
-                      naturalLabel="Default Order (Chronological)"
                     />
                   </div>
                 </div>
