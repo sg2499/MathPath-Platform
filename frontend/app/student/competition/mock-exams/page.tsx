@@ -3,6 +3,9 @@
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { SortableHeader } from "@/components/common/SortableHeader";
+import { SortByDropdown } from "@/components/common/SortByDropdown";
+import { useSortableTable, type SortFieldOption } from "@/lib/sortable";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
@@ -522,7 +525,17 @@ function StatusCountChip({ value, label, tone }: { value: number; label: string;
 
 
 type StudentMockSortKey = "mock" | "mockCode" | "status" | "score" | "accuracy" | "timeTaken" | "assignedDate" | "completionDate";
-type StudentMockSortConfig = { key: StudentMockSortKey; direction: "asc" | "desc" } | null;
+
+const MOCK_SORT_FIELDS: SortFieldOption<StudentMockSortKey>[] = [
+  { key: "mock", label: "Mock" },
+  { key: "mockCode", label: "Mock Code" },
+  { key: "status", label: "Status" },
+  { key: "score", label: "Score" },
+  { key: "accuracy", label: "Accuracy" },
+  { key: "timeTaken", label: "Time Taken" },
+  { key: "assignedDate", label: "Assigned Date" },
+  { key: "completionDate", label: "Completion Date" },
+];
 
 function StudentMockSortValue(assignment: StudentCompetitionMockAssignment, key: StudentMockSortKey) {
   const exam = assignment.mockExam;
@@ -550,38 +563,6 @@ function StudentMockSortValue(assignment: StudentCompetitionMockAssignment, key:
   }
 }
 
-function CompareStudentMockValues(left: string | number, right: string | number) {
-  if (typeof left === "number" && typeof right === "number") return left - right;
-  return String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: "base" });
-}
-
-function StudentMockSortableHeader({
-  label,
-  sortKey,
-  sortConfig,
-  onSort,
-}: {
-  label: string;
-  sortKey: StudentMockSortKey;
-  sortConfig: StudentMockSortConfig;
-  onSort: (key: StudentMockSortKey) => void;
-}) {
-  const active = sortConfig?.key === sortKey;
-  const indicator = !active ? "↕" : sortConfig.direction === "asc" ? "↑" : "↓";
-  return (
-    <th className="px-4 py-3">
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.13em] text-slate-500 transition hover:text-[var(--mp-role-readable)] focus:outline-none focus:text-[var(--mp-role-readable)] dark:text-slate-400 dark:hover:text-[var(--mp-role-readable)]"
-      >
-        <span>{label}</span>
-        <span className={active ? "text-[var(--mp-role-readable)]" : "opacity-40"}>{indicator}</span>
-      </button>
-    </th>
-  );
-}
-
 function StudentMockStaticHeader({ label }: { label: string }) {
   return (
     <th className="px-4 py-3 text-xs font-black uppercase tracking-[0.13em] text-slate-500 dark:text-slate-400">
@@ -603,40 +584,39 @@ function MockRecordsTable({
   onResume: (assignment: StudentCompetitionMockAssignment) => void;
   onViewResult: (assignment: StudentCompetitionMockAssignment) => void;
 }) {
-  const [sortConfig, setSortConfig] = useState<StudentMockSortConfig>(null);
-
-  const handleSort = (key: StudentMockSortKey) => {
-    setSortConfig((current) => {
-      if (!current || current.key !== key) return { key, direction: "asc" };
-      if (current.direction === "asc") return { key, direction: "desc" };
-      return null;
-    });
-  };
-
-  const sortedAssignments = useMemo(() => {
-    if (!sortConfig) return assignments;
-    return [...assignments].sort((left, right) => {
-      const comparison = CompareStudentMockValues(
-        StudentMockSortValue(left, sortConfig.key),
-        StudentMockSortValue(right, sortConfig.key),
-      );
-      return sortConfig.direction === "asc" ? comparison : -comparison;
-    });
-  }, [assignments, sortConfig]);
+  const {
+    sortKey,
+    sortDirection,
+    sortedRows: sortedAssignments,
+    toggleSort,
+    setSort,
+  } = useSortableTable<StudentCompetitionMockAssignment, StudentMockSortKey>({
+    rows: assignments,
+    valueFor: StudentMockSortValue,
+  });
 
   return (
     <div className="math-table overflow-x-auto border-t border-orange-100 dark:border-slate-700">
+      <div className="flex justify-end border-b border-orange-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+        <SortByDropdown
+          className="w-full sm:w-auto sm:min-w-[280px]"
+          fields={MOCK_SORT_FIELDS}
+          sortKey={sortKey}
+          direction={sortDirection}
+          onChange={setSort}
+        />
+      </div>
       <table className="min-w-full text-left text-sm">
         <thead className="border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
           <tr>
-            <StudentMockSortableHeader label="MOCK" sortKey="mock" sortConfig={sortConfig} onSort={handleSort} />
-            <StudentMockSortableHeader label="MOCK CODE" sortKey="mockCode" sortConfig={sortConfig} onSort={handleSort} />
-            <StudentMockSortableHeader label="STATUS" sortKey="status" sortConfig={sortConfig} onSort={handleSort} />
-            <StudentMockSortableHeader label="SCORE" sortKey="score" sortConfig={sortConfig} onSort={handleSort} />
-            <StudentMockSortableHeader label="ACCURACY" sortKey="accuracy" sortConfig={sortConfig} onSort={handleSort} />
-            <StudentMockSortableHeader label="TIME TAKEN" sortKey="timeTaken" sortConfig={sortConfig} onSort={handleSort} />
-            <StudentMockSortableHeader label="ASSIGNED DATE" sortKey="assignedDate" sortConfig={sortConfig} onSort={handleSort} />
-            <StudentMockSortableHeader label="COMPLETION DATE" sortKey="completionDate" sortConfig={sortConfig} onSort={handleSort} />
+            <th className="px-4 py-3"><SortableHeader active={sortKey === "mock"} direction={sortDirection} onClick={() => toggleSort("mock")}>Mock</SortableHeader></th>
+            <th className="px-4 py-3"><SortableHeader active={sortKey === "mockCode"} direction={sortDirection} onClick={() => toggleSort("mockCode")}>Mock Code</SortableHeader></th>
+            <th className="px-4 py-3"><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => toggleSort("status")}>Status</SortableHeader></th>
+            <th className="px-4 py-3"><SortableHeader active={sortKey === "score"} direction={sortDirection} onClick={() => toggleSort("score")}>Score</SortableHeader></th>
+            <th className="px-4 py-3"><SortableHeader active={sortKey === "accuracy"} direction={sortDirection} onClick={() => toggleSort("accuracy")}>Accuracy</SortableHeader></th>
+            <th className="px-4 py-3"><SortableHeader active={sortKey === "timeTaken"} direction={sortDirection} onClick={() => toggleSort("timeTaken")}>Time Taken</SortableHeader></th>
+            <th className="px-4 py-3"><SortableHeader active={sortKey === "assignedDate"} direction={sortDirection} onClick={() => toggleSort("assignedDate")}>Assigned Date</SortableHeader></th>
+            <th className="px-4 py-3"><SortableHeader active={sortKey === "completionDate"} direction={sortDirection} onClick={() => toggleSort("completionDate")}>Completion Date</SortableHeader></th>
             <StudentMockStaticHeader label="ACTION" />
           </tr>
         </thead>

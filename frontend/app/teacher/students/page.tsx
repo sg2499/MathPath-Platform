@@ -2,6 +2,8 @@
 
 import { AppShell } from "@/components/common/AppShell";
 import { SortableHeader } from "@/components/common/SortableHeader";
+import { SortByDropdown } from "@/components/common/SortByDropdown";
+import { compareSortValues, useSortableTable, type SortFieldOption } from "@/lib/sortable";
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 import { BenchmarkBadge, BenchmarkAlert } from "@/components/common/BenchmarkBadge";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -28,28 +30,24 @@ import { useRouter } from "next/navigation";
 
 type TeacherStudentSortKey = "studentCode" | "studentName" | "className" | "level" | "status" | "assigned" | "completed" | "pending" | "accuracy" | "latest" | "attention";
 
-type SortDirection = "asc" | "desc";
+const TEACHER_STUDENT_SORT_FIELDS: SortFieldOption<TeacherStudentSortKey>[] = [
+  { key: "studentName", label: "Student Name" },
+  { key: "studentCode", label: "Student Code" },
+  { key: "className", label: "Class" },
+  { key: "level", label: "Level" },
+  { key: "status", label: "Status" },
+  { key: "assigned", label: "Assigned" },
+  { key: "completed", label: "Cleared" },
+  { key: "pending", label: "Pending" },
+  { key: "accuracy", label: "Average Accuracy" },
+  { key: "latest", label: "Latest Activity" },
+  { key: "attention", label: "Attention" },
+];
 
 function AccuracyToneClass(Value: number) {
   if (Value > 70) return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (Value >= 60) return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-rose-200 bg-rose-50 text-rose-700";
-}
-
-function normalizeSortValue(value: unknown): string | number {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "number") return value;
-  const text = String(value).trim();
-  const date = Date.parse(text);
-  if (text && !Number.isNaN(date) && /\d{4}|\d{1,2}\/\d{1,2}/.test(text)) return date;
-  return text.toLowerCase();
-}
-
-function compareSortValues(a: unknown, b: unknown) {
-  const av = normalizeSortValue(a);
-  const bv = normalizeSortValue(b);
-  if (typeof av === "number" && typeof bv === "number") return av - bv;
-  return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" });
 }
 
 
@@ -302,8 +300,6 @@ export default function TeacherStudentsPage() {
   const [moduleFilter, setModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(TeacherStudentsStateKey, "module-filter"), "");
   const [levelFilter, setLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(TeacherStudentsStateKey, "level-filter"), "");
   const router = useRouter();
-  const [sortKey, setSortKey] = usePersistentUiState<TeacherStudentSortKey>(CreatePersistedUiStateKey(TeacherStudentsStateKey, "sort-key"), "studentCode");
-  const [sortDirection, setSortDirection] = usePersistentUiState<SortDirection>(CreatePersistedUiStateKey(TeacherStudentsStateKey, "sort-direction"), "asc");
   const query = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
   const trackerQuery = useQuery({ queryKey: ["teacher-assignment-tracker-current-state"], queryFn: getTeacherAssignmentTracker, enabled: ready });
 
@@ -358,9 +354,9 @@ export default function TeacherStudentsPage() {
     );
   }, [students, moduleFilter]);
 
-  const filtered = useMemo(() => {
+  const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const filteredRows = students.filter((student) => {
+    return students.filter((student) => {
       const moduleOk = !moduleFilter || moduleFilter === "ALL" || student.currentModuleCode === moduleFilter;
       const levelOk = !levelFilter || levelFilter === "ALL" || student.currentLevelCode === levelFilter;
       const searchOk =
@@ -381,25 +377,32 @@ export default function TeacherStudentsPage() {
           .includes(q);
       return moduleOk && levelOk && searchOk;
     });
+  }, [students, search, moduleFilter, levelFilter, currentNeedsReattemptStudentCodes]);
 
-    return filteredRows.slice().sort((a, b) => {
-      const valueFor = (student: TeacherStudent) => {
-        if (sortKey === "studentCode") return student.studentCode;
-        if (sortKey === "studentName") return student.studentName;
-        if (sortKey === "className") return `${student.className || ""} ${student.section || ""}`;
-        if (sortKey === "level") return student.currentLevelCode;
-        if (sortKey === "status") return student.status;
-        if (sortKey === "assigned") return studentMetricValue(studentPracticeMetrics, student, "assigned", student.assignedAssignments ?? 0);
-        if (sortKey === "completed") return studentMetricValue(studentPracticeMetrics, student, "cleared", student.completedAssignments ?? student.completedAttempts ?? 0);
-        if (sortKey === "pending") return studentMetricValue(studentPracticeMetrics, student, "pending", (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0));
-        if (sortKey === "latest") return student.latestActivityAt || "";
-        if (sortKey === "accuracy") return studentPracticeMetrics.get(student.studentCode)?.averageAccuracy ?? student.averageAccuracy ?? student.latestAccuracy ?? 0;
-        return attentionLabel(effectiveAttention(student, currentNeedsReattemptStudentCodes));
-      };
-      const result = compareSortValues(valueFor(a), valueFor(b));
-      return sortDirection === "asc" ? result : -result;
-    });
-  }, [students, search, moduleFilter, levelFilter, sortKey, sortDirection, currentNeedsReattemptStudentCodes, studentPracticeMetrics]);
+  const {
+    sortKey,
+    sortDirection,
+    sortedRows: filtered,
+    toggleSort,
+    setSort: setSortState,
+  } = useSortableTable<TeacherStudent, TeacherStudentSortKey>({
+    rows: filteredRows,
+    valueFor: (student, key) => {
+      if (key === "studentCode") return student.studentCode;
+      if (key === "studentName") return student.studentName;
+      if (key === "className") return `${student.className || ""} ${student.section || ""}`;
+      if (key === "level") return student.currentLevelCode;
+      if (key === "status") return student.status;
+      if (key === "assigned") return studentMetricValue(studentPracticeMetrics, student, "assigned", student.assignedAssignments ?? 0);
+      if (key === "completed") return studentMetricValue(studentPracticeMetrics, student, "cleared", student.completedAssignments ?? student.completedAttempts ?? 0);
+      if (key === "pending") return studentMetricValue(studentPracticeMetrics, student, "pending", (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0));
+      if (key === "latest") return student.latestActivityAt || "";
+      if (key === "accuracy") return studentPracticeMetrics.get(student.studentCode)?.averageAccuracy ?? student.averageAccuracy ?? student.latestAccuracy ?? 0;
+      return attentionLabel(effectiveAttention(student, currentNeedsReattemptStudentCodes));
+    },
+    naturalOrder: (rows) => rows.slice().sort((a, b) => compareSortValues(a.studentCode, b.studentCode)),
+    storageKey: CreatePersistedUiStateKey(TeacherStudentsStateKey, "sort-state"),
+  });
 
 
   const summary = useMemo(() => {
@@ -434,14 +437,6 @@ export default function TeacherStudentsPage() {
     };
   }, [filtered, studentPracticeMetrics]);
 
-  function toggleSort(key: TeacherStudentSortKey) {
-    if (sortKey === key) {
-      setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDirection("asc");
-    }
-  }
 
   if (!ready) return null;
 
@@ -481,7 +476,7 @@ export default function TeacherStudentsPage() {
               Focus on pending work, completion, average accuracy, and latest activity.
             </p>
           </div>
-          <div className="grid w-full gap-3 md:grid-cols-[minmax(240px,1fr)_180px_180px] xl:max-w-3xl">
+          <div className="grid w-full gap-3 md:grid-cols-[minmax(240px,1fr)_180px_180px] xl:max-w-4xl xl:grid-cols-[minmax(240px,1fr)_180px_180px_220px]">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
@@ -520,6 +515,13 @@ export default function TeacherStudentsPage() {
                 </option>
               ))}
             </select>
+            <SortByDropdown
+              fields={TEACHER_STUDENT_SORT_FIELDS}
+              sortKey={sortKey}
+              direction={sortDirection}
+              onChange={setSortState}
+              naturalLabel="Default Order (Student Code)"
+            />
           </div>
         </div>
       </section>

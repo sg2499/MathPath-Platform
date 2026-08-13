@@ -5,6 +5,16 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { NotificationTargetBanner } from "@/components/common/NotificationTargetBanner";
+import { SortableHeader as SharedSortableHeader } from "@/components/common/SortableHeader";
+import { SortByDropdown } from "@/components/common/SortByDropdown";
+import {
+  NATURAL_SORT_KEY,
+  nextSortState as SharedNextSortState,
+  type NaturalSortKey,
+  type SortDirection as SharedSortDirection,
+  type SortFieldOption,
+  type SortState as SharedSortState,
+} from "@/lib/sortable";
 import {
   AnyRow,
   Chip,
@@ -70,21 +80,29 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 
 
-type SortDirection = "asc" | "desc";
+// 2026-08-12 consolidation: delegates to the shared sort engine
+// (lib/sortable.ts) and shared <SortableHeader> component so this page's
+// arrows cycle and look identical to every other table in the app, while
+// keeping the existing local SortState<Key>/PascalCase call-site shape used
+// throughout this file below.
+type SortDirection = SharedSortDirection;
 type SortState<Key extends string> = {
   Key: Key;
   Direction: SortDirection;
 } | null;
 
 function NextSortState<Key extends string>(Current: SortState<Key>, Key: Key): SortState<Key> {
-  if (!Current || Current.Key !== Key) return { Key, Direction: "asc" };
-  if (Current.Direction === "asc") return { Key, Direction: "desc" };
-  return null;
+  const SharedCurrent: SharedSortState<Key> = Current ? { key: Current.Key, direction: Current.Direction } : { key: NATURAL_SORT_KEY, direction: "asc" };
+  const Next = SharedNextSortState(SharedCurrent, Key);
+  return Next.key === NATURAL_SORT_KEY ? null : { Key: Next.key, Direction: Next.direction };
 }
 
-function SortIndicator<Key extends string>({ SortState, SortKey }: { SortState: SortState<Key>; SortKey: Key }) {
-  if (!SortState || SortState.Key !== SortKey) return <span className="opacity-35">↕</span>;
-  return <span aria-hidden="true">{SortState.Direction === "asc" ? "▲" : "▼"}</span>;
+function sortStateToShared<Key extends string>(state: SortState<Key>): Key | NaturalSortKey {
+  return state ? state.Key : NATURAL_SORT_KEY;
+}
+
+function sortDirectionOf<Key extends string>(state: SortState<Key>): SharedSortDirection {
+  return state?.Direction ?? "asc";
 }
 
 function SortableHeader<Key extends string>({
@@ -100,16 +118,15 @@ function SortableHeader<Key extends string>({
   OnSort: (Key: Key) => void;
   align?: "left" | "center" | "right";
 }) {
-  const justifyClass = align === "center" ? "justify-center text-center" : align === "right" ? "justify-end text-right" : "justify-start text-left";
   return (
-    <button
-      type="button"
+    <SharedSortableHeader
+      active={SortState?.Key === SortKey}
+      direction={SortState?.Direction ?? "asc"}
       onClick={() => OnSort(SortKey)}
-      className={`inline-flex items-center gap-1 font-black uppercase tracking-[0.14em] transition hover:text-[#7a1f58] dark:hover:text-rose-100 ${justifyClass}`}
+      align={align}
     >
-      <span>{Label}</span>
-      <SortIndicator SortState={SortState} SortKey={SortKey} />
-    </button>
+      {Label}
+    </SharedSortableHeader>
   );
 }
 
@@ -1592,6 +1609,17 @@ function AttemptStatusLabel(Row: AnyRow, AttemptType: string) {
 
 type TeacherPracticeDetailSortKey = "dps" | "attempt" | "status" | "score" | "accuracy" | "benchmark" | "timeTaken" | "completionDate";
 
+const PRACTICE_DETAIL_SORT_FIELDS: SortFieldOption<TeacherPracticeDetailSortKey>[] = [
+  { key: "dps", label: "DPS" },
+  { key: "attempt", label: "Attempt" },
+  { key: "status", label: "Status" },
+  { key: "score", label: "Score" },
+  { key: "accuracy", label: "Accuracy" },
+  { key: "benchmark", label: "Benchmark" },
+  { key: "timeTaken", label: "Time Taken" },
+  { key: "completionDate", label: "Completion Date" },
+];
+
 function ComparePracticeDetailRows(FirstRow: AnyRow, SecondRow: AnyRow, SortState: SortState<TeacherPracticeDetailSortKey>) {
   if (!SortState) return SortRowsByCurriculum([FirstRow, SecondRow])[0] === FirstRow ? -1 : 1;
   const FirstAttemptType = AttemptTypeLabel(FirstRow, 0);
@@ -1637,6 +1665,16 @@ function PracticeRowsTable({
 
   return (
     <div className="math-teacher-practice-lesson-insights-table mt-4 overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-800">
+      <div className="flex justify-end bg-slate-50 px-5 py-3 dark:bg-slate-900/70">
+        <SortByDropdown
+          className="w-full sm:w-auto sm:min-w-[240px]"
+          fields={ShowBenchmark ? PRACTICE_DETAIL_SORT_FIELDS : PRACTICE_DETAIL_SORT_FIELDS.filter((Field) => Field.key !== "benchmark")}
+          sortKey={sortStateToShared(SortStateValue)}
+          direction={sortDirectionOf(SortStateValue)}
+          onChange={(key, direction) => SetSortStateValue(key === NATURAL_SORT_KEY ? null : { Key: key, Direction: direction })}
+          naturalLabel="Default Order (Curriculum)"
+        />
+      </div>
       <div
         className={`math-teacher-practice-lesson-insights-table-header grid ${GridColumns} gap-3 bg-slate-50 px-5 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70`}
       >

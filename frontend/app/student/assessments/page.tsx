@@ -12,6 +12,8 @@ import {
   getFirstMathPathTimestamp,
 } from "@/lib/date";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
+import { SortByDropdown } from "@/components/common/SortByDropdown";
+import { NATURAL_SORT_KEY, compareSortValues, type NaturalSortKey, type SortDirection, type SortFieldOption } from "@/lib/sortable";
 import { AlertTriangle, BarChart3, ChevronDown, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Sparkles, Trophy, Radio, Milestone } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -269,6 +271,28 @@ function SortAssessmentAttemptsAscending(rows: AssessmentRow[]) {
 }
 
 
+// 2026-08-12: in-group sort for the rows inside each module/level card. The
+// module/level grouping itself always stays in curriculum order -- this
+// only reorders the attempt rows within a given level, via a page-level
+// dropdown (there's no flat table here to hang column-header arrows off
+// of). Natural order ("Attempt Order") keeps the existing chronological
+// attempt-sequence sort every level group already had.
+type AssessmentInGroupSortKey = "score" | "accuracy" | "status" | "completedDate";
+
+const ASSESSMENT_SORT_FIELDS: SortFieldOption<AssessmentInGroupSortKey>[] = [
+  { key: "score", label: "Score" },
+  { key: "accuracy", label: "Accuracy" },
+  { key: "status", label: "Status" },
+  { key: "completedDate", label: "Completion Date" },
+];
+
+function AssessmentSortValue(row: AssessmentRow, key: AssessmentInGroupSortKey): unknown {
+  if (key === "score") return cappedScore(row) ?? -1;
+  if (key === "accuracy") return rowAccuracyOrNull(row) ?? -1;
+  if (key === "status") return statusDisplay(row.status);
+  return AttemptChronologyTimestamp(row);
+}
+
 function CurrentAssessmentMetricRows(rows: AssessmentRow[]) {
   const LatestByLevel = new Map<string, AssessmentRow>();
 
@@ -419,6 +443,10 @@ function StudentAssessmentsPageContent() {
   const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "search"), "");
   const [moduleFilter, setModuleFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "module-filter"), "");
   const [levelFilter, setLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "level-filter"), "");
+  const [sortState, setSortState] = usePersistentUiState<{ key: AssessmentInGroupSortKey | NaturalSortKey; direction: SortDirection }>(
+    CreatePersistedUiStateKey(StudentAssessmentsStateKey, "sort-state"),
+    { key: NATURAL_SORT_KEY, direction: "asc" },
+  );
   const [state, setState] = useState<LoadState>({ loading: true, error: null, rows: [] });
   const [openModules, setOpenModules] = usePersistentUiState<Record<string, boolean>>(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "open-modules"), {});
   const [openLevels, setOpenLevels] = usePersistentUiState<Record<string, boolean>>(CreatePersistedUiStateKey(StudentAssessmentsStateKey, "open-levels"), {});
@@ -529,10 +557,18 @@ function StudentAssessmentsPageContent() {
           .sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }))
           .map((levelGroup) => ({
             ...levelGroup,
-            rows: SortAssessmentAttemptsAscending(levelGroup.rows),
+            rows: sortState.key === NATURAL_SORT_KEY
+              ? SortAssessmentAttemptsAscending(levelGroup.rows)
+              : levelGroup.rows.slice().sort((a, b) => {
+                  const result = compareSortValues(
+                    AssessmentSortValue(a, sortState.key as AssessmentInGroupSortKey),
+                    AssessmentSortValue(b, sortState.key as AssessmentInGroupSortKey),
+                  );
+                  return sortState.direction === "asc" ? result : -result;
+                }),
           })),
       }));
-  }, [filteredRows]);
+  }, [filteredRows, sortState]);
 
   const CurrentMetricRows = CurrentAssessmentMetricRows(state.rows);
   const clearedCount = CurrentMetricRows.filter((row) => statusDisplay(row.status) === "Cleared").length;
@@ -566,7 +602,7 @@ function StudentAssessmentsPageContent() {
       </section>
 
       <section className="mt-6 math-card p-5 sm:p-6">
-        <div className="grid gap-3 lg:grid-cols-[1fr_220px_220px]">
+        <div className="grid gap-3 lg:grid-cols-[1fr_220px_220px_240px]">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Assessments" />
@@ -581,6 +617,13 @@ function StudentAssessmentsPageContent() {
             <option value="ALL">All Levels</option>
             {levelOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select>
+          <SortByDropdown
+            fields={ASSESSMENT_SORT_FIELDS}
+            sortKey={sortState.key}
+            direction={sortState.direction}
+            onChange={(key, direction) => setSortState({ key, direction })}
+            naturalLabel="Default Order (Attempt Sequence)"
+          />
         </div>
       </section>
 

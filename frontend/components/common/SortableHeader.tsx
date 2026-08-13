@@ -1,8 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { SortDirection } from "@/lib/sortable";
 
-export type SortDirection = "asc" | "desc";
+// Re-exported for backward compatibility -- some pages still import
+// SortDirection from here rather than from lib/sortable.ts directly.
+export type { SortDirection };
 
 export function SortableHeader({
   active,
