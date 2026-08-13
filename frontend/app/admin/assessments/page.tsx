@@ -3536,7 +3536,7 @@ function ParentReportGenerateTable({
                                             );
                                           })()}
                                         </div>
-                                        <div className="flex flex-nowrap justify-end gap-2">
+                                        <div className="flex flex-nowrap justify-start gap-2">
                                           <button
                                             type="button"
                                             className="math-action-button-primary math-role-row-primary-action"
@@ -4241,7 +4241,7 @@ function ParentReportDeliveryHistoryTable({
                                 className="math-grid-table-header math-admin-parent-report-grid-header grid gap-2"
                                 style={{
                                   gridTemplateColumns:
-                                    "0.44fr 0.5fr 0.46fr 0.46fr 0.42fr 360px",
+                                    "0.4fr 0.46fr 0.42fr 0.42fr 0.38fr 420px",
                                 }}
                               >
                                 <div>Report Level</div>
@@ -4271,7 +4271,7 @@ function ParentReportDeliveryHistoryTable({
                                       className={`math-grid-table-row math-admin-parent-report-grid-row grid items-center gap-2 ${IsHighlighted ? "bg-teal-50 ring-2 ring-teal-300 ring-inset dark:bg-teal-950/30 dark:ring-teal-500/50" : ""}`}
                                       style={{
                                         gridTemplateColumns:
-                                          "0.44fr 0.5fr 0.46fr 0.46fr 0.42fr 360px",
+                                          "0.4fr 0.46fr 0.42fr 0.42fr 0.38fr 420px",
                                       }}
                                     >
                                       <div>
@@ -4298,7 +4298,7 @@ function ParentReportDeliveryHistoryTable({
                                       <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
                                         {ParentReportPublishedDateLabel(Item)}
                                       </div>
-                                      <div className="math-row-action-group flex-wrap justify-start pr-1 overflow-visible">
+                                      <div className="math-row-action-group flex-nowrap justify-start pr-1 overflow-visible">
                                         <button
                                           type="button"
                                           className="math-role-action-button math-role-row-action"
@@ -4320,8 +4320,9 @@ function ParentReportDeliveryHistoryTable({
                                             className="math-action-button-primary math-role-row-primary-action"
                                             onClick={() => SetPublishItem(Item)}
                                             disabled={PublishMutation.isPending}
+                                            title="Publish To Teacher"
                                           >
-                                            Publish To Teacher
+                                            Publish
                                           </button>
                                         ) : null}
                                         <button

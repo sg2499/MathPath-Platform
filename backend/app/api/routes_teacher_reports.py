@@ -29,6 +29,7 @@ from app.api.routes_admin import (
     _admin_parent_report_level_label,
     BuildParentProgressPdfResponse,
 )
+from app.services.parent_report_notification_service import ResolveStudentTeacher
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 
@@ -37,7 +38,8 @@ def _teacher_owns_log(db: Session, teacher: Teacher, log: ParentReportEmailLog) 
     if not log.student_id:
         return False
     student = db.get(Student, log.student_id)
-    return bool(student and student.teacher_id == teacher.id)
+    resolved_teacher = ResolveStudentTeacher(db, student)
+    return bool(resolved_teacher and resolved_teacher.id == teacher.id)
 
 
 @router.get("/results/parent-report-deliveries")

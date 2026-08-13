@@ -8,6 +8,35 @@ from app.models import Module, ParentReportEmailLog, Student, Teacher, User
 from app.services.notification_service import ActiveAdminUsers, CreateNotification
 
 
+def ResolveStudentTeacher(db: Session, student: Student | None) -> Teacher | None:
+    """Resolve a student's assigned teacher, matching the same dual-path
+    convention `student_payload()`/`teacher_payload()` already use in
+    routes_admin.py: `Student.teacher_id` is the modern FK, but many student
+    records (bulk-imported or assigned before that column existed) only ever
+    got the legacy `Student.teacher` free-text name column set. Checking
+    `teacher_id` alone silently treats those students as "no teacher
+    assigned" even though the admin UI itself shows one, via that same name
+    fallback. Try the FK first, then fall back to a name match.
+    """
+    if not student:
+        return None
+    if getattr(student, "teacher_id", None):
+        teacher = db.get(Teacher, student.teacher_id)
+        if teacher:
+            return teacher
+    teacher_name = (getattr(student, "teacher", None) or "").strip()
+    if teacher_name:
+        candidate = (
+            db.query(Teacher)
+            .join(User, Teacher.user_id == User.id)
+            .filter(User.full_name == teacher_name)
+            .first()
+        )
+        if candidate:
+            return candidate
+    return None
+
+
 def _student_display(db: Session, student_id: str | None, fallback_code: str | None = None) -> tuple[str, str]:
     student = db.get(Student, student_id) if student_id else None
     student_user = db.get(User, student.user_id) if student and student.user_id else None
@@ -131,9 +160,7 @@ def NotifyParentReportPublishedToTeacher(
     so admins can regenerate/re-check a report without spamming the teacher).
     """
     student = db.get(Student, log.student_id) if log.student_id else None
-    if not student or not student.teacher_id:
-        return
-    teacher = db.get(Teacher, student.teacher_id)
+    teacher = ResolveStudentTeacher(db, student)
     if not teacher or not teacher.user_id:
         return
     teacher_user = db.get(User, teacher.user_id)
