@@ -77,11 +77,42 @@ fi
 instance_public_ip="15.206.108.37"
 echo "$instance_public_ip"
 
+# Keepalive + timeout options so a flaky home connection doesn't silently
+# kill a long-running scp/ssh session (added 2026-08-13 after repeated
+# "lost connection" failures mid-upload).
+ssh_opts=(-i "$instance_key_pair" -o ServerAliveInterval=15 -o ServerAliveCountMax=6 -o ConnectTimeout=30 -o TCPKeepAlive=yes)
 
-scp -i "$instance_key_pair" "$build_tgz" ubuntu@"$instance_public_ip":/tmp/mathpath-frontend-build.tgz
+# Retry helper: retries a failing command with backoff instead of giving up
+# after one dropped connection.
+retry() {
+	local max_attempts=6
+	local attempt=1
+	local delay=5
+	until "$@"; do
+		local status=$?
+		if [ "$attempt" -ge "$max_attempts" ]; then
+			echo "ERROR: command failed after $max_attempts attempts (exit $status): $*"
+			return "$status"
+		fi
+		echo "Attempt $attempt failed (exit $status). Retrying in ${delay}s..."
+		sleep "$delay"
+		attempt=$((attempt + 1))
+		delay=$((delay * 2))
+	done
+}
+
+if command -v rsync >/dev/null 2>&1; then
+	echo "Uploading build artifact via rsync (resumable — retries continue from where they left off, not from 0%)"
+	retry rsync -avz --partial --partial-dir=.rsync-partial --progress -e "ssh ${ssh_opts[*]}" "$build_tgz" ubuntu@"$instance_public_ip":/tmp/mathpath-frontend-build.tgz
+else
+	echo "rsync not found in this Git Bash — falling back to scp with retries."
+	echo "NOTE: plain scp cannot resume a partial transfer, so each retry restarts from 0%."
+	echo "TIP: install rsync (e.g. via MSYS2: pacman -S rsync) for resumable uploads on flaky connections."
+	retry scp "${ssh_opts[@]}" "$build_tgz" ubuntu@"$instance_public_ip":/tmp/mathpath-frontend-build.tgz
+fi
 
 
-ssh -t -i "$instance_key_pair" ubuntu@"$instance_public_ip" "
+retry ssh -t "${ssh_opts[@]}" ubuntu@"$instance_public_ip" "
 	set -e
 	cd $remote_main
 	pwd
@@ -94,7 +125,6 @@ ssh -t -i "$instance_key_pair" ubuntu@"$instance_public_ip" "
 
 	rm -rf $remote_main/frontend/.next
 	tar -xzf /tmp/mathpath-frontend-build.tgz -C $remote_main/frontend
-	rm -f /tmp/mathpath-frontend-build.tgz
 
 	cd $remote_main/backend
 	if [ ! -d .venv ]; then python3 -m venv .venv; fi
@@ -109,6 +139,7 @@ ssh -t -i "$instance_key_pair" ubuntu@"$instance_public_ip" "
 	sudo systemctl restart $app_backend
 	pm2 restart $app_frontend
 	pm2 status
+	rm -f /tmp/mathpath-frontend-build.tgz
 "
 
 rm -rf "$artifact_dir"
