@@ -622,7 +622,6 @@ function StudentAssessmentsPageContent() {
             sortKey={sortState.key}
             direction={sortState.direction}
             onChange={(key, direction) => setSortState({ key, direction })}
-            naturalLabel="Default Order (Attempt Sequence)"
           />
         </div>
       </section>

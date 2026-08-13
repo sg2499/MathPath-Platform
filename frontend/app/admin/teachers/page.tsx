@@ -430,7 +430,6 @@ export default function AdminTeachersPage() {
               sortKey={sortKey}
               direction={sortDirection}
               onChange={onDropdownSort}
-              naturalLabel="Default Order (Teacher Code)"
             />
 
             <button className="math-button-primary" onClick={openCreateForm}>

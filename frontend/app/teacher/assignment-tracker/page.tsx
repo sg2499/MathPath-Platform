@@ -1405,7 +1405,6 @@ function ActionQueueTab({
           sortKey={sortStateToShared(SortStateValue)}
           direction={sortDirectionOf(SortStateValue)}
           onChange={(key, direction) => SetSortStateValue(key === NATURAL_SORT_KEY ? null : { Key: key, Direction: direction })}
-          naturalLabel="Default Order (Priority)"
         />
       </div>
       <div className="w-full overflow-x-auto">
@@ -1534,7 +1533,6 @@ function StudentReviewTab({
           sortKey={sortStateToShared(SortStateValue)}
           direction={sortDirectionOf(SortStateValue)}
           onChange={(key, direction) => SetSortStateValue(key === NATURAL_SORT_KEY ? null : { Key: key, Direction: direction })}
-          naturalLabel="Default Order (Student Code)"
         />
       </div>
       <div className="w-full overflow-x-auto">

@@ -81,7 +81,7 @@ function generateDefaultPassword(): string {
   return `Mp-${randomSegment}`;
 }
 
-type StudentSortKey = "studentCode" | "studentName" | "className" | "teacher" | "level" | "fatherMobile" | "status";
+type StudentSortKey = "studentCode" | "studentName" | "className" | "teacher" | "level" | "status";
 
 const STUDENT_SORT_FIELDS: SortFieldOption<StudentSortKey>[] = [
   { key: "studentName", label: "Student Name" },
@@ -89,7 +89,6 @@ const STUDENT_SORT_FIELDS: SortFieldOption<StudentSortKey>[] = [
   { key: "className", label: "Class" },
   { key: "teacher", label: "Teacher" },
   { key: "level", label: "Level" },
-  { key: "fatherMobile", label: "Father Mobile" },
   { key: "status", label: "Status" },
 ];
 
@@ -451,7 +450,6 @@ export default function AdminStudentsPage() {
       if (key === "className") return `${student.className || ""} ${student.section || ""}`;
       if (key === "teacher") return student.teacher;
       if (key === "level") return student.currentLevelCode;
-      if (key === "fatherMobile") return student.fatherMobile;
       return student.isActive ? "ACTIVE" : "INACTIVE";
     },
     naturalOrder: (rows) =>
@@ -899,7 +897,6 @@ export default function AdminStudentsPage() {
                 sortKey={sortKey}
                 direction={sortDirection}
                 onChange={onDropdownSort}
-                naturalLabel="Default Order (Student Code)"
               />
             </div>
           </div>
@@ -926,7 +923,7 @@ export default function AdminStudentsPage() {
                   <th><SortableHeader active={sortKey === "className"} direction={sortDirection} onClick={() => onHeaderSort("className")}>Class</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "teacher"} direction={sortDirection} onClick={() => onHeaderSort("teacher")}>Teacher</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "level"} direction={sortDirection} onClick={() => onHeaderSort("level")}>Level</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "fatherMobile"} direction={sortDirection} onClick={() => onHeaderSort("fatherMobile")}>Father Mobile</SortableHeader></th>
+                  <th>Father Mobile</th>
                   <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => onHeaderSort("status")} align="center">Status</SortableHeader></th>
                   <th>Action</th>
                 </tr>
