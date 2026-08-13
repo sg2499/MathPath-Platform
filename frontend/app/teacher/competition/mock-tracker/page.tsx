@@ -7,6 +7,16 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherCompetitionMockTracker, type TeacherCompetitionTrackerRow } from "@/lib/api/teacher";
+import { SortableHeader } from "@/components/common/SortableHeader";
+import { SortByDropdown } from "@/components/common/SortByDropdown";
+import {
+  NATURAL_SORT_KEY,
+  nextSortState,
+  sortRowsWithState,
+  type SortDirection as SharedSortDirection,
+  type SortFieldOption,
+  type SortState as SharedSortState,
+} from "@/lib/sortable";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, ChevronDown, ChevronRight, ClipboardList, Clock3, Eye, Radar, Search, ShieldCheck, Trophy, UsersRound } from "lucide-react";
 import { useMemo, useState, Suspense } from "react";
@@ -17,8 +27,8 @@ import { useEffect } from "react";
 type StatusFilter = "ALL" | "COMPLETED" | "PENDING";
 
 type SortKey = "mock" | "mockCode" | "status" | "score" | "accuracy" | "timeTaken" | "assignedDate" | "completionDate";
-type SortDirection = "asc" | "desc";
-type SortState = { key: SortKey; direction: SortDirection } | null;
+type SortDirection = SharedSortDirection;
+type SortState = SharedSortState<SortKey>;
 
 const MockTableColumns: Array<{ label: string; key?: SortKey; className?: string }> = [
   { label: "MOCK", key: "mock" },
@@ -31,6 +41,10 @@ const MockTableColumns: Array<{ label: string; key?: SortKey; className?: string
   { label: "COMPLETION DATE", key: "completionDate" },
   { label: "REVIEW" },
 ];
+
+const MOCK_SORT_FIELDS: SortFieldOption<SortKey>[] = MockTableColumns
+  .filter((Column): Column is { label: string; key: SortKey; className?: string } => Boolean(Column.key))
+  .map((Column) => ({ key: Column.key, label: Column.label }));
 
 function FormatDate(Value?: string | null) {
   if (!Value) return "-";
@@ -192,8 +206,8 @@ function ChronologicalSortValue(Row: TeacherCompetitionTrackerRow): number {
   return Number.isNaN(AssignedTime) ? 0 : AssignedTime;
 }
 
-function SortRows(Rows: TeacherCompetitionTrackerRow[], Sort: SortState) {
-  const ChronologicalRows = [...Rows].sort((Left, Right) => {
+function NaturalMockOrder(Rows: TeacherCompetitionTrackerRow[]) {
+  return [...Rows].sort((Left, Right) => {
     const DateResult = ChronologicalSortValue(Left) - ChronologicalSortValue(Right);
     if (DateResult !== 0) return DateResult;
 
@@ -208,35 +222,10 @@ function SortRows(Rows: TeacherCompetitionTrackerRow[], Sort: SortState) {
       sensitivity: "base",
     });
   });
-
-  if (!Sort) return ChronologicalRows;
-
-  return ChronologicalRows.sort((Left, Right) => {
-    const LeftValue = SortValue(Left, Sort.key);
-    const RightValue = SortValue(Right, Sort.key);
-    let Result = 0;
-
-    if (typeof LeftValue === "number" && typeof RightValue === "number") {
-      Result = LeftValue - RightValue;
-    } else {
-      Result = String(LeftValue).localeCompare(String(RightValue), undefined, { numeric: true, sensitivity: "base" });
-    }
-
-    return Sort.direction === "asc" ? Result : -Result;
-  });
 }
 
-function NextSortState(Current: SortState, Key: SortKey): SortState {
-  if (!Current || Current.key !== Key) return { key: Key, direction: "asc" };
-  if (Current.direction === "asc") return { key: Key, direction: "desc" };
-  return null;
-}
-
-function SortIndicator({ Sort, ColumnKey }: { Sort: SortState; ColumnKey: SortKey }) {
-  if (!Sort || Sort.key !== ColumnKey) {
-    return <span className="math-tc-mock-header-sort-inactive">↕</span>;
-  }
-  return <span className="math-tc-mock-header-sort-active">{Sort.direction === "asc" ? "↑" : "↓"}</span>;
+function SortRows(Rows: TeacherCompetitionTrackerRow[], Sort: SortState) {
+  return sortRowsWithState(Rows, Sort, SortValue, NaturalMockOrder);
 }
 
 type MockLevelGroup = {
@@ -365,7 +354,7 @@ function TeacherCompetitionMockTrackerContent() {
   const [ExpandedStudents, SetExpandedStudents] = useState<Set<string>>(() => new Set());
   const [ExpandedModules, SetExpandedModules] = useState<Set<string>>(() => new Set());
   const [ExpandedLevels, SetExpandedLevels] = useState<Set<string>>(() => new Set());
-  const [MockTableSort, SetMockTableSort] = useState<SortState>(null);
+  const [MockTableSort, SetMockTableSort] = useState<SortState>({ key: NATURAL_SORT_KEY, direction: "asc" });
   const router = useRouter();
   const searchParams = useSearchParams();
   const targetModuleCode = searchParams.get("moduleCode");
@@ -521,7 +510,7 @@ function TeacherCompetitionMockTrackerContent() {
                       Review completion status, score, accuracy, and time taken for your students.
                     </p>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_180px_180px_180px] xl:w-[820px]">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_180px_180px_180px_220px] xl:w-[1040px]">
                     <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#7a1f58] focus-within:border-[#7a1f58] focus-within:ring-2 focus-within:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus-within:border-rose-300 dark:focus-within:bg-rose-500/20 dark:focus-within:ring-rose-300/25">
                       <Search size={16} className="text-[#7a1f58] dark:text-rose-100" />
                       <input
@@ -563,6 +552,13 @@ function TeacherCompetitionMockTrackerContent() {
                       <option value="PENDING">Pending</option>
                       <option value="COMPLETED">Completed</option>
                     </select>
+                    <SortByDropdown
+                      fields={MOCK_SORT_FIELDS}
+                      sortKey={MockTableSort.key}
+                      direction={MockTableSort.direction}
+                      onChange={(key, direction) => SetMockTableSort({ key, direction })}
+                      naturalLabel="Default Order (Chronological)"
+                    />
                   </div>
                 </div>
 
@@ -662,15 +658,13 @@ function TeacherCompetitionMockTrackerContent() {
                                                           {MockTableColumns.map((Column) => (
                                                             <div key={Column.label} className="math-tc-mock-header-cell px-3 py-3">
                                                               {Column.key ? (
-                                                                <button
-                                                                  type="button"
-                                                                  onClick={() => SetMockTableSort((Current) => NextSortState(Current, Column.key!))}
-                                                                  className="math-tc-mock-header-sort-btn inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition focus:outline-none focus:ring-2"
-                                                                  aria-label={`Sort by ${Column.label}`}
+                                                                <SortableHeader
+                                                                  active={MockTableSort.key === Column.key}
+                                                                  direction={MockTableSort.direction}
+                                                                  onClick={() => SetMockTableSort((Current) => nextSortState(Current, Column.key!))}
                                                                 >
-                                                                  <span>{Column.label}</span>
-                                                                  <SortIndicator Sort={MockTableSort} ColumnKey={Column.key} />
-                                                                </button>
+                                                                  {Column.label}
+                                                                </SortableHeader>
                                                               ) : (
                                                                 Column.label
                                                               )}

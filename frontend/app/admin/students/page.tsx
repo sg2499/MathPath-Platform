@@ -2,6 +2,8 @@
 
 import { AppShell } from "@/components/common/AppShell";
 import { SortableHeader } from "@/components/common/SortableHeader";
+import { SortByDropdown } from "@/components/common/SortByDropdown";
+import { compareSortValues, useSortableTable, type SortFieldOption } from "@/lib/sortable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -81,23 +83,15 @@ function generateDefaultPassword(): string {
 
 type StudentSortKey = "studentCode" | "studentName" | "className" | "teacher" | "level" | "fatherMobile" | "status";
 
-type SortDirection = "asc" | "desc";
-
-function normalizeSortValue(value: unknown): string | number {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "number") return value;
-  const text = String(value).trim();
-  const date = Date.parse(text);
-  if (text && !Number.isNaN(date) && /\d{4}|\d{1,2}\/\d{1,2}/.test(text)) return date;
-  return text.toLowerCase();
-}
-
-function compareSortValues(a: unknown, b: unknown) {
-  const av = normalizeSortValue(a);
-  const bv = normalizeSortValue(b);
-  if (typeof av === "number" && typeof bv === "number") return av - bv;
-  return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" });
-}
+const STUDENT_SORT_FIELDS: SortFieldOption<StudentSortKey>[] = [
+  { key: "studentName", label: "Student Name" },
+  { key: "studentCode", label: "Student Code" },
+  { key: "className", label: "Class" },
+  { key: "teacher", label: "Teacher" },
+  { key: "level", label: "Level" },
+  { key: "fatherMobile", label: "Father Mobile" },
+  { key: "status", label: "Status" },
+];
 
 
 type FormState = StudentProfilePayload;
@@ -168,8 +162,6 @@ export default function AdminStudentsPage() {
   const [teacherFilter, setTeacherFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "teacher-filter"), "");
   const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "level-filter"), "");
   const [page, setPage] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "page"), 1);
-  const [sortKey, setSortKey] = usePersistentUiState<StudentSortKey | "DEFAULT">(CreatePersistedUiStateKey(StudentDirectoryStateKey, "sort-key"), "DEFAULT");
-  const [sortDirection, setSortDirection] = usePersistentUiState<SortDirection>(CreatePersistedUiStateKey(StudentDirectoryStateKey, "sort-direction"), "asc");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [lastLogin, setLastLogin] = useState<{
@@ -410,10 +402,10 @@ export default function AdminStudentsPage() {
     return ScopeParts.length ? ScopeParts.join(" · ") : "All Teachers · All Levels";
   }, [teacherFilter, LevelFilter]);
 
-  const filtered = useMemo(() => {
+  const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    const filteredRows = students.filter((s) => {
+    return students.filter((s) => {
       const teacherName = String(s.teacher ?? "").trim();
       const matchesTeacher =
         !teacherFilter || teacherFilter === "ALL" || teacherName === teacherFilter;
@@ -443,47 +435,42 @@ export default function AdminStudentsPage() {
 
       return matchesTeacher && MatchesLevel && matchesSearch;
     });
+  }, [students, search, teacherFilter, LevelFilter]);
 
-    const DefaultSortedRows = filteredRows.slice().sort((a, b) =>
-      compareSortValues(a.studentCode || a.customId || a.studentName, b.studentCode || b.customId || b.studentName)
-    );
-
-    if (sortKey === "DEFAULT") return DefaultSortedRows;
-
-    return DefaultSortedRows.sort((a, b) => {
-      const valueFor = (student: AdminStudent) => {
-        if (sortKey === "studentCode") return student.studentCode;
-        if (sortKey === "studentName") return student.studentName;
-        if (sortKey === "className") return `${student.className || ""} ${student.section || ""}`;
-        if (sortKey === "teacher") return student.teacher;
-        if (sortKey === "level") return student.currentLevelCode;
-        if (sortKey === "fatherMobile") return student.fatherMobile;
-        return student.isActive ? "ACTIVE" : "INACTIVE";
-      };
-      const result = compareSortValues(valueFor(a), valueFor(b));
-      return sortDirection === "asc" ? result : -result;
-    });
-  }, [students, search, teacherFilter, LevelFilter, sortKey, sortDirection]);
+  const {
+    sortKey,
+    sortDirection,
+    sortedRows: filtered,
+    toggleSort,
+    setSort: setSortState,
+  } = useSortableTable<AdminStudent, StudentSortKey>({
+    rows: filteredRows,
+    valueFor: (student, key) => {
+      if (key === "studentCode") return student.studentCode;
+      if (key === "studentName") return student.studentName;
+      if (key === "className") return `${student.className || ""} ${student.section || ""}`;
+      if (key === "teacher") return student.teacher;
+      if (key === "level") return student.currentLevelCode;
+      if (key === "fatherMobile") return student.fatherMobile;
+      return student.isActive ? "ACTIVE" : "INACTIVE";
+    },
+    naturalOrder: (rows) =>
+      rows.slice().sort((a, b) =>
+        compareSortValues(a.studentCode || a.customId || a.studentName, b.studentCode || b.customId || b.studentName)
+      ),
+    storageKey: CreatePersistedUiStateKey(StudentDirectoryStateKey, "sort-state"),
+  });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  function toggleSort(key: StudentSortKey) {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDirection("asc");
-      setPage(1);
-      return;
-    }
+  function onHeaderSort(key: StudentSortKey) {
+    toggleSort(key);
+    setPage(1);
+  }
 
-    if (sortDirection === "asc") {
-      setSortDirection("desc");
-      setPage(1);
-      return;
-    }
-
-    setSortKey("DEFAULT");
-    setSortDirection("asc");
+  function onDropdownSort(key: StudentSortKey | "__natural__", direction: "asc" | "desc") {
+    setSortState(key, direction);
     setPage(1);
   }
 
@@ -856,7 +843,7 @@ export default function AdminStudentsPage() {
               </p>
             </div>
 
-            <div className="grid w-full gap-3 lg:max-w-4xl lg:grid-cols-[1fr_220px_220px]">
+            <div className="grid w-full gap-3 lg:max-w-5xl lg:grid-cols-[1fr_200px_200px_220px]">
               <div className="relative">
                 <Search
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -906,6 +893,14 @@ export default function AdminStudentsPage() {
                   </option>
                 ))}
               </select>
+
+              <SortByDropdown
+                fields={STUDENT_SORT_FIELDS}
+                sortKey={sortKey}
+                direction={sortDirection}
+                onChange={onDropdownSort}
+                naturalLabel="Default Order (Student Code)"
+              />
             </div>
           </div>
         </div>
@@ -926,13 +921,13 @@ export default function AdminStudentsPage() {
             <table>
               <thead>
                 <tr>
-                  <th><SortableHeader active={sortKey === "studentName"} direction={sortDirection} onClick={() => toggleSort("studentName")}>Student</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "studentCode"} direction={sortDirection} onClick={() => toggleSort("studentCode")}>Student Code</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "className"} direction={sortDirection} onClick={() => toggleSort("className")}>Class</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "teacher"} direction={sortDirection} onClick={() => toggleSort("teacher")}>Teacher</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "level"} direction={sortDirection} onClick={() => toggleSort("level")}>Level</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "fatherMobile"} direction={sortDirection} onClick={() => toggleSort("fatherMobile")}>Father Mobile</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => toggleSort("status")} align="center">Status</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "studentName"} direction={sortDirection} onClick={() => onHeaderSort("studentName")}>Student</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "studentCode"} direction={sortDirection} onClick={() => onHeaderSort("studentCode")}>Student Code</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "className"} direction={sortDirection} onClick={() => onHeaderSort("className")}>Class</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "teacher"} direction={sortDirection} onClick={() => onHeaderSort("teacher")}>Teacher</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "level"} direction={sortDirection} onClick={() => onHeaderSort("level")}>Level</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "fatherMobile"} direction={sortDirection} onClick={() => onHeaderSort("fatherMobile")}>Father Mobile</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => onHeaderSort("status")} align="center">Status</SortableHeader></th>
                   <th>Action</th>
                 </tr>
               </thead>

@@ -4,6 +4,16 @@ import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { SortableHeader as SharedSortableHeader } from "@/components/common/SortableHeader";
+import { SortByDropdown } from "@/components/common/SortByDropdown";
+import {
+  NATURAL_SORT_KEY,
+  nextSortState as SharedNextSortState,
+  type NaturalSortKey,
+  type SortDirection as SharedSortDirection,
+  type SortFieldOption,
+  type SortState as SharedSortState,
+} from "@/lib/sortable";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherAssignmentTracker } from "@/lib/api/teacher";
@@ -103,51 +113,52 @@ function TabUrlValue(Tab: TrackerTab) {
 
 
 
-type SortDirection = "asc" | "desc";
+// 2026-08-12 consolidation: this file used to define its own SortState/
+// NextSortState/SortIndicator/SortableHeader (PascalCase props), and a
+// SECOND, separately-defined inline StudentReviewHeader duplicating the
+// same thing again with the same hardcoded magenta hover color -- neither
+// matched the shared components/common/SortableHeader.tsx used everywhere
+// else (slate hover, different icon). Kept this file's existing
+// SortState<Key>/PascalCase call-site shape (touches fewer lines across the
+// Action Queue and Student Review tables below) but the cycle logic and the
+// actual rendered button now delegate to the shared engine/component so
+// every sortable table in the app behaves and looks identical.
+type SortDirection = SharedSortDirection;
 type SortState<Key extends string> = {
   Key: Key;
   Direction: SortDirection;
 } | null;
 
 function NextSortState<Key extends string>(Current: SortState<Key>, Key: Key): SortState<Key> {
-  if (!Current || Current.Key !== Key) return { Key, Direction: "asc" };
-  if (Current.Direction === "asc") return { Key, Direction: "desc" };
-  return null;
-}
-
-function SortIndicator<Key extends string>({ SortState, SortKey }: { SortState: SortState<Key>; SortKey: Key }) {
-  if (!SortState || SortState.Key !== SortKey) return <span className="opacity-35">↕</span>;
-  return <span aria-hidden="true">{SortState.Direction === "asc" ? "▲" : "▼"}</span>;
+  const SharedCurrent: SharedSortState<Key> = Current ? { key: Current.Key, direction: Current.Direction } : { key: NATURAL_SORT_KEY, direction: "asc" };
+  const Next = SharedNextSortState(SharedCurrent, Key);
+  return Next.key === NATURAL_SORT_KEY ? null : { Key: Next.key, Direction: Next.direction };
 }
 
 function SortableHeader<Key extends string>({
   Label,
+  children,
   SortKey,
   SortState,
   OnSort,
   Align = "left",
 }: {
-  Label: string;
+  Label?: string;
+  children?: ReactNode;
   SortKey: Key;
   SortState: SortState<Key>;
   OnSort: (Key: Key) => void;
   Align?: "left" | "center" | "right";
 }) {
   return (
-    <button
-      type="button"
+    <SharedSortableHeader
+      active={SortState?.Key === SortKey}
+      direction={SortState?.Direction ?? "asc"}
       onClick={() => OnSort(SortKey)}
-      className={`inline-flex items-center gap-1 font-black uppercase tracking-[0.14em] transition hover:text-[#7a1f58] dark:hover:text-rose-100 ${
-        Align === "center"
-          ? "justify-center text-center"
-          : Align === "right"
-            ? "justify-end text-right"
-            : "justify-start text-left"
-      }`}
+      align={Align}
     >
-      <span>{Label}</span>
-      <SortIndicator SortState={SortState} SortKey={SortKey} />
-    </button>
+      {children ?? Label}
+    </SharedSortableHeader>
   );
 }
 
@@ -1303,6 +1314,37 @@ function ExpandedRecentPracticeView({
 type TeacherActionQueueSortKey = "student" | "module" | "level" | "lesson" | "dps" | "accuracy" | "status";
 type TeacherStudentReviewSortKey = "student" | "module" | "level" | "assigned" | "cleared" | "pending" | "needsReattempt" | "average" | "performance" | "lastActivity";
 
+const ACTION_QUEUE_SORT_FIELDS: SortFieldOption<TeacherActionQueueSortKey>[] = [
+  { key: "student", label: "Student" },
+  { key: "module", label: "Module" },
+  { key: "level", label: "Level" },
+  { key: "lesson", label: "Lesson" },
+  { key: "dps", label: "DPS" },
+  { key: "accuracy", label: "Accuracy" },
+  { key: "status", label: "Status" },
+];
+
+const STUDENT_REVIEW_SORT_FIELDS: SortFieldOption<TeacherStudentReviewSortKey>[] = [
+  { key: "student", label: "Student" },
+  { key: "module", label: "Module" },
+  { key: "level", label: "Level" },
+  { key: "assigned", label: "Assigned DPS" },
+  { key: "cleared", label: "Cleared DPS" },
+  { key: "pending", label: "Pending DPS" },
+  { key: "needsReattempt", label: "Needs Re-Attempt" },
+  { key: "average", label: "Average Accuracy" },
+  { key: "performance", label: "Performance" },
+  { key: "lastActivity", label: "Last Activity" },
+];
+
+function sortStateToShared<Key extends string>(state: SortState<Key>): Key | NaturalSortKey {
+  return state ? state.Key : NATURAL_SORT_KEY;
+}
+
+function sortDirectionOf<Key extends string>(state: SortState<Key>): SharedSortDirection {
+  return state?.Direction ?? "asc";
+}
+
 function CompareTeacherActionQueueRows(FirstRow: AnyRow, SecondRow: AnyRow, SortState: SortState<TeacherActionQueueSortKey>) {
   if (!SortState) return SortRowsByPriority(FirstRow, SecondRow);
   let Result = 0;
@@ -1356,6 +1398,16 @@ function ActionQueueTab({
     );
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex justify-end border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+        <SortByDropdown
+          className="w-full sm:w-auto sm:min-w-[260px]"
+          fields={ACTION_QUEUE_SORT_FIELDS}
+          sortKey={sortStateToShared(SortStateValue)}
+          direction={sortDirectionOf(SortStateValue)}
+          onChange={(key, direction) => SetSortStateValue(key === NATURAL_SORT_KEY ? null : { Key: key, Direction: direction })}
+          naturalLabel="Default Order (Priority)"
+        />
+      </div>
       <div className="w-full overflow-x-auto">
         <div className="min-w-[800px] xl:min-w-0">
           <div className="math-teacher-practice-record-table-header grid grid-cols-[1.5fr_1.5fr_.8fr_.8fr_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
@@ -1464,20 +1516,9 @@ function StudentReviewTab({
     SortKey: TeacherStudentReviewSortKey;
     Align?: "left" | "center" | "right";
   }) => (
-    <button
-      type="button"
-      onClick={() => HandleSort(SortKey)}
-      className={`inline-flex min-w-0 items-center gap-1 font-black uppercase leading-[1.15] tracking-[0.08em] transition hover:text-[#7a1f58] dark:hover:text-rose-100 ${
-        Align === "center"
-          ? "justify-center text-center"
-          : Align === "right"
-            ? "justify-end text-right"
-            : "justify-start text-left"
-      }`}
-    >
-      <span className="whitespace-normal break-words">{children}</span>
-      <SortIndicator SortState={SortStateValue} SortKey={SortKey} />
-    </button>
+    <SortableHeader SortKey={SortKey} SortState={SortStateValue} OnSort={HandleSort} Align={Align}>
+      {children}
+    </SortableHeader>
   );
 
   if (!Students.length)
@@ -1486,6 +1527,16 @@ function StudentReviewTab({
     );
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex justify-end border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+        <SortByDropdown
+          className="w-full sm:w-auto sm:min-w-[260px]"
+          fields={STUDENT_REVIEW_SORT_FIELDS}
+          sortKey={sortStateToShared(SortStateValue)}
+          direction={sortDirectionOf(SortStateValue)}
+          onChange={(key, direction) => SetSortStateValue(key === NATURAL_SORT_KEY ? null : { Key: key, Direction: direction })}
+          naturalLabel="Default Order (Student Code)"
+        />
+      </div>
       <div className="w-full overflow-x-auto">
         <div className="min-w-[1100px] xl:min-w-0">
           <div className="math-teacher-practice-record-table-header grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-4 text-[10px] font-black uppercase tracking-[0.07em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">

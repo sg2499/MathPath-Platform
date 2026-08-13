@@ -33,6 +33,8 @@ import type { AdminTeacher } from "@/types/teacher";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  ArrowDownAZ,
+  ArrowUpAZ,
   ArrowUpCircle,
   BarChart3,
   BookText,
@@ -112,6 +114,62 @@ type PromotionHistorySortKey =
   | "promotedBy";
 type SortDirection = "asc" | "desc";
 type StudentHistoryDetailTab = "CURRENT" | "DPS" | "ASSESSMENT" | "PROMOTION";
+
+const LEARNING_SORT_FIELDS: { Key: LearningSortKey; Label: string }[] = [
+  { Key: "student", Label: "Student" },
+  { Key: "teacher", Label: "Teacher" },
+  { Key: "scope", Label: "Scope" },
+  { Key: "status", Label: "Status" },
+  { Key: "score", Label: "Score" },
+  { Key: "accuracy", Label: "Accuracy" },
+  { Key: "benchmark", Label: "Benchmark" },
+  { Key: "completedDate", Label: "Completed Date" },
+  { Key: "timeTaken", Label: "Time Taken" },
+];
+
+const STUDENT_ATTEMPT_SORT_FIELDS: { Key: StudentAttemptSortKey; Label: string }[] = [
+  { Key: "scope", Label: "Scope" },
+  { Key: "teacher", Label: "Teacher" },
+  { Key: "status", Label: "Status" },
+  { Key: "score", Label: "Score" },
+  { Key: "accuracy", Label: "Accuracy" },
+  { Key: "benchmark", Label: "Benchmark" },
+  { Key: "completedDate", Label: "Completed Date" },
+  { Key: "timeTaken", Label: "Time Taken" },
+];
+
+const DPS_HISTORY_SORT_FIELDS: { Key: DpsHistorySortKey; Label: string }[] = [
+  { Key: "dps", Label: "DPS" },
+  { Key: "teacher", Label: "Teacher" },
+  { Key: "attempt", Label: "Attempt" },
+  { Key: "status", Label: "Status" },
+  { Key: "score", Label: "Score" },
+  { Key: "accuracy", Label: "Accuracy" },
+  { Key: "benchmark", Label: "Benchmark" },
+  { Key: "completedDate", Label: "Completed Date" },
+  { Key: "timeTaken", Label: "Time Taken" },
+];
+
+const ASSESSMENT_HISTORY_SORT_FIELDS: { Key: AssessmentHistorySortKey; Label: string }[] = [
+  { Key: "assessment", Label: "Assessment" },
+  { Key: "attempt", Label: "Attempt" },
+  { Key: "status", Label: "Status" },
+  { Key: "score", Label: "Score" },
+  { Key: "accuracy", Label: "Accuracy" },
+  { Key: "completedDate", Label: "Completed Date" },
+  { Key: "timeTaken", Label: "Time Taken" },
+];
+
+const PROMOTION_HISTORY_SORT_FIELDS: { Key: PromotionHistorySortKey; Label: string }[] = [
+  { Key: "fromLevel", Label: "From Level" },
+  { Key: "toLevel", Label: "To Level" },
+  { Key: "assessment", Label: "Assessment" },
+  { Key: "score", Label: "Score" },
+  { Key: "percentage", Label: "Percentage" },
+  { Key: "status", Label: "Status" },
+  { Key: "promotionDate", Label: "Promotion Date" },
+  { Key: "promotedBy", Label: "Promoted By" },
+];
 
 const AllValue = "__ALL__";
 const CompletedStatuses = new Set(["SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"]);
@@ -217,6 +275,54 @@ function SortDirectionFor<Key extends string>(
   if (ActiveKey !== Key) return { Key, Direction: "asc" };
   if (Direction === "asc") return { Key, Direction: "desc" };
   return { Key: DefaultKey, Direction: DefaultDirection };
+}
+
+// 2026-08-12: "Sort by" dropdown paired with the existing header-arrow
+// SortableHeader cycle on every table in this file. This page's tables reset
+// their 3rd click to a named default column+direction (not a raw "natural
+// order" sentinel), unlike lib/sortable.ts's shared engine used elsewhere --
+// so this stays a small local component matching that existing model rather
+// than being force-fit onto the shared one.
+function ResultsSortDropdown<Key extends string>({
+  Fields,
+  SortKey,
+  SortDirectionValue,
+  OnSelectField,
+  OnToggleDirection,
+  ClassName = "",
+}: {
+  Fields: { Key: Key; Label: string }[];
+  SortKey: Key;
+  SortDirectionValue: SortDirection;
+  OnSelectField: (Key: Key) => void;
+  OnToggleDirection: () => void;
+  ClassName?: string;
+}) {
+  return (
+    <div className={`flex items-stretch gap-2 ${ClassName}`}>
+      <select
+        className="math-select flex-1"
+        value={SortKey}
+        onChange={(Event) => OnSelectField(Event.target.value as Key)}
+        aria-label="Sort by"
+      >
+        {Fields.map((Field) => (
+          <option key={Field.Key} value={Field.Key}>
+            Sort by {Field.Label}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={OnToggleDirection}
+        title={SortDirectionValue === "asc" ? "Ascending -- click for descending" : "Descending -- click for ascending"}
+        aria-label={SortDirectionValue === "asc" ? "Sort ascending" : "Sort descending"}
+        className="math-select inline-flex w-11 shrink-0 items-center justify-center px-0"
+      >
+        {SortDirectionValue === "asc" ? <ArrowUpAZ size={16} /> : <ArrowDownAZ size={16} />}
+      </button>
+    </div>
+  );
 }
 
 function FilterSearchRows(Rows: AnyRecord[], SearchText: string) {
@@ -1697,6 +1803,16 @@ function LearningPerformanceTable({
 
   return (
     <div className="math-table math-learning-performance-table performance-report-table">
+      <div className="flex justify-end border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+        <ResultsSortDropdown
+          ClassName="w-full sm:w-auto sm:min-w-[260px]"
+          Fields={LEARNING_SORT_FIELDS}
+          SortKey={SortKey}
+          SortDirectionValue={SortDirectionValue}
+          OnSelectField={ToggleSort}
+          OnToggleDirection={() => ToggleSort(SortKey)}
+        />
+      </div>
       <table>
         <colgroup>
           <col className="math-lp-col-student" />
@@ -2218,9 +2334,9 @@ function StudentHistoryView({
   AttemptRows,
   AssessmentRows,
   PromotionRows,
-  SortKey: _SortKey,
-  SortDirectionValue: _SortDirectionValue,
-  ToggleSort: _ToggleSort,
+  SortKey,
+  SortDirectionValue,
+  ToggleSort,
   Router,
 }: {
   StudentName: string;
@@ -2459,16 +2575,26 @@ function StudentHistoryView({
   function RenderDpsHistoryTab() {
     return (
       <div className="math-card p-4">
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="math-block-header"><Database size={14} />DPS History</p>
             <h3 className="text-2xl font-black text-slate-950">
               Learning Attempts
             </h3>
           </div>
-          <span className="math-badge whitespace-nowrap border-slate-200 bg-white text-slate-700">
-            {AttemptRows.length} Attempt(s)
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="math-badge whitespace-nowrap border-slate-200 bg-white text-slate-700">
+              {AttemptRows.length} Attempt(s)
+            </span>
+            <ResultsSortDropdown
+              ClassName="w-full sm:w-auto sm:min-w-[260px]"
+              Fields={STUDENT_ATTEMPT_SORT_FIELDS}
+              SortKey={SortKey}
+              SortDirectionValue={SortDirectionValue}
+              OnSelectField={ToggleSort}
+              OnToggleDirection={() => ToggleSort(SortKey)}
+            />
+          </div>
         </div>
         {!AttemptRows.length ? (
           <EmptyState message="No DPS attempts found for this student and scope." />
@@ -2642,6 +2768,16 @@ function PromotionHistoryRecordsTable({ Rows }: { Rows: AnyRecord[] }) {
 
   return (
     <div className="math-table math-student-history-table math-promotion-history-table">
+      <div className="flex justify-end border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+        <ResultsSortDropdown
+          ClassName="w-full sm:w-auto sm:min-w-[260px]"
+          Fields={PROMOTION_HISTORY_SORT_FIELDS}
+          SortKey={SortKey}
+          SortDirectionValue={SortDirectionValue}
+          OnSelectField={ToggleSort}
+          OnToggleDirection={() => ToggleSort(SortKey)}
+        />
+      </div>
       <table>
         <thead>
           <tr>
@@ -2808,6 +2944,16 @@ function DpsAttemptRecordsTable({
 
   return (
     <div className="math-table math-student-history-table math-dps-history-table">
+      <div className="flex justify-end border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+        <ResultsSortDropdown
+          ClassName="w-full sm:w-auto sm:min-w-[260px]"
+          Fields={DPS_HISTORY_SORT_FIELDS}
+          SortKey={SortKey}
+          SortDirectionValue={SortDirectionValue}
+          OnSelectField={ToggleSort}
+          OnToggleDirection={() => ToggleSort(SortKey)}
+        />
+      </div>
       <table>
         <thead>
           <tr>
@@ -2913,6 +3059,16 @@ function AssessmentAttemptRecordsTable({
 
   return (
     <div className="math-table math-student-history-table math-assessment-history-table">
+      <div className="flex justify-end border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+        <ResultsSortDropdown
+          ClassName="w-full sm:w-auto sm:min-w-[260px]"
+          Fields={ASSESSMENT_HISTORY_SORT_FIELDS}
+          SortKey={SortKey}
+          SortDirectionValue={SortDirectionValue}
+          OnSelectField={ToggleSort}
+          OnToggleDirection={() => ToggleSort(SortKey)}
+        />
+      </div>
       <table>
         <thead>
           <tr>
