@@ -955,6 +955,25 @@ class Notification(Base):
 
 
 class ParentReportEmailLog(Base):
+    """Parent progress report generation/publish log.
+
+    Historically this tracked email delivery (hence the table/class name and
+    several legacy columns below). Email sending for parent reports was
+    removed in favor of admin-generated, teacher-downloadable PDF reports
+    (see docs/project-memory/OPEN_ISSUES.md). The table name and several
+    columns are kept as-is to avoid a destructive migration; their meaning
+    has shifted as noted:
+      - recipient_email / recipient_type: no longer used for email delivery.
+        Populated with placeholder values ("" / "GENERATED") for new rows.
+      - sent_by_user_id / sent_at: now mean "generated_by" / "generated_at".
+      - status: now one of GENERATED / PUBLISHED (legacy PENDING/SENT/FAILED
+        values may still exist on old rows from before this change).
+      - delivery_status, delivery_provider, provider_message_id,
+        provider_response, attempt_count, delivered_at, bounced_at,
+        opened_at, error_message: legacy email-delivery-tracking fields,
+        no longer written by new code, left in place read-only.
+    """
+
     __tablename__ = "parent_report_email_logs"
     id = Column(String, primary_key=True, default=uuid_str)
     student_id = Column(String, ForeignKey("students.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -977,10 +996,13 @@ class ParentReportEmailLog(Base):
     bounced_at = Column(DateTime(timezone=True), nullable=True)
     opened_at = Column(DateTime(timezone=True), nullable=True)
     error_message = Column(Text, nullable=True)
+    published_to_teacher_at = Column(DateTime(timezone=True), nullable=True)
+    published_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     student = relationship("Student")
-    sent_by = relationship("User")
+    sent_by = relationship("User", foreign_keys=[sent_by_user_id])
+    published_by = relationship("User", foreign_keys=[published_by_user_id])
 
 
 class ParentReportDeliveryEvent(Base):

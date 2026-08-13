@@ -16,16 +16,14 @@ import {
   downloadAdminParentProgressReport,
   getAdminParentReportDeliveryLogs,
   deleteAdminParentReportDelivery,
-  resendAdminParentReportDelivery,
-  sendAdminParentProgressReport,
+  downloadAdminParentReportDelivery,
+  publishAdminParentReportToTeacher,
   promoteAssessmentAssignment,
   rejectAdminAssessmentReattempt,
   updateAssessmentAssignmentStatus,
   type AdminAssessmentReattemptApproval,
   type AdminStudentLevelPromotion,
   type ParentReportDeliveryLog,
-  type ParentReportRecipientMode,
-  type ParentReportResendRecipientMode,
 } from "@/lib/api/admin";
 import { formatMathPathDateTime } from "@/lib/date";
 import { CreatePersistedUiStateKey, usePersistentStringSet, usePersistentUiState } from "@/lib/persistedUiState";
@@ -1327,19 +1325,19 @@ function AdminAssessmentControlPageContent() {
   }, [Rows]);
 
   const ParentReportDeliveryLogs = ParentReportDeliveryQuery.data?.logs ?? [];
-  const ParentReportSentCount = ParentReportDeliveryLogs.filter(
-    (Item) => String(Item.status || "").toUpperCase() === "SENT",
+  const ParentReportPublishedCount = ParentReportDeliveryLogs.filter(
+    (Item) => Item.isPublishedToTeacher,
   ).length;
-  const ParentReportFailedCount = ParentReportDeliveryLogs.filter(
-    (Item) => String(Item.status || "").toUpperCase() === "FAILED",
+  const ParentReportGeneratedOnlyCount = ParentReportDeliveryLogs.filter(
+    (Item) => !Item.isPublishedToTeacher,
   ).length;
-  const ParentReportReadyToSendCount = ParentReportEligibleRows.filter(
+  const ParentReportNotGeneratedCount = ParentReportEligibleRows.filter(
     (Item) => {
       const Status = parentReportOperationalStatus(
         Item,
         ParentReportDeliveryLogs,
       );
-      return Status.Label === "Ready To Send";
+      return Status.Label === "Not Generated";
     },
   ).length;
   const ParentReportPendingCount = ParentReportEligibleRows.filter((Item) => {
@@ -1347,7 +1345,7 @@ function AdminAssessmentControlPageContent() {
       Item,
       ParentReportDeliveryLogs,
     );
-    return Status.Label !== "Sent";
+    return Status.Label !== "Published To Teacher";
   }).length;
 
   if (!Ready || AssessmentQuery.isLoading)
@@ -1946,8 +1944,8 @@ function AdminAssessmentControlPageContent() {
                   <p className="math-block-header"><Mail size={14} />Parent Report Center</p>
                   <h2 className="text-2xl font-black">Parent Reports</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Generate completed-level parent reports and review delivery
-                    readiness from Assessment Control.
+                    Generate completed-level parent reports and publish them so
+                    the student's teacher can view them.
                   </p>
                 </div>
                 <div className="grid min-w-[320px] gap-3 sm:grid-cols-2">
@@ -1958,10 +1956,10 @@ function AdminAssessmentControlPageContent() {
                       </span>
                       <div className="min-w-0">
                         <p className="text-[0.68rem] font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">
-                          Ready To Send
+                          Not Yet Generated
                         </p>
                         <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-                          {ParentReportReadyToSendCount}
+                          {ParentReportNotGeneratedCount}
                         </p>
                       </div>
                     </div>
@@ -1973,7 +1971,7 @@ function AdminAssessmentControlPageContent() {
                       </span>
                       <div className="min-w-0">
                         <p className="text-[0.68rem] font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">
-                          Pending Delivery
+                          Not Yet Published
                         </p>
                         <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
                           {ParentReportPendingCount}
@@ -1997,10 +1995,10 @@ function AdminAssessmentControlPageContent() {
                   <ParentReportModeButton
                     active={ParentReportTabValue === "DELIVERY_HISTORY"}
                     icon={<History size={16} />}
-                    kicker="Delivery History"
-                    title="Report Audit"
-                    text="Track sent and failed parent report emails with complete delivery audit details."
-                    countLabel={`${ParentReportSentCount} Sent${ParentReportFailedCount ? ` · ${ParentReportFailedCount} Failed` : ""}`}
+                    kicker="Generated Reports"
+                    title="Report Log"
+                    text="Download previously generated reports and publish them to teachers."
+                    countLabel={`${ParentReportPublishedCount} Published${ParentReportGeneratedOnlyCount ? ` · ${ParentReportGeneratedOnlyCount} Not Published` : ""}`}
                     onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "DELIVERY_HISTORY")}
                   />
                 </div>
@@ -3056,8 +3054,8 @@ function isValidEmail(Value: string) {
 }
 
 type ParentReportOperationalStatus = {
-  Label: "Ready To Send" | "Sent" | "Failed Delivery";
-  Tone: "blue" | "green" | "red";
+  Label: "Not Generated" | "Generated" | "Published To Teacher";
+  Tone: "blue" | "amber" | "green";
 };
 
 function deliveryMatchesReportRow(Item: AnyRow, Log: ParentReportDeliveryLog) {
@@ -3087,13 +3085,13 @@ function parentReportOperationalStatus(
   DeliveryLogs: ParentReportDeliveryLog[],
 ): ParentReportOperationalStatus {
   const Logs = parentReportDeliveryLogsForRow(Item, DeliveryLogs);
-  if (Logs.some((Log) => String(Log.status || "").toUpperCase() === "SENT")) {
-    return { Label: "Sent", Tone: "green" };
+  if (Logs.some((Log) => Log.isPublishedToTeacher)) {
+    return { Label: "Published To Teacher", Tone: "green" };
   }
-  if (Logs.some((Log) => String(Log.status || "").toUpperCase() === "FAILED")) {
-    return { Label: "Failed Delivery", Tone: "red" };
+  if (Logs.length) {
+    return { Label: "Generated", Tone: "amber" };
   }
-  return { Label: "Ready To Send", Tone: "blue" };
+  return { Label: "Not Generated", Tone: "blue" };
 }
 
 function triggerBlobDownload(BlobValue: Blob, FileName: string) {
@@ -3124,10 +3122,6 @@ function ParentReportGenerateTable({
   const [ExpandedModules, SetExpandedModules] = usePersistentStringSet(
     CreatePersistedUiStateKey(ParentReportGenerateStateKey, "open-modules"),
   );
-  const [SendItem, SetSendItem] = useState<AnyRow | null>(null);
-  const [RecipientMode, SetRecipientMode] =
-    useState<ParentReportRecipientMode>("FATHER");
-  const [CustomEmail, SetCustomEmail] = useState("");
   const QueryClient = useQueryClient();
   const SearchParams = useSearchParams();
   const NotificationTarget = useMemo(
@@ -3149,9 +3143,6 @@ function ParentReportGenerateTable({
     return MapValue;
   }, [Items, DeliveryLogs]);
 
-  const CustomEmailIsValid =
-    RecipientMode !== "CUSTOM" || isValidEmail(CustomEmail);
-
   const DownloadMutation = useMutation({
     mutationFn: async (Item: AnyRow) => {
       const Params = parentReportParamsFromAssessmentRow(Item);
@@ -3164,42 +3155,9 @@ function ParentReportGenerateTable({
     },
     onSuccess: ({ BlobValue, FileName }) => {
       triggerBlobDownload(BlobValue, FileName);
-    },
-    onError: (Error) => {
-      window.alert(apiErrorMessage(Error));
-    },
-  });
-
-  const SendMutation = useMutation({
-    mutationFn: async () => {
-      if (!SendItem) throw new Error("Please choose a report to send.");
-      if (RecipientMode === "CUSTOM" && !isValidEmail(CustomEmail)) {
-        throw new Error("Please enter a valid custom recipient email address.");
-      }
-      const Params = parentReportParamsFromAssessmentRow(SendItem);
-      if (!Params.studentId)
-        throw new Error("Student ID is missing for this report row.");
-      return sendAdminParentProgressReport({
-        ...Params,
-        recipientMode: RecipientMode,
-        customEmail:
-          RecipientMode === "CUSTOM" ? CustomEmail.trim() : undefined,
-      });
-    },
-    onSuccess: (Response) => {
       QueryClient.invalidateQueries({
         queryKey: ["admin-parent-report-delivery-logs"],
       });
-      SetSendItem(null);
-      SetCustomEmail("");
-      SetRecipientMode("FATHER");
-      const RecipientCount = Response.recipients?.length || 1;
-      window.alert(
-        Response.message ||
-          (RecipientCount > 1
-            ? `Parent progress report sent to ${RecipientCount} recipients successfully.`
-            : "Parent progress report sent successfully."),
-      );
     },
     onError: (Error) => {
       window.alert(apiErrorMessage(Error));
@@ -3438,7 +3396,7 @@ function ParentReportGenerateTable({
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <Chip tone="blue">
-                      {StudentGroup.Count} Ready Report
+                      {StudentGroup.Count} Eligible Report
                       {StudentGroup.Count === 1 ? "" : "s"}
                     </Chip>
                     <span className="hidden text-xs font-black uppercase tracking-[0.18em] text-slate-400 md:inline">
@@ -3581,31 +3539,18 @@ function ParentReportGenerateTable({
                                         <div className="flex flex-nowrap justify-end gap-2">
                                           <button
                                             type="button"
-                                            className="math-role-action-button math-role-row-action"
+                                            className="math-action-button-primary math-role-row-primary-action"
                                             onClick={() =>
                                               DownloadMutation.mutate(Item)
                                             }
                                             disabled={
                                               DownloadMutation.isPending
                                             }
-                                            title="Download this completed-level parent progress report."
+                                            title="Generate and download this completed-level parent progress report. Publish it to the teacher from the Generated Reports tab once it looks right."
                                           >
                                             {DownloadMutation.isPending
                                               ? "Generating"
-                                              : "Generate PDF"}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="math-action-button-primary math-role-row-primary-action"
-                                            onClick={() => {
-                                              SetSendItem(Item);
-                                              SetRecipientMode("FATHER");
-                                              SetCustomEmail("");
-                                            }}
-                                            disabled={SendMutation.isPending}
-                                            title="Send this completed-level parent progress report by email."
-                                          >
-                                            Send To Parent
+                                              : "Generate & Download"}
                                           </button>
                                         </div>
                                       </div>
@@ -3627,114 +3572,6 @@ function ParentReportGenerateTable({
       ) : (
         <EmptyState message="No parent report records match the selected filters." />
       )}
-
-      {SendItem ? (
-        <div className="math-modal-overlay">
-          <div className="math-modal-shell math-modal-shell-sm">
-            <div className="math-modal-header">
-              <p className="math-block-header"><Send size={14} />Send Parent Report</p>
-              <h3 className="text-2xl font-black text-slate-950 dark:text-white">
-                Choose Report Recipient
-              </h3>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                A fresh parent progress report PDF will be generated for this
-                student, module, and completed level. Choose who should receive
-                it.
-              </p>
-            </div>
-
-            <div className="math-modal-body">
-              <div className="math-confirm-summary-grid lg:grid-cols-3">
-                {[
-                  [
-                    "Student",
-                    `${assessmentRecordStudentName(SendItem)} (${assessmentRecordStudentCode(SendItem)})`,
-                  ],
-                  ["Module", rowModuleDisplay(SendItem)],
-                  ["Report Level", rowLevelDisplay(SendItem)],
-                  ["Assessment", assessmentTitle(SendItem)],
-                  ["Score", assessmentScoreLabel(SendItem)],
-                ].map(([Label, Value]) => (
-                  <div
-                    key={Label}
-                    className="math-confirm-summary-card"
-                  >
-                    <p className="math-confirm-label">
-                      {Label}
-                    </p>
-                    <p className="math-confirm-value">
-                      {Value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                <p className="math-block-header text-slate-500">
-                  <Mail size={14} />Recipient
-                </p>
-                <p className="mt-1 text-xs font-bold text-slate-500">
-                  Confirm the recipient before sending. The selected report
-                  level above will be attached as a fresh PDF.
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {(
-                    [
-                      ["FATHER", "Father Email"],
-                      ["MOTHER", "Mother Email"],
-                      ["BOTH", "Both Parents"],
-                      ["CUSTOM", "Custom Email"],
-                    ] as [ParentReportRecipientMode, string][]
-                  ).map(([Value, Label]) => (
-                    <label
-                      key={Value}
-                      className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-black transition ${RecipientMode === Value ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"}`}
-                    >
-                      <input
-                        type="radio"
-                        className="h-4 w-4"
-                        checked={RecipientMode === Value}
-                        onChange={() => SetRecipientMode(Value)}
-                      />
-                      {Label}
-                    </label>
-                  ))}
-                </div>
-                {RecipientMode === "CUSTOM" ? (
-                  <input
-                    className="math-input mt-3"
-                    value={CustomEmail}
-                    onChange={(Event) => SetCustomEmail(Event.target.value)}
-                    placeholder="Enter Custom Email Address"
-                  />
-                ) : null}
-              </div>
-            </div>
-            <div className="math-modal-footer">
-              <button
-                type="button"
-                className="math-action-button"
-                onClick={() => {
-                  SetSendItem(null);
-                  SetRecipientMode("FATHER");
-                  SetCustomEmail("");
-                }}
-                disabled={SendMutation.isPending}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="math-action-button-primary"
-                onClick={() => SendMutation.mutate()}
-                disabled={SendMutation.isPending || !CustomEmailIsValid}
-              >
-                {SendMutation.isPending ? "Sending Report" : "Send Report"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -3805,23 +3642,18 @@ function ParentReportDeliveryStatusTone(
   Status: string,
 ): "green" | "red" | "amber" | "slate" {
   const StatusValue = String(Status || "").toUpperCase();
-  if (StatusValue === "SENT") return "green";
-  if (StatusValue === "FAILED") return "red";
-  if (StatusValue === "PENDING") return "amber";
+  if (StatusValue === "PUBLISHED") return "green";
+  if (StatusValue === "GENERATED") return "amber";
   return "slate";
 }
 
-function ParentReportRecipientLabel(Value: string) {
-  const CleanValue = String(Value || "")
-    .replace(/_/g, " ")
-    .toLowerCase();
-  if (!CleanValue) return "Parent";
-  return CleanValue.replace(/\b\w/g, (Match) => Match.toUpperCase());
+function ParentReportGeneratedDateLabel(Item: ParentReportDeliveryLog) {
+  const Value = Item.generatedAt || Item.createdAt;
+  return Value ? formatMathPathDateTime(Value) : "—";
 }
 
-function ParentReportDeliveryDateLabel(Item: ParentReportDeliveryLog) {
-  const Value = Item.sentAt || Item.createdAt;
-  return Value ? formatMathPathDateTime(Value) : "—";
+function ParentReportPublishedDateLabel(Item: ParentReportDeliveryLog) {
+  return Item.publishedToTeacherAt ? formatMathPathDateTime(Item.publishedToTeacherAt) : "Not published";
 }
 
 function ParentReportDeliveryHistoryTable({
@@ -3853,49 +3685,38 @@ function ParentReportDeliveryHistoryTable({
   const [DetailItem, SetDetailItem] = useState<ParentReportDeliveryLog | null>(
     null,
   );
-  const [ResendItem, SetResendItem] = useState<ParentReportDeliveryLog | null>(
+  const [PublishItem, SetPublishItem] = useState<ParentReportDeliveryLog | null>(
     null,
   );
   const [DeleteItem, SetDeleteItem] = useState<ParentReportDeliveryLog | null>(
     null,
   );
-  const [ResendRecipientMode, SetResendRecipientMode] =
-    useState<ParentReportResendRecipientMode>("SAME");
-  const [ResendCustomEmail, SetResendCustomEmail] = useState("");
   const QueryClient = useQueryClient();
-  const ResendCustomEmailIsValid =
-    ResendRecipientMode !== "CUSTOM" || isValidEmail(ResendCustomEmail);
-  const ResendMutation = useMutation({
+  const DownloadMutation = useMutation({
+    mutationFn: async (Item: ParentReportDeliveryLog) => ({
+      BlobValue: await downloadAdminParentReportDelivery(Item.id),
+      FileName: Item.fileName || `${Item.studentName || "Student"}-Progress-Report.pdf`,
+    }),
+    onSuccess: ({ BlobValue, FileName }) => {
+      triggerBlobDownload(BlobValue, FileName);
+    },
+    onError: (Error) => {
+      window.alert(apiErrorMessage(Error));
+    },
+  });
+  const PublishMutation = useMutation({
     mutationFn: () => {
-      if (!ResendItem)
-        throw new Error("Please choose a delivery record to resend.");
-      if (
-        ResendRecipientMode === "CUSTOM" &&
-        !isValidEmail(ResendCustomEmail)
-      ) {
-        throw new Error("Please enter a valid custom recipient email address.");
-      }
-      return resendAdminParentReportDelivery(ResendItem.id, {
-        recipientMode: ResendRecipientMode,
-        customEmail:
-          ResendRecipientMode === "CUSTOM"
-            ? ResendCustomEmail.trim()
-            : undefined,
-      });
+      if (!PublishItem)
+        throw new Error("Please choose a report to publish.");
+      return publishAdminParentReportToTeacher(PublishItem.id);
     },
     onSuccess: (Response) => {
       QueryClient.invalidateQueries({
         queryKey: ["admin-parent-report-delivery-logs"],
       });
-      SetResendItem(null);
-      SetResendRecipientMode("SAME");
-      SetResendCustomEmail("");
-      const RecipientCount = Response.recipients?.length || 1;
+      SetPublishItem(null);
       window.alert(
-        Response.message ||
-          (RecipientCount > 1
-            ? `Parent progress report resent to ${RecipientCount} recipients successfully.`
-            : "Parent progress report resent successfully."),
+        Response.message || "Report published to the student's teacher.",
       );
     },
     onError: (Error) => {
@@ -4037,11 +3858,10 @@ function ParentReportDeliveryHistoryTable({
         Item.moduleName,
         Item.levelCode,
         Item.levelName,
-        Item.recipientEmail,
-        Item.recipientType,
         Item.status,
         Item.fileName,
-        Item.sentBy,
+        Item.generatedBy,
+        Item.publishedBy,
       ]
         .filter(Boolean)
         .join(" ")
@@ -4055,12 +3875,8 @@ function ParentReportDeliveryHistoryTable({
     });
   }, [Items, SearchValue, ModuleFilter, LevelFilter, StatusFilterValue]);
 
-  const SentCount = FilteredItems.filter(
-    (Item) => String(Item.status).toUpperCase() === "SENT",
-  ).length;
-  const FailedCount = FilteredItems.filter(
-    (Item) => String(Item.status).toUpperCase() === "FAILED",
-  ).length;
+  const PublishedCount = FilteredItems.filter((Item) => Item.isPublishedToTeacher).length;
+  const NotYetPublishedCount = FilteredItems.filter((Item) => !Item.isPublishedToTeacher).length;
 
   const StudentGroups = useMemo(() => {
     const StudentMap = new Map<
@@ -4138,8 +3954,8 @@ function ParentReportDeliveryHistoryTable({
               );
               if (LevelOrder !== 0) return LevelOrder;
               return String(
-                Second.sentAt || Second.createdAt || "",
-              ).localeCompare(String(First.sentAt || First.createdAt || ""));
+                Second.generatedAt || Second.createdAt || "",
+              ).localeCompare(String(First.generatedAt || First.createdAt || ""));
             }),
           })),
       }));
@@ -4214,31 +4030,31 @@ function ParentReportDeliveryHistoryTable({
       <div className="math-operation-panel">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="math-block-header"><Archive size={14} />Delivery History</p>
+            <p className="math-block-header"><Archive size={14} />Generated Reports</p>
             <h3 className="text-2xl font-black text-slate-950 dark:text-white">
-              Parent Report Delivery Audit
+              Parent Report Generation Log
             </h3>
             <p className="mt-1 text-sm font-semibold text-slate-500">
-              Review sent and failed parent report emails with recipient, level,
-              timestamp, and admin audit details.
+              Review generated parent progress reports, download them again, and
+              publish them so the student's teacher can view them.
             </p>
           </div>
           <div className="grid w-full gap-3 sm:grid-cols-3 xl:w-auto xl:min-w-[540px]">
             <DeliveryMetricCard
-              label="Total Deliveries"
+              label="Total Reports"
               value={FilteredItems.length}
               icon={<Mail size={15} />}
               tone="blue"
             />
             <DeliveryMetricCard
-              label="Reports Sent"
-              value={SentCount}
+              label="Published To Teacher"
+              value={PublishedCount}
               icon={<CheckCircle2 size={15} />}
               tone="green"
             />
             <DeliveryMetricCard
-              label="Failed Delivery"
-              value={FailedCount}
+              label="Not Yet Published"
+              value={NotYetPublishedCount}
               icon={<AlertTriangle size={15} />}
               tone="red"
             />
@@ -4254,7 +4070,7 @@ function ParentReportDeliveryHistoryTable({
               className="math-input pl-11"
               value={SearchValue}
               onChange={(Event) => SetSearchValue(Event.target.value)}
-              placeholder="Search Delivery History"
+              placeholder="Search Generated Reports"
             />
           </label>
           <select
@@ -4339,7 +4155,7 @@ function ParentReportDeliveryHistoryTable({
             );
             const LatestDelivery =
               StudentRows.map((Item) =>
-                ParentReportDeliveryDateLabel(Item),
+                ParentReportGeneratedDateLabel(Item),
               ).filter((Value) => Value && Value !== "—")[0] || "—";
             return (
               <div
@@ -4414,8 +4230,8 @@ function ParentReportDeliveryHistoryTable({
                               </div>
                             </div>
                             <Chip tone="blue">
-                              {ModuleGroup.Rows.length} Deliver
-                              {ModuleGroup.Rows.length === 1 ? "y" : "ies"}
+                              {ModuleGroup.Rows.length} Report
+                              {ModuleGroup.Rows.length === 1 ? "" : "s"}
                             </Chip>
                           </button>
 
@@ -4425,15 +4241,14 @@ function ParentReportDeliveryHistoryTable({
                                 className="math-grid-table-header math-admin-parent-report-grid-header grid gap-2"
                                 style={{
                                   gridTemplateColumns:
-                                    "0.48fr 0.52fr minmax(220px, 1fr) 0.38fr 0.56fr 0.46fr 280px",
+                                    "0.48fr 0.56fr 0.5fr 0.5fr 0.46fr 280px",
                                 }}
                               >
                                 <div>Report Level</div>
-                                <div>Recipient Type</div>
-                                <div>Recipient Email</div>
                                 <div>Status</div>
-                                <div>Sent At</div>
-                                <div>Sent By</div>
+                                <div>Generated</div>
+                                <div>Generated By</div>
+                                <div>Published To Teacher</div>
                                 <div>Action</div>
                               </div>
                               <div className="divide-y divide-slate-100 overflow-hidden rounded-b-[18px] border border-t-0 border-slate-100 dark:divide-slate-800 dark:border-slate-800">
@@ -4456,7 +4271,7 @@ function ParentReportDeliveryHistoryTable({
                                       className={`math-grid-table-row math-admin-parent-report-grid-row grid items-center gap-2 ${IsHighlighted ? "bg-teal-50 ring-2 ring-teal-300 ring-inset dark:bg-teal-950/30 dark:ring-teal-500/50" : ""}`}
                                       style={{
                                         gridTemplateColumns:
-                                          "0.48fr 0.52fr minmax(220px, 1fr) 0.38fr 0.56fr 0.46fr 280px",
+                                          "0.48fr 0.56fr 0.5fr 0.5fr 0.46fr 280px",
                                       }}
                                     >
                                       <div>
@@ -4470,25 +4285,18 @@ function ParentReportDeliveryHistoryTable({
                                         </p>
                                       </div>
                                       <div>
-                                        <Chip tone="purple">
-                                          {ParentReportRecipientLabel(
-                                            Item.recipientType,
-                                          )}
-                                        </Chip>
-                                      </div>
-                                      <div className="truncate text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        {Item.recipientEmail}
-                                      </div>
-                                      <div>
                                         <ParentReportDeliveryStatusChip
                                           Status={Item.status}
                                         />
                                       </div>
                                       <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        {ParentReportDeliveryDateLabel(Item)}
+                                        {ParentReportGeneratedDateLabel(Item)}
                                       </div>
                                       <div className="truncate text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        {Item.sentBy || "MathPath Admin"}
+                                        {Item.generatedBy || "MathPath Admin"}
+                                      </div>
+                                      <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                                        {ParentReportPublishedDateLabel(Item)}
                                       </div>
                                       <div className="math-row-action-group justify-start pr-1 overflow-visible">
                                         <button
@@ -4500,20 +4308,26 @@ function ParentReportDeliveryHistoryTable({
                                         </button>
                                         <button
                                           type="button"
-                                          className="math-action-button-primary math-role-row-primary-action"
-                                          onClick={() => {
-                                            SetResendItem(Item);
-                                            SetResendRecipientMode("SAME");
-                                            SetResendCustomEmail("");
-                                          }}
-                                          disabled={ResendMutation.isPending}
+                                          className="math-role-action-button math-role-row-action"
+                                          onClick={() => DownloadMutation.mutate(Item)}
+                                          disabled={DownloadMutation.isPending}
                                         >
-                                          Resend
+                                          Download
                                         </button>
+                                        {!Item.isPublishedToTeacher ? (
+                                          <button
+                                            type="button"
+                                            className="math-action-button-primary math-role-row-primary-action"
+                                            onClick={() => SetPublishItem(Item)}
+                                            disabled={PublishMutation.isPending}
+                                          >
+                                            Publish To Teacher
+                                          </button>
+                                        ) : null}
                                         <button
                                           type="button"
-                                          aria-label="Delete Delivery Record"
-                                          title="Delete Delivery Record"
+                                          aria-label="Delete Report Record"
+                                          title="Delete Report Record"
                                           className="math-icon-action-button h-9 w-9 min-h-9 min-w-9 shrink-0 overflow-visible rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-300"
                                           onClick={() => SetDeleteItem(Item)}
                                           disabled={DeleteMutation.isPending}
@@ -4545,13 +4359,13 @@ function ParentReportDeliveryHistoryTable({
           <div className="math-modal-shell math-modal-shell-lg">
             <div className="flex items-start justify-between gap-4 math-modal-header">
               <div>
-                <p className="math-block-header"><PackageCheck size={14} />Delivery Details</p>
+                <p className="math-block-header"><PackageCheck size={14} />Report Details</p>
                 <h3 className="text-2xl font-black text-slate-950 dark:text-white">
-                  Parent Report Email Audit
+                  Parent Report Generation Audit
                 </h3>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Review the student, report, recipient, and delivery status for
-                  this parent progress report.
+                  Review the student, report, and publish status for this parent
+                  progress report.
                 </p>
               </div>
               <button
@@ -4622,34 +4436,8 @@ function ParentReportDeliveryHistoryTable({
                 </div>
 
                 <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                  <p className="math-block-header text-purple-600">
-                    <Mail size={14} />Recipient Details
-                  </p>
-                  <div className="mt-4 math-confirm-summary-grid">
-                    <div>
-                      <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">
-                        Recipient Type
-                      </p>
-                      <div className="mt-1">
-                        <Chip tone="purple">
-                          {ParentReportRecipientLabel(DetailItem.recipientType)}
-                        </Chip>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">
-                        Recipient Email
-                      </p>
-                      <p className="mt-1 break-words text-sm font-black text-slate-950 dark:text-white">
-                        {DetailItem.recipientEmail}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
                   <p className="math-block-header text-emerald-600">
-                    <PackageCheck size={14} />Delivery Status
+                    <PackageCheck size={14} />Generation Status
                   </p>
                   <div className="mt-4 math-confirm-summary-grid">
                     <div>
@@ -4668,33 +4456,30 @@ function ParentReportDeliveryHistoryTable({
                     </div>
                     <div>
                       <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">
-                        Sent At
+                        Generated At
                       </p>
                       <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">
-                        {ParentReportDeliveryDateLabel(DetailItem)}
+                        {ParentReportGeneratedDateLabel(DetailItem)}
                       </p>
                     </div>
-                    <div className="sm:col-span-2">
+                    <div>
                       <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">
-                        Sent By
+                        Generated By
                       </p>
                       <p className="mt-1 break-words text-sm font-black text-slate-950 dark:text-white">
-                        {DetailItem.sentBy || "MathPath Admin"}
+                        {DetailItem.generatedBy || "MathPath Admin"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">
+                        Published To Teacher
+                      </p>
+                      <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">
+                        {ParentReportPublishedDateLabel(DetailItem)}
                       </p>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div
-                className={`mt-4 rounded-[24px] border p-4 ${DetailItem.errorMessage ? "border-rose-100 bg-rose-50 text-rose-700" : "border-emerald-100 bg-emerald-50 text-emerald-700"}`}
-              >
-                <p className="math-block-header">
-                  <AlertTriangle size={14} />Failure Reason
-                </p>
-                <p className="mt-2 text-sm font-bold leading-6">
-                  {DetailItem.errorMessage || "—"}
-                </p>
               </div>
             </div>
 
@@ -4708,17 +4493,25 @@ function ParentReportDeliveryHistoryTable({
               </button>
               <button
                 type="button"
-                className="math-action-button-primary"
-                onClick={() => {
-                  SetResendItem(DetailItem);
-                  SetResendRecipientMode("SAME");
-                  SetResendCustomEmail("");
-                  SetDetailItem(null);
-                }}
-                disabled={ResendMutation.isPending}
+                className="math-role-action-button math-role-row-action"
+                onClick={() => DownloadMutation.mutate(DetailItem)}
+                disabled={DownloadMutation.isPending}
               >
-                Resend Report
+                Download
               </button>
+              {!DetailItem.isPublishedToTeacher ? (
+                <button
+                  type="button"
+                  className="math-action-button-primary"
+                  onClick={() => {
+                    SetPublishItem(DetailItem);
+                    SetDetailItem(null);
+                  }}
+                  disabled={PublishMutation.isPending}
+                >
+                  Publish To Teacher
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -4734,15 +4527,15 @@ function ParentReportDeliveryHistoryTable({
               <div>
                 <p className="math-block-header text-rose-600">
                   <XCircle size={14} />
-                  Delete Delivery Record
+                  Delete Report Record
                 </p>
                 <h3 className="text-2xl font-black text-slate-950 dark:text-white">
-                  Delete Parent Report Delivery Record?
+                  Delete Parent Report Record?
                 </h3>
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                  This will permanently delete this parent report delivery
-                  history record. It will not delete the student's assessment
-                  result, progress report data, or promotion history.
+                  This will permanently delete this parent report generation
+                  record. It will not delete the student's assessment result,
+                  progress report data, or promotion history.
                 </p>
               </div>
             </div>
@@ -4755,10 +4548,6 @@ function ParentReportDeliveryHistoryTable({
                     <>{DeleteItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({DeleteItem.studentCode})</span></>,
                   ],
                   ["Report Level", DeleteItem.levelLabel],
-                  [
-                    "Recipient",
-                    `${ParentReportRecipientLabel(DeleteItem.recipientType)} - ${DeleteItem.recipientEmail}`,
-                  ],
                   [
                     "Status",
                     String(DeleteItem.status || "-").replace(/_/g, " "),
@@ -4804,18 +4593,17 @@ function ParentReportDeliveryHistoryTable({
         </div>
       ) : null}
 
-      {ResendItem ? (
+      {PublishItem ? (
         <div className="math-modal-overlay">
           <div className="math-modal-shell math-modal-shell-sm">
             <div className="math-modal-header">
-              <p className="math-block-header"><Send size={14} />Resend Parent Report</p>
+              <p className="math-block-header"><Send size={14} />Publish Parent Report</p>
               <h3 className="text-2xl font-black text-slate-950 dark:text-white">
-                Confirm Report Resend
+                Publish This Report To The Teacher?
               </h3>
               <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                A fresh parent progress report PDF will be generated for the
-                same student, module, and level. Choose the recipient for this
-                resend.
+                The student's assigned teacher will be notified and will be able
+                to view and download this report from their own login.
               </p>
             </div>
             <div className="math-modal-body">
@@ -4823,18 +4611,10 @@ function ParentReportDeliveryHistoryTable({
                 {[
                   [
                     "Student",
-                    <>{ResendItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({ResendItem.studentCode})</span></>,
+                    <>{PublishItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({PublishItem.studentCode})</span></>,
                   ],
-                  ["Module", ResendItem.moduleLabel],
-                  ["Report Level", ResendItem.levelLabel],
-                  [
-                    "Original Recipient",
-                    `${ParentReportRecipientLabel(ResendItem.recipientType)} - ${ResendItem.recipientEmail}`,
-                  ],
-                  [
-                    "Original Status",
-                    String(ResendItem.status || "-").replace(/_/g, " "),
-                  ],
+                  ["Module", PublishItem.moduleLabel],
+                  ["Report Level", PublishItem.levelLabel],
                 ].map((item) => {
                   const Label = item[0] as string;
                   const Value = item[1] as React.ReactNode;
@@ -4853,72 +4633,25 @@ function ParentReportDeliveryHistoryTable({
                 );
                 })}
               </div>
-              <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                <p className="math-block-header text-slate-500">
-                  <Send size={14} />Resend Recipient
-                </p>
-                <p className="mt-1 text-xs font-bold text-slate-500">
-                  Choose Same Recipient for a direct retry, or select another
-                  parent/custom email when the report needs to be redirected.
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {(
-                    [
-                      ["SAME", "Same Recipient"],
-                      ["FATHER", "Father Email"],
-                      ["MOTHER", "Mother Email"],
-                      ["BOTH", "Both Parents"],
-                      ["CUSTOM", "Custom Email"],
-                    ] as [ParentReportResendRecipientMode, string][]
-                  ).map(([Value, Label]) => (
-                    <label
-                      key={Value}
-                      className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-black transition ${ResendRecipientMode === Value ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"}`}
-                    >
-                      <input
-                        type="radio"
-                        className="h-4 w-4"
-                        checked={ResendRecipientMode === Value}
-                        onChange={() => SetResendRecipientMode(Value)}
-                      />
-                      {Label}
-                    </label>
-                  ))}
-                </div>
-                {ResendRecipientMode === "CUSTOM" ? (
-                  <input
-                    className="math-input mt-3"
-                    value={ResendCustomEmail}
-                    onChange={(Event) =>
-                      SetResendCustomEmail(Event.target.value)
-                    }
-                    placeholder="Enter Custom Email Address"
-                  />
-                ) : null}
-              </div>
             </div>
             <div className="math-modal-footer">
               <button
                 type="button"
                 className="math-action-button"
-                onClick={() => {
-                  SetResendItem(null);
-                  SetResendRecipientMode("SAME");
-                  SetResendCustomEmail("");
-                }}
-                disabled={ResendMutation.isPending}
+                onClick={() => SetPublishItem(null)}
+                disabled={PublishMutation.isPending}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 className="math-action-button-primary"
-                onClick={() => ResendMutation.mutate()}
-                disabled={ResendMutation.isPending || !ResendCustomEmailIsValid}
+                onClick={() => PublishMutation.mutate()}
+                disabled={PublishMutation.isPending}
               >
-                {ResendMutation.isPending
-                  ? "Resending Report"
-                  : "Resend Report"}
+                {PublishMutation.isPending
+                  ? "Publishing"
+                  : "Publish To Teacher"}
               </button>
             </div>
           </div>

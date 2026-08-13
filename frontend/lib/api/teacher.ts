@@ -513,3 +513,33 @@ export async function getTeacherCompetitionMockResult(attemptId: string): Promis
   const { data } = await api.get<StudentCompetitionMockResult>(`/teacher/competition/mock-attempts/${attemptId}/result`);
   return data;
 }
+
+export type TeacherParentReportDelivery = {
+  id: string;
+  studentId?: string | null;
+  studentName: string;
+  studentCode: string;
+  moduleCode: string;
+  moduleLabel: string;
+  levelCode: string;
+  levelLabel: string;
+  fileName?: string | null;
+  publishedToTeacherAt?: string | null;
+};
+
+export async function getTeacherParentReportDeliveries(
+  studentCode?: string,
+): Promise<{ logs: TeacherParentReportDelivery[] }> {
+  const { data } = await api.get<{ logs: TeacherParentReportDelivery[] }>(
+    "/teacher/results/parent-report-deliveries",
+    { params: studentCode ? { studentCode } : undefined },
+  );
+  return data;
+}
+
+export async function downloadTeacherParentReportDelivery(deliveryId: string): Promise<Blob> {
+  const { data } = await api.get(`/teacher/results/parent-report-deliveries/${deliveryId}/download`, {
+    responseType: "blob",
+  });
+  return data;
+}
