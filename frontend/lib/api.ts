@@ -54,7 +54,25 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    // Requests made with responseType: "blob" (every file-download endpoint)
+    // get their ERROR responses parsed as a Blob too -- Axios honors the
+    // request's responseType even on failure, so a JSON error body the
+    // backend sent (e.g. api_error()'s {detail: {code, message}} shape)
+    // arrives as an opaque Blob instead of parsed JSON. Downstream code
+    // (apiErrorMessage()) can't read error.response.data.detail off a Blob,
+    // so it silently falls back to Axios's generic "Request failed with
+    // status code 400" instead of the backend's real explanation. Re-hydrate
+    // it into real JSON here, once, for every caller.
+    if (typeof Blob !== "undefined" && error?.response?.data instanceof Blob) {
+      try {
+        const Text = await error.response.data.text();
+        error.response.data = JSON.parse(Text);
+      } catch {
+        // Not JSON (e.g. a genuinely corrupted binary stream) -- leave as-is.
+      }
+    }
+
     const Status = error?.response?.status;
     const Code = error?.response?.data?.detail?.code;
     // A CSRF 403 means the browser's CSRF cookie is missing or stale (see

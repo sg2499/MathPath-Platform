@@ -4241,7 +4241,7 @@ function ParentReportDeliveryHistoryTable({
                                 className="math-grid-table-header math-admin-parent-report-grid-header grid gap-2"
                                 style={{
                                   gridTemplateColumns:
-                                    "0.48fr 0.56fr 0.5fr 0.5fr 0.46fr 280px",
+                                    "0.44fr 0.5fr 0.46fr 0.46fr 0.42fr 360px",
                                 }}
                               >
                                 <div>Report Level</div>
@@ -4271,7 +4271,7 @@ function ParentReportDeliveryHistoryTable({
                                       className={`math-grid-table-row math-admin-parent-report-grid-row grid items-center gap-2 ${IsHighlighted ? "bg-teal-50 ring-2 ring-teal-300 ring-inset dark:bg-teal-950/30 dark:ring-teal-500/50" : ""}`}
                                       style={{
                                         gridTemplateColumns:
-                                          "0.48fr 0.56fr 0.5fr 0.5fr 0.46fr 280px",
+                                          "0.44fr 0.5fr 0.46fr 0.46fr 0.42fr 360px",
                                       }}
                                     >
                                       <div>
@@ -4298,7 +4298,7 @@ function ParentReportDeliveryHistoryTable({
                                       <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
                                         {ParentReportPublishedDateLabel(Item)}
                                       </div>
-                                      <div className="math-row-action-group justify-start pr-1 overflow-visible">
+                                      <div className="math-row-action-group flex-wrap justify-start pr-1 overflow-visible">
                                         <button
                                           type="button"
                                           className="math-role-action-button math-role-row-action"
