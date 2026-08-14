@@ -24,7 +24,7 @@ import {
   FileBarChart,
   Search,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 
 const ProgressReportsStateKey = CreatePersistedUiStateKey("teacher", "progress-reports");
 
@@ -290,6 +290,14 @@ function ProgressReportsAccordion({
 }
 
 export default function TeacherProgressReportsPage() {
+  return (
+    <Suspense fallback={null}>
+      <TeacherProgressReportsPageContent />
+    </Suspense>
+  );
+}
+
+function TeacherProgressReportsPageContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const SearchParams = useSearchParams();
   const [SearchValue, SetSearchValue] = usePersistentUiState(CreatePersistedUiStateKey(ProgressReportsStateKey, "search"), "");
