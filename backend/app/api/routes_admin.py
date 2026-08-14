@@ -4408,6 +4408,19 @@ def _admin_parent_assessment_status(Row: dict | None) -> str:
 
 
 
+# Canonical full names for the 5 curriculum modules, keyed by module_code.
+# Used to backfill a proper display name anywhere a report/API response
+# would otherwise fall back to showing the bare short code (e.g. "PM"
+# instead of "Preparatory Module") -- confirmed with Shailesh directly.
+MODULE_DISPLAY_NAMES = {
+    "YLM": "Young Learners Module",
+    "PM": "Preparatory Module",
+    "BM": "Bridge Module",
+    "IM": "Intermediate Module",
+    "MM": "Master Module",
+}
+
+
 def _admin_find_module_by_code_or_name(db: Session, ModuleCodeOrName: str | None) -> Module | None:
     LookupValue = str(ModuleCodeOrName or "").strip()
     if not LookupValue or LookupValue in {"-", "Learning Journey"}:
@@ -4490,9 +4503,13 @@ def _admin_parent_report_next_learning_destination(db: Session | None, ModuleCod
     DestinationType = (
         "SAME_MODULE_NEXT_LEVEL" if NextLevelValue.module_id == CompletedLevelValue.module_id else "NEXT_MODULE_FIRST_LEVEL"
     )
+    NextModuleName = NextModuleValue.module_name if NextModuleValue else None
+    NextModuleCode = NextModuleValue.module_code if NextModuleValue else None
+    if NextModuleCode and (not NextModuleName or NextModuleName == NextModuleCode):
+        NextModuleName = MODULE_DISPLAY_NAMES.get(NextModuleCode, NextModuleName)
     return {
-        "moduleCode": NextModuleValue.module_code if NextModuleValue else None,
-        "moduleName": NextModuleValue.module_name if NextModuleValue else None,
+        "moduleCode": NextModuleCode,
+        "moduleName": NextModuleName,
         "levelCode": NextLevelValue.level_code,
         "levelName": NextLevelValue.level_name,
         "destinationType": DestinationType,
@@ -4594,9 +4611,7 @@ def _admin_build_parent_progress_pdf_data(Payload: dict, TimezoneName: str | Non
     PracticeProgress = f"{CompletedDps} / {RequiredDps} Practice Sheets" if RequiredDps else f"{CompletedDps} Practice Sheets"
     ScoreText = f"{AssessmentScore} / {AssessmentTotal}"
     PercentageText = f"{AssessmentPercentage}%"
-    ModuleDisplayNames = {
-        "YLM": "Young Learners Module",
-    }
+    ModuleDisplayNames = MODULE_DISPLAY_NAMES
     if ReportModuleName == ReportModuleCode and ReportModuleCode in ModuleDisplayNames:
         ReportModuleName = ModuleDisplayNames[ReportModuleCode]
     if not ReportModuleName or ReportModuleName == "-":

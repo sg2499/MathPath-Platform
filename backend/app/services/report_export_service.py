@@ -376,11 +376,39 @@ def _MpTracked(Canvas, TextValue: Any, X: float, Y: float, Size: float = 6.6, Co
     return Width
 
 
+def _MpTrackedFitted(Canvas, TextValue: Any, X: float, Y: float, MaxWidth: float, Size: float = 6.6, Color=MpMuted, Track: float = 0.9, Align: str = "left", MinSize: float = 4.4, MinTrack: float = 0.2) -> float:
+    """Width-aware variant of _MpTracked -- shrinks font size (then, if still
+    too wide at the floor size, letter-spacing) until the tracked-caps label
+    fits MaxWidth, instead of silently overflowing its card. _MpTracked
+    itself has no width awareness at all, which is exactly what let
+    "ASSESSMENTS CLEARED" (the longest of the 4 journey-stat labels) spill
+    past its card's right edge on a real generated report while shorter
+    labels in the same row happened to fit -- caught from a live PDF."""
+    Text = _PdfText(TextValue).upper()
+
+    def _Width(SizeValue: float, TrackValue: float) -> float:
+        return Canvas.stringWidth(Text, MpFontBold, SizeValue) + TrackValue * max(0, len(Text) - 1)
+
+    FittedSize = Size
+    while FittedSize > MinSize and _Width(FittedSize, Track) > MaxWidth:
+        FittedSize -= 0.2
+    FittedTrack = Track
+    while FittedTrack > MinTrack and _Width(FittedSize, FittedTrack) > MaxWidth:
+        FittedTrack -= 0.05
+    return _MpTracked(Canvas, TextValue, X, Y, FittedSize, Color, FittedTrack, Align)
+
+
 def _MpPanel(Canvas, X: float, Y: float, W: float, H: float, Fill=MpWhite, Stroke=MpLine, Radius: float = 10, StrokeWidth: float = 0.8, Shadow: bool = False):
     Canvas.saveState()
     if Shadow:
-        Canvas.setFillColor(colors.Color(0.16, 0.24, 0.42, alpha=0.08))
-        Canvas.roundRect(X + 0.8, Y - 1.8, W, H, Radius, fill=1, stroke=0)
+        # Layered elevation: three stacked, progressively tighter shadow plates
+        # (wide/faint ambient -> narrow/darker key) approximate a soft
+        # blurred drop shadow, which reads as genuine depth instead of the
+        # flat single-offset rectangle it replaced. Pure vertical offset,
+        # no sideways skew -- consistent "light from above" across the report.
+        for Spread, Drop, Alpha in ((2.4, 2.8, 0.024), (1.3, 1.8, 0.042), (0.45, 1.0, 0.06)):
+            Canvas.setFillColor(colors.Color(0.09, 0.16, 0.34, alpha=Alpha))
+            Canvas.roundRect(X - Spread, Y - Drop - Spread, W + Spread * 2, H + Spread * 2, Radius + Spread, fill=1, stroke=0)
     Canvas.setFillColor(Fill)
     Canvas.setStrokeColor(Stroke)
     Canvas.setLineWidth(StrokeWidth)
@@ -667,8 +695,11 @@ def _MpAchievementBadge(Canvas, CX: float, CY: float, PercentText: str, ScoreTex
         Angle = math.radians(Index * 30)
         Canvas.circle(CX + DiscR * math.cos(Angle), CY + DiscR * math.sin(Angle), 2.5 * mm, fill=1, stroke=0)
 
-    # Medallion discs.
-    Canvas.setFillColor(colors.Color(0.06, 0.09, 0.2, alpha=0.16))
+    # Medallion discs (two-layer ground shadow so the medallion sits at the
+    # same soft elevation as the panels, rather than a single hard rim).
+    Canvas.setFillColor(colors.Color(0.06, 0.09, 0.2, alpha=0.07))
+    Canvas.circle(CX, CY - 2.8, DiscR + 1.7, fill=1, stroke=0)
+    Canvas.setFillColor(colors.Color(0.06, 0.09, 0.2, alpha=0.14))
     Canvas.circle(CX, CY - 1.4, DiscR + 0.6, fill=1, stroke=0)
     Canvas.setFillColor(Tier["main"])
     Canvas.circle(CX, CY, DiscR, fill=1, stroke=0)
@@ -684,7 +715,9 @@ def _MpAchievementBadge(Canvas, CX: float, CY: float, PercentText: str, ScoreTex
     PctSize = _MpFit(Canvas, PercentText, (DiscR - 4.0 * mm) * 1.7, 19.5, 11.0)
     Canvas.setFont(MpFontBold, PctSize)
     Canvas.drawCentredString(CX, CY - 2.6 * mm, _PdfText(PercentText))
-    _MpTracked(Canvas, f"Score {ScoreText}", CX, CY - 7.4 * mm, 5.4, MpMuted, 0.5, "center")
+    # Width-aware: a large score such as "2485 / 2600" must stay inside the
+    # white disc chord at this baseline instead of spilling onto the rosette.
+    _MpTrackedFitted(Canvas, f"Score {ScoreText}", CX, CY - 7.4 * mm, 18 * mm, 5.4, MpMuted, 0.5, "center")
 
     # Sparkles.
     _MpStar(Canvas, CX - RingR - 1.5 * mm, CY + RingR * 0.62, 2.0 * mm, MpGold, 0.32, 4)
@@ -833,7 +866,13 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     ReportLevelName = _PdfText(Report.get("reportLevelName") or ReportLevel)
     ReportModuleCode = _PdfText(Report.get("reportModuleCode", "-"))
     ReportModuleName = _PdfText(Report.get("reportModuleName") or Report.get("reportModuleCode") or "-")
-    ModuleDisplayNames = {"YLM": "Young Learners Module"}
+    ModuleDisplayNames = {
+        "YLM": "Young Learners Module",
+        "PM": "Preparatory Module",
+        "BM": "Bridge Module",
+        "IM": "Intermediate Module",
+        "MM": "Master Module",
+    }
     if ReportModuleName == ReportModuleCode and ReportModuleCode in ModuleDisplayNames:
         ReportModuleName = ModuleDisplayNames[ReportModuleCode]
     if not ReportModuleName or ReportModuleName == "-":
@@ -922,6 +961,14 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     Pdf.setFont(MpFontBold, 11)
     for Glyph, GX, GY in [("+", PageW - 40 * mm, PageH - 10 * mm), ("x", PageW - 96 * mm, PageH - 8 * mm), ("=", PageW - 12 * mm, PageH - 30 * mm), ("+", PageW - 118 * mm, PageH - 36 * mm)]:
         Pdf.drawString(GX, GY, Glyph)
+    # Slim tri-tone brand rule along the masthead base -- a deliberate,
+    # finished edge between the ink band and the page body.
+    Pdf.setFillColor(MpBlue)
+    Pdf.rect(0, PageH - BandH, PageW, 1.1 * mm, fill=1, stroke=0)
+    Pdf.setFillColor(MpCyan)
+    Pdf.rect(PageW * 0.58, PageH - BandH, PageW * 0.27, 1.1 * mm, fill=1, stroke=0)
+    Pdf.setFillColor(MpGold)
+    Pdf.rect(PageW * 0.85, PageH - BandH, PageW * 0.15, 1.1 * mm, fill=1, stroke=0)
     Pdf.restoreState()
     _MpLogoChip(Pdf, LogoPath, L, PageH - 31 * mm, 42 * mm, 16 * mm, Shadow=False)
     _MpTracked(Pdf, "MathPath · Official Learning Record", R, PageH - 13.5 * mm, 6.6, MpCyanLight, 1.1, "right")
@@ -935,28 +982,53 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     # Identity card.
     CardH = 32 * mm
     CardY = PageH - 47 * mm - CardH
-    _MpPanel(Pdf, L, CardY, CW, CardH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    _MpPanel(Pdf, L, CardY, CW, CardH, MpWhite, MpLine, 12, 0.8, Shadow=True)
     _MpAvatar(Pdf, L + 16 * mm, CardY + CardH / 2, 11 * mm, PhotoReader, StudentName, Tier)
     NameX = L + 31 * mm
-    NameW = 62 * mm
-    _MpDrawFitted(Pdf, StudentName, NameX, CardY + 20.5 * mm, NameW, 14.5, MpInk, True, "left", 9.0)
-    Pdf.setFillColor(MpMuted)
-    Pdf.setFont(MpFontRegular, 7.8)
-    Pdf.drawString(NameX, CardY + 14.6 * mm, f"{StudentCode} · Class {ClassSection}")
+    # Text column must stop before the "Completed Level" chip (starts at
+    # R - 96mm): long names/class labels shrink to fit instead of running
+    # underneath the chip.
+    NameW = (R - 96 * mm) - NameX - 5 * mm
+    # Vertically centre the WHOLE name + code + module-chip block against the
+    # avatar (CardY + CardH/2) -- centering just the name+code pair (an
+    # earlier attempt) left the chip cramped against the card's bottom edge
+    # and the group reading as unbalanced against the round avatar. Solved
+    # directly from the font's real ascent metric (not a guessed offset), so
+    # this stays correct if font sizes ever change.
+    NameSize, CodeSize = 14.5, 7.8
+    NameCodeGap = 5.9 * mm  # name baseline -> code baseline
+    CodeChipGap = 2.0 * mm  # code baseline -> chip top edge
+    ChipH = 6.4 * mm
+    ChipTextBaselineOffset = 2.1 * mm  # chip bottom -> chip text baseline
+    NameAscent = pdfmetrics.getAscent(MpFontBold, NameSize)
+    BlockSpan = NameAscent + NameCodeGap + CodeChipGap + ChipH  # top-of-name to bottom-of-chip
+    NameBaselineY = CardY + (CardH + BlockSpan) / 2 - NameAscent
+    CodeBaselineY = NameBaselineY - NameCodeGap
+    ChipTopY = CodeBaselineY - CodeChipGap
+    ChipBottomY = ChipTopY - ChipH
+    _MpDrawFitted(Pdf, StudentName, NameX, NameBaselineY, NameW, NameSize, MpInk, True, "left", 7.2)
     ModuleLabel = f"MODULE · {ReportModuleName}".upper()
-    ModuleSize = _MpFit(Pdf, ModuleLabel, NameW - 10 * mm, 6.6, 5.2)
+    ModuleSize = _MpFit(Pdf, ModuleLabel, NameW - 9 * mm, 6.6, 4.6)
     ModuleW = Pdf.stringWidth(ModuleLabel, MpFontBold, ModuleSize) + 9 * mm
+    # The code line is short and reads as shoved to the left when it's just
+    # left-aligned under the (wider) name and module chip. Centre it
+    # horizontally within whichever of those two is wider instead, so it
+    # sits in the middle of the name/module column rather than flush left.
+    NameFitSize = _MpFit(Pdf, StudentName, NameW, NameSize, 7.2)
+    NameTextW = Pdf.stringWidth(_PdfText(StudentName), MpFontBold, NameFitSize)
+    CodeBlockW = max(NameTextW, ModuleW)
+    _MpDrawFitted(Pdf, StudentCode, NameX + CodeBlockW / 2, CodeBaselineY, NameW, CodeSize, MpMuted, False, "center", 4.6)
     Pdf.setFillColor(MpBlueSoft)
-    Pdf.roundRect(NameX, CardY + 6.2 * mm, ModuleW, 6.4 * mm, 3.2 * mm, fill=1, stroke=0)
+    Pdf.roundRect(NameX, ChipBottomY, ModuleW, ChipH, 3.2 * mm, fill=1, stroke=0)
     Pdf.setFillColor(MpBlueDark)
     Pdf.setFont(MpFontBold, ModuleSize)
-    Pdf.drawString(NameX + 4.5 * mm, CardY + 8.3 * mm, ModuleLabel)
+    Pdf.drawString(NameX + 4.5 * mm, ChipBottomY + ChipTextBaselineOffset, ModuleLabel)
 
     ChipW = 42 * mm
     ChipH = 21 * mm
     ChipY = CardY + (CardH - ChipH) / 2
     CompletedX = R - ChipW * 2 - 12 * mm
-    _MpPanel(Pdf, CompletedX, ChipY, ChipW, ChipH, Tier["soft"], Tier["main"], 9, 0.9)
+    _MpPanel(Pdf, CompletedX, ChipY, ChipW, ChipH, Tier["soft"], Tier["main"], 9, 0.9, Shadow=True)
     _MpTracked(Pdf, "Completed Level", CompletedX + ChipW / 2, ChipY + ChipH - 6.4 * mm, 5.6, Tier["dark"], 0.8, "center")
     _MpDrawFitted(Pdf, ReportLevel, CompletedX + ChipW / 2, ChipY + 6.4 * mm, ChipW - 12 * mm, 13.0, MpInk, True, "center", 7.5)
     _MpGlyph(Pdf, "check", CompletedX + 5.4 * mm, ChipY + ChipH - 5.2 * mm, 2.0 * mm, Tier["dark"], 1.1)
@@ -973,20 +1045,50 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     SectH = 70 * mm
     SectY = SectTop - SectH
     BadgeCX = L + 30 * mm
-    BadgeCY = SectY + 40 * mm
-    _MpAchievementBadge(Pdf, BadgeCX, BadgeCY, AssessmentPercentage, AssessmentScore, Tier)
 
     StoryX = L + 64 * mm
     StoryW = R - StoryX
+    MessageStyle = _MpStyle("MpStory", 9.0, 12.8, MpText)
+    # Measure the message before drawing anything -- the fact-row block's
+    # position (and, in turn, the medallion's vertical centre) both depend
+    # on the message's real height, not a guessed one.
+    _, MessageH = Paragraph(_MpEsc(Message), MessageStyle).wrap(StoryW, 160 * mm)
+
+    # The fact-row block (Assessment/Completed On/Result) used to sit at a
+    # fixed offset (SectY + 26mm) regardless of message length, leaving a
+    # large dead gap beneath a short message. Anchoring it a fixed 6mm below
+    # the message's actual (measured) bottom keeps a tight, message-length-
+    # aware gap instead.
+    FactY = SectY + 53 * mm - MessageH - 12 * mm
+    FactsBottom = FactY - 19.6 * mm  # bottom edge of the last row's icon disc
+
+    # The medallion's centre must match the centre of the WHOLE right-hand
+    # block -- label + headline + message + fact rows -- not just the fact
+    # rows on their own (an earlier attempt centred only on the facts, which
+    # pulled the medallion visibly higher than the label/headline it sits
+    # beside). Top of block = ascent-top of the "ASSESSMENT MILESTONE"
+    # label (the first thing drawn); bottom = the fact rows' bottom above.
+    LabelSize = 6.8
+    LabelBaselineY = SectY + 63.5 * mm
+    BlockTop = LabelBaselineY + pdfmetrics.getAscent(MpFontBold, LabelSize)
+    BadgeCY = max((BlockTop + FactsBottom) / 2, SectY + 29.6 * mm)
+    _MpAchievementBadge(Pdf, BadgeCX, BadgeCY, AssessmentPercentage, AssessmentScore, Tier)
+
     _MpTracked(Pdf, "Assessment Milestone", StoryX, SectY + 63.5 * mm, 6.8, MpCyan, 1.1)
-    _MpDrawFitted(Pdf, f"{FirstName} Completed {ReportLevelName}", StoryX, SectY + 56.5 * mm, StoryW, 15.5, MpInk, True, "left", 10.5)
-    _MpPara(Pdf, Message, StoryX, SectY + 53 * mm, StoryW, _MpStyle("MpStory", 9.0, 12.8, MpText))
+    # Keep the hero headline large and confident: if the full level name will
+    # not fit even at 10pt, headline the level code instead of shrinking the
+    # type (or overflowing the margin) -- the full name still appears in the
+    # message and the level-mastery table.
+    HeroTitle = f"{FirstName} Completed {ReportLevelName}"
+    if Pdf.stringWidth(_PdfText(HeroTitle), MpFontBold, 10.0) > StoryW:
+        HeroTitle = f"{FirstName} Completed {ReportLevel}"
+    _MpDrawFitted(Pdf, HeroTitle, StoryX, SectY + 56.5 * mm, StoryW, 15.5, MpInk, True, "left", 10.0)
+    _MpPara(Pdf, Message, StoryX, SectY + 53 * mm, StoryW, MessageStyle)
     FactRows = [
         ("doc", "Assessment", AssessmentName, MpBlue, MpBlueSoft),
         ("calendar", "Completed On", AssessmentDate, MpTeal, MpTealSoft),
         ("medal", "Result", AssessmentResult, MpGoldDark, MpGoldSoft),
     ]
-    FactY = SectY + 26 * mm
     for Glyph, Label, Value, GlyphColor, DiscFill in FactRows:
         Pdf.setFillColor(DiscFill)
         Pdf.circle(StoryX + 3.4 * mm, FactY + 2.6 * mm, 3.4 * mm, fill=1, stroke=0)
@@ -999,7 +1101,7 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     JourneyH = 34 * mm
     JourneyTop = SectY - 7 * mm
     JourneyY = JourneyTop - JourneyH
-    _MpPanel(Pdf, L, JourneyY, CW, JourneyH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    _MpPanel(Pdf, L, JourneyY, CW, JourneyH, MpWhite, MpLine, 12, 0.8, Shadow=True)
     _MpTracked(Pdf, "Learning Journey Path", L + 8 * mm, JourneyY + JourneyH - 7 * mm, 6.4, MpCyan, 1.1)
     Pdf.setFillColor(MpFaint)
     Pdf.setFont(MpFontRegular, 6.6)
@@ -1032,20 +1134,23 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
         ("medal", "Assessments Cleared", str(AssessmentsCleared), MpGoldDark, MpGoldSoft),
         ("levelup", "Levels Promoted", str(PromotedLevels), MpGreen, MpGreenSoft),
     ]
+    StatTextW = StatW - 18.4 * mm
+    StatTextCenterX0 = 15.4 * mm + StatTextW / 2
     for Index, (Glyph, Label, Value, GlyphColor, DiscFill) in enumerate(StatItems):
         StatX = L + Index * (StatW + StatGap)
-        _MpPanel(Pdf, StatX, StatY, StatW, StatH, MpWhite, MpLine, 10, 0.75, Shadow=True)
+        _MpPanel(Pdf, StatX, StatY, StatW, StatH, MpWhite, MpLine, 10, 0.8, Shadow=True)
         Pdf.setFillColor(DiscFill)
         Pdf.circle(StatX + 8.4 * mm, StatY + StatH / 2, 4.6 * mm, fill=1, stroke=0)
         _MpGlyph(Pdf, Glyph, StatX + 8.4 * mm, StatY + StatH / 2, 3.0 * mm, GlyphColor, 1.15)
-        _MpTracked(Pdf, Label, StatX + 15.4 * mm, StatY + StatH - 7.6 * mm, 5.2, MpMuted, 0.55)
-        _MpDrawFitted(Pdf, Value, StatX + 15.4 * mm, StatY + 4.6 * mm, StatW - 18.4 * mm, 12.5, MpInk, True, "left", 7.0)
+        StatTextCenterX = StatX + StatTextCenterX0
+        _MpTrackedFitted(Pdf, Label, StatTextCenterX, StatY + StatH - 7.6 * mm, StatTextW, 6.4, MpMuted, 0.55, Align="center")
+        _MpDrawFitted(Pdf, Value, StatTextCenterX, StatY + 4.6 * mm, StatTextW, 13.2, MpInk, True, "center", 7.0)
 
     # Parent takeaway with next-step action chip.
     TakeH = 26 * mm
     TakeTop = StatY - 7 * mm
     TakeY = TakeTop - TakeH
-    _MpPanel(Pdf, L, TakeY, CW, TakeH, MpTealSoft, colors.HexColor("#BFE8E0"), 12, 0.85)
+    _MpPanel(Pdf, L, TakeY, CW, TakeH, MpTealSoft, colors.HexColor("#BFE8E0"), 12, 0.8, Shadow=True)
     Pdf.setFillColor(MpTeal)
     Pdf.roundRect(L, TakeY, 2.6 * mm, TakeH, 1.3 * mm, fill=1, stroke=0)
     _MpGlyph(Pdf, "spark", L + 8.8 * mm, TakeY + TakeH - 6.6 * mm, 2.2 * mm, MpTeal)
@@ -1054,12 +1159,11 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     _MpPara(Pdf, Copy["takeaway"], L + 9 * mm, TakeY + TakeH - 11 * mm, CW - ActionW - 22 * mm, _MpStyle("MpTakeaway", 8.8, 12.0, MpText))
     ActionX = R - ActionW - 6 * mm
     ActionY = TakeY + (TakeH - 13 * mm) / 2
-    _MpPanel(Pdf, ActionX, ActionY, ActionW, 13 * mm, MpBlue, MpBlueDark, 6.5 * mm, 0.9)
+    _MpPanel(Pdf, ActionX, ActionY, ActionW, 13 * mm, MpBlue, MpBlueDark, 6.5 * mm, 0.9, Shadow=True)
     _MpTracked(Pdf, "Next Step", ActionX + ActionW / 2 + 2.2 * mm, ActionY + 8.0 * mm, 5.0, colors.HexColor("#BFDBFE"), 0.9, "center")
     _MpDrawFitted(Pdf, NextStep, ActionX + ActionW / 2 + 2.2 * mm, ActionY + 3.2 * mm, ActionW - 14 * mm, 8.2, MpWhite, True, "center", 5.8)
     _MpGlyph(Pdf, "arrow", ActionX + 6.0 * mm, ActionY + 6.5 * mm, 2.5 * mm, MpWhite, 1.3)
 
-    _MpTracked(Pdf, "Continued on page 2 · Accuracy profile · Level mastery · Progression timeline · Home guidance", L + CW / 2, TakeY - 9 * mm, 5.6, MpFaint, 0.9, "center")
     _MpFooter(Pdf, 1, 2, StudentCode, ReportLevel)
     Pdf.showPage()
 
@@ -1075,6 +1179,13 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     Pdf.setStrokeColor(MpLine)
     Pdf.setLineWidth(0.8)
     Pdf.line(L, PageH - 31 * mm, R, PageH - 31 * mm)
+    # Short brand accent over the divider start -- echoes the page-1 masthead rule.
+    Pdf.setFillColor(MpBlue)
+    Pdf.roundRect(L, PageH - 31.4 * mm, 14 * mm, 0.9 * mm, 0.45 * mm, fill=1, stroke=0)
+    Pdf.setFillColor(MpCyan)
+    Pdf.roundRect(L + 15 * mm, PageH - 31.4 * mm, 4.5 * mm, 0.9 * mm, 0.45 * mm, fill=1, stroke=0)
+    Pdf.setFillColor(MpGold)
+    Pdf.roundRect(L + 20.5 * mm, PageH - 31.4 * mm, 2.2 * mm, 0.9 * mm, 0.45 * mm, fill=1, stroke=0)
 
     Cursor = PageH - 38 * mm
 
@@ -1095,7 +1206,7 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     SectionHeading("Accuracy Profile", "How Accuracy Is Building", "Averages across all recorded attempts")
     ProfileH = 38 * mm
     ProfileY = Cursor - ProfileH
-    _MpPanel(Pdf, L, ProfileY, CW, ProfileH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    _MpPanel(Pdf, L, ProfileY, CW, ProfileH, MpWhite, MpLine, 12, 0.8, Shadow=True)
     ProfileRows = [
         ("Practice", _MpNum(PracticeAvg), MpPurple),
         ("Assessments", _MpNum(AssessmentAvg), MpBlue),
@@ -1115,21 +1226,39 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     Cursor = ProfileY - 7 * mm
 
     # Section B: level-by-level mastery.
+    # Shared row budget for sections B and C: when both the mastery table and
+    # the progression timeline are at their maximum, page 2 cannot also fit
+    # the guidance section without overlapping panels, so trim one row from
+    # each and let the "+N more" captions carry the remainder.
     VisibleLevels = Levels[:4]
+    VisibleMovements = Movements[:3]
+    if len(Levels) > 3 and len(Movements) > 2:
+        VisibleLevels = Levels[:3]
+        VisibleMovements = Movements[:2]
     HiddenLevels = max(0, len(Levels) - len(VisibleLevels))
+    HiddenMovements = max(0, len(Movements) - len(VisibleMovements))
     SectionHeading("Level Mastery", "Level-By-Level Breakdown", f"{len(Levels)} level(s) tracked")
     HeaderBandH = 7 * mm
     LevelRowH = 12.5 * mm
     MasteryH = HeaderBandH + LevelRowH * len(VisibleLevels) + (5 * mm if HiddenLevels else 0) + 4 * mm
     MasteryY = Cursor - MasteryH
-    _MpPanel(Pdf, L, MasteryY, CW, MasteryH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    _MpPanel(Pdf, L, MasteryY, CW, MasteryH, MpWhite, MpLine, 12, 0.8, Shadow=True)
     ColLevel = L + 8 * mm
     ColPractice = L + 52 * mm
     ColAccuracy = L + 104 * mm
     ColZone = L + 148 * mm
     CaptionY = MasteryY + MasteryH - 5.4 * mm
-    for Caption, CapX in [("Level", ColLevel), ("Practice Sheets", ColPractice), ("Accuracy", ColAccuracy), ("Zone", ColZone)]:
-        _MpTracked(Pdf, Caption, CapX, CaptionY, 5.4, MpFaint, 0.8)
+    for Caption, CapX, CapAlign in [
+        ("Level", ColLevel, "left"),
+        ("Practice Sheets", ColPractice, "left"),
+        ("Accuracy", ColAccuracy, "left"),
+        # The Zone chip below is drawn centred on ColZone + 15mm (_MpChip
+        # centres on its X, unlike the left-aligned bars in the other two
+        # columns) -- the header needs to share that same anchor or it
+        # visibly drifts left of the pill it's labelling on every row.
+        ("Zone", ColZone + 15 * mm, "center"),
+    ]:
+        _MpTracked(Pdf, Caption, CapX, CaptionY, 5.4, MpFaint, 0.8, Align=CapAlign)
     RowTop = MasteryY + MasteryH - HeaderBandH - 2 * mm
     for Index, LevelRow in enumerate(VisibleLevels):
         RowBase = RowTop - LevelRowH * (Index + 1) + 2 * mm
@@ -1172,14 +1301,12 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
         Pdf.drawCentredString(L + CW / 2, MasteryY + 3.0 * mm, f"+ {HiddenLevels} more level(s) tracked in the full learning record")
     Cursor = MasteryY - 7 * mm
 
-    # Section C: progression timeline.
-    VisibleMovements = Movements[:3]
-    HiddenMovements = max(0, len(Movements) - len(VisibleMovements))
+    # Section C: progression timeline (visible rows budgeted alongside Section B).
     SectionHeading("Progression Timeline", "Completed Level Movements", "Most recent first")
     MoveRowH = 10 * mm
     TimelineH = (MoveRowH * len(VisibleMovements) + (5 * mm if HiddenMovements else 0) + 6 * mm) if VisibleMovements else 16 * mm
     TimelineY = Cursor - TimelineH
-    _MpPanel(Pdf, L, TimelineY, CW, TimelineH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    _MpPanel(Pdf, L, TimelineY, CW, TimelineH, MpWhite, MpLine, 12, 0.8, Shadow=True)
     if VisibleMovements:
         DotX = L + 40 * mm
         if len(VisibleMovements) > 1:
@@ -1199,14 +1326,11 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
             FromText = _PdfText(Movement.get("fromLevel", "-"))
             ToText = _PdfText(Movement.get("toLevel", "-"))
             TextX = DotX + 5.5 * mm
-            Pdf.setFillColor(MpInk)
-            Pdf.setFont(MpFontBold, 8.6)
-            Pdf.drawString(TextX, RowMid + 0.6 * mm, FromText)
-            FromW = Pdf.stringWidth(FromText, MpFontBold, 8.6)
+            # Width-aware: long level codes must not run into the score chip.
+            FromSize = _MpDrawFitted(Pdf, FromText, TextX, RowMid + 0.6 * mm, 24 * mm, 8.6, MpInk, True, "left", 6.2)
+            FromW = Pdf.stringWidth(FromText, MpFontBold, FromSize)
             _MpGlyph(Pdf, "arrow", TextX + FromW + 4.6 * mm, RowMid + 1.6 * mm, 2.2 * mm, MpMuted, 1.0)
-            Pdf.setFillColor(MpInk)
-            Pdf.setFont(MpFontBold, 8.6)
-            Pdf.drawString(TextX + FromW + 9.6 * mm, RowMid + 0.6 * mm, ToText)
+            _MpDrawFitted(Pdf, ToText, TextX + FromW + 9.6 * mm, RowMid + 0.6 * mm, 24 * mm, 8.6, MpInk, True, "left", 6.2)
             _MpDrawFitted(Pdf, Movement.get("assessment", "-"), TextX, RowMid - 3.6 * mm, 62 * mm, 6.4, MpMuted, False, "left", 5.2)
             ScoreLabel = f"{_PdfText(Movement.get('score', '-'))} · {_PdfText(Movement.get('percentage', '-'))}"
             _MpChip(Pdf, ScoreLabel, R - 24 * mm, RowMid, Tier["soft"] if Index == 0 else MpSlateSoft, Tier["dark"] if Index == 0 else MpMuted, 6.2, 5.0, 10.0)
@@ -1215,10 +1339,19 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
             Pdf.setFont(MpFontRegular, 6.4)
             Pdf.drawCentredString(L + CW / 2, TimelineY + 2.6 * mm, f"+ {HiddenMovements} earlier movement(s) in the full promotion history")
     else:
-        _MpGlyph(Pdf, "flag", L + CW / 2 - 46 * mm, TimelineY + TimelineH / 2, 2.4 * mm, MpFaint, 1.0)
+        EmptyStateText = "The first level movement will be recorded here after the next promotion."
+        EmptyIconS = 2.4 * mm
+        EmptyIconW = EmptyIconS * 1.1
+        EmptyGap = 3.2 * mm
+        EmptyTextW = Pdf.stringWidth(EmptyStateText, MpFontRegular, 7.6)
+        EmptyGroupW = EmptyIconW + EmptyGap + EmptyTextW
+        EmptyStartX = (L + CW / 2) - EmptyGroupW / 2
+        EmptyIconCX = EmptyStartX + EmptyIconW / 2
+        EmptyTextX = EmptyStartX + EmptyIconW + EmptyGap
+        _MpGlyph(Pdf, "flag", EmptyIconCX, TimelineY + TimelineH / 2, EmptyIconS, MpFaint, 1.0)
         Pdf.setFillColor(MpMuted)
         Pdf.setFont(MpFontRegular, 7.6)
-        Pdf.drawCentredString(L + CW / 2 + 2 * mm, TimelineY + TimelineH / 2 - 1.2 * mm, "The first level movement will be recorded here after the next promotion.")
+        Pdf.drawString(EmptyTextX, TimelineY + TimelineH / 2 - 1.2 * mm, EmptyStateText)
     Cursor = TimelineY - 7 * mm
 
     # Section D: guidance for home.
@@ -1237,7 +1370,7 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     ]
     for Index, (Glyph, Title, Body, GlyphColor, DiscFill, AccentColor) in enumerate(GuidanceCards):
         GX = L + Index * (CardW2 + CardGap)
-        _MpPanel(Pdf, GX, CardsY, CardW2, CardH2, MpWhite, MpLine, 10, 0.75, Shadow=True)
+        _MpPanel(Pdf, GX, CardsY, CardW2, CardH2, MpWhite, MpLine, 10, 0.8, Shadow=True)
         Pdf.setFillColor(AccentColor)
         Pdf.roundRect(GX, CardsY + CardH2 - 2.2 * mm, CardW2, 2.2 * mm, 1.1 * mm, fill=1, stroke=0)
         Pdf.setFillColor(DiscFill)

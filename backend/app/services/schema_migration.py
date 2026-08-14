@@ -293,8 +293,20 @@ def ensure_dps_section_marks_column() -> None:
 # automatically from display_order; these are the only 3 exceptions where
 # "next module in display_order, first level" would be wrong -- YLM skips
 # PM-L1 entirely, and BM skips straight to IM without ever touching PM.
+#
+# 2026-08-14, corrected same day: YLM was collapsed from a 3-level module
+# (L1-L3) down to a single level (YLM-L1 only) by the 2026-08-12 curriculum
+# change in seed_ylm_phase1.py (_delete_obsolete_levels() actively deletes
+# any leftover YLM-L2/YLM-L3 rows on every startup -- matches BM/MM's
+# one-level-per-module pattern now). The override below originally targeted
+# "YLM-L3" on the assumption the old 3-level structure still existed, which
+# meant it silently never fired (that level_code no longer exists) and a
+# real student's parent report showed the generic "next module, first
+# level" fallback (PM-L1) instead of the correct PM-L2. Caught from a live
+# report Shailesh sent back. YLM-L1 is now both the first AND only/terminal
+# level of the module, so the override key moves there.
 LEVEL_PROGRESSION_OVERRIDES = {
-    "YLM-L3": "PM-L2",
+    "YLM-L1": "PM-L2",
     "PM-L4": "IM-L1",
     "BM-L1": "IM-L1",
 }

@@ -33,16 +33,24 @@ Last updated: 2026-06-29
 
 ## Curriculum Progression Paths (background for gamification, esp. Level Mastery badges)
 
-Added 2026-07-30, directly from Shailesh. A student progresses through the
-curriculum via exactly one of 3 fixed entry paths. Modules referenced: YLM (3
-levels), PM (4 levels), BM (1 level), IM (4 levels), MM (currently 1 level,
-expected to grow). The module order after entry is always the same (…→ IM →
-MM); only the entry point and whether PM-L1 is included differ.
+Added 2026-07-30, directly from Shailesh. **Updated 2026-08-14: YLM was
+collapsed from 3 levels down to a single level (YLM-L1 only) by a
+2026-08-12 curriculum change** (`seed_ylm_phase1.py`'s `_delete_obsolete_levels()`
+now actively deletes any leftover YLM-L2/YLM-L3 rows on every backend
+startup, matching BM/MM's one-level-per-module shape) — this section
+originally described the pre-collapse 3-level YLM and was caught stale from
+a live parent report showing the wrong next-level text; corrected below. A
+student progresses through the curriculum via exactly one of 3 fixed entry
+paths. Modules referenced: YLM (1 level), PM (4 levels), BM (1 level), IM (4
+levels), MM (currently 1 level, expected to grow). The module order after
+entry is always the same (…→ IM → MM); only the entry point and whether
+PM-L1 is included differ.
 
-- **Path 1:** Starts at **YLM-L1**, completes all of YLM (L1-L3), then enters
-  PM at **PM-L2** (PM-L1 is *never assigned* to this path — skipped
-  entirely), completes PM-L2 through PM-L4, then IM (all 4 levels), then MM.
-  This path **never touches BM**, and **never touches PM-L1**.
+- **Path 1:** Starts and completes at **YLM-L1** (YLM is now a single-level
+  module), then enters PM at **PM-L2** (PM-L1 is *never assigned* to this
+  path — skipped entirely), completes PM-L2 through PM-L4, then IM (all 4
+  levels), then MM. This path **never touches BM**, and **never touches
+  PM-L1**.
 - **Path 2:** Starts at **PM-L1**, completes the full PM module (L1-L4), then
   IM (all 4 levels), then MM. This path **never touches YLM or BM**.
 - **Path 3:** Starts at **BM-L1** (BM is a single-level module), then
