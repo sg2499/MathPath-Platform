@@ -74,6 +74,7 @@ def teacher_list_parent_report_deliveries(
             "levelCode": LogValue.level_code or "-",
             "levelLabel": LevelLabel,
             "fileName": LogValue.file_name,
+            "assessmentTitle": LogValue.assessment_title,
             "publishedToTeacherAt": LogValue.published_to_teacher_at.isoformat() if LogValue.published_to_teacher_at else None,
         })
     return {"logs": Payload}

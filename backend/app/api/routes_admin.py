@@ -4673,7 +4673,7 @@ def export_parent_progress_summary(studentId: str, moduleId: str | None = None, 
     Payload = _admin_build_student_report(db, StudentRecord.id, ModuleRecord.id, LevelRecord.id, lessonId, dpsId)
     StudentValue = Payload.get("student", {}) or {}
     ReportData = _admin_build_parent_progress_pdf_data(Payload, timezone, timezoneOffsetMinutes, db)
-    ReportMeta, _ = _admin_validate_parent_report_data(ReportData, ExpectedModule=ModuleRecord, ExpectedLevel=LevelRecord)
+    ReportMeta, PerformanceMeta = _admin_validate_parent_report_data(ReportData, ExpectedModule=ModuleRecord, ExpectedLevel=LevelRecord)
     StudentName = StudentValue.get("studentName") or StudentValue.get("studentCode") or "Student"
     ReportLevel = ReportMeta.get("reportLevelCode") or "Level"
     FileName = f"{_admin_safe_filename_part(StudentName)}-Progress_Report-{_admin_safe_level_filename_part(ReportLevel)}"
@@ -4683,6 +4683,7 @@ def export_parent_progress_summary(studentId: str, moduleId: str | None = None, 
         ReportMeta=ReportMeta,
         FileName=f"{FileName}.pdf",
         UserValue=user,
+        AssessmentTitle=PerformanceMeta.get("assessmentName"),
     )
     NotifyParentReportGenerated(
         db,
@@ -4708,6 +4709,7 @@ def _admin_upsert_parent_report_log(
     ReportMeta: dict,
     FileName: str,
     UserValue: User,
+    AssessmentTitle: str | None = None,
 ) -> ParentReportEmailLog:
     """Record that a parent progress report PDF was generated.
 
@@ -4719,6 +4721,7 @@ def _admin_upsert_parent_report_log(
     """
     ModuleCode = ReportMeta.get("reportModuleCode")
     LevelCode = ReportMeta.get("reportLevelCode")
+    CleanAssessmentTitle = str(AssessmentTitle).strip() if AssessmentTitle else None
     NowValue = datetime.now(datetime_timezone.utc)
     ExistingLog = (
         db.query(ParentReportEmailLog)
@@ -4733,6 +4736,8 @@ def _admin_upsert_parent_report_log(
         ExistingLog.file_name = FileName
         ExistingLog.sent_by_user_id = UserValue.id
         ExistingLog.sent_at = NowValue
+        if CleanAssessmentTitle:
+            ExistingLog.assessment_title = CleanAssessmentTitle
         if ExistingLog.status != "PUBLISHED":
             ExistingLog.status = "GENERATED"
         db.commit()
@@ -4749,6 +4754,7 @@ def _admin_upsert_parent_report_log(
         status="GENERATED",
         sent_by_user_id=UserValue.id,
         sent_at=NowValue,
+        assessment_title=CleanAssessmentTitle,
     )
     db.add(LogValue)
     db.commit()
@@ -4930,6 +4936,7 @@ def list_parent_report_deliveries(
             "levelName": LevelName,
             "levelLabel": LevelLabel,
             "fileName": LogValue.file_name,
+            "assessmentTitle": LogValue.assessment_title,
             "status": LogValue.status,
             "isPublishedToTeacher": bool(LogValue.published_to_teacher_at),
             "generatedAt": LogValue.sent_at.isoformat() if LogValue.sent_at else None,

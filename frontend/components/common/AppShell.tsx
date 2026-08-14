@@ -488,6 +488,13 @@ export function AppShell({
           tooltip: "Track assigned assessments",
         },
         {
+          label: "Progress Reports",
+          shortLabel: "Reports",
+          href: "/teacher/progress-reports",
+          icon: FileBarChart,
+          tooltip: "View and download published parent progress reports",
+        },
+        {
           label: "Promotion History",
           shortLabel: "Promotions",
           href: "/teacher/promotion-history",

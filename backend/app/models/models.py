@@ -998,6 +998,7 @@ class ParentReportEmailLog(Base):
     error_message = Column(Text, nullable=True)
     published_to_teacher_at = Column(DateTime(timezone=True), nullable=True)
     published_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    assessment_title = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     student = relationship("Student")
