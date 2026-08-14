@@ -287,6 +287,100 @@ def ensure_dps_section_marks_column() -> None:
             connection.execute(text(f"ALTER TABLE dps_sections ADD COLUMN {name} {ddl}"))
 
 
+# 2026-08-14: fixed curriculum overrides for the 3 documented enrollment
+# paths (see docs/project-memory/PRODUCT_RULES.md "Curriculum Progression
+# Paths"). Same-module sequencing and the IM -> MM boundary are derived
+# automatically from display_order; these are the only 3 exceptions where
+# "next module in display_order, first level" would be wrong -- YLM skips
+# PM-L1 entirely, and BM skips straight to IM without ever touching PM.
+LEVEL_PROGRESSION_OVERRIDES = {
+    "YLM-L3": "PM-L2",
+    "PM-L4": "IM-L1",
+    "BM-L1": "IM-L1",
+}
+
+
+def ensure_level_next_level_id_column() -> None:
+    """Add + self-heal levels.next_level_id, the single source of truth for
+    "what level comes after this one" -- used by both the real Promote
+    functionality (assessment_engine_service.NextLevelForLevel) and the
+    parent report's "next destination" text, so the two can never disagree.
+
+    Recomputed from scratch on every startup rather than backfilled once,
+    so it self-heals if levels/modules are edited later. This deliberately
+    avoids the fragile one-time-migration + inferred-path pattern that broke
+    production in PR #410 (see PRODUCT_RULES.md) -- the column always exists
+    with a safe default (NULL) even if this sync hasn't run yet, and
+    NextLevelForLevel() falls back to same-module lookup if it's NULL.
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if "levels" not in tables or "modules" not in tables:
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("levels")}
+    if "next_level_id" not in existing:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE levels ADD COLUMN next_level_id VARCHAR"))
+
+    with engine.begin() as connection:
+        ModuleRows = connection.execute(
+            text("SELECT id, module_code, display_order FROM modules WHERE is_active = TRUE")
+        ).mappings().all()
+        LevelRows = connection.execute(
+            text("SELECT id, module_id, level_code, display_order, internal_level_number, next_level_id "
+                 "FROM levels WHERE is_active = TRUE")
+        ).mappings().all()
+
+        if not ModuleRows or not LevelRows:
+            return
+
+        OrderedModules = sorted(
+            ModuleRows,
+            key=lambda ModuleRow: (int(ModuleRow["display_order"] or 0), str(ModuleRow["module_code"] or "")),
+        )
+        ModuleIndexById = {ModuleRow["id"]: Index for Index, ModuleRow in enumerate(OrderedModules)}
+
+        LevelsByModuleId: dict[str, list] = {}
+        for LevelRow in LevelRows:
+            LevelsByModuleId.setdefault(LevelRow["module_id"], []).append(LevelRow)
+        for ModuleId, LevelGroup in LevelsByModuleId.items():
+            LevelsByModuleId[ModuleId] = sorted(
+                LevelGroup,
+                key=lambda LevelRow: (
+                    int(LevelRow["display_order"] or 0),
+                    int(LevelRow["internal_level_number"] or 0),
+                    str(LevelRow["level_code"] or ""),
+                ),
+            )
+        FirstLevelByModuleId = {
+            ModuleId: LevelGroup[0] for ModuleId, LevelGroup in LevelsByModuleId.items() if LevelGroup
+        }
+        LevelIdByCode = {LevelRow["level_code"]: LevelRow["id"] for LevelRow in LevelRows}
+
+        for ModuleId, OrderedLevelGroup in LevelsByModuleId.items():
+            for Index, LevelRow in enumerate(OrderedLevelGroup):
+                NextId = None
+                if Index + 1 < len(OrderedLevelGroup):
+                    NextId = OrderedLevelGroup[Index + 1]["id"]
+                elif LevelRow["level_code"] in LEVEL_PROGRESSION_OVERRIDES:
+                    NextId = LevelIdByCode.get(LEVEL_PROGRESSION_OVERRIDES[LevelRow["level_code"]])
+                else:
+                    ModuleIndex = ModuleIndexById.get(ModuleId)
+                    if ModuleIndex is not None:
+                        for NextModuleRow in OrderedModules[ModuleIndex + 1:]:
+                            FirstLevelOfNextModule = FirstLevelByModuleId.get(NextModuleRow["id"])
+                            if FirstLevelOfNextModule:
+                                NextId = FirstLevelOfNextModule["id"]
+                                break
+
+                if LevelRow["next_level_id"] != NextId:
+                    connection.execute(
+                        text("UPDATE levels SET next_level_id = :next_id WHERE id = :level_id"),
+                        {"next_id": NextId, "level_id": LevelRow["id"]},
+                    )
+
+
 ASSESSMENT_ASSIGNMENT_COLUMNS = {
     "assessment_assignment_type": "VARCHAR(30) DEFAULT 'ORIGINAL'",
     "source_assignment_id": "VARCHAR",

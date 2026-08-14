@@ -63,6 +63,7 @@ from app.services.assessment_engine_service import (
     LatestGeneratedVersion,
     ListAssessmentReattemptApprovals,
     ListStudentLevelPromotions,
+    NextLevelForLevel,
     PromoteAssessmentStudentToNextLevel,
     RejectAssessmentReattempt,
     SetAssessmentVersionAvailability,
@@ -4449,6 +4450,14 @@ def _admin_parent_report_next_learning_destination(db: Session | None, ModuleCod
     This intentionally does not depend on whether Admin has already clicked Promote.
     Completed-level parent reports must show the next curriculum destination, not the
     student's still-current active level while promotion is pending.
+
+    Delegates to NextLevelForLevel() (assessment_engine_service) -- the same
+    single source of truth the real Promote flow uses -- so this text can
+    never disagree with what Promote will actually do. A naive "next module
+    in display order, first level" walk is wrong for 2 of the platform's 3
+    fixed enrollment paths (YLM skips PM-L1; BM skips straight to IM without
+    ever touching PM) -- see docs/project-memory/PRODUCT_RULES.md
+    "Curriculum Progression Paths".
     """
     EmptyResult = {
         "moduleCode": None,
@@ -4465,34 +4474,29 @@ def _admin_parent_report_next_learning_destination(db: Session | None, ModuleCod
     if not ModuleValue or not CompletedCode or CompletedCode in {"-", "Completed Level", "Not Started"}:
         return EmptyResult
 
-    CurrentModuleLevels = _admin_ordered_active_levels(db, ModuleValue.id)
-    CurrentIndex = next((Index for Index, LevelValue in enumerate(CurrentModuleLevels) if LevelValue.level_code == CompletedCode), -1)
-    if CurrentIndex >= 0 and CurrentIndex + 1 < len(CurrentModuleLevels):
-        NextLevelValue = CurrentModuleLevels[CurrentIndex + 1]
-        return {
-            "moduleCode": ModuleValue.module_code,
-            "moduleName": ModuleValue.module_name,
-            "levelCode": NextLevelValue.level_code,
-            "levelName": NextLevelValue.level_name,
-            "destinationType": "SAME_MODULE_NEXT_LEVEL",
-        }
+    CompletedLevelValue = (
+        db.query(Level)
+        .filter(Level.module_id == ModuleValue.id, Level.level_code == CompletedCode, Level.is_active == True)
+        .first()
+    )
+    if not CompletedLevelValue:
+        return EmptyResult
 
-    OrderedModules = _admin_ordered_active_modules(db)
-    ModuleIndex = next((Index for Index, ModuleItem in enumerate(OrderedModules) if ModuleItem.id == ModuleValue.id), -1)
-    if ModuleIndex >= 0:
-        for NextModuleValue in OrderedModules[ModuleIndex + 1:]:
-            NextLevels = _admin_ordered_active_levels(db, NextModuleValue.id)
-            if NextLevels:
-                NextLevelValue = NextLevels[0]
-                return {
-                    "moduleCode": NextModuleValue.module_code,
-                    "moduleName": NextModuleValue.module_name,
-                    "levelCode": NextLevelValue.level_code,
-                    "levelName": NextLevelValue.level_name,
-                    "destinationType": "NEXT_MODULE_FIRST_LEVEL",
-                }
+    NextLevelValue = NextLevelForLevel(db, CompletedLevelValue)
+    if not NextLevelValue:
+        return EmptyResult
 
-    return EmptyResult
+    NextModuleValue = db.get(Module, NextLevelValue.module_id)
+    DestinationType = (
+        "SAME_MODULE_NEXT_LEVEL" if NextLevelValue.module_id == CompletedLevelValue.module_id else "NEXT_MODULE_FIRST_LEVEL"
+    )
+    return {
+        "moduleCode": NextModuleValue.module_code if NextModuleValue else None,
+        "moduleName": NextModuleValue.module_name if NextModuleValue else None,
+        "levelCode": NextLevelValue.level_code,
+        "levelName": NextLevelValue.level_name,
+        "destinationType": DestinationType,
+    }
 
 def _admin_build_parent_progress_pdf_data(Payload: dict, TimezoneName: str | None = None, TimezoneOffsetMinutes: int | None = None, db: Session | None = None) -> dict:
     StudentValue = Payload.get("student", {}) or {}
@@ -4629,12 +4633,54 @@ def _admin_build_parent_progress_pdf_data(Payload: dict, TimezoneName: str | Non
             "percentage": PercentageText,
             "date": AssessmentDate,
         })
+    for PromotionRow in sorted(PromotionRows, key=lambda Row: str(Row.get("promotedAt") or ""), reverse=True):
+        if LatestPromotion and PromotionRow is LatestPromotion:
+            continue
+        if len(MovementRows) >= 5:
+            break
+        RowMaxScore = PromotionRow.get("maxScore") or PromotionRow.get("totalMarks") or 100
+        MovementRows.append({
+            "fromLevel": PromotionRow.get("fromLevelCode") or "-",
+            "toLevel": PromotionRow.get("toLevelCode") or "-",
+            "assessment": PromotionRow.get("assessmentTitle") or "Level Assessment",
+            "score": f"{NormalizeAssessmentScore(PromotionRow.get('score') or 0, RowMaxScore)} / {NormalizeAssessmentScore(RowMaxScore, RowMaxScore)}",
+            "percentage": f"{NormalizeAssessmentPercentage(PromotionRow.get('percentage') or 0, 100)}%",
+            "date": _admin_report_datetime(PromotionRow.get("promotedAt"), TimezoneName, TimezoneOffsetMinutes),
+        })
+
+    # Raw stored photo reference for the PDF renderer (data URI or /uploads path).
+    # The renderer resolves it locally and falls back to an initials avatar.
+    PhotoRef = None
+    try:
+        if db is not None and StudentValue.get("studentId"):
+            StudentRecord = db.get(Student, StudentValue.get("studentId"))
+            StudentUserRecord = db.get(User, StudentRecord.user_id) if StudentRecord and StudentRecord.user_id else None
+            PhotoRef = (StudentRecord.photo_url if StudentRecord else None) or (StudentUserRecord.photo_url if StudentUserRecord else None)
+    except Exception:
+        PhotoRef = None
+
+    # Per-level mastery breakdown for the detailed page of the PDF.
+    LevelBreakdown = []
+    for Row in LevelRows:
+        LevelBreakdown.append({
+            "moduleCode": Row.get("moduleCode"),
+            "levelCode": Row.get("levelCode"),
+            "levelName": Row.get("levelName"),
+            "requiredDps": int(Row.get("requiredDps") or 0),
+            "completedDps": int(Row.get("completedDps") or Row.get("passedDps") or 0),
+            "passedDps": int(Row.get("passedDps") or 0),
+            "averageAccuracy": int(round(float(Row.get("averageAccuracy") or 0))),
+            "performanceZone": Row.get("performanceZone") or "Not Started",
+            "promotionStatus": Row.get("promotionStatus") or "Not Promoted",
+            "isReportLevel": str(Row.get("levelCode") or "") == str(ReportLevelCode),
+        })
 
     return {
         "student": {
             "name": StudentName,
             "code": StudentValue.get("studentCode") or "-",
             "classSection": f"{StudentValue.get('className') or '-'} / {StudentValue.get('section') or '-'}",
+            "photoRef": PhotoRef,
         },
         "report": {
             "title": "Student Progress Report",
@@ -4663,6 +4709,17 @@ def _admin_build_parent_progress_pdf_data(Payload: dict, TimezoneName: str | Non
             "nextStep": f"Begin {NextLevelCode} Practice" if NextLevelCode not in {"-", "Next Level", "Next Level Pending Setup"} else "Continue Teacher-Guided Practice",
         },
         "movements": MovementRows,
+        "levels": LevelBreakdown,
+        "journey": {
+            "levelsTracked": len(LevelBreakdown),
+            "levelsCompleted": int(SummaryValue.get("levelsCompleted") or SummaryValue.get("levelsCleared") or 0),
+            "assessmentsCleared": int(SummaryValue.get("assessmentsCleared") or 0),
+            "dpsCleared": int(SummaryValue.get("dpsCleared") or 0),
+            "promotedLevels": int(SummaryValue.get("promotedLevels") or 0),
+            "practiceAverageAccuracy": int(SummaryValue.get("practiceAverageAccuracy") or 0),
+            "assessmentAverageAccuracy": int(SummaryValue.get("assessmentAverageAccuracy") or 0),
+            "overallAverageAccuracy": int(SummaryValue.get("overallAverageAccuracy") or SummaryValue.get("averageAccuracy") or 0),
+        },
         "generatedOn": _admin_report_datetime(datetime.now(datetime_timezone.utc), TimezoneName, TimezoneOffsetMinutes),
     }
 

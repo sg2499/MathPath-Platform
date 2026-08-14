@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import math
 from datetime import datetime, timezone, timedelta
 import asyncio
 from io import BytesIO
@@ -7,11 +9,12 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import Flowable, Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.lib.utils import ImageReader
+from reportlab.platypus import Paragraph
 from reportlab.pdfgen import canvas as PdfCanvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -193,18 +196,68 @@ def ReportGeneratedOn() -> str:
 PDF_MIME = "application/pdf"
 
 
-BrandNavy = colors.HexColor("#07122F")
-BrandBlue = colors.HexColor("#2563EB")
-BrandCyan = colors.HexColor("#06B6D4")
-BrandTeal = colors.HexColor("#0EA5A8")
-SoftBlue = colors.HexColor("#EEF7FF")
-SoftCyan = colors.HexColor("#ECFEFF")
-SoftSlate = colors.HexColor("#F8FAFC")
-CardBorder = colors.HexColor("#DDEBFA")
-TextSlate = colors.HexColor("#334155")
-MutedSlate = colors.HexColor("#64748B")
-SuccessGreen = colors.HexColor("#10B981")
-Purple = colors.HexColor("#7C3AED")
+# =============================================================================
+# MathPath Parent Progress Report - premium canvas renderer
+#
+# One art-directed system: a single palette (Mp*), a single type scale, and
+# bespoke canvas-drawn visuals (achievement medallion, journey path, mastery
+# bars) instead of stock chart widgets. Page 1 is the milestone story; Page 2
+# is the evidence (accuracy profile, level-by-level mastery, progression
+# timeline) plus guidance for home. Content is deliberately not repeated
+# between the two pages.
+# =============================================================================
+
+MpInk = colors.HexColor("#0A1633")
+MpText = colors.HexColor("#26334D")
+MpMuted = colors.HexColor("#69789A")
+MpFaint = colors.HexColor("#93A3C2")
+MpLine = colors.HexColor("#DCE6F5")
+MpPage = colors.HexColor("#F5F9FF")
+MpWhite = colors.white
+MpBlue = colors.HexColor("#2563EB")
+MpBlueDark = colors.HexColor("#1D4ED8")
+MpBlueSoft = colors.HexColor("#EAF1FE")
+MpCyan = colors.HexColor("#0E9FC4")
+MpCyanLight = colors.HexColor("#67E8F9")
+MpTeal = colors.HexColor("#0D9488")
+MpTealSoft = colors.HexColor("#E4F8F4")
+MpGreen = colors.HexColor("#059669")
+MpGreenSoft = colors.HexColor("#E7F8F0")
+MpGold = colors.HexColor("#F59E0B")
+MpGoldDark = colors.HexColor("#B45309")
+MpGoldSoft = colors.HexColor("#FEF3C7")
+MpOrange = colors.HexColor("#F97316")
+MpOrangeDark = colors.HexColor("#C2410C")
+MpOrangeSoft = colors.HexColor("#FFEDD5")
+MpPurple = colors.HexColor("#7C3AED")
+MpPurpleSoft = colors.HexColor("#F1EBFE")
+MpSlateSoft = colors.HexColor("#EDF2FA")
+
+MpFontRegular = "Helvetica"
+MpFontBold = "Helvetica-Bold"
+
+
+def _RegisterMpFonts():
+    global MpFontRegular, MpFontBold
+    CandidatePairs = [
+        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+        ("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"),
+        ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
+        ("C:/Windows/Fonts/calibri.ttf", "C:/Windows/Fonts/calibrib.ttf"),
+    ]
+    for RegularPath, BoldPath in CandidatePairs:
+        try:
+            if Path(RegularPath).exists() and Path(BoldPath).exists():
+                pdfmetrics.registerFont(TTFont("MathPathReport-Regular", RegularPath))
+                pdfmetrics.registerFont(TTFont("MathPathReport-Bold", BoldPath))
+                MpFontRegular = "MathPathReport-Regular"
+                MpFontBold = "MathPathReport-Bold"
+                return
+        except Exception:
+            continue
+
+
+_RegisterMpFonts()
 
 
 def _PdfText(Value: Any) -> str:
@@ -229,432 +282,37 @@ def _FindMathPathLogo() -> str | None:
     return None
 
 
-class _HeroBanner(Flowable):
-    def __init__(self, StudentName: str, StudentCode: str, ClassSection: str, GeneratedOn: str, LogoPath: str | None):
-        super().__init__()
-        self.Width = 186 * mm
-        self.Height = 38 * mm
-        self.StudentName = StudentName
-        self.StudentCode = StudentCode
-        self.ClassSection = ClassSection
-        self.GeneratedOn = GeneratedOn
-        self.LogoPath = LogoPath
-
-    def wrap(self, AvailableWidth, AvailableHeight):
-        self.Width = AvailableWidth
-        return AvailableWidth, self.Height
-
-    def draw(self):
-        Canvas = self.canv
-        Canvas.saveState()
-        Canvas.setFillColor(SoftCyan)
-        Canvas.setStrokeColor(colors.HexColor("#BDEFFF"))
-        Canvas.roundRect(0, 0, self.Width, self.Height, 16, fill=1, stroke=1)
-        Canvas.setFillColor(colors.Color(0.75, 0.95, 1.0, alpha=0.35))
-        Canvas.circle(self.Width - 28 * mm, self.Height - 10 * mm, 28 * mm, stroke=0, fill=1)
-        Canvas.setFillColor(colors.Color(0.70, 0.90, 1.0, alpha=0.25))
-        Canvas.circle(self.Width - 8 * mm, 14 * mm, 22 * mm, stroke=0, fill=1)
-
-        LogoX = 12 * mm
-        LogoY = self.Height - 18 * mm
-        if self.LogoPath:
-            try:
-                Canvas.drawImage(self.LogoPath, LogoX, LogoY, width=16 * mm, height=16 * mm, mask="auto", preserveAspectRatio=True)
-            except Exception:
-                Canvas.setFillColor(colors.white)
-                Canvas.roundRect(LogoX, LogoY, 16 * mm, 16 * mm, 7, fill=1, stroke=0)
-        else:
-            Canvas.setFillColor(colors.white)
-            Canvas.roundRect(LogoX, LogoY, 16 * mm, 16 * mm, 7, fill=1, stroke=0)
-
-        TextX = 32 * mm
-        Canvas.setFillColor(BrandNavy)
-        Canvas.setFont("Helvetica-Bold", 18)
-        Canvas.drawString(TextX, self.Height - 10 * mm, "MathPath")
-        Canvas.setFillColor(BrandTeal)
-        Canvas.setFont("Helvetica-Bold", 7.5)
-        Canvas.drawString(TextX, self.Height - 15 * mm, "ACE WITH ABACUS")
-        Canvas.setFillColor(TextSlate)
-        Canvas.setFont("Helvetica", 8.5)
-        Canvas.drawString(TextX, self.Height - 20 * mm, "Visual Abacus Mastery for Speed, Accuracy, and Confidence.")
-
-        Canvas.setFillColor(BrandNavy)
-        Canvas.setFont("Helvetica-Bold", 19)
-        Canvas.drawString(12 * mm, 12.5 * mm, "Parent Progress Report")
-        Canvas.setFillColor(TextSlate)
-        Canvas.setFont("Helvetica", 8.4)
-        Canvas.drawString(12 * mm, 7.2 * mm, "A concise, parent-friendly summary generated from verified MathPath records.")
-
-        CardW = 58 * mm
-        CardH = 20 * mm
-        CardX = self.Width - CardW - 12 * mm
-        CardY = 8 * mm
-        Canvas.setFillColor(colors.white)
-        Canvas.setStrokeColor(colors.HexColor("#D8EAFE"))
-        Canvas.roundRect(CardX, CardY, CardW, CardH, 9, fill=1, stroke=1)
-        Canvas.setFillColor(MutedSlate)
-        Canvas.setFont("Helvetica-Bold", 6.8)
-        Canvas.drawString(CardX + 5 * mm, CardY + 13.4 * mm, "STUDENT")
-        Canvas.setFillColor(BrandNavy)
-        Canvas.setFont("Helvetica-Bold", 9.2)
-        Canvas.drawString(CardX + 5 * mm, CardY + 9.2 * mm, self.StudentName[:31])
-        Canvas.setFillColor(TextSlate)
-        Canvas.setFont("Helvetica", 7.2)
-        Canvas.drawString(CardX + 5 * mm, CardY + 4.8 * mm, f"{self.StudentCode} | {self.ClassSection}")
-        Canvas.setFillColor(MutedSlate)
-        Canvas.setFont("Helvetica", 6.2)
-        Canvas.drawRightString(CardX + CardW - 5 * mm, CardY + 4.8 * mm, self.GeneratedOn[:22])
-        Canvas.restoreState()
+def _MpNum(Value: Any) -> float:
+    try:
+        return float(str(Value).replace("%", "").strip())
+    except Exception:
+        return 0.0
 
 
-class _SectionDivider(Flowable):
-    def __init__(self, Kicker: str, Title: str):
-        super().__init__()
-        self.Kicker = Kicker
-        self.Title = Title
-        self.Height = 15 * mm
-
-    def wrap(self, AvailableWidth, AvailableHeight):
-        self.Width = AvailableWidth
-        return AvailableWidth, self.Height
-
-    def draw(self):
-        Canvas = self.canv
-        Canvas.saveState()
-        Canvas.setFillColor(BrandCyan)
-        Canvas.setFont("Helvetica-Bold", 7.4)
-        Canvas.drawString(0, self.Height - 5, self.Kicker.upper())
-        Canvas.setFillColor(BrandNavy)
-        Canvas.setFont("Helvetica-Bold", 13.5)
-        Canvas.drawString(0, 1, self.Title)
-        Canvas.setStrokeColor(colors.HexColor("#DDEBFA"))
-        Canvas.setLineWidth(0.8)
-        Canvas.line(0, 0, self.Width, 0)
-        Canvas.restoreState()
+def _MpTier(PercentageValue: Any) -> dict[str, Any]:
+    Numeric = _MpNum(PercentageValue)
+    if Numeric >= 90:
+        return {"main": MpGold, "dark": MpGoldDark, "soft": MpGoldSoft, "label": "Excellence Zone"}
+    if Numeric >= 70:
+        return {"main": MpBlue, "dark": MpBlueDark, "soft": MpBlueSoft, "label": "Milestone Cleared"}
+    return {"main": MpOrange, "dark": MpOrangeDark, "soft": MpOrangeSoft, "label": "Rising Star"}
 
 
-def _Styles() -> dict[str, ParagraphStyle]:
-    return {
-        "Body": ParagraphStyle(
-            "MathPathBody",
-            fontName="Helvetica",
-            fontSize=9.4,
-            leading=13.4,
-            textColor=TextSlate,
-            spaceAfter=0,
-        ),
-        "Small": ParagraphStyle(
-            "MathPathSmall",
-            fontName="Helvetica",
-            fontSize=8.0,
-            leading=11.2,
-            textColor=MutedSlate,
-        ),
-        "CardLabel": ParagraphStyle(
-            "MathPathCardLabel",
-            fontName="Helvetica-Bold",
-            fontSize=6.8,
-            leading=8.0,
-            textColor=MutedSlate,
-            alignment=TA_LEFT,
-        ),
-        "CardValue": ParagraphStyle(
-            "MathPathCardValue",
-            fontName="Helvetica-Bold",
-            fontSize=10.3,
-            leading=12.6,
-            textColor=BrandNavy,
-            alignment=TA_LEFT,
-        ),
-        "Chip": ParagraphStyle(
-            "MathPathChip",
-            fontName="Helvetica-Bold",
-            fontSize=8.0,
-            leading=9.5,
-            textColor=BrandBlue,
-            alignment=TA_CENTER,
-        ),
-        "TableCell": ParagraphStyle(
-            "MathPathTableCell",
-            fontName="Helvetica",
-            fontSize=8.0,
-            leading=10.0,
-            textColor=TextSlate,
-        ),
-        "TableCellBold": ParagraphStyle(
-            "MathPathTableCellBold",
-            fontName="Helvetica-Bold",
-            fontSize=8.0,
-            leading=10.0,
-            textColor=BrandNavy,
-        ),
-    }
+def _MpZoneStyle(ZoneText: Any) -> tuple[Any, Any]:
+    Zone = str(ZoneText or "").lower()
+    if "excellence" in Zone:
+        return MpGoldSoft, MpGoldDark
+    if "growth" in Zone or "milestone" in Zone:
+        return MpBlueSoft, MpBlueDark
+    if "improvement" in Zone or "practice" in Zone:
+        return MpOrangeSoft, MpOrangeDark
+    return MpSlateSoft, MpMuted
 
 
-def _Paragraph(TextValue: Any, Style: ParagraphStyle) -> Paragraph:
-    Text = _PdfText(TextValue)
-    Escaped = Text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    return Paragraph(Escaped, Style)
-
-
-def _CardGrid(Items: list[tuple[str, Any]], Columns: int, Styles: dict[str, ParagraphStyle], AccentColor=BrandBlue) -> Table:
-    Rows = []
-    for Index in range(0, len(Items), Columns):
-        RowItems = Items[Index:Index + Columns]
-        Cells = []
-        for Label, Value in RowItems:
-            Cells.append([
-                _Paragraph(str(Label).upper(), Styles["CardLabel"]),
-                Spacer(1, 2),
-                _Paragraph(Value, Styles["CardValue"]),
-            ])
-        while len(Cells) < Columns:
-            Cells.append("")
-        Rows.append(Cells)
-    TableValue = Table(Rows, colWidths=[None] * Columns, hAlign="LEFT")
-    TableValue.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), SoftSlate),
-        ("BOX", (0, 0), (-1, -1), 0.55, CardBorder),
-        ("INNERGRID", (0, 0), (-1, -1), 0.55, colors.white),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 9),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 9),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("LINEABOVE", (0, 0), (-1, 0), 2.0, AccentColor),
-    ]))
-    return TableValue
-
-
-def _MessagePanel(Title: str, Message: Any, Styles: dict[str, ParagraphStyle], AccentColor=BrandTeal) -> Table:
-    Panel = Table([
-        [_Paragraph(Title.upper(), Styles["CardLabel"])],
-        [_Paragraph(Message, Styles["Body"])],
-    ], colWidths=[None])
-    Panel.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F0FDFA")),
-        ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#BEEFE6")),
-        ("LINEBEFORE", (0, 0), (0, -1), 3.2, AccentColor),
-        ("LEFTPADDING", (0, 0), (-1, -1), 12),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-        ("TOPPADDING", (0, 0), (-1, -1), 9),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
-    ]))
-    return Panel
-
-
-def _HighlightsPanel(Highlights: list[Any], Styles: dict[str, ParagraphStyle]) -> Table:
-    CleanHighlights = [str(_PdfText(Item)) for Item in Highlights if str(_PdfText(Item)).strip()]
-    if not CleanHighlights:
-        CleanHighlights = ["Progress highlights will appear as learning records are completed."]
-    Rows = [[_Paragraph("PROGRESS HIGHLIGHTS", Styles["CardLabel"] )]]
-    for Index, Item in enumerate(CleanHighlights[:4], start=1):
-        Rows.append([_Paragraph(f"{Index}. {Item}", Styles["Small"])])
-    Panel = Table(Rows, colWidths=[None])
-    Panel.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FBFF")),
-        ("BOX", (0, 0), (-1, -1), 0.7, CardBorder),
-        ("LINEBEFORE", (0, 0), (0, -1), 3.0, SuccessGreen),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-    ]))
-    return Panel
-
-
-def _CurrentDetailsPanel(CurrentLevel: dict[str, Any], Styles: dict[str, ParagraphStyle]) -> Table:
-    Rows = [[_Paragraph("CURRENT LEVEL DETAILS", Styles["CardLabel"] )]]
-    DetailItems = [
-        ("Current Module", CurrentLevel.get("module", "-")),
-        ("Current Level", CurrentLevel.get("level", "-")),
-        ("Level Status", CurrentLevel.get("status", "-")),
-        ("Practice", CurrentLevel.get("practiceProgress", "-")),
-        ("Practice Accuracy", CurrentLevel.get("practiceAccuracy", "-")),
-        ("Assessment", CurrentLevel.get("assessmentStatus", "-")),
-    ]
-    for Label, Value in DetailItems:
-        Rows.append([_Paragraph(f"{_PdfText(Label)}: {_PdfText(Value)}", Styles["Small"])])
-    Panel = Table(Rows, colWidths=[None])
-    Panel.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F0FDFA")),
-        ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#BEEFE6")),
-        ("LINEBEFORE", (0, 0), (0, -1), 3.0, BrandCyan),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-    ]))
-    return Panel
-
-
-def _PromotionTable(Promotions: list[dict[str, Any]], Styles: dict[str, ParagraphStyle]) -> Table:
-    HeaderStyle = ParagraphStyle(
-        "MathPathPromotionHeader",
-        fontName="Helvetica-Bold",
-        fontSize=7.0,
-        leading=8.5,
-        textColor=colors.white,
-        alignment=TA_LEFT,
-    )
-    Headers = ["From", "To", "Assessment", "Score", "Date"]
-    Rows: list[list[Any]] = [[_Paragraph(Header.upper(), HeaderStyle) for Header in Headers]]
-    VisiblePromotions = Promotions[:4]
-    for Item in VisiblePromotions:
-        Rows.append([
-            _Paragraph(Item.get("fromLevel", "-"), Styles["TableCellBold"]),
-            _Paragraph(Item.get("toLevel", "-"), Styles["TableCellBold"]),
-            _Paragraph(Item.get("assessment", "-"), Styles["TableCell"]),
-            _Paragraph(Item.get("score", "-"), Styles["TableCellBold"]),
-            _Paragraph(Item.get("date", "-"), Styles["TableCell"]),
-        ])
-    if not VisiblePromotions:
-        Rows.append([_Paragraph("No completed level movement has been recorded yet.", Styles["TableCell"]), "", "", "", ""])
-    Widths = [24 * mm, 24 * mm, 60 * mm, 27 * mm, 42 * mm]
-    TableValue = Table(Rows, colWidths=Widths, repeatRows=1, hAlign="LEFT")
-    TableValue.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), BrandNavy),
-        ("BACKGROUND", (0, 1), (-1, -1), colors.white),
-        ("BOX", (0, 0), (-1, -1), 0.7, CardBorder),
-        ("INNERGRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#E5EEF8")),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 7),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("SPAN", (0, 1), (-1, 1)) if not VisiblePromotions else ("LINEBEFORE", (0, 1), (0, -1), 0, colors.white),
-    ]))
-    return TableValue
-
-
-def _DrawParentReportFooter(Canvas, Doc):
-    Canvas.saveState()
-    Width, _ = A4
-    Canvas.setStrokeColor(colors.HexColor("#E2E8F0"))
-    Canvas.setLineWidth(0.6)
-    Canvas.line(15 * mm, 13 * mm, Width - 15 * mm, 13 * mm)
-    Canvas.setFillColor(MutedSlate)
-    Canvas.setFont("Helvetica", 7.2)
-    Canvas.drawString(15 * mm, 8 * mm, "Generated from MathPath learning, practice, assessment, and promotion records.")
-    Canvas.drawRightString(Width - 15 * mm, 8 * mm, f"Page {Doc.page}")
-    Canvas.restoreState()
-
-
-def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) -> StreamingResponse:
-    Student = ReportData.get("student", {}) or {}
-    Summary = ReportData.get("summary", {}) or {}
-    Snapshot = ReportData.get("snapshot", []) or []
-    CurrentLevel = ReportData.get("currentLevel", {}) or {}
-    Promotions = ReportData.get("promotions", []) or []
-    Highlights = ReportData.get("highlights", []) or []
-    GeneratedOnValue = ReportData.get("generatedOn") or ReportGeneratedOn()
-    Styles = _Styles()
-    LogoPath = _FindMathPathLogo()
-
-    Buffer = BytesIO()
-    Document = SimpleDocTemplate(
-        Buffer,
-        pagesize=A4,
-        rightMargin=15 * mm,
-        leftMargin=15 * mm,
-        topMargin=14 * mm,
-        bottomMargin=18 * mm,
-        title="MathPath Parent Progress Report",
-        author="MathPath",
-    )
-
-    Story: list[Any] = []
-    Story.append(_HeroBanner(
-        _PdfText(Student.get("name", "-")),
-        _PdfText(Student.get("code", "-")),
-        _PdfText(Student.get("classSection", "-")),
-        _PdfText(GeneratedOnValue),
-        LogoPath,
-    ))
-    Story.append(Spacer(1, 5 * mm))
-
-    Story.append(KeepTogether([
-        _SectionDivider("Learning Snapshot", "Journey Summary"),
-        Spacer(1, 2.5 * mm),
-        _MessagePanel("Parent-Friendly Summary", Summary.get("message") or "The learner's progress summary is available below.", Styles),
-        Spacer(1, 3 * mm),
-        _CardGrid([(str(Item.get("label", "-")), Item.get("value", "-")) for Item in Snapshot], 3, Styles, BrandBlue),
-    ]))
-    Story.append(Spacer(1, 4.5 * mm))
-
-    Story.append(KeepTogether([
-        _SectionDivider("Progress Highlights", "What This Means"),
-        Spacer(1, 2.5 * mm),
-        _HighlightsPanel(Highlights, Styles),
-    ]))
-    Story.append(Spacer(1, 4.5 * mm))
-
-    Story.append(KeepTogether([
-        _SectionDivider("Completed Movement", "Promotion Journey"),
-        Spacer(1, 2.5 * mm),
-        _PromotionTable(Promotions, Styles),
-    ]))
-
-    SafeFileName = FileName if FileName.lower().endswith(".pdf") else f"{FileName}.pdf"
-    Document.build(Story, onFirstPage=_DrawParentReportFooter, onLaterPages=_DrawParentReportFooter)
-    Buffer.seek(0)
-    return StreamingResponse(
-        Buffer,
-        media_type=PDF_MIME,
-        headers={"Content-Disposition": f'attachment; filename="{SafeFileName}"'},
-    )
-
-# -----------------------------------------------------------------------------
-# Phase 8.7.3.1.6 - Student Progress Report final premium renderer
-# -----------------------------------------------------------------------------
-
-SprInk = colors.HexColor("#07122F")
-SprText = colors.HexColor("#24324A")
-SprMuted = colors.HexColor("#66748E")
-SprLine = colors.HexColor("#DCE8F7")
-SprPanel = colors.HexColor("#FFFFFF")
-SprPage = colors.HexColor("#F3F8FF")
-SprBlue = colors.HexColor("#2563EB")
-SprCyan = colors.HexColor("#05B6D4")
-SprTeal = colors.HexColor("#0FAD9F")
-SprGreen = colors.HexColor("#059669")
-SprPurple = colors.HexColor("#7C3AED")
-SprAmber = colors.HexColor("#F59E0B")
-SprRose = colors.HexColor("#EF4444")
-SprGold = colors.HexColor("#FBBF24")
-SprFontRegular = "Helvetica"
-SprFontBold = "Helvetica-Bold"
-
-
-def _RegisterSprFonts():
-    global SprFontRegular, SprFontBold
-    CandidatePairs = [
-        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
-        ("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"),
-        ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
-        ("C:/Windows/Fonts/calibri.ttf", "C:/Windows/Fonts/calibrib.ttf"),
-    ]
-    for RegularPath, BoldPath in CandidatePairs:
-        try:
-            if Path(RegularPath).exists() and Path(BoldPath).exists():
-                pdfmetrics.registerFont(TTFont("MathPathReport-Regular", RegularPath))
-                pdfmetrics.registerFont(TTFont("MathPathReport-Bold", BoldPath))
-                SprFontRegular = "MathPathReport-Regular"
-                SprFontBold = "MathPathReport-Bold"
-                return
-        except Exception:
-            continue
-
-
-_RegisterSprFonts()
-
-
-def _SprStyle(Name: str, Size: float, Leading: float, Color=SprText, Bold: bool = False, Align=TA_LEFT) -> ParagraphStyle:
+def _MpStyle(Name: str, Size: float, Leading: float, Color=MpText, Bold: bool = False, Align=TA_LEFT) -> ParagraphStyle:
     return ParagraphStyle(
         Name,
-        fontName=SprFontBold if Bold else SprFontRegular,
+        fontName=MpFontBold if Bold else MpFontRegular,
         fontSize=Size,
         leading=Leading,
         textColor=Color,
@@ -664,19 +322,65 @@ def _SprStyle(Name: str, Size: float, Leading: float, Color=SprText, Bold: bool 
     )
 
 
-def _SprEsc(Value: Any) -> str:
+def _MpEsc(Value: Any) -> str:
     return _PdfText(Value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _SprPara(Canvas, TextValue: Any, X: float, TopY: float, Width: float, Style: ParagraphStyle) -> float:
-    Value = Paragraph(_SprEsc(TextValue), Style)
-    _, Height = Value.wrap(Width, 140 * mm)
+def _MpPara(Canvas, TextValue: Any, X: float, TopY: float, Width: float, Style: ParagraphStyle) -> float:
+    Value = Paragraph(_MpEsc(TextValue), Style)
+    _, Height = Value.wrap(Width, 160 * mm)
     Value.drawOn(Canvas, X, TopY - Height)
     return Height
 
 
-def _SprPanel(Canvas, X: float, Y: float, W: float, H: float, Fill=SprPanel, Stroke=SprLine, Radius: float = 12, StrokeWidth: float = 0.75):
+def _MpFit(Canvas, TextValue: Any, MaxWidth: float, Start: float, MinSize: float = 6.0, FontName: str | None = None) -> float:
+    FontName = FontName or MpFontBold
+    Size = Start
+    Text = _PdfText(TextValue)
+    while Size > MinSize and Canvas.stringWidth(Text, FontName, Size) > MaxWidth:
+        Size -= 0.25
+    return Size
+
+
+def _MpDrawFitted(Canvas, TextValue: Any, X: float, Y: float, MaxWidth: float, Start: float, Color=MpInk, Bold: bool = True, Align: str = "left", MinSize: float = 6.0) -> float:
+    FontName = MpFontBold if Bold else MpFontRegular
+    Size = _MpFit(Canvas, TextValue, MaxWidth, Start, MinSize, FontName)
+    Text = _PdfText(TextValue)
     Canvas.saveState()
+    Canvas.setFillColor(Color)
+    Canvas.setFont(FontName, Size)
+    if Align == "center":
+        Canvas.drawCentredString(X, Y, Text)
+    elif Align == "right":
+        Canvas.drawRightString(X, Y, Text)
+    else:
+        Canvas.drawString(X, Y, Text)
+    Canvas.restoreState()
+    return Size
+
+
+def _MpTracked(Canvas, TextValue: Any, X: float, Y: float, Size: float = 6.6, Color=MpMuted, Track: float = 0.9, Align: str = "left") -> float:
+    Text = _PdfText(TextValue).upper()
+    Width = Canvas.stringWidth(Text, MpFontBold, Size) + Track * max(0, len(Text) - 1)
+    if Align == "center":
+        DrawX = X - Width / 2
+    elif Align == "right":
+        DrawX = X - Width
+    else:
+        DrawX = X
+    Canvas.saveState()
+    Canvas.setFillColor(Color)
+    Canvas.setFont(MpFontBold, Size)
+    Canvas.drawString(DrawX, Y, Text, charSpace=Track)
+    Canvas.restoreState()
+    return Width
+
+
+def _MpPanel(Canvas, X: float, Y: float, W: float, H: float, Fill=MpWhite, Stroke=MpLine, Radius: float = 10, StrokeWidth: float = 0.8, Shadow: bool = False):
+    Canvas.saveState()
+    if Shadow:
+        Canvas.setFillColor(colors.Color(0.16, 0.24, 0.42, alpha=0.08))
+        Canvas.roundRect(X + 0.8, Y - 1.8, W, H, Radius, fill=1, stroke=0)
     Canvas.setFillColor(Fill)
     Canvas.setStrokeColor(Stroke)
     Canvas.setLineWidth(StrokeWidth)
@@ -684,119 +388,392 @@ def _SprPanel(Canvas, X: float, Y: float, W: float, H: float, Fill=SprPanel, Str
     Canvas.restoreState()
 
 
-def _SprBackground(Canvas, PageNumber: int = 1):
+def _MpChip(Canvas, TextValue: Any, CX: float, CY: float, Fill, TextColor, Size: float = 6.4, PadX: float = 6.0, H: float = 11.0) -> float:
+    Text = _PdfText(TextValue)
+    Width = Canvas.stringWidth(Text, MpFontBold, Size) + PadX * 2
+    Canvas.saveState()
+    Canvas.setFillColor(Fill)
+    Canvas.roundRect(CX - Width / 2, CY - H / 2, Width, H, H / 2, fill=1, stroke=0)
+    Canvas.setFillColor(TextColor)
+    Canvas.setFont(MpFontBold, Size)
+    Canvas.drawCentredString(CX, CY - Size * 0.34, Text)
+    Canvas.restoreState()
+    return Width
+
+
+def _MpBar(Canvas, X: float, Y: float, W: float, H: float, Fraction: float, Color, Track=MpSlateSoft):
+    Frac = max(0.0, min(1.0, Fraction))
+    Canvas.saveState()
+    Canvas.setFillColor(Track)
+    Canvas.roundRect(X, Y, W, H, H / 2, fill=1, stroke=0)
+    if Frac > 0:
+        FillW = max(H, W * Frac)
+        Canvas.setFillColor(Color)
+        Canvas.roundRect(X, Y, FillW, H, H / 2, fill=1, stroke=0)
+        Canvas.setFillColor(colors.Color(1, 1, 1, alpha=0.55))
+        Canvas.circle(X + FillW - H / 2, Y + H / 2, H * 0.2, fill=1, stroke=0)
+    Canvas.restoreState()
+
+
+def _MpStar(Canvas, CX: float, CY: float, Radius: float, Color=MpGold, InnerRatio: float = 0.45, Points: int = 5, RotationDeg: float = 90.0):
+    Canvas.saveState()
+    Canvas.setFillColor(Color)
+    PathValue = Canvas.beginPath()
+    Step = math.pi / Points
+    Start = math.radians(RotationDeg)
+    for Index in range(Points * 2):
+        Rad = Radius if Index % 2 == 0 else Radius * InnerRatio
+        Angle = Start + Index * Step
+        PX = CX + Rad * math.cos(Angle)
+        PY = CY + Rad * math.sin(Angle)
+        if Index == 0:
+            PathValue.moveTo(PX, PY)
+        else:
+            PathValue.lineTo(PX, PY)
+    PathValue.close()
+    Canvas.drawPath(PathValue, stroke=0, fill=1)
+    Canvas.restoreState()
+
+
+def _MpGlyph(Canvas, Kind: str, CX: float, CY: float, S: float, Color=MpBlue, StrokeW: float = 1.1):
+    Canvas.saveState()
+    Canvas.setStrokeColor(Color)
+    Canvas.setFillColor(Color)
+    Canvas.setLineWidth(StrokeW)
+    Canvas.setLineCap(1)
+    Canvas.setLineJoin(1)
+    if Kind == "check":
+        PathValue = Canvas.beginPath()
+        PathValue.moveTo(CX - S * 0.55, CY + S * 0.02)
+        PathValue.lineTo(CX - S * 0.12, CY - S * 0.42)
+        PathValue.lineTo(CX + S * 0.58, CY + S * 0.45)
+        Canvas.drawPath(PathValue, stroke=1, fill=0)
+    elif Kind == "flag":
+        Canvas.line(CX - S * 0.42, CY - S * 0.72, CX - S * 0.42, CY + S * 0.72)
+        PathValue = Canvas.beginPath()
+        PathValue.moveTo(CX - S * 0.42, CY + S * 0.72)
+        PathValue.lineTo(CX + S * 0.62, CY + S * 0.32)
+        PathValue.lineTo(CX - S * 0.42, CY - S * 0.02)
+        PathValue.close()
+        Canvas.drawPath(PathValue, stroke=0, fill=1)
+    elif Kind == "calendar":
+        Canvas.roundRect(CX - S * 0.6, CY - S * 0.58, S * 1.2, S * 1.05, S * 0.16, fill=0, stroke=1)
+        Canvas.line(CX - S * 0.6, CY + S * 0.14, CX + S * 0.6, CY + S * 0.14)
+        Canvas.line(CX - S * 0.28, CY + S * 0.47, CX - S * 0.28, CY + S * 0.68)
+        Canvas.line(CX + S * 0.28, CY + S * 0.47, CX + S * 0.28, CY + S * 0.68)
+        Canvas.circle(CX - S * 0.2, CY - S * 0.18, S * 0.08, fill=1, stroke=0)
+        Canvas.circle(CX + S * 0.2, CY - S * 0.18, S * 0.08, fill=1, stroke=0)
+    elif Kind == "doc":
+        Canvas.roundRect(CX - S * 0.45, CY - S * 0.62, S * 0.9, S * 1.24, S * 0.12, fill=0, stroke=1)
+        Canvas.line(CX - S * 0.22, CY + S * 0.26, CX + S * 0.22, CY + S * 0.26)
+        Canvas.line(CX - S * 0.22, CY, CX + S * 0.22, CY)
+        Canvas.line(CX - S * 0.22, CY - S * 0.26, CX + S * 0.04, CY - S * 0.26)
+    elif Kind == "medal":
+        Canvas.line(CX - S * 0.26, CY + S * 0.68, CX - S * 0.1, CY + S * 0.24)
+        Canvas.line(CX + S * 0.26, CY + S * 0.68, CX + S * 0.1, CY + S * 0.24)
+        Canvas.circle(CX, CY - S * 0.14, S * 0.42, fill=0, stroke=1)
+        Canvas.circle(CX, CY - S * 0.14, S * 0.15, fill=1, stroke=0)
+    elif Kind == "target":
+        Canvas.circle(CX, CY, S * 0.6, fill=0, stroke=1)
+        Canvas.circle(CX, CY, S * 0.32, fill=0, stroke=1)
+        Canvas.circle(CX, CY, S * 0.09, fill=1, stroke=0)
+    elif Kind == "levelup":
+        Canvas.line(CX, CY - S * 0.6, CX, CY + S * 0.28)
+        PathValue = Canvas.beginPath()
+        PathValue.moveTo(CX - S * 0.36, CY + S * 0.14)
+        PathValue.lineTo(CX, CY + S * 0.64)
+        PathValue.lineTo(CX + S * 0.36, CY + S * 0.14)
+        PathValue.close()
+        Canvas.drawPath(PathValue, stroke=0, fill=1)
+    elif Kind == "spark":
+        PathValue = Canvas.beginPath()
+        PathValue.moveTo(CX, CY + S)
+        PathValue.lineTo(CX + S * 0.24, CY + S * 0.24)
+        PathValue.lineTo(CX + S, CY)
+        PathValue.lineTo(CX + S * 0.24, CY - S * 0.24)
+        PathValue.lineTo(CX, CY - S)
+        PathValue.lineTo(CX - S * 0.24, CY - S * 0.24)
+        PathValue.lineTo(CX - S, CY)
+        PathValue.lineTo(CX - S * 0.24, CY + S * 0.24)
+        PathValue.close()
+        Canvas.drawPath(PathValue, stroke=0, fill=1)
+    elif Kind == "arrow":
+        Canvas.line(CX - S * 0.65, CY, CX + S * 0.42, CY)
+        PathValue = Canvas.beginPath()
+        PathValue.moveTo(CX + S * 0.16, CY + S * 0.3)
+        PathValue.lineTo(CX + S * 0.62, CY)
+        PathValue.lineTo(CX + S * 0.16, CY - S * 0.3)
+        Canvas.drawPath(PathValue, stroke=1, fill=0)
+    elif Kind == "home":
+        PathValue = Canvas.beginPath()
+        PathValue.moveTo(CX - S * 0.62, CY + S * 0.05)
+        PathValue.lineTo(CX, CY + S * 0.62)
+        PathValue.lineTo(CX + S * 0.62, CY + S * 0.05)
+        Canvas.drawPath(PathValue, stroke=1, fill=0)
+        Canvas.roundRect(CX - S * 0.42, CY - S * 0.58, S * 0.84, S * 0.6, S * 0.08, fill=0, stroke=1)
+    Canvas.restoreState()
+
+
+def _MpBackground(Canvas, PageNumber: int = 1):
     Width, Height = A4
     Canvas.saveState()
-    Canvas.setFillColor(SprPage)
+    Canvas.setFillColor(MpPage)
     Canvas.rect(0, 0, Width, Height, fill=1, stroke=0)
-    Canvas.setFillColor(colors.Color(0.82, 0.96, 1.0, alpha=0.55))
-    Canvas.circle(Width + 12 * mm, Height - 12 * mm, 48 * mm, fill=1, stroke=0)
-    Canvas.setFillColor(colors.Color(0.90, 0.86, 1.0, alpha=0.35))
-    Canvas.circle(-8 * mm, 35 * mm, 42 * mm, fill=1, stroke=0)
-    Canvas.setFillColor(colors.Color(0.86, 0.98, 0.96, alpha=0.45))
-    Canvas.circle(Width - 18 * mm, 58 * mm, 36 * mm, fill=1, stroke=0)
-    Canvas.setFillColor(colors.HexColor("#D8F7FF"))
-    for X in range(18, int(Width), 20):
-        for Y in range(22, int(Height), 20):
-            if (X * 3 + Y + PageNumber) % 97 == 0:
-                Canvas.circle(X, Y, 0.42, fill=1, stroke=0)
+    Canvas.setFillColor(colors.Color(0.85, 0.92, 1.0, alpha=0.55))
+    Canvas.circle(Width + 4 * mm, 62 * mm, 38 * mm, fill=1, stroke=0)
+    Canvas.setFillColor(colors.Color(0.90, 0.88, 1.0, alpha=0.35))
+    Canvas.circle(-6 * mm, 128 * mm, 30 * mm, fill=1, stroke=0)
+    Canvas.setFillColor(colors.HexColor("#DBE9FB"))
+    for X in range(14, int(Width), 16):
+        for Y in range(16, int(Height), 16):
+            if (X * 7 + Y * 3 + PageNumber) % 89 == 0:
+                Canvas.circle(X, Y, 0.5, fill=1, stroke=0)
     Canvas.restoreState()
 
 
-def _SprLogo(Canvas, LogoPath: str | None, X: float, Y: float, W: float, H: float, Large: bool = False):
+def _MpFooter(Canvas, PageNumber: int, TotalPages: int, StudentCode: str, ReportLevel: str):
+    Width, _ = A4
+    Left = 14 * mm
+    Right = Width - 14 * mm
     Canvas.saveState()
-    _SprPanel(Canvas, X - 7, Y - 6, W + 14, H + 12, colors.white, colors.HexColor("#CFE4F6"), 13 if Large else 9, 0.8)
+    Canvas.setStrokeColor(MpLine)
+    Canvas.setLineWidth(0.7)
+    Canvas.line(Left, 13.2 * mm, Right, 13.2 * mm)
+    Canvas.setFillColor(MpMuted)
+    Canvas.setFont(MpFontRegular, 6.8)
+    Canvas.drawString(Left, 8.8 * mm, f"MathPath Parent Progress Report · {_PdfText(ReportLevel)} · Generated from verified learning records")
+    Canvas.drawRightString(Right, 8.8 * mm, f"{_PdfText(StudentCode)} · Page {PageNumber} of {TotalPages}")
+    Canvas.restoreState()
+
+
+def _MpLogoChip(Canvas, LogoPath: str | None, X: float, Y: float, W: float, H: float, Shadow: bool = True):
+    _MpPanel(Canvas, X, Y, W, H, MpWhite, MpLine, 8, 0.7, Shadow=Shadow)
     if LogoPath:
         try:
-            Canvas.drawImage(LogoPath, X, Y, W, H, preserveAspectRatio=True, mask="auto", anchor="c")
+            Canvas.drawImage(LogoPath, X + 4, Y + 3, W - 8, H - 6, preserveAspectRatio=True, mask="auto", anchor="c")
+            return
         except Exception:
-            Canvas.setFillColor(SprInk)
-            Canvas.setFont(SprFontBold, 17 if Large else 10)
-            Canvas.drawCentredString(X + W / 2, Y + H / 2 - 3, "MathPath")
-    else:
-        Canvas.setFillColor(SprInk)
-        Canvas.setFont(SprFontBold, 17 if Large else 10)
-        Canvas.drawCentredString(X + W / 2, Y + H / 2 - 3, "MathPath")
-    Canvas.restoreState()
-
-
-def _SprFooter(Canvas, PageNumber: int, ReportLevel: str):
-    W, _ = A4
-    L = 15 * mm
-    R = W - 15 * mm
+            pass
     Canvas.saveState()
-    Canvas.setStrokeColor(colors.HexColor("#DDE8F7"))
-    Canvas.line(L, 13.2 * mm, R, 13.2 * mm)
-    Canvas.setFillColor(SprMuted)
-    Canvas.setFont(SprFontRegular, 7.0)
-    Canvas.drawString(L, 8.6 * mm, f"MathPath Student Progress Report - {ReportLevel}")
-    Canvas.drawRightString(R, 8.6 * mm, f"Page {PageNumber}")
+    Side = H - 8
+    Canvas.setFillColor(MpBlue)
+    Canvas.roundRect(X + 5, Y + 4, Side, Side, 2.5, fill=1, stroke=0)
+    Canvas.setFillColor(MpWhite)
+    for I in range(2):
+        for J in range(2):
+            Canvas.circle(X + 5 + Side * (0.32 + 0.36 * I), Y + 4 + Side * (0.32 + 0.36 * J), Side * 0.1, fill=1, stroke=0)
+    Canvas.setFillColor(MpInk)
+    Canvas.setFont(MpFontBold, H * 0.4)
+    Canvas.drawString(X + 5 + Side + 4, Y + H / 2 - H * 0.15, "MathPath")
     Canvas.restoreState()
 
 
-def _SprTextWidth(Canvas, TextValue: Any, FontName: str, Size: float) -> float:
-    return Canvas.stringWidth(_PdfText(TextValue), FontName, Size)
+def _MpResolvePhoto(PhotoRef: Any) -> ImageReader | None:
+    """Resolve a stored student photo reference into an ImageReader.
+
+    Supports base64 data URIs and locally stored /uploads paths. Remote http(s)
+    URLs are intentionally not fetched at render time; callers fall back to the
+    initials avatar instead of risking a blocked or broken render.
+    """
+    if not PhotoRef or not isinstance(PhotoRef, str):
+        return None
+    Ref = PhotoRef.strip()
+    if not Ref:
+        return None
+    try:
+        if Ref.startswith("data:image"):
+            _, _, Encoded = Ref.partition(",")
+            if not Encoded:
+                return None
+            return ImageReader(BytesIO(base64.b64decode(Encoded)))
+        if Ref.startswith("http://") or Ref.startswith("https://"):
+            return None
+        Candidate = Ref.lstrip("/")
+        CandidatePaths = [Path(Candidate)]
+        for Parent in Path(__file__).resolve().parents:
+            CandidatePaths.append(Parent / Candidate)
+        for PathValue in CandidatePaths:
+            if PathValue.exists() and PathValue.is_file():
+                return ImageReader(str(PathValue))
+    except Exception:
+        return None
+    return None
 
 
-def _SprFittedFontSize(Canvas, TextValue: Any, MaxWidth: float, Start: float, MinSize: float = 6.6, FontName: str | None = None) -> float:
-    FontName = FontName or SprFontBold
-    Size = Start
-    while Size > MinSize and _SprTextWidth(Canvas, TextValue, FontName, Size) > MaxWidth:
-        Size -= 0.25
-    return Size
-
-
-def _SprLabel(Canvas, Label: str, X: float, Y: float, Size: float = 6.8, Color=SprMuted):
-    Canvas.setFillColor(Color)
-    Canvas.setFont(SprFontBold, Size)
-    Canvas.drawString(X, Y, Label.upper())
-
-
-def _SprValue(Canvas, Value: Any, X: float, TopY: float, W: float, Size: float = 10.2, Color=SprInk):
-    Fitted = _SprFittedFontSize(Canvas, Value, W, Size, 7.0, SprFontBold)
-    return _SprPara(Canvas, Value, X, TopY, W, _SprStyle("SprValue", Fitted, Fitted + 2.4, Color, True))
-
-
-def _SprInfoCell(Canvas, Label: str, Value: Any, X: float, Y: float, W: float, H: float, Accent=SprBlue, Fill=colors.white):
-    _SprPanel(Canvas, X, Y, W, H, Fill, colors.HexColor("#E2ECF8"), 10, 0.7)
+def _MpAvatar(Canvas, CX: float, CY: float, Radius: float, PhotoReader: ImageReader | None, StudentName: str, Tier: dict[str, Any]):
     Canvas.saveState()
-    Canvas.setFillColor(Accent)
-    Canvas.roundRect(X, Y + H - 3.8, W, 3.8, 1.8, fill=1, stroke=0)
-    _SprLabel(Canvas, Label, X + 8, Y + H - 14.2, 6.8)
-    _SprValue(Canvas, Value, X + 8, Y + H - 20.3, W - 16, 10.3)
+    Canvas.setFillColor(MpWhite)
+    Canvas.circle(CX, CY, Radius + 2.8, fill=1, stroke=0)
+    Canvas.setStrokeColor(Tier["main"])
+    Canvas.setLineWidth(1.7)
+    Canvas.circle(CX, CY, Radius + 1.7, fill=0, stroke=1)
+    Drawn = False
+    if PhotoReader is not None:
+        try:
+            ImgW, ImgH = PhotoReader.getSize()
+            if ImgW > 0 and ImgH > 0:
+                Scale = max((Radius * 2) / ImgW, (Radius * 2) / ImgH)
+                DrawW, DrawH = ImgW * Scale, ImgH * Scale
+                Canvas.saveState()
+                ClipPath = Canvas.beginPath()
+                ClipPath.circle(CX, CY, Radius)
+                Canvas.clipPath(ClipPath, stroke=0, fill=0)
+                Canvas.drawImage(PhotoReader, CX - DrawW / 2, CY - DrawH / 2, DrawW, DrawH, mask="auto")
+                Canvas.restoreState()
+                Drawn = True
+        except Exception:
+            Drawn = False
+    if not Drawn:
+        Canvas.setFillColor(Tier["main"])
+        Canvas.circle(CX, CY, Radius, fill=1, stroke=0)
+        Canvas.setFillColor(colors.Color(1, 1, 1, alpha=0.2))
+        Canvas.circle(CX - Radius * 0.32, CY + Radius * 0.36, Radius * 0.55, fill=1, stroke=0)
+        Words = [Word for Word in _PdfText(StudentName).split() if Word and Word[0].isalpha()]
+        Initials = "".join(Word[0] for Word in Words[:2]).upper() or "MP"
+        Size = Radius * (0.9 if len(Initials) > 1 else 1.05)
+        Canvas.setFillColor(MpWhite)
+        Canvas.setFont(MpFontBold, Size)
+        Canvas.drawCentredString(CX, CY - Size * 0.36, Initials)
     Canvas.restoreState()
 
 
-def _SprPerformanceColor(PercentageValue: str):
-    try:
-        Numeric = float(str(PercentageValue).replace("%", "").strip())
-    except Exception:
-        Numeric = 0.0
-    if Numeric >= 90:
-        return SprGreen
-    if Numeric >= 70:
-        return SprBlue
-    return SprRose
+def _MpAchievementBadge(Canvas, CX: float, CY: float, PercentText: str, ScoreText: str, Tier: dict[str, Any]):
+    """Bespoke achievement medallion: segmented XP ring, scalloped rosette,
+    star crest, and a ribbon banner carrying the performance band."""
+    RingR = 20 * mm
+    DiscR = 14.6 * mm
+    Numeric = max(0.0, min(100.0, _MpNum(PercentText)))
+
+    Canvas.saveState()
+    Canvas.setLineCap(1)
+
+    # Soft halo behind the medallion.
+    Canvas.setFillColor(colors.Color(0.55, 0.68, 0.95, alpha=0.10))
+    Canvas.circle(CX, CY, RingR + 4.5 * mm, fill=1, stroke=0)
+
+    # Segmented progress ring (gamified XP ring, not a stock donut).
+    Segments = 30
+    SegmentSpan = 360.0 / Segments
+    LitSegments = int(round(Numeric / 100.0 * Segments))
+    Canvas.setLineWidth(3.4)
+    for Index in range(Segments):
+        StartAngle = 90.0 - Index * SegmentSpan
+        Canvas.setStrokeColor(Tier["main"] if Index < LitSegments else MpLine)
+        Canvas.arc(CX - RingR, CY - RingR, CX + RingR, CY + RingR, StartAngle - 1.2, -(SegmentSpan - 4.2))
+
+    # Scalloped rosette edge.
+    Canvas.setFillColor(Tier["dark"])
+    for Index in range(12):
+        Angle = math.radians(Index * 30)
+        Canvas.circle(CX + DiscR * math.cos(Angle), CY + DiscR * math.sin(Angle), 2.5 * mm, fill=1, stroke=0)
+
+    # Medallion discs.
+    Canvas.setFillColor(colors.Color(0.06, 0.09, 0.2, alpha=0.16))
+    Canvas.circle(CX, CY - 1.4, DiscR + 0.6, fill=1, stroke=0)
+    Canvas.setFillColor(Tier["main"])
+    Canvas.circle(CX, CY, DiscR, fill=1, stroke=0)
+    Canvas.setFillColor(Tier["soft"])
+    Canvas.circle(CX, CY, DiscR - 2.4 * mm, fill=1, stroke=0)
+    Canvas.setFillColor(MpWhite)
+    Canvas.circle(CX, CY, DiscR - 4.0 * mm, fill=1, stroke=0)
+
+    # Star crest and score text.
+    _MpStar(Canvas, CX, CY + 6.6 * mm, 3.1 * mm, Tier["main"])
+    _MpStar(Canvas, CX, CY + 6.6 * mm, 1.15 * mm, MpWhite)
+    Canvas.setFillColor(MpInk)
+    PctSize = _MpFit(Canvas, PercentText, (DiscR - 4.0 * mm) * 1.7, 19.5, 11.0)
+    Canvas.setFont(MpFontBold, PctSize)
+    Canvas.drawCentredString(CX, CY - 2.6 * mm, _PdfText(PercentText))
+    _MpTracked(Canvas, f"Score {ScoreText}", CX, CY - 7.4 * mm, 5.4, MpMuted, 0.5, "center")
+
+    # Sparkles.
+    _MpStar(Canvas, CX - RingR - 1.5 * mm, CY + RingR * 0.62, 2.0 * mm, MpGold, 0.32, 4)
+    _MpStar(Canvas, CX + RingR + 1.0 * mm, CY + RingR * 0.30, 1.5 * mm, MpCyan, 0.32, 4)
+    _MpStar(Canvas, CX + RingR * 0.66, CY + RingR + 2.2 * mm, 1.7 * mm, MpPurple, 0.32, 4)
+
+    # Ribbon banner with the performance band.
+    Label = _PdfText(Tier["label"]).upper()
+    LabelSize = 6.6
+    BannerW = min(52 * mm, max(34 * mm, Canvas.stringWidth(Label, MpFontBold, LabelSize) + 0.9 * (len(Label) - 1) + 12 * mm))
+    BannerH = 7.6 * mm
+    BannerX = CX - BannerW / 2
+    BannerY = CY - RingR - 9.6 * mm
+    for Direction in (-1, 1):
+        EdgeX = BannerX if Direction < 0 else BannerX + BannerW
+        TailPath = Canvas.beginPath()
+        TailPath.moveTo(EdgeX + Direction * -2, BannerY + 1.2)
+        TailPath.lineTo(EdgeX + Direction * 5.2 * mm, BannerY - 0.4)
+        TailPath.lineTo(EdgeX + Direction * 3.2 * mm, BannerY + BannerH / 2 - 0.4)
+        TailPath.lineTo(EdgeX + Direction * 5.2 * mm, BannerY + BannerH - 2.0)
+        TailPath.lineTo(EdgeX + Direction * -2, BannerY + BannerH - 3.4)
+        TailPath.close()
+        Canvas.setFillColor(Tier["dark"])
+        Canvas.drawPath(TailPath, stroke=0, fill=1)
+    Canvas.setFillColor(Tier["main"])
+    Canvas.roundRect(BannerX, BannerY, BannerW, BannerH, 2.2, fill=1, stroke=0)
+    Canvas.setFillColor(colors.Color(1, 1, 1, alpha=0.18))
+    Canvas.roundRect(BannerX, BannerY + BannerH * 0.52, BannerW, BannerH * 0.48, 2.2, fill=1, stroke=0)
+    _MpTracked(Canvas, Label, CX, BannerY + BannerH / 2 - 2.1, LabelSize, MpWhite, 0.9, "center")
+    Canvas.restoreState()
 
 
-def _SprPerformanceBand(PercentageValue: str) -> str:
-    try:
-        Numeric = float(str(PercentageValue).replace("%", "").strip())
-    except Exception:
-        Numeric = 0.0
-    if Numeric >= 90:
-        return "Excellence Zone"
-    if Numeric >= 70:
-        return "Milestone Cleared"
-    return "More Practice Recommended"
+def _MpJourneyPath(Canvas, X: float, Y: float, W: float, Nodes: list[dict[str, Any]], Tier: dict[str, Any]):
+    """Level-map path: cleared levels, the freshly completed level, and the
+    next step, joined by a progress line."""
+    Count = len(Nodes)
+    if Count == 0:
+        return
+    StartX = X + 14 * mm
+    EndX = X + W - 14 * mm
+    Positions = [StartX + (EndX - StartX) * Index / (Count - 1) for Index in range(Count)] if Count > 1 else [(StartX + EndX) / 2]
+    Canvas.saveState()
+    Canvas.setLineCap(1)
+    for Index in range(Count - 1):
+        NextState = Nodes[Index + 1].get("state")
+        Canvas.setLineWidth(1.6)
+        if NextState == "next":
+            Canvas.setStrokeColor(MpFaint)
+            Canvas.setDash([2.6, 2.6], 0)
+        else:
+            Canvas.setStrokeColor(MpGreen)
+            Canvas.setDash([])
+        Canvas.line(Positions[Index] + 5.2 * mm, Y, Positions[Index + 1] - 5.2 * mm, Y)
+    Canvas.setDash([])
+
+    for Index, Node in enumerate(Nodes):
+        PosX = Positions[Index]
+        State = Node.get("state")
+        Code = _PdfText(Node.get("code", "-"))
+        if State == "done":
+            Canvas.setFillColor(MpGreen)
+            Canvas.circle(PosX, Y, 3.4 * mm, fill=1, stroke=0)
+            _MpGlyph(Canvas, "check", PosX, Y, 2.4 * mm, MpWhite, 1.15)
+            StatusText, StatusColor = "Cleared", MpGreen
+        elif State == "current":
+            Canvas.setStrokeColor(Tier["soft"])
+            Canvas.setLineWidth(2.6)
+            Canvas.circle(PosX, Y, 5.2 * mm, fill=0, stroke=1)
+            Canvas.setFillColor(Tier["main"])
+            Canvas.circle(PosX, Y, 4.2 * mm, fill=1, stroke=0)
+            _MpGlyph(Canvas, "check", PosX, Y, 3.0 * mm, MpWhite, 1.5)
+            _MpStar(Canvas, PosX + 4.6 * mm, Y + 4.8 * mm, 1.7 * mm, MpGold, 0.32, 4)
+            StatusText, StatusColor = "Completed", Tier["dark"]
+        else:
+            Canvas.setFillColor(MpWhite)
+            Canvas.setStrokeColor(MpBlue)
+            Canvas.setLineWidth(1.1)
+            Canvas.setDash([2.2, 2.0], 0)
+            Canvas.circle(PosX, Y, 3.8 * mm, fill=1, stroke=1)
+            Canvas.setDash([])
+            _MpGlyph(Canvas, "flag", PosX + 0.4 * mm, Y, 2.3 * mm, MpBlue, 1.0)
+            StatusText, StatusColor = Node.get("statusOverride") or "Next Up", MpBlue
+        _MpTracked(Canvas, StatusText, PosX, Y + 6.8 * mm, 5.4, StatusColor, 0.8, "center")
+        _MpDrawFitted(Canvas, Code, PosX, Y - 9.6 * mm, 30 * mm, 8.2, MpInk, True, "center", 6.0)
+    Canvas.restoreState()
 
 
-def _SprParentProgressCopy(PercentageValue: str, FirstName: str, ReportLevel: str, NextLevel: str, BandLabel: str) -> dict[str, str]:
-    try:
-        Numeric = float(str(PercentageValue).replace("%", "").strip())
-    except Exception:
-        Numeric = 0.0
-
+def _MpParentProgressCopy(PercentageValue: str, FirstName: str, ReportLevel: str, NextLevel: str) -> dict[str, str]:
+    Numeric = _MpNum(PercentageValue)
     NextLevelValue = str(NextLevel or "").strip()
     NextLevelAvailable = NextLevelValue not in {"", "-", "Next Level", "Next Level Pending Setup"}
 
@@ -839,77 +816,21 @@ def _SprParentProgressCopy(PercentageValue: str, FirstName: str, ReportLevel: st
     }
 
 
-def _SprDrawStatusPill(Canvas, TextValue: str, X: float, Y: float, W: float, FillColor, TextColor=SprInk):
-    Canvas.saveState()
-    Canvas.setFillColor(FillColor)
-    Canvas.roundRect(X, Y, W, 17, 8.5, fill=1, stroke=0)
-    Canvas.setFillColor(TextColor)
-    Canvas.setFont(SprFontBold, 7.2)
-    Size = _SprFittedFontSize(Canvas, TextValue, W - 12, 7.2, 5.8, SprFontBold)
-    Canvas.setFont(SprFontBold, Size)
-    Canvas.drawCentredString(X + W / 2, Y + 5.0, _PdfText(TextValue))
-    Canvas.restoreState()
-
-
-def _SprScoreDonut(Canvas, X: float, Y: float, ScoreText: str, Percentage: str):
-    Canvas.saveState()
-    try:
-        Numeric = max(0.0, min(100.0, float(str(Percentage).replace("%", "").strip())))
-    except Exception:
-        Numeric = 0.0
-    ProgressColor = _SprPerformanceColor(Percentage)
-    Canvas.setStrokeColor(colors.HexColor("#D9E7F7"))
-    Canvas.setLineWidth(12)
-    Canvas.circle(X, Y, 32, stroke=1, fill=0)
-    Canvas.setStrokeColor(ProgressColor)
-    Canvas.setLineWidth(12)
-    if Numeric >= 99.5:
-        Canvas.circle(X, Y, 32, stroke=1, fill=0)
-    elif Numeric > 0:
-        Canvas.arc(X - 32, Y - 32, X + 32, Y + 32, 90, -360 * Numeric / 100.0)
-    Canvas.setFillColor(colors.white)
-    Canvas.circle(X, Y, 23, stroke=0, fill=1)
-    Canvas.setFillColor(SprInk)
-    Canvas.setFont(SprFontBold, 16)
-    Canvas.drawCentredString(X, Y + 4, _PdfText(Percentage))
-    Canvas.setFillColor(SprMuted)
-    Canvas.setFont(SprFontBold, 7.2)
-    Canvas.drawCentredString(X, Y - 11, _PdfText(ScoreText))
-    Canvas.restoreState()
-
-
-def _SprHeaderMini(Canvas, LogoPath: str | None, Title: str, StudentCode: str, GeneratedOn: str):
-    W, H = A4
-    L = 15 * mm
-    R = W - 15 * mm
-    Top = H - 16 * mm
-    _SprLogo(Canvas, LogoPath, L, Top - 15 * mm, 40 * mm, 15 * mm, False)
-    Canvas.setFillColor(SprInk)
-    Canvas.setFont(SprFontBold, 13)
-    Canvas.drawRightString(R, Top - 4, Title)
-    Canvas.setFillColor(SprMuted)
-    Canvas.setFont(SprFontRegular, 7.5)
-    Canvas.drawRightString(R, Top - 15.5, f"{StudentCode} | {GeneratedOn}")
-
-
-def _SprSlug(Value: Any) -> str:
-    Text = _PdfText(Value).strip().replace("/", "-").replace("\\", "-")
-    Parts = [Part for Part in Text.replace(" ", "_").split("_") if Part]
-    return "_".join(Parts) or "Student"
-
-
 def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) -> StreamingResponse:
     Student = ReportData.get("student", {}) or {}
     Report = ReportData.get("report", {}) or {}
     Performance = ReportData.get("performance", {}) or {}
     Summary = ReportData.get("summary", {}) or {}
-    Movements = ReportData.get("movements", []) or []
+    Movements = list(ReportData.get("movements", []) or [])
+    Levels = list(ReportData.get("levels", []) or [])
+    Journey = ReportData.get("journey", {}) or {}
 
     StudentName = _PdfText(Student.get("name", "-"))
     StudentCode = _PdfText(Student.get("code", "-"))
     ClassSection = _PdfText(Student.get("classSection", "-"))
     GeneratedOn = _PdfText(ReportData.get("generatedOn") or Report.get("generatedOn") or ReportGeneratedOn())
     ReportLevel = _PdfText(Report.get("reportLevelCode", "-"))
+    ReportLevelName = _PdfText(Report.get("reportLevelName") or ReportLevel)
     ReportModuleCode = _PdfText(Report.get("reportModuleCode", "-"))
     ReportModuleName = _PdfText(Report.get("reportModuleName") or Report.get("reportModuleCode") or "-")
     ModuleDisplayNames = {"YLM": "Young Learners Module"}
@@ -919,22 +840,64 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
         ReportModuleName = ModuleDisplayNames.get(ReportModuleCode, ReportModuleCode or "Learning Journey")
 
     NextLevel = _PdfText(Report.get("nextLevelCode", "-"))
-    NextLevelName = _PdfText(Report.get("nextLevelName") or NextLevel)
+    NextLevelAvailable = NextLevel not in {"", "-", "Next Level", "Next Level Pending Setup"}
     AssessmentName = _PdfText(Performance.get("assessmentName", "Level Assessment"))
     AssessmentScore = _PdfText(Performance.get("assessmentScore", "-"))
     AssessmentPercentage = _PdfText(Performance.get("assessmentPercentage", "-"))
     AssessmentResult = _PdfText(Performance.get("assessmentResult", "Assessment Milestone Cleared"))
     AssessmentDate = _PdfText(Performance.get("assessmentDate", "-"))
-    PracticeProgress = _PdfText(Performance.get("practiceProgress", "-"))
     PracticeAccuracy = _PdfText(Performance.get("practiceAccuracy", "-"))
+    PracticeCompleted = Performance.get("practiceCompleted")
+    PracticeTotal = Performance.get("practiceTotal")
+    if PracticeCompleted is None or PracticeTotal is None:
+        ProgressText = _PdfText(Performance.get("practiceProgress", "-"))
+        Portions = ProgressText.replace("Practice Sheets", "").strip().split("/")
+        try:
+            PracticeCompleted = int(Portions[0].strip())
+            PracticeTotal = int(Portions[1].strip()) if len(Portions) > 1 else 0
+        except Exception:
+            PracticeCompleted, PracticeTotal = 0, 0
+    PracticeSheetsText = f"{PracticeCompleted} / {PracticeTotal}" if PracticeTotal else f"{PracticeCompleted}"
+
     Message = _PdfText(Summary.get("message", "The student's progress summary is ready for review."))
     NextStep = _PdfText(Summary.get("nextStep", f"Begin {NextLevel} Practice"))
     FirstName = StudentName.split()[0] if StudentName and StudentName != "-" else "The student"
     LogoPath = _FindMathPathLogo()
-    BandLabel = _SprPerformanceBand(AssessmentPercentage)
-    DynamicCopy = _SprParentProgressCopy(AssessmentPercentage, FirstName, ReportLevel, NextLevel, BandLabel)
-    AccentColor = _SprPerformanceColor(AssessmentPercentage)
-    PillFill = colors.HexColor("#D1FAE5") if AccentColor == SprGreen else colors.HexColor("#DBEAFE") if AccentColor == SprBlue else colors.HexColor("#FEE2E2")
+    Tier = _MpTier(AssessmentPercentage)
+    Copy = _MpParentProgressCopy(AssessmentPercentage, FirstName, ReportLevel, NextLevel)
+    PhotoReader = _MpResolvePhoto(Student.get("photoRef") or Student.get("photoDataUrl") or Student.get("photoUrl") or Student.get("profilePhotoUrl"))
+
+    # Journey aggregates (with graceful fallbacks when the caller predates them).
+    PracticeAvg = Journey.get("practiceAverageAccuracy")
+    AssessmentAvg = Journey.get("assessmentAverageAccuracy")
+    OverallAvg = Journey.get("overallAverageAccuracy")
+    if PracticeAvg is None:
+        PracticeAvg = _MpNum(PracticeAccuracy)
+    if AssessmentAvg is None:
+        AssessmentAvg = _MpNum(AssessmentPercentage)
+    if OverallAvg is None:
+        OverallAvg = round((_MpNum(PracticeAvg) + _MpNum(AssessmentAvg)) / 2)
+    AssessmentsCleared = Journey.get("assessmentsCleared")
+    if AssessmentsCleared is None:
+        AssessmentsCleared = 1 if "Cleared" in AssessmentResult else 0
+    PromotedLevels = Journey.get("promotedLevels")
+    if PromotedLevels is None:
+        PromotedLevels = len(Movements)
+
+    # Level breakdown fallback: synthesize the report level row from performance data.
+    if not Levels:
+        AccuracyValue = _MpNum(PracticeAccuracy)
+        Zone = "Excellence Zone" if AccuracyValue >= 90 else "Growth Zone" if AccuracyValue >= 70 else "Needs Improvement" if PracticeCompleted else "Not Started"
+        Levels = [{
+            "levelCode": ReportLevel,
+            "levelName": ReportLevelName,
+            "requiredDps": PracticeTotal or 0,
+            "completedDps": PracticeCompleted or 0,
+            "averageAccuracy": int(AccuracyValue),
+            "performanceZone": Zone,
+            "promotionStatus": "Promoted" if Movements else "In Progress",
+            "isReportLevel": True,
+        }]
 
     Buffer = BytesIO()
     Pdf = PdfCanvas.Canvas(Buffer, pagesize=A4)
@@ -943,284 +906,351 @@ def BuildParentProgressPdfResponse(FileName: str, ReportData: dict[str, Any]) ->
     R = PageW - 14 * mm
     CW = R - L
 
-    Heading = _SprStyle("SprReportHeading", 18.0, 21.0, SprInk, True)
-    SubHeading = _SprStyle("SprReportSubHeading", 13.0, 15.5, SprInk, True)
-    Body = _SprStyle("SprReportBody", 8.9, 12.2, SprText, False)
-    Small = _SprStyle("SprReportSmall", 7.3, 9.2, SprMuted, False)
+    # ------------------------------------------------------------------ Page 1
+    _MpBackground(Pdf, 1)
 
-    def DrawEyebrow(Text: str, X: float, Y: float, Color=SprCyan, Size: float = 8.8):
-        Pdf.setFillColor(Color)
-        Pdf.setFont(SprFontBold, Size)
-        Pdf.drawString(X, Y, Text.upper())
+    # Header band.
+    BandH = 42 * mm
+    Pdf.saveState()
+    Pdf.setFillColor(MpInk)
+    Pdf.rect(0, PageH - BandH, PageW, BandH, fill=1, stroke=0)
+    Pdf.setFillColor(colors.Color(1, 1, 1, alpha=0.05))
+    Pdf.circle(PageW - 26 * mm, PageH - 6 * mm, 26 * mm, fill=1, stroke=0)
+    Pdf.circle(PageW - 74 * mm, PageH - 40 * mm, 17 * mm, fill=1, stroke=0)
+    Pdf.circle(8 * mm, PageH - 40 * mm, 13 * mm, fill=1, stroke=0)
+    Pdf.setFillColor(colors.Color(1, 1, 1, alpha=0.09))
+    Pdf.setFont(MpFontBold, 11)
+    for Glyph, GX, GY in [("+", PageW - 40 * mm, PageH - 10 * mm), ("x", PageW - 96 * mm, PageH - 8 * mm), ("=", PageW - 12 * mm, PageH - 30 * mm), ("+", PageW - 118 * mm, PageH - 36 * mm)]:
+        Pdf.drawString(GX, GY, Glyph)
+    Pdf.restoreState()
+    _MpLogoChip(Pdf, LogoPath, L, PageH - 31 * mm, 42 * mm, 16 * mm, Shadow=False)
+    _MpTracked(Pdf, "MathPath · Official Learning Record", R, PageH - 13.5 * mm, 6.6, MpCyanLight, 1.1, "right")
+    Pdf.setFillColor(MpWhite)
+    Pdf.setFont(MpFontBold, 19)
+    Pdf.drawRightString(R, PageH - 21.5 * mm, "Parent Progress Report")
+    Pdf.setFillColor(colors.HexColor("#AAB8D9"))
+    Pdf.setFont(MpFontRegular, 7.6)
+    Pdf.drawRightString(R, PageH - 27.5 * mm, f"Generated {GeneratedOn}")
 
-    BlockHeaderSize = 9.4
-    BlockHeaderGap = 7.0 * mm
+    # Identity card.
+    CardH = 32 * mm
+    CardY = PageH - 47 * mm - CardH
+    _MpPanel(Pdf, L, CardY, CW, CardH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    _MpAvatar(Pdf, L + 16 * mm, CardY + CardH / 2, 11 * mm, PhotoReader, StudentName, Tier)
+    NameX = L + 31 * mm
+    NameW = 62 * mm
+    _MpDrawFitted(Pdf, StudentName, NameX, CardY + 20.5 * mm, NameW, 14.5, MpInk, True, "left", 9.0)
+    Pdf.setFillColor(MpMuted)
+    Pdf.setFont(MpFontRegular, 7.8)
+    Pdf.drawString(NameX, CardY + 14.6 * mm, f"{StudentCode} · Class {ClassSection}")
+    ModuleLabel = f"MODULE · {ReportModuleName}".upper()
+    ModuleSize = _MpFit(Pdf, ModuleLabel, NameW - 10 * mm, 6.6, 5.2)
+    ModuleW = Pdf.stringWidth(ModuleLabel, MpFontBold, ModuleSize) + 9 * mm
+    Pdf.setFillColor(MpBlueSoft)
+    Pdf.roundRect(NameX, CardY + 6.2 * mm, ModuleW, 6.4 * mm, 3.2 * mm, fill=1, stroke=0)
+    Pdf.setFillColor(MpBlueDark)
+    Pdf.setFont(MpFontBold, ModuleSize)
+    Pdf.drawString(NameX + 4.5 * mm, CardY + 8.3 * mm, ModuleLabel)
 
-    def DrawBlockHeader(Text: str, X: float, Y: float, W: float, Color=SprCyan, Size: float | None = None):
-        HeaderSize = Size or BlockHeaderSize
-        Pdf.setFillColor(Color)
-        Pdf.setFont(SprFontBold, HeaderSize)
-        Pdf.drawCentredString(X + W / 2, Y, _PdfText(Text).upper())
+    ChipW = 42 * mm
+    ChipH = 21 * mm
+    ChipY = CardY + (CardH - ChipH) / 2
+    CompletedX = R - ChipW * 2 - 12 * mm
+    _MpPanel(Pdf, CompletedX, ChipY, ChipW, ChipH, Tier["soft"], Tier["main"], 9, 0.9)
+    _MpTracked(Pdf, "Completed Level", CompletedX + ChipW / 2, ChipY + ChipH - 6.4 * mm, 5.6, Tier["dark"], 0.8, "center")
+    _MpDrawFitted(Pdf, ReportLevel, CompletedX + ChipW / 2, ChipY + 6.4 * mm, ChipW - 12 * mm, 13.0, MpInk, True, "center", 7.5)
+    _MpGlyph(Pdf, "check", CompletedX + 5.4 * mm, ChipY + ChipH - 5.2 * mm, 2.0 * mm, Tier["dark"], 1.1)
+    NextX = R - ChipW - 6 * mm
+    Pdf.saveState()
+    Pdf.setDash([2.6, 2.2], 0)
+    _MpPanel(Pdf, NextX, ChipY, ChipW, ChipH, MpWhite, MpBlue, 9, 0.9)
+    Pdf.restoreState()
+    _MpTracked(Pdf, "Next Level", NextX + ChipW / 2, ChipY + ChipH - 6.4 * mm, 5.6, MpBlueDark, 0.8, "center")
+    _MpDrawFitted(Pdf, NextLevel if NextLevelAvailable else "Pending Setup", NextX + ChipW / 2, ChipY + 6.4 * mm, ChipW - 10 * mm, 13.0, MpBlue, True, "center", 6.6)
 
-    def DrawCenteredBody(TextValue: Any, X: float, TopY: float, W: float, FontSize: float = 8.8, Leading: float = 10.8, Color=SprText, Bold: bool = False):
-        return _SprPara(Pdf, TextValue, X, TopY, W, _SprStyle(f"CenteredBody{str(TextValue)[:12]}", FontSize, Leading, Color, Bold, TA_CENTER))
+    # Achievement section: medallion left, milestone story right.
+    SectTop = CardY - 7 * mm
+    SectH = 70 * mm
+    SectY = SectTop - SectH
+    BadgeCX = L + 30 * mm
+    BadgeCY = SectY + 40 * mm
+    _MpAchievementBadge(Pdf, BadgeCX, BadgeCY, AssessmentPercentage, AssessmentScore, Tier)
 
-    def DrawLabelValue(Label: str, Value: Any, X: float, Y: float, W: float, H: float, Accent=SprBlue, Fill=colors.white, ValueSize: float = 10.0):
-        _SprPanel(Pdf, X, Y, W, H, Fill, colors.HexColor("#DDE8F7"), 11, 0.72)
-        Pdf.setFillColor(Accent)
-        Pdf.roundRect(X, Y + H - 3.2, W, 3.2, 1.6, fill=1, stroke=0)
-        Pdf.setFillColor(Accent)
-        Pdf.setFont(SprFontBold, 7.1)
-        Pdf.drawCentredString(X + W / 2, Y + H - 11.6, _PdfText(Label).upper())
-        _SprValue(Pdf, Value, X + 8, Y + H - 17.9, W - 16, ValueSize)
+    StoryX = L + 64 * mm
+    StoryW = R - StoryX
+    _MpTracked(Pdf, "Assessment Milestone", StoryX, SectY + 63.5 * mm, 6.8, MpCyan, 1.1)
+    _MpDrawFitted(Pdf, f"{FirstName} Completed {ReportLevelName}", StoryX, SectY + 56.5 * mm, StoryW, 15.5, MpInk, True, "left", 10.5)
+    _MpPara(Pdf, Message, StoryX, SectY + 53 * mm, StoryW, _MpStyle("MpStory", 9.0, 12.8, MpText))
+    FactRows = [
+        ("doc", "Assessment", AssessmentName, MpBlue, MpBlueSoft),
+        ("calendar", "Completed On", AssessmentDate, MpTeal, MpTealSoft),
+        ("medal", "Result", AssessmentResult, MpGoldDark, MpGoldSoft),
+    ]
+    FactY = SectY + 26 * mm
+    for Glyph, Label, Value, GlyphColor, DiscFill in FactRows:
+        Pdf.setFillColor(DiscFill)
+        Pdf.circle(StoryX + 3.4 * mm, FactY + 2.6 * mm, 3.4 * mm, fill=1, stroke=0)
+        _MpGlyph(Pdf, Glyph, StoryX + 3.4 * mm, FactY + 2.6 * mm, 2.4 * mm, GlyphColor, 1.0)
+        _MpTracked(Pdf, Label, StoryX + 9.4 * mm, FactY + 4.0 * mm, 5.4, MpMuted, 0.8)
+        _MpDrawFitted(Pdf, Value, StoryX + 9.4 * mm, FactY - 0.4 * mm, StoryW - 11 * mm, 9.0, MpInk, True, "left", 6.6)
+        FactY -= 9.4 * mm
 
-    def DrawCenteredLabelValue(Label: str, Value: Any, X: float, Y: float, W: float, H: float, ValueSize: float = 9.4):
-        LabelText = _PdfText(Label).upper()
-        ValueText = _PdfText(Value)
-        Fitted = _SprFittedFontSize(Pdf, ValueText, W - 10, ValueSize, 6.6, SprFontBold)
-        ValueStyle = _SprStyle(f"Centered{LabelText}", Fitted, Fitted + 2.2, SprInk, True, TA_CENTER)
-        ValuePara = Paragraph(_SprEsc(ValueText), ValueStyle)
-        _, ValueHeight = ValuePara.wrap(W - 10, H)
-        LabelSize = 6.4
-        GapY = 3.8
-        TotalHeight = LabelSize + GapY + ValueHeight
-        GroupBottomY = Y + max(0, (H - TotalHeight) / 2) - 0.4
-        LabelBaselineY = GroupBottomY + ValueHeight + GapY
-        Pdf.setFillColor(SprMuted)
-        Pdf.setFont(SprFontBold, LabelSize)
-        Pdf.drawCentredString(X + W / 2, LabelBaselineY, LabelText)
-        ValuePara.drawOn(Pdf, X + 5, GroupBottomY)
+    # Learning journey path.
+    JourneyH = 34 * mm
+    JourneyTop = SectY - 7 * mm
+    JourneyY = JourneyTop - JourneyH
+    _MpPanel(Pdf, L, JourneyY, CW, JourneyH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    _MpTracked(Pdf, "Learning Journey Path", L + 8 * mm, JourneyY + JourneyH - 7 * mm, 6.4, MpCyan, 1.1)
+    Pdf.setFillColor(MpFaint)
+    Pdf.setFont(MpFontRegular, 6.6)
+    Pdf.drawRightString(R - 8 * mm, JourneyY + JourneyH - 7 * mm, "Levels recorded in this report scope")
+    PathNodes: list[dict[str, Any]] = []
+    SeenCodes: set[str] = set()
+    for Movement in reversed(Movements):
+        Code = _PdfText(Movement.get("fromLevel", ""))
+        if Code and Code not in {"-", ReportLevel} and Code not in SeenCodes:
+            PathNodes.append({"code": Code, "state": "done"})
+            SeenCodes.add(Code)
+    PathNodes = PathNodes[-3:]
+    PathNodes.append({"code": ReportLevel, "state": "current"})
+    PathNodes.append({
+        "code": NextLevel if NextLevelAvailable else "TBD",
+        "state": "next",
+        "statusOverride": None if NextLevelAvailable else "Pending Setup",
+    })
+    _MpJourneyPath(Pdf, L, JourneyY + 15.5 * mm, CW, PathNodes, Tier)
 
-    def DrawSoftMetric(Label: str, Value: Any, X: float, Y: float, W: float, H: float, Accent=SprBlue):
-        _SprPanel(Pdf, X, Y, W, H, colors.white, colors.HexColor("#DDE8F7"), 12, 0.70)
-        Pdf.setFillColor(colors.Color(0.96, 0.98, 1.0, alpha=0.92))
-        Pdf.roundRect(X + 5, Y + 5, W - 10, H - 10, 8, fill=1, stroke=0)
-        Pdf.setFillColor(Accent)
-        Pdf.roundRect(X + 5, Y + H - 8, W - 10, 3.2, 1.6, fill=1, stroke=0)
-        _SprLabel(Pdf, Label, X + 10, Y + H - 17, 6.2)
-        _SprValue(Pdf, Value, X + 10, Y + H - 23.4, W - 20, 10.6)
+    # Stats band: journey counters (no accuracy repeats from page 2).
+    StatH = 20 * mm
+    StatTop = JourneyY - 7 * mm
+    StatY = StatTop - StatH
+    StatGap = 5 * mm
+    StatW = (CW - StatGap * 3) / 4
+    StatItems = [
+        ("doc", "Practice Sheets", PracticeSheetsText, MpPurple, MpPurpleSoft),
+        ("target", "Practice Accuracy", PracticeAccuracy, MpBlue, MpBlueSoft),
+        ("medal", "Assessments Cleared", str(AssessmentsCleared), MpGoldDark, MpGoldSoft),
+        ("levelup", "Levels Promoted", str(PromotedLevels), MpGreen, MpGreenSoft),
+    ]
+    for Index, (Glyph, Label, Value, GlyphColor, DiscFill) in enumerate(StatItems):
+        StatX = L + Index * (StatW + StatGap)
+        _MpPanel(Pdf, StatX, StatY, StatW, StatH, MpWhite, MpLine, 10, 0.75, Shadow=True)
+        Pdf.setFillColor(DiscFill)
+        Pdf.circle(StatX + 8.4 * mm, StatY + StatH / 2, 4.6 * mm, fill=1, stroke=0)
+        _MpGlyph(Pdf, Glyph, StatX + 8.4 * mm, StatY + StatH / 2, 3.0 * mm, GlyphColor, 1.15)
+        _MpTracked(Pdf, Label, StatX + 15.4 * mm, StatY + StatH - 7.6 * mm, 5.2, MpMuted, 0.55)
+        _MpDrawFitted(Pdf, Value, StatX + 15.4 * mm, StatY + 4.6 * mm, StatW - 18.4 * mm, 12.5, MpInk, True, "left", 7.0)
 
-    def DrawHero():
-        HeaderY = 218 * mm
-        HeaderH = 63 * mm
-        _SprPanel(Pdf, L, HeaderY, CW, HeaderH, colors.HexColor("#EAFEFF"), colors.HexColor("#BEEFFF"), 23, 0.95)
-        Pdf.saveState()
-        Pdf.setFillColor(colors.Color(0.70, 0.94, 1.0, alpha=0.45))
-        Pdf.circle(R - 20 * mm, HeaderY + HeaderH - 2 * mm, 33 * mm, fill=1, stroke=0)
-        Pdf.setFillColor(colors.Color(0.78, 0.70, 1.0, alpha=0.25))
-        Pdf.circle(L + 106 * mm, HeaderY + 8 * mm, 21 * mm, fill=1, stroke=0)
-        Pdf.setFillColor(colors.white)
-        Pdf.roundRect(L + 7 * mm, HeaderY + 7 * mm, CW - 14 * mm, HeaderH - 14 * mm, 19, fill=1, stroke=0)
-        Pdf.restoreState()
-        _SprLogo(Pdf, LogoPath, L + 13 * mm, HeaderY + HeaderH - 29 * mm, 70 * mm, 27 * mm, True)
-        DrawEyebrow("Official Student Progress Record", L + 14 * mm, HeaderY + 25.0 * mm, SprCyan, 7.8)
-        Pdf.setFillColor(SprInk)
-        Pdf.setFont(SprFontBold, 20.2)
-        Pdf.drawString(L + 14 * mm, HeaderY + 17.0 * mm, "Student Progress Report")
-        Pdf.setFillColor(SprMuted)
-        Pdf.setFont(SprFontRegular, 8.1)
-        Pdf.drawString(L + 14 * mm, HeaderY + 9.5 * mm, f"Completion Summary For {ReportModuleName} • {ReportLevel}")
-        BadgeW = 52 * mm
-        _SprPanel(Pdf, R - BadgeW - 9, HeaderY + HeaderH - 27 * mm, BadgeW, 18 * mm, colors.white, colors.HexColor("#DAE8F6"), 10, 0.70)
-        _SprLabel(Pdf, "Generated On", R - BadgeW - 1, HeaderY + HeaderH - 16.4 * mm, 6.2)
-        _SprValue(Pdf, GeneratedOn, R - BadgeW - 1, HeaderY + HeaderH - 20.2 * mm, BadgeW - 14, 7.9)
-        _SprPanel(Pdf, R - BadgeW - 9, HeaderY + 12 * mm, BadgeW, 19 * mm, colors.white, colors.HexColor("#DAE8F6"), 10, 0.70)
-        _SprLabel(Pdf, "Student Code", R - BadgeW - 1, HeaderY + 25.9 * mm, 6.2)
-        _SprValue(Pdf, StudentCode, R - BadgeW - 1, HeaderY + 21.8 * mm, BadgeW - 14, 9.2)
+    # Parent takeaway with next-step action chip.
+    TakeH = 26 * mm
+    TakeTop = StatY - 7 * mm
+    TakeY = TakeTop - TakeH
+    _MpPanel(Pdf, L, TakeY, CW, TakeH, MpTealSoft, colors.HexColor("#BFE8E0"), 12, 0.85)
+    Pdf.setFillColor(MpTeal)
+    Pdf.roundRect(L, TakeY, 2.6 * mm, TakeH, 1.3 * mm, fill=1, stroke=0)
+    _MpGlyph(Pdf, "spark", L + 8.8 * mm, TakeY + TakeH - 6.6 * mm, 2.2 * mm, MpTeal)
+    _MpTracked(Pdf, "Parent Takeaway", L + 13 * mm, TakeY + TakeH - 7.6 * mm, 6.4, MpTeal, 1.1)
+    ActionW = 48 * mm
+    _MpPara(Pdf, Copy["takeaway"], L + 9 * mm, TakeY + TakeH - 11 * mm, CW - ActionW - 22 * mm, _MpStyle("MpTakeaway", 8.8, 12.0, MpText))
+    ActionX = R - ActionW - 6 * mm
+    ActionY = TakeY + (TakeH - 13 * mm) / 2
+    _MpPanel(Pdf, ActionX, ActionY, ActionW, 13 * mm, MpBlue, MpBlueDark, 6.5 * mm, 0.9)
+    _MpTracked(Pdf, "Next Step", ActionX + ActionW / 2 + 2.2 * mm, ActionY + 8.0 * mm, 5.0, colors.HexColor("#BFDBFE"), 0.9, "center")
+    _MpDrawFitted(Pdf, NextStep, ActionX + ActionW / 2 + 2.2 * mm, ActionY + 3.2 * mm, ActionW - 14 * mm, 8.2, MpWhite, True, "center", 5.8)
+    _MpGlyph(Pdf, "arrow", ActionX + 6.0 * mm, ActionY + 6.5 * mm, 2.5 * mm, MpWhite, 1.3)
 
-    def DrawStudentStrip():
-        StripY = 188 * mm
-        StripH = 24 * mm
-        _SprPanel(Pdf, L, StripY, CW, StripH, colors.white, colors.HexColor("#DDE8F7"), 13, 0.85)
-        InnerX = L + 8
-        InnerW = CW - 16
-        ColW = [48 * mm, 31 * mm, 66 * mm, InnerW - 48 * mm - 31 * mm - 66 * mm]
-        ColX = [InnerX]
-        for Width in ColW[:-1]:
-            ColX.append(ColX[-1] + Width)
-        Values = [("Student", StudentName), ("Class / Section", ClassSection), ("Module", ReportModuleName), ("Completed Level", ReportLevel)]
-        Pdf.setStrokeColor(colors.HexColor("#E6EEF8"))
-        for Index, (Label, Value) in enumerate(Values):
-            if Index > 0:
-                Pdf.line(ColX[Index], StripY + 5, ColX[Index], StripY + StripH - 5)
-            CellX = ColX[Index] + (4 if Index > 0 else 0)
-            CellW = ColW[Index] - (8 if Index > 0 else 4)
-            DrawCenteredLabelValue(Label, Value, CellX, StripY, CellW, StripH, 8.5 if Index == 2 else 9.4)
-
-    # Page 1
-    _SprBackground(Pdf, 1)
-    DrawHero()
-    DrawStudentStrip()
-
-    SummaryY = 121 * mm
-    SummaryH = 60 * mm
-    _SprPanel(Pdf, L, SummaryY, CW, SummaryH, colors.white, colors.HexColor("#D9E8F7"), 16, 0.85)
-    LeftSummaryW = CW - 62 * mm
-    DrawBlockHeader("Level Completion Summary", L + 12, SummaryY + SummaryH - 8.4 * mm, LeftSummaryW, SprCyan)
-    CenterHeadingStyle = _SprStyle("CompletionHeading", 15.8, 18.2, SprInk, True, TA_CENTER)
-    CenterBodyStyle = _SprStyle("CompletionBody", 8.3, 10.2, SprText, False, TA_CENTER)
-    # Uniform Level Completion Summary rhythm:
-    # block header -> equal breathing space -> sub-heading -> equal breathing space
-    # -> body copy -> equal breathing space -> evidence blocks.
-    HeadingTop = SummaryY + SummaryH - 39.5
-    _SprPara(Pdf, "Completed Level Performance", L + 12, HeadingTop, LeftSummaryW, CenterHeadingStyle)
-    BodyTop = SummaryY + SummaryH - 69.5
-    CompletionMessage = Message
-    if AssessmentScore and AssessmentScore != "-":
-        CompletionMessage = CompletionMessage.replace(AssessmentScore, AssessmentScore.replace(" / ", " / "))
-    _SprPara(Pdf, CompletionMessage, L + 18, BodyTop, LeftSummaryW - 12, CenterBodyStyle)
-    EvidenceH = 13 * mm
-    EvidenceY = SummaryY + 10.0 * mm
-    EvidenceW = 36 * mm
-    EvidenceGap = 7 * mm
-    EvidenceX = L + 12 + (LeftSummaryW - (EvidenceW * 2 + EvidenceGap)) / 2
-    _SprPanel(Pdf, EvidenceX, EvidenceY, EvidenceW, EvidenceH, colors.HexColor("#F8FBFF"), colors.HexColor("#E4EDF8"), 8, 0.55)
-    DrawCenteredLabelValue("Completed Level", ReportLevel, EvidenceX, EvidenceY, EvidenceW, EvidenceH, 8.8)
-    _SprPanel(Pdf, EvidenceX + EvidenceW + EvidenceGap, EvidenceY, EvidenceW, EvidenceH, colors.HexColor("#F8FBFF"), colors.HexColor("#E4EDF8"), 8, 0.55)
-    DrawCenteredLabelValue("Next Level", NextLevel, EvidenceX + EvidenceW + EvidenceGap, EvidenceY, EvidenceW, EvidenceH, 8.8)
-    ScorePanelX = R - 56 * mm
-    ScorePanelY = SummaryY + 8 * mm
-    ScorePanelH = SummaryH - 16 * mm
-    ScorePanelW = 48 * mm
-    _SprPanel(Pdf, ScorePanelX, ScorePanelY, ScorePanelW, ScorePanelH, colors.HexColor("#F9FCFF"), colors.HexColor("#DDE8F7"), 13, 0.65)
-    DrawBlockHeader("Assessment Score", ScorePanelX, ScorePanelY + ScorePanelH - 7.0 * mm, ScorePanelW, SprCyan, 8.4)
-    _SprScoreDonut(Pdf, ScorePanelX + ScorePanelW / 2, ScorePanelY + 20.2 * mm, AssessmentScore, AssessmentPercentage)
-    _SprDrawStatusPill(Pdf, AssessmentResult, ScorePanelX + 5 * mm, ScorePanelY + 4.5 * mm, 38 * mm, PillFill, AccentColor)
-
-    CardY = 76 * mm
-    Gap = 5 * mm
-    CardW = (CW - Gap) / 2
-    CardH = 18 * mm
-    DrawLabelValue("Assessment", AssessmentName, L, CardY + CardH + 5 * mm, CardW, CardH, SprBlue)
-    DrawLabelValue("Assessment Date", AssessmentDate, L + CardW + Gap, CardY + CardH + 5 * mm, CardW, CardH, SprTeal)
-    DrawLabelValue("Practice Completed", PracticeProgress, L, CardY, CardW, CardH, SprPurple)
-    DrawLabelValue("Practice Accuracy", PracticeAccuracy, L + CardW + Gap, CardY, CardW, CardH, SprGreen)
-
-    NextY = 48 * mm
-    NextH = 21 * mm
-    _SprPanel(Pdf, L, NextY, CW, NextH, colors.HexColor("#FFF7ED"), colors.HexColor("#FED7AA"), 13, 0.8)
-    DrawBlockHeader("Next Learning Step", L, NextY + NextH - 7.3 * mm, CW, SprAmber, 8.2)
-    _SprPara(Pdf, f"{NextStep} • {NextLevelName}", L + 12, NextY + NextH - 14.4 * mm, CW - 24, _SprStyle("SprNext", 10.2, 12.2, SprInk, True, TA_CENTER))
-
-    TakeawayY = 20 * mm
-    TakeawayH = 24 * mm
-    _SprPanel(Pdf, L, TakeawayY, CW, TakeawayH, colors.HexColor("#F0FDFA"), colors.HexColor("#BFEDE6"), 13, 0.8)
-    DrawBlockHeader("Parent Takeaway", L, TakeawayY + TakeawayH - 7.3 * mm, CW, SprTeal, 8.2)
-    TakeawayText = DynamicCopy["takeaway"]
-    _SprPara(Pdf, TakeawayText, L + 12, TakeawayY + TakeawayH - 14.4 * mm, CW - 24, _SprStyle("SprTakeaway", 8.6, 10.4, SprText, False, TA_CENTER))
-    _SprFooter(Pdf, 1, ReportLevel)
+    _MpTracked(Pdf, "Continued on page 2 · Accuracy profile · Level mastery · Progression timeline · Home guidance", L + CW / 2, TakeY - 9 * mm, 5.6, MpFaint, 0.9, "center")
+    _MpFooter(Pdf, 1, 2, StudentCode, ReportLevel)
     Pdf.showPage()
 
-    # Page 2
-    _SprBackground(Pdf, 2)
-    _SprHeaderMini(Pdf, LogoPath, "Student Progress Report", StudentCode, GeneratedOn)
-    Top = PageH - 42 * mm
-    DrawEyebrow("Detailed Review", L, Top, SprCyan, 9.8)
-    _SprPara(Pdf, f"Performance Review For {ReportLevel}", L, Top - 6.0, CW, _SprStyle("SprReportHeadingBig", 20.0, 23.0, SprInk, True))
+    # ------------------------------------------------------------------ Page 2
+    _MpBackground(Pdf, 2)
+    _MpLogoChip(Pdf, LogoPath, L, PageH - 27 * mm, 36 * mm, 13 * mm, Shadow=True)
+    Pdf.setFillColor(MpInk)
+    Pdf.setFont(MpFontBold, 13.5)
+    Pdf.drawRightString(R, PageH - 19.5 * mm, "Detailed Performance Review")
+    Pdf.setFillColor(MpMuted)
+    Pdf.setFont(MpFontRegular, 7.2)
+    Pdf.drawRightString(R, PageH - 24.5 * mm, f"{StudentName} · {StudentCode} · Generated {GeneratedOn}")
+    Pdf.setStrokeColor(MpLine)
+    Pdf.setLineWidth(0.8)
+    Pdf.line(L, PageH - 31 * mm, R, PageH - 31 * mm)
 
-    PanelTop = Top - 22 * mm
-    PanelH = 54 * mm
-    LeftW = 84 * mm
-    Gap = 6 * mm
-    RightW = CW - LeftW - Gap
-    LeftY = PanelTop - PanelH
-    _SprPanel(Pdf, L, LeftY, LeftW, PanelH, colors.white, colors.HexColor("#DDE8F7"), 14, 0.85)
-    Pdf.setFillColor(SprInk)
-    Pdf.setFont(SprFontBold, 16.3)
-    Pdf.drawCentredString(L + LeftW / 2, LeftY + PanelH - 16, "Assessment Performance")
-    DrawSoftMetric("Score", AssessmentScore, L + 12, LeftY + PanelH - 32 * mm, 34 * mm, 16 * mm, AccentColor)
-    DrawSoftMetric("Percentage", AssessmentPercentage, L + 50 * mm, LeftY + PanelH - 32 * mm, 27 * mm, 16 * mm, AccentColor)
-    _SprLabel(Pdf, "Assessment Name", L + 12, LeftY + 16 * mm, 6.4)
-    _SprValue(Pdf, AssessmentName, L + 12, LeftY + 11.4 * mm, LeftW - 24, 9.3)
+    Cursor = PageH - 38 * mm
 
-    RightX = L + LeftW + Gap
-    _SprPanel(Pdf, RightX, LeftY, RightW, PanelH, colors.HexColor("#F0FDFA"), colors.HexColor("#BFEDE6"), 14, 0.85)
-    Pdf.setFillColor(SprInk)
-    Pdf.setFont(SprFontBold, 16.3)
-    Pdf.drawCentredString(RightX + RightW / 2, LeftY + PanelH - 16, "Practice Review")
-    PracticeCardGap = 4 * mm
-    PracticeCardW = (RightW - 24 - PracticeCardGap) / 2
-    DrawSoftMetric("Practice Sheets", PracticeProgress, RightX + 12, LeftY + 21 * mm, PracticeCardW, 18 * mm, SprPurple)
-    DrawSoftMetric("Accuracy", PracticeAccuracy, RightX + 12 + PracticeCardW + PracticeCardGap, LeftY + 21 * mm, PracticeCardW, 18 * mm, SprGreen)
-    _SprPara(Pdf, f"Practice performance recorded for the completed level {ReportLevel}.", RightX + 12, LeftY + 13 * mm, RightW - 24, Small)
+    def SectionHeading(Eyebrow: str, Title: str, Note: str | None = None) -> float:
+        nonlocal Cursor
+        _MpTracked(Pdf, Eyebrow, L, Cursor, 6.4, MpCyan, 1.1)
+        Pdf.setFillColor(MpInk)
+        Pdf.setFont(MpFontBold, 12.5)
+        Pdf.drawString(L, Cursor - 6.4 * mm, _PdfText(Title))
+        if Note:
+            Pdf.setFillColor(MpFaint)
+            Pdf.setFont(MpFontRegular, 6.8)
+            Pdf.drawRightString(R, Cursor - 6.4 * mm, _PdfText(Note))
+        Cursor -= 11.5 * mm
+        return Cursor
 
-    MovementY = LeftY - 43 * mm
-    MovementH = 36 * mm
-    _SprPanel(Pdf, L, MovementY, CW, MovementH, colors.white, colors.HexColor("#DDE8F7"), 14, 0.85)
-    # Uniform internal spacing: top padding, centered header, clean gap, subtitle, then table.
-    Pdf.setFillColor(SprInk)
-    Pdf.setFont(SprFontBold, 16.0)
-    MovementTop = MovementY + MovementH
-    Pdf.drawCentredString(L + CW / 2, MovementTop - 19, "Level Progression")
-    Pdf.setFillColor(SprMuted)
-    Pdf.setFont(SprFontRegular, 8.3)
-    Pdf.drawCentredString(L + CW / 2, MovementTop - 38, "Completed level and next learning level recorded for this progress report.")
-    TableX = L + 10
-    TableW = CW - 20
-    HeaderY = MovementY + 13.0 * mm
-    Pdf.setFillColor(SprInk)
-    Pdf.roundRect(TableX, HeaderY, TableW, 12, 6, fill=1, stroke=0)
-    Cols = [28 * mm, 28 * mm, 56 * mm, 28 * mm, TableW - 28 * mm - 28 * mm - 56 * mm - 28 * mm]
-    ColX = [TableX + 4]
-    for Cw in Cols[:-1]:
-        ColX.append(ColX[-1] + Cw)
-    Pdf.setFillColor(colors.white)
-    Pdf.setFont(SprFontBold, 6.3)
-    for Index, Head in enumerate(["From", "To", "Assessment", "Score", "Date"]):
-        Pdf.drawString(ColX[Index], HeaderY + 4, Head.upper())
-    RowY = HeaderY - 24
-    RowHeight = 22
-    Pdf.setFillColor(colors.HexColor("#F4F8FF"))
-    Pdf.roundRect(TableX, RowY, TableW, RowHeight, 6, fill=1, stroke=0)
-    Move = Movements[0] if Movements else {"fromLevel": ReportLevel, "toLevel": NextLevel, "assessment": AssessmentName, "score": AssessmentScore, "date": AssessmentDate}
-    Values = [Move.get("fromLevel", ReportLevel), Move.get("toLevel", NextLevel), Move.get("assessment", AssessmentName), Move.get("score", AssessmentScore), Move.get("date", AssessmentDate)]
-    for Index, Value in enumerate(Values):
-        _SprPara(Pdf, Value, ColX[Index], RowY + RowHeight - 5, Cols[Index] - 6, _SprStyle(f"SprMove{Index}", 7.1, 8.3, SprInk if Index in {0, 1, 3} else SprText, Index in {0, 1, 3}))
-
-    # Use the otherwise wasted vertical space below Level Progression to give Parent Guidance
-    # a clear, structured, non-cluttered hierarchy.
-    GuidanceY = 24 * mm
-    GuidanceH = 104 * mm
-    _SprPanel(Pdf, L, GuidanceY, CW, GuidanceH, colors.HexColor("#F5F3FF"), colors.HexColor("#DED6FE"), 15, 0.85)
-    GuidanceTop = GuidanceY + GuidanceH
-    DrawBlockHeader("Parent Guidance", L, GuidanceTop - 20, CW, SprPurple, 9.4)
-
-    Pdf.setFillColor(SprInk)
-    Pdf.setFont(SprFontBold, 15.2)
-    Pdf.drawCentredString(L + CW / 2, GuidanceTop - 47, "How To Support The Next Step")
-
-    IntroText = DynamicCopy["intro"]
-    DrawCenteredBody(IntroText, L + 20, GuidanceTop - 67, CW - 40, 8.3, 10.2, SprMuted, False)
-
-    InnerH = 27.0 * mm
-    InnerGap = 4 * mm
-    InnerW = (CW - 24 - InnerGap * 2) / 3
-    InnerY = GuidanceY + 39.5 * mm
-    GuidanceCards = [
-        ("Celebrate", DynamicCopy["celebrate"]),
-        ("Next Focus", DynamicCopy["nextFocus"]),
-        ("At Home", DynamicCopy["atHome"]),
+    # Section A: accuracy profile.
+    SectionHeading("Accuracy Profile", "How Accuracy Is Building", "Averages across all recorded attempts")
+    ProfileH = 38 * mm
+    ProfileY = Cursor - ProfileH
+    _MpPanel(Pdf, L, ProfileY, CW, ProfileH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    ProfileRows = [
+        ("Practice", _MpNum(PracticeAvg), MpPurple),
+        ("Assessments", _MpNum(AssessmentAvg), MpBlue),
+        ("Overall", _MpNum(OverallAvg), MpTeal),
     ]
-    for Index, (Label, Text) in enumerate(GuidanceCards):
-        X = L + 12 + Index * (InnerW + InnerGap)
-        _SprPanel(Pdf, X, InnerY, InnerW, InnerH, colors.white, colors.HexColor("#E8E2FF"), 10, 0.55)
-        CardTop = InnerY + InnerH
-        Pdf.setFillColor(SprPurple)
-        Pdf.setFont(SprFontBold, 7.3)
-        Pdf.drawCentredString(X + InnerW / 2, CardTop - 15.0, _PdfText(Label).upper())
-        _SprPara(Pdf, Text, X + 7, CardTop - 33.0, InnerW - 14, _SprStyle(f"Guidance{Index}", 8.0, 9.6, SprText, False, TA_CENTER))
+    RowY = ProfileY + ProfileH - 9.2 * mm
+    BarX = L + 36 * mm
+    BarW = CW - 36 * mm - 24 * mm
+    for Label, Value, Color in ProfileRows:
+        _MpTracked(Pdf, Label, L + 8 * mm, RowY - 1.2 * mm, 6.0, MpMuted, 0.8)
+        _MpBar(Pdf, BarX, RowY - 1.8 * mm, BarW, 3.4 * mm, Value / 100.0, Color)
+        _MpDrawFitted(Pdf, f"{int(round(Value))}%", R - 7 * mm, RowY - 1.6 * mm, 14 * mm, 9.5, MpInk, True, "right")
+        RowY -= 9.2 * mm
+    Pdf.setFillColor(MpFaint)
+    Pdf.setFont(MpFontRegular, 6.4)
+    Pdf.drawString(L + 8 * mm, ProfileY + 3.8 * mm, "Practice reflects daily practice sheets; Assessments reflect level assessment attempts recorded in this report scope.")
+    Cursor = ProfileY - 7 * mm
 
-    NoteY = GuidanceY + 8.0 * mm
-    NoteH = 22.0 * mm
-    _SprPanel(Pdf, L + 12, NoteY, CW - 24, NoteH, colors.Color(1, 1, 1, alpha=0.78), colors.HexColor("#E8E2FF"), 9, 0.45)
-    NoteTop = NoteY + NoteH
-    Pdf.setFillColor(SprPurple)
-    Pdf.setFont(SprFontBold, 7.2)
-    Pdf.drawCentredString(L + CW / 2, NoteTop - 15.0, "MATHPATH NOTE")
-    NoteText = DynamicCopy["note"]
-    _SprPara(Pdf, NoteText, L + 20, NoteTop - 31.0, CW - 40, _SprStyle("SprNote", 8.3, 10.2, SprText, False, TA_CENTER))
+    # Section B: level-by-level mastery.
+    VisibleLevels = Levels[:4]
+    HiddenLevels = max(0, len(Levels) - len(VisibleLevels))
+    SectionHeading("Level Mastery", "Level-By-Level Breakdown", f"{len(Levels)} level(s) tracked")
+    HeaderBandH = 7 * mm
+    LevelRowH = 12.5 * mm
+    MasteryH = HeaderBandH + LevelRowH * len(VisibleLevels) + (5 * mm if HiddenLevels else 0) + 4 * mm
+    MasteryY = Cursor - MasteryH
+    _MpPanel(Pdf, L, MasteryY, CW, MasteryH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    ColLevel = L + 8 * mm
+    ColPractice = L + 52 * mm
+    ColAccuracy = L + 104 * mm
+    ColZone = L + 148 * mm
+    CaptionY = MasteryY + MasteryH - 5.4 * mm
+    for Caption, CapX in [("Level", ColLevel), ("Practice Sheets", ColPractice), ("Accuracy", ColAccuracy), ("Zone", ColZone)]:
+        _MpTracked(Pdf, Caption, CapX, CaptionY, 5.4, MpFaint, 0.8)
+    RowTop = MasteryY + MasteryH - HeaderBandH - 2 * mm
+    for Index, LevelRow in enumerate(VisibleLevels):
+        RowBase = RowTop - LevelRowH * (Index + 1) + 2 * mm
+        IsReportLevel = bool(LevelRow.get("isReportLevel")) or _PdfText(LevelRow.get("levelCode")) == ReportLevel
+        if IsReportLevel:
+            Pdf.setFillColor(Tier["soft"])
+            Pdf.roundRect(L + 3 * mm, RowBase - 1.4 * mm, CW - 6 * mm, LevelRowH - 1.2 * mm, 5, fill=1, stroke=0)
+            Pdf.setFillColor(Tier["main"])
+            Pdf.roundRect(L + 3 * mm, RowBase - 1.4 * mm, 2.0 * mm, LevelRowH - 1.2 * mm, 1.0 * mm, fill=1, stroke=0)
+        elif Index % 2 == 1:
+            Pdf.setFillColor(MpSlateSoft)
+            Pdf.roundRect(L + 3 * mm, RowBase - 1.4 * mm, CW - 6 * mm, LevelRowH - 1.2 * mm, 5, fill=1, stroke=0)
+        CodeText = _PdfText(LevelRow.get("levelCode", "-"))
+        CodeSize = _MpDrawFitted(Pdf, CodeText, ColLevel, RowBase + 4.6 * mm, 30 * mm, 9.2, MpInk, True, "left", 6.6)
+        if str(LevelRow.get("promotionStatus") or "") == "Promoted":
+            CheckX = ColLevel + Pdf.stringWidth(CodeText, MpFontBold, CodeSize) + 3.2 * mm
+            Pdf.setFillColor(MpGreenSoft)
+            Pdf.circle(CheckX, RowBase + 5.6 * mm, 2.0 * mm, fill=1, stroke=0)
+            _MpGlyph(Pdf, "check", CheckX, RowBase + 5.6 * mm, 1.4 * mm, MpGreen, 0.9)
+        LevelNameText = _PdfText(LevelRow.get("levelName") or "")
+        if LevelNameText and LevelNameText != CodeText:
+            _MpDrawFitted(Pdf, LevelNameText, ColLevel, RowBase + 0.8 * mm, 40 * mm, 6.4, MpMuted, False, "left", 5.2)
+        Required = int(_MpNum(LevelRow.get("requiredDps")))
+        Completed = int(_MpNum(LevelRow.get("completedDps")))
+        PracticeFrac = (Completed / Required) if Required else 0.0
+        _MpBar(Pdf, ColPractice, RowBase + 3.2 * mm, 30 * mm, 3.2 * mm, PracticeFrac, MpPurple)
+        Pdf.setFillColor(MpMuted)
+        Pdf.setFont(MpFontRegular, 6.8)
+        Pdf.drawString(ColPractice + 32 * mm, RowBase + 3.4 * mm, f"{Completed} / {Required}" if Required else f"{Completed}")
+        AccuracyValue = _MpNum(LevelRow.get("averageAccuracy"))
+        _MpBar(Pdf, ColAccuracy, RowBase + 3.2 * mm, 26 * mm, 3.2 * mm, AccuracyValue / 100.0, MpBlue)
+        Pdf.setFillColor(MpInk)
+        Pdf.setFont(MpFontBold, 7.2)
+        Pdf.drawString(ColAccuracy + 28 * mm, RowBase + 3.3 * mm, f"{int(round(AccuracyValue))}%")
+        ZoneFill, ZoneText = _MpZoneStyle(LevelRow.get("performanceZone"))
+        _MpChip(Pdf, LevelRow.get("performanceZone") or "Not Started", ColZone + 15 * mm, RowBase + 4.6 * mm, ZoneFill, ZoneText, 5.8, 4.6, 9.6)
+    if HiddenLevels:
+        Pdf.setFillColor(MpFaint)
+        Pdf.setFont(MpFontRegular, 6.4)
+        Pdf.drawCentredString(L + CW / 2, MasteryY + 3.0 * mm, f"+ {HiddenLevels} more level(s) tracked in the full learning record")
+    Cursor = MasteryY - 7 * mm
 
-    _SprFooter(Pdf, 2, ReportLevel)
+    # Section C: progression timeline.
+    VisibleMovements = Movements[:3]
+    HiddenMovements = max(0, len(Movements) - len(VisibleMovements))
+    SectionHeading("Progression Timeline", "Completed Level Movements", "Most recent first")
+    MoveRowH = 10 * mm
+    TimelineH = (MoveRowH * len(VisibleMovements) + (5 * mm if HiddenMovements else 0) + 6 * mm) if VisibleMovements else 16 * mm
+    TimelineY = Cursor - TimelineH
+    _MpPanel(Pdf, L, TimelineY, CW, TimelineH, MpWhite, MpLine, 12, 0.85, Shadow=True)
+    if VisibleMovements:
+        DotX = L + 40 * mm
+        if len(VisibleMovements) > 1:
+            Pdf.setStrokeColor(MpLine)
+            Pdf.setLineWidth(1.1)
+            Pdf.line(DotX, TimelineY + TimelineH - 3 * mm - MoveRowH / 2, DotX, TimelineY + TimelineH - 3 * mm - MoveRowH * (len(VisibleMovements) - 1) - MoveRowH / 2)
+        for Index, Movement in enumerate(VisibleMovements):
+            RowMid = TimelineY + TimelineH - 3 * mm - MoveRowH * Index - MoveRowH / 2
+            Pdf.setFillColor(MpMuted)
+            Pdf.setFont(MpFontRegular, 6.6)
+            DateText = _PdfText(Movement.get("date", "-"))
+            Pdf.drawString(L + 7 * mm, RowMid - 1.0 * mm, DateText[:24])
+            Pdf.setFillColor(MpGreen if Index else Tier["main"])
+            Pdf.circle(DotX, RowMid, 1.9 * mm, fill=1, stroke=0)
+            Pdf.setFillColor(MpWhite)
+            Pdf.circle(DotX, RowMid, 0.75 * mm, fill=1, stroke=0)
+            FromText = _PdfText(Movement.get("fromLevel", "-"))
+            ToText = _PdfText(Movement.get("toLevel", "-"))
+            TextX = DotX + 5.5 * mm
+            Pdf.setFillColor(MpInk)
+            Pdf.setFont(MpFontBold, 8.6)
+            Pdf.drawString(TextX, RowMid + 0.6 * mm, FromText)
+            FromW = Pdf.stringWidth(FromText, MpFontBold, 8.6)
+            _MpGlyph(Pdf, "arrow", TextX + FromW + 4.6 * mm, RowMid + 1.6 * mm, 2.2 * mm, MpMuted, 1.0)
+            Pdf.setFillColor(MpInk)
+            Pdf.setFont(MpFontBold, 8.6)
+            Pdf.drawString(TextX + FromW + 9.6 * mm, RowMid + 0.6 * mm, ToText)
+            _MpDrawFitted(Pdf, Movement.get("assessment", "-"), TextX, RowMid - 3.6 * mm, 62 * mm, 6.4, MpMuted, False, "left", 5.2)
+            ScoreLabel = f"{_PdfText(Movement.get('score', '-'))} · {_PdfText(Movement.get('percentage', '-'))}"
+            _MpChip(Pdf, ScoreLabel, R - 24 * mm, RowMid, Tier["soft"] if Index == 0 else MpSlateSoft, Tier["dark"] if Index == 0 else MpMuted, 6.2, 5.0, 10.0)
+        if HiddenMovements:
+            Pdf.setFillColor(MpFaint)
+            Pdf.setFont(MpFontRegular, 6.4)
+            Pdf.drawCentredString(L + CW / 2, TimelineY + 2.6 * mm, f"+ {HiddenMovements} earlier movement(s) in the full promotion history")
+    else:
+        _MpGlyph(Pdf, "flag", L + CW / 2 - 46 * mm, TimelineY + TimelineH / 2, 2.4 * mm, MpFaint, 1.0)
+        Pdf.setFillColor(MpMuted)
+        Pdf.setFont(MpFontRegular, 7.6)
+        Pdf.drawCentredString(L + CW / 2 + 2 * mm, TimelineY + TimelineH / 2 - 1.2 * mm, "The first level movement will be recorded here after the next promotion.")
+    Cursor = TimelineY - 7 * mm
+
+    # Section D: guidance for home.
+    GuidanceNeed = 11.5 * mm + 27 * mm + 3.5 * mm + 14 * mm
+    if Cursor - GuidanceNeed < 16 * mm:
+        Cursor = GuidanceNeed + 16 * mm
+    SectionHeading("Guidance For Home", f"How To Support {FirstName}")
+    CardH2 = 27 * mm
+    CardGap = 5 * mm
+    CardW2 = (CW - CardGap * 2) / 3
+    CardsY = Cursor - CardH2
+    GuidanceCards = [
+        ("spark", "Celebrate", Copy["celebrate"], MpGoldDark, MpGoldSoft, MpGold),
+        ("target", "Next Focus", Copy["nextFocus"], MpBlueDark, MpBlueSoft, MpBlue),
+        ("home", "At Home", Copy["atHome"], MpTeal, MpTealSoft, MpTeal),
+    ]
+    for Index, (Glyph, Title, Body, GlyphColor, DiscFill, AccentColor) in enumerate(GuidanceCards):
+        GX = L + Index * (CardW2 + CardGap)
+        _MpPanel(Pdf, GX, CardsY, CardW2, CardH2, MpWhite, MpLine, 10, 0.75, Shadow=True)
+        Pdf.setFillColor(AccentColor)
+        Pdf.roundRect(GX, CardsY + CardH2 - 2.2 * mm, CardW2, 2.2 * mm, 1.1 * mm, fill=1, stroke=0)
+        Pdf.setFillColor(DiscFill)
+        Pdf.circle(GX + 7.2 * mm, CardsY + CardH2 - 8.4 * mm, 3.2 * mm, fill=1, stroke=0)
+        _MpGlyph(Pdf, Glyph, GX + 7.2 * mm, CardsY + CardH2 - 8.4 * mm, 2.1 * mm, GlyphColor, 1.0)
+        _MpTracked(Pdf, Title, GX + 12.4 * mm, CardsY + CardH2 - 9.4 * mm, 6.2, MpInk, 0.9)
+        _MpPara(Pdf, Body, GX + 5.5 * mm, CardsY + CardH2 - 12.6 * mm, CardW2 - 11 * mm, _MpStyle(f"MpGuide{Index}", 7.4, 9.4, MpText))
+    NoteY = CardsY - 3.5 * mm - 14 * mm
+    _MpPanel(Pdf, L, NoteY, CW, 14 * mm, MpPurpleSoft, colors.HexColor("#DED6FE"), 9, 0.7)
+    _MpTracked(Pdf, "MathPath Note", L + 7 * mm, NoteY + 8.6 * mm, 5.8, MpPurple, 1.0)
+    _MpPara(Pdf, Copy["note"], L + 7 * mm, NoteY + 7.2 * mm, CW - 14 * mm, _MpStyle("MpNote", 7.2, 9.2, MpText))
+
+    _MpFooter(Pdf, 2, 2, StudentCode, ReportLevel)
     Pdf.save()
     Buffer.seek(0)
 

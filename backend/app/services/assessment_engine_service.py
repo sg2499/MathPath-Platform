@@ -2011,6 +2011,21 @@ def RejectAssessmentReattempt(Db: Session, ApprovalId: str, AdminUserId: str, Ad
 def NextLevelForLevel(Db: Session, CurrentLevel: Level | None) -> Level | None:
     if not CurrentLevel:
         return None
+
+    # Primary source of truth: levels.next_level_id, synced on every backend
+    # startup by ensure_level_next_level_id_column() (schema_migration.py).
+    # It correctly handles the 3 fixed curriculum enrollment paths -- YLM
+    # skips PM-L1, BM skips straight to IM -- which the same-module-only
+    # fallback below cannot (see docs/project-memory/PRODUCT_RULES.md
+    # "Curriculum Progression Paths").
+    if CurrentLevel.next_level_id:
+        SyncedNextLevel = Db.get(Level, CurrentLevel.next_level_id)
+        if SyncedNextLevel and SyncedNextLevel.is_active:
+            return SyncedNextLevel
+
+    # Fallback for a level whose next_level_id hasn't been synced yet --
+    # same-module sequential lookup only. Deliberately does NOT guess across
+    # module boundaries; that's exactly the bug the synced column fixes.
     Query = (
         Db.query(Level)
         .filter(

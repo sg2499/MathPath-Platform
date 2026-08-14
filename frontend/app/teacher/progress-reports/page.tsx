@@ -388,8 +388,6 @@ function TeacherProgressReportsPageContent() {
     });
   }, [Items, SearchValue, ModuleFilter, LevelFilter]);
 
-  const StudentCount = useMemo(() => BuildProgressReportStudentGroups(Items).length, [Items]);
-
   if (!Ready) return null;
 
   return (
@@ -407,7 +405,6 @@ function TeacherProgressReportsPageContent() {
             Review and download the parent progress reports the admin has published for your assigned students.
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric Label="Students With Reports" Value={StudentCount} Icon={<FileBarChart size={15} />} />
             <Metric Label="Total Reports" Value={Items.length} Icon={<FileBarChart size={15} />} />
           </div>
         </div>
