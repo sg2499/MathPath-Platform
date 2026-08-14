@@ -365,14 +365,12 @@ function AppendDeepLinkParams(
 function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   if (Role === "teacher") {
     if (IsParentReportNotification(Notification)) {
-      const StudentCode = MetadataString(Notification, "studentCode");
-      const StoredRoute = Notification.targetRoute || "";
-      const Route = StoredRoute.startsWith("/teacher/assessments/student/")
-        ? StoredRoute
-        : StudentCode
-          ? `/teacher/assessments/student/${encodeURIComponent(StudentCode)}`
-          : "/teacher/assessments";
-      return { Route, TargetTab: "", TargetSubTab: "" };
+      // Progress Reports (frontend/app/teacher/progress-reports/page.tsx) is
+      // the single dedicated place teachers review/download published parent
+      // reports -- route there regardless of any older stored route (a
+      // notification created before that tab existed may still have
+      // targetRoute pointing at the student detail page).
+      return { Route: "/teacher/progress-reports", TargetTab: "", TargetSubTab: "" };
     }
     if (IsCompetitionMockNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";

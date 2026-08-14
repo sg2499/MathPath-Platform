@@ -185,7 +185,7 @@ def NotifyParentReportPublishedToTeacher(
         category="PARENT_REPORT",
         title=f"{student_name} Progress Report Ready",
         message=f"{student_name}'s progress report for {level_label} has been generated and is ready to view.",
-        target_route=f"/teacher/assessments/student/{student_code}",
+        target_route="/teacher/progress-reports",
         target_tab="",
         color_variant="TEAL",
         metadata={

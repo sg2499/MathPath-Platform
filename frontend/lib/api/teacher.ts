@@ -524,6 +524,7 @@ export type TeacherParentReportDelivery = {
   levelCode: string;
   levelLabel: string;
   fileName?: string | null;
+  assessmentTitle?: string | null;
   publishedToTeacherAt?: string | null;
 };
 

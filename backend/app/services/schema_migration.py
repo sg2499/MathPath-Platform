@@ -526,6 +526,11 @@ PARENT_REPORT_EMAIL_LOG_COLUMNS = {
     # teacher-downloadable PDF reports. See ParentReportEmailLog docstring.
     "published_to_teacher_at": "TIMESTAMP",
     "published_by_user_id": "VARCHAR",
+    # Assessment blueprint title captured at generation time (e.g. "YLM_TEST"),
+    # so the teacher's Progress Reports tab can label each report without
+    # re-deriving it live. Snapshot-of-generation, matching what the PDF
+    # itself reflects -- see ParentReportEmailLog docstring.
+    "assessment_title": "VARCHAR(255)",
 }
 
 
@@ -560,6 +565,7 @@ def ensure_parent_report_email_logs_table() -> None:
                     error_message TEXT,
                     published_to_teacher_at TIMESTAMP,
                     published_by_user_id VARCHAR,
+                    assessment_title VARCHAR(255),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """))

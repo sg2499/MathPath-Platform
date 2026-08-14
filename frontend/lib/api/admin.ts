@@ -1125,6 +1125,7 @@ export type ParentReportDeliveryLog = {
   levelName: string;
   levelLabel: string;
   fileName?: string | null;
+  assessmentTitle?: string | null;
   status: string;
   isPublishedToTeacher: boolean;
   generatedAt?: string | null;
