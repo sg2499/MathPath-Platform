@@ -142,6 +142,14 @@ class Level(Base):
     internal_level_number = Column(Integer)
     display_order = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    # 2026-08-14: single source of truth for "what level comes after this
+    # one" -- kept in sync on every backend startup by
+    # ensure_level_next_level_id_column() (schema_migration.py), which
+    # auto-derives same-module sequencing and applies the 3 documented
+    # cross-module overrides for the fixed enrollment paths (see
+    # docs/project-memory/PRODUCT_RULES.md "Curriculum Progression Paths").
+    # Nullable: null means "no next level yet" (e.g. end of curriculum).
+    next_level_id = Column(String, ForeignKey("levels.id"), nullable=True)
     module = relationship("Module")
     __table_args__ = (UniqueConstraint("module_id", "level_code", name="uq_module_level"),)
 
