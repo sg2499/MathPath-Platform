@@ -8,7 +8,7 @@ import { apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { getTeacherAvailableDps, getTeacherStudents, teacherAssignAllSheetsForLesson, teacherAssignDps } from "@/lib/api/teacher";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, ClipboardPlus, Layers, Send, UserCheck, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardPlus, Layers, Send, UserCheck, Users, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 
@@ -185,8 +185,14 @@ export default function TeacherAssignDpsPage() {
   const loading = studentsQuery.isLoading || dpsQuery.isLoading;
   const error = studentsQuery.error || dpsQuery.error || mutation.error || bulkLessonMutation.error;
 
+  const allEligibleSelected = eligibleStudentIds.length > 0 && eligibleStudentIds.every((id) => selectedStudentIds.includes(id));
+
   function toggleStudent(studentId: string) {
     setSelectedStudentIds((prev) => prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]);
+  }
+
+  function toggleSelectAllStudents() {
+    setSelectedStudentIds(allEligibleSelected ? [] : eligibleStudentIds);
   }
 
   function assignSelectedStudents() {
@@ -307,10 +313,19 @@ export default function TeacherAssignDpsPage() {
                     : `All ${dpsForLesson.length} sheet(s) in this lesson -- only students in ${selectedLesson.levelCode} can be selected.`}
                 </p>
               </div>
-              <div className="flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center sm:justify-end">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:w-auto">
                 <button
                   type="button"
-                  className="math-button-secondary whitespace-nowrap"
+                  className="math-button-secondary w-full justify-center whitespace-nowrap"
+                  disabled={!eligibleStudentIds.length}
+                  onClick={toggleSelectAllStudents}
+                >
+                  <Users size={18} />
+                  {allEligibleSelected ? "Deselect All" : "Select All Students"}
+                </button>
+                <button
+                  type="button"
+                  className="math-button-secondary w-full justify-center whitespace-nowrap"
                   disabled={!selectedDps || !eligibleStudentIds.length || mutation.isPending}
                   title={!selectedDps ? "Choose a specific DPS sheet to use this." : undefined}
                   onClick={openAssignAllConfirmation}
@@ -320,7 +335,7 @@ export default function TeacherAssignDpsPage() {
                 </button>
                 <button
                   type="button"
-                  className="math-button-secondary whitespace-nowrap"
+                  className="math-button-secondary w-full justify-center whitespace-nowrap"
                   disabled={Boolean(selectedDps) || !selectedStudentIds.length || dpsForLesson.length < 2 || bulkLessonMutation.isPending}
                   title={
                     selectedDps
@@ -336,7 +351,7 @@ export default function TeacherAssignDpsPage() {
                 </button>
                 <button
                   type="button"
-                  className="math-button-primary whitespace-nowrap"
+                  className="math-button-primary w-full justify-center whitespace-nowrap"
                   disabled={!selectedDps || !selectedStudentIds.length || mutation.isPending}
                   title={!selectedDps ? "Choose a specific DPS sheet to use this." : undefined}
                   onClick={assignSelectedStudents}
