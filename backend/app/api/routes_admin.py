@@ -277,6 +277,18 @@ class PreviewRequest(BaseModel):
     seed: str | None = None
 
 
+class LessonBulkPreviewRequest(BaseModel):
+    # Off by default: an already-PUBLISHED sheet already has a reviewed,
+    # locked-in question set that teachers/students may be mid-assignment
+    # on. Regenerating it changes published_seed, so bulk preview leaves
+    # published sheets untouched unless the admin explicitly opts in.
+    includePublished: bool = False
+
+
+class LessonBulkPublishRequest(BaseModel):
+    dpsIds: list[str]
+
+
 class AllowReattemptRequest(BaseModel):
     reason: str | None = None
 
@@ -2037,6 +2049,137 @@ def publish_dps_route(dps_id: str, db: Session = Depends(get_db), user: User = D
             "publicationStatus": dps.publication_status,
             "publishedAt": dps.published_at.isoformat() if dps.published_at else None,
         },
+    }
+
+
+@router.post("/lessons/{lesson_id}/dps/generate-preview-all")
+def generate_preview_all_dps_for_lesson(
+    lesson_id: str,
+    payload: LessonBulkPreviewRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    """Bulk counterpart of /dps/{id}/generate-preview -- generates and
+    stores a fresh preview for every DPS sheet under a lesson in one call
+    (skipping already-PUBLISHED sheets unless includePublished is set), so
+    the "Publish All Sheets" flow can show one combined review instead of
+    the admin clicking Generate Preview 5 separate times.
+    """
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson:
+        api_error(404, "NOT_FOUND", "Lesson not found.")
+
+    rows = (
+        db.query(DPS)
+        .filter(DPS.lesson_id == lesson_id, DPS.is_active == True)
+        .order_by(DPS.dps_number.asc())
+        .all()
+    )
+    if not rows:
+        api_error(404, "NOT_FOUND", "No DPS sheets found for this lesson.")
+
+    results = []
+    skipped = []
+    for dps in rows:
+        is_published = (getattr(dps, "publication_status", "DRAFT") or "DRAFT") == "PUBLISHED"
+        if is_published and not payload.includePublished:
+            skipped.append({
+                "dpsId": dps.id,
+                "dpsNumber": dps.dps_number,
+                "dpsTitle": dps.dps_title,
+                "reason": "ALREADY_PUBLISHED",
+            })
+            continue
+
+        preview_seed = build_preview_seed(dps)
+        questions = generate_preview(db, dps, preview_seed)
+        dps.last_preview_seed = preview_seed
+        results.append({
+            "dpsId": dps.id,
+            "dpsNumber": dps.dps_number,
+            "dpsTitle": dps.dps_title,
+            "title": dps.dps_title,
+            "previewSeed": preview_seed,
+            "questions": questions,
+            "wasAlreadyPublished": is_published,
+        })
+
+    db.commit()
+
+    return {
+        "lessonId": lesson_id,
+        "lessonNumber": lesson.lesson_number,
+        "lessonTitle": lesson.lesson_title,
+        "results": results,
+        "skipped": skipped,
+        "totalDpsCount": len(rows),
+    }
+
+
+@router.post("/lessons/{lesson_id}/dps/publish-all")
+def publish_all_dps_for_lesson(
+    lesson_id: str,
+    payload: LessonBulkPublishRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    """Bulk counterpart of /dps/{id}/publish -- publishes exactly the DPS
+    sheets the admin just reviewed via generate-preview-all (identified by
+    dpsIds, not re-derived here), so a stray leftover preview seed from an
+    earlier, unrelated session can never get silently published.
+    """
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson:
+        api_error(404, "NOT_FOUND", "Lesson not found.")
+    if not payload.dpsIds:
+        api_error(400, "VALIDATION_ERROR", "Select at least one DPS sheet to publish.")
+
+    rows = (
+        db.query(DPS)
+        .filter(DPS.id.in_(payload.dpsIds), DPS.lesson_id == lesson_id)
+        .all()
+    )
+    found_ids = {dps.id for dps in rows}
+    missing_ids = [dps_id for dps_id in payload.dpsIds if dps_id not in found_ids]
+    if missing_ids:
+        api_error(404, "NOT_FOUND", "One or more selected DPS sheets were not found in this lesson.")
+
+    published = []
+    skipped = []
+    for dps in sorted(rows, key=lambda item: item.dps_number):
+        if not getattr(dps, "last_preview_seed", None):
+            skipped.append({"dpsId": dps.id, "dpsNumber": dps.dps_number, "reason": "PREVIEW_REQUIRED"})
+            continue
+        dps.publication_status = "PUBLISHED"
+        dps.published_seed = dps.last_preview_seed
+        dps.published_at = datetime.now(datetime_timezone.utc)
+        dps.published_by_user_id = user.id
+        published.append(dps)
+
+    db.commit()
+    for dps in published:
+        db.refresh(dps)
+
+    message = f"Published {len(published)} of {len(rows)} DPS sheet(s) for this lesson."
+    if skipped:
+        message += " Generate and review a fresh preview for the rest before publishing them."
+
+    return {
+        "published": True,
+        "message": message,
+        "lessonId": lesson_id,
+        "publishedDpsIds": [dps.id for dps in published],
+        "skipped": skipped,
+        "dps": [
+            {
+                "dpsId": dps.id,
+                "dpsNumber": dps.dps_number,
+                "dpsTitle": dps.dps_title,
+                "publicationStatus": dps.publication_status,
+                "publishedAt": dps.published_at.isoformat() if dps.published_at else None,
+            }
+            for dps in published
+        ],
     }
 
 

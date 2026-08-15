@@ -8,11 +8,17 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
   generateDpsPreview,
+  generateDpsPreviewForLesson,
   publishDps,
+  publishAllDpsForLesson,
   getDpsByLesson,
   getLessons,
   getLevels,
   getModules,
+} from "@/lib/api/admin";
+import type {
+  LessonBulkPreviewResult,
+  LessonBulkSkippedSheet,
 } from "@/lib/api/admin";
 import type {
   DpsItem,
@@ -22,7 +28,7 @@ import type {
 } from "@/types/curriculum";
 import type { AdminPreviewQuestion } from "@/types/question";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Compass, Eye, EyeOff, Filter, Hash, RefreshCcw } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Compass, Eye, EyeOff, Filter, Hash, Layers, RefreshCcw, X } from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -363,6 +369,41 @@ function AdminCurriculumPageContent() {
     },
   });
 
+  // "Publish All Sheets" -- generates a fresh preview for every unpublished
+  // DPS in the selected lesson (or every DPS if includePublishedInBulk is
+  // on), holds them here for a combined review, then one confirm publishes
+  // exactly the sheets that were reviewed.
+  const [includePublishedInBulk, setIncludePublishedInBulk] = useState(false);
+  const [bulkReview, setBulkReview] = useState<{
+    results: LessonBulkPreviewResult[];
+    skipped: LessonBulkSkippedSheet[];
+  } | null>(null);
+  const [expandedBulkSheetId, setExpandedBulkSheetId] = useState<string | null>(null);
+  const [bulkShowAnswers, setBulkShowAnswers] = useState(false);
+
+  const bulkPreviewMutation = useMutation({
+    mutationFn: () => generateDpsPreviewForLesson(lessonId, includePublishedInBulk),
+    onSuccess: (data) => {
+      setBulkReview({ results: data.results, skipped: data.skipped });
+      setExpandedBulkSheetId(data.results[0]?.dpsId ?? null);
+      setBulkShowAnswers(false);
+    },
+  });
+
+  const bulkPublishMutation = useMutation({
+    mutationFn: () =>
+      publishAllDpsForLesson(
+        lessonId,
+        (bulkReview?.results ?? []).map((result) => result.dpsId),
+      ),
+    onSuccess: () => {
+      setBulkReview(null);
+      QueryClient.invalidateQueries({
+        queryKey: ["admin-curriculum-dps", lessonId],
+      });
+    },
+  });
+
   const isLoading =
     modulesQuery.isLoading ||
     (levelsQuery.isLoading && !levelsQuery.data) ||
@@ -381,7 +422,21 @@ function AdminCurriculumPageContent() {
     lessonsQuery.error ||
     dpsQuery.error ||
     previewMutation.error ||
-    publishMutation.error;
+    publishMutation.error ||
+    bulkPreviewMutation.error ||
+    bulkPublishMutation.error;
+
+  const lessonDpsRows = dpsQuery.data ?? [];
+  const publishedLessonDpsCount = lessonDpsRows.filter(
+    (item) => (item.publicationStatus || "DRAFT") === "PUBLISHED",
+  ).length;
+  const canPublishAllSheets =
+    Boolean(lessonId) &&
+    lessonDpsRows.length > 0 &&
+    (includePublishedInBulk
+      ? lessonDpsRows.length > 0
+      : publishedLessonDpsCount < lessonDpsRows.length) &&
+    !bulkPreviewMutation.isPending;
 
   const SelectedDpsStatus = selectedDps?.publicationStatus || "DRAFT";
   const IsSelectedDpsPublished = SelectedDpsStatus === "PUBLISHED";
@@ -514,6 +569,188 @@ function AdminCurriculumPageContent() {
           ))}
         </Panel>
       </div>
+
+      {lessonId ? (
+        <div className="mt-6 math-card p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="math-block-header text-blue-600">
+                <Layers size={14} />Selected Lesson
+              </p>
+
+              <h2 className="mt-1 text-2xl font-black text-slate-900">
+                {selectedLesson
+                  ? `Lesson ${selectedLesson.lessonNumber}: ${selectedLesson.lessonTitle}`
+                  : "No lesson selected"}
+              </h2>
+
+              <div className="mt-3 space-y-1 text-sm text-slate-600">
+                <p>
+                  <span className="font-semibold">Module:</span>{" "}
+                  {selectedModule
+                    ? `${selectedModule.moduleCode} - ${selectedModule.moduleName}`
+                    : "Not selected"}
+                </p>
+                <p>
+                  <span className="font-semibold">Level:</span>{" "}
+                  {selectedLevel
+                    ? `${selectedLevel.levelCode} - ${selectedLevel.levelName}`
+                    : "Not selected"}
+                </p>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {lessonDpsRows.map((dps: DpsItem) => (
+                  <span
+                    key={dps.dpsId}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700"
+                  >
+                    DPS {dps.dpsNumber}
+                    <PublishStatusChip Status={dps.publicationStatus || "DRAFT"} />
+                  </span>
+                ))}
+              </div>
+
+              <p className="mt-3 text-xs font-semibold text-slate-500">
+                {publishedLessonDpsCount} of {lessonDpsRows.length} sheet(s) published in this lesson.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+              <label className="flex items-center gap-2 whitespace-nowrap text-xs font-bold text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={includePublishedInBulk}
+                  onChange={(event) => setIncludePublishedInBulk(event.target.checked)}
+                />
+                Include already-published (republish)
+              </label>
+
+              <button
+                className="math-button-primary inline-flex items-center justify-center gap-2 whitespace-nowrap px-4"
+                disabled={!canPublishAllSheets}
+                title={
+                  lessonDpsRows.length === 0
+                    ? "This lesson has no DPS sheets yet."
+                    : !includePublishedInBulk && publishedLessonDpsCount >= lessonDpsRows.length
+                      ? "Every sheet in this lesson is already published. Check \"Include already-published\" to republish them."
+                      : "Generate fresh previews for this lesson's sheets, then review before publishing all at once."
+                }
+                onClick={() => bulkPreviewMutation.mutate()}
+              >
+                <Layers size={16} />
+                {bulkPreviewMutation.isPending ? "Preparing Review..." : "Publish All Sheets"}
+              </button>
+            </div>
+          </div>
+
+          {bulkReview ? (
+            <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-5 dark:border-cyan-400/20 dark:bg-cyan-400/10">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="math-block-header text-blue-600 dark:text-cyan-200">
+                    <CheckCircle2 size={14} />Review Before Publishing
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-cyan-100/80">
+                    {bulkReview.results.length} sheet(s) ready to publish
+                    {bulkReview.skipped.length ? `, ${bulkReview.skipped.length} skipped` : ""}.
+                  </p>
+                </div>
+                <button
+                  className="math-role-action-button whitespace-nowrap px-3"
+                  onClick={() => setBulkShowAnswers((value) => !value)}
+                  disabled={!bulkReview.results.length}
+                >
+                  {bulkShowAnswers ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {bulkShowAnswers ? "Hide Answers" : "Show Answers"}
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-3">
+                {bulkReview.results.map((result) => {
+                  const IsExpanded = expandedBulkSheetId === result.dpsId;
+                  return (
+                    <div key={result.dpsId} className="rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950">
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 p-4 text-left"
+                        onClick={() => setExpandedBulkSheetId(IsExpanded ? null : result.dpsId)}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="shrink-0 font-black text-slate-900 dark:text-white">
+                            DPS {result.dpsNumber}
+                          </span>
+                          <span className="truncate text-sm font-semibold text-slate-600 dark:text-slate-300">
+                            {result.dpsTitle}
+                          </span>
+                          {result.wasAlreadyPublished ? (
+                            <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-[0.14em] text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
+                              Republish
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2 text-xs font-bold text-slate-500">
+                          {result.questions.length} questions
+                          {IsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </span>
+                      </button>
+
+                      {IsExpanded ? (
+                        <div className="grid gap-4 border-t border-slate-100 p-4 dark:border-slate-800">
+                          {result.questions.map((question, index) => (
+                            <PreviewQuestionCard
+                              key={`${result.dpsId}-${question.seed || index}`}
+                              question={question}
+                              showCorrectAnswers={bulkShowAnswers}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {bulkReview.skipped.length ? (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
+                  Skipped: {bulkReview.skipped.map((item) => `DPS ${item.dpsNumber}`).join(", ")}
+                  {" "}
+                  (already published -- check &quot;Include already-published&quot; to republish them too).
+                </div>
+              ) : null}
+
+              <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  className="math-button-secondary whitespace-nowrap"
+                  onClick={() => setBulkReview(null)}
+                  disabled={bulkPublishMutation.isPending}
+                >
+                  <X size={16} />
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="math-button-primary whitespace-nowrap"
+                  onClick={() => bulkPublishMutation.mutate()}
+                  disabled={bulkPublishMutation.isPending || !bulkReview.results.length}
+                >
+                  <CheckCircle2 size={16} />
+                  {bulkPublishMutation.isPending
+                    ? "Publishing..."
+                    : `Confirm & Publish ${bulkReview.results.length} Sheet(s)`}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {bulkPublishMutation.isSuccess && !bulkReview ? (
+            <div className="mt-4 rounded-2xl bg-green-50 p-4 text-sm font-semibold text-green-700">
+              {bulkPublishMutation.data?.message}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-6 math-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

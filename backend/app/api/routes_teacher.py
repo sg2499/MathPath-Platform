@@ -36,6 +36,12 @@ class TeacherAssignRequest(BaseModel):
     allowReattempt: bool = False
 
 
+class TeacherBulkAssignRequest(BaseModel):
+    lessonId: str
+    studentIds: list[str]
+    instructions: str | None = None
+
+
 class TeacherAssignAssessmentRequest(BaseModel):
     assessmentVersionId: str
     studentIds: list[str]
@@ -708,42 +714,24 @@ def student_has_completed_dps(db: Session, student_id: str, dps_id: str) -> bool
     )
 
 
-@router.post("/assignments")
-def assign_dps_to_students(
-    payload: TeacherAssignRequest,
-    db: Session = Depends(get_db),
-    teacher: Teacher = Depends(get_current_teacher),
-):
-    if not payload.studentIds:
-        api_error(400, "VALIDATION_ERROR", "Select at least one student.")
+def assign_single_dps_to_students(
+    db: Session,
+    *,
+    dps: DPS,
+    teacher: Teacher,
+    students: list[Student],
+    title: str,
+    instructions: str | None,
+) -> tuple[list[Assignment], list[str]]:
+    """Core per-student assignment loop for one DPS, shared by the
+    single-sheet /assignments route and the bulk /assignments/lesson route
+    below -- duplicate-assignment blocking and reattempt handling must stay
+    byte-for-byte identical between the two, not two copies that can drift.
+    """
+    created: list[Assignment] = []
+    blocked_students: list[str] = []
 
-    dps = db.get(DPS, payload.dpsId)
-    if not dps:
-        api_error(404, "NOT_FOUND", "DPS not found.")
-    if (getattr(dps, "publication_status", "DRAFT") or "DRAFT") != "PUBLISHED":
-        api_error(403, "DPS_NOT_PUBLISHED", "This DPS has not been published by Admin yet.")
-    lesson = db.get(Lesson, dps.lesson_id)
-    level = db.get(Level, lesson.level_id) if lesson else None
-    if not level:
-        api_error(404, "NOT_FOUND", "DPS level not found.")
-
-    own_students = own_students_query(db, teacher).filter(Student.id.in_(payload.studentIds)).all()
-    if len(own_students) != len(set(payload.studentIds)):
-        api_error(403, "FORBIDDEN", "You can assign DPS only to your own students.")
-
-    invalid_students = [student for student in own_students if student.current_level_id != level.id]
-    if invalid_students:
-        names = []
-        for student in invalid_students:
-            user = db.get(User, student.user_id)
-            names.append(user.full_name if user else student.student_code)
-        api_error(400, "LEVEL_MISMATCH", f"DPS can only be assigned to students in {level.level_code}. Mismatch: {', '.join(names)}")
-
-    title = payload.title or f"{level.level_code} Lesson {lesson.lesson_number} - DPS {dps.dps_number} Practice"
-    created = []
-    blocked_students = []
-
-    for student in own_students:
+    for student in students:
         existing_assignment = (
             db.query(Assignment)
             .filter(
@@ -782,7 +770,7 @@ def assign_dps_to_students(
                 SourceAttempt=source_attempt,
                 AssignedByUserId=teacher.user_id,
                 Title=title,
-                Instructions=payload.instructions,
+                Instructions=instructions,
             )
             reattempt_permission.status = "USED"
             reattempt_permission.used_at = datetime.now(timezone.utc)
@@ -798,10 +786,54 @@ def assign_dps_to_students(
             assigned_to_type="STUDENT",
             assigned_to_id=student.id,
             title=title,
-            instructions=payload.instructions or "Complete this practice within the given time.",
+            instructions=instructions or "Complete this practice within the given time.",
             allow_reattempt=False,
         )
         created.append(assignment)
+
+    return created, blocked_students
+
+
+@router.post("/assignments")
+def assign_dps_to_students(
+    payload: TeacherAssignRequest,
+    db: Session = Depends(get_db),
+    teacher: Teacher = Depends(get_current_teacher),
+):
+    if not payload.studentIds:
+        api_error(400, "VALIDATION_ERROR", "Select at least one student.")
+
+    dps = db.get(DPS, payload.dpsId)
+    if not dps:
+        api_error(404, "NOT_FOUND", "DPS not found.")
+    if (getattr(dps, "publication_status", "DRAFT") or "DRAFT") != "PUBLISHED":
+        api_error(403, "DPS_NOT_PUBLISHED", "This DPS has not been published by Admin yet.")
+    lesson = db.get(Lesson, dps.lesson_id)
+    level = db.get(Level, lesson.level_id) if lesson else None
+    if not level:
+        api_error(404, "NOT_FOUND", "DPS level not found.")
+
+    own_students = own_students_query(db, teacher).filter(Student.id.in_(payload.studentIds)).all()
+    if len(own_students) != len(set(payload.studentIds)):
+        api_error(403, "FORBIDDEN", "You can assign DPS only to your own students.")
+
+    invalid_students = [student for student in own_students if student.current_level_id != level.id]
+    if invalid_students:
+        names = []
+        for student in invalid_students:
+            user = db.get(User, student.user_id)
+            names.append(user.full_name if user else student.student_code)
+        api_error(400, "LEVEL_MISMATCH", f"DPS can only be assigned to students in {level.level_code}. Mismatch: {', '.join(names)}")
+
+    title = payload.title or f"{level.level_code} Lesson {lesson.lesson_number} - DPS {dps.dps_number} Practice"
+    created, blocked_students = assign_single_dps_to_students(
+        db,
+        dps=dps,
+        teacher=teacher,
+        students=own_students,
+        title=title,
+        instructions=payload.instructions,
+    )
 
     if blocked_students and not created:
         api_error(
@@ -822,6 +854,95 @@ def assign_dps_to_students(
         "created": True,
         "message": message,
         "assignmentIds": [assignment.id for assignment in created],
+    }
+
+
+@router.post("/assignments/lesson")
+def assign_lesson_dps_to_students(
+    payload: TeacherBulkAssignRequest,
+    db: Session = Depends(get_db),
+    teacher: Teacher = Depends(get_current_teacher),
+):
+    """Assign every PUBLISHED DPS sheet under one lesson to the same set of
+    students in one call -- the "Assign All Sheets" bulk action. Reuses
+    assign_single_dps_to_students() per sheet so duplicate/reattempt
+    handling matches the single-sheet route exactly; the only new behavior
+    is looping over the lesson's sheets and aggregating the results.
+    """
+    if not payload.studentIds:
+        api_error(400, "VALIDATION_ERROR", "Select at least one student.")
+
+    lesson = db.get(Lesson, payload.lessonId)
+    if not lesson:
+        api_error(404, "NOT_FOUND", "Lesson not found.")
+    level = db.get(Level, lesson.level_id)
+    if not level:
+        api_error(404, "NOT_FOUND", "Lesson level not found.")
+
+    all_lesson_dps = (
+        db.query(DPS)
+        .filter(DPS.lesson_id == lesson.id, DPS.is_active == True)
+        .order_by(DPS.dps_number.asc())
+        .all()
+    )
+    publishable_dps = [dps for dps in all_lesson_dps if (getattr(dps, "publication_status", "DRAFT") or "DRAFT") == "PUBLISHED"]
+    if not publishable_dps:
+        api_error(403, "DPS_NOT_PUBLISHED", "No published DPS sheets are available for this lesson yet.")
+
+    own_students = own_students_query(db, teacher).filter(Student.id.in_(payload.studentIds)).all()
+    if len(own_students) != len(set(payload.studentIds)):
+        api_error(403, "FORBIDDEN", "You can assign DPS only to your own students.")
+
+    invalid_students = [student for student in own_students if student.current_level_id != level.id]
+    if invalid_students:
+        names = []
+        for student in invalid_students:
+            user = db.get(User, student.user_id)
+            names.append(user.full_name if user else student.student_code)
+        api_error(400, "LEVEL_MISMATCH", f"DPS can only be assigned to students in {level.level_code}. Mismatch: {', '.join(names)}")
+
+    all_created: list[Assignment] = []
+    blocked_pairs: list[str] = []
+
+    for dps in publishable_dps:
+        title = f"{level.level_code} Lesson {lesson.lesson_number} - DPS {dps.dps_number} Practice"
+        created, blocked_students = assign_single_dps_to_students(
+            db,
+            dps=dps,
+            teacher=teacher,
+            students=own_students,
+            title=title,
+            instructions=payload.instructions,
+        )
+        all_created.extend(created)
+        blocked_pairs.extend(f"DPS {dps.dps_number} – {name}" for name in blocked_students)
+
+    if not all_created and blocked_pairs:
+        api_error(
+            409,
+            "DUPLICATE_ASSIGNMENT_BLOCKED",
+            "Every sheet in this lesson is already assigned to the selected student(s). "
+            "Admin can unlock existing assignments for a reattempt if needed.",
+        )
+
+    NotifyPracticeAssignmentsCreated(db, assignment_ids=[assignment.id for assignment in all_created], actor_user_id=teacher.user_id)
+    db.commit()
+
+    sheet_count = len(publishable_dps)
+    total_dps_count = len(all_lesson_dps)
+    message = f"Assigned {sheet_count} sheet(s) to {len(own_students)} student(s)."
+    if sheet_count < total_dps_count:
+        message += f" {total_dps_count - sheet_count} sheet(s) in this lesson aren't published yet and were skipped."
+    if blocked_pairs:
+        message += f" Skipped {len(blocked_pairs)} already-assigned combination(s)."
+
+    return {
+        "created": True,
+        "message": message,
+        "assignmentIds": [assignment.id for assignment in all_created],
+        "sheetsAssigned": sheet_count,
+        "totalSheetsInLesson": total_dps_count,
+        "studentsAssigned": len(own_students),
     }
 
 

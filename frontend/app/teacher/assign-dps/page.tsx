@@ -6,9 +6,9 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
-import { getTeacherAvailableDps, getTeacherStudents, teacherAssignDps } from "@/lib/api/teacher";
+import { getTeacherAvailableDps, getTeacherStudents, teacherAssignAllSheetsForLesson, teacherAssignDps } from "@/lib/api/teacher";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, ClipboardPlus, Send, UserCheck, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardPlus, Layers, Send, UserCheck, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 
@@ -89,6 +89,7 @@ export default function TeacherAssignDpsPage() {
   const [message, setMessage] = useState("");
   const [assignMode, setAssignMode] = usePersistentUiState<"selected" | "all">(CreatePersistedUiStateKey(AssignDpsStateKey, "assign-mode"), "selected");
   const [showAssignAllConfirm, setShowAssignAllConfirm] = useState(false);
+  const [showAssignAllSheetsConfirm, setShowAssignAllSheetsConfirm] = useState(false);
 
   const studentsQuery = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
   const dpsQuery = useQuery({ queryKey: ["teacher-available-dps"], queryFn: getTeacherAvailableDps, enabled: ready });
@@ -115,6 +116,15 @@ export default function TeacherAssignDpsPage() {
   const eligibleStudents = students.filter((student) => selectedDps && student.currentLevelId === selectedDps.levelId && student.isActive);
   const eligibleStudentIds = useMemo(() => eligibleStudents.map((student) => student.studentId), [eligibleStudents]);
 
+  // Every DPS the teacher can see here is already Admin-published (that's
+  // what /teacher/available-dps returns), so this is exactly the set of
+  // sheets "Assign All Sheets" will touch -- no separate unpublished-count
+  // tracking needed on this side.
+  const lessonSheets = useMemo(
+    () => (selectedDps ? visibleDps.filter((dps) => dps.lessonId === selectedDps.lessonId) : []),
+    [visibleDps, selectedDps]
+  );
+
   const mutation = useMutation({
     mutationFn: (payload: { studentIds: string[]; mode: "selected" | "all" }) => teacherAssignDps({
       dpsId,
@@ -130,10 +140,23 @@ export default function TeacherAssignDpsPage() {
     },
   });
 
+  const bulkLessonMutation = useMutation({
+    mutationFn: () => teacherAssignAllSheetsForLesson({
+      lessonId: selectedDps!.lessonId,
+      studentIds: selectedStudentIds,
+      instructions: "Complete this practice within the given time.",
+    }),
+    onSuccess: (data) => {
+      setMessage(data.message);
+      setSelectedStudentIds([]);
+      setShowAssignAllSheetsConfirm(false);
+    },
+  });
+
   if (!ready) return null;
 
   const loading = studentsQuery.isLoading || dpsQuery.isLoading;
-  const error = studentsQuery.error || dpsQuery.error || mutation.error;
+  const error = studentsQuery.error || dpsQuery.error || mutation.error || bulkLessonMutation.error;
 
   function toggleStudent(studentId: string) {
     setSelectedStudentIds((prev) => prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]);
@@ -153,6 +176,16 @@ export default function TeacherAssignDpsPage() {
     if (!eligibleStudentIds.length || !selectedDps) return;
     setAssignMode("all");
     mutation.mutate({ studentIds: eligibleStudentIds, mode: "all" });
+  }
+
+  function openAssignAllSheetsConfirmation() {
+    if (!selectedStudentIds.length || !selectedDps || bulkLessonMutation.isPending) return;
+    setShowAssignAllSheetsConfirm(true);
+  }
+
+  function confirmAssignAllSheets() {
+    if (!selectedStudentIds.length || !selectedDps) return;
+    bulkLessonMutation.mutate();
   }
 
   return (
@@ -216,10 +249,10 @@ export default function TeacherAssignDpsPage() {
                 <h2 className="text-2xl font-black text-slate-950">{selectedDps.dpsTitle}</h2>
                 <p className="mt-1 text-sm text-slate-600">Only students in {selectedDps.levelCode} can be selected.</p>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+              <div className="flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center sm:justify-end">
                 <button
                   type="button"
-                  className="math-button-secondary"
+                  className="math-button-secondary whitespace-nowrap"
                   disabled={!eligibleStudentIds.length || mutation.isPending}
                   onClick={openAssignAllConfirmation}
                 >
@@ -228,7 +261,17 @@ export default function TeacherAssignDpsPage() {
                 </button>
                 <button
                   type="button"
-                  className="math-button-primary"
+                  className="math-button-secondary whitespace-nowrap"
+                  disabled={!selectedStudentIds.length || lessonSheets.length < 2 || bulkLessonMutation.isPending}
+                  title={lessonSheets.length < 2 ? "Only one published sheet in this lesson right now." : `Assign all ${lessonSheets.length} published sheets in Lesson ${selectedDps.lessonNumber} to the selected student(s).`}
+                  onClick={openAssignAllSheetsConfirmation}
+                >
+                  <Layers size={18} />
+                  {bulkLessonMutation.isPending ? "Assigning Sheets..." : "Assign All Sheets"}
+                </button>
+                <button
+                  type="button"
+                  className="math-button-primary whitespace-nowrap"
                   disabled={!selectedStudentIds.length || mutation.isPending}
                   onClick={assignSelectedStudents}
                 >
@@ -321,6 +364,82 @@ export default function TeacherAssignDpsPage() {
               >
                 <ClipboardPlus size={18} />
                 {mutation.isPending && assignMode === "all" ? "Assigning..." : "Confirm Assignment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showAssignAllSheetsConfirm && selectedDps ? (
+        <div className="fixed inset-x-0 bottom-0 top-[92px] z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 py-8 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-xl rounded-[32px] border border-[color:var(--mp-role-border)] bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.28)] dark:bg-slate-950">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--mp-role-soft)] text-[color:var(--mp-role-readable)]">
+                  <Layers size={22} />
+                </div>
+                <div>
+                  <p className="math-block-header">
+                    <CheckCircle2 size={14} />
+                    Confirm Bulk Assignment
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Assign all sheets in this lesson?</h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="math-role-action-button h-11 w-11 justify-center rounded-2xl p-0"
+                onClick={() => setShowAssignAllSheetsConfirm(false)}
+                aria-label="Close confirmation"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/70">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Lesson</p>
+                <p className="mt-1 text-base font-black text-slate-950 dark:text-white">
+                  {selectedDps.levelCode} · Lesson {selectedDps.lessonNumber} - {selectedDps.lessonTitle}
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Sheets To Assign</p>
+                  <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{lessonSheets.length}</p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Selected Students</p>
+                  <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{selectedStudentIds.length}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+              <p className="text-sm font-bold leading-6">
+                This will assign every published practice sheet in this lesson to the selected student(s) in one go.
+                Any sheet a student already has (or has completed) is skipped automatically, same as assigning one sheet at a time.
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="math-button-secondary"
+                onClick={() => setShowAssignAllSheetsConfirm(false)}
+                disabled={bulkLessonMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="math-button-primary"
+                onClick={confirmAssignAllSheets}
+                disabled={bulkLessonMutation.isPending}
+              >
+                <Layers size={18} />
+                {bulkLessonMutation.isPending ? "Assigning..." : "Confirm Assignment"}
               </button>
             </div>
           </div>
