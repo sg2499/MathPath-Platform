@@ -76,6 +76,52 @@ export async function publishDps(dpsId: string): Promise<{
   return data;
 }
 
+export type LessonBulkPreviewResult = {
+  dpsId: string;
+  dpsNumber: number;
+  dpsTitle: string;
+  title: string;
+  previewSeed: string;
+  questions: AdminPreviewQuestion[];
+  wasAlreadyPublished: boolean;
+};
+
+export type LessonBulkSkippedSheet = {
+  dpsId: string;
+  dpsNumber: number;
+  dpsTitle?: string;
+  reason: "ALREADY_PUBLISHED" | "PREVIEW_REQUIRED" | string;
+};
+
+export async function generateDpsPreviewForLesson(
+  lessonId: string,
+  includePublished: boolean
+): Promise<{
+  lessonId: string;
+  lessonNumber: number;
+  lessonTitle: string;
+  results: LessonBulkPreviewResult[];
+  skipped: LessonBulkSkippedSheet[];
+  totalDpsCount: number;
+}> {
+  const { data } = await api.post(`/admin/lessons/${lessonId}/dps/generate-preview-all`, { includePublished });
+  return data;
+}
+
+export async function publishAllDpsForLesson(
+  lessonId: string,
+  dpsIds: string[]
+): Promise<{
+  published: boolean;
+  message: string;
+  lessonId: string;
+  publishedDpsIds: string[];
+  skipped: LessonBulkSkippedSheet[];
+}> {
+  const { data } = await api.post(`/admin/lessons/${lessonId}/dps/publish-all`, { dpsIds });
+  return data;
+}
+
 export async function createAssignment(payload: Record<string, unknown>) {
   const { data } = await api.post("/admin/assignments", payload);
   return data;
