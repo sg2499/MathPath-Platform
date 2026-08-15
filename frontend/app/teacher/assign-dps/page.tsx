@@ -84,6 +84,7 @@ export default function TeacherAssignDpsPage() {
   const ready = useProtectedPage(["TEACHER"]);
   const AssignDpsStateKey = CreatePersistedUiStateKey("teacher", "assign-dps");
   const [levelId, setLevelId] = usePersistentUiState(CreatePersistedUiStateKey(AssignDpsStateKey, "level-id"), "");
+  const [lessonId, setLessonId] = usePersistentUiState(CreatePersistedUiStateKey(AssignDpsStateKey, "lesson-id"), "");
   const [dpsId, setDpsId] = usePersistentUiState(CreatePersistedUiStateKey(AssignDpsStateKey, "dps-id"), "");
   const [selectedStudentIds, setSelectedStudentIds] = usePersistentUiState<string[]>(CreatePersistedUiStateKey(AssignDpsStateKey, "selected-students"), []);
   const [message, setMessage] = useState("");
@@ -98,7 +99,7 @@ export default function TeacherAssignDpsPage() {
   const dpsRows = dpsQuery.data?.dps ?? [];
   const students = studentsQuery.data ?? [];
 
-  const visibleDps = useMemo(
+  const dpsForLevel = useMemo(
     () =>
       dpsRows
         .filter((dps) => !levelId || levelId === "ALL" || dps.levelId === levelId)
@@ -112,18 +113,44 @@ export default function TeacherAssignDpsPage() {
         }),
     [dpsRows, levelId]
   );
-  const selectedDps = visibleDps.find((dps) => dps.dpsId === dpsId);
-  const eligibleStudents = students.filter((student) => selectedDps && student.currentLevelId === selectedDps.levelId && student.isActive);
-  const eligibleStudentIds = useMemo(() => eligibleStudents.map((student) => student.studentId), [eligibleStudents]);
+
+  // Distinct lessons available under the selected level, in the same order
+  // as dpsForLevel (level, then lesson number).
+  const lessonsForLevel = useMemo(() => {
+    const seen = new Map<string, { lessonId: string; lessonNumber: number; lessonTitle: string; levelId: string; levelCode: string }>();
+    for (const dps of dpsForLevel) {
+      if (!seen.has(dps.lessonId)) {
+        seen.set(dps.lessonId, {
+          lessonId: dps.lessonId,
+          lessonNumber: dps.lessonNumber,
+          lessonTitle: dps.lessonTitle,
+          levelId: dps.levelId,
+          levelCode: dps.levelCode,
+        });
+      }
+    }
+    return Array.from(seen.values());
+  }, [dpsForLevel]);
+
+  const selectedLesson = lessonsForLevel.find((lesson) => lesson.lessonId === lessonId);
 
   // Every DPS the teacher can see here is already Admin-published (that's
-  // what /teacher/available-dps returns), so this is exactly the set of
-  // sheets "Assign All Sheets" will touch -- no separate unpublished-count
-  // tracking needed on this side.
-  const lessonSheets = useMemo(
-    () => (selectedDps ? visibleDps.filter((dps) => dps.lessonId === selectedDps.lessonId) : []),
-    [visibleDps, selectedDps]
+  // what /teacher/available-dps returns), so once a lesson is chosen this is
+  // exactly the set of sheets "Assign All Sheets" will touch -- no separate
+  // unpublished-count tracking needed on this side.
+  const dpsForLesson = useMemo(
+    () => (lessonId ? dpsForLevel.filter((dps) => dps.lessonId === lessonId) : []),
+    [dpsForLevel, lessonId]
   );
+
+  const selectedDps = dpsForLesson.find((dps) => dps.dpsId === dpsId);
+
+  // Bulk mode: a lesson is chosen but no specific sheet is -- eligibility
+  // still needs a level to check students against, which the lesson alone
+  // already pins down (every sheet in a lesson shares the same level).
+  const activeLevelId = selectedDps?.levelId ?? selectedLesson?.levelId;
+  const eligibleStudents = students.filter((student) => activeLevelId && student.currentLevelId === activeLevelId && student.isActive);
+  const eligibleStudentIds = useMemo(() => eligibleStudents.map((student) => student.studentId), [eligibleStudents]);
 
   const mutation = useMutation({
     mutationFn: (payload: { studentIds: string[]; mode: "selected" | "all" }) => teacherAssignDps({
@@ -142,7 +169,7 @@ export default function TeacherAssignDpsPage() {
 
   const bulkLessonMutation = useMutation({
     mutationFn: () => teacherAssignAllSheetsForLesson({
-      lessonId: selectedDps!.lessonId,
+      lessonId,
       studentIds: selectedStudentIds,
       instructions: "Complete this practice within the given time.",
     }),
@@ -179,12 +206,12 @@ export default function TeacherAssignDpsPage() {
   }
 
   function openAssignAllSheetsConfirmation() {
-    if (!selectedStudentIds.length || !selectedDps || bulkLessonMutation.isPending) return;
+    if (!selectedStudentIds.length || !selectedLesson || dpsId || bulkLessonMutation.isPending) return;
     setShowAssignAllSheetsConfirm(true);
   }
 
   function confirmAssignAllSheets() {
-    if (!selectedStudentIds.length || !selectedDps) return;
+    if (!selectedStudentIds.length || !selectedLesson || dpsId) return;
     bulkLessonMutation.mutate();
   }
 
@@ -202,22 +229,47 @@ export default function TeacherAssignDpsPage() {
       </section>
 
       <section className="mt-6 math-card p-5 sm:p-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="min-w-0">
             <label className="math-label">Level</label>
-            <select className="math-select mt-2" value={levelId} onChange={(e) => { setLevelId(e.target.value); setDpsId(""); setSelectedStudentIds([]); }}>
+            <select
+              className="math-select mt-2 truncate"
+              value={levelId}
+              onChange={(e) => { setLevelId(e.target.value); setLessonId(""); setDpsId(""); setSelectedStudentIds([]); }}
+            >
               <option value="" disabled>Choose Level</option>
               <option value="ALL">All Levels</option>
               {levels.map((level) => <option key={level.levelId} value={level.levelId}>{level.levelCode} - {level.levelName} ({level.studentCount} students)</option>)}
             </select>
           </div>
-          <div>
+          <div className="min-w-0">
+            <label className="math-label">Lesson</label>
+            <select
+              className="math-select mt-2 truncate"
+              value={lessonId}
+              disabled={!levelId}
+              onChange={(e) => { setLessonId(e.target.value); setDpsId(""); setSelectedStudentIds([]); }}
+            >
+              <option value="" disabled>{levelId ? "Choose Lesson" : "Choose Level First"}</option>
+              {lessonsForLevel.map((lesson) => (
+                <option key={lesson.lessonId} value={lesson.lessonId}>
+                  {lesson.levelCode} · Lesson {lesson.lessonNumber}: {lesson.lessonTitle}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="min-w-0">
             <label className="math-label">DPS Sheet</label>
-            <select className="math-select mt-2" value={dpsId} onChange={(e) => { setDpsId(e.target.value); setSelectedStudentIds([]); }}>
-              <option value="" disabled>Choose DPS</option>
-              {visibleDps.map((dps) => (
+            <select
+              className="math-select mt-2 truncate"
+              value={dpsId}
+              disabled={!lessonId}
+              onChange={(e) => { setDpsId(e.target.value); setSelectedStudentIds([]); }}
+            >
+              <option value="">{lessonId ? "All Sheets In This Lesson" : "Choose Lesson First"}</option>
+              {dpsForLesson.map((dps) => (
                 <option key={dps.dpsId} value={dps.dpsId}>
-                  {dps.levelCode} · Lesson {dps.lessonNumber} - DPS {dps.dpsNumber}: {dps.dpsTitle}
+                  DPS {dps.dpsNumber}: {dps.dpsTitle}
                 </option>
               ))}
             </select>
@@ -230,15 +282,15 @@ export default function TeacherAssignDpsPage() {
         {error ? <TeacherAssignError error={error} /> : null}
         {message ? <div className="mb-5 rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 font-black text-emerald-700">{message}</div> : null}
 
-        {!loading && !visibleDps.length ? (
+        {!loading && !dpsForLevel.length ? (
           <EmptyState message="No published DPS is available for this level yet. Please ask Admin to publish practice content from Learning Path Studio." />
         ) : null}
 
-        {!loading && visibleDps.length > 0 && !selectedDps ? (
-          <EmptyState message="Select a published DPS sheet to see eligible students." />
+        {!loading && dpsForLevel.length > 0 && !selectedLesson ? (
+          <EmptyState message="Select a lesson to see eligible students -- then either assign one sheet or all sheets in that lesson at once." />
         ) : null}
 
-        {selectedDps ? (
+        {selectedLesson ? (
           <section className="math-card p-5 sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -246,14 +298,21 @@ export default function TeacherAssignDpsPage() {
                   <UserCheck size={14} />
                   Eligible students
                 </p>
-                <h2 className="text-2xl font-black text-slate-950">{selectedDps.dpsTitle}</h2>
-                <p className="mt-1 text-sm text-slate-600">Only students in {selectedDps.levelCode} can be selected.</p>
+                <h2 className="text-2xl font-black text-slate-950">
+                  {selectedDps ? selectedDps.dpsTitle : `Lesson ${selectedLesson.lessonNumber}: ${selectedLesson.lessonTitle}`}
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {selectedDps
+                    ? `Only students in ${selectedDps.levelCode} can be selected.`
+                    : `All ${dpsForLesson.length} sheet(s) in this lesson -- only students in ${selectedLesson.levelCode} can be selected.`}
+                </p>
               </div>
               <div className="flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center sm:justify-end">
                 <button
                   type="button"
                   className="math-button-secondary whitespace-nowrap"
-                  disabled={!eligibleStudentIds.length || mutation.isPending}
+                  disabled={!selectedDps || !eligibleStudentIds.length || mutation.isPending}
+                  title={!selectedDps ? "Choose a specific DPS sheet to use this." : undefined}
                   onClick={openAssignAllConfirmation}
                 >
                   <ClipboardPlus size={18} />
@@ -262,8 +321,14 @@ export default function TeacherAssignDpsPage() {
                 <button
                   type="button"
                   className="math-button-secondary whitespace-nowrap"
-                  disabled={!selectedStudentIds.length || lessonSheets.length < 2 || bulkLessonMutation.isPending}
-                  title={lessonSheets.length < 2 ? "Only one published sheet in this lesson right now." : `Assign all ${lessonSheets.length} published sheets in Lesson ${selectedDps.lessonNumber} to the selected student(s).`}
+                  disabled={Boolean(selectedDps) || !selectedStudentIds.length || dpsForLesson.length < 2 || bulkLessonMutation.isPending}
+                  title={
+                    selectedDps
+                      ? "Clear the DPS Sheet selection (choose \"All Sheets In This Lesson\") to use this."
+                      : dpsForLesson.length < 2
+                        ? "Only one published sheet in this lesson right now."
+                        : `Assign all ${dpsForLesson.length} published sheets in Lesson ${selectedLesson.lessonNumber} to the selected student(s).`
+                  }
                   onClick={openAssignAllSheetsConfirmation}
                 >
                   <Layers size={18} />
@@ -272,7 +337,8 @@ export default function TeacherAssignDpsPage() {
                 <button
                   type="button"
                   className="math-button-primary whitespace-nowrap"
-                  disabled={!selectedStudentIds.length || mutation.isPending}
+                  disabled={!selectedDps || !selectedStudentIds.length || mutation.isPending}
+                  title={!selectedDps ? "Choose a specific DPS sheet to use this." : undefined}
                   onClick={assignSelectedStudents}
                 >
                   <Send size={18} /> {mutation.isPending && assignMode === "selected" ? "Assigning..." : `Assign to ${selectedStudentIds.length} Student(s)`}
@@ -370,7 +436,7 @@ export default function TeacherAssignDpsPage() {
         </div>
       ) : null}
 
-      {showAssignAllSheetsConfirm && selectedDps ? (
+      {showAssignAllSheetsConfirm && selectedLesson ? (
         <div className="fixed inset-x-0 bottom-0 top-[92px] z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 py-8 backdrop-blur-sm sm:items-center">
           <div className="w-full max-w-xl rounded-[32px] border border-[color:var(--mp-role-border)] bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.28)] dark:bg-slate-950">
             <div className="flex items-start justify-between gap-4">
@@ -400,13 +466,13 @@ export default function TeacherAssignDpsPage() {
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Lesson</p>
                 <p className="mt-1 text-base font-black text-slate-950 dark:text-white">
-                  {selectedDps.levelCode} · Lesson {selectedDps.lessonNumber} - {selectedDps.lessonTitle}
+                  {selectedLesson.levelCode} · Lesson {selectedLesson.lessonNumber} - {selectedLesson.lessonTitle}
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Sheets To Assign</p>
-                  <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{lessonSheets.length}</p>
+                  <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{dpsForLesson.length}</p>
                 </div>
                 <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Selected Students</p>
