@@ -79,48 +79,80 @@ def generate_bm_question_set(config: BMConfig) -> list[dict]:
     return rebalance_correct_option_distribution(questions)
 
 
-def generate_bm_multiply_set(config: BMMultiplyConfig, count: int) -> list[dict]:
+def _question_signature(question: dict) -> tuple:
+    """Canonical identity for a generated question, used to guarantee no two
+    questions on the same sheet are duplicates. `operands` already fully
+    determines every BM question's content (the number/multiplier pair, the
+    number/divisor pair, or -- for BODMAS -- the built expression string
+    itself), so it's a sufficient and stable dedup key across every block
+    kind that uses this helper.
+    """
+    return tuple(question["operands"])
+
+
+def _generate_unique_bm_questions(count: int, seed: str, single_question_fn) -> list[dict]:
+    """Generates `count` questions from `single_question_fn(rng) -> dict`,
+    guaranteeing every question is unique within this sheet.
+
+    2026-08-21 (Shailesh, explicit): no BM-L1 sheet may show a repeated
+    question, for any concept. Multiply/Divide/Divide-Remainder/BODMAS
+    previously had no duplicate-prevention at all (each question index was
+    generated independently) -- this mirrors the same seen-set-plus-retry
+    pattern Add/Less's generate_unique_operands already uses, so all BM
+    concept types now carry the same guarantee. Each BM concept type's
+    configured range is audited to comfortably exceed any sheet's question
+    count (hundreds to thousands of valid combinations), so the retry budget
+    below is expected to always succeed in practice; exhausting it raises
+    rather than silently returning a repeat, surfacing a real config/ceiling
+    mismatch instead of masking it.
+    """
     questions: list[dict] = []
+    seen: set[tuple] = set()
     for i in range(1, count + 1):
-        q_rng = random.Random(f"{config.seed}-Q{i}")
-        question = generate_multiply_table_question(config, q_rng)
-        question["question_number"] = i
-        question["seed"] = f"{config.seed}-Q{i}"
-        questions.append(question)
+        found = None
+        for attempt in range(1, 301):
+            candidate_seed = f"{seed}-Q{i}" if attempt == 1 else f"{seed}-Q{i}-R{attempt}"
+            q_rng = random.Random(candidate_seed)
+            candidate = single_question_fn(q_rng)
+            signature = _question_signature(candidate)
+            if signature not in seen:
+                found = candidate
+                found["seed"] = candidate_seed
+                seen.add(signature)
+                break
+        if found is None:
+            raise ValueError(
+                f"BM seed {seed}: could not generate a UNIQUE question at position {i} of {count} "
+                f"(exhausted {attempt} attempts). This block's configured question_count likely exceeds "
+                f"its real combinatorial ceiling -- re-audit and cap it rather than allowing a repeat."
+            )
+        found["question_number"] = i
+        questions.append(found)
     return questions
+
+
+def generate_bm_multiply_set(config: BMMultiplyConfig, count: int) -> list[dict]:
+    return _generate_unique_bm_questions(
+        count, config.seed, lambda q_rng: generate_multiply_table_question(config, q_rng)
+    )
 
 
 def generate_bm_divide_set(config: BMDivideConfig, count: int) -> list[dict]:
-    questions: list[dict] = []
-    for i in range(1, count + 1):
-        q_rng = random.Random(f"{config.seed}-Q{i}")
-        question = generate_divide_table_question(config, q_rng)
-        question["question_number"] = i
-        question["seed"] = f"{config.seed}-Q{i}"
-        questions.append(question)
-    return questions
+    return _generate_unique_bm_questions(
+        count, config.seed, lambda q_rng: generate_divide_table_question(config, q_rng)
+    )
 
 
 def generate_bm_divide_remainder_set(config: BMDivideRemainderConfig, count: int) -> list[dict]:
-    questions: list[dict] = []
-    for i in range(1, count + 1):
-        q_rng = random.Random(f"{config.seed}-Q{i}")
-        question = generate_divide_remainder_question(config, q_rng)
-        question["question_number"] = i
-        question["seed"] = f"{config.seed}-Q{i}"
-        questions.append(question)
-    return questions
+    return _generate_unique_bm_questions(
+        count, config.seed, lambda q_rng: generate_divide_remainder_question(config, q_rng)
+    )
 
 
 def generate_bm_bodmas_set(config: BMBodmasConfig, count: int) -> list[dict]:
-    questions: list[dict] = []
-    for i in range(1, count + 1):
-        q_rng = random.Random(f"{config.seed}-Q{i}")
-        question = generate_bodmas_question(config, q_rng)
-        question["question_number"] = i
-        question["seed"] = f"{config.seed}-Q{i}"
-        questions.append(question)
-    return questions
+    return _generate_unique_bm_questions(
+        count, config.seed, lambda q_rng: generate_bodmas_question(config, q_rng)
+    )
 
 
 def generate_bm_concept_drill_set(specs: list[tuple[BMConceptDrillConfig, int]]) -> list[dict]:

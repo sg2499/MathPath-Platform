@@ -1,5 +1,6 @@
 import random
 import re
+from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.question_engine.mm.config import MMConfig
@@ -1188,42 +1189,6 @@ def _FormatBodmasNumber(Value: Decimal | int | float) -> str:
     return format(DecimalValue.normalize(), "f")
 
 
-def _GenerateBodmasDivisionTerm(Rng: random.Random, DivisorMinimum: int, DivisorMaximum: int, QuotientMinimum: int, QuotientMaximum: int) -> tuple[int, int, int]:
-    """Generate a BODMAS division term whose visible dividend stays within 4 digits.
-
-    Workbook correction: addition/subtraction terms inside BODMAS should stay
-    mentally readable. Division terms that appear after + or - must therefore
-    avoid 5-digit dividends such as 19590 ÷ 89.
-    """
-    SafeDivisorMinimum = max(1, int(DivisorMinimum))
-    SafeDivisorMaximum = max(SafeDivisorMinimum, int(DivisorMaximum))
-    SafeQuotientMinimum = max(1, int(QuotientMinimum))
-    SafeQuotientMaximum = max(SafeQuotientMinimum, int(QuotientMaximum))
-
-    for _ in range(80):
-        Divisor = Rng.randint(SafeDivisorMinimum, SafeDivisorMaximum)
-        # Same guard as the standalone whole-number/decimal division
-        # generators (_IsTrivialScaleOperand, used everywhere else in this
-        # file) -- a BODMAS division term is just as skippable-by-inspection
-        # as a standalone division question if its divisor lands on 1, 10,
-        # 20, ..., 100, etc. Fixed 2026-07-18 alongside the identical gap
-        # found in IM-L4's BODMAS generator.
-        if _IsTrivialScaleOperand(Divisor):
-            continue
-        MaxSafeQuotient = min(SafeQuotientMaximum, 9999 // Divisor)
-        if MaxSafeQuotient >= SafeQuotientMinimum:
-            Quotient = Rng.randint(SafeQuotientMinimum, MaxSafeQuotient)
-            if _IsTrivialScaleOperand(Quotient):
-                continue
-            return Divisor, Quotient, Divisor * Quotient
-
-    Divisor = min(SafeDivisorMaximum, max(SafeDivisorMinimum, 99))
-    if _IsTrivialScaleOperand(Divisor):
-        Divisor = min(SafeDivisorMaximum, Divisor + 1)
-    Quotient = min(SafeQuotientMaximum, max(SafeQuotientMinimum, 9999 // Divisor))
-    return Divisor, Quotient, Divisor * Quotient
-
-
 def _GenerateBodmasMultiplicationTermByDigits(Rng: random.Random, LeftDigits: int, RightDigits: int) -> tuple[int, int, int]:
     """Generate a stronger MM BODMAS multiplication term.
 
@@ -1248,17 +1213,24 @@ def _GenerateBodmasMultiplicationTermByDigits(Rng: random.Random, LeftDigits: in
 
 
 def _GenerateBodmasDivisionTermByDigits(Rng: random.Random, DividendDigits: int, DivisorDigits: int) -> tuple[int, int, int]:
-    """Generate exact-style MM BODMAS division with a 4D-or-smaller dividend.
+    """Generate exact-style MM BODMAS division with a 5D-or-smaller dividend.
 
     The visible dividend and divisor are controlled by digit length. The quotient
     is selected so the final visible dividend remains within the requested digit
-    band and never exceeds 4 digits.
+    band and never exceeds 5 digits.
+
+    2026-08-21 (Shailesh, BODMAS developer-note fix): widened from a 4-digit cap
+    to 5 digits so MM BODMAS can generate the note's required "5-digit ÷ 2-digit"
+    division pattern from Lesson 11 onward, alongside the existing 4-digit ÷
+    3-digit pattern. The readability cap this exists to protect (workbook cards
+    staying short) is enforced separately by _BodmasPayload's 7-raw-number limit,
+    not by this digit cap -- a single 5-digit number is still one readable value.
     """
-    SafeDividendDigits = min(max(int(DividendDigits), 1), 4)
+    SafeDividendDigits = min(max(int(DividendDigits), 1), 5)
     SafeDivisorDigits = min(max(int(DivisorDigits), 1), 4)
     DividendMinimum, DividendMaximum = _DigitRange(SafeDividendDigits)
     DivisorMinimum, DivisorMaximum = _DigitRange(SafeDivisorDigits)
-    DividendMaximum = min(DividendMaximum, 9999)
+    DividendMaximum = min(DividendMaximum, 99999)
     DivisorMaximum = min(DivisorMaximum, 9999)
 
     for _ in range(120):
@@ -1286,18 +1258,6 @@ def _GenerateBodmasDivisionTermByDigits(Rng: random.Random, DividendDigits: int,
         Quotient = max(2, (DividendMinimum + Divisor - 1) // Divisor)
         Dividend = min(DividendMaximum, Divisor * Quotient)
     return Divisor, Quotient, Dividend
-
-
-def _BodmasStrongArithmeticPattern(QuestionNumber: int) -> tuple[int, int, int, int]:
-    """Rotate stronger arithmetic patterns inside MM BODMAS worksheets."""
-    Patterns = (
-        (4, 2, 4, 2),
-        (4, 3, 4, 2),
-        (3, 2, 4, 3),
-        (4, 2, 4, 3),
-        (3, 3, 4, 2),
-    )
-    return Patterns[(QuestionNumber - 1) % len(Patterns)]
 
 
 def _BodmasRawNumberCount(ExpressionUnits: list[str]) -> int:
@@ -1328,185 +1288,298 @@ def _BodmasPayload(ExpressionTokens: list[str], CorrectAnswer: Decimal, Pattern:
     }
 
 
-def _BodmasBasicArithmetic(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    Band = _LessonBand(Config)
-    LargeBaseMin = min(9999, 1200 + (Band * 350))
-    LargeBaseMax = min(9999, 8500 + (Band * 900))
-    MultiplicandDigits, MultiplierDigits, DividendDigits, DivisorDigits = _BodmasStrongArithmeticPattern(QuestionNumber)
-    Multiplicand, Multiplier, Product = _GenerateBodmasMultiplicationTermByDigits(Rng, MultiplicandDigits, MultiplierDigits)
-    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTermByDigits(Rng, DividendDigits, DivisorDigits)
-    A = Rng.randint(LargeBaseMin, LargeBaseMax)
-    E = Rng.randint(100, 900)
+"""2026-08-21 (Shailesh, explicit): the block below replaces MM's old BODMAS
+implementation (7 near-duplicate stage functions dispatched by ad-hoc lesson
+thresholds that did not match the required curriculum) with the lesson-wise
+progression specified in MathPath_Master_Module_BODMAS_Developer_Note.pdf:
 
-    # Keep the basic BODMAS structure compact, but make the arithmetic pattern
-    # Master-Module appropriate. Multiplication and division terms now rotate
-    # through stronger 3D/4D visible patterns while every visible operand remains
-    # within the approved 4-digit cap.
-    if QuestionNumber % 2 == 0:
-        CorrectAnswer = Decimal(Product + A - Quotient - E)
-        Units = [f"{Multiplicand} × {Multiplier}", "+", str(A), "-", f"{Dividend} ÷ {Divisor}", "-", str(E)]
-        Pattern = f"BASIC_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D_{DividendDigits}D_DIV_{DivisorDigits}D"
+    Lessons 1-10  (Foundation)    : 2D x 2D mult, 4D / 2D div, squares (2D/3D),
+                                     add/sub with 4D and 2D numbers.
+    Lessons 11-15 (Developing)    : 3D x 2D mult, 5D/2D and 4D/3D div,
+                                     squares (2D/3D), add/sub with 4D and 3D.
+    Lessons 16-20 (Advanced I)    : 3D x 3D mult, + decimal mult/div and cube
+                                     roots newly unlocked, same div/square/add-sub.
+    Lessons 21-25 (Advanced II)   : as Advanced I, + percentage newly unlocked.
+    Lessons 26-30 (Mastery)       : as Advanced II, + square roots newly unlocked.
+
+Every question is built from the SAME generic engine (_BuildBodmasQuestion) --
+nothing here is hardcoded per lesson. A lesson only ever picks a
+_BodmasStageSpec (which concepts are unlocked and which digit widths apply),
+and the engine then randomly composes a subset of that stage's unlocked
+concepts into one expression (developer note rule 1: "every question need not
+contain every concept ... randomly combine suitable concepts"). Concepts are
+never available before their stage unlocks them (rule 2), the workbook's
+existing 7-raw-number readability cap is respected (rule 4, enforced by
+_BodmasPayload), multiplication/division/square/cube-root/square-root terms
+are left unbracketed because they already bind tighter than +/- under BODMAS
+(no misleading brackets, rule 3), division terms are constructed to divide
+exactly (rule 5), decimal terms are computed with exact Decimal arithmetic and
+rounded only once at the very end when a decimal-producing concept was used
+(rule 6), percentage is applied as straight multiplication by the percentage
+rather than an additive adjustment (rule 7), square/cube roots are always
+built from a perfect square/cube so the root is exact (rule 8), and a
+sign-retry loop with a guaranteed all-addition fallback keeps the final answer
+non-negative (rule 10).
+"""
+
+
+@dataclass(frozen=True)
+class _BodmasStageSpec:
+    Name: str
+    MinLesson: int
+    MultiplicandDigits: int
+    MultiplierDigits: int
+    DivisionPatterns: tuple[tuple[int, int], ...]  # (dividend_digits, divisor_digits) choices
+    AnchorPrimaryDigits: int
+    AnchorSecondaryDigits: int
+    AllowCubeRoot: bool
+    AllowPercentage: bool
+    AllowSquareRoot: bool
+    AllowDecimal: bool
+    StageTag: str
+
+
+_BODMAS_STAGES: tuple[_BodmasStageSpec, ...] = (
+    _BodmasStageSpec(
+        Name="FOUNDATION", MinLesson=1,
+        MultiplicandDigits=2, MultiplierDigits=2, DivisionPatterns=((4, 2),),
+        AnchorPrimaryDigits=4, AnchorSecondaryDigits=2,
+        AllowCubeRoot=False, AllowPercentage=False, AllowSquareRoot=False, AllowDecimal=False,
+        StageTag="LESSON_1_10_FOUNDATION",
+    ),
+    _BodmasStageSpec(
+        Name="DEVELOPING", MinLesson=11,
+        MultiplicandDigits=3, MultiplierDigits=2, DivisionPatterns=((5, 2), (4, 3)),
+        AnchorPrimaryDigits=4, AnchorSecondaryDigits=3,
+        AllowCubeRoot=False, AllowPercentage=False, AllowSquareRoot=False, AllowDecimal=False,
+        StageTag="LESSON_11_15_DEVELOPING",
+    ),
+    _BodmasStageSpec(
+        Name="ADVANCED_I", MinLesson=16,
+        MultiplicandDigits=3, MultiplierDigits=3, DivisionPatterns=((5, 2), (4, 3)),
+        AnchorPrimaryDigits=4, AnchorSecondaryDigits=3,
+        AllowCubeRoot=True, AllowPercentage=False, AllowSquareRoot=False, AllowDecimal=True,
+        StageTag="LESSON_16_20_ADVANCED_I",
+    ),
+    _BodmasStageSpec(
+        Name="ADVANCED_II", MinLesson=21,
+        MultiplicandDigits=3, MultiplierDigits=3, DivisionPatterns=((5, 2), (4, 3)),
+        AnchorPrimaryDigits=4, AnchorSecondaryDigits=3,
+        AllowCubeRoot=True, AllowPercentage=True, AllowSquareRoot=False, AllowDecimal=True,
+        StageTag="LESSON_21_25_ADVANCED_II",
+    ),
+    _BodmasStageSpec(
+        Name="MASTERY", MinLesson=26,
+        MultiplicandDigits=3, MultiplierDigits=3, DivisionPatterns=((5, 2), (4, 3)),
+        AnchorPrimaryDigits=4, AnchorSecondaryDigits=3,
+        AllowCubeRoot=True, AllowPercentage=True, AllowSquareRoot=True, AllowDecimal=True,
+        StageTag="LESSON_26_30_MASTERY",
+    ),
+)
+
+
+def _BodmasStageForLesson(LessonNumber: int) -> _BodmasStageSpec:
+    Selected = _BODMAS_STAGES[0]
+    for StageSpec in _BODMAS_STAGES:
+        if LessonNumber >= StageSpec.MinLesson:
+            Selected = StageSpec
+    return Selected
+
+
+def _BodmasAnchorNumber(Rng: random.Random, Digits: int) -> int:
+    Minimum, Maximum = _DigitRange(Digits)
+    Value = Minimum
+    for _ in range(40):
+        Value = Rng.randint(Minimum, Maximum)
+        if not _IsTrivialScaleOperand(Value):
+            return Value
+    return Value
+
+
+def _BodmasSquareTerm(Rng: random.Random) -> tuple[str, Decimal]:
+    # "Squares of 2-digit and 3-digit numbers" -- the 3-digit base is kept in a
+    # modest sub-range (rather than the full 100-999 span) so the squared
+    # result stays a workbook-readable value, per rule 4 (no impractically
+    # large final values).
+    if Rng.choice((True, False)):
+        Base = Rng.randint(12, 99)
     else:
-        CorrectAnswer = Decimal(A + Product - Quotient + E)
-        Units = [str(A), "+", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(E)]
-        Pattern = f"BASIC_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D_{DividendDigits}D_DIV_{DivisorDigits}D"
-    return _BodmasPayload(Units, CorrectAnswer, Pattern, "LESSON_4_6_BASIC")
+        Base = Rng.randint(100, 260)
+    return f"{Base}²", Decimal(Base * Base)
 
 
-def _BodmasSquares(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    SquareBase = Rng.randint(24, 95 if Stage in {"WARM_UP", "STANDARD"} else 99)
-    MultiplicandDigits, MultiplierDigits, DividendDigits, DivisorDigits = _BodmasStrongArithmeticPattern(QuestionNumber)
-    Multiplicand, Multiplier, Product = _GenerateBodmasMultiplicationTermByDigits(Rng, MultiplicandDigits, MultiplierDigits)
-    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTermByDigits(Rng, DividendDigits, DivisorDigits)
-    AddValue = Rng.randint(500, 9000)
-
-    if QuestionNumber % 2 == 0:
-        CorrectAnswer = Decimal(AddValue + Product - Quotient - (SquareBase ** 2))
-        Units = [str(AddValue), "+", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "-", f"({SquareBase})²"]
-        Pattern = f"SQUARE_TRAILING_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D_{DividendDigits}D_DIV_{DivisorDigits}D"
-    else:
-        CorrectAnswer = Decimal((SquareBase ** 2) + Product - Quotient + AddValue)
-        Units = [f"({SquareBase})²", "+", f"{Multiplicand} × {Multiplier}", "-", f"{Dividend} ÷ {Divisor}", "+", str(AddValue)]
-        Pattern = f"SQUARE_LEADING_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D_{DividendDigits}D_DIV_{DivisorDigits}D"
-    return _BodmasPayload(Units, CorrectAnswer, Pattern, "LESSON_11_SQUARES")
+def _BodmasCubeRootTerm(Rng: random.Random) -> tuple[str, Decimal]:
+    Root = Rng.randint(12, 85)
+    return f"∛{Root ** 3}", Decimal(Root)  # perfect cube -> exact root, rule 8
 
 
-def _BodmasBracketsPowersPercent(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    # Lesson 16 workbook rows introduce brackets, powers, and percentages,
-    # but the expression must still remain compact. Keep the same concept mix
-    # while upgrading the bracket multiplication to stronger MM digit patterns.
-    MultiplicandDigits, MultiplierDigits, _, _ = _BodmasStrongArithmeticPattern(QuestionNumber)
-    Left, Right, _ = _GenerateBodmasMultiplicationTermByDigits(Rng, MultiplicandDigits, MultiplierDigits)
-    # 10/20/40/50/100 are trivial scale operands (shift-by-inspection) --
-    # dropped from this list 2026-07-18, same fix as the rest of the BODMAS
-    # family. 15/35/65/85 added to keep a comparable amount of variety.
-    BracketDivisor = Rng.choice([15, 25, 35, 65, 75, 85])
-    BracketProduct = Decimal(Left * Right) / Decimal(BracketDivisor)
-
-    Percent = Rng.choice([10, 15, 20, 25, 30, 40, 50, 70, 85])
-    PercentBase = Rng.randrange(500, 6000, 10)
-    PercentValue = Decimal(PercentBase * Percent) / Decimal(100)
-
-    if QuestionNumber % 2 == 0:
-        PowerBase = Rng.randint(18, 32)
-        PowerValue = Decimal(PowerBase ** 3)
-        PowerText = f"{PowerBase}³"
-        Pattern = f"BRACKET_PERCENT_CUBE_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D"
-    else:
-        PowerBase = Rng.randint(28, 72)
-        PowerValue = Decimal(PowerBase ** 2)
-        PowerText = f"{PowerBase}²"
-        Pattern = f"BRACKET_PERCENT_SQUARE_STRONG_{MultiplicandDigits}D_X_{MultiplierDigits}D"
-
-    CorrectAnswer = BracketProduct - PercentValue + PowerValue
-    if CorrectAnswer <= 0:
-        CorrectAnswer = BracketProduct + PercentValue + PowerValue
-        Units = [f"({Left}×{Right})÷{BracketDivisor}", "+", f"({Percent}% of {PercentBase})", "+", PowerText]
-        Pattern = f"{Pattern}_SAFE_ADD"
-    else:
-        Units = [f"({Left}×{Right})÷{BracketDivisor}", "-", f"({Percent}% of {PercentBase})", "+", PowerText]
-    return _BodmasPayload(Units, _Quantize(CorrectAnswer, 2), Pattern, "LESSON_16_BRACKETS_POWERS_PERCENT")
+def _BodmasSquareRootTerm(Rng: random.Random) -> tuple[str, Decimal]:
+    Root = Rng.randint(13, 99)
+    return f"√{Root ** 2}", Decimal(Root)  # perfect square -> exact root, rule 8
 
 
-def _BodmasCubeRootPercent(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 21, 90, 40, 150)
-
-    Multiplier = Rng.randint(120, 900)
-    Percent = Rng.choice([3, 4, 5, 6, 8, 10, 12, 15])
-    PercentProduct = Decimal(Multiplier * Percent) / Decimal(100)
-
-    Root = Rng.randint(24, 85)
-    Radicand = Root ** 3
-
-    if QuestionNumber % 2 == 0:
-        CorrectAnswer = Decimal(Quotient) - PercentProduct + Decimal(Root)
-        Units = [f"{Dividend} ÷ {Divisor}", "-", f"{Multiplier} × {Percent}%", "+", f"∛{Radicand}"]
-        Pattern = "DIV_PERCENT_CUBEROOT_SUB"
-    else:
-        CorrectAnswer = Decimal(Quotient) + PercentProduct + Decimal(Root)
-        Units = [f"{Dividend} ÷ {Divisor}", "+", f"{Multiplier} × {Percent}%", "+", f"∛{Radicand}"]
-        Pattern = "DIV_PERCENT_CUBEROOT_ADD"
-    if CorrectAnswer <= 0:
-        CorrectAnswer = Decimal(Quotient) + PercentProduct + Decimal(Root)
-        Units = [f"{Dividend} ÷ {Divisor}", "+", f"{Multiplier} × {Percent}%", "+", f"∛{Radicand}"]
-        Pattern = "DIV_PERCENT_CUBEROOT_ADD_SAFE"
-    return _BodmasPayload(Units, _Quantize(CorrectAnswer, 2), Pattern, "LESSON_19_CUBEROOT_PERCENT")
+def _BodmasPercentTerm(Rng: random.Random) -> tuple[str, Decimal]:
+    # Rule 7: percentage is straight multiplication by the percentage --
+    # "640 x 25% = 160" -- never an additive increase/decrease of the base.
+    Base = Rng.randrange(220, 9200, 10)
+    Percent = Rng.choice([5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90])
+    Value = (Decimal(Base) * Decimal(Percent)) / Decimal(100)
+    return f"{Base} × {Percent}%", Value
 
 
-def _BodmasDecimalPercentSquare(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    # Lesson 21/22 style keeps the decimal percentage bracket, but removes the
-    # extra trailing constant so the row cannot overflow the question card.
-    StartValue = Decimal(Rng.randrange(1500, 8500, 25))
-    DecimalFactor = _RandDecimal(Rng, 20, 95, 2)
-    Percent = Decimal(str(Rng.choice([10, 15, 20, 25, 30, 35, 40, 50])))
-    Divisor = Decimal(str(Rng.choice([5, 10, 15, 20, 25, 30])))
-    PercentTerm = (DecimalFactor * Percent / Decimal(100)) / Divisor
-    SquareBase = Rng.randint(12, 30)
-    CorrectAnswer = StartValue + PercentTerm - Decimal(SquareBase ** 2)
-    if CorrectAnswer <= 0:
-        StartValue = min(Decimal(9999), StartValue + Decimal(abs(int(CorrectAnswer))) + Decimal(Rng.randint(300, 900)))
-        CorrectAnswer = StartValue + PercentTerm - Decimal(SquareBase ** 2)
-    Units = [
-        _FormatBodmasNumber(StartValue),
-        "+",
-        f"({_FormatBodmasNumber(DecimalFactor)}×{_FormatBodmasNumber(Percent)}%)÷{_FormatBodmasNumber(Divisor)}",
-        "-",
-        f"{SquareBase}²",
-    ]
-    return _BodmasPayload(Units, _Quantize(CorrectAnswer, 2), "DECIMAL_PERCENT_SQUARE_COMPACT", "LESSON_22_DECIMAL_PERCENT_SQUARE")
+def _BodmasDecimalMultiplicationTerm(Rng: random.Random) -> tuple[str, Decimal]:
+    A = _RandDecimal(Rng, 12, 96, Rng.choice([1, 2]))
+    B = _RandDecimal(Rng, 3, 42, Rng.choice([1, 2]))
+    return f"{_FormatBodmasNumber(A)} × {_FormatBodmasNumber(B)}", A * B
 
 
-def _BodmasCubeRootSquareLarge(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    CubeRoot = Rng.randint(24, 78)
-    CubeRadicand = CubeRoot ** 3
-    SquareBase = Rng.randint(42, 99)
-    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 32, 96, 24, 160)
-    Multiplier = Multiplicand = 0
-    for _ in range(60):
-        Multiplier = Rng.randint(25, 85)
-        Multiplicand = Rng.randint(180, 980)
-        if not _HasTrivialScaleOperand([Multiplier, Multiplicand]):
-            break
-    TailValue = Rng.randint(120, 750)
-    CorrectAnswer = Decimal(CubeRoot + (SquareBase ** 2) - Quotient + (Multiplicand * Multiplier) - TailValue)
-    Units = [f"∛{CubeRadicand}", "+", f"{SquareBase}²", "-", f"{Dividend}÷{Divisor}", "+", f"{Multiplicand}×{Multiplier}", "-", str(TailValue)]
-    return _BodmasPayload(Units, CorrectAnswer, "CUBEROOT_SQUARE_LARGE_COMPACT", "LESSON_23_CUBEROOT_SQUARE_LARGE")
+def _BodmasDecimalDivisionTerm(Rng: random.Random) -> tuple[str, Decimal]:
+    # Built so the division is exact by construction (divisor and quotient are
+    # each genuinely fractional -- _RandDecimal never returns a whole number --
+    # and the dividend is their exact product), matching rule 5's preference
+    # for exact division and rule 6's "don't round intermediate values"
+    # without needing any rounding at all here.
+    Divisor = _RandDecimal(Rng, 2, 45, 1)
+    Quotient = _RandDecimal(Rng, 4, 60, 1)
+    Dividend = Divisor * Quotient
+    return f"{_FormatBodmasNumber(Dividend)} ÷ {_FormatBodmasNumber(Divisor)}", Quotient
 
 
-def _BodmasSquareRootLarge(Config: MMConfig, Rng: random.Random, QuestionNumber: int, Stage: str) -> tuple[list[str], list[str], Decimal, dict]:
-    Multiplicand = Multiplier = 0
-    for _ in range(60):
-        Multiplicand = Rng.randint(240, 980)
-        Multiplier = Rng.randint(24, 86)
-        if not _HasTrivialScaleOperand([Multiplicand, Multiplier]):
-            break
-    Root = Rng.randint(54, 99)
-    Radicand = Root ** 2
-    Divisor, Quotient, Dividend = _GenerateBodmasDivisionTerm(Rng, 24, 96, 40, 180)
-    AddValue = Rng.randint(80, 350)
-    SubValue = Rng.randint(80, 350)
-    CorrectAnswer = Decimal((Multiplicand * Multiplier) + Root - Quotient + AddValue - SubValue)
-    Units = [f"{Multiplicand}×{Multiplier}", "+", f"√{Radicand}", "-", f"{Dividend}÷{Divisor}", "+", str(AddValue), "-", str(SubValue)]
-    return _BodmasPayload(Units, CorrectAnswer, "SQUAREROOT_LARGE_COMPACT", "LESSON_27_SQUAREROOT_LARGE")
+def _BodmasBracketSumTerm(Rng: random.Random, PrimaryDigits: int, SecondaryDigits: int) -> tuple[str, Decimal]:
+    # Rule 3: use brackets meaningfully. This groups two plain numbers into one
+    # visible unit so the expression genuinely contains a bracketed sub-sum
+    # (matching the workbook's own bracket-sum style), rather than a bracket
+    # dropped in for decoration.
+    X = _BodmasAnchorNumber(Rng, PrimaryDigits)
+    Y = _BodmasAnchorNumber(Rng, SecondaryDigits)
+    if Rng.choice((True, False)) and X != Y:
+        Hi, Lo = max(X, Y), min(X, Y)
+        return f"({Hi} - {Lo})", Decimal(Hi - Lo)
+    return f"({X} + {Y})", Decimal(X + Y)
+
+
+def _BuildBodmasQuestion(
+    Config: MMConfig, Rng: random.Random, QuestionNumber: int, StageSpec: _BodmasStageSpec
+) -> tuple[list[str], list[str], Decimal, dict]:
+    for _Attempt in range(50):
+        Terms: list[tuple[str, Decimal]] = []
+
+        AnchorDigits = StageSpec.AnchorPrimaryDigits if QuestionNumber % 2 == 0 else StageSpec.AnchorSecondaryDigits
+        AnchorValue = _BodmasAnchorNumber(Rng, AnchorDigits)
+        Terms.append((str(AnchorValue), Decimal(AnchorValue)))
+
+        MLeft, MRight, MProduct = _GenerateBodmasMultiplicationTermByDigits(
+            Rng, StageSpec.MultiplicandDigits, StageSpec.MultiplierDigits
+        )
+        Terms.append((f"{MLeft} × {MRight}", Decimal(MProduct)))
+
+        DividendDigits, DivisorDigits = Rng.choice(StageSpec.DivisionPatterns)
+        Divisor, Quotient, Dividend = _GenerateBodmasDivisionTermByDigits(Rng, DividendDigits, DivisorDigits)
+        Terms.append((f"{Dividend} ÷ {Divisor}", Decimal(Quotient)))
+
+        HasDecimalTerm = False
+        FillersUsed: list[str] = []
+
+        # Rule 2: only offer concepts this stage has actually unlocked.
+        Candidates = ["SECOND_ANCHOR", "SQUARE", "BRACKET_SUM"]
+        if StageSpec.AllowCubeRoot:
+            Candidates.append("CUBE_ROOT")
+        if StageSpec.AllowPercentage:
+            Candidates.append("PERCENT")
+        if StageSpec.AllowSquareRoot:
+            Candidates.append("SQUARE_ROOT")
+        if StageSpec.AllowDecimal:
+            Candidates.append("DECIMAL_MULT")
+            Candidates.append("DECIMAL_DIV")
+        Rng.shuffle(Candidates)
+
+        # Rule 1: not every allowed concept has to appear -- randomly combine a
+        # suitable subset. Rule 4: stay within the workbook's readability cap
+        # (_BodmasPayload enforces <=7 raw numbers; tracked here too so we do
+        # not even attempt an over-budget candidate).
+        for Candidate in Candidates:
+            if len(FillersUsed) >= 3:
+                break
+            if Rng.random() >= 0.6:
+                continue
+
+            if Candidate == "SECOND_ANCHOR":
+                Value2 = _BodmasAnchorNumber(Rng, StageSpec.AnchorSecondaryDigits)
+                Text, Value = str(Value2), Decimal(Value2)
+            elif Candidate == "SQUARE":
+                Text, Value = _BodmasSquareTerm(Rng)
+            elif Candidate == "BRACKET_SUM":
+                Text, Value = _BodmasBracketSumTerm(Rng, StageSpec.AnchorPrimaryDigits, StageSpec.AnchorSecondaryDigits)
+            elif Candidate == "CUBE_ROOT":
+                Text, Value = _BodmasCubeRootTerm(Rng)
+            elif Candidate == "PERCENT":
+                Text, Value = _BodmasPercentTerm(Rng)
+            elif Candidate == "SQUARE_ROOT":
+                Text, Value = _BodmasSquareRootTerm(Rng)
+            elif Candidate == "DECIMAL_MULT":
+                Text, Value = _BodmasDecimalMultiplicationTerm(Rng)
+            elif Candidate == "DECIMAL_DIV":
+                Text, Value = _BodmasDecimalDivisionTerm(Rng)
+            else:
+                continue
+
+            CandidateCost = _BodmasRawNumberCount([Text])
+            CurrentCost = _BodmasRawNumberCount([Unit for Unit, _ in Terms])
+            if CurrentCost + CandidateCost > 7:
+                continue
+
+            Terms.append((Text, Value))
+            FillersUsed.append(Candidate)
+            if Candidate in ("PERCENT", "DECIMAL_MULT", "DECIMAL_DIV"):
+                HasDecimalTerm = True
+
+        # Rule 10: keep the final answer non-negative. Try random +/- sign
+        # combinations first; an all-addition assignment is always available
+        # as a guaranteed non-negative fallback (every term value is >= 0).
+        CorrectAnswer: Decimal | None = None
+        ChosenSigns: list[str] | None = None
+        for _SignAttempt in range(40):
+            Signs = ["+"] + [Rng.choice(("+", "-")) for _ in range(len(Terms) - 1)]
+            Total = Decimal(0)
+            for Sign, (_, Value) in zip(Signs, Terms):
+                Total = Total + Value if Sign == "+" else Total - Value
+            if Total >= 0:
+                CorrectAnswer, ChosenSigns = Total, Signs
+                break
+        if CorrectAnswer is None:
+            ChosenSigns = ["+"] * len(Terms)
+            CorrectAnswer = sum((Value for _, Value in Terms), Decimal(0))
+
+        if HasDecimalTerm:
+            CorrectAnswer = _Quantize(CorrectAnswer, 2)
+
+        # Terms are already atomic (multiplication/division/root/power/percent
+        # all bind tighter than +/- under BODMAS), so no brackets are needed
+        # around them -- only BRACKET_SUM carries its own explicit brackets.
+        Units: list[str] = []
+        for Index, (Sign, (Text, _Value)) in enumerate(zip(ChosenSigns, Terms)):
+            if Index > 0:
+                Units.append(Sign)
+            Units.append(Text)
+
+        PatternSuffix = "+".join(FillersUsed) if FillersUsed else "BASELINE"
+        Pattern = f"{StageSpec.Name}_{PatternSuffix}"
+
+        try:
+            return _BodmasPayload(Units, CorrectAnswer, Pattern, StageSpec.StageTag)
+        except ValueError:
+            continue
+
+    raise ValueError(
+        f"MM BODMAS lesson {Config.LessonNumber}: could not build a valid expression within the "
+        f"workbook's 7-raw-number readability limit after 50 attempts (stage={StageSpec.Name})"
+    )
 
 
 def GenerateBodmas(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
-    Stage = DifficultyStage(QuestionNumber - 1)
     LessonNumber = int(Config.LessonNumber or 1)
-
-    if LessonNumber >= 27:
-        return _BodmasSquareRootLarge(Config, Rng, QuestionNumber, Stage)
-    if LessonNumber >= 23:
-        return _BodmasCubeRootSquareLarge(Config, Rng, QuestionNumber, Stage)
-    if LessonNumber >= 22:
-        return _BodmasDecimalPercentSquare(Config, Rng, QuestionNumber, Stage)
-    if LessonNumber >= 19:
-        return _BodmasCubeRootPercent(Config, Rng, QuestionNumber, Stage)
-    if LessonNumber >= 16:
-        return _BodmasBracketsPowersPercent(Config, Rng, QuestionNumber, Stage)
-    if LessonNumber >= 11:
-        return _BodmasSquares(Config, Rng, QuestionNumber, Stage)
-    return _BodmasBasicArithmetic(Config, Rng, QuestionNumber, Stage)
+    StageSpec = _BodmasStageForLesson(LessonNumber)
+    return _BuildBodmasQuestion(Config, Rng, QuestionNumber, StageSpec)
 
 
 def _NumericDigitCount(Value: Decimal) -> int:
