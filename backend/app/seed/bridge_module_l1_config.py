@@ -183,109 +183,109 @@ def _drill_div(title, fmin=1000, fmax=5999, lmin=100, lmax=599, count=1):
 # ---------------------------------------------------------------------------
 BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
     1: {
-        1: BmDpsRule(dps_title="Bead Recognition & Single Digit Addition -Subtraction (1, 2, 3, 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", count=10),)),
-        2: BmDpsRule(dps_title="Bead Recognition & Single Digit Addition -Subtraction (1, 2, 3, 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", count=10),)),
-        3: BmDpsRule(dps_title="Bead Recognition Number '5', '6', '7', '8' & '9' & Direct Add -Less Using 5", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", count=10),)),
-        4: BmDpsRule(dps_title="Bead Recognition 5 To 9 & Addition -Subtraction", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", count=10),)),
-        5: BmDpsRule(dps_title="Bead Recognition & Double Digit Addition -Subtraction (Ones & Tens)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", count=10),)),
+        1: BmDpsRule(dps_title="Bead Recognition & Single Digit Addition -Subtraction (1, 2, 3, 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", count=20),)),
+        2: BmDpsRule(dps_title="Bead Recognition & Single Digit Addition -Subtraction (1, 2, 3, 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", count=20),)),
+        3: BmDpsRule(dps_title="Bead Recognition Number '5', '6', '7', '8' & '9' & Direct Add -Less Using 5", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", count=20),)),
+        4: BmDpsRule(dps_title="Bead Recognition 5 To 9 & Addition -Subtraction", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", count=20),)),
+        5: BmDpsRule(dps_title="Bead Recognition & Double Digit Addition -Subtraction (Ones & Tens)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", count=20),)),
     },
     2: {
-        1: BmDpsRule(dps_title="Bead Recognition & Double Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", count=10),)),
-        2: BmDpsRule(dps_title="Bead Recognition & Double Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", count=10),)),
-        3: BmDpsRule(dps_title="Bead Recognition & Double Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", count=10),)),
-        4: BmDpsRule(dps_title="Bead Recognition & Double Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 3D,3R (Abacus)", digit_pattern="3D_HUNDREDS", rows=3, mode="ABACUS", count=10),)),
-        5: BmDpsRule(dps_title="Bead Recognition & Triple Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 3D,3R (Abacus)", digit_pattern="3D_HUNDREDS", rows=3, mode="ABACUS", count=10),)),
+        1: BmDpsRule(dps_title="Bead Recognition & Double Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", count=20),)),
+        2: BmDpsRule(dps_title="Bead Recognition & Double Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", count=20),)),
+        3: BmDpsRule(dps_title="Bead Recognition & Double Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", count=20),)),
+        4: BmDpsRule(dps_title="Bead Recognition & Double Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 3D,3R (Abacus)", digit_pattern="3D_HUNDREDS", rows=3, mode="ABACUS", count=20),)),
+        5: BmDpsRule(dps_title="Bead Recognition & Triple Digit Direct Addition -Subtraction", blocks=(_addless("Add/Less 3D,3R (Abacus)", digit_pattern="3D_HUNDREDS", rows=3, mode="ABACUS", count=20),)),
     },
     3: {
-        1: BmDpsRule(dps_title="Addition Of 1 Using Complement Of 5 (Add 5 , Less 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(1,), count=10),)),
-        2: BmDpsRule(dps_title="Addition Of 1 Using Complement Of 5 (Add 5 , Less 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(1,), count=10),)),
-        3: BmDpsRule(dps_title="Addition Of 1 Using Complement Of 10 (Add 10 , Less 9)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(1,), count=10),)),
-        4: BmDpsRule(dps_title="Bead Recognition & Addition Of 1 Using Complement Of 10 (Add 10 , Less 9)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(1,), count=10),)),
-        5: BmDpsRule(dps_title="Bead Recognition & Double Digit Addition Of 1 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_ADD", "COMP10_ADD",), targets=(1,), count=10),)),
+        1: BmDpsRule(dps_title="Addition Of 1 Using Complement Of 5 (Add 5 , Less 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(1,), count=4),)),
+        2: BmDpsRule(dps_title="Addition Of 1 Using Complement Of 5 (Add 5 , Less 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(1,), count=20),)),
+        3: BmDpsRule(dps_title="Addition Of 1 Using Complement Of 10 (Add 10 , Less 9)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(1,), count=4),)),
+        4: BmDpsRule(dps_title="Bead Recognition & Addition Of 1 Using Complement Of 10 (Add 10 , Less 9)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(1,), count=20),)),
+        5: BmDpsRule(dps_title="Bead Recognition & Double Digit Addition Of 1 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_ADD", "COMP10_ADD",), targets=(1,), count=20),)),
     },
     4: {
-        1: BmDpsRule(dps_title="Subtraction Of 1 Using Complement Of 5 (Less 5 , Add 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(1,), count=10),)),
-        2: BmDpsRule(dps_title="Subtraction Of 1 Using Complement Of 5 (Less 5 , Add 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(1,), count=10),)),
-        3: BmDpsRule(dps_title="Subtraction Of 1 Using Complement Of 10 (Less 10 , Add 9)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(1,), count=10),)),
-        4: BmDpsRule(dps_title="Subtraction Of 1 Using Complement Of 10 (Less 10 , Add 9)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(1,), count=10),)),
-        5: BmDpsRule(dps_title="Double Digit Subtraction Of 1 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_SUB", "COMP10_SUB",), targets=(1,), count=10),)),
+        1: BmDpsRule(dps_title="Subtraction Of 1 Using Complement Of 5 (Less 5 , Add 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(1,), count=4),)),
+        2: BmDpsRule(dps_title="Subtraction Of 1 Using Complement Of 5 (Less 5 , Add 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(1,), count=20),)),
+        3: BmDpsRule(dps_title="Subtraction Of 1 Using Complement Of 10 (Less 10 , Add 9)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(1,), count=5),)),
+        4: BmDpsRule(dps_title="Subtraction Of 1 Using Complement Of 10 (Less 10 , Add 9)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(1,), count=20),)),
+        5: BmDpsRule(dps_title="Double Digit Subtraction Of 1 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_SUB", "COMP10_SUB",), targets=(1,), count=20),)),
     },
     5: {
-        1: BmDpsRule(dps_title="Addition Of 2 Using Complement Of 5 (Add 5 , Less 3)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(2,), count=10),)),
-        2: BmDpsRule(dps_title="Addition Of 2 Using Complement Of 5 (Add 5 , Less 3)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(2,), count=10),)),
-        3: BmDpsRule(dps_title="Addition Of 2 Using Complement Of 10 (Add 10 , Less 8)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(2,), count=10),)),
-        4: BmDpsRule(dps_title="Addition Of 2 Using Complement Of 10 (Add 10 , Less 8)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(2,), count=10),)),
-        5: BmDpsRule(dps_title="Double Digit Addition Of 1 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_ADD", "COMP10_ADD",), targets=(1,), count=10),)),
+        1: BmDpsRule(dps_title="Addition Of 2 Using Complement Of 5 (Add 5 , Less 3)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(2,), count=4),)),
+        2: BmDpsRule(dps_title="Addition Of 2 Using Complement Of 5 (Add 5 , Less 3)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(2,), count=20),)),
+        3: BmDpsRule(dps_title="Addition Of 2 Using Complement Of 10 (Add 10 , Less 8)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(2,), count=4),)),
+        4: BmDpsRule(dps_title="Addition Of 2 Using Complement Of 10 (Add 10 , Less 8)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(2,), count=20),)),
+        5: BmDpsRule(dps_title="Double Digit Addition Of 1 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_ADD", "COMP10_ADD",), targets=(1,), count=20),)),
     },
     6: {
-        1: BmDpsRule(dps_title="Subtraction Of 2 Using Complement Of 5 (Less 5 , Add 3)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(2,), count=10),)),
-        2: BmDpsRule(dps_title="Subtraction Of 2 Using Complement Of 5 (Less 5 , Add 3)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(2,), count=10),)),
-        3: BmDpsRule(dps_title="Subtraction Of 2 Using Complement Of 10 (Less 10 , Add 8)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(2,), count=10),)),
-        4: BmDpsRule(dps_title="Subtraction Of 2 Using Complement Of 10 (Less 10 , Add 8)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(2,), count=10),)),
-        5: BmDpsRule(dps_title="Double Digit Subtraction Of 2 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_SUB", "COMP10_SUB",), targets=(2,), count=10),)),
+        1: BmDpsRule(dps_title="Subtraction Of 2 Using Complement Of 5 (Less 5 , Add 3)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(2,), count=7),)),
+        2: BmDpsRule(dps_title="Subtraction Of 2 Using Complement Of 5 (Less 5 , Add 3)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(2,), count=20),)),
+        3: BmDpsRule(dps_title="Subtraction Of 2 Using Complement Of 10 (Less 10 , Add 8)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(2,), count=20),)),
+        4: BmDpsRule(dps_title="Subtraction Of 2 Using Complement Of 10 (Less 10 , Add 8)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(2,), count=20),)),
+        5: BmDpsRule(dps_title="Double Digit Subtraction Of 2 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_SUB", "COMP10_SUB",), targets=(2,), count=20),)),
     },
     7: {
-        1: BmDpsRule(dps_title="Addition Of 3 Using Complement Of 5 (Add 5 , Less 2)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(3,), count=10),)),
-        2: BmDpsRule(dps_title="Addition Of 3 Using Complement Of 5 (Add 5 , Less 2)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(3,), count=10),)),
-        3: BmDpsRule(dps_title="Addition Of 3 Using Complement Of 10 (Add 10 , Less 7)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(3,), count=10),)),
-        4: BmDpsRule(dps_title="Addition Of 3 Using Complement Of 10 (Add 10 , Less 7)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(3,), count=10),)),
-        5: BmDpsRule(dps_title="Double Digit Addition Of 3 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_ADD", "COMP10_ADD",), targets=(3,), count=10),)),
+        1: BmDpsRule(dps_title="Addition Of 3 Using Complement Of 5 (Add 5 , Less 2)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(3,), count=4),)),
+        2: BmDpsRule(dps_title="Addition Of 3 Using Complement Of 5 (Add 5 , Less 2)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(3,), count=20),)),
+        3: BmDpsRule(dps_title="Addition Of 3 Using Complement Of 10 (Add 10 , Less 7)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(3,), count=4),)),
+        4: BmDpsRule(dps_title="Addition Of 3 Using Complement Of 10 (Add 10 , Less 7)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(3,), count=20),)),
+        5: BmDpsRule(dps_title="Double Digit Addition Of 3 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_ADD", "COMP10_ADD",), targets=(3,), count=20),)),
     },
     8: {
-        1: BmDpsRule(dps_title="Subtraction Of 3 Using Complement Of 5 (Less 5 , Add 2)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(3,), count=10),)),
-        2: BmDpsRule(dps_title="Subtraction Of 3 Using Complement Of 5 (Less 5 , Add 2)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(3,), count=10),)),
-        3: BmDpsRule(dps_title="Subtraction Of 3 Using Complement Of 10 (Less 10 , Add 7)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(3,), count=10),)),
-        4: BmDpsRule(dps_title="Subtraction Of 3 Using Complement Of 10 (Less 10 , Add 7)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(3,), count=10),)),
-        5: BmDpsRule(dps_title="Double Digit Subtraction Of 3 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_SUB", "COMP10_SUB",), targets=(3,), count=10),)),
+        1: BmDpsRule(dps_title="Subtraction Of 3 Using Complement Of 5 (Less 5 , Add 2)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(3,), count=9),)),
+        2: BmDpsRule(dps_title="Subtraction Of 3 Using Complement Of 5 (Less 5 , Add 2)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(3,), count=20),)),
+        3: BmDpsRule(dps_title="Subtraction Of 3 Using Complement Of 10 (Less 10 , Add 7)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(3,), count=20),)),
+        4: BmDpsRule(dps_title="Subtraction Of 3 Using Complement Of 10 (Less 10 , Add 7)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(3,), count=20),)),
+        5: BmDpsRule(dps_title="Double Digit Subtraction Of 3 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_SUB", "COMP10_SUB",), targets=(3,), count=20),)),
     },
     9: {
-        1: BmDpsRule(dps_title="Addition Of 4 Using Complement Of 5 (Add 5 , Less 1)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(4,), count=10),)),
-        2: BmDpsRule(dps_title="Addition Of 4 Using Complement Of 5 (Add 5 , Less 1)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(4,), count=10),)),
-        3: BmDpsRule(dps_title="Addition Of 4 Using Complement Of 10 (Add 10 , Less 6)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(4,), count=10),)),
-        4: BmDpsRule(dps_title="Addition Of 4 Using Complement Of 10 (Add 10 , Less 6)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(4,), count=10),)),
-        5: BmDpsRule(dps_title="Double Digit Addition Of 4 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_ADD", "COMP10_ADD",), targets=(4,), count=10),)),
+        1: BmDpsRule(dps_title="Addition Of 4 Using Complement Of 5 (Add 5 , Less 1)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(4,), count=4),)),
+        2: BmDpsRule(dps_title="Addition Of 4 Using Complement Of 5 (Add 5 , Less 1)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_ADD", targets=(4,), count=20),)),
+        3: BmDpsRule(dps_title="Addition Of 4 Using Complement Of 10 (Add 10 , Less 6)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(4,), count=4),)),
+        4: BmDpsRule(dps_title="Addition Of 4 Using Complement Of 10 (Add 10 , Less 6)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(4,), count=20),)),
+        5: BmDpsRule(dps_title="Double Digit Addition Of 4 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_ADD", "COMP10_ADD",), targets=(4,), count=20),)),
     },
     10: {
         1: BmDpsRule(dps_title="Subtraction Of 4 Using Complement Of 5 (Less 5 , Add 1)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(4,), count=10),)),
-        2: BmDpsRule(dps_title="Subtraction Of 4 Using Complement Of 5 (Less 5 , Add 1)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(4,), count=10),)),
-        3: BmDpsRule(dps_title="Subtraction Of 4 Using Complement Of 10 (Less 10 , Add 7)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(4,), count=10),)),
-        4: BmDpsRule(dps_title="Subtraction Of 4 Using Complement Of 10 (Less 10 , Add 6)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(4,), count=10),)),
-        5: BmDpsRule(dps_title="Double Digit Subtraction Of 4 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_SUB", "COMP10_SUB",), targets=(4,), count=10),)),
+        2: BmDpsRule(dps_title="Subtraction Of 4 Using Complement Of 5 (Less 5 , Add 1)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP5_SUB", targets=(4,), count=20),)),
+        3: BmDpsRule(dps_title="Subtraction Of 4 Using Complement Of 10 (Less 10 , Add 7)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(4,), count=20),)),
+        4: BmDpsRule(dps_title="Subtraction Of 4 Using Complement Of 10 (Less 10 , Add 6)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(4,), count=20),)),
+        5: BmDpsRule(dps_title="Double Digit Subtraction Of 4 Using Complements Of 5 & 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="REVISION", revision=("COMP5_SUB", "COMP10_SUB",), targets=(4,), count=20),)),
     },
     11: {
-        1: BmDpsRule(dps_title="Addition Of 5 Using Complement Of 10 (Add 10 , Less 5)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(5,), count=10),)),
-        2: BmDpsRule(dps_title="Addition Of 5 Using Complement Of 10 (Add 10 , Less 5)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(5,), count=10),)),
-        3: BmDpsRule(dps_title="Subtraction Of 5 Using Complement Of 10 (Less 10 , Add 5)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(5,), count=10),)),
-        4: BmDpsRule(dps_title="Subtraction Of 5 Using Complement Of 10 (Less 10 , Add 5)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(5,), count=10),)),
-        5: BmDpsRule(dps_title="Addition & Subtraction Of 5 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP10_ADD", "COMP10_SUB",), targets=(5,), count=10),)),
+        1: BmDpsRule(dps_title="Addition Of 5 Using Complement Of 10 (Add 10 , Less 5)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(5,), count=4),)),
+        2: BmDpsRule(dps_title="Addition Of 5 Using Complement Of 10 (Add 10 , Less 5)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(5,), count=20),)),
+        3: BmDpsRule(dps_title="Subtraction Of 5 Using Complement Of 10 (Less 10 , Add 5)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(5,), count=15),)),
+        4: BmDpsRule(dps_title="Subtraction Of 5 Using Complement Of 10 (Less 10 , Add 5)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(5,), count=20),)),
+        5: BmDpsRule(dps_title="Addition & Subtraction Of 5 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="REVISION", revision=("COMP10_ADD", "COMP10_SUB",), targets=(5,), count=20),)),
     },
     12: {
-        1: BmDpsRule(dps_title="Addition Of 6 Using Complement Of 10 (Add 10 , Less 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(6,), count=10),)),
-        2: BmDpsRule(dps_title="Addition Of 6 Using Complement Of 10 (Add 10 , Less 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(6,), count=10),)),
-        3: BmDpsRule(dps_title="Addition Of 7 Using Complement Of 10 (Add 10 , Less 3 )", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(7,), count=10),)),
-        4: BmDpsRule(dps_title="Addition Of 7 Using Complement Of 10 (Add 10 , Less 3 )", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(7,), count=10),)),
-        5: BmDpsRule(dps_title="Addition Of 6 & 7 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(6, 7,), count=10),)),
+        1: BmDpsRule(dps_title="Addition Of 6 Using Complement Of 10 (Add 10 , Less 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(6,), count=20),)),
+        2: BmDpsRule(dps_title="Addition Of 6 Using Complement Of 10 (Add 10 , Less 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(6,), count=20),)),
+        3: BmDpsRule(dps_title="Addition Of 7 Using Complement Of 10 (Add 10 , Less 3 )", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(7,), count=20),)),
+        4: BmDpsRule(dps_title="Addition Of 7 Using Complement Of 10 (Add 10 , Less 3 )", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(7,), count=20),)),
+        5: BmDpsRule(dps_title="Addition Of 6 & 7 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(6, 7,), count=20),)),
     },
     13: {
-        1: BmDpsRule(dps_title="Subtraction Of 6 Using Complement Of 10 (Less 10 , Add 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(6,), count=10),)),
-        2: BmDpsRule(dps_title="Subtraction Of 6 Using Complement Of 10 (Less 10 , Add 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(6,), count=10),)),
-        3: BmDpsRule(dps_title="Subtraction Of 7 Using Complement Of 10 (Less 10 , Add 3 )", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(7,), count=10),)),
-        4: BmDpsRule(dps_title="Subtraction Of 7 Using Complement Of 10 (Less 10 , Add 3 )", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(7,), count=10),)),
-        5: BmDpsRule(dps_title="Subtraction Of 7 & 8 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(7, 8,), count=10),)),
+        1: BmDpsRule(dps_title="Subtraction Of 6 Using Complement Of 10 (Less 10 , Add 4)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(6,), count=19),)),
+        2: BmDpsRule(dps_title="Subtraction Of 6 Using Complement Of 10 (Less 10 , Add 4)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(6,), count=20),)),
+        3: BmDpsRule(dps_title="Subtraction Of 7 Using Complement Of 10 (Less 10 , Add 3 )", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(7,), count=20),)),
+        4: BmDpsRule(dps_title="Subtraction Of 7 Using Complement Of 10 (Less 10 , Add 3 )", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(7,), count=20),)),
+        5: BmDpsRule(dps_title="Subtraction Of 7 & 8 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(7, 8,), count=20),)),
     },
     14: {
-        1: BmDpsRule(dps_title="Addition Of 8 Using Complement Of 10 (Add 10 , Less 2)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(8,), count=10),)),
-        2: BmDpsRule(dps_title="Addition Of 8 Using Complement Of 10 (Add 10 , Less 2)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(8,), count=10),)),
-        3: BmDpsRule(dps_title="Addition Of 9 Using Complement Of 10 (Add 10 , Less 1)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(9,), count=10),)),
-        4: BmDpsRule(dps_title="Addition Of 9 Using Complement Of 10 (Add 10 , Less 1)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(9,), count=10),)),
-        5: BmDpsRule(dps_title="Addition Of 8 & 9 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(8, 9,), count=10),)),
+        1: BmDpsRule(dps_title="Addition Of 8 Using Complement Of 10 (Add 10 , Less 2)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(8,), count=20),)),
+        2: BmDpsRule(dps_title="Addition Of 8 Using Complement Of 10 (Add 10 , Less 2)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(8,), count=20),)),
+        3: BmDpsRule(dps_title="Addition Of 9 Using Complement Of 10 (Add 10 , Less 1)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(9,), count=20),)),
+        4: BmDpsRule(dps_title="Addition Of 9 Using Complement Of 10 (Add 10 , Less 1)", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(9,), count=20),)),
+        5: BmDpsRule(dps_title="Addition Of 8 & 9 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D_TENS", rows=3, mode="ABACUS", template="COMP10_ADD", targets=(8, 9,), count=20),)),
     },
     15: {
-        1: BmDpsRule(dps_title="Subtraction Of 8 Using Complement Of 10 (Less 10 , Add 2)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(8,), count=10),)),
-        2: BmDpsRule(dps_title="Subtraction Of 8 Using Complement Of 10 (Less 10 , Add 2", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(8,), count=10),)),
-        3: BmDpsRule(dps_title="Subtraction Of 9 Using Complement Of 10 (Less 10 , Add 1 )", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(9,), count=10),)),
-        4: BmDpsRule(dps_title="Subtraction Of 9 Using Complement Of 10 (Less 10 , Add 1 )", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(9,), count=10),)),
-        5: BmDpsRule(dps_title="Subtraction Of 8 & 9 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(8, 9,), count=10),)),
+        1: BmDpsRule(dps_title="Subtraction Of 8 Using Complement Of 10 (Less 10 , Add 2)", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(8,), count=20),)),
+        2: BmDpsRule(dps_title="Subtraction Of 8 Using Complement Of 10 (Less 10 , Add 2", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(8,), count=20),)),
+        3: BmDpsRule(dps_title="Subtraction Of 9 Using Complement Of 10 (Less 10 , Add 1 )", blocks=(_addless("Add/Less 1D,3R (Abacus)", digit_pattern="1D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(9,), count=20),)),
+        4: BmDpsRule(dps_title="Subtraction Of 9 Using Complement Of 10 (Less 10 , Add 1 )", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(9,), count=20),)),
+        5: BmDpsRule(dps_title="Subtraction Of 8 & 9 Using Complement Of 10", blocks=(_addless("Add/Less 2D,3R (Abacus)", digit_pattern="2D", rows=3, mode="ABACUS", template="COMP10_SUB", targets=(8, 9,), count=20),)),
     },
     16: {
         1: BmDpsRule(dps_title="Add/Less (Abacus), Concept Drill", blocks=(
@@ -294,7 +294,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
             _drill_div("Concept Drill (Abacus)"),
         )),
         2: BmDpsRule(dps_title="2D X 1D Multiplication", blocks=(
-            _mult("2D X 1D Multiplication (Abacus)", count=10, mode="ABACUS"),
+            _mult("2D X 1D Multiplication (Abacus)", count=20, mode="ABACUS"),
         )),
         3: BmDpsRule(dps_title="2D X 1D Multiplication", blocks=(
             _mult("2D X 1D Multiplication (Abacus)", count=20, mode="ABACUS"),
@@ -383,10 +383,10 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
             _mult("2D X 1D Multiplication (Abacus)", count=20, mode="ABACUS"),
         )),
         4: BmDpsRule(dps_title="Add/Less (Abacus)", blocks=(
-            _addless("Add/Less 3D,4R (Abacus)", digit_pattern="3D_FULL", rows=4, mode="ABACUS", count=10),
+            _addless("Add/Less 3D,4R (Abacus)", digit_pattern="3D_FULL", rows=4, mode="ABACUS", count=20),
         )),
         5: BmDpsRule(dps_title="Add/Less (Visual)", blocks=(
-            _addless("Add/Less 2D,4R (Visual)", digit_pattern="2D_FULL", rows=4, mode="VISUAL", count=10),
+            _addless("Add/Less 2D,4R (Visual)", digit_pattern="2D_FULL", rows=4, mode="VISUAL", count=20),
         )),
     },
     21: {
@@ -448,7 +448,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
             _mult("2D X 1D Multiplication (Abacus)", count=20, mode="ABACUS"),
         )),
         5: BmDpsRule(dps_title="Add/Less (Abacus)", blocks=(
-            _addless("Add/Less 3D,4R (Abacus)", digit_pattern="3D_FULL", rows=4, mode="ABACUS", count=10),
+            _addless("Add/Less 3D,4R (Abacus)", digit_pattern="3D_FULL", rows=4, mode="ABACUS", count=20),
         )),
     },
     24: {
@@ -496,7 +496,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
     },
     26: {
         1: BmDpsRule(dps_title="Add/Less (Visual)", blocks=(
-            _addless("Add/Less 3D,2R & 2D,2R (Visual)", digit_pattern="3D_FULL", rows=2, dp2="2D_FULL", rows2=2, mode="VISUAL", count=10),
+            _addless("Add/Less 3D,2R & 2D,2R (Visual)", digit_pattern="3D_FULL", rows=2, dp2="2D_FULL", rows2=2, mode="VISUAL", count=20),
         )),
         2: BmDpsRule(dps_title="BODMAS", blocks=(
             _bodmas("BODMAS (Abacus)", template=BODMAS_BM_PRODUCT_AFTER_TAIL, count=5),
@@ -515,7 +515,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
     },
     27: {
         1: BmDpsRule(dps_title="Add/Less (Abacus)", blocks=(
-            _addless("Add/Less 3D,3R (Abacus)", digit_pattern="3D_FULL", rows=3, mode="ABACUS", count=10),
+            _addless("Add/Less 3D,3R (Abacus)", digit_pattern="3D_FULL", rows=3, mode="ABACUS", count=20),
         )),
         2: BmDpsRule(dps_title="2D X 1D Multiplication, BODMAS", blocks=(
             _mult("2D X 1D Multiplication (Abacus)", count=10, mode="ABACUS"),
@@ -618,7 +618,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
             _mult("2D X 1D Multiplication (Visual)", count=20, mode="VISUAL"),
         )),
         4: BmDpsRule(dps_title="Add/Less (Abacus)", blocks=(
-            _addless("Add/Less 4D,3R (Abacus)", digit_pattern="4D_FULL", rows=3, mode="ABACUS", count=10),
+            _addless("Add/Less 4D,3R (Abacus)", digit_pattern="4D_FULL", rows=3, mode="ABACUS", count=20),
         )),
         5: BmDpsRule(dps_title="Add/Less (Visual), 3D ÷ 1D Division", blocks=(
             _addless("Add/Less 3D,1R & 2D,2R (Visual)", digit_pattern="3D_FULL", rows=1, dp2="2D_FULL", rows2=2, mode="VISUAL", count=10),
@@ -643,7 +643,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
             _mult("2D X 1D Multiplication (Visual)", count=10, mode="VISUAL"),
         )),
         5: BmDpsRule(dps_title="Add/Less (Abacus)", blocks=(
-            _addless("Add/Less 4D,4R (Abacus)", digit_pattern="4D_FULL", rows=4, mode="ABACUS", count=10),
+            _addless("Add/Less 4D,4R (Abacus)", digit_pattern="4D_FULL", rows=4, mode="ABACUS", count=20),
         )),
     },
     33: {
@@ -706,7 +706,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
             _div3d("3D ÷ 1D Division (Abacus)", count=10),
         )),
         4: BmDpsRule(dps_title="3D ÷ 1D Division", blocks=(
-            _div3d("3D ÷ 1D Division (Abacus)", count=10),
+            _div3d("3D ÷ 1D Division (Abacus)", count=20),
         )),
         5: BmDpsRule(dps_title="Add/Less (Abacus), 2D X 1D Multiplication", blocks=(
             _addless("Add/Less 4D,4R (Abacus)", digit_pattern="4D_FULL", rows=4, mode="ABACUS", count=10),
@@ -760,7 +760,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
     },
     38: {
         1: BmDpsRule(dps_title="Add/Less (Visual)", blocks=(
-            _addless("Add/Less 4D,2R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=2, dp2="3D_FULL", rows2=2, mode="VISUAL", count=10),
+            _addless("Add/Less 4D,2R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=2, dp2="3D_FULL", rows2=2, mode="VISUAL", count=20),
         )),
         2: BmDpsRule(dps_title="BODMAS", blocks=(
             _bodmas("BODMAS (Abacus)", template=BODMAS_BM_PRODUCT_AFTER_TAIL, count=5),
@@ -796,7 +796,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
             _div3d("3D ÷ 1D Division (Abacus)", count=10),
         )),
         5: BmDpsRule(dps_title="Add/Less (Visual)", blocks=(
-            _addless("Add/Less 4D,2R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=2, dp2="3D_FULL", rows2=2, mode="VISUAL", count=10),
+            _addless("Add/Less 4D,2R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=2, dp2="3D_FULL", rows2=2, mode="VISUAL", count=20),
         )),
     },
     40: {
@@ -817,7 +817,7 @@ BM_LESSONS: dict[int, dict[int, BmDpsRule]] = {
             _div3d("3D ÷ 1D Division (Abacus)", count=10),
         )),
         5: BmDpsRule(dps_title="Add/Less (Visual)", blocks=(
-            _addless("Add/Less 4D,2R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=2, dp2="3D_FULL", rows2=2, mode="VISUAL", count=10),
+            _addless("Add/Less 4D,2R & 3D,2R (Visual)", digit_pattern="4D_FULL", rows=2, dp2="3D_FULL", rows2=2, mode="VISUAL", count=20),
         )),
     },
 }

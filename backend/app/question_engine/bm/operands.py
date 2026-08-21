@@ -344,11 +344,28 @@ def _build_chain(config: BMConfig, rng: random.Random) -> list[int] | None:
 
 
 def generate_unique_operands(config: BMConfig, rng: random.Random, seen: set[tuple[int, ...]]) -> list[int]:
+    """Build ONE valid Add/Less chain that has never been returned before
+    for this DPS (per the caller's `seen` set).
+
+    2026-08-21 (Shailesh, explicit): every BM-L1 DPS must show genuinely
+    unique questions, always -- no repeated sums on any sheet, for any
+    concept, anywhere in the level. This used to fall back to returning a
+    repeat once the unique-chain budget below was exhausted (real for a
+    handful of early single-target Complement-of-5/10 drills, e.g.
+    "Addition of 1 Using Complement of 5" with digit_pattern=1D has only 4
+    distinct 3-row chains in total) -- that silent-repeat fallback is gone.
+    The correct fix lives in bridge_module_l1_config.py: every DPS whose
+    combinatorial space is smaller than its configured question_count now
+    has its count capped to its real, audited ceiling (verified directly
+    against this exact function), so this loop exhausting its budget here
+    means the config and the generator have drifted out of sync -- that is
+    a real bug to surface loudly, not something to paper over with a
+    repeated question.
+    """
     total_rows = total_row_count(config) if (config.generation_template or TEMPLATE_DIRECT).upper() == TEMPLATE_DIRECT else config.rows
     check_config = dataclasses.replace(config, rows=total_rows)
 
-    best_valid_repeat: list[int] | None = None
-    for _attempt in range(500):
+    for _attempt in range(2000):
         candidate = _build_chain(config, rng)
         if candidate is None:
             continue
@@ -356,28 +373,11 @@ def generate_unique_operands(config: BMConfig, rng: random.Random, seen: set[tup
             continue
         if tuple(candidate) not in seen:
             return candidate
-        if best_valid_repeat is None:
-            best_valid_repeat = candidate
-
-    # BM-L1's early single-target Complement-of-5/Complement-of-10 drills
-    # (Lessons 3-15, 3 rows, one fixed target digit) have a genuinely small
-    # combinatorial space -- e.g. "Addition of 1 Using Complement of 5"
-    # with digit_pattern=1D has exactly one valid (trigger, target) base
-    # pair and only 4 possible closing single-digit deltas, so only 4
-    # distinct 3-row chains exist in total. A 10-question DPS can't have 10
-    # UNIQUE chains from a 4-chain space -- repetition here is not a
-    # generation bug, it mirrors how these foundational bead-drill
-    # worksheets are actually authored (the same handful of movements
-    # practiced repeatedly to build muscle memory), so once the unique-chain
-    # budget above is exhausted, this falls back to returning any other
-    # VALID chain (even a repeat) rather than raising -- wide-pattern DPS
-    # elsewhere in the level have ample variety and will essentially never
-    # reach this fallback.
-    if best_valid_repeat is not None:
-        return best_valid_repeat
 
     raise ValueError(
-        f"BM lesson {config.lesson_number} DPS {config.dps_number}: could not generate a valid "
-        f"{total_rows}-row Add/Less chain (template={config.generation_template}, "
-        f"digit_pattern={config.digit_pattern})"
+        f"BM lesson {config.lesson_number} DPS {config.dps_number}: could not generate a UNIQUE valid "
+        f"{total_rows}-row Add/Less chain not already used on this sheet (template={config.generation_template}, "
+        f"digit_pattern={config.digit_pattern}, target_numbers={config.target_numbers}). This DPS's configured "
+        f"question_count likely exceeds its real combinatorial ceiling -- re-audit and cap it in "
+        f"bridge_module_l1_config.py rather than allowing a repeated question."
     )
