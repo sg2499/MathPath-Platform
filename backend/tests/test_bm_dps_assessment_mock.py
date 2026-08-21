@@ -165,18 +165,21 @@ def test_bm_all_200_dps_generate_correctly(db, bm_l1_level):
                     pytest.fail(f"Unexpected display_type/concept_family combo: {dt} / {concept_family}")
     assert total_dps == 200
     # Locked-in question-level totals per concept family, verified empirically
-    # against the seeded engine output (block counts from the workbook
-    # extraction were 137/63/36/6/18/24/24 -- each block expands to that
-    # block's own configured question_count, e.g. most Add/Less DPS = 10
-    # questions/block, Concept Drill blocks = 1 question/block since it's a
-    # single-row teaser embedded in a larger DPS).
-    assert block_kind_counts.get("DIRECT_ADD_LESS", 0) == 1370
-    assert block_kind_counts.get("BM_MULTIPLICATION", 0) == 890
-    assert block_kind_counts.get("BM_DIVISION", 0) == 360
+    # against the seeded engine output. Updated 2026-08-21 (Shailesh, explicit):
+    # DPS sheets that showed exactly 10 questions were bumped to 20 (each
+    # concept's share scaled up proportionally on multi-concept sheets), except
+    # where a sheet's real combinatorial ceiling is narrower than 20 -- those
+    # are capped to their audited exact ceiling instead of allowing repeats.
+    # Only DIRECT_ADD_LESS, BM_MULTIPLICATION (1 DPS), and BM_DIVISION (1 DPS)
+    # had any sheet sitting at exactly 10; BM_DIVISION_WITH_REMAINDER, BODMAS,
+    # and CONCEPT_DRILL sheets were never at exactly 10 and are unchanged.
+    assert block_kind_counts.get("DIRECT_ADD_LESS", 0) == 2005
+    assert block_kind_counts.get("BM_MULTIPLICATION", 0) == 900
+    assert block_kind_counts.get("BM_DIVISION", 0) == 370
     assert block_kind_counts.get("BM_DIVISION_WITH_REMAINDER", 0) == 60
     assert block_kind_counts.get("BODMAS", 0) == 90
     assert block_kind_counts.get("CONCEPT_DRILL", 0) == 48  # 24 multiply + 24 divide, both tagged CONCEPT_DRILL, 1 question each
-    assert total_questions == sum(block_kind_counts.values()) == 2818
+    assert total_questions == sum(block_kind_counts.values()) == 3473
 
 
 def test_bm_addless_supports_4_digit_width(db, bm_l1_level):
@@ -588,16 +591,21 @@ def test_bm_persist_question_set_uses_bm_engine(db, bm_l1_level):
     assert divide_remainder_seen, "no divide-with-remainder question seen across all 200 DPS via persist_question_set"
 
 
-def test_bm_generate_unique_operands_falls_back_on_narrow_combinatorial_space():
-    """Regression for the 2026-08-07 bug found while building BM: a narrow
-    single-target COMP5/COMP10 drill with digit_pattern="1D" can have as
-    few as 4 distinct valid 3-row chains, but a DPS can request 10
-    questions. generate_unique_operands must fall back to a valid repeat
-    rather than raising ValueError after 500 failed uniqueness attempts.
+def test_bm_generate_unique_operands_raises_once_narrow_combinatorial_space_is_exhausted():
+    """Regression for 2026-08-21 (Shailesh, explicit): BM-L1 DPS sheets must
+    never repeat a question, for any concept, ever -- including narrow
+    single-target COMP5/COMP10 drills such as this one (digit_pattern="1D"),
+    which really do only have 4 distinct valid 3-row chains available. This
+    supersedes the 2026-08-07 version of this test, which asserted the old
+    "fall back to a valid repeat" behavior -- that fallback is gone by
+    explicit instruction, and bridge_module_l1_config.py's own count for
+    this exact DPS (Lesson 3, DPS 1) was capped from 10 down to 4 to match
+    its real ceiling, so production never asks this generator for more than
+    it can uniquely provide.
     """
     config = BMConfig(
         module_code="BM", level_code="BM-L1", lesson_number=3, dps_number=1,
-        question_count=10, rows=3,
+        question_count=4, rows=3,
         concept_family="DIRECT_ADD_LESS", operation_focus="ADD_LESS",
         target_numbers=[1], place_value="ONES", digit_pattern="1D",
         allow_negative_operands=True, allow_negative_answer=False,
@@ -606,19 +614,24 @@ def test_bm_generate_unique_operands_falls_back_on_narrow_combinatorial_space():
     rng = random.Random("BM-NARROW-TEST")
     seen: set[tuple[int, ...]] = set()
     chains = []
-    for _ in range(10):
+    for _ in range(4):
         chain = generate_unique_operands(config, rng, seen)
         chains.append(tuple(chain))
         seen.add(tuple(chain))
-    assert len(chains) == 10
-    # Some repeats are expected (that's the whole point of the fix) but
-    # every single chain must still be independently valid.
+    assert len(chains) == 4
+    assert len(set(chains)) == 4, "all 4 chains must be genuinely distinct -- no duplicates allowed"
+    # Every single chain must still be independently valid.
     from app.question_engine.bm.validators import validate_question
     import dataclasses
     from app.question_engine.bm.operands import total_row_count
     check_config = dataclasses.replace(config, rows=total_row_count(config))
     for chain in chains:
         assert validate_question(check_config, list(chain)), f"invalid chain produced: {chain}"
+
+    # The real combinatorial space (4 distinct chains) is now exhausted --
+    # a 5th request must raise loudly rather than silently repeat.
+    with pytest.raises(ValueError):
+        generate_unique_operands(config, rng, seen)
 
 
 def test_bm_row_width_schedule_handles_narrow_multi_digit_patterns():
