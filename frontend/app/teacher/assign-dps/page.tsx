@@ -623,8 +623,9 @@ export default function TeacherAssignDpsPage() {
 
       {showScheduleConfirm && selectedLesson ? (
         <div className="fixed inset-x-0 bottom-0 top-[92px] z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 py-8 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-xl rounded-[32px] border border-[color:var(--mp-role-border)] bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.28)] dark:bg-slate-950">
-            <div className="flex items-start justify-between gap-4">
+          <div className="flex max-h-[calc(100vh-160px)] w-full max-w-xl flex-col rounded-[32px] border border-[color:var(--mp-role-border)] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.28)] dark:bg-slate-950">
+            {/* Header stays pinned so the title and close button are always reachable, even when the sheet list below needs to scroll on shorter screens. */}
+            <div className="flex shrink-0 items-start justify-between gap-4 p-6 pb-0">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--mp-role-soft)] text-[color:var(--mp-role-readable)]">
                   <CalendarDays size={22} />
@@ -647,67 +648,73 @@ export default function TeacherAssignDpsPage() {
               </button>
             </div>
 
-            <div className="mt-6 space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/70">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Lesson</p>
-                <p className="mt-1 text-base font-black text-slate-950 dark:text-white">
-                  {selectedLesson.levelCode} · Lesson {selectedLesson.lessonNumber} - {selectedLesson.lessonTitle}
+            {/* Only this middle section scrolls -- header above and warning/buttons below stay put. */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+              <div className="space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/70">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Lesson</p>
+                  <p className="mt-1 text-base font-black text-slate-950 dark:text-white">
+                    {selectedLesson.levelCode} · Lesson {selectedLesson.lessonNumber} - {selectedLesson.lessonTitle}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {dpsForLesson.map((dps) => {
+                    const dateValue = scheduleDates[dps.dpsId] || "";
+                    const isWeekend = IsWeekendDateStr(dateValue);
+                    return (
+                      <div key={dps.dpsId} className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="min-w-0 truncate text-sm font-black text-slate-950 dark:text-white">
+                            DPS {dps.dpsNumber}: {dps.dpsTitle}
+                          </p>
+                          <input
+                            type="date"
+                            className="math-select w-full sm:w-auto"
+                            value={dateValue}
+                            onChange={(e) => setScheduleDates((prev) => ({ ...prev, [dps.dpsId]: e.target.value }))}
+                          />
+                        </div>
+                        {isWeekend ? (
+                          <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-700">
+                            <AlertTriangle size={14} className="shrink-0" />
+                            This date falls on a weekend -- practice sheets are usually scheduled Mon-Fri.
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer stays pinned too -- the warning and Confirm/Cancel buttons are always visible without scrolling. */}
+            <div className="shrink-0 p-6 pt-0">
+              <div className="flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                <p className="text-sm font-bold leading-6">
+                  Each sheet unlocks for the selected student(s) at the start of its date (IST) and stays visible after that -- earlier sheets remain available once later ones unlock too. Weekend dates are allowed but will show a warning above.
                 </p>
               </div>
-              <div className="space-y-2">
-                {dpsForLesson.map((dps) => {
-                  const dateValue = scheduleDates[dps.dpsId] || "";
-                  const isWeekend = IsWeekendDateStr(dateValue);
-                  return (
-                    <div key={dps.dpsId} className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="min-w-0 truncate text-sm font-black text-slate-950 dark:text-white">
-                          DPS {dps.dpsNumber}: {dps.dpsTitle}
-                        </p>
-                        <input
-                          type="date"
-                          className="math-select w-full sm:w-auto"
-                          value={dateValue}
-                          onChange={(e) => setScheduleDates((prev) => ({ ...prev, [dps.dpsId]: e.target.value }))}
-                        />
-                      </div>
-                      {isWeekend ? (
-                        <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-700">
-                          <AlertTriangle size={14} className="shrink-0" />
-                          This date falls on a weekend -- practice sheets are usually scheduled Mon-Fri.
-                        </p>
-                      ) : null}
-                    </div>
-                  );
-                })}
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  className="math-button-secondary"
+                  onClick={() => setShowScheduleConfirm(false)}
+                  disabled={scheduleMutation.isPending}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="math-button-primary"
+                  onClick={confirmSchedule}
+                  disabled={scheduleMutation.isPending || dpsForLesson.some((dps) => !scheduleDates[dps.dpsId])}
+                >
+                  <CalendarDays size={18} />
+                  {scheduleMutation.isPending ? "Scheduling..." : "Confirm Schedule"}
+                </button>
               </div>
-            </div>
-
-            <div className="mt-5 flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
-              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
-              <p className="text-sm font-bold leading-6">
-                Each sheet unlocks for the selected student(s) at the start of its date (IST) and stays visible after that -- earlier sheets remain available once later ones unlock too. Weekend dates are allowed but will show a warning above.
-              </p>
-            </div>
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                className="math-button-secondary"
-                onClick={() => setShowScheduleConfirm(false)}
-                disabled={scheduleMutation.isPending}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="math-button-primary"
-                onClick={confirmSchedule}
-                disabled={scheduleMutation.isPending || dpsForLesson.some((dps) => !scheduleDates[dps.dpsId])}
-              >
-                <CalendarDays size={18} />
-                {scheduleMutation.isPending ? "Scheduling..." : "Confirm Schedule"}
-              </button>
             </div>
           </div>
         </div>
