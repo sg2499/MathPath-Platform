@@ -375,7 +375,7 @@ export default function TeacherAssignDpsPage() {
 
         {selectedLesson ? (
           <section className="math-card p-5 sm:p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="min-w-0">
                 <p className="math-block-header">
                   <UserCheck size={14} />
@@ -390,7 +390,7 @@ export default function TeacherAssignDpsPage() {
                     : `All ${dpsForLesson.length} sheet(s) in this lesson -- only students in ${selectedLesson.levelCode} can be selected.`}
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:w-auto">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 w-auto">
                 <button
                   type="button"
                   className="math-button-secondary w-full justify-center whitespace-nowrap"
