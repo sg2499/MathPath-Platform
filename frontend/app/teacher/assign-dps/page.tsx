@@ -375,7 +375,7 @@ export default function TeacherAssignDpsPage() {
 
         {selectedLesson ? (
           <section className="math-card p-5 sm:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
               <div className="min-w-0">
                 <p className="math-block-header">
                   <UserCheck size={14} />
@@ -390,7 +390,7 @@ export default function TeacherAssignDpsPage() {
                     : `All ${dpsForLesson.length} sheet(s) in this lesson -- only students in ${selectedLesson.levelCode} can be selected.`}
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:w-auto">
                 <button
                   type="button"
                   className="math-button-secondary w-full justify-center whitespace-nowrap"
@@ -438,10 +438,10 @@ export default function TeacherAssignDpsPage() {
               </div>
             </div>
 
-            <div className="mt-3">
+            <div className="mt-3 flex justify-center">
               <button
                 type="button"
-                className="math-button-secondary w-full justify-center gap-2 whitespace-nowrap"
+                className="math-button-secondary w-full max-w-xs justify-center gap-2 whitespace-nowrap sm:max-w-sm"
                 disabled={!selectedStudentIds.length || Boolean(dpsId) || !dpsForLesson.length || scheduleMutation.isPending}
                 title={
                   dpsId
@@ -451,7 +451,7 @@ export default function TeacherAssignDpsPage() {
                 onClick={openScheduleConfirmation}
               >
                 <CalendarDays size={18} />
-                {scheduleMutation.isPending ? "Scheduling..." : "Schedule Across The Week (Mon-Fri)"}
+                {scheduleMutation.isPending ? "Scheduling..." : "Schedule The Week"}
               </button>
             </div>
 
