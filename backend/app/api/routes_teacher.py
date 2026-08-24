@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends
@@ -39,6 +39,18 @@ class TeacherAssignRequest(BaseModel):
 class TeacherBulkAssignRequest(BaseModel):
     lessonId: str
     studentIds: list[str]
+    instructions: str | None = None
+
+
+class ScheduleItem(BaseModel):
+    dpsId: str
+    date: str  # "YYYY-MM-DD", interpreted as IST (the school's local day)
+
+
+class TeacherScheduleAssignRequest(BaseModel):
+    lessonId: str
+    studentIds: list[str]
+    scheduleItems: list[ScheduleItem]
     instructions: str | None = None
 
 
@@ -722,6 +734,7 @@ def assign_single_dps_to_students(
     students: list[Student],
     title: str,
     instructions: str | None,
+    start_time: datetime | None = None,
 ) -> tuple[list[Assignment], list[str]]:
     """Core per-student assignment loop for one DPS, shared by the
     single-sheet /assignments route and the bulk /assignments/lesson route
@@ -788,6 +801,7 @@ def assign_single_dps_to_students(
             title=title,
             instructions=instructions or "Complete this practice within the given time.",
             allow_reattempt=False,
+            start_time=start_time,
         )
         created.append(assignment)
 
@@ -942,6 +956,143 @@ def assign_lesson_dps_to_students(
         "assignmentIds": [assignment.id for assignment in all_created],
         "sheetsAssigned": sheet_count,
         "totalSheetsInLesson": total_dps_count,
+        "studentsAssigned": len(own_students),
+    }
+
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _ScheduleDateToStartTimeUtc(date_str: str) -> datetime:
+    """Interpret a teacher-picked 'YYYY-MM-DD' date as IST midnight (the
+    start of that school day in India Standard Time), then convert to UTC
+    for storage -- Assignment.start_time is always stored/compared in UTC
+    (see validate_assignment_access() in assignment_service.py). Raises
+    ValueError on a malformed date string; callers turn that into a 400.
+    """
+    naive = datetime.strptime(date_str, "%Y-%m-%d")
+    ist_midnight = naive.replace(tzinfo=IST)
+    return ist_midnight.astimezone(timezone.utc)
+
+
+def _IsWeekendInIst(start_time_utc: datetime) -> bool:
+    """Saturday/Sunday check against the IST calendar day, since the
+    program's weekly rhythm (weekday practice, weekend classes) is defined
+    in the school's local time, not server UTC."""
+    ist_moment = start_time_utc.astimezone(IST)
+    return ist_moment.weekday() >= 5  # Monday=0 ... Saturday=5, Sunday=6
+
+
+@router.post("/assignments/schedule")
+def schedule_lesson_dps_to_students(
+    payload: TeacherScheduleAssignRequest,
+    db: Session = Depends(get_db),
+    teacher: Teacher = Depends(get_current_teacher),
+):
+    """Assign several specific DPS sheets from one lesson to the same
+    student(s) in a single call, each sheet unlocking on its own
+    teacher-chosen date -- the weekly Mon-Fri practice scheduler, so a
+    teacher can line up a whole week (or a whole batch's week) at once
+    instead of logging in daily to assign one sheet at a time.
+
+    Fans out to assign_single_dps_to_students() once per (sheet, date)
+    pair -- the exact same shared per-student loop the single-sheet and
+    "Assign All Sheets" routes above use -- so duplicate-assignment
+    blocking and reattempt handling stay identical, not a second copy that
+    can drift. The only new behavior is threading a per-item start_time
+    through, and collecting soft (non-blocking) weekend warnings.
+    """
+    if not payload.studentIds:
+        api_error(400, "VALIDATION_ERROR", "Select at least one student.")
+    if not payload.scheduleItems:
+        api_error(400, "VALIDATION_ERROR", "Schedule at least one sheet.")
+
+    lesson = db.get(Lesson, payload.lessonId)
+    if not lesson:
+        api_error(404, "NOT_FOUND", "Lesson not found.")
+    level = db.get(Level, lesson.level_id)
+    if not level:
+        api_error(404, "NOT_FOUND", "Lesson level not found.")
+
+    own_students = own_students_query(db, teacher).filter(Student.id.in_(payload.studentIds)).all()
+    if len(own_students) != len(set(payload.studentIds)):
+        api_error(403, "FORBIDDEN", "You can assign DPS only to your own students.")
+
+    invalid_students = [student for student in own_students if student.current_level_id != level.id]
+    if invalid_students:
+        names = []
+        for student in invalid_students:
+            user = db.get(User, student.user_id)
+            names.append(user.full_name if user else student.student_code)
+        api_error(400, "LEVEL_MISMATCH", f"DPS can only be assigned to students in {level.level_code}. Mismatch: {', '.join(names)}")
+
+    scheduled_pairs: list[tuple[DPS, datetime]] = []
+    warnings: list[str] = []
+    for item in payload.scheduleItems:
+        dps = db.get(DPS, item.dpsId)
+        if not dps or dps.lesson_id != lesson.id:
+            api_error(400, "VALIDATION_ERROR", "One of the scheduled sheets does not belong to this lesson.")
+        if (getattr(dps, "publication_status", "DRAFT") or "DRAFT") != "PUBLISHED":
+            api_error(403, "DPS_NOT_PUBLISHED", f"DPS {dps.dps_number} has not been published by Admin yet.")
+        try:
+            start_time = _ScheduleDateToStartTimeUtc(item.date)
+        except ValueError:
+            api_error(400, "VALIDATION_ERROR", f"'{item.date}' is not a valid date (expected YYYY-MM-DD).")
+        if _IsWeekendInIst(start_time):
+            warnings.append(f"DPS {dps.dps_number} is scheduled on {item.date}, which falls on a weekend.")
+        scheduled_pairs.append((dps, start_time))
+
+    all_created: list[Assignment] = []
+    blocked_pairs: list[str] = []
+
+    for dps, start_time in scheduled_pairs:
+        day_label = start_time.astimezone(IST).strftime("%a, %d %b")
+        title = f"{level.level_code} Lesson {lesson.lesson_number} - DPS {dps.dps_number} Practice ({day_label})"
+        created, blocked_students = assign_single_dps_to_students(
+            db,
+            dps=dps,
+            teacher=teacher,
+            students=own_students,
+            title=title,
+            instructions=payload.instructions,
+            start_time=start_time,
+        )
+        all_created.extend(created)
+        blocked_pairs.extend(f"DPS {dps.dps_number} - {name}" for name in blocked_students)
+
+    if not all_created and blocked_pairs:
+        api_error(
+            409,
+            "DUPLICATE_ASSIGNMENT_BLOCKED",
+            "Every scheduled sheet is already assigned to the selected student(s). "
+            "Admin can unlock existing assignments for a reattempt if needed.",
+        )
+
+    # Only notify for sheets that unlock immediately (today or earlier) --
+    # notifying a student about a sheet that is still locked for days would
+    # be confusing (a "go do it now" ping for something they can't open
+    # yet). There is no scheduled-job infrastructure in this codebase to
+    # fire a notification exactly when a future start_time arrives, and
+    # building one is out of scope for this feature -- the sheet simply
+    # appears in the student's practice list on its own day instead.
+    now_utc = datetime.now(timezone.utc)
+    immediate_assignment_ids = [
+        assignment.id for assignment in all_created
+        if not assignment.start_time or assignment.start_time <= now_utc
+    ]
+    if immediate_assignment_ids:
+        NotifyPracticeAssignmentsCreated(db, assignment_ids=immediate_assignment_ids, actor_user_id=teacher.user_id)
+    db.commit()
+
+    message = f"Scheduled {len(payload.scheduleItems)} sheet(s) to {len(own_students)} student(s)."
+    if blocked_pairs:
+        message += f" Skipped {len(blocked_pairs)} already-assigned combination(s)."
+
+    return {
+        "created": True,
+        "message": message,
+        "assignmentIds": [assignment.id for assignment in all_created],
+        "warnings": warnings,
         "studentsAssigned": len(own_students),
     }
 
