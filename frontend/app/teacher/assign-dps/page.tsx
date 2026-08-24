@@ -438,7 +438,7 @@ export default function TeacherAssignDpsPage() {
               </div>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-3">
               <button
                 type="button"
                 className="math-button-secondary w-full justify-center gap-2 whitespace-nowrap"
