@@ -12,7 +12,6 @@ export function QuestionCard({
   saving,
   compact = false,
   onSave,
-  onAdvance,
 }: {
   question: DpsStudentQuestion;
   savedAnswerText?: string | null;
@@ -20,7 +19,6 @@ export function QuestionCard({
   saving: boolean;
   compact?: boolean;
   onSave: (answerText: string) => void;
-  onAdvance: (answerText: string) => void;
 }) {
   // Section/lesson context now lives in the attempt page's top info bar
   // (see app/student/attempt/[attemptId]/page.tsx) -- repeating it here
@@ -66,7 +64,6 @@ export function QuestionCard({
             initialValue={savedAnswerText}
             disabled={disabled}
             onSave={onSave}
-            onAdvance={onAdvance}
           />
         </div>
       </div>
