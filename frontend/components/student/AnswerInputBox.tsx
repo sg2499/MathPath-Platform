@@ -1,68 +1,51 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CornerDownLeft } from "lucide-react";
 
-// DPS questions are typed free-text answers now, not MCQ picks -- see
-// OPEN_ISSUES.md 2026-08-03e. This box auto-saves (short pause) and
-// auto-advances to the next question (longer pause) the same way picking
-// an MCQ option used to instantly advance -- but a typed answer has no
-// single discrete "the student is done" event the way a click did, so this
-// has to infer it from typing behavior instead.
+// DPS questions are typed free-text answers, not MCQ picks -- see
+// OPEN_ISSUES.md 2026-08-03e. This box auto-saves on a short pause so
+// nothing typed is ever lost, but it does NOT try to guess when the
+// student is "done" and auto-advance them to the next question anymore.
 //
-// The correct answer (and its length) is never sent to the client during
-// an in-progress attempt -- see safe_questions_payload() in
-// attempt_service.py -- so "has the student finished typing" can only ever
-// be a client-side heuristic based on pause + syntactic shape, never a
-// comparison against the real answer. Two timers, reset on every
-// keystroke:
-//   - SAVE_DEBOUNCE_MS: fires quickly so nothing typed is ever lost, even
-//     mid-thought.
-//   - ADVANCE_DEBOUNCE_MS: fires only after a longer pause, and only
-//     advances if the current text is a syntactically complete number
-//     (rejects a bare trailing "-" or "." -- those are almost always
-//     mid-keystroke, not a finished answer) -- so it never jumps the
-//     student to the next question while they're still mid-digit.
-// Pressing Enter always saves + advances immediately regardless of the
-// pause/shape check, mirroring the old MCQ click's instant response for
-// anyone who wants to move faster than the pause.
+// That guess-based auto-advance was removed on 2026-08-24. It used to
+// infer "finished typing" from pause + syntactic shape (is the current
+// text a complete-looking number), because the correct answer -- and its
+// length -- is deliberately never sent to the client during an
+// in-progress attempt (see safe_questions_payload() in
+// attempt_service.py). That heuristic broke on any decimal answer: a bare
+// integer like "61" is itself a syntactically complete number, so a
+// student pausing mid-entry (e.g. between typing "61" and reaching for
+// the decimal point of "61.02") looked identical to a student who was
+// actually done, and got advanced before finishing. There is no reliable
+// client-side fix for that without leaking answer shape to the client, so
+// navigation between questions is now entirely manual -- the arrow
+// buttons and question navigator in
+// app/student/attempt/[attemptId]/page.tsx are the only way to move
+// between questions.
 const SAVE_DEBOUNCE_MS = 450;
-const ADVANCE_DEBOUNCE_MS = 1100;
-
-const COMPLETE_NUMBER_PATTERN = /^-?(\d+(\.\d+)?|\.\d+)$/;
-
-// PM-L4's "3D ÷ 1D WITH REMAINDER(S)" (added 2026-08-06) is the platform's
-// first DPS concept whose typed answer is a "quotient, remainder" pair
-// (e.g. "73, 1") instead of a single number -- see answer_matching.py's
-// _to_decimal_pair for the backend-side counterpart. Without this, a
-// student's finished pair answer never matches COMPLETE_NUMBER_PATTERN, so
-// the pause-based auto-advance never fires (they'd still be able to save +
-// advance by pressing Enter, but the box would otherwise look "stuck"
-// exactly like every other concept's auto-advance already feels smooth).
-// This is purely a client-side completeness heuristic for UX, same caveat
-// as COMPLETE_NUMBER_PATTERN's own docstring below -- it never influences
-// actual grading, which stays entirely server-side.
-const COMPLETE_PAIR_PATTERN = /^-?(\d+(\.\d+)?|\.\d+)\s*,\s*-?(\d+(\.\d+)?|\.\d+)$/;
-
-function isCompleteAnswer(text: string): boolean {
-  return COMPLETE_NUMBER_PATTERN.test(text) || COMPLETE_PAIR_PATTERN.test(text);
-}
 
 export function AnswerInputBox({
   initialValue,
   disabled,
   onSave,
-  onAdvance,
 }: {
   initialValue?: string | null;
   disabled: boolean;
   onSave: (text: string) => void;
-  onAdvance: (text: string) => void;
 }) {
   const [value, setValue] = useState(initialValue || "");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  // Latest value, readable from the unmount-flush effect below without
+  // making that effect re-run (and re-fire its cleanup) on every keystroke.
+  const valueRef = useRef(value);
+  // Last value actually handed to onSave, so blur/Enter/unmount-flush never
+  // fire a redundant duplicate save when nothing changed since the last one.
+  const lastSavedValueRef = useRef<string>(initialValue || "");
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   // QuestionCard remounts this component with a fresh key on every question
   // change, so a mount-time focus fires exactly once per question -- the
@@ -75,40 +58,54 @@ export function AnswerInputBox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function clearTimers() {
+  function clearSaveTimer() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
     saveTimerRef.current = null;
-    advanceTimerRef.current = null;
   }
+
+  function flushSave(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || trimmed === lastSavedValueRef.current.trim()) return;
+    lastSavedValueRef.current = text;
+    onSave(text);
+  }
+
+  // Same-question navigation is now entirely manual (arrow buttons /
+  // question navigator), so if the student moves away while a save is
+  // still sitting in the debounce window, flush it immediately on unmount
+  // rather than letting it get dropped along with the timer.
+  useEffect(() => {
+    return () => {
+      clearSaveTimer();
+      flushSave(valueRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleChange(nextValue: string) {
     setValue(nextValue);
-    clearTimers();
+    clearSaveTimer();
 
     const trimmed = nextValue.trim();
     if (!trimmed) return;
 
-    saveTimerRef.current = setTimeout(() => onSave(nextValue), SAVE_DEBOUNCE_MS);
-
-    if (isCompleteAnswer(trimmed)) {
-      advanceTimerRef.current = setTimeout(() => onAdvance(nextValue), ADVANCE_DEBOUNCE_MS);
-    }
+    saveTimerRef.current = setTimeout(() => flushSave(nextValue), SAVE_DEBOUNCE_MS);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
+    // Enter used to instantly advance to the next question -- it no longer
+    // does (see the file-level comment above). It still saves immediately
+    // (same as a blur would); preventDefault just guards against a stray
+    // native form-submit if this input is ever wrapped in a <form> later.
     event.preventDefault();
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    clearTimers();
-    onAdvance(value);
+    clearSaveTimer();
+    flushSave(value);
   }
 
   function handleBlur() {
-    clearTimers();
-    const trimmed = value.trim();
-    if (trimmed) onSave(value);
+    clearSaveTimer();
+    flushSave(value);
   }
 
   return (
@@ -132,9 +129,6 @@ export function AnswerInputBox({
         aria-label="Your answer"
         className="w-full max-w-[220px] rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-center text-2xl font-black tracking-wide text-slate-950 shadow-inner outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-orange-400 dark:focus:ring-orange-900/40"
       />
-      <p className="flex items-center gap-1.5 text-center text-[11px] font-semibold text-slate-400 dark:text-slate-500">
-        <CornerDownLeft size={12} /> Enter to continue
-      </p>
     </div>
   );
 }

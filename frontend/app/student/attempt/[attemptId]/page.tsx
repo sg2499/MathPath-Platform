@@ -108,26 +108,6 @@ export default function AttemptPage() {
     void persistAnswer(questionId, answerText);
   }
 
-  // Fired on a longer pause once the typed text looks like a finished
-  // number, or immediately on Enter -- mirrors the old MCQ flow where
-  // picking an option instantly saved and moved to the next question.
-  async function handleAdvanceAnswer(questionId: string, answerText: string) {
-    await persistAnswer(questionId, answerText);
-
-    const answeredQuestionIndex = questions.findIndex(
-      (question) => question.questionId === questionId
-    );
-    if (answeredQuestionIndex < 0 || answeredQuestionIndex >= questions.length - 1) return;
-
-    // Only actually move forward if the student is still on the question
-    // they just answered -- if they'd already manually navigated elsewhere
-    // while this save was in flight, don't yank them away from wherever
-    // they went.
-    setCurrentIndex((prevIndex) =>
-      prevIndex === answeredQuestionIndex ? answeredQuestionIndex + 1 : prevIndex
-    );
-  }
-
   if (!ready) return null;
 
   if (query.isLoading || !query.data) {
@@ -278,9 +258,6 @@ export default function AttemptPage() {
             onSave={(answerText) =>
               handleSaveAnswer(currentQuestion.questionId, answerText)
             }
-            onAdvance={(answerText) =>
-              handleAdvanceAnswer(currentQuestion.questionId, answerText)
-            }
           />
         </div>
 
@@ -293,11 +270,11 @@ export default function AttemptPage() {
           />
 
           {/* The floating side arrows above are hidden below md (there's no
-              room for their off-card offset on narrow screens), and Enter
-              only advances forward -- so without this, phone/small-tablet
-              students would have no way to go back except tapping question
-              numbers one at a time. Hidden at md+ where the floating arrows
-              already cover it, so larger screens keep the cleaner look. */}
+              room for their off-card offset on narrow screens) -- so
+              without this, phone/small-tablet students would have no way
+              to go back except tapping question numbers one at a time.
+              Hidden at md+ where the floating arrows already cover it, so
+              larger screens keep the cleaner look. */}
           <div className="mt-3 flex gap-3 md:hidden">
             <button
               className="math-button-secondary flex-1"
