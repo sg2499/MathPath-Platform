@@ -14,7 +14,12 @@ from app.services.attempt_chain_service import (
     ShouldAutoCreateRetryAssignment,
 )
 
-def create_assignment(db: Session, *, assignment_type: str, dps_id: str, assigned_by_user_id: str, assigned_to_type: str, assigned_to_id: str, title: str, instructions: str | None = None, allow_reattempt: bool = False) -> Assignment:
+def create_assignment(db: Session, *, assignment_type: str, dps_id: str, assigned_by_user_id: str, assigned_to_type: str, assigned_to_id: str, title: str, instructions: str | None = None, allow_reattempt: bool = False, start_time: datetime | None = None, end_time: datetime | None = None) -> Assignment:
+    # start_time/end_time default to None (available immediately, never
+    # expires) for every existing caller -- only the weekly DPS scheduler
+    # (routes_teacher.py's /assignments/schedule) passes start_time, to gate
+    # a sheet behind a specific weekday via the exact same check
+    # validate_assignment_access() below already enforces.
     assignment = Assignment(
         assignment_type=assignment_type,
         dps_id=dps_id,
@@ -24,6 +29,8 @@ def create_assignment(db: Session, *, assignment_type: str, dps_id: str, assigne
         title=title,
         instructions=instructions,
         allow_reattempt=allow_reattempt,
+        start_time=start_time,
+        end_time=end_time,
         assignment_source=ATTEMPT_SOURCE_ORIGINAL,
         retry_attempt_number=0,
         auto_retry_limit=DEFAULT_AUTO_RETRY_LIMIT,

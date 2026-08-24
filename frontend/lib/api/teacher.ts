@@ -137,6 +137,22 @@ export async function teacherAssignAllSheetsForLesson(payload: {
   return data;
 }
 
+export async function teacherScheduleDpsForLesson(payload: {
+  lessonId: string;
+  studentIds: string[];
+  scheduleItems: { dpsId: string; date: string }[];
+  instructions?: string;
+}): Promise<{
+  created: boolean;
+  message: string;
+  assignmentIds: string[];
+  warnings: string[];
+  studentsAssigned: number;
+}> {
+  const { data } = await api.post("/teacher/assignments/schedule", payload);
+  return data;
+}
+
 export async function getTeacherResults(): Promise<TeacherResultAttempt[]> {
   const { data } = await api.get<{ attempts: TeacherResultAttempt[] }>("/teacher/results");
   return data.attempts;

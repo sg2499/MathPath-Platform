@@ -6,9 +6,9 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
-import { getTeacherAvailableDps, getTeacherStudents, teacherAssignAllSheetsForLesson, teacherAssignDps } from "@/lib/api/teacher";
+import { getTeacherAvailableDps, getTeacherStudents, teacherAssignAllSheetsForLesson, teacherAssignDps, teacherScheduleDpsForLesson } from "@/lib/api/teacher";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, ClipboardPlus, Layers, Send, UserCheck, Users, X } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardPlus, Layers, Send, UserCheck, Users, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 
@@ -80,6 +80,44 @@ function TeacherAssignError({ error }: { error: unknown }) {
 }
 
 
+// Local calendar date (not UTC) as "YYYY-MM-DD" -- toISOString() would
+// shift across a timezone boundary and can land on the wrong day.
+function FormatDateYYYYMMDD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Default prefill for the weekly scheduler: the next `count` weekdays
+// starting today (inclusive), skipping Saturday/Sunday -- matches the
+// program's Mon-Fri practice rhythm. Every date stays individually
+// editable afterward, so this is only ever a starting point.
+function NextWeekdaySequence(count: number, startFrom: Date = new Date()): string[] {
+  const dates: string[] = [];
+  const cursor = new Date(startFrom.getFullYear(), startFrom.getMonth(), startFrom.getDate());
+  while (dates.length < count) {
+    const day = cursor.getDay(); // 0=Sun ... 6=Sat
+    if (day !== 0 && day !== 6) {
+      dates.push(FormatDateYYYYMMDD(cursor));
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+// Parses a "YYYY-MM-DD" string as a local date (not UTC) to check whether
+// it lands on a Saturday or Sunday -- used only for the soft, non-blocking
+// warning shown next to a date picker; the backend makes the same check
+// (in IST) and returns it as a warning too, never a hard block.
+function IsWeekendDateStr(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month || !day) return false;
+  const weekday = new Date(year, month - 1, day).getDay();
+  return weekday === 0 || weekday === 6;
+}
+
 export default function TeacherAssignDpsPage() {
   const ready = useProtectedPage(["TEACHER"]);
   const AssignDpsStateKey = CreatePersistedUiStateKey("teacher", "assign-dps");
@@ -91,6 +129,8 @@ export default function TeacherAssignDpsPage() {
   const [assignMode, setAssignMode] = usePersistentUiState<"selected" | "all">(CreatePersistedUiStateKey(AssignDpsStateKey, "assign-mode"), "selected");
   const [showAssignAllConfirm, setShowAssignAllConfirm] = useState(false);
   const [showAssignAllSheetsConfirm, setShowAssignAllSheetsConfirm] = useState(false);
+  const [showScheduleConfirm, setShowScheduleConfirm] = useState(false);
+  const [scheduleDates, setScheduleDates] = useState<Record<string, string>>({});
 
   const studentsQuery = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
   const dpsQuery = useQuery({ queryKey: ["teacher-available-dps"], queryFn: getTeacherAvailableDps, enabled: ready });
@@ -180,10 +220,24 @@ export default function TeacherAssignDpsPage() {
     },
   });
 
+  const scheduleMutation = useMutation({
+    mutationFn: () => teacherScheduleDpsForLesson({
+      lessonId,
+      studentIds: selectedStudentIds,
+      scheduleItems: dpsForLesson.map((dps) => ({ dpsId: dps.dpsId, date: scheduleDates[dps.dpsId] || "" })),
+      instructions: "Complete this practice within the given time.",
+    }),
+    onSuccess: (data) => {
+      setMessage(data.warnings?.length ? `${data.message} ${data.warnings.join(" ")}` : data.message);
+      setSelectedStudentIds([]);
+      setShowScheduleConfirm(false);
+    },
+  });
+
   if (!ready) return null;
 
   const loading = studentsQuery.isLoading || dpsQuery.isLoading;
-  const error = studentsQuery.error || dpsQuery.error || mutation.error || bulkLessonMutation.error;
+  const error = studentsQuery.error || dpsQuery.error || mutation.error || bulkLessonMutation.error || scheduleMutation.error;
 
   const allEligibleSelected = eligibleStudentIds.length > 0 && eligibleStudentIds.every((id) => selectedStudentIds.includes(id));
 
@@ -219,6 +273,29 @@ export default function TeacherAssignDpsPage() {
   function confirmAssignAllSheets() {
     if (!selectedStudentIds.length || !selectedLesson || dpsId) return;
     bulkLessonMutation.mutate();
+  }
+
+  function openScheduleConfirmation() {
+    if (!selectedStudentIds.length || !selectedLesson || dpsId || !dpsForLesson.length || scheduleMutation.isPending) return;
+    // Seed defaults for any sheet that doesn't already have a date picked
+    // (e.g. first time opening this lesson's scheduler) -- preserves
+    // whatever the teacher already edited if they close and reopen without
+    // changing lesson.
+    setScheduleDates((prev) => {
+      const defaults = NextWeekdaySequence(dpsForLesson.length);
+      const next = { ...prev };
+      dpsForLesson.forEach((dps, index) => {
+        if (!next[dps.dpsId]) next[dps.dpsId] = defaults[index];
+      });
+      return next;
+    });
+    setShowScheduleConfirm(true);
+  }
+
+  function confirmSchedule() {
+    if (!selectedStudentIds.length || !selectedLesson || dpsId) return;
+    if (dpsForLesson.some((dps) => !scheduleDates[dps.dpsId])) return;
+    scheduleMutation.mutate();
   }
 
   return (
@@ -313,7 +390,7 @@ export default function TeacherAssignDpsPage() {
                     : `All ${dpsForLesson.length} sheet(s) in this lesson -- only students in ${selectedLesson.levelCode} can be selected.`}
                 </p>
               </div>
-              <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(230px,1fr))] lg:w-auto">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto">
                 <button
                   type="button"
                   className="math-button-secondary w-full justify-center whitespace-nowrap"
@@ -359,6 +436,23 @@ export default function TeacherAssignDpsPage() {
                   <Send size={18} /> {mutation.isPending && assignMode === "selected" ? "Assigning..." : `Assign to ${selectedStudentIds.length} Student(s)`}
                 </button>
               </div>
+            </div>
+
+            <div className="mt-4">
+              <button
+                type="button"
+                className="math-button-secondary w-full justify-center gap-2 whitespace-nowrap"
+                disabled={!selectedStudentIds.length || Boolean(dpsId) || !dpsForLesson.length || scheduleMutation.isPending}
+                title={
+                  dpsId
+                    ? "Clear the DPS Sheet selection (choose \"All Sheets In This Lesson\") to use this."
+                    : `Schedule ${dpsForLesson.length} sheet(s) across Mon-Fri for the selected student(s).`
+                }
+                onClick={openScheduleConfirmation}
+              >
+                <CalendarDays size={18} />
+                {scheduleMutation.isPending ? "Scheduling..." : "Schedule Across The Week (Mon-Fri)"}
+              </button>
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -521,6 +615,98 @@ export default function TeacherAssignDpsPage() {
               >
                 <Layers size={18} />
                 {bulkLessonMutation.isPending ? "Assigning..." : "Confirm Assignment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showScheduleConfirm && selectedLesson ? (
+        <div className="fixed inset-x-0 bottom-0 top-[92px] z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 py-8 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-xl rounded-[32px] border border-[color:var(--mp-role-border)] bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.28)] dark:bg-slate-950">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--mp-role-soft)] text-[color:var(--mp-role-readable)]">
+                  <CalendarDays size={22} />
+                </div>
+                <div>
+                  <p className="math-block-header">
+                    <CalendarDays size={14} />
+                    Schedule The Week
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Pick a date for each sheet</h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="math-role-action-button h-11 w-11 justify-center rounded-2xl p-0"
+                onClick={() => setShowScheduleConfirm(false)}
+                aria-label="Close confirmation"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/70">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Lesson</p>
+                <p className="mt-1 text-base font-black text-slate-950 dark:text-white">
+                  {selectedLesson.levelCode} · Lesson {selectedLesson.lessonNumber} - {selectedLesson.lessonTitle}
+                </p>
+              </div>
+              <div className="space-y-2">
+                {dpsForLesson.map((dps) => {
+                  const dateValue = scheduleDates[dps.dpsId] || "";
+                  const isWeekend = IsWeekendDateStr(dateValue);
+                  return (
+                    <div key={dps.dpsId} className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="min-w-0 truncate text-sm font-black text-slate-950 dark:text-white">
+                          DPS {dps.dpsNumber}: {dps.dpsTitle}
+                        </p>
+                        <input
+                          type="date"
+                          className="math-select w-full sm:w-auto"
+                          value={dateValue}
+                          onChange={(e) => setScheduleDates((prev) => ({ ...prev, [dps.dpsId]: e.target.value }))}
+                        />
+                      </div>
+                      {isWeekend ? (
+                        <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-700">
+                          <AlertTriangle size={14} className="shrink-0" />
+                          This date falls on a weekend -- practice sheets are usually scheduled Mon-Fri.
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+              <p className="text-sm font-bold leading-6">
+                Each sheet unlocks for the selected student(s) at the start of its date (IST) and stays visible after that -- earlier sheets remain available once later ones unlock too. Weekend dates are allowed but will show a warning above.
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="math-button-secondary"
+                onClick={() => setShowScheduleConfirm(false)}
+                disabled={scheduleMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="math-button-primary"
+                onClick={confirmSchedule}
+                disabled={scheduleMutation.isPending || dpsForLesson.some((dps) => !scheduleDates[dps.dpsId])}
+              >
+                <CalendarDays size={18} />
+                {scheduleMutation.isPending ? "Scheduling..." : "Confirm Schedule"}
               </button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -262,7 +263,18 @@ def student_competition_progress_insights(db: Session = Depends(get_db), student
 @router.get("/assignments")
 @cache_by_user_id()
 def assignments(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
-    rows = [a for a in get_student_assignments(db, student) if a.assignment_type != "ASSESSMENT"]
+    # A weekly-scheduled DPS assignment (routes_teacher.py's
+    # /assignments/schedule) is created with start_time set to a future
+    # date, exactly like validate_assignment_access() in
+    # assignment_service.py already gates at attempt-start time. Filtering
+    # it here too means the sheet simply isn't in the list until its own
+    # day arrives -- cumulative, not exclusive: once unlocked it stays
+    # visible alongside every earlier day's sheet, it never disappears.
+    now_utc = datetime.now(timezone.utc)
+    rows = [
+        a for a in get_student_assignments(db, student)
+        if a.assignment_type != "ASSESSMENT" and (not a.start_time or a.start_time <= now_utc)
+    ]
     payload = []
     for a in rows:
         dps = db.get(DPS, a.dps_id)
