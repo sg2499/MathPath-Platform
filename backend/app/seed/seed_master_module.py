@@ -14,8 +14,15 @@ LEVEL_NAME = "Master Module Level 1"
 LEVEL_INTERNAL_NUMBER = 1
 LEVEL_DISPLAY_ORDER = 1
 
-DPS_DURATION_SECONDS = 10 * 60
 DPS_PER_LESSON = 5
+
+
+def _dps_duration_seconds(question_count: int) -> int:
+    """Practice-timer rule, platform-wide: 5 minutes for a sheet with 10 or
+    fewer questions, 10 minutes for anything longer. Same rule every other
+    module's seed script follows -- keep them in sync if this ever changes.
+    """
+    return 300 if question_count <= 10 else 600
 
 # MathPath module hierarchy convention:
 # 1. Young Learners Module
@@ -340,7 +347,7 @@ def _section_config(lesson_number: int, dps_number: int) -> dict:
         "sourceFile": _normalise_source_filename(lesson_number, dps_number),
         "sourceLevelLabel": ORIGINAL_SOURCE_LEVEL_LABEL,
         "seedMode": "DYNAMIC_MASTER_MODULE",
-        "durationSeconds": DPS_DURATION_SECONDS,
+        "durationSeconds": _dps_duration_seconds(_dps_question_count(lesson_number, dps_number)),
         "manualReviewRequiredBeforePublishing": True,
         "generatorPackage": "MM_SECTION_AWARE_PACKAGE_3",
         "dpsSections": _dps_sections(lesson_number, dps_number),
@@ -437,7 +444,7 @@ def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int
             dps_number=dps_number,
             dps_title=_dps_display_title(lesson_number, dps_number),
             default_question_count=_dps_question_count(lesson_number, dps_number),
-            default_duration_seconds=DPS_DURATION_SECONDS,
+            default_duration_seconds=_dps_duration_seconds(_dps_question_count(lesson_number, dps_number)),
             marks_per_question=1,
             label_style="NUMERIC",
             answer_type="MCQ",
@@ -451,7 +458,7 @@ def _upsert_dps(db: Session, lesson: Lesson, lesson_number: int, dps_number: int
     else:
         dps.dps_title = _dps_display_title(lesson_number, dps_number)
         dps.default_question_count = _dps_question_count(lesson_number, dps_number)
-        dps.default_duration_seconds = DPS_DURATION_SECONDS
+        dps.default_duration_seconds = _dps_duration_seconds(_dps_question_count(lesson_number, dps_number))
         dps.marks_per_question = 1
         dps.label_style = "NUMERIC"
         dps.answer_type = "MCQ"
@@ -543,7 +550,9 @@ def seed(db: Session) -> None:
 
     This sync is idempotent and intentionally creates only curriculum/master data.
     It does not create students, teachers, assignments, attempts, reports, or demo data.
-    All Master Module DPS records are created as Draft by default and use a 5-minute time limit.
+    All Master Module DPS records are created as Draft by default and use the
+    platform-wide timer rule: 5 minutes for 10 or fewer questions, 10 minutes
+    for more (see _dps_duration_seconds() above).
     """
     print("[MathPath Seed] Master Module sync started")
     module = _upsert_module(db)
@@ -565,7 +574,7 @@ def seed(db: Session) -> None:
     print(
         "[MathPath Seed] Master Module sync completed: "
         f"module={MODULE_CODE}, level={LEVEL_CODE}, lessons={lesson_count}, "
-        f"dps={dps_count}, sections={section_count}, duration_seconds={DPS_DURATION_SECONDS}"
+        f"dps={dps_count}, sections={section_count}, duration_rule=300s(<=10q)/600s(>10q)"
     )
 
 

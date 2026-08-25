@@ -87,7 +87,7 @@ def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str) ->
             dps_number=dps_number,
             dps_title=dps_title,
             default_question_count=10,
-            default_duration_seconds=600,
+            default_duration_seconds=300,
             marks_per_question=1,
             publication_status="DRAFT",
             published_seed=None,
@@ -100,7 +100,7 @@ def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str) ->
     else:
         dps.dps_title = dps_title
         dps.default_question_count = 10
-        dps.default_duration_seconds = 600
+        dps.default_duration_seconds = 300
         dps.marks_per_question = dps.marks_per_question or 1
         # Never touch publication_status here -- Admin (Learning Path Studio)
         # is the only publisher, same rule seed_ylm_phase1.py follows. A

@@ -192,11 +192,11 @@ function SummaryMetric({ icon, label, value }: { icon: ReactNode; label: string;
   return (
     <div className="math-teacher-light-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
       <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
-      <div className="math-teacher-icon-chip relative z-10 flex items-center gap-2 text-slate-500 transition-transform duration-300 group-hover:scale-105 group-hover:-rotate-2">
+      <div className="math-teacher-icon-chip relative z-10 text-slate-500 transition-transform duration-300 group-hover:scale-105 group-hover:-rotate-2">
         {icon}
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] transition-colors duration-300 group-hover:text-[var(--mp-role-primary)]">{label}</p>
       </div>
-      <p className="relative z-10 mt-2 text-2xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">{value}</p>
+      <p className="relative z-10 mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)]">{label}</p>
+      <p className="relative z-10 mt-1 text-2xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">{value}</p>
     </div>
   );
 }

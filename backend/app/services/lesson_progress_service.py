@@ -85,15 +85,23 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
     if not lessons:
         return {student.id: _EmptyProgress() for student in students}
 
+    # Every DPS row for the lesson counts toward the total shown to the
+    # teacher -- including a not-yet-published sheet and a concept-drill
+    # slot (both are real rows in this same table, just a different
+    # publication_status/content type). Filtering to PUBLISHED here was the
+    # bug: a lesson with 5 real sheets but only 2 published showed "0/2"
+    # instead of "0/5". Only assignability (below) still requires PUBLISHED,
+    # since that's the one thing a teacher genuinely cannot act on yet.
     lesson_ids = [lesson.id for lesson in lessons]
     dps_rows = (
         db.query(DPS)
-        .filter(DPS.lesson_id.in_(lesson_ids), DPS.publication_status == "PUBLISHED", DPS.is_active == True)
+        .filter(DPS.lesson_id.in_(lesson_ids), DPS.is_active == True)
         .all()
     )
     dps_by_lesson: dict[str, list[DPS]] = {}
     for dps in dps_rows:
         dps_by_lesson.setdefault(dps.lesson_id, []).append(dps)
+    published_dps_ids = {dps.id for dps in dps_rows if dps.publication_status == "PUBLISHED"}
 
     ordered_lessons = [lesson for lesson in lessons if dps_by_lesson.get(lesson.id)]
     if not ordered_lessons:
@@ -142,6 +150,11 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
     }
 
     def is_assignable_now(student_id: str, dps_id: str) -> bool:
+        # A teacher can never assign an unpublished sheet, whatever else is
+        # true about it (matches the DPS_NOT_PUBLISHED block enforced at the
+        # actual assignment-creation routes).
+        if dps_id not in published_dps_ids:
+            return False
         # Mirrors assign_single_dps_to_students(): blocked by an active
         # STUDENT assignment or a completed attempt, unless an approved,
         # unused reattempt permission is open for this exact student+DPS.
@@ -207,10 +220,15 @@ def IsLessonFullyClearedForStudent(db: Session, student_id: str, lesson_id: str)
     """Returns (all_cleared, cleared_count, total_count) for one student in
     one lesson. Used by the notification hook to detect the exact moment a
     lesson's last sheet clears.
+
+    Total is every real DPS row for the lesson (any publication status),
+    same as ComputeLessonProgressForStudents above -- otherwise this would
+    fire "lesson cleared" the moment every currently-published sheet is
+    cleared, even while an unpublished sheet still belongs to the lesson.
     """
     dps_rows = (
         db.query(DPS)
-        .filter(DPS.lesson_id == lesson_id, DPS.publication_status == "PUBLISHED", DPS.is_active == True)
+        .filter(DPS.lesson_id == lesson_id, DPS.is_active == True)
         .all()
     )
     if not dps_rows:

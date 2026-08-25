@@ -31,8 +31,15 @@ MODULE_NAME = "Intermediate Module"
 MODULE_DESCRIPTION = "MathPath Intermediate Module practice curriculum."
 MODULE_DISPLAY_ORDER = 4
 
-DPS_DURATION_SECONDS = 10 * 60
 DPS_PER_LESSON = 5
+
+
+def _dps_duration_seconds(question_count: int) -> int:
+    """Practice-timer rule, platform-wide: 5 minutes for a sheet with 10 or
+    fewer questions, 10 minutes for anything longer. Same rule every other
+    module's seed script follows -- keep them in sync if this ever changes.
+    """
+    return 300 if question_count <= 10 else 600
 
 # MathPath module hierarchy convention:
 # 1. Young Learners Module
@@ -225,7 +232,7 @@ def _section_config(config: _LevelSeedConfig, lesson_titles: dict[int, str], les
         "sourceFile": _normalise_source_filename(config, lesson_number, dps_number),
         "sourceLevelLabel": config.source_level_label,
         "seedMode": "DYNAMIC_INTERMEDIATE_MODULE",
-        "durationSeconds": DPS_DURATION_SECONDS,
+        "durationSeconds": _dps_duration_seconds(_dps_question_count(config, lesson_number, dps_number)),
         "manualReviewRequiredBeforePublishing": True,
         # Shared across every IM level -- see the matching comment in
         # question_engine/im/generator.py (2026-07-17).
@@ -328,7 +335,7 @@ def _upsert_dps(db: Session, lesson: Lesson, config: _LevelSeedConfig, lesson_ti
             dps_number=dps_number,
             dps_title=title,
             default_question_count=question_count,
-            default_duration_seconds=DPS_DURATION_SECONDS,
+            default_duration_seconds=_dps_duration_seconds(question_count),
             marks_per_question=1,
             label_style="NUMERIC",
             answer_type="MCQ",
@@ -342,7 +349,7 @@ def _upsert_dps(db: Session, lesson: Lesson, config: _LevelSeedConfig, lesson_ti
     else:
         dps.dps_title = title
         dps.default_question_count = question_count
-        dps.default_duration_seconds = DPS_DURATION_SECONDS
+        dps.default_duration_seconds = _dps_duration_seconds(question_count)
         dps.marks_per_question = 1
         dps.label_style = "NUMERIC"
         dps.answer_type = "MCQ"
@@ -466,9 +473,11 @@ def seed(db: Session) -> None:
 
     This sync is idempotent and intentionally creates only curriculum/master data.
     It does not create students, teachers, assignments, attempts, reports, or demo data.
-    All Intermediate Module DPS records are created as Draft by default and use a
-    5-minute time limit. Zero imports from app.question_engine.mm or
-    seed_master_module.py -- IM is architecturally independent of MM.
+    All Intermediate Module DPS records are created as Draft by default and use
+    the platform-wide timer rule: 5 minutes for 10 or fewer questions, 10
+    minutes for more (see _dps_duration_seconds() above). Zero imports from
+    app.question_engine.mm or seed_master_module.py -- IM is architecturally
+    independent of MM.
     """
     print("[MathPath Seed] Intermediate Module sync started")
     module = _upsert_module(db)
@@ -483,7 +492,7 @@ def seed(db: Session) -> None:
         print(
             "[MathPath Seed] Intermediate Module level sync completed: "
             f"module={MODULE_CODE}, level={config.level_code}, lessons={lesson_count}, "
-            f"dps={dps_count}, sections={section_count}, duration_seconds={DPS_DURATION_SECONDS}"
+            f"dps={dps_count}, sections={section_count}, duration_rule=300s(<=10q)/600s(>10q)"
         )
 
     db.commit()
