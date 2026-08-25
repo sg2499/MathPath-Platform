@@ -30,6 +30,17 @@ export type TeacherStudent = {
   averageAccuracy?: number | null;
   latestActivityAt?: string | null;
   attention?: "NO_ASSIGNMENT" | "NEEDS_FOLLOW_UP" | "NO_ATTEMPT_YET" | "NEEDS_PRACTICE" | "ON_TRACK" | string;
+  // Derived live from Attempt.cleared_at_attempt (see lesson_progress_service.py)
+  // -- never stored, so this is always the current position, not a cached one.
+  currentLessonId?: string | null;
+  currentLessonNumber?: number | null;
+  currentLessonTitle?: string | null;
+  clearedInCurrentLesson?: number;
+  totalInCurrentLesson?: number;
+  assignableInCurrentLesson?: boolean;
+  levelComplete?: boolean;
+  previousLessonNumber?: number | null;
+  previousLessonTitle?: string | null;
 };
 
 export type TeacherDashboardSummary = {
