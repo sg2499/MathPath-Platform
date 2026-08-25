@@ -80,11 +80,11 @@ export default function TeacherAttemptDetailPage() {
               <h1 className="math-title">Attempt Review</h1>
               <p className="math-subtitle">Review the student, DPS, score, accuracy, benchmark outcome, and question-level details for this attempt.</p>
             </div>
-            <div className="grid grid-cols-4 gap-3">
-              <SummaryMetric icon={<ShieldCheck size={16} />} label="Score" value={safeScore(data)} />
-              <SummaryMetric icon={<Target size={16} />} label="Accuracy" value={`${safeAccuracy(data)}%`} />
-              <SummaryMetric icon={<BookOpenCheck size={16} />} label="Benchmark" value={benchmarkText(data)} />
-              <SummaryMetric icon={<FileQuestion size={16} />} label="Questions" value={data?.summary?.totalQuestions ?? questionReview.length ?? 0} />
+            <div className="grid grid-cols-4 gap-4">
+              <SummaryMetric icon={<ShieldCheck size={20} />} label="Score" value={safeScore(data)} />
+              <SummaryMetric icon={<Target size={20} />} label="Accuracy" value={`${safeAccuracy(data)}%`} />
+              <SummaryMetric icon={<BookOpenCheck size={20} />} label="Benchmark" value={benchmarkText(data)} />
+              <SummaryMetric icon={<FileQuestion size={20} />} label="Questions" value={data?.summary?.totalQuestions ?? questionReview.length ?? 0} />
             </div>
           </section>
 
@@ -190,13 +190,13 @@ export default function TeacherAttemptDetailPage() {
 
 function SummaryMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
   return (
-    <div className="math-teacher-light-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
+    <div className="math-teacher-light-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl rounded-[24px] border border-rose-200/70 bg-white/85 p-5 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
       <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
-      <div className="math-teacher-icon-chip relative z-10 text-slate-500 transition-transform duration-300 group-hover:scale-105 group-hover:-rotate-2">
+      <div className="math-teacher-icon-chip relative z-10 inline-flex rounded-2xl bg-rose-50 p-3 text-rose-700 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md dark:bg-rose-500/10 dark:text-rose-200">
         {icon}
       </div>
-      <p className="relative z-10 mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)]">{label}</p>
-      <p className="relative z-10 mt-1 text-2xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">{value}</p>
+      <p className="relative z-10 mt-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)]">{label}</p>
+      <p className="relative z-10 mt-2 text-2xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">{value}</p>
     </div>
   );
 }
