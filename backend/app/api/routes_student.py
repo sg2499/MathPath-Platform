@@ -7,6 +7,7 @@ from app.database import get_db
 from app.dependencies import get_current_student
 from app.models import Student, DPS, Lesson, Level, Module, Attempt, Assignment, AssignmentReattemptPermission, AssessmentAssignment, StudentLevelPromotion
 from app.services.assignment_service import get_student_assignments
+from app.services.practice_notification_service import NotifyMissedPracticeUnlocks
 from app.services.curriculum_service import dps_config_payload
 from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds, _ComputeDpsMaxScore, attempt_context_payload
 from app.services.assessment_eligibility_service import assessment_eligibility_payload
@@ -271,6 +272,13 @@ def assignments(db: Session = Depends(get_db), student: Student = Depends(get_cu
     # day arrives -- cumulative, not exclusive: once unlocked it stays
     # visible alongside every earlier day's sheet, it never disappears.
     now_utc = datetime.now(timezone.utc)
+    # Defense-in-depth alongside the notifications-bell hooks in
+    # routes_notifications.py: this endpoint is decorated with
+    # @cache_by_user_id() (60s TTL), so this only actually runs on a
+    # cache-miss, but it means a student who opens the practice list
+    # directly (bypassing the bell) still gets caught up on any
+    # weekly-scheduled sheet whose start_time has already arrived.
+    NotifyMissedPracticeUnlocks(db, student)
     rows = [
         a for a in get_student_assignments(db, student)
         if a.assignment_type != "ASSESSMENT" and (not a.start_time or a.start_time <= now_utc)

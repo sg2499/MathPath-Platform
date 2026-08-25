@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import api_error
 from app.database import get_db
 from app.dependencies import get_current_user, require_roles
-from app.models import User
+from app.models import Student, User
 from app.services.notification_service import (
     CreateNotification,
     ListNotifications,
@@ -16,6 +16,27 @@ from app.services.notification_service import (
     NotificationPayload,
     UnreadNotificationCount,
 )
+from app.services.practice_notification_service import NotifyMissedPracticeUnlocks
+
+
+def _catch_up_missed_practice_unlocks(db: Session, user: User) -> None:
+    """Best-effort hook shared by both notification endpoints below.
+
+    Both GET /api/notifications and GET /api/notifications/unread-count are
+    polled from every authenticated page via NotificationsBell.tsx, so this
+    is the most reliable place to guarantee a student is never left without
+    a notification for a weekly-scheduled DPS sheet that unlocked while they
+    were away -- whichever of the two endpoints the bell hits first will
+    catch it up. Silently a no-op for non-students (e.g. teachers/admins
+    polling the same endpoints) and never allowed to break the notification
+    list itself if it fails.
+    """
+    if user.role != "STUDENT":
+        return
+    student = db.query(Student).filter(Student.user_id == user.id).first()
+    if not student:
+        return
+    NotifyMissedPracticeUnlocks(db, student)
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
@@ -52,6 +73,7 @@ def list_my_notifications(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    _catch_up_missed_practice_unlocks(db, user)
     return ListNotifications(
         db,
         recipient_user_id=user.id,
@@ -66,6 +88,7 @@ def unread_count(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    _catch_up_missed_practice_unlocks(db, user)
     return {"unreadCount": UnreadNotificationCount(db, recipient_user_id=user.id)}
 
 
