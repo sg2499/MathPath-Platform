@@ -6,6 +6,7 @@ import { SortByDropdown } from "@/components/common/SortByDropdown";
 import { compareSortValues, useSortableTable, type SortFieldOption } from "@/lib/sortable";
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 import { BenchmarkBadge, BenchmarkAlert } from "@/components/common/BenchmarkBadge";
+import { LessonProgressBadge } from "@/components/common/LessonProgressBadge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -543,6 +544,7 @@ export default function TeacherStudentsPage() {
                 <tr>
                   <th><SortableHeader active={sortKey === "studentName"} direction={sortDirection} onClick={() => toggleSort("studentName")}>Student</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "level"} direction={sortDirection} onClick={() => toggleSort("level")}>Level</SortableHeader></th>
+                  <th>Lesson</th>
                   <th><SortableHeader active={sortKey === "assigned"} direction={sortDirection} onClick={() => toggleSort("assigned")}>Assigned</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "completed"} direction={sortDirection} onClick={() => toggleSort("completed")}>Cleared</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "pending"} direction={sortDirection} onClick={() => toggleSort("pending")}>Pending</SortableHeader></th>
@@ -603,6 +605,15 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Class {student.className || "-"} {student.section || ""}
         </p>
+      </td>
+      <td>
+        <LessonProgressBadge
+          currentLessonNumber={student.currentLessonNumber}
+          clearedInCurrentLesson={student.clearedInCurrentLesson}
+          totalInCurrentLesson={student.totalInCurrentLesson}
+          levelComplete={student.levelComplete}
+          previousLessonNumber={student.previousLessonNumber}
+        />
       </td>
       <td>
         <span className="math-badge border-blue-200 bg-blue-50 text-blue-700">

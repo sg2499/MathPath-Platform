@@ -390,11 +390,13 @@ def _process_attempt_notification_side_effects(db: Session, attempt: Attempt, re
 
     try:
         from app.services.practice_notification_service import (
+            NotifyLessonClearedForTeacher,
             NotifyPracticeAssignmentsCreated,
             NotifyPracticeAttemptSubmitted,
         )
 
         NotifyPracticeAttemptSubmitted(db, attempt_id=attempt.id)
+        NotifyLessonClearedForTeacher(db, attempt_id=attempt.id)
         if retry_assignment is not None:
             NotifyPracticeAssignmentsCreated(
                 db,

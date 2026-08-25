@@ -1038,3 +1038,91 @@ def NotifyPracticeAttemptSubmitted(
 # is approved and its fresh assignment is created in the same step, so a
 # second "unlocked" notification for the same event would have been a
 # duplicate, not a fix, if this had ever been wired in.
+
+
+def NotifyLessonClearedForTeacher(
+    db: Session,
+    *,
+    attempt_id: str,
+) -> None:
+    """Fires once, the moment a student clears the LAST sheet in a lesson.
+
+    Distinct from the per-DPS "DPS Cleared" notification NotifyPracticeAttemptSubmitted
+    already sends above -- this one only fires when the whole lesson (every
+    published DPS in it) is now cleared, so it doesn't duplicate that
+    existing per-sheet notification. Lesson-complete status is recomputed
+    fresh from Attempt.cleared_at_attempt via IsLessonFullyClearedForStudent
+    (lesson_progress_service.py) rather than trusted from any flag on the
+    attempt itself, so it can never go stale.
+
+    Called from the same idempotent, exactly-once hook
+    (_process_attempt_notification_side_effects in attempt_service.py) that
+    already sends NotifyPracticeAttemptSubmitted for this attempt, so no new
+    dedup/idempotency mechanism is needed here.
+    """
+    attempt = db.get(Attempt, attempt_id)
+    if not attempt or not attempt.cleared_at_attempt:
+        return
+
+    dps = db.get(DPS, attempt.dps_id) if attempt.dps_id else None
+    if not dps or not dps.lesson_id:
+        return
+
+    # Lazy import to avoid a circular import between the notification and
+    # lesson-progress services.
+    from app.services.lesson_progress_service import IsLessonFullyClearedForStudent
+
+    all_cleared, cleared_count, total_count = IsLessonFullyClearedForStudent(db, attempt.student_id, dps.lesson_id)
+    if not all_cleared or total_count <= 0:
+        return
+
+    assignment = db.get(Assignment, attempt.assignment_id) if attempt.assignment_id else None
+    context = _practice_context(db, assignment=assignment, attempt=attempt)
+    teacher_user = context.get("teacher_user")
+    if not teacher_user:
+        return
+
+    student = context.get("student")
+    teacher = context.get("teacher")
+    module = context.get("module")
+    level = context.get("level")
+    lesson = context.get("lesson")
+    student_name = context.get("student_name")
+    level_label = context.get("level_label")
+    lesson_label = context.get("lesson_label")
+
+    title = f"{student_name} cleared {level_label} {lesson_label}"
+    message = f"{student_name} has cleared all {total_count} sheet(s) in {level_label} {lesson_label}. They're ready for the next lesson."
+
+    CreateNotification(
+        db,
+        recipient_user_id=teacher_user.id,
+        recipient_role="TEACHER",
+        student_id=student.id if student else None,
+        teacher_id=teacher.id if teacher else None,
+        module_id=module.id if module else None,
+        level_id=level.id if level else None,
+        lesson_id=lesson.id if lesson else None,
+        dps_id=dps.id,
+        attempt_id=attempt.id,
+        type="LESSON_CLEARED",
+        category="PRACTICE",
+        title=title,
+        message=message,
+        target_route=_teacher_practice_target_route(context),
+        target_tab="practice-tracker",
+        metadata={
+            "assignmentId": assignment.id if assignment else None,
+            "attemptId": attempt.id,
+            "dpsId": dps.id,
+            "lessonId": lesson.id if lesson else None,
+            "studentCode": context.get("student_code"),
+            "moduleCode": context.get("module_code"),
+            "levelCode": context.get("level_code") or level_label,
+            "clearedInLesson": cleared_count,
+            "totalInLesson": total_count,
+            "targetAction": "assign-next-lesson",
+            "notificationGroup": "PRACTICE",
+            **_practice_identity_metadata(context),
+        },
+    )

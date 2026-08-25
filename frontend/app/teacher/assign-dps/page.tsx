@@ -2,6 +2,7 @@
 
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
+import { LessonProgressBadge } from "@/components/common/LessonProgressBadge";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
@@ -172,7 +173,20 @@ export default function TeacherAssignDpsPage() {
     return Array.from(seen.values());
   }, [dpsForLevel]);
 
-  const selectedLesson = lessonsForLevel.find((lesson) => lesson.lessonId === lessonId);
+  // "All Lessons (Overview)" is a read-only mode -- it lets a teacher see
+  // where every active student in the level currently stands (which lesson,
+  // how many sheets cleared) without pinning to one lesson's sheets, since
+  // assigning always requires a specific lesson/DPS to be selected.
+  const isAllLessonsView = lessonId === "ALL";
+  const selectedLesson = isAllLessonsView ? undefined : lessonsForLevel.find((lesson) => lesson.lessonId === lessonId);
+
+  const overviewStudents = useMemo(() => {
+    if (!isAllLessonsView) return [];
+    return students
+      .filter((student) => student.isActive && (levelId === "ALL" || student.currentLevelId === levelId))
+      .slice()
+      .sort((a, b) => (a.currentLessonNumber ?? 999) - (b.currentLessonNumber ?? 999) || a.studentName.localeCompare(b.studentName));
+  }, [students, isAllLessonsView, levelId]);
 
   // Every DPS the teacher can see here is already Admin-published (that's
   // what /teacher/available-dps returns), so once a lesson is chosen this is
@@ -189,7 +203,24 @@ export default function TeacherAssignDpsPage() {
   // still needs a level to check students against, which the lesson alone
   // already pins down (every sheet in a lesson shares the same level).
   const activeLevelId = selectedDps?.levelId ?? selectedLesson?.levelId;
-  const eligibleStudents = students.filter((student) => activeLevelId && student.currentLevelId === activeLevelId && student.isActive);
+
+  // Active students in this level -- used both to build the actually
+  // eligible list below and to tell an empty result apart from "nobody at
+  // this level" vs. "everybody here has already cleared/been assigned this
+  // lesson".
+  const studentsInLevel = useMemo(
+    () => students.filter((student) => activeLevelId && student.currentLevelId === activeLevelId && student.isActive),
+    [students, activeLevelId]
+  );
+
+  // Scoped to the selected lesson (not just the level) and excludes anyone
+  // who already has every sheet in this lesson assigned or completed --
+  // reattempts are a separate mechanism entirely and don't concern this
+  // list. currentLessonId/assignableInCurrentLesson come from the backend,
+  // derived fresh from Attempt.cleared_at_attempt every time.
+  const eligibleStudents = studentsInLevel.filter(
+    (student) => student.currentLessonId === lessonId && student.assignableInCurrentLesson
+  );
   const eligibleStudentIds = useMemo(() => eligibleStudents.map((student) => student.studentId), [eligibleStudents]);
 
   const mutation = useMutation({
@@ -334,6 +365,7 @@ export default function TeacherAssignDpsPage() {
               onChange={(e) => { setLessonId(e.target.value); setDpsId(""); setSelectedStudentIds([]); }}
             >
               <option value="" disabled>{levelId ? "Choose Lesson" : "Choose Level First"}</option>
+              {levelId ? <option value="ALL">All Lessons (Overview)</option> : null}
               {lessonsForLevel.map((lesson) => (
                 <option key={lesson.lessonId} value={lesson.lessonId}>
                   {lesson.levelCode} · Lesson {lesson.lessonNumber}: {lesson.lessonTitle}
@@ -346,10 +378,10 @@ export default function TeacherAssignDpsPage() {
             <select
               className="math-select mt-2 truncate"
               value={dpsId}
-              disabled={!lessonId}
+              disabled={!lessonId || isAllLessonsView}
               onChange={(e) => { setDpsId(e.target.value); setSelectedStudentIds([]); }}
             >
-              <option value="">{lessonId ? "All Sheets In This Lesson" : "Choose Lesson First"}</option>
+              <option value="">{isAllLessonsView ? "Choose A Specific Lesson" : lessonId ? "All Sheets In This Lesson" : "Choose Lesson First"}</option>
               {dpsForLesson.map((dps) => (
                 <option key={dps.dpsId} value={dps.dpsId}>
                   DPS {dps.dpsNumber}: {dps.dpsTitle}
@@ -369,8 +401,47 @@ export default function TeacherAssignDpsPage() {
           <EmptyState message="No published DPS is available for this level yet. Please ask Admin to publish practice content from Learning Path Studio." />
         ) : null}
 
-        {!loading && dpsForLevel.length > 0 && !selectedLesson ? (
-          <EmptyState message="Select a lesson to see eligible students -- then either assign one sheet or all sheets in that lesson at once." />
+        {!loading && dpsForLevel.length > 0 && !selectedLesson && !isAllLessonsView ? (
+          <EmptyState message="Select a lesson to see eligible students -- then either assign one sheet or all sheets in that lesson at once. Or choose &ldquo;All Lessons (Overview)&rdquo; to see where every student currently stands." />
+        ) : null}
+
+        {isAllLessonsView ? (
+          <section className="math-card p-5 sm:p-6">
+            <div className="min-w-0">
+              <p className="math-block-header">
+                <Layers size={14} />
+                Lesson overview
+              </p>
+              <h2 className="text-2xl font-black text-slate-950">
+                {levelId === "ALL" ? "All Students" : `Students in ${levels.find((level) => level.levelId === levelId)?.levelCode || "This Level"}`}
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                See which lesson each student is currently on before assigning next week&apos;s sheets. Choose a specific lesson above to assign practice.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {overviewStudents.map((student) => (
+                <div key={student.studentId} className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                  <p className="font-black text-slate-950">{student.studentName}</p>
+                  <p className="text-sm text-slate-500">
+                    <span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}
+                  </p>
+                  <div className="mt-2">
+                    <LessonProgressBadge
+                      currentLessonNumber={student.currentLessonNumber}
+                      clearedInCurrentLesson={student.clearedInCurrentLesson}
+                      totalInCurrentLesson={student.totalInCurrentLesson}
+                      levelComplete={student.levelComplete}
+                      previousLessonNumber={student.previousLessonNumber}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {!overviewStudents.length ? <p className="mt-5 text-sm font-bold text-slate-500">No active students found for this selection.</p> : null}
+          </section>
         ) : null}
 
         {selectedLesson ? (
@@ -459,15 +530,30 @@ export default function TeacherAssignDpsPage() {
               {eligibleStudents.map((student) => (
                 <label key={student.studentId} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 transition hover:border-blue-300 hover:bg-blue-50">
                   <input type="checkbox" checked={selectedStudentIds.includes(student.studentId)} onChange={() => toggleStudent(student.studentId)} />
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-black text-slate-950">{student.studentName}</p>
                     <p className="text-sm text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}</p>
+                    <div className="mt-1.5">
+                      <LessonProgressBadge
+                        currentLessonNumber={student.currentLessonNumber}
+                        clearedInCurrentLesson={student.clearedInCurrentLesson}
+                        totalInCurrentLesson={student.totalInCurrentLesson}
+                        levelComplete={student.levelComplete}
+                        previousLessonNumber={student.previousLessonNumber}
+                      />
+                    </div>
                   </div>
                 </label>
               ))}
             </div>
 
-            {!eligibleStudents.length ? <p className="mt-5 text-sm font-bold text-slate-500">No eligible active students for this DPS level.</p> : null}
+            {!eligibleStudents.length ? (
+              <p className="mt-5 text-sm font-bold text-slate-500">
+                {!studentsInLevel.length
+                  ? "No eligible active students for this DPS level."
+                  : "Every active student in this level is currently on a different lesson, or has already been assigned/completed every sheet in this one."}
+              </p>
+            ) : null}
           </section>
         ) : null}
       </div>

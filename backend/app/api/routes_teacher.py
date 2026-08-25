@@ -19,6 +19,12 @@ from app.services.assessment_blueprint_service import blueprint_payload, teacher
 from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload
 from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated
 from app.services.practice_notification_service import NotifyPracticeAssignmentsCreated
+from app.services.lesson_progress_service import (
+    active_reattempt_permission_for_teacher,
+    student_has_completed_dps,
+    ComputeLessonProgressByLevelGroups,
+    ComputeLessonProgressForStudents,
+)
 from app.services.competition_mock_attempt_service import GetCompetitionMockResultForTeacher
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
 from app.services.assessment_feedback_service import upsert_assessment_remark, assessment_feedback_payload, active_assessment_remark
@@ -343,7 +349,8 @@ def attempt_accuracy(attempt: Attempt) -> float:
     return round((attempt_score(attempt) / total) * 100)
 
 
-def student_payload(db: Session, student: Student) -> dict:
+def student_payload(db: Session, student: Student, lesson_progress: dict | None = None) -> dict:
+    lesson_progress = lesson_progress or {}
     user = db.get(User, student.user_id)
     module = db.get(Module, student.current_module_id) if student.current_module_id else None
     level = db.get(Level, student.current_level_id) if student.current_level_id else None
@@ -455,6 +462,15 @@ def student_payload(db: Session, student: Student) -> dict:
         "averageAccuracy": average_accuracy,
         "latestActivityAt": latest_activity_at.isoformat() if latest_activity_at else None,
         "attention": attention,
+        "currentLessonId": lesson_progress.get("currentLessonId"),
+        "currentLessonNumber": lesson_progress.get("currentLessonNumber"),
+        "currentLessonTitle": lesson_progress.get("currentLessonTitle"),
+        "clearedInCurrentLesson": lesson_progress.get("clearedInCurrentLesson", 0),
+        "totalInCurrentLesson": lesson_progress.get("totalInCurrentLesson", 0),
+        "assignableInCurrentLesson": lesson_progress.get("assignableInCurrentLesson", False),
+        "levelComplete": lesson_progress.get("levelComplete", False),
+        "previousLessonNumber": lesson_progress.get("previousLessonNumber"),
+        "previousLessonTitle": lesson_progress.get("previousLessonTitle"),
     }
 
 
@@ -616,7 +632,13 @@ def teacher_notifications(db: Session = Depends(get_db), teacher: Teacher = Depe
 @router.get("/students")
 def teacher_students(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
     students = own_students_query(db, teacher).order_by(Student.student_code.asc()).all()
-    return {"students": [student_payload(db, student) for student in students]}
+    lesson_progress_by_student = ComputeLessonProgressByLevelGroups(db, students)
+    return {
+        "students": [
+            student_payload(db, student, lesson_progress_by_student.get(student.id))
+            for student in students
+        ]
+    }
 
 
 @router.get("/available-dps")
@@ -662,7 +684,11 @@ def available_dps(
         for level in levels
     ]
     DpsPayloads = [dps_payload(db, dps) for dps in dps_rows]
-    StudentPayloads = [student_payload(db, StudentItem) for StudentItem in ScopedStudents]
+    LessonProgressByStudent = ComputeLessonProgressByLevelGroups(db, ScopedStudents)
+    StudentPayloads = [
+        student_payload(db, StudentItem, LessonProgressByStudent.get(StudentItem.id))
+        for StudentItem in ScopedStudents
+    ]
 
     return {
         "summary": {
@@ -699,31 +725,10 @@ def teacher_assignment_options(
     return available_dps(moduleId=moduleId, levelId=levelId, db=db, teacher=teacher)
 
 
-def active_reattempt_permission_for_teacher(db: Session, student_id: str, dps_id: str):
-    return (
-        db.query(AssignmentReattemptPermission)
-        .filter(
-            AssignmentReattemptPermission.student_id == student_id,
-            AssignmentReattemptPermission.dps_id == dps_id,
-            AssignmentReattemptPermission.status == "APPROVED",
-            AssignmentReattemptPermission.used_at.is_(None),
-        )
-        .order_by(AssignmentReattemptPermission.allowed_at.desc())
-        .first()
-    )
-
-
-def student_has_completed_dps(db: Session, student_id: str, dps_id: str) -> bool:
-    return (
-        db.query(Attempt)
-        .filter(
-            Attempt.student_id == student_id,
-            Attempt.dps_id == dps_id,
-            Attempt.status.in_(["SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"]),
-        )
-        .first()
-        is not None
-    )
+# active_reattempt_permission_for_teacher() and student_has_completed_dps()
+# now live in app.services.lesson_progress_service (imported above) so the
+# same duplicate-block predicate can be shared with the lesson-progress
+# "assignable" computation without risking the two drifting apart.
 
 
 def assign_single_dps_to_students(
