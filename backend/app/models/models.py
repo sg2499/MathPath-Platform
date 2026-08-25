@@ -769,6 +769,13 @@ class Assignment(Base):
     manual_intervention_reason = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Guards the weekly-scheduled DPS "sheet unlocked" notification so it
+    # fires exactly once per assignment, whichever code path notices its
+    # start_time has arrived first -- immediate creation-time notify (when
+    # start_time is None or already past), or the lazy catch-up check in
+    # NotifyMissedPracticeUnlocks() run from the notifications bell and the
+    # student assignment list. NULL means "not yet notified".
+    notified_at = Column(DateTime(timezone=True), nullable=True)
     dps = relationship("DPS")
     source_assignment = relationship("Assignment", remote_side=[id], foreign_keys=[source_assignment_id])
 

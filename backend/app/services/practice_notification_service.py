@@ -19,7 +19,12 @@ from app.models import (
     User,
     Notification,
 )
+import logging
+
+from app.services.assignment_service import get_student_assignments
 from app.services.notification_service import ActiveAdminUsers, CreateNotification
+
+logger = logging.getLogger("mathpath")
 
 PRACTICE_BENCHMARK_PERCENTAGE = 70.0
 
@@ -710,6 +715,76 @@ def NotifyPracticeAssignmentsCreated(
                 display_level=display_level,
             )
 
+        # Mark every assignment in this group notified now that its unlock
+        # notification has actually been created above -- this is the one
+        # place that guards NotifyMissedPracticeUnlocks() below from ever
+        # re-notifying the same sheet, regardless of which of the three
+        # call sites (single-sheet assign, assign-all-sheets, weekly
+        # scheduler) or which code path (immediate vs. lazy catch-up)
+        # reached this function first.
+        NowUtc = datetime.now(timezone.utc)
+        for AssignedItem in assignments:
+            if not AssignedItem.notified_at:
+                AssignedItem.notified_at = NowUtc
+
+
+def NotifyMissedPracticeUnlocks(db: Session, student: Student) -> None:
+    """Catch up any weekly-scheduled DPS sheet whose start_time has already
+    arrived but whose "sheet unlocked" notification was never sent -- most
+    commonly because the student simply did not open the app on the exact
+    day it unlocked.
+
+    Runs on every notifications-bell fetch (list + unread-count) and every
+    practice-assignments-list fetch, so this is self-healing no matter which
+    day the student actually checks in: a multi-day gap catches up every
+    missed day's sheet individually (each keeps its own correct DPS title
+    and lesson, pulled live from the database at notify time -- never a
+    stale or merged "vague" message), not just the most recent one.
+
+    Eligibility mirrors GET /assignments in routes_student.py exactly (same
+    get_student_assignments() helper, same assignment_type/start_time
+    filter) so a student is notified for precisely the sheets they can
+    actually see -- never a sheet that is not really theirs, never a false
+    positive, and never one silently skipped because of a mismatched
+    assigned_to_type (STUDENT vs. LEVEL vs. BATCH) check.
+
+    Each assignment is claimed via an atomic per-row
+    "UPDATE ... WHERE notified_at IS NULL" (checked by affected-row count)
+    before it is added to the notify batch, so two nearly-simultaneous
+    requests -- e.g. the bell's unread-count and list calls firing back to
+    back on the same page load -- can never both notify the same sheet.
+    """
+    now_utc = datetime.now(timezone.utc)
+    pending = [
+        a for a in get_student_assignments(db, student)
+        if a.assignment_type != "ASSESSMENT"
+        and a.start_time is not None
+        and a.start_time <= now_utc
+        and a.notified_at is None
+    ]
+    if not pending:
+        return
+
+    ClaimedIds: list[str] = []
+    for PendingAssignment in pending:
+        UpdatedCount = (
+            db.query(Assignment)
+            .filter(Assignment.id == PendingAssignment.id, Assignment.notified_at.is_(None))
+            .update({Assignment.notified_at: now_utc}, synchronize_session=False)
+        )
+        if UpdatedCount:
+            ClaimedIds.append(PendingAssignment.id)
+
+    if not ClaimedIds:
+        return
+
+    db.commit()
+    try:
+        NotifyPracticeAssignmentsCreated(db, assignment_ids=ClaimedIds, actor_user_id=None)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("NotifyMissedPracticeUnlocks: failed to notify claimed assignments %s for student %s", ClaimedIds, student.id)
 
 
 def NotifyPracticeFreshPracticeAssigned(

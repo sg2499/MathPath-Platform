@@ -618,6 +618,42 @@ def ensure_assignment_attempt_chain_columns() -> None:
             connection.execute(text("UPDATE attempts SET cleared_at_attempt = false WHERE cleared_at_attempt IS NULL"))
             connection.execute(text("UPDATE attempts SET benchmark_status = 'PENDING' WHERE benchmark_status IS NULL"))
 
+
+def ensure_assignment_notified_at_column() -> None:
+    """Self-heal safety net for assignments.notified_at.
+
+    Same convention as ensure_attempt_notification_processed_column() above.
+    Gates the weekly-scheduled DPS "sheet unlocked" notification (see
+    NotifyMissedPracticeUnlocks() in practice_notification_service.py) so
+    it fires exactly once per assignment no matter which code path first
+    notices its start_time has arrived -- immediate creation-time notify,
+    or the lazy catch-up check run from the notifications bell and the
+    student assignment list.
+
+    Every pre-existing row gets backfilled to notified_at = created_at the
+    first time this column is added -- those assignments were already
+    covered by the old creation-time-only notify path (or are simply old
+    and already seen), so leaving them NULL would make the catch-up check
+    misread the entire assignments table as "never notified" and blast
+    every student with a flood of stale unlock notifications on the next
+    deploy.
+    """
+    inspector = inspect(engine)
+    if "assignments" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("assignments")}
+    if "notified_at" in existing:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE assignments ADD COLUMN notified_at TIMESTAMP"))
+        # One-time backfill, guarded by the "already exists" return above so
+        # this never re-runs and never touches a genuinely-pending future-
+        # dated scheduled assignment created after this migration lands.
+        connection.execute(text("UPDATE assignments SET notified_at = created_at WHERE notified_at IS NULL"))
+
+
 PARENT_REPORT_EMAIL_LOG_COLUMNS = {
     "delivery_status": "VARCHAR(30) DEFAULT 'QUEUED' NOT NULL",
     "delivery_provider": "VARCHAR(50)",
