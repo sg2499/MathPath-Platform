@@ -598,6 +598,7 @@ def SaveCompetitionMockAnswer(db: Session, student: Student, attempt_id: str, qu
             "unlockedBadges": side_effects.get("unlockedBadges", []),
             "rankedUp": side_effects.get("rankedUp", False),
             "newRankTier": side_effects.get("newRankTier"),
+            "rewardBreakdown": side_effects.get("rewardBreakdown"),
         }
 
     question = db.get(CompetitionMockQuestion, question_id)
@@ -937,6 +938,7 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
     final_coins = 0
     ranked_up = False
     new_rank_tier = None
+    reward_breakdown = None
     try:
         from app.services.economy_service import EconomyService
         econ_result = EconomyService.evaluate_activity_performance(
@@ -945,10 +947,12 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
             accuracy_percent=attempt.percentage or 0.0,
             activity_type="MOCK",
             duration_seconds=attempt.duration_seconds,
+            time_taken_seconds=attempt.time_taken_seconds,
             reference_id=attempt.mock_assignment_id or "MOCK"
         )
         final_xp = econ_result.get("awarded_xp", 0)
         final_coins = econ_result.get("awarded_coins", 0)
+        reward_breakdown = econ_result.get("reward_breakdown")
         # ranked_up/new_rank come straight out of EconomyService.award_xp_and_coins,
         # which already computes them off the real current_xp -> current_rank_tier
         # transition for this exact award -- nothing new is derived or guessed
@@ -1026,6 +1030,7 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
         "awardedCoins": final_coins,
         "rankedUp": ranked_up,
         "newRankTier": new_rank_tier,
+        "rewardBreakdown": reward_breakdown,
     }
 
 
@@ -1060,6 +1065,7 @@ def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attemp
         "awardedCoins": side_effects.get("awardedCoins", 0),
         "rankedUp": side_effects.get("rankedUp", False),
         "newRankTier": side_effects.get("newRankTier"),
+        "rewardBreakdown": side_effects.get("rewardBreakdown"),
     }
 
 

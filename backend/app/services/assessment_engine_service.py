@@ -2977,6 +2977,7 @@ def _ProcessAssessmentGamificationSideEffects(Db: Session, Attempt: AssessmentAt
             accuracy_percent=float(Attempt.percentage or 0),
             activity_type="ASSESSMENT",
             duration_seconds=Attempt.duration_seconds,
+            time_taken_seconds=Attempt.time_taken_seconds,
             reference_id=Attempt.id,
         )
     except Exception as e:

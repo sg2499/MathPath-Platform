@@ -460,6 +460,7 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
             accuracy_percent=float(attempt.accuracy_percentage or 0),
             activity_type="DPS",
             duration_seconds=attempt.duration_seconds,
+            time_taken_seconds=attempt.time_taken_seconds,
             reference_id=attempt.id,
         )
     except Exception as e:

@@ -187,6 +187,22 @@ class EconomyService:
         return 1.0
 
     @staticmethod
+    def _accuracy_tier_label(accuracy_percent: float) -> str:
+        """Display-facing tier name for _accuracy_multiplier's bands, so the
+        reward modal can show a plain-language tier chip ("Excellent") next
+        to the bonus it produced, instead of a raw percentage or multiplier.
+        """
+        if accuracy_percent == 100.0:
+            return "PERFECT"
+        if accuracy_percent >= 90.0:
+            return "EXCELLENT"
+        if accuracy_percent >= 75.0:
+            return "GREAT"
+        if accuracy_percent < 50.0:
+            return "NEEDS_PRACTICE"
+        return "FAIR"
+
+    @staticmethod
     def evaluate_assignment_performance(
         db: Session,
         user_id: str,
@@ -236,33 +252,81 @@ class EconomyService:
     # activity belongs to, and regardless of how long any individual DPS
     # sheet, assessment, or mock exam happens to be configured for.
     #
-    # Reward is proportional to the activity's own admin-configured allotted
-    # duration_seconds -- NOT the student's actual time_taken_seconds. Two
-    # deliberate reasons: (1) time_taken_seconds is derived after submission,
-    # and the student-portal audit that led to this found it had historically
-    # been the source of real timing bugs (see the AUTO_SUBMITTED timestamp
-    # fixes) -- keying the reward off a field that can itself be wrong would
-    # let that bug corrupt payouts too. duration_seconds is fixed and correct
-    # the instant the attempt starts. (2) This program explicitly rewards
-    # speed -- paying by time *taken* would mean a fast, accurate student
-    # earns LESS than a slow one for the same accuracy on the same content,
-    # which is backwards. Paying by allotted duration means the size of the
-    # reward reflects the size of the activity, not how quickly any one
-    # student finished it; the accuracy multiplier is what rewards quality.
+    # Reward has two layers, both driven by real performance data:
+    #   1. Base pay is proportional to the activity's own admin-configured
+    #      allotted duration_seconds (never the student's actual time taken).
+    #      This means the size of the reward reflects the size of the
+    #      activity -- a 30-minute mock always pays a bigger base than a
+    #      20-minute DPS sheet -- and a slower (but still accurate) student
+    #      is never punished for the sheet being long.
+    #   2. On top of that base, TWO multipliers stack: an accuracy multiplier
+    #      (see _accuracy_multiplier, unchanged) and a speed multiplier (see
+    #      _speed_bonus, new as of 2026-08-26) based on how much of the
+    #      allotted time the student actually used. This is what makes two
+    #      students who both score 90% on the same 20-minute sheet earn
+    #      different rewards if one finished in 10 minutes and the other used
+    #      the full 20 -- speed now matters, on top of accuracy, exactly as
+    #      requested. The speed bonus is deliberately the smaller of the two
+    #      multipliers (a "nudge", not a second accuracy-sized swing), and it
+    #      never goes negative -- a student who uses the full allotted time,
+    #      or whose timing data is missing/invalid, simply gets no bonus,
+    #      never a penalty.
+    #
+    # Every number returned to the frontend under "reward_breakdown" is
+    # expressed as three additions (base, then an accuracy bonus, then a
+    # speed bonus) that sum to EXACTLY the awarded total -- never as a
+    # multiplier -- so the reward modal can show a parent or student "why" in
+    # plain addition instead of math they'd have to be a developer to follow.
+    # The speed bonus figure is deliberately computed as a REMAINDER (total
+    # minus the other two rounded pieces) rather than independently rounded,
+    # so the three displayed numbers always sum to the displayed total with
+    # no possibility of an off-by-one mismatch.
     #
     # Because every module/level can configure its own duration per DPS,
     # assessment, and mock, this formula never needs manual re-tuning as new
     # content is added -- it reads directly from each attempt's own stored
-    # duration_seconds every time.
-    GAMIFICATION_MINUTE_RATE = 500.0 / 60.0 / 1.5  # derived from the mock exam's pre-existing 500 XP / 60-minute baseline at ACTIVITY_WEIGHTS["MOCK"]
+    # duration_seconds every time. (DPS sheets are now a flat 1200 seconds --
+    # 20 minutes -- across every module/level/lesson as of the 2026-08-26
+    # timer standardization, so their base pay is effectively a constant; the
+    # formula doesn't special-case this, it just falls out of every DPS
+    # attempt sharing the same duration_seconds.)
+    GAMIFICATION_XP_RATE_PER_MINUTE = 5.0    # weight-1.0 (DPS) baseline: a flat 20-min DPS sheet = 100 base XP
+    GAMIFICATION_COIN_RATE_PER_MINUTE = 2.0  # weight-1.0 (DPS) baseline: a flat 20-min DPS sheet = 40 base coins
     ACTIVITY_WEIGHTS = {
         "DPS": 1.0,          # routine, frequent, lowest stakes
         "ASSESSMENT": 1.3,   # gates level progression
         "MOCK": 1.5,         # competitive, leaderboard-visible, highest stakes
     }
-    COIN_XP_RATIO = 0.05  # unchanged from the original mock formula (25 coins / 500 xp)
     MIN_DURATION_MINUTES = 1.0
     MAX_DURATION_MINUTES = 180.0  # guards against a misconfigured (0, negative, or absurd) duration ever producing a buggy payout
+
+    # Speed bonus bands, keyed off how much of the allotted time the student
+    # actually used (time_taken_seconds / duration_seconds). Deliberately
+    # "subtle" per product decision -- these are nudges on top of the
+    # accuracy multiplier, never a second accuracy-sized swing, and never a
+    # penalty for using the full time. Ordered fastest-first; the first band
+    # whose ratio ceiling isn't exceeded wins.
+    SPEED_TIERS = [
+        {"tier": "LIGHTNING", "max_ratio": 0.50, "bonus": 0.15},
+        {"tier": "FAST", "max_ratio": 0.75, "bonus": 0.08},
+    ]
+    SPEED_TIER_STEADY = "STEADY"  # slower than the last band above, or missing/invalid timing data
+
+    @staticmethod
+    def _speed_bonus(time_taken_seconds: int | float | None, duration_seconds: int | float | None) -> Tuple[str, float]:
+        """Returns (tier_label, bonus_fraction), e.g. ("FAST", 0.08).
+
+        Missing or invalid timing data (None, zero/negative allotted
+        duration) always resolves to STEADY / 0.0 -- never guesses, and
+        never turns into a penalty.
+        """
+        if not time_taken_seconds or not duration_seconds or duration_seconds <= 0:
+            return EconomyService.SPEED_TIER_STEADY, 0.0
+        ratio = max(0.0, float(time_taken_seconds)) / float(duration_seconds)
+        for band in EconomyService.SPEED_TIERS:
+            if ratio <= band["max_ratio"]:
+                return band["tier"], band["bonus"]
+        return EconomyService.SPEED_TIER_STEADY, 0.0
 
     @staticmethod
     def evaluate_activity_performance(
@@ -271,13 +335,13 @@ class EconomyService:
         accuracy_percent: float,
         activity_type: str,
         duration_seconds: int | float | None,
+        time_taken_seconds: int | float | None = None,
         reference_id: str = "N/A",
     ) -> Dict[str, Any]:
         """
         The single XP/coin formula for DPS sheets, assessments, and mock
-        exams alike. See the module-level comment above for why the reward
-        is based on the activity's allotted duration rather than the
-        student's actual time taken.
+        exams alike. See the module-level comment above for the two-layer
+        (allotted-duration base, then accuracy + speed multipliers) design.
         """
         weight = EconomyService.ACTIVITY_WEIGHTS.get(activity_type, 1.0)
         raw_minutes = float(duration_seconds or 0) / 60.0
@@ -285,11 +349,39 @@ class EconomyService:
             EconomyService.MIN_DURATION_MINUTES,
             min(raw_minutes, EconomyService.MAX_DURATION_MINUTES),
         )
-        multiplier = EconomyService._accuracy_multiplier(accuracy_percent)
 
-        base_xp = EconomyService.GAMIFICATION_MINUTE_RATE * duration_minutes * weight
-        final_xp = max(0, round(base_xp * multiplier))
-        final_coins = max(0, round(final_xp * EconomyService.COIN_XP_RATIO)) if accuracy_percent >= 50.0 else 0
+        accuracy_multiplier = EconomyService._accuracy_multiplier(accuracy_percent)
+        accuracy_tier = EconomyService._accuracy_tier_label(accuracy_percent)
+        speed_tier, speed_bonus_fraction = EconomyService._speed_bonus(time_taken_seconds, duration_seconds)
+
+        base_xp = EconomyService.GAMIFICATION_XP_RATE_PER_MINUTE * duration_minutes * weight
+        base_coins = EconomyService.GAMIFICATION_COIN_RATE_PER_MINUTE * duration_minutes * weight
+
+        xp_after_accuracy = base_xp * accuracy_multiplier
+        final_xp = max(0, round(xp_after_accuracy * (1.0 + speed_bonus_fraction)))
+
+        coins_after_accuracy = base_coins * accuracy_multiplier
+        final_coins = (
+            max(0, round(coins_after_accuracy * (1.0 + speed_bonus_fraction)))
+            if accuracy_percent >= 50.0
+            else 0
+        )
+
+        # Addition-only breakdown for the reward modal. The speed bonus line
+        # is a REMAINDER (total minus the other two rounded pieces), not an
+        # independently-rounded figure, so base + accuracyBonus + speedBonus
+        # always sums to exactly the awarded total shown above it -- see the
+        # module comment for why this matters.
+        xp_base_display = round(base_xp)
+        xp_accuracy_bonus_display = round(xp_after_accuracy) - xp_base_display
+        xp_speed_bonus_display = final_xp - xp_base_display - xp_accuracy_bonus_display
+
+        if final_coins > 0:
+            coins_base_display = round(base_coins)
+            coins_accuracy_bonus_display = round(coins_after_accuracy) - coins_base_display
+            coins_speed_bonus_display = final_coins - coins_base_display - coins_accuracy_bonus_display
+        else:
+            coins_base_display = coins_accuracy_bonus_display = coins_speed_bonus_display = 0
 
         # Loot-pack drops stay mock-exclusive for now -- Collector's Vault,
         # where a dropped pack would actually be seen and opened, isn't built
@@ -297,7 +389,7 @@ class EconomyService:
         dropped_pack = None
         pack_type = None
         if activity_type == "MOCK":
-            dropped_pack = roll_loot_drop(base_chance_percent=10.0, multiplier=multiplier)
+            dropped_pack = roll_loot_drop(base_chance_percent=10.0, multiplier=accuracy_multiplier)
             if dropped_pack:
                 pack_type = "ELITE_CHEST" if accuracy_percent == 100.0 else "ALPHA_PACK"
 
@@ -312,4 +404,24 @@ class EconomyService:
             "new_rank": econ.current_rank_tier,
             "ranked_up": ranked_up,
             "dropped_pack": pack_type,
+            "reward_breakdown": {
+                "xp": {
+                    "base": xp_base_display,
+                    "accuracyBonus": xp_accuracy_bonus_display,
+                    "speedBonus": xp_speed_bonus_display,
+                    "total": final_xp,
+                },
+                "coins": {
+                    "base": coins_base_display,
+                    "accuracyBonus": coins_accuracy_bonus_display,
+                    "speedBonus": coins_speed_bonus_display,
+                    "total": final_coins,
+                },
+                "accuracyTier": accuracy_tier,
+                "accuracyPercent": round(accuracy_percent, 1),
+                "speedTier": speed_tier,
+                "timeTakenSeconds": int(time_taken_seconds) if time_taken_seconds else None,
+                "allottedSeconds": int(duration_seconds) if duration_seconds else None,
+                "activityType": activity_type,
+            },
         }

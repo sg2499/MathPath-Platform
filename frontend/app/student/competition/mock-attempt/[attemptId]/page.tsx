@@ -71,6 +71,22 @@ function stashRankUpForResult(attemptId: string, response: unknown) {
   }
 }
 
+// Same one-time sessionStorage handoff pattern as stashUnlockedBadgesForResult
+// above, for the rewardBreakdown field the submit response now also carries
+// (2026-08-26 reward formula + celebration sequencing rollout). Drives the
+// RewardEarnedModal shown on the result page right after the completion
+// celebration and before any badge reveals.
+function stashRewardBreakdownForResult(attemptId: string, response: unknown) {
+  try {
+    const data = response as { rewardBreakdown?: unknown } | undefined;
+    if (data?.rewardBreakdown) {
+      sessionStorage.setItem(`mp_reward_breakdown_${attemptId}`, JSON.stringify(data.rewardBreakdown));
+    }
+  } catch (e) {
+    console.error("Failed to stash reward breakdown for result reveal", e);
+  }
+}
+
 export default function StudentCompetitionMockAttemptPage() {
   const ready = useProtectedPage(["STUDENT"]);
   const params = useParams<{ attemptId: string }>();
@@ -95,6 +111,7 @@ export default function StudentCompetitionMockAttemptPage() {
     onSuccess: (data) => {
       stashUnlockedBadgesForResult(attemptId, data);
       stashRankUpForResult(attemptId, data);
+      stashRewardBreakdownForResult(attemptId, data);
       router.replace(`/student/competition/mock-result/${attemptId}`);
     },
   });
@@ -104,6 +121,7 @@ export default function StudentCompetitionMockAttemptPage() {
     onSuccess: (data) => {
       stashUnlockedBadgesForResult(attemptId, data);
       stashRankUpForResult(attemptId, data);
+      stashRewardBreakdownForResult(attemptId, data);
       router.replace(`/student/competition/mock-result/${attemptId}`);
     },
   });
@@ -153,6 +171,7 @@ export default function StudentCompetitionMockAttemptPage() {
       if (response?.status === "AUTO_SUBMITTED") {
         stashUnlockedBadgesForResult(attemptId, response);
         stashRankUpForResult(attemptId, response);
+        stashRewardBreakdownForResult(attemptId, response);
         router.replace(`/student/competition/mock-result/${attemptId}`);
       }
     } finally {
