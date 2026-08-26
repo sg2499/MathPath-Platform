@@ -348,7 +348,13 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     db.refresh(attempt)
 
     _process_attempt_notification_side_effects(db, attempt, retry_assignment)
-    _process_attempt_gamification_side_effects(db, attempt)
+    # Transient (non-persisted) attribute -- lets result_payload() surface
+    # this same request's reward_breakdown without a second DB round-trip,
+    # mirroring competition_mock_attempt_service.py's _side_effects_result
+    # pattern. Stays None on any request that did NOT win the gamification
+    # claim (e.g. a lazy auto-submit that lost a race), which is correct --
+    # the reward modal only ever fires once, on the request that earned it.
+    attempt._side_effects_result = _process_attempt_gamification_side_effects(db, attempt)
 
     return attempt
 
@@ -590,8 +596,16 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
     SummaryMaxScore = _safe_float(getattr(attempt, "max_score", None), 0.0)
     BenchmarkPayload = benchmark_payload_for_attempt(attempt)
 
+    # Only present on the same request that just completed this attempt
+    # (see the _side_effects_result comment in submit_attempt above) -- a
+    # plain GET /result reload never has it, and the reward modal correctly
+    # only ever shows once, right after submission.
+    side_effects = getattr(attempt, "_side_effects_result", None)
+    reward_breakdown = side_effects.get("reward_breakdown") if side_effects else None
+
     return {
         "attemptId": attempt.id,
+        "rewardBreakdown": reward_breakdown,
         "attemptGroupId": getattr(attempt, "attempt_group_id", None),
         "attemptNumber": _safe_int(getattr(attempt, "attempt_number", 0), 0),
         "attemptLabel": BuildAttemptLabel(getattr(attempt, "attempt_number", 0)),

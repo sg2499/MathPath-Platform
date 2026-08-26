@@ -2934,7 +2934,11 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     Db.refresh(Attempt)
 
     _ProcessAssessmentCompletionNotification(Db, Attempt)
-    _ProcessAssessmentGamificationSideEffects(Db, Attempt)
+    # Transient (non-persisted) attribute -- same pattern as attempt_service.
+    # py's submit_attempt() / competition_mock_attempt_service.py's
+    # _side_effects_result, lets AssessmentResultPayload() surface this same
+    # request's reward_breakdown without a second DB round-trip.
+    Attempt._side_effects_result = _ProcessAssessmentGamificationSideEffects(Db, Attempt)
 
     return Attempt
 
@@ -3067,6 +3071,10 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
         "completedDate": Iso(Result.completion_date if Result else Attempt.submitted_at),
         "submittedAt": Iso(Attempt.submitted_at),
         "attemptDate": Iso(Attempt.started_at),
+        # Only present on the same request that just completed this attempt
+        # -- see the _side_effects_result comment in SubmitAssessmentAttempt
+        # above. A plain GET result reload never has it.
+        "rewardBreakdown": (getattr(Attempt, "_side_effects_result", None) or {}).get("reward_breakdown"),
         **ProgressionPayload,
     }
     if IncludeReview:

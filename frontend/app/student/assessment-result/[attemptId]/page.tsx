@@ -11,7 +11,9 @@ import { getAssessmentAttemptResult } from "@/lib/api/student";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target, ClipboardCheck } from "lucide-react";
 import { PremiumResultFeedbackCard } from "@/components/common/PerformanceFeedback";
+import { RewardEarnedModal, type RewardBreakdown } from "@/components/gamification/RewardEarnedModal";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 
 function CleanNumber(Value: unknown) {
@@ -146,10 +148,36 @@ export default function StudentAssessmentResultPage() {
     enabled: Ready && Boolean(Params.attemptId),
   });
 
+  // Reward-earned modal: XP/coins breakdown, one-time sessionStorage handoff
+  // stashed by the attempt page right before navigating here (2026-08-26 --
+  // wired in alongside mock exams and DPS). No cutscene sequencing yet for
+  // assessments -- the modal just shows immediately over the result page.
+  const [RewardBreakdownValue, SetRewardBreakdownValue] = useState<RewardBreakdown | null>(null);
+  const [ShowRewardModal, SetShowRewardModal] = useState(false);
+
+  useEffect(() => {
+    if (!Params.attemptId) return;
+    try {
+      const Key = `mp_reward_breakdown_${Params.attemptId}`;
+      const Raw = sessionStorage.getItem(Key);
+      if (Raw) {
+        sessionStorage.removeItem(Key);
+        SetRewardBreakdownValue(JSON.parse(Raw));
+        SetShowRewardModal(true);
+      }
+    } catch (Error) {
+      console.error("Failed to read reward breakdown handoff from sessionStorage", Error);
+    }
+  }, [Params.attemptId]);
+
   if (!Ready) return null;
 
   return (
-    <AppShell title="Assessment Result">
+    <>
+      {ShowRewardModal && RewardBreakdownValue && (
+        <RewardEarnedModal breakdown={RewardBreakdownValue} onContinue={() => SetShowRewardModal(false)} />
+      )}
+      <AppShell title="Assessment Result">
       {Query.isLoading ? <LoadingState label="Loading assessment result..." /> : null}
       {Query.error ? <ErrorState message={apiErrorMessage(Query.error)} /> : null}
 
@@ -232,7 +260,8 @@ export default function StudentAssessmentResultPage() {
           </section>
         </div>
       ) : null}
-    </AppShell>
+      </AppShell>
+    </>
   );
 }
 
