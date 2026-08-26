@@ -25,6 +25,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { EpicCelebration } from "@/components/gamification/EpicCelebration";
 import { BadgeInspectionModal } from "@/components/gamification/BadgeInspectionModal";
 import { RankCinematicOverlay } from "@/components/gamification/RankCinematicOverlay";
+import { RewardEarnedModal, type RewardBreakdown } from "@/components/gamification/RewardEarnedModal";
 import { getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
 import { AnimatePresence } from "framer-motion";
 import { CompetitionMessage, competitionMessagePools } from "@/lib/utils/competitionMessages";
@@ -228,6 +229,13 @@ export default function StudentCompetitionMockResultPage() {
   const [rankUpTier, setRankUpTier] = useState<string | null>(null);
   const [showRankUp, setShowRankUp] = useState(false);
 
+  // Reward-earned modal: XP/coins breakdown, shown right after the
+  // completion celebration and before any badge reveals (2026-08-26 reward
+  // formula + celebration sequencing rollout). Same one-time sessionStorage
+  // handoff pattern as the badge/rank-up state above.
+  const [rewardBreakdown, setRewardBreakdown] = useState<RewardBreakdown | null>(null);
+  const [showRewardModal, setShowRewardModal] = useState(false);
+
   const query = useQuery({
     queryKey: ["student-competition-mock-result", attemptId],
     queryFn: () => getCompetitionMockResult(attemptId),
@@ -256,6 +264,12 @@ export default function StudentCompetitionMockResultPage() {
         sessionStorage.removeItem(rankKey);
         setRankUpTier(rankRaw);
       }
+      const rewardKey = `mp_reward_breakdown_${attemptId}`;
+      const rewardRaw = sessionStorage.getItem(rewardKey);
+      if (rewardRaw) {
+        sessionStorage.removeItem(rewardKey);
+        setRewardBreakdown(JSON.parse(rewardRaw));
+      }
     } catch (e) {
       console.error("Failed to read unlocked badge handoff from sessionStorage", e);
     } finally {
@@ -281,13 +295,15 @@ export default function StudentCompetitionMockResultPage() {
           console.error("Failed to parse viewed_celebrations from localStorage", e);
         }
         setShowCelebration(true);
+      } else if (rewardBreakdown) {
+        setShowRewardModal(true);
       } else if (unlockedBadges.length > 0) {
         setBadgeRevealIndex(0);
       } else if (rankUpTier) {
         setShowRankUp(true);
       }
     }
-  }, [query.data, badgesLoaded, unlockedBadges, rankUpTier, attemptId]);
+  }, [query.data, badgesLoaded, unlockedBadges, rankUpTier, attemptId, rewardBreakdown]);
 
   const handleCelebrationComplete = () => {
     setShowCelebration(false);
@@ -299,6 +315,17 @@ export default function StudentCompetitionMockResultPage() {
     } catch (e) {
       console.error("Failed to save viewed_celebrations to localStorage", e);
     }
+    if (rewardBreakdown) {
+      setShowRewardModal(true);
+    } else if (unlockedBadges.length > 0) {
+      setBadgeRevealIndex(0);
+    } else if (rankUpTier) {
+      setShowRankUp(true);
+    }
+  };
+
+  const handleRewardModalContinue = () => {
+    setShowRewardModal(false);
     if (unlockedBadges.length > 0) {
       setBadgeRevealIndex(0);
     } else if (rankUpTier) {
@@ -379,7 +406,10 @@ export default function StudentCompetitionMockResultPage() {
           />
         )}
       </AnimatePresence>
-      {!showCelebration && badgeRevealIndex !== null && unlockedBadges[badgeRevealIndex] && (
+      {!showCelebration && showRewardModal && rewardBreakdown && (
+        <RewardEarnedModal breakdown={rewardBreakdown} onContinue={handleRewardModalContinue} />
+      )}
+      {!showCelebration && !showRewardModal && badgeRevealIndex !== null && unlockedBadges[badgeRevealIndex] && (
         <BadgeInspectionModal
           badge={unlockedBadges[badgeRevealIndex]}
           config={getBadgeVisualConfig(
@@ -389,7 +419,7 @@ export default function StudentCompetitionMockResultPage() {
           onClose={handleBadgeRevealClose}
         />
       )}
-      {!showCelebration && badgeRevealIndex === null && showRankUp && rankUpTier && (
+      {!showCelebration && !showRewardModal && badgeRevealIndex === null && showRankUp && rankUpTier && (
         <RankCinematicOverlay tier={rankUpTier} onComplete={() => setShowRankUp(false)} />
       )}
       <AppShell title="Competition Mock Result">

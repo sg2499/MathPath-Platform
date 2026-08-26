@@ -18,11 +18,14 @@ DPS_PER_LESSON = 5
 
 
 def _dps_duration_seconds(question_count: int) -> int:
-    """Practice-timer rule, platform-wide: 5 minutes for a sheet with 10 or
-    fewer questions, 10 minutes for anything longer. Same rule every other
-    module's seed script follows -- keep them in sync if this ever changes.
+    """Practice-timer rule, platform-wide: a flat 20 minutes (1200 seconds)
+    for every DPS sheet regardless of question count, as of the 2026-08-26
+    timer standardization. Same rule every other module's seed script
+    follows -- keep them in sync if this ever changes. `question_count` is
+    kept as a parameter (unused) so every call site across the seed scripts
+    stays untouched if a future change reintroduces a size-based rule.
     """
-    return 300 if question_count <= 10 else 600
+    return 1200
 
 # MathPath module hierarchy convention:
 # 1. Young Learners Module

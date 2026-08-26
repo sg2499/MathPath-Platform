@@ -120,7 +120,7 @@ def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str, qu
             dps_number=dps_number,
             dps_title=dps_title,
             default_question_count=question_count,
-            default_duration_seconds=300 if question_count <= 10 else 600,
+            default_duration_seconds=1200,  # flat 20-minute DPS timer (2026-08-26 timer standardization)
             marks_per_question=marks_per_question,
             publication_status="DRAFT",
             published_seed=None,
@@ -133,7 +133,7 @@ def _ensure_dps(db: Session, lesson: Lesson, dps_number: int, dps_title: str, qu
     else:
         dps.dps_title = dps_title
         dps.default_question_count = question_count
-        dps.default_duration_seconds = 300 if question_count <= 10 else 600
+        dps.default_duration_seconds = 1200  # flat 20-minute DPS timer (2026-08-26 timer standardization)
         # Never touch publication_status here -- Admin (Learning Path Studio)
         # is the only publisher, same rule PM-L1's seed follows. A re-run of
         # this seed must not un-publish or re-publish anything.
