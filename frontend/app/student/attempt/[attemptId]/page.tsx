@@ -22,6 +22,24 @@ import { ClipboardCheck, Gauge, Layers3, BookOpenCheck } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
+// Same one-time sessionStorage handoff pattern used for mock exams (see
+// stashRewardBreakdownForResult in the mock-attempt page) -- the reward
+// modal is now wired into DPS too (2026-08-26), just without a cutscene
+// sequence yet: it shows immediately on the result page, no confetti/badge/
+// rank-up ordering in front of it. That ordering arrives with the DPS
+// celebration cutscenes in a later phase; wiring the modal itself in now
+// so students see their XP/coin breakdown on every activity type already.
+function stashRewardBreakdownForResult(attemptId: string, response: unknown) {
+  try {
+    const data = response as { rewardBreakdown?: unknown } | undefined;
+    if (data?.rewardBreakdown) {
+      sessionStorage.setItem(`mp_reward_breakdown_${attemptId}`, JSON.stringify(data.rewardBreakdown));
+    }
+  } catch (e) {
+    console.error("Failed to stash reward breakdown for result reveal", e);
+  }
+}
+
 export default function AttemptPage() {
   const ready = useProtectedPage(["STUDENT"]);
   const params = useParams<{ attemptId: string }>();
@@ -44,12 +62,18 @@ export default function AttemptPage() {
 
   const autoSubmitMutation = useMutation({
     mutationFn: () => autoSubmitAttempt(attemptId),
-    onSuccess: () => router.replace(`/student/result/${attemptId}`),
+    onSuccess: (data) => {
+      stashRewardBreakdownForResult(attemptId, data);
+      router.replace(`/student/result/${attemptId}`);
+    },
   });
 
   const manualSubmitMutation = useMutation({
     mutationFn: () => submitAttempt(attemptId),
-    onSuccess: () => router.replace(`/student/result/${attemptId}`),
+    onSuccess: (data) => {
+      stashRewardBreakdownForResult(attemptId, data);
+      router.replace(`/student/result/${attemptId}`);
+    },
   });
 
   const handleTimeUp = useCallback(() => {
@@ -95,6 +119,7 @@ export default function AttemptPage() {
       const response = await saveAnswer(attemptId, { questionId, answerText });
 
       if (response?.status === "AUTO_SUBMITTED") {
+        stashRewardBreakdownForResult(attemptId, response);
         router.replace(`/student/result/${attemptId}`);
       }
     } finally {

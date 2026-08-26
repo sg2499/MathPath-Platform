@@ -5,6 +5,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ResultSummary } from "@/components/student/ResultSummary";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
+import { RewardEarnedModal, type RewardBreakdown } from "@/components/gamification/RewardEarnedModal";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAttemptResult } from "@/lib/api/student";
@@ -12,6 +13,7 @@ import { formatAnswerValue } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, BookOpenCheck } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function ResultPage() {
   const ready = useProtectedPage(["STUDENT"]);
@@ -23,10 +25,37 @@ export default function ResultPage() {
     enabled: ready,
   });
 
+  // Reward-earned modal: XP/coins breakdown, one-time sessionStorage handoff
+  // stashed by the attempt page right before navigating here (2026-08-26 --
+  // wired in alongside mock exams and assessments). No cutscene sequencing
+  // yet for DPS (that arrives with the DPS celebration cutscenes in a later
+  // phase) -- the modal just shows immediately over the result page.
+  const [rewardBreakdown, setRewardBreakdown] = useState<RewardBreakdown | null>(null);
+  const [showRewardModal, setShowRewardModal] = useState(false);
+
+  useEffect(() => {
+    if (!params.attemptId) return;
+    try {
+      const key = `mp_reward_breakdown_${params.attemptId}`;
+      const raw = sessionStorage.getItem(key);
+      if (raw) {
+        sessionStorage.removeItem(key);
+        setRewardBreakdown(JSON.parse(raw));
+        setShowRewardModal(true);
+      }
+    } catch (e) {
+      console.error("Failed to read reward breakdown handoff from sessionStorage", e);
+    }
+  }, [params.attemptId]);
+
   if (!ready) return null;
 
   return (
-    <AppShell title="Result Review">
+    <>
+      {showRewardModal && rewardBreakdown && (
+        <RewardEarnedModal breakdown={rewardBreakdown} onContinue={() => setShowRewardModal(false)} />
+      )}
+      <AppShell title="Result Review">
       {query.isLoading ? <LoadingState label="Loading result..." /> : null}
       {query.error ? <ErrorState message={apiErrorMessage(query.error)} /> : null}
 
@@ -90,6 +119,7 @@ export default function ResultPage() {
           </section>
         </div>
       ) : null}
-    </AppShell>
+      </AppShell>
+    </>
   );
 }

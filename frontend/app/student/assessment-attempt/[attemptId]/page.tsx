@@ -17,6 +17,22 @@ import { ClipboardCheck, Gauge, Layers3, Clock3 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
+// Same one-time sessionStorage handoff pattern used for mock exams and DPS
+// (see stashRewardBreakdownForResult in those attempt pages) -- the reward
+// modal is now wired into assessments too (2026-08-26), just without a
+// cutscene sequence yet: it shows immediately on the result page, no
+// confetti/badge/rank-up ordering in front of it yet.
+function stashRewardBreakdownForResult(AttemptId: string, Response: unknown) {
+  try {
+    const Data = Response as { rewardBreakdown?: unknown } | undefined;
+    if (Data?.rewardBreakdown) {
+      sessionStorage.setItem(`mp_reward_breakdown_${AttemptId}`, JSON.stringify(Data.rewardBreakdown));
+    }
+  } catch (Error) {
+    console.error("Failed to stash reward breakdown for result reveal", Error);
+  }
+}
+
 export default function StudentAssessmentAttemptPage() {
   const Ready = useProtectedPage(["STUDENT"]);
   const Params = useParams<{ attemptId: string }>();
@@ -37,12 +53,18 @@ export default function StudentAssessmentAttemptPage() {
 
   const AutoSubmitMutation = useMutation({
     mutationFn: () => autoSubmitAssessmentAttempt(AttemptId),
-    onSuccess: () => Router.replace(`/student/assessment-result/${AttemptId}`),
+    onSuccess: (Data) => {
+      stashRewardBreakdownForResult(AttemptId, Data);
+      Router.replace(`/student/assessment-result/${AttemptId}`);
+    },
   });
 
   const ManualSubmitMutation = useMutation({
     mutationFn: () => submitAssessmentAttempt(AttemptId),
-    onSuccess: () => Router.replace(`/student/assessment-result/${AttemptId}`),
+    onSuccess: (Data) => {
+      stashRewardBreakdownForResult(AttemptId, Data);
+      Router.replace(`/student/assessment-result/${AttemptId}`);
+    },
   });
 
   const HandleTimeUp = useCallback(() => {
@@ -81,7 +103,10 @@ export default function StudentAssessmentAttemptPage() {
     SetSavingQuestionId(QuestionId);
     try {
       const Response = await saveAssessmentAnswer(AttemptId, { questionId: QuestionId, selectedOptionId: SelectedOptionId });
-      if (Response?.resultAvailable) Router.replace(`/student/assessment-result/${AttemptId}`);
+      if (Response?.resultAvailable) {
+        stashRewardBreakdownForResult(AttemptId, Response);
+        Router.replace(`/student/assessment-result/${AttemptId}`);
+      }
     } finally {
       SetSavingQuestionId(null);
     }
