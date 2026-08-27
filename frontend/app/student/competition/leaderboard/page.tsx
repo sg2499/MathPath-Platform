@@ -7,7 +7,6 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { triggerMythic, triggerSurge, triggerBlaze } from "@/lib/utils/particles";
 import type { 
   HierarchyResponse, 
   LeaderboardResponse, 
@@ -464,10 +463,6 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
   };
 
   const handlePodiumClick = () => {
-    if (rank === 1) triggerMythic();
-    else if (rank === 2) triggerSurge();
-    else if (rank === 3) triggerBlaze();
-    
     if (onActivateHero) {
       onActivateHero();
     }
