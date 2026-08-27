@@ -323,26 +323,27 @@ const router = useRouter();
                 </div>
               </div>
 
-              <div className={`relative min-w-[200px] flex-1 xl:flex-none transition-all duration-300 ${viewMode === "CUMULATIVE" ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
-                <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Mock Exam</label>
-                <div className="relative">
-                  <select
-                    value={selectedExamId || ""}
-                    onChange={(e) => setSelectedExamId(e.target.value)}
-                    disabled={viewMode === "CUMULATIVE"}
-                    className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition disabled:bg-slate-100 disabled:text-slate-400"
-                  >
-                    {availableExams.length > 0 ? (
-                      availableExams.map(e => (
-                        <option key={e.id} value={e.id}>{e.title}</option>
-                      ))
-                    ) : (
-                      <option disabled value="">No exams available</option>
-                    )}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              {viewMode === "INDIVIDUAL" && (
+                <div className="relative min-w-[200px] flex-1 xl:flex-none">
+                  <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Mock Exam</label>
+                  <div className="relative">
+                    <select
+                      value={selectedExamId || ""}
+                      onChange={(e) => setSelectedExamId(e.target.value)}
+                      className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-0 transition"
+                    >
+                      {availableExams.length > 0 ? (
+                        availableExams.map(e => (
+                          <option key={e.id} value={e.id}>{e.title}</option>
+                        ))
+                      ) : (
+                        <option disabled value="">No exams available</option>
+                      )}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
