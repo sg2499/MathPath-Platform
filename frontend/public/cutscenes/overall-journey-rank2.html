@@ -1209,24 +1209,7 @@ function renderGL(t){
   }
 
   /* particles */
-  pr=P.pt; gl.useProgram(pr.p);
-  gl.uniformMatrix4fv(pr.u.u_vp,false,VP);
-  gl.uniform2f(pr.u.u_res,RT.scene.w,RT.scene.h);
-  gl.uniform1f(pr.u.u_t,t);
-  gl.uniform1f(pr.u.u_burst,0);
-  gl.uniform1f(pr.u.u_spread,0);
-  gl.uniform1f(pr.u.u_amt, 0.18+0.34*S.energy + (t>B.ignite?0.22:0));
-  gl.uniform3f(pr.u.u_c0,0.62,0.34,1.00);
-  gl.uniform3f(pr.u.u_c1,1.00,0.72,0.34);
-  gl.bindVertexArray(moteVAO); gl.drawArrays(gl.POINTS,0,N_MOTES);
-  if(S.burst>0 && S.burst<7.5){
-    gl.uniform1f(pr.u.u_burst,1);
-    gl.uniform1f(pr.u.u_spread,S.burst);
-    gl.uniform1f(pr.u.u_amt,1.25);
-    gl.uniform3f(pr.u.u_c0,1.00,0.60,0.18);
-    gl.uniform3f(pr.u.u_c1,1.00,0.90,0.66);
-    gl.bindVertexArray(emberVAO); gl.drawArrays(gl.POINTS,0,N_EMBERS);
-  }
+  /* ambient dust motes + celebratory ember burst intentionally disabled -- no glitter/sparkle particle effects in this cutscene */
 
   /* resolve the multisampled scene into the plain texture the rest of
      the pipeline reads from -- a no-op branch when MSAA isn't available. */
