@@ -911,6 +911,22 @@ def get_mock_exam_leaderboard(
         .all()
     )
 
+    # Batch every shown student's badges in one query instead of one query per
+    # student -- this loop used to only ever run for <=10 students (rank<=10
+    # or the current student), so a query-per-student was cheap; now that a
+    # real leaderboard shows every student who attempted this exam, the same
+    # per-student query would turn into an N+1 across the whole level.
+    all_student_ids = [st.id for (_res, st, _user) in results]
+    tier_score = {"LEGENDARY": 3, "SUPER": 2, "BASE": 1}
+    badges_by_student: dict = {}
+    if all_student_ids:
+        student_badge_rows = db.query(StudentBadge).filter(StudentBadge.student_id.in_(all_student_ids)).all()
+        for sb in student_badge_rows:
+            if sb.badge_id in badge_map:
+                badges_by_student.setdefault(sb.student_id, []).append(badge_map[sb.badge_id])
+        for sid, blist in badges_by_student.items():
+            blist.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
+
     leaderboard = []
     current_student_rank = None
     for idx, (res, st, user) in enumerate(results):
@@ -918,38 +934,32 @@ def get_mock_exam_leaderboard(
         is_current = st.id == student.id
         if is_current:
             current_student_rank = rank
-            
-        if rank <= 10 or is_current:
-            # Get top 3 badges for this student (Legendary first, then Super)
-            student_badges = db.query(StudentBadge).filter(StudentBadge.student_id == st.id).all()
-            mapped_badges = [badge_map[sb.badge_id] for sb in student_badges if sb.badge_id in badge_map]
-            
-            # Sort by tier (LEGENDARY > SUPER > BASE)
-            tier_score = {"LEGENDARY": 3, "SUPER": 2, "BASE": 1}
-            mapped_badges.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
-            top_badges = mapped_badges[:3]
 
-            # timeTakenSeconds must come straight from the real, already-correct
-            # time_taken_seconds column. This used to be reconstructed from
-            # time_utilization_percentage rescaled against a hardcoded 3600s
-            # (60-minute) assumption, which produced fabricated, misleading
-            # values whenever an exam's real duration wasn't exactly 60
-            # minutes (e.g. a 30-minute exam used in full showed "60m 0s").
-            leaderboard.append({
-                "rank": rank,
-                "studentId": st.id,
-                "name": user.full_name,
-                "photoUrl": user.photo_url or st.photo_url,
-                "percentage": res.percentage,
-                "score": res.percentage, # Normalized to 100 max
-                "accuracy": res.accuracy_percentage,
-                "timeTakenSeconds": int(res.time_taken_seconds or 0),
-                "isCurrent": is_current,
-                "topBadges": top_badges
-            })
-            
+        top_badges = badges_by_student.get(st.id, [])[:3]
+
+        # timeTakenSeconds must come straight from the real, already-correct
+        # time_taken_seconds column. This used to be reconstructed from
+        # time_utilization_percentage rescaled against a hardcoded 3600s
+        # (60-minute) assumption, which produced fabricated, misleading
+        # values whenever an exam's real duration wasn't exactly 60
+        # minutes (e.g. a 30-minute exam used in full showed "60m 0s").
+        leaderboard.append({
+            "rank": rank,
+            "studentId": st.id,
+            "name": user.full_name,
+            "photoUrl": user.photo_url or st.photo_url,
+            "percentage": res.percentage,
+            "score": res.percentage, # Normalized to 100 max
+            "accuracy": res.accuracy_percentage,
+            "timeTakenSeconds": int(res.time_taken_seconds or 0),
+            "isCurrent": is_current,
+            "topBadges": top_badges
+        })
+
     return {
-        "leaderboard": [entry for entry in leaderboard if entry["rank"] <= 10],
+        # Every student with a result for this exam -- a real leaderboard
+        # is only useful if it shows the whole field, not just a top-10 slice.
+        "leaderboard": leaderboard,
         "currentStudentRank": current_student_rank,
         "currentStudentEntry": next((e for e in leaderboard if e["isCurrent"]), None),
         "totalParticipants": len(results)
@@ -1229,8 +1239,7 @@ def get_cumulative_leaderboard(
         if r['isCurrent']:
             current_student_rank = rank
             
-        if rank <= 10 or r['isCurrent']:
-            leaderboard.append(r)
+        leaderboard.append(r)
 
     # Attach each shown student's top 3 badges (LEGENDARY > SUPER > BASE),
     # same read-only presentation convention get_mock_exam_leaderboard() uses
@@ -1262,7 +1271,10 @@ def get_cumulative_leaderboard(
             entry["topBadges"] = student_badges[:3]
 
     return {
-        "leaderboard": [entry for entry in leaderboard if entry["rank"] <= 10],
+        # Every student with at least one summarized result in this level --
+        # a real leaderboard is only useful if it shows the whole field, not
+        # just a top-10 slice.
+        "leaderboard": leaderboard,
         "currentStudentRank": current_student_rank,
         "currentStudentEntry": next((e for e in leaderboard if e["isCurrent"]), None),
         "totalParticipants": len(processed_results)
