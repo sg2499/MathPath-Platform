@@ -302,6 +302,58 @@ function SpecificRank3() {
 }
 
 // ============================================================================
+// PODIUM AUDIO -- matched, pre-trimmed soundtrack per rank/tab (2026-08-27)
+// ============================================================================
+// Files live at /public/audio/podium-cutscene/<slug>.mp3 -- each one is
+// pre-trimmed to the exact point its music kicks in (verified by RMS-envelope
+// onset detection against the source tracks), so playback starts immediately
+// on mount with no silent lead-in. No client-side seeking/offset needed.
+const PODIUM_AUDIO_FILE: Record<'CUMULATIVE' | 'INDIVIDUAL', Record<1 | 2 | 3, string>> = {
+  CUMULATIVE: {
+    1: '/audio/podium-cutscene/overall-journey-rank1.mp3',
+    2: '/audio/podium-cutscene/overall-journey-rank2.mp3',
+    3: '/audio/podium-cutscene/overall-journey-rank3.mp3',
+  },
+  INDIVIDUAL: {
+    1: '/audio/podium-cutscene/specific-exam-rank1.mp3',
+    2: '/audio/podium-cutscene/specific-exam-rank2.mp3',
+    3: '/audio/podium-cutscene/specific-exam-rank3.mp3',
+  },
+};
+
+// Mirrors the stop-function shape used by playUnlockAudio in
+// BadgeInspectionModal.tsx: fire-and-forget play, idempotent stop, silent
+// fallback (no sound, not a crash) if autoplay is blocked or the file
+// doesn't load.
+function playPodiumAudio(rank: 1 | 2 | 3, viewMode: 'CUMULATIVE' | 'INDIVIDUAL'): () => void {
+  let stopped = false;
+  const src = PODIUM_AUDIO_FILE[viewMode]?.[rank];
+  if (!src) return () => {};
+
+  const el = new Audio(src);
+  el.preload = 'auto';
+  el.volume = 0.8;
+
+  const playPromise = el.play();
+  if (playPromise && typeof playPromise.catch === 'function') {
+    playPromise.catch(() => {
+      // Autoplay blocked or file failed to load -- the cutscene still runs,
+      // just silently, rather than throwing.
+    });
+  }
+
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    try {
+      el.pause();
+    } catch {
+      /* element already gone */
+    }
+  };
+}
+
+// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
@@ -320,8 +372,11 @@ export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, on
   // fires, with no dependency on any tween completing.
   const [dismissed, setDismissed] = useState(false);
 
+  const audioStopRef = useRef<() => void>(() => {});
+
   const dismiss = useCallback(() => {
     setDismissed(true);
+    audioStopRef.current();
     onComplete();
   }, [onComplete]);
 
@@ -329,12 +384,16 @@ export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, on
     setMounted(true);
     if (rank !== null) {
       setDismissed(false); // reset so a second hero moment isn't pre-dismissed
+      audioStopRef.current = playPodiumAudio(rank, viewMode);
       const timer = setTimeout(() => {
         dismiss();
       }, 10000); // 10 FULL SECONDS of AAA glory
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        audioStopRef.current();
+      };
     }
-  }, [rank, dismiss]);
+  }, [rank, viewMode, dismiss]);
 
   // Add keyboard listener for skipping
   useEffect(() => {
