@@ -22,24 +22,31 @@ interface PodiumHeroAnimationProps {
 //
 // The real student's name is passed in through a `name` query param (the
 // file reads it at boot and falls back to a demo name if it's missing or
-// blank). `idleAtMs` is each scene's own designed "settled" timestamp (from
-// its internal beat timeline, e.g. `B.idle` in the source) plus a ~2.5s
-// buffer -- used as the auto-dismiss fallback if the viewer never hits
-// Skip. Each scene has a different natural length, so this is per-rank/tab,
-// not one shared constant.
+// blank).
+//
+// There is deliberately NO auto-dismiss timer here. Each cutscene settles
+// into a held "idle" state on its own (gentle camera drift, looping audio)
+// once its internal beat timeline reaches its designed settle point, and
+// it stays there indefinitely -- the soundtrack keeps looping and the
+// completed crest with the student's name stays on screen. The ONLY way
+// out is the viewer explicitly skipping: the cutscene's own Skip button /
+// Escape/Enter/Space/S handling (which posts 'mathpath-cutscene-ended'),
+// or the parent-level keydown fallback below. Cutting this short on a
+// timer was the previous behavior and is exactly what we removed -- it
+// abruptly kicked the student back to the leaderboard mid-soundtrack.
 const PODIUM_CUTSCENE: Record<
   'CUMULATIVE' | 'INDIVIDUAL',
-  Record<1 | 2 | 3, { src: string; idleAtMs: number }>
+  Record<1 | 2 | 3, { src: string }>
 > = {
   CUMULATIVE: {
-    1: { src: '/cutscenes/overall-journey-rank1.html', idleAtMs: (15.6 + 2.5) * 1000 },
-    2: { src: '/cutscenes/overall-journey-rank2.html', idleAtMs: (14.2 + 2.5) * 1000 },
-    3: { src: '/cutscenes/overall-journey-rank3.html', idleAtMs: (12.6 + 2.5) * 1000 },
+    1: { src: '/cutscenes/overall-journey-rank1.html' },
+    2: { src: '/cutscenes/overall-journey-rank2.html' },
+    3: { src: '/cutscenes/overall-journey-rank3.html' },
   },
   INDIVIDUAL: {
-    1: { src: '/cutscenes/specific-exam-rank1.html', idleAtMs: (9.2 + 2.5) * 1000 },
-    2: { src: '/cutscenes/specific-exam-rank2.html', idleAtMs: (8.1 + 2.5) * 1000 },
-    3: { src: '/cutscenes/specific-exam-rank3.html', idleAtMs: (6.7 + 2.5) * 1000 },
+    1: { src: '/cutscenes/specific-exam-rank1.html' },
+    2: { src: '/cutscenes/specific-exam-rank2.html' },
+    3: { src: '/cutscenes/specific-exam-rank3.html' },
   },
 };
 
@@ -48,11 +55,11 @@ export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, on
   const [dismissed, setDismissed] = useState(false);
 
   // Idempotency guard: the cutscene iframe's own Skip/Escape/Enter/Space
-  // handling, the parent-level keydown fallback below, and the settle
-  // timeout can all race to call dismiss() for the same podium moment.
-  // Without this, a late arrival (e.g. a postMessage that was already
-  // in-flight when the timeout also fired) would call onComplete() a
-  // second time for the same rank.
+  // handling (via postMessage) and the parent-level keydown fallback below
+  // can both race to call dismiss() for the same podium moment -- e.g. the
+  // viewer presses Escape while focus is on the parent document at the
+  // same instant the iframe's own key handler also fires. Without this,
+  // that would call onComplete() twice for the same rank.
   const dismissedRef = useRef(false);
 
   const dismiss = useCallback(() => {
@@ -66,19 +73,17 @@ export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, on
     setMounted(true);
   }, []);
 
-  // Reset for a new hero moment, arm the settle-timeout fallback.
+  // Reset for a new hero moment. No auto-dismiss timer is armed here --
+  // the cutscene stays open (looping soundtrack, held idle crest) until
+  // the viewer explicitly skips.
   useEffect(() => {
     if (rank === null) return;
     dismissedRef.current = false;
     setDismissed(false);
-    const cutscene = PODIUM_CUTSCENE[viewMode]?.[rank];
-    const timer = window.setTimeout(dismiss, cutscene?.idleAtMs ?? 15000);
-    return () => window.clearTimeout(timer);
-  }, [rank, viewMode, dismiss]);
+  }, [rank]);
 
   // The cutscene iframe posts this the instant its own Skip button or
-  // Escape/Enter/Space/S fires -- dismiss immediately rather than waiting
-  // for the settle-timeout above.
+  // Escape/Enter/Space/S fires -- this is the primary dismiss path.
   useEffect(() => {
     if (rank === null) return;
     const handleMessage = (event: MessageEvent) => {
