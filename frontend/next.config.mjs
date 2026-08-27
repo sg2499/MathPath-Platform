@@ -57,6 +57,25 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // The podium cutscenes are embedded via <iframe> from the same
+        // origin (PodiumHeroAnimation.tsx). The general rule above sets
+        // X-Frame-Options: DENY for every route, which blocks ALL framing --
+        // including same-origin -- so without this override the browser
+        // refuses to render the cutscene inside its own iframe (confirmed:
+        // the frame's contentWindow becomes cross-origin-opaque and
+        // contentDocument is null). This block matches more specifically
+        // than "/(.*)" above, so per Next.js's header-merging rules its
+        // X-Frame-Options value wins for these paths specifically, while
+        // the other security headers from the general rule still apply.
+        source: "/cutscenes/(.*)",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
+          },
+        ],
+      },
     ];
   },
 };
