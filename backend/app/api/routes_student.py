@@ -1279,3 +1279,208 @@ def get_cumulative_leaderboard(
         "currentStudentEntry": next((e for e in leaderboard if e["isCurrent"]), None),
         "totalParticipants": len(processed_results)
     }
+
+
+# ============================================================================
+# DPS (practice-sheet) leaderboard -- distinct from the mock-exam leaderboard
+# above. Two tabs, mirroring the mock-exam leaderboard's own
+# cumulative/specific split but scoped differently per product spec:
+# "Overall Journey" pools every completed DPS attempt across an entire
+# MODULE (every level within it), "Specific Level" pools every completed DPS
+# attempt within one single LEVEL. Both are unranked-cap: every student with
+# at least one qualifying completed attempt is returned, never a top-N
+# slice, same convention as get_cumulative_leaderboard()/
+# get_mock_exam_leaderboard() above.
+# ============================================================================
+
+# Mirrors achievements.py's own _DPS_COMPLETED_STATUSES exactly -- a DPS
+# attempt only counts toward the leaderboard once it's actually been
+# submitted (not abandoned mid-attempt), same bar the DPS badge detection
+# logic already uses. Keep these two definitions in sync if that ever changes.
+_DPS_LEADERBOARD_COMPLETED_STATUSES = ("SUBMITTED", "AUTO_SUBMITTED")
+
+
+def _build_dps_leaderboard_response(db: Session, results, requesting_student: Student):
+    """Shared post-processing for both DPS leaderboard endpoints below --
+    accuracy calc, ranking, and topBadges attachment are identical between
+    the module-scoped and level-scoped queries, only the grouping query
+    itself differs, so this keeps the two endpoints from silently drifting
+    apart the way copy-pasted logic tends to.
+
+    Ranking metric, per docs/project-memory/LEADERBOARD_REVAMP_SPEC_2026-08-25.md
+    ("Decisions" item 1, reconfirmed in the "all open questions closed"
+    section): average accuracy percentage desc, average time taken asc as
+    tiebreaker -- the exact same rule the mock-exam leaderboards use, just
+    computed from Attempt's own correct_count/total_questions instead of
+    CompetitionMockAttempt's. Pooled as sum(correct)/sum(total) rather than
+    averaging each attempt's own stored accuracy_percentage column --
+    mirrors get_cumulative_leaderboard()'s own fix for exactly this class of
+    bug (see its comment above: a plain AVG() of per-attempt percentages
+    silently drifts from the true pooled figure). "Score" and "accuracy" are
+    deliberately the same pooled number here (DPS has no separate marks-based
+    metric the spec asks for) -- both fields are populated so this still
+    satisfies the shared LeaderboardEntrySchema's required shape."""
+    from app.models.models import StudentBadge, AchievementBadge
+
+    processed_results = []
+    for r in results:
+        accuracy = (r.total_correct / r.total_questions_all * 100) if r.total_questions_all and r.total_questions_all > 0 else 0
+
+        processed_results.append({
+            "studentId": r.student_id,
+            "name": r.full_name,
+            "photoUrl": r.photo_url or r.student_photo,
+            "percentage": round(accuracy),
+            "score": round(accuracy),
+            "accuracy": round(accuracy),
+            "timeTakenSeconds": int(r.avg_time_taken_seconds or 0),
+            "sheetsCompleted": int(r.sheets_completed or 0),
+            "isCurrent": r.student_id == requesting_student.id,
+        })
+
+    # Sort by accuracy desc, time asc -- per the ranking-metric decision above.
+    processed_results.sort(key=lambda x: (-x['percentage'], x['timeTakenSeconds']))
+
+    leaderboard = []
+    current_student_rank = None
+    for idx, r in enumerate(processed_results):
+        rank = idx + 1
+        r['rank'] = rank
+        if r['isCurrent']:
+            current_student_rank = rank
+        leaderboard.append(r)
+
+    # Attach each shown student's top 3 badges (LEGENDARY > SUPER > BASE) --
+    # the DPS-scoped mirror image of get_cumulative_leaderboard()'s own
+    # topBadges block above. That leaderboard deliberately EXCLUDES dps_*
+    # codes (see the comment there and DPS_BADGE_COLOR_AUDIT_2026-08-03.md);
+    # this leaderboard is nothing BUT DPS, so dps_* is exactly what belongs
+    # here, and every non-DPS badge is excluded instead.
+    shown_student_ids = [entry["studentId"] for entry in leaderboard]
+    if shown_student_ids:
+        all_badges = db.query(AchievementBadge).filter(AchievementBadge.code.like('dps\\_%', escape='\\')).all()
+        badge_lookup = {
+            b.id: {"id": b.id, "code": b.code, "name": b.name, "tier": b.tier, "iconName": b.icon_name}
+            for b in all_badges
+        }
+        tier_score = {"LEGENDARY": 3, "SUPER": 2, "BASE": 1}
+        student_badge_rows = (
+            db.query(StudentBadge)
+            .filter(StudentBadge.student_id.in_(shown_student_ids))
+            .all()
+        )
+        badges_by_student: dict = {}
+        for sb in student_badge_rows:
+            if sb.badge_id in badge_lookup:
+                badges_by_student.setdefault(sb.student_id, []).append(badge_lookup[sb.badge_id])
+        for entry in leaderboard:
+            student_badges = badges_by_student.get(entry["studentId"], [])
+            student_badges.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
+            entry["topBadges"] = student_badges[:3]
+
+    return {
+        # Every student with at least one completed DPS attempt in scope --
+        # no top-N cap, same convention as the mock-exam leaderboards above.
+        "leaderboard": leaderboard,
+        "currentStudentRank": current_student_rank,
+        "currentStudentEntry": next((e for e in leaderboard if e["isCurrent"]), None),
+        "totalParticipants": len(processed_results),
+    }
+
+
+@router.get("/competition/dps/hierarchy")
+def get_dps_hierarchy(
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student)
+):
+    """Hierarchy for the DPS practice leaderboard -- distinct from
+    /competition/hierarchy above, which is scoped to a student's assigned
+    mock exams. DPS practice sheets are assigned platform-wide per
+    curriculum, not per-student like mock exams, so this simply lists every
+    active Module/Level rather than filtering to an assignment set."""
+    modules = db.query(Module).filter(Module.is_active == True).order_by(Module.display_order).all()  # noqa: E712
+    levels = db.query(Level).filter(Level.is_active == True).order_by(Level.display_order).all()  # noqa: E712
+    return {
+        "modules": [{"id": m.id, "name": m.module_name, "code": m.module_code} for m in modules],
+        "levels": [{"id": l.id, "moduleId": l.module_id, "name": l.level_name, "code": l.level_code} for l in levels],
+        "currentModuleId": student.current_module_id,
+        "currentLevelId": student.current_level_id,
+    }
+
+
+@router.get("/competition/dps/overall-leaderboard")
+def get_dps_overall_leaderboard(
+    module_id: str,
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student)
+):
+    """'Overall Journey' tab -- pools every completed DPS practice attempt
+    across every level within the given module, so a student's rank
+    reflects their whole practice journey through the module, not just
+    their current level."""
+    from app.models.models import User
+    from sqlalchemy import func
+
+    results = (
+        db.query(
+            Student.id.label('student_id'),
+            Student.photo_url.label('student_photo'),
+            User.full_name,
+            User.photo_url,
+            func.avg(Attempt.time_taken_seconds).label('avg_time_taken_seconds'),
+            func.sum(Attempt.correct_count).label('total_correct'),
+            func.sum(Attempt.total_questions).label('total_questions_all'),
+            func.count(Attempt.id).label('sheets_completed'),
+        )
+        .join(Student, Attempt.student_id == Student.id)
+        .join(User, Student.user_id == User.id)
+        .join(DPS, Attempt.dps_id == DPS.id)
+        .join(Lesson, DPS.lesson_id == Lesson.id)
+        .join(Level, Lesson.level_id == Level.id)
+        .filter(Level.module_id == module_id)
+        .filter(Attempt.status.in_(_DPS_LEADERBOARD_COMPLETED_STATUSES))
+        .filter(Attempt.submitted_at.isnot(None))
+        .group_by(Student.id, Student.photo_url, User.full_name, User.photo_url)
+        .all()
+    )
+
+    return _build_dps_leaderboard_response(db, results, student)
+
+
+@router.get("/competition/dps/specific-leaderboard")
+def get_dps_specific_leaderboard(
+    level_id: str,
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student)
+):
+    """'Specific Level' tab -- pools every completed DPS practice attempt
+    within one single level (every DPS sheet across every lesson in that
+    level), so a student's rank reflects their standing at their current
+    (or any selected) level specifically."""
+    from app.models.models import User
+    from sqlalchemy import func
+
+    results = (
+        db.query(
+            Student.id.label('student_id'),
+            Student.photo_url.label('student_photo'),
+            User.full_name,
+            User.photo_url,
+            func.avg(Attempt.time_taken_seconds).label('avg_time_taken_seconds'),
+            func.sum(Attempt.correct_count).label('total_correct'),
+            func.sum(Attempt.total_questions).label('total_questions_all'),
+            func.count(Attempt.id).label('sheets_completed'),
+        )
+        .join(Student, Attempt.student_id == Student.id)
+        .join(User, Student.user_id == User.id)
+        .join(DPS, Attempt.dps_id == DPS.id)
+        .join(Lesson, DPS.lesson_id == Lesson.id)
+        .join(Level, Lesson.level_id == Level.id)
+        .filter(Level.id == level_id)
+        .filter(Attempt.status.in_(_DPS_LEADERBOARD_COMPLETED_STATUSES))
+        .filter(Attempt.submitted_at.isnot(None))
+        .group_by(Student.id, Student.photo_url, User.full_name, User.photo_url)
+        .all()
+    )
+
+    return _build_dps_leaderboard_response(db, results, student)

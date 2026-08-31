@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "noEmit": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "global.d.ts",
+    "lib/schemas/dps-leaderboard.ts",
+    "lib/api-dps-leaderboard.ts",
+    "app/student/competition/dps-leaderboard/DpsPodiumHeroAnimation.tsx",
+    "app/student/competition/dps-leaderboard/page.tsx"
+  ]
+}
