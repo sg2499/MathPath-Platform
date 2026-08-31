@@ -130,8 +130,23 @@ def section_marks_metadata(module_code: str, registry_config: dict[str, Any]) ->
     Assessment Blueprint Studio can build its "Skill Stacker/Concept Drill
     question count drives everything else" UI (see validate_section_distribution's
     marks-must-equal-100 enforcement below) without hardcoding which sections
-    are weighted on the frontend. MM is never weighted -- flat 1 mark
-    everywhere, matching MM_FLAT_QUESTION_MARKS in assessment_engine_service.py.
+    are weighted on the frontend. MM joined the weighted set 2026-08-31
+    (Shailesh: "for the master module as well lets have all the concept
+    drill and skill stacker sums as 5 marks each across all the
+    workflows") -- its MM_SKILL_DRILL section (Skill Stacker + Concept
+    Drill pooled together, see MM_COMPETITION_SECTION_CONCEPT_POOLS in
+    competition_mock_generation_service.py) is weighted exactly like
+    IM's/PM's/BM's own Concept Drill sections, via MmQuestionMark() in
+    assessment_engine_service.py. This is the same gap class BM hit on
+    2026-08-07 (see below) reproduced for MM: without MM here, the
+    Assessment Blueprint Studio UI keeps reporting MM's weighted section as
+    worth 1 mark like every other section, so Auto Balance evenly splits
+    100 questions across all 10 sections and shows "100/100, ready to
+    publish" while the real generated assessment comes out to more than 100
+    marks -- caught by test_mm_full_http_round_trip and
+    test_mm_section_wise_blueprint_generates_flat_one_mark_questions going
+    red the moment MM's marks-weighting shipped without this file being
+    updated to match.
     PM and BM are included alongside _CONCEPT_WEIGHTED_MODULES (2026-08-05
     for PM, Shailesh; 2026-08-07 for BM) because PM-L2+ and BM-L1 each
     introduce their own Concept Drill section; PM-L1 is unaffected since
@@ -151,7 +166,7 @@ def section_marks_metadata(module_code: str, registry_config: dict[str, Any]) ->
     """
     section_defs = registry_config.get("sectionDefinitions", [])
     module_upper = (module_code or "").upper()
-    if module_upper not in _CONCEPT_WEIGHTED_MODULES and module_upper not in {"PM", "BM"}:
+    if module_upper not in _CONCEPT_WEIGHTED_MODULES and module_upper not in {"MM", "PM", "BM"}:
         return {row["key"]: {"isWeighted": False, "marksPerQuestion": 1.0} for row in section_defs}
     weighted_keys = _weighted_section_keys(registry_config)
     return {
@@ -376,7 +391,7 @@ def validate_section_distribution(
     # save/publish successfully and only fail later, inside
     # GenerateAssessmentVersion, with a much less actionable
     # ASSESSMENT_MARKS_MISMATCH error -- caught live via Chrome verification.
-    if module_upper in _CONCEPT_WEIGHTED_MODULES or module_upper in {"PM", "BM"}:
+    if module_upper in _CONCEPT_WEIGHTED_MODULES or module_upper in {"MM", "PM", "BM"}:
         weighted_keys = _weighted_section_keys(registry_config)
         computed_marks = sum(
             (_CONCEPT_WEIGHTED_MARKS if section_def["key"] in weighted_keys else 1.0) * count
@@ -396,15 +411,17 @@ def validate_section_distribution(
                     "weightedSectionKeys": sorted(weighted_keys),
                 },
             )
-    elif module_upper in {"MM", "YLM"}:
-        # MM has no Skill Stacker/Concept Drill concepts and never will
-        # (explicit product decision to keep MM's marking flat everywhere),
-        # so it stays flat 1 mark/question -- "always 100 questions". YLM
-        # joins this same flat branch (2026-08-11, Shailesh: "each question
-        # would have 1 mark each for both the flows") rather than
-        # _CONCEPT_WEIGHTED_MODULES -- YLM has no Skill Stacker/Concept
-        # Drill-style weighted concept at all, so it belongs on MM's exact
-        # "always 100 questions, 1 mark each" invariant, not IM's.
+    elif module_upper in {"YLM"}:
+        # YLM has no Skill Stacker/Concept Drill-style weighted concept at
+        # all, so it stays flat 1 mark/question -- "always 100 questions"
+        # (2026-08-11, Shailesh: "each question would have 1 mark each for
+        # both the flows"). MM used to share this exact branch (explicit
+        # product decision to keep MM's marking flat everywhere) until
+        # 2026-08-31, when that decision was reversed (Shailesh: "for the
+        # master module as well lets have all the concept drill and skill
+        # stacker sums as 5 marks each across all the workflows") and MM
+        # moved up into the weighted-marks branch above, alongside
+        # IM/PM/BM.
         if total_questions != int(TOTAL_ASSESSMENT_MARKS):
             api_error(
                 400,
