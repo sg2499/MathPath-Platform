@@ -550,8 +550,21 @@ export function AppShell({
     {
       label: "Practice",
       icon: BookOpen,
-      href: "/student/practice",
       tooltip: "Open assigned practice",
+      children: [
+        {
+          label: "Assigned DPS",
+          href: "/student/practice",
+          icon: BookOpen,
+          tooltip: "Open assigned practice sheets",
+        },
+        {
+          label: "DPS Leaderboard",
+          href: "/student/competition/dps-leaderboard",
+          icon: Trophy,
+          tooltip: "View daily practice sheet rankings",
+        },
+      ],
     },
     {
       label: "Assessments",
