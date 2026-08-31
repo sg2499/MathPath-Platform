@@ -270,6 +270,20 @@ function groupQuestionsBySection(questions: CompetitionMockQuestion[]) {
     .map((section, index) => ({ ...section, displaySectionNumber: index + 1 }));
 }
 
+// Marks/Question used to just echo the exam's flat marksPerQuestion field,
+// which is always 1 (an informational default, never actually per-question)
+// -- accurate for every mock until Concept Drill/Skill Stacker questions
+// started scoring 5 marks each (2026-08-31), after which that flat "1"
+// became actively misleading on any mock containing them. Deriving straight
+// from the generated questions' own marks means this never needs updating
+// again if another weighted format is added later.
+function describeMarksPerQuestion(questions: CompetitionMockQuestion[], fallbackMarksPerQuestion: number): string {
+  if (!questions.length) return fallbackMarksPerQuestion ? String(fallbackMarksPerQuestion) : "Auto";
+  const distinctMarks = Array.from(new Set(questions.map((question) => question.marks))).sort((left, right) => left - right);
+  if (distinctMarks.length === 1) return String(distinctMarks[0]);
+  return `${distinctMarks[0]}–${distinctMarks[distinctMarks.length - 1]} (Weighted)`;
+}
+
 export default function AdminCompetitionMockDetailPage() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const params = useParams<{ mockId: string }>();
@@ -352,7 +366,7 @@ export default function AdminCompetitionMockDetailPage() {
             <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <DetailMetric icon={<Target size={16} />} label="Questions" value={mock.totalQuestions} helper="Mock Length" />
               <DetailMetric icon={<ShieldCheck size={16} />} label="Total Marks" value={mock.totalMarks} helper="Competition Total" />
-              <DetailMetric icon={<FileText size={16} />} label="Marks/Question" value={mock.marksPerQuestion || "Auto"} helper="Configured Marking" />
+              <DetailMetric icon={<FileText size={16} />} label="Marks/Question" value={describeMarksPerQuestion(mock.questions || [], mock.marksPerQuestion)} helper="Configured Marking" />
               <DetailMetric icon={<Clock size={16} />} label="Duration" value={formatDuration(mock.durationSeconds)} helper="Competition Time" />
             </section>
 

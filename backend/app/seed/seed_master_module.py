@@ -495,6 +495,16 @@ def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int)
         raw_count = int(section_definition.get("questionCount") or 10)
         question_count = 5 if concept_family in {"SKILL_STACKER", "CONCEPT_DRILL"} else raw_count
         operation_focus = str(section_definition.get("operationFocus") or OperationFocusForConcept(concept_family))
+        # Skill Stacker / Concept Drill are worth 5 marks per question in
+        # DPS -- same platform-wide convention IM/PM/BM already enforce via
+        # this exact field (see seed_intermediate_module.py). Previously MM
+        # left this None (inheriting DPS.marks_per_question's flat 1), which
+        # is what kept MM's Concept Drill/Skill Stacker at 1 mark even
+        # though the rest of the platform treats them as 5-mark questions
+        # (Shailesh, 2026-08-31: "for the master module as well lets have
+        # all the concept drill and skill stacker sums as 5 marks each
+        # across all the workflows").
+        section_marks_per_question = 5.0 if concept_family in {"SKILL_STACKER", "CONCEPT_DRILL"} else None
 
         section_config = {
             **config,
@@ -516,6 +526,7 @@ def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int)
                 difficulty="MASTER",
                 allow_negative_operands=True,
                 allow_negative_answer=True,
+                marks_per_question=section_marks_per_question,
                 generator_config_json=json.dumps(section_config),
             )
             db.add(section)
@@ -533,6 +544,7 @@ def _upsert_sections(db: Session, dps: DPS, lesson_number: int, dps_number: int)
             section.difficulty = "MASTER"
             section.allow_negative_operands = True
             section.allow_negative_answer = True
+            section.marks_per_question = section_marks_per_question
             section.generator_config_json = json.dumps(section_config)
         saved_sections.append(section)
 

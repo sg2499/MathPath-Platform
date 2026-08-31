@@ -99,17 +99,22 @@ def _seed_module_level(db_session, module_code, module_name, level_code, level_n
     return module, level, admin
 
 
-def test_mm_section_wise_blueprint_generates_flat_one_mark_questions(db_session):
+def test_mm_section_wise_blueprint_weights_concept_drill_and_skill_stacker(db_session):
+    # 2026-08-31: MM's Section 10 (Skill Stacker/Concept Drill, key
+    # MM_SKILL_DRILL) is now weighted 5 marks/question, same as IM's own
+    # Skill Stacker/Concept Drill section (Shailesh: "for the master module
+    # as well lets have all the concept drill and skill stacker sums as 5
+    # marks each across all the workflows") -- MM assessments must always
+    # total exactly 100 marks, not 100 questions, so this mirrors
+    # test_im_section_wise_blueprint_weights_concept_drill_and_skill_stacker
+    # below instead of the old flat-1-mark-always fixture.
     module, level, admin = _seed_module_level(db_session, "MM", "Master Module", "MM-L1", "MM Level 1")
-    section_defs = MM_COMPETITION_LEVEL_REGISTRY["MM-L1"]["sectionDefinitions"]
+    registry_config = MM_COMPETITION_LEVEL_REGISTRY["MM-L1"]
+    section_defs = registry_config["sectionDefinitions"]
     assert len(section_defs) == 10
 
-    # 2026-07-23: MM assessments must always total exactly 100 questions (1
-    # mark each, so 100 marks) -- 10 sections x 10 questions each.
-    questions_per_section = 10
-    total_questions = len(section_defs) * questions_per_section
-    assert total_questions == 100
-    distribution = _full_section_distribution(section_defs, questions_per_section)
+    distribution = _valid_weighted_distribution(section_defs, registry_config["sectionConceptPools"], weighted_question_count=2)
+    total_questions = sum(row["questionCount"] for row in distribution)
 
     blueprint = bp_service.create_blueprint(
         db_session,
@@ -139,10 +144,12 @@ def test_mm_section_wise_blueprint_generates_flat_one_mark_questions(db_session)
         .all()
     )
     assert len(questions) == total_questions
-    # MM: every question is flat 1 mark, always -- total_marks must equal
-    # total_questions exactly, never the old 100-total auto-balanced scheme.
-    assert version.total_marks == total_questions
-    assert version.marks_per_question == 1.0
+    expected_total = sum(5.0 if q.concept_tag in WEIGHTED_FAMILIES else 1.0 for q in questions)
+    assert version.total_marks == expected_total
+    # The real point of this feature: total marks are always exactly 100,
+    # regardless of question count.
+    assert version.total_marks == 100.0
+    assert any(q.concept_tag in WEIGHTED_FAMILIES for q in questions)
     for question in questions:
         assert question.lesson_id is None
         assert question.source_type == "ASSESSMENT_SECTION_REGISTRY"
@@ -252,12 +259,16 @@ def test_im_weighted_question_count_is_editable_and_still_totals_100(db_session)
     assert version.total_marks == 100.0
 
 
-def test_mm_distribution_with_wrong_total_questions_is_rejected(db_session):
-    # 2026-07-23: MM assessments must always be exactly 100 questions (1 mark
-    # each) -- anything else must be rejected up front.
+def test_mm_distribution_violating_marks_invariant_is_rejected(db_session):
+    # 2026-08-31: MM moved onto the weighted-marks-must-equal-100 invariant
+    # (same as IM/PM/BM), so a uniform "same count everywhere" distribution
+    # is rejected as ASSESSMENT_MARKS_MISMATCH now, not the old flat
+    # ASSESSMENT_QUESTION_COUNT_MUST_BE_100 -- see
+    # test_im_distribution_violating_marks_invariant_is_rejected below,
+    # which this now mirrors exactly.
     module, level, admin = _seed_module_level(db_session, "MM", "Master Module", "MM-L1", "MM Level 1")
     section_defs = MM_COMPETITION_LEVEL_REGISTRY["MM-L1"]["sectionDefinitions"]
-    distribution = _full_section_distribution(section_defs, 4)  # 10 sections x 4 = 40, not 100
+    distribution = _full_section_distribution(section_defs, 4)  # 10 sections x 4 = 40 questions, 56 marks, not 100
     total_questions = sum(row["questionCount"] for row in distribution)
 
     with pytest.raises(HTTPException) as excinfo:
@@ -273,7 +284,7 @@ def test_mm_distribution_with_wrong_total_questions_is_rejected(db_session):
             created_by_user_id=admin.id,
             status="DRAFT",
         )
-    assert excinfo.value.detail["code"] == "ASSESSMENT_QUESTION_COUNT_MUST_BE_100"
+    assert excinfo.value.detail["code"] == "ASSESSMENT_MARKS_MISMATCH"
 
 
 def test_missing_section_in_distribution_is_rejected(db_session):
@@ -300,8 +311,14 @@ def test_missing_section_in_distribution_is_rejected(db_session):
 
 def test_generated_preview_groups_section_wise_questions_by_section(db_session):
     module, level, admin = _seed_module_level(db_session, "MM", "Master Module", "MM-L1", "MM Level 1")
-    section_defs = MM_COMPETITION_LEVEL_REGISTRY["MM-L1"]["sectionDefinitions"]
-    distribution = _full_section_distribution(section_defs, 10)  # 10 sections x 10 = 100, always exactly 100 for MM
+    registry_config = MM_COMPETITION_LEVEL_REGISTRY["MM-L1"]
+    section_defs = registry_config["sectionDefinitions"]
+    # 2026-08-31: MM's Section 10 is weighted now, so this needs a
+    # marks-balanced distribution (see test_mm_section_wise_blueprint_weights_
+    # concept_drill_and_skill_stacker above) rather than a uniform per-section
+    # count -- the grouping/coverage assertions below are unaffected either
+    # way since they check structure, not marks.
+    distribution = _valid_weighted_distribution(section_defs, registry_config["sectionConceptPools"], weighted_question_count=2)
     total_questions = sum(row["questionCount"] for row in distribution)
 
     blueprint = bp_service.create_blueprint(

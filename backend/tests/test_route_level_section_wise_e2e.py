@@ -116,12 +116,17 @@ def test_mm_full_http_round_trip(client):
     section_defs = sections_payload["sections"]
     assert len(section_defs) == len(MM_COMPETITION_LEVEL_REGISTRY["MM-L1"]["sectionDefinitions"])
 
-    # 2026-07-23: MM assessments must always total exactly 100 questions (1
-    # mark each) -- 10 sections x 10 questions each.
-    questions_per_section = 10
-    distribution = [{"sectionKey": s["sectionKey"], "questionCount": questions_per_section} for s in section_defs]
-    total_questions = len(section_defs) * questions_per_section
-    assert total_questions == 100
+    # 2026-08-31: MM's Section 10 (Skill Stacker/Concept Drill, key
+    # MM_SKILL_DRILL) is now weighted 5 marks/question, same as IM's own
+    # Skill Stacker/Concept Drill section -- MM assessments must always
+    # total exactly 100 marks, not 100 questions, so build a distribution
+    # that satisfies that invariant instead of a uniform per-section count
+    # (this replaces the old flat "10 sections x 10 questions = 100
+    # questions = 100 marks" fixture, which stopped being valid the moment
+    # MM stopped being flat-1-mark-everywhere; see test_im_full_http_round_trip
+    # above, which already used this exact pattern for IM).
+    distribution = _valid_weighted_distribution(section_defs, weighted_question_count=2)
+    total_questions = sum(row["questionCount"] for row in distribution)
 
     create_resp = test_client.post(
         "/api/admin/assessment-blueprints",
@@ -154,7 +159,13 @@ def test_mm_full_http_round_trip(client):
     assert generated["available"] is True
     assessment = generated["assessment"]
     assert assessment["questionCount"] == total_questions
-    assert assessment["totalMarks"] == total_questions  # MM: flat 1 mark/question
+    weighted_families = {"SKILL_STACKER", "CONCEPT_DRILL"}
+    expected_total = sum(
+        5.0 if q.get("conceptTag") in weighted_families else 1.0
+        for q in assessment["questions"]
+    )
+    assert assessment["totalMarks"] == expected_total
+    assert assessment["totalMarks"] == 100.0
     groups = assessment["lessonGroups"]
     assert len(groups) == len(section_defs)
     assert all(g["groupKind"] == "SECTION" for g in groups)

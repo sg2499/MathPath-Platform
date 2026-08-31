@@ -174,6 +174,30 @@ def BmQuestionMark(ConceptTag: str | None) -> float:
     return _CONCEPT_WEIGHTED_MARKS if ConceptTag in _BM_CONCEPT_WEIGHTED_FAMILIES else _CONCEPT_WEIGHTED_DEFAULT_MARKS
 
 
+# Master Module's own Concept Drill/Skill Stacker weighting (Shailesh,
+# 2026-08-31: "for the master module as well lets have all the concept
+# drill and skill stacker sums as 5 marks each across all the workflows").
+# MM previously stayed on its own flat-1-mark-always scheme everywhere
+# (DPS, assessments, mocks) per an earlier explicit decision -- this is a
+# deliberate, later reversal of that decision, scoped only to MM's own
+# Skill Stacker/Concept Drill questions via its own function/constant-set,
+# same reasoning as _BM_CONCEPT_WEIGHTED_FAMILIES above: a future change to
+# IM's, PM's, or BM's weighted-family set must never accidentally reweight
+# MM, and vice versa.
+_MM_CONCEPT_WEIGHTED_FAMILIES = {"SKILL_STACKER", "CONCEPT_DRILL"}
+
+
+def MmQuestionMark(ConceptTag: str | None) -> float:
+    """MM's own concept-weighted mark lookup. Flat 1 mark for every MM
+    question except Skill Stacker/Concept Drill (concept_tag in
+    _MM_CONCEPT_WEIGHTED_FAMILIES), worth 5 marks per question -- mirrors
+    IM's Skill Stacker/Concept Drill weighting exactly, in an MM-owned
+    function so a future change to IM's weighted-family set can never
+    silently reweight MM.
+    """
+    return _CONCEPT_WEIGHTED_MARKS if ConceptTag in _MM_CONCEPT_WEIGHTED_FAMILIES else _CONCEPT_WEIGHTED_DEFAULT_MARKS
+
+
 def ImConceptWeightedQuestionMark(ConceptTag: str | None) -> float:
     return _CONCEPT_WEIGHTED_MARKS if ConceptTag in _CONCEPT_WEIGHTED_FAMILIES else _CONCEPT_WEIGHTED_DEFAULT_MARKS
 
@@ -216,7 +240,8 @@ def ResolvedAssessmentQuestionMark(Db: Session, Version: AssessmentVersion | Non
     """
     ModuleCode = _AssessmentModuleCodeForVersion(Db, Version)
     if ModuleCode == "MM":
-        return MM_FLAT_QUESTION_MARKS
+        ConceptTag = Question.concept_tag if Question else None
+        return MmQuestionMark(ConceptTag)
     if ModuleCode == "PM":
         ConceptTag = Question.concept_tag if Question else None
         return PmQuestionMark(ConceptTag)
@@ -1325,8 +1350,12 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     Metadata = Generated.get("metadata", {}) or {}
                     ConceptTag = Metadata.get("concept_family") or ConceptSpec.get("conceptFamily")
                     if ModuleCode == "MM":
-                        QuestionMarks = MM_FLAT_QUESTION_MARKS
-                        MarksMode = "MM_FLAT"
+                        # MmQuestionMark() returns flat 1 for every MM
+                        # question except Skill Stacker/Concept Drill,
+                        # which is worth 5 -- see MmQuestionMark()'s
+                        # docstring.
+                        QuestionMarks = MmQuestionMark(ConceptTag)
+                        MarksMode = "MM_CONCEPT_WEIGHTED" if QuestionMarks != MM_FLAT_QUESTION_MARKS else "MM_FLAT"
                     elif ModuleCode == "BM":
                         # BmQuestionMark() returns flat 1 for every BM-L1
                         # question except its own Concept Drill format,
@@ -1545,7 +1574,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
         # exactly (flat 1 each); for IM it reflects the real concept-weighted
         # total.
         Version.total_marks = RunningWeightedMarksTotal
-        Version.marks_per_question = MM_FLAT_QUESTION_MARKS if ModuleCode in {"MM", "PM", "YLM"} else _CONCEPT_WEIGHTED_DEFAULT_MARKS
+        Version.marks_per_question = MM_FLAT_QUESTION_MARKS if ModuleCode in {"PM", "YLM"} else _CONCEPT_WEIGHTED_DEFAULT_MARKS
         Db.add(Version)
     Db.flush()
     return Version
