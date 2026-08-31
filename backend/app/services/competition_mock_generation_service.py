@@ -63,6 +63,17 @@ from app.services.ylm_competition_mock_generation_service import (
 DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 60
 DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 1800
 DEFAULT_COMPETITION_MARKS_PER_QUESTION = 1
+# Concept Drill / Skill Stacker are worth 5 marks per question here too, the
+# same platform-wide convention DPS and assessments already enforce for
+# every module that has these formats (Shailesh, 2026-08-31: "for the
+# master module as well lets have all the concept drill and skill stacker
+# sums as 5 marks each across all the workflows" -- and the original ask
+# this closes out, that mock exams never differentiated marks by concept at
+# all). This module serves both MM and IM competition mocks (BM/PM/YLM each
+# have their own dedicated generation service), so fixing it here covers
+# both in one place.
+_COMPETITION_CONCEPT_WEIGHTED_FAMILIES = {"SKILL_STACKER", "CONCEPT_DRILL"}
+_COMPETITION_CONCEPT_WEIGHTED_MARKS = 5.0
 MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 100
 MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 3600
 MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW = 15
@@ -2327,6 +2338,35 @@ def _RoundRobinSelectFromConceptBuckets(
     return Selected
 
 
+def _CompetitionQuestionConceptFamily(Question: dict[str, Any]) -> str:
+    Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+    return str(Metadata.get("conceptFamily") or Metadata.get("concept_family") or "").upper()
+
+
+def _ResolveCompetitionMockQuestionMarks(SelectedQuestions: list[dict[str, Any]]) -> list[float]:
+    """Per-question marks for a competition mock, aligned 1:1 with
+    SelectedQuestions. Flat scheme, mirroring DPS and assessments exactly
+    (Shailesh, 2026-08-31: "we only need the concept drill and skill
+    stacker sums to be of 5 marks, however number of these sums are there
+    they would always be of 5 marks... all the other questions would be
+    ... 1 mark each"): Concept Drill/Skill Stacker questions are always
+    worth _COMPETITION_CONCEPT_WEIGHTED_MARKS (5); every other question is
+    always worth DEFAULT_COMPETITION_MARKS_PER_QUESTION (1), regardless of
+    how many of each end up selected. The exam's total is whatever that
+    mix sums to -- there is no requirement (and no balancing) to force it
+    to 100, unlike assessments' admin-configured, validated-at-save-time
+    blueprints. A level with no Concept Drill/Skill Stacker questions at
+    all naturally stays flat throughout, since no question's concept
+    family will ever match the weighted set.
+    """
+    return [
+        _COMPETITION_CONCEPT_WEIGHTED_MARKS
+        if _CompetitionQuestionConceptFamily(Question) in _COMPETITION_CONCEPT_WEIGHTED_FAMILIES
+        else DEFAULT_COMPETITION_MARKS_PER_QUESTION
+        for Question in SelectedQuestions
+    ]
+
+
 def _QuestionConceptKey(Question: dict[str, Any], FallbackTitle: str) -> str:
     Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
     # Store the actual generated concept as the question concept tag.
@@ -2883,6 +2923,7 @@ def GenerateCompetitionMockDraft(
             "allocation sent to the server doesn't match this level's real section keys -- "
             "please reload the page and try again, or report this if it persists.",
         )
+    QuestionMarksByPosition = _ResolveCompetitionMockQuestionMarks(SelectedQuestions)
     DisplayMockCode = _NormalizeMockCodeInput(MockCode) or _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)
     _EnsureUniqueMockCode(db, LevelId=LevelRecord.id, MockCode=DisplayMockCode)
     MockTitle = Title or f"{LevelRecord.level_code} Competition Mock Practice {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
@@ -2895,7 +2936,7 @@ def GenerateCompetitionMockDraft(
         competition_scope=CompetitionScope or "GENERAL",
         difficulty_band=DifficultyBand or "COMPETITION",
         total_questions=ActualQuestionCount,
-        total_marks=ActualQuestionCount * DEFAULT_COMPETITION_MARKS_PER_QUESTION,
+        total_marks=sum(QuestionMarksByPosition),
         marks_per_question=DEFAULT_COMPETITION_MARKS_PER_QUESTION,
         duration_seconds=RequestedDurationSeconds,
         status="DRAFT",
@@ -2958,7 +2999,7 @@ def GenerateCompetitionMockDraft(
             source_type="LEVEL_DPS_GENERATOR",
             source_reference_id=str(Metadata.get("sourceDpsId") or ""),
             seed=str(Question.get("seed") or ""),
-            marks=DEFAULT_COMPETITION_MARKS_PER_QUESTION,
+            marks=QuestionMarksByPosition[Index - 1],
             metadata_json=json.dumps(QuestionMetadata),
         )
         db.add(QuestionRecord)
@@ -3081,6 +3122,7 @@ def CompetitionMockExamPayload(db: Session, ExamRecord: CompetitionMockExam, Inc
                 "difficulty": Question.difficulty,
                 "conceptFamily": Question.concept_family,
                 "conceptTag": Question.concept_tag,
+                "marks": Question.marks,
                 "options": [
                     {
                         "optionId": Option.id,

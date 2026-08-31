@@ -1266,6 +1266,7 @@ export type CompetitionMockQuestion = {
   difficulty: string;
   conceptFamily: string;
   conceptTag: string;
+  marks: number;
   options: CompetitionMockQuestionOption[];
 };
 

@@ -359,7 +359,7 @@ const router = useRouter();
         {!loading && leaderboard.length > 0 && (
           <>
             {/* Pure 2D Flexbox Podium */}
-            <div className="pt-32 pb-16 flex items-end justify-center gap-1 md:gap-4 relative mt-16 z-10">
+            <div className="pt-16 pb-8 flex items-end justify-center gap-1 md:gap-4 relative mt-16 z-10">
               <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[150%] max-w-5xl h-32 bg-gradient-to-t from-slate-900/20 dark:from-black/90 to-transparent blur-[20px] pointer-events-none rounded-[100%] transform rotateX(60deg)" />
               
               {/* Silver (Rank 2) */}
@@ -472,20 +472,20 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
     ? {
         color: "yellow", shadow: "rgba(250,204,21,0.6)", gradient: "from-yellow-300 to-yellow-600",
         pedestalGradient: "from-yellow-500 via-yellow-400 to-yellow-200", label: "1st",
-        height: "h-[350px] md:h-[400px]", avatarSize: "w-32 h-32 md:w-40 md:h-40", translateY: "translate-y-0",
+        height: "h-[220px] md:h-[260px]", avatarSize: "w-24 h-24 md:w-28 md:h-28", translateY: "translate-y-0",
         shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", bloom: "rgba(250,204,21,0.8)", delay: 0.6, textColor: "text-yellow-400"
       }
     : rank === 2 
     ? {
         color: "slate", shadow: "rgba(148,163,184,0.5)", gradient: "from-slate-200 to-slate-400",
-        pedestalGradient: "from-slate-300 to-slate-100", label: "2nd",
-        height: "h-[220px] md:h-[280px]", avatarSize: "w-24 h-24 md:w-32 md:h-32", translateY: "translate-y-0",
+        pedestalGradient: "from-slate-400 via-slate-300 to-slate-200", label: "2nd",
+        height: "h-[150px] md:h-[180px]", avatarSize: "w-20 h-20 md:w-24 md:h-24", translateY: "translate-y-0",
         shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)", bloom: "rgba(148,163,184,0.6)", delay: 0.5, textColor: "text-slate-200"
       }
     : {
         color: "orange", shadow: "rgba(249,115,22,0.5)", gradient: "from-orange-300 to-orange-500",
         pedestalGradient: "from-orange-400 to-orange-200", label: "3rd",
-        height: "h-[140px] md:h-[180px]", avatarSize: "w-20 h-20 md:w-28 md:h-28", translateY: "translate-y-0",
+        height: "h-[100px] md:h-[120px]", avatarSize: "w-16 h-16 md:w-20 md:h-20", translateY: "translate-y-0",
         shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)", bloom: "rgba(249,115,22,0.6)", delay: 0.4, textColor: "text-orange-400"
       };
 
@@ -503,7 +503,7 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handlePodiumClick}
-        className="relative mb-8 cursor-pointer transform-gpu transition-transform duration-300 ease-out group"
+        className="relative mb-5 cursor-pointer transform-gpu transition-transform duration-300 ease-out group"
         style={{ transform: `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg) scale(${isHovered ? 1.08 : 1})` }}
       >
         {/* Massive Hover Bloom */}
@@ -556,8 +556,8 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         </div>
       </div>
 
-      <div className="text-center mb-4 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-max min-w-[100px] mx-auto whitespace-nowrap">
-        <p className={`font-black text-sm md:text-base text-white ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
+      <div className="text-center mb-3 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-56 md:w-64 mx-auto">
+        <p className={`font-black text-sm md:text-base text-white truncate ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
         <p className={`text-xs md:text-sm font-black ${config.textColor} mt-0.5 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
         {student.topBadges && student.topBadges.length > 0 && (
           <div className="mt-2 flex justify-center">
@@ -568,11 +568,11 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
 
       {/* AAA Geometric Pedestal with Glass Foil Glare */}
       <motion.div 
-        initial={{ height: 0, opacity: 0 }}
-        animate={{ height: "100%", opacity: 1 }}
+        initial={{ scaleY: 0, opacity: 0 }}
+        animate={{ scaleY: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 100, damping: 15, delay: config.delay }}
-        className={`w-36 md:w-52 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-2 md:pb-4 border-b-[8px] border-white/40 shadow-[inset_0_0_30px_rgba(255,255,255,0.5)] cursor-pointer group`}
-        style={{ clipPath: config.shape, filter: `drop-shadow(0 -10px 40px ${config.shadow})` }}
+        className={`w-28 md:w-40 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-2 md:pb-4 border-b-[8px] border-white/40 shadow-[inset_0_0_30px_rgba(255,255,255,0.5)] cursor-pointer group`}
+        style={{ clipPath: config.shape, filter: `drop-shadow(0 -10px 40px ${config.shadow})`, transformOrigin: "bottom" }}
         onClick={handlePodiumClick}
       >
         {/* Animated Foil Glare (Sweeps on Hover) */}
