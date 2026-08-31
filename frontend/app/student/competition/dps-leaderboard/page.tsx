@@ -346,9 +346,8 @@ const router = useRouter();
                     <tr>
                       <th className="px-6 py-5">Rank</th>
                       <th className="px-6 py-5">Student</th>
-                      <th className="px-6 py-5 text-center">Score</th>
-                      <th className="px-6 py-5 text-center">Accuracy</th>
-                      <th className="px-6 py-5 text-center hidden md:table-cell">Sheets</th>
+                      <th className="px-6 py-5 text-center">Sheets</th>
+                      <th className="px-6 py-5 text-center">Avg Accuracy</th>
                       <th className="px-6 py-5 text-right hidden sm:table-cell">Avg Time</th>
                     </tr>
                   </thead>
@@ -561,7 +560,6 @@ function CrownIcon() {
 // tab, which used to show "0/0%" for every row below the podium.
 // ============================================================================
 function TableRow({ row: r, delay }: { row: any; delay: number }) {
-  const animatedScore = Math.round(r.score);
   const animatedAccuracy = Math.round(r.accuracy ?? r.percentage);
 
   return (
@@ -587,14 +585,11 @@ function TableRow({ row: r, delay }: { row: any; delay: number }) {
           <TopBadgeChips badges={r.topBadges} size="xs" />
         )}
       </td>
-      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">
-        {animatedScore}
+      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10">
+        {r.sheetsCompleted ?? "—"}
       </td>
       <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">
         {animatedAccuracy}%
-      </td>
-      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 hidden md:table-cell text-base relative z-10">
-        {r.sheetsCompleted ?? "—"}
       </td>
       <td className="px-6 py-5 text-right font-black text-slate-700 dark:text-slate-300 hidden sm:table-cell text-base relative z-10 transition-transform duration-300 group-hover:scale-105">
         {Math.floor(r.timeTakenSeconds / 60)}m {r.timeTakenSeconds % 60}s
