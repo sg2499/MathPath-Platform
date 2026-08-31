@@ -5851,3 +5851,119 @@ def gamification_sync_all(db: Session = Depends(get_db), user: User = Depends(ad
         return {"status": "error", "detail": str(e)}
 
 
+# ============================================================================
+# Superadmin DB Search -- read-only ad-hoc SQL, requested by the hosting team
+# in lieu of handing out a raw production DB credential to a dev machine.
+# Gated to SUPER_ADMIN/ADMIN via the existing admin_dep dependency (same as
+# every other route in this file). Defense in depth, two independent layers:
+#   1. App-level validation (_validate_select_only): single statement only
+#      (no semicolons), must start with SELECT or WITH, and a blocklist of
+#      write/DDL/session keywords as whole words.
+#   2. DB-level enforcement: runs on its own dedicated NullPool engine (never
+#      the shared app connection pool, so nothing here can leak a read-only
+#      session flag onto an unrelated later request) and, on Postgres, opens
+#      the transaction with SET TRANSACTION READ ONLY -- Postgres itself then
+#      rejects any write regardless of whether layer 1's regex has a gap.
+# Every query run through here is written to AuditLog (event_type
+# "ADMIN_DB_SEARCH") with the requesting user and the exact query text, since
+# this tool can see arbitrary student PII.
+# ============================================================================
+import re as _dbsearch_re
+from sqlalchemy import create_engine as _dbsearch_create_engine, text as _dbsearch_text
+from sqlalchemy.pool import NullPool as _DbSearchNullPool
+from app.core.config import DATABASE_URL as _DBSEARCH_DATABASE_URL
+from app.services.audit_service import log_event as _dbsearch_log_event
+
+_DB_SEARCH_ROW_LIMIT = 200
+_DB_SEARCH_STATEMENT_TIMEOUT_MS = "5000"
+
+_db_search_engine = None
+
+
+def _get_db_search_engine():
+    """Own engine, own pool (NullPool -- every call gets a brand-new physical
+    connection that is fully discarded afterward, never returned to any
+    pool). Deliberately never reuses app.database.engine's pooled
+    connections: a read-only transaction flag set on a pooled connection can
+    otherwise bleed into a later, unrelated request that happens to be
+    handed the same connection back."""
+    global _db_search_engine
+    if _db_search_engine is None:
+        _db_search_engine = _dbsearch_create_engine(_DBSEARCH_DATABASE_URL, poolclass=_DbSearchNullPool)
+    return _db_search_engine
+
+
+_DB_SEARCH_LEADING_RE = _dbsearch_re.compile(r"^\s*(with|select)\b", _dbsearch_re.IGNORECASE)
+_DB_SEARCH_BLOCKED_RE = _dbsearch_re.compile(
+    r"\b(insert|update|delete|drop|alter|truncate|grant|revoke|create|exec|execute|call|copy|"
+    r"vacuum|reindex|merge|replace|lock|listen|notify|refresh|import|into|do|attach|detach|"
+    r"pragma|set|comment)\b",
+    _dbsearch_re.IGNORECASE,
+)
+
+
+def _db_search_strip_comments(sql: str) -> str:
+    sql = _dbsearch_re.sub(r"/\*.*?\*/", " ", sql, flags=_dbsearch_re.DOTALL)
+    sql = _dbsearch_re.sub(r"--[^\n]*", " ", sql)
+    return sql
+
+
+def _validate_select_only(raw_query: str) -> str:
+    query = (raw_query or "").strip()
+    if not query:
+        api_error(400, "VALIDATION_ERROR", "Query is required.")
+    stripped = _db_search_strip_comments(query).strip()
+    if stripped.endswith(";"):
+        stripped = stripped[:-1].rstrip()
+    if ";" in stripped:
+        api_error(400, "VALIDATION_ERROR", "Only a single statement is allowed -- remove the semicolon(s).")
+    if not _DB_SEARCH_LEADING_RE.match(stripped):
+        api_error(400, "VALIDATION_ERROR", "Only SELECT (or WITH ... SELECT) queries are allowed.")
+    if _DB_SEARCH_BLOCKED_RE.search(stripped):
+        api_error(400, "VALIDATION_ERROR", "Query contains a disallowed keyword -- only read-only SELECT queries are allowed.")
+    return stripped
+
+
+def _db_search_serialize_cell(value):
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
+class DbSearchRequest(BaseModel):
+    query: str
+
+
+@router.post("/db-search")
+@limiter.limit("20/minute")
+def db_search(request: Request, payload: DbSearchRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    validated = _validate_select_only(payload.query)
+    wrapped = f"SELECT * FROM ({validated}) AS _mp_db_search_wrap LIMIT {_DB_SEARCH_ROW_LIMIT}"
+
+    engine = _get_db_search_engine()
+    is_postgres = engine.dialect.name == "postgresql"
+
+    try:
+        with engine.connect() as conn:
+            with conn.begin():
+                if is_postgres:
+                    conn.execute(_dbsearch_text(f"SET LOCAL statement_timeout = '{_DB_SEARCH_STATEMENT_TIMEOUT_MS}'"))
+                    conn.execute(_dbsearch_text("SET TRANSACTION READ ONLY"))
+                result = conn.execute(_dbsearch_text(wrapped))
+                columns = list(result.keys())
+                rows = [[_db_search_serialize_cell(v) for v in row] for row in result.fetchall()]
+    except Exception as e:
+        _dbsearch_log_event(db, "ADMIN_DB_SEARCH_ERROR", user_id=user.id, data={"query": payload.query, "error": str(e)})
+        db.commit()
+        api_error(400, "QUERY_ERROR", f"Query failed: {e}")
+
+    _dbsearch_log_event(db, "ADMIN_DB_SEARCH", user_id=user.id, data={"query": validated, "rowCount": len(rows)})
+    db.commit()
+
+    return {
+        "columns": columns,
+        "rows": rows,
+        "rowCount": len(rows),
+        "rowLimit": _DB_SEARCH_ROW_LIMIT,
+    }
+

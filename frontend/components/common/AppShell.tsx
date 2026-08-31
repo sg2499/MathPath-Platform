@@ -62,6 +62,7 @@ import {
   UserRound,
   UsersRound,
   X,
+  Database,
 } from "lucide-react";
 import type { ChangeEvent, ComponentType, CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -417,6 +418,19 @@ export function AppShell({
           href: "/admin/results",
           icon: FileBarChart,
           tooltip: "Generate performance reports",
+        },
+      ],
+    },
+    {
+      label: "System",
+      icon: Database,
+      tooltip: "Read-only database tools",
+      children: [
+        {
+          label: "Database Search",
+          href: "/admin/db-search",
+          icon: Database,
+          tooltip: "Run a read-only SELECT against the live database",
         },
       ],
     },
