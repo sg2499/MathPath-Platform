@@ -1463,3 +1463,20 @@ export async function getAdminCompetitionMockResult(attemptId: string) {
   return data;
 }
 
+
+// Superadmin DB Search -- read-only ad-hoc SELECT against production,
+// requested by the hosting team as the sanctioned alternative to handing a
+// raw DB credential to a dev machine. Backend enforces SELECT-only + a hard
+// row cap + (on Postgres) a genuinely read-only transaction; see
+// db_search() in routes_admin.py for the full contract.
+export type DbSearchResult = {
+  columns: string[];
+  rows: (string | number | boolean | null)[][];
+  rowCount: number;
+  rowLimit: number;
+};
+
+export async function runAdminDbSearch(query: string): Promise<DbSearchResult> {
+  const { data } = await api.post("/admin/db-search", { query });
+  return data;
+}
