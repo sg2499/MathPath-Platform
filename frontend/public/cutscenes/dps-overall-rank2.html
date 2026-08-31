@@ -189,10 +189,12 @@ function tryStartAudio(){
     var now=actx.currentTime;
     again.gain.linearRampToValueAtTime(0.85, now+1.4);
     audioStarted=true;
+    hideAudioHint();
   }catch(e){}
 }
 function stopAudio(){
   audioArmed=false;
+  hideAudioHint();
   if(again && actx){
     try{
       var now=actx.currentTime;
@@ -206,12 +208,67 @@ function stopAudio(){
 }
 var _audioUnlocked=false;
 function unlockAudio(){
-  if(_audioUnlocked) return; _audioUnlocked=true;
-  if(actx && actx.state==='suspended'){ try{ actx.resume(); }catch(e){} }
+  _audioUnlocked=true;
+  if(actx && actx.state==='suspended'){
+    try{
+      var p = actx.resume();
+      if(p && p.then){ p.then(function(){ tryStartAudio(); }).catch(function(){}); }
+    }catch(e){}
+  }
   tryStartAudio();
 }
-window.addEventListener('pointerdown', unlockAudio, {once:false});
-window.addEventListener('keydown', unlockAudio, {once:false});
+// Cross-device autoplay unlock: some browsers (notably Safari/WebKit on
+// macOS and iOS) only allow AudioContext playback to start from inside a
+// genuine, synchronous user-gesture handler. The gesture that opens this
+// cutscene (clicking a podium card) happens in the PARENT page, not in this
+// iframe's own document, so we listen broadly here for the first gesture
+// the user makes once the cutscene is actually on screen, on both the
+// capture phase (in case something inside the page stops propagation) and
+// the bubble phase, across every gesture type a real device might send.
+var _unlockEvents = ['pointerdown','pointerup','mousedown','click','touchstart','touchend','keydown'];
+_unlockEvents.forEach(function(evt){
+  try{ document.addEventListener(evt, unlockAudio, {capture:true, passive:true}); }catch(e){}
+  try{ window.addEventListener(evt, unlockAudio, {passive:true}); }catch(e){}
+});
+// Visible fallback: if nothing has unlocked audio shortly after load (the
+// user is just watching, no further click/keypress happens), show an
+// unmissable, unobtrusive "tap for sound" pill so there is always an
+// explicit, on-screen gesture available to satisfy any browser's autoplay
+// policy -- this is what makes playback reliable "no matter what device".
+var _audioHintEl=null, _audioHintTimer=null;
+var _reducedMotion=false;
+try{ _reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+function showAudioHint(){
+  if(audioStarted || _audioHintEl || !document.body) return;
+  try{
+    _audioHintEl = document.createElement('div');
+    _audioHintEl.textContent = '\ud83d\udd0a Tap for sound';
+    _audioHintEl.setAttribute('role','button');
+    _audioHintEl.setAttribute('aria-label','Tap to enable sound');
+    _audioHintEl.setAttribute('style',
+      'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);' +
+      'z-index:2147483647;padding:9px 18px;border-radius:999px;' +
+      'background:rgba(15,17,26,0.82);color:#fff;' +
+      'font:600 13px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
+      'letter-spacing:.02em;box-shadow:0 4px 18px rgba(0,0,0,0.35);' +
+      'cursor:pointer;user-select:none;-webkit-user-select:none;' +
+      'pointer-events:auto;white-space:nowrap;' +
+      (_reducedMotion ? 'opacity:1;' : 'opacity:0;transition:opacity .25s ease;'));
+    document.body.appendChild(_audioHintEl);
+    if(!_reducedMotion){
+      requestAnimationFrame(function(){ if(_audioHintEl){ _audioHintEl.style.opacity='1'; } });
+    }
+    var onHintTap = function(ev){ try{ ev.stopPropagation(); }catch(e){} unlockAudio(); };
+    _audioHintEl.addEventListener('pointerdown', onHintTap);
+    _audioHintEl.addEventListener('click', onHintTap);
+    _audioHintEl.addEventListener('touchstart', onHintTap, {passive:true});
+  }catch(e){}
+}
+function hideAudioHint(){
+  if(_audioHintTimer){ clearTimeout(_audioHintTimer); _audioHintTimer=null; }
+  if(_audioHintEl){ try{ _audioHintEl.remove(); }catch(e){} _audioHintEl=null; }
+}
+_audioHintTimer = setTimeout(showAudioHint, 550);
 loadAudio();
 
 /* ============================================================
