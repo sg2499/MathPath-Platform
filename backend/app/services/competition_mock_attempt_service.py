@@ -1024,6 +1024,24 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
         import logging
         logging.error(f"Gamification engine failed for attempt {attempt.id}: {e}")
 
+    # --- Leaderboard rank-change notification (2026-09-01) ---
+    # Notifies the student of their Mock Overall Journey (cumulative) + Mock
+    # Specific Exam standing after this attempt (podium placement, improved,
+    # dropped, or held vs. their position immediately before this attempt),
+    # plus a podium-only notification to their teacher. Mirrors the DPS hook
+    # in attempt_service.py's _process_attempt_gamification_side_effects();
+    # see rank_notification_service.py's own docstring for how "before" is
+    # computed with no stored rank history anywhere in this schema. Wrapped
+    # in its own try/except so a bug here can never take down the economy/
+    # badge results this function returns for the reward modal.
+    try:
+        from app.services.rank_notification_service import NotifyMockLeaderboardRankChange
+
+        NotifyMockLeaderboardRankChange(db, attempt)
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to send mock leaderboard rank notification for attempt {attempt.id}: {e}")
+
     return {
         "unlockedBadges": unlocked_badges,
         "awardedXP": final_xp,

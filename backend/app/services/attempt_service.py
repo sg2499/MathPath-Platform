@@ -504,6 +504,25 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
         import logging
         logging.error(f"Failed to evaluate DPS badges for attempt {attempt.id}: {e}")
 
+    # --- Leaderboard rank-change notification (2026-09-01) ---
+    # Notifies the student of their DPS Overall Journey + DPS Specific Level
+    # standing after this attempt (podium placement, improved, dropped, or
+    # held vs. their position immediately before this attempt), plus a
+    # podium-only notification to their teacher. See
+    # rank_notification_service.py's own docstring for how "before" is
+    # computed with no stored rank history anywhere in this schema. Wrapped
+    # in its own try/except, same as the badge block above, so a bug here
+    # can never take down the economy award this function's caller depends
+    # on for the reward modal.
+    try:
+        from app.services.rank_notification_service import NotifyDpsLeaderboardRankChange
+
+        NotifyDpsLeaderboardRankChange(db, attempt)
+    except Exception as e:
+        db.rollback()
+        import logging
+        logging.error(f"Failed to send DPS leaderboard rank notification for attempt {attempt.id}: {e}")
+
     return econ_result
 
 

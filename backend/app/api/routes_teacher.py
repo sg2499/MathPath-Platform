@@ -10,6 +10,7 @@ from app.database import get_db
 from app.dependencies import get_current_teacher
 from app.models import Assignment, Attempt, DPS, Lesson, Level, Module, Student, Teacher, User, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentReattemptApproval, StudentLevelPromotion, AssessmentReadinessTestingOverride, CompetitionMockAssignment, CompetitionMockExam, CompetitionMockAttempt, CompetitionMockResultSummary
 from app.services.assignment_service import create_assignment
+from app.services import leaderboard_service
 from app.services.attempt_chain_service import ATTEMPT_SOURCE_MANUAL_RETRY
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.attempt_service import result_payload
@@ -2056,3 +2057,97 @@ def teacher_manual_intervention_queue(db: Session = Depends(get_db), teacher: Te
         },
         "rows": rows,
     }
+
+
+# ============================================================================
+# Teacher-facing Leaderboard nav (2026-09-01) -- new "Leaderboard" nav
+# dropdown (DPS Leaderboard, Mock Leaderboard) so teachers can track how
+# their students are doing across both, per Shailesh's explicit request.
+# Shows the SAME full leaderboard every student sees (not scoped down to
+# only the teacher's own students -- Shailesh's explicit choice), with the
+# requesting teacher's own students flagged via isOwnStudent so the
+# frontend can highlight them. Every ranking query is the exact same shared
+# leaderboard_service.py the 4 student leaderboard endpoints use (see that
+# file), so a teacher's view of a leaderboard and a student's view of the
+# same leaderboard can never silently disagree.
+# ============================================================================
+
+@router.get("/competition/dps/hierarchy")
+def teacher_dps_leaderboard_hierarchy(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    """Hierarchy for the teacher DPS leaderboard pages -- every active
+    Module/Level, platform-wide (mirrors the student get_dps_hierarchy() in
+    routes_student.py; a teacher has no personal "current level" the way a
+    student does, so currentModuleId/currentLevelId are always null and the
+    frontend falls back to the first module/level, same as it already does
+    for a student with no current level set)."""
+    modules = db.query(Module).filter(Module.is_active == True).order_by(Module.display_order).all()  # noqa: E712
+    levels = db.query(Level).filter(Level.is_active == True).order_by(Level.display_order).all()  # noqa: E712
+    return {
+        "modules": [{"id": m.id, "name": m.module_name, "code": m.module_code} for m in modules],
+        "levels": [{"id": l.id, "moduleId": l.module_id, "name": l.level_name, "code": l.level_code} for l in levels],
+        "currentModuleId": None,
+        "currentLevelId": None,
+    }
+
+
+@router.get("/competition/dps/overall-leaderboard")
+def teacher_dps_overall_leaderboard(module_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    """DPS 'Overall Journey' tab, teacher view -- same ranking as the
+    student endpoint (leaderboard_service.rank_dps_overall_journey), with
+    the teacher's own students flagged instead of a single "current
+    student"."""
+    leaderboard = leaderboard_service.rank_dps_overall_journey(db, module_id)
+    own_student_ids = {s.id for s in own_students_query(db, teacher).all()}
+    return leaderboard_service.wrap_for_teacher(leaderboard, own_student_ids)
+
+
+@router.get("/competition/dps/specific-leaderboard")
+def teacher_dps_specific_leaderboard(level_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    """DPS 'Specific Level' tab, teacher view."""
+    leaderboard = leaderboard_service.rank_dps_specific_level(db, level_id)
+    own_student_ids = {s.id for s in own_students_query(db, teacher).all()}
+    return leaderboard_service.wrap_for_teacher(leaderboard, own_student_ids)
+
+
+@router.get("/competition/mock/hierarchy")
+def teacher_mock_leaderboard_hierarchy(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    """Hierarchy for the teacher Mock leaderboard pages -- every active,
+    non-archived exam platform-wide, not scoped to any one student's
+    assignments the way the student get_competition_hierarchy() is (a
+    teacher needs to be able to pick any exam to see how the whole class
+    did on it, not just exams assigned to one particular student)."""
+    modules = db.query(Module).filter(Module.is_active == True).order_by(Module.display_order).all()  # noqa: E712
+    levels = db.query(Level).filter(Level.is_active == True).order_by(Level.display_order).all()  # noqa: E712
+    exams = (
+        db.query(CompetitionMockExam)
+        .filter(CompetitionMockExam.is_active == True, CompetitionMockExam.status != "ARCHIVED")  # noqa: E712
+        .order_by(CompetitionMockExam.title.asc())
+        .all()
+    )
+    return {
+        "modules": [{"id": m.id, "name": m.module_name, "code": m.module_code} for m in modules],
+        "levels": [{"id": l.id, "moduleId": l.module_id, "name": l.level_name, "code": l.level_code} for l in levels],
+        "exams": [{"id": e.id, "levelId": e.level_id, "moduleId": e.module_id, "title": e.title} for e in exams],
+        "currentModuleId": None,
+        "currentLevelId": None,
+    }
+
+
+@router.get("/competition/mock/cumulative-leaderboard")
+def teacher_mock_cumulative_leaderboard(level_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    """Mock 'Overall Journey' (cumulative) tab, teacher view."""
+    leaderboard = leaderboard_service.rank_mock_overall_journey(db, level_id)
+    own_student_ids = {s.id for s in own_students_query(db, teacher).all()}
+    return leaderboard_service.wrap_for_teacher(leaderboard, own_student_ids)
+
+
+@router.get("/competition/mock/specific-leaderboard")
+def teacher_mock_specific_leaderboard(exam_id: str, level_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    """Mock 'Specific Exam' tab, teacher view. `level_id` is required
+    explicitly (unlike the student endpoint, which always implicitly used
+    the requesting student's own current_level_id) since a teacher has no
+    single current level of their own -- the frontend passes the exam's own
+    level_id from the hierarchy response."""
+    leaderboard = leaderboard_service.rank_mock_specific_exam(db, exam_id, level_id)
+    own_student_ids = {s.id for s in own_students_query(db, teacher).all()}
+    return leaderboard_service.wrap_for_teacher(leaderboard, own_student_ids)

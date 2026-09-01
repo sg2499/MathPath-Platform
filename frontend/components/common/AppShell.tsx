@@ -47,6 +47,7 @@ import {
   LayoutDashboard,
   Loader2,
   LogOut,
+  Medal,
   Menu,
   Moon,
   PanelTopClose,
@@ -535,6 +536,25 @@ export function AppShell({
           href: "/teacher/competition/progress",
           icon: TrendingUp,
           tooltip: "Track mock strengths and weak areas",
+        },
+      ],
+    },
+    {
+      label: "Leaderboard",
+      icon: Medal,
+      tooltip: "View DPS and mock exam leaderboards",
+      children: [
+        {
+          label: "DPS Leaderboard",
+          href: "/teacher/leaderboard/dps",
+          icon: Trophy,
+          tooltip: "See how your students rank on daily practice sheets",
+        },
+        {
+          label: "Mock Leaderboard",
+          href: "/teacher/leaderboard/mock",
+          icon: Trophy,
+          tooltip: "See how your students rank on competition mock exams",
         },
       ],
     },
