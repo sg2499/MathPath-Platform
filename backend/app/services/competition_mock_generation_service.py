@@ -74,6 +74,25 @@ DEFAULT_COMPETITION_MARKS_PER_QUESTION = 1
 # both in one place.
 _COMPETITION_CONCEPT_WEIGHTED_FAMILIES = {"SKILL_STACKER", "CONCEPT_DRILL"}
 _COMPETITION_CONCEPT_WEIGHTED_MARKS = 5.0
+
+
+def _CompetitionMockWeightedSectionKeys(SectionConceptPools: dict[str, list[dict[str, Any]]]) -> set[str]:
+    """Section keys whose ENTIRE concept pool is Skill Stacker / Concept
+    Drill (worth _COMPETITION_CONCEPT_WEIGHTED_MARKS each) rather than the
+    flat DEFAULT_COMPETITION_MARKS_PER_QUESTION. Mirrors
+    assessment_blueprint_service.py's _weighted_section_keys() exactly (same
+    "every concept in the pool is weighted" rule), reimplemented locally
+    rather than imported so this module's marking/planning logic never
+    depends on (and can never be silently changed by)
+    assessment_blueprint_service.py -- same reasoning
+    _COMPETITION_CONCEPT_WEIGHTED_FAMILIES's own comment already gives for
+    keeping this module's marking logic self-contained.
+    """
+    Weighted: set[str] = set()
+    for Key, Concepts in (SectionConceptPools or {}).items():
+        if Concepts and all(Concept.get("conceptFamily") in _COMPETITION_CONCEPT_WEIGHTED_FAMILIES for Concept in Concepts):
+            Weighted.add(Key)
+    return Weighted
 MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT = 100
 MM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS = 3600
 MM_COMPETITION_RECENT_MOCK_FRESHNESS_WINDOW = 15
@@ -1207,6 +1226,179 @@ def _ApplyMmCompetitionQuestionShaping(Question: dict[str, Any], *, SectionKey: 
     return ShapedQuestion
 
 
+def _BalanceCompetitionMockSectionCounts(
+    SectionDefinitions: list[dict[str, Any]],
+    SectionConceptPools: dict[str, list[dict[str, Any]]],
+    WeightedCountsOverride: dict[str, int] | None,
+    DefaultTotal: int,
+) -> dict[str, int] | None:
+    """Per-section question counts for a competition mock so the mock ALWAYS
+    totals exactly 100 marks (Shailesh, 2026-09-01: the Mock Studio's
+    Section Allocation panel never got the same "always 100 marks"
+    treatment MM/PM/BM assessment blueprints already have -- it just split
+    "Total Questions" evenly across every section with zero notion that
+    Concept Drill/Skill Stacker sections are worth 5 marks/question, so a
+    100-question MM mock actually totalled 140 marks. This is that fix,
+    extended to the mock flow).
+
+    Returns None when the level has no weighted (Skill Stacker/Concept
+    Drill) section at all -- e.g. PM-L1, YLM -- so the caller falls back to
+    the pre-2026-09-01 flat even-split behaviour untouched; there is
+    nothing to balance when every question is worth the same 1 mark.
+
+    Otherwise: weighted sections are the ONLY thing WeightedCountsOverride
+    (the admin's own input, from the Mock Studio's "Weighted (5
+    marks/question)" boxes) sets directly -- defaulting to an even split of
+    DefaultTotal across every section (the same number the admin used to
+    see under the old flat UI) when nothing is overridden yet. Flat
+    sections (1 mark/question) are no longer admin-editable at all -- they
+    always auto-fill however many marks are left after the weighted
+    sections (100 - weighted_marks), split evenly across them with the
+    remainder handed to the first few in definition order, exactly
+    mirroring _RedistributeSectionCounts' own remainder rule just below.
+    Raises COMPETITION_MOCK_MARKS_INVALID if the admin's weighted counts
+    alone already exceed 100 marks, or leave marks nothing can absorb (no
+    flat section exists) -- same guard _ResolveCompetitionMockQuestionMarks
+    already uses for the generated question mix itself.
+    """
+    WeightedKeys = _CompetitionMockWeightedSectionKeys(SectionConceptPools)
+    if not WeightedKeys:
+        return None
+
+    if WeightedCountsOverride:
+        # Defense-in-depth, same bug class as the BM regression fix
+        # (2026-08-07): if every key in the override is foreign to this
+        # level's real section registry -- a section-key mismatch between
+        # what the admin's Section Allocation panel sent and what this
+        # level actually defines -- trust none of it and defer entirely
+        # to the pre-2026-09-01 flat/override-passthrough path (return
+        # None, same sentinel as "no weighted section"). That path's own
+        # _RedistributeSectionCounts resolves every real section to 0
+        # when nothing in the override matches, so
+        # _CollectGeneratedQuestions ends up with 0 selected questions and
+        # GenerateCompetitionMockDraft's existing COMPETITION_MOCK_GENERATION_EMPTY
+        # check fails loudly -- exactly the same failure mode a mismatch
+        # produced before this file's marks-balancing existed, not a new
+        # one (a full-zero map here would trip the earlier <10 questions
+        # check instead, with a less specific error).
+        RealKeys = {Section["key"] for Section in SectionDefinitions}
+        if not (set(WeightedCountsOverride.keys()) & RealKeys):
+            return None
+
+    FlatSections = [Section for Section in SectionDefinitions if Section["key"] not in WeightedKeys]
+    WeightedSections = [Section for Section in SectionDefinitions if Section["key"] in WeightedKeys]
+    WeightedOverride = WeightedCountsOverride or {}
+    DefaultPerSection = max(1, round(max(1, int(DefaultTotal or 1)) / max(1, len(SectionDefinitions))))
+
+    WeightedCounts: dict[str, int] = {}
+    for Section in WeightedSections:
+        Key = Section["key"]
+        Raw = WeightedOverride.get(Key)
+        WeightedCounts[Key] = max(0, int(Raw if Raw is not None else DefaultPerSection))
+
+    WeightedMarksTotal = sum(Count * _COMPETITION_CONCEPT_WEIGHTED_MARKS for Count in WeightedCounts.values())
+    RemainingMarks = 100.0 - WeightedMarksTotal
+
+    if RemainingMarks < 0 or (not FlatSections and abs(RemainingMarks) > 1e-9):
+        api_error(
+            400,
+            "COMPETITION_MOCK_MARKS_INVALID",
+            f"This weighted question count cannot total exactly 100 marks: "
+            f"{sum(WeightedCounts.values())} Concept Drill/Skill Stacker question(s) alone are worth "
+            f"{WeightedMarksTotal:g} marks, leaving {RemainingMarks:g} for the remaining sections. "
+            "Reduce the weighted question count so the totals can balance to 100.",
+        )
+
+    RemainingMarksInt = int(round(RemainingMarks))
+    FlatCounts: dict[str, int] = {}
+    if FlatSections:
+        Base = RemainingMarksInt // len(FlatSections)
+        Remainder = RemainingMarksInt % len(FlatSections)
+        for Index, Section in enumerate(FlatSections):
+            FlatCounts[Section["key"]] = Base + (1 if Index < Remainder else 0)
+
+    Result: dict[str, int] = {}
+    for Section in SectionDefinitions:
+        Key = Section["key"]
+        Result[Key] = WeightedCounts[Key] if Key in WeightedCounts else FlatCounts.get(Key, 0)
+    return Result
+
+
+def _CompetitionMockSectionPlanSections(
+    SectionDefinitions: list[dict[str, Any]],
+    SectionConceptPools: dict[str, list[dict[str, Any]]],
+    RequestedQuestionCount: int,
+    DefaultTotal: int,
+) -> tuple[list[dict[str, Any]], int]:
+    """Shared by every CompetitionMockSectionPlan() module branch below:
+    builds the section list -- tagged with isWeighted/marksPerQuestion so
+    the Mock Studio's Section Allocation panel can render weighted sections
+    as admin-editable and flat sections as auto-computed -- and returns the
+    actual total question count. For a level with a weighted section this
+    is now ALWAYS the marks-balanced total (see
+    _BalanceCompetitionMockSectionCounts), not the raw RequestedQuestionCount
+    a caller passed in; for a level with none, it's the old flat even-split,
+    unchanged.
+    """
+    WeightedKeys = _CompetitionMockWeightedSectionKeys(SectionConceptPools)
+    BalancedCounts = _BalanceCompetitionMockSectionCounts(SectionDefinitions, SectionConceptPools, None, DefaultTotal)
+    if BalancedCounts is not None:
+        Sections = [
+            {
+                "sectionKey": Section["key"],
+                "sectionNumber": Section["number"],
+                "sectionTitle": Section["title"],
+                "questionCount": BalancedCounts.get(Section["key"], 0),
+                "locked": True,
+                "isWeighted": Section["key"] in WeightedKeys,
+                "marksPerQuestion": _COMPETITION_CONCEPT_WEIGHTED_MARKS if Section["key"] in WeightedKeys else float(DEFAULT_COMPETITION_MARKS_PER_QUESTION),
+            }
+            for Section in SectionDefinitions
+        ]
+        return Sections, sum(BalancedCounts.values())
+
+    RequestedQuestionCount = max(1, int(RequestedQuestionCount or DefaultTotal))
+    Base = RequestedQuestionCount // len(SectionDefinitions)
+    Remainder = RequestedQuestionCount % len(SectionDefinitions)
+    Sections = [
+        {
+            "sectionKey": Section["key"],
+            "sectionNumber": Section["number"],
+            "sectionTitle": Section["title"],
+            "questionCount": Base + (1 if Index < Remainder else 0),
+            "locked": True,
+            "isWeighted": False,
+            "marksPerQuestion": float(DEFAULT_COMPETITION_MARKS_PER_QUESTION),
+        }
+        for Index, Section in enumerate(SectionDefinitions)
+    ]
+    return Sections, RequestedQuestionCount
+
+
+def _CompetitionMockLevelSectionConfig(ModuleRecord: Module, LevelRecord: Level) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]] | None:
+    """(SectionDefinitions, SectionConceptPools) for whichever module/level
+    this mock belongs to, or None for a module with no admin-curated
+    section registry (the generic per-DPS pool further down, which has no
+    concept-pool weighting to speak of). Mirrors the same _Is*Module
+    dispatch CompetitionMockSectionPlan() already uses; kept separate from
+    it because GenerateCompetitionMockDraft() only needs the
+    (definitions, pools) pair, not a full preview-shaped response.
+    """
+    if _IsMasterModule(ModuleRecord):
+        Config = _MmCompetitionLevelConfig(LevelRecord)
+    elif _IsIntermediateModule(ModuleRecord):
+        Config = _ImCompetitionLevelConfig(LevelRecord)
+    elif _IsPreparatoryModule(ModuleRecord):
+        Config = PmCompetitionLevelConfig(LevelRecord)
+    elif _IsBridgeModule(ModuleRecord):
+        Config = BmCompetitionLevelConfig(LevelRecord)
+    elif _IsYoungLearnersModule(ModuleRecord):
+        Config = YlmCompetitionLevelConfig(LevelRecord)
+    else:
+        return None
+    return Config["sectionDefinitions"], Config["sectionConceptPools"]
+
+
 def _RedistributeSectionCounts(
     TargetTotal: int,
     SectionDefinitions: list[dict[str, Any]],
@@ -1807,18 +1999,11 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         # here too, not just at actual generation time.
         MmLevelConfig = _MmCompetitionLevelConfig(LevelRecord)
         MmSectionDefinitions = MmLevelConfig["sectionDefinitions"]
+        MmSectionConceptPools = MmLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
-        Base = RequestedQuestionCount // len(MmSectionDefinitions)
-        Remainder = RequestedQuestionCount % len(MmSectionDefinitions)
-        Sections = []
-        for Index, Section in enumerate(MmSectionDefinitions):
-            Sections.append({
-                "sectionKey": Section["key"],
-                "sectionNumber": Section["number"],
-                "sectionTitle": Section["title"],
-                "questionCount": Base + (1 if Index < Remainder else 0),
-                "locked": True,
-            })
+        Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
+            MmSectionDefinitions, MmSectionConceptPools, RequestedQuestionCount, MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+        )
         return {
             "moduleId": ModuleRecord.id,
             "moduleCode": ModuleRecord.module_code,
@@ -1838,18 +2023,11 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         # under a different level's name.
         ImLevelConfig = _ImCompetitionLevelConfig(LevelRecord)
         ImSectionDefinitions = ImLevelConfig["sectionDefinitions"]
+        ImSectionConceptPools = ImLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
-        Base = RequestedQuestionCount // len(ImSectionDefinitions)
-        Remainder = RequestedQuestionCount % len(ImSectionDefinitions)
-        Sections = []
-        for Index, Section in enumerate(ImSectionDefinitions):
-            Sections.append({
-                "sectionKey": Section["key"],
-                "sectionNumber": Section["number"],
-                "sectionTitle": Section["title"],
-                "questionCount": Base + (1 if Index < Remainder else 0),
-                "locked": True,
-            })
+        Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
+            ImSectionDefinitions, ImSectionConceptPools, RequestedQuestionCount, IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+        )
         return {
             "moduleId": ModuleRecord.id,
             "moduleCode": ModuleRecord.module_code,
@@ -1869,18 +2047,11 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         # non-sectioned pool below.
         PmLevelConfig = PmCompetitionLevelConfig(LevelRecord)
         PmSectionDefinitions = PmLevelConfig["sectionDefinitions"]
+        PmSectionConceptPools = PmLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
-        Base = RequestedQuestionCount // len(PmSectionDefinitions)
-        Remainder = RequestedQuestionCount % len(PmSectionDefinitions)
-        Sections = []
-        for Index, Section in enumerate(PmSectionDefinitions):
-            Sections.append({
-                "sectionKey": Section["key"],
-                "sectionNumber": Section["number"],
-                "sectionTitle": Section["title"],
-                "questionCount": Base + (1 if Index < Remainder else 0),
-                "locked": True,
-            })
+        Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
+            PmSectionDefinitions, PmSectionConceptPools, RequestedQuestionCount, PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+        )
         return {
             "moduleId": ModuleRecord.id,
             "moduleCode": ModuleRecord.module_code,
@@ -1913,18 +2084,11 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         # keys the same keys generation actually understands.
         BmLevelConfig = BmCompetitionLevelConfig(LevelRecord)
         BmSectionDefinitions = BmLevelConfig["sectionDefinitions"]
+        BmSectionConceptPools = BmLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or BM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
-        Base = RequestedQuestionCount // len(BmSectionDefinitions)
-        Remainder = RequestedQuestionCount % len(BmSectionDefinitions)
-        Sections = []
-        for Index, Section in enumerate(BmSectionDefinitions):
-            Sections.append({
-                "sectionKey": Section["key"],
-                "sectionNumber": Section["number"],
-                "sectionTitle": Section["title"],
-                "questionCount": Base + (1 if Index < Remainder else 0),
-                "locked": True,
-            })
+        Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
+            BmSectionDefinitions, BmSectionConceptPools, RequestedQuestionCount, BM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+        )
         return {
             "moduleId": ModuleRecord.id,
             "moduleCode": ModuleRecord.module_code,
@@ -1950,18 +2114,11 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         # regression fix above already documents.
         YlmLevelConfig = YlmCompetitionLevelConfig(LevelRecord)
         YlmSectionDefinitions = YlmLevelConfig["sectionDefinitions"]
+        YlmSectionConceptPools = YlmLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or YLM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
-        Base = RequestedQuestionCount // len(YlmSectionDefinitions)
-        Remainder = RequestedQuestionCount % len(YlmSectionDefinitions)
-        Sections = []
-        for Index, Section in enumerate(YlmSectionDefinitions):
-            Sections.append({
-                "sectionKey": Section["key"],
-                "sectionNumber": Section["number"],
-                "sectionTitle": Section["title"],
-                "questionCount": Base + (1 if Index < Remainder else 0),
-                "locked": True,
-            })
+        Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
+            YlmSectionDefinitions, YlmSectionConceptPools, RequestedQuestionCount, YLM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+        )
         return {
             "moduleId": ModuleRecord.id,
             "moduleCode": ModuleRecord.module_code,
@@ -2880,7 +3037,28 @@ def GenerateCompetitionMockDraft(
         else YLM_DEFAULT_COMPETITION_MOCK_DURATION_SECONDS if IsYlmMock
         else DEFAULT_COMPETITION_MOCK_DURATION_SECONDS
     )
-    RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)
+    # 2026-09-01 (Shailesh): a level with a weighted (Skill Stacker/Concept
+    # Drill) section must always generate a mock totalling exactly 100
+    # marks -- same invariant MM/PM/BM assessment blueprints already
+    # enforce, extended to the mock flow, which never had it (see
+    # _BalanceCompetitionMockSectionCounts). When one exists, the balanced
+    # count map is authoritative for every section, weighted and flat
+    # alike -- TotalQuestions/SectionCountsOverride's raw flat-section
+    # values (if the client still sent any) are superseded here, since the
+    # Mock Studio UI only lets the admin edit the weighted section(s) now.
+    # A level with no weighted section (PM-L1, YLM, ...) is untouched.
+    LevelSectionConfig = _CompetitionMockLevelSectionConfig(ModuleRecord, LevelRecord)
+    BalancedSectionCounts = None
+    if LevelSectionConfig is not None:
+        SectionDefinitionsForBalance, SectionConceptPoolsForBalance = LevelSectionConfig
+        BalancedSectionCounts = _BalanceCompetitionMockSectionCounts(
+            SectionDefinitionsForBalance, SectionConceptPoolsForBalance, SectionCountsOverride, DefaultQuestionCount,
+        )
+    if BalancedSectionCounts is not None:
+        SectionCountsOverride = BalancedSectionCounts
+        RequestedQuestionCount = sum(BalancedSectionCounts.values())
+    else:
+        RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)
     if RequestedQuestionCount < 10:
         api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams must contain at least 10 questions.")
     if RequestedQuestionCount > 300:
