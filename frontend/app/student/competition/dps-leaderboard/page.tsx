@@ -94,8 +94,8 @@ const searchParams = useSearchParams();
         setModules(fetchedModules);
         setLevels(fetchedLevels);
 
-        let targetModuleId = null;
-        let targetLevelId = null;
+        let targetModuleId: string | null = null;
+        let targetLevelId: string | null = null;
 
         // Deep-link support (2026-09-01) -- a leaderboard rank-change
         // notification links here with ?viewMode=OVERALL&moduleId=... or

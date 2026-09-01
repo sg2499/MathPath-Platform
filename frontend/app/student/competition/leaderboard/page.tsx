@@ -97,9 +97,9 @@ const searchParams = useSearchParams();
         setLevels(fetchedLevels);
         setExams(fetchedExams);
         
-        let targetModuleId = null;
-        let targetLevelId = null;
-        let targetExamId = null;
+        let targetModuleId: string | null = null;
+        let targetLevelId: string | null = null;
+        let targetExamId: string | null = null;
 
         // Deep-link support (2026-09-01) -- a leaderboard rank-change
         // notification links here with ?viewMode=CUMULATIVE&levelId=... or
