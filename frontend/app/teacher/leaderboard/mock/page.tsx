@@ -14,6 +14,7 @@ import type {
 } from "@/lib/schemas/teacher-leaderboard";
 import type { ModuleSchema, LevelSchema, ExamSchema } from "@/lib/schemas/leaderboard";
 import { z } from "zod";
+import { motion } from "framer-motion";
 import { BadgeIconMap, getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
 
 // Small badge-chip cluster -- same convention as the student leaderboard
@@ -49,37 +50,156 @@ function getInitials(name: string) {
   return name.substring(0, 2).toUpperCase();
 }
 
-const MEDAL_STYLE: Record<number, { ring: string; bg: string; text: string; label: string }> = {
-  1: { ring: "ring-yellow-400", bg: "from-yellow-300 to-yellow-500", text: "text-yellow-600", label: "1st" },
-  2: { ring: "ring-slate-300", bg: "from-slate-200 to-slate-400", text: "text-slate-500", label: "2nd" },
-  3: { ring: "ring-orange-300", bg: "from-orange-300 to-orange-500", text: "text-orange-600", label: "3rd" },
-};
-
+// ============================================================================
+// AAA Parallax Podium Card with Glass Foil & Gyroscope Hover -- the exact
+// same visual card the student DPS/Mock leaderboards use (2026-09-01), so a
+// podium looks like the same podium everywhere it appears. No hero-cutscene
+// wiring here (teachers don't get the click-to-launch podium animation) --
+// this is the card's look, ported as-is, minus the onActivateHero hook.
+// ============================================================================
 function PodiumCard({ entry, rank, isHighlighted, cardRef }: { entry: TeacherLeaderboardEntry; rank: number; isHighlighted?: boolean; cardRef?: React.Ref<HTMLDivElement> }) {
-  const style = MEDAL_STYLE[rank];
+  const [physics, setPhysics] = useState({ rx: 0, ry: 0, px: 0, py: 0 });
+  const [isHovered, setIsHovered] = useState(false);
+  const tiltRef = React.useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!tiltRef.current) return;
+    const rect = tiltRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const ry = ((x / rect.width) - 0.5) * 40;
+    const rx = ((0.5 - (y / rect.height))) * 40;
+    const px = ((x / rect.width) - 0.5) * -30;
+    const py = ((y / rect.height) - 0.5) * -30;
+    setPhysics({ rx, ry, px, py });
+  };
+  const handleMouseEnter = () => setIsHovered(true);
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setPhysics({ rx: 0, ry: 0, px: 0, py: 0 });
+  };
+
+  const config = rank === 1
+    ? {
+        color: "yellow", shadow: "rgba(250,204,21,0.6)", gradient: "from-yellow-300 to-yellow-600",
+        pedestalGradient: "from-yellow-500 via-yellow-400 to-yellow-200", label: "1st",
+        height: "h-[220px] md:h-[260px]", avatarSize: "w-24 h-24 md:w-28 md:h-28",
+        shape: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", bloom: "rgba(250,204,21,0.8)", delay: 0.6, textColor: "text-yellow-400"
+      }
+    : rank === 2
+    ? {
+        color: "slate", shadow: "rgba(148,163,184,0.5)", gradient: "from-slate-200 to-slate-400",
+        pedestalGradient: "from-slate-400 via-slate-300 to-slate-200", label: "2nd",
+        height: "h-[150px] md:h-[180px]", avatarSize: "w-20 h-20 md:w-24 md:h-24",
+        shape: "polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)", bloom: "rgba(148,163,184,0.6)", delay: 0.5, textColor: "text-slate-200"
+      }
+    : {
+        color: "orange", shadow: "rgba(249,115,22,0.5)", gradient: "from-orange-300 to-orange-500",
+        pedestalGradient: "from-orange-400 to-orange-200", label: "3rd",
+        height: "h-[100px] md:h-[120px]", avatarSize: "w-16 h-16 md:w-20 md:h-20",
+        shape: "polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)", bloom: "rgba(249,115,22,0.6)", delay: 0.4, textColor: "text-orange-400"
+      };
+
   return (
-    <div ref={cardRef} className={`flex flex-col items-center gap-3 rounded-2xl transition-all ${isHighlighted ? "ring-4 ring-indigo-400 ring-offset-4 ring-offset-white dark:ring-offset-slate-950 animate-pulse p-2" : ""} ${rank === 1 ? "order-2" : rank === 2 ? "order-1" : "order-3"}`}>
-      <div className={`relative w-20 h-20 md:w-24 md:h-24 rounded-full ring-4 ${style.ring} overflow-hidden shadow-lg bg-slate-100 dark:bg-slate-800`}>
-        {entry.photoUrl ? (
-          <img src={entry.photoUrl} alt="avatar" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center font-black text-2xl text-slate-500">{getInitials(entry.name)}</div>
+    <motion.div
+      ref={cardRef}
+      initial={{ opacity: 0, y: 150 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 150, damping: 20, delay: config.delay }}
+      className={`flex flex-col items-center relative z-10 ${rank === 1 ? "order-2" : rank === 2 ? "order-1" : "order-3"} ${isHighlighted ? "ring-4 ring-[var(--mp-role-primary)] ring-offset-4 ring-offset-white dark:ring-offset-slate-950 rounded-3xl animate-pulse p-2" : ""}`}
+      style={{ zIndex: rank === 1 ? 20 : rank === 2 ? 10 : 5 }}
+    >
+      <div
+        ref={tiltRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="relative mb-5 transform-gpu transition-transform duration-300 ease-out group"
+        style={{ transform: `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg) scale(${isHovered ? 1.08 : 1})` }}
+      >
+        {/* Massive Hover Bloom */}
+        <div
+          className="absolute inset-0 rounded-full blur-[30px] transition-all duration-500 z-0 pointer-events-none"
+          style={{ backgroundColor: config.bloom, opacity: isHovered ? 1 : 0.2, transform: isHovered ? 'scale(1.8)' : 'scale(1.2)' }}
+        />
+
+        {/* 1st Place Crown */}
+        {rank === 1 && (
+          <div className="absolute -top-12 left-1/2 drop-shadow-[0_0_30px_rgba(250,204,21,1)] z-30 pointer-events-none"
+               style={{ transform: `translateX(-50%) scale(${isHovered ? 1.3 : 1})` }}>
+             <CrownIcon />
+          </div>
         )}
-        <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 bg-gradient-to-br ${style.bg} text-white text-xs font-black px-2.5 py-1 rounded-full border-2 border-white dark:border-slate-900 shadow`}>
-          {style.label}
+
+        {/* 1st Place Apex Aura */}
+        {rank === 1 && (
+          <div className="absolute inset-0 z-[-1] pointer-events-none scale-[1.6] opacity-80 animate-[spin_20s_linear_infinite] flex items-center justify-center">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-[0_0_20px_rgba(250,204,21,0.8)] text-yellow-500/80 fill-current">
+              <path d="M100 0 L105 45 L150 20 L130 60 L185 65 L145 90 L195 125 L145 130 L165 175 L120 150 L110 195 L90 155 L45 185 L65 145 L10 140 L50 115 L0 80 L50 75 L30 30 L75 55 Z" />
+            </svg>
+          </div>
+        )}
+
+        {/* Gyroscopic Avatar Rings */}
+        <div className={`relative ${config.avatarSize} z-10 transition-transform duration-300 ease-out`}
+             style={{ transform: isHovered ? `translateZ(60px) translateX(${physics.px}px) translateY(${physics.py}px)` : 'translateZ(0)' }}>
+          <div className={`w-full h-full rounded-full border-[4px] border-white dark:border-slate-900 overflow-hidden bg-${config.color}-50 relative z-20 shadow-[0_0_40px_${config.shadow}]`}>
+             {entry.photoUrl ? (
+                <img src={entry.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+             ) : (
+                <div className={`w-full h-full flex items-center justify-center font-black text-3xl text-${config.color}-600 bg-${config.color}-100`}>
+                   {getInitials(entry.name)}
+                </div>
+             )}
+          </div>
+          <div className={`absolute inset-[-15%] rounded-full border-2 border-dashed border-${config.color}-400/50 z-10 transition-all duration-700 ${isHovered ? 'opacity-100 animate-[spin_4s_linear_infinite]' : 'opacity-0 scale-50'}`} style={{ transformStyle: 'preserve-3d', transform: 'rotateX(45deg)' }} />
+          <div className={`absolute inset-[-25%] rounded-full border-2 border-solid border-${config.color}-300/30 z-10 transition-all duration-1000 ${isHovered ? 'opacity-100 animate-[spin_6s_linear_infinite_reverse]' : 'opacity-0 scale-50'}`} style={{ transformStyle: 'preserve-3d', transform: 'rotateY(45deg)' }} />
+        </div>
+
+        {/* Rank Label */}
+        <div className={`absolute -bottom-4 -right-2 bg-gradient-to-br ${config.gradient} text-white text-[12px] md:text-sm font-black px-3 py-1.5 rounded-full border-2 border-white shadow-[0_10px_20px_rgba(0,0,0,0.3)] uppercase tracking-widest z-30 transition-transform duration-300`}
+             style={{ transform: isHovered ? 'translateZ(80px) scale(1.1)' : 'translateZ(0)' }}>
+           {config.label}
         </div>
       </div>
-      <div className="text-center max-w-[150px]">
-        <p className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate flex items-center justify-center gap-1">
+
+      <div className="text-center mb-3 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-56 md:w-64 mx-auto">
+        <p className={`font-black text-sm md:text-base text-white truncate flex items-center justify-center gap-1.5 ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>
           {entry.name}
-          {entry.isOwnStudent && <Star size={12} className="text-indigo-500 shrink-0" fill="currentColor" />}
+          {entry.isOwnStudent && <Star size={12} className="text-[var(--mp-role-accent)] shrink-0" fill="currentColor" />}
         </p>
-        <p className={`text-sm font-black ${style.text}`}>{Math.round(entry.percentage)}%</p>
+        <p className={`text-xs md:text-sm font-black ${config.textColor} mt-0.5 drop-shadow-md`}>{Math.round(entry.percentage)}%</p>
         {entry.topBadges && entry.topBadges.length > 0 && (
-          <div className="mt-1 flex justify-center"><TopBadgeChips badges={entry.topBadges} size="xs" /></div>
+          <div className="mt-2 flex justify-center">
+            <TopBadgeChips badges={entry.topBadges} size="sm" />
+          </div>
         )}
       </div>
-    </div>
+
+      {/* AAA Geometric Pedestal with Glass Foil Glare */}
+      <motion.div
+        initial={{ scaleY: 0, opacity: 0 }}
+        animate={{ scaleY: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 100, damping: 15, delay: config.delay }}
+        className={`w-28 md:w-40 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-2 md:pb-4 border-b-[8px] border-white/40 shadow-[inset_0_0_30px_rgba(255,255,255,0.5)] group`}
+        style={{ clipPath: config.shape, filter: `drop-shadow(0 -10px 40px ${config.shadow})`, transformOrigin: "bottom" }}
+      >
+        <div className="absolute top-0 -left-[100%] w-1/2 h-[200%] bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-[-45deg] transition-all duration-700 ease-in-out group-hover:left-[200%] z-10" />
+        <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-500 z-0" style={{ opacity: isHovered ? 0.5 : 0 }} />
+        <span className={`text-7xl md:text-8xl font-black text-${config.color}-700/30 drop-shadow-md transition-all duration-500 z-20`}
+              style={{ transform: isHovered ? 'scale(1.1) translateY(-10px)' : 'scale(1)', textShadow: isHovered ? `0 0 30px ${config.shadow}` : 'none' }}>
+          {rank}
+        </span>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function CrownIcon() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="#EAB308" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 22H22V20H2V22ZM21.6 6.3L17.2 13.5L12.5 4.5C12.3 4.2 11.7 4.2 11.5 4.5L6.8 13.5L2.4 6.3C2.1 5.9 1.4 6 1.3 6.5L3 18H21L22.7 6.5C22.6 6 21.9 5.9 21.6 6.3Z" fill="currentColor"/>
+    </svg>
   );
 }
 
@@ -87,27 +207,27 @@ function TableRow({ row, isHighlighted, rowRef }: { row: TeacherLeaderboardEntry
   return (
     <tr
       ref={rowRef}
-      className={`transition-colors ${isHighlighted ? "bg-indigo-100 dark:bg-indigo-900/50 animate-pulse" : row.isOwnStudent ? "bg-indigo-50/60 dark:bg-indigo-900/20" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+      className={`group transition-colors ${isHighlighted ? "bg-[var(--mp-role-primary)]/15 ring-2 ring-inset ring-[var(--mp-role-primary)] animate-pulse z-10 relative" : row.isOwnStudent ? "bg-[var(--mp-role-primary)]/5" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
     >
-      <td className="px-6 py-4 font-black text-slate-500 dark:text-slate-400">#{row.rank}</td>
+      <td className="px-6 py-4 font-black text-slate-500 dark:text-slate-400 group-hover:text-[var(--mp-role-primary)] transition-colors">#{row.rank}</td>
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/40 overflow-hidden flex-shrink-0">
-            {row.photoUrl ? <img src={row.photoUrl} alt="avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-bold text-xs text-indigo-700">{getInitials(row.name)}</div>}
+          <div className="w-9 h-9 rounded-full bg-[var(--mp-role-primary)]/10 overflow-hidden flex-shrink-0">
+            {row.photoUrl ? <img src={row.photoUrl} alt="avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-bold text-xs text-[var(--mp-role-primary)]">{getInitials(row.name)}</div>}
           </div>
           <div className="min-w-0">
             <p className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{row.name}</p>
             {row.isOwnStudent && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
+              <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-[var(--mp-role-primary)]">
                 <Star size={10} fill="currentColor" /> Your Student
               </span>
             )}
           </div>
+          {row.topBadges && row.topBadges.length > 0 && <TopBadgeChips badges={row.topBadges} size="xs" />}
         </div>
       </td>
-      <td className="px-6 py-4 text-center font-semibold text-sm text-slate-600 dark:text-slate-300">{Math.round(row.score)}</td>
       <td className="px-6 py-4 text-center font-black text-sm text-slate-800 dark:text-slate-100">{Math.round(row.accuracy)}%</td>
-      <td className="px-6 py-4 text-right hidden sm:table-cell font-semibold text-sm text-slate-500 dark:text-slate-400">
+      <td className="px-6 py-4 text-right hidden sm:table-cell font-black text-sm text-slate-700 dark:text-slate-300">
         {Math.floor(row.timeTakenSeconds / 60)}m {row.timeTakenSeconds % 60}s
       </td>
     </tr>
@@ -242,13 +362,13 @@ function TeacherMockLeaderboardPageInner() {
             <div className="flex gap-3 w-fit">
               <button
                 onClick={() => setViewMode("CUMULATIVE")}
-                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all ${viewMode === "CUMULATIVE" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-indigo-500"}`}
+                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "bg-[var(--mp-role-primary)] text-white shadow-lg shadow-[var(--mp-role-primary)]/30 ring-2 ring-[var(--mp-role-primary)] ring-offset-2 ring-offset-white dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-[var(--mp-role-primary)] hover:bg-[var(--mp-role-primary)]/5 dark:hover:bg-[var(--mp-role-primary)]/10"}`}
               >
                 Overall Journey
               </button>
               <button
                 onClick={() => setViewMode("INDIVIDUAL")}
-                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all ${viewMode === "INDIVIDUAL" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-indigo-500"}`}
+                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "bg-[var(--mp-role-primary)] text-white shadow-lg shadow-[var(--mp-role-primary)]/30 ring-2 ring-[var(--mp-role-primary)] ring-offset-2 ring-offset-white dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-[var(--mp-role-primary)] hover:bg-[var(--mp-role-primary)]/5 dark:hover:bg-[var(--mp-role-primary)]/10"}`}
               >
                 Specific Exam
               </button>
@@ -261,7 +381,7 @@ function TeacherMockLeaderboardPageInner() {
                   <select
                     value={selectedModuleId || ""}
                     onChange={(e) => handleModuleChange(e.target.value)}
-                    className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none"
+                    className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
                   >
                     {modules.length > 0 ? modules.map((m) => <option key={m.id} value={m.id}>{m.name}</option>) : <option disabled value="">No modules available</option>}
                   </select>
@@ -275,7 +395,7 @@ function TeacherMockLeaderboardPageInner() {
                   <select
                     value={selectedLevelId || ""}
                     onChange={(e) => handleLevelChange(e.target.value)}
-                    className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none"
+                    className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
                   >
                     {availableLevels.length > 0 ? availableLevels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>) : <option disabled value="">No levels available</option>}
                   </select>
@@ -290,7 +410,7 @@ function TeacherMockLeaderboardPageInner() {
                     <select
                       value={selectedExamId || ""}
                       onChange={(e) => setSelectedExamId(e.target.value)}
-                      className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:outline-none"
+                      className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
                     >
                       {availableExams.length > 0 ? availableExams.map((ex) => <option key={ex.id} value={ex.id}>{ex.title}</option>) : <option disabled value="">No exams available</option>}
                     </select>
@@ -321,7 +441,7 @@ function TeacherMockLeaderboardPageInner() {
         {!loading && !error && leaderboard.length > 0 && (
           <>
             {top3.length > 0 && (
-              <div className="math-card rounded-3xl p-8 flex items-end justify-center gap-6">
+              <div className="math-card rounded-3xl p-8 pt-16 md:pt-20 flex items-end justify-center gap-2 md:gap-6 relative">
                 {top3[1] && <PodiumCard entry={top3[1]} rank={2} isHighlighted={top3[1].studentId === highlightStudentId} cardRef={top3[1].studentId === highlightStudentId ? highlightCardRef : undefined} />}
                 {top3[0] && <PodiumCard entry={top3[0]} rank={1} isHighlighted={top3[0].studentId === highlightStudentId} cardRef={top3[0].studentId === highlightStudentId ? highlightCardRef : undefined} />}
                 {top3[2] && <PodiumCard entry={top3[2]} rank={3} isHighlighted={top3[2].studentId === highlightStudentId} cardRef={top3[2].studentId === highlightStudentId ? highlightCardRef : undefined} />}
@@ -335,9 +455,8 @@ function TeacherMockLeaderboardPageInner() {
                     <tr>
                       <th className="px-6 py-5">Rank</th>
                       <th className="px-6 py-5">Student</th>
-                      <th className="px-6 py-5 text-center">Score</th>
-                      <th className="px-6 py-5 text-center">Accuracy</th>
-                      <th className="px-6 py-5 text-right hidden sm:table-cell">Time Taken</th>
+                      <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Accuracy" : "Accuracy"}</th>
+                      <th className="px-6 py-5 text-right hidden sm:table-cell">{viewMode === "CUMULATIVE" ? "Avg Time" : "Time Taken"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
