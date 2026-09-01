@@ -219,8 +219,8 @@ function TableRow({ row, isHighlighted, rowRef }: { row: TeacherLeaderboardEntry
       <td className="px-6 py-4 font-black text-slate-500 dark:text-slate-400 group-hover:text-[var(--mp-role-primary)] transition-colors">#{row.rank}</td>
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[var(--mp-role-primary)]/10 overflow-hidden flex-shrink-0">
-            {row.photoUrl ? <img src={row.photoUrl} alt="avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-bold text-xs text-[var(--mp-role-primary)]">{getInitials(row.name)}</div>}
+          <div className="w-9 h-9 rounded-full bg-[var(--mp-role-accent)] dark:bg-[var(--mp-role-primary)]/40 overflow-hidden flex-shrink-0 shadow-sm ring-1 ring-[var(--mp-role-primary)]/15">
+            {row.photoUrl ? <img src={row.photoUrl} alt="avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-black text-xs text-[var(--mp-role-primary)] dark:text-[var(--mp-role-accent)]">{getInitials(row.name)}</div>}
           </div>
           <div className="min-w-0">
             <p className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{row.name}</p>
