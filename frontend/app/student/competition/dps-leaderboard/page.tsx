@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { Trophy, Users, AlertCircle, ChevronDown, ArrowLeft } from "lucide-react";
 import { DpsLeaderboardAPI } from "@/lib/api-dps-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -60,7 +60,7 @@ function getInitials(name: string) {
   return name.substring(0, 2).toUpperCase();
 }
 
-export default function DpsLeaderboardPage() {
+function DpsLeaderboardPageInner() {
 const Ready = useProtectedPage(["STUDENT"]);
 const router = useRouter();
 const searchParams = useSearchParams();
@@ -412,6 +412,14 @@ const searchParams = useSearchParams();
         )}
       </div>
     </div>
+  );
+}
+
+export default function DpsLeaderboardPage() {
+  return (
+    <Suspense fallback={<LoadingState message="Loading leaderboard..." />}>
+      <DpsLeaderboardPageInner />
+    </Suspense>
   );
 }
 
