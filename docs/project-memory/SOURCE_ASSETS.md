@@ -111,3 +111,24 @@ None for the current Master Module Level 9 source set. The 150 DPS images and 3 
 - Found candidate folder `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Modules\MM`.
 - User confirmed authoritative source folder `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Modules\MM\Level - 9`.
 - Verified 30 lesson folders, 150 `.png` DPS images, and 3 `.xlsx` workbooks.
+
+### 2026-08-27
+
+- Received 6 of the 12 DPS-leaderboard cutscene soundtrack source tracks referenced in `LEADERBOARD_REVAMP_SPEC_2026-08-25.md` (the other 6, for Mock, were received and wired 2026-08-26). Saved to `reference-assets/audio/` under clean names; each is the RAW/full source track, not pre-trimmed -- the original filename encoded the intended mm:ss trim range, verified below.
+- Verified via `ffprobe` that every file is longer than its labeled trim range (these are full source tracks, the range is an instruction, not a description of the delivered file) and via `ffmpeg silencedetect` (-40dB threshold, 0.3s min) that the exact labeled trim range contains zero silence gaps in all 6 -- safe raw material for a seamless indefinite loop (matching the Mock cutscenes' `asrc.loop=true` pattern).
+
+| Saved as | Original filename | Trim range (mm:ss) | Trimmed length |
+|---|---|---|---|
+| `dps-overall-rank1-source.mp3` | Practice · Overall Journey · Rank 1 · 0.00 to 2.30 | 0:00 - 2:30 | 150s |
+| `dps-overall-rank2-source.mp3` | Practice · Overall Journey · Rank 2 · 0.00 to 1.30 | 0:00 - 1:30 | 90s |
+| `dps-overall-rank3-source.mp3` | Practice · Overall Journey · Rank 3 · 0.05 to 1.30 | 0:05 - 1:30 | 85s |
+| `dps-specific-rank1-source.mp3` | Practice · Specific DPS · Rank 1 · 0.00 to 2.00 | 0:00 - 2:00 | 120s |
+| `dps-specific-rank2-source.mp3` | Practice · Specific DPS · Rank 2 · 0.00 to 2.00 | 0:00 - 2:00 | 120s |
+| `dps-specific-rank3-source.mp3` | Practice · Specific DPS · Rank 3 · 0.00 to 2.00 | 0:00 - 2:00 | 120s |
+
+- Not yet trimmed/encoded into final loopable assets -- that happens when the DPS cutscene build actually starts. See `LEADERBOARD_REVAMP_SPEC_2026-08-25.md` for the open questions blocking that (uniqueness vs. shared visual system with Mock, build order).
+### 2026-09-01
+
+- Received 1 admin Mock Studio screenshot (MM-L1 "Create Mock" page) from Shailesh, evidence for the mock-marks-balancing bug report: "it does not have the parameter which asks for how many questions do these concepts have and then adjust the total number of questions accordingly so that the full marks always comes down to 100."
+- Saved to `reference-assets/incoming/2026-09-01_mock-studio-mm-l1-create-mock.png`.
+- Already actioned -- see `COWORK_HANDOFF.md`'s 2026-09-01 entry and the `DECISIONS.md` "Mock Exam Marks Must Total 100" entry for the fix. Logged here per the standing convention that every uploaded source file gets recorded and retained under `reference-assets/`, not only currently-open ones.

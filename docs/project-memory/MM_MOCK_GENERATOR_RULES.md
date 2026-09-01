@@ -1,12 +1,12 @@
 # Master Module Mock Generator Rules
 
-Last updated: 2026-06-18
+Last updated: 2026-09-01
 
 ## Defaults
 
 - Default questions: 100.
 - Default duration: 60 minutes.
-- Default section allocation: 10 questions in each of 10 sections.
+- Default section allocation (revised 2026-09-01): the Skill Stacker/Concept Drill section (section 10, weighted 5 marks/question) defaults to 10 questions; the other 9 flat sections (1 mark/question) auto-balance to split the remaining 50 marks evenly across them (currently ~5-6 questions each) so the mock always totals exactly 100 marks. This supersedes the old flat "10 questions in each of 10 sections" default -- see `COWORK_HANDOFF.md`'s 2026-09-01 entry and `DECISIONS.md`'s "Mock Exam Marks Must Total 100" entry.
 
 ## Sections
 
@@ -53,9 +53,9 @@ The MM mock generator has exactly 10 approved sections:
 
 Backend generator changes should preserve:
 
-- 100-question MM mock output.
+- MM mock output totals exactly 100 marks (not necessarily 100 questions since the 2026-09-01 marks-balancing change -- see Defaults above).
 - 10 locked sections.
-- 10 questions per section by default.
+- 10 questions in the weighted Skill Stacker/Concept Drill section by default; the other 9 sections auto-balance to fill the remaining marks (since 2026-09-01, see Defaults above).
 - No section-family leakage.
 - Concept block sequencing inside every section.
 - Stable duplicate detection that ignores volatile fields such as seed, generated question number, and source DPS.

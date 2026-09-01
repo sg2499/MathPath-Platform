@@ -1,0 +1,198 @@
+# MathPath — Deploy Playbook (Shailesh's actual workflow)
+
+Last documented: 2026-08-21, by a Cowork session, from Shailesh's own pasted
+commands after a prior Cowork reply guessed wrong (offered the
+`.agents/apex_deliver.py` / `sre-devops` route instead). **This file is the
+one to follow. Whenever anyone (Cowork or local Claude Code) is asked for
+"the usual push/merge/deploy commands" in this project, use the commands
+below, substituted for the current branch/commit/files/PR text — not
+`apex_deliver.py`, not the `LOCAL_DELIVERY_SYSTEM.md` console, not a fresh
+invention.**
+
+This is a manual, four-stage PowerShell + SSH workflow: branch → commit →
+PR/merge → deploy. There are two deploy variants depending on what changed —
+see Step 4.
+
+**Standing delivery rule (explicit, from Shailesh, 2026-08-25): always hand
+these commands over directly as plain text/code blocks in the chat reply
+itself — every time work on this project reaches the push/PR/merge/deploy
+stage, without being asked. Do not summarize them away, do not skip steps,
+do not wrap them in an Artifact/hosted page, and do not wait to be asked
+"what are the commands" first — proactively include the full substituted
+command sequence (Steps 1-4 below, substituted for the branch/commit/PR
+text of the change just made) in the same message that reports the work as
+done.**
+
+## Environment facts (fixed, do not ask the user for these again)
+
+- Local repo: `C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Platform\MathPath_Platform_Live`
+- GitHub remote: `https://github.com/sg2499/MathPath-Platform.git`
+- Production server: `ubuntu@15.206.108.37`
+- SSH key: `C:\Users\shail\.ssh\mathpath-platform.pem` (outside the repo and outside OneDrive sync — never expect it inside the working tree)
+- Server repo path: `/home/ubuntu/MathPath-Platform`
+- Backend service: `mathpath-backend` (systemd — `sudo systemctl restart mathpath-backend`)
+- Frontend process: `mathpath-frontend` (pm2 — `pm2 restart mathpath-frontend`)
+- `git clean` on the server always excludes: `backend/.env`, `frontend/.env`, `frontend/.env.local`, `backend/.venv`, `backend/uploads`, `frontend/node_modules`, `frontend/.next` — never drop these exclusions.
+
+There is also a more automated script at `scripts/prod-deploy/deploy-simple.sh`
+that builds the frontend via a GitHub Actions workflow (`prod-build.yml`)
+instead of a local `npm run build`, then does the same scp+SSH tail end. It's
+real and it has shipped a production deploy before (see
+`docs/project-memory/OPEN_ISSUES.md`, 2026-08-11 entry). **Default to the
+manual playbook below anyway** — that's what was explicitly asked for. Only
+suggest `deploy-simple.sh` if the user asks whether a more automated option
+exists.
+
+## Standing caution: this repo's CRLF/LF noise
+
+The OneDrive-synced working tree carries pre-existing CRLF/LF drift across
+many files unrelated to any given fix — `git status` routinely shows 40-50
+files as "modified" that have zero real (`git diff -w`) content change. Two
+rules that exist specifically because of this:
+
+1. **Never `git add .` / `git add -A`.** Stage the exact files the fix
+   touched, by path, one by one (or as an explicit list). This is why Step 2
+   below stages named files, not the whole tree.
+2. Before staging, sanity-check with `git diff -w --stat -- <path>` if there's
+   any doubt whether a file has a real change or just whitespace noise.
+
+## Step 1 — branch fresh off main
+
+```powershell
+$env:GH_DEBUG = $null
+cd "C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Platform\MathPath_Platform_Live"
+git checkout main
+git pull origin main
+git checkout -b <branch-name>
+```
+
+`<branch-name>` is a short kebab-case slug for the fix, e.g.
+`fix/teacher-assign-button-crop` or `fix/bm-dps-counts-and-mm-bodmas`.
+
+## Step 2 — stage only the changed files, commit, push
+
+```powershell
+git add <file-1> <file-2> ...
+git status
+```
+
+Confirm only the intended files are staged (watch for CRLF-noise files
+sneaking in), then:
+
+```powershell
+git commit -m "<commit message>"
+git push -u origin <branch-name>
+```
+
+## Step 3 — PR, wait for CI, merge
+
+```powershell
+gh pr create --base main --title "<PR title>" --body "<PR body>"
+gh pr checks --watch
+```
+
+Once green:
+
+```powershell
+gh pr merge --squash --delete-branch
+git checkout main
+git pull origin main
+```
+
+## Step 4 — deploy
+
+Two variants. Pick based on whether `frontend/` files are in the diff.
+
+### 4a. Frontend files changed (or both frontend + backend)
+
+Build locally and ship the build artifact:
+
+```powershell
+cd frontend
+$env:BACKEND_ORIGIN = "http://127.0.0.1:8000"
+$env:NEXT_TELEMETRY_DISABLED = "1"
+npm ci
+npm run build
+
+$artifactDir = "$env:TEMP\mp-frontend-artifact"
+Remove-Item -Recurse -Force $artifactDir -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $artifactDir | Out-Null
+Copy-Item -Recurse .next "$artifactDir\.next"
+Copy-Item -Recurse public "$artifactDir\public"
+Copy-Item package.json, package-lock.json, next.config.mjs "$artifactDir\"
+git rev-parse HEAD | Out-File -Encoding ascii -NoNewline "$artifactDir\BUILD_SHA.txt"
+
+cd $artifactDir
+tar -czf "$env:TEMP\mathpath-frontend-build.tgz" .
+cd "C:\Users\shail\OneDrive\Shailesh\Work\Math Path\Platform\MathPath_Platform_Live\frontend"
+```
+
+Upload:
+
+```powershell
+scp -i "C:\Users\shail\.ssh\mathpath-platform.pem" "$env:TEMP\mathpath-frontend-build.tgz" ubuntu@15.206.108.37:/tmp/mathpath-frontend-build.tgz
+
+ssh -i "C:\Users\shail\.ssh\mathpath-platform.pem" ubuntu@15.206.108.37
+```
+
+Once connected, paste:
+
+```bash
+cd /home/ubuntu/MathPath-Platform
+git remote set-url origin https://github.com/sg2499/MathPath-Platform.git
+git fetch origin
+git reset --hard origin/main
+git clean -fd -e 'backend/.env' -e 'frontend/.env' -e 'frontend/.env.local' -e 'backend/.venv' -e 'backend/uploads' -e 'frontend/node_modules' -e 'frontend/.next'
+rm -rf frontend/.next
+tar -xzf /tmp/mathpath-frontend-build.tgz -C frontend
+cd backend
+[ -d .venv ] || python3 -m venv .venv
+. .venv/bin/activate
+pip install -q -r requirements.txt
+deactivate
+cd ../frontend
+npm ci --omit=dev
+cd ..
+sudo systemctl restart mathpath-backend
+pm2 restart mathpath-frontend
+pm2 status
+rm -f /tmp/mathpath-frontend-build.tgz
+```
+
+### 4b. Backend-only changes (no `frontend/` files in the diff)
+
+No local build, no artifact, no scp — the server pulls the backend source
+directly from `origin/main` and only the backend needs a restart:
+
+```powershell
+ssh -i "C:\Users\shail\.ssh\mathpath-platform.pem" ubuntu@15.206.108.37
+```
+
+Once connected, paste:
+
+```bash
+cd /home/ubuntu/MathPath-Platform
+git remote set-url origin https://github.com/sg2499/MathPath-Platform.git
+git fetch origin
+git reset --hard origin/main
+git clean -fd -e 'backend/.env' -e 'frontend/.env' -e 'frontend/.env.local' -e 'backend/.venv' -e 'backend/uploads' -e 'frontend/node_modules' -e 'frontend/.next'
+cd backend
+[ -d .venv ] || python3 -m venv .venv
+. .venv/bin/activate
+pip install -q -r requirements.txt
+deactivate
+cd ..
+sudo systemctl restart mathpath-backend
+pm2 status
+```
+
+(`pm2 restart mathpath-frontend` is skipped here since no frontend code
+changed — the frontend process doesn't need to pick anything up. Leaving it
+out is deliberate, not an oversight; add it back in if in doubt.)
+
+## After either variant
+
+Confirm live: fetch a real page (e.g. `https://mock.mathpath.in/login?role=admin`)
+and/or hit a backend endpoint that exercises the changed code, and check
+`pm2 status` / `sudo systemctl status mathpath-backend` both report healthy
+before calling the deploy done.
