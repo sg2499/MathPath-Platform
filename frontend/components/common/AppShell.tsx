@@ -547,7 +547,7 @@ export function AppShell({
         {
           label: "DPS Leaderboard",
           href: "/teacher/leaderboard/dps",
-          icon: Trophy,
+          icon: ClipboardList,
           tooltip: "See how your students rank on daily practice sheets",
         },
         {
