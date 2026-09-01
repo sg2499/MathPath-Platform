@@ -386,7 +386,6 @@ const router = useRouter();
                     <tr>
                       <th className="px-6 py-5">Rank</th>
                       <th className="px-6 py-5">Student</th>
-                      <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Score" : "Score"}</th>
                       <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Accuracy" : "Accuracy"}</th>
                       <th className="px-6 py-5 text-right hidden sm:table-cell">{viewMode === "CUMULATIVE" ? "Avg Time" : "Time"}</th>
                     </tr>
@@ -612,7 +611,6 @@ function TableRow({ row: r, delay }: { row: any; delay: number }) {
   // while the podium (ranks 1-3, rendered statically below) showed the real
   // values -- exactly the "0% for everyone below top 3" bug. Rendering the
   // real value directly removes that failure mode.
-  const animatedScore = Math.round(r.score);
   const animatedAccuracy = Math.round(r.accuracy ?? r.percentage);
 
   return (
@@ -637,9 +635,6 @@ function TableRow({ row: r, delay }: { row: any; delay: number }) {
         {r.topBadges && r.topBadges.length > 0 && (
           <TopBadgeChips badges={r.topBadges} size="xs" />
         )}
-      </td>
-      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">
-        {animatedScore}
       </td>
       <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">
         {animatedAccuracy}%

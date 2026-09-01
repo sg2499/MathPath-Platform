@@ -1280,6 +1280,14 @@ export type CompetitionMockSectionPlanItem = {
   sectionTitle: string;
   questionCount: number;
   locked?: boolean;
+  // 2026-09-01: Concept Drill/Skill Stacker sections are worth 5
+  // marks/question, same as assessments -- isWeighted/marksPerQuestion let
+  // the Mock Studio Section Allocation panel show weighted sections as
+  // admin-editable and flat sections as auto-computed (see
+  // _CompetitionMockSectionPlanSections in
+  // competition_mock_generation_service.py).
+  isWeighted?: boolean;
+  marksPerQuestion?: number;
 };
 
 export type CompetitionMockSectionPlan = {
