@@ -53,3 +53,11 @@ Thumbs.db
 # Persistent reference materials (source Excel/images uploaded via Cowork,
 # kept on disk for cross-session recall, not version-controlled)
 docs/reference-materials/
+
+# Merge-conflict / editor / build-artifact debris (should never be committed)
+*.oursresolved
+*.theirsresolved
+.fuse_hidden*
+frontend/BUILD_SHA.txt
+frontend/*.tgz
+*.orig

@@ -120,3 +120,12 @@ Reason:
 
 - Time spent alone was too blunt to communicate the quality of a practice session.
 - The richer tooltip keeps the compact chart readable while surfacing a stronger daily-performance narrative.
+
+## Mock Exam Marks Must Total 100
+
+Decision: Every generated competition mock (any module/level with a weighted Concept Drill/Skill Stacker section -- MM, IM, PM-L1 through L4, BM, YLM) must total exactly 100 marks, mirroring the rule already enforced for assessments. In Mock Studio, the admin sets only the weighted section's question count; every flat section auto-computes its own question count to fill the remaining marks to exactly 100. "Total Questions" is now a computed, read-only display whenever a level has a weighted section.
+
+Reason:
+
+- The 5-marks-per-question Concept Drill/Skill Stacker weighting was already applied to assessment scoring in an earlier session, but the admin-facing mock planning layer (`CompetitionMockSectionPlan`) and the frontend Section Allocation UI were never updated to match, so generated mocks could land on any total, not 100.
+- This reverses an earlier assumption that mocks didn't need to hit exactly 100 marks. Shailesh's direct instruction: "the full marks always comes down to 100 as i had explained it yesterday" -- the same rule now applies to mocks as to assessments, for every level with a weighted section.
