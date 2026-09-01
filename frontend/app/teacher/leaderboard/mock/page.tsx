@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, Suspense } from "react";
 import { Trophy, Users, AlertCircle, ChevronDown, Star } from "lucide-react";
 import { AppShell } from "@/components/common/AppShell";
 import { TeacherMockLeaderboardAPI } from "@/lib/api-teacher-leaderboard";
@@ -114,7 +114,7 @@ function TableRow({ row, isHighlighted, rowRef }: { row: TeacherLeaderboardEntry
   );
 }
 
-export default function TeacherMockLeaderboardPage() {
+function TeacherMockLeaderboardPageInner() {
   useProtectedPage(["TEACHER"]);
   const searchParams = useSearchParams();
 
@@ -357,5 +357,13 @@ export default function TeacherMockLeaderboardPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function TeacherMockLeaderboardPage() {
+  return (
+    <Suspense fallback={<LoadingState message="Loading leaderboard..." />}>
+      <TeacherMockLeaderboardPageInner />
+    </Suspense>
   );
 }
