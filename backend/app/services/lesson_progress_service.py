@@ -63,6 +63,11 @@ def _EmptyProgress() -> dict:
         "levelComplete": False,
         "previousLessonNumber": None,
         "previousLessonTitle": None,
+        # True by default -- callers with no real progress info at all
+        # (e.g. no lessons found for this level) should never block a
+        # teacher from picking any lesson to start a student on.
+        "isNewToLevel": True,
+        "assignableDpsIds": [],
     }
 
 
@@ -194,6 +199,22 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
         if lesson_idx > highest_assigned_lesson_index.get(student_id, -1):
             highest_assigned_lesson_index[student_id] = lesson_idx
 
+    # Every DPS in this level currently assignable to each student -- not
+    # just the ones in their anchored "current" lesson. assign-dps/page.tsx
+    # uses this (not currentLessonId/assignableInCurrentLesson) to decide
+    # who shows up as eligible for a lesson/sheet the teacher picks, so a
+    # student correctly anchored on e.g. Lesson 4 always shows up when the
+    # teacher picks Lesson 4 to assign or schedule, and a student with no
+    # assignment history yet (whose "current lesson" above is only the
+    # lesson-1-first fallback) shows up under any lesson, not just that
+    # fallback one. "Eligible for something" must always mean "visible
+    # there" -- this is computed directly per DPS, never inferred from a
+    # single summarized lesson label.
+    assignable_dps_ids_by_student: dict[str, list[str]] = {
+        student.id: [dps.id for dps in dps_rows if is_assignable_now(student.id, dps.id)]
+        for student in students
+    }
+
     def lesson_progress(student_id: str, lesson_idx: int) -> tuple[int, int, bool]:
         lesson = ordered_lessons[lesson_idx]
         lesson_dps = dps_by_lesson[lesson.id]
@@ -223,6 +244,8 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
                 "levelComplete": True,
                 "previousLessonNumber": finished_lesson.lesson_number,
                 "previousLessonTitle": finished_lesson.lesson_title,
+                "isNewToLevel": anchor_idx is None,
+                "assignableDpsIds": assignable_dps_ids_by_student.get(student.id, []),
             }
             continue
 
@@ -246,6 +269,14 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
             "levelComplete": False,
             "previousLessonNumber": previous_lesson.lesson_number if previous_lesson else None,
             "previousLessonTitle": previous_lesson.lesson_title if previous_lesson else None,
+            # No assignment history anywhere in this level yet -- this
+            # student's "current lesson" above is only the lesson-1-first
+            # fallback, not a real anchor, so a teacher must be able to
+            # place their first assignment on ANY lesson in the level (the
+            # one matching where the student actually is in real life),
+            # not just this fallback. See assign-dps/page.tsx eligibleStudents.
+            "isNewToLevel": anchor_idx is None,
+            "assignableDpsIds": assignable_dps_ids_by_student.get(student.id, []),
         }
 
     return result
