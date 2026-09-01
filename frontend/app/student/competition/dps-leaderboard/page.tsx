@@ -5,7 +5,7 @@ import { Trophy, Users, AlertCircle, ChevronDown, ArrowLeft } from "lucide-react
 import { DpsLeaderboardAPI } from "@/lib/api-dps-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import type {
   DpsHierarchyResponse,
@@ -63,6 +63,7 @@ function getInitials(name: string) {
 export default function DpsLeaderboardPage() {
 const Ready = useProtectedPage(["STUDENT"]);
 const router = useRouter();
+const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,16 +94,38 @@ const router = useRouter();
         setModules(fetchedModules);
         setLevels(fetchedLevels);
 
-        let targetModuleId = null;
-        let targetLevelId = null;
+        let targetModuleId: string | null = null;
+        let targetLevelId: string | null = null;
 
-        if (data.currentModuleId) {
+        // Deep-link support (2026-09-01) -- a leaderboard rank-change
+        // notification links here with ?viewMode=OVERALL&moduleId=... or
+        // ?viewMode=SPECIFIC&levelId=..., so clicking it lands on the exact
+        // tab/scope the notification was about instead of always resetting
+        // to the student's current module/level.
+        const deepLinkViewMode = searchParams.get("viewMode");
+        const deepLinkModuleId = searchParams.get("moduleId");
+        const deepLinkLevelId = searchParams.get("levelId");
+
+        if (deepLinkViewMode === "OVERALL" || deepLinkViewMode === "SPECIFIC") {
+            setViewMode(deepLinkViewMode);
+        }
+
+        if (deepLinkModuleId && fetchedModules.some(m => m.id === deepLinkModuleId)) {
+            targetModuleId = deepLinkModuleId;
+        } else if (data.currentModuleId) {
             targetModuleId = data.currentModuleId;
         } else if (fetchedModules.length > 0) {
             targetModuleId = fetchedModules[0].id;
         }
 
-        if (data.currentLevelId) {
+        if (deepLinkLevelId && fetchedLevels.some(l => l.id === deepLinkLevelId)) {
+            targetLevelId = deepLinkLevelId;
+            // A level deep link also determines the module (so switching
+            // back to Overall Journey shows the right module), overriding
+            // whatever the module resolution above picked.
+            const owningModuleId = fetchedLevels.find(l => l.id === deepLinkLevelId)?.moduleId;
+            if (owningModuleId) targetModuleId = owningModuleId;
+        } else if (data.currentLevelId) {
             targetLevelId = data.currentLevelId;
         } else if (targetModuleId) {
             const modLevels = fetchedLevels.filter(l => l.moduleId === targetModuleId);

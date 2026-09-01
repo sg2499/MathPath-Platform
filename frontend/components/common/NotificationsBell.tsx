@@ -23,6 +23,7 @@ import {
   Sparkles,
   Target,
   TriangleAlert,
+  Trophy,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -89,6 +90,7 @@ function IconFor(Notification: NotificationRecord) {
 
   if (Category === "ASSESSMENT_FEEDBACK") return <MessageSquareText size={16} />;
   if (Category === "FAILURE") return <TriangleAlert size={16} />;
+  if (Category === "LEADERBOARD") return <Trophy size={16} />;
   if (Category === "RESULT") return <CheckCircle2 size={16} />;
   if (Category === "REATTEMPT" || Type.includes("REATTEMPT"))
     return <RotateCcw size={16} />;
@@ -179,6 +181,18 @@ function IsParentReportDeliveryNotification(Notification: NotificationRecord) {
     Source.includes("DELIVERY RECORD DELETED") ||
     TargetAction.includes("PARENTREPORTDELIVERYHISTORY")
   );
+}
+
+function IsLeaderboardRankNotification(Notification: NotificationRecord) {
+  // Leaderboard rank-change / podium-placement notifications (DPS + Mock,
+  // student rank-change and teacher podium-only, 2026-09-01). Category is
+  // the sole signal here -- their `type` values deliberately contain "DPS"
+  // or "MOCK" (e.g. STUDENT_DPS_LEADERBOARD_RANK), which would otherwise
+  // false-positive-match IsPracticeNotification/IsMockNotification below on
+  // substring alone. This check is placed FIRST in each role block in
+  // BuildRoleAwareRoute() specifically to win before those broader checks
+  // ever run.
+  return NotificationText(Notification).Category === "LEADERBOARD";
 }
 
 function IsPracticeNotification(Notification: NotificationRecord) {
@@ -364,6 +378,14 @@ function AppendDeepLinkParams(
 
 function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   if (Role === "teacher") {
+    if (IsLeaderboardRankNotification(Notification)) {
+      // Podium-only teacher notification (2026-09-01) -- target_route is
+      // always fully built server-side (the exact teacher leaderboard page,
+      // scope, and highlightStudentId), so it's used directly rather than
+      // reconstructed here. Checked first, ahead of IsPracticeNotification/
+      // IsMockNotification, since the stored `type` contains "DPS"/"MOCK".
+      return { Route: Notification.targetRoute || "/teacher/dashboard", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsParentReportNotification(Notification)) {
       // Progress Reports (frontend/app/teacher/progress-reports/page.tsx) is
       // the single dedicated place teachers review/download published parent
@@ -490,6 +512,14 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   }
 
   if (Role === "student") {
+    if (IsLeaderboardRankNotification(Notification)) {
+      // Rank-change / podium notification (2026-09-01) -- target_route is
+      // always fully built server-side (the exact leaderboard page, tab,
+      // and scope id), so it's used directly rather than reconstructed
+      // here. Checked first, ahead of IsPracticeNotification/
+      // IsMockNotification, since the stored `type` contains "DPS"/"MOCK".
+      return { Route: Notification.targetRoute || "/student/dashboard", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsCompetitionMockNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       if (AttemptId) {

@@ -7,6 +7,7 @@ from app.database import get_db
 from app.dependencies import get_current_student
 from app.models import Student, DPS, Lesson, Level, Module, Attempt, Assignment, AssignmentReattemptPermission, AssessmentAssignment, StudentLevelPromotion
 from app.services.assignment_service import get_student_assignments
+from app.services import leaderboard_service
 from app.services.practice_notification_service import NotifyMissedPracticeUnlocks
 from app.services.curriculum_service import dps_config_payload
 from app.services.attempt_service import start_attempt, get_attempt_for_student, safe_questions_payload, save_answer, submit_attempt, result_payload, remaining_seconds, _ComputeDpsMaxScore, attempt_context_payload
@@ -885,85 +886,15 @@ def get_mock_exam_leaderboard(
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student)
 ):
-    from app.models.models import CompetitionMockResultSummary, Student, User, StudentBadge, AchievementBadge
-
-    # Pre-fetch all legendary and super badges for performance.
-    # This is the MOCK EXAM leaderboard specifically -- DPS (practice sheet)
-    # badges are a different category (see isDpsBadge() in the frontend
-    # achievements page, code.startswith("dps_")) and must never appear in a
-    # mock-exam-scoped topBadges list, both because it's the wrong category
-    # for this page and because several DPS badge colours are still close
-    # enough to existing badge colours that showing them side by side here
-    # risks two visually-identical chips (see DPS_BADGE_COLOR_AUDIT_2026-08-03.md).
-    all_badges = db.query(AchievementBadge).filter(~AchievementBadge.code.like('dps\\_%', escape='\\')).all()
-    badge_map = {b.id: {"id": b.id, "code": b.code, "name": b.name, "tier": b.tier, "iconName": b.icon_name} for b in all_badges}
-
-    results = (
-        db.query(CompetitionMockResultSummary, Student, User)
-        .join(Student, CompetitionMockResultSummary.student_id == Student.id)
-        .join(User, Student.user_id == User.id)
-        .filter(CompetitionMockResultSummary.mock_exam_id == exam_id)
-        .filter(Student.current_level_id == student.current_level_id)
-        .order_by(
-            CompetitionMockResultSummary.percentage.desc(),
-            CompetitionMockResultSummary.time_taken_seconds.asc()
-        )
-        .all()
-    )
-
-    # Batch every shown student's badges in one query instead of one query per
-    # student -- this loop used to only ever run for <=10 students (rank<=10
-    # or the current student), so a query-per-student was cheap; now that a
-    # real leaderboard shows every student who attempted this exam, the same
-    # per-student query would turn into an N+1 across the whole level.
-    all_student_ids = [st.id for (_res, st, _user) in results]
-    tier_score = {"LEGENDARY": 3, "SUPER": 2, "BASE": 1}
-    badges_by_student: dict = {}
-    if all_student_ids:
-        student_badge_rows = db.query(StudentBadge).filter(StudentBadge.student_id.in_(all_student_ids)).all()
-        for sb in student_badge_rows:
-            if sb.badge_id in badge_map:
-                badges_by_student.setdefault(sb.student_id, []).append(badge_map[sb.badge_id])
-        for sid, blist in badges_by_student.items():
-            blist.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
-
-    leaderboard = []
-    current_student_rank = None
-    for idx, (res, st, user) in enumerate(results):
-        rank = idx + 1
-        is_current = st.id == student.id
-        if is_current:
-            current_student_rank = rank
-
-        top_badges = badges_by_student.get(st.id, [])[:3]
-
-        # timeTakenSeconds must come straight from the real, already-correct
-        # time_taken_seconds column. This used to be reconstructed from
-        # time_utilization_percentage rescaled against a hardcoded 3600s
-        # (60-minute) assumption, which produced fabricated, misleading
-        # values whenever an exam's real duration wasn't exactly 60
-        # minutes (e.g. a 30-minute exam used in full showed "60m 0s").
-        leaderboard.append({
-            "rank": rank,
-            "studentId": st.id,
-            "name": user.full_name,
-            "photoUrl": user.photo_url or st.photo_url,
-            "percentage": res.percentage,
-            "score": res.percentage, # Normalized to 100 max
-            "accuracy": res.accuracy_percentage,
-            "timeTakenSeconds": int(res.time_taken_seconds or 0),
-            "isCurrent": is_current,
-            "topBadges": top_badges
-        })
-
-    return {
-        # Every student with a result for this exam -- a real leaderboard
-        # is only useful if it shows the whole field, not just a top-10 slice.
-        "leaderboard": leaderboard,
-        "currentStudentRank": current_student_rank,
-        "currentStudentEntry": next((e for e in leaderboard if e["isCurrent"]), None),
-        "totalParticipants": len(results)
-    }
+    # Ranking query lives in leaderboard_service.py now (2026-09-01
+    # extraction) so this endpoint, the new teacher leaderboard endpoints,
+    # and the rank-change notification hooks all compute rank off exactly
+    # the same query. Behavior here is unchanged: every student at the
+    # requesting student's own current_level_id with a result for this
+    # exam, ranked by percentage desc / time asc, topBadges attached
+    # (dps_* excluded -- this is a mock-exam-scoped leaderboard).
+    leaderboard = leaderboard_service.rank_mock_specific_exam(db, exam_id, student.current_level_id)
+    return leaderboard_service.wrap_for_student(leaderboard, student.id)
 
 @router.get("/achievements")
 def get_student_achievements(
@@ -1153,132 +1084,11 @@ def get_cumulative_leaderboard(
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student)
 ):
-    from app.models.models import CompetitionMockResultSummary, Student, User, CompetitionMockExam, CompetitionMockAttempt, CompetitionMockAssignment, StudentBadge, AchievementBadge
-    from sqlalchemy import func, case
-
-    # "Accuracy" here must be pooled correct/total across every mock in the
-    # level -- the exact same formula GetCompetitionMockProgressInsightsForStudent()
-    # uses for its "overallAccuracy" figure. It used to be a plain SQL AVG()
-    # over the stored CompetitionMockResultSummary.accuracy_percentage column,
-    # which silently drifted away from the Mock Performance Insights number
-    # (e.g. 71% here vs. 42% there for the same student) whenever that stored
-    # per-mock column didn't line up with the live CompetitionMockAttempt
-    # correct/total counts it was derived from. Reading correct_count/
-    # total_questions straight from CompetitionMockAttempt -- the same source
-    # of truth Insights uses -- makes the two numbers identical by
-    # construction, for every student, with no backfill required.
-    total_questions_expr = case(
-        (CompetitionMockAttempt.total_questions > 0, CompetitionMockAttempt.total_questions),
-        else_=CompetitionMockAttempt.attempted_count + CompetitionMockAttempt.unanswered_count,
-    )
-
-    # We want to aggregate the scores and times for all mock exams in the given level
-    results = (
-        db.query(
-            Student.id.label('student_id'),
-            Student.photo_url.label('student_photo'),
-            User.full_name,
-            User.photo_url,
-            func.sum(CompetitionMockResultSummary.score).label('total_score'),
-            func.sum(CompetitionMockResultSummary.max_score).label('total_max_score'),
-            func.avg(CompetitionMockResultSummary.time_taken_seconds).label('avg_time_taken_seconds'),
-            func.sum(CompetitionMockAttempt.correct_count).label('total_correct'),
-            func.sum(total_questions_expr).label('total_questions_all'),
-        )
-        .join(Student, CompetitionMockResultSummary.student_id == Student.id)
-        .join(User, Student.user_id == User.id)
-        .join(CompetitionMockExam, CompetitionMockResultSummary.mock_exam_id == CompetitionMockExam.id)
-        .join(CompetitionMockAttempt, CompetitionMockResultSummary.mock_attempt_id == CompetitionMockAttempt.id)
-        # Join through CompetitionMockAttempt.mock_assignment_id, NOT
-        # CompetitionMockResultSummary.mock_assignment_id -- these two columns
-        # are not guaranteed to agree, and joining on the summary's own copy
-        # silently dropped rows Insights still counted (25% vs Insights' 42%
-        # after the first attempt at this filter). Mirroring Insights'
-        # exact join path (see GetCompetitionMockProgressInsightsForStudent
-        # in competition_mock_attempt_service.py) makes the two identical
-        # by construction instead of by coincidence.
-        .join(CompetitionMockAssignment, CompetitionMockAttempt.mock_assignment_id == CompetitionMockAssignment.id)
-        .filter(CompetitionMockExam.level_id == level_id)
-        # Same is_active scoping GetCompetitionMockProgressInsightsForStudent()
-        # applies -- without it, a superseded/inactive assignment can still be
-        # pooled in here while Insights skips it.
-        .filter(CompetitionMockAssignment.is_active == True)  # noqa: E712
-        .group_by(Student.id, Student.photo_url, User.full_name, User.photo_url)
-        .all()
-    )
-
-    # Calculate percentage and sort
-    processed_results = []
-    for r in results:
-        percentage = (r.total_score / r.total_max_score * 100) if r.total_max_score and r.total_max_score > 0 else 0
-        accuracy = (r.total_correct / r.total_questions_all * 100) if r.total_questions_all and r.total_questions_all > 0 else 0
-
-        # See get_mock_exam_leaderboard() above for why this reads the real
-        # avg_time_taken_seconds column instead of reconstructing a value
-        # from time_utilization_percentage against a hardcoded 60-minute
-        # assumption.
-        processed_results.append({
-            "studentId": r.student_id,
-            "name": r.full_name,
-            "photoUrl": r.photo_url or r.student_photo,
-            "percentage": round(percentage),
-            "score": round(percentage),  # Normalized to 100 max
-            "accuracy": round(accuracy),
-            "timeTakenSeconds": int(r.avg_time_taken_seconds or 0),
-            "isCurrent": r.student_id == student.id
-        })
-        
-    # Sort by percentage desc, time asc
-    processed_results.sort(key=lambda x: (-x['percentage'], x['timeTakenSeconds']))
-
-    leaderboard = []
-    current_student_rank = None
-    for idx, r in enumerate(processed_results):
-        rank = idx + 1
-        r['rank'] = rank
-        if r['isCurrent']:
-            current_student_rank = rank
-            
-        leaderboard.append(r)
-
-    # Attach each shown student's top 3 badges (LEGENDARY > SUPER > BASE),
-    # same read-only presentation convention get_mock_exam_leaderboard() uses
-    # above. This was the one leaderboard view where topBadges was entirely
-    # missing (2026-07-25 Round 1 fix) -- no gamification data is written or
-    # altered here, only looked up for display.
-    shown_student_ids = [entry["studentId"] for entry in leaderboard]
-    if shown_student_ids:
-        # Same mock-exam-only scoping as get_mock_exam_leaderboard() above --
-        # DPS badges are a different category and must not appear here.
-        all_badges = db.query(AchievementBadge).filter(~AchievementBadge.code.like('dps\\_%', escape='\\')).all()
-        badge_lookup = {
-            b.id: {"id": b.id, "code": b.code, "name": b.name, "tier": b.tier, "iconName": b.icon_name}
-            for b in all_badges
-        }
-        tier_score = {"LEGENDARY": 3, "SUPER": 2, "BASE": 1}
-        student_badge_rows = (
-            db.query(StudentBadge)
-            .filter(StudentBadge.student_id.in_(shown_student_ids))
-            .all()
-        )
-        badges_by_student: dict = {}
-        for sb in student_badge_rows:
-            if sb.badge_id in badge_lookup:
-                badges_by_student.setdefault(sb.student_id, []).append(badge_lookup[sb.badge_id])
-        for entry in leaderboard:
-            student_badges = badges_by_student.get(entry["studentId"], [])
-            student_badges.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
-            entry["topBadges"] = student_badges[:3]
-
-    return {
-        # Every student with at least one summarized result in this level --
-        # a real leaderboard is only useful if it shows the whole field, not
-        # just a top-10 slice.
-        "leaderboard": leaderboard,
-        "currentStudentRank": current_student_rank,
-        "currentStudentEntry": next((e for e in leaderboard if e["isCurrent"]), None),
-        "totalParticipants": len(processed_results)
-    }
+    # Ranking query lives in leaderboard_service.py now (2026-09-01
+    # extraction) -- see rank_mock_overall_journey()'s own docstring for the
+    # pooled-accuracy formula and is_active scoping this preserves unchanged.
+    leaderboard = leaderboard_service.rank_mock_overall_journey(db, level_id)
+    return leaderboard_service.wrap_for_student(leaderboard, student.id)
 
 
 # ============================================================================
@@ -1292,101 +1102,6 @@ def get_cumulative_leaderboard(
 # slice, same convention as get_cumulative_leaderboard()/
 # get_mock_exam_leaderboard() above.
 # ============================================================================
-
-# Mirrors achievements.py's own _DPS_COMPLETED_STATUSES exactly -- a DPS
-# attempt only counts toward the leaderboard once it's actually been
-# submitted (not abandoned mid-attempt), same bar the DPS badge detection
-# logic already uses. Keep these two definitions in sync if that ever changes.
-_DPS_LEADERBOARD_COMPLETED_STATUSES = ("SUBMITTED", "AUTO_SUBMITTED")
-
-
-def _build_dps_leaderboard_response(db: Session, results, requesting_student: Student):
-    """Shared post-processing for both DPS leaderboard endpoints below --
-    accuracy calc, ranking, and topBadges attachment are identical between
-    the module-scoped and level-scoped queries, only the grouping query
-    itself differs, so this keeps the two endpoints from silently drifting
-    apart the way copy-pasted logic tends to.
-
-    Ranking metric, per docs/project-memory/LEADERBOARD_REVAMP_SPEC_2026-08-25.md
-    ("Decisions" item 1, reconfirmed in the "all open questions closed"
-    section): average accuracy percentage desc, average time taken asc as
-    tiebreaker -- the exact same rule the mock-exam leaderboards use, just
-    computed from Attempt's own correct_count/total_questions instead of
-    CompetitionMockAttempt's. Pooled as sum(correct)/sum(total) rather than
-    averaging each attempt's own stored accuracy_percentage column --
-    mirrors get_cumulative_leaderboard()'s own fix for exactly this class of
-    bug (see its comment above: a plain AVG() of per-attempt percentages
-    silently drifts from the true pooled figure). "Score" and "accuracy" are
-    deliberately the same pooled number here (DPS has no separate marks-based
-    metric the spec asks for) -- both fields are populated so this still
-    satisfies the shared LeaderboardEntrySchema's required shape."""
-    from app.models.models import StudentBadge, AchievementBadge
-
-    processed_results = []
-    for r in results:
-        accuracy = (r.total_correct / r.total_questions_all * 100) if r.total_questions_all and r.total_questions_all > 0 else 0
-
-        processed_results.append({
-            "studentId": r.student_id,
-            "name": r.full_name,
-            "photoUrl": r.photo_url or r.student_photo,
-            "percentage": round(accuracy),
-            "score": round(accuracy),
-            "accuracy": round(accuracy),
-            "timeTakenSeconds": int(r.avg_time_taken_seconds or 0),
-            "sheetsCompleted": int(r.sheets_completed or 0),
-            "isCurrent": r.student_id == requesting_student.id,
-        })
-
-    # Sort by accuracy desc, time asc -- per the ranking-metric decision above.
-    processed_results.sort(key=lambda x: (-x['percentage'], x['timeTakenSeconds']))
-
-    leaderboard = []
-    current_student_rank = None
-    for idx, r in enumerate(processed_results):
-        rank = idx + 1
-        r['rank'] = rank
-        if r['isCurrent']:
-            current_student_rank = rank
-        leaderboard.append(r)
-
-    # Attach each shown student's top 3 badges (LEGENDARY > SUPER > BASE) --
-    # the DPS-scoped mirror image of get_cumulative_leaderboard()'s own
-    # topBadges block above. That leaderboard deliberately EXCLUDES dps_*
-    # codes (see the comment there and DPS_BADGE_COLOR_AUDIT_2026-08-03.md);
-    # this leaderboard is nothing BUT DPS, so dps_* is exactly what belongs
-    # here, and every non-DPS badge is excluded instead.
-    shown_student_ids = [entry["studentId"] for entry in leaderboard]
-    if shown_student_ids:
-        all_badges = db.query(AchievementBadge).filter(AchievementBadge.code.like('dps\\_%', escape='\\')).all()
-        badge_lookup = {
-            b.id: {"id": b.id, "code": b.code, "name": b.name, "tier": b.tier, "iconName": b.icon_name}
-            for b in all_badges
-        }
-        tier_score = {"LEGENDARY": 3, "SUPER": 2, "BASE": 1}
-        student_badge_rows = (
-            db.query(StudentBadge)
-            .filter(StudentBadge.student_id.in_(shown_student_ids))
-            .all()
-        )
-        badges_by_student: dict = {}
-        for sb in student_badge_rows:
-            if sb.badge_id in badge_lookup:
-                badges_by_student.setdefault(sb.student_id, []).append(badge_lookup[sb.badge_id])
-        for entry in leaderboard:
-            student_badges = badges_by_student.get(entry["studentId"], [])
-            student_badges.sort(key=lambda x: tier_score.get(x["tier"], 0), reverse=True)
-            entry["topBadges"] = student_badges[:3]
-
-    return {
-        # Every student with at least one completed DPS attempt in scope --
-        # no top-N cap, same convention as the mock-exam leaderboards above.
-        "leaderboard": leaderboard,
-        "currentStudentRank": current_student_rank,
-        "currentStudentEntry": next((e for e in leaderboard if e["isCurrent"]), None),
-        "totalParticipants": len(processed_results),
-    }
-
 
 @router.get("/competition/dps/hierarchy")
 def get_dps_hierarchy(
@@ -1418,33 +1133,8 @@ def get_dps_overall_leaderboard(
     across every level within the given module, so a student's rank
     reflects their whole practice journey through the module, not just
     their current level."""
-    from app.models.models import User
-    from sqlalchemy import func
-
-    results = (
-        db.query(
-            Student.id.label('student_id'),
-            Student.photo_url.label('student_photo'),
-            User.full_name,
-            User.photo_url,
-            func.avg(Attempt.time_taken_seconds).label('avg_time_taken_seconds'),
-            func.sum(Attempt.correct_count).label('total_correct'),
-            func.sum(Attempt.total_questions).label('total_questions_all'),
-            func.count(Attempt.id).label('sheets_completed'),
-        )
-        .join(Student, Attempt.student_id == Student.id)
-        .join(User, Student.user_id == User.id)
-        .join(DPS, Attempt.dps_id == DPS.id)
-        .join(Lesson, DPS.lesson_id == Lesson.id)
-        .join(Level, Lesson.level_id == Level.id)
-        .filter(Level.module_id == module_id)
-        .filter(Attempt.status.in_(_DPS_LEADERBOARD_COMPLETED_STATUSES))
-        .filter(Attempt.submitted_at.isnot(None))
-        .group_by(Student.id, Student.photo_url, User.full_name, User.photo_url)
-        .all()
-    )
-
-    return _build_dps_leaderboard_response(db, results, student)
+    leaderboard = leaderboard_service.rank_dps_overall_journey(db, module_id)
+    return leaderboard_service.wrap_for_student(leaderboard, student.id)
 
 
 @router.get("/competition/dps/specific-leaderboard")
@@ -1457,30 +1147,5 @@ def get_dps_specific_leaderboard(
     within one single level (every DPS sheet across every lesson in that
     level), so a student's rank reflects their standing at their current
     (or any selected) level specifically."""
-    from app.models.models import User
-    from sqlalchemy import func
-
-    results = (
-        db.query(
-            Student.id.label('student_id'),
-            Student.photo_url.label('student_photo'),
-            User.full_name,
-            User.photo_url,
-            func.avg(Attempt.time_taken_seconds).label('avg_time_taken_seconds'),
-            func.sum(Attempt.correct_count).label('total_correct'),
-            func.sum(Attempt.total_questions).label('total_questions_all'),
-            func.count(Attempt.id).label('sheets_completed'),
-        )
-        .join(Student, Attempt.student_id == Student.id)
-        .join(User, Student.user_id == User.id)
-        .join(DPS, Attempt.dps_id == DPS.id)
-        .join(Lesson, DPS.lesson_id == Lesson.id)
-        .join(Level, Lesson.level_id == Level.id)
-        .filter(Level.id == level_id)
-        .filter(Attempt.status.in_(_DPS_LEADERBOARD_COMPLETED_STATUSES))
-        .filter(Attempt.submitted_at.isnot(None))
-        .group_by(Student.id, Student.photo_url, User.full_name, User.photo_url)
-        .all()
-    )
-
-    return _build_dps_leaderboard_response(db, results, student)
+    leaderboard = leaderboard_service.rank_dps_specific_level(db, level_id)
+    return leaderboard_service.wrap_for_student(leaderboard, student.id)

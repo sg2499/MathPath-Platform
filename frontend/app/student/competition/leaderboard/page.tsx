@@ -5,7 +5,7 @@ import { Award, Clock, Star, Trophy, Users, AlertCircle, ChevronDown, ArrowLeft 
 import { LeaderboardAPI } from "@/lib/api-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import type { 
   HierarchyResponse, 
@@ -63,6 +63,7 @@ function getInitials(name: string) {
 export default function MockLeaderboardPage() {
 const Ready = useProtectedPage(["STUDENT"]);
 const router = useRouter();
+const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -96,24 +97,44 @@ const router = useRouter();
         setLevels(fetchedLevels);
         setExams(fetchedExams);
         
-        let targetModuleId = null;
-        let targetLevelId = null;
-        let targetExamId = null;
+        let targetModuleId: string | null = null;
+        let targetLevelId: string | null = null;
+        let targetExamId: string | null = null;
 
-        if (data.currentModuleId) {
+        // Deep-link support (2026-09-01) -- a leaderboard rank-change
+        // notification links here with ?viewMode=CUMULATIVE&levelId=... or
+        // ?viewMode=INDIVIDUAL&levelId=...&examId=..., so clicking it lands
+        // on the exact tab/scope the notification was about instead of
+        // always resetting to the student's current module/level/exam.
+        const deepLinkViewMode = searchParams.get("viewMode");
+        const deepLinkLevelId = searchParams.get("levelId");
+        const deepLinkExamId = searchParams.get("examId");
+
+        if (deepLinkViewMode === "CUMULATIVE" || deepLinkViewMode === "INDIVIDUAL") {
+            setViewMode(deepLinkViewMode);
+        }
+
+        if (deepLinkLevelId && fetchedLevels.some(l => l.id === deepLinkLevelId)) {
+            targetLevelId = deepLinkLevelId;
+            targetModuleId = fetchedLevels.find(l => l.id === deepLinkLevelId)?.moduleId || null;
+        } else if (data.currentModuleId) {
             targetModuleId = data.currentModuleId;
         } else if (fetchedModules.length > 0) {
             targetModuleId = fetchedModules[0].id;
         }
 
-        if (data.currentLevelId) {
-            targetLevelId = data.currentLevelId;
-        } else if (targetModuleId) {
-            const modLevels = fetchedLevels.filter(l => l.moduleId === targetModuleId);
-            if (modLevels.length > 0) targetLevelId = modLevels[0].id;
+        if (!targetLevelId) {
+            if (data.currentLevelId) {
+                targetLevelId = data.currentLevelId;
+            } else if (targetModuleId) {
+                const modLevels = fetchedLevels.filter(l => l.moduleId === targetModuleId);
+                if (modLevels.length > 0) targetLevelId = modLevels[0].id;
+            }
         }
 
-        if (targetLevelId) {
+        if (deepLinkExamId && fetchedExams.some(e => e.id === deepLinkExamId)) {
+            targetExamId = deepLinkExamId;
+        } else if (targetLevelId) {
             const lvlExams = fetchedExams.filter(e => e.levelId === targetLevelId);
             if (lvlExams.length > 0) targetExamId = lvlExams[0].id;
         }

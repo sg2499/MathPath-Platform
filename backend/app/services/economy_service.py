@@ -164,7 +164,23 @@ class EconomyService:
             
         db.commit()
         db.refresh(econ)
-        
+
+        # Persisted-notification companion to the existing RankCinematicOverlay
+        # live animation (2026-09-01, Shailesh's explicit instruction) --
+        # additive, not a replacement. This is the single shared insertion
+        # point for DPS/mock/assessment XP awards alike, so every activity
+        # type that ranks a student up gets this notification for free.
+        # Wrapped in its own try/except so a bug here can never break XP/coin
+        # awarding, the one thing this function absolutely cannot fail at.
+        if ranked_up:
+            try:
+                from app.services.rank_notification_service import NotifyXpRankTierUp
+
+                NotifyXpRankTierUp(db, user_id, old_rank, new_rank)
+            except Exception as e:
+                import logging
+                logging.error(f"Failed to send XP rank-tier-up notification for user {user_id}: {e}")
+
         return econ, ranked_up
 
     @staticmethod
