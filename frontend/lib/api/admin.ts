@@ -1307,6 +1307,10 @@ export type GenerateCompetitionMockPayload = {
   title?: string;
   mockCode?: string;
   totalQuestions?: number;
+  // Admin-chosen total marks, 10-100 inclusive, default 100 when omitted --
+  // applies whether or not this level has a weighted (Concept Drill/Skill
+  // Stacker) section.
+  totalMarks?: number;
   durationSeconds?: number;
   competitionScope?: string;
   difficultyBand?: string;
@@ -1349,8 +1353,8 @@ export type AssignCompetitionMocksPayload = {
   instructions?: string | null;
 };
 
-export async function getCompetitionMockSectionPlan(levelId: string, totalQuestions?: number): Promise<CompetitionMockSectionPlan> {
-  const { data } = await api.get<CompetitionMockSectionPlan>("/admin/competition/mock-section-plan", { params: { levelId, totalQuestions } });
+export async function getCompetitionMockSectionPlan(levelId: string, totalQuestions?: number, totalMarks?: number): Promise<CompetitionMockSectionPlan> {
+  const { data } = await api.get<CompetitionMockSectionPlan>("/admin/competition/mock-section-plan", { params: { levelId, totalQuestions, totalMarks } });
   return data;
 }
 

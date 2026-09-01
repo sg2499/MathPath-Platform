@@ -469,6 +469,8 @@ def student_payload(db: Session, student: Student, lesson_progress: dict | None 
         "clearedInCurrentLesson": lesson_progress.get("clearedInCurrentLesson", 0),
         "totalInCurrentLesson": lesson_progress.get("totalInCurrentLesson", 0),
         "assignableInCurrentLesson": lesson_progress.get("assignableInCurrentLesson", False),
+        "isNewToLevel": lesson_progress.get("isNewToLevel", True),
+        "assignableDpsIds": lesson_progress.get("assignableDpsIds", []),
         "levelComplete": lesson_progress.get("levelComplete", False),
         "previousLessonNumber": lesson_progress.get("previousLessonNumber"),
         "previousLessonTitle": lesson_progress.get("previousLessonTitle"),

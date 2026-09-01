@@ -111,6 +111,11 @@ export default function AdminCompetitionMockStudioPage() {
   const [MockTitle, SetMockTitle] = useState("");
   const [MockCode, SetMockCode] = useState("");
   const [QuestionCount, SetQuestionCount] = useState(String(DefaultQuestionCount));
+  // Admin-chosen total marks for a weighted level (Concept Drill/Skill
+  // Stacker present) -- 10-100 inclusive, default 100. Irrelevant for a
+  // flat level, which uses QuestionCount directly (1 mark/question, so
+  // "Total Questions" already IS the marks total there).
+  const [MarksTargetInput, SetMarksTargetInput] = useState("100");
   const [DurationMinutes, SetDurationMinutes] = useState(String(DefaultDurationMinutes));
   const [SelectedMockIds, SetSelectedMockIds] = useState<string[]>([]);
   const [SelectedStudentIds, SetSelectedStudentIds] = useState<string[]>([]);
@@ -138,7 +143,7 @@ export default function AdminCompetitionMockStudioPage() {
   const LevelsQuery = useQuery({ queryKey: ["admin", "competition", "levels", SelectedModuleId], queryFn: () => getLevels(SelectedModuleId), enabled: Ready && Boolean(SelectedModuleId) });
   const StudentsQuery = useQuery({ queryKey: ["admin", "competition", "students"], queryFn: getAdminStudents, enabled: Ready });
   const MocksQuery = useQuery({ queryKey: ["admin", "competition", "mocks", ManageLevelFilterId], queryFn: () => listCompetitionMockExams(ManageLevelFilterId || undefined), enabled: Ready });
-  const SectionPlanQuery = useQuery({ queryKey: ["admin", "competition", "section-plan", SelectedLevelId, QuestionCount], queryFn: () => getCompetitionMockSectionPlan(SelectedLevelId, Number(QuestionCount) || DefaultQuestionCount), enabled: Ready && Boolean(SelectedLevelId) });
+  const SectionPlanQuery = useQuery({ queryKey: ["admin", "competition", "section-plan", SelectedLevelId, QuestionCount, MarksTargetInput], queryFn: () => getCompetitionMockSectionPlan(SelectedLevelId, Number(QuestionCount) || DefaultQuestionCount, Math.max(10, Math.min(100, Math.floor(Number(MarksTargetInput) || 0))) || 100), enabled: Ready && Boolean(SelectedLevelId) });
   // Manage Mocks' level filter spans every competition-mock-supported module
   // at once (unlike Create Mock's Level select, which is scoped to whichever
   // single module is chosen there) -- so it fetches each supported module's
@@ -220,7 +225,14 @@ export default function AdminCompetitionMockStudioPage() {
   // _CompetitionMockSectionPlanSections in
   // competition_mock_generation_service.py).
   const HasWeightedSection = (SectionPlan?.sections || []).some((SectionValue) => SectionValue.isWeighted);
-  const MockMarksTarget = 100;
+  // Admin-chosen total marks, clamped 10-100 and defaulting to 100 when
+  // empty/invalid -- everything below (RemainingMarks, the Section
+  // Allocation badge, MarksMismatch, the generate payload) already keys
+  // off this one constant, so a flexible target just means computing it
+  // from MarksTargetInput instead of hardcoding 100. Applies the same way
+  // whether or not this level actually has a weighted section (Shailesh:
+  // "that should not matter at all").
+  const MockMarksTarget = Math.max(10, Math.min(100, Math.floor(Number(MarksTargetInput) || 0))) || 100;
 
   // LiveSections mirrors the backend's redistribution so the admin sees the
   // exact split that will actually happen at generation time, live, with no
@@ -371,6 +383,7 @@ export default function AdminCompetitionMockStudioPage() {
       // practice the two only differ transiently before a re-render --
       // but QuestionCount is the source of truth, never the box sum.
       totalQuestions: HasWeightedSection ? SectionCountTotal : (Number(QuestionCount) || DefaultQuestionCount),
+      totalMarks: MockMarksTarget,
       durationSeconds: (Number(DurationMinutes) || DefaultDurationMinutes) * 60,
       competitionScope: "GENERAL",
       difficultyBand: "COMPETITION",
@@ -551,13 +564,13 @@ export default function AdminCompetitionMockStudioPage() {
                   <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Mock Code is optional. Use A-Z, 0-9, hyphen, or underscore. If left blank, the system will create one automatically.</p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                      Total Questions
+                      {HasWeightedSection ? "Total Marks" : "Total Questions"}
                       {HasWeightedSection ? (
-                        <div className="math-input flex items-center font-black text-slate-500 dark:text-slate-400">{SectionCountTotal}</div>
+                        <input value={MarksTargetInput} onChange={(EventValue) => SetMarksTargetInput(EventValue.target.value)} type="number" min={10} max={100} className="math-input" />
                       ) : (
-                        <input value={QuestionCount} onChange={(EventValue) => SetQuestionCount(EventValue.target.value)} type="number" min={10} max={300} className="math-input" />
+                        <input value={QuestionCount} onChange={(EventValue) => SetQuestionCount(EventValue.target.value)} type="number" min={10} max={100} className="math-input" />
                       )}
-                      {HasWeightedSection && <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">Computed automatically so the mock always totals exactly 100 marks -- set the weighted section's question count below.</span>}
+                      {HasWeightedSection && <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">Concept Drill/Skill Stacker questions stay 5 marks each; every other section auto-fills at 1 mark/question until this total is reached -- set the weighted section's question count below.</span>}
                     </label>
                     <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                       Duration Minutes

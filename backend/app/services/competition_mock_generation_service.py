@@ -1231,20 +1231,30 @@ def _BalanceCompetitionMockSectionCounts(
     SectionConceptPools: dict[str, list[dict[str, Any]]],
     WeightedCountsOverride: dict[str, int] | None,
     DefaultTotal: int,
+    MarksTarget: int = 100,
 ) -> dict[str, int] | None:
     """Per-section question counts for a competition mock so the mock ALWAYS
-    totals exactly 100 marks (Shailesh, 2026-09-01: the Mock Studio's
-    Section Allocation panel never got the same "always 100 marks"
-    treatment MM/PM/BM assessment blueprints already have -- it just split
-    "Total Questions" evenly across every section with zero notion that
-    Concept Drill/Skill Stacker sections are worth 5 marks/question, so a
-    100-question MM mock actually totalled 140 marks. This is that fix,
-    extended to the mock flow).
+    totals exactly MarksTarget marks (Shailesh, 2026-09-01: the Mock
+    Studio's Section Allocation panel never got the same "always totals to
+    a fixed number of marks" treatment MM/PM/BM assessment blueprints
+    already have -- it just split "Total Questions" evenly across every
+    section with zero notion that Concept Drill/Skill Stacker sections are
+    worth 5 marks/question, so a 100-question MM mock actually totalled
+    140 marks. This is that fix, extended to the mock flow. MarksTarget
+    itself became admin-configurable the same day, 10-100 inclusive,
+    defaulting to 100 -- see GenerateCompetitionMockDraft/
+    CompetitionMockSectionPlan for where the admin's own choice comes in;
+    every module/level goes through the same target here, whether it has
+    a weighted section or not, per Shailesh: "that should not matter at
+    all, if included then it will follow the rules it follows and if not
+    included then 1 mark each rule follows according to the total number
+    of questions set by the admin").
 
     Returns None when the level has no weighted (Skill Stacker/Concept
     Drill) section at all -- e.g. PM-L1, YLM -- so the caller falls back to
-    the pre-2026-09-01 flat even-split behaviour untouched; there is
-    nothing to balance when every question is worth the same 1 mark.
+    the pre-2026-09-01 flat even-split behaviour untouched (still bounded
+    by the same MarksTarget, just 1:1 with question count there); there is
+    nothing to balance here when every question is worth the same 1 mark.
 
     Otherwise: weighted sections are the ONLY thing WeightedCountsOverride
     (the admin's own input, from the Mock Studio's "Weighted (5
@@ -1253,13 +1263,14 @@ def _BalanceCompetitionMockSectionCounts(
     see under the old flat UI) when nothing is overridden yet. Flat
     sections (1 mark/question) are no longer admin-editable at all -- they
     always auto-fill however many marks are left after the weighted
-    sections (100 - weighted_marks), split evenly across them with the
-    remainder handed to the first few in definition order, exactly
+    sections (MarksTarget - weighted_marks), split evenly across them with
+    the remainder handed to the first few in definition order, exactly
     mirroring _RedistributeSectionCounts' own remainder rule just below.
     Raises COMPETITION_MOCK_MARKS_INVALID if the admin's weighted counts
-    alone already exceed 100 marks, or leave marks nothing can absorb (no
-    flat section exists) -- same guard _ResolveCompetitionMockQuestionMarks
-    already uses for the generated question mix itself.
+    alone already exceed MarksTarget marks, or leave marks nothing can
+    absorb (no flat section exists) -- same guard
+    _ResolveCompetitionMockQuestionMarks already uses for the generated
+    question mix itself.
     """
     WeightedKeys = _CompetitionMockWeightedSectionKeys(SectionConceptPools)
     if not WeightedKeys:
@@ -1297,16 +1308,16 @@ def _BalanceCompetitionMockSectionCounts(
         WeightedCounts[Key] = max(0, int(Raw if Raw is not None else DefaultPerSection))
 
     WeightedMarksTotal = sum(Count * _COMPETITION_CONCEPT_WEIGHTED_MARKS for Count in WeightedCounts.values())
-    RemainingMarks = 100.0 - WeightedMarksTotal
+    RemainingMarks = float(MarksTarget) - WeightedMarksTotal
 
     if RemainingMarks < 0 or (not FlatSections and abs(RemainingMarks) > 1e-9):
         api_error(
             400,
             "COMPETITION_MOCK_MARKS_INVALID",
-            f"This weighted question count cannot total exactly 100 marks: "
+            f"This weighted question count cannot total exactly {MarksTarget:g} marks: "
             f"{sum(WeightedCounts.values())} Concept Drill/Skill Stacker question(s) alone are worth "
             f"{WeightedMarksTotal:g} marks, leaving {RemainingMarks:g} for the remaining sections. "
-            "Reduce the weighted question count so the totals can balance to 100.",
+            f"Reduce the weighted question count so the totals can balance to {MarksTarget:g}.",
         )
 
     RemainingMarksInt = int(round(RemainingMarks))
@@ -1329,6 +1340,7 @@ def _CompetitionMockSectionPlanSections(
     SectionConceptPools: dict[str, list[dict[str, Any]]],
     RequestedQuestionCount: int,
     DefaultTotal: int,
+    MarksTarget: int = 100,
 ) -> tuple[list[dict[str, Any]], int]:
     """Shared by every CompetitionMockSectionPlan() module branch below:
     builds the section list -- tagged with isWeighted/marksPerQuestion so
@@ -1337,11 +1349,14 @@ def _CompetitionMockSectionPlanSections(
     actual total question count. For a level with a weighted section this
     is now ALWAYS the marks-balanced total (see
     _BalanceCompetitionMockSectionCounts), not the raw RequestedQuestionCount
-    a caller passed in; for a level with none, it's the old flat even-split,
-    unchanged.
+    a caller passed in; for a level with none, it's the old flat even-split
+    against RequestedQuestionCount itself (which for a flat level already
+    IS the marks total, one mark per question). MarksTarget is the admin's
+    chosen total marks (10-100, default 100) -- irrelevant to the flat
+    path since RequestedQuestionCount already carries that number there.
     """
     WeightedKeys = _CompetitionMockWeightedSectionKeys(SectionConceptPools)
-    BalancedCounts = _BalanceCompetitionMockSectionCounts(SectionDefinitions, SectionConceptPools, None, DefaultTotal)
+    BalancedCounts = _BalanceCompetitionMockSectionCounts(SectionDefinitions, SectionConceptPools, None, DefaultTotal, MarksTarget)
     if BalancedCounts is not None:
         Sections = [
             {
@@ -1991,7 +2006,16 @@ def _CollectImCompetitionSectionLockedQuestions(
     return Selected, CoveragePayload
 
 
-def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int | None = None) -> dict[str, Any]:
+def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int | None = None, TotalMarks: int | None = None) -> dict[str, Any]:
+    # Admin-chosen total marks for this mock, 10-100 inclusive, default 100
+    # -- applies uniformly to every module/level below, whether it has a
+    # weighted (Concept Drill/Skill Stacker) section or not (Shailesh,
+    # 2026-09-01: "that should not matter at all"). A level with a weighted
+    # section spends this on the balance in _BalanceCompetitionMockSectionCounts;
+    # a flat level (no weighted section) never reads it at all -- its own
+    # RequestedQuestionCount/TotalQuestions IS the marks total already, one
+    # mark per question, unchanged from before.
+    MarksTargetClamped = max(10, min(100, int(TotalMarks))) if TotalMarks else 100
     ModuleRecord, LevelRecord, Lessons, DpsRows = _LevelRecords(db, LevelId)
     if _IsMasterModule(ModuleRecord):
         # Resolved via the level registry (not the bare global) so that
@@ -2002,7 +2026,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         MmSectionConceptPools = MmLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
         Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
-            MmSectionDefinitions, MmSectionConceptPools, RequestedQuestionCount, MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+            MmSectionDefinitions, MmSectionConceptPools, RequestedQuestionCount, MM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT, MarksTargetClamped,
         )
         return {
             "moduleId": ModuleRecord.id,
@@ -2026,7 +2050,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         ImSectionConceptPools = ImLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
         Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
-            ImSectionDefinitions, ImSectionConceptPools, RequestedQuestionCount, IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+            ImSectionDefinitions, ImSectionConceptPools, RequestedQuestionCount, IM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT, MarksTargetClamped,
         )
         return {
             "moduleId": ModuleRecord.id,
@@ -2050,7 +2074,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         PmSectionConceptPools = PmLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
         Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
-            PmSectionDefinitions, PmSectionConceptPools, RequestedQuestionCount, PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+            PmSectionDefinitions, PmSectionConceptPools, RequestedQuestionCount, PM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT, MarksTargetClamped,
         )
         return {
             "moduleId": ModuleRecord.id,
@@ -2087,7 +2111,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         BmSectionConceptPools = BmLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or BM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
         Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
-            BmSectionDefinitions, BmSectionConceptPools, RequestedQuestionCount, BM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+            BmSectionDefinitions, BmSectionConceptPools, RequestedQuestionCount, BM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT, MarksTargetClamped,
         )
         return {
             "moduleId": ModuleRecord.id,
@@ -2117,7 +2141,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         YlmSectionConceptPools = YlmLevelConfig["sectionConceptPools"]
         RequestedQuestionCount = int(TotalQuestions or YLM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT)
         Sections, RequestedQuestionCount = _CompetitionMockSectionPlanSections(
-            YlmSectionDefinitions, YlmSectionConceptPools, RequestedQuestionCount, YLM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT,
+            YlmSectionDefinitions, YlmSectionConceptPools, RequestedQuestionCount, YLM_DEFAULT_COMPETITION_MOCK_QUESTION_COUNT, MarksTargetClamped,
         )
         return {
             "moduleId": ModuleRecord.id,
@@ -3009,11 +3033,17 @@ def GenerateCompetitionMockDraft(
     Title: str | None = None,
     MockCode: str | None = None,
     TotalQuestions: int | None = None,
+    TotalMarks: int | None = None,
     DurationSeconds: int | None = None,
     CompetitionScope: str = "GENERAL",
     DifficultyBand: str = "COMPETITION",
     SectionCounts: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    # Admin-chosen total marks, 10-100 inclusive, default 100 -- see
+    # CompetitionMockSectionPlan's MarksTargetClamped for the same clamp,
+    # kept in sync so the live preview and the actual generation always
+    # agree on what a given TotalMarks value resolves to.
+    MarksTargetClamped = max(10, min(100, int(TotalMarks))) if TotalMarks else 100
     ModuleRecord, LevelRecord, Lessons, DpsRows = _LevelRecords(db, LevelId)
     SectionCountsOverride = _NormalizeSectionCounts(SectionCounts)
     IsMmMock = _IsMasterModule(ModuleRecord)
@@ -3038,21 +3068,24 @@ def GenerateCompetitionMockDraft(
         else DEFAULT_COMPETITION_MOCK_DURATION_SECONDS
     )
     # 2026-09-01 (Shailesh): a level with a weighted (Skill Stacker/Concept
-    # Drill) section must always generate a mock totalling exactly 100
-    # marks -- same invariant MM/PM/BM assessment blueprints already
-    # enforce, extended to the mock flow, which never had it (see
-    # _BalanceCompetitionMockSectionCounts). When one exists, the balanced
-    # count map is authoritative for every section, weighted and flat
-    # alike -- TotalQuestions/SectionCountsOverride's raw flat-section
+    # Drill) section must always generate a mock totalling exactly
+    # MarksTargetClamped marks -- same invariant MM/PM/BM assessment
+    # blueprints already have, extended to the mock flow, which never had
+    # it (see _BalanceCompetitionMockSectionCounts). When one exists, the
+    # balanced count map is authoritative for every section, weighted and
+    # flat alike -- TotalQuestions/SectionCountsOverride's raw flat-section
     # values (if the client still sent any) are superseded here, since the
     # Mock Studio UI only lets the admin edit the weighted section(s) now.
-    # A level with no weighted section (PM-L1, YLM, ...) is untouched.
+    # A level with no weighted section (PM-L1, YLM, ...) is untouched --
+    # TotalQuestions there already IS the marks total, one mark per
+    # question, so it just flows straight into RequestedQuestionCount below
+    # same as always; MarksTargetClamped only matters on the weighted path.
     LevelSectionConfig = _CompetitionMockLevelSectionConfig(ModuleRecord, LevelRecord)
     BalancedSectionCounts = None
     if LevelSectionConfig is not None:
         SectionDefinitionsForBalance, SectionConceptPoolsForBalance = LevelSectionConfig
         BalancedSectionCounts = _BalanceCompetitionMockSectionCounts(
-            SectionDefinitionsForBalance, SectionConceptPoolsForBalance, SectionCountsOverride, DefaultQuestionCount,
+            SectionDefinitionsForBalance, SectionConceptPoolsForBalance, SectionCountsOverride, DefaultQuestionCount, MarksTargetClamped,
         )
     if BalancedSectionCounts is not None:
         SectionCountsOverride = BalancedSectionCounts
@@ -3061,8 +3094,15 @@ def GenerateCompetitionMockDraft(
         RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)
     if RequestedQuestionCount < 10:
         api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams must contain at least 10 questions.")
-    if RequestedQuestionCount > 300:
-        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams cannot exceed 300 questions in this package.")
+    # 100, not 300: every question is worth at least 1 mark, and a mock's
+    # total marks are capped at 100 (10-100, admin-chosen) whether or not
+    # the level has a weighted section -- so 100 questions is the most any
+    # competition mock can ever legitimately contain. This is a hard
+    # server-side floor under MarksTargetClamped, independent of it: it
+    # catches a flat level's raw TotalQuestions/SectionCountsOverride too,
+    # which never goes through MarksTargetClamped at all.
+    if RequestedQuestionCount > 100:
+        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams cannot exceed 100 questions (100 marks) in this package.")
 
     RequestedDurationSeconds = int(DurationSeconds or DefaultDurationSeconds)
     if RequestedDurationSeconds < 300:

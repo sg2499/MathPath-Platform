@@ -38,6 +38,19 @@ export type TeacherStudent = {
   clearedInCurrentLesson?: number;
   totalInCurrentLesson?: number;
   assignableInCurrentLesson?: boolean;
+  // True when this student has never had a DPS sheet assigned anywhere in
+  // this level yet -- currentLessonId above is only the lesson-1-first
+  // fallback in that case, not a real anchor, so assign-dps/page.tsx lets
+  // a teacher place their first assignment on any lesson, not just this
+  // fallback one. See lesson_progress_service.py's isNewToLevel.
+  isNewToLevel?: boolean;
+  // Every DPS id (within this student's current level) actually
+  // assignable to them right now -- not just the ones in their anchored
+  // "current" lesson above. This is the source of truth assign-dps uses
+  // to decide who is eligible for a lesson/sheet the teacher picks, so
+  // eligibility is never gated on currentLessonId matching. See
+  // lesson_progress_service.py's assignable_dps_ids_by_student.
+  assignableDpsIds?: string[];
   levelComplete?: boolean;
   previousLessonNumber?: number | null;
   previousLessonTitle?: string | null;

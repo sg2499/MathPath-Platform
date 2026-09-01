@@ -213,14 +213,42 @@ export default function TeacherAssignDpsPage() {
     [students, activeLevelId]
   );
 
-  // Scoped to the selected lesson (not just the level) and excludes anyone
-  // who already has every sheet in this lesson assigned or completed --
-  // reattempts are a separate mechanism entirely and don't concern this
-  // list. currentLessonId/assignableInCurrentLesson come from the backend,
-  // derived fresh from Attempt.cleared_at_attempt every time.
-  const eligibleStudents = studentsInLevel.filter(
-    (student) => student.currentLessonId === lessonId && student.assignableInCurrentLesson
-  );
+  // Scoped to the selected lesson (or, when one sheet is picked, that
+  // exact sheet) and excludes anyone who already has it assigned or
+  // completed -- reattempts are a separate mechanism entirely and don't
+  // concern this list.
+  //
+  // Two rules, deliberately different for two different kinds of student
+  // (Shailesh, 2026-09-01: flexible only for someone never assigned
+  // anything in this level yet; strict and sequential for everyone else):
+  //
+  //  - isNewToLevel (no assignment history anywhere in this level yet):
+  //    currentLessonId/currentLessonNumber are only the lesson-1-first
+  //    fallback the backend reports for someone who hasn't started, not a
+  //    real position -- so any lesson in the level is a valid starting
+  //    point for their first assignment here.
+  //  - Everyone else: strictly their own current lesson only, matched by
+  //    lesson NUMBER rather than raw lessonId (robust even if the lesson
+  //    dropdown's lesson list and the progress-tracking lookup ever
+  //    resolve "this lesson" to different Lesson rows for the same
+  //    number) -- once a student has real history, progression is
+  //    sequential and a teacher should never see them under a lesson
+  //    ahead of or behind where they actually are.
+  //
+  // Either way, actual assignability is always the per-sheet fact
+  // (assignableDpsIds, the same is_assignable_now() predicate
+  // assign_single_dps_to_students() itself uses) -- never inferred from a
+  // separate summary field, so a student anchored on the right lesson but
+  // with every sheet in it already assigned/completed still correctly
+  // drops out.
+  const eligibleStudents = studentsInLevel.filter((student) => {
+    const AssignableIds = student.assignableDpsIds || [];
+    if (!AssignableIds.length) return false;
+    const IsCurrentLessonMatch = Boolean(selectedLesson && selectedLesson.lessonNumber === student.currentLessonNumber);
+    if (!student.isNewToLevel && !IsCurrentLessonMatch) return false;
+    if (dpsId) return AssignableIds.includes(dpsId);
+    return dpsForLesson.some((dps) => AssignableIds.includes(dps.dpsId));
+  });
   const eligibleStudentIds = useMemo(() => eligibleStudents.map((student) => student.studentId), [eligibleStudents]);
 
   const mutation = useMutation({
@@ -533,7 +561,7 @@ export default function TeacherAssignDpsPage() {
                   <div className="min-w-0">
                     <p className="font-black text-slate-950">{student.studentName}</p>
                     <p className="text-sm text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}</p>
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <LessonProgressBadge
                         currentLessonNumber={student.currentLessonNumber}
                         clearedInCurrentLesson={student.clearedInCurrentLesson}
@@ -541,6 +569,11 @@ export default function TeacherAssignDpsPage() {
                         levelComplete={student.levelComplete}
                         previousLessonNumber={student.previousLessonNumber}
                       />
+                      {student.isNewToLevel && (!selectedLesson || selectedLesson.lessonNumber !== student.currentLessonNumber) ? (
+                        <span className="math-badge border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                          New to this level -- starting on Lesson {selectedLesson?.lessonNumber ?? "?"}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </label>

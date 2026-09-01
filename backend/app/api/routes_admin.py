@@ -103,6 +103,11 @@ class CompetitionMockGenerateRequest(BaseModel):
     title: str | None = None
     mockCode: str | None = None
     totalQuestions: int | None = None
+    # Admin-chosen total marks, 10-100 inclusive, default 100 when omitted
+    # -- applies whether or not this level has a weighted (Concept
+    # Drill/Skill Stacker) section; see GenerateCompetitionMockDraft's
+    # MarksTargetClamped.
+    totalMarks: int | None = None
     durationSeconds: int | None = None
     competitionScope: str | None = "GENERAL"
     difficultyBand: str | None = "COMPETITION"
@@ -5654,8 +5659,8 @@ def admin_delete_assessment_blueprint(
 
 
 @router.get("/competition/mock-section-plan")
-def admin_get_competition_mock_section_plan(levelId: str, totalQuestions: int | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    return CompetitionMockSectionPlan(db, LevelId=levelId, TotalQuestions=totalQuestions)
+def admin_get_competition_mock_section_plan(levelId: str, totalQuestions: int | None = None, totalMarks: int | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return CompetitionMockSectionPlan(db, LevelId=levelId, TotalQuestions=totalQuestions, TotalMarks=totalMarks)
 
 
 @router.post("/competition/mock-exams/generate-draft")
@@ -5667,6 +5672,7 @@ def admin_generate_competition_mock_draft(payload: CompetitionMockGenerateReques
         Title=payload.title,
         MockCode=payload.mockCode,
         TotalQuestions=payload.totalQuestions,
+        TotalMarks=payload.totalMarks,
         DurationSeconds=payload.durationSeconds,
         CompetitionScope=payload.competitionScope or "GENERAL",
         DifficultyBand=payload.difficultyBand or "COMPETITION",
