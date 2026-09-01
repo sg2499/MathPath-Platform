@@ -16,6 +16,7 @@ import type { ModuleSchema, LevelSchema } from "@/lib/schemas/leaderboard";
 import { z } from "zod";
 import { motion } from "framer-motion";
 import { BadgeIconMap, getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
+import { DpsPodiumHeroAnimation } from "@/app/student/competition/dps-leaderboard/DpsPodiumHeroAnimation";
 
 // Small badge-chip cluster -- same convention as the student leaderboard
 // pages (frontend/app/student/competition/dps-leaderboard/page.tsx) so a
@@ -54,11 +55,11 @@ function getInitials(name: string) {
 // ============================================================================
 // AAA Parallax Podium Card with Glass Foil & Gyroscope Hover -- the exact
 // same visual card the student DPS/Mock leaderboards use (2026-09-01), so a
-// podium looks like the same podium everywhere it appears. No hero-cutscene
-// wiring here (teachers don't get the click-to-launch podium animation) --
-// this is the card's look, ported as-is, minus the onActivateHero hook.
+// podium looks like the same podium everywhere it appears. Clicking a podium
+// card launches the same hero cutscene the student leaderboard uses, via
+// onActivateHero -> DpsPodiumHeroAnimation below.
 // ============================================================================
-function PodiumCard({ entry, rank, isHighlighted, cardRef }: { entry: TeacherLeaderboardEntry; rank: number; isHighlighted?: boolean; cardRef?: React.Ref<HTMLDivElement> }) {
+function PodiumCard({ entry, rank, isHighlighted, cardRef, onActivateHero }: { entry: TeacherLeaderboardEntry; rank: number; isHighlighted?: boolean; cardRef?: React.Ref<HTMLDivElement>; onActivateHero?: () => void }) {
   const [physics, setPhysics] = useState({ rx: 0, ry: 0, px: 0, py: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const tiltRef = React.useRef<HTMLDivElement>(null);
@@ -78,6 +79,9 @@ function PodiumCard({ entry, rank, isHighlighted, cardRef }: { entry: TeacherLea
   const handleMouseLeave = () => {
     setIsHovered(false);
     setPhysics({ rx: 0, ry: 0, px: 0, py: 0 });
+  };
+  const handlePodiumClick = () => {
+    if (onActivateHero) onActivateHero();
   };
 
   const config = rank === 1
@@ -115,7 +119,8 @@ function PodiumCard({ entry, rank, isHighlighted, cardRef }: { entry: TeacherLea
         onMouseEnter={handleMouseEnter}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative mb-5 transform-gpu transition-transform duration-300 ease-out group"
+        onClick={handlePodiumClick}
+        className="relative mb-5 cursor-pointer transform-gpu transition-transform duration-300 ease-out group"
         style={{ transform: `rotateX(${physics.rx}deg) rotateY(${physics.ry}deg) scale(${isHovered ? 1.08 : 1})` }}
       >
         {/* Massive Hover Bloom */}
@@ -182,8 +187,9 @@ function PodiumCard({ entry, rank, isHighlighted, cardRef }: { entry: TeacherLea
         initial={{ scaleY: 0, opacity: 0 }}
         animate={{ scaleY: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 100, damping: 15, delay: config.delay }}
-        className={`w-28 md:w-40 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-2 md:pb-4 border-b-[8px] border-white/40 shadow-[inset_0_0_30px_rgba(255,255,255,0.5)] group`}
+        className={`w-28 md:w-40 ${config.height} bg-gradient-to-t ${config.pedestalGradient} relative overflow-hidden flex items-end justify-center pb-2 md:pb-4 border-b-[8px] border-white/40 shadow-[inset_0_0_30px_rgba(255,255,255,0.5)] cursor-pointer group`}
         style={{ clipPath: config.shape, filter: `drop-shadow(0 -10px 40px ${config.shadow})`, transformOrigin: "bottom" }}
+        onClick={handlePodiumClick}
       >
         <div className="absolute top-0 -left-[100%] w-1/2 h-[200%] bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-[-45deg] transition-all duration-700 ease-in-out group-hover:left-[200%] z-10" />
         <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-500 z-0" style={{ opacity: isHovered ? 0.5 : 0 }} />
@@ -252,6 +258,7 @@ function TeacherDpsLeaderboardPageInner() {
   const highlightStudentId = searchParams.get("highlightStudentId");
   const highlightRowRef = useRef<HTMLTableRowElement | null>(null);
   const highlightCardRef = useRef<HTMLDivElement | null>(null);
+  const [activeHeroRank, setActiveHeroRank] = useState<1 | 2 | 3 | null>(null);
 
   useEffect(() => {
     async function loadHierarchy() {
@@ -331,6 +338,7 @@ function TeacherDpsLeaderboardPageInner() {
   }, [highlightStudentId, leaderboardData]);
 
   const availableLevels = levels.filter((l) => l.moduleId === selectedModuleId);
+  const selectedLevel = levels.find((l) => l.id === selectedLevelId);
   const leaderboard = leaderboardData?.leaderboard || [];
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
@@ -338,6 +346,13 @@ function TeacherDpsLeaderboardPageInner() {
   return (
     <AppShell title="DPS Leaderboard">
       <div className="math-role-teacher math-page space-y-6">
+        <DpsPodiumHeroAnimation
+          rank={activeHeroRank}
+          viewMode={viewMode}
+          student={activeHeroRank ? top3[activeHeroRank - 1] : undefined}
+          levelCode={selectedLevel?.code}
+          onComplete={() => setActiveHeroRank(null)}
+        />
         <div className="math-card p-6 md:p-8 rounded-3xl">
           <div className="math-block-header mb-3"><Trophy size={16} className="text-yellow-500" /> Leaderboard</div>
           <h1 className="math-title mb-2">DPS Leaderboard</h1>
@@ -413,9 +428,9 @@ function TeacherDpsLeaderboardPageInner() {
           <>
             {top3.length > 0 && (
               <div className="math-card rounded-3xl p-8 pt-16 md:pt-20 flex items-end justify-center gap-2 md:gap-6 relative">
-                {top3[1] && <PodiumCard entry={top3[1]} rank={2} isHighlighted={top3[1].studentId === highlightStudentId} cardRef={top3[1].studentId === highlightStudentId ? highlightCardRef : undefined} />}
-                {top3[0] && <PodiumCard entry={top3[0]} rank={1} isHighlighted={top3[0].studentId === highlightStudentId} cardRef={top3[0].studentId === highlightStudentId ? highlightCardRef : undefined} />}
-                {top3[2] && <PodiumCard entry={top3[2]} rank={3} isHighlighted={top3[2].studentId === highlightStudentId} cardRef={top3[2].studentId === highlightStudentId ? highlightCardRef : undefined} />}
+                {top3[1] && <PodiumCard entry={top3[1]} rank={2} isHighlighted={top3[1].studentId === highlightStudentId} cardRef={top3[1].studentId === highlightStudentId ? highlightCardRef : undefined} onActivateHero={() => setActiveHeroRank(2)} />}
+                {top3[0] && <PodiumCard entry={top3[0]} rank={1} isHighlighted={top3[0].studentId === highlightStudentId} cardRef={top3[0].studentId === highlightStudentId ? highlightCardRef : undefined} onActivateHero={() => setActiveHeroRank(1)} />}
+                {top3[2] && <PodiumCard entry={top3[2]} rank={3} isHighlighted={top3[2].studentId === highlightStudentId} cardRef={top3[2].studentId === highlightStudentId ? highlightCardRef : undefined} onActivateHero={() => setActiveHeroRank(3)} />}
               </div>
             )}
 
