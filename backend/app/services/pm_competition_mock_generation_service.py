@@ -502,7 +502,13 @@ def _generate_pm_l3_competition_batch(concept_spec: dict[str, Any], count: int, 
             number_min=int(concept_spec.get("numberMin") or 11), number_max=int(concept_spec.get("numberMax") or 99),
             multiplier_min=int(concept_spec.get("multiplierMin") or 1), multiplier_max=int(concept_spec.get("multiplierMax") or 9),
         )
-        return [generate_multiply_table_question(config, random.Random(f"{seed}-Q{i}")) for i in range(1, count + 1)]
+        # 2026-09-02 -- shared seen set across the mock's questions, same
+        # fix as generate_pm_l3_multiply_set in question_engine/pm_l3/generator.py
+        # (this competition-mock path calls the generator function
+        # directly instead of through that wrapper, so it needs the same
+        # explicit threading).
+        mock_seen: set[tuple[int, int]] = set()
+        return [generate_multiply_table_question(config, random.Random(f"{seed}-Q{i}"), mock_seen) for i in range(1, count + 1)]
 
     if concept_family == "PM_L3_DIVISION":
         config = PML3DivideConfig(
@@ -510,7 +516,8 @@ def _generate_pm_l3_competition_batch(concept_spec: dict[str, Any], count: int, 
             divisor_min=int(concept_spec.get("divisorMin") or 2), divisor_max=int(concept_spec.get("divisorMax") or 9),
             dividend_min=int(concept_spec.get("dividendMin") or 100), dividend_max=int(concept_spec.get("dividendMax") or 999),
         )
-        return [generate_divide_table_question(config, random.Random(f"{seed}-Q{i}")) for i in range(1, count + 1)]
+        mock_seen = set()
+        return [generate_divide_table_question(config, random.Random(f"{seed}-Q{i}"), mock_seen) for i in range(1, count + 1)]
 
     if concept_family == "BODMAS":
         templates = (BODMAS_SIMPLE_BRACKET, BODMAS_COMPOUND, BODMAS_CHAINED)

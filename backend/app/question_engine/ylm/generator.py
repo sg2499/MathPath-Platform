@@ -13,7 +13,18 @@ def generate_ylm_question_set(config: YLMConfig) -> list[dict]:
 
     for question_number in range(1, config.question_count + 1):
         q_rng = random.Random(f"{config.seed}-Q{question_number}")
-        operands = generate_unique_operands(config, q_rng, seen)
+        # Found 2026-09-02: generate_unique_operands() used to derive its own
+        # progression position from len(seen) instead of the real loop position.
+        # Once a narrow DPS's candidate pool ran out of unique combinations,
+        # seen.add() of a repeated tuple is a no-op, so len(seen) -- and therefore
+        # the target difficulty stage it drove -- froze permanently. Every
+        # subsequent question then landed on the exact same difficulty bucket and
+        # picked the exact same leftover combination (live-confirmed on YLM-L1
+        # Lesson 3 DPS-1: questions 5-10 were all identical). Passing the real,
+        # ever-advancing question_number - 1 keeps difficulty progression (and
+        # therefore selection) moving even once uniqueness has to give way to
+        # reuse -- reuse now rotates instead of locking onto one combination.
+        operands = generate_unique_operands(config, q_rng, seen, question_number - 1)
         if not validate_question(config, operands, set()):
             # This should not happen because generation is built from validated pools.
             # Keep the explicit guard so no invalid YLM worksheet can ever be published.

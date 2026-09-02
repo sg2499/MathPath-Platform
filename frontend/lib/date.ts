@@ -105,6 +105,31 @@ export function formatMathPathDateTime(value?: string | null) {
   );
 }
 
+// 2026-09-02: a compact "recency" variant for dense table columns (Admin/Teacher
+// Students directories) that only need to convey how recent something was at a
+// glance, not an exact-to-the-second timestamp -- e.g. "2 Sep, 3:45 PM" instead
+// of formatMathPathDateTime()'s "9/2/2026, 3:45:12 PM". Dropping the year (rarely
+// relevant for "last seen"/"latest activity" -- almost always the current year)
+// and seconds cuts the rendered width roughly in half, which is what actually
+// keeps those tables' columns from wrapping or forcing horizontal scroll on a
+// normal screen. Existing formatMathPathDateTime() call sites are untouched --
+// this is purely additive, opt-in per call site.
+export function formatMathPathDateTimeCompact(value?: string | null) {
+  const DateValue = parseMathPathDate(value);
+  if (!DateValue) return MATHPATH_EMPTY_VALUE;
+
+  return withUppercaseMeridiem(
+    DateValue.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }),
+  );
+}
+
 export function formatMathPathDate(value?: string | null) {
   const DateValue = parseMathPathDate(value);
   if (!DateValue) return MATHPATH_EMPTY_VALUE;

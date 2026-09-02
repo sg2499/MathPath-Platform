@@ -23,7 +23,7 @@ def generate_pm_question_set(config: PMConfig) -> list[dict]:
 
     for question_number in range(1, config.question_count + 1):
         q_rng = random.Random(f"{config.seed}-Q{question_number}")
-        operands = generate_unique_operands(config, q_rng, seen)
+        operands = generate_unique_operands(config, q_rng, seen, question_number - 1)
         if not validate_question(config, operands):
             raise ValueError(f"Generated invalid PM question for lesson {config.lesson_number} DPS {config.dps_number}")
         concept_trace = question_concept_trace(config, operands)

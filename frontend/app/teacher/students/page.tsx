@@ -13,11 +13,10 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { apiErrorMessage } from "@/lib/api";
-import { formatMathPathDateTime } from "@/lib/date";
+import { formatMathPathDateTimeCompact } from "@/lib/date";
 import { getTeacherAssignmentTracker, getTeacherStudents, type TeacherStudent } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
   CheckCircle2,
   LayoutGrid,
   Search,
@@ -29,19 +28,23 @@ import {
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type TeacherStudentSortKey = "studentCode" | "studentName" | "className" | "level" | "status" | "assigned" | "completed" | "pending" | "accuracy" | "latest" | "lastSeen" | "attention";
+// 2026-09-02 -- "latest" (Latest Activity) removed: the Students tab already
+// showed both Latest Activity and Last Seen side by side, which was
+// redundant (both derived from the same underlying attempt/session
+// activity) and was one of the table's widest columns. Dropping it frees
+// real width for the no-scroll/no-wrap layout below without losing any
+// information the teacher didn't already have via Last Seen.
+type TeacherStudentSortKey = "studentCode" | "studentName" | "level" | "status" | "assigned" | "completed" | "pending" | "accuracy" | "lastSeen" | "attention";
 
 const TEACHER_STUDENT_SORT_FIELDS: SortFieldOption<TeacherStudentSortKey>[] = [
   { key: "studentName", label: "Student Name" },
   { key: "studentCode", label: "Student Code" },
-  { key: "className", label: "Class" },
   { key: "level", label: "Level" },
   { key: "status", label: "Status" },
   { key: "assigned", label: "Assigned" },
   { key: "completed", label: "Cleared" },
   { key: "pending", label: "Pending" },
   { key: "accuracy", label: "Average Accuracy" },
-  { key: "latest", label: "Latest Activity" },
   { key: "lastSeen", label: "Last Seen" },
   { key: "attention", label: "Attention" },
 ];
@@ -392,13 +395,11 @@ export default function TeacherStudentsPage() {
     valueFor: (student, key) => {
       if (key === "studentCode") return student.studentCode;
       if (key === "studentName") return student.studentName;
-      if (key === "className") return `${student.className || ""} ${student.section || ""}`;
       if (key === "level") return student.currentLevelCode;
       if (key === "status") return student.status;
       if (key === "assigned") return studentMetricValue(studentPracticeMetrics, student, "assigned", student.assignedAssignments ?? 0);
       if (key === "completed") return studentMetricValue(studentPracticeMetrics, student, "cleared", student.completedAssignments ?? student.completedAttempts ?? 0);
       if (key === "pending") return studentMetricValue(studentPracticeMetrics, student, "pending", (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0));
-      if (key === "latest") return student.latestActivityAt || "";
       if (key === "lastSeen") return student.lastActiveAt || "";
       if (key === "accuracy") return studentPracticeMetrics.get(student.studentCode)?.averageAccuracy ?? student.averageAccuracy ?? student.latestAccuracy ?? 0;
       return attentionLabel(effectiveAttention(student, currentNeedsReattemptStudentCodes));
@@ -476,7 +477,7 @@ export default function TeacherStudentsPage() {
             </p>
             <h2 className="text-2xl font-black text-slate-950">Learning Progress Snapshot</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Focus on pending work, completion, average accuracy, and latest activity.
+              Focus on pending work, completion, average accuracy, and last seen.
             </p>
           </div>
           <div className="grid w-full gap-3 md:grid-cols-[minmax(240px,1fr)_180px_180px] xl:max-w-4xl xl:grid-cols-[minmax(240px,1fr)_180px_180px_220px]">
@@ -550,8 +551,7 @@ export default function TeacherStudentsPage() {
                   <th><SortableHeader active={sortKey === "assigned"} direction={sortDirection} onClick={() => toggleSort("assigned")}>Assigned</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "completed"} direction={sortDirection} onClick={() => toggleSort("completed")}>Cleared</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "pending"} direction={sortDirection} onClick={() => toggleSort("pending")}>Pending</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "accuracy"} direction={sortDirection} onClick={() => toggleSort("accuracy")}>Average Accuracy</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "latest"} direction={sortDirection} onClick={() => toggleSort("latest")}>Latest Activity</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "accuracy"} direction={sortDirection} onClick={() => toggleSort("accuracy")}>Avg Accuracy</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "lastSeen"} direction={sortDirection} onClick={() => toggleSort("lastSeen")}>Last Seen</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "attention"} direction={sortDirection} onClick={() => toggleSort("attention")}>Attention</SortableHeader></th>
                 </tr>
@@ -605,9 +605,6 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
       </td>
       <td>
         <p className="font-black text-slate-900 dark:text-white">{student.currentLevelCode || "-"}</p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Class {student.className || "-"} {student.section || ""}
-        </p>
       </td>
       <td>
         <LessonProgressBadge
@@ -635,19 +632,12 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
         </span>
       </td>
       <td>
-        <span className={`math-badge ${typeof averageAccuracy === "number" ? AccuracyToneClass(averageAccuracy) : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+        <span className={`math-badge whitespace-nowrap ${typeof averageAccuracy === "number" ? AccuracyToneClass(averageAccuracy) : "border-slate-200 bg-slate-50 text-slate-600"}`}>
           {typeof averageAccuracy === "number" ? `${Math.round(averageAccuracy)}%` : "—"}
         </span>
-        <p className="mt-1 text-xs text-slate-500">Across completed attempts</p>
       </td>
-      <td>
-        <div className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
-          <Activity size={15} />
-          {formatMathPathDateTime(student.latestActivityAt)}
-        </div>
-      </td>
-      <td className="text-sm font-bold text-slate-600 dark:text-slate-300">
-        {student.lastActiveAt ? formatMathPathDateTime(student.lastActiveAt) : "Never"}
+      <td className="whitespace-nowrap text-sm font-bold text-slate-600 dark:text-slate-300">
+        {student.lastActiveAt ? formatMathPathDateTimeCompact(student.lastActiveAt) : "Never"}
       </td>
       <td>
         <span className={`math-badge ${attentionTone(attention)}`}>

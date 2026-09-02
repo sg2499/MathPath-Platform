@@ -84,9 +84,14 @@ def generate_pm_l3_question_set(config: PML3Config) -> list[dict]:
 
 def generate_pm_l3_multiply_set(config: PML3MultiplyConfig, count: int) -> list[dict]:
     questions: list[dict] = []
+    # 2026-09-02 -- one seen set shared across the whole sheet so
+    # generate_multiply_table_question() can dedup against every question
+    # already generated, not just retry independently each time (see that
+    # function's own docstring for the live duplication bug this fixes).
+    seen: set[tuple[int, int]] = set()
     for i in range(1, count + 1):
         q_rng = random.Random(f"{config.seed}-Q{i}")
-        question = generate_multiply_table_question(config, q_rng)
+        question = generate_multiply_table_question(config, q_rng, seen)
         question["question_number"] = i
         question["seed"] = f"{config.seed}-Q{i}"
         questions.append(question)
@@ -95,9 +100,13 @@ def generate_pm_l3_multiply_set(config: PML3MultiplyConfig, count: int) -> list[
 
 def generate_pm_l3_divide_set(config: PML3DivideConfig, count: int) -> list[dict]:
     questions: list[dict] = []
+    # 2026-09-02 -- shared seen set across the sheet, mirroring
+    # generate_pm_l3_multiply_set's identical fix (see divide.py's
+    # generate_divide_table_question docstring).
+    seen: set[tuple[int, int]] = set()
     for i in range(1, count + 1):
         q_rng = random.Random(f"{config.seed}-Q{i}")
-        question = generate_divide_table_question(config, q_rng)
+        question = generate_divide_table_question(config, q_rng, seen)
         question["question_number"] = i
         question["seed"] = f"{config.seed}-Q{i}"
         questions.append(question)

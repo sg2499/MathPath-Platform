@@ -6196,20 +6196,26 @@ html.dark .math-login-status {
     justify-content: center;
   }
 
+  /* 2026-09-02 -- the Class column (old nth-child(3)) was removed from this
+     table entirely (admin no longer needs class info here) and every rule
+     below shifted one slot left to match: Student, Student Code, Teacher,
+     Level, Father Mobile, Last Seen, then Status -- Action stays unconstrained
+     by these percentage rules, sized instead by the fixed-rem :last-child rule
+     above, exactly like Status used to be before this table grew a 9th column. */
   .math-admin-students-table th:nth-child(1),
   .math-admin-students-table td:nth-child(1) { width: 16%; }
   .math-admin-students-table th:nth-child(2),
   .math-admin-students-table td:nth-child(2) { width: 12%; }
   .math-admin-students-table th:nth-child(3),
-  .math-admin-students-table td:nth-child(3) { width: 8%; }
+  .math-admin-students-table td:nth-child(3) { width: 13%; }
   .math-admin-students-table th:nth-child(4),
-  .math-admin-students-table td:nth-child(4) { width: 13%; }
+  .math-admin-students-table td:nth-child(4) { width: 10%; }
   .math-admin-students-table th:nth-child(5),
-  .math-admin-students-table td:nth-child(5) { width: 10%; }
+  .math-admin-students-table td:nth-child(5) { width: 12%; }
   .math-admin-students-table th:nth-child(6),
-  .math-admin-students-table td:nth-child(6) { width: 12%; }
+  .math-admin-students-table td:nth-child(6) { width: 9%; }
   .math-admin-students-table th:nth-child(7),
-  .math-admin-students-table td:nth-child(7) { width: 9%; }
+  .math-admin-students-table td:nth-child(7) { width: 10%; }
 
   .math-admin-teachers-table th:nth-child(1),
   .math-admin-teachers-table td:nth-child(1) { width: 18%; }
@@ -9538,6 +9544,150 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
     border-color: rgba(148,163,184,0.38) !important;
     background: rgba(51,65,85,0.62) !important;
     color: #e2e8f0 !important;
+  }
+}
+
+/* 2026-09-02 — Teacher Students directory: fit cleanly with no wrap AND no
+   horizontal scroll on a normal screen (not just no-wrap-via-scroll).
+   Found live: this table's 10 column headers had no white-space rule at all,
+   so the browser wrapped several headers onto a second line. A first pass
+   (nowrap headers + a wide min-width) traded wrapping for a horizontal
+   scrollbar on anything narrower than ~1180px + padding, which is still not
+   what was asked: "no scrolling either... the page has enough space to
+   showcase everything properly without wrapping or scrolling." A second pass
+   shrank the table's real content width and relied on table-layout:auto's
+   shrink-to-fit sizing to stay under a normal laptop's width -- but with
+   auto layout + nowrap cells there is no structural ceiling: if the estimate
+   is ever off (a long name, a locale with longer date text, a future column)
+   the table quietly grows past its container and the scrollbar is back.
+   Final pass adds a real ceiling, mirroring how .math-admin-directory-table
+   already solves this (its own table-layout:fixed rule, in place since
+   before this session): table-layout:fixed below, plus an explicit
+   percentage width on every column (further down in this block), so the
+   table's total width is capped at its w-full container no matter what any
+   single cell contains -- .math-table's overflow-x-auto wrapper simply has
+   nothing left to scroll. On top of that hard ceiling, the density work
+   still matters for how *clean* the fit looks, not just whether it fits:
+     - tighter cell/header padding and a smaller header font (still fully
+       legible)
+     - a smaller badge size scoped to just this table (below) -- the biggest
+       single width driver was the Lesson column's "Lesson N x/y Cleared"
+       badge, which is a shared component (LessonProgressBadge) used
+       elsewhere at full size and left untouched there
+     - the paired data-heavy columns (Latest Activity, Last Seen) now render
+       a compact date (see formatMathPathDateTime**Compact**() in lib/date.ts)
+       instead of a full date+time-with-seconds string, and the redundant
+       clock icon on Latest Activity was dropped
+     - the decorative "Across completed attempts" caption under the accuracy
+       column was dropped (redundant with the column header, and was one of
+       the widest single pieces of text in the whole table), and the header
+       itself shortened to "Avg Accuracy" (an abbreviation already used
+       elsewhere on this platform, e.g. the competition progress trackers)
+     - every short/no-wrap-appropriate cell (numeric badges, dates, level
+       code) is nowrap so it can never break mid-value
+     - td overflow:hidden is a safety net: if a rare outlier (a very long
+       student name, or the two-chip "just advanced" Lesson badge state)
+       still doesn't fit its fixed-width column, the extra content clips or
+       wraps to a taller row inside that one cell -- it can never bleed into
+       the next column or force the table wider.
+   The .math-table wrapper's overflow-x-auto is left in place as a fallback,
+   not the plan -- with the fixed layout above it should now only ever
+   trigger on genuinely small viewports (tablet width and below), which is
+   explicitly fine. */
+@layer components {
+  /* table-layout:fixed is the structural guarantee, not the density
+     tweaks below -- with an explicit width on every column (see the
+     nth-child block further down) the table's total width can never
+     exceed its w-full container, so .math-table's overflow-x-auto
+     fallback simply never has anything to scroll. This mirrors the
+     .math-admin-directory-table table's own table-layout:fixed rule,
+     which has used the identical percentage-column approach without a
+     scrollbar since before this session. Content that still doesn't fit
+     a column (an unusually long name, or the rare two-chip "just
+     advanced" Lesson badge state) degrades by wrapping/clipping inside
+     its own cell -- taller row, never a wider table. */
+  .math-teacher-students-directory-table table {
+    table-layout: fixed;
+  }
+
+  .math-teacher-students-directory-table th {
+    white-space: nowrap;
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+    font-size: 0.64rem;
+    letter-spacing: 0.045em;
+  }
+
+  .math-teacher-students-directory-table td {
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+    font-size: 0.82rem;
+    overflow: hidden;
+  }
+
+  .math-teacher-students-directory-table th:first-child,
+  .math-teacher-students-directory-table td:first-child {
+    padding-left: 1.1rem;
+  }
+
+  .math-teacher-students-directory-table th:last-child,
+  .math-teacher-students-directory-table td:last-child {
+    padding-right: 1.1rem;
+  }
+
+  .math-teacher-students-directory-table td:nth-child(2),
+  .math-teacher-students-directory-table td:nth-child(4),
+  .math-teacher-students-directory-table td:nth-child(5),
+  .math-teacher-students-directory-table td:nth-child(6) {
+    white-space: nowrap;
+  }
+
+  /* Column widths -- Student, Level, Lesson, Assigned, Cleared, Pending,
+     Avg Accuracy, Last Seen, Attention (9 columns, sums to 100%). The
+     Latest Activity column that used to sit between Avg Accuracy and Last
+     Seen was removed outright (2026-09-02, redundant with Last Seen --
+     both were derived from the same underlying activity data), freeing
+     11% that was redistributed rather than left unused: a bit more room
+     for Student (avatar + name/code stack), Lesson (the widest badge
+     text, "Lesson N · x/y Cleared"), Attention (the longest single label,
+     "Needs Re-Attempt"), Last Seen (now the sole date column) and Level.
+     The remaining numeric-badge columns (Assigned/Cleared/Pending/Avg
+     Accuracy) still need comparatively little. */
+  .math-teacher-students-directory-table th:nth-child(1),
+  .math-teacher-students-directory-table td:nth-child(1) { width: 22%; }
+  .math-teacher-students-directory-table th:nth-child(2),
+  .math-teacher-students-directory-table td:nth-child(2) { width: 7%; }
+  .math-teacher-students-directory-table th:nth-child(3),
+  .math-teacher-students-directory-table td:nth-child(3) { width: 18%; }
+  .math-teacher-students-directory-table th:nth-child(4),
+  .math-teacher-students-directory-table td:nth-child(4) { width: 6%; }
+  .math-teacher-students-directory-table th:nth-child(5),
+  .math-teacher-students-directory-table td:nth-child(5) { width: 7%; }
+  .math-teacher-students-directory-table th:nth-child(6),
+  .math-teacher-students-directory-table td:nth-child(6) { width: 6%; }
+  .math-teacher-students-directory-table th:nth-child(7),
+  .math-teacher-students-directory-table td:nth-child(7) { width: 8%; }
+  .math-teacher-students-directory-table th:nth-child(8),
+  .math-teacher-students-directory-table td:nth-child(8) { width: 12%; }
+  .math-teacher-students-directory-table th:nth-child(9),
+  .math-teacher-students-directory-table td:nth-child(9) { width: 14%; }
+
+  .math-teacher-students-directory-table .math-badge {
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    font-size: 0.66rem;
+    gap: 0.25rem;
+  }
+
+  .math-teacher-students-directory-table .math-badge svg {
+    width: 11px;
+    height: 11px;
   }
 }
 

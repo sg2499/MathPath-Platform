@@ -2,7 +2,7 @@ import json
 from sqlalchemy.orm import Session
 
 from app.models import Module, Level, Lesson, DPS, DPSSection
-from app.seed.preparatory_module_l1_config import PM_L1_LESSONS
+from app.seed.preparatory_module_l1_config import PM_L1_LESSONS, pm_l1_dps_rows_for
 
 MODULE_CODE = "PM"
 LEVEL_CODE = "PM-L1"
@@ -129,7 +129,15 @@ def _ensure_section(db: Session, dps: DPS, lesson_number: int, dps_number: int, 
     section.target_numbers_json = json.dumps(rule.target_numbers)
     section.place_value = rule.place_value
     section.digit_pattern = rule.digit_pattern
-    section.rows_count = rule.rows
+    # 2026-09-02 -- narrow-pool DPS row override (see PM_L1_DPS_ROWS_OVERRIDES
+    # in preparatory_module_l1_config.py): most DPS use the curriculum's
+    # native rule.rows unchanged, but a handful of single-digit-pattern
+    # complement DPS need one extra row to have enough unique question
+    # combinations for their question_count. This seed() re-runs (and
+    # upserts rows_count) on every deploy, so the override reaches
+    # already-seeded production DPS rows automatically.
+    effective_rows = pm_l1_dps_rows_for(lesson_number, dps_number, rule.rows)
+    section.rows_count = effective_rows
     section.difficulty = "PM_L1_BRIDGE_REPLICA"
     section.allow_negative_operands = True
     section.allow_negative_answer = False
@@ -145,7 +153,7 @@ def _ensure_section(db: Session, dps: DPS, lesson_number: int, dps_number: int, 
         "digitPattern": rule.digit_pattern,
         "generationTemplate": rule.generation_template,
         "revisionTemplates": list(rule.revision_templates),
-        "rows": rule.rows,
+        "rows": effective_rows,
         "questionCount": rule.question_count,
         "sourceCurriculum": "BRIDGE_MODULE_LESSONS_1_15",
     })

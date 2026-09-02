@@ -223,23 +223,25 @@ export default function StudentCompetitionMockAttemptPage() {
 
   return (
     <AppShell title="Competition Mock Attempt">
-      <section className="math-slide-up math-card flex flex-col gap-4 !overflow-visible p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)] relative">
-        {/* Floating Side Navigation Arrows */}
+      {/* Found 2026-09-02: see the matching comment in
+          student/attempt/[attemptId]/page.tsx (the DPS attempt screen this
+          layout was originally copied from) -- same bug, same fix. These
+          arrows used to be absolutely positioned outside the card via
+          negative offsets (up to -80px at xl); html/body's overflow-x: clip
+          plus .math-page's max-width meant they routinely got clipped off on
+          real screen widths. Now normal in-flow flex siblings of the card,
+          so they can never be pushed outside the visible page. */}
+      <div className="flex items-stretch gap-2 sm:gap-3">
         <button
           onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
           disabled={currentIndex === 0}
-          className="hidden md:flex absolute -left-6 lg:-left-16 xl:-left-20 top-1/2 z-[100] -translate-y-1/2 h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          aria-label="Previous question"
+          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        <button
-          onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
-          disabled={currentIndex >= questions.length - 1}
-          className="hidden md:flex absolute -right-6 lg:-right-16 xl:-right-20 top-1/2 z-[100] -translate-y-1/2 h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
 
+        <section className="math-slide-up math-card flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
         <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-orange-50 to-amber-100 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
           <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-amber-300/25 blur-3xl" />
           <div className="relative z-10">
@@ -339,7 +341,17 @@ export default function StudentCompetitionMockAttemptPage() {
             </button>
           </div>
         </div>
-      </section>
+        </section>
+
+        <button
+          onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
+          disabled={currentIndex >= questions.length - 1}
+          aria-label="Next question"
+          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
 
       <ConfirmDialog
         open={showConfirm}

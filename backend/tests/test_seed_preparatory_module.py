@@ -22,7 +22,7 @@ from sqlalchemy.pool import StaticPool
 from app.models import models
 from app.models.models import DPS, Lesson, Level, Module
 from app.seed.seed_preparatory_module import seed as seed_pm
-from app.seed.preparatory_module_l1_config import PM_L1_LESSONS
+from app.seed.preparatory_module_l1_config import PM_L1_LESSONS, pm_l1_dps_rows_for
 from app.services.generation_service import generate_preview, build_preview_seed
 
 
@@ -116,11 +116,17 @@ def test_every_pm_l1_dps_generates_cleanly_through_the_real_admin_preview_call(d
                 failures.append(f"{label}: expected 10 questions, got {len(questions)}")
                 continue
 
+            # 2026-09-02 -- a handful of narrow-pool DPS (see
+            # PM_L1_DPS_ROWS_OVERRIDES in preparatory_module_l1_config.py)
+            # now generate one extra operand row so their candidate pool is
+            # wide enough to cover all 10 questions without repeats -- same
+            # technique, same taught concept, just a longer worksheet row.
+            expected_rows = pm_l1_dps_rows_for(lesson.lesson_number, dps.dps_number, 3)
             seen_operand_sets = set()
             for q in questions:
                 operands = q["operands"]
-                if len(operands) != 3:
-                    failures.append(f"{label}: expected 3 operand rows, got {len(operands)}")
+                if len(operands) != expected_rows:
+                    failures.append(f"{label}: expected {expected_rows} operand rows, got {len(operands)}")
                 if sum(operands) != q["correct_answer"]:
                     failures.append(f"{label}: answer mismatch for {operands}")
                 if q["correct_answer"] < 0:
