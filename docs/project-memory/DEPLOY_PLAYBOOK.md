@@ -56,6 +56,46 @@ rules that exist specifically because of this:
 2. Before staging, sanity-check with `git diff -w --stat -- <path>` if there's
    any doubt whether a file has a real change or just whitespace noise.
 
+## Standing caution: this is PowerShell, not bash
+
+Every command block Shailesh runs is pasted into Windows PowerShell, never a
+bash/SSH shell (except the Step 4 sections explicitly marked "paste on the
+server"). Two specific mistakes have actually happened and wasted real
+deploy time (2026-09-02) — do not repeat either:
+
+1. **Never use bash heredoc syntax** (`` $(cat <<'EOF' ... EOF) ``) in a
+   PowerShell block. PowerShell does not parse it at all — pasting it just
+   leaves the prompt hanging on `>>` forever, and every "did you hit enter"
+   retry looks identical. For a multi-line string, use a PowerShell
+   here-string instead: `$var = @'` ... `'@` (single-quoted = literal, no
+   interpolation — use this for anything containing `$`, backticks, or
+   markdown code spans).
+2. **Never pass a multi-line here-string inline as an argument to a native
+   .exe** (`gh.exe`, `git.exe`, etc.) — e.g. `gh pr create --body $prBody`.
+   PowerShell's argument marshalling to native processes can silently
+   mangle embedded newlines into multiple argv tokens, which surfaces as
+   `gh` complaining about "unknown arguments" pulled out of the middle of
+   the body text. Always write the string to a temp file first and pass
+   `--body-file`, as Step 3 below does — this sidesteps the problem
+   entirely and should be the default for any PR/commit body, not just a
+   workaround for when it breaks.
+
+## Standing caution: reuse this playbook's exact commands, don't reconstruct
+
+The Step 4 frontend build/transfer already uses `tar` + `scp` + `tar -xzf`
+specifically because it avoids a real failure mode: a zip built with
+PowerShell's `Compress-Archive` does not store Unix permission bits, and
+`unzip` on the Linux server can then create directories with the execute
+bit missing — Next.js can't detect this at build time but crash-loops at
+runtime with `EACCES ... scandir`. This actually happened (2026-09-02) after
+the frontend step was reconstructed from memory as a zip/unzip flow instead
+of using the `tar` commands already documented below, and cost a dozen
+round trips to fully diagnose and fix. The `chmod -R a+rX frontend/.next`
+line in Step 4a's server-side block is a permanent safety net for this, but
+the real fix is simpler: **use the commands in this file verbatim,
+substituted only for branch/commit/file/PR text — do not re-derive the
+deploy steps from memory or general knowledge.**
+
 ## Step 1 — branch fresh off main
 
 ```powershell
@@ -86,8 +126,18 @@ git push -u origin <branch-name>
 
 ## Step 3 — PR, wait for CI, merge
 
+Always build the PR body as a here-string and pass it via `--body-file` —
+see the "PowerShell, not bash" caution above for why (never `--body "<...>"`
+inline):
+
 ```powershell
-gh pr create --base main --title "<PR title>" --body "<PR body>"
+$prBody = @'
+<PR body, markdown, multi-line>
+'@
+$bodyFile = "$env:TEMP\pr-body.md"
+Set-Content -Path $bodyFile -Value $prBody -Encoding utf8
+
+gh pr create --base main --title "<PR title>" --body-file $bodyFile
 gh pr checks --watch
 ```
 
