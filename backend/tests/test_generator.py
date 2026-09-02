@@ -3,6 +3,7 @@ from collections import Counter
 from app.question_engine.mm import GenerateMmQuestionSet, MMConfig
 from app.question_engine.mm.curriculum_map import MM_CURRICULUM_MAP
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
+from app.question_engine.ylm.config import dps_rows_for
 
 def test_ylm_generator_outputs_valid_mcq_set():
     config = YLMConfig(
@@ -20,8 +21,13 @@ def test_ylm_generator_outputs_valid_mcq_set():
     )
     questions = generate_ylm_question_set(config)
     assert len(questions) == 10
+    # Lesson 5 DPS 1 is one of the narrow single-target sheets widened from 3 to 4
+    # operand rows by YLM_DPS_ROWS_OVERRIDES (2026-09-02 pool-capacity fix) so it
+    # has enough unique combinations for a full 10-question sheet -- assert
+    # against the real resolved row count, not a hardcoded 3.
+    expected_rows = dps_rows_for(5, 1, 3)
     for q in questions:
-        assert len(q["operands"]) == 3
+        assert len(q["operands"]) == expected_rows
         assert q["correct_answer"] == sum(q["operands"])
         assert q["correct_answer"] >= 0
         assert len(q["options"]) == 4

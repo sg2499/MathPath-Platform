@@ -72,6 +72,37 @@ class PmLessonRule:
 
 PM_L1_LESSONS: dict[int, PmLessonRule] = {}
 
+# 2026-09-02 -- narrow-pool DPS row override, mirroring YLM_DPS_ROWS_OVERRIDES
+# in question_engine/ylm/config.py (added the same day for the same reason).
+# Live-swept every PM-L1 DPS through the real generation pipeline and found
+# these single-digit-pattern (1D) complement DPS -- always DPS1 (Complement
+# of 5) or DPS3 (Complement of 10) of a complement-pair lesson, never their
+# 2D siblings -- top out at only 6-8 unique 3-row question combinations,
+# below the DPS's own question_count of 10, so questions 7/9/10 came out
+# identical no matter how the generator's fallback search is ordered (see
+# question_engine/pm/operands.py's generate_unique_operands docstring for
+# the companion fix). Bumping just these DPS from the technique's native 3
+# rows to 4 (one extra trailing bead-movement step, same technique, same
+# taught concept) opens the pool to 25+ unique combinations -- verified via
+# question_engine/pm/tests -- comfortably above 10. Every other DPS in these
+# same lessons (2D siblings, DPS5 revision blocks) already has enough
+# natural pool breadth and is deliberately left at rows=3.
+PM_L1_DPS_ROWS_OVERRIDES: dict[int, dict[int, int]] = {
+    3: {1: 4, 3: 4},
+    4: {1: 4},
+    5: {1: 4, 3: 4},
+    7: {1: 4, 3: 4},
+    9: {1: 4, 3: 4},
+    11: {1: 4},
+    12: {1: 4, 3: 4},
+    14: {1: 4, 3: 4},
+}
+
+
+def pm_l1_dps_rows_for(lesson_number: int, dps_number: int, default: int) -> int:
+    lesson_overrides = PM_L1_DPS_ROWS_OVERRIDES.get(int(lesson_number), {})
+    return lesson_overrides.get(int(dps_number or 0), default)
+
 # ---------------------------------------------------------------------------
 # Lesson 1 -- Bead Recognition & Single Digit Addition-Subtraction (1-4)
 # Matches BL-1 exactly (this is the one Bridge lesson that is also a verified

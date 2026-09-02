@@ -297,8 +297,39 @@ def _setup_reaching(trigger_value: int) -> list[tuple[int, int]]:
     return results
 
 
+def _extend_with_support_chain(base_operands: list[int], template: str, extra_rows: int) -> list[list[int]]:
+    """Chain `extra_rows` additional direct-support steps onto a complete
+    complement operand sequence -- widens the candidate pool for a DPS
+    configured with more than the technique's native 3 rows. 2026-09-02,
+    mirrors the identical fix in question_engine/pm/operands.py (see that
+    module's own docstring for the full write-up of why this was needed:
+    PM-L2 Lesson 6's four single-digit DPS topped out at 6-8 unique 3-row
+    combinations, below their question_count of 10). extra_rows == 0 (the
+    overwhelmingly common case) returns the operand sequence unchanged.
+    """
+    if extra_rows <= 0:
+        return [base_operands]
+    current = sum(base_operands)
+    if current < 0:
+        return []
+    results: list[list[int]] = []
+
+    def _extend(prefix: list[int], running_value: int, remaining: int) -> None:
+        if remaining == 0:
+            results.append(prefix)
+            return
+        for support in _safe_supports(running_value, template):
+            if running_value + support < 0:
+                continue
+            _extend(prefix + [support], running_value + support, remaining - 1)
+
+    _extend(list(base_operands), current, extra_rows)
+    return results
+
+
 def _complement_operand_triples(config: PML2Config, template: str) -> list[list[int]]:
     base_builder, default_targets, sign = COMPLEMENT_BASE_BUILDERS[template]
+    extra_rows = max(0, config.rows - 3)
     triples: list[list[int]] = []
     for target in _targets(config, default_targets):
         signed_target = sign * target
@@ -306,9 +337,9 @@ def _complement_operand_triples(config: PML2Config, template: str) -> list[list[
             after_trigger = trigger_value + signed_target
             if after_trigger >= 0:
                 for support in _safe_supports(after_trigger, template):
-                    triples.append([trigger_value, signed_target, support])
+                    triples.extend(_extend_with_support_chain([trigger_value, signed_target, support], template, extra_rows))
             for setup_row0, setup_delta in _setup_reaching(trigger_value):
-                triples.append([setup_row0, setup_delta, signed_target])
+                triples.extend(_extend_with_support_chain([setup_row0, setup_delta, signed_target], template, extra_rows))
     return triples
 
 
@@ -530,27 +561,58 @@ def _difficulty_candidates(pool: list[list[int]], target_stage: str) -> list[lis
     return absolute_all or list(pool)
 
 
-def generate_unique_operands(config: PML2Config, rng: random.Random, seen: set[tuple[int, ...]]) -> list[int]:
-    question_index = len(seen)
+def generate_unique_operands(config: PML2Config, rng: random.Random, seen: set[tuple[int, ...]], question_index: int | None = None) -> list[int]:
+    # 2026-09-02 -- two related fixes, mirroring PM-L1's identical fix of the
+    # same date (see pm/operands.py for the full write-up):
+    #
+    # 1. question_index now comes from the caller's real, ever-advancing
+    #    question_number - 1 instead of len(seen). Stays optional (falling
+    #    back to len(seen)) so any other caller keeps working unchanged.
+    #
+    # 2. The bigger fix: previously, once the *preferred template's own*
+    #    pool ran out of unique-enough candidates at the target difficulty,
+    #    this function gave up immediately and reused an already-seen
+    #    combination, even when the DPS's full candidate pool (every other
+    #    template) still had genuinely unique combinations left. That is
+    #    what actually produced the live duplicate tail (live-confirmed:
+    #    PM-L2 Lesson 6, DPS 1-4 -- questions 7, 9 and 10 identical). Now
+    #    the full multi-template pool is tried for a unique candidate
+    #    before ever repeating one, and reuse (biased toward the requested
+    #    stage) is the last resort, only once question_count genuinely
+    #    exceeds the DPS's total unique capacity.
+    if question_index is None:
+        question_index = len(seen)
     preferred_template = _template_for_question(config, question_index)
     target_stage = question_difficulty_stage(question_index)
 
+    def _pick(pool: list[list[int]], stage: str) -> list[int] | None:
+        candidates = _difficulty_candidates(pool, stage)
+        return list(rng.choice(candidates)) if candidates else None
+
+    preferred_pool: list[list[int]] = []
     if preferred_template:
         preferred_pool = _candidate_pool_for_templates(config, (preferred_template,))
         preferred_available = [operands for operands in preferred_pool if tuple(operands) not in seen]
         preferred_available = _without_near_duplicates(preferred_available, seen)
-        available = _difficulty_candidates(preferred_available, target_stage)
-        if available:
-            return list(rng.choice(available))
-        if preferred_pool:
-            return list(rng.choice(_difficulty_candidates(preferred_pool, target_stage)))
+        result = _pick(preferred_available, target_stage)
+        if result is not None:
+            return result
 
     pool = build_candidate_pool(config)
     unique_pool = [operands for operands in pool if tuple(operands) not in seen]
     unique_pool = _without_near_duplicates(unique_pool, seen)
-    available = _difficulty_candidates(unique_pool, target_stage)
-    if not available:
-        available = _difficulty_candidates(pool, target_stage)
-    if not available:
-        raise ValueError(f"PM-L2 lesson {config.lesson_number} DPS {config.dps_number} has no valid generation pool")
-    return list(rng.choice(available))
+    result = _pick(unique_pool, target_stage)
+    if result is not None:
+        return result
+
+    # Nothing unique left anywhere in the DPS's pool -- only now repeat,
+    # preferring the requested template/stage so the repeat is at least
+    # thematically consistent with where the sheet was heading.
+    if preferred_pool:
+        result = _pick(preferred_pool, target_stage)
+        if result is not None:
+            return result
+    result = _pick(pool, target_stage)
+    if result is not None:
+        return result
+    raise ValueError(f"PM-L2 lesson {config.lesson_number} DPS {config.dps_number} has no valid generation pool")

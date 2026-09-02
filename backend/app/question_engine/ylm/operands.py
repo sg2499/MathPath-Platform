@@ -280,16 +280,41 @@ def _template_for_question(config: YLMConfig, question_index: int) -> str | None
     return templates[question_index % len(templates)]
 
 
+def _extend_stem_with_support_chain(
+    base: int, primary: int, source_template: str, support_row_count: int
+) -> list[list[int]]:
+    """Chain `support_row_count` sequential direct-movement steps onto a (base, primary) stem.
+
+    Found 2026-09-02: some narrow single-target Complement-of-5/10 DPS sheets have as
+    few as 4 valid (base, primary, support) combinations at the standard single
+    support row -- nowhere near the 10 questions a sheet needs (see
+    YLM_DPS_ROWS_OVERRIDES in config.py). Chaining N support rows instead of always
+    exactly 1 multiplies the available combinations while staying strictly inside the
+    same direct-movement support pool _safe_supports() already draws from (same
+    ADDITION/SUBTRACTION focus per template, same DIRECT_ADD_ALLOWED/DIRECT_SUB_ALLOWED
+    bead-movement rules) -- no new movement type is ever introduced. support_row_count=1
+    reproduces the exact pre-fix stem set (every lesson at its default 3-row shape).
+    """
+    partials: list[list[int]] = [[base, primary]]
+    for _ in range(support_row_count):
+        next_partials: list[list[int]] = []
+        for partial in partials:
+            running_total = sum(partial)
+            if running_total < 0:
+                continue
+            for support in _safe_supports(running_total, source_template):
+                next_partials.append(partial + [support])
+        partials = next_partials
+    return partials
+
+
 def _candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...]) -> list[list[int]]:
     pool: list[list[int]] = []
     seen: set[tuple[int, ...]] = set()
+    support_row_count = max(1, config.rows - 2)
     for template in templates:
         for base, primary, source_template in _template_stems(config, template):
-            current = base + primary
-            if current < 0:
-                continue
-            for support in _safe_supports(current, source_template):
-                operands = [base, primary, support]
+            for operands in _extend_stem_with_support_chain(base, primary, source_template, support_row_count):
                 key = tuple(operands)
                 if key in seen:
                     continue
@@ -495,9 +520,18 @@ def _difficulty_candidates(pool: list[list[int]], target_stage: str) -> list[lis
     return absolute_all or list(pool)
 
 
-def generate_unique_operands(config: YLMConfig, rng: random.Random, seen: set[tuple[int, ...]]) -> list[int]:
+def generate_unique_operands(
+    config: YLMConfig,
+    rng: random.Random,
+    seen: set[tuple[int, ...]],
+    question_index: int | None = None,
+) -> list[int]:
     config = enrich_config_with_lesson_rule(config)
-    question_index = len(seen)
+    if question_index is None:
+        # Fallback for any caller that doesn't track its own loop position (none
+        # in this codebase as of this fix -- generate_ylm_question_set() always
+        # passes the real position explicitly, see the note below on why).
+        question_index = len(seen)
     preferred_template = _template_for_question(config, question_index)
     target_stage = question_difficulty_stage(question_index)
 

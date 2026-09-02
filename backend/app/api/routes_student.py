@@ -318,7 +318,20 @@ def assignments(db: Session = Depends(get_db), student: Student = Depends(get_cu
             "attemptId": attempt_id,
             "reattemptAvailable": bool(reattempt_permission),
             "reattemptPermissionId": reattempt_permission.id if reattempt_permission else None,
+            "availableFrom": a.start_time.isoformat() if a.start_time else None,
         })
+    # Found 2026-09-02: this endpoint (and the frontend Practice tab consuming it)
+    # never ordered the list at all -- it came back in whatever order the plain
+    # `db.query(Assignment).filter(...).all()` in get_student_assignments()
+    # happened to return, which is unspecified and does not track dps_number or
+    # start_time. Live-confirmed on production: a student with all 5 DPS of one
+    # lesson unlocked on the same day saw them as DPS 5, 3, 4, 1, 2. Sort here,
+    # once, so every consumer (the Practice tab today, anything else built on this
+    # endpoint later) gets the same correct order for free: earliest unlock date
+    # first (an assignment with no start_time has always been immediately
+    # available, so it sorts as earliest -- "" sorts before any ISO date string),
+    # then lesson number, then DPS number ascending within the same date.
+    payload.sort(key=lambda item: (item["availableFrom"] or "", item["lessonNumber"], item["dpsNumber"]))
     return {"assignments": payload}
 
 

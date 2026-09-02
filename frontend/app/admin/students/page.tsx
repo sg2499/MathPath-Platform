@@ -12,7 +12,7 @@ import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
-import { formatMathPathDateTime } from "@/lib/date";
+import { formatMathPathDateTime, formatMathPathDateTimeCompact } from "@/lib/date";
 import {
   bulkUploadStudents,
   createStudentProfile,
@@ -82,12 +82,11 @@ function generateDefaultPassword(): string {
   return `Mp-${randomSegment}`;
 }
 
-type StudentSortKey = "studentCode" | "studentName" | "className" | "teacher" | "level" | "lastActiveAt" | "status";
+type StudentSortKey = "studentCode" | "studentName" | "teacher" | "level" | "lastActiveAt" | "status";
 
 const STUDENT_SORT_FIELDS: SortFieldOption<StudentSortKey>[] = [
   { key: "studentName", label: "Student Name" },
   { key: "studentCode", label: "Student Code" },
-  { key: "className", label: "Class" },
   { key: "teacher", label: "Teacher" },
   { key: "level", label: "Level" },
   { key: "lastActiveAt", label: "Last Seen" },
@@ -449,7 +448,6 @@ export default function AdminStudentsPage() {
     valueFor: (student, key) => {
       if (key === "studentCode") return student.studentCode;
       if (key === "studentName") return student.studentName;
-      if (key === "className") return `${student.className || ""} ${student.section || ""}`;
       if (key === "teacher") return student.teacher;
       if (key === "level") return student.currentLevelCode;
       if (key === "lastActiveAt") return student.lastActiveAt;
@@ -923,7 +921,6 @@ export default function AdminStudentsPage() {
                 <tr>
                   <th><SortableHeader active={sortKey === "studentName"} direction={sortDirection} onClick={() => onHeaderSort("studentName")}>Student</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "studentCode"} direction={sortDirection} onClick={() => onHeaderSort("studentCode")}>Student Code</SortableHeader></th>
-                  <th><SortableHeader active={sortKey === "className"} direction={sortDirection} onClick={() => onHeaderSort("className")}>Class</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "teacher"} direction={sortDirection} onClick={() => onHeaderSort("teacher")}>Teacher</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "level"} direction={sortDirection} onClick={() => onHeaderSort("level")}>Level</SortableHeader></th>
                   <th>Father Mobile</th>
@@ -960,14 +957,11 @@ export default function AdminStudentsPage() {
                       </td>
 
                       <td>{s.studentCode || "-"}</td>
-                      <td>
-                        {s.className || "-"} {s.section || ""}
-                      </td>
                       <td>{s.teacher || "-"}</td>
                       <td>{s.currentLevelCode || "-"}</td>
                       <td>{s.fatherMobile || "-"}</td>
-                      <td className="text-sm text-slate-600 dark:text-slate-300">
-                        {s.lastActiveAt ? formatMathPathDateTime(s.lastActiveAt) : "Never"}
+                      <td className="whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">
+                        {s.lastActiveAt ? formatMathPathDateTimeCompact(s.lastActiveAt) : "Never"}
                       </td>
                       <td className="text-center">
                         <span

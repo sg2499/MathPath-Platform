@@ -101,6 +101,26 @@ class PmL2LessonRule:
 
 PM_L2_LESSONS: dict[int, PmL2LessonRule] = {}
 
+# 2026-09-02 -- narrow-pool DPS row override, mirroring
+# PM_L1_DPS_ROWS_OVERRIDES in preparatory_module_l1_config.py (added the
+# same day for the same reason -- see that table's own comment for the full
+# write-up). Live-swept every PM-L2 DPS through the real generation
+# pipeline and found Lesson 6's four single-digit-pattern (1D) Complement
+# of 10 DPS (targets 1-4) top out at only 6-8 unique 3-row combinations,
+# below their question_count of 10, producing an identical questions
+# 7/9/10 tail. Bumping just these four DPS from 3 to 4 rows (one extra
+# trailing bead-movement step, same technique) opens the pool comfortably
+# above 10. DPS5 (revision block) already has enough natural pool breadth
+# and is deliberately left at rows=3.
+PM_L2_DPS_ROWS_OVERRIDES: dict[int, dict[int, int]] = {
+    6: {1: 4, 2: 4, 3: 4, 4: 4},
+}
+
+
+def pm_l2_dps_rows_for(lesson_number: int, dps_number: int, default: int) -> int:
+    lesson_overrides = PM_L2_DPS_ROWS_OVERRIDES.get(int(lesson_number), {})
+    return lesson_overrides.get(int(dps_number or 0), default)
+
 # ---------------------------------------------------------------------------
 # Lesson 1 -- Bead Recognition & Single/Double Digit Addition-Subtraction
 # ---------------------------------------------------------------------------

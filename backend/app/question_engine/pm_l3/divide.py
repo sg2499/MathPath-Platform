@@ -40,7 +40,20 @@ def compute_divide_table_answer(number: int, divisor: int) -> int:
     return number // divisor
 
 
-def generate_divide_table_question(config: PML3DivideConfig, rng: random.Random) -> dict:
+def generate_divide_table_question(config: PML3DivideConfig, rng: random.Random, seen: set[tuple[int, int]] | None = None) -> dict:
+    # 2026-09-02 -- added the same uniqueness tracking as the sibling
+    # multiply.py generator (see its docstring for the live duplication
+    # bug found there): this generator had no dedup either, just an
+    # independent rng draw per question. No live duplicate was found for
+    # divide.py's DPS in a full sweep of every PM-L3 DPS, likely because
+    # its ranges (divisor 2-9, dividend 100-999) are wide relative to a
+    # 10-question sheet -- but that is luck, not a guarantee, so the same
+    # fix is applied here to close the same latent risk before it
+    # surfaces. seen is optional (defaults to a fresh set) so any other
+    # caller keeps working; the real caller (generate_pm_l3_divide_set)
+    # threads one shared set across the sheet.
+    if seen is None:
+        seen = set()
     for _attempt in range(200):
         divisor = rng.randint(config.divisor_min, config.divisor_max)
         if is_trivial_scale_operand(divisor):
@@ -53,6 +66,9 @@ def generate_divide_table_question(config: PML3DivideConfig, rng: random.Random)
         number = divisor * quotient
         if not (config.dividend_min <= number <= config.dividend_max):
             continue
+        if (number, divisor) in seen:
+            continue
+        seen.add((number, divisor))
         correct_answer = compute_divide_table_answer(number, divisor)
         distractors = generate_divide_table_distractors(number, divisor, correct_answer, rng)
         options = build_mcq_options(correct_answer, distractors, rng)

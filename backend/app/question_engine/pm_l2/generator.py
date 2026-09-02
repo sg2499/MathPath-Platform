@@ -29,7 +29,7 @@ def generate_pm_l2_question_set(config: PML2Config) -> list[dict]:
         effective_config = config
         if config.digit_pattern_second_half and question_number > config.question_count // 2:
             effective_config = _with_digit_pattern(config, config.digit_pattern_second_half)
-        operands = generate_unique_operands(effective_config, q_rng, seen)
+        operands = generate_unique_operands(effective_config, q_rng, seen, question_number - 1)
         if not validate_question(effective_config, operands):
             raise ValueError(f"Generated invalid PM-L2 question for lesson {config.lesson_number} DPS {config.dps_number}")
         concept_trace = question_concept_trace(effective_config, operands)

@@ -156,6 +156,47 @@ YLM_DPS_DIGIT_PATTERN_OVERRIDES: dict[int, dict[int, str]] = {
 }
 
 
+# Found 2026-09-02: 18 of the 32 lessons' narrow single-target Complement-of-5/10
+# DPS sheets (single addition/subtraction target, "1D" digit pattern -- the same
+# single-digit-introduction sheets YLM_DPS_DIGIT_PATTERN_OVERRIDES documents above)
+# have mathematically only 4-9 unique valid Golden-Step question combinations
+# available at the standard 3-operand row shape (base + primary complement step +
+# 1 support step), but every DPS sheet needs 10 questions. Live-confirmed on
+# production: YLM-L1 Lesson 3 DPS-1 ("Addition of 1 using Complement of 5") ran out
+# of its 4 unique combinations by question 4 and then repeated one combination for
+# the rest of the sheet (compounded by a separate scheduling bug in
+# generate_unique_operands(), fixed alongside this). A full sweep of every lesson x
+# DPS combination against the real generator (see test_ylm_dps_pool_capacity.py)
+# found exactly these 18 combinations fall short of 10 unique combinations at 3
+# rows; every one of them reaches >= 10 at 4 rows (one extra direct-support step
+# chained onto the existing complement step, still strictly within the lesson's own
+# allowed_movement_types -- no new movement type is introduced). Widening
+# digit_pattern instead (the lever used for the 2026-08-11 fix above) was
+# considered and rejected: these are exactly the sheets 2026-08-11 deliberately
+# pinned to single-digit-only, and widening them back to double-digit would undo
+# that fix's intent. A DPS not listed here keeps its lesson's default 3-row shape.
+YLM_DPS_ROWS_OVERRIDES: dict[int, dict[int, int]] = {
+    3: {1: 4},
+    4: {1: 4},
+    5: {1: 4},
+    6: {1: 4},
+    8: {1: 4},
+    9: {1: 4},
+    10: {1: 4},
+    14: {1: 4},
+    15: {1: 4},
+    16: {1: 4},
+    17: {1: 4},
+    18: {1: 4},
+    19: {4: 4},
+    20: {4: 4},
+    21: {4: 4},
+    22: {4: 4},
+    23: {1: 4},
+    24: {1: 4},
+}
+
+
 def lesson_rule_for(lesson_number: int) -> YLMLessonRule | None:
     return YLM_LESSON_RULES.get(int(lesson_number))
 
@@ -168,6 +209,16 @@ def dps_digit_pattern_for(lesson_number: int, dps_number: int, default: str) -> 
     as before this fix, so this lookup is purely additive.
     """
     lesson_overrides = YLM_DPS_DIGIT_PATTERN_OVERRIDES.get(int(lesson_number), {})
+    return lesson_overrides.get(int(dps_number or 0), default)
+
+
+def dps_rows_for(lesson_number: int, dps_number: int, default: int) -> int:
+    """Resolve the real per-DPS operand row count, falling back to the lesson default.
+
+    Same shape/fallback convention as dps_digit_pattern_for() above -- a DPS with no
+    entry in YLM_DPS_ROWS_OVERRIDES simply keeps its lesson's default row count.
+    """
+    lesson_overrides = YLM_DPS_ROWS_OVERRIDES.get(int(lesson_number), {})
     return lesson_overrides.get(int(dps_number or 0), default)
 
 
@@ -185,7 +236,7 @@ def enrich_config_with_lesson_rule(config: YLMConfig) -> YLMConfig:
         return config
     config.level_code = rule.level_code
     config.lesson_title = rule.lesson_title
-    config.rows = rule.rows
+    config.rows = dps_rows_for(config.lesson_number, config.dps_number, rule.rows)
     config.question_count = config.question_count or rule.question_count
     config.concept_family = rule.concept_family
     config.operation_focus = rule.operation_focus

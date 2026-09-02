@@ -16,6 +16,7 @@ from app.question_engine.ylm.config import (
     YLM_LESSON_RULES,
     YLM_DPS_DIGIT_PATTERN_OVERRIDES,
     dps_digit_pattern_for,
+    dps_rows_for,
 )
 from app.question_engine.ylm.config import YLMConfig
 from app.question_engine.ylm.generator import generate_ylm_question_set
@@ -75,8 +76,17 @@ def test_all_32_lessons_all_5_dps_generate_ten_valid_questions():
             )
             questions = generate_ylm_question_set(config)
             assert len(questions) == 10, f"lesson {lesson_num} dps {dps_num} produced {len(questions)} questions"
+            # Row count is usually 3 (base + complement step + 1 support step), but
+            # some narrow single-target sheets are widened to 4 by
+            # YLM_DPS_ROWS_OVERRIDES (see test_ylm_dps_pool_capacity.py) so they have
+            # enough unique combinations for a full 10-question sheet -- assert
+            # against the real resolved row count, not a hardcoded 3.
+            expected_rows = dps_rows_for(lesson_num, dps_num, rule.rows)
             for q in questions:
-                assert len(q["operands"]) == 3
+                assert len(q["operands"]) == expected_rows, (
+                    f"lesson {lesson_num} dps {dps_num} expected {expected_rows} operand rows, "
+                    f"got {len(q['operands'])}"
+                )
                 assert q["correct_answer"] == sum(q["operands"])
                 assert len(q["options"]) == 4
                 assert sum(1 for o in q["options"] if o["is_correct"]) == 1

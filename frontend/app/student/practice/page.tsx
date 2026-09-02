@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { Assignment } from "@/types/assignment";
 
 function CleanPercent(Value: unknown) {
   const NumberValue = Number(Value);
@@ -126,6 +127,24 @@ function ActivePracticeLevelCode(Rows: AnyRow[]) {
   return FirstOpenLevel || LevelCodes[LevelCodes.length - 1] || "";
 }
 
+// Found 2026-09-02: the "Current DPS Assignments" cards had no defined order at
+// all -- they simply rendered in whatever order the API happened to return,
+// which isn't guaranteed to track dps_number or the sheet's unlock date. The
+// backend now returns this list pre-sorted (availableFrom, then lesson, then
+// DPS number), but sorting again here is cheap and keeps this page correct on
+// its own even if a future change to the API's ordering slips through --
+// exactly the kind of "confusing and clumsy" ordering this fixes shouldn't be
+// able to silently come back.
+function SortAssignmentsForPracticeDisplay(Assignments: Assignment[]) {
+  return [...Assignments].sort((A, B) => {
+    const DateA = A.availableFrom || "";
+    const DateB = B.availableFrom || "";
+    if (DateA !== DateB) return DateA < DateB ? -1 : 1;
+    if (A.lessonNumber !== B.lessonNumber) return A.lessonNumber - B.lessonNumber;
+    return A.dpsNumber - B.dpsNumber;
+  });
+}
+
 function BuildPracticeHeroMetrics(Results: AnyRow[], Assignments: AnyRow[]) {
   if (Results.length) {
     const LevelCode = ActivePracticeLevelCode(Results);
@@ -207,11 +226,13 @@ function StudentPracticePageContent() {
   if (!Ready) return null;
 
   const Assignments = AssignmentQuery.data ?? [];
-  const ActiveAssignments = Assignments.filter(
-    (Assignment) =>
-      Assignment.status === "NOT_STARTED" ||
-      Assignment.status === "IN_PROGRESS" ||
-      Assignment.status === "REATTEMPT_AVAILABLE",
+  const ActiveAssignments = SortAssignmentsForPracticeDisplay(
+    Assignments.filter(
+      (Assignment) =>
+        Assignment.status === "NOT_STARTED" ||
+        Assignment.status === "IN_PROGRESS" ||
+        Assignment.status === "REATTEMPT_AVAILABLE",
+    ),
   );
   const CompletedAssignments = Assignments.filter(
     (Assignment) =>
