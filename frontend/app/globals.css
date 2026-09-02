@@ -9647,34 +9647,49 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
   }
 
   /* Column widths -- Student, Level, Lesson, Assigned, Cleared, Pending,
-     Avg Accuracy, Last Seen, Attention (9 columns, sums to 100%). The
-     Latest Activity column that used to sit between Avg Accuracy and Last
-     Seen was removed outright (2026-09-02, redundant with Last Seen --
-     both were derived from the same underlying activity data), freeing
-     11% that was redistributed rather than left unused: a bit more room
-     for Student (avatar + name/code stack), Lesson (the widest badge
-     text, "Lesson N · x/y Cleared"), Attention (the longest single label,
-     "Needs Re-Attempt"), Last Seen (now the sole date column) and Level.
-     The remaining numeric-badge columns (Assigned/Cleared/Pending/Avg
-     Accuracy) still need comparatively little. */
+     Avg Accuracy, Last Seen, Attention (9 columns, sums to 100%).
+     2026-09-02 -- rebalanced twice today. First pass gave the tight
+     numeric-badge columns more room by eye; Shailesh then pointed out
+     Lesson still had an obviously empty gap before Assigned and Attention
+     had one after it, so this second pass measured each sortable header's
+     *actual* rendered text width (Playwright against the real compiled
+     CSS + real SortableHeader markup, not eyeballed) and sized every
+     column against that number, not a guess. Concretely: min px a column
+     needs for its label to render with zero ellipsis = the label's own
+     text width + ~38.8px of fixed chrome (0.65rem*2 cell padding + the
+     12px icon + 0.375rem gap). Divided by each column's %, that gives the
+     table width below which a given header would start truncating; these
+     percentages were chosen so every sortable label clears that line at
+     roughly a 1150px table (~1220px browser window) -- comfortably below
+     any normal laptop/desktop, well above tablet/small-notebook width
+     (an explicitly separate, already-accepted case). Avg Accuracy (the
+     longest label, 12 letters) needed the single biggest share.
+     Lesson's badge ("Lesson N · x/y Cleared") isn't held to the same
+     hard-truncation bar -- LessonProgressBadge already wraps its chips
+     onto a second line if a column is ever tight, so it only needed
+     comfortable room, not a guaranteed single line, and gave up the
+     space it wasn't using. Student kept enough for the avatar + two-line
+     name/code stack. SortableHeader's truncate+tooltip is still the
+     fallback below that ~1220px line -- clean degradation, never the old
+     raw-overflow collision -- not the primary plan. */
   .math-teacher-students-directory-table th:nth-child(1),
-  .math-teacher-students-directory-table td:nth-child(1) { width: 22%; }
+  .math-teacher-students-directory-table td:nth-child(1) { width: 20%; }
   .math-teacher-students-directory-table th:nth-child(2),
   .math-teacher-students-directory-table td:nth-child(2) { width: 7%; }
   .math-teacher-students-directory-table th:nth-child(3),
-  .math-teacher-students-directory-table td:nth-child(3) { width: 18%; }
+  .math-teacher-students-directory-table td:nth-child(3) { width: 12%; }
   .math-teacher-students-directory-table th:nth-child(4),
-  .math-teacher-students-directory-table td:nth-child(4) { width: 6%; }
+  .math-teacher-students-directory-table td:nth-child(4) { width: 9%; }
   .math-teacher-students-directory-table th:nth-child(5),
-  .math-teacher-students-directory-table td:nth-child(5) { width: 7%; }
+  .math-teacher-students-directory-table td:nth-child(5) { width: 9%; }
   .math-teacher-students-directory-table th:nth-child(6),
-  .math-teacher-students-directory-table td:nth-child(6) { width: 6%; }
+  .math-teacher-students-directory-table td:nth-child(6) { width: 9%; }
   .math-teacher-students-directory-table th:nth-child(7),
-  .math-teacher-students-directory-table td:nth-child(7) { width: 8%; }
+  .math-teacher-students-directory-table td:nth-child(7) { width: 13%; }
   .math-teacher-students-directory-table th:nth-child(8),
-  .math-teacher-students-directory-table td:nth-child(8) { width: 12%; }
+  .math-teacher-students-directory-table td:nth-child(8) { width: 10%; }
   .math-teacher-students-directory-table th:nth-child(9),
-  .math-teacher-students-directory-table td:nth-child(9) { width: 14%; }
+  .math-teacher-students-directory-table td:nth-child(9) { width: 11%; }
 
   .math-teacher-students-directory-table .math-badge {
     padding-left: 0.55rem;
