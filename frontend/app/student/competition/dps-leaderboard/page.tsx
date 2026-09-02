@@ -370,6 +370,7 @@ const searchParams = useSearchParams();
                       <th className="px-6 py-5">Rank</th>
                       <th className="px-6 py-5">Student</th>
                       <th className="px-6 py-5 text-center">Sheets</th>
+                      <th className="px-6 py-5 text-center">Punctuality %</th>
                       <th className="px-6 py-5 text-center">Avg Accuracy</th>
                       <th className="px-6 py-5 text-right hidden sm:table-cell">Avg Time</th>
                     </tr>
@@ -618,6 +619,9 @@ function TableRow({ row: r, delay }: { row: any; delay: number }) {
       </td>
       <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10">
         {r.sheetsCompleted ?? "—"}
+      </td>
+      <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10">
+        {r.punctualityPercent != null ? `${r.punctualityPercent}%` : "—"}
       </td>
       <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300 text-base relative z-10 transition-transform duration-300 group-hover:scale-110">
         {animatedAccuracy}%

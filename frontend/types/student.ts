@@ -41,6 +41,9 @@ export type AdminStudent = {
   status: "ACTIVE" | "INACTIVE" | string;
   isActive: boolean;
   createdAt: string | null;
+  // Last Seen: real login/session recency (User.last_active_at on the backend),
+  // distinct from isActive/status above which is enrollment state.
+  lastActiveAt: string | null;
 };
 
 export type StudentProfilePayload = {

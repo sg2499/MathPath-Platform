@@ -52,6 +52,37 @@ def _aware(dt):
         return None
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
+# DPS punctuality (Shailesh, 2026-09-02): "on time" means the sheet was
+# submitted on the exact IST calendar day it unlocked -- IST because that's
+# the timezone the whole weekly-scheduling feature is defined in (see
+# _ScheduleDateToStartTimeUtc/_IsWeekendInIst in routes_teacher.py, which
+# store Assignment.start_time as IST-midnight-in-UTC). Kept local to this
+# file rather than imported from routes_teacher.py so a service doesn't
+# reach into an API route module for a constant.
+_PUNCTUALITY_IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _ComputeDpsPunctualityStatus(attempt: Attempt, assignment: Assignment | None) -> str:
+    """ON_TIME / LATE / NOT_SCHEDULED for a just-submitted DPS attempt.
+
+    NOT_SCHEDULED covers every case where "on time" isn't a meaningful
+    question: a one-off (non-scheduled) DPS assignment with no start_time,
+    no assignment at all, and -- per product decision -- any reattempt
+    (attempt_source != ORIGINAL), since a reattempt happens well after the
+    original unlock day by design and would unfairly punish an otherwise
+    punctual student if it were compared against that day. Only ORIGINAL
+    attempts against a scheduled Assignment are ever ON_TIME or LATE.
+    """
+    if getattr(attempt, "attempt_source", "ORIGINAL") != "ORIGINAL":
+        return "NOT_SCHEDULED"
+    if assignment is None or assignment.start_time is None or attempt.submitted_at is None:
+        return "NOT_SCHEDULED"
+
+    unlock_day_ist = _aware(assignment.start_time).astimezone(_PUNCTUALITY_IST).date()
+    completed_day_ist = _aware(attempt.submitted_at).astimezone(_PUNCTUALITY_IST).date()
+    return "ON_TIME" if completed_day_ist == unlock_day_ist else "LATE"
+
+
 def remaining_seconds(attempt: Attempt) -> int:
     return max(0, int((_aware(attempt.expires_at) - now_utc()).total_seconds()))
 
@@ -323,6 +354,13 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     UpdateSubmittedAttemptBenchmarkState(attempt, BENCHMARK_PERCENTAGE)
 
     source_assignment = db.get(Assignment, attempt.assignment_id) if attempt.assignment_id else None
+    # Computed once, here, alongside every other derived field on this
+    # submission (accuracy_percentage, time_taken_seconds above) -- stored
+    # on the attempt itself (see models.py's punctuality_status column) so
+    # the punctuality XP/coin bonus and the DPS leaderboard's Punctuality %
+    # column both read the exact same fact, never two independent
+    # recomputations that could ever silently drift apart.
+    attempt.punctuality_status = _ComputeDpsPunctualityStatus(attempt, source_assignment)
     retry_assignment = None
     if source_assignment is not None:
         retry_assignment = create_auto_retry_assignment_for_attempt(
@@ -460,6 +498,10 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
         student = db.get(Student, attempt.student_id)
         if not student:
             return None
+        # Read back rather than recomputed -- submit_attempt() already set
+        # this on the attempt itself (see the punctuality_status comment
+        # there), so this is the one and only place the fact is decided.
+        punctuality_status = getattr(attempt, "punctuality_status", None) or "NOT_SCHEDULED"
         econ_result = EconomyService.evaluate_activity_performance(
             db=db,
             user_id=student.user_id,
@@ -468,6 +510,7 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
             duration_seconds=attempt.duration_seconds,
             time_taken_seconds=attempt.time_taken_seconds,
             reference_id=attempt.id,
+            punctuality_status=punctuality_status,
         )
     except Exception as e:
         db.rollback()

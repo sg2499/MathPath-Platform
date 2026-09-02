@@ -208,6 +208,17 @@ def rank_mock_overall_journey(
 
 
 def _dps_pooled_query(db: Session, *, exclude_attempt_id: str | None = None):
+    # Punctuality % (Shailesh, 2026-09-02): of every completed sheet that
+    # actually HAD a schedule to be on time against (punctuality_status
+    # ON_TIME or LATE -- NOT_SCHEDULED sheets, one-off assignments and
+    # reattempts included, don't count toward this at all, per product
+    # decision), what share were finished the same IST day they unlocked.
+    # Both counts are computed off the same stored Attempt.punctuality_status
+    # set once in attempt_service.py's submit_attempt() -- see that column's
+    # comment in models.py -- so this can never drift from the punctuality
+    # XP/coin bonus's own idea of "on time".
+    punctual_count_expr = func.sum(case((Attempt.punctuality_status == "ON_TIME", 1), else_=0))
+    scheduled_count_expr = func.sum(case((Attempt.punctuality_status.in_(["ON_TIME", "LATE"]), 1), else_=0))
     query = (
         db.query(
             Student.id.label("student_id"),
@@ -218,6 +229,8 @@ def _dps_pooled_query(db: Session, *, exclude_attempt_id: str | None = None):
             func.sum(Attempt.correct_count).label("total_correct"),
             func.sum(Attempt.total_questions).label("total_questions_all"),
             func.count(Attempt.id).label("sheets_completed"),
+            punctual_count_expr.label("punctual_count"),
+            scheduled_count_expr.label("scheduled_count"),
         )
         .join(Student, Attempt.student_id == Student.id)
         .join(User, Student.user_id == User.id)
@@ -236,6 +249,13 @@ def _process_dps_results(db: Session, results, *, with_badges: bool) -> list[dic
     processed = []
     for r in results:
         accuracy = (r.total_correct / r.total_questions_all * 100) if r.total_questions_all and r.total_questions_all > 0 else 0
+        scheduled_count = int(getattr(r, "scheduled_count", 0) or 0)
+        punctual_count = int(getattr(r, "punctual_count", 0) or 0)
+        # None (not a 0%) when this student has no scheduled sheets at all in
+        # this scope -- "no schedule to be on time against" is a different,
+        # honest answer from "always late", and the leaderboard column
+        # renders it as a dash rather than a misleading 0%.
+        punctuality_percent = round(punctual_count / scheduled_count * 100) if scheduled_count > 0 else None
         processed.append({
             "studentId": r.student_id,
             "name": r.full_name,
@@ -245,6 +265,7 @@ def _process_dps_results(db: Session, results, *, with_badges: bool) -> list[dic
             "accuracy": round(accuracy),
             "timeTakenSeconds": int(r.avg_time_taken_seconds or 0),
             "sheetsCompleted": int(r.sheets_completed or 0),
+            "punctualityPercent": punctuality_percent,
         })
     processed.sort(key=lambda x: (-x["percentage"], x["timeTakenSeconds"]))
     for idx, r in enumerate(processed):

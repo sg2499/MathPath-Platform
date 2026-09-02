@@ -18,6 +18,10 @@ export const TeacherLeaderboardEntrySchema = z.object({
   accuracy: z.number(),
   timeTakenSeconds: z.number(),
   sheetsCompleted: z.number().optional(),
+  // DPS-only (mock-exam teacher entries never populate this). null (not 0)
+  // when this student has no scheduled DPS sheets in this scope -- see
+  // leaderboard_service.py's _process_dps_results.
+  punctualityPercent: z.number().nullable().optional(),
   isOwnStudent: z.boolean(),
   topBadges: z.array(BadgeSchema).optional(),
 });

@@ -12,6 +12,7 @@ import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
+import { formatMathPathDateTime } from "@/lib/date";
 import {
   bulkUploadStudents,
   createStudentProfile,
@@ -81,7 +82,7 @@ function generateDefaultPassword(): string {
   return `Mp-${randomSegment}`;
 }
 
-type StudentSortKey = "studentCode" | "studentName" | "className" | "teacher" | "level" | "status";
+type StudentSortKey = "studentCode" | "studentName" | "className" | "teacher" | "level" | "lastActiveAt" | "status";
 
 const STUDENT_SORT_FIELDS: SortFieldOption<StudentSortKey>[] = [
   { key: "studentName", label: "Student Name" },
@@ -89,6 +90,7 @@ const STUDENT_SORT_FIELDS: SortFieldOption<StudentSortKey>[] = [
   { key: "className", label: "Class" },
   { key: "teacher", label: "Teacher" },
   { key: "level", label: "Level" },
+  { key: "lastActiveAt", label: "Last Seen" },
   { key: "status", label: "Status" },
 ];
 
@@ -450,6 +452,7 @@ export default function AdminStudentsPage() {
       if (key === "className") return `${student.className || ""} ${student.section || ""}`;
       if (key === "teacher") return student.teacher;
       if (key === "level") return student.currentLevelCode;
+      if (key === "lastActiveAt") return student.lastActiveAt;
       return student.isActive ? "ACTIVE" : "INACTIVE";
     },
     naturalOrder: (rows) =>
@@ -924,6 +927,7 @@ export default function AdminStudentsPage() {
                   <th><SortableHeader active={sortKey === "teacher"} direction={sortDirection} onClick={() => onHeaderSort("teacher")}>Teacher</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "level"} direction={sortDirection} onClick={() => onHeaderSort("level")}>Level</SortableHeader></th>
                   <th>Father Mobile</th>
+                  <th><SortableHeader active={sortKey === "lastActiveAt"} direction={sortDirection} onClick={() => onHeaderSort("lastActiveAt")}>Last Seen</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "status"} direction={sortDirection} onClick={() => onHeaderSort("status")} align="center">Status</SortableHeader></th>
                   <th>Action</th>
                 </tr>
@@ -962,6 +966,9 @@ export default function AdminStudentsPage() {
                       <td>{s.teacher || "-"}</td>
                       <td>{s.currentLevelCode || "-"}</td>
                       <td>{s.fatherMobile || "-"}</td>
+                      <td className="text-sm text-slate-600 dark:text-slate-300">
+                        {s.lastActiveAt ? formatMathPathDateTime(s.lastActiveAt) : "Never"}
+                      </td>
                       <td className="text-center">
                         <span
                           className={`math-badge math-admin-directory-status-chip ${
@@ -1791,6 +1798,7 @@ function StudentProfileModal({
     ["School", student.schoolName],
     ["Class / Section", `${student.className || "-"} / ${student.section || "-"}`],
     ["Level", student.currentLevelCode],
+    ["Last Seen", student.lastActiveAt ? formatMathPathDateTime(student.lastActiveAt) : "Never"],
     ["Father", student.fatherName],
     ["Father Mobile", student.fatherMobile],
     ["Father Email", student.fatherEmail],

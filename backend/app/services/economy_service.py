@@ -328,6 +328,27 @@ class EconomyService:
     ]
     SPEED_TIER_STEADY = "STEADY"  # slower than the last band above, or missing/invalid timing data
 
+    # DPS punctuality bonus (Shailesh, 2026-09-02): DPS sheets can now be
+    # scheduled across a whole week, so a student could leave every sheet
+    # for the last day and defeat the point of spreading practice out. This
+    # bonus rewards finishing a sheet on the exact calendar day it unlocked
+    # (IST) -- DPS only, since scheduling is a DPS-only concept; assessments
+    # and mocks never pass ON_TIME here. It stacks with the speed bonus
+    # (both are fractions of the same accuracy-scaled base) rather than
+    # replacing it, and -- critically -- it is proportional to the same
+    # accuracy-scaled base as every other bonus, so a low-accuracy on-time
+    # completion earns a small punctuality bonus and a high-accuracy on-time
+    # completion earns a large one. On-time completion is the gate; accuracy
+    # decides the size, exactly like every other bonus in this formula.
+    DPS_PUNCTUALITY_BONUS_FRACTION = 0.20
+    # Recognized values for the punctuality_status argument to
+    # evaluate_activity_performance(). NOT_SCHEDULED covers both non-DPS
+    # activities and one-off (non-scheduled) DPS assignments -- there's no
+    # unlock day to be on time against, so it never earns or loses anything.
+    PUNCTUALITY_STATUS_ON_TIME = "ON_TIME"
+    PUNCTUALITY_STATUS_LATE = "LATE"
+    PUNCTUALITY_STATUS_NOT_SCHEDULED = "NOT_SCHEDULED"
+
     @staticmethod
     def _speed_bonus(time_taken_seconds: int | float | None, duration_seconds: int | float | None) -> Tuple[str, float]:
         """Returns (tier_label, bonus_fraction), e.g. ("FAST", 0.08).
@@ -353,6 +374,7 @@ class EconomyService:
         duration_seconds: int | float | None,
         time_taken_seconds: int | float | None = None,
         reference_id: str = "N/A",
+        punctuality_status: str = "NOT_SCHEDULED",
     ) -> Dict[str, Any]:
         """
         The single XP/coin formula for DPS sheets, assessments, and mock
@@ -369,35 +391,48 @@ class EconomyService:
         accuracy_multiplier = EconomyService._accuracy_multiplier(accuracy_percent)
         accuracy_tier = EconomyService._accuracy_tier_label(accuracy_percent)
         speed_tier, speed_bonus_fraction = EconomyService._speed_bonus(time_taken_seconds, duration_seconds)
+        punctuality_bonus_fraction = (
+            EconomyService.DPS_PUNCTUALITY_BONUS_FRACTION
+            if activity_type == "DPS" and punctuality_status == EconomyService.PUNCTUALITY_STATUS_ON_TIME
+            else 0.0
+        )
+        total_bonus_fraction = speed_bonus_fraction + punctuality_bonus_fraction
 
         base_xp = EconomyService.GAMIFICATION_XP_RATE_PER_MINUTE * duration_minutes * weight
         base_coins = EconomyService.GAMIFICATION_COIN_RATE_PER_MINUTE * duration_minutes * weight
 
         xp_after_accuracy = base_xp * accuracy_multiplier
-        final_xp = max(0, round(xp_after_accuracy * (1.0 + speed_bonus_fraction)))
+        xp_after_speed = xp_after_accuracy * (1.0 + speed_bonus_fraction)
+        final_xp = max(0, round(xp_after_accuracy * (1.0 + total_bonus_fraction)))
 
         coins_after_accuracy = base_coins * accuracy_multiplier
+        coins_after_speed = coins_after_accuracy * (1.0 + speed_bonus_fraction)
         final_coins = (
-            max(0, round(coins_after_accuracy * (1.0 + speed_bonus_fraction)))
+            max(0, round(coins_after_accuracy * (1.0 + total_bonus_fraction)))
             if accuracy_percent >= 50.0
             else 0
         )
 
-        # Addition-only breakdown for the reward modal. The speed bonus line
-        # is a REMAINDER (total minus the other two rounded pieces), not an
-        # independently-rounded figure, so base + accuracyBonus + speedBonus
+        # Addition-only breakdown for the reward modal. speedBonus and
+        # punctualityBonus are each REMAINDERS (cumulative-total-so-far minus
+        # the pieces already accounted for), not independently-rounded
+        # figures, so base + accuracyBonus + speedBonus + punctualityBonus
         # always sums to exactly the awarded total shown above it -- see the
         # module comment for why this matters.
         xp_base_display = round(base_xp)
         xp_accuracy_bonus_display = round(xp_after_accuracy) - xp_base_display
-        xp_speed_bonus_display = final_xp - xp_base_display - xp_accuracy_bonus_display
+        xp_speed_bonus_display = round(xp_after_speed) - xp_base_display - xp_accuracy_bonus_display
+        xp_punctuality_bonus_display = final_xp - xp_base_display - xp_accuracy_bonus_display - xp_speed_bonus_display
 
         if final_coins > 0:
             coins_base_display = round(base_coins)
             coins_accuracy_bonus_display = round(coins_after_accuracy) - coins_base_display
-            coins_speed_bonus_display = final_coins - coins_base_display - coins_accuracy_bonus_display
+            coins_speed_bonus_display = round(coins_after_speed) - coins_base_display - coins_accuracy_bonus_display
+            coins_punctuality_bonus_display = (
+                final_coins - coins_base_display - coins_accuracy_bonus_display - coins_speed_bonus_display
+            )
         else:
-            coins_base_display = coins_accuracy_bonus_display = coins_speed_bonus_display = 0
+            coins_base_display = coins_accuracy_bonus_display = coins_speed_bonus_display = coins_punctuality_bonus_display = 0
 
         # Loot-pack drops stay mock-exclusive for now -- Collector's Vault,
         # where a dropped pack would actually be seen and opened, isn't built
@@ -425,17 +460,23 @@ class EconomyService:
                     "base": xp_base_display,
                     "accuracyBonus": xp_accuracy_bonus_display,
                     "speedBonus": xp_speed_bonus_display,
+                    "punctualityBonus": xp_punctuality_bonus_display,
                     "total": final_xp,
                 },
                 "coins": {
                     "base": coins_base_display,
                     "accuracyBonus": coins_accuracy_bonus_display,
                     "speedBonus": coins_speed_bonus_display,
+                    "punctualityBonus": coins_punctuality_bonus_display,
                     "total": final_coins,
                 },
                 "accuracyTier": accuracy_tier,
                 "accuracyPercent": round(accuracy_percent, 1),
                 "speedTier": speed_tier,
+                # DPS-only (see DPS_PUNCTUALITY_BONUS_FRACTION above). Always
+                # "NOT_SCHEDULED" for assessments/mocks and for one-off,
+                # non-scheduled DPS assignments -- only "ON_TIME" pays a bonus.
+                "punctualityStatus": punctuality_status,
                 "timeTakenSeconds": int(time_taken_seconds) if time_taken_seconds else None,
                 "allottedSeconds": int(duration_seconds) if duration_seconds else None,
                 "activityType": activity_type,

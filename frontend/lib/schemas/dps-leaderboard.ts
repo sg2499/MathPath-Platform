@@ -3,9 +3,15 @@ import { LeaderboardEntrySchema, ModuleSchema, LevelSchema } from "./leaderboard
 
 // DPS leaderboard entry -- everything the mock-exam LeaderboardEntrySchema
 // has, plus sheetsCompleted (how many DPS sheets contributed to this row's
-// pooled score/accuracy), which the mock-exam entries don't carry.
+// pooled score/accuracy) and punctualityPercent, which the mock-exam
+// entries don't carry (mock exams aren't scheduled day-by-day).
+// punctualityPercent is null (not 0) when this student has no scheduled
+// DPS sheets at all in this scope -- see leaderboard_service.py's
+// _process_dps_results -- so the UI can show a dash instead of a
+// misleading 0%.
 export const DpsLeaderboardEntrySchema = LeaderboardEntrySchema.extend({
   sheetsCompleted: z.number().optional(),
+  punctualityPercent: z.number().nullable().optional(),
 });
 
 // DPS hierarchy has no third tier equivalent to "exams" -- practice sheets

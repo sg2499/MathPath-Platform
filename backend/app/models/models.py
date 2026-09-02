@@ -867,6 +867,11 @@ class Attempt(Base):
     # guards can't interfere with each other -- see EconomyService's
     # evaluate_activity_performance() and the matching Alembic migration.
     gamification_processed_at = Column(DateTime(timezone=True), nullable=True)
+    # ON_TIME / LATE / NOT_SCHEDULED -- set once in submit_attempt(), read by
+    # both the punctuality XP/coin bonus (economy_service.py) and the DPS
+    # leaderboard's Punctuality % column (leaderboard_service.py). See
+    # migration 6357865120b5.
+    punctuality_status = Column(String(20), nullable=True, default="NOT_SCHEDULED")
 
 class AttemptAnswer(Base):
     __tablename__ = "attempt_answers"
