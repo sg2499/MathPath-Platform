@@ -29,6 +29,10 @@ export type TeacherStudent = {
   latestAccuracy: number | null;
   averageAccuracy?: number | null;
   latestActivityAt?: string | null;
+  // Last Seen: real login/session recency (User.last_active_at on the backend),
+  // distinct from latestActivityAt above (which only moves on a completed
+  // DPS/assessment attempt, not on merely logging in).
+  lastActiveAt?: string | null;
   attention?: "NO_ASSIGNMENT" | "NEEDS_FOLLOW_UP" | "NO_ATTEMPT_YET" | "NEEDS_PRACTICE" | "ON_TRACK" | string;
   // Derived live from Attempt.cleared_at_attempt (see lesson_progress_service.py)
   // -- never stored, so this is always the current position, not a cached one.

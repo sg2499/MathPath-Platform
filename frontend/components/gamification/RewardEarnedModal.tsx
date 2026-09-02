@@ -7,21 +7,31 @@ import { X, Check, Sparkles, Coins, ArrowRight } from 'lucide-react';
 
 // Mirrors EconomyService.evaluate_activity_performance()'s "reward_breakdown"
 // dict (backend/app/services/economy_service.py) -- every number here is an
-// ADDITION (base + accuracyBonus + speedBonus = total), never a multiplier,
-// so this modal can show a student or parent "why" in plain arithmetic. See
-// that function's module-level comment for the full two-layer design and
-// why speedBonus is a remainder rather than an independently-rounded figure
-// (base + accuracyBonus + speedBonus always sums to exactly `total`).
+// ADDITION (base + accuracyBonus + speedBonus + punctualityBonus = total),
+// never a multiplier, so this modal can show a student or parent "why" in
+// plain arithmetic. See that function's module-level comment for the full
+// design and why speedBonus/punctualityBonus are each a remainder rather
+// than an independently-rounded figure (the four lines always sum to
+// exactly `total`).
 export interface RewardBreakdownLine {
   base: number;
   accuracyBonus: number;
   speedBonus: number;
+  // DPS-only (see punctualityStatus below) -- always 0 for ASSESSMENT/MOCK
+  // and for a DPS sheet with no schedule to be "on time" against.
+  punctualityBonus: number;
   total: number;
 }
 
 export type RewardAccuracyTier = 'PERFECT' | 'EXCELLENT' | 'GREAT' | 'FAIR' | 'NEEDS_PRACTICE';
 export type RewardSpeedTier = 'LIGHTNING' | 'FAST' | 'STEADY';
 export type RewardActivityType = 'DPS' | 'ASSESSMENT' | 'MOCK';
+// ON_TIME = completed the same IST calendar day the sheet unlocked (earns
+// punctualityBonus above). LATE = completed a later day. NOT_SCHEDULED =
+// not a scheduled DPS sheet at all (a one-off assignment, a reattempt, or
+// this isn't a DPS activity) -- the punctuality row is hidden entirely in
+// that case, since "on time" isn't a meaningful question for it.
+export type RewardPunctualityStatus = 'ON_TIME' | 'LATE' | 'NOT_SCHEDULED';
 
 export interface RewardBreakdown {
   xp: RewardBreakdownLine;
@@ -29,6 +39,7 @@ export interface RewardBreakdown {
   accuracyTier: RewardAccuracyTier;
   accuracyPercent: number;
   speedTier: RewardSpeedTier;
+  punctualityStatus: RewardPunctualityStatus;
   timeTakenSeconds: number | null;
   allottedSeconds: number | null;
   activityType: RewardActivityType;
@@ -91,10 +102,15 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
-  const { xp, coins, accuracyTier, accuracyPercent, speedTier, timeTakenSeconds, allottedSeconds, activityType } = breakdown;
+  const { xp, coins, accuracyTier, accuracyPercent, speedTier, punctualityStatus, timeTakenSeconds, allottedSeconds, activityType } = breakdown;
 
   const accuracyLabel = ACCURACY_TIER_LABEL[accuracyTier] ?? accuracyTier;
   const speedLabel = SPEED_TIER_LABEL[speedTier] ?? speedTier;
+  // Hidden entirely for ASSESSMENT/MOCK and for a DPS sheet with no
+  // schedule to be on time against -- shown (as a hit or a miss) only when
+  // punctuality was actually a live question for this attempt.
+  const showPunctualityRow = activityType === 'DPS' && punctualityStatus !== 'NOT_SCHEDULED';
+  const isPunctualityHit = punctualityStatus === 'ON_TIME';
   const eyebrow = ACTIVITY_EYEBROW[activityType] ?? 'Activity';
   const baseLabel = ACTIVITY_BASE_LABEL[activityType] ?? 'Base for this activity';
   const footnoteNoun = ACTIVITY_FOOTNOTE_NOUN[activityType] ?? 'activity';
@@ -195,8 +211,9 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
         </div>
 
         {/* addition-only breakdown -- base + accuracyBonus + speedBonus
-            always sums to total, guaranteed by economy_service.py's
-            remainder-based rounding, so there's never an off-by-one here */}
+            (+ punctualityBonus when shown) always sums to total, guaranteed
+            by economy_service.py's remainder-based rounding, so there's
+            never an off-by-one here */}
         <div className="mb-1.5 text-[10.5px] font-black uppercase tracking-[0.14em] text-slate-500">
           How this was calculated
         </div>
@@ -234,6 +251,26 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
             </span>
           </div>
 
+          {showPunctualityRow ? (
+            <div className="flex items-center justify-between border-t border-dashed border-slate-700/70 py-3.5">
+              <span className="flex items-center gap-2.5">
+                <span className="text-[14.5px] font-semibold text-slate-300">Punctuality bonus</span>
+                <span
+                  className={`rounded-full border px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] ${
+                    isPunctualityHit
+                      ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
+                      : 'border-slate-500/30 bg-slate-500/10 text-slate-400'
+                  }`}
+                >
+                  {isPunctualityHit ? 'On Time' : 'Missed'}
+                </span>
+              </span>
+              <span className="text-[14.5px] font-extrabold tabular-nums text-slate-200">
+                + {xp.punctualityBonus} XP &middot; + {coins.punctualityBonus} coins
+              </span>
+            </div>
+          ) : null}
+
           <div className="mt-1.5 flex items-center justify-between border-t-2 border-slate-500/45 pb-1 pt-5">
             <span className="text-base font-black text-slate-50">Total</span>
             <span className="text-[19px] font-black tabular-nums">
@@ -247,6 +284,11 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
         <p className="mb-6 mt-5 text-[12.5px] leading-relaxed text-slate-500">
           Base scales with the {footnoteNoun}. Accuracy is the bigger reward &mdash; speed only adds a smaller nudge on
           top, never a penalty for taking your time.
+          {showPunctualityRow
+            ? isPunctualityHit
+              ? ' Finishing this sheet the same day it unlocked also earned you the punctuality bonus.'
+              : ' This sheet unlocked on an earlier day -- finish next week\'s sheets the day they unlock to earn the punctuality bonus.'
+            : ''}
         </p>
 
         <button

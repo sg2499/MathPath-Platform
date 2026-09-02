@@ -462,6 +462,11 @@ def student_payload(db: Session, student: Student, lesson_progress: dict | None 
         "latestAccuracy": attempt_accuracy(latest) if latest else None,
         "averageAccuracy": average_accuracy,
         "latestActivityAt": latest_activity_at.isoformat() if latest_activity_at else None,
+        # Last Seen (Shailesh, 2026-09-02): real login/session recency, distinct from
+        # "latestActivityAt" above (which only moves on a completed DPS/assessment
+        # attempt) -- kept fresh by get_current_user's activity-tracking side effect
+        # in dependencies.py, debounced to ~2 minutes.
+        "lastActiveAt": user.last_active_at.isoformat() if user and user.last_active_at else None,
         "attention": attention,
         "currentLessonId": lesson_progress.get("currentLessonId"),
         "currentLessonNumber": lesson_progress.get("currentLessonNumber"),

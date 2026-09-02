@@ -742,6 +742,10 @@ def student_payload(db: Session, student: Student) -> dict:
         "status": "ACTIVE" if student.is_active and (student_user.is_active if student_user else True) else "INACTIVE",
         "isActive": bool(student.is_active and student_user.is_active) if student_user else bool(student.is_active),
         "createdAt": student_user.created_at.isoformat() if student_user and student_user.created_at else None,
+        # Last Seen (Shailesh, 2026-09-02): real login/session recency, distinct from
+        # "isActive" (enrollment status) above -- kept fresh by get_current_user's
+        # activity-tracking side effect in dependencies.py, debounced to ~2 minutes.
+        "lastActiveAt": student_user.last_active_at.isoformat() if student_user and student_user.last_active_at else None,
     }
 
 

@@ -234,6 +234,7 @@ function TableRow({ row, isHighlighted, rowRef }: { row: TeacherLeaderboardEntry
         </div>
       </td>
       <td className="px-6 py-4 text-center font-black text-sm text-slate-800 dark:text-slate-100">{row.sheetsCompleted ?? "—"}</td>
+      <td className="px-6 py-4 text-center font-black text-sm text-slate-800 dark:text-slate-100">{row.punctualityPercent != null ? `${row.punctualityPercent}%` : "—"}</td>
       <td className="px-6 py-4 text-center font-black text-sm text-slate-800 dark:text-slate-100">{Math.round(row.accuracy)}%</td>
       <td className="px-6 py-4 text-right hidden sm:table-cell font-black text-sm text-slate-700 dark:text-slate-300">
         {Math.floor(row.timeTakenSeconds / 60)}m {row.timeTakenSeconds % 60}s
@@ -442,6 +443,7 @@ function TeacherDpsLeaderboardPageInner() {
                       <th className="px-6 py-5">Rank</th>
                       <th className="px-6 py-5">Student</th>
                       <th className="px-6 py-5 text-center">Sheets</th>
+                      <th className="px-6 py-5 text-center">Punctuality %</th>
                       <th className="px-6 py-5 text-center">Avg Accuracy</th>
                       <th className="px-6 py-5 text-right hidden sm:table-cell">Avg Time</th>
                     </tr>

@@ -195,6 +195,26 @@ def ensure_assessment_attempt_notification_processed_column() -> None:
             connection.execute(text("ALTER TABLE assessment_attempts ADD COLUMN notification_processed_at TIMESTAMP"))
 
 
+def ensure_attempt_punctuality_status_column() -> None:
+    """Self-heal safety net for attempts.punctuality_status (see matching
+    Alembic migration 6357865120b5).
+
+    Same convention as the other ensure_*_column() functions in this file.
+    Backfills existing rows to 'NOT_SCHEDULED' -- correct and harmless for
+    every DPS attempt that predates the punctuality feature, since none of
+    them have a comparable "unlock day" to have been on time against.
+    """
+    inspector = inspect(engine)
+    if "attempts" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("attempts")}
+    with engine.begin() as connection:
+        if "punctuality_status" not in existing:
+            connection.execute(text("ALTER TABLE attempts ADD COLUMN punctuality_status VARCHAR(20)"))
+        connection.execute(text("UPDATE attempts SET punctuality_status = 'NOT_SCHEDULED' WHERE punctuality_status IS NULL"))
+
+
 def ensure_attempt_gamification_processed_column() -> None:
     """Self-heal safety net for attempts.gamification_processed_at (see matching
     Alembic migration c2f7a9d3e451).

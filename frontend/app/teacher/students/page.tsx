@@ -29,7 +29,7 @@ import {
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type TeacherStudentSortKey = "studentCode" | "studentName" | "className" | "level" | "status" | "assigned" | "completed" | "pending" | "accuracy" | "latest" | "attention";
+type TeacherStudentSortKey = "studentCode" | "studentName" | "className" | "level" | "status" | "assigned" | "completed" | "pending" | "accuracy" | "latest" | "lastSeen" | "attention";
 
 const TEACHER_STUDENT_SORT_FIELDS: SortFieldOption<TeacherStudentSortKey>[] = [
   { key: "studentName", label: "Student Name" },
@@ -42,6 +42,7 @@ const TEACHER_STUDENT_SORT_FIELDS: SortFieldOption<TeacherStudentSortKey>[] = [
   { key: "pending", label: "Pending" },
   { key: "accuracy", label: "Average Accuracy" },
   { key: "latest", label: "Latest Activity" },
+  { key: "lastSeen", label: "Last Seen" },
   { key: "attention", label: "Attention" },
 ];
 
@@ -398,6 +399,7 @@ export default function TeacherStudentsPage() {
       if (key === "completed") return studentMetricValue(studentPracticeMetrics, student, "cleared", student.completedAssignments ?? student.completedAttempts ?? 0);
       if (key === "pending") return studentMetricValue(studentPracticeMetrics, student, "pending", (student.pendingAssignments ?? 0) + (student.inProgressAssignments ?? 0));
       if (key === "latest") return student.latestActivityAt || "";
+      if (key === "lastSeen") return student.lastActiveAt || "";
       if (key === "accuracy") return studentPracticeMetrics.get(student.studentCode)?.averageAccuracy ?? student.averageAccuracy ?? student.latestAccuracy ?? 0;
       return attentionLabel(effectiveAttention(student, currentNeedsReattemptStudentCodes));
     },
@@ -550,6 +552,7 @@ export default function TeacherStudentsPage() {
                   <th><SortableHeader active={sortKey === "pending"} direction={sortDirection} onClick={() => toggleSort("pending")}>Pending</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "accuracy"} direction={sortDirection} onClick={() => toggleSort("accuracy")}>Average Accuracy</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "latest"} direction={sortDirection} onClick={() => toggleSort("latest")}>Latest Activity</SortableHeader></th>
+                  <th><SortableHeader active={sortKey === "lastSeen"} direction={sortDirection} onClick={() => toggleSort("lastSeen")}>Last Seen</SortableHeader></th>
                   <th><SortableHeader active={sortKey === "attention"} direction={sortDirection} onClick={() => toggleSort("attention")}>Attention</SortableHeader></th>
                 </tr>
               </thead>
@@ -642,6 +645,9 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
           <Activity size={15} />
           {formatMathPathDateTime(student.latestActivityAt)}
         </div>
+      </td>
+      <td className="text-sm font-bold text-slate-600 dark:text-slate-300">
+        {student.lastActiveAt ? formatMathPathDateTime(student.lastActiveAt) : "Never"}
       </td>
       <td>
         <span className={`math-badge ${attentionTone(attention)}`}>
