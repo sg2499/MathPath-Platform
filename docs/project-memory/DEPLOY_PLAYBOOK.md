@@ -145,6 +145,13 @@ git reset --hard origin/main
 git clean -fd -e 'backend/.env' -e 'frontend/.env' -e 'frontend/.env.local' -e 'backend/.venv' -e 'backend/uploads' -e 'frontend/node_modules' -e 'frontend/.next'
 rm -rf frontend/.next
 tar -xzf /tmp/mathpath-frontend-build.tgz -C frontend
+# 2026-09-02 -- safety net: a build artifact assembled on Windows (whether
+# via this tar step or an ad-hoc zip) can occasionally land with a
+# directory missing its execute/search bit, which Next.js can't detect at
+# build time but crash-loops on at runtime with EACCES/scandir errors the
+# instant it tries to read that folder. This is a no-op when permissions
+# are already correct, so it's cheap insurance every deploy.
+chmod -R a+rX frontend/.next
 cd backend
 [ -d .venv ] || python3 -m venv .venv
 . .venv/bin/activate

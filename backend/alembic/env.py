@@ -31,7 +31,15 @@ database_url = os.getenv("DATABASE_URL", "sqlite:///./mathpath.db")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-config.set_main_option("sqlalchemy.url", database_url)
+# configparser (which backs alembic.ini) treats "%" as its own
+# interpolation marker, so a DATABASE_URL containing a literal "%"
+# (e.g. a password with a URL-encoded character like %40) makes
+# set_main_option() raise "invalid interpolation syntax" and aborts
+# every `alembic upgrade` before a connection is even attempted.
+# Escaping "%" as "%%" here is configparser's documented way to store
+# a literal "%" -- get_main_option()/get_section() unescape it back
+# to the real URL when env.py reads it again below.
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 
