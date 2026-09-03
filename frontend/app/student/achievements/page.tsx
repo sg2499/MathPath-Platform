@@ -42,6 +42,20 @@ export default function TrophyRoomPage() {
           // Check for deep link
           if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
+
+            // Badge-unlock notifications (both Mock and DPS) carry a
+            // ?tab=mock|dps param alongside ?badge=... so the student lands
+            // on the tab that actually holds the badge that was just
+            // unlocked, not whatever the default tab happens to be. Before
+            // this fix the tab param was silently ignored -- the badge
+            // modal still opened correctly (badge matching searches the
+            // full unfiltered list), but the grid underneath stayed on
+            // "Mock Exams" even for a DPS badge notification.
+            const tabParam = params.get("tab");
+            if (tabParam === "dps" || tabParam === "mock") {
+              setActiveTab(tabParam);
+            }
+
             const badgeCodeTier = params.get("badge");
             if (badgeCodeTier) {
               const matchedBadge = data.achievements.find(

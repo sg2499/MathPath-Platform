@@ -34,7 +34,9 @@ from app.services.competition_mock_attempt_service import (
     GetCompetitionMockResultForStudent,
     GetCompetitionMockProgressInsightsForStudent,
 )
+from app.services.student_activity_service import GetStudentActivityEventsInRange
 from app.core.cache import cache_by_user_id
+from app.core.errors import api_error
 
 router = APIRouter(prefix="/api/student", tags=["student"])
 
@@ -595,6 +597,30 @@ def student_level_progress_rows(db: Session, student: Student):
             rows.append(level_progress_row(db, student.id, latest.to_level_id, "ACTIVE_LEVEL", "Active Level", latest))
             seen.add(active_key)
     return rows
+
+
+@router.get("/activity/range")
+def student_activity_range(start: str, end: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    """Backs the Grind Heatmap's month-browse view (2026-09-03, Shailesh).
+
+    start/end are ISO 8601 timestamps for a half-open [start, end) window --
+    the frontend computes these as the student's own local-calendar-month
+    boundaries (see toLocalDateKey in the dashboard page) and passes them
+    straight through; this endpoint does no month/year math of its own, see
+    student_activity_service.py's module docstring for why that split
+    matters. Returns the same normalized event shape the dashboard's weekly
+    view already builds client-side from three unfiltered "fetch everything"
+    endpoints, just scoped to this one range at the database level instead.
+    """
+    try:
+        start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
+    except ValueError:
+        api_error(400, "INVALID_ACTIVITY_RANGE", "start and end must be valid ISO 8601 timestamps.")
+    if end_dt <= start_dt:
+        api_error(400, "INVALID_ACTIVITY_RANGE", "end must be after start.")
+    events = GetStudentActivityEventsInRange(db, student.id, start_dt, end_dt)
+    return {"events": events}
 
 
 @router.get("/results")

@@ -107,6 +107,31 @@ export async function getStudentResults(): Promise<StudentResultAttempt[]> {
   return data.results;
 }
 
+// Backs the Grind Heatmap's month-browse view (2026-09-03) -- a normalized
+// activity event, one per completed DPS/Practice, Assessment, or Competition
+// Mock attempt whose completion falls in the requested [start, end) range.
+// Same shape the dashboard already builds client-side for the current week
+// from getStudentResults/getStudentAssessments/getStudentCompetitionMockAssignments,
+// just server-filtered to one range instead of the student's whole history.
+export type StudentActivityEvent = {
+  completedAt: string;
+  timeTakenSeconds: number;
+  expectedDurationSeconds: number | null;
+  accuracyPercentage: number;
+  totalQuestions: number;
+};
+
+// start/end must be ISO 8601 timestamps marking a half-open [start, end)
+// window -- pass the student's own local-calendar-month boundaries (see
+// toLocalDateKey in the dashboard page), never bare year/month numbers, so
+// the backend never has to guess the student's timezone.
+export async function getStudentActivityRange(start: string, end: string): Promise<StudentActivityEvent[]> {
+  const { data } = await api.get<{ events: StudentActivityEvent[] }>("/student/activity/range", {
+    params: { start, end },
+  });
+  return data.events;
+}
+
 
 export type StudentAssessmentEligibility = {
   studentId: string;

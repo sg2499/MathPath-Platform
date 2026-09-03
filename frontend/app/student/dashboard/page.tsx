@@ -6,14 +6,15 @@ import { StudentWallet } from "@/components/gamification/StudentWallet";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { api, apiErrorMessage } from "@/lib/api";
-import { getStudentAssignments, getStudentAssessments, getStudentResults, getStudentCompetitionMockAssignments } from "@/lib/api/student";
+import { getStudentAssignments, getStudentAssessments, getStudentResults, getStudentCompetitionMockAssignments, getStudentActivityRange } from "@/lib/api/student";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3, BookOpenCheck, GraduationCap, ShieldCheck, Trophy, Laptop, Award,
   Coins, Cpu, RadioTower, Lock, ChevronLeft, ChevronRight, CheckCircle, Target, Focus, Scan, Zap,
   FastForward, Rocket, Medal, Flag, Crown, Flame, Activity, Infinity as InfinityIcon, Clock, Sun,
   AlarmClock, TrendingUp, ArrowUpRight, ChevronsUp, Star, Sparkles, Crosshair,
-  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords, ArrowRight, Info, X
+  Aperture, Radar, Shield, Anchor, Mountain, Brain, Lightbulb, Library, Swords, ArrowRight, Info, X,
+  Calendar, Loader2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -50,6 +51,11 @@ const TIER_BAR_CLASSES: Record<string, string> = {
 // themes, while staying obviously muted/neutral next to the vibrant tiers.
 const REST_BAR_CLASSES = "bg-slate-500 shadow-[0_0_4px_rgba(100,116,139,0.35)]";
 
+const MONTH_NAMES = [
+  "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+  "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER",
+];
+
 // Local-timezone YYYY-MM-DD key. Using toISOString() here would convert to
 // UTC first, which silently shifts late-night activity into the wrong day
 // for any student west of UTC (and early-morning activity for students
@@ -84,6 +90,80 @@ function toActivityDateKey(value: string | null | undefined): string | null {
 function parseLocalDateKey(key: string): Date {
   const [year, month, day] = key.split("-").map(Number);
   return new Date(year, (month || 1) - 1, day || 1);
+}
+
+// The Grind Heatmap's per-day scoring formula (pace ratio, Flow State,
+// tier, insight copy) -- extracted verbatim out of the old inline weekly
+// loop (2026-09-03, Grind Heatmap month-browse feature) so the exact same
+// scoring runs for a browsed calendar month as already runs for "This
+// Week," with zero risk of the two ever drifting apart. dayResults is the
+// same normalized event shape combinedActivityEvents below already
+// produces (and the new /student/activity/range endpoint also returns):
+// {timeTakenSeconds, expectedDurationSeconds, accuracyPercentage}.
+function computeDayStats(dayResults: Array<{ timeTakenSeconds?: number; expectedDurationSeconds?: number | null; accuracyPercentage?: number }>) {
+  const count = dayResults.length;
+  const totalSeconds = dayResults.reduce((acc: number, r) => acc + (r.timeTakenSeconds || 0), 0);
+  const rawTimeSpent = Math.round(totalSeconds / 60);
+  const timeSpent = count > 0 ? Math.max(rawTimeSpent, 2) : 0; // minimum 2 mins credit if completed
+
+  const avgAccuracy = count > 0
+    ? Math.round(dayResults.reduce((acc: number, r) => acc + (r.accuracyPercentage || 0), 0) / count)
+    : 0;
+
+  // Pace, judged per task rather than one flat questions/minute bar: each
+  // practice sheet, assessment, and mock exam has its own admin-defined
+  // expected duration (expectedDurationSeconds). Pace ratio = expected time
+  // ÷ actual time taken for that specific attempt, so a 60-minute mock exam
+  // that used its full 60 minutes scores as "on pace" (ratio 1.0) rather
+  // than being penalized against a flat speed threshold that doesn't know
+  // the difference between a 5-minute drill and an hour-long exam. Capped
+  // at 1.5 so an implausibly fast attempt can't run away with the bonus.
+  // When expected duration is unknown, that attempt is treated as neutral
+  // (ratio 1.0) rather than skewing the day's score.
+  const paceRatios = dayResults.map((r) => {
+    const actual = r.timeTakenSeconds && r.timeTakenSeconds > 0 ? r.timeTakenSeconds : null;
+    const expected = r.expectedDurationSeconds && r.expectedDurationSeconds > 0 ? r.expectedDurationSeconds : actual;
+    if (!actual || !expected) return 1;
+    return Math.min(expected / actual, 1.5);
+  });
+  const avgPaceRatio = count > 0
+    ? paceRatios.reduce((acc: number, r: number) => acc + r, 0) / count
+    : 0;
+
+  // Speed keeps the same ~30-point ceiling it always had (speed remains a
+  // major factor, matching how central pace is to abacus training) -- only
+  // how pace is measured has changed, from a flat threshold to a
+  // per-task-relative one.
+  const speed = avgPaceRatio; // exposed as "pace ratio": 1.0 = exactly on pace
+  const speedBonus = count > 0 ? Math.min(avgPaceRatio, 1.5) / 1.5 * 30 : 0;
+
+  // Flow State: 0 to 100%
+  const flowState = count > 0
+    ? Math.min(Math.round(avgAccuracy * 0.7 + speedBonus), 100)
+    : 0;
+
+  let tier = "REST";
+  let insight = "Rest Day. No conquests attempted.";
+  if (count > 0) {
+    if (flowState >= 90) {
+      tier = "S-TIER";
+      insight = "Peak Focus! Absolute flow state.";
+    } else if (flowState >= 80) {
+      tier = "A-TIER";
+      insight = "Exceptional speed and precision.";
+    } else if (flowState >= 70) {
+      tier = "B-TIER";
+      insight = "Solid execution. Steady progress.";
+    } else if (flowState >= 50) {
+      tier = "C-TIER";
+      insight = "Keep grinding. Focus is building.";
+    } else {
+      tier = "D-TIER";
+      insight = "Analyze mistakes & try again.";
+    }
+  }
+
+  return { count, timeSpent, accuracy: avgAccuracy, speed, flowState, tier, insight };
 }
 
 function useDarkMode() {
@@ -195,6 +275,15 @@ export default function StudentDashboardPage() {
   const [intelIndex, setIntelIndex] = useState(0);
   const [conquestIndex, setConquestIndex] = useState(0);
   const [heatmapInfoOpen, setHeatmapInfoOpen] = useState(false);
+
+  // Grind Heatmap month-browse view (2026-09-03) -- lets a student (or a
+  // parent looking over their shoulder) look back at any past calendar
+  // month, not just the current week, going all the way back across
+  // however many years they've been on the platform. monthCursor is the
+  // first-of-month Date currently being browsed; null means the overlay
+  // hasn't been opened yet (it's initialized to the current month on open).
+  const [monthViewOpen, setMonthViewOpen] = useState(false);
+  const [monthCursor, setMonthCursor] = useState<Date | null>(null);
 
   const AssignmentQuery = useQuery({
     queryKey: ["student-assignments"],
@@ -374,70 +463,9 @@ export default function StudentDashboardPage() {
       // Pooled across every activity type completed this day (practice
       // sheets, assessments, mock exams) and every attempt within it.
       const dayResults = combinedActivityEvents.filter((r) => r.date === dateStr);
+      const stats = computeDayStats(dayResults);
 
-      const count = dayResults.length;
-      const totalSeconds = dayResults.reduce((acc: number, r: any) => acc + (r.timeTakenSeconds || 0), 0);
-      const rawTimeSpent = Math.round(totalSeconds / 60);
-      const timeSpent = count > 0 ? Math.max(rawTimeSpent, 2) : 0; // minimum 2 mins credit if completed
-
-      const avgAccuracy = count > 0 
-        ? Math.round(dayResults.reduce((acc: number, r: any) => acc + (r.accuracyPercentage || 0), 0) / count)
-        : 0;
-
-      // Pace, judged per task rather than one flat questions/minute bar: each
-      // practice sheet, assessment, and mock exam has its own admin-defined
-      // expected duration (expectedDurationSeconds). Pace ratio = expected
-      // time ÷ actual time taken for that specific attempt, so a 60-minute
-      // mock exam that used its full 60 minutes scores as "on pace" (ratio
-      // 1.0) rather than being penalized against a flat speed threshold that
-      // doesn't know the difference between a 5-minute drill and an hour-long
-      // exam. Capped at 1.5 so an implausibly fast attempt can't run away
-      // with the bonus. When expected duration is unknown, that attempt is
-      // treated as neutral (ratio 1.0) rather than skewing the day's score.
-      const paceRatios = dayResults.map((r: any) => {
-        const actual = r.timeTakenSeconds && r.timeTakenSeconds > 0 ? r.timeTakenSeconds : null;
-        const expected = r.expectedDurationSeconds && r.expectedDurationSeconds > 0 ? r.expectedDurationSeconds : actual;
-        if (!actual || !expected) return 1;
-        return Math.min(expected / actual, 1.5);
-      });
-      const avgPaceRatio = count > 0
-        ? paceRatios.reduce((acc: number, r: number) => acc + r, 0) / count
-        : 0;
-
-      // Speed keeps the same ~30-point ceiling it always had (speed remains
-      // a major factor, matching how central pace is to abacus training) —
-      // only how pace is measured has changed, from a flat threshold to a
-      // per-task-relative one.
-      const speed = avgPaceRatio; // exposed as "pace ratio": 1.0 = exactly on pace
-      const speedBonus = count > 0 ? Math.min(avgPaceRatio, 1.5) / 1.5 * 30 : 0;
-
-      // Flow State: 0 to 100%
-      const flowState = count > 0
-        ? Math.min(Math.round(avgAccuracy * 0.7 + speedBonus), 100)
-        : 0;
-
-      let tier = "REST";
-      let insight = "Rest Day. No conquests attempted.";
-      if (count > 0) {
-        if (flowState >= 90) {
-          tier = "S-TIER";
-          insight = "Peak Focus! Absolute flow state.";
-        } else if (flowState >= 80) {
-          tier = "A-TIER";
-          insight = "Exceptional speed and precision.";
-        } else if (flowState >= 70) {
-          tier = "B-TIER";
-          insight = "Solid execution. Steady progress.";
-        } else if (flowState >= 50) {
-          tier = "C-TIER";
-          insight = "Keep grinding. Focus is building.";
-        } else {
-          tier = "D-TIER";
-          insight = "Analyze mistakes & try again.";
-        }
-      }
-
-      data.push({ day: dayName, date: dateStr, count, timeSpent, accuracy: avgAccuracy, speed, flowState, tier, insight });
+      data.push({ day: dayName, date: dateStr, ...stats });
     }
     return data;
   }, [combinedActivityEvents]);
@@ -460,12 +488,8 @@ export default function StudentDashboardPage() {
     if (grindData.length === 0) return "";
     const firstDate = parseLocalDateKey(grindData[0].date);
     const lastDate = parseLocalDateKey(grindData[grindData.length - 1].date);
-    const monthNames = [
-      "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
-      "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
-    ];
-    const firstMonth = monthNames[firstDate.getMonth()];
-    const lastMonth = monthNames[lastDate.getMonth()];
+    const firstMonth = MONTH_NAMES[firstDate.getMonth()];
+    const lastMonth = MONTH_NAMES[lastDate.getMonth()];
     const firstYear = firstDate.getFullYear();
     const lastYear = lastDate.getFullYear();
 
@@ -477,6 +501,95 @@ export default function StudentDashboardPage() {
     }
     return `${lastMonth} ${lastYear}`;
   }, [grindData]);
+
+  // Grind Heatmap month-browse view (2026-09-03) -- backed by the new
+  // date-range-filtered /student/activity/range endpoint (Option 2 from the
+  // implementation plan) rather than the "fetch everything" pattern the
+  // weekly view above uses, since a student could have years of history by
+  // the time they go looking for a specific past month.
+  const monthRangeQuery = useQuery({
+    queryKey: [
+      "student-activity-range",
+      monthCursor ? monthCursor.getFullYear() : null,
+      monthCursor ? monthCursor.getMonth() : null,
+    ],
+    queryFn: () => {
+      // Local-calendar-month boundaries, same local-timezone-safe
+      // construction as toLocalDateKey/toActivityDateKey above -- built as
+      // real local Date objects, then .toISOString()'d (which correctly
+      // converts an already-local instant to UTC), never a bare
+      // "YYYY-MM-DD" string. The backend does no month/year math of its
+      // own; it only filters between these two instants.
+      const start = new Date(monthCursor!.getFullYear(), monthCursor!.getMonth(), 1);
+      const end = new Date(monthCursor!.getFullYear(), monthCursor!.getMonth() + 1, 1);
+      return getStudentActivityRange(start.toISOString(), end.toISOString());
+    },
+    enabled: monthViewOpen && Boolean(monthCursor),
+  });
+
+  // One entry per calendar day of the browsed month, scored by the exact
+  // same computeDayStats() the current-week view above uses, plus how many
+  // blank cells precede day 1 so the grid lines up under the right weekday
+  // column.
+  const monthCalendarData = useMemo(() => {
+    if (!monthCursor) return { leadingBlanks: 0, days: [] as Array<ReturnType<typeof computeDayStats> & { day: number; date: string }> };
+
+    const monthEvents = (monthRangeQuery.data || [])
+      .map((e) => ({ ...e, date: toActivityDateKey(e.completedAt) }))
+      .filter((e) => e.date);
+
+    const year = monthCursor.getFullYear();
+    const month = monthCursor.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstWeekday = new Date(year, month, 1).getDay(); // 0 = Sunday
+
+    const days: Array<ReturnType<typeof computeDayStats> & { day: number; date: string }> = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = toLocalDateKey(new Date(year, month, day));
+      const dayResults = monthEvents.filter((e) => e.date === dateStr);
+      days.push({ day, date: dateStr, ...computeDayStats(dayResults) });
+    }
+
+    return { leadingBlanks: firstWeekday, days };
+  }, [monthCursor, monthRangeQuery.data]);
+
+  const monthConsistencyLabel = useMemo(() => {
+    const totalDays = monthCalendarData.days.length;
+    if (totalDays === 0) return "";
+    const activeDays = monthCalendarData.days.filter((d) => d.count > 0).length;
+    if (activeDays === 0) return "No conquests this month.";
+    return `Active ${activeDays}/${totalDays} days this month.`;
+  }, [monthCalendarData]);
+
+  const isCurrentBrowsedMonth = useMemo(() => {
+    if (!monthCursor) return true;
+    const now = new Date();
+    return monthCursor.getFullYear() === now.getFullYear() && monthCursor.getMonth() === now.getMonth();
+  }, [monthCursor]);
+
+  const openMonthView = () => {
+    setMonthCursor((prev) => prev || new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    setMonthViewOpen(true);
+  };
+
+  const closeMonthView = () => setMonthViewOpen(false);
+
+  const goToPreviousMonth = () => {
+    setMonthCursor((prev) => {
+      const base = prev || new Date();
+      return new Date(base.getFullYear(), base.getMonth() - 1, 1);
+    });
+  };
+
+  const goToNextMonth = () => {
+    setMonthCursor((prev) => {
+      const base = prev || new Date();
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const next = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+      return next > currentMonthStart ? base : next; // never browse into the future
+    });
+  };
 
   const completedAssignments = Assignments.filter((a: any) => a && a.status === 'COMPLETED').length;
   const completedAssessments = Assessments.filter((a: any) => a && (a.status === 'COMPLETED' || a.status === 'PASSED')).length;
@@ -786,6 +899,14 @@ export default function StudentDashboardPage() {
                                   >
                                     <Info size={14} />
                                   </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); openMonthView(); }}
+                                    className="text-slate-400 dark:text-slate-500 hover:text-[var(--mp-role-primary)] transition-colors normal-case tracking-normal font-normal"
+                                    aria-label="Browse past months of activity"
+                                  >
+                                    <Calendar size={14} />
+                                  </button>
                                </h4>
                              </div>
                              <div className="flex items-end justify-between gap-3 h-28 w-full max-w-sm px-2">
@@ -909,6 +1030,99 @@ export default function StudentDashboardPage() {
                                 <p className="mb-2 opacity-90">Each bar is one day. It combines every practice sheet, assessment, and mock exam you completed that day — every attempt counts, not just your last one.</p>
                                 <p className="mb-2 opacity-90">The tier (S/A/B/C/D) reflects both your <span className="text-emerald-400 dark:text-emerald-600">accuracy</span> and your <span className="text-amber-400 dark:text-amber-600">pace</span> against each task's own allotted time — finishing accurately and within your time earns the highest tiers.</p>
                                 <p className="opacity-70">Bar color shows the tier earned that day; a gray, flat bar means no activity.</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Grind Heatmap month-browse view (2026-09-03) --
+                              same "scoped to this card, stop clicks reaching
+                              the flip handler" pattern as the explainer
+                              above, just a bigger panel since it holds a
+                              full calendar grid instead of a paragraph. */}
+                          {monthViewOpen && (
+                            <div
+                              className="absolute inset-0 z-[60] flex items-center justify-center p-4 sm:p-8 rounded-[24px] bg-black/70 backdrop-blur-sm"
+                              onClick={(e) => { e.stopPropagation(); closeMonthView(); }}
+                            >
+                              <div
+                                className="w-full max-w-md bg-slate-950 text-white dark:bg-white dark:text-slate-950 rounded-2xl shadow-2xl border border-white/10 dark:border-slate-200 p-5 max-h-full overflow-y-auto"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex items-center justify-between mb-4">
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={goToPreviousMonth}
+                                      className="p-1 rounded hover:bg-white/10 dark:hover:bg-slate-100 transition-colors"
+                                      aria-label="Previous month"
+                                    >
+                                      <ChevronLeft size={16} />
+                                    </button>
+                                    <p className="font-black uppercase text-[12px] tracking-wider text-[var(--mp-role-primary)] w-36 text-center">
+                                      {monthCursor ? `${MONTH_NAMES[monthCursor.getMonth()]} ${monthCursor.getFullYear()}` : ""}
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={goToNextMonth}
+                                      disabled={isCurrentBrowsedMonth}
+                                      className="p-1 rounded hover:bg-white/10 dark:hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                                      aria-label="Next month"
+                                    >
+                                      <ChevronRight size={16} />
+                                    </button>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={closeMonthView}
+                                    className="opacity-60 hover:opacity-100 transition-opacity"
+                                    aria-label="Back to this week"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+
+                                {monthRangeQuery.isLoading ? (
+                                  <div className="flex items-center justify-center gap-2 py-10 opacity-70 text-[12px] font-bold uppercase tracking-wider">
+                                    <Loader2 size={16} className="animate-spin" /> Loading month...
+                                  </div>
+                                ) : monthRangeQuery.isError ? (
+                                  <p className="text-center py-10 text-[12px] font-bold text-rose-400 dark:text-rose-600">
+                                    Couldn't load this month. Try again in a moment.
+                                  </p>
+                                ) : (
+                                  <>
+                                    <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+                                      {["S", "M", "T", "W", "T", "F", "S"].map((label, i) => (
+                                        <div key={i} className="text-center text-[10px] font-black uppercase tracking-wider opacity-50">
+                                          {label}
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-1.5">
+                                      {Array.from({ length: monthCalendarData.leadingBlanks }).map((_, i) => (
+                                        <div key={`blank-${i}`} />
+                                      ))}
+                                      {monthCalendarData.days.map((d) => (
+                                        <div
+                                          key={d.date}
+                                          title={
+                                            d.count > 0
+                                              ? `${d.date}: ${d.flowState}% ${d.tier} — ${d.accuracy}% accuracy, ${d.timeSpent}m`
+                                              : `${d.date}: Rest day`
+                                          }
+                                          className={`aspect-square rounded-md flex items-center justify-center text-[11px] font-black ${
+                                            d.count > 0 ? TIER_BAR_CLASSES[d.tier] || REST_BAR_CLASSES : "bg-white/5 dark:bg-slate-100"
+                                          } ${d.count > 0 ? "text-white" : "opacity-50"}`}
+                                        >
+                                          {d.day}
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-60 mt-4 text-center">
+                                      {monthConsistencyLabel}
+                                    </p>
+                                  </>
+                                )}
                               </div>
                             </div>
                           )}

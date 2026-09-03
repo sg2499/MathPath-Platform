@@ -993,7 +993,7 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
                         category="GAMIFICATION",
                         title=f"New Badge Unlocked: {name}",
                         message=f"You unlocked the {tier} tier '{name}' badge for: {description}!",
-                        target_route=f"/student/achievements?badge={code}_{tier}",
+                        target_route=f"/student/achievements?tab=mock&badge={code}_{tier}",
                         color_variant="PURPLE",
                         metadata={"badgeId": badge_id, "tier": tier, "code": code, "icon": icon_name}
                     )
