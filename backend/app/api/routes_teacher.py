@@ -1008,12 +1008,17 @@ def schedule_lesson_dps_to_students(
     teacher can line up a whole week (or a whole batch's week) at once
     instead of logging in daily to assign one sheet at a time.
 
-    Fans out to assign_single_dps_to_students() once per (sheet, date)
-    pair -- the exact same shared per-student loop the single-sheet and
-    "Assign All Sheets" routes above use -- so duplicate-assignment
-    blocking and reattempt handling stay identical, not a second copy that
-    can drift. The only new behavior is threading a per-item start_time
-    through, and collecting soft (non-blocking) weekend warnings.
+    The teacher picks ONE shared date grid for the lesson (sheet N -> date
+    N), but each selected student is individually re-mapped onto it: this
+    student's own still-eligible sheets (in lesson order) are zipped
+    against that same date sequence, so date-slot 0 always lands on
+    whichever sheet is genuinely next for THIS student, not on a fixed
+    dpsId that student may have already cleared. Fans out to
+    assign_single_dps_to_students() once per (sheet, date) group produced
+    by that per-student remap -- the exact same shared per-student loop the
+    single-sheet and "Assign All Sheets" routes above use -- so
+    duplicate-assignment blocking and reattempt handling stay identical,
+    not a second copy that can drift.
     """
     if not payload.studentIds:
         api_error(400, "VALIDATION_ERROR", "Select at least one student.")
@@ -1039,7 +1044,12 @@ def schedule_lesson_dps_to_students(
             names.append(user.full_name if user else student.student_code)
         api_error(400, "LEVEL_MISMATCH", f"DPS can only be assigned to students in {level.level_code}. Mismatch: {', '.join(names)}")
 
-    scheduled_pairs: list[tuple[DPS, datetime]] = []
+    # Canonical "slot sequence" for this schedule: the sheets the teacher
+    # put a date next to, in lesson order (dps_number ascending). This
+    # ordering -- not the literal dpsId a slot happens to carry -- is what
+    # gets applied per student below: slot 0 is "the earliest date in this
+    # schedule", slot 1 the next, and so on.
+    ordered_entries: list[tuple[DPS, datetime, str]] = []
     warnings: list[str] = []
     for item in payload.scheduleItems:
         dps = db.get(DPS, item.dpsId)
@@ -1053,19 +1063,62 @@ def schedule_lesson_dps_to_students(
             api_error(400, "VALIDATION_ERROR", f"'{item.date}' is not a valid date (expected YYYY-MM-DD).")
         if _IsWeekendInIst(start_time):
             warnings.append(f"DPS {dps.dps_number} is scheduled on {item.date}, which falls on a weekend.")
-        scheduled_pairs.append((dps, start_time))
+        ordered_entries.append((dps, start_time, item.date))
+    ordered_entries.sort(key=lambda entry: entry[0].dps_number)
+    slot_dates = [entry[1] for entry in ordered_entries]
+    dps_by_id = {entry[0].id: entry[0] for entry in ordered_entries}
+
+    # Personalize per student. A teacher building the weekly schedule sees
+    # ONE shared date grid for the whole lesson ("DPS 1 -> Mon, DPS 2 ->
+    # Tue, ..."), but each selected student can be at a different point in
+    # it -- a sheet they already cleared individually earlier, an open
+    # reattempt, etc. Applying a slot's dpsId literally to every student
+    # (the previous behavior) is exactly the bug reported 2026-09-03
+    # (Shailesh: "when a week is scheduled atleast 1 sheet that belongs to
+    # today's date should appear... right now it always shows 0 assigned"):
+    # a partway-through student's slot-0 sheet was frequently one they'd
+    # already cleared, which the duplicate guard inside
+    # assign_single_dps_to_students() then silently skipped, while their
+    # genuinely-next sheet got pushed onto a later slot instead of landing
+    # on slot 0 (today).
+    #
+    # Fix: recompute each student's OWN live eligibility -- never trust a
+    # frontend eligibility snapshot that may already be stale -- via the
+    # same ComputeLessonProgressForStudents()/assignableDpsIds machinery the
+    # picker UI itself uses (byte-for-byte the same is_assignable_now()
+    # predicate assign_single_dps_to_students() applies), walk THIS
+    # student's own remaining eligible sheets in lesson order, and zip them
+    # against the teacher's slot sequence positionally. Slot 0 then always
+    # lands on this student's own next eligible sheet, never a fixed dpsId
+    # that might already be done for them.
+    progress_by_student = ComputeLessonProgressForStudents(db, own_students, level.id)
+
+    plan: dict[tuple[str, datetime], list[Student]] = {}
+    students_with_nothing_left: list[str] = []
+    for student in own_students:
+        assignable_ids = set(progress_by_student.get(student.id, {}).get("assignableDpsIds", []))
+        students_eligible_dps = [entry[0] for entry in ordered_entries if entry[0].id in assignable_ids]
+        if not students_eligible_dps:
+            user = db.get(User, student.user_id)
+            students_with_nothing_left.append(user.full_name if user else student.student_code)
+            continue
+        for slot_index, dps in enumerate(students_eligible_dps):
+            if slot_index >= len(slot_dates):
+                break
+            plan.setdefault((dps.id, slot_dates[slot_index]), []).append(student)
 
     all_created: list[Assignment] = []
     blocked_pairs: list[str] = []
 
-    for dps, start_time in scheduled_pairs:
+    for (dps_id, start_time), plan_students in plan.items():
+        dps = dps_by_id[dps_id]
         day_label = start_time.astimezone(IST).strftime("%a, %d %b")
         title = f"{level.level_code} Lesson {lesson.lesson_number} - DPS {dps.dps_number} Practice ({day_label})"
         created, blocked_students = assign_single_dps_to_students(
             db,
             dps=dps,
             teacher=teacher,
-            students=own_students,
+            students=plan_students,
             title=title,
             instructions=payload.instructions,
             start_time=start_time,
@@ -1073,13 +1126,21 @@ def schedule_lesson_dps_to_students(
         all_created.extend(created)
         blocked_pairs.extend(f"DPS {dps.dps_number} - {name}" for name in blocked_students)
 
-    if not all_created and blocked_pairs:
-        api_error(
-            409,
-            "DUPLICATE_ASSIGNMENT_BLOCKED",
-            "Every scheduled sheet is already assigned to the selected student(s). "
-            "Admin can unlock existing assignments for a reattempt if needed.",
-        )
+    if not all_created:
+        if students_with_nothing_left and len(students_with_nothing_left) == len(own_students):
+            api_error(
+                409,
+                "DUPLICATE_ASSIGNMENT_BLOCKED",
+                "Every selected student has already been assigned or completed every sheet in this lesson. "
+                "Admin can unlock existing assignments for a reattempt if needed.",
+            )
+        if blocked_pairs:
+            api_error(
+                409,
+                "DUPLICATE_ASSIGNMENT_BLOCKED",
+                "Every scheduled sheet is already assigned to the selected student(s). "
+                "Admin can unlock existing assignments for a reattempt if needed.",
+            )
 
     # Only notify for sheets that unlock immediately (today or earlier) --
     # notifying a student about a sheet that is still locked for days would
@@ -1097,7 +1158,13 @@ def schedule_lesson_dps_to_students(
         NotifyPracticeAssignmentsCreated(db, assignment_ids=immediate_assignment_ids, actor_user_id=teacher.user_id)
     db.commit()
 
-    message = f"Scheduled {len(payload.scheduleItems)} sheet(s) to {len(own_students)} student(s)."
+    students_actually_scheduled = len(own_students) - len(students_with_nothing_left)
+    message = f"Scheduled {len(payload.scheduleItems)} sheet(s) to {students_actually_scheduled} student(s)."
+    if students_with_nothing_left:
+        message += (
+            f" {len(students_with_nothing_left)} student(s) have no remaining sheets in this lesson "
+            "and were skipped."
+        )
     if blocked_pairs:
         message += f" Skipped {len(blocked_pairs)} already-assigned combination(s)."
 
@@ -1106,7 +1173,7 @@ def schedule_lesson_dps_to_students(
         "message": message,
         "assignmentIds": [assignment.id for assignment in all_created],
         "warnings": warnings,
-        "studentsAssigned": len(own_students),
+        "studentsAssigned": students_actually_scheduled,
     }
 
 

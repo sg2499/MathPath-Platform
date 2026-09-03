@@ -40,6 +40,26 @@ from app.core.errors import api_error
 
 router = APIRouter(prefix="/api/student", tags=["student"])
 
+
+def _AssignmentIsUnlocked(start_time: datetime | None, now_utc: datetime) -> bool:
+    """True once `start_time` has arrived (or there is none at all, i.e. an
+    immediate, non-scheduled assignment). Shared by GET /assignments and
+    GET /results so a weekly-scheduled sheet's "not visible yet" status is
+    judged identically by both -- these two endpoints disagreeing about the
+    same student's state is exactly the class of bug found 2026-09-03
+    (Shailesh: assigned sheets not showing up, "Assigned DPS" metric stuck
+    at 0). start_time is always written in UTC (see
+    _ScheduleDateToStartTimeUtc() in routes_teacher.py); a naive datetime
+    coming back from the DB layer is treated as already being that same UTC
+    instant rather than raising (offset-naive vs offset-aware comparisons
+    otherwise crash this endpoint outright).
+    """
+    if not start_time:
+        return True
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=timezone.utc)
+    return start_time <= now_utc
+
 class StartAttemptRequest(BaseModel):
     assignmentId: str
     dpsId: str
@@ -284,7 +304,7 @@ def assignments(db: Session = Depends(get_db), student: Student = Depends(get_cu
     NotifyMissedPracticeUnlocks(db, student)
     rows = [
         a for a in get_student_assignments(db, student)
-        if a.assignment_type != "ASSESSMENT" and (not a.start_time or a.start_time <= now_utc)
+        if a.assignment_type != "ASSESSMENT" and _AssignmentIsUnlocked(a.start_time, now_utc)
     ]
     payload = []
     for a in rows:
@@ -688,6 +708,13 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
             **attempt_date_payload(attempt),
         })
 
+    # Same start_time gate /assignments applies (2026-09-03, Shailesh: the
+    # "Assigned DPS" hero metric on the Practice tab must never disagree
+    # with the actual practice list). Without this filter, a weekly-
+    # scheduled sheet whose start_time is still in the future counted as
+    # "assigned" here well before it ever appeared in /assignments -- the
+    # two endpoints told two different stories about the same student.
+    now_utc = datetime.now(timezone.utc)
     pending_assignments = (
         db.query(Assignment)
         .filter(
@@ -699,6 +726,9 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
         .order_by(Assignment.created_at.desc())
         .all()
     )
+    pending_assignments = [
+        a for a in pending_assignments if _AssignmentIsUnlocked(a.start_time, now_utc)
+    ]
     for assignment in pending_assignments:
         if assignment.id in submitted_assignment_ids:
             continue
