@@ -1229,7 +1229,7 @@ def _ApplyMmCompetitionQuestionShaping(Question: dict[str, Any], *, SectionKey: 
 def _BalanceCompetitionMockSectionCounts(
     SectionDefinitions: list[dict[str, Any]],
     SectionConceptPools: dict[str, list[dict[str, Any]]],
-    WeightedCountsOverride: dict[str, int] | None,
+    CountsOverride: dict[str, int] | None,
     DefaultTotal: int,
     MarksTarget: int = 100,
 ) -> dict[str, int] | None:
@@ -1256,27 +1256,42 @@ def _BalanceCompetitionMockSectionCounts(
     by the same MarksTarget, just 1:1 with question count there); there is
     nothing to balance here when every question is worth the same 1 mark.
 
-    Otherwise: weighted sections are the ONLY thing WeightedCountsOverride
-    (the admin's own input, from the Mock Studio's "Weighted (5
-    marks/question)" boxes) sets directly -- defaulting to an even split of
-    DefaultTotal across every section (the same number the admin used to
-    see under the old flat UI) when nothing is overridden yet. Flat
-    sections (1 mark/question) are no longer admin-editable at all -- they
-    always auto-fill however many marks are left after the weighted
-    sections (MarksTarget - weighted_marks), split evenly across them with
-    the remainder handed to the first few in definition order, exactly
-    mirroring _RedistributeSectionCounts' own remainder rule just below.
-    Raises COMPETITION_MOCK_MARKS_INVALID if the admin's weighted counts
-    alone already exceed MarksTarget marks, or leave marks nothing can
-    absorb (no flat section exists) -- same guard
-    _ResolveCompetitionMockQuestionMarks already uses for the generated
-    question mix itself.
+    Otherwise: 2026-09-03 (Shailesh) -- ANY section, weighted or flat, can
+    now be pinned directly by CountsOverride (the admin's own input from
+    the Mock Studio's Section Allocation panel, every box of which is now
+    editable -- the first cut of this feature, 2026-09-01, only let the
+    weighted section(s) be touched and silently discarded anything the
+    admin typed into a flat section, which is exactly the "everything
+    except Skill Stacker/Concept Drill stays greyed out" complaint this
+    closes out). Concretely:
+      - Weighted sections resolve exactly as before: the admin's override
+        if given, else an even split of DefaultTotal (unchanged -- a
+        weighted section has always resolved to a concrete count whether
+        touched or not, so nothing regresses for an admin who only ever
+        touches the weighted box like today).
+      - Flat sections the admin has touched are now pinned the same way --
+        their marks (1/question) come straight out of the shared budget.
+      - Flat sections the admin has NOT touched are the only thing that
+        still floats, absorbing whatever marks are left after every
+        pinned section (weighted + pinned flat), split evenly across them
+        with the remainder handed to the first few in definition order --
+        exactly mirroring _RedistributeSectionCounts' own remainder rule
+        just below. At least one flat section must stay untouched (or the
+        pinned total must land on MarksTarget exactly) for this to have
+        anywhere to put a leftover mark; that's the same structural
+        requirement the weighted-only version always had, just no longer
+        assuming every flat section is available for it.
+    Raises COMPETITION_MOCK_MARKS_INVALID if the admin's pinned counts
+    (weighted + explicitly-set flat) alone already exceed MarksTarget
+    marks, or leave marks nothing can absorb (no untouched flat section
+    left) -- same guard _ResolveCompetitionMockQuestionMarks already uses
+    for the generated question mix itself.
     """
     WeightedKeys = _CompetitionMockWeightedSectionKeys(SectionConceptPools)
     if not WeightedKeys:
         return None
 
-    if WeightedCountsOverride:
+    if CountsOverride:
         # Defense-in-depth, same bug class as the BM regression fix
         # (2026-08-07): if every key in the override is foreign to this
         # level's real section registry -- a section-key mismatch between
@@ -1293,45 +1308,70 @@ def _BalanceCompetitionMockSectionCounts(
         # one (a full-zero map here would trip the earlier <10 questions
         # check instead, with a less specific error).
         RealKeys = {Section["key"] for Section in SectionDefinitions}
-        if not (set(WeightedCountsOverride.keys()) & RealKeys):
+        if not (set(CountsOverride.keys()) & RealKeys):
             return None
 
     FlatSections = [Section for Section in SectionDefinitions if Section["key"] not in WeightedKeys]
     WeightedSections = [Section for Section in SectionDefinitions if Section["key"] in WeightedKeys]
-    WeightedOverride = WeightedCountsOverride or {}
+    Override = CountsOverride or {}
     DefaultPerSection = max(1, round(max(1, int(DefaultTotal or 1)) / max(1, len(SectionDefinitions))))
 
+    # NB: same pre-existing quirk as the old weighted-only version had --
+    # _NormalizeSectionCounts (the request-payload parser feeding
+    # CountsOverride) drops any key the admin explicitly set to 0, so an
+    # explicit "0" in a box is indistinguishable from an untouched box
+    # here and falls through to the weighted default / flat float instead
+    # of actually pinning at 0. Not new, not this fix's scope -- flagged
+    # for whoever eventually tackles it.
     WeightedCounts: dict[str, int] = {}
     for Section in WeightedSections:
         Key = Section["key"]
-        Raw = WeightedOverride.get(Key)
+        Raw = Override.get(Key)
         WeightedCounts[Key] = max(0, int(Raw if Raw is not None else DefaultPerSection))
-
     WeightedMarksTotal = sum(Count * _COMPETITION_CONCEPT_WEIGHTED_MARKS for Count in WeightedCounts.values())
-    RemainingMarks = float(MarksTarget) - WeightedMarksTotal
 
-    if RemainingMarks < 0 or (not FlatSections and abs(RemainingMarks) > 1e-9):
+    PinnedFlatCounts: dict[str, int] = {}
+    FloatingFlatSections: list[dict[str, Any]] = []
+    for Section in FlatSections:
+        Key = Section["key"]
+        Raw = Override.get(Key)
+        if Raw is not None:
+            PinnedFlatCounts[Key] = max(0, int(Raw))
+        else:
+            FloatingFlatSections.append(Section)
+    PinnedFlatMarksTotal = sum(PinnedFlatCounts.values())  # 1 mark/question, flat
+
+    RemainingMarks = float(MarksTarget) - WeightedMarksTotal - PinnedFlatMarksTotal
+
+    if RemainingMarks < 0 or (not FloatingFlatSections and abs(RemainingMarks) > 1e-9):
+        PinnedMarksTotal = WeightedMarksTotal + PinnedFlatMarksTotal
+        PinnedQuestionTotal = sum(WeightedCounts.values()) + sum(PinnedFlatCounts.values())
         api_error(
             400,
             "COMPETITION_MOCK_MARKS_INVALID",
-            f"This weighted question count cannot total exactly {MarksTarget:g} marks: "
-            f"{sum(WeightedCounts.values())} Concept Drill/Skill Stacker question(s) alone are worth "
-            f"{WeightedMarksTotal:g} marks, leaving {RemainingMarks:g} for the remaining sections. "
-            f"Reduce the weighted question count so the totals can balance to {MarksTarget:g}.",
+            f"This question allocation cannot total exactly {MarksTarget:g} marks: "
+            f"{PinnedQuestionTotal} question(s) across the section(s) you've set are already worth "
+            f"{PinnedMarksTotal:g} marks, leaving {RemainingMarks:g} for the remaining section(s). "
+            f"Adjust the question counts so the totals can balance to {MarksTarget:g}.",
         )
 
     RemainingMarksInt = int(round(RemainingMarks))
-    FlatCounts: dict[str, int] = {}
-    if FlatSections:
-        Base = RemainingMarksInt // len(FlatSections)
-        Remainder = RemainingMarksInt % len(FlatSections)
-        for Index, Section in enumerate(FlatSections):
-            FlatCounts[Section["key"]] = Base + (1 if Index < Remainder else 0)
+    FloatingFlatCounts: dict[str, int] = {}
+    if FloatingFlatSections:
+        Base = RemainingMarksInt // len(FloatingFlatSections)
+        Remainder = RemainingMarksInt % len(FloatingFlatSections)
+        for Index, Section in enumerate(FloatingFlatSections):
+            FloatingFlatCounts[Section["key"]] = Base + (1 if Index < Remainder else 0)
 
     Result: dict[str, int] = {}
     for Section in SectionDefinitions:
         Key = Section["key"]
-        Result[Key] = WeightedCounts[Key] if Key in WeightedCounts else FlatCounts.get(Key, 0)
+        if Key in WeightedCounts:
+            Result[Key] = WeightedCounts[Key]
+        elif Key in PinnedFlatCounts:
+            Result[Key] = PinnedFlatCounts[Key]
+        else:
+            Result[Key] = FloatingFlatCounts.get(Key, 0)
     return Result
 
 
@@ -1344,10 +1384,11 @@ def _CompetitionMockSectionPlanSections(
 ) -> tuple[list[dict[str, Any]], int]:
     """Shared by every CompetitionMockSectionPlan() module branch below:
     builds the section list -- tagged with isWeighted/marksPerQuestion so
-    the Mock Studio's Section Allocation panel can render weighted sections
-    as admin-editable and flat sections as auto-computed -- and returns the
-    actual total question count. For a level with a weighted section this
-    is now ALWAYS the marks-balanced total (see
+    the Mock Studio's Section Allocation panel can label each box "5
+    marks/question" vs "1 mark/question" (every section is admin-editable
+    now, 2026-09-03 -- see _BalanceCompetitionMockSectionCounts) -- and
+    returns the actual total question count. For a level with a weighted
+    section this is now ALWAYS the marks-balanced total (see
     _BalanceCompetitionMockSectionCounts), not the raw RequestedQuestionCount
     a caller passed in; for a level with none, it's the old flat even-split
     against RequestedQuestionCount itself (which for a flat level already
@@ -3072,14 +3113,16 @@ def GenerateCompetitionMockDraft(
     # MarksTargetClamped marks -- same invariant MM/PM/BM assessment
     # blueprints already have, extended to the mock flow, which never had
     # it (see _BalanceCompetitionMockSectionCounts). When one exists, the
-    # balanced count map is authoritative for every section, weighted and
-    # flat alike -- TotalQuestions/SectionCountsOverride's raw flat-section
-    # values (if the client still sent any) are superseded here, since the
-    # Mock Studio UI only lets the admin edit the weighted section(s) now.
-    # A level with no weighted section (PM-L1, YLM, ...) is untouched --
-    # TotalQuestions there already IS the marks total, one mark per
-    # question, so it just flows straight into RequestedQuestionCount below
-    # same as always; MarksTargetClamped only matters on the weighted path.
+    # balanced count map is authoritative for every section. 2026-09-03:
+    # every section in it -- weighted AND flat -- now honors whatever the
+    # admin actually pinned via SectionCountsOverride (the Mock Studio's
+    # Section Allocation panel makes every box editable, not just the
+    # weighted one); only a section the admin left untouched still floats
+    # to fill the remainder. A level with no weighted section (PM-L1,
+    # YLM, ...) is untouched -- TotalQuestions there already IS the marks
+    # total, one mark per question, so it just flows straight into
+    # RequestedQuestionCount below same as always; MarksTargetClamped
+    # only matters on the weighted path.
     LevelSectionConfig = _CompetitionMockLevelSectionConfig(ModuleRecord, LevelRecord)
     BalancedSectionCounts = None
     if LevelSectionConfig is not None:
