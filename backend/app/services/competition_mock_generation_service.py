@@ -1264,11 +1264,16 @@ def _BalanceCompetitionMockSectionCounts(
     admin typed into a flat section, which is exactly the "everything
     except Skill Stacker/Concept Drill stays greyed out" complaint this
     closes out). Concretely:
-      - Weighted sections resolve exactly as before: the admin's override
-        if given, else an even split of DefaultTotal (unchanged -- a
-        weighted section has always resolved to a concrete count whether
-        touched or not, so nothing regresses for an admin who only ever
-        touches the weighted box like today).
+      - Weighted sections resolve to the admin's override if given, else a
+        default question count of DefaultPerSection x MarksTarget/100 --
+        2026-09-03: the previous default (a flat DefaultPerSection,
+        completely unrelated to MarksTarget) could by itself exceed the
+        admin's entire marks budget for any MarksTarget well below 100,
+        making generation structurally impossible with nothing pinned.
+        Scaling it by MarksTarget/100 leaves the documented 100-mark
+        default (the only value that existed before 2026-09-01) exactly
+        unchanged, while every lower MarksTarget now shrinks it
+        proportionally so it can never alone exceed the chosen budget.
       - Flat sections the admin has touched are now pinned the same way --
         their marks (1/question) come straight out of the shared budget.
       - Flat sections the admin has NOT touched are the only thing that
@@ -1314,6 +1319,33 @@ def _BalanceCompetitionMockSectionCounts(
     FlatSections = [Section for Section in SectionDefinitions if Section["key"] not in WeightedKeys]
     WeightedSections = [Section for Section in SectionDefinitions if Section["key"] in WeightedKeys]
     Override = CountsOverride or {}
+
+    # 2026-09-03 (Shailesh, live report: "i still see this error... wtf
+    # bor?") -- root cause isolated via a live repro against IM-L2: an
+    # UNTOUCHED weighted section's default question count was a flat
+    # DefaultPerSection = round(DefaultTotal / section-count), completely
+    # independent of MarksTarget. For IM-L2 (6 sections, DefaultTotal=100)
+    # that put the untouched weighted section's default at 17 questions x
+    # 5 marks/question = 85 marks -- BEFORE a single flat section got
+    # anything -- so any MarksTarget below ~85 (most of the admin's own
+    # 10-100 range) was structurally impossible with nothing pinned:
+    # RemainingMarks went negative and COMPETITION_MOCK_MARKS_INVALID
+    # fired on the section-plan PREVIEW itself, before the admin ever
+    # touched a box. Confirmed live: GET .../mock-section-plan?...
+    # &totalMarks=55 -> 400, weighted default still 17q/85marks regardless
+    # of the 55-mark target.
+    #
+    # Fix: scale that same DefaultPerSection proportionally by
+    # MarksTarget/100 -- at MarksTarget=100 (the only value that existed
+    # before 2026-09-01, and still the default) this is bit-for-bit
+    # identical to the old formula (round(X * 100 / 100) == X), so every
+    # existing level's documented 100-mark default is unchanged. Below
+    # 100 it now shrinks in step with the admin's chosen budget instead of
+    # staying pinned to the 100-mark figure, so it can never by itself
+    # exceed MarksTarget: DefaultPerSection x 5 was already proven <=100
+    # by every level's own working 100-mark default (that's what made
+    # MarksTarget=100 work pre-2026-09-01), so DefaultPerSection x
+    # MarksTarget/100 x 5 <= MarksTarget for every MarksTarget in [10,100].
     DefaultPerSection = max(1, round(max(1, int(DefaultTotal or 1)) / max(1, len(SectionDefinitions))))
 
     # NB: same pre-existing quirk as the old weighted-only version had --
@@ -1327,7 +1359,10 @@ def _BalanceCompetitionMockSectionCounts(
     for Section in WeightedSections:
         Key = Section["key"]
         Raw = Override.get(Key)
-        WeightedCounts[Key] = max(0, int(Raw if Raw is not None else DefaultPerSection))
+        if Raw is not None:
+            WeightedCounts[Key] = max(0, int(Raw))
+        else:
+            WeightedCounts[Key] = max(0, round(DefaultPerSection * float(MarksTarget) / 100.0))
     WeightedMarksTotal = sum(Count * _COMPETITION_CONCEPT_WEIGHTED_MARKS for Count in WeightedCounts.values())
 
     PinnedFlatCounts: dict[str, int] = {}
