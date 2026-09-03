@@ -21,7 +21,7 @@ import {
 } from "@/lib/api/admin";
 import type { LevelItem, ModuleItem } from "@/types/curriculum";
 import type { AdminStudent } from "@/types/student";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Archive, CheckCircle2, Eye, FilePenLine, FilePlus, Loader2, PackageOpen, Plus, Search, Send, Settings2, ShieldCheck, SlidersHorizontal, Target, Trash2, UserCheck, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -143,7 +143,18 @@ export default function AdminCompetitionMockStudioPage() {
   const LevelsQuery = useQuery({ queryKey: ["admin", "competition", "levels", SelectedModuleId], queryFn: () => getLevels(SelectedModuleId), enabled: Ready && Boolean(SelectedModuleId) });
   const StudentsQuery = useQuery({ queryKey: ["admin", "competition", "students"], queryFn: getAdminStudents, enabled: Ready });
   const MocksQuery = useQuery({ queryKey: ["admin", "competition", "mocks", ManageLevelFilterId], queryFn: () => listCompetitionMockExams(ManageLevelFilterId || undefined), enabled: Ready });
-  const SectionPlanQuery = useQuery({ queryKey: ["admin", "competition", "section-plan", SelectedLevelId, QuestionCount, MarksTargetInput], queryFn: () => getCompetitionMockSectionPlan(SelectedLevelId, Number(QuestionCount) || DefaultQuestionCount, Math.max(10, Math.min(100, Math.floor(Number(MarksTargetInput) || 0))) || 100), enabled: Ready && Boolean(SelectedLevelId) });
+  // 2026-09-03 (Shailesh, live report -- screenshot showed a flat-mode "0
+  // Selected" badge for IM-L2, a level whose own registry data DOES have a
+  // weighted Skill Stacker/Concept Drill section): switching SelectedLevelId
+  // changes this query's key, and without placeholderData that means `data`
+  // (and therefore HasWeightedSection/LiveSections below) drops to
+  // empty/false for one render on every level change, no matter the new
+  // level's actual shape -- purely a query-key reset artifact, not a real
+  // section-plan mismatch. keepPreviousData keeps rendering the outgoing
+  // level's section plan until the new one actually arrives, so the panel
+  // never flashes an incorrect "flat level" state for a weighted level (or
+  // vice versa).
+  const SectionPlanQuery = useQuery({ queryKey: ["admin", "competition", "section-plan", SelectedLevelId, QuestionCount, MarksTargetInput], queryFn: () => getCompetitionMockSectionPlan(SelectedLevelId, Number(QuestionCount) || DefaultQuestionCount, Math.max(10, Math.min(100, Math.floor(Number(MarksTargetInput) || 0))) || 100), enabled: Ready && Boolean(SelectedLevelId), placeholderData: keepPreviousData });
   // Manage Mocks' level filter spans every competition-mock-supported module
   // at once (unlike Create Mock's Level select, which is scoped to whichever
   // single module is chosen there) -- so it fetches each supported module's
@@ -423,6 +434,20 @@ export default function AdminCompetitionMockStudioPage() {
       QueryClient.invalidateQueries({ queryKey: ["admin", "competition", "mocks"] });
     },
   });
+
+  // 2026-09-03 (Shailesh, live report: "i still see this error, wtf bor?") --
+  // GenerateMutation.error was never cleared once a generate attempt failed,
+  // so its COMPETITION_MOCK_MARKS_INVALID banner (baked with THAT attempt's
+  // marks numbers, e.g. "balance to 10") kept showing indefinitely even
+  // after the admin picked a different level, retyped Total Marks, edited a
+  // section count, or changed the duration -- the banner's numbers then no
+  // longer matched anything on screen. Reset the mutation the instant any
+  // input that feeds a future generate attempt changes, so a stale error can
+  // never outlive the form state that produced it.
+  useEffect(() => {
+    GenerateMutation.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [SelectedLevelId, MockMarksTarget, QuestionCount, SectionCounts, DurationMinutes]);
 
   const AssignMutation = useMutation({
     mutationFn: () => assignCompetitionMockExams({
