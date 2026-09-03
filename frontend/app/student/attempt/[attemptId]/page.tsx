@@ -24,11 +24,13 @@ import { useCallback, useMemo, useState } from "react";
 
 // Same one-time sessionStorage handoff pattern used for mock exams (see
 // stashRewardBreakdownForResult in the mock-attempt page) -- the reward
-// modal is now wired into DPS too (2026-08-26), just without a cutscene
-// sequence yet: it shows immediately on the result page, no confetti/badge/
-// rank-up ordering in front of it. That ordering arrives with the DPS
-// celebration cutscenes in a later phase; wiring the modal itself in now
-// so students see their XP/coin breakdown on every activity type already.
+// modal has been wired into DPS since 2026-08-26. As of 2026-09-03, DPS now
+// runs the same full celebration -> reward -> badges -> rank-up sequence
+// mock exams already run: the submit/auto-submit/save-answer responses
+// carry unlockedBadges/rankedUp/newRankTier (attempt_service.py's
+// result_payload(), mirroring competition_mock_attempt_service.py's shape),
+// so this stashes all three pieces the same way the mock-attempt page does,
+// consumed once by the DPS result page below.
 function stashRewardBreakdownForResult(attemptId: string, response: unknown) {
   try {
     const data = response as { rewardBreakdown?: unknown } | undefined;
@@ -37,6 +39,38 @@ function stashRewardBreakdownForResult(attemptId: string, response: unknown) {
     }
   } catch (e) {
     console.error("Failed to stash reward breakdown for result reveal", e);
+  }
+}
+
+// Mirrors stashUnlockedBadgesForResult in the mock-attempt page exactly,
+// including the icon_name -> iconName normalization at the handoff boundary
+// (this submit-side response is a raw dict, not camelCase-aliased like the
+// /achievements route), so the DPS result page's badge reveal can share the
+// same BadgeIconMap lookup convention as the Trophy Room and the mock reveal.
+function stashUnlockedBadgesForResult(attemptId: string, response: unknown) {
+  try {
+    const badges = (response as { unlockedBadges?: unknown[] } | undefined)?.unlockedBadges;
+    if (Array.isArray(badges) && badges.length > 0) {
+      const normalized = badges.map((b: any) => ({
+        ...b,
+        iconName: b?.iconName ?? b?.icon_name,
+      }));
+      sessionStorage.setItem(`mp_unlocked_badges_${attemptId}`, JSON.stringify(normalized));
+    }
+  } catch (e) {
+    console.error("Failed to stash unlocked badges for result reveal", e);
+  }
+}
+
+// Mirrors stashRankUpForResult in the mock-attempt page exactly.
+function stashRankUpForResult(attemptId: string, response: unknown) {
+  try {
+    const data = response as { rankedUp?: boolean; newRankTier?: string | null } | undefined;
+    if (data?.rankedUp && data?.newRankTier) {
+      sessionStorage.setItem(`mp_rank_up_${attemptId}`, data.newRankTier);
+    }
+  } catch (e) {
+    console.error("Failed to stash rank-up for result reveal", e);
   }
 }
 
@@ -63,6 +97,8 @@ export default function AttemptPage() {
   const autoSubmitMutation = useMutation({
     mutationFn: () => autoSubmitAttempt(attemptId),
     onSuccess: (data) => {
+      stashUnlockedBadgesForResult(attemptId, data);
+      stashRankUpForResult(attemptId, data);
       stashRewardBreakdownForResult(attemptId, data);
       router.replace(`/student/result/${attemptId}`);
     },
@@ -71,6 +107,8 @@ export default function AttemptPage() {
   const manualSubmitMutation = useMutation({
     mutationFn: () => submitAttempt(attemptId),
     onSuccess: (data) => {
+      stashUnlockedBadgesForResult(attemptId, data);
+      stashRankUpForResult(attemptId, data);
       stashRewardBreakdownForResult(attemptId, data);
       router.replace(`/student/result/${attemptId}`);
     },
@@ -119,6 +157,8 @@ export default function AttemptPage() {
       const response = await saveAnswer(attemptId, { questionId, answerText });
 
       if (response?.status === "AUTO_SUBMITTED") {
+        stashUnlockedBadgesForResult(attemptId, response);
+        stashRankUpForResult(attemptId, response);
         stashRewardBreakdownForResult(attemptId, response);
         router.replace(`/student/result/${attemptId}`);
       }

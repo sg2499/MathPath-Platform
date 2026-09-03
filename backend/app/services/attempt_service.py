@@ -476,6 +476,19 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
     in its own try/except so a bug in badge detection can never take down
     the economy award it shares a claim with -- the two are independent
     once the claim succeeds.
+
+    Return shape (2026-09-03, DPS post-attempt celebration parity fix):
+    mirrors competition_mock_attempt_service.py's _ProcessMockCompletionSideEffects
+    exactly -- {unlockedBadges, awardedXP, awardedCoins, rankedUp, newRankTier,
+    rewardBreakdown} -- instead of the raw EconomyService dict, so
+    result_payload() below can hand the DPS result page everything it needs
+    to run the same celebration -> reward -> badges -> rank-up sequence the
+    Mock result page already runs, via the same sessionStorage handoff
+    pattern the mock-attempt page uses. Before this, unlocked_badges was
+    computed (for the notification loop below) and then discarded -- never
+    part of this function's return value -- which is why the DPS result page
+    could never show a badge reveal even though the badge itself was already
+    unlocked and persisted.
     """
     from sqlalchemy import update as _sa_update
 
@@ -517,6 +530,7 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
         import logging
         logging.error(f"Failed to award economy for attempt {attempt.id}: {e}")
 
+    unlocked_badges: list = []
     try:
         from app.services.achievements import AchievementEngine
         from app.services.notification_service import CreateNotification
@@ -566,7 +580,14 @@ def _process_attempt_gamification_side_effects(db: Session, attempt: Attempt) ->
         import logging
         logging.error(f"Failed to send DPS leaderboard rank notification for attempt {attempt.id}: {e}")
 
-    return econ_result
+    return {
+        "unlockedBadges": unlocked_badges,
+        "awardedXP": econ_result.get("awarded_xp", 0) if econ_result else 0,
+        "awardedCoins": econ_result.get("awarded_coins", 0) if econ_result else 0,
+        "rankedUp": econ_result.get("ranked_up", False) if econ_result else False,
+        "newRankTier": econ_result.get("new_rank") if econ_result else None,
+        "rewardBreakdown": econ_result.get("reward_breakdown") if econ_result else None,
+    }
 
 
 def latest_retry_assignment_for_attempt(db: Session, attempt: Attempt):
@@ -660,14 +681,24 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
 
     # Only present on the same request that just completed this attempt
     # (see the _side_effects_result comment in submit_attempt above) -- a
-    # plain GET /result reload never has it, and the reward modal correctly
-    # only ever shows once, right after submission.
-    side_effects = getattr(attempt, "_side_effects_result", None)
-    reward_breakdown = side_effects.get("reward_breakdown") if side_effects else None
+    # plain GET /result reload never has it, and the reward modal/badge
+    # reveal/rank-up cinematic correctly only ever show once, right after
+    # submission. Shape mirrors competition_mock_attempt_service.py's
+    # SubmitCompetitionMockAttemptForStudent() response exactly (2026-09-03
+    # DPS celebration parity fix) -- unlockedBadges/rankedUp/newRankTier were
+    # already being computed by _process_attempt_gamification_side_effects()
+    # above, just never surfaced here, which is why the DPS result page
+    # previously had nothing to hand off to a badge reveal or rank-up
+    # cinematic even when one had actually happened.
+    side_effects = getattr(attempt, "_side_effects_result", None) or {}
+    reward_breakdown = side_effects.get("rewardBreakdown")
 
     return {
         "attemptId": attempt.id,
         "rewardBreakdown": reward_breakdown,
+        "unlockedBadges": side_effects.get("unlockedBadges", []),
+        "rankedUp": side_effects.get("rankedUp", False),
+        "newRankTier": side_effects.get("newRankTier"),
         "attemptGroupId": getattr(attempt, "attempt_group_id", None),
         "attemptNumber": _safe_int(getattr(attempt, "attempt_number", 0), 0),
         "attemptLabel": BuildAttemptLabel(getattr(attempt, "attempt_number", 0)),
