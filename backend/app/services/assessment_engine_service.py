@@ -40,6 +40,7 @@ from app.question_engine.im import IMConfig, GenerateImQuestionSet, OperationFoc
 from app.question_engine.pm import PMConfig, generate_pm_question_set
 from app.question_engine.pm_l2 import PML2Config, PML2ConceptDrillConfig, generate_pm_l2_question_set
 from app.question_engine.pm_l2.concept_drill import generate_concept_drill_question
+from app.question_engine.number_format import PlainNumberString
 from app.services.competition_mock_generation_service import (
     IM_COMPETITION_LEVEL_REGISTRY,
     MM_COMPETITION_LEVEL_REGISTRY,
@@ -1423,7 +1424,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                         question_text=GeneratedQuestionText,
                         operands_json=json.dumps(Operands),
                         operators_json=json.dumps(Generated.get("operators", [])),
-                        correct_answer=str(Generated.get("correct_answer")),
+                        correct_answer=PlainNumberString(Generated.get("correct_answer")),
                         explanation=Generated.get("explanation") or _DefaultAssessmentExplanation(ModuleCode),
                         difficulty="MIXED",
                         concept_tag=ConceptTag,
@@ -1440,7 +1441,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                             AssessmentQuestionOption(
                                 assessment_question_id=AssessmentQuestionRow.id,
                                 option_label=Option.get("label"),
-                                option_value=str(Option.get("value")),
+                                option_value=PlainNumberString(Option.get("value")),
                                 is_correct=bool(Option.get("is_correct")),
                                 display_order=int(Option.get("display_order") or 0),
                             )
@@ -1514,7 +1515,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                         question_text=GeneratedQuestionText,
                         operands_json=json.dumps(Operands),
                         operators_json=json.dumps(Generated.get("operators", [])),
-                        correct_answer=str(Generated.get("correct_answer")),
+                        correct_answer=PlainNumberString(Generated.get("correct_answer")),
                         explanation=Generated.get("explanation") or _DefaultAssessmentExplanation(ModuleCode),
                         difficulty=Section.difficulty or "MIXED",
                         concept_tag=ConceptTag,
@@ -1531,7 +1532,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                             AssessmentQuestionOption(
                                 assessment_question_id=AssessmentQuestionRow.id,
                                 option_label=Option.get("label"),
-                                option_value=str(Option.get("value")),
+                                option_value=PlainNumberString(Option.get("value")),
                                 is_correct=bool(Option.get("is_correct")),
                                 display_order=int(Option.get("display_order") or 0),
                             )
