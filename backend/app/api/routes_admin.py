@@ -114,6 +114,10 @@ from app.services.annual_competition_studio_service import (
     OverrideCompetitionEventAssignment,
 )
 
+from app.services.annual_competition_attempt_service import (
+    ReconcileExpiredCompetitionEventAttempts,
+)
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 
@@ -5968,6 +5972,17 @@ def admin_override_annual_competition_assignment(
         OverriddenBy=user,
         SlotId=payload.slotId,
     )
+
+
+# --- Annual Competition (Package 4): section-timer + pause engine ----------
+# See backend/app/services/annual_competition_attempt_service.py. The
+# reconciliation sweep is the only Package 4 surface an admin ever calls
+# directly -- everything else (start/heartbeat/submit-section) is student-
+# facing, in routes_student.py.
+
+@router.post("/annual-competition/attempts/reconcile")
+def admin_reconcile_annual_competition_attempts(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return ReconcileExpiredCompetitionEventAttempts(db)
 
 
 from app.api.routes_teacher import _teacher_competition_row_payload, _competition_duration_text

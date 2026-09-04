@@ -1,13 +1,15 @@
 current_epic: annual-competition-plan.md
-active_package: pkg-04-section-timer-engine.md
+active_package: pkg-05-student-attempt-ui.md
 status: IN_PROGRESS
 
 # Previous epic (competition-mock-practice-plan.md) is COMPLETED and shipped.
 # Annual Competition (2026-09) is now the active epic. Package 1 (data
-# model), Package 2 (assignment engine), and Package 3 (Admin Annual
-# Competition Studio -- backend AND frontend) are all COMPLETE -- see
-# .mathpath/packages/pkg-03-admin-studio.md. Package 4 (section-timer +
-# pause engine, the highest-risk/most novel piece) is next, per the
+# model), Package 2 (assignment engine), Package 3 (Admin Annual Competition
+# Studio -- backend AND frontend), and Package 4 (section-timer + pause
+# engine -- the highest-risk/most novel piece of this whole build) are all
+# COMPLETE -- see .mathpath/packages/pkg-04-section-timer-engine.md. Package
+# 5 (student live-attempt UI: multi-section timer, pre-section instructions
+# screen, slot-gated start, resume-on-reconnect UX) is next, per the
 # original plan's sequencing and Shailesh's "section by section" cadence.
 # Everything so far is built and verified locally only -- push/merge/deploy
 # is being bundled across all packages per Shailesh's instruction
