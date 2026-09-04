@@ -2,6 +2,7 @@ import { api } from "@/lib/api";
 import type { Assignment, AttemptHistoryEntry } from "@/types/assignment";
 import type { AttemptPayload, DpsAttemptPayload } from "@/types/attempt";
 import type { AttemptResult } from "@/types/result";
+import type { McqOption } from "@/types/question";
 
 type AssignmentsResponse = { assignments: Assignment[] };
 
@@ -504,5 +505,140 @@ export type StudentCompetitionProgressInsights = {
 
 export async function getCompetitionProgressInsights(): Promise<StudentCompetitionProgressInsights> {
   const { data } = await api.get<StudentCompetitionProgressInsights>("/student/competition/progress/insights");
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Annual Competition (Package 4/5) -- the real, single scheduled competition
+// event, distinct from the always-available Competition Mock practice
+// endpoints above. See backend/app/services/annual_competition_attempt_service.py
+// for the full design writeup (heartbeat/pause mechanic, single-session
+// guard, section-locked answer capture). Field names mirror that service's
+// dict payloads verbatim -- no pydantic alias generator sits in front of
+// these routes, same as the Competition Mock ones above.
+// ---------------------------------------------------------------------------
+
+export type AnnualCompetitionSlotInfo = {
+  slotId: string;
+  mode: string;
+  slotLabel: string | null;
+  scheduledStartAt: string | null;
+  scheduledEndAt: string | null;
+};
+
+export type AnnualCompetitionAssignmentForStudent = {
+  assignmentId: string;
+  eventId: string;
+  eventName: string;
+  eventStatus: string;
+  competitionDate: string | null;
+  assignedLevelCode: string;
+  slot: AnnualCompetitionSlotInfo | null;
+  latestAttemptId: string | null;
+  // NOT_STARTED | IN_PROGRESS | SUBMITTED | FINALIZED
+  latestAttemptStatus: string;
+};
+
+export async function getMyAnnualCompetitionAssignments(): Promise<AnnualCompetitionAssignmentForStudent[]> {
+  const { data } = await api.get<{ assignments: AnnualCompetitionAssignmentForStudent[] }>("/student/annual-competition/assignments");
+  return data.assignments;
+}
+
+export type AnnualCompetitionInstructionsSection = {
+  sectionNumber: number;
+  sectionTitle: string;
+  mode: string | null;
+  timeLimitSeconds: number;
+  questionCount: number;
+  conceptFamily: string;
+};
+
+export type AnnualCompetitionInstructions = {
+  eventId: string;
+  eventName: string;
+  competitionDate: string | null;
+  assignedLevelCode: string;
+  slot: AnnualCompetitionSlotInfo | null;
+  totalDurationSeconds: number;
+  sections: AnnualCompetitionInstructionsSection[];
+  instructions: string[];
+};
+
+export async function getAnnualCompetitionInstructions(eventId: string): Promise<AnnualCompetitionInstructions> {
+  const { data } = await api.get<AnnualCompetitionInstructions>(`/student/annual-competition/events/${eventId}/instructions`);
+  return data;
+}
+
+export type AnnualCompetitionSectionState = {
+  sectionNumber: number;
+  // PENDING | ACTIVE | COMPLETED | AUTO_SUBMITTED
+  status: string;
+  timeLimitSeconds: number;
+  remainingSeconds: number | null;
+  startedAt: string | null;
+  submittedAt: string | null;
+};
+
+export type AnnualCompetitionQuestion = {
+  questionId: string;
+  questionNumber: number;
+  displayType: string;
+  questionText?: string | null;
+  operands: number[];
+  operators: string[];
+  options: McqOption[];
+  savedOptionId: string | null;
+};
+
+export type AnnualCompetitionAttempt = {
+  attemptId: string;
+  eventId: string;
+  assignmentId: string;
+  levelPaperId: string;
+  // IN_PROGRESS | SUBMITTED | FINALIZED
+  status: string;
+  currentSectionNumber: number;
+  startedAt: string | null;
+  submittedAt: string | null;
+  sections: AnnualCompetitionSectionState[];
+  // Only present on Start/Resume -- see the service's own docstring on why
+  // reads never reissue it.
+  sessionToken?: string;
+  // Only present while status is IN_PROGRESS -- the currently-active
+  // section's questions/options/saved-answers.
+  activeSectionQuestions?: AnnualCompetitionQuestion[];
+};
+
+export async function startAnnualCompetitionAttempt(eventId: string): Promise<AnnualCompetitionAttempt> {
+  const { data } = await api.post<AnnualCompetitionAttempt>("/student/annual-competition/attempts/start", { eventId });
+  return data;
+}
+
+export async function getAnnualCompetitionAttempt(attemptId: string): Promise<AnnualCompetitionAttempt> {
+  const { data } = await api.get<AnnualCompetitionAttempt>(`/student/annual-competition/attempts/${attemptId}`);
+  return data;
+}
+
+export async function recordAnnualCompetitionHeartbeat(
+  attemptId: string,
+  payload: { sessionToken: string; sectionNumber: number }
+): Promise<AnnualCompetitionAttempt> {
+  const { data } = await api.post<AnnualCompetitionAttempt>(`/student/annual-competition/attempts/${attemptId}/heartbeat`, payload);
+  return data;
+}
+
+export async function submitAnnualCompetitionSection(
+  attemptId: string,
+  payload: { sessionToken: string; sectionNumber: number }
+): Promise<AnnualCompetitionAttempt> {
+  const { data } = await api.post<AnnualCompetitionAttempt>(`/student/annual-competition/attempts/${attemptId}/sections/submit`, payload);
+  return data;
+}
+
+export async function saveAnnualCompetitionAnswer(
+  attemptId: string,
+  payload: { sessionToken: string; sectionNumber: number; questionId: string; selectedOptionId: string }
+): Promise<AnnualCompetitionAttempt> {
+  const { data } = await api.post<AnnualCompetitionAttempt>(`/student/annual-competition/attempts/${attemptId}/answers`, payload);
   return data;
 }

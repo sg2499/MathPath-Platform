@@ -277,11 +277,15 @@ def _SectionStatePayload(SectionState: CompetitionEventAttemptSectionState) -> d
 
 def _QuestionOptionPayload(OptionRecord: CompetitionMockQuestionOption) -> dict[str, Any]:
     # is_correct is deliberately never included -- this payload reaches the
-    # student's own browser mid-attempt.
+    # student's own browser mid-attempt. Keys are "label"/"value" (not
+    # "optionLabel"/"optionValue") to match the existing McqOption frontend
+    # type and OptionButton component (see competition_mock_attempt_service.py's
+    # own question-payload builder) -- this reuses that component directly
+    # rather than needing a field-name adapter in the new attempt screen.
     return {
         "optionId": OptionRecord.id,
-        "optionLabel": OptionRecord.option_label,
-        "optionValue": OptionRecord.option_value,
+        "label": OptionRecord.option_label,
+        "value": OptionRecord.option_value,
     }
 
 

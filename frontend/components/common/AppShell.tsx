@@ -618,6 +618,13 @@ export function AppShell({
       tooltip: "Open competition mock practice",
       children: [
         {
+          label: "Annual Competition",
+          shortLabel: "Annual",
+          href: "/student/competition/annual",
+          icon: Trophy,
+          tooltip: "The real, once-a-year MathPath competition",
+        },
+        {
           label: "Mock Exams",
           href: "/student/competition/mock-exams",
           icon: ClipboardPlus,

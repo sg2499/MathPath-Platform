@@ -235,7 +235,7 @@ def test_get_attempt_includes_active_section_questions_only():
     assert questions[0]["savedOptionId"] is None
     for q in questions:
         assert "options" in q
-        assert all("optionId" in o and "optionLabel" in o for o in q["options"])
+        assert all("optionId" in o and "label" in o and "value" in o for o in q["options"])
         # is_correct must never leak to the student mid-attempt.
         assert all("isCorrect" not in o and "is_correct" not in o for o in q["options"])
 

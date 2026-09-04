@@ -1,16 +1,29 @@
 current_epic: annual-competition-plan.md
-active_package: pkg-05-student-attempt-ui.md
+active_package: pkg-06-scoring-and-results.md
 status: IN_PROGRESS
 
 # Previous epic (competition-mock-practice-plan.md) is COMPLETED and shipped.
 # Annual Competition (2026-09) is now the active epic. Package 1 (data
 # model), Package 2 (assignment engine), Package 3 (Admin Annual Competition
-# Studio -- backend AND frontend), and Package 4 (section-timer + pause
-# engine -- the highest-risk/most novel piece of this whole build) are all
-# COMPLETE -- see .mathpath/packages/pkg-04-section-timer-engine.md. Package
-# 5 (student live-attempt UI: multi-section timer, pre-section instructions
-# screen, slot-gated start, resume-on-reconnect UX) is next, per the
-# original plan's sequencing and Shailesh's "section by section" cadence.
+# Studio -- backend AND frontend), Package 4 (section-timer + pause engine --
+# the highest-risk/most novel piece of this whole build), and Package 5
+# (student live-attempt UI -- backend AND frontend: discovery, pre-section
+# instructions, multi-section heartbeat-driven timer/attempt screen,
+# slot-gated start, session-superseded handling) are all COMPLETE -- see
+# .mathpath/packages/pkg-05-student-attempt-ui.md. Package 5 also added
+# answer capture (CompetitionEventAttemptAnswer), which Package 4's own doc
+# had explicitly scoped out -- a considered, documented scope addition, not
+# a silent expansion. Package 6 (Scoring + Results) is next, per the
+# original plan's sequencing and Shailesh's "section by section" cadence --
+# not yet started, awaiting explicit go-ahead.
+#
+# Also still open: the client's answer to items 1+2 (YLM/PL-1 age-boundary
+# rule) has a genuine ambiguity Shailesh is asking the client to resolve
+# directly (see REQUIREMENTS.md's "Seven outstanding confirmations"
+# section) -- no code should touch Package 2's DIRECT_LEVEL_MAPPING or
+# Package 3's level-code registries for that specific rework until that
+# answer comes back.
+#
 # Everything so far is built and verified locally only -- push/merge/deploy
 # is being bundled across all packages per Shailesh's instruction
 # (2026-09-04), not done per-package.

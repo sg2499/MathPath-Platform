@@ -109,3 +109,19 @@ export function apiErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Something went wrong.";
 }
+
+// Structured access to api_error()'s {code, message, details} shape
+// (backend/app/core/errors.py) -- apiErrorMessage() above already folds this
+// into one display string, but a few screens (e.g. the Annual Competition
+// slot-gate error, which carries a machine-readable scheduledStartAt) need
+// the raw code/details to render something more specific than generic error
+// text. Returns null for anything that isn't that shape (network errors,
+// non-axios errors, a plain string `detail`), so callers can safely fall
+// back to apiErrorMessage().
+export function apiErrorDetail(error: unknown): { code: string; message: string; details: Record<string, unknown> } | null {
+  if (!axios.isAxiosError(error)) return null;
+  const Data = error.response?.data as any;
+  const Detail = Data?.detail;
+  if (!Detail || typeof Detail !== "object" || !Detail.code) return null;
+  return { code: String(Detail.code), message: String(Detail.message || ""), details: Detail.details || {} };
+}

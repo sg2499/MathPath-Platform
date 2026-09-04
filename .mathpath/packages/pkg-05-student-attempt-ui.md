@@ -4,7 +4,7 @@
 The student-facing screen for actually taking the Annual Competition,
 built on top of the Package 4 timer/pause engine.
 
-## Status: IN PROGRESS (2026-09-04) -- backend complete, frontend not started
+## Status: COMPLETE (2026-09-04)
 
 ## Scope note: answer capture was added to this package, not Package 4
 
@@ -41,10 +41,12 @@ startup means the new table needs no Alembic migration.
   - **Question-serving**: `_ActiveSectionQuestionsPayload` /
     `_QuestionOptionPayload` -- `GetCompetitionEventAttemptForStudent` now
     returns the active section's questions/options/saved-answers
-    (`is_correct` deliberately stripped from the option payload).
+    (`is_correct` deliberately stripped from the option payload; option
+    keys are `label`/`value`, matching the existing `McqOption` frontend
+    type/`OptionButton` component rather than inventing new field names).
     Heartbeat/submit-section responses stay lean by design; the frontend
-    is expected to re-fetch via GET whenever `currentSectionNumber`
-    changes.
+    re-fetches via GET whenever it detects `currentSectionNumber` or
+    `status` changed.
   - **`SaveCompetitionEventAnswer`**: mirrors
     `SaveCompetitionMockAnswer`'s exact upsert pattern, layered with the
     same session-token + active-section guards every other mutating entry
@@ -78,35 +80,106 @@ startup means the new table needs no Alembic migration.
   404 no assignment, 400 paper not ready). Full backend suite: 434 passed
   (416 existing + 18 new), zero regressions.
 
+## What was built (frontend)
+- `frontend/lib/api/student.ts`: Annual Competition student API section --
+  types (`AnnualCompetitionAssignmentForStudent`, `AnnualCompetitionInstructions`,
+  `AnnualCompetitionAttempt`, `AnnualCompetitionQuestion`, etc., mirroring
+  the backend dict payloads verbatim) plus the 6 fetch functions
+  (assignments, instructions, start, get, heartbeat, submit-section,
+  save-answer).
+- `frontend/lib/api.ts`: added `apiErrorDetail()` -- structured
+  `{code, message, details}` access to `api_error()`'s response shape,
+  alongside the existing `apiErrorMessage()` string-only helper. Needed
+  because the slot-gate error carries a machine-readable
+  `scheduledStartAt` the instructions screen renders directly, and the
+  attempt screen needs to distinguish
+  `COMPETITION_ATTEMPT_SESSION_SUPERSEDED` from any other error to show
+  its own "resumed elsewhere" state instead of a generic error banner.
+- `frontend/hooks/useAnnualCompetitionHeartbeat.ts`: fires a heartbeat
+  every 7s (inside the plan's "~5-10s" window, well under the 45s grace
+  window) while a section is active, and exposes a `fireNow()` escape
+  hatch for the moment the local visual countdown hits zero, so the UI
+  reacts immediately instead of waiting for the next scheduled beat.
+- `frontend/app/student/competition/annual/page.tsx`: discovery screen --
+  lists the student's Annual Competition assignment(s) with status
+  (Not Started / In Progress / Submitted), slot info if any, and routes to
+  instructions (not started) or straight back into the attempt (resume).
+- `frontend/app/student/competition/annual/[eventId]/instructions/page.tsx`:
+  pre-section instructions screen (mirrors the Competition Mock
+  instructions page's layout) -- section name/mode/concept/question-count/
+  time-limit per section, plus a slot-gate-aware "Start Competition" button
+  that shows a friendly "opens at ..." message (via `apiErrorDetail`)
+  instead of a raw error when the slot hasn't opened yet.
+- `frontend/app/student/competition/annual/attempt/[attemptId]/page.tsx`:
+  the live multi-section attempt screen. Reuses `MathQuestionDisplay`,
+  `OptionButton`, `QuestionNavigator`, `TestTimer` as-is from the
+  Competition Mock attempt screen. Key differences from that screen (all
+  deliberate, not oversights):
+  - **Bootstrap-on-mount**: a plain GET never carries a `session_token`
+    (only Start/Resume does -- see the backend service's own module
+    docstring). So this screen always calls Start again on mount --
+    including a page refresh -- to resume and reissue a fresh token. This
+    IS the "resume here" remediation the plan describes.
+  - **Heartbeat-driven timer**, not a single client-side countdown against
+    a fixed deadline: `useAttemptTimer` still drives the smooth per-second
+    visual countdown, but re-anchors to the server's
+    `remainingSeconds` every time a heartbeat lands, and the heartbeat --
+    not a local timeout -- is the actual source of truth.
+  - **No cross-section navigation**: `activeSectionQuestions` only ever
+    contains the current section's questions in the first place, so
+    "cannot go back to a previous section" falls out of the data shape
+    itself, not extra UI logic.
+  - **Session-superseded handling**: shows a dedicated "this attempt is
+    now active in another session" screen (with a manual "Resume Here"
+    reload) rather than a generic error toast, since this is an expected,
+    recoverable state (Package 4's single-active-session guard working as
+    designed), not a failure.
+  - **No results redirect**: once `status` leaves `IN_PROGRESS`, shows an
+    in-page "Competition Submitted" card. There is nowhere to redirect to
+    yet -- `CompetitionEventResult` computation/display is Package 6.
+- `frontend/components/common/AppShell.tsx`: added "Annual Competition" as
+  the first item under the student "Competition" nav group, linking to
+  `/student/competition/annual`.
+- Verification: `npx tsc --noEmit` clean, `npm run build` succeeds with
+  all 3 new routes generated
+  (`/student/competition/annual`,
+  `/student/competition/annual/[eventId]/instructions`,
+  `/student/competition/annual/attempt/[attemptId]`), zero new warnings.
+
 ## What's NOT built yet (explicitly out of scope, not silently skipped)
-- No frontend at all yet: the pre-section instructions screen and the
-  multi-section attempt/timer UI (checklist items 2 below) are next.
-- No nav/routing entry point wired for students to reach this feature yet.
+- No results/leaderboard screen -- `CompetitionEventResult` computation and
+  its student-facing display are Package 6.
+- No admin/teacher live-monitoring view of an in-progress competition --
+  Package 7.
+- Manual browser-driven end-to-end verification (actually clicking through
+  a full multi-section attempt with a real pause/resume) has not been
+  done -- only backend-level automated tests plus frontend build/typecheck
+  verification.
 
 ## Checklist
 
 ### 1. Pre-attempt gating
 - [x] Student cannot start before their assigned slot's
       `scheduled_start_at` ("can't begin before your scheduled time") --
-      backend enforced (`_CheckSlotGate`); only matters once `slot_id` is
-      actually populated for a student (currently admin-override-only,
-      see the note in `StartCompetitionEventAttempt`'s own docstring).
-- [ ] Pre-section instructions screen showing section name, ABACUS/VISUAL
+      enforced backend + mirrored client-side (disabled Start button with
+      an "opens at ..." message).
+- [x] Pre-section instructions screen showing section name, ABACUS/VISUAL
       mode, concepts/formats, sum count, and time limit -- per the client
-      doc's own requirement. Backend payload (`GetCompetitionEventInstructions`)
-      is ready; the screen itself is not built.
+      doc's own requirement.
 
 ### 2. Attempt screen
-- [ ] Multi-section timer UI, one section active at a time.
-- [ ] Resume-on-reconnect UX: reopening mid-section picks up exactly where
-      the heartbeat mechanic left off, with no special-cased "you were
-      disconnected" flow needed since disconnect and idle-reopen are
-      indistinguishable by design.
-- [ ] "Your timer is running" indicator, since heartbeats signal
-      connectivity, not attentiveness -- an idle-but-connected tab still
-      burns its timer normally.
-- [x] Answer capture: backend save-answer endpoint and payload wiring are
-      done (see above); the question/option UI itself is not built.
+- [x] Multi-section timer UI, one section active at a time.
+- [x] Resume-on-reconnect UX: reopening mid-section (including a hard
+      refresh) re-resumes via Start and picks up the persisted remaining
+      time -- no special-cased "you were disconnected" flow, since
+      disconnect and idle-reopen are indistinguishable by design.
+- [x] "Your timer is running" indicator: the sticky timer card is always
+      visible during a section; no separate connectivity indicator was
+      added beyond that, since heartbeats are already the only signal
+      this mechanic has (see Package 4's own "explicitly not solved by
+      this" note on idle-but-connected tabs).
+- [x] Answer capture: full question/option UI wired to the save-answer
+      endpoint, auto-saving on selection.
 
 ### 3. Verification
 - [x] Backend: a student cannot start a second concurrent session
@@ -114,6 +187,7 @@ startup means the new table needs no Alembic migration.
       answer-save endpoint) -- covered by tests.
 - [x] Backend: slot-gating blocks/allows correctly, and a resume is never
       re-gated -- covered by tests.
-- [ ] Frontend: a student who reloads mid-section resumes with the
-      correct remaining time, not a full reset -- cannot be verified until
-      the attempt screen exists.
+- [x] Frontend: builds and typechecks clean with all 3 new routes
+      generated.
+- [ ] Manual/browser end-to-end run-through (real disconnect/resume,
+      real section auto-advance) -- not yet done, noted above.
