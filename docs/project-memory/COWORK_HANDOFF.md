@@ -1,10 +1,13 @@
 # Cowork Session Handoff
 
-Last updated: 2026-09-04 (Cowork — Annual Competition requirements captured
+Last updated: 2026-09-04, later same day (Cowork — Annual Competition
+Package 1 (data model) built and verified per the approved implementation
+plan; see the dated entry below. Package 2 (assignment engine) is next.)
+
+Previously: 2026-09-04 (Cowork — Annual Competition requirements captured
 from two client-provided documents; full details in
 `docs/project-memory/annual-competition/REQUIREMENTS.md`, see the dated
-entry below. No code written yet for this feature; awaiting Shailesh's
-scope decision.)
+entry below.)
 
 Previously: 2026-09-01 (Cowork — PR #494's CI failure (3 `ASSESSMENT_MARKS_MISMATCH` pytest failures) diagnosed as a real backend bug and fixed; PR #494 confirmed merged by Shailesh AND now confirmed LIVE and working -- Shailesh directly: "i have confirmed them live and they work fine". Then: found and fixed why Mock Studio never got the "always-100-marks" Concept Drill/Skill Stacker treatment that assessments already have (the earlier marks-weighting fix only touched scoring, never the admin planning layer or the frontend Section Allocation UI) — built an auto-balance-from-weighted-count fix across every module with a weighted section (MM/IM/PM-L1..L4/BM/YLM), caught and fixed a real regression via the full test suite, and removed the Avg Score column from the mock leaderboard. **This work (4 files: `competition_mock_generation_service.py`, `frontend/lib/api/admin.ts`, `mock-studio/page.tsx`, `leaderboard/page.tsx`) is CONFIRMED MERGED AND DEPLOYED, live and working -- PR #495, commit `d00ec03082bf3fa08c8c41dfe23751d855e61cae`. Confirmed via Render (`mathpath-backend`, deploy `dep-dab66ogu01pc73e69js0`, status `live`, finished 2026-09-01 05:34 UTC) and Vercel (`math-path-platform`, deployment `dpl_E6dsA3ASWMWUaTfirCSxeWKF4ETj`, target production, state READY) -- both serving this exact commit. Delivered outside this Cowork thread (commit authored directly by Shailesh, consistent with this repo's local-Claude-Code-delivers pattern) and confirmed back in this thread with real evidence, not just Shailesh's word. See the entry below for the full technical writeup.**)
 
@@ -38,9 +41,66 @@ verbatim plus synthesized into a durable requirements file:
   choice between building the confirmed parts now vs. waiting on all seven
   open items.
 
-**No implementation started.** Whoever picks this up next (this thread or a
-new one) should read `docs/project-memory/annual-competition/REQUIREMENTS.md`
-in full before doing any design or code work on "competition."
+**Requirements-gathering phase closed out; implementation started same day.**
+See the entry directly below for what shipped.
+
+## 2026-09-04 update, later same day (Annual Competition — implementation plan approved, Package 1 data model built and verified)
+
+Shailesh asked for a full, meticulous implementation plan before any code --
+"i need a detailed plan that will cover everything and build it accurately
+only once... once i am convinced and give the go ahead only then we proceed
+with the code changes." That plan was built via three Explore agents plus a
+Plan-review agent investigating the real codebase (not assumptions), written
+to a plan-mode plan file, and approved. It is now recorded permanently at
+`.mathpath/epics/annual-competition-plan.md` (10 phases) with a
+`.mathpath/packages/pkg-01-data-model.md` through `pkg-10-go-live.md`
+checklist breakdown, and `.mathpath/STATE.yaml` now tracks Annual
+Competition as the active epic (Package 2 next).
+
+**Package 1 (data model) is COMPLETE, built and verified in this same
+session** (see `pkg-01-data-model.md` for the full checklist):
+
+- 8 new, isolated SQLAlchemy models added to `backend/app/models/models.py`
+  -- `CompetitionEvent`, `CompetitionEventSlot`,
+  `CompetitionEventLevelPaper` (+ child `CompetitionEventSectionTimer`),
+  `CompetitionEventAssignment`, `CompetitionEventAttempt` (+ child
+  `CompetitionEventAttemptSectionState`), `CompetitionEventResult` --
+  deliberately parallel to, not built on top of, the existing Competition
+  Mock tables.
+- `ensure_annual_competition_tables()` added to
+  `backend/app/services/schema_migration.py` and wired into `main.py`
+  startup, mirroring the exact `ensure_competition_mock_tables()` raw-SQL
+  safety-net pattern -- this repo's own documented, proven-reliable
+  production migration path (deploys have not always run `alembic upgrade
+  head` reliably, per that file's own comments).
+- Alembic migration `3025bba70ab3_add_annual_competition_tables.py` added
+  on top of the existing head for completeness/local-dev parity.
+- An immutability guard added to `DeleteCompetitionMockExam`
+  (`competition_mock_generation_service.py`): rejects delete/regenerate of
+  a mock exam once it's the official paper for an Annual Competition level
+  with real attempts or a locked results date -- a real gap found during
+  plan review (that function previously cascade-deleted unconditionally,
+  with no check at all).
+- Verified: models import cleanly and register all 8 tables; both table-
+  creation paths (SQLAlchemy `create_all` and the raw-SQL safety net,
+  standalone and idempotent) tested against scratch SQLite DBs; the
+  guard tested end to end across 4 real scenarios (unrelated exam deletes
+  normally; linked-but-unlocked deletes normally; linked with a locked
+  results date is rejected; linked with a real attempt is rejected); the
+  Alembic migration's upgrade/downgrade DDL round-trips cleanly; and the
+  full existing backend test suite (347 tests) still passes unchanged --
+  zero regressions to DPS, Assessment, or Competition Mock.
+
+**Not yet pushed to GitHub** -- this Cowork sandbox has no push access
+(confirmed again this session: `git push` to any branch, not just `main`,
+is denied by the git proxy with a 403). Changes are synced to Shailesh's
+device and he has the branch/commit/push/PR/merge commands to land Package
+1 in the real repo. No deploy has happened -- this is new, additive tables
+only, nothing wired into any route yet, so there is nothing user-facing to
+verify live even after merge.
+
+Next: Package 2 (assignment engine) -- see
+`.mathpath/packages/pkg-02-assignment-engine.md`.
 
 ## 2026-09-01 update, later still (repo cleanup -- removed garbage files, staged for delivery)
 

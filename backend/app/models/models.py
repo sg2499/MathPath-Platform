@@ -397,6 +397,226 @@ class CompetitionMockResultSummary(Base):
     student = relationship("Student")
 
 
+# ---------------------------------------------------------------------------
+# Annual Competition (2026-09) -- the real, single scheduled competition
+# event (11 Oct 2026), distinct from the always-available Competition Mock
+# practice models above. Deliberately separate/parallel tables, not built on
+# top of CompetitionMock*: see docs/project-memory/annual-competition/
+# REQUIREMENTS.md and .mathpath/epics/annual-competition-plan.md for the
+# full requirements and .mathpath/packages/pkg-01-data-model.md for why.
+#
+# competition_level_code on these tables must match the internal registry
+# keys used by the *_COMPETITION_LEVEL_REGISTRY dicts (e.g. "PM-L1",
+# "IM-L4", "MM-L1", "BM-L1", "YLM-L1") -- NOT the client questionnaire's own
+# "PL-1"/"Level N" labels, which do not literally match. Any admin-facing
+# label translation between the two happens in the service/UI layer, never
+# by storing the client's label as the code.
+# ---------------------------------------------------------------------------
+
+class CompetitionEvent(Base):
+    __tablename__ = "competition_events"
+    id = Column(String, primary_key=True, default=uuid_str)
+    name = Column(String(255), nullable=False)
+    # Status lifecycle (string, not a DB enum -- matches every other status
+    # column in this file): DRAFT -> SCHEDULED -> LIVE -> COMPLETED. Results
+    # visibility is governed separately by results_release_at / the
+    # per-result is_released flag on CompetitionEventResult, not by status.
+    status = Column(String(30), default="DRAFT", nullable=False)
+    competition_date = Column(DateTime(timezone=True), nullable=False)
+    # Nullable: null means "not yet decided" -- the formal Results & Prize
+    # Distribution date (1 Nov 2026 per the client doc) is expected here,
+    # but this is admin-editable data specifically so a real date change
+    # never requires a code change.
+    results_release_at = Column(DateTime(timezone=True), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    created_by = relationship("User")
+
+
+class CompetitionEventSlot(Base):
+    __tablename__ = "competition_event_slots"
+    id = Column(String, primary_key=True, default=uuid_str)
+    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    # OFFLINE / ONLINE_INDIA / ONLINE_INTL per the client doc's three modes.
+    mode = Column(String(30), nullable=False)
+    slot_label = Column(String(150), nullable=True)
+    scheduled_start_at = Column(DateTime(timezone=True), nullable=False)
+    scheduled_end_at = Column(DateTime(timezone=True), nullable=False)
+    # JSON array of competition_level_code strings this slot serves (e.g.
+    # ["YLM-L1", "PM-L1", "PM-L2", "PM-L3"]). Admin-editable on purpose: the
+    # client doc's own known conflict (2:00-2:30 PM slot too short for IM-L4/
+    # MM-L2's own section timers) gets fixed here as a data edit, never a
+    # deploy -- see REQUIREMENTS.md outstanding item 7.
+    applicable_level_codes_json = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    event = relationship("CompetitionEvent")
+
+
+class CompetitionEventLevelPaper(Base):
+    __tablename__ = "competition_event_level_papers"
+    id = Column(String, primary_key=True, default=uuid_str)
+    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    competition_level_code = Column(String(50), nullable=False)
+    # FK into the existing, already-shipped Competition Mock paper-generation
+    # engine (GenerateCompetitionMockDraft) -- the frozen, ordered question
+    # set an admin generates once becomes this level's official paper.
+    # Nullable until an admin has generated/linked one.
+    mock_exam_id = Column(String, ForeignKey("competition_mock_exams.id"), nullable=True, index=True)
+    # PENDING (no paper linked yet) -> READY (paper linked, timers set) ->
+    # LOCKED (see the immutability guard below -- set once any real
+    # attempt/result exists, or once the parent event's results_release_at
+    # is set, whichever comes first).
+    status = Column(String(30), default="PENDING", nullable=False)
+    locked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    event = relationship("CompetitionEvent")
+    mock_exam = relationship("CompetitionMockExam")
+
+    __table_args__ = (UniqueConstraint("event_id", "competition_level_code", name="uq_competition_event_level_paper"),)
+
+
+class CompetitionEventSectionTimer(Base):
+    __tablename__ = "competition_event_section_timers"
+    id = Column(String, primary_key=True, default=uuid_str)
+    level_paper_id = Column(String, ForeignKey("competition_event_level_papers.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_number = Column(Integer, nullable=False)
+    section_title = Column(String(255), nullable=True)
+    # ABACUS / VISUAL / MIXED -- shown on the pre-section instructions
+    # screen per the client doc's own requirement.
+    mode = Column(String(30), nullable=True)
+    time_limit_seconds = Column(Integer, nullable=False)
+    display_order = Column(Integer, default=0, nullable=False)
+
+    level_paper = relationship("CompetitionEventLevelPaper")
+
+    __table_args__ = (UniqueConstraint("level_paper_id", "section_number", name="uq_competition_event_section_timer"),)
+
+
+class CompetitionEventAssignment(Base):
+    __tablename__ = "competition_event_assignments"
+    id = Column(String, primary_key=True, default=uuid_str)
+    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    assigned_level_code = Column(String(50), nullable=False)
+    slot_id = Column(String, ForeignKey("competition_event_slots.id"), nullable=True, index=True)
+    # AUTO (produced by the mapping-table assignment engine) or
+    # ADMIN_OVERRIDE (a human changed it afterwards). Never silently
+    # overwritten by a later AUTO run once ADMIN_OVERRIDE is set.
+    assignment_source = Column(String(30), default="AUTO", nullable=False)
+    overridden_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    computed_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    event = relationship("CompetitionEvent")
+    student = relationship("Student")
+    slot = relationship("CompetitionEventSlot")
+    overridden_by = relationship("User")
+
+    __table_args__ = (UniqueConstraint("event_id", "student_id", name="uq_competition_event_assignment_student"),)
+
+
+class CompetitionEventAttempt(Base):
+    __tablename__ = "competition_event_attempts"
+    id = Column(String, primary_key=True, default=uuid_str)
+    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    assignment_id = Column(String, ForeignKey("competition_event_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    level_paper_id = Column(String, ForeignKey("competition_event_level_papers.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    attempt_number = Column(Integer, default=1, nullable=False)
+    # NOT_STARTED -> IN_PROGRESS -> SUBMITTED -> FINALIZED. FINALIZED is set
+    # once CompetitionEventResult has been computed for this attempt (either
+    # at natural submission or by the reconciliation sweep -- see
+    # pkg-04-section-timer-engine.md).
+    status = Column(String(30), default="NOT_STARTED", nullable=False)
+    # Single-active-session guard: attempt-start issues a fresh token; any
+    # heartbeat/answer/submit call carrying a stale token is rejected. Closes
+    # the multi-device desync gap identified during plan review.
+    session_token = Column(String(100), nullable=True)
+    current_section_number = Column(Integer, default=1, nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    submitted_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    event = relationship("CompetitionEvent")
+    assignment = relationship("CompetitionEventAssignment")
+    level_paper = relationship("CompetitionEventLevelPaper")
+    student = relationship("Student")
+
+    __table_args__ = (UniqueConstraint("assignment_id", "attempt_number", name="uq_competition_event_attempt_number"),)
+
+
+class CompetitionEventAttemptSectionState(Base):
+    __tablename__ = "competition_event_attempt_section_states"
+    id = Column(String, primary_key=True, default=uuid_str)
+    attempt_id = Column(String, ForeignKey("competition_event_attempts.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_number = Column(Integer, nullable=False)
+    # PENDING -> ACTIVE -> COMPLETED (or AUTO_SUBMITTED, when time_limit hit
+    # zero without a student submit). There is no PAUSED status: pause is
+    # implicit (absence of heartbeats past the grace window), not a stored
+    # state, by design -- see pkg-04-section-timer-engine.md.
+    status = Column(String(30), default="PENDING", nullable=False)
+    # Snapshot of CompetitionEventSectionTimer.time_limit_seconds at the
+    # moment this section started, frozen deliberately so a later admin edit
+    # to the level paper's timers never retroactively changes a section
+    # already in progress or completed.
+    time_limit_seconds = Column(Integer, nullable=False)
+    # The heartbeat mechanic's persisted state. Written on EVERY heartbeat
+    # (never batched) so a server restart mid-competition never loses more
+    # than one heartbeat interval of progress.
+    remaining_seconds_at_last_heartbeat = Column(Integer, nullable=True)
+    last_heartbeat_at = Column(DateTime(timezone=True), nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    submitted_at = Column(DateTime(timezone=True), nullable=True)
+
+    attempt = relationship("CompetitionEventAttempt")
+
+    __table_args__ = (UniqueConstraint("attempt_id", "section_number", name="uq_competition_event_attempt_section"),)
+
+
+class CompetitionEventResult(Base):
+    __tablename__ = "competition_event_results"
+    id = Column(String, primary_key=True, default=uuid_str)
+    attempt_id = Column(String, ForeignKey("competition_event_attempts.id", ondelete="CASCADE"), unique=True, nullable=False)
+    event_id = Column(String, ForeignKey("competition_events.id"), nullable=False, index=True)
+    assignment_id = Column(String, ForeignKey("competition_event_assignments.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    competition_level_code = Column(String(50), nullable=False)
+    score = Column(Float, default=0, nullable=False)
+    max_score = Column(Float, default=0, nullable=False)
+    percentage = Column(Float, default=0, nullable=False)
+    accuracy_percentage = Column(Float, default=0, nullable=False)
+    correct_count = Column(Integer, default=0, nullable=False)
+    wrong_count = Column(Integer, default=0, nullable=False)
+    unanswered_count = Column(Integer, default=0, nullable=False)
+    time_taken_seconds = Column(Integer, nullable=True)
+    # Per-section time breakdown, captured unconditionally at computation
+    # time regardless of which final tie-break formula is later confirmed
+    # (REQUIREMENTS.md outstanding item 4) -- so the tie-break rule can be
+    # applied or changed without ever needing to re-derive this from raw
+    # attempt data.
+    per_section_time_json = Column(Text, nullable=True)
+    rank = Column(Integer, nullable=True)
+    # Maximally private by default: only the student's own result is ever
+    # visible until is_released flips (REQUIREMENTS.md outstanding item 5).
+    # Admin can always see it regardless of is_released.
+    is_released = Column(Boolean, default=False, nullable=False)
+    released_at = Column(DateTime(timezone=True), nullable=True)
+    released_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    computed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    attempt = relationship("CompetitionEventAttempt")
+    event = relationship("CompetitionEvent")
+    assignment = relationship("CompetitionEventAssignment")
+    student = relationship("Student")
+    released_by = relationship("User")
+
+
 class AssessmentBlueprint(Base):
     __tablename__ = "assessment_blueprints"
     id = Column(String, primary_key=True, default=uuid_str)
