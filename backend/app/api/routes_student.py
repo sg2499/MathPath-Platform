@@ -39,6 +39,9 @@ from app.services.annual_competition_attempt_service import (
     GetCompetitionEventAttemptForStudent,
     RecordCompetitionEventHeartbeat,
     SubmitCompetitionEventSection,
+    SaveCompetitionEventAnswer,
+    ListMyAnnualCompetitionAssignments,
+    GetCompetitionEventInstructions,
 )
 from app.services.student_activity_service import GetStudentActivityEventsInRange
 from app.core.cache import cache_by_user_id
@@ -115,6 +118,13 @@ class AnnualCompetitionHeartbeatRequest(BaseModel):
 class SubmitAnnualCompetitionSectionRequest(BaseModel):
     sessionToken: str
     sectionNumber: int
+
+
+class SaveAnnualCompetitionAnswerRequest(BaseModel):
+    sessionToken: str
+    sectionNumber: int
+    questionId: str
+    selectedOptionId: str
 
 
 def active_reattempt_permission_for_student(db: Session, assignment_id: str, student_id: str):
@@ -304,10 +314,21 @@ def student_competition_progress_insights(db: Session = Depends(get_db), student
     return GetCompetitionMockProgressInsightsForStudent(db, student)
 
 
-# --- Annual Competition (Package 4): section-timer + pause engine ----------
-# See backend/app/services/annual_competition_attempt_service.py. Deliberately
-# separate from the Competition Mock practice routes above -- see that
-# service's module docstring for why.
+# --- Annual Competition (Package 4/5): section-timer + pause engine, and
+# the student discovery/instructions/answer-capture screens built on top of
+# it. See backend/app/services/annual_competition_attempt_service.py.
+# Deliberately separate from the Competition Mock practice routes above --
+# see that service's module docstring for why.
+
+@router.get("/annual-competition/assignments")
+def student_annual_competition_assignments(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return ListMyAnnualCompetitionAssignments(db, student)
+
+
+@router.get("/annual-competition/events/{event_id}/instructions")
+def student_annual_competition_instructions(event_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return GetCompetitionEventInstructions(db, student, event_id)
+
 
 @router.post("/annual-competition/attempts/start")
 def student_start_annual_competition_attempt(
@@ -333,6 +354,15 @@ def student_submit_annual_competition_section(
     attempt_id: str, payload: SubmitAnnualCompetitionSectionRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
 ):
     return SubmitCompetitionEventSection(db, student, attempt_id, payload.sessionToken, payload.sectionNumber)
+
+
+@router.post("/annual-competition/attempts/{attempt_id}/answers")
+def student_save_annual_competition_answer(
+    attempt_id: str, payload: SaveAnnualCompetitionAnswerRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
+):
+    return SaveCompetitionEventAnswer(
+        db, student, attempt_id, payload.sessionToken, payload.sectionNumber, payload.questionId, payload.selectedOptionId
+    )
 
 
 @router.get("/assignments")

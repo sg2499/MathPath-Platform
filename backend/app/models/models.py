@@ -617,6 +617,37 @@ class CompetitionEventResult(Base):
     released_by = relationship("User")
 
 
+class CompetitionEventAttemptAnswer(Base):
+    __tablename__ = "competition_event_attempt_answers"
+    # Package 5 (student live-attempt UI). Deliberately not part of Package
+    # 1's original data model -- Package 4 (section-timer engine) needed no
+    # answer data at all, and adding this table now, alongside the screen
+    # that's the only thing that ever writes to it, keeps the two concerns
+    # from being entangled. Mirrors CompetitionMockAttemptAnswer's shape
+    # exactly (same mock_question_id/option FKs -- an Annual Competition
+    # attempt answers the SAME frozen CompetitionMockQuestion rows its
+    # linked CompetitionEventLevelPaper.mock_exam_id points at) rather than
+    # inventing a parallel question/option model. Client tie-break item 4
+    # ("who made a mistake first, later wins") is derivable from this table
+    # alone: order by the joined question's question_number (identical
+    # order for every student on the same level paper -- see the "Paper
+    # fairness" note in REQUIREMENTS.md) and find the first is_correct=False
+    # row, so no separate ordering/sequence column is needed here.
+    id = Column(String, primary_key=True, default=uuid_str)
+    attempt_id = Column(String, ForeignKey("competition_event_attempts.id", ondelete="CASCADE"), nullable=False, index=True)
+    mock_question_id = Column(String, ForeignKey("competition_mock_questions.id", ondelete="CASCADE"), nullable=False, index=True)
+    selected_option_id = Column(String, ForeignKey("competition_mock_question_options.id"), nullable=True, index=True)
+    is_correct = Column(Boolean, nullable=True)
+    answered_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    attempt = relationship("CompetitionEventAttempt")
+    mock_question = relationship("CompetitionMockQuestion")
+    selected_option = relationship("CompetitionMockQuestionOption")
+
+    __table_args__ = (UniqueConstraint("attempt_id", "mock_question_id", name="uq_competition_event_attempt_question_answer"),)
+
+
 class AssessmentBlueprint(Base):
     __tablename__ = "assessment_blueprints"
     id = Column(String, primary_key=True, default=uuid_str)
