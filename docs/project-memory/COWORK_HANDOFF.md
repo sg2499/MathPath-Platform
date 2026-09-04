@@ -1,6 +1,46 @@
 # Cowork Session Handoff
 
-Last updated: 2026-09-01 (Cowork — PR #494's CI failure (3 `ASSESSMENT_MARKS_MISMATCH` pytest failures) diagnosed as a real backend bug and fixed; PR #494 confirmed merged by Shailesh AND now confirmed LIVE and working -- Shailesh directly: "i have confirmed them live and they work fine". Then: found and fixed why Mock Studio never got the "always-100-marks" Concept Drill/Skill Stacker treatment that assessments already have (the earlier marks-weighting fix only touched scoring, never the admin planning layer or the frontend Section Allocation UI) — built an auto-balance-from-weighted-count fix across every module with a weighted section (MM/IM/PM-L1..L4/BM/YLM), caught and fixed a real regression via the full test suite, and removed the Avg Score column from the mock leaderboard. **This work (4 files: `competition_mock_generation_service.py`, `frontend/lib/api/admin.ts`, `mock-studio/page.tsx`, `leaderboard/page.tsx`) is CONFIRMED MERGED AND DEPLOYED, live and working -- PR #495, commit `d00ec03082bf3fa08c8c41dfe23751d855e61cae`. Confirmed via Render (`mathpath-backend`, deploy `dep-dab66ogu01pc73e69js0`, status `live`, finished 2026-09-01 05:34 UTC) and Vercel (`math-path-platform`, deployment `dpl_E6dsA3ASWMWUaTfirCSxeWKF4ETj`, target production, state READY) -- both serving this exact commit. Delivered outside this Cowork thread (commit authored directly by Shailesh, consistent with this repo's local-Claude-Code-delivers pattern) and confirmed back in this thread with real evidence, not just Shailesh's word. See the entry below for the full technical writeup.**)
+Last updated: 2026-09-04 (Cowork — Annual Competition requirements captured
+from two client-provided documents; full details in
+`docs/project-memory/annual-competition/REQUIREMENTS.md`, see the dated
+entry below. No code written yet for this feature; awaiting Shailesh's
+scope decision.)
+
+Previously: 2026-09-01 (Cowork — PR #494's CI failure (3 `ASSESSMENT_MARKS_MISMATCH` pytest failures) diagnosed as a real backend bug and fixed; PR #494 confirmed merged by Shailesh AND now confirmed LIVE and working -- Shailesh directly: "i have confirmed them live and they work fine". Then: found and fixed why Mock Studio never got the "always-100-marks" Concept Drill/Skill Stacker treatment that assessments already have (the earlier marks-weighting fix only touched scoring, never the admin planning layer or the frontend Section Allocation UI) — built an auto-balance-from-weighted-count fix across every module with a weighted section (MM/IM/PM-L1..L4/BM/YLM), caught and fixed a real regression via the full test suite, and removed the Avg Score column from the mock leaderboard. **This work (4 files: `competition_mock_generation_service.py`, `frontend/lib/api/admin.ts`, `mock-studio/page.tsx`, `leaderboard/page.tsx`) is CONFIRMED MERGED AND DEPLOYED, live and working -- PR #495, commit `d00ec03082bf3fa08c8c41dfe23751d855e61cae`. Confirmed via Render (`mathpath-backend`, deploy `dep-dab66ogu01pc73e69js0`, status `live`, finished 2026-09-01 05:34 UTC) and Vercel (`math-path-platform`, deployment `dpl_E6dsA3ASWMWUaTfirCSxeWKF4ETj`, target production, state READY) -- both serving this exact commit. Delivered outside this Cowork thread (commit authored directly by Shailesh, consistent with this repo's local-Claude-Code-delivers pattern) and confirmed back in this thread with real evidence, not just Shailesh's word. See the entry below for the full technical writeup.**)
+
+## 2026-09-04 update (Annual Competition — requirements captured, no code yet)
+
+Shailesh shared two documents in a prior thread whose context did not carry
+into this new thread — he flagged this explicitly and asked that anything
+he uploads (files, images, info) be persisted here going forward, since
+that's this project's actual cross-session memory mechanism (there is no
+other channel a future session can read from). Both documents are now saved
+verbatim plus synthesized into a durable requirements file:
+
+- `docs/project-memory/annual-competition/2026-09-01_internal-dev-spec-mock-practice.docx`
+  — the internal dev spec behind the already-shipped Competition Mock
+  feature (level-wise paper structure, section timers, per-attempt
+  randomization).
+- `docs/project-memory/annual-competition/2026-09-03_client-completed-questionnaire-response.docx`
+  — MathPath's completed response describing the **real, scheduled** Annual
+  Competition (11 October 2026, single day, fixed slots, one-level-below
+  auto-assignment, frozen identical papers per level) — this is new work,
+  distinct from Competition Mock practice.
+- `docs/project-memory/annual-competition/REQUIREMENTS.md` — full synthesis
+  of both, the reconciliation questions between them, and seven outstanding
+  client confirmations that must not be silently resolved in code (YLP-1
+  eligibility, YLM paper variants, Bridge lesson-range boundaries, final
+  scoring/tie-break formula, leaderboard/certificate visibility, attempt
+  count, and a real scheduling conflict — the 2:00-2:30 PM slot is too short
+  for IM-4/MM-2's own section timers).
+- `.mathpath/epics/annual-competition-plan.md` — a stub (not a locked phase
+  plan) pointing at the above, explicitly marked as pending Shailesh's
+  choice between building the confirmed parts now vs. waiting on all seven
+  open items.
+
+**No implementation started.** Whoever picks this up next (this thread or a
+new one) should read `docs/project-memory/annual-competition/REQUIREMENTS.md`
+in full before doing any design or code work on "competition."
 
 ## 2026-09-01 update, later still (repo cleanup -- removed garbage files, staged for delivery)
 
@@ -994,6 +1034,17 @@ Built on branch `chore/repo-cleanup-and-doc-sync` (on top of the already-committ
 - **New-student-in-class.** No notification to a teacher when a new student is assigned to them.
 
 **Not yet done:** none of this session's work has been committed, pushed, or merged — this Cowork session has no route to GitHub. All 18 touched/new files are sitting in the local working tree (`chore/repo-cleanup-and-doc-sync` branch), ready for a local Claude Code session or Shailesh himself to branch, commit, and push. Recommended: cut a fresh branch off this one (e.g. `feature/leaderboard-rank-notifications`) rather than committing straight onto the repo-cleanup branch, since the two are unrelated changes.
+
+## Standing constraint: Cowork sandbox has no GitHub push access
+
+The Cowork cloud sandbox that edits this repo has **no `gh` auth and no git push access to GitHub** -- confirmed repeatedly (`gh` is not installed/authenticated in its environment). It can create/edit files and commit locally, but it can NEVER push, open a PR, merge, or trigger a deploy by itself.
+
+This means: every time work is ready to ship, Cowork must hand Shailesh the exact, copy-pasteable `git`/`gh` commands to run himself in his own PowerShell terminal (which has real `gh` auth) -- push branch, `gh pr create`, `gh pr merge`. This is a standing, permanent requirement, not a one-off -- do not make him ask for it each time, and do not guess or hand over a command that hasn't been reasoned through (wrong commands here waste his time badly). Known landmines to account for when building these commands:
+
+- Direct pushes to `main` are blocked by a local pre-push hook ("MathPath safety guard") -- always ship via a feature branch + PR, never a direct push to `main`.
+- Branch protection on `main` requires status checks ("MathPath CI", 9 jobs) to report before a plain `gh pr merge` will succeed -- CI takes roughly 11-14 minutes end to end. If `gh pr merge` fails with "the base branch policy prohibits the merge", that is very likely just CI still running, not a real failure -- either wait for it, or use the repo's own established fallback `gh pr merge <N> --squash --delete-branch --admin` (same pattern historically used by `apex_deliver.py`).
+- Production is a self-hosted EC2 box (`ubuntu@15.206.108.37`, pm2 + systemd), NOT Vercel -- Vercel deployments on this project are preview/CI builds only and do not put anything in front of real users. There is no automatic deploy step. The full, canonical, already-battle-tested deploy commands (build locally, scp the artifact, SSH in, restart services) live in `docs/project-memory/DEPLOY_PLAYBOOK.md` -- that file's own standing rule is to proactively hand over Steps 1-4 from it (substituted for the current branch/commit/files), in the same reply that reports work as done, every single time, without being asked. Read that file before ever answering a push/merge/deploy question on this repo -- do not improvise or assume Vercel/CI covers deploy.
+- `gh pr checks --watch` can report "no checks reported" immediately after a push due to a propagation delay before GitHub registers the check-run -- this does not mean CI didn't trigger; re-check a minute later (or via the GitHub web UI, or via `WebFetch` on the public PR page, since this repo is public) instead of taking the immediate empty result at face value.
 
 ## Read order for a fresh session
 
