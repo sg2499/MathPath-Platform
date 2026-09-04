@@ -4,12 +4,11 @@
 Give admins a screen to stand up and manage a `CompetitionEvent` end to
 end, before any student ever sees it.
 
-## Status: BACKEND COMPLETE (2026-09-04) -- frontend screen NOT yet built.
+## Status: COMPLETE (2026-09-04) -- backend + frontend both built, tested, committed.
 Every API this package's checklist calls for is built, tested, and
 committed (on top of Package 2, still unpushed -- bundled per Shailesh's
-instruction). The actual admin-facing UI ("give admins a screen") is
-deliberately left as a separate, explicit next step rather than silently
-counted as done -- see "What's NOT built yet" below.
+instruction). The admin-facing UI ("give admins a screen") is now built
+too -- see "What was built (frontend)" below.
 
 ## What was built (backend)
 - `backend/app/services/annual_competition_studio_service.py`: event
@@ -46,12 +45,50 @@ counted as done -- see "What's NOT built yet" below.
   real attempt landed) after being linked could still be silently
   relinked. Both fixed; both now have a regression test.
 
+## What was built (frontend)
+- `frontend/lib/api/admin.ts`: 9 new `export type` definitions, the
+  `ANNUAL_COMPETITION_LEVEL_CODES` const (all 11 competition level codes),
+  and 12 new exported async functions covering every endpoint this
+  package's backend added -- events, slots, level papers
+  (generate/link/section-timers), assignment preview/run/override.
+- `frontend/app/admin/competition/annual-studio/page.tsx`: event list +
+  create screen (`AppShell`, `useProtectedPage(["ADMIN","SUPER_ADMIN"])`,
+  TanStack Query). Each event links through to its detail page.
+- `frontend/app/admin/competition/annual-studio/[eventId]/page.tsx`: the
+  actual studio -- three tabs (Slots / Papers / Assignments) on one event.
+  Slots tab surfaces `slotDurationConflicts` (the known IM-4/MM-2 issue)
+  as a visible amber warning banner, per REQUIREMENTS.md item 7, without
+  any code change needed once MathPath answers -- the warning simply stops
+  firing the moment the slot data is edited. Papers tab lists all 11
+  `ANNUAL_COMPETITION_LEVEL_CODES`, each with its live `status`, its
+  section timers (editable), and Generate/Link buttons that are disabled
+  once a paper is LOCKED; MM-L2 is called out with its own note and only
+  offers Link Existing, since it has no paper-generation registry entry
+  yet (see below). Assignments tab runs the Package 2 dry-run preview,
+  flags `requiresNewPaperRegistryEntry` rows visually, and includes the
+  manual per-student override form
+  (`OverrideCompetitionEventAssignment`).
+- `frontend/components/common/AppShell.tsx`: registered the new route as
+  a child of the existing "Competition" nav group ("Annual Competition
+  Studio", `/admin/competition/annual-studio`, `Trophy` icon -- already
+  imported in this file for other Competition entries).
+- Verified: `npx tsc --noEmit` clean across the whole frontend, and a
+  full `npm run build` succeeds with both new routes
+  (`/admin/competition/annual-studio` static,
+  `/admin/competition/annual-studio/[eventId]` dynamic) appearing
+  correctly in the route table. One real type error was caught and fixed
+  during this verification: `useState(ANNUAL_COMPETITION_LEVEL_CODES[0])`
+  narrowed to the literal type of the first array element instead of the
+  full level-code union, which would have made the override `<select>`
+  reject every other level code at the type level -- fixed with an
+  explicit `useState<string>(...)` annotation.
+
 ## What's NOT built yet (explicitly deferred, not silently skipped)
-- **The actual admin frontend screen.** Every API above exists; nothing
-  in `frontend/app/admin/...` consumes them yet. This package's own
-  stated objective is "give admins a screen" -- that half is still open.
 - No paper-generation registry entry for MM-L2 (Package 2/3 both flag
-  this; adding it is real curriculum-content work, not wiring).
+  this; adding it is real curriculum-content work, not wiring). The
+  frontend already accounts for this today: MM-L2's Papers-tab row omits
+  the Generate button and shows an explanatory note instead of silently
+  offering an action that would fail.
 - `CompetitionEventSlot.applicable_level_codes_json` is the ONLY place
   the known IM-4/MM-2 slot-length conflict (item 7) can be fixed once
   MathPath answers -- `SlotsWithInsufficientDuration` will stop flagging
@@ -90,9 +127,12 @@ counted as done -- see "What's NOT built yet" below.
       (`COMPETITION_LEVEL_PAPER_LOCKED`, tested against both trigger
       conditions).
 
-### 5. Frontend (NOT STARTED)
-- [ ] Admin screen(s) under `frontend/app/admin/annual-competition/...`
+### 5. Frontend
+- [x] Admin screen(s) under `frontend/app/admin/competition/annual-studio/...`
       consuming the 15 endpoints above: event creation/edit, slot editor
       (with the duration-conflict warning surfaced visually), paper
       generate/link per level, section-timer editor, assignment
       run/preview/override table.
+- [x] Registered in `AppShell.tsx`'s admin nav (Competition group).
+- [x] `npx tsc --noEmit` clean; full `npm run build` succeeds with both
+      new routes present.

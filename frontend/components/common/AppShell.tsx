@@ -407,6 +407,13 @@ export function AppShell({
           icon: TrendingUp,
           tooltip: "Track mock strengths and weak areas",
         },
+        {
+          label: "Annual Competition Studio",
+          shortLabel: "Annual Studio",
+          href: "/admin/competition/annual-studio",
+          icon: Trophy,
+          tooltip: "Set up and run the real, scheduled Annual Competition event",
+        },
       ],
     },
     {
