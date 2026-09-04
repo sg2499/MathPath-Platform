@@ -5,6 +5,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { QuestionCard } from "@/components/student/QuestionCard";
+import type { AnswerInputBoxHandle } from "@/components/student/AnswerInputBox";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
 import { useAttemptTimer } from "@/hooks/useAttemptTimer";
@@ -20,7 +21,7 @@ import type { DpsAttemptPayload } from "@/types/attempt";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ClipboardCheck, Gauge, Layers3, BookOpenCheck } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 // Same one-time sessionStorage handoff pattern used for mock exams (see
 // stashRewardBreakdownForResult in the mock-attempt page) -- the reward
@@ -84,6 +85,23 @@ export default function AttemptPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [localAnswers, setLocalAnswers] = useState<Record<string, string>>({});
+  // 2026-09-04 (Shailesh) fix for a confirmed bug: a genuinely correct,
+  // already-typed answer got graded wrong because the debounced autosave
+  // for it was still in flight (or hadn't even started) the instant
+  // Submit/auto-submit fired -- submit_attempt() on the backend now also
+  // locks the attempt row against a concurrent save, but that only wins
+  // the race it can see; the real fix here is to never let submit start a
+  // race in the first place. isFinalizingSubmit covers the window where
+  // this page is flushing and awaiting every pending save before the
+  // submit/auto-submit mutation is even called.
+  const [isFinalizingSubmit, setIsFinalizingSubmit] = useState(false);
+  const answerInputRef = useRef<AnswerInputBoxHandle>(null);
+  // Every currently-in-flight saveAnswer() call, keyed by its own promise
+  // -- each entry removes itself once settled. flushAndAwaitAllPendingSaves
+  // below awaits this whole set, not just the most recent question, since
+  // a student can navigate through several questions faster than the
+  // network round-trip for an earlier one completes.
+  const pendingSavesRef = useRef<Set<Promise<unknown>>>(new Set());
 
   const query = useQuery({
     queryKey: ["attempt", attemptId],
@@ -114,11 +132,29 @@ export default function AttemptPage() {
     },
   });
 
+  // Forces whatever's currently sitting in the visible question's 450ms
+  // debounce window to save right now (rather than waiting out the timer),
+  // then waits for that request -- and any other still-in-flight save from
+  // a question the student already moved past -- to actually be
+  // acknowledged by the server. Submit and auto-submit-on-timeout both
+  // await this before firing, so neither can ever race ahead of an answer
+  // the student already finished typing. Loops defensively in case a save
+  // is still being added to the set at the instant the first batch settles.
+  const flushAndAwaitAllPendingSaves = useCallback(async () => {
+    answerInputRef.current?.flushPendingSave();
+    while (pendingSavesRef.current.size > 0) {
+      await Promise.allSettled(Array.from(pendingSavesRef.current));
+    }
+  }, []);
+
   const handleTimeUp = useCallback(() => {
     if (!attempt || !attempt.questions || attempt.questions.length === 0) return;
     if (autoSubmitMutation.isPending || manualSubmitMutation.isPending) return;
-    autoSubmitMutation.mutate();
-  }, [attempt, autoSubmitMutation, manualSubmitMutation.isPending]);
+    setIsFinalizingSubmit(true);
+    void flushAndAwaitAllPendingSaves()
+      .then(() => autoSubmitMutation.mutate())
+      .finally(() => setIsFinalizingSubmit(false));
+  }, [attempt, autoSubmitMutation, manualSubmitMutation.isPending, flushAndAwaitAllPendingSaves]);
 
   const remainingSeconds = useAttemptTimer(
     attempt ? attempt.remainingSeconds : 999999,
@@ -168,9 +204,16 @@ export default function AttemptPage() {
   }
 
   // Fired on a shorter pause while typing -- just persists so nothing is
-  // ever lost, without moving the student anywhere.
+  // ever lost, without moving the student anywhere. Tracked in
+  // pendingSavesRef (rather than plain fire-and-forget) so
+  // flushAndAwaitAllPendingSaves can guarantee Submit/auto-submit never
+  // fires while this request is still on the wire.
   function handleSaveAnswer(questionId: string, answerText: string) {
-    void persistAnswer(questionId, answerText);
+    const savePromise = persistAnswer(questionId, answerText);
+    pendingSavesRef.current.add(savePromise);
+    savePromise.finally(() => {
+      pendingSavesRef.current.delete(savePromise);
+    });
   }
 
   if (!ready) return null;
@@ -318,8 +361,10 @@ export default function AttemptPage() {
           <QuestionCard
             key={currentQuestion.questionId}
             question={currentQuestion}
+            answerInputRef={answerInputRef}
             savedAnswerText={savedAnswers[currentQuestion.questionId]}
             disabled={
+              isFinalizingSubmit ||
               manualSubmitMutation.isPending ||
               autoSubmitMutation.isPending ||
               remainingSeconds <= 0
@@ -366,7 +411,7 @@ export default function AttemptPage() {
           <button
             className="math-button-primary mt-3 w-full py-2.5"
             onClick={() => setShowConfirm(true)}
-            disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}
+            disabled={isFinalizingSubmit || manualSubmitMutation.isPending || autoSubmitMutation.isPending}
           >
             Submit Test
           </button>
@@ -387,9 +432,17 @@ export default function AttemptPage() {
         open={showConfirm}
         title="Submit Test?"
         message={`You have answered ${answeredNumbers.length} out of ${questions.length} questions. Unanswered questions will receive 0 marks.`}
-        confirmLabel={manualSubmitMutation.isPending ? "Submitting..." : "Submit"}
+        confirmLabel={isFinalizingSubmit || manualSubmitMutation.isPending ? "Submitting..." : "Submit"}
         onCancel={() => setShowConfirm(false)}
-        onConfirm={() => manualSubmitMutation.mutate()}
+        onConfirm={() => {
+          // Guards against a second click landing mid-flush/mid-mutation --
+          // ConfirmDialog has no built-in disabled state for its own button.
+          if (isFinalizingSubmit || manualSubmitMutation.isPending) return;
+          setIsFinalizingSubmit(true);
+          void flushAndAwaitAllPendingSaves()
+            .then(() => manualSubmitMutation.mutate())
+            .finally(() => setIsFinalizingSubmit(false));
+        }}
       />
     </AppShell>
   );

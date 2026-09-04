@@ -366,20 +366,35 @@ class EconomyService:
         return EconomyService.SPEED_TIER_STEADY, 0.0
 
     @staticmethod
-    def evaluate_activity_performance(
-        db: Session,
-        user_id: str,
+    def compute_activity_reward(
         accuracy_percent: float,
         activity_type: str,
         duration_seconds: int | float | None,
         time_taken_seconds: int | float | None = None,
-        reference_id: str = "N/A",
         punctuality_status: str = "NOT_SCHEDULED",
     ) -> Dict[str, Any]:
-        """
-        The single XP/coin formula for DPS sheets, assessments, and mock
-        exams alike. See the module-level comment above for the two-layer
-        (allotted-duration base, then accuracy + speed multipliers) design.
+        """Pure computation half of the XP/coin formula -- no DB access, no
+        writes, safe to call as many times as needed for the same inputs.
+
+        Extracted out of evaluate_activity_performance() on 2026-09-04 so
+        this exact math has exactly one implementation, callable from
+        backend/scripts/backfill_dps_attempt_regrade.py to work out what a
+        historical DPS attempt's XP/coins award SHOULD have been under its
+        corrected (post-race-fix) accuracy, without re-running
+        evaluate_activity_performance() itself -- which calls
+        award_xp_and_coins() unconditionally and would double-award a
+        student who was already paid once for that same attempt at its
+        original (wrong) accuracy. The backfill instead diffs this
+        function's output against the original award (read back from
+        EconomyTransaction's immutable ledger by reference_id) and tops up
+        only the difference through award_xp_and_coins() itself -- so the
+        real ledger-writing function is still the only thing that ever
+        touches a wallet, this just lets its math be reused read-only.
+
+        Returns the same awarded_xp/awarded_coins/reward_breakdown/
+        dropped_pack/pack_type shape evaluate_activity_performance() builds,
+        minus the two fields (new_rank, ranked_up) that only exist after
+        award_xp_and_coins() has actually run.
         """
         weight = EconomyService.ACTIVITY_WEIGHTS.get(activity_type, 1.0)
         raw_minutes = float(duration_seconds or 0) / 60.0
@@ -444,16 +459,9 @@ class EconomyService:
             if dropped_pack:
                 pack_type = "ELITE_CHEST" if accuracy_percent == 100.0 else "ALPHA_PACK"
 
-        econ, ranked_up = EconomyService.award_xp_and_coins(
-            db, user_id, final_xp, final_coins,
-            source_action=f"{activity_type}_COMPLETION", reference_id=reference_id,
-        )
-
         return {
             "awarded_xp": final_xp,
             "awarded_coins": final_coins,
-            "new_rank": econ.current_rank_tier,
-            "ranked_up": ranked_up,
             "dropped_pack": pack_type,
             "reward_breakdown": {
                 "xp": {
@@ -481,4 +489,44 @@ class EconomyService:
                 "allottedSeconds": int(duration_seconds) if duration_seconds else None,
                 "activityType": activity_type,
             },
+        }
+
+    @staticmethod
+    def evaluate_activity_performance(
+        db: Session,
+        user_id: str,
+        accuracy_percent: float,
+        activity_type: str,
+        duration_seconds: int | float | None,
+        time_taken_seconds: int | float | None = None,
+        reference_id: str = "N/A",
+        punctuality_status: str = "NOT_SCHEDULED",
+    ) -> Dict[str, Any]:
+        """
+        The single XP/coin formula for DPS sheets, assessments, and mock
+        exams alike. See the module-level comment above for the two-layer
+        (allotted-duration base, then accuracy + speed multipliers) design.
+
+        Thin wrapper (2026-09-04) around compute_activity_reward() -- the
+        math itself lives there now, pulled out so it can be reused
+        read-only by the DPS regrade backfill script. This function is still
+        the only thing production code should call for a live completion:
+        it's the one that actually awards the computed amount via
+        award_xp_and_coins(), same as always.
+        """
+        reward = EconomyService.compute_activity_reward(
+            accuracy_percent=accuracy_percent,
+            activity_type=activity_type,
+            duration_seconds=duration_seconds,
+            time_taken_seconds=time_taken_seconds,
+            punctuality_status=punctuality_status,
+        )
+        econ, ranked_up = EconomyService.award_xp_and_coins(
+            db, user_id, reward["awarded_xp"], reward["awarded_coins"],
+            source_action=f"{activity_type}_COMPLETION", reference_id=reference_id,
+        )
+        return {
+            **reward,
+            "new_rank": econ.current_rank_tier,
+            "ranked_up": ranked_up,
         }
