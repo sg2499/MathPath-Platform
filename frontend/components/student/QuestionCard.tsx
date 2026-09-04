@@ -2,8 +2,9 @@
 
 import type { DpsStudentQuestion } from "@/types/question";
 import { CheckCircle2, Save } from "lucide-react";
-import { AnswerInputBox } from "./AnswerInputBox";
+import { AnswerInputBox, type AnswerInputBoxHandle } from "./AnswerInputBox";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
+import type { Ref } from "react";
 
 export function QuestionCard({
   question,
@@ -12,6 +13,7 @@ export function QuestionCard({
   saving,
   compact = false,
   onSave,
+  answerInputRef,
 }: {
   question: DpsStudentQuestion;
   savedAnswerText?: string | null;
@@ -19,6 +21,11 @@ export function QuestionCard({
   saving: boolean;
   compact?: boolean;
   onSave: (answerText: string) => void;
+  // Lets the attempt page force-flush whatever's currently sitting in this
+  // question's debounce window right before Submit/auto-submit fires --
+  // see AnswerInputBox's own docstring and the attempt page's
+  // flushAndAwaitAllPendingSaves() for the race this closes.
+  answerInputRef?: Ref<AnswerInputBoxHandle>;
 }) {
   // Section/lesson context now lives in the attempt page's top info bar
   // (see app/student/attempt/[attemptId]/page.tsx) -- repeating it here
@@ -61,6 +68,7 @@ export function QuestionCard({
         <div className="flex min-h-[220px] flex-1 items-center justify-center overflow-auto lg:h-full lg:min-h-0">
           <AnswerInputBox
             key={question.questionId}
+            ref={answerInputRef}
             initialValue={savedAnswerText}
             disabled={disabled}
             onSave={onSave}

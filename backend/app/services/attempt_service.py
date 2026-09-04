@@ -86,6 +86,54 @@ def _ComputeDpsPunctualityStatus(attempt: Attempt, assignment: Assignment | None
 def remaining_seconds(attempt: Attempt) -> int:
     return max(0, int((_aware(attempt.expires_at) - now_utc()).total_seconds()))
 
+
+def _lock_attempt_for_update(db: Session, attempt_id: str) -> Attempt | None:
+    """Row-level lock on this one Attempt for the rest of the current
+    transaction (SELECT ... FOR UPDATE) -- the fix for a real, confirmed bug
+    (2026-09-04, Shailesh: a student's correct typed answer landed in
+    AttemptAnswer.selected_value, visibly correct on the result review page,
+    yet was scored wrong).
+
+    Root cause: save_answer() and submit_attempt() are two independent HTTP
+    requests, each with its own DB session, and FastAPI runs sync route
+    handlers in a thread pool -- so they can genuinely execute concurrently
+    for the same attempt. The answer box debounces autosave by 450ms
+    (AnswerInputBox.tsx) and never awaits it before the app moves on, so a
+    save for the last question(s) a student typed can still be in flight
+    exactly when the attempt's deadline passes. Nothing before this fix
+    prevented that save's write from landing in the database (visible on
+    review) *after* submit_attempt() had already read a stale/incomplete
+    snapshot of AttemptAnswer, graded it, and committed -- permanently,
+    since is_correct/marks_awarded are never recomputed later. Both the
+    student's own manual submit and the entirely automatic lazy-auto-submit
+    path (ensure_active_or_auto_submit(), triggered by literally any
+    request that touches an attempt past its expires_at, e.g. a heartbeat
+    or a resume poll) could win this race against a save.
+
+    The fix: both save_answer() and submit_attempt() re-acquire this same
+    row lock immediately before their critical section (write the answer;
+    or read every answer and grade). Whichever gets here first for a given
+    attempt now fully completes (write+commit, or grade+commit) before the
+    other can even read -- the second one blocks until the first commits,
+    then re-reads the now-current truth instead of racing a stale snapshot.
+    This is general on purpose: it lives in the one shared save/grade path
+    every DPS attempt across every module/level/lesson goes through, so it
+    protects all of them uniformly, not just the concept family that
+    happened to surface the bug.
+
+    Falls back to a plain (unlocked) read for a DB backend that doesn't
+    support row locking (SQLite, used in tests) -- SQLAlchemy's SQLite
+    dialect silently ignores with_for_update() rather than erroring, which
+    is fine there since SQLite is single-writer by nature; Postgres
+    (production) is where this lock actually does its job.
+    """
+    return (
+        db.query(Attempt)
+        .filter(Attempt.id == attempt_id)
+        .with_for_update()
+        .first()
+    )
+
 def active_reattempt_permission_for_attempt(db: Session, assignment_id: str, student_id: str):
     return (
         db.query(AssignmentReattemptPermission)
@@ -265,6 +313,16 @@ def save_answer(db: Session, student, attempt_id: str, question_id: str, answer_
     attempt = get_attempt_for_student(db, student, attempt_id)
     if attempt.status != "IN_PROGRESS":
         return {"saved": False, "status": attempt.status, "message": "Attempt is no longer active.", "resultAvailable": True}
+    # Re-acquire this attempt's row under a lock right before the actual
+    # write -- see _lock_attempt_for_update()'s docstring for the exact race
+    # this closes (2026-09-04). Blocks here if a submit/auto-submit for this
+    # same attempt is concurrently mid-grade, then re-checks status against
+    # the now-current truth instead of the possibly-stale read above.
+    locked_attempt = _lock_attempt_for_update(db, attempt.id)
+    if not locked_attempt or locked_attempt.status != "IN_PROGRESS":
+        status = locked_attempt.status if locked_attempt else attempt.status
+        return {"saved": False, "status": status, "message": "Attempt is no longer active.", "resultAvailable": True}
+    attempt = locked_attempt
     question = db.get(GeneratedQuestion, question_id)
     if not question or question.question_set_id != attempt.question_set_id:
         api_error(400, "INVALID_QUESTION", "Question does not belong to this attempt.")
@@ -288,9 +346,26 @@ def save_answer(db: Session, student, attempt_id: str, question_id: str, answer_
     )
     return {"saved": True, "attemptId": attempt.id, "questionId": question.id, "answerText": cleaned_answer, "answeredCount": answered_count, "remainingSeconds": remaining_seconds(attempt)}
 
-def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt:
-    if attempt.status in ["SUBMITTED", "AUTO_SUBMITTED"]:
-        return attempt
+def _GradeAttemptAnswers(db: Session, attempt: Attempt) -> dict:
+    """Pure grading computation for one attempt's questions -- reads
+    GeneratedQuestion/AttemptAnswer/DPSSection and returns the full grading
+    result (per-question is_correct/marks_awarded plus the aggregate totals)
+    WITHOUT writing anything to the database or mutating any ORM object.
+
+    Extracted out of submit_attempt() on 2026-09-04 so this exact grading
+    logic has exactly one implementation, used both by submit_attempt()
+    itself (writes are applied by the caller, see below) and by
+    backend/scripts/backfill_dps_attempt_regrade.py -- the one-time backfill
+    that detects and corrects historical attempts affected by the
+    save/submit race (_lock_attempt_for_update's docstring has the full
+    story). That backfill needs to recompute "what would this attempt grade
+    to right now, given its current (fully-saved) answers" and compare that
+    against what's actually stored, without touching anything until a human
+    has reviewed a dry-run -- a second, hand-copied implementation of this
+    same marks-per-question + answers_match() logic would risk silently
+    drifting from this one over time, which is exactly the kind of bug this
+    whole fix exists to prevent.
+    """
     questions = db.query(GeneratedQuestion).filter(GeneratedQuestion.question_set_id == attempt.question_set_id).all()
     answers = {a.question_id: a for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
     # Marks per question comes from each question's own section when that
@@ -305,6 +380,7 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     correct = wrong = unanswered = 0
     total_score = 0.0
     max_score = 0.0
+    per_question: dict[str, dict] = {}
     for q in questions:
         section = section_by_id.get(q.dps_section_id) if q.dps_section_id else None
         question_marks = _SectionMarksPerQuestion(section, dps_default_marks)
@@ -313,31 +389,61 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
         student_value = (ans.selected_value or "").strip() if ans else ""
         if not student_value:
             unanswered += 1
-            if ans:
-                ans.is_correct = False
-                ans.marks_awarded = 0
+            per_question[q.id] = {"has_answer_row": ans is not None, "is_correct": False, "marks_awarded": 0}
             continue
         # DPS grading is typed-answer comparison now, not an MCQ option
         # lookup -- see OPEN_ISSUES.md 2026-08-03e and answer_matching.py for
         # the single shared normalization/comparison function.
         if answers_match(q.correct_answer, student_value):
             correct += 1
-            ans.is_correct = True
-            ans.marks_awarded = question_marks
             total_score += question_marks
+            per_question[q.id] = {"has_answer_row": True, "is_correct": True, "marks_awarded": question_marks}
         else:
             wrong += 1
-            ans.is_correct = False
-            ans.marks_awarded = 0
+            per_question[q.id] = {"has_answer_row": True, "is_correct": False, "marks_awarded": 0}
+    return {
+        "per_question": per_question,
+        "correct_count": correct,
+        "wrong_count": wrong,
+        "unanswered_count": unanswered,
+        "attempted_count": correct + wrong,
+        "total_score": total_score,
+        "max_score": max_score,
+        "accuracy_percentage": round((total_score / max_score) * 100) if max_score else 0,
+    }
+
+
+def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt:
+    if attempt.status in ["SUBMITTED", "AUTO_SUBMITTED"]:
+        return attempt
+    # Lock this attempt's row before reading its answers -- the other half
+    # of the save_answer() lock above (see _lock_attempt_for_update()'s
+    # docstring, 2026-09-04): guarantees this grading snapshot can never be
+    # taken while a concurrent save_answer() write for the very same
+    # attempt is in flight. Re-checks status after acquiring the lock since
+    # another request (a concurrent submit, or the lazy auto-submit path)
+    # may have already graded this exact attempt while this one waited.
+    locked_attempt = _lock_attempt_for_update(db, attempt.id)
+    if locked_attempt is not None:
+        attempt = locked_attempt
+    if attempt.status in ["SUBMITTED", "AUTO_SUBMITTED"]:
+        return attempt
+    answers = {a.question_id: a for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
+    grading = _GradeAttemptAnswers(db, attempt)
+    for question_id, result in grading["per_question"].items():
+        ans = answers.get(question_id)
+        if ans is not None:
+            ans.is_correct = result["is_correct"]
+            ans.marks_awarded = result["marks_awarded"]
     submitted = now_utc()
     attempt.status = "AUTO_SUBMITTED" if auto else "SUBMITTED"
     attempt.submitted_at = submitted
-    attempt.correct_count = correct
-    attempt.wrong_count = wrong
-    attempt.unanswered_count = unanswered
-    attempt.attempted_count = correct + wrong
-    attempt.total_score = total_score
-    attempt.max_score = max_score
+    attempt.correct_count = grading["correct_count"]
+    attempt.wrong_count = grading["wrong_count"]
+    attempt.unanswered_count = grading["unanswered_count"]
+    attempt.attempted_count = grading["attempted_count"]
+    attempt.total_score = grading["total_score"]
+    attempt.max_score = grading["max_score"]
     # Marks-based, not question-count-based: correct/total_questions was fine
     # while every question was worth the same 1 mark (score% and accuracy%
     # were always identical), but IM's Concept Drill/Skill Stacker sections
@@ -349,7 +455,7 @@ def submit_attempt(db: Session, attempt: Attempt, auto: bool = False) -> Attempt
     # reflect real performance-by-marks. For every flat 1-mark-per-question
     # sheet (all of MM/YLM, most of IM) this is byte-identical to the old
     # formula, since total_score/max_score == correct/total_questions there.
-    attempt.accuracy_percentage = round((total_score / max_score) * 100) if max_score else 0
+    attempt.accuracy_percentage = grading["accuracy_percentage"]
     attempt.time_taken_seconds = attempt.duration_seconds if auto else min(attempt.duration_seconds, int((submitted - _aware(attempt.started_at)).total_seconds()))
     UpdateSubmittedAttemptBenchmarkState(attempt, BENCHMARK_PERCENTAGE)
 

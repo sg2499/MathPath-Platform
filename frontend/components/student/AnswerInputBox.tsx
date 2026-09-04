@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 // DPS questions are typed free-text answers, not MCQ picks -- see
 // OPEN_ISSUES.md 2026-08-03e. This box auto-saves on a short pause so
@@ -24,15 +24,23 @@ import { useEffect, useRef, useState } from "react";
 // between questions.
 const SAVE_DEBOUNCE_MS = 450;
 
-export function AnswerInputBox({
-  initialValue,
-  disabled,
-  onSave,
-}: {
+// Imperative escape hatch for the attempt page's submit/auto-submit flow
+// (2026-09-04, Shailesh): a debounced save is normally fine to just let run
+// on its own timer, but Submit and the auto-submit-on-timeout path must
+// never fire while this box still has an unsaved keystroke sitting in its
+// 450ms debounce window -- see the fix's full writeup in
+// app/student/attempt/[attemptId]/page.tsx's flushAndAwaitAllPendingSaves().
+// flushPendingSave() forces exactly the same save the debounce timer or a
+// blur would have fired, just immediately instead of after the delay.
+export type AnswerInputBoxHandle = {
+  flushPendingSave: () => void;
+};
+
+export const AnswerInputBox = forwardRef<AnswerInputBoxHandle, {
   initialValue?: string | null;
   disabled: boolean;
   onSave: (text: string) => void;
-}) {
+}>(function AnswerInputBox({ initialValue, disabled, onSave }, ref) {
   const [value, setValue] = useState(initialValue || "");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -69,6 +77,13 @@ export function AnswerInputBox({
     lastSavedValueRef.current = text;
     onSave(text);
   }
+
+  useImperativeHandle(ref, () => ({
+    flushPendingSave: () => {
+      clearSaveTimer();
+      flushSave(valueRef.current);
+    },
+  }));
 
   // Same-question navigation is now entirely manual (arrow buttons /
   // question navigator), so if the student moves away while a save is
@@ -131,4 +146,4 @@ export function AnswerInputBox({
       />
     </div>
   );
-}
+});
