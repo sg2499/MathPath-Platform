@@ -1,0 +1,8 @@
+# CRLF-native docs: these two files are committed with real CRLF line
+# endings (not accidental drift), so `git diff --check` in CI's
+# repository-safety job otherwise flags every changed line's trailing \r
+# as a whitespace error and fails the build. whitespace=cr-at-eol tells
+# git to treat CR-before-LF as normal for these paths.
+# See docs/project-memory/DEPLOY_PLAYBOOK.md "Standing caution: this repo's CRLF/LF noise".
+docs/project-memory/COWORK_HANDOFF.md whitespace=cr-at-eol
+docs/project-memory/OPEN_ISSUES.md whitespace=cr-at-eol
