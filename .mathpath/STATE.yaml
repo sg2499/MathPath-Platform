@@ -3,10 +3,11 @@ active_package: pkg-03-admin-studio.md
 status: IN_PROGRESS
 
 # Previous epic (competition-mock-practice-plan.md) is COMPLETED and shipped.
-# Annual Competition (2026-09) is now the active epic. Package 1 (data model)
-# and Package 2 (assignment engine) are COMPLETE -- see
-# .mathpath/packages/pkg-01-data-model.md and pkg-02-assignment-engine.md.
-# Package 3 (Admin Annual Competition Studio) is next. Everything so far is
-# built and verified locally only -- push/merge/deploy is being bundled
-# across all packages per Shailesh's instruction (2026-09-04), not done
-# per-package.
+# Annual Competition (2026-09) is now the active epic. Package 1 (data
+# model) and Package 2 (assignment engine) are COMPLETE. Package 3 (Admin
+# Annual Competition Studio) is BACKEND COMPLETE -- see
+# .mathpath/packages/pkg-03-admin-studio.md -- but its own frontend admin
+# screen is not yet built (explicitly deferred, tracked in that file's
+# checklist section 5). Everything so far is built and verified locally
+# only -- push/merge/deploy is being bundled across all packages per
+# Shailesh's instruction (2026-09-04), not done per-package.

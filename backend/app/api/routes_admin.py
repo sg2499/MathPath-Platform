@@ -98,6 +98,22 @@ from app.services.annual_competition_assignment_service import (
     RunAnnualCompetitionAssignmentEngine,
 )
 
+from app.services.annual_competition_studio_service import (
+    CreateCompetitionEvent as CreateAnnualCompetitionEvent,
+    UpdateCompetitionEvent as UpdateAnnualCompetitionEvent,
+    GetCompetitionEvent as GetAnnualCompetitionEvent,
+    ListCompetitionEvents as ListAnnualCompetitionEvents,
+    GetCompetitionEventStudioOverview,
+    CreateCompetitionEventSlot,
+    UpdateCompetitionEventSlot,
+    ListCompetitionEventSlots,
+    GenerateAndLinkCompetitionEventLevelPaper,
+    LinkExistingCompetitionEventLevelPaper,
+    ListCompetitionEventLevelPapers,
+    UpdateCompetitionEventSectionTimer,
+    OverrideCompetitionEventAssignment,
+)
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 
@@ -133,6 +149,46 @@ class AssessmentRemarkRequest(BaseModel):
 
 class AnnualCompetitionAssignmentRunRequest(BaseModel):
     studentIds: list[str] | None = None
+
+class AnnualCompetitionEventCreateRequest(BaseModel):
+    name: str
+    competitionDate: datetime
+    resultsReleaseAt: datetime | None = None
+
+class AnnualCompetitionEventUpdateRequest(BaseModel):
+    name: str | None = None
+    status: str | None = None
+    competitionDate: datetime | None = None
+    resultsReleaseAt: datetime | None = None
+    clearResultsReleaseAt: bool = False
+
+class AnnualCompetitionSlotCreateRequest(BaseModel):
+    mode: str
+    scheduledStartAt: datetime
+    scheduledEndAt: datetime
+    applicableLevelCodes: list[str] = []
+    slotLabel: str | None = None
+
+class AnnualCompetitionSlotUpdateRequest(BaseModel):
+    mode: str | None = None
+    slotLabel: str | None = None
+    scheduledStartAt: datetime | None = None
+    scheduledEndAt: datetime | None = None
+    applicableLevelCodes: list[str] | None = None
+    isActive: bool | None = None
+
+class AnnualCompetitionLinkPaperRequest(BaseModel):
+    mockExamId: str
+
+class AnnualCompetitionSectionTimerUpdateRequest(BaseModel):
+    sectionTitle: str | None = None
+    mode: str | None = None
+    timeLimitSeconds: int | None = None
+
+class AnnualCompetitionOverrideRequest(BaseModel):
+    studentId: str
+    assignedLevelCode: str
+    slotId: str | None = None
 
 
 def _admin_natural_sort_key(value: Any) -> list[Any]:
@@ -5775,6 +5831,143 @@ def admin_run_annual_competition_assignments(
     user: User = Depends(admin_dep),
 ):
     return RunAnnualCompetitionAssignmentEngine(db, EventId=event_id, RunBy=user, StudentIds=payload.studentIds)
+
+
+# --- Annual Competition (Package 3): Admin Studio -----------------------
+# See backend/app/services/annual_competition_studio_service.py.
+
+@router.post("/annual-competition/events")
+def admin_create_annual_competition_event(
+    payload: AnnualCompetitionEventCreateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return CreateAnnualCompetitionEvent(
+        db, Name=payload.name, CompetitionDate=payload.competitionDate, CreatedBy=user, ResultsReleaseAt=payload.resultsReleaseAt
+    )
+
+
+@router.get("/annual-competition/events")
+def admin_list_annual_competition_events(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return {"events": ListAnnualCompetitionEvents(db)}
+
+
+@router.get("/annual-competition/events/{event_id}")
+def admin_get_annual_competition_event(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GetAnnualCompetitionEvent(db, event_id)
+
+
+@router.get("/annual-competition/events/{event_id}/overview")
+def admin_get_annual_competition_event_overview(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GetCompetitionEventStudioOverview(db, event_id)
+
+
+@router.patch("/annual-competition/events/{event_id}")
+def admin_update_annual_competition_event(
+    event_id: str, payload: AnnualCompetitionEventUpdateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    ResultsReleaseAtValue: Any = "__UNSET__"
+    if payload.clearResultsReleaseAt:
+        ResultsReleaseAtValue = None
+    elif payload.resultsReleaseAt is not None:
+        ResultsReleaseAtValue = payload.resultsReleaseAt
+    return UpdateAnnualCompetitionEvent(
+        db,
+        EventId=event_id,
+        Name=payload.name,
+        Status=payload.status,
+        CompetitionDate=payload.competitionDate,
+        ResultsReleaseAt=ResultsReleaseAtValue,
+    )
+
+
+@router.post("/annual-competition/events/{event_id}/slots")
+def admin_create_annual_competition_slot(
+    event_id: str, payload: AnnualCompetitionSlotCreateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return CreateCompetitionEventSlot(
+        db,
+        EventId=event_id,
+        Mode=payload.mode,
+        ScheduledStartAt=payload.scheduledStartAt,
+        ScheduledEndAt=payload.scheduledEndAt,
+        ApplicableLevelCodes=payload.applicableLevelCodes,
+        SlotLabel=payload.slotLabel,
+    )
+
+
+@router.get("/annual-competition/events/{event_id}/slots")
+def admin_list_annual_competition_slots(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return {"slots": ListCompetitionEventSlots(db, event_id)}
+
+
+@router.patch("/annual-competition/slots/{slot_id}")
+def admin_update_annual_competition_slot(
+    slot_id: str, payload: AnnualCompetitionSlotUpdateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return UpdateCompetitionEventSlot(
+        db,
+        SlotId=slot_id,
+        Mode=payload.mode,
+        SlotLabel=payload.slotLabel if payload.slotLabel is not None else "__UNSET__",
+        ScheduledStartAt=payload.scheduledStartAt,
+        ScheduledEndAt=payload.scheduledEndAt,
+        ApplicableLevelCodes=payload.applicableLevelCodes,
+        IsActive=payload.isActive,
+    )
+
+
+@router.get("/annual-competition/events/{event_id}/level-papers")
+def admin_list_annual_competition_level_papers(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return {"levelPapers": ListCompetitionEventLevelPapers(db, event_id)}
+
+
+@router.post("/annual-competition/events/{event_id}/level-papers/{level_code}/generate")
+def admin_generate_annual_competition_level_paper(
+    event_id: str, level_code: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return GenerateAndLinkCompetitionEventLevelPaper(db, EventId=event_id, CompetitionLevelCode=level_code, CreatedBy=user)
+
+
+@router.post("/annual-competition/events/{event_id}/level-papers/{level_code}/link")
+def admin_link_annual_competition_level_paper(
+    event_id: str,
+    level_code: str,
+    payload: AnnualCompetitionLinkPaperRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return LinkExistingCompetitionEventLevelPaper(
+        db, EventId=event_id, CompetitionLevelCode=level_code, MockExamId=payload.mockExamId
+    )
+
+
+@router.patch("/annual-competition/section-timers/{section_timer_id}")
+def admin_update_annual_competition_section_timer(
+    section_timer_id: str,
+    payload: AnnualCompetitionSectionTimerUpdateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return UpdateCompetitionEventSectionTimer(
+        db,
+        SectionTimerId=section_timer_id,
+        SectionTitle=payload.sectionTitle,
+        Mode=payload.mode,
+        TimeLimitSeconds=payload.timeLimitSeconds,
+    )
+
+
+@router.post("/annual-competition/events/{event_id}/assignments/override")
+def admin_override_annual_competition_assignment(
+    event_id: str, payload: AnnualCompetitionOverrideRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return OverrideCompetitionEventAssignment(
+        db,
+        EventId=event_id,
+        StudentId=payload.studentId,
+        AssignedLevelCode=payload.assignedLevelCode,
+        OverriddenBy=user,
+        SlotId=payload.slotId,
+    )
 
 
 from app.api.routes_teacher import _teacher_competition_row_payload, _competition_duration_text
