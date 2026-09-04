@@ -19,6 +19,7 @@ import {
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import React, { useRef, useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate, AnimatePresence } from "framer-motion";
 import { GAMER_MOTIVATIONS } from "./quotes";
 
@@ -56,6 +57,14 @@ const MONTH_NAMES = [
   "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER",
 ];
 
+// Full three-letter weekday labels for the month-browse calendar header.
+// Single letters (S/M/T/W/T/F/S) were ambiguous -- Sunday and Saturday both
+// read as "S", Tuesday and Thursday both read as "T" -- and were styled too
+// close to the bold date-number cells below them, making the header row and
+// the date grid hard to tell apart at a glance. These are unambiguous and
+// are styled distinctly from the date cells in the calendar JSX below.
+const WEEKDAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
 // Local-timezone YYYY-MM-DD key. Using toISOString() here would convert to
 // UTC first, which silently shifts late-night activity into the wrong day
 // for any student west of UTC (and early-morning activity for students
@@ -90,6 +99,14 @@ function toActivityDateKey(value: string | null | undefined): string | null {
 function parseLocalDateKey(key: string): Date {
   const [year, month, day] = key.split("-").map(Number);
   return new Date(year, (month || 1) - 1, day || 1);
+}
+
+// Human-friendly "Sep 4" label for the month-browse calendar's hover/tap
+// detail panel (see monthCalendarData below) -- reuses parseLocalDateKey so
+// it inherits the same local-timezone-safe parsing as the rest of the
+// calendar.
+function formatCalendarDetailDate(dateKey: string): string {
+  return parseLocalDateKey(dateKey).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // The Grind Heatmap's per-day scoring formula (pace ratio, Flow State,
@@ -284,6 +301,25 @@ export default function StudentDashboardPage() {
   // hasn't been opened yet (it's initialized to the current month on open).
   const [monthViewOpen, setMonthViewOpen] = useState(false);
   const [monthCursor, setMonthCursor] = useState<Date | null>(null);
+  // Which day's stats are currently shown in the month-browse calendar's
+  // detail panel (hovered with a mouse, or tapped/focused on touch and
+  // keyboard) -- replaces the old plain-native-title-attribute tooltip.
+  const [hoveredMonthDay, setHoveredMonthDay] = useState<string | null>(null);
+
+  // Both Grind Heatmap overlays (the info explainer and the month-browse
+  // calendar) are portal-mounted straight to document.body (see the
+  // createPortal calls below) so `fixed inset-0` actually means "the whole
+  // viewport" instead of being trapped inside this card's own 3D flip
+  // transform. Any CSS `transform` on an ancestor (the flip card's own
+  // rotateY(180deg), TiltCard's rotateX/rotateY tilt) creates a new
+  // containing block for fixed/absolute descendants per spec -- that's
+  // exactly why the calendar used to render squeezed inside the small card
+  // and need scrolling instead of opening as a proper full view. Portals
+  // need a "mounted" gate because document.body doesn't exist during SSR.
+  const [modalPortalReady, setModalPortalReady] = useState(false);
+  useEffect(() => {
+    setModalPortalReady(true);
+  }, []);
 
   const AssignmentQuery = useQuery({
     queryKey: ["student-assignments"],
@@ -553,6 +589,12 @@ export default function StudentDashboardPage() {
     return { leadingBlanks: firstWeekday, days };
   }, [monthCursor, monthRangeQuery.data]);
 
+  // The day currently shown in the calendar's detail panel below the grid.
+  const activeMonthDay = useMemo(
+    () => monthCalendarData.days.find((d) => d.date === hoveredMonthDay) || null,
+    [monthCalendarData, hoveredMonthDay]
+  );
+
   const monthConsistencyLabel = useMemo(() => {
     const totalDays = monthCalendarData.days.length;
     if (totalDays === 0) return "";
@@ -569,12 +611,17 @@ export default function StudentDashboardPage() {
 
   const openMonthView = () => {
     setMonthCursor((prev) => prev || new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    setHoveredMonthDay(null);
     setMonthViewOpen(true);
   };
 
-  const closeMonthView = () => setMonthViewOpen(false);
+  const closeMonthView = () => {
+    setMonthViewOpen(false);
+    setHoveredMonthDay(null);
+  };
 
   const goToPreviousMonth = () => {
+    setHoveredMonthDay(null);
     setMonthCursor((prev) => {
       const base = prev || new Date();
       return new Date(base.getFullYear(), base.getMonth() - 1, 1);
@@ -582,6 +629,7 @@ export default function StudentDashboardPage() {
   };
 
   const goToNextMonth = () => {
+    setHoveredMonthDay(null);
     setMonthCursor((prev) => {
       const base = prev || new Date();
       const now = new Date();
@@ -894,7 +942,7 @@ export default function StudentDashboardPage() {
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setHeatmapInfoOpen((prev) => !prev); }}
-                                    className="text-slate-400 dark:text-slate-500 hover:text-[var(--mp-role-primary)] transition-colors normal-case tracking-normal font-normal"
+                                    className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/10 dark:bg-white/15 text-slate-700 dark:text-slate-200 hover:bg-[var(--mp-role-primary)]/20 hover:text-[var(--mp-role-primary)] transition-colors normal-case tracking-normal font-normal"
                                     aria-label="What does the Grind Heatmap show?"
                                   >
                                     <Info size={14} />
@@ -902,7 +950,7 @@ export default function StudentDashboardPage() {
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); openMonthView(); }}
-                                    className="text-slate-400 dark:text-slate-500 hover:text-[var(--mp-role-primary)] transition-colors normal-case tracking-normal font-normal"
+                                    className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/10 dark:bg-white/15 text-slate-700 dark:text-slate-200 hover:bg-[var(--mp-role-primary)]/20 hover:text-[var(--mp-role-primary)] transition-colors normal-case tracking-normal font-normal"
                                     aria-label="Browse past months of activity"
                                   >
                                     <Calendar size={14} />
@@ -1004,48 +1052,55 @@ export default function StudentDashboardPage() {
                              </button>
                           </div>
 
-                          {/* Grind Heatmap explainer — scoped to just this card (not the
-                              whole screen), and stops every click from reaching the
-                              TiltCard's flip-to-quote handler above it. */}
-                          {heatmapInfoOpen && (
+                          {/* Grind Heatmap explainer -- portal-mounted straight to
+                              document.body (see modalPortalReady above) so it opens
+                              as a proper full-viewport overlay instead of being
+                              squeezed inside this card's own 3D flip transform.
+                              The panel's own onClick still stops clicks on it from
+                              reaching the backdrop's close handler. */}
+                          {modalPortalReady && heatmapInfoOpen && createPortal(
                             <div
-                              className="absolute inset-0 z-[60] flex items-center justify-center p-6 sm:p-10 rounded-[24px] bg-black/60 backdrop-blur-sm"
-                              onClick={(e) => { e.stopPropagation(); setHeatmapInfoOpen(false); }}
+                              className="fixed inset-0 z-[9999] flex items-center justify-center p-6 sm:p-10 bg-black/60 backdrop-blur-sm"
+                              onClick={() => setHeatmapInfoOpen(false)}
                             >
                               <div
-                                className="max-w-sm w-full bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[12px] leading-relaxed p-5 rounded-2xl font-semibold shadow-2xl border border-white/10 dark:border-slate-200"
+                                className="max-w-sm w-full bg-white text-slate-900 dark:bg-slate-900 dark:text-white text-[12px] leading-relaxed p-5 rounded-2xl font-semibold shadow-2xl border border-slate-200 dark:border-white/10"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="flex items-center justify-between mb-3">
                                   <p className="font-black uppercase text-[11px] tracking-wider text-[var(--mp-role-primary)]">What is the Grind Heatmap?</p>
                                   <button
                                     type="button"
-                                    onClick={(e) => { e.stopPropagation(); setHeatmapInfoOpen(false); }}
-                                    className="opacity-60 hover:opacity-100 transition-opacity"
+                                    onClick={() => setHeatmapInfoOpen(false)}
+                                    className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white transition-colors"
                                     aria-label="Close"
                                   >
                                     <X size={16} />
                                   </button>
                                 </div>
-                                <p className="mb-2 opacity-90">Each bar is one day. It combines every practice sheet, assessment, and mock exam you completed that day — every attempt counts, not just your last one.</p>
-                                <p className="mb-2 opacity-90">The tier (S/A/B/C/D) reflects both your <span className="text-emerald-400 dark:text-emerald-600">accuracy</span> and your <span className="text-amber-400 dark:text-amber-600">pace</span> against each task's own allotted time — finishing accurately and within your time earns the highest tiers.</p>
-                                <p className="opacity-70">Bar color shows the tier earned that day; a gray, flat bar means no activity.</p>
+                                <p className="mb-2 opacity-80">Each bar is one day. It combines every practice sheet, assessment, and mock exam you completed that day — every attempt counts, not just your last one.</p>
+                                <p className="mb-2 opacity-80">The tier (S/A/B/C/D) reflects both your <span className="text-emerald-600 dark:text-emerald-400">accuracy</span> and your <span className="text-amber-600 dark:text-amber-400">pace</span> against each task's own allotted time — finishing accurately and within your time earns the highest tiers.</p>
+                                <p className="opacity-60">Bar color shows the tier earned that day; a gray, flat bar means no activity.</p>
                               </div>
-                            </div>
+                            </div>,
+                            document.body
                           )}
 
-                          {/* Grind Heatmap month-browse view (2026-09-03) --
-                              same "scoped to this card, stop clicks reaching
-                              the flip handler" pattern as the explainer
-                              above, just a bigger panel since it holds a
-                              full calendar grid instead of a paragraph. */}
-                          {monthViewOpen && (
+                          {/* Grind Heatmap month-browse view (2026-09-03, reworked
+                              2026-09-04) -- portal-mounted to document.body for the
+                              same reason as the explainer above: `fixed inset-0`
+                              inside a transformed ancestor (the flip card's
+                              rotateY(180deg), TiltCard's tilt) is NOT
+                              viewport-relative, it's scoped to that ancestor, which
+                              is exactly why this used to render squeezed inside the
+                              small card and force scrolling. */}
+                          {modalPortalReady && monthViewOpen && createPortal(
                             <div
-                              className="absolute inset-0 z-[60] flex items-center justify-center p-4 sm:p-8 rounded-[24px] bg-black/70 backdrop-blur-sm"
-                              onClick={(e) => { e.stopPropagation(); closeMonthView(); }}
+                              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8 bg-black/70 backdrop-blur-sm"
+                              onClick={closeMonthView}
                             >
                               <div
-                                className="w-full max-w-md bg-slate-950 text-white dark:bg-white dark:text-slate-950 rounded-2xl shadow-2xl border border-white/10 dark:border-slate-200 p-5 max-h-full overflow-y-auto"
+                                className="w-full max-w-md bg-white text-slate-900 dark:bg-slate-900 dark:text-white rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-5 max-h-[85vh] overflow-y-auto"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="flex items-center justify-between mb-4">
@@ -1053,7 +1108,7 @@ export default function StudentDashboardPage() {
                                     <button
                                       type="button"
                                       onClick={goToPreviousMonth}
-                                      className="p-1 rounded hover:bg-white/10 dark:hover:bg-slate-100 transition-colors"
+                                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
                                       aria-label="Previous month"
                                     >
                                       <ChevronLeft size={16} />
@@ -1065,7 +1120,7 @@ export default function StudentDashboardPage() {
                                       type="button"
                                       onClick={goToNextMonth}
                                       disabled={isCurrentBrowsedMonth}
-                                      className="p-1 rounded hover:bg-white/10 dark:hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
                                       aria-label="Next month"
                                     >
                                       <ChevronRight size={16} />
@@ -1074,7 +1129,7 @@ export default function StudentDashboardPage() {
                                   <button
                                     type="button"
                                     onClick={closeMonthView}
-                                    className="opacity-60 hover:opacity-100 transition-opacity"
+                                    className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white transition-colors"
                                     aria-label="Back to this week"
                                   >
                                     <X size={16} />
@@ -1086,14 +1141,14 @@ export default function StudentDashboardPage() {
                                     <Loader2 size={16} className="animate-spin" /> Loading month...
                                   </div>
                                 ) : monthRangeQuery.isError ? (
-                                  <p className="text-center py-10 text-[12px] font-bold text-rose-400 dark:text-rose-600">
+                                  <p className="text-center py-10 text-[12px] font-bold text-rose-600 dark:text-rose-400">
                                     Couldn't load this month. Try again in a moment.
                                   </p>
                                 ) : (
                                   <>
-                                    <div className="grid grid-cols-7 gap-1.5 mb-1.5">
-                                      {["S", "M", "T", "W", "T", "F", "S"].map((label, i) => (
-                                        <div key={i} className="text-center text-[10px] font-black uppercase tracking-wider opacity-50">
+                                    <div className="grid grid-cols-7 gap-1.5 mb-2 pb-2 border-b border-slate-200 dark:border-white/10">
+                                      {WEEKDAY_LABELS.map((label, i) => (
+                                        <div key={i} className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                                           {label}
                                         </div>
                                       ))}
@@ -1102,29 +1157,82 @@ export default function StudentDashboardPage() {
                                       {Array.from({ length: monthCalendarData.leadingBlanks }).map((_, i) => (
                                         <div key={`blank-${i}`} />
                                       ))}
-                                      {monthCalendarData.days.map((d) => (
-                                        <div
-                                          key={d.date}
-                                          title={
-                                            d.count > 0
-                                              ? `${d.date}: ${d.flowState}% ${d.tier} — ${d.accuracy}% accuracy, ${d.timeSpent}m`
-                                              : `${d.date}: Rest day`
-                                          }
-                                          className={`aspect-square rounded-md flex items-center justify-center text-[11px] font-black ${
-                                            d.count > 0 ? TIER_BAR_CLASSES[d.tier] || REST_BAR_CLASSES : "bg-white/5 dark:bg-slate-100"
-                                          } ${d.count > 0 ? "text-white" : "opacity-50"}`}
-                                        >
-                                          {d.day}
-                                        </div>
-                                      ))}
+                                      {monthCalendarData.days.map((d) => {
+                                        const isActive = hoveredMonthDay === d.date;
+                                        return (
+                                          <button
+                                            key={d.date}
+                                            type="button"
+                                            onMouseEnter={() => setHoveredMonthDay(d.date)}
+                                            onFocus={() => setHoveredMonthDay(d.date)}
+                                            onClick={() => setHoveredMonthDay((prev) => (prev === d.date ? null : d.date))}
+                                            aria-label={
+                                              d.count > 0
+                                                ? `${formatCalendarDetailDate(d.date)}: ${d.flowState}% ${d.tier}, ${d.accuracy}% accuracy, ${d.timeSpent} minutes spent`
+                                                : `${formatCalendarDetailDate(d.date)}: Rest day, no activity`
+                                            }
+                                            className={`aspect-square rounded-md flex items-center justify-center text-[11px] font-black transition-all ${
+                                              d.count > 0 ? TIER_BAR_CLASSES[d.tier] || REST_BAR_CLASSES : "bg-slate-100 dark:bg-white/5"
+                                            } ${d.count > 0 ? "text-white" : "text-slate-400 dark:text-slate-500"} ${
+                                              isActive
+                                                ? "ring-2 ring-[var(--mp-role-primary)] ring-offset-1 ring-offset-white dark:ring-offset-slate-900 scale-105"
+                                                : "hover:scale-105"
+                                            }`}
+                                          >
+                                            {d.day}
+                                          </button>
+                                        );
+                                      })}
                                     </div>
+
+                                    {/* Detail panel -- replaces the old plain native
+                                        `title` attribute (hard to read, and doesn't
+                                        work at all on touch) with one clearly
+                                        formatted panel that updates on hover,
+                                        keyboard focus, or tap. */}
+                                    <div className="mt-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-3 min-h-[74px] flex flex-col justify-center">
+                                      {activeMonthDay ? (
+                                        activeMonthDay.count > 0 ? (
+                                          <>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                              <span className="font-black text-[12px]">{formatCalendarDetailDate(activeMonthDay.date)}</span>
+                                              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-white ${TIER_BAR_CLASSES[activeMonthDay.tier] || REST_BAR_CLASSES}`}>
+                                                {activeMonthDay.flowState}% {activeMonthDay.tier}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-[11px] font-bold opacity-80">
+                                              <span className="flex items-center gap-1">
+                                                <CheckCircle size={12} className="text-emerald-600 dark:text-emerald-400" /> {activeMonthDay.accuracy}% accuracy
+                                              </span>
+                                              <span className="flex items-center gap-1">
+                                                <Clock size={12} /> {activeMonthDay.timeSpent}m
+                                              </span>
+                                            </div>
+                                            {activeMonthDay.insight && (
+                                              <p className="text-[11px] opacity-70 italic mt-1.5 leading-snug">"{activeMonthDay.insight}"</p>
+                                            )}
+                                          </>
+                                        ) : (
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-black text-[12px]">{formatCalendarDetailDate(activeMonthDay.date)}</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider opacity-50">Rest day</span>
+                                          </div>
+                                        )
+                                      ) : (
+                                        <p className="text-[11px] font-bold uppercase tracking-wider opacity-40 text-center">
+                                          Hover or tap a day to see details
+                                        </p>
+                                      )}
+                                    </div>
+
                                     <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-60 mt-4 text-center">
                                       {monthConsistencyLabel}
                                     </p>
                                   </>
                                 )}
                               </div>
-                            </div>
+                            </div>,
+                            document.body
                           )}
                        </div>
                      </div>
