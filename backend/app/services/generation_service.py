@@ -4,6 +4,7 @@ from uuid import uuid4
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models import DPS, DPSSection, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Module, Level, Lesson
+from app.question_engine.number_format import PlainNumberString
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, IsPackage1Supported
 from app.question_engine.im import IMConfig, GenerateImQuestionSet, IsImConceptSupported
@@ -1057,7 +1058,7 @@ def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, stude
             question_text=q.get("question_text"),
             operands_json=json.dumps(q["operands"]),
             operators_json=json.dumps(q["operators"]),
-            correct_answer=str(q["correct_answer"]),
+            correct_answer=PlainNumberString(q["correct_answer"]),
             seed=q["seed"],
             metadata_json=json.dumps(Metadata),
         )
@@ -1067,7 +1068,7 @@ def persist_question_set(db: Session, dps: DPS, assignment_id: str | None, stude
             db.add(QuestionOption(
                 question_id=gq.id,
                 option_label=opt["label"],
-                option_value=str(opt["value"]),
+                option_value=PlainNumberString(opt["value"]),
                 is_correct=opt["is_correct"],
                 display_order=opt["display_order"],
             ))

@@ -28,6 +28,7 @@ from app.models import (
 from app.services.generation_service import generate_preview
 from app.question_engine.mm import MMConfig, GenerateMmQuestionSet, OperationFocusForConcept
 from app.question_engine.im import IMConfig, GenerateImQuestionSet, OperationFocusForConcept as ImOperationFocusForConcept
+from app.question_engine.number_format import PlainNumberString
 # PM's own dedicated mock section registry/collector -- see that module's
 # docstring for why this lives in a separate file instead of being authored
 # inline here alongside MM/IM's curriculum-specific logic.
@@ -3075,7 +3076,7 @@ def _StoreQuestionOptions(db: Session, QuestionRecord: CompetitionMockQuestion, 
         db.add(CompetitionMockQuestionOption(
             mock_question_id=QuestionRecord.id,
             option_label=Label[:1],
-            option_value=str(Option.get("value", "")),
+            option_value=PlainNumberString(Option.get("value", "")),
             is_correct=bool(Option.get("is_correct")),
             display_order=int(Option.get("display_order") or Index + 1),
         ))
@@ -3287,7 +3288,7 @@ def GenerateCompetitionMockDraft(
             question_text=Question.get("question_text"),
             operands_json=json.dumps(Question.get("operands") or []),
             operators_json=json.dumps(Question.get("operators") or []),
-            correct_answer=str(Question.get("correct_answer")),
+            correct_answer=PlainNumberString(Question.get("correct_answer")),
             explanation=Question.get("explanation"),
             difficulty=str(Question.get("difficulty") or DifficultyBand or "COMPETITION"),
             concept_family=str(Metadata.get("conceptFamily") or Metadata.get("concept_family") or ConceptKey)[:100],
