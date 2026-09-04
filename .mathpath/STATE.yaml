@@ -1,8 +1,12 @@
 current_epic: annual-competition-plan.md
-active_package: pkg-02-assignment-engine.md
+active_package: pkg-03-admin-studio.md
 status: IN_PROGRESS
 
 # Previous epic (competition-mock-practice-plan.md) is COMPLETED and shipped.
 # Annual Competition (2026-09) is now the active epic. Package 1 (data model)
-# is COMPLETE -- see .mathpath/packages/pkg-01-data-model.md. Package 2
-# (assignment engine) is next.
+# and Package 2 (assignment engine) are COMPLETE -- see
+# .mathpath/packages/pkg-01-data-model.md and pkg-02-assignment-engine.md.
+# Package 3 (Admin Annual Competition Studio) is next. Everything so far is
+# built and verified locally only -- push/merge/deploy is being bundled
+# across all packages per Shailesh's instruction (2026-09-04), not done
+# per-package.

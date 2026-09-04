@@ -93,6 +93,11 @@ from app.services.competition_mock_assignment_service import (
     ListCompetitionMockAssignments,
 )
 
+from app.services.annual_competition_assignment_service import (
+    PreviewAnnualCompetitionAssignments,
+    RunAnnualCompetitionAssignmentEngine,
+)
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 
@@ -125,6 +130,9 @@ class CompetitionMockAssignRequest(BaseModel):
 
 class AssessmentRemarkRequest(BaseModel):
     remarkText: str
+
+class AnnualCompetitionAssignmentRunRequest(BaseModel):
+    studentIds: list[str] | None = None
 
 
 def _admin_natural_sort_key(value: Any) -> list[Any]:
@@ -5741,6 +5749,32 @@ def admin_list_competition_mock_assignments(
             Status=status,
         )
     }
+
+
+# --- Annual Competition (Package 2): auto-assignment engine -----------------
+# See backend/app/services/annual_competition_assignment_service.py for the
+# full mapping table and rationale. Preview is a pure dry-run (no writes) so
+# the computed mapping can be checked against MathPath's own table before
+# it's ever relied on for real -- see .mathpath/packages/pkg-02-assignment-engine.md.
+
+@router.get("/annual-competition/events/{event_id}/assignments/preview")
+def admin_preview_annual_competition_assignments(
+    event_id: str,
+    studentIds: list[str] | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return PreviewAnnualCompetitionAssignments(db, EventId=event_id, StudentIds=studentIds)
+
+
+@router.post("/annual-competition/events/{event_id}/assignments/run")
+def admin_run_annual_competition_assignments(
+    event_id: str,
+    payload: AnnualCompetitionAssignmentRunRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return RunAnnualCompetitionAssignmentEngine(db, EventId=event_id, RunBy=user, StudentIds=payload.studentIds)
 
 
 from app.api.routes_teacher import _teacher_competition_row_payload, _competition_duration_text
