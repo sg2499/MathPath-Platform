@@ -409,3 +409,119 @@ def test_reconciliation_is_idempotent():
     second = engine.ReconcileExpiredCompetitionEventAttempts(db)
     assert first["reconciledCount"] == 1
     assert second["reconciledCount"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Retry grants (REQUIREMENTS.md item 6 -- admin "technical issue" override)
+# ---------------------------------------------------------------------------
+
+def _admin_user(db, uid="admin-1"):
+    u = User(id=uid, full_name="Admin User", email=f"{uid}@example.test", password_hash="x", role="ADMIN", is_active=True)
+    db.add(u)
+    db.commit()
+    return u
+
+
+def test_grant_retry_rejected_while_attempt_still_in_progress():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    admin = _admin_user(db)
+
+    with pytest.raises(HTTPException):
+        engine.GrantAnnualCompetitionAttemptRetry(db, AttemptId=started["attemptId"], GrantedBy=admin, Reason="Server crashed mid-section.")
+
+
+def test_grant_retry_requires_a_non_blank_reason():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
+    admin = _admin_user(db)
+
+    with pytest.raises(HTTPException):
+        engine.GrantAnnualCompetitionAttemptRetry(db, AttemptId=started["attemptId"], GrantedBy=admin, Reason="   ")
+
+
+def test_grant_retry_against_unknown_attempt_is_404():
+    db = _session()
+    _full_setup(db)
+    admin = _admin_user(db)
+
+    with pytest.raises(HTTPException):
+        engine.GrantAnnualCompetitionAttemptRetry(db, AttemptId="does-not-exist", GrantedBy=admin, Reason="Any reason.")
+
+
+def test_start_after_submitted_still_rejected_without_a_grant():
+    """Unchanged existing behavior: the single-attempt rule stays absolute
+    when no admin retry grant exists -- this is the exact scenario
+    test_start_after_submitted_is_rejected above already covers; repeated
+    here under the retry-grant section for clarity that adding grants
+    never weakens the default-rejected path."""
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
+
+    with pytest.raises(HTTPException):
+        engine.StartCompetitionEventAttempt(db, student, event.id)
+
+
+def test_granted_retry_lets_start_create_a_second_attempt():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    first = engine.StartCompetitionEventAttempt(db, student, event.id)
+    engine.SubmitCompetitionEventSection(db, student, first["attemptId"], first["sessionToken"], 1)
+    admin = _admin_user(db)
+
+    grant = engine.GrantAnnualCompetitionAttemptRetry(
+        db, AttemptId=first["attemptId"], GrantedBy=admin, Reason="Laptop died during the exam window."
+    )
+    assert grant["status"] == "APPROVED"
+    assert grant["usedAt"] is None
+
+    second = engine.StartCompetitionEventAttempt(db, student, event.id)
+    assert second["attemptId"] != first["attemptId"]
+    assert second["status"] == "IN_PROGRESS"
+    assert second["sections"][0]["status"] == "ACTIVE"
+
+    old_attempt = db.get(CompetitionEventAttempt, first["attemptId"])
+    new_attempt = db.get(CompetitionEventAttempt, second["attemptId"])
+    assert old_attempt.attempt_number == 1
+    assert new_attempt.attempt_number == 2
+    # The old, already-scored attempt is left completely untouched.
+    assert old_attempt.status == "FINALIZED"
+
+    grants = engine.ListAnnualCompetitionAttemptRetryGrants(db, EventId=event.id)["grants"]
+    assert len(grants) == 1
+    assert grants[0]["status"] == "USED"
+    assert grants[0]["usedAttemptId"] == second["attemptId"]
+
+
+def test_granted_retry_is_consumed_and_not_reusable_for_a_third_attempt():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    first = engine.StartCompetitionEventAttempt(db, student, event.id)
+    engine.SubmitCompetitionEventSection(db, student, first["attemptId"], first["sessionToken"], 1)
+    admin = _admin_user(db)
+    engine.GrantAnnualCompetitionAttemptRetry(db, AttemptId=first["attemptId"], GrantedBy=admin, Reason="Technical issue.")
+    second = engine.StartCompetitionEventAttempt(db, student, event.id)
+    engine.SubmitCompetitionEventSection(db, student, second["attemptId"], second["sessionToken"], 1)
+
+    # The grant was consumed by the second attempt -- a third start with no
+    # new grant is rejected exactly like the very first rejection.
+    with pytest.raises(HTTPException):
+        engine.StartCompetitionEventAttempt(db, student, event.id)
+
+
+def test_cannot_grant_a_second_retry_while_one_is_still_unused():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
+    admin = _admin_user(db)
+
+    engine.GrantAnnualCompetitionAttemptRetry(db, AttemptId=started["attemptId"], GrantedBy=admin, Reason="First technical issue.")
+
+    with pytest.raises(HTTPException):
+        engine.GrantAnnualCompetitionAttemptRetry(db, AttemptId=started["attemptId"], GrantedBy=admin, Reason="Second reason.")

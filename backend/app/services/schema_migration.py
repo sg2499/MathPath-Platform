@@ -1178,6 +1178,57 @@ def ensure_annual_competition_tables() -> None:
                 )
             """))
 
+        if "competition_event_attempt_answers" not in tables:
+            # Package 5 (student live-attempt UI, answer capture) --
+            # backfilled here alongside the retry-grants table below (both
+            # added the same day while building REQUIREMENTS.md item 6):
+            # this table has had a SQLAlchemy model
+            # (CompetitionEventAttemptAnswer) and live runtime dependents
+            # (Package 5's answer-save endpoint, Package 6's "first mistake"
+            # tie-break) since Package 5 shipped, but was never added to
+            # this safety net or to any Alembic migration -- only ever
+            # created implicitly by Base.metadata.create_all() in tests. A
+            # production deploy relying on this safety net (this codebase's
+            # own comments elsewhere note `alembic upgrade head` has not
+            # always been run reliably) would have hit "no such table" the
+            # first time a student saved a competition answer. See the
+            # matching Alembic migration
+            # (7f3c9a1e5d02_add_annual_competition_retry_grants.py) for the
+            # same backfill via the other path.
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_attempt_answers (
+                    id VARCHAR PRIMARY KEY,
+                    attempt_id VARCHAR NOT NULL,
+                    mock_question_id VARCHAR NOT NULL,
+                    selected_option_id VARCHAR,
+                    is_correct BOOLEAN,
+                    answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_competition_event_attempt_question_answer UNIQUE (attempt_id, mock_question_id)
+                )
+            """))
+
+        if "competition_event_attempt_retry_grants" not in tables:
+            # REQUIREMENTS.md outstanding item 6 -- the admin-only "technical
+            # issue" single-retake override. See
+            # CompetitionEventAttemptRetryGrant's own docstring in
+            # app/models/models.py for the full design rationale (mirrors
+            # AssignmentReattemptPermission's APPROVED -> USED lifecycle).
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_attempt_retry_grants (
+                    id VARCHAR PRIMARY KEY,
+                    event_id VARCHAR NOT NULL,
+                    assignment_id VARCHAR NOT NULL,
+                    student_id VARCHAR NOT NULL,
+                    granted_by_user_id VARCHAR,
+                    reason TEXT NOT NULL,
+                    status VARCHAR(30) DEFAULT 'APPROVED' NOT NULL,
+                    used_attempt_id VARCHAR,
+                    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    used_at TIMESTAMP
+                )
+            """))
+
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_slots_event ON competition_event_slots (event_id)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_level_papers_event ON competition_event_level_papers (event_id)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_level_papers_mock_exam ON competition_event_level_papers (mock_exam_id)"))
@@ -1193,6 +1244,14 @@ def ensure_annual_competition_tables() -> None:
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_results_event ON competition_event_results (event_id)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_results_assignment ON competition_event_results (assignment_id)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_results_student ON competition_event_results (student_id, is_released)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_answers_attempt_id ON competition_event_attempt_answers (attempt_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_answers_mock_question_id ON competition_event_attempt_answers (mock_question_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_answers_selected_option_id ON competition_event_attempt_answers (selected_option_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_event_id ON competition_event_attempt_retry_grants (event_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_assignment_id ON competition_event_attempt_retry_grants (assignment_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_student_id ON competition_event_attempt_retry_grants (student_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_granted_by_user_id ON competition_event_attempt_retry_grants (granted_by_user_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_used_attempt_id ON competition_event_attempt_retry_grants (used_attempt_id)"))
 
 
 def ensure_mock_notifications_fixed() -> None:

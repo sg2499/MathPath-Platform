@@ -2,10 +2,11 @@
 
 Status as of 2026-09-05: **Packages 1-7 of the build (data model,
 assignment engine, admin studio, section-timer/pause engine, student
-attempt UI, scoring + results, teacher/admin monitoring) are COMPLETE —
-see `.mathpath/STATE.yaml` and `.mathpath/packages/pkg-0{1..7}-*.md` for
-exact build status; this file stays the requirements source of truth, not
-the build-progress tracker.**
+attempt UI, scoring + results, teacher/admin monitoring), plus Package 6b
+(admin "technical issue" retry override, item 6 below), are COMPLETE —
+see `.mathpath/STATE.yaml` and `.mathpath/packages/pkg-0{1..7}-*.md` /
+`pkg-06b-retry-override.md` for exact build status; this file stays the
+requirements source of truth, not the build-progress tracker.**
 Seven items were originally open; the client has now answered all seven,
 including a 2026-09-05 follow-up that resolved the one item (1+2) that
 needed a more precise answer (see that section below for the full
@@ -341,6 +342,20 @@ answers below, plus what each one means for the packages already built
    that package's checklist). Recommend adding it as a small, self
    -contained addition before go-live; does not require reopening Package
    4's existing logic, just a new admin action.
+   - **Implemented 2026-09-05 (Package 6b).** A new admin-only
+     `CompetitionEventAttemptRetryGrant` (mirrors the pre-existing DPS
+     `AssignmentReattemptPermission`'s APPROVED→USED lifecycle) is checked
+     by `StartCompetitionEventAttempt` before it rejects a second start;
+     if an unused grant exists for the assignment, a fresh attempt is
+     created (next `attempt_number`, same assignment) and the grant is
+     consumed in the same transaction. The default single-attempt
+     rejection is completely unchanged when no grant exists. Admin action:
+     `POST /api/admin/annual-competition/attempts/retry-grants`
+     (`attemptId`, `reason` — required, non-blank). See
+     `.mathpath/packages/pkg-06b-retry-override.md` for full detail,
+     including a genuine pre-existing gap (missing migration/safety-net
+     coverage for `competition_event_attempt_answers`) discovered and
+     fixed alongside this addition.
 
 7. **The 2:00–2:30 PM slot is too short for IM-4/MM-2.** Client's answer,
    verbatim: *"Each student appearing online will be asked to login 10 mins

@@ -19,6 +19,9 @@ status: IN_PROGRESS
 # for teachers, admin UI finally added for Package 4's reconcile sweep and
 # Package 6's rank/release actions, and a new read-only teacher monitoring
 # page) are all COMPLETE -- see .mathpath/packages/pkg-0{5,6,7}-*.md.
+# Package 6b (admin "technical issue" retry override, REQUIREMENTS.md item
+# 6) is also COMPLETE -- see .mathpath/packages/pkg-06b-retry-override.md
+# and the note below.
 # Package 5 also added answer capture (CompetitionEventAttemptAnswer),
 # which Package 4's own doc had explicitly scoped out -- a considered,
 # documented scope addition, not a silent expansion. Package 6 required
@@ -31,10 +34,20 @@ status: IN_PROGRESS
 # sequencing and Shailesh's "section by section" cadence -- not yet
 # started, awaiting explicit go-ahead.
 #
-# Still flagged, not yet built (never blocked any package's own checklist,
-# but needed before go-live): REQUIREMENTS.md item 6's admin-triggered
-# "technical issue" retry override for a genuine single retake -- see
-# pkg-06-scoring-and-results.md's "Not built in this package" section.
+# REQUIREMENTS.md item 6's admin-triggered "technical issue" retry override
+# (Package 6b, 2026-09-05) is now COMPLETE -- see
+# .mathpath/packages/pkg-06b-retry-override.md. Built directly on
+# Shailesh's explicit go-ahead in between Package 7 and the still-blocked
+# Package 8, since Package 8's own scope (leaderboard/certificates) needs
+# client confirmation this does not. New table
+# CompetitionEventAttemptRetryGrant mirrors the pre-existing DPS
+# AssignmentReattemptPermission's APPROVED->USED lifecycle; StartCompetitionEventAttempt's
+# existing single-attempt rejection now checks for one before rejecting. A
+# genuine pre-existing gap was found and fixed as part of the same change:
+# competition_event_attempt_answers (Package 5) had no Alembic migration or
+# startup-safety-net coverage at all -- backfilled into both. API-only, no
+# admin UI yet (matches this epic's own established precedent of shipping
+# admin actions API-first) -- see the package doc for full detail.
 #
 # The client's follow-up answer on items 1+2 (YLM/PL-1 age-boundary rule)
 # arrived 2026-09-05 and resolved the ambiguity -- Package 2's

@@ -648,6 +648,49 @@ class CompetitionEventAttemptAnswer(Base):
     __table_args__ = (UniqueConstraint("attempt_id", "mock_question_id", name="uq_competition_event_attempt_question_answer"),)
 
 
+class CompetitionEventAttemptRetryGrant(Base):
+    __tablename__ = "competition_event_attempt_retry_grants"
+    # REQUIREMENTS.md outstanding item 6 ("only once unless there is a
+    # technical issue from our end"). Package 4 already enforces the
+    # single-attempt part unconditionally (StartCompetitionEventAttempt
+    # rejects any second start once the existing attempt reaches a terminal
+    # status); this table is the admin-only escape hatch for a genuine
+    # technical-issue retake, and nothing else. Deliberately mirrors
+    # AssignmentReattemptPermission's own shape and lifecycle (APPROVED ->
+    # USED, checked at start time, consumed the moment the resulting fresh
+    # attempt is created) rather than the more complex
+    # BuildManualRetryAssignment/allow_assignment_reattempt_route DPS
+    # precedent, which creates a whole new Assignment object -- that doesn't
+    # map here, since a CompetitionEventAssignment is a permanent event
+    # enrollment, not a per-attempt object. A granted retry instead produces
+    # a new CompetitionEventAttempt row with the next attempt_number on the
+    # SAME assignment, which CompetitionEventAttempt already supports via
+    # its (assignment_id, attempt_number) unique constraint.
+    id = Column(String, primary_key=True, default=uuid_str)
+    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    assignment_id = Column(String, ForeignKey("competition_event_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    granted_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    # Required (NOT NULL, unlike AssignmentReattemptPermission.reason which
+    # is nullable) -- a retry override against a real, scored competition
+    # attempt should never be grantable without a stated reason on record.
+    reason = Column(Text, nullable=False)
+    # APPROVED -> USED. No REJECTED/REVOKED state: an admin who changes their
+    # mind simply never triggers the resulting attempt start; there is no
+    # student-visible "pending request" state to reject in the first place,
+    # since only an admin can create this row at all.
+    status = Column(String(30), default="APPROVED", nullable=False)
+    used_attempt_id = Column(String, ForeignKey("competition_event_attempts.id"), nullable=True, index=True)
+    granted_at = Column(DateTime(timezone=True), server_default=func.now())
+    used_at = Column(DateTime(timezone=True), nullable=True)
+
+    event = relationship("CompetitionEvent")
+    assignment = relationship("CompetitionEventAssignment")
+    student = relationship("Student")
+    granted_by = relationship("User", foreign_keys=[granted_by_user_id])
+    used_attempt = relationship("CompetitionEventAttempt", foreign_keys=[used_attempt_id])
+
+
 class AssessmentBlueprint(Base):
     __tablename__ = "assessment_blueprints"
     id = Column(String, primary_key=True, default=uuid_str)

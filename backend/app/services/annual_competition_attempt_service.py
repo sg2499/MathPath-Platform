@@ -97,6 +97,38 @@ abandoned partway through), crediting no additional time beyond what
 was already on record -- consistent with the pause philosophy: an
 abandonment is not retroactively punished beyond the one grace window
 it already paid for.
+
+## The admin "technical issue" retry override (REQUIREMENTS.md item 6)
+
+"Only once unless there is a technical issue from our end." The single-
+attempt part is exactly what `TERMINAL_ATTEMPT_STATUSES` already enforces
+above (`StartCompetitionEventAttempt` unconditionally rejects a second
+start once the existing attempt reaches SUBMITTED/FINALIZED) -- this
+section is only about the override, not a change to that rule.
+
+`GrantAnnualCompetitionAttemptRetry` is an admin-only action against one
+specific terminal attempt, and mirrors `AssignmentReattemptPermission`'s
+own APPROVED -> USED lifecycle from the DPS precedent
+(`active_reattempt_permission_for_attempt` / `start_attempt` in
+attempt_service.py) rather than the more elaborate
+`BuildManualRetryAssignment` precedent, which manufactures a whole new
+`Assignment` row -- that doesn't apply here, since a
+`CompetitionEventAssignment` is a permanent event enrollment, not a
+retryable per-attempt object. A granted retry instead produces a new
+`CompetitionEventAttempt` row on the SAME assignment, one `attempt_number`
+higher, which the table's own `(assignment_id, attempt_number)` unique
+constraint already supports.
+
+`StartCompetitionEventAttempt`'s terminal-status rejection branch checks
+for an active (APPROVED, unused) grant before rejecting; if one exists, it
+consumes it (status -> USED, `used_at`, `used_attempt_id`) in the same
+transaction that creates the fresh attempt, through the exact same
+slot-gate/level-paper/section-timer/section-state-seeding path a brand new
+first attempt uses (`_BuildFreshAttempt`, shared by both) -- a retry is not
+a special case of that logic, just a second call to it with a higher
+`attempt_number`. The old, terminal attempt and its `CompetitionEventResult`
+are left completely untouched; nothing about a granted retry retroactively
+changes what was already scored.
 """
 
 from __future__ import annotations
@@ -114,6 +146,7 @@ from app.models import (
     CompetitionEventAssignment,
     CompetitionEventAttempt,
     CompetitionEventAttemptAnswer,
+    CompetitionEventAttemptRetryGrant,
     CompetitionEventAttemptSectionState,
     CompetitionEventLevelPaper,
     CompetitionEventSectionTimer,
@@ -122,6 +155,7 @@ from app.models import (
     CompetitionMockQuestion,
     CompetitionMockQuestionOption,
     Student,
+    User,
 )
 
 # 30-60s per the plan; 45s is the documented midpoint -- long enough to
@@ -178,6 +212,25 @@ def _CheckSlotGate(db: Session, AssignmentRecord: CompetitionEventAssignment, No
             "Your competition slot has not opened yet.",
             {"scheduledStartAt": ScheduledStartAt.isoformat()},
         )
+
+
+def _ActiveRetryGrant(db: Session, AssignmentId: str) -> CompetitionEventAttemptRetryGrant | None:
+    """Mirrors attempt_service.py's own `active_reattempt_permission_for_attempt`
+    precedent exactly: an admin-granted, not-yet-used retry override for
+    this assignment. Ordered by `granted_at` descending -- nothing prevents
+    an admin from granting a second one at the DB level (see the model's
+    own docstring), so if that ever happens the most recently granted one
+    is the one that gets consumed."""
+    return (
+        db.query(CompetitionEventAttemptRetryGrant)
+        .filter(
+            CompetitionEventAttemptRetryGrant.assignment_id == AssignmentId,
+            CompetitionEventAttemptRetryGrant.status == "APPROVED",
+            CompetitionEventAttemptRetryGrant.used_at.is_(None),
+        )
+        .order_by(CompetitionEventAttemptRetryGrant.granted_at.desc())
+        .first()
+    )
 
 
 def _ActiveSection(db: Session, AttemptRecord: CompetitionEventAttempt) -> CompetitionEventAttemptSectionState | None:
@@ -388,6 +441,88 @@ def _AttemptPayload(
     return Payload
 
 
+def _RetryGrantPayload(GrantRecord: CompetitionEventAttemptRetryGrant) -> dict[str, Any]:
+    return {
+        "grantId": GrantRecord.id,
+        "eventId": GrantRecord.event_id,
+        "assignmentId": GrantRecord.assignment_id,
+        "studentId": GrantRecord.student_id,
+        "grantedByUserId": GrantRecord.granted_by_user_id,
+        "reason": GrantRecord.reason,
+        "status": GrantRecord.status,
+        "usedAttemptId": GrantRecord.used_attempt_id,
+        "grantedAt": GrantRecord.granted_at.isoformat() if GrantRecord.granted_at else None,
+        "usedAt": GrantRecord.used_at.isoformat() if GrantRecord.used_at else None,
+    }
+
+
+def _BuildFreshAttempt(
+    db: Session,
+    EventId: str,
+    AssignmentRecord: CompetitionEventAssignment,
+    StudentRecord: Student,
+    NowUtc: datetime,
+    *,
+    AttemptNumber: int,
+) -> CompetitionEventAttempt:
+    """Shared by both a brand-new first attempt and a retry-granted
+    subsequent one -- same slot gate, same level-paper/section-timer
+    lookup, same section-state seeding either way. `_CheckSlotGate` has no
+    upper bound (it only blocks starting BEFORE a slot's
+    scheduled_start_at -- see its own docstring), so it is safe to apply
+    here unconditionally even though a retry-granted attempt, by
+    definition, always starts well after the event's original scheduled
+    time."""
+    _CheckSlotGate(db, AssignmentRecord, NowUtc)
+
+    LevelPaperRecord = (
+        db.query(CompetitionEventLevelPaper)
+        .filter(
+            CompetitionEventLevelPaper.event_id == EventId,
+            CompetitionEventLevelPaper.competition_level_code == AssignmentRecord.assigned_level_code,
+        )
+        .first()
+    )
+    if not LevelPaperRecord or not LevelPaperRecord.mock_exam_id:
+        api_error(400, "COMPETITION_LEVEL_PAPER_NOT_READY", "This level's competition paper has not been set up yet.")
+
+    SectionTimers = (
+        db.query(CompetitionEventSectionTimer)
+        .filter(CompetitionEventSectionTimer.level_paper_id == LevelPaperRecord.id)
+        .order_by(CompetitionEventSectionTimer.display_order.asc(), CompetitionEventSectionTimer.section_number.asc())
+        .all()
+    )
+    if not SectionTimers:
+        api_error(400, "COMPETITION_LEVEL_PAPER_NOT_READY", "This level's section timers have not been set up yet.")
+
+    AttemptRecord = CompetitionEventAttempt(
+        event_id=EventId,
+        assignment_id=AssignmentRecord.id,
+        level_paper_id=LevelPaperRecord.id,
+        student_id=StudentRecord.id,
+        attempt_number=AttemptNumber,
+        status=IN_PROGRESS_STATUS,
+        session_token=secrets.token_urlsafe(32),
+        current_section_number=SectionTimers[0].section_number,
+        started_at=NowUtc,
+    )
+    db.add(AttemptRecord)
+    db.flush()  # AttemptRecord.id must exist before the section-state rows below reference it
+
+    for Index, Timer in enumerate(SectionTimers):
+        SectionState = CompetitionEventAttemptSectionState(
+            attempt_id=AttemptRecord.id,
+            section_number=Timer.section_number,
+            status="PENDING",
+            time_limit_seconds=Timer.time_limit_seconds,
+        )
+        if Index == 0:
+            _ActivateSection(SectionState, NowUtc)
+        db.add(SectionState)
+
+    return AttemptRecord
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -435,7 +570,22 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
     )
     if ExistingAttempt:
         if ExistingAttempt.status in TERMINAL_ATTEMPT_STATUSES:
-            api_error(403, "COMPETITION_ATTEMPT_ALREADY_SUBMITTED", "This competition attempt has already been submitted.")
+            # REQUIREMENTS.md item 6: the single-attempt rule above is
+            # absolute UNLESS an admin has granted a genuine "technical
+            # issue" retry for this exact assignment -- see this module's
+            # own docstring section on GrantAnnualCompetitionAttemptRetry.
+            RetryGrant = _ActiveRetryGrant(db, AssignmentRecord.id)
+            if not RetryGrant:
+                api_error(403, "COMPETITION_ATTEMPT_ALREADY_SUBMITTED", "This competition attempt has already been submitted.")
+            NewAttempt = _BuildFreshAttempt(
+                db, EventId, AssignmentRecord, StudentRecord, NowUtc, AttemptNumber=ExistingAttempt.attempt_number + 1
+            )
+            RetryGrant.status = "USED"
+            RetryGrant.used_at = NowUtc
+            RetryGrant.used_attempt_id = NewAttempt.id
+            db.commit()
+            db.refresh(NewAttempt)
+            return _AttemptPayload(db, NewAttempt, IncludeSessionToken=True)
         # Resume: reissue the session token, then self-correct any state
         # that should already have advanced/finalized while nobody was
         # looking (same lazy check every other entry point runs).
@@ -445,53 +595,7 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
         db.refresh(ExistingAttempt)
         return _AttemptPayload(db, ExistingAttempt, IncludeSessionToken=True)
 
-    _CheckSlotGate(db, AssignmentRecord, NowUtc)
-
-    LevelPaperRecord = (
-        db.query(CompetitionEventLevelPaper)
-        .filter(
-            CompetitionEventLevelPaper.event_id == EventId,
-            CompetitionEventLevelPaper.competition_level_code == AssignmentRecord.assigned_level_code,
-        )
-        .first()
-    )
-    if not LevelPaperRecord or not LevelPaperRecord.mock_exam_id:
-        api_error(400, "COMPETITION_LEVEL_PAPER_NOT_READY", "This level's competition paper has not been set up yet.")
-
-    SectionTimers = (
-        db.query(CompetitionEventSectionTimer)
-        .filter(CompetitionEventSectionTimer.level_paper_id == LevelPaperRecord.id)
-        .order_by(CompetitionEventSectionTimer.display_order.asc(), CompetitionEventSectionTimer.section_number.asc())
-        .all()
-    )
-    if not SectionTimers:
-        api_error(400, "COMPETITION_LEVEL_PAPER_NOT_READY", "This level's section timers have not been set up yet.")
-
-    AttemptRecord = CompetitionEventAttempt(
-        event_id=EventId,
-        assignment_id=AssignmentRecord.id,
-        level_paper_id=LevelPaperRecord.id,
-        student_id=StudentRecord.id,
-        attempt_number=1,
-        status=IN_PROGRESS_STATUS,
-        session_token=secrets.token_urlsafe(32),
-        current_section_number=SectionTimers[0].section_number,
-        started_at=NowUtc,
-    )
-    db.add(AttemptRecord)
-    db.flush()  # AttemptRecord.id must exist before the section-state rows below reference it
-
-    for Index, Timer in enumerate(SectionTimers):
-        SectionState = CompetitionEventAttemptSectionState(
-            attempt_id=AttemptRecord.id,
-            section_number=Timer.section_number,
-            status="PENDING",
-            time_limit_seconds=Timer.time_limit_seconds,
-        )
-        if Index == 0:
-            _ActivateSection(SectionState, NowUtc)
-        db.add(SectionState)
-
+    AttemptRecord = _BuildFreshAttempt(db, EventId, AssignmentRecord, StudentRecord, NowUtc, AttemptNumber=1)
     db.commit()
     db.refresh(AttemptRecord)
     return _AttemptPayload(db, AttemptRecord, IncludeSessionToken=True)
@@ -844,3 +948,70 @@ def ReconcileExpiredCompetitionEventAttempts(db: Session) -> dict[str, Any]:
 
     db.commit()
     return {"reconciledCount": len(ReconciledAttemptIds), "attemptIds": ReconciledAttemptIds}
+
+
+def GrantAnnualCompetitionAttemptRetry(db: Session, *, AttemptId: str, GrantedBy: User, Reason: str) -> dict[str, Any]:
+    """Admin-only action behind REQUIREMENTS.md item 6 -- see this module's
+    docstring section on the retry override for the full design rationale.
+
+    Takes the specific terminal attempt that needs a genuine retake, not a
+    bare assignment/student id: an admin reviewing a result is always
+    looking at one specific attempt, and requiring that id here makes it
+    structurally impossible to accidentally grant a retry against the
+    wrong one of a student's own past attempts if this is ever granted
+    more than once for the same assignment. `_ActiveRetryGrant` (used both
+    here and in `StartCompetitionEventAttempt`) is keyed off
+    `assignment_id`, not `attempt_id`, since the grant's whole purpose is
+    to authorize a NEW attempt on that assignment -- it necessarily
+    outlives the specific attempt it was granted against.
+    """
+    AttemptRecord = db.get(CompetitionEventAttempt, AttemptId)
+    if not AttemptRecord:
+        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
+
+    if AttemptRecord.status not in TERMINAL_ATTEMPT_STATUSES:
+        api_error(
+            409,
+            "COMPETITION_ATTEMPT_NOT_TERMINAL",
+            "A retry can only be granted against a submitted or finalized attempt.",
+        )
+
+    CleanReason = (Reason or "").strip()
+    if not CleanReason:
+        api_error(400, "COMPETITION_RETRY_REASON_REQUIRED", "A reason is required to grant a competition retry.")
+
+    if _ActiveRetryGrant(db, AttemptRecord.assignment_id):
+        api_error(
+            409,
+            "COMPETITION_RETRY_ALREADY_GRANTED",
+            "An unused retry grant already exists for this assignment.",
+        )
+
+    GrantRecord = CompetitionEventAttemptRetryGrant(
+        event_id=AttemptRecord.event_id,
+        assignment_id=AttemptRecord.assignment_id,
+        student_id=AttemptRecord.student_id,
+        granted_by_user_id=GrantedBy.id if GrantedBy else None,
+        reason=CleanReason,
+        status="APPROVED",
+    )
+    db.add(GrantRecord)
+    db.commit()
+    db.refresh(GrantRecord)
+    return _RetryGrantPayload(GrantRecord)
+
+
+def ListAnnualCompetitionAttemptRetryGrants(db: Session, *, EventId: str) -> dict[str, Any]:
+    """Minimal admin visibility list -- every retry grant ever issued for
+    this event, newest first. API-only for now, same deliberate deferral
+    Package 2's preview/run endpoints and Package 6's rank/release
+    endpoints originally used before Package 7 finally gave them a UI --
+    a dedicated "Grant Retry" admin surface is a later, separate decision,
+    not part of this addition."""
+    Grants = (
+        db.query(CompetitionEventAttemptRetryGrant)
+        .filter(CompetitionEventAttemptRetryGrant.event_id == EventId)
+        .order_by(CompetitionEventAttemptRetryGrant.granted_at.desc())
+        .all()
+    )
+    return {"grants": [_RetryGrantPayload(GrantRecord) for GrantRecord in Grants]}

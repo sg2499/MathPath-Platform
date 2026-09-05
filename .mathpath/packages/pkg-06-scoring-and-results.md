@@ -147,6 +147,6 @@ deliberate, documented scope decision, not an oversight.
   (data model stays extensible; nothing here blocks it).
 - No live monitoring of an in-progress competition -- Package 7.
 - The "technical issue" admin-retry-override for a genuine retake
-  (REQUIREMENTS.md item 6) is still not built -- it was never on this
-  package's checklist either; flagged again here as a small, self
-  -contained addition still needed before go-live.
+  (REQUIREMENTS.md item 6) -- was never on this package's checklist
+  either; now built as its own small addition, see
+  `pkg-06b-retry-override.md` (COMPLETE, 2026-09-05).

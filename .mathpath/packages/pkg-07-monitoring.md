@@ -117,6 +117,5 @@ after it's over.
 ## Not built in this package (by design -- later packages' scope)
 - No leaderboard or certificate display -- Package 8's territory.
 - The "technical issue" admin-retry-override for a genuine retake
-  (REQUIREMENTS.md item 6) is still not built -- flagged again here,
-  still needed before go-live, still never blocking any package's own
-  checklist.
+  (REQUIREMENTS.md item 6) -- flagged again here, now built as its own
+  small addition, see `pkg-06b-retry-override.md` (COMPLETE, 2026-09-05).

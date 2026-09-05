@@ -116,6 +116,8 @@ from app.services.annual_competition_studio_service import (
 
 from app.services.annual_competition_attempt_service import (
     ReconcileExpiredCompetitionEventAttempts,
+    GrantAnnualCompetitionAttemptRetry,
+    ListAnnualCompetitionAttemptRetryGrants,
 )
 
 from app.services.annual_competition_scoring_service import (
@@ -203,6 +205,10 @@ class AnnualCompetitionOverrideRequest(BaseModel):
     studentId: str
     assignedLevelCode: str
     slotId: str | None = None
+
+class AnnualCompetitionGrantRetryRequest(BaseModel):
+    attemptId: str
+    reason: str
 
 class AnnualCompetitionRankResultsRequest(BaseModel):
     competitionLevelCode: str
@@ -5999,6 +6005,28 @@ def admin_override_annual_competition_assignment(
 @router.post("/annual-competition/attempts/reconcile")
 def admin_reconcile_annual_competition_attempts(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return ReconcileExpiredCompetitionEventAttempts(db)
+
+
+# REQUIREMENTS.md item 6 -- the admin-only "technical issue" single-retake
+# override. See GrantAnnualCompetitionAttemptRetry's own docstring in
+# annual_competition_attempt_service.py for the full design rationale.
+# API-only for now, same deliberate deferral this file's other Annual
+# Competition endpoints have already used (Package 2's preview/run,
+# Package 6's rank/release before Package 7 gave them a UI) -- a dedicated
+# "Grant Retry" admin surface is a separate, later decision.
+
+@router.post("/annual-competition/attempts/retry-grants")
+def admin_grant_annual_competition_attempt_retry(
+    payload: AnnualCompetitionGrantRetryRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return GrantAnnualCompetitionAttemptRetry(db, AttemptId=payload.attemptId, GrantedBy=user, Reason=payload.reason)
+
+
+@router.get("/annual-competition/events/{event_id}/attempts/retry-grants")
+def admin_list_annual_competition_attempt_retry_grants(
+    event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return ListAnnualCompetitionAttemptRetryGrants(db, EventId=event_id)
 
 
 # --- Annual Competition (Package 6): scoring + results ----------------------
