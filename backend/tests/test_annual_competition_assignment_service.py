@@ -139,7 +139,9 @@ def _clear_lesson(db, student_id, dps_id):
 # ---------------------------------------------------------------------------
 
 DIRECT_CASES = [
-    ("PM", "PM-L1", "YLM-L1"),   # "PL-1 -> YLM"
+    ("PM", "PM-L1", "PM-L1"),    # "PL-1 -> PL-1 (all concepts)" -- resolved 2026-09-05,
+                                  # see annual_competition_assignment_service.py's own
+                                  # docstring ("PL-1 targets its own level...")
     ("PM", "PM-L2", "PM-L1"),    # "PL-2 -> PL-1"
     ("PM", "PM-L3", "PM-L2"),    # "PL-3 -> PL-2"
     ("PM", "PM-L4", "PM-L3"),    # "PL-4 -> PL-3"

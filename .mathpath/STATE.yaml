@@ -17,12 +17,14 @@ status: IN_PROGRESS
 # original plan's sequencing and Shailesh's "section by section" cadence --
 # not yet started, awaiting explicit go-ahead.
 #
-# Also still open: the client's answer to items 1+2 (YLM/PL-1 age-boundary
-# rule) has a genuine ambiguity Shailesh is asking the client to resolve
-# directly (see REQUIREMENTS.md's "Seven outstanding confirmations"
-# section) -- no code should touch Package 2's DIRECT_LEVEL_MAPPING or
-# Package 3's level-code registries for that specific rework until that
-# answer comes back.
+# The client's follow-up answer on items 1+2 (YLM/PL-1 age-boundary rule)
+# arrived 2026-09-05 and resolved the ambiguity -- Package 2's
+# DIRECT_LEVEL_MAPPING[("PM","PM-L1")] now targets "PM-L1" instead of
+# "YLM-L1" (see .mathpath/packages/pkg-02-assignment-engine.md's
+# "Post-completion amendment" section and REQUIREMENTS.md's item 1). No
+# other package needed changes. One soft, non-blocking question remains
+# open (is "Bloomers" a display label or a content-filter name) -- not a
+# code blocker.
 #
 # Everything so far is built and verified locally only -- push/merge/deploy
 # is being bundled across all packages per Shailesh's instruction

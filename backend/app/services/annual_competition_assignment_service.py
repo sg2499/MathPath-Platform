@@ -54,20 +54,46 @@ surprise.
 ## YLP-1 participation (REQUIREMENTS.md open item 1) and why the toggle
 ## is coarser than "just exclude YLP-1"
 
-Every one of YLP-2, YLP-3, and PL-1 maps to the SAME competition bracket
-(YLM) per MathPath's own table -- none of the seven open items make that
-mapping conditional. The one open item is *whether YLP-1 competes at all*.
-As of the 2026-08-12 curriculum change (PRODUCT_RULES.md), the Young
-Learners Module was collapsed to a single level, YLM-L1 -- the platform has
-no data field distinguishing a "YLP-1" sub-cohort from "YLP-2/YLP-3" within
-current YLM-L1 students. INCLUDE_YLM_L1_STUDENTS below is therefore a
-whole-population toggle, not a YLP-1-specific one: while it's False (the
-documented default -- "excluded until confirmed"), no current-YLM-L1
-student gets an assignment computed at all. If MathPath confirms YLP-1
-should be excluded but YLP-2/YLP-3 included, that needs a real sub-cohort
-signal (e.g. a lesson-progress threshold within YLM-L1, same shape as
-Bridge/Master above) that does not exist in the requirements yet -- flag
-that back to MathPath rather than guessing a boundary.
+Every one of YLP-2 and YLP-3 maps to the SAME competition bracket (YLM,
+branded "Bloomers" to students/parents) per MathPath's own table -- none of
+the seven open items make that mapping conditional. The one open item is
+*whether YLP-1 competes at all*. As of the 2026-08-12 curriculum change
+(PRODUCT_RULES.md), the Young Learners Module was collapsed to a single
+level, YLM-L1 -- the platform has no data field distinguishing a "YLP-1"
+sub-cohort from "YLP-2/YLP-3" within current YLM-L1 students.
+INCLUDE_YLM_L1_STUDENTS below is therefore a whole-population toggle, not a
+YLP-1-specific one: while it's False (the documented default -- "excluded
+until confirmed"), no current-YLM-L1 student gets an assignment computed at
+all. If MathPath confirms YLP-1 should be excluded but YLP-2/YLP-3
+included, that needs a real sub-cohort signal (e.g. a lesson-progress
+threshold within YLM-L1, same shape as Bridge/Master above) that does not
+exist in the requirements yet -- flag that back to MathPath rather than
+guessing a boundary.
+
+## PL-1 targets its own level, not the shared YLM/"Bloomers" bracket
+## (REQUIREMENTS.md item 1, resolved 2026-09-05)
+
+Earlier this table routed `("PM", "PM-L1")` (client's "PL-1") into the same
+YLM-L1 bracket as YLP-2/YLP-3, mirroring the client's Section 1 table
+literally. The client's fuller answer on the YLM/PL-1 age-boundary
+question (REQUIREMENTS.md "Seven outstanding confirmations" item 1)
+clarified that PL-1 gets "all the concepts" -- a materially richer paper
+than the direct-sums-only "Bloomers" tier -- and a follow-up confirmed this
+split needs no age-based logic at all: YLP enrollment is itself restricted
+to Class 1/2 (so always under 8) and any PM-L1-current student has by
+definition already progressed past the YLP bracket. So the split is fully
+described by the student's existing (module, level) position alone, and
+PL-1 (`PM-L1`) now targets its OWN level's already-existing, already
+-configured competition registry (`PM_COMPETITION_LEVEL_REGISTRY["PM-L1"]`
+in pm_competition_mock_generation_service.py -- same 3-section shape as
+YLM-L1 but with materially richer digit patterns) rather than the shared
+YLM-L1 bracket. This is a pure redirect of one table row to an
+already-valid target: `PM-L1` was already present in Package 3's
+VALID_COMPETITION_LEVEL_CODES and DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE
+(annual_competition_studio_service.py), so no new registry/config work was
+needed. `Student.dob` is deliberately NOT used anywhere in this module --
+age is a structural consequence of enrollment/curriculum position here, not
+an independent signal to check at runtime.
 
 Nothing in this module is a hardcoded assumption about *content* fairness
 -- see docs/project-memory/annual-competition/REQUIREMENTS.md and
@@ -105,8 +131,11 @@ from app.services.lesson_progress_service import (
 # milestones, never through this dict.
 # ---------------------------------------------------------------------------
 DIRECT_LEVEL_MAPPING: dict[tuple[str, str], str] = {
-    ("YLM", "YLM-L1"): "YLM-L1",   # "YLP-2, YLP-3 -> YLM" (Young Learner category)
-    ("PM", "PM-L1"): "YLM-L1",     # "PL-1 -> YLM" (entry-level YLM category)
+    ("YLM", "YLM-L1"): "YLM-L1",   # "YLP-2, YLP-3 -> YLM" (Young Learner / "Bloomers" category)
+    ("PM", "PM-L1"): "PM-L1",      # "PL-1 -> PL-1 (all concepts)" -- see docstring's
+                                    # "PL-1 targets its own level" section (2026-09-05
+                                    # client follow-up); PL-1 competes at its own level's
+                                    # full paper, NOT the shared YLM/"Bloomers" bracket.
     ("PM", "PM-L2"): "PM-L1",      # "PL-2 -> PL-1"
     ("PM", "PM-L3"): "PM-L2",      # "PL-3 -> PL-2"
     ("PM", "PM-L4"): "PM-L3",      # "PL-4 -> PL-3"

@@ -108,6 +108,30 @@ verified against the actual seed/model code and `PRODUCT_RULES.md`)
       (tested directly, plus preview confirms it would be preserved).
 - [x] Full existing backend suite (373 tests total) still green.
 
+## Post-completion amendment (2026-09-05): PL-1 target corrected
+
+The client's follow-up answer on the YLM/PL-1 age-boundary question
+(REQUIREMENTS.md "Seven outstanding confirmations" item 1) resolved a
+genuine ambiguity flagged when this package was first built: `PM-L1`
+("PL-1") should target its OWN level's competition paper ("all the
+concepts"), not the shared YLM-L1/"Bloomers" bracket YLP-2/YLP-3 use. No
+age-based logic was needed to implement this -- the client clarified age is
+a structural consequence of enrollment/curriculum position (YLP enrollment
+is itself Class 1/2-only; anyone at PM-L1 has already progressed past the
+YLP bracket), so the existing `(module, level)`-keyed table shape already
+captures the split correctly. Shailesh reviewed the analysis and gave the
+go-ahead; the fix was a **pure one-row redirect**:
+`DIRECT_LEVEL_MAPPING[("PM", "PM-L1")]` changed from `"YLM-L1"` to
+`"PM-L1"`. `PM-L1` was already a fully valid, fully configured target in
+Package 3 (`VALID_COMPETITION_LEVEL_CODES` /
+`DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE`), so this required zero new
+registry/config work and zero changes to Packages 1, 3, 4, or 5. Updated:
+`annual_competition_assignment_service.py` (the table row + a new
+docstring section explaining the change) and
+`test_annual_competition_assignment_service.py` (the one affected
+parametrized case). Full backend suite re-run green: 434 passed, zero
+regressions.
+
 ## Not built in this package (by design -- later packages' scope)
 - No slot assignment (`CompetitionEventAssignment.slot_id` stays null --
   slots don't exist until Package 3's admin studio creates them for a real

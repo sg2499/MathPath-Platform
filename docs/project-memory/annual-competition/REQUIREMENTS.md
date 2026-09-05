@@ -282,10 +282,15 @@ answers below, plus what each one means for the packages already built
      accurate description of YLM-L1's registry — so the working default is
      "display label only, no registry change," but this hasn't been asked
      outright.
-   - **Not yet implemented.** This section records the analysis;
-     the `DIRECT_LEVEL_MAPPING` edit itself is withheld pending Shailesh's
-     explicit go-ahead, per standing instruction not to touch code on a
-     genuinely-interpreted answer without review first.
+   - **Implemented 2026-09-05.** Shailesh gave the go-ahead; the
+     `DIRECT_LEVEL_MAPPING[("PM", "PM-L1")]` row now targets `"PM-L1"`
+     (previously `"YLM-L1"`). See `annual_competition_assignment_service.py`'s
+     own docstring ("PL-1 targets its own level, not the shared
+     YLM/"Bloomers" bracket") for the full rationale, and
+     `.mathpath/packages/pkg-02-assignment-engine.md` for the change record.
+     Full backend suite re-verified green (434 passed) after the change.
+     The soft "Bloomers" naming-vs-content question above remains open but
+     non-blocking.
 
 2. See item 1 (client's answer to item 2 pointed back to item 1).
 
