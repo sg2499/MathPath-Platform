@@ -126,6 +126,10 @@ from app.services.annual_competition_scoring_service import (
     ReleaseCompetitionEventResults,
 )
 
+from app.services.annual_competition_certificate_service import (
+    BuildAnnualCompetitionCertificateForAdmin,
+)
+
 from app.services.annual_competition_monitoring_service import (
     GetAnnualCompetitionLiveMonitoring,
 )
@@ -6058,6 +6062,15 @@ def admin_release_annual_competition_results(
     event_id: str, payload: AnnualCompetitionReleaseResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
 ):
     return ReleaseCompetitionEventResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode, ReleasedBy=user)
+
+
+# Package 8 (certificate half): admin download bypasses the release gate
+# entirely (matches this file's "admin always sees everything" convention
+# for Annual Competition) -- useful for a support case or printing ahead
+# of the public release moment.
+@router.get("/annual-competition/attempts/{attempt_id}/certificate")
+def admin_download_annual_competition_certificate(attempt_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return BuildAnnualCompetitionCertificateForAdmin(db, AttemptId=attempt_id)
 
 
 # --- Annual Competition (Package 7): teacher/admin monitoring ---------------

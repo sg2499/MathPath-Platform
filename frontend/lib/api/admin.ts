@@ -1772,6 +1772,16 @@ export async function releaseAnnualCompetitionResults(eventId: string, competiti
   return data;
 }
 
+// Package 8 (certificate half). Admin download bypasses the release gate
+// entirely (matches this table's own "admin always sees everything"
+// convention) -- useful to preview/print a certificate before releasing.
+export async function downloadAnnualCompetitionCertificate(attemptId: string): Promise<Blob> {
+  const { data } = await api.get(`/admin/annual-competition/attempts/${attemptId}/certificate`, {
+    responseType: "blob",
+  });
+  return data;
+}
+
 // ---------------------------------------------------------------------------
 // Annual Competition -- Teacher/Admin Monitoring (Package 7). Types mirror
 // annual_competition_monitoring_service.py's payloads verbatim.

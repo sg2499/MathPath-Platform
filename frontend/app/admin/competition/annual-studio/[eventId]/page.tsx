@@ -10,6 +10,7 @@ import { apiErrorMessage } from "@/lib/api";
 import {
   ANNUAL_COMPETITION_LEVEL_CODES,
   createAnnualCompetitionSlot,
+  downloadAnnualCompetitionCertificate,
   generateAnnualCompetitionLevelPaper,
   getAnnualCompetitionEventOverview,
   getAnnualCompetitionLiveMonitoring,
@@ -33,6 +34,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowLeft,
+  Award,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
@@ -49,6 +51,39 @@ import {
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import type { ReactNode } from "react";
+
+function triggerBlobDownload(BlobValue: Blob, FileName: string) {
+  const Url = window.URL.createObjectURL(BlobValue);
+  const Anchor = document.createElement("a");
+  Anchor.href = Url;
+  Anchor.download = FileName;
+  document.body.appendChild(Anchor);
+  Anchor.click();
+  Anchor.remove();
+  window.URL.revokeObjectURL(Url);
+}
+
+// Package 8 (admin leaderboard polish): Rank 1/2/3 get a medal-colored
+// badge instead of a plain number, so the existing Rank & Release table
+// (already the admin-facing leaderboard -- see pkg-08's own note) reads
+// like one at a glance without needing a separate page.
+function RankBadge({ Rank }: { Rank: number | null }) {
+  if (!Rank) return <span>--</span>;
+  const MedalStyle =
+    Rank === 1
+      ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
+      : Rank === 2
+        ? "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+        : Rank === 3
+          ? "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-200"
+          : "";
+  if (!MedalStyle) return <span>{Rank}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${MedalStyle}`}>
+      <Medal size={12} />#{Rank}
+    </span>
+  );
+}
 
 // A level with no curriculum Level/registry entry yet (Package 2 finding) --
 // "Generate Official Paper" would just 409 here, so the UI steers straight to
@@ -287,6 +322,20 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     },
   });
 
+  // Package 8 (certificate half): admin can preview/download any
+  // student's certificate regardless of release -- see the client
+  // function's own comment for why (matches this table's "admin sees
+  // everything" convention already used for the release gate itself).
+  const [DownloadingAttemptId, SetDownloadingAttemptId] = useState<string | null>(null);
+  const CertificateMutation = useMutation({
+    mutationFn: (Row: AnnualCompetitionResultRow) => downloadAnnualCompetitionCertificate(Row.attemptId).then((BlobValue) => ({ BlobValue, Row })),
+    onMutate: (Row) => SetDownloadingAttemptId(Row.attemptId),
+    onSuccess: ({ BlobValue, Row }) => {
+      triggerBlobDownload(BlobValue, `MathPath-Annual-Competition-Certificate-${(Row.studentName || Row.studentCode || Row.studentId).replace(/[^A-Za-z0-9]+/g, "-")}.pdf`);
+    },
+    onSettled: () => SetDownloadingAttemptId(null),
+  });
+
   if (!Ready) return null;
   if (OverviewQuery.isLoading) {
     return (
@@ -318,7 +367,8 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     (ActiveTab === "RESULTS" ? ResultsQuery.error : null) ||
     ReconcileMutation.error ||
     RankResultsMutation.error ||
-    ReleaseResultsForLevelMutation.error;
+    ReleaseResultsForLevelMutation.error ||
+    CertificateMutation.error;
 
   return (
     <AppShell title="Annual Competition Studio">
@@ -866,12 +916,13 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                         <th className="px-2 py-1.5">Score</th>
                         <th className="px-2 py-1.5">Time Taken</th>
                         <th className="px-2 py-1.5">Released</th>
+                        <th className="px-2 py-1.5">Certificate</th>
                       </tr>
                     </thead>
                     <tbody>
                       {ResultsQuery.data.rows.map((Row: AnnualCompetitionResultRow) => (
                         <tr key={Row.resultId} className="border-t border-[color:var(--mp-role-border)]">
-                          <td className="px-2 py-2">{Row.rank ?? "--"}</td>
+                          <td className="px-2 py-2"><RankBadge Rank={Row.rank} /></td>
                           <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
                           <td className="px-2 py-2">{Row.competitionLevelCode}</td>
                           <td className="px-2 py-2">{Row.accuracyPercentage}%</td>
@@ -883,6 +934,17 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                             ) : (
                               <span className="text-slate-400">Not released</span>
                             )}
+                          </td>
+                          <td className="px-2 py-2">
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
+                              onClick={() => CertificateMutation.mutate(Row)}
+                              disabled={DownloadingAttemptId === Row.attemptId}
+                            >
+                              <Award size={12} />
+                              {DownloadingAttemptId === Row.attemptId ? "..." : "Download"}
+                            </button>
                           </td>
                         </tr>
                       ))}

@@ -46,6 +46,9 @@ from app.services.annual_competition_attempt_service import (
 from app.services.annual_competition_scoring_service import (
     GetCompetitionEventResultForStudent,
 )
+from app.services.annual_competition_certificate_service import (
+    BuildAnnualCompetitionCertificateForStudent,
+)
 from app.services.student_activity_service import GetStudentActivityEventsInRange
 from app.core.cache import cache_by_user_id
 from app.core.errors import api_error
@@ -377,6 +380,14 @@ def student_save_annual_competition_answer(
 @router.get("/annual-competition/attempts/{attempt_id}/result")
 def student_get_annual_competition_result(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     return GetCompetitionEventResultForStudent(db, student, attempt_id)
+
+
+# Package 8 (certificate half): downloadable once the result above returns
+# released:true -- rechecked independently here, never trusting that a
+# student's client-side "released" flag is still accurate at download time.
+@router.get("/annual-competition/attempts/{attempt_id}/certificate")
+def student_download_annual_competition_certificate(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return BuildAnnualCompetitionCertificateForStudent(db, student, attempt_id)
 
 
 @router.get("/assignments")

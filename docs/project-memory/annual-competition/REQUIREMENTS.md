@@ -1,12 +1,15 @@
 # Annual Competition — Requirements (source of truth)
 
-Status as of 2026-09-05: **Packages 1-7 of the build (data model,
+Status as of 2026-09-05: **All 8 packages of the build (data model,
 assignment engine, admin studio, section-timer/pause engine, student
-attempt UI, scoring + results, teacher/admin monitoring), plus Package 6b
-(admin "technical issue" retry override, item 6 below), are COMPLETE —
-see `.mathpath/STATE.yaml` and `.mathpath/packages/pkg-0{1..7}-*.md` /
-`pkg-06b-retry-override.md` for exact build status; this file stays the
-requirements source of truth, not the build-progress tracker.**
+attempt UI, scoring + results, teacher/admin monitoring, certificates/
+leaderboard), plus Package 6b (admin "technical issue" retry override,
+item 6 below), are COMPLETE** — see `.mathpath/STATE.yaml` and
+`.mathpath/packages/pkg-0{1..8}-*.md` / `pkg-06b-retry-override.md` for
+exact build status; this file stays the requirements source of truth, not
+the build-progress tracker. Package 9 (rehearsal + full regression) and
+Package 10 (go-live checklist) remain, per the original plan's own
+sequencing — not started, awaiting explicit go-ahead.
 Seven items were originally open; the client has now answered all seven,
 including a 2026-09-05 follow-up that resolved the one item (1+2) that
 needed a more precise answer (see that section below for the full
@@ -332,6 +335,17 @@ answers below, plus what each one means for the packages already built
    explicitly releases a level's results; admin can always see everything
    regardless. Certificate/leaderboard display itself remains Package 8,
    unaffected by this.
+   - **Package 8 decisions, given directly by Shailesh (2026-09-05), in
+     place of a further client round-trip:** leaderboard scope is "own
+     result only" — a student sees just their own released result, no
+     public/shared leaderboard of other students (the admin side already
+     has a full ranked leaderboard, Package 6/7's Results tab). Certificate
+     fields are name, level, rank, score, and date (plus MathPath
+     branding) — one design, not tiered by rank. Every finalized
+     participant is eligible for a certificate, not just rank-holders,
+     downloadable from the student's own portal once results are
+     released. **Implemented 2026-09-05 (Package 8)** — see
+     `.mathpath/packages/pkg-08-certificates-leaderboard.md`.
 
 6. **Attempt count / retakes.** Client's answer: *"Only once unless there
    is a technical issue from our end."* Matches Package 4's already-built

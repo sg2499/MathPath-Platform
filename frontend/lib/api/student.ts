@@ -680,3 +680,14 @@ export async function getAnnualCompetitionResult(attemptId: string): Promise<Ann
   const { data } = await api.get<AnnualCompetitionResultPayload>(`/student/annual-competition/attempts/${attemptId}/result`);
   return data;
 }
+
+// Package 8 (certificate half). Only ever called once the result above
+// returns released:true -- the backend re-checks this independently on
+// every call regardless, so a stale client-side flag can never produce a
+// certificate download early.
+export async function downloadAnnualCompetitionCertificate(attemptId: string): Promise<Blob> {
+  const { data } = await api.get(`/student/annual-competition/attempts/${attemptId}/certificate`, {
+    responseType: "blob",
+  });
+  return data;
+}

@@ -1,5 +1,5 @@
 current_epic: annual-competition-plan.md
-active_package: pkg-08-certificates-leaderboard.md
+active_package: pkg-09-rehearsal-and-regression.md
 status: IN_PROGRESS
 
 # Previous epic (competition-mock-practice-plan.md) is COMPLETED and shipped.
@@ -13,15 +13,15 @@ status: IN_PROGRESS
 # Results -- automatic finalize-on-submit scoring hook, the confirmed
 # accuracy/time/mistake-order ranking formula, admin rank/release actions,
 # student result endpoint + a minimal inline result card on the existing
-# attempt-submitted screen), and Package 7 (Teacher/Admin Monitoring --
+# attempt-submitted screen), Package 7 (Teacher/Admin Monitoring --
 # live per-student/per-slot status incl. STUCK reusing Package 4's own
 # heartbeat-grace threshold, a roster-scoped release-gated results review
 # for teachers, admin UI finally added for Package 4's reconcile sweep and
 # Package 6's rank/release actions, and a new read-only teacher monitoring
-# page) are all COMPLETE -- see .mathpath/packages/pkg-0{5,6,7}-*.md.
-# Package 6b (admin "technical issue" retry override, REQUIREMENTS.md item
-# 6) is also COMPLETE -- see .mathpath/packages/pkg-06b-retry-override.md
-# and the note below.
+# page), and Package 8 (Certificates/Leaderboard -- see below) are all
+# COMPLETE -- see .mathpath/packages/pkg-0{5,6,7,8}-*.md. Package 6b (admin
+# "technical issue" retry override, REQUIREMENTS.md item 6) is also
+# COMPLETE -- see .mathpath/packages/pkg-06b-retry-override.md.
 # Package 5 also added answer capture (CompetitionEventAttemptAnswer),
 # which Package 4's own doc had explicitly scoped out -- a considered,
 # documented scope addition, not a silent expansion. Package 6 required
@@ -29,17 +29,29 @@ status: IN_PROGRESS
 # Package 1. Package 7 required zero schema changes either -- pure read
 # layer over Packages 1/4/6's existing state, and confirmed zero writes
 # (no db.add/db.commit anywhere in its service module), matching its own
-# checklist's "teacher has no write path" requirement. Package 8
-# (Certificates/leaderboard visibility) is next per the original plan's
-# sequencing and Shailesh's "section by section" cadence -- not yet
-# started, awaiting explicit go-ahead.
+# checklist's "teacher has no write path" requirement.
+#
+# Package 8 (Certificates/Leaderboard, 2026-09-05) is COMPLETE -- see
+# .mathpath/packages/pkg-08-certificates-leaderboard.md. Rather than a
+# further client round-trip, Shailesh gave the two outstanding product
+# decisions directly: leaderboard scope is "own result only" (no public/
+# shared leaderboard -- already fully satisfied by Package 6's existing
+# student result endpoint, nothing new needed there; admin's leaderboard
+# is Package 6/7's existing Results tab, polished with rank-medal styling
+# this package), and certificate fields are name/level/rank/score/date +
+# MathPath branding, issued to every finalized participant (not just
+# rank-holders), downloadable from the student's own portal once
+# released. New module `annual_competition_certificate_service.py`
+# (reportlab, landscape A4) renders on demand from an already-computed
+# CompetitionEventResult -- zero new schema, zero new scoring logic.
+# Admin can always download regardless of release (matches this epic's
+# "admin sees everything" convention). Sample certificate was rendered to
+# an image and visually reviewed before shipping.
 #
 # REQUIREMENTS.md item 6's admin-triggered "technical issue" retry override
-# (Package 6b, 2026-09-05) is now COMPLETE -- see
+# (Package 6b, 2026-09-05) is COMPLETE -- see
 # .mathpath/packages/pkg-06b-retry-override.md. Built directly on
-# Shailesh's explicit go-ahead in between Package 7 and the still-blocked
-# Package 8, since Package 8's own scope (leaderboard/certificates) needs
-# client confirmation this does not. New table
+# Shailesh's explicit go-ahead in between Package 7 and Package 8. New table
 # CompetitionEventAttemptRetryGrant mirrors the pre-existing DPS
 # AssignmentReattemptPermission's APPROVED->USED lifecycle; StartCompetitionEventAttempt's
 # existing single-attempt rejection now checks for one before rejecting. A
@@ -57,6 +69,11 @@ status: IN_PROGRESS
 # other package needed changes. One soft, non-blocking question remains
 # open (is "Bloomers" a display label or a content-filter name) -- not a
 # code blocker.
+#
+# All 8 core build packages are now COMPLETE. Package 9 (rehearsal + full
+# regression) and Package 10 (go-live checklist) remain per the original
+# plan's sequencing and Shailesh's "section by section" cadence -- not yet
+# started, awaiting explicit go-ahead.
 #
 # Everything so far is built and verified locally only -- push/merge/deploy
 # is being bundled across all packages per Shailesh's instruction

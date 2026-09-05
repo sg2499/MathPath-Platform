@@ -13,6 +13,7 @@ import { useAttemptTimer } from "@/hooks/useAttemptTimer";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api";
 import {
+  downloadAnnualCompetitionCertificate,
   getAnnualCompetitionAttempt,
   getAnnualCompetitionResult,
   saveAnnualCompetitionAnswer,
@@ -20,10 +21,21 @@ import {
   submitAnnualCompetitionSection,
   type AnnualCompetitionAttempt,
 } from "@/lib/api/student";
-import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, ClipboardCheck, Gauge, Layers3, ShieldAlert, Trophy } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Award, CheckCircle2, ClipboardCheck, Gauge, Layers3, ShieldAlert, Trophy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+function triggerBlobDownload(BlobValue: Blob, FileName: string) {
+  const Url = window.URL.createObjectURL(BlobValue);
+  const Anchor = document.createElement("a");
+  Anchor.href = Url;
+  Anchor.download = FileName;
+  document.body.appendChild(Anchor);
+  Anchor.click();
+  Anchor.remove();
+  window.URL.revokeObjectURL(Url);
+}
 
 export default function AnnualCompetitionAttemptPage() {
   return <AnnualCompetitionAttemptContent />;
@@ -70,6 +82,15 @@ function AnnualCompetitionAttemptContent() {
     queryFn: () => getAnnualCompetitionResult(attemptId),
     enabled: ready && Boolean(attemptId) && Boolean(liveAttempt) && liveAttempt?.status !== "IN_PROGRESS",
     refetchOnWindowFocus: false,
+  });
+
+  // Package 8 (certificate half): only ever offered once resultQuery.data
+  // itself says released:true -- the backend re-checks this independently
+  // on every download, so this button being visible is a UX convenience,
+  // not the actual gate.
+  const certificateMutation = useMutation({
+    mutationFn: () => downloadAnnualCompetitionCertificate(attemptId),
+    onSuccess: (BlobValue) => triggerBlobDownload(BlobValue, "MathPath-Annual-Competition-Certificate.pdf"),
   });
 
   // Bootstrap: a plain GET never carries a session_token (only Start/Resume
@@ -274,9 +295,24 @@ function AnnualCompetitionAttemptContent() {
               Your competition attempt has been submitted. Results are released separately once available.
             </p>
           )}
-          <button className="math-role-action-button mt-5 px-4 py-2.5 text-sm" onClick={() => router.push("/student/competition/annual")}>
-            Back To Annual Competition
-          </button>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button className="math-role-action-button px-4 py-2.5 text-sm" onClick={() => router.push("/student/competition/annual")}>
+              Back To Annual Competition
+            </button>
+            {result ? (
+              <button
+                className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-950/60"
+                onClick={() => certificateMutation.mutate()}
+                disabled={certificateMutation.isPending}
+              >
+                <Award size={16} />
+                {certificateMutation.isPending ? "Preparing Certificate..." : "Download Certificate"}
+              </button>
+            ) : null}
+          </div>
+          {certificateMutation.isError ? (
+            <p className="mt-2 text-xs font-bold text-rose-600 dark:text-rose-300">{apiErrorMessage(certificateMutation.error)}</p>
+          ) : null}
         </div>
       </AppShell>
     );
