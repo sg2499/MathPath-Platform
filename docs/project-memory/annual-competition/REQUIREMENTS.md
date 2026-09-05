@@ -227,32 +227,65 @@ answers below, plus what each one means for the packages already built
    it as Bloomers below 8 years, PL-1 will have all the concepts for
    children above 8 years for students who are in Pl-2 & who have completed
    Lesson 15 in Bridge Module."*
-   - **Clear part:** the shared "YLM" competition bracket does need to
-     split into two content tiers — a direct-sums-only tier branded
-     "Bloomers", and a fuller tier ("all the concepts") — and the split is
-     **by student age (under/over 8)**, not by the YLP-2/YLP-3-vs-PL-1
-     -current label our platform actually stores. `Student.dob` exists and
-     is a required field at admission (confirmed in models.py /
-     routes_admin.py), so an age-based rule is implementable data-wise.
-   - **Not yet precise enough to build:** does the age split apply *only*
-     to students currently at YLM-L1 (i.e. would-be "YLP-2/3"), with any
-     current-PM-L1 student always getting the fuller tier regardless of
-     age? Or does age override curriculum position entirely, so an
-     8+-year-old currently at YLM-L1 also gets bumped to the fuller tier
-     even though their actual lesson content hasn't covered Small Boss/Big
-     Boss yet? The trailing clause ("...for students who are in PL-2 & who
-     have completed Lesson 15 in Bridge Module") appears to just be the
-     client re-confirming two *already-correct, already-built* Package 2
-     rules (PL-2-current → PL-1 target; Bridge Lesson 15 → PL-1 target),
-     not introducing a third population — but that's an inference, not a
-     confirmed reading.
-   - **Impact if/when resolved:** requires changes to Package 2
-     (`DIRECT_LEVEL_MAPPING` / the YLM-L1 and PM-L1 rows need an
-     age-conditional branch, using `Student.dob`) and Package 3
-     (`VALID_COMPETITION_LEVEL_CODES` and
-     `DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE` need a new "Bloomers" entry
-     distinct from plain `YLM-L1`). Not yet implemented — flagged back to
-     Shailesh rather than guessed at.
+   - **Follow-up sent** asking whether the age split applies only within
+     the YLP-2/YLP-3 population or overrides curriculum position entirely
+     (i.e. could an 8+-year-old currently at YLM-L1 be bumped to the
+     fuller tier, or could a under-8 PM-L1-current student be held back to
+     the direct-sums tier). **Client's follow-up answer (2026-09-05),
+     verbatim:** *"YLP enrolment is taken for Class 1 & 2 students only so
+     they would be below 8 years, and PL1 students have already crossed
+     PL1 & would be in level 2 so they have no problem sitting for PL-1."*
+   - **Now resolved: no age logic needed in code at all.** The client is
+     saying age is a structural *consequence* of enrollment/curriculum
+     position, not an independent signal to check at runtime — YLP-2/3
+     enrollment is itself gated to Class 1/2 (hence always under 8), and
+     anyone currently placed at PM-L1 (client's "PL1... would be in level
+     2") has by definition already progressed past the YLP bracket (hence
+     never needs the age check to qualify for the fuller PL-1 paper). So
+     the split this whole item was about is fully captured by the
+     student's *existing* `(module, level)` position alone — exactly the
+     shape `DIRECT_LEVEL_MAPPING` already keys on. `Student.dob` is not
+     needed for this rule; the earlier note above (this item's "Clear
+     part") assumed an age-conditional branch would be required — that
+     assumption is now superseded.
+   - **The one concrete code change this implies (Package 2 only):**
+     `DIRECT_LEVEL_MAPPING[("PM", "PM-L1")]` currently targets `"YLM-L1"`
+     (i.e. a PM-L1-current student today gets routed into the same shared
+     YLM bracket as YLP-2/3). Per this answer, PM-L1-current students
+     should instead sit the fuller "all the concepts" tier, which is the
+     already-existing, already-fully-configured `PM-L1` competition level
+     (`PM_COMPETITION_LEVEL_REGISTRY["PM-L1"]` in
+     `pm_competition_mock_generation_service.py` — same 3-section shape as
+     YLM-L1 but with materially richer digit patterns, e.g. "Direct
+     Addition (Round Hundreds)"/"Direct Addition (Triple Digit)", already
+     absent from YLM-L1's capped range). `PM-L1` is also already present
+     in Package 3's `VALID_COMPETITION_LEVEL_CODES` and
+     `DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE` in
+     `annual_competition_studio_service.py`, so this is a **pure
+     redirect** of one existing table row to another already-valid
+     target — zero new registry/config work. The `("YLM", "YLM-L1")` row
+     (covering actual YLP-2/3-current students) stays unchanged, and
+     continues to use the YLM-L1 registry, which becomes the "Bloomers"
+     direct-sums-only tier.
+   - **Impact on already-built packages: confined entirely to Package 2.**
+     Packages 1, 3, 4, and 5 need **zero changes** — Package 3's level
+     codes/timers already support `PM-L1`, and Packages 4/5's attempt/timer/
+     UI code is level-code-agnostic (it operates on whichever
+     `CompetitionEventLevelPaper` the assignment resolved to, regardless of
+     which level code that is).
+   - **One remaining soft, non-blocking question:** is "Bloomers" purely a
+     *display/branding label* for the existing YLM-L1 tier (no code change
+     beyond maybe a friendlier name shown to students/parents), or does the
+     client expect it to be a materially different, even-more-restricted
+     question set than YLM-L1's current registry already provides? Nothing
+     in either answer suggests the latter — "direct sums" is already an
+     accurate description of YLM-L1's registry — so the working default is
+     "display label only, no registry change," but this hasn't been asked
+     outright.
+   - **Not yet implemented.** This section records the analysis;
+     the `DIRECT_LEVEL_MAPPING` edit itself is withheld pending Shailesh's
+     explicit go-ahead, per standing instruction not to touch code on a
+     genuinely-interpreted answer without review first.
 
 2. See item 1 (client's answer to item 2 pointed back to item 1).
 
