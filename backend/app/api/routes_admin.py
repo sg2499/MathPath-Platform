@@ -118,6 +118,12 @@ from app.services.annual_competition_attempt_service import (
     ReconcileExpiredCompetitionEventAttempts,
 )
 
+from app.services.annual_competition_scoring_service import (
+    ListCompetitionEventResultsForAdmin,
+    RankCompetitionEventResults,
+    ReleaseCompetitionEventResults,
+)
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 
@@ -193,6 +199,12 @@ class AnnualCompetitionOverrideRequest(BaseModel):
     studentId: str
     assignedLevelCode: str
     slotId: str | None = None
+
+class AnnualCompetitionRankResultsRequest(BaseModel):
+    competitionLevelCode: str
+
+class AnnualCompetitionReleaseResultsRequest(BaseModel):
+    competitionLevelCode: str | None = None
 
 
 def _admin_natural_sort_key(value: Any) -> list[Any]:
@@ -5983,6 +5995,37 @@ def admin_override_annual_competition_assignment(
 @router.post("/annual-competition/attempts/reconcile")
 def admin_reconcile_annual_competition_attempts(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return ReconcileExpiredCompetitionEventAttempts(db)
+
+
+# --- Annual Competition (Package 6): scoring + results ----------------------
+# See backend/app/services/annual_competition_scoring_service.py. Computation
+# itself is automatic (triggered the moment an attempt's last section closes,
+# from inside annual_competition_attempt_service.py) -- these three endpoints
+# are the admin-only actions: review what's been computed so far (regardless
+# of release), (re-)rank a level, and release results. No frontend surface
+# yet -- API only for now, the same deliberate deferral Package 2's preview/
+# run endpoints already used; a results-review screen is Package 7's
+# territory, not this one.
+
+@router.get("/annual-competition/events/{event_id}/results")
+def admin_list_annual_competition_results(
+    event_id: str, competitionLevelCode: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return ListCompetitionEventResultsForAdmin(db, EventId=event_id, CompetitionLevelCode=competitionLevelCode)
+
+
+@router.post("/annual-competition/events/{event_id}/results/rank")
+def admin_rank_annual_competition_results(
+    event_id: str, payload: AnnualCompetitionRankResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return RankCompetitionEventResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode)
+
+
+@router.post("/annual-competition/events/{event_id}/results/release")
+def admin_release_annual_competition_results(
+    event_id: str, payload: AnnualCompetitionReleaseResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return ReleaseCompetitionEventResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode, ReleasedBy=user)
 
 
 from app.api.routes_teacher import _teacher_competition_row_payload, _competition_duration_text

@@ -1,21 +1,31 @@
 current_epic: annual-competition-plan.md
-active_package: pkg-06-scoring-and-results.md
+active_package: pkg-07-monitoring.md
 status: IN_PROGRESS
 
 # Previous epic (competition-mock-practice-plan.md) is COMPLETED and shipped.
 # Annual Competition (2026-09) is now the active epic. Package 1 (data
 # model), Package 2 (assignment engine), Package 3 (Admin Annual Competition
 # Studio -- backend AND frontend), Package 4 (section-timer + pause engine --
-# the highest-risk/most novel piece of this whole build), and Package 5
+# the highest-risk/most novel piece of this whole build), Package 5
 # (student live-attempt UI -- backend AND frontend: discovery, pre-section
 # instructions, multi-section heartbeat-driven timer/attempt screen,
-# slot-gated start, session-superseded handling) are all COMPLETE -- see
-# .mathpath/packages/pkg-05-student-attempt-ui.md. Package 5 also added
-# answer capture (CompetitionEventAttemptAnswer), which Package 4's own doc
-# had explicitly scoped out -- a considered, documented scope addition, not
-# a silent expansion. Package 6 (Scoring + Results) is next, per the
-# original plan's sequencing and Shailesh's "section by section" cadence --
-# not yet started, awaiting explicit go-ahead.
+# slot-gated start, session-superseded handling), and Package 6 (Scoring +
+# Results -- automatic finalize-on-submit scoring hook, the confirmed
+# accuracy/time/mistake-order ranking formula, admin rank/release actions,
+# student result endpoint + a minimal inline result card on the existing
+# attempt-submitted screen) are all COMPLETE -- see
+# .mathpath/packages/pkg-0{5,6}-*.md. Package 5 also added answer capture
+# (CompetitionEventAttemptAnswer), which Package 4's own doc had explicitly
+# scoped out -- a considered, documented scope addition, not a silent
+# expansion. Package 6 required zero schema changes -- CompetitionEventResult
+# was already fully built in Package 1. Package 7 (Teacher/admin monitoring)
+# is next, per the original plan's sequencing and Shailesh's "section by
+# section" cadence -- not yet started, awaiting explicit go-ahead.
+#
+# Still flagged, not yet built (never blocked any package's own checklist,
+# but needed before go-live): REQUIREMENTS.md item 6's admin-triggered
+# "technical issue" retry override for a genuine single retake -- see
+# pkg-06-scoring-and-results.md's "Not built in this package" section.
 #
 # The client's follow-up answer on items 1+2 (YLM/PL-1 age-boundary rule)
 # arrived 2026-09-05 and resolved the ambiguity -- Package 2's

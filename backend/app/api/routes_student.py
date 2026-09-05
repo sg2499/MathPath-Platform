@@ -43,6 +43,9 @@ from app.services.annual_competition_attempt_service import (
     ListMyAnnualCompetitionAssignments,
     GetCompetitionEventInstructions,
 )
+from app.services.annual_competition_scoring_service import (
+    GetCompetitionEventResultForStudent,
+)
 from app.services.student_activity_service import GetStudentActivityEventsInRange
 from app.core.cache import cache_by_user_id
 from app.core.errors import api_error
@@ -363,6 +366,17 @@ def student_save_annual_competition_answer(
     return SaveCompetitionEventAnswer(
         db, student, attempt_id, payload.sessionToken, payload.sectionNumber, payload.questionId, payload.selectedOptionId
     )
+
+
+# --- Annual Competition (Package 6): scoring + results -----------------
+# See backend/app/services/annual_competition_scoring_service.py. Always
+# returns a 200 with released:false rather than a raw error while a result
+# is unreleased/uncomputed -- REQUIREMENTS.md item 5's full lock-down means
+# "not available yet" is the expected common state, not a failure.
+
+@router.get("/annual-competition/attempts/{attempt_id}/result")
+def student_get_annual_competition_result(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return GetCompetitionEventResultForStudent(db, student, attempt_id)
 
 
 @router.get("/assignments")

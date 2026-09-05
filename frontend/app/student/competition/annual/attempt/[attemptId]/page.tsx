@@ -14,6 +14,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api";
 import {
   getAnnualCompetitionAttempt,
+  getAnnualCompetitionResult,
   saveAnnualCompetitionAnswer,
   startAnnualCompetitionAttempt,
   submitAnnualCompetitionSection,
@@ -58,6 +59,18 @@ function AnnualCompetitionAttemptContent() {
   useEffect(() => {
     if (attemptQuery.data) setLiveAttempt(attemptQuery.data);
   }, [attemptQuery.data]);
+
+  // Package 6 (Scoring + Results): only ever queried once the attempt has
+  // left IN_PROGRESS -- there is nothing to show mid-attempt, and the
+  // endpoint itself always returns released:false rather than an error
+  // while a result is uncomputed/unreleased (REQUIREMENTS.md item 5's full
+  // lock-down is the expected common state here, not a failure).
+  const resultQuery = useQuery({
+    queryKey: ["annual-competition-result", attemptId],
+    queryFn: () => getAnnualCompetitionResult(attemptId),
+    enabled: ready && Boolean(attemptId) && Boolean(liveAttempt) && liveAttempt?.status !== "IN_PROGRESS",
+    refetchOnWindowFocus: false,
+  });
 
   // Bootstrap: a plain GET never carries a session_token (only Start/Resume
   // does -- see the backend service's own module docstring on why). So the
@@ -229,14 +242,38 @@ function AnnualCompetitionAttemptContent() {
   }
 
   if (liveAttempt.status !== "IN_PROGRESS") {
+    const result = resultQuery.data?.released ? resultQuery.data.result : null;
     return (
       <AppShell title="Annual Competition">
         <div className="math-card p-6">
           <div className="math-block-header mb-2"><Trophy size={14} /> Annual Competition</div>
           <h1 className="text-2xl font-black text-slate-950 dark:text-white">Competition Submitted</h1>
-          <p className="math-subtitle max-w-none">
-            Your competition attempt has been submitted. Results are released separately once available.
-          </p>
+          {result ? (
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="math-card p-3">
+                <div className="text-xs text-slate-500 dark:text-slate-400">Accuracy</div>
+                <div className="text-xl font-black text-slate-950 dark:text-white">{result.accuracyPercentage}%</div>
+              </div>
+              <div className="math-card p-3">
+                <div className="text-xs text-slate-500 dark:text-slate-400">Correct</div>
+                <div className="text-xl font-black text-slate-950 dark:text-white">{result.correctCount}</div>
+              </div>
+              <div className="math-card p-3">
+                <div className="text-xs text-slate-500 dark:text-slate-400">Time Taken</div>
+                <div className="text-xl font-black text-slate-950 dark:text-white">{Math.round((result.timeTakenSeconds || 0) / 60)}m</div>
+              </div>
+              {result.rank ? (
+                <div className="math-card p-3">
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Rank</div>
+                  <div className="text-xl font-black text-slate-950 dark:text-white">#{result.rank}</div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="math-subtitle max-w-none">
+              Your competition attempt has been submitted. Results are released separately once available.
+            </p>
+          )}
           <button className="math-role-action-button mt-5 px-4 py-2.5 text-sm" onClick={() => router.push("/student/competition/annual")}>
             Back To Annual Competition
           </button>

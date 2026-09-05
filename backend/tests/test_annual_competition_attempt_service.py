@@ -299,7 +299,10 @@ def test_whole_attempt_finalizes_on_last_section_timeout():
     db.commit()
 
     result = engine.RecordCompetitionEventHeartbeat(db, student, attempt_id, token, 1)
-    assert result["status"] == "SUBMITTED"
+    # FINALIZED, not just SUBMITTED: Package 6's scoring hook now runs
+    # synchronously in the same _AdvanceOrFinalize call that closes the
+    # last section -- see annual_competition_scoring_service.py.
+    assert result["status"] == "FINALIZED"
     assert result["submittedAt"] is not None
     assert result["sections"][0]["status"] == "AUTO_SUBMITTED"
 
@@ -321,7 +324,9 @@ def test_manual_submit_section_finalizes_whole_attempt_on_last_section():
     student, event = _full_setup(db, section_seconds=(600,))
     started = engine.StartCompetitionEventAttempt(db, student, event.id)
     result = engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
-    assert result["status"] == "SUBMITTED"
+    # FINALIZED, not just SUBMITTED -- see the timeout variant of this test
+    # above for why.
+    assert result["status"] == "FINALIZED"
     assert result["sections"][0]["status"] == "COMPLETED"
 
 
@@ -379,7 +384,10 @@ def test_reconciliation_force_closes_an_abandoned_attempt_through_all_sections()
     assert attempt_id in result["attemptIds"]
 
     attempt = db.get(CompetitionEventAttempt, attempt_id)
-    assert attempt.status == "SUBMITTED"
+    # FINALIZED, not just SUBMITTED -- the reconciliation sweep shares the
+    # same _AdvanceOrFinalize call as every other path to a last-section
+    # close, so it also triggers Package 6's scoring hook.
+    assert attempt.status == "FINALIZED"
     sections = db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=attempt_id).order_by(
         CompetitionEventAttemptSectionState.section_number
     ).all()

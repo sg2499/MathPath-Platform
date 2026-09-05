@@ -319,7 +319,10 @@ def test_save_answer_after_attempt_submitted_returns_lean_payload_not_error():
     result = engine.SaveCompetitionEventAnswer(
         db, student, started["attemptId"], started["sessionToken"], 1, "q-1-1", "q-1-1-opt-a"
     )
-    assert result["status"] == "SUBMITTED"
+    # FINALIZED, not just SUBMITTED: Package 6's scoring hook now runs
+    # synchronously the moment the last section closes -- see
+    # annual_competition_scoring_service.py.
+    assert result["status"] == "FINALIZED"
 
 
 # ---------------------------------------------------------------------------

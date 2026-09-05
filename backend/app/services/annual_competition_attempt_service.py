@@ -73,9 +73,13 @@ section's `remaining_seconds_at_last_heartbeat` has reached zero (same
 competition_mock_attempt_service.py) and advances/finalizes if so.
 Per the lifecycle comment already written on `CompetitionEventAttempt`
 in models.py, `FINALIZED` is reserved for once a `CompetitionEventResult`
-has been computed -- that is Package 6 (Scoring + Results), not this
-package. Everything here only ever reaches `SUBMITTED`; a separate,
-later scoring pass is what advances `SUBMITTED -> FINALIZED`.
+has been computed. `_AdvanceOrFinalize` below reaches `SUBMITTED` and, in
+the same step, calls straight into
+`annual_competition_scoring_service.ComputeAndFinalizeCompetitionEventResult`
+(Package 6) to compute that result and advance to `FINALIZED` -- see that
+module's own docstring for why hooking in at this one shared function,
+rather than in every individual caller, means every path to a finished
+attempt is scored the same way with nothing left uncovered.
 
 ## The reconciliation sweep
 
@@ -231,6 +235,20 @@ def _AdvanceOrFinalize(
     else:
         AttemptRecord.status = "SUBMITTED"
         AttemptRecord.submitted_at = NowUtc
+        # Package 6 (Scoring + Results): this IS the one place every path to
+        # a last-section close funnels through (manual submit, heartbeat
+        # auto-advance, and the reconciliation sweep all call this same
+        # function), so it's also the one place CompetitionEventResult gets
+        # computed -- see annual_competition_scoring_service.py's own
+        # module docstring for the full rationale. Advances the attempt to
+        # FINALIZED itself, per the lifecycle already documented on
+        # CompetitionEventAttempt in models.py. Local import: keeps this
+        # module's own top-level import list unchanged and avoids loading
+        # the (unrelated) scoring service just to import this file for
+        # every other attempt operation.
+        from app.services.annual_competition_scoring_service import ComputeAndFinalizeCompetitionEventResult
+
+        ComputeAndFinalizeCompetitionEventResult(db, AttemptRecord)
 
     # Test sessions in this repo run with autoflush=False (see e.g.
     # test_annual_competition_studio_service.py), and a query that filters

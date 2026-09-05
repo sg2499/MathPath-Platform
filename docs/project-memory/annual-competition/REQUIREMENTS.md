@@ -1,14 +1,14 @@
 # Annual Competition — Requirements (source of truth)
 
-Status as of 2026-09-04: **Packages 1-4 of the build (data model,
-assignment engine, admin studio, section-timer/pause engine) are
-COMPLETE — see `.mathpath/STATE.yaml` and `.mathpath/packages/pkg-0{1..4}-*.md`
-for exact build status; this file stays the requirements source of truth,
-not the build-progress tracker.** Seven items were originally open; the
-client has now answered all seven (see that section below) — three confirm
-what was already built, two are new requirements for not-yet-started
-packages, and one still needs a more precise answer before the two
-already-built packages it touches (2 and 3) can be updated. This file
+Status as of 2026-09-05: **Packages 1-6 of the build (data model,
+assignment engine, admin studio, section-timer/pause engine, student
+attempt UI, scoring + results) are COMPLETE — see `.mathpath/STATE.yaml`
+and `.mathpath/packages/pkg-0{1..6}-*.md` for exact build status; this file
+stays the requirements source of truth, not the build-progress tracker.**
+Seven items were originally open; the client has now answered all seven,
+including a 2026-09-05 follow-up that resolved the one item (1+2) that
+needed a more precise answer (see that section below for the full
+resolution and the resulting Package 2 fix). This file
 exists so that any future session working in this repo — this thread or a
 brand new one — has full context without needing it re-explained. If you
 are a Claude session picking this up cold, read this file plus the source
@@ -304,21 +304,32 @@ answers below, plus what each one means for the packages already built
    win then. If unanswered no marks to be given."* Differs from this repo's
    placeholder default (raw correct-count desc, then time asc) — the real
    rule is accuracy % + completion time, with a "later first mistake wins"
-   tie-break, and zero marks for unanswered sums. Affects Package 6
-   (Scoring + Results), not yet started — no rework of 1-4 needed. Note for
-   whoever builds Package 5 (student attempt UI): "who made a mistake
-   first" as a tie-break requires answers to be captured **in order, with
-   per-question correctness and timing**, not just a final tally — the
-   answer-capture table Package 5 adds needs to support this from the
-   start, not be retrofitted later for Package 6.
+   tie-break, and zero marks for unanswered sums. Note for whoever built
+   Package 5 (student attempt UI): "who made a mistake first" as a
+   tie-break requires answers to be captured **in order, with per-question
+   correctness and timing**, not just a final tally — the answer-capture
+   table Package 5 added supports this from the start, not retrofitted
+   later. **Implemented 2026-09-05 (Package 6):** the confirmed formula
+   above is the actual ranking rule in
+   `annual_competition_scoring_service.py`'s `_DefaultRankingSortKey` —
+   accuracy% descending, then completion time ascending, then "later first
+   mistake wins" derived on demand from `CompetitionEventAttemptAnswer`
+   (no new column needed). A student with no mistake at all outranks
+   anyone who made one. See `.mathpath/packages/pkg-06-scoring-and-results.md`.
 
 5. **Results/certificate visibility.** Client's answer, verbatim: *"Result
    has to be kept undisclosed till the date of announcement."* Reads as a
    full lock-down (not just "hide from other students, show own result") —
-   worth one more precise confirmation before Package 6/7 build the actual
-   release-gating UX, but the schema (`CompetitionEventResult.is_released`)
-   already supports either reading without a schema change. Certificate
-   fields (name/level/rank/score/date/centre) still unanswered.
+   worth one more precise confirmation before certificate/leaderboard work
+   (Package 8) builds anything public-facing, but the schema
+   (`CompetitionEventResult.is_released`) already supports either reading
+   without a schema change. Certificate fields (name/level/rank/score/date/
+   centre) still unanswered. **Implemented 2026-09-05 (Package 6):** the
+   full-lockdown reading is what's built — student/parent-facing endpoints
+   return `released: false` (never the actual metrics) until an admin
+   explicitly releases a level's results; admin can always see everything
+   regardless. Certificate/leaderboard display itself remains Package 8,
+   unaffected by this.
 
 6. **Attempt count / retakes.** Client's answer: *"Only once unless there
    is a technical issue from our end."* Matches Package 4's already-built

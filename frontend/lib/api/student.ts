@@ -642,3 +642,41 @@ export async function saveAnnualCompetitionAnswer(
   const { data } = await api.post<AnnualCompetitionAttempt>(`/student/annual-competition/attempts/${attemptId}/answers`, payload);
   return data;
 }
+
+// Package 6 (Scoring + Results). "released: false" is the expected common
+// state (REQUIREMENTS.md item 5's full lock-down) -- this endpoint always
+// returns 200 with result: null rather than an error while a result is
+// uncomputed/unreleased.
+export type AnnualCompetitionResultSectionTime = {
+  sectionNumber: number;
+  timeLimitSeconds: number;
+  timeTakenSeconds: number;
+};
+
+export type AnnualCompetitionResult = {
+  resultId: string;
+  competitionLevelCode: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  timeTakenSeconds: number | null;
+  perSectionTime: AnnualCompetitionResultSectionTime[];
+  rank: number | null;
+  releasedAt: string | null;
+};
+
+export type AnnualCompetitionResultPayload = {
+  attemptId: string;
+  attemptStatus: string;
+  released: boolean;
+  result: AnnualCompetitionResult | null;
+};
+
+export async function getAnnualCompetitionResult(attemptId: string): Promise<AnnualCompetitionResultPayload> {
+  const { data } = await api.get<AnnualCompetitionResultPayload>(`/student/annual-competition/attempts/${attemptId}/result`);
+  return data;
+}
