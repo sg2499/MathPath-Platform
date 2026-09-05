@@ -574,6 +574,103 @@ export async function getTeacherCompetitionMockResult(attemptId: string): Promis
   return data;
 }
 
+// ---------------------------------------------------------------------------
+// Annual Competition -- Teacher Monitoring (Package 7). Read-only: no
+// assign/rank/release action exists on the teacher side, matching this
+// repo's Competition Mock precedent (Admin: create/publish/assign/review,
+// Teacher: monitor/review only -- see pkg-09-permissions-and-safety.md).
+// Types mirror annual_competition_monitoring_service.py's payloads.
+// ---------------------------------------------------------------------------
+
+export type TeacherAnnualCompetitionEvent = {
+  eventId: string;
+  name: string;
+  status: string;
+  competitionDate: string | null;
+};
+
+export async function getTeacherAnnualCompetitionEvents(): Promise<TeacherAnnualCompetitionEvent[]> {
+  const { data } = await api.get<{ events: TeacherAnnualCompetitionEvent[] }>("/teacher/competition/annual/events");
+  return data.events;
+}
+
+export type TeacherAnnualCompetitionLiveRow = {
+  assignmentId: string;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  className: string | null;
+  section: string | null;
+  assignedLevelCode: string;
+  slot: { slotId: string; mode: string; slotLabel: string | null; scheduledStartAt: string | null; scheduledEndAt: string | null } | null;
+  attemptId: string | null;
+  attemptStatus: string;
+  liveStatus: "NOT_STARTED" | "IN_PROGRESS" | "STUCK" | "SUBMITTED" | "FINALIZED";
+  currentSectionNumber: number | null;
+  remainingSecondsAtLastHeartbeat: number | null;
+  lastHeartbeatAt: string | null;
+  heartbeatGapSeconds: number | null;
+};
+
+export type TeacherAnnualCompetitionLiveMonitoring = {
+  eventId: string;
+  eventName: string;
+  eventStatus: string;
+  generatedAt: string;
+  summary: {
+    totalCount: number;
+    notStartedCount: number;
+    inProgressCount: number;
+    stuckCount: number;
+    submittedCount: number;
+    finalizedCount: number;
+  };
+  rows: TeacherAnnualCompetitionLiveRow[];
+};
+
+export async function getTeacherAnnualCompetitionLive(eventId: string): Promise<TeacherAnnualCompetitionLiveMonitoring> {
+  const { data } = await api.get<TeacherAnnualCompetitionLiveMonitoring>(`/teacher/competition/annual/events/${eventId}/live`);
+  return data;
+}
+
+export type TeacherAnnualCompetitionResultRow = {
+  assignmentId: string;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  assignedLevelCode: string;
+  attemptId: string | null;
+  attemptStatus: string;
+  released: boolean;
+  result: {
+    score: number;
+    maxScore: number;
+    percentage: number;
+    accuracyPercentage: number;
+    correctCount: number;
+    wrongCount: number;
+    unansweredCount: number;
+    timeTakenSeconds: number | null;
+    perSectionTime: Array<Record<string, unknown>>;
+    rank: number | null;
+    releasedAt: string | null;
+  } | null;
+};
+
+export type TeacherAnnualCompetitionResultsList = {
+  eventId: string;
+  competitionLevelCode: string | null;
+  totalResults: number;
+  rows: TeacherAnnualCompetitionResultRow[];
+};
+
+export async function getTeacherAnnualCompetitionResults(eventId: string, competitionLevelCode?: string | null): Promise<TeacherAnnualCompetitionResultsList> {
+  const { data } = await api.get<TeacherAnnualCompetitionResultsList>(`/teacher/competition/annual/events/${eventId}/results`, {
+    params: competitionLevelCode ? { competitionLevelCode } : undefined,
+  });
+  return data;
+}
+
 export type TeacherParentReportDelivery = {
   id: string;
   studentId?: string | null;

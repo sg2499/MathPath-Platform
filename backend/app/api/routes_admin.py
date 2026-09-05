@@ -124,6 +124,10 @@ from app.services.annual_competition_scoring_service import (
     ReleaseCompetitionEventResults,
 )
 
+from app.services.annual_competition_monitoring_service import (
+    GetAnnualCompetitionLiveMonitoring,
+)
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 
@@ -6026,6 +6030,22 @@ def admin_release_annual_competition_results(
     event_id: str, payload: AnnualCompetitionReleaseResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
 ):
     return ReleaseCompetitionEventResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode, ReleasedBy=user)
+
+
+# --- Annual Competition (Package 7): teacher/admin monitoring ---------------
+# See backend/app/services/annual_competition_monitoring_service.py. Post-
+# event review for admin is already the /results endpoint just above
+# (Package 6) -- admin always bypasses the release gate there, unchanged by
+# this package. The only new admin-side surface is the live view: every
+# assignment on the event, regardless of which teacher (if any) owns the
+# student -- StudentIdsFilter is left as None, the "admin sees everyone"
+# convention this service module documents.
+
+@router.get("/annual-competition/events/{event_id}/monitoring/live")
+def admin_get_annual_competition_live_monitoring(
+    event_id: str, slotId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return GetAnnualCompetitionLiveMonitoring(db, EventId=event_id, StudentIdsFilter=None, SlotId=slotId)
 
 
 from app.api.routes_teacher import _teacher_competition_row_payload, _competition_duration_text

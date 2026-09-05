@@ -27,6 +27,7 @@ import dynamic from "next/dynamic";
 
 const StudentGlobalBackground = dynamic(() => import("@/components/student/StudentGlobalBackground"), { ssr: false });
 import {
+  Activity,
   AlertCircle,
   Award,
   BarChart3,
@@ -543,6 +544,13 @@ export function AppShell({
           href: "/teacher/competition/progress",
           icon: TrendingUp,
           tooltip: "Track mock strengths and weak areas",
+        },
+        {
+          label: "Annual Competition Monitor",
+          shortLabel: "Annual Monitor",
+          href: "/teacher/competition/annual",
+          icon: Activity,
+          tooltip: "Monitor your students during the Annual Competition and review released results",
         },
       ],
     },

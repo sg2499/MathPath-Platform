@@ -27,6 +27,11 @@ from app.services.lesson_progress_service import (
     ComputeLessonProgressForStudents,
 )
 from app.services.competition_mock_attempt_service import GetCompetitionMockResultForTeacher
+from app.services.annual_competition_monitoring_service import (
+    GetAnnualCompetitionLiveMonitoring,
+    ListAnnualCompetitionResultsForRoster,
+    ListNonDraftAnnualCompetitionEvents,
+)
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
 from app.services.assessment_feedback_service import upsert_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.auth_service import public_profile_photo_url
@@ -280,6 +285,37 @@ def teacher_competition_mock_tracker(db: Session = Depends(get_db), teacher: Tea
 @router.get("/competition/mock-attempts/{attempt_id}/result")
 def teacher_get_competition_mock_result(attempt_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
     return GetCompetitionMockResultForTeacher(db, teacher, attempt_id)
+
+
+# --- Annual Competition (Package 7): teacher monitoring ---------------------
+# See backend/app/services/annual_competition_monitoring_service.py. Read-
+# only by design (pkg-07 checklist item 3: "Teacher role has no write path
+# here") -- every endpoint below is a GET, matching this file's own
+# Competition Mock precedent just above (mock-tracker / mock-attempts
+# result are also GET-only). Scoped to own_students_query the same way
+# _teacher_competition_tracker_payload already is; a teacher with no
+# students gets an empty rows list, never a 403/404 or another teacher's
+# data.
+
+@router.get("/competition/annual/events")
+def teacher_list_annual_competition_events(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    return ListNonDraftAnnualCompetitionEvents(db)
+
+
+@router.get("/competition/annual/events/{event_id}/live")
+def teacher_get_annual_competition_live_monitoring(
+    event_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
+):
+    student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
+    return GetAnnualCompetitionLiveMonitoring(db, EventId=event_id, StudentIdsFilter=student_ids)
+
+
+@router.get("/competition/annual/events/{event_id}/results")
+def teacher_list_annual_competition_results(
+    event_id: str, competitionLevelCode: str | None = None, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
+):
+    student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
+    return ListAnnualCompetitionResultsForRoster(db, EventId=event_id, StudentIdsFilter=student_ids, CompetitionLevelCode=competitionLevelCode)
 
 
 @router.get("/dashboard")

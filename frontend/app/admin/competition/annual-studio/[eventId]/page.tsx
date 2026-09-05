@@ -12,17 +12,25 @@ import {
   createAnnualCompetitionSlot,
   generateAnnualCompetitionLevelPaper,
   getAnnualCompetitionEventOverview,
+  getAnnualCompetitionLiveMonitoring,
   linkAnnualCompetitionLevelPaper,
+  listAnnualCompetitionResults,
   overrideAnnualCompetitionAssignment,
   previewAnnualCompetitionAssignments,
+  rankAnnualCompetitionResults,
+  reconcileAnnualCompetitionAttempts,
+  releaseAnnualCompetitionResults,
   runAnnualCompetitionAssignments,
   updateAnnualCompetitionEvent,
   updateAnnualCompetitionSectionTimer,
   type AnnualCompetitionAssignmentPreviewRow,
   type AnnualCompetitionLevelPaper,
+  type AnnualCompetitionLiveMonitoringRow,
+  type AnnualCompetitionResultRow,
 } from "@/lib/api/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Activity,
   AlertTriangle,
   ArrowLeft,
   CalendarClock,
@@ -30,6 +38,7 @@ import {
   ClipboardList,
   Link2,
   Lock,
+  Medal,
   PlusCircle,
   RefreshCcw,
   ShieldAlert,
@@ -86,9 +95,35 @@ function ToLocalInputValue(IsoValue: string | null): string {
   return `${D.getFullYear()}-${Pad(D.getMonth() + 1)}-${Pad(D.getDate())}T${Pad(D.getHours())}:${Pad(D.getMinutes())}`;
 }
 
-const TabList = ["SLOTS", "PAPERS", "ASSIGNMENTS"] as const;
+const TabList = ["SLOTS", "PAPERS", "ASSIGNMENTS", "MONITORING", "RESULTS"] as const;
 type TabKey = (typeof TabList)[number];
-const TabLabels: Record<TabKey, string> = { SLOTS: "Slots", PAPERS: "Level Papers", ASSIGNMENTS: "Assignments" };
+const TabLabels: Record<TabKey, string> = {
+  SLOTS: "Slots",
+  PAPERS: "Level Papers",
+  ASSIGNMENTS: "Assignments",
+  MONITORING: "Live Monitoring",
+  RESULTS: "Results",
+};
+
+const LiveStatusTone: Record<AnnualCompetitionLiveMonitoringRow["liveStatus"], string> = {
+  NOT_STARTED: "bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300",
+  IN_PROGRESS: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200",
+  STUCK: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200",
+  SUBMITTED: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200",
+  FINALIZED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200",
+};
+
+function LiveStatusChip({ status }: { status: AnnualCompetitionLiveMonitoringRow["liveStatus"] }) {
+  return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${LiveStatusTone[status]}`}>{status.replace("_", " ")}</span>;
+}
+
+function FormatSecondsAsMinSec(Value: number | null): string {
+  if (Value == null) return "-";
+  const Total = Math.max(0, Math.round(Value));
+  const Minutes = Math.floor(Total / 60);
+  const Seconds = Total % 60;
+  return `${Minutes}:${String(Seconds).padStart(2, "0")}`;
+}
 
 export default function AdminAnnualCompetitionEventDetailPage() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
@@ -113,6 +148,10 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const [OverrideStudentId, SetOverrideStudentId] = useState("");
   const [OverrideLevelCode, SetOverrideLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
 
+  // --- Monitoring / Results (Package 7) ---
+  const [ResultsLevelFilter, SetResultsLevelFilter] = useState<string>("ALL");
+  const [RankLevelCode, SetRankLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+
   const OverviewQuery = useQuery({
     queryKey: ["admin", "annual-competition", "overview", EventId],
     queryFn: () => getAnnualCompetitionEventOverview(EventId),
@@ -126,9 +165,27 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     enabled: Ready && Boolean(EventId) && ActiveTab === "ASSIGNMENTS",
   });
 
+  const LiveMonitoringQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "monitoring-live", EventId],
+    queryFn: () => getAnnualCompetitionLiveMonitoring(EventId),
+    enabled: Ready && Boolean(EventId) && ActiveTab === "MONITORING",
+    // Genuinely "live" -- auto-refresh while the tab is open, same spirit
+    // as the reconciliation sweep it sits next to (this never mutates
+    // anything itself, it only reads more often).
+    refetchInterval: ActiveTab === "MONITORING" ? 15000 : false,
+  });
+
+  const ResultsQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "results", EventId, ResultsLevelFilter],
+    queryFn: () => listAnnualCompetitionResults(EventId, ResultsLevelFilter === "ALL" ? undefined : ResultsLevelFilter),
+    enabled: Ready && Boolean(EventId) && ActiveTab === "RESULTS",
+  });
+
   const InvalidateOverview = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "overview", EventId] });
   const InvalidatePreview = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "preview", EventId] });
   const InvalidateEventsList = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "events"] });
+  const InvalidateLiveMonitoring = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "monitoring-live", EventId] });
+  const InvalidateResults = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "results", EventId] });
 
   const SetLockedMutation = useMutation({
     mutationFn: (Status: string) => updateAnnualCompetitionEvent(EventId, { status: Status }),
@@ -206,6 +263,30 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     },
   });
 
+  const ReconcileMutation = useMutation({
+    mutationFn: () => reconcileAnnualCompetitionAttempts(),
+    onSuccess: (Result) => {
+      SetLastMessage(`Reconciliation sweep: ${Result.reconciledCount} abandoned attempt${Result.reconciledCount === 1 ? "" : "s"} force-closed.`);
+      InvalidateLiveMonitoring();
+    },
+  });
+
+  const RankResultsMutation = useMutation({
+    mutationFn: (LevelCode: string) => rankAnnualCompetitionResults(EventId, LevelCode),
+    onSuccess: (Result) => {
+      SetLastMessage(`Ranked ${Result.rankedCount} result${Result.rankedCount === 1 ? "" : "s"} for ${Result.competitionLevelCode}.`);
+      InvalidateResults();
+    },
+  });
+
+  const ReleaseResultsForLevelMutation = useMutation({
+    mutationFn: (LevelCode: string | null) => releaseAnnualCompetitionResults(EventId, LevelCode),
+    onSuccess: (Result) => {
+      SetLastMessage(`Released ${Result.releasedCount} result${Result.releasedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${Result.competitionLevelCode}` : " across every level"}.`);
+      InvalidateResults();
+    },
+  });
+
   if (!Ready) return null;
   if (OverviewQuery.isLoading) {
     return (
@@ -232,7 +313,12 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     RunEngineMutation.error ||
     OverrideMutation.error ||
     SetLockedMutation.error ||
-    ReleaseResultsMutation.error;
+    ReleaseResultsMutation.error ||
+    (ActiveTab === "MONITORING" ? LiveMonitoringQuery.error : null) ||
+    (ActiveTab === "RESULTS" ? ResultsQuery.error : null) ||
+    ReconcileMutation.error ||
+    RankResultsMutation.error ||
+    ReleaseResultsForLevelMutation.error;
 
   return (
     <AppShell title="Annual Competition Studio">
@@ -612,6 +698,202 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   {OverrideMutation.isPending ? "Saving..." : "Override Assignment"}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {ActiveTab === "MONITORING" && (
+          <div className="space-y-6">
+            <div className="math-card p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <SectionTitle
+                  icon={<Activity size={14} />}
+                  kicker="Live View"
+                  title="Started / In Progress / Stuck / Submitted"
+                  description="Recomputed on every load (auto-refreshes every 15s while this tab is open) -- nothing here is a stored flag. STUCK uses the exact same no-heartbeat-within-the-grace-window threshold the reconciliation sweep below acts on."
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={LiveMonitoringQuery.isFetching}
+                    onClick={() => LiveMonitoringQuery.refetch()}
+                    className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                  >
+                    <RefreshCcw size={14} />
+                    {LiveMonitoringQuery.isFetching ? "Refreshing..." : "Refresh Now"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={ReconcileMutation.isPending}
+                    onClick={() => {
+                      if (window.confirm("Force-close every abandoned attempt (no heartbeat within the grace window) across ALL events? This cannot be undone.")) {
+                        ReconcileMutation.mutate();
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 rounded-full border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:-translate-y-px dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+                  >
+                    <ShieldAlert size={13} />
+                    {ReconcileMutation.isPending ? "Reconciling..." : "Run Reconciliation Sweep"}
+                  </button>
+                </div>
+              </div>
+
+              {LiveMonitoringQuery.data && (
+                <div className="mt-4 flex flex-wrap gap-4 text-xs font-black text-slate-600 dark:text-slate-300">
+                  <span>{LiveMonitoringQuery.data.summary.totalCount} total</span>
+                  <span className="text-slate-500">{LiveMonitoringQuery.data.summary.notStartedCount} not started</span>
+                  <span className="text-blue-600 dark:text-blue-300">{LiveMonitoringQuery.data.summary.inProgressCount} in progress</span>
+                  <span className="text-rose-600 dark:text-rose-300">{LiveMonitoringQuery.data.summary.stuckCount} stuck</span>
+                  <span className="text-emerald-600 dark:text-emerald-300">{LiveMonitoringQuery.data.summary.finalizedCount} finalized</span>
+                </div>
+              )}
+
+              {LiveMonitoringQuery.isLoading ? (
+                <div className="mt-4"><LoadingState label="Loading live status..." /></div>
+              ) : LiveMonitoringQuery.data && LiveMonitoringQuery.data.rows.length > 0 ? (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full min-w-[860px] text-left text-xs font-bold">
+                    <thead>
+                      <tr className="text-slate-500 dark:text-slate-400">
+                        <th className="px-2 py-1.5">Student</th>
+                        <th className="px-2 py-1.5">Level</th>
+                        <th className="px-2 py-1.5">Slot</th>
+                        <th className="px-2 py-1.5">Status</th>
+                        <th className="px-2 py-1.5">Section</th>
+                        <th className="px-2 py-1.5">Remaining</th>
+                        <th className="px-2 py-1.5">Last Heartbeat Gap</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {LiveMonitoringQuery.data.rows.map((Row: AnnualCompetitionLiveMonitoringRow) => (
+                        <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
+                          <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                          <td className="px-2 py-2">{Row.assignedLevelCode}</td>
+                          <td className="px-2 py-2">{Row.slot?.slotLabel || Row.slot?.mode || "--"}</td>
+                          <td className="px-2 py-2"><LiveStatusChip status={Row.liveStatus} /></td>
+                          <td className="px-2 py-2">{Row.currentSectionNumber ?? "--"}</td>
+                          <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.remainingSecondsAtLastHeartbeat)}</td>
+                          <td className="px-2 py-2">{Row.heartbeatGapSeconds != null ? `${Row.heartbeatGapSeconds}s` : "--"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <EmptyState title="No assignments yet" description="Run the assignment engine first -- nothing to monitor until students are assigned to this event." />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {ActiveTab === "RESULTS" && (
+          <div className="space-y-6">
+            <div className="math-card p-5">
+              <SectionTitle
+                icon={<Medal size={14} />}
+                kicker="Post-Event Review"
+                title="Rank &amp; Release"
+                description="Admin always sees every computed result here regardless of release -- the release gate only applies to the student/parent-facing endpoint. Releasing always re-ranks first, in the same step."
+              />
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Filter by Level
+                  <select value={ResultsLevelFilter} onChange={(EventValue) => SetResultsLevelFilter(EventValue.target.value)} className="math-input">
+                    <option value="ALL">All Levels</option>
+                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Rank Level
+                  <select value={RankLevelCode} onChange={(EventValue) => SetRankLevelCode(EventValue.target.value)} className="math-input">
+                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  disabled={RankResultsMutation.isPending}
+                  onClick={() => RankResultsMutation.mutate(RankLevelCode)}
+                  className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                >
+                  <RefreshCcw size={14} />
+                  {RankResultsMutation.isPending ? "Ranking..." : `Rank ${RankLevelCode}`}
+                </button>
+                <button
+                  type="button"
+                  disabled={ReleaseResultsForLevelMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Release results for ${RankLevelCode}? Students/parents will be able to see them immediately.`)) {
+                      ReleaseResultsForLevelMutation.mutate(RankLevelCode);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <CheckCircle2 size={14} />
+                  Release {RankLevelCode}
+                </button>
+                <button
+                  type="button"
+                  disabled={ReleaseResultsForLevelMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm("Release results for EVERY level of this event? Students/parents will be able to see them immediately.")) {
+                      ReleaseResultsForLevelMutation.mutate(null);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 transition hover:-translate-y-px dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+                >
+                  <Lock size={13} />
+                  Release All Levels
+                </button>
+              </div>
+
+              {ResultsQuery.isLoading ? (
+                <div className="mt-5"><LoadingState label="Loading results..." /></div>
+              ) : ResultsQuery.data && ResultsQuery.data.rows.length > 0 ? (
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[820px] text-left text-xs font-bold">
+                    <thead>
+                      <tr className="text-slate-500 dark:text-slate-400">
+                        <th className="px-2 py-1.5">Rank</th>
+                        <th className="px-2 py-1.5">Student</th>
+                        <th className="px-2 py-1.5">Level</th>
+                        <th className="px-2 py-1.5">Accuracy</th>
+                        <th className="px-2 py-1.5">Score</th>
+                        <th className="px-2 py-1.5">Time Taken</th>
+                        <th className="px-2 py-1.5">Released</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ResultsQuery.data.rows.map((Row: AnnualCompetitionResultRow) => (
+                        <tr key={Row.resultId} className="border-t border-[color:var(--mp-role-border)]">
+                          <td className="px-2 py-2">{Row.rank ?? "--"}</td>
+                          <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                          <td className="px-2 py-2">{Row.competitionLevelCode}</td>
+                          <td className="px-2 py-2">{Row.accuracyPercentage}%</td>
+                          <td className="px-2 py-2">{Row.score}/{Row.maxScore}</td>
+                          <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
+                          <td className="px-2 py-2">
+                            {Row.isReleased ? (
+                              <span className="text-emerald-600 dark:text-emerald-300">Released</span>
+                            ) : (
+                              <span className="text-slate-400">Not released</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <EmptyState title="No results computed yet" description="Results appear automatically once a student's last section closes -- nothing to review until then." />
+                </div>
+              )}
             </div>
           </div>
         )}

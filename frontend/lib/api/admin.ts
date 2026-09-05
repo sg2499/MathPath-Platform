@@ -1718,3 +1718,107 @@ export async function overrideAnnualCompetitionAssignment(
   const { data } = await api.post(`/admin/annual-competition/events/${eventId}/assignments/override`, payload);
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Annual Competition -- Scoring + Results (Package 6). The computation/
+// rank/release endpoints themselves shipped with Package 6 as API-only
+// (see annual_competition_scoring_service.py); these client functions and
+// the admin "RESULTS" tab are Package 7's addition -- the deliberately
+// deferred "results-review screen."
+// ---------------------------------------------------------------------------
+
+export type AnnualCompetitionResultRow = {
+  resultId: string;
+  competitionLevelCode: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  timeTakenSeconds: number | null;
+  perSectionTime: Array<Record<string, unknown>>;
+  rank: number | null;
+  releasedAt: string | null;
+  attemptId: string;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  isReleased: boolean;
+};
+
+export type AnnualCompetitionResultsList = {
+  eventId: string;
+  competitionLevelCode: string | null;
+  totalResults: number;
+  rows: AnnualCompetitionResultRow[];
+};
+
+export async function listAnnualCompetitionResults(eventId: string, competitionLevelCode?: string | null): Promise<AnnualCompetitionResultsList> {
+  const { data } = await api.get<AnnualCompetitionResultsList>(`/admin/annual-competition/events/${eventId}/results`, {
+    params: competitionLevelCode ? { competitionLevelCode } : undefined,
+  });
+  return data;
+}
+
+export async function rankAnnualCompetitionResults(eventId: string, competitionLevelCode: string): Promise<{ eventId: string; competitionLevelCode: string; rankedCount: number }> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/results/rank`, { competitionLevelCode });
+  return data;
+}
+
+export async function releaseAnnualCompetitionResults(eventId: string, competitionLevelCode?: string | null): Promise<{ eventId: string; competitionLevelCode: string | null; releasedCount: number }> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/results/release`, { competitionLevelCode: competitionLevelCode || null });
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Annual Competition -- Teacher/Admin Monitoring (Package 7). Types mirror
+// annual_competition_monitoring_service.py's payloads verbatim.
+// ---------------------------------------------------------------------------
+
+export type AnnualCompetitionLiveMonitoringRow = {
+  assignmentId: string;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  className: string | null;
+  section: string | null;
+  assignedLevelCode: string;
+  slot: { slotId: string; mode: string; slotLabel: string | null; scheduledStartAt: string | null; scheduledEndAt: string | null } | null;
+  attemptId: string | null;
+  attemptStatus: string;
+  liveStatus: "NOT_STARTED" | "IN_PROGRESS" | "STUCK" | "SUBMITTED" | "FINALIZED";
+  currentSectionNumber: number | null;
+  remainingSecondsAtLastHeartbeat: number | null;
+  lastHeartbeatAt: string | null;
+  heartbeatGapSeconds: number | null;
+};
+
+export type AnnualCompetitionLiveMonitoring = {
+  eventId: string;
+  eventName: string;
+  eventStatus: string;
+  generatedAt: string;
+  summary: {
+    totalCount: number;
+    notStartedCount: number;
+    inProgressCount: number;
+    stuckCount: number;
+    submittedCount: number;
+    finalizedCount: number;
+  };
+  rows: AnnualCompetitionLiveMonitoringRow[];
+};
+
+export async function getAnnualCompetitionLiveMonitoring(eventId: string, slotId?: string | null): Promise<AnnualCompetitionLiveMonitoring> {
+  const { data } = await api.get<AnnualCompetitionLiveMonitoring>(`/admin/annual-competition/events/${eventId}/monitoring/live`, {
+    params: slotId ? { slotId } : undefined,
+  });
+  return data;
+}
+
+export async function reconcileAnnualCompetitionAttempts(): Promise<{ reconciledCount: number; attemptIds: string[] }> {
+  const { data } = await api.post(`/admin/annual-competition/attempts/reconcile`, {});
+  return data;
+}

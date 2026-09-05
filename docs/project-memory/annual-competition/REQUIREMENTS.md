@@ -1,10 +1,11 @@
 # Annual Competition — Requirements (source of truth)
 
-Status as of 2026-09-05: **Packages 1-6 of the build (data model,
+Status as of 2026-09-05: **Packages 1-7 of the build (data model,
 assignment engine, admin studio, section-timer/pause engine, student
-attempt UI, scoring + results) are COMPLETE — see `.mathpath/STATE.yaml`
-and `.mathpath/packages/pkg-0{1..6}-*.md` for exact build status; this file
-stays the requirements source of truth, not the build-progress tracker.**
+attempt UI, scoring + results, teacher/admin monitoring) are COMPLETE —
+see `.mathpath/STATE.yaml` and `.mathpath/packages/pkg-0{1..7}-*.md` for
+exact build status; this file stays the requirements source of truth, not
+the build-progress tracker.**
 Seven items were originally open; the client has now answered all seven,
 including a 2026-09-05 follow-up that resolved the one item (1+2) that
 needed a more precise answer (see that section below for the full
