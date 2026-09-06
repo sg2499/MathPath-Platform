@@ -1,5 +1,5 @@
 current_epic: annual-competition-plan.md
-active_package: pkg-09-rehearsal-and-regression.md
+active_package: pkg-10-go-live.md
 status: IN_PROGRESS
 
 # Previous epic (competition-mock-practice-plan.md) is COMPLETED and shipped.
@@ -74,6 +74,28 @@ status: IN_PROGRESS
 # regression) and Package 10 (go-live checklist) remain per the original
 # plan's sequencing and Shailesh's "section by section" cadence -- not yet
 # started, awaiting explicit go-ahead.
+#
+# Package 9 (Full Rehearsal + Regression, 2026-09-06) is now COMPLETE --
+# see .mathpath/packages/pkg-09-rehearsal-and-regression.md. New test file
+# test_annual_competition_full_rehearsal.py stitches Packages 1-8 together
+# into one simulated slice of the real 11 Oct 2026 day: all five slots
+# (offline x3, online-India, online-international) including the slot gate
+# actually rejecting a not-yet-open slot; a genuine disconnect-and-resume
+# (a real heartbeat gap, not a synthetic edit) exercised once per PM-L2
+# section type (ABACUS, VISUAL), each capped at the 45s grace window; the
+# reconciliation sweep force-closing a genuinely abandoned attempt while
+# leaving a live one alone, confirmed idempotent on a second run; and the
+# full rank -> release -> certificate pipeline run against attempts the
+# rehearsal itself produced, including a certificate for the
+# reconciled/abandoned attempt specifically (proving "every finalized
+# participant is eligible" survives that path too). Separately, a
+# full-repo grep found a real, previously uncovered gap -- nothing had
+# ever called DeleteCompetitionMockExam itself against an Annual-
+# Competition-linked exam (only its mirrored studio-side read check was
+# tested) -- closed with 3 new tests in
+# test_annual_competition_studio_service.py. Full backend suite: 489
+# passed (485 + 4 new), zero regressions; npm run build clean (no frontend
+# changes this package).
 #
 # Everything so far is built and verified locally only -- push/merge/deploy
 # is being bundled across all packages per Shailesh's instruction
