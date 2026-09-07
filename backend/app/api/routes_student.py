@@ -50,7 +50,6 @@ from app.services.annual_competition_certificate_service import (
     BuildAnnualCompetitionCertificateForStudent,
 )
 from app.services.student_activity_service import GetStudentActivityEventsInRange
-from app.core.cache import cache_by_user_id
 from app.core.errors import api_error
 
 router = APIRouter(prefix="/api/student", tags=["student"])
@@ -391,7 +390,6 @@ def student_download_annual_competition_certificate(attempt_id: str, db: Session
 
 
 @router.get("/assignments")
-@cache_by_user_id()
 def assignments(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     # A weekly-scheduled DPS assignment (routes_teacher.py's
     # /assignments/schedule) is created with start_time set to a future
@@ -401,12 +399,21 @@ def assignments(db: Session = Depends(get_db), student: Student = Depends(get_cu
     # day arrives -- cumulative, not exclusive: once unlocked it stays
     # visible alongside every earlier day's sheet, it never disappears.
     now_utc = datetime.now(timezone.utc)
-    # Defense-in-depth alongside the notifications-bell hooks in
-    # routes_notifications.py: this endpoint is decorated with
-    # @cache_by_user_id() (60s TTL), so this only actually runs on a
-    # cache-miss, but it means a student who opens the practice list
-    # directly (bypassing the bell) still gets caught up on any
-    # weekly-scheduled sheet whose start_time has already arrived.
+    # Runs unconditionally on every fetch, same as the notifications-bell
+    # hooks in routes_notifications.py -- this endpoint used to be
+    # decorated with @cache_by_user_id() (a 60s in-process TTL cache with
+    # no invalidation anywhere), which is the confirmed root cause of a
+    # freshly-created assignment intermittently not showing up when a
+    # student logs in: any request from that student in the prior 60s, on
+    # the same one of the 4 gunicorn worker processes (each with its own
+    # separate copy of the cache, so which worker a request lands on
+    # matters), returned the stale pre-assignment response instead of
+    # querying the database. The cache is now removed entirely rather than
+    # patched with invalidation, since with multiple worker processes and
+    # no shared cache store, invalidating on one worker would still leave
+    # the others stale -- removing it is the only fix that is actually
+    # correct, not just less likely to reproduce. See the matching removal
+    # on /results below (same decorator, same bug class).
     NotifyMissedPracticeUnlocks(db, student)
     rows = [
         a for a in get_student_assignments(db, student)
@@ -750,7 +757,6 @@ def student_activity_range(start: str, end: str, db: Session = Depends(get_db), 
 
 
 @router.get("/results")
-@cache_by_user_id()
 def student_results(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     attempts = (
         db.query(Attempt)
