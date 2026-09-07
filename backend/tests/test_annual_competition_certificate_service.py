@@ -300,3 +300,55 @@ def test_admin_certificate_404_for_unknown_attempt():
     db = _session()
     with pytest.raises(HTTPException):
         certificates.BuildAnnualCompetitionCertificateForAdmin(db, AttemptId="does-not-exist")
+
+
+# ---------------------------------------------------------------------------
+# Voided results (Package 10 go-live rollback plan) -- blocked for BOTH
+# entry points, unlike the release gate above which only applies to
+# students. See _ResolveCertificateData's own comment for why: a voided
+# result means "this result is wrong," so no certificate should come out of
+# it at all, including an admin's own inspection/print copy.
+# ---------------------------------------------------------------------------
+
+def test_student_certificate_blocked_once_result_is_voided():
+    db = _session()
+    student, attempt_id = _finalized_attempt_for_one_student(db)
+    _release(db)
+    admin = _user(db, "user-admin-void", name="Admin")
+    db.commit()
+
+    scoring.VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason="Wrong paper linked.", VoidedBy=admin)
+
+    with pytest.raises(HTTPException) as exc_info:
+        certificates.BuildAnnualCompetitionCertificateForStudent(db, student, attempt_id)
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["code"] == "COMPETITION_RESULT_VOIDED"
+
+
+def test_admin_certificate_also_blocked_once_result_is_voided():
+    db = _session()
+    student, attempt_id = _finalized_attempt_for_one_student(db)
+    admin = _user(db, "user-admin-void", name="Admin")
+    db.commit()  # deliberately never released -- admin would normally bypass that gate
+
+    scoring.VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason="Technical issue confirmed.", VoidedBy=admin)
+
+    with pytest.raises(HTTPException) as exc_info:
+        certificates.BuildAnnualCompetitionCertificateForAdmin(db, AttemptId=attempt_id)
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["code"] == "COMPETITION_RESULT_VOIDED"
+
+
+def test_certificate_available_again_once_unvoided():
+    db = _session()
+    student, attempt_id = _finalized_attempt_for_one_student(db)
+    _release(db)
+    admin = _user(db, "user-admin-void", name="Admin")
+    db.commit()
+
+    scoring.VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason="Investigating.", VoidedBy=admin)
+    scoring.UnvoidCompetitionEventResult(db, AttemptId=attempt_id)
+
+    response = certificates.BuildAnnualCompetitionCertificateForStudent(db, student, attempt_id)
+    PdfBytes = _collect_pdf_bytes(response)
+    assert PdfBytes[:4] == b"%PDF"

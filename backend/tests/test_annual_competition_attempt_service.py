@@ -169,6 +169,91 @@ def test_start_without_ready_level_paper_is_400():
         engine.StartCompetitionEventAttempt(db, student, event.id)
 
 
+# ---------------------------------------------------------------------------
+# Suspension (Package 10 go-live rollback plan) -- emergency stop for the
+# whole student-facing attempt flow on one event. See SuspendCompetitionEvent's
+# own docstring in annual_competition_studio_service.py for the full design
+# rationale; these tests exercise the guard from the attempt-engine side,
+# toggling CompetitionEvent.attempts_suspended_at directly (matching this
+# file's own stated scope of running against synthetic attempts only,
+# without pulling in the studio service).
+# ---------------------------------------------------------------------------
+
+def test_start_rejected_when_event_suspended():
+    db = _session()
+    student, event = _full_setup(db)
+    event.attempts_suspended_at = datetime.now(timezone.utc)
+    event.suspension_reason = "Wrong paper linked, investigating."
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        engine.StartCompetitionEventAttempt(db, student, event.id)
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail["code"] == "COMPETITION_EVENT_SUSPENDED"
+
+
+def test_resume_also_rejected_when_event_suspended_after_start():
+    """The kill switch blocks BOTH a brand new attempt and resuming an
+    existing one -- Start/Resume share the same function, so suspending
+    mid-event also stops a student reloading their page from getting back
+    in, matching the explicit design choice for this package."""
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600, 300))
+    first = engine.StartCompetitionEventAttempt(db, student, event.id)
+    assert first["status"] == "IN_PROGRESS"
+
+    event.attempts_suspended_at = datetime.now(timezone.utc)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        engine.StartCompetitionEventAttempt(db, student, event.id)
+    assert exc_info.value.detail["code"] == "COMPETITION_EVENT_SUSPENDED"
+
+
+def test_instructions_screen_also_blocked_when_suspended():
+    db = _session()
+    student, event = _full_setup(db)
+    event.attempts_suspended_at = datetime.now(timezone.utc)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        engine.GetCompetitionEventInstructions(db, student, event.id)
+    assert exc_info.value.detail["code"] == "COMPETITION_EVENT_SUSPENDED"
+
+
+def test_start_works_again_once_suspension_lifted():
+    db = _session()
+    student, event = _full_setup(db)
+    event.attempts_suspended_at = datetime.now(timezone.utc)
+    db.commit()
+
+    with pytest.raises(HTTPException):
+        engine.StartCompetitionEventAttempt(db, student, event.id)
+
+    event.attempts_suspended_at = None
+    db.commit()
+
+    result = engine.StartCompetitionEventAttempt(db, student, event.id)
+    assert result["status"] == "IN_PROGRESS"
+
+
+def test_heartbeat_on_an_already_active_session_is_not_blocked_by_suspension():
+    """Deliberately confirms the scope boundary documented on
+    _CheckEventNotSuspended: a suspension takes effect the next time a
+    student's client calls Start, not mid-heartbeat for a session that's
+    already resumed and live -- nothing already in flight is torn down by
+    a suspension raised after the student is already on the attempt screen."""
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+
+    event.attempts_suspended_at = datetime.now(timezone.utc)
+    db.commit()
+
+    result = engine.RecordCompetitionEventHeartbeat(db, student, started["attemptId"], started["sessionToken"], 1)
+    assert result["status"] == "IN_PROGRESS"
+
+
 def test_start_again_while_in_progress_resumes_and_reissues_token():
     db = _session()
     student, event = _full_setup(db)

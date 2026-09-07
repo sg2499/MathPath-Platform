@@ -250,12 +250,23 @@ def _DefaultRankingSortKey(db: Session, ResultRecord: CompetitionEventResult) ->
 
 def _RankResultsForLevel(db: Session, EventId: str, CompetitionLevelCode: str) -> int:
     """No commit -- pure mutation, so callers can compose this with other
-    writes into one atomic transaction (see ReleaseCompetitionEventResults)."""
+    writes into one atomic transaction (see ReleaseCompetitionEventResults).
+
+    Voided results (Package 10 go-live rollback plan -- see
+    VoidCompetitionEventResult's own docstring below) are excluded from the
+    query entirely, not just skipped while iterating: a voided result must
+    never receive or keep a rank, and every other student's rank must close
+    the gap it leaves behind, exactly as if that result didn't exist for
+    ranking purposes. VoidCompetitionEventResult itself already nulls out
+    `rank` the instant a result is voided, so nothing here needs to touch a
+    voided row at all.
+    """
     ResultRecords = (
         db.query(CompetitionEventResult)
         .filter(
             CompetitionEventResult.event_id == EventId,
             CompetitionEventResult.competition_level_code == CompetitionLevelCode,
+            CompetitionEventResult.is_voided == False,  # noqa: E712
         )
         .all()
     )
@@ -299,7 +310,10 @@ def ReleaseCompetitionEventResults(
     for LevelCode in LevelCodes:
         _RankResultsForLevel(db, EventId, LevelCode)
 
-    ResultsQuery = db.query(CompetitionEventResult).filter(CompetitionEventResult.event_id == EventId)
+    ResultsQuery = db.query(CompetitionEventResult).filter(
+        CompetitionEventResult.event_id == EventId,
+        CompetitionEventResult.is_voided == False,  # noqa: E712 -- a voided result is never released, see VoidCompetitionEventResult
+    )
     if CompetitionLevelCode:
         ResultsQuery = ResultsQuery.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
     NowUtc = _NowUtc()
@@ -335,7 +349,79 @@ def _ResultPayload(ResultRecord: CompetitionEventResult) -> dict[str, Any]:
         "perSectionTime": json.loads(ResultRecord.per_section_time_json) if ResultRecord.per_section_time_json else [],
         "rank": ResultRecord.rank,
         "releasedAt": ResultRecord.released_at.isoformat() if ResultRecord.released_at else None,
+        "isVoided": ResultRecord.is_voided,
+        "voidedReason": ResultRecord.voided_reason,
+        "voidedAt": ResultRecord.voided_at.isoformat() if ResultRecord.voided_at else None,
     }
+
+
+def VoidCompetitionEventResult(db: Session, *, AttemptId: str, Reason: str, VoidedBy: User) -> dict[str, Any]:
+    """Package 10 (go-live rollback plan): excludes one specific result from
+    ranking, student/parent visibility, and certificates -- without
+    touching anything else for that event. See CompetitionEventResult's own
+    docstring in app/models/models.py for why this is a separate flag from
+    is_released rather than just unreleasing it: unreleasing alone would
+    still leave the (wrong) result counted in every other student's rank,
+    which is exactly the failure mode this exists to prevent.
+
+    Immediately re-ranks the affected level in the same transaction (same
+    discipline ReleaseCompetitionEventResults already follows for its own
+    re-rank), so every other student's rank on that level is correct right
+    away rather than waiting for the next unrelated ranking run. Does NOT
+    touch the underlying CompetitionEventAttempt or its answers -- the raw
+    data stays intact for audit; only this result's visibility and ranking
+    participation change. Pairs naturally with the already-built
+    GrantAnnualCompetitionAttemptRetry when the right fix is "let this
+    student redo it," but voiding does not grant a retry on its own -- they
+    are separate admin decisions.
+    """
+    ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptId).first()
+    if not ResultRecord:
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "No competition result exists for this attempt yet.")
+
+    CleanReason = (Reason or "").strip()
+    if not CleanReason:
+        api_error(400, "COMPETITION_VOID_REASON_REQUIRED", "A reason is required to void a competition result.")
+
+    ResultRecord.is_voided = True
+    ResultRecord.voided_reason = CleanReason
+    ResultRecord.voided_at = _NowUtc()
+    ResultRecord.voided_by_user_id = VoidedBy.id if VoidedBy else None
+    ResultRecord.rank = None
+    # _RankResultsForLevel runs its own separate query filtering on
+    # is_voided; without flushing first, that query would still see this
+    # row's pre-change is_voided=False (autoflush is off in this repo's own
+    # test sessions -- see e.g. test_annual_competition_studio_service.py),
+    # include it again, and overwrite the rank=None set above right back to
+    # a real rank.
+    db.flush()
+
+    _RankResultsForLevel(db, ResultRecord.event_id, ResultRecord.competition_level_code)
+    db.commit()
+    db.refresh(ResultRecord)
+    return _ResultPayload(ResultRecord)
+
+
+def UnvoidCompetitionEventResult(db: Session, *, AttemptId: str) -> dict[str, Any]:
+    """Reverses VoidCompetitionEventResult -- the result re-enters ranking
+    (re-ranked immediately, same as voiding) and becomes visible again
+    exactly as it would have been had it never been voided: still gated by
+    is_released, never automatically re-released as a side effect of this
+    call (mirrors is_released/rank's own documented independence)."""
+    ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptId).first()
+    if not ResultRecord:
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "No competition result exists for this attempt yet.")
+
+    ResultRecord.is_voided = False
+    ResultRecord.voided_reason = None
+    ResultRecord.voided_at = None
+    ResultRecord.voided_by_user_id = None
+    db.flush()  # same reason as VoidCompetitionEventResult's own flush above
+
+    _RankResultsForLevel(db, ResultRecord.event_id, ResultRecord.competition_level_code)
+    db.commit()
+    db.refresh(ResultRecord)
+    return _ResultPayload(ResultRecord)
 
 
 def GetCompetitionEventResultForStudent(db: Session, StudentRecord: Student, AttemptId: str) -> dict[str, Any]:
@@ -350,7 +436,13 @@ def GetCompetitionEventResultForStudent(db: Session, StudentRecord: Student, Att
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
 
     ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
-    if not ResultRecord or not ResultRecord.is_released:
+    # A voided result (Package 10 go-live rollback plan) is reported exactly
+    # like an unreleased one -- never the actual metrics, and never a hint
+    # that anything unusual happened. This is a deliberate choice, not an
+    # oversight: distinguishing "not released yet" from "voided" in this
+    # response would itself leak information about an admin-only action to
+    # the one person (the student) it's least appropriate to surface to.
+    if not ResultRecord or not ResultRecord.is_released or ResultRecord.is_voided:
         return {
             "attemptId": AttemptRecord.id,
             "attemptStatus": AttemptRecord.status,

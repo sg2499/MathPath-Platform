@@ -588,3 +588,143 @@ def test_recompute_never_flips_an_already_released_result_back():
     assert result_after.is_released is True
     assert result_after.released_at == released_at_before
     assert result_after.rank == rank_before
+
+
+# ---------------------------------------------------------------------------
+# Void / unvoid a single result (Package 10 go-live rollback plan) --
+# excludes one specific result from ranking/release/student-visibility
+# without touching anything else for that event. See
+# VoidCompetitionEventResult's own docstring for the full design rationale.
+# ---------------------------------------------------------------------------
+
+def test_void_requires_a_reason():
+    db = _session()
+    event = _event(db)
+    admin = _admin(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+    attempt_id = _submit_full_attempt(db, student, event.id, {"q-1-1": True})
+
+    with pytest.raises(HTTPException):
+        scoring.VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason="  ", VoidedBy=admin)
+
+
+def test_void_unknown_attempt_raises_404():
+    db = _session()
+    admin = _admin(db)
+    db.commit()
+    with pytest.raises(HTTPException):
+        scoring.VoidCompetitionEventResult(db, AttemptId="does-not-exist", Reason="Data error.", VoidedBy=admin)
+
+
+def test_voided_result_excluded_from_ranking_and_others_shift_up():
+    db = _session()
+    event = _event(db)
+    admin = _admin(db)
+    student_a = _setup_student_with_questions(db, "sA", event.id, section_seconds=(600,), questions_per_section=[2], exam_id="exam-shared", level_paper_id="paper-shared")
+    student_b = _setup_student_with_questions(db, "sB", event.id, section_seconds=(600,), questions_per_section=[2], exam_id="exam-shared", level_paper_id="paper-shared")
+    db.commit()
+
+    attempt_a = _submit_full_attempt(db, student_a, event.id, {"q-1-1": True, "q-1-2": True})   # 100%
+    attempt_b = _submit_full_attempt(db, student_b, event.id, {"q-1-1": True, "q-1-2": False})  # 50%
+
+    outcome = scoring.RankCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2")
+    assert outcome["rankedCount"] == 2
+    result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
+    assert result_a.rank == 1
+
+    # Void the rank-1 result (e.g. discovered to be wrong-paper/technical
+    # issue) -- rank is nulled immediately, and re-ranking the level
+    # excludes it entirely, so student B moves up to rank 1.
+    voided = scoring.VoidCompetitionEventResult(db, AttemptId=attempt_a, Reason="Wrong paper linked for this student.", VoidedBy=admin)
+    assert voided["isVoided"] is True
+    assert voided["rank"] is None
+
+    result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
+    result_b = db.query(CompetitionEventResult).filter_by(student_id="sB").one()
+    assert result_a.rank is None
+    assert result_b.rank == 1
+
+    # A later, unrelated re-rank call must also continue to exclude it.
+    outcome_again = scoring.RankCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2")
+    assert outcome_again["rankedCount"] == 1
+    result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
+    assert result_a.rank is None
+
+
+def test_voided_result_never_released_even_by_a_whole_event_release():
+    db = _session()
+    event = _event(db)
+    admin = _admin(db)
+    student_a = _setup_student_with_questions(db, "sA", event.id, section_seconds=(600,), questions_per_section=[1], exam_id="exam-shared", level_paper_id="paper-shared")
+    student_b = _setup_student_with_questions(db, "sB", event.id, section_seconds=(600,), questions_per_section=[1], exam_id="exam-shared", level_paper_id="paper-shared")
+    db.commit()
+    attempt_a = _submit_full_attempt(db, student_a, event.id, {"q-1-1": True})
+    attempt_b = _submit_full_attempt(db, student_b, event.id, {"q-1-1": True})
+
+    scoring.VoidCompetitionEventResult(db, AttemptId=attempt_a, Reason="Data entry mistake.", VoidedBy=admin)
+    scoring.ReleaseCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode=None, ReleasedBy=admin)
+
+    result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
+    result_b = db.query(CompetitionEventResult).filter_by(student_id="sB").one()
+    assert result_a.is_released is False  # voided -- never released, even by a blanket release
+    assert result_b.is_released is True   # the other student's result is completely unaffected
+
+
+def test_student_read_treats_a_voided_result_exactly_like_unreleased():
+    db = _session()
+    event = _event(db)
+    admin = _admin(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+    attempt_id = _submit_full_attempt(db, student, event.id, {"q-1-1": True})
+
+    # Released first, THEN voided -- proves voiding overrides an existing
+    # release rather than only preventing a future one.
+    scoring.ReleaseCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2", ReleasedBy=admin)
+    scoring.VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason="Technical issue confirmed.", VoidedBy=admin)
+
+    own_read = scoring.GetCompetitionEventResultForStudent(db, student, attempt_id)
+    assert own_read["released"] is False
+    assert own_read["result"] is None
+
+
+def test_admin_list_still_shows_a_voided_result_flagged_not_filtered_out():
+    db = _session()
+    event = _event(db)
+    admin = _admin(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+    attempt_id = _submit_full_attempt(db, student, event.id, {"q-1-1": True})
+    scoring.VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason="Under review.", VoidedBy=admin)
+
+    listing = scoring.ListCompetitionEventResultsForAdmin(db, EventId=event.id)
+    assert listing["totalResults"] == 1
+    [row] = listing["rows"]
+    assert row["isVoided"] is True
+    assert row["voidedReason"] == "Under review."
+
+
+def test_unvoid_restores_ranking_and_release_eligibility():
+    db = _session()
+    event = _event(db)
+    admin = _admin(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+    attempt_id = _submit_full_attempt(db, student, event.id, {"q-1-1": True})
+    scoring.VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason="Investigating.", VoidedBy=admin)
+
+    restored = scoring.UnvoidCompetitionEventResult(db, AttemptId=attempt_id)
+    assert restored["isVoided"] is False
+    assert restored["rank"] == 1  # only result on the level -- re-ranked immediately back to 1
+
+    scoring.ReleaseCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2", ReleasedBy=admin)
+    result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    assert result.is_released is True
+
+
+def test_unvoid_unknown_attempt_raises_404():
+    db = _session()
+    db.commit()
+    with pytest.raises(HTTPException):
+        scoring.UnvoidCompetitionEventResult(db, AttemptId="does-not-exist")

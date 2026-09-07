@@ -1254,6 +1254,48 @@ def ensure_annual_competition_tables() -> None:
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_used_attempt_id ON competition_event_attempt_retry_grants (used_attempt_id)"))
 
 
+def ensure_annual_competition_go_live_columns() -> None:
+    """Self-heal safety net for Package 10's (go-live rollback plan) new
+    columns -- see matching Alembic migration
+    584eee85ebf0_add_annual_competition_suspend_and_void.py.
+
+    `ensure_annual_competition_tables()` above only ever CREATEs these two
+    tables if they don't already exist, so on any environment where they
+    already exist (every environment that has run this epic's earlier
+    packages) that function will never add these new columns -- the exact
+    same gap class the retry-grants migration's own docstring already
+    describes for a brand new table, just for columns on existing ones
+    instead. Same convention as every other ensure_*_column() function in
+    this file: additive only, safe to run on every startup.
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+
+    if "competition_events" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_events")}
+        with engine.begin() as connection:
+            if "attempts_suspended_at" not in existing:
+                connection.execute(text("ALTER TABLE competition_events ADD COLUMN attempts_suspended_at TIMESTAMP"))
+            if "suspension_reason" not in existing:
+                connection.execute(text("ALTER TABLE competition_events ADD COLUMN suspension_reason TEXT"))
+            if "suspended_by_user_id" not in existing:
+                connection.execute(text("ALTER TABLE competition_events ADD COLUMN suspended_by_user_id VARCHAR"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_events_suspended_by_user_id ON competition_events (suspended_by_user_id)"))
+
+    if "competition_event_results" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_event_results")}
+        with engine.begin() as connection:
+            if "is_voided" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN is_voided BOOLEAN DEFAULT false NOT NULL"))
+            if "voided_reason" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN voided_reason TEXT"))
+            if "voided_at" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN voided_at TIMESTAMP"))
+            if "voided_by_user_id" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN voided_by_user_id VARCHAR"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_results_voided_by_user_id ON competition_event_results (voided_by_user_id)"))
+
+
 def ensure_mock_notifications_fixed() -> None:
     import re
     from app.database import SessionLocal

@@ -195,6 +195,26 @@ def _VerifySessionToken(AttemptRecord: CompetitionEventAttempt, SessionToken: st
         )
 
 
+def _CheckEventNotSuspended(EventRecord: CompetitionEvent) -> None:
+    """Package 10 (go-live rollback plan) emergency stop -- see
+    SuspendCompetitionEvent's own docstring in annual_competition_studio_
+    service.py for the full design rationale. Checked at the two entry
+    points into the student-facing attempt flow that take an EventRecord
+    directly (the pre-attempt instructions screen, and Start/Resume) --
+    deliberately NOT checked in Heartbeat/SubmitSection/SaveAnswer, which
+    only ever act on an attempt already resumed under a live session_token;
+    a suspension takes effect the moment a student's own client next calls
+    Start (e.g. a page reload), never mid-heartbeat, so nothing already in
+    flight is forcibly torn down by this check."""
+    if EventRecord.attempts_suspended_at is not None:
+        api_error(
+            403,
+            "COMPETITION_EVENT_SUSPENDED",
+            "This competition has been temporarily paused by an administrator. Please wait for further instructions.",
+            {"reason": EventRecord.suspension_reason},
+        )
+
+
 def _CheckSlotGate(db: Session, AssignmentRecord: CompetitionEventAssignment, NowUtc: datetime) -> None:
     """Only enforced when the assignment has a slot_id -- see
     StartCompetitionEventAttempt's docstring for why that's the common
@@ -547,6 +567,7 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
     EventRecord = db.get(CompetitionEvent, EventId)
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
+    _CheckEventNotSuspended(EventRecord)
 
     AssignmentRecord = (
         db.query(CompetitionEventAssignment)
@@ -829,6 +850,7 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
     EventRecord = db.get(CompetitionEvent, EventId)
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
+    _CheckEventNotSuspended(EventRecord)
 
     AssignmentRecord = (
         db.query(CompetitionEventAssignment)

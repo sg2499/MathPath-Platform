@@ -82,3 +82,57 @@ def test_ensure_annual_competition_tables_is_idempotent(monkeypatch):
 
     tables = set(inspect(test_engine).get_table_names())
     assert "competition_event_attempt_retry_grants" in tables
+
+
+# ---------------------------------------------------------------------------
+# ensure_annual_competition_go_live_columns() -- Package 10 (go-live
+# rollback plan). ensure_annual_competition_tables() above only ever
+# CREATEs competition_events/competition_event_results if they don't
+# already exist, so on a real deploy that already has those tables (every
+# environment that has run this epic's earlier packages) it would never add
+# these new columns -- this is the backfill for exactly that gap, same
+# class of bug the retry-grants migration's own docstring already
+# describes for a brand new table.
+# ---------------------------------------------------------------------------
+
+def test_ensure_annual_competition_go_live_columns_backfills_onto_pre_existing_tables(monkeypatch):
+    test_engine = _isolated_engine()
+    monkeypatch.setattr(schema_migration, "engine", test_engine)
+
+    # Simulate a real pre-Package-10 deploy: the tables already exist (via
+    # the safety net above), in their OLD shape -- before the new columns.
+    schema_migration.ensure_annual_competition_tables()
+    old_event_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_events")}
+    old_result_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_results")}
+    assert "attempts_suspended_at" not in old_event_columns
+    assert "is_voided" not in old_result_columns
+
+    schema_migration.ensure_annual_competition_go_live_columns()
+
+    event_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_events")}
+    assert {"attempts_suspended_at", "suspension_reason", "suspended_by_user_id"} <= event_columns
+
+    result_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_results")}
+    assert {"is_voided", "voided_reason", "voided_at", "voided_by_user_id"} <= result_columns
+
+
+def test_ensure_annual_competition_go_live_columns_is_idempotent(monkeypatch):
+    test_engine = _isolated_engine()
+    monkeypatch.setattr(schema_migration, "engine", test_engine)
+
+    schema_migration.ensure_annual_competition_tables()
+    schema_migration.ensure_annual_competition_go_live_columns()
+    schema_migration.ensure_annual_competition_go_live_columns()  # must not raise
+
+    result_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_results")}
+    assert "is_voided" in result_columns
+
+
+def test_ensure_annual_competition_go_live_columns_noop_when_tables_absent(monkeypatch):
+    """Fresh install where Base.metadata.create_all() hasn't run yet and
+    ensure_annual_competition_tables() hasn't been called first -- must not
+    raise just because the tables don't exist."""
+    test_engine = _isolated_engine()
+    monkeypatch.setattr(schema_migration, "engine", test_engine)
+
+    schema_migration.ensure_annual_competition_go_live_columns()  # must not raise

@@ -112,6 +112,8 @@ from app.services.annual_competition_studio_service import (
     ListCompetitionEventLevelPapers,
     UpdateCompetitionEventSectionTimer,
     OverrideCompetitionEventAssignment,
+    SuspendCompetitionEvent,
+    LiftCompetitionEventSuspension,
 )
 
 from app.services.annual_competition_attempt_service import (
@@ -124,6 +126,8 @@ from app.services.annual_competition_scoring_service import (
     ListCompetitionEventResultsForAdmin,
     RankCompetitionEventResults,
     ReleaseCompetitionEventResults,
+    VoidCompetitionEventResult,
+    UnvoidCompetitionEventResult,
 )
 
 from app.services.annual_competition_certificate_service import (
@@ -219,6 +223,12 @@ class AnnualCompetitionRankResultsRequest(BaseModel):
 
 class AnnualCompetitionReleaseResultsRequest(BaseModel):
     competitionLevelCode: str | None = None
+
+class AnnualCompetitionSuspendEventRequest(BaseModel):
+    reason: str
+
+class AnnualCompetitionVoidResultRequest(BaseModel):
+    reason: str
 
 
 def _admin_natural_sort_key(value: Any) -> list[Any]:
@@ -5909,6 +5919,26 @@ def admin_update_annual_competition_event(
     )
 
 
+# Package 10 (go-live rollback plan) emergency stop. See
+# SuspendCompetitionEvent's own docstring in annual_competition_studio_
+# service.py. API-only for now, the same deliberate deferral this epic's
+# other rare, admin-only override actions have already used (Package 6b's
+# retry-grants) -- a dedicated Studio UI control is a later, separate
+# decision, not a go-live blocker.
+@router.post("/annual-competition/events/{event_id}/suspend")
+def admin_suspend_annual_competition_event(
+    event_id: str, payload: AnnualCompetitionSuspendEventRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return SuspendCompetitionEvent(db, EventId=event_id, Reason=payload.reason, SuspendedBy=user)
+
+
+@router.post("/annual-competition/events/{event_id}/lift-suspension")
+def admin_lift_annual_competition_event_suspension(
+    event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return LiftCompetitionEventSuspension(db, EventId=event_id)
+
+
 @router.post("/annual-competition/events/{event_id}/slots")
 def admin_create_annual_competition_slot(
     event_id: str, payload: AnnualCompetitionSlotCreateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
@@ -6062,6 +6092,25 @@ def admin_release_annual_competition_results(
     event_id: str, payload: AnnualCompetitionReleaseResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
 ):
     return ReleaseCompetitionEventResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode, ReleasedBy=user)
+
+
+# Package 10 (go-live rollback plan): correct/void a single attempt's
+# result without touching anything else for that event. See
+# VoidCompetitionEventResult's own docstring in
+# annual_competition_scoring_service.py. API-only for now, same deferral as
+# the suspend/lift-suspension pair above.
+@router.post("/annual-competition/attempts/{attempt_id}/void-result")
+def admin_void_annual_competition_result(
+    attempt_id: str, payload: AnnualCompetitionVoidResultRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason=payload.reason, VoidedBy=user)
+
+
+@router.post("/annual-competition/attempts/{attempt_id}/unvoid-result")
+def admin_unvoid_annual_competition_result(
+    attempt_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return UnvoidCompetitionEventResult(db, AttemptId=attempt_id)
 
 
 # Package 8 (certificate half): admin download bypasses the release gate

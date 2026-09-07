@@ -1,15 +1,17 @@
 # Annual Competition — Requirements (source of truth)
 
-Status as of 2026-09-06: **All 8 packages of the build (data model,
+Status as of 2026-09-07: **All 10 packages of the build (data model,
 assignment engine, admin studio, section-timer/pause engine, student
 attempt UI, scoring + results, teacher/admin monitoring, certificates/
-leaderboard), plus Package 6b (admin "technical issue" retry override,
-item 6 below), are COMPLETE**, and **Package 9 (full rehearsal + regression)
-is also now COMPLETE** — see `.mathpath/STATE.yaml` and
-`.mathpath/packages/pkg-0{1..9}-*.md` / `pkg-06b-retry-override.md` for
-exact build status; this file stays the requirements source of truth, not
-the build-progress tracker. Package 10 (go-live checklist) remains, per the
-original plan's own sequencing — not started, awaiting explicit go-ahead.
+leaderboard, full rehearsal + regression, go-live checklist + rollback
+plan), plus Package 6b (admin "technical issue" retry override, item 6
+below), are COMPLETE** — see `.mathpath/STATE.yaml` and
+`.mathpath/packages/pkg-0{1..9}-*.md` / `pkg-10-go-live.md` /
+`pkg-06b-retry-override.md` for exact build status; this file stays the requirements source of truth, not
+the build-progress tracker. The Annual Competition epic's build is now
+fully complete; the only remaining step is the bundled push/merge/deploy
+across all packages, awaiting Shailesh's explicit go-ahead (per his
+2026-09-04 instruction that this is never done per-package).
 Seven items were originally open; the client has now answered all seven,
 including a 2026-09-05 follow-up that resolved the one item (1+2) that
 needed a more precise answer (see that section below for the full

@@ -428,11 +428,27 @@ class CompetitionEvent(Base):
     # but this is admin-editable data specifically so a real date change
     # never requires a code change.
     results_release_at = Column(DateTime(timezone=True), nullable=True)
+    # Package 10 (go-live rollback plan) emergency stop: a nullable
+    # timestamp, matching this schema's own "presence = truthy" convention
+    # (results_release_at above, locked_at on CompetitionEventLevelPaper).
+    # Deliberately NOT reusing `status` for this -- DRAFT/SCHEDULED/LIVE/
+    # COMPLETED already carries its own meaning (mainly: whether the event
+    # shows up in a student's discovery list) and overloading it to also
+    # mean "emergency stop" would make an admin's normal pre-event DRAFT
+    # setup indistinguishable from a mid-event incident. Checked by
+    # StartCompetitionEventAttempt (blocks both a brand new attempt AND
+    # resuming an existing one -- see that function's own docstring) and by
+    # GetCompetitionEventInstructions, so the whole student-facing attempt
+    # flow -- not just the discovery list -- is what actually goes dark.
+    attempts_suspended_at = Column(DateTime(timezone=True), nullable=True)
+    suspension_reason = Column(Text, nullable=True)
+    suspended_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    created_by = relationship("User")
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
+    suspended_by = relationship("User", foreign_keys=[suspended_by_user_id])
 
 
 class CompetitionEventSlot(Base):
@@ -608,13 +624,29 @@ class CompetitionEventResult(Base):
     is_released = Column(Boolean, default=False, nullable=False)
     released_at = Column(DateTime(timezone=True), nullable=True)
     released_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    # Package 10 (go-live rollback plan): lets an admin exclude one specific
+    # result -- wrong paper linked, a data entry mistake, a confirmed
+    # integrity issue -- from ranking, student/parent visibility, and
+    # certificates, WITHOUT touching anything else for that event (no other
+    # student's rank, release state, or certificate is affected). Deliberately
+    # separate from is_released: a voided result must never become visible
+    # just because it was previously released, or become visible later if
+    # released again -- see VoidCompetitionEventResult's own docstring in
+    # annual_competition_scoring_service.py for why voiding and (un)release
+    # are independent axes, same reasoning as is_released vs rank already
+    # documented on this class.
+    is_voided = Column(Boolean, default=False, nullable=False)
+    voided_reason = Column(Text, nullable=True)
+    voided_at = Column(DateTime(timezone=True), nullable=True)
+    voided_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     computed_at = Column(DateTime(timezone=True), server_default=func.now())
 
     attempt = relationship("CompetitionEventAttempt")
     event = relationship("CompetitionEvent")
     assignment = relationship("CompetitionEventAssignment")
     student = relationship("Student")
-    released_by = relationship("User")
+    released_by = relationship("User", foreign_keys=[released_by_user_id])
+    voided_by = relationship("User", foreign_keys=[voided_by_user_id])
 
 
 class CompetitionEventAttemptAnswer(Base):

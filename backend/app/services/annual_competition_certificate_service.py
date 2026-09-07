@@ -177,6 +177,20 @@ def _ResolveCertificateData(
     if not ResultRecord:
         api_error(404, "COMPETITION_RESULT_NOT_FOUND", "No result has been computed for this attempt yet.")
 
+    # Package 10 (go-live rollback plan): a voided result (see
+    # VoidCompetitionEventResult in annual_competition_scoring_service.py)
+    # is blocked here for BOTH the student and admin entry points, unlike
+    # the release gate below which only ever applies to students -- the
+    # whole point of voiding is "this result is wrong," so nobody should be
+    # able to generate a certificate from it, including an admin's own
+    # inspection/print copy that could end up physically handed out.
+    if ResultRecord.is_voided:
+        api_error(
+            409,
+            "COMPETITION_RESULT_VOIDED",
+            "This result has been voided by an administrator and no certificate is available for it.",
+        )
+
     EventRecord = db.get(CompetitionEvent, AttemptRecord.event_id)
     StudentRecord = db.get(Student, AttemptRecord.student_id)
     return AttemptRecord, ResultRecord, EventRecord, StudentRecord

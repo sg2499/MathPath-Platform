@@ -153,6 +153,9 @@ def _EventPayload(EventRecord: CompetitionEvent) -> dict[str, Any]:
         "status": EventRecord.status,
         "competitionDate": EventRecord.competition_date.isoformat() if EventRecord.competition_date else None,
         "resultsReleaseAt": EventRecord.results_release_at.isoformat() if EventRecord.results_release_at else None,
+        "isSuspended": EventRecord.attempts_suspended_at is not None,
+        "attemptsSuspendedAt": EventRecord.attempts_suspended_at.isoformat() if EventRecord.attempts_suspended_at else None,
+        "suspensionReason": EventRecord.suspension_reason,
         "createdByUserId": EventRecord.created_by_user_id,
         "createdAt": EventRecord.created_at.isoformat() if EventRecord.created_at else None,
         "updatedAt": EventRecord.updated_at.isoformat() if EventRecord.updated_at else None,
@@ -207,6 +210,55 @@ def UpdateCompetitionEvent(
     # _IsLevelPaperLocked), so the sentinel default means "field not sent".
     if ResultsReleaseAt != "__UNSET__":
         EventRecord.results_release_at = ResultsReleaseAt
+    db.commit()
+    db.refresh(EventRecord)
+    return _EventPayload(EventRecord)
+
+
+def SuspendCompetitionEvent(db: Session, *, EventId: str, Reason: str, SuspendedBy: User) -> dict[str, Any]:
+    """Package 10 (go-live rollback plan) emergency stop: an admin-only
+    action that immediately blocks the ENTIRE student-facing attempt flow
+    for this one event -- both starting a brand new attempt and resuming an
+    existing in-progress one (StartCompetitionEventAttempt handles both
+    through the same function, so one check there covers both) plus the
+    pre-attempt instructions screen (GetCompetitionEventInstructions).
+
+    Deliberately does NOT touch anything already in flight at the database
+    level: a section a student is mid-way through keeps whatever state it
+    already has (no attempt is force-submitted or corrupted by this call) --
+    it simply can no longer be *resumed* once the student's own client next
+    calls Start (e.g. on a page reload, which is exactly when a student
+    experiencing "something's wrong" would naturally retry). This mirrors
+    the pause mechanic's own philosophy elsewhere in this epic: react to
+    what already happened, never retroactively rewrite it.
+
+    A reason is required -- this is a rare, high-stakes action and the
+    go-live runbook expects it to leave an audit trail, the same discipline
+    GrantAnnualCompetitionAttemptRetry already enforces for its own reason
+    field.
+    """
+    EventRecord = _GetEventOr404(db, EventId)
+    CleanReason = (Reason or "").strip()
+    if not CleanReason:
+        api_error(400, "COMPETITION_SUSPEND_REASON_REQUIRED", "A reason is required to suspend a competition event.")
+
+    EventRecord.attempts_suspended_at = datetime.now(timezone.utc)
+    EventRecord.suspension_reason = CleanReason
+    EventRecord.suspended_by_user_id = SuspendedBy.id if SuspendedBy else None
+    db.commit()
+    db.refresh(EventRecord)
+    return _EventPayload(EventRecord)
+
+
+def LiftCompetitionEventSuspension(db: Session, *, EventId: str) -> dict[str, Any]:
+    """Reverses SuspendCompetitionEvent -- students can start/resume again
+    immediately. Named "lift", not "resume", so it is never confused with
+    resuming an individual student's attempt (StartCompetitionEventAttempt's
+    own, unrelated, use of "resume")."""
+    EventRecord = _GetEventOr404(db, EventId)
+    EventRecord.attempts_suspended_at = None
+    EventRecord.suspension_reason = None
+    EventRecord.suspended_by_user_id = None
     db.commit()
     db.refresh(EventRecord)
     return _EventPayload(EventRecord)

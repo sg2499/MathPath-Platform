@@ -1,6 +1,6 @@
 current_epic: annual-competition-plan.md
 active_package: pkg-10-go-live.md
-status: IN_PROGRESS
+status: COMPLETE
 
 # Previous epic (competition-mock-practice-plan.md) is COMPLETED and shipped.
 # Annual Competition (2026-09) is now the active epic. Package 1 (data
@@ -71,9 +71,8 @@ status: IN_PROGRESS
 # code blocker.
 #
 # All 8 core build packages are now COMPLETE. Package 9 (rehearsal + full
-# regression) and Package 10 (go-live checklist) remain per the original
-# plan's sequencing and Shailesh's "section by section" cadence -- not yet
-# started, awaiting explicit go-ahead.
+# regression) and Package 10 (go-live checklist) were built next, per the
+# original plan's sequencing and Shailesh's "section by section" cadence.
 #
 # Package 9 (Full Rehearsal + Regression, 2026-09-06) is now COMPLETE --
 # see .mathpath/packages/pkg-09-rehearsal-and-regression.md. New test file
@@ -97,6 +96,38 @@ status: IN_PROGRESS
 # passed (485 + 4 new), zero regressions; npm run build clean (no frontend
 # changes this package).
 #
+# Package 10 (Go-Live Checklist + Rollback Plan, 2026-09-07) is now
+# COMPLETE -- see .mathpath/packages/pkg-10-go-live.md. Re-verified all
+# 7 REQUIREMENTS.md items are resolved and confirmed the IM-4/MM-2 slot
+# question (item 7) needs no code or data change -- the published slot
+# window is only a shared entry anchor, per-section timers already govern
+# actual duration independently. Two genuine gaps in the rollback plan
+# were closed with real code, after Shailesh explicitly chose both designs
+# via AskUserQuestion: (1) a real "Suspend Event" kill switch
+# (attempts_suspended_at/suspension_reason/suspended_by_user_id on
+# CompetitionEvent) that blocks starting or resuming an attempt and the
+# instructions screen, but deliberately never interrupts an already-active
+# heartbeating session; (2) a real "Void Result" mechanism
+# (is_voided/voided_reason/voided_at/voided_by_user_id on
+# CompetitionEventResult) that excludes a voided result from ranking and
+# release, reads to the student exactly like unreleased, stays visible
+# (flagged) on the admin results list for audit, and blocks certificate
+# downloads for both student AND admin. Both are API-only, no frontend UI,
+# matching Package 6b's own established precedent. New migration
+# 584eee85ebf0 (down_revision 7f3c9a1e5d02) plus a new
+# ensure_annual_competition_go_live_columns() raw-SQL safety net cover the
+# 7 new columns. A from-scratch `alembic upgrade head` against empty
+# SQLite fails, but this was confirmed to be a pre-existing, unrelated
+# repo condition (same failure with the new migration removed entirely,
+# on an old unrelated migration) -- not caused by this package; the raw-SQL
+# safety net is directly tested and confirmed working regardless. Full
+# backend suite: 511 passed (489 + 22 new), zero regressions; npx tsc
+# --noEmit and npm run build both clean (no frontend changes this
+# package). ALL 10 PACKAGES OF THE ANNUAL COMPETITION EPIC ARE NOW
+# COMPLETE.
+#
 # Everything so far is built and verified locally only -- push/merge/deploy
 # is being bundled across all packages per Shailesh's instruction
-# (2026-09-04), not done per-package.
+# (2026-09-04), not done per-package. Now that all 10 packages are
+# complete, this bundled push/merge/deploy is the only remaining step, and
+# it is awaiting Shailesh's explicit go-ahead.

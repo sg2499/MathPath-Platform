@@ -154,6 +154,51 @@ def test_update_event_results_release_at_uses_sentinel_not_none():
 
 
 # ---------------------------------------------------------------------------
+# Suspend / lift suspension (Package 10 go-live rollback plan) -- the guard
+# itself (StartCompetitionEventAttempt/GetCompetitionEventInstructions
+# rejecting once suspended) is exercised in
+# test_annual_competition_attempt_service.py; these tests cover this
+# module's own side: the admin action, its payload, and the reason
+# requirement.
+# ---------------------------------------------------------------------------
+
+def test_suspend_event_requires_a_reason():
+    db = _session()
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+    with pytest.raises(HTTPException):
+        studio.SuspendCompetitionEvent(db, EventId="event-1", Reason="   ", SuspendedBy=admin)
+
+
+def test_suspend_and_lift_event_round_trip():
+    db = _session()
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+
+    suspended = studio.SuspendCompetitionEvent(db, EventId="event-1", Reason="Wrong paper linked.", SuspendedBy=admin)
+    assert suspended["isSuspended"] is True
+    assert suspended["attemptsSuspendedAt"] is not None
+    assert suspended["suspensionReason"] == "Wrong paper linked."
+
+    lifted = studio.LiftCompetitionEventSuspension(db, EventId="event-1")
+    assert lifted["isSuspended"] is False
+    assert lifted["attemptsSuspendedAt"] is None
+    assert lifted["suspensionReason"] is None
+
+
+def test_new_event_is_not_suspended_by_default():
+    db = _session()
+    admin = _admin(db)
+    db.commit()
+    created = studio.CreateCompetitionEvent(
+        db, Name="Annual Competition 2026", CompetitionDate=datetime.now(timezone.utc), CreatedBy=admin
+    )
+    assert created["isSuspended"] is False
+
+
+# ---------------------------------------------------------------------------
 # Slots
 # ---------------------------------------------------------------------------
 
