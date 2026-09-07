@@ -6,3 +6,8 @@
 # See docs/project-memory/DEPLOY_PLAYBOOK.md "Standing caution: this repo's CRLF/LF noise".
 docs/project-memory/COWORK_HANDOFF.md whitespace=cr-at-eol
 docs/project-memory/OPEN_ISSUES.md whitespace=cr-at-eol
+
+# PDFs are binary; without this, git diff --check misreads xref-table
+# byte sequences inside them as text whitespace violations (found via
+# PR #518's repository-safety CI failure, 2026-09-07).
+*.pdf binary
