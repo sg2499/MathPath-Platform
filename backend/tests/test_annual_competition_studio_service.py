@@ -409,6 +409,60 @@ def test_manual_override_rejects_invalid_level_code():
         )
 
 
+def test_manual_override_accepts_student_code_as_well_as_raw_id():
+    """An admin doing this by hand only ever has the human-facing student
+    code (e.g. "MP-ST-005"), never the raw internal id -- nothing else in
+    the product surfaces that id. Both forms must resolve to the same row."""
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    user = User(id="user-s1", full_name="S1", email="s1@example.test", password_hash="x", role="STUDENT", is_active=True)
+    student = Student(
+        id="internal-uuid-s1", user_id=user.id, student_code="MP-ST-005",
+        current_module_id=module.id, current_level_id=level.id, is_active=True,
+    )
+    db.add_all([user, student])
+    _event(db)
+    db.commit()
+
+    ByCode = studio.OverrideCompetitionEventAssignment(
+        db, EventId="event-1", StudentId="MP-ST-005", AssignedLevelCode="MM-L1", OverriddenBy=admin
+    )
+    assert ByCode["studentId"] == "internal-uuid-s1"
+    assert ByCode["assignedLevelCode"] == "MM-L1"
+
+    # Lowercase/whitespace-sloppy input still resolves -- same row updated, not a duplicate.
+    ByCodeAgain = studio.OverrideCompetitionEventAssignment(
+        db, EventId="event-1", StudentId=" mp-st-005 ", AssignedLevelCode="MM-L2", OverriddenBy=admin
+    )
+    assert ByCodeAgain["assignmentId"] == ByCode["assignmentId"]
+    assert db.query(CompetitionEventAssignment).count() == 1
+
+    # The raw internal id still works too -- this must never regress.
+    ByRawId = studio.OverrideCompetitionEventAssignment(
+        db, EventId="event-1", StudentId="internal-uuid-s1", AssignedLevelCode="MM-L1", OverriddenBy=admin
+    )
+    assert ByRawId["assignmentId"] == ByCode["assignmentId"]
+
+
+def test_manual_override_unknown_student_identifier_is_a_clean_404():
+    """Previously a typo'd or bogus identifier (e.g. pasting the student
+    CODE into a field that only accepted the raw id) fell all the way
+    through to a raw DB integrity error on commit -- a confusing generic
+    500 with no indication of what went wrong. It must now fail fast with
+    a clear, actionable 404 before anything is ever written."""
+    db = _session()
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+    with pytest.raises(HTTPException) as excinfo:
+        studio.OverrideCompetitionEventAssignment(
+            db, EventId="event-1", StudentId="MP-ST-999-DOES-NOT-EXIST", AssignedLevelCode="MM-L1", OverriddenBy=admin
+        )
+    assert excinfo.value.status_code == 404
+    assert db.query(CompetitionEventAssignment).count() == 0
+
+
 # ---------------------------------------------------------------------------
 # Default section timers -- self-consistency against REQUIREMENTS.md totals
 # ---------------------------------------------------------------------------
