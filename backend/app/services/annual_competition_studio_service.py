@@ -43,6 +43,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
@@ -56,6 +57,7 @@ from app.models import (
     CompetitionMockExam,
     Level,
     Module,
+    Student,
     User,
 )
 from app.services.competition_mock_generation_service import GenerateCompetitionMockDraft, CompetitionMockExamPayload
@@ -669,6 +671,32 @@ def ListCompetitionEventLevelPapers(db: Session, EventId: str) -> list[dict[str,
 # human override path referenced in that service's own docstring/tests).
 # ---------------------------------------------------------------------------
 
+def _ResolveStudentByIdOrCode(db: Session, StudentIdentifier: str) -> Student:
+    """Accepts either a student's internal id or their human-facing
+    student_code (e.g. "MP-ST-005") -- an admin doing this override by hand
+    only ever has the code on hand, never the raw id, and there is nowhere
+    else in the product that surfaces the raw id to look up. Mirrors the
+    same code-or-identifier flexibility auth_service.login() already gives
+    students/teachers at sign-in, rather than inventing a new lookup shape.
+    Case-insensitive on the code, exact match only (not ilike -- same
+    reasoning as login(): a raw student_code containing "%"/"_" must never
+    be treated as a SQL wildcard)."""
+    Cleaned = (StudentIdentifier or "").strip()
+    if not Cleaned:
+        api_error(400, "VALIDATION_ERROR", "Student ID or student code is required.")
+
+    StudentRecord = db.get(Student, Cleaned)
+    if not StudentRecord:
+        StudentRecord = db.query(Student).filter(func.lower(Student.student_code) == Cleaned.lower()).first()
+    if not StudentRecord:
+        api_error(
+            404,
+            "COMPETITION_STUDENT_NOT_FOUND",
+            f"No student found matching '{StudentIdentifier}' (checked both as an internal ID and as a student code).",
+        )
+    return StudentRecord
+
+
 def OverrideCompetitionEventAssignment(
     db: Session,
     *,
@@ -680,6 +708,7 @@ def OverrideCompetitionEventAssignment(
 ) -> dict[str, Any]:
     _GetEventOr404(db, EventId)
     _ValidateCompetitionLevelCode(AssignedLevelCode)
+    StudentRecord = _ResolveStudentByIdOrCode(db, StudentId)
     if SlotId is not None:
         SlotRecord = db.get(CompetitionEventSlot, SlotId)
         if not SlotRecord or SlotRecord.event_id != EventId:
@@ -687,7 +716,7 @@ def OverrideCompetitionEventAssignment(
 
     AssignmentRecord = (
         db.query(CompetitionEventAssignment)
-        .filter(CompetitionEventAssignment.event_id == EventId, CompetitionEventAssignment.student_id == StudentId)
+        .filter(CompetitionEventAssignment.event_id == EventId, CompetitionEventAssignment.student_id == StudentRecord.id)
         .first()
     )
     if AssignmentRecord:
@@ -700,7 +729,7 @@ def OverrideCompetitionEventAssignment(
     else:
         AssignmentRecord = CompetitionEventAssignment(
             event_id=EventId,
-            student_id=StudentId,
+            student_id=StudentRecord.id,
             assigned_level_code=AssignedLevelCode,
             slot_id=SlotId,
             assignment_source="ADMIN_OVERRIDE",

@@ -727,8 +727,13 @@ export default function AdminAnnualCompetitionEventDetailPage() {
               <SectionTitle icon={<UserCog size={14} />} kicker="Manual Override" title="Override One Student's Assignment" description="Sets assignment_source = ADMIN_OVERRIDE -- the assignment engine will never touch this row again on a future run." />
               <div className="mt-4 flex flex-wrap items-end gap-3">
                 <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                  Student ID
-                  <input value={OverrideStudentId} onChange={(EventValue) => SetOverrideStudentId(EventValue.target.value)} className="math-input" />
+                  Student Code (or ID)
+                  <input
+                    value={OverrideStudentId}
+                    onChange={(EventValue) => SetOverrideStudentId(EventValue.target.value)}
+                    placeholder="e.g. MP-ST-005"
+                    className="math-input"
+                  />
                 </label>
                 <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                   Assigned Level
