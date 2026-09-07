@@ -149,6 +149,30 @@ def _assignments_for(db, student_id):
     )
 
 
+def _ist_date_str(start_time: datetime) -> str:
+    """SQLite (this test's in-memory DB) silently drops tzinfo on a
+    DateTime(timezone=True) column round-trip -- Assignment.start_time is
+    written as an aware UTC datetime but reads back naive. Calling
+    .astimezone(IST) directly on that naive value is genuinely
+    machine-dependent: Python presumes a naive datetime is already in the
+    SYSTEM's local timezone, so this assertion silently passed only by
+    coincidence on a UTC-system machine (any CI runner, most Linux dev
+    boxes) and silently produced a wrong, off-by-one-day result on a
+    machine whose local system timezone is IST (confirmed: reproduces
+    exactly by running this file with TZ=Asia/Kolkata). Production is
+    unaffected -- it runs Postgres, where DateTime(timezone=True) properly
+    preserves tzinfo on read-back -- so this was always a test-fragility
+    bug, not a real scheduling bug, but it deserved fixing rather than
+    "works on my machine": treat a naive value as already being that same
+    UTC instant, exactly like _AssignmentIsUnlocked() in routes_student.py
+    already does for the identical hazard, rather than trusting
+    .astimezone()'s local-timezone guess.
+    """
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=timezone.utc)
+    return start_time.astimezone(IST).strftime("%Y-%m-%d")
+
+
 def test_partway_through_student_gets_todays_slot_filled_with_their_own_next_sheet(db, world):
     """The exact regression: a student who already cleared this lesson's
     first two sheets on their own must still get something scheduled for
@@ -181,9 +205,9 @@ def test_partway_through_student_gets_todays_slot_filled_with_their_own_next_she
     assert len(partway_assignments) == 3
     assert [a.dps_id for a in partway_assignments] == [dps.id for dps in world["dps"][2:5]]
     slot_dates_ascending = sorted(item.date for item in payload.scheduleItems)
-    assert [a.start_time.astimezone(IST).strftime("%Y-%m-%d") for a in partway_assignments] == slot_dates_ascending[:3]
+    assert [_ist_date_str(a.start_time) for a in partway_assignments] == slot_dates_ascending[:3]
     # The concrete bug report: today's date must have a sheet.
-    assert partway_assignments[0].start_time.astimezone(IST).strftime("%Y-%m-%d") == slot_dates_ascending[0]
+    assert _ist_date_str(partway_assignments[0].start_time) == slot_dates_ascending[0]
     assert partway_assignments[0].dps_id == world["dps"][2].id  # DPS 3, their own next sheet
 
 
@@ -246,6 +270,6 @@ def test_teacher_customized_dates_are_preserved_as_the_slot_sequence(db, world):
     schedule_lesson_dps_to_students(payload, db=db, teacher=world["teacher"])
 
     fresh_assignments = _assignments_for(db, world["fresh"].id)
-    assert [a.start_time.astimezone(IST).strftime("%Y-%m-%d") for a in fresh_assignments] == [
+    assert [_ist_date_str(a.start_time) for a in fresh_assignments] == [
         d.strftime("%Y-%m-%d") for d in custom_dates
     ]
