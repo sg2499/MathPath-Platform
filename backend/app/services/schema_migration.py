@@ -1029,6 +1029,273 @@ def ensure_competition_mock_tables() -> None:
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_attempts_student ON competition_mock_attempts (student_id, submitted_at)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_mock_results_student ON competition_mock_result_summaries (student_id, completed_at)"))
 
+
+def ensure_annual_competition_tables() -> None:
+    """Create isolated Annual Competition (2026-09) tables.
+
+    The real, single scheduled competition event (11 Oct 2026) -- distinct
+    from the always-available Competition Mock practice tables above, and
+    deliberately parallel to them rather than built on top of them. See
+    docs/project-memory/annual-competition/REQUIREMENTS.md and
+    .mathpath/packages/pkg-01-data-model.md.
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+
+    with engine.begin() as connection:
+        if "competition_events" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_events (
+                    id VARCHAR PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    status VARCHAR(30) DEFAULT 'DRAFT' NOT NULL,
+                    competition_date TIMESTAMP NOT NULL,
+                    results_release_at TIMESTAMP,
+                    created_by_user_id VARCHAR,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+
+        if "competition_event_slots" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_slots (
+                    id VARCHAR PRIMARY KEY,
+                    event_id VARCHAR NOT NULL,
+                    mode VARCHAR(30) NOT NULL,
+                    slot_label VARCHAR(150),
+                    scheduled_start_at TIMESTAMP NOT NULL,
+                    scheduled_end_at TIMESTAMP NOT NULL,
+                    applicable_level_codes_json TEXT,
+                    is_active BOOLEAN DEFAULT true NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+
+        if "competition_event_level_papers" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_level_papers (
+                    id VARCHAR PRIMARY KEY,
+                    event_id VARCHAR NOT NULL,
+                    competition_level_code VARCHAR(50) NOT NULL,
+                    mock_exam_id VARCHAR,
+                    status VARCHAR(30) DEFAULT 'PENDING' NOT NULL,
+                    locked_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_competition_event_level_paper UNIQUE (event_id, competition_level_code)
+                )
+            """))
+
+        if "competition_event_section_timers" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_section_timers (
+                    id VARCHAR PRIMARY KEY,
+                    level_paper_id VARCHAR NOT NULL,
+                    section_number INTEGER NOT NULL,
+                    section_title VARCHAR(255),
+                    mode VARCHAR(30),
+                    time_limit_seconds INTEGER NOT NULL,
+                    display_order INTEGER DEFAULT 0 NOT NULL,
+                    CONSTRAINT uq_competition_event_section_timer UNIQUE (level_paper_id, section_number)
+                )
+            """))
+
+        if "competition_event_assignments" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_assignments (
+                    id VARCHAR PRIMARY KEY,
+                    event_id VARCHAR NOT NULL,
+                    student_id VARCHAR NOT NULL,
+                    assigned_level_code VARCHAR(50) NOT NULL,
+                    slot_id VARCHAR,
+                    assignment_source VARCHAR(30) DEFAULT 'AUTO' NOT NULL,
+                    overridden_by_user_id VARCHAR,
+                    computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_active BOOLEAN DEFAULT true NOT NULL,
+                    CONSTRAINT uq_competition_event_assignment_student UNIQUE (event_id, student_id)
+                )
+            """))
+
+        if "competition_event_attempts" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_attempts (
+                    id VARCHAR PRIMARY KEY,
+                    event_id VARCHAR NOT NULL,
+                    assignment_id VARCHAR NOT NULL,
+                    level_paper_id VARCHAR NOT NULL,
+                    student_id VARCHAR NOT NULL,
+                    attempt_number INTEGER DEFAULT 1 NOT NULL,
+                    status VARCHAR(30) DEFAULT 'NOT_STARTED' NOT NULL,
+                    session_token VARCHAR(100),
+                    current_section_number INTEGER DEFAULT 1 NOT NULL,
+                    started_at TIMESTAMP,
+                    submitted_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_competition_event_attempt_number UNIQUE (assignment_id, attempt_number)
+                )
+            """))
+
+        if "competition_event_attempt_section_states" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_attempt_section_states (
+                    id VARCHAR PRIMARY KEY,
+                    attempt_id VARCHAR NOT NULL,
+                    section_number INTEGER NOT NULL,
+                    status VARCHAR(30) DEFAULT 'PENDING' NOT NULL,
+                    time_limit_seconds INTEGER NOT NULL,
+                    remaining_seconds_at_last_heartbeat INTEGER,
+                    last_heartbeat_at TIMESTAMP,
+                    started_at TIMESTAMP,
+                    submitted_at TIMESTAMP,
+                    CONSTRAINT uq_competition_event_attempt_section UNIQUE (attempt_id, section_number)
+                )
+            """))
+
+        if "competition_event_results" not in tables:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_results (
+                    id VARCHAR PRIMARY KEY,
+                    attempt_id VARCHAR NOT NULL UNIQUE,
+                    event_id VARCHAR NOT NULL,
+                    assignment_id VARCHAR NOT NULL,
+                    student_id VARCHAR NOT NULL,
+                    competition_level_code VARCHAR(50) NOT NULL,
+                    score FLOAT DEFAULT 0 NOT NULL,
+                    max_score FLOAT DEFAULT 0 NOT NULL,
+                    percentage FLOAT DEFAULT 0 NOT NULL,
+                    accuracy_percentage FLOAT DEFAULT 0 NOT NULL,
+                    correct_count INTEGER DEFAULT 0 NOT NULL,
+                    wrong_count INTEGER DEFAULT 0 NOT NULL,
+                    unanswered_count INTEGER DEFAULT 0 NOT NULL,
+                    time_taken_seconds INTEGER,
+                    per_section_time_json TEXT,
+                    rank INTEGER,
+                    is_released BOOLEAN DEFAULT false NOT NULL,
+                    released_at TIMESTAMP,
+                    released_by_user_id VARCHAR,
+                    computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+
+        if "competition_event_attempt_answers" not in tables:
+            # Package 5 (student live-attempt UI, answer capture) --
+            # backfilled here alongside the retry-grants table below (both
+            # added the same day while building REQUIREMENTS.md item 6):
+            # this table has had a SQLAlchemy model
+            # (CompetitionEventAttemptAnswer) and live runtime dependents
+            # (Package 5's answer-save endpoint, Package 6's "first mistake"
+            # tie-break) since Package 5 shipped, but was never added to
+            # this safety net or to any Alembic migration -- only ever
+            # created implicitly by Base.metadata.create_all() in tests. A
+            # production deploy relying on this safety net (this codebase's
+            # own comments elsewhere note `alembic upgrade head` has not
+            # always been run reliably) would have hit "no such table" the
+            # first time a student saved a competition answer. See the
+            # matching Alembic migration
+            # (7f3c9a1e5d02_add_annual_competition_retry_grants.py) for the
+            # same backfill via the other path.
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_attempt_answers (
+                    id VARCHAR PRIMARY KEY,
+                    attempt_id VARCHAR NOT NULL,
+                    mock_question_id VARCHAR NOT NULL,
+                    selected_option_id VARCHAR,
+                    is_correct BOOLEAN,
+                    answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_competition_event_attempt_question_answer UNIQUE (attempt_id, mock_question_id)
+                )
+            """))
+
+        if "competition_event_attempt_retry_grants" not in tables:
+            # REQUIREMENTS.md outstanding item 6 -- the admin-only "technical
+            # issue" single-retake override. See
+            # CompetitionEventAttemptRetryGrant's own docstring in
+            # app/models/models.py for the full design rationale (mirrors
+            # AssignmentReattemptPermission's APPROVED -> USED lifecycle).
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS competition_event_attempt_retry_grants (
+                    id VARCHAR PRIMARY KEY,
+                    event_id VARCHAR NOT NULL,
+                    assignment_id VARCHAR NOT NULL,
+                    student_id VARCHAR NOT NULL,
+                    granted_by_user_id VARCHAR,
+                    reason TEXT NOT NULL,
+                    status VARCHAR(30) DEFAULT 'APPROVED' NOT NULL,
+                    used_attempt_id VARCHAR,
+                    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    used_at TIMESTAMP
+                )
+            """))
+
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_slots_event ON competition_event_slots (event_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_level_papers_event ON competition_event_level_papers (event_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_level_papers_mock_exam ON competition_event_level_papers (mock_exam_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_section_timers_paper ON competition_event_section_timers (level_paper_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_assignments_student ON competition_event_assignments (student_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_assignments_event ON competition_event_assignments (event_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_assignments_slot ON competition_event_assignments (slot_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempts_event ON competition_event_attempts (event_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempts_assignment ON competition_event_attempts (assignment_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempts_level_paper ON competition_event_attempts (level_paper_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempts_student ON competition_event_attempts (student_id, status)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_section_states_attempt ON competition_event_attempt_section_states (attempt_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_results_event ON competition_event_results (event_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_results_assignment ON competition_event_results (assignment_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_results_student ON competition_event_results (student_id, is_released)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_answers_attempt_id ON competition_event_attempt_answers (attempt_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_answers_mock_question_id ON competition_event_attempt_answers (mock_question_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_answers_selected_option_id ON competition_event_attempt_answers (selected_option_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_event_id ON competition_event_attempt_retry_grants (event_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_assignment_id ON competition_event_attempt_retry_grants (assignment_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_student_id ON competition_event_attempt_retry_grants (student_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_granted_by_user_id ON competition_event_attempt_retry_grants (granted_by_user_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_attempt_retry_grants_used_attempt_id ON competition_event_attempt_retry_grants (used_attempt_id)"))
+
+
+def ensure_annual_competition_go_live_columns() -> None:
+    """Self-heal safety net for Package 10's (go-live rollback plan) new
+    columns -- see matching Alembic migration
+    584eee85ebf0_add_annual_competition_suspend_and_void.py.
+
+    `ensure_annual_competition_tables()` above only ever CREATEs these two
+    tables if they don't already exist, so on any environment where they
+    already exist (every environment that has run this epic's earlier
+    packages) that function will never add these new columns -- the exact
+    same gap class the retry-grants migration's own docstring already
+    describes for a brand new table, just for columns on existing ones
+    instead. Same convention as every other ensure_*_column() function in
+    this file: additive only, safe to run on every startup.
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+
+    if "competition_events" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_events")}
+        with engine.begin() as connection:
+            if "attempts_suspended_at" not in existing:
+                connection.execute(text("ALTER TABLE competition_events ADD COLUMN attempts_suspended_at TIMESTAMP"))
+            if "suspension_reason" not in existing:
+                connection.execute(text("ALTER TABLE competition_events ADD COLUMN suspension_reason TEXT"))
+            if "suspended_by_user_id" not in existing:
+                connection.execute(text("ALTER TABLE competition_events ADD COLUMN suspended_by_user_id VARCHAR"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_events_suspended_by_user_id ON competition_events (suspended_by_user_id)"))
+
+    if "competition_event_results" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_event_results")}
+        with engine.begin() as connection:
+            if "is_voided" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN is_voided BOOLEAN DEFAULT false NOT NULL"))
+            if "voided_reason" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN voided_reason TEXT"))
+            if "voided_at" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN voided_at TIMESTAMP"))
+            if "voided_by_user_id" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN voided_by_user_id VARCHAR"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_results_voided_by_user_id ON competition_event_results (voided_by_user_id)"))
+
+
 def ensure_mock_notifications_fixed() -> None:
     import re
     from app.database import SessionLocal

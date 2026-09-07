@@ -27,6 +27,7 @@ import dynamic from "next/dynamic";
 
 const StudentGlobalBackground = dynamic(() => import("@/components/student/StudentGlobalBackground"), { ssr: false });
 import {
+  Activity,
   AlertCircle,
   Award,
   BarChart3,
@@ -407,6 +408,13 @@ export function AppShell({
           icon: TrendingUp,
           tooltip: "Track mock strengths and weak areas",
         },
+        {
+          label: "Annual Competition Studio",
+          shortLabel: "Annual Studio",
+          href: "/admin/competition/annual-studio",
+          icon: Trophy,
+          tooltip: "Set up and run the real, scheduled Annual Competition event",
+        },
       ],
     },
     {
@@ -537,6 +545,13 @@ export function AppShell({
           icon: TrendingUp,
           tooltip: "Track mock strengths and weak areas",
         },
+        {
+          label: "Annual Competition Monitor",
+          shortLabel: "Annual Monitor",
+          href: "/teacher/competition/annual",
+          icon: Activity,
+          tooltip: "Monitor your students during the Annual Competition and review released results",
+        },
       ],
     },
     {
@@ -610,6 +625,13 @@ export function AppShell({
       icon: Target,
       tooltip: "Open competition mock practice",
       children: [
+        {
+          label: "Annual Competition",
+          shortLabel: "Annual",
+          href: "/student/competition/annual",
+          icon: Trophy,
+          tooltip: "The real, once-a-year MathPath competition",
+        },
         {
           label: "Mock Exams",
           href: "/student/competition/mock-exams",

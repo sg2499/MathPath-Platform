@@ -34,6 +34,21 @@ from app.services.competition_mock_attempt_service import (
     GetCompetitionMockResultForStudent,
     GetCompetitionMockProgressInsightsForStudent,
 )
+from app.services.annual_competition_attempt_service import (
+    StartCompetitionEventAttempt,
+    GetCompetitionEventAttemptForStudent,
+    RecordCompetitionEventHeartbeat,
+    SubmitCompetitionEventSection,
+    SaveCompetitionEventAnswer,
+    ListMyAnnualCompetitionAssignments,
+    GetCompetitionEventInstructions,
+)
+from app.services.annual_competition_scoring_service import (
+    GetCompetitionEventResultForStudent,
+)
+from app.services.annual_competition_certificate_service import (
+    BuildAnnualCompetitionCertificateForStudent,
+)
 from app.services.student_activity_service import GetStudentActivityEventsInRange
 from app.core.cache import cache_by_user_id
 from app.core.errors import api_error
@@ -95,6 +110,27 @@ class SaveCompetitionMockAnswerRequest(BaseModel):
 
 class SubmitCompetitionMockRequest(BaseModel):
     confirmSubmit: bool = True
+
+
+class StartAnnualCompetitionAttemptRequest(BaseModel):
+    eventId: str
+
+
+class AnnualCompetitionHeartbeatRequest(BaseModel):
+    sessionToken: str
+    sectionNumber: int
+
+
+class SubmitAnnualCompetitionSectionRequest(BaseModel):
+    sessionToken: str
+    sectionNumber: int
+
+
+class SaveAnnualCompetitionAnswerRequest(BaseModel):
+    sessionToken: str
+    sectionNumber: int
+    questionId: str
+    selectedOptionId: str
 
 
 def active_reattempt_permission_for_student(db: Session, assignment_id: str, student_id: str):
@@ -282,6 +318,76 @@ def student_get_competition_mock_result(attempt_id: str, db: Session = Depends(g
 @router.get("/competition/progress/insights")
 def student_competition_progress_insights(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     return GetCompetitionMockProgressInsightsForStudent(db, student)
+
+
+# --- Annual Competition (Package 4/5): section-timer + pause engine, and
+# the student discovery/instructions/answer-capture screens built on top of
+# it. See backend/app/services/annual_competition_attempt_service.py.
+# Deliberately separate from the Competition Mock practice routes above --
+# see that service's module docstring for why.
+
+@router.get("/annual-competition/assignments")
+def student_annual_competition_assignments(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return ListMyAnnualCompetitionAssignments(db, student)
+
+
+@router.get("/annual-competition/events/{event_id}/instructions")
+def student_annual_competition_instructions(event_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return GetCompetitionEventInstructions(db, student, event_id)
+
+
+@router.post("/annual-competition/attempts/start")
+def student_start_annual_competition_attempt(
+    payload: StartAnnualCompetitionAttemptRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
+):
+    return StartCompetitionEventAttempt(db, student, payload.eventId)
+
+
+@router.get("/annual-competition/attempts/{attempt_id}")
+def student_get_annual_competition_attempt(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return GetCompetitionEventAttemptForStudent(db, student, attempt_id)
+
+
+@router.post("/annual-competition/attempts/{attempt_id}/heartbeat")
+def student_annual_competition_heartbeat(
+    attempt_id: str, payload: AnnualCompetitionHeartbeatRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
+):
+    return RecordCompetitionEventHeartbeat(db, student, attempt_id, payload.sessionToken, payload.sectionNumber)
+
+
+@router.post("/annual-competition/attempts/{attempt_id}/sections/submit")
+def student_submit_annual_competition_section(
+    attempt_id: str, payload: SubmitAnnualCompetitionSectionRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
+):
+    return SubmitCompetitionEventSection(db, student, attempt_id, payload.sessionToken, payload.sectionNumber)
+
+
+@router.post("/annual-competition/attempts/{attempt_id}/answers")
+def student_save_annual_competition_answer(
+    attempt_id: str, payload: SaveAnnualCompetitionAnswerRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
+):
+    return SaveCompetitionEventAnswer(
+        db, student, attempt_id, payload.sessionToken, payload.sectionNumber, payload.questionId, payload.selectedOptionId
+    )
+
+
+# --- Annual Competition (Package 6): scoring + results -----------------
+# See backend/app/services/annual_competition_scoring_service.py. Always
+# returns a 200 with released:false rather than a raw error while a result
+# is unreleased/uncomputed -- REQUIREMENTS.md item 5's full lock-down means
+# "not available yet" is the expected common state, not a failure.
+
+@router.get("/annual-competition/attempts/{attempt_id}/result")
+def student_get_annual_competition_result(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return GetCompetitionEventResultForStudent(db, student, attempt_id)
+
+
+# Package 8 (certificate half): downloadable once the result above returns
+# released:true -- rechecked independently here, never trusting that a
+# student's client-side "released" flag is still accurate at download time.
+@router.get("/annual-competition/attempts/{attempt_id}/certificate")
+def student_download_annual_competition_certificate(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return BuildAnnualCompetitionCertificateForStudent(db, student, attempt_id)
 
 
 @router.get("/assignments")

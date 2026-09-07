@@ -1,12 +1,26 @@
 # Annual Competition — Requirements (source of truth)
 
-Status as of 2026-09-04: **requirements captured from two client-provided
-documents (below). No code has been written for the real, scheduled Annual
-Competition yet.** This file exists so that any future session working in
-this repo — this thread or a brand new one — has full context without
-needing it re-explained. If you are a Claude session picking this up cold,
-read this file plus the two source documents in this same folder before
-doing anything else on "competition" work.
+Status as of 2026-09-07: **All 10 packages of the build (data model,
+assignment engine, admin studio, section-timer/pause engine, student
+attempt UI, scoring + results, teacher/admin monitoring, certificates/
+leaderboard, full rehearsal + regression, go-live checklist + rollback
+plan), plus Package 6b (admin "technical issue" retry override, item 6
+below), are COMPLETE** — see `.mathpath/STATE.yaml` and
+`.mathpath/packages/pkg-0{1..9}-*.md` / `pkg-10-go-live.md` /
+`pkg-06b-retry-override.md` for exact build status; this file stays the requirements source of truth, not
+the build-progress tracker. The Annual Competition epic's build is now
+fully complete; the only remaining step is the bundled push/merge/deploy
+across all packages, awaiting Shailesh's explicit go-ahead (per his
+2026-09-04 instruction that this is never done per-package).
+Seven items were originally open; the client has now answered all seven,
+including a 2026-09-05 follow-up that resolved the one item (1+2) that
+needed a more precise answer (see that section below for the full
+resolution and the resulting Package 2 fix). This file
+exists so that any future session working in this repo — this thread or a
+brand new one — has full context without needing it re-explained. If you
+are a Claude session picking this up cold, read this file plus the source
+documents in this same folder before doing anything else on "competition"
+work.
 
 ## Source documents (kept verbatim in this folder)
 
@@ -21,8 +35,12 @@ doing anything else on "competition" work.
 2. `2026-09-03_client-completed-questionnaire-response.docx` — **MathPath's
    completed response to a developer questionnaire about the real,
    scheduled Annual Competition** (the actual one-time graded event, not
-   practice for it). This is the newer, more directly actionable document —
-   it describes work that does **not** exist in the codebase yet.
+   practice for it). This is the document Packages 1-4 were built from.
+3. `2026-09-04_client-response-outstanding-items.pdf` — **MathPath's
+   answers to the 7 outstanding confirmation items** raised by document 2
+   (the PDF questionnaire Claude generated and sent for exactly this
+   purpose). See "Seven outstanding confirmations" below for the verbatim
+   answers and what each one means for the build.
 
 ## What already exists today (built, shipped, unrelated to this doc's new asks)
 
@@ -67,7 +85,7 @@ question-pool control (only approved concepts for that level); balanced
 distribution across formats within a section, remainder rotated across
 future mocks; a "combined section count" is a total, not per-concept; **every
 attempt gets a fresh randomised paper** (practice behavior); clear
-ABACUS/VISUAL labels; mock and final papers must match exactly in
+ABACUS/VISUAL labels; mock and final formats must match exactly in
 structure; Division-with-Estimation rounds to 2 decimals per MathPath's
 existing rule.
 
@@ -106,8 +124,11 @@ practice is to let each student repeatedly beat their own previous score.
 Bridge Module placement by lesson milestone: Lesson 15 → PL-1, Lesson 25 →
 PL-2, Lesson 35 → PL-3, full Bridge → PL-4. Master Module placement: below
 Lesson 16 → IM-4, Lesson 16+ but not completed → MM-1, full Master Module
-→ MM-2. **YLP-1 eligibility and the exact Bridge lesson-range boundaries are
-explicitly unconfirmed** (see open items below).
+→ MM-2. **Bridge "between milestones" is now confirmed** (see answered item
+3 below): floor to the highest milestone cleared, matching what Package 2
+already implements. **The YLM/PL-1 paper-split question (item 1+2) has been
+answered by the client but is not yet precise enough to implement — see the
+"Client's answers" section below.**
 
 **Schedule:** Sunday 11 October 2026, single day, fixed start times (not an
 open window):
@@ -123,8 +144,13 @@ open window):
 **⚠ Known scheduling conflict the client's own document flags:** the
 2:00–2:30 PM slot (and its online equivalents) is 30 minutes, but IM-4
 needs 35 minutes and MM-2 needs 40 minutes per the section-timer table
-below. This must be resolved (slot extended or split) before that slot can
-actually be built/scheduled — do not silently pick a resolution in code.
+below. **Answered (item 7, 2026-09-04):** the published slot time is only a
+shared login/entry anchor, not a hard cutoff — "each level has its own time
+limit set the children will do till the time allotted... same entry time,
+rest will follow as per the level time limits as in the platform." No
+schedule edit needed; this confirms `SlotsWithInsufficientDuration`
+(Package 3) is correctly a non-blocking advisory check, not something that
+needed to gate anything.
 
 **Section timers per competition level (Section 3.4 of the source doc):**
 
@@ -156,20 +182,29 @@ save-state discipline as the existing DPS attempt-resume flow).
 **exact same questions in the exact same order** — no per-student
 randomization for the final competition (this is the opposite of practice
 mocks' "fresh randomised paper every attempt" rule above; a frozen,
-shared-paper generation path is new work). Open: whether YLM needs separate
-YLP vs. PL-1 paper variants, since YLP is direct-sums-only and PL-1 adds
-Small Boss/Big Boss concepts.
+shared-paper generation path is new work). **Answered but not yet precise
+(item 1+2, 2026-09-04):** YLM does need a paper split, and it appears to be
+by student age rather than by the YLP-2/YLP-3-vs-PL-1-current label our
+platform actually tracks — see "Client's answers" below for the exact
+wording and the open execution questions this still leaves.
 
-**Results, ranking, certificates — mostly unconfirmed:** scoring formula
-and tie-break rule TBD; practice performance must stay private (student/
-parent see only their own results) but competition leaderboard/winner
-visibility TBD; automatic certificate/scorecard TBD; results are not final
-immediately on submission — formal Results & Prize Distribution is Sunday 1
-November 2026, 3–6 PM, NKDA Community Hall, Action Area IIC, Newtown; exact
+**Results, ranking, certificates:** **Answered (item 4, 2026-09-04):**
+scoring is accuracy % and completion time; tie-break is "who made a mistake
+first" — the student whose first wrong answer came *later* in the sequence
+wins the tie; an unanswered sum earns zero marks. **Answered (item 5,
+2026-09-04):** results stay fully undisclosed until the formal announcement
+date (wording didn't distinguish "hidden from other students" from "hidden
+from the student themselves too" — read it as full lock-down until proven
+otherwise). Certificate fields still TBD. Results are not final immediately
+on submission — formal Results & Prize Distribution is Sunday 1 November
+2026, 3–6 PM, NKDA Community Hall, Action Area IIC, Newtown; exact
 portal-release timing TBD.
 
-**Attempts:** practice mocks stay unlimited-attempt. Final competition
-attempt count and any retake-exception process: TBD.
+**Attempts:** practice mocks stay unlimited-attempt. **Answered (item 6,
+2026-09-04):** the real competition is a single attempt; a retake is
+admin-only and only for a genuine technical issue on MathPath's end — no
+self-serve retake. Package 4 already enforces the single-attempt part; the
+admin-retry-override path does not exist yet (see below).
 
 **Technical interruption:** timer stops immediately, submitted answers +
 current section + remaining time are saved, resume exactly on reconnect.
@@ -185,15 +220,177 @@ already used in the Master Module — no new format needed there.
 section sequence/timers/instructions of the real event (this is what
 Document 1 already covers) and remain unlimited-attempt, private-per-student.
 
-## Seven outstanding confirmations (client's own doc calls these out — do not silently resolve them)
+## Seven outstanding confirmations — client's answers (2026-09-04)
 
-1. Does YLP-1 participate at all?
-2. Does YLM need separate YLP/PL-1 paper variants, or one shared paper limited to common concepts?
-3. Exact Bridge Module lesson-range boundaries for auto-assignment.
-4. Final scoring formula: correct answers only / accuracy % / completion time / a combination — plus tie-break rule and treatment of unanswered sums.
-5. Competition visibility: Top 3 / Top 10 / full leaderboard, parent vs. student visibility, and certificate fields.
-6. Final competition attempt count, and any admin-approved retake exception.
-7. The 2:00–2:30 PM offline slot (and online equivalents) is too short for IM-4 (35 min) and MM-2 (40 min) — needs extending or splitting.
+MathPath sent `2026-09-04_client-response-outstanding-items.pdf` (Claude's
+own PDF questionnaire, answered and returned) alongside this file. Verbatim
+answers below, plus what each one means for the packages already built
+(1-4, all complete as of 2026-09-04) versus packages not yet started.
+
+1. **Does YLP-1 participate at all?** / **2. Does YLM need separate
+   YLP/PL-1 paper variants?** — answered together, client's answer to #2 was
+   literally "refer answer given in Q1 and create accordingly". Client's
+   answer to #1, verbatim: *"YLP 2 & 3 will have only direct sums and name
+   it as Bloomers below 8 years, PL-1 will have all the concepts for
+   children above 8 years for students who are in Pl-2 & who have completed
+   Lesson 15 in Bridge Module."*
+   - **Follow-up sent** asking whether the age split applies only within
+     the YLP-2/YLP-3 population or overrides curriculum position entirely
+     (i.e. could an 8+-year-old currently at YLM-L1 be bumped to the
+     fuller tier, or could a under-8 PM-L1-current student be held back to
+     the direct-sums tier). **Client's follow-up answer (2026-09-05),
+     verbatim:** *"YLP enrolment is taken for Class 1 & 2 students only so
+     they would be below 8 years, and PL1 students have already crossed
+     PL1 & would be in level 2 so they have no problem sitting for PL-1."*
+   - **Now resolved: no age logic needed in code at all.** The client is
+     saying age is a structural *consequence* of enrollment/curriculum
+     position, not an independent signal to check at runtime — YLP-2/3
+     enrollment is itself gated to Class 1/2 (hence always under 8), and
+     anyone currently placed at PM-L1 (client's "PL1... would be in level
+     2") has by definition already progressed past the YLP bracket (hence
+     never needs the age check to qualify for the fuller PL-1 paper). So
+     the split this whole item was about is fully captured by the
+     student's *existing* `(module, level)` position alone — exactly the
+     shape `DIRECT_LEVEL_MAPPING` already keys on. `Student.dob` is not
+     needed for this rule; the earlier note above (this item's "Clear
+     part") assumed an age-conditional branch would be required — that
+     assumption is now superseded.
+   - **The one concrete code change this implies (Package 2 only):**
+     `DIRECT_LEVEL_MAPPING[("PM", "PM-L1")]` currently targets `"YLM-L1"`
+     (i.e. a PM-L1-current student today gets routed into the same shared
+     YLM bracket as YLP-2/3). Per this answer, PM-L1-current students
+     should instead sit the fuller "all the concepts" tier, which is the
+     already-existing, already-fully-configured `PM-L1` competition level
+     (`PM_COMPETITION_LEVEL_REGISTRY["PM-L1"]` in
+     `pm_competition_mock_generation_service.py` — same 3-section shape as
+     YLM-L1 but with materially richer digit patterns, e.g. "Direct
+     Addition (Round Hundreds)"/"Direct Addition (Triple Digit)", already
+     absent from YLM-L1's capped range). `PM-L1` is also already present
+     in Package 3's `VALID_COMPETITION_LEVEL_CODES` and
+     `DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE` in
+     `annual_competition_studio_service.py`, so this is a **pure
+     redirect** of one existing table row to another already-valid
+     target — zero new registry/config work. The `("YLM", "YLM-L1")` row
+     (covering actual YLP-2/3-current students) stays unchanged, and
+     continues to use the YLM-L1 registry, which becomes the "Bloomers"
+     direct-sums-only tier.
+   - **Impact on already-built packages: confined entirely to Package 2.**
+     Packages 1, 3, 4, and 5 need **zero changes** — Package 3's level
+     codes/timers already support `PM-L1`, and Packages 4/5's attempt/timer/
+     UI code is level-code-agnostic (it operates on whichever
+     `CompetitionEventLevelPaper` the assignment resolved to, regardless of
+     which level code that is).
+   - **One remaining soft, non-blocking question:** is "Bloomers" purely a
+     *display/branding label* for the existing YLM-L1 tier (no code change
+     beyond maybe a friendlier name shown to students/parents), or does the
+     client expect it to be a materially different, even-more-restricted
+     question set than YLM-L1's current registry already provides? Nothing
+     in either answer suggests the latter — "direct sums" is already an
+     accurate description of YLM-L1's registry — so the working default is
+     "display label only, no registry change," but this hasn't been asked
+     outright.
+   - **Implemented 2026-09-05.** Shailesh gave the go-ahead; the
+     `DIRECT_LEVEL_MAPPING[("PM", "PM-L1")]` row now targets `"PM-L1"`
+     (previously `"YLM-L1"`). See `annual_competition_assignment_service.py`'s
+     own docstring ("PL-1 targets its own level, not the shared
+     YLM/"Bloomers" bracket") for the full rationale, and
+     `.mathpath/packages/pkg-02-assignment-engine.md` for the change record.
+     Full backend suite re-verified green (434 passed) after the change.
+     The soft "Bloomers" naming-vs-content question above remains open but
+     non-blocking.
+
+2. See item 1 (client's answer to item 2 pointed back to item 1).
+
+3. **Exact Bridge Module lesson-range boundaries.** Client's answer:
+   *"yes"* — confirming a student between two milestones is placed at the
+   **lower** level until they clear the next one. Matches Package 2's
+   existing default exactly. No change needed.
+
+4. **Final scoring formula.** Client's answer, verbatim: *"accuracy and
+   completion time, If tie to check who made mistake first the latter will
+   win then. If unanswered no marks to be given."* Differs from this repo's
+   placeholder default (raw correct-count desc, then time asc) — the real
+   rule is accuracy % + completion time, with a "later first mistake wins"
+   tie-break, and zero marks for unanswered sums. Note for whoever built
+   Package 5 (student attempt UI): "who made a mistake first" as a
+   tie-break requires answers to be captured **in order, with per-question
+   correctness and timing**, not just a final tally — the answer-capture
+   table Package 5 added supports this from the start, not retrofitted
+   later. **Implemented 2026-09-05 (Package 6):** the confirmed formula
+   above is the actual ranking rule in
+   `annual_competition_scoring_service.py`'s `_DefaultRankingSortKey` —
+   accuracy% descending, then completion time ascending, then "later first
+   mistake wins" derived on demand from `CompetitionEventAttemptAnswer`
+   (no new column needed). A student with no mistake at all outranks
+   anyone who made one. See `.mathpath/packages/pkg-06-scoring-and-results.md`.
+
+5. **Results/certificate visibility.** Client's answer, verbatim: *"Result
+   has to be kept undisclosed till the date of announcement."* Reads as a
+   full lock-down (not just "hide from other students, show own result") —
+   worth one more precise confirmation before certificate/leaderboard work
+   (Package 8) builds anything public-facing, but the schema
+   (`CompetitionEventResult.is_released`) already supports either reading
+   without a schema change. Certificate fields (name/level/rank/score/date/
+   centre) still unanswered. **Implemented 2026-09-05 (Package 6):** the
+   full-lockdown reading is what's built — student/parent-facing endpoints
+   return `released: false` (never the actual metrics) until an admin
+   explicitly releases a level's results; admin can always see everything
+   regardless. Certificate/leaderboard display itself remains Package 8,
+   unaffected by this.
+   - **Package 8 decisions, given directly by Shailesh (2026-09-05), in
+     place of a further client round-trip:** leaderboard scope is "own
+     result only" — a student sees just their own released result, no
+     public/shared leaderboard of other students (the admin side already
+     has a full ranked leaderboard, Package 6/7's Results tab). Certificate
+     fields are name, level, rank, score, and date (plus MathPath
+     branding) — one design, not tiered by rank. Every finalized
+     participant is eligible for a certificate, not just rank-holders,
+     downloadable from the student's own portal once results are
+     released. **Implemented 2026-09-05 (Package 8)** — see
+     `.mathpath/packages/pkg-08-certificates-leaderboard.md`.
+
+6. **Attempt count / retakes.** Client's answer: *"Only once unless there
+   is a technical issue from our end."* Matches Package 4's already-built
+   single-attempt enforcement exactly (`StartCompetitionEventAttempt`
+   rejects starting again once `SUBMITTED`). The "technical issue" carve
+   -out — an admin-triggered manual retry — is genuinely confirmed as
+   needed now, but was deliberately not built in Package 4 (it wasn't on
+   that package's checklist). Recommend adding it as a small, self
+   -contained addition before go-live; does not require reopening Package
+   4's existing logic, just a new admin action.
+   - **Implemented 2026-09-05 (Package 6b).** A new admin-only
+     `CompetitionEventAttemptRetryGrant` (mirrors the pre-existing DPS
+     `AssignmentReattemptPermission`'s APPROVED→USED lifecycle) is checked
+     by `StartCompetitionEventAttempt` before it rejects a second start;
+     if an unused grant exists for the assignment, a fresh attempt is
+     created (next `attempt_number`, same assignment) and the grant is
+     consumed in the same transaction. The default single-attempt
+     rejection is completely unchanged when no grant exists. Admin action:
+     `POST /api/admin/annual-competition/attempts/retry-grants`
+     (`attemptId`, `reason` — required, non-blank). See
+     `.mathpath/packages/pkg-06b-retry-override.md` for full detail,
+     including a genuine pre-existing gap (missing migration/safety-net
+     coverage for `competition_event_attempt_answers`) discovered and
+     fixed alongside this addition.
+
+7. **The 2:00–2:30 PM slot is too short for IM-4/MM-2.** Client's answer,
+   verbatim: *"Each student appearing online will be asked to login 10 mins
+   early and then we will start. As each level has its own time limit set
+   the children will do till the time alloted. So for joining we will have
+   a same entry time mentioned rest will follow as per the level time
+   limits as in the platform."* Confirms the published slot window is only
+   a shared entry/login anchor, never a hard stop — this is exactly how
+   Package 3's `SlotsWithInsufficientDuration` was built (a non-blocking
+   advisory warning, nothing enforces the slot's `scheduled_end_at` as a
+   cutoff anywhere). No code or data change needed.
+
+**Net effect on packages already built:** items 3, 6, and 7 confirm
+existing Package 2-4 behavior is already correct. Items 4 and 5 are new,
+precise requirements for Package 6 (not yet started) — captured here so
+that package starts from the right default instead of a guess. Items 1+2
+are the only ones requiring a change to already-built code (Package 2 and
+3), and are intentionally not yet implemented pending one more precise
+answer on the exact age-vs-curriculum-position boundary.
 
 ## Process note (why this file exists)
 

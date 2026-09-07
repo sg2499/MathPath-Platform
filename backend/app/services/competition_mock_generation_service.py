@@ -18,6 +18,9 @@ from app.models import (
     CompetitionMockAttempt,
     CompetitionMockAttemptAnswer,
     CompetitionMockResultSummary,
+    CompetitionEvent,
+    CompetitionEventLevelPaper,
+    CompetitionEventAttempt,
     DPS,
     DPSSection,
     Lesson,
@@ -3313,6 +3316,43 @@ def DeleteCompetitionMockExam(db: Session, *, MockExamId: str) -> dict[str, Any]
     ExamRecord = db.get(CompetitionMockExam, MockExamId)
     if not ExamRecord:
         api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
+
+    # 2026-09 Annual Competition immutability guard: this exam may be a
+    # level's *official, frozen* Annual Competition paper (linked via
+    # CompetitionEventLevelPaper.mock_exam_id), not just a practice mock.
+    # Deleting it unconditionally -- this function's normal behavior for
+    # practice mocks, which are always re-editable -- would silently destroy
+    # submitted competition results if ever run on an official paper. Reject
+    # once the parent event has locked results (results_release_at set) or
+    # once any real student attempt exists against that paper; otherwise
+    # (still PENDING, no attempts, no release date set) deletion is safe and
+    # falls through to the normal practice-mock cascade below.
+    LinkedLevelPapers = (
+        db.query(CompetitionEventLevelPaper)
+        .filter(CompetitionEventLevelPaper.mock_exam_id == MockExamId)
+        .all()
+    )
+    if LinkedLevelPapers:
+        LevelPaperIds = [LevelPaper.id for LevelPaper in LinkedLevelPapers]
+        HasAttempts = (
+            db.query(CompetitionEventAttempt)
+            .filter(CompetitionEventAttempt.level_paper_id.in_(LevelPaperIds))
+            .first()
+            is not None
+        )
+        LinkedEventIds = {LevelPaper.event_id for LevelPaper in LinkedLevelPapers}
+        HasReleaseLockedEvent = (
+            db.query(CompetitionEvent)
+            .filter(CompetitionEvent.id.in_(LinkedEventIds), CompetitionEvent.results_release_at.isnot(None))
+            .first()
+            is not None
+        )
+        if HasAttempts or HasReleaseLockedEvent:
+            api_error(
+                409,
+                "COMPETITION_MOCK_LOCKED_BY_ANNUAL_EVENT",
+                "This mock exam is the official paper for an Annual Competition level with real attempts or a locked results date, and cannot be deleted or regenerated.",
+            )
 
     Questions = db.query(CompetitionMockQuestion).filter(CompetitionMockQuestion.mock_exam_id == MockExamId).all()
     QuestionIds = [Question.id for Question in Questions]

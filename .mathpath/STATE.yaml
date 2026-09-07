@@ -1,6 +1,133 @@
-current_epic: competition-mock-practice-plan.md
-active_package: pkg-10-rollout.md
-status: COMPLETED
+current_epic: annual-competition-plan.md
+active_package: pkg-10-go-live.md
+status: COMPLETE
 
-# The system is waiting for the user to paste the 10-package implementation plan.
-# Once pasted, an agent must parse it into .mathpath/packages/ and update this state.
+# Previous epic (competition-mock-practice-plan.md) is COMPLETED and shipped.
+# Annual Competition (2026-09) is now the active epic. Package 1 (data
+# model), Package 2 (assignment engine), Package 3 (Admin Annual Competition
+# Studio -- backend AND frontend), Package 4 (section-timer + pause engine --
+# the highest-risk/most novel piece of this whole build), Package 5
+# (student live-attempt UI -- backend AND frontend: discovery, pre-section
+# instructions, multi-section heartbeat-driven timer/attempt screen,
+# slot-gated start, session-superseded handling), Package 6 (Scoring +
+# Results -- automatic finalize-on-submit scoring hook, the confirmed
+# accuracy/time/mistake-order ranking formula, admin rank/release actions,
+# student result endpoint + a minimal inline result card on the existing
+# attempt-submitted screen), Package 7 (Teacher/Admin Monitoring --
+# live per-student/per-slot status incl. STUCK reusing Package 4's own
+# heartbeat-grace threshold, a roster-scoped release-gated results review
+# for teachers, admin UI finally added for Package 4's reconcile sweep and
+# Package 6's rank/release actions, and a new read-only teacher monitoring
+# page), and Package 8 (Certificates/Leaderboard -- see below) are all
+# COMPLETE -- see .mathpath/packages/pkg-0{5,6,7,8}-*.md. Package 6b (admin
+# "technical issue" retry override, REQUIREMENTS.md item 6) is also
+# COMPLETE -- see .mathpath/packages/pkg-06b-retry-override.md.
+# Package 5 also added answer capture (CompetitionEventAttemptAnswer),
+# which Package 4's own doc had explicitly scoped out -- a considered,
+# documented scope addition, not a silent expansion. Package 6 required
+# zero schema changes -- CompetitionEventResult was already fully built in
+# Package 1. Package 7 required zero schema changes either -- pure read
+# layer over Packages 1/4/6's existing state, and confirmed zero writes
+# (no db.add/db.commit anywhere in its service module), matching its own
+# checklist's "teacher has no write path" requirement.
+#
+# Package 8 (Certificates/Leaderboard, 2026-09-05) is COMPLETE -- see
+# .mathpath/packages/pkg-08-certificates-leaderboard.md. Rather than a
+# further client round-trip, Shailesh gave the two outstanding product
+# decisions directly: leaderboard scope is "own result only" (no public/
+# shared leaderboard -- already fully satisfied by Package 6's existing
+# student result endpoint, nothing new needed there; admin's leaderboard
+# is Package 6/7's existing Results tab, polished with rank-medal styling
+# this package), and certificate fields are name/level/rank/score/date +
+# MathPath branding, issued to every finalized participant (not just
+# rank-holders), downloadable from the student's own portal once
+# released. New module `annual_competition_certificate_service.py`
+# (reportlab, landscape A4) renders on demand from an already-computed
+# CompetitionEventResult -- zero new schema, zero new scoring logic.
+# Admin can always download regardless of release (matches this epic's
+# "admin sees everything" convention). Sample certificate was rendered to
+# an image and visually reviewed before shipping.
+#
+# REQUIREMENTS.md item 6's admin-triggered "technical issue" retry override
+# (Package 6b, 2026-09-05) is COMPLETE -- see
+# .mathpath/packages/pkg-06b-retry-override.md. Built directly on
+# Shailesh's explicit go-ahead in between Package 7 and Package 8. New table
+# CompetitionEventAttemptRetryGrant mirrors the pre-existing DPS
+# AssignmentReattemptPermission's APPROVED->USED lifecycle; StartCompetitionEventAttempt's
+# existing single-attempt rejection now checks for one before rejecting. A
+# genuine pre-existing gap was found and fixed as part of the same change:
+# competition_event_attempt_answers (Package 5) had no Alembic migration or
+# startup-safety-net coverage at all -- backfilled into both. API-only, no
+# admin UI yet (matches this epic's own established precedent of shipping
+# admin actions API-first) -- see the package doc for full detail.
+#
+# The client's follow-up answer on items 1+2 (YLM/PL-1 age-boundary rule)
+# arrived 2026-09-05 and resolved the ambiguity -- Package 2's
+# DIRECT_LEVEL_MAPPING[("PM","PM-L1")] now targets "PM-L1" instead of
+# "YLM-L1" (see .mathpath/packages/pkg-02-assignment-engine.md's
+# "Post-completion amendment" section and REQUIREMENTS.md's item 1). No
+# other package needed changes. One soft, non-blocking question remains
+# open (is "Bloomers" a display label or a content-filter name) -- not a
+# code blocker.
+#
+# All 8 core build packages are now COMPLETE. Package 9 (rehearsal + full
+# regression) and Package 10 (go-live checklist) were built next, per the
+# original plan's sequencing and Shailesh's "section by section" cadence.
+#
+# Package 9 (Full Rehearsal + Regression, 2026-09-06) is now COMPLETE --
+# see .mathpath/packages/pkg-09-rehearsal-and-regression.md. New test file
+# test_annual_competition_full_rehearsal.py stitches Packages 1-8 together
+# into one simulated slice of the real 11 Oct 2026 day: all five slots
+# (offline x3, online-India, online-international) including the slot gate
+# actually rejecting a not-yet-open slot; a genuine disconnect-and-resume
+# (a real heartbeat gap, not a synthetic edit) exercised once per PM-L2
+# section type (ABACUS, VISUAL), each capped at the 45s grace window; the
+# reconciliation sweep force-closing a genuinely abandoned attempt while
+# leaving a live one alone, confirmed idempotent on a second run; and the
+# full rank -> release -> certificate pipeline run against attempts the
+# rehearsal itself produced, including a certificate for the
+# reconciled/abandoned attempt specifically (proving "every finalized
+# participant is eligible" survives that path too). Separately, a
+# full-repo grep found a real, previously uncovered gap -- nothing had
+# ever called DeleteCompetitionMockExam itself against an Annual-
+# Competition-linked exam (only its mirrored studio-side read check was
+# tested) -- closed with 3 new tests in
+# test_annual_competition_studio_service.py. Full backend suite: 489
+# passed (485 + 4 new), zero regressions; npm run build clean (no frontend
+# changes this package).
+#
+# Package 10 (Go-Live Checklist + Rollback Plan, 2026-09-07) is now
+# COMPLETE -- see .mathpath/packages/pkg-10-go-live.md. Re-verified all
+# 7 REQUIREMENTS.md items are resolved and confirmed the IM-4/MM-2 slot
+# question (item 7) needs no code or data change -- the published slot
+# window is only a shared entry anchor, per-section timers already govern
+# actual duration independently. Two genuine gaps in the rollback plan
+# were closed with real code, after Shailesh explicitly chose both designs
+# via AskUserQuestion: (1) a real "Suspend Event" kill switch
+# (attempts_suspended_at/suspension_reason/suspended_by_user_id on
+# CompetitionEvent) that blocks starting or resuming an attempt and the
+# instructions screen, but deliberately never interrupts an already-active
+# heartbeating session; (2) a real "Void Result" mechanism
+# (is_voided/voided_reason/voided_at/voided_by_user_id on
+# CompetitionEventResult) that excludes a voided result from ranking and
+# release, reads to the student exactly like unreleased, stays visible
+# (flagged) on the admin results list for audit, and blocks certificate
+# downloads for both student AND admin. Both are API-only, no frontend UI,
+# matching Package 6b's own established precedent. New migration
+# 584eee85ebf0 (down_revision 7f3c9a1e5d02) plus a new
+# ensure_annual_competition_go_live_columns() raw-SQL safety net cover the
+# 7 new columns. A from-scratch `alembic upgrade head` against empty
+# SQLite fails, but this was confirmed to be a pre-existing, unrelated
+# repo condition (same failure with the new migration removed entirely,
+# on an old unrelated migration) -- not caused by this package; the raw-SQL
+# safety net is directly tested and confirmed working regardless. Full
+# backend suite: 511 passed (489 + 22 new), zero regressions; npx tsc
+# --noEmit and npm run build both clean (no frontend changes this
+# package). ALL 10 PACKAGES OF THE ANNUAL COMPETITION EPIC ARE NOW
+# COMPLETE.
+#
+# Everything so far is built and verified locally only -- push/merge/deploy
+# is being bundled across all packages per Shailesh's instruction
+# (2026-09-04), not done per-package. Now that all 10 packages are
+# complete, this bundled push/merge/deploy is the only remaining step, and
+# it is awaiting Shailesh's explicit go-ahead.

@@ -93,6 +93,51 @@ from app.services.competition_mock_assignment_service import (
     ListCompetitionMockAssignments,
 )
 
+from app.services.annual_competition_assignment_service import (
+    PreviewAnnualCompetitionAssignments,
+    RunAnnualCompetitionAssignmentEngine,
+)
+
+from app.services.annual_competition_studio_service import (
+    CreateCompetitionEvent as CreateAnnualCompetitionEvent,
+    UpdateCompetitionEvent as UpdateAnnualCompetitionEvent,
+    GetCompetitionEvent as GetAnnualCompetitionEvent,
+    ListCompetitionEvents as ListAnnualCompetitionEvents,
+    GetCompetitionEventStudioOverview,
+    CreateCompetitionEventSlot,
+    UpdateCompetitionEventSlot,
+    ListCompetitionEventSlots,
+    GenerateAndLinkCompetitionEventLevelPaper,
+    LinkExistingCompetitionEventLevelPaper,
+    ListCompetitionEventLevelPapers,
+    UpdateCompetitionEventSectionTimer,
+    OverrideCompetitionEventAssignment,
+    SuspendCompetitionEvent,
+    LiftCompetitionEventSuspension,
+)
+
+from app.services.annual_competition_attempt_service import (
+    ReconcileExpiredCompetitionEventAttempts,
+    GrantAnnualCompetitionAttemptRetry,
+    ListAnnualCompetitionAttemptRetryGrants,
+)
+
+from app.services.annual_competition_scoring_service import (
+    ListCompetitionEventResultsForAdmin,
+    RankCompetitionEventResults,
+    ReleaseCompetitionEventResults,
+    VoidCompetitionEventResult,
+    UnvoidCompetitionEventResult,
+)
+
+from app.services.annual_competition_certificate_service import (
+    BuildAnnualCompetitionCertificateForAdmin,
+)
+
+from app.services.annual_competition_monitoring_service import (
+    GetAnnualCompetitionLiveMonitoring,
+)
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 
@@ -125,6 +170,65 @@ class CompetitionMockAssignRequest(BaseModel):
 
 class AssessmentRemarkRequest(BaseModel):
     remarkText: str
+
+class AnnualCompetitionAssignmentRunRequest(BaseModel):
+    studentIds: list[str] | None = None
+
+class AnnualCompetitionEventCreateRequest(BaseModel):
+    name: str
+    competitionDate: datetime
+    resultsReleaseAt: datetime | None = None
+
+class AnnualCompetitionEventUpdateRequest(BaseModel):
+    name: str | None = None
+    status: str | None = None
+    competitionDate: datetime | None = None
+    resultsReleaseAt: datetime | None = None
+    clearResultsReleaseAt: bool = False
+
+class AnnualCompetitionSlotCreateRequest(BaseModel):
+    mode: str
+    scheduledStartAt: datetime
+    scheduledEndAt: datetime
+    applicableLevelCodes: list[str] = []
+    slotLabel: str | None = None
+
+class AnnualCompetitionSlotUpdateRequest(BaseModel):
+    mode: str | None = None
+    slotLabel: str | None = None
+    scheduledStartAt: datetime | None = None
+    scheduledEndAt: datetime | None = None
+    applicableLevelCodes: list[str] | None = None
+    isActive: bool | None = None
+
+class AnnualCompetitionLinkPaperRequest(BaseModel):
+    mockExamId: str
+
+class AnnualCompetitionSectionTimerUpdateRequest(BaseModel):
+    sectionTitle: str | None = None
+    mode: str | None = None
+    timeLimitSeconds: int | None = None
+
+class AnnualCompetitionOverrideRequest(BaseModel):
+    studentId: str
+    assignedLevelCode: str
+    slotId: str | None = None
+
+class AnnualCompetitionGrantRetryRequest(BaseModel):
+    attemptId: str
+    reason: str
+
+class AnnualCompetitionRankResultsRequest(BaseModel):
+    competitionLevelCode: str
+
+class AnnualCompetitionReleaseResultsRequest(BaseModel):
+    competitionLevelCode: str | None = None
+
+class AnnualCompetitionSuspendEventRequest(BaseModel):
+    reason: str
+
+class AnnualCompetitionVoidResultRequest(BaseModel):
+    reason: str
 
 
 def _admin_natural_sort_key(value: Any) -> list[Any]:
@@ -5741,6 +5845,297 @@ def admin_list_competition_mock_assignments(
             Status=status,
         )
     }
+
+
+# --- Annual Competition (Package 2): auto-assignment engine -----------------
+# See backend/app/services/annual_competition_assignment_service.py for the
+# full mapping table and rationale. Preview is a pure dry-run (no writes) so
+# the computed mapping can be checked against MathPath's own table before
+# it's ever relied on for real -- see .mathpath/packages/pkg-02-assignment-engine.md.
+
+@router.get("/annual-competition/events/{event_id}/assignments/preview")
+def admin_preview_annual_competition_assignments(
+    event_id: str,
+    studentIds: list[str] | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return PreviewAnnualCompetitionAssignments(db, EventId=event_id, StudentIds=studentIds)
+
+
+@router.post("/annual-competition/events/{event_id}/assignments/run")
+def admin_run_annual_competition_assignments(
+    event_id: str,
+    payload: AnnualCompetitionAssignmentRunRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return RunAnnualCompetitionAssignmentEngine(db, EventId=event_id, RunBy=user, StudentIds=payload.studentIds)
+
+
+# --- Annual Competition (Package 3): Admin Studio -----------------------
+# See backend/app/services/annual_competition_studio_service.py.
+
+@router.post("/annual-competition/events")
+def admin_create_annual_competition_event(
+    payload: AnnualCompetitionEventCreateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return CreateAnnualCompetitionEvent(
+        db, Name=payload.name, CompetitionDate=payload.competitionDate, CreatedBy=user, ResultsReleaseAt=payload.resultsReleaseAt
+    )
+
+
+@router.get("/annual-competition/events")
+def admin_list_annual_competition_events(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return {"events": ListAnnualCompetitionEvents(db)}
+
+
+@router.get("/annual-competition/events/{event_id}")
+def admin_get_annual_competition_event(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GetAnnualCompetitionEvent(db, event_id)
+
+
+@router.get("/annual-competition/events/{event_id}/overview")
+def admin_get_annual_competition_event_overview(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GetCompetitionEventStudioOverview(db, event_id)
+
+
+@router.patch("/annual-competition/events/{event_id}")
+def admin_update_annual_competition_event(
+    event_id: str, payload: AnnualCompetitionEventUpdateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    ResultsReleaseAtValue: Any = "__UNSET__"
+    if payload.clearResultsReleaseAt:
+        ResultsReleaseAtValue = None
+    elif payload.resultsReleaseAt is not None:
+        ResultsReleaseAtValue = payload.resultsReleaseAt
+    return UpdateAnnualCompetitionEvent(
+        db,
+        EventId=event_id,
+        Name=payload.name,
+        Status=payload.status,
+        CompetitionDate=payload.competitionDate,
+        ResultsReleaseAt=ResultsReleaseAtValue,
+    )
+
+
+# Package 10 (go-live rollback plan) emergency stop. See
+# SuspendCompetitionEvent's own docstring in annual_competition_studio_
+# service.py. API-only for now, the same deliberate deferral this epic's
+# other rare, admin-only override actions have already used (Package 6b's
+# retry-grants) -- a dedicated Studio UI control is a later, separate
+# decision, not a go-live blocker.
+@router.post("/annual-competition/events/{event_id}/suspend")
+def admin_suspend_annual_competition_event(
+    event_id: str, payload: AnnualCompetitionSuspendEventRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return SuspendCompetitionEvent(db, EventId=event_id, Reason=payload.reason, SuspendedBy=user)
+
+
+@router.post("/annual-competition/events/{event_id}/lift-suspension")
+def admin_lift_annual_competition_event_suspension(
+    event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return LiftCompetitionEventSuspension(db, EventId=event_id)
+
+
+@router.post("/annual-competition/events/{event_id}/slots")
+def admin_create_annual_competition_slot(
+    event_id: str, payload: AnnualCompetitionSlotCreateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return CreateCompetitionEventSlot(
+        db,
+        EventId=event_id,
+        Mode=payload.mode,
+        ScheduledStartAt=payload.scheduledStartAt,
+        ScheduledEndAt=payload.scheduledEndAt,
+        ApplicableLevelCodes=payload.applicableLevelCodes,
+        SlotLabel=payload.slotLabel,
+    )
+
+
+@router.get("/annual-competition/events/{event_id}/slots")
+def admin_list_annual_competition_slots(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return {"slots": ListCompetitionEventSlots(db, event_id)}
+
+
+@router.patch("/annual-competition/slots/{slot_id}")
+def admin_update_annual_competition_slot(
+    slot_id: str, payload: AnnualCompetitionSlotUpdateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return UpdateCompetitionEventSlot(
+        db,
+        SlotId=slot_id,
+        Mode=payload.mode,
+        SlotLabel=payload.slotLabel if payload.slotLabel is not None else "__UNSET__",
+        ScheduledStartAt=payload.scheduledStartAt,
+        ScheduledEndAt=payload.scheduledEndAt,
+        ApplicableLevelCodes=payload.applicableLevelCodes,
+        IsActive=payload.isActive,
+    )
+
+
+@router.get("/annual-competition/events/{event_id}/level-papers")
+def admin_list_annual_competition_level_papers(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return {"levelPapers": ListCompetitionEventLevelPapers(db, event_id)}
+
+
+@router.post("/annual-competition/events/{event_id}/level-papers/{level_code}/generate")
+def admin_generate_annual_competition_level_paper(
+    event_id: str, level_code: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return GenerateAndLinkCompetitionEventLevelPaper(db, EventId=event_id, CompetitionLevelCode=level_code, CreatedBy=user)
+
+
+@router.post("/annual-competition/events/{event_id}/level-papers/{level_code}/link")
+def admin_link_annual_competition_level_paper(
+    event_id: str,
+    level_code: str,
+    payload: AnnualCompetitionLinkPaperRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return LinkExistingCompetitionEventLevelPaper(
+        db, EventId=event_id, CompetitionLevelCode=level_code, MockExamId=payload.mockExamId
+    )
+
+
+@router.patch("/annual-competition/section-timers/{section_timer_id}")
+def admin_update_annual_competition_section_timer(
+    section_timer_id: str,
+    payload: AnnualCompetitionSectionTimerUpdateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return UpdateCompetitionEventSectionTimer(
+        db,
+        SectionTimerId=section_timer_id,
+        SectionTitle=payload.sectionTitle,
+        Mode=payload.mode,
+        TimeLimitSeconds=payload.timeLimitSeconds,
+    )
+
+
+@router.post("/annual-competition/events/{event_id}/assignments/override")
+def admin_override_annual_competition_assignment(
+    event_id: str, payload: AnnualCompetitionOverrideRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return OverrideCompetitionEventAssignment(
+        db,
+        EventId=event_id,
+        StudentId=payload.studentId,
+        AssignedLevelCode=payload.assignedLevelCode,
+        OverriddenBy=user,
+        SlotId=payload.slotId,
+    )
+
+
+# --- Annual Competition (Package 4): section-timer + pause engine ----------
+# See backend/app/services/annual_competition_attempt_service.py. The
+# reconciliation sweep is the only Package 4 surface an admin ever calls
+# directly -- everything else (start/heartbeat/submit-section) is student-
+# facing, in routes_student.py.
+
+@router.post("/annual-competition/attempts/reconcile")
+def admin_reconcile_annual_competition_attempts(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return ReconcileExpiredCompetitionEventAttempts(db)
+
+
+# REQUIREMENTS.md item 6 -- the admin-only "technical issue" single-retake
+# override. See GrantAnnualCompetitionAttemptRetry's own docstring in
+# annual_competition_attempt_service.py for the full design rationale.
+# API-only for now, same deliberate deferral this file's other Annual
+# Competition endpoints have already used (Package 2's preview/run,
+# Package 6's rank/release before Package 7 gave them a UI) -- a dedicated
+# "Grant Retry" admin surface is a separate, later decision.
+
+@router.post("/annual-competition/attempts/retry-grants")
+def admin_grant_annual_competition_attempt_retry(
+    payload: AnnualCompetitionGrantRetryRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return GrantAnnualCompetitionAttemptRetry(db, AttemptId=payload.attemptId, GrantedBy=user, Reason=payload.reason)
+
+
+@router.get("/annual-competition/events/{event_id}/attempts/retry-grants")
+def admin_list_annual_competition_attempt_retry_grants(
+    event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return ListAnnualCompetitionAttemptRetryGrants(db, EventId=event_id)
+
+
+# --- Annual Competition (Package 6): scoring + results ----------------------
+# See backend/app/services/annual_competition_scoring_service.py. Computation
+# itself is automatic (triggered the moment an attempt's last section closes,
+# from inside annual_competition_attempt_service.py) -- these three endpoints
+# are the admin-only actions: review what's been computed so far (regardless
+# of release), (re-)rank a level, and release results. No frontend surface
+# yet -- API only for now, the same deliberate deferral Package 2's preview/
+# run endpoints already used; a results-review screen is Package 7's
+# territory, not this one.
+
+@router.get("/annual-competition/events/{event_id}/results")
+def admin_list_annual_competition_results(
+    event_id: str, competitionLevelCode: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return ListCompetitionEventResultsForAdmin(db, EventId=event_id, CompetitionLevelCode=competitionLevelCode)
+
+
+@router.post("/annual-competition/events/{event_id}/results/rank")
+def admin_rank_annual_competition_results(
+    event_id: str, payload: AnnualCompetitionRankResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return RankCompetitionEventResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode)
+
+
+@router.post("/annual-competition/events/{event_id}/results/release")
+def admin_release_annual_competition_results(
+    event_id: str, payload: AnnualCompetitionReleaseResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return ReleaseCompetitionEventResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode, ReleasedBy=user)
+
+
+# Package 10 (go-live rollback plan): correct/void a single attempt's
+# result without touching anything else for that event. See
+# VoidCompetitionEventResult's own docstring in
+# annual_competition_scoring_service.py. API-only for now, same deferral as
+# the suspend/lift-suspension pair above.
+@router.post("/annual-competition/attempts/{attempt_id}/void-result")
+def admin_void_annual_competition_result(
+    attempt_id: str, payload: AnnualCompetitionVoidResultRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason=payload.reason, VoidedBy=user)
+
+
+@router.post("/annual-competition/attempts/{attempt_id}/unvoid-result")
+def admin_unvoid_annual_competition_result(
+    attempt_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return UnvoidCompetitionEventResult(db, AttemptId=attempt_id)
+
+
+# Package 8 (certificate half): admin download bypasses the release gate
+# entirely (matches this file's "admin always sees everything" convention
+# for Annual Competition) -- useful for a support case or printing ahead
+# of the public release moment.
+@router.get("/annual-competition/attempts/{attempt_id}/certificate")
+def admin_download_annual_competition_certificate(attempt_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return BuildAnnualCompetitionCertificateForAdmin(db, AttemptId=attempt_id)
+
+
+# --- Annual Competition (Package 7): teacher/admin monitoring ---------------
+# See backend/app/services/annual_competition_monitoring_service.py. Post-
+# event review for admin is already the /results endpoint just above
+# (Package 6) -- admin always bypasses the release gate there, unchanged by
+# this package. The only new admin-side surface is the live view: every
+# assignment on the event, regardless of which teacher (if any) owns the
+# student -- StudentIdsFilter is left as None, the "admin sees everyone"
+# convention this service module documents.
+
+@router.get("/annual-competition/events/{event_id}/monitoring/live")
+def admin_get_annual_competition_live_monitoring(
+    event_id: str, slotId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return GetAnnualCompetitionLiveMonitoring(db, EventId=event_id, StudentIdsFilter=None, SlotId=slotId)
 
 
 from app.api.routes_teacher import _teacher_competition_row_payload, _competition_duration_text

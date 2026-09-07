@@ -1493,3 +1493,342 @@ export async function runAdminDbSearch(query: string): Promise<DbSearchResult> {
   const { data } = await api.post("/admin/db-search", { query });
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Annual Competition -- Admin Studio (Package 2/3). Types mirror the
+// camelCase payloads returned by annual_competition_assignment_service.py /
+// annual_competition_studio_service.py verbatim -- see those files for the
+// full rationale (esp. why BM-L1 is never a valid competitionLevelCode, and
+// why MM-L2 can exist as an assignment target with no linked paper yet).
+// ---------------------------------------------------------------------------
+
+export type AnnualCompetitionEvent = {
+  eventId: string;
+  name: string;
+  status: string;
+  competitionDate: string | null;
+  resultsReleaseAt: string | null;
+  createdByUserId?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type AnnualCompetitionSlot = {
+  slotId: string;
+  eventId: string;
+  mode: string;
+  slotLabel: string | null;
+  scheduledStartAt: string | null;
+  scheduledEndAt: string | null;
+  applicableLevelCodes: string[];
+  durationMinutes: number | null;
+  isActive: boolean;
+};
+
+export type AnnualCompetitionSectionTimer = {
+  sectionTimerId: string;
+  sectionNumber: number;
+  sectionTitle: string | null;
+  mode: string | null;
+  timeLimitSeconds: number;
+};
+
+export type AnnualCompetitionLevelPaper = {
+  levelPaperId: string;
+  eventId: string;
+  competitionLevelCode: string;
+  mockExamId: string | null;
+  mockExamTitle: string | null;
+  status: "PENDING" | "READY" | "LOCKED";
+  lockedAt: string | null;
+  sectionTimers: AnnualCompetitionSectionTimer[];
+  totalSectionSeconds: number | null;
+};
+
+export type AnnualCompetitionSlotDurationConflict = {
+  slotId: string;
+  slotLabel: string | null;
+  levelCode: string;
+  slotDurationSeconds: number;
+  requiredSeconds: number;
+  shortBySeconds: number;
+};
+
+export type AnnualCompetitionEventOverview = {
+  event: AnnualCompetitionEvent;
+  slots: AnnualCompetitionSlot[];
+  levelPapers: AnnualCompetitionLevelPaper[];
+  missingLevelPapers: string[];
+  slotDurationConflicts: AnnualCompetitionSlotDurationConflict[];
+};
+
+export type AnnualCompetitionAssignmentPreviewRow = {
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  currentModuleCode: string | null;
+  currentLevelCode: string | null;
+  computedAssignedLevelCode: string | null;
+  ruleApplied: string | null;
+  noRuleMatched: boolean;
+  reason: string | null;
+  existingAssignedLevelCode: string | null;
+  existingAssignmentSource: string | null;
+  wouldOverwriteAdminOverride: boolean;
+  wouldChangeOnRun: boolean;
+  requiresNewPaperRegistryEntry: boolean;
+};
+
+export type AnnualCompetitionAssignmentPreview = {
+  eventId: string;
+  eventName: string;
+  totalStudentsConsidered: number;
+  wouldAssignCount: number;
+  noRuleMatchedCount: number;
+  adminOverridePreservedCount: number;
+  rows: AnnualCompetitionAssignmentPreviewRow[];
+};
+
+export type AnnualCompetitionAssignmentRunResult = {
+  eventId: string;
+  totalConsidered: number;
+  created: number;
+  updated: number;
+  skippedAdminOverrides: number;
+  noRuleMatched: number;
+};
+
+// The 11 real assignment-target level codes, in display order -- mirrors
+// VALID_COMPETITION_LEVEL_CODES (annual_competition_studio_service.py).
+// BM-L1 is deliberately excluded (see that module's docstring).
+export const ANNUAL_COMPETITION_LEVEL_CODES = [
+  "YLM-L1",
+  "PM-L1", "PM-L2", "PM-L3", "PM-L4",
+  "IM-L1", "IM-L2", "IM-L3", "IM-L4",
+  "MM-L1", "MM-L2",
+] as const;
+
+export async function listAnnualCompetitionEvents(): Promise<AnnualCompetitionEvent[]> {
+  const { data } = await api.get<{ events: AnnualCompetitionEvent[] }>("/admin/annual-competition/events");
+  return data.events;
+}
+
+export async function createAnnualCompetitionEvent(payload: {
+  name: string;
+  competitionDate: string;
+  resultsReleaseAt?: string | null;
+}): Promise<AnnualCompetitionEvent> {
+  const { data } = await api.post<AnnualCompetitionEvent>("/admin/annual-competition/events", payload);
+  return data;
+}
+
+export async function updateAnnualCompetitionEvent(
+  eventId: string,
+  payload: {
+    name?: string;
+    status?: string;
+    competitionDate?: string;
+    resultsReleaseAt?: string | null;
+    clearResultsReleaseAt?: boolean;
+  }
+): Promise<AnnualCompetitionEvent> {
+  const { data } = await api.patch<AnnualCompetitionEvent>(`/admin/annual-competition/events/${eventId}`, payload);
+  return data;
+}
+
+export async function getAnnualCompetitionEventOverview(eventId: string): Promise<AnnualCompetitionEventOverview> {
+  const { data } = await api.get<AnnualCompetitionEventOverview>(`/admin/annual-competition/events/${eventId}/overview`);
+  return data;
+}
+
+export async function createAnnualCompetitionSlot(
+  eventId: string,
+  payload: {
+    mode: string;
+    scheduledStartAt: string;
+    scheduledEndAt: string;
+    applicableLevelCodes: string[];
+    slotLabel?: string | null;
+  }
+): Promise<AnnualCompetitionSlot> {
+  const { data } = await api.post<AnnualCompetitionSlot>(`/admin/annual-competition/events/${eventId}/slots`, payload);
+  return data;
+}
+
+export async function updateAnnualCompetitionSlot(
+  slotId: string,
+  payload: Partial<{
+    mode: string;
+    slotLabel: string | null;
+    scheduledStartAt: string;
+    scheduledEndAt: string;
+    applicableLevelCodes: string[];
+    isActive: boolean;
+  }>
+): Promise<AnnualCompetitionSlot> {
+  const { data } = await api.patch<AnnualCompetitionSlot>(`/admin/annual-competition/slots/${slotId}`, payload);
+  return data;
+}
+
+export async function generateAnnualCompetitionLevelPaper(eventId: string, levelCode: string): Promise<AnnualCompetitionLevelPaper> {
+  const { data } = await api.post<AnnualCompetitionLevelPaper>(
+    `/admin/annual-competition/events/${eventId}/level-papers/${levelCode}/generate`,
+    {},
+    { timeout: 60000 }
+  );
+  return data;
+}
+
+export async function linkAnnualCompetitionLevelPaper(eventId: string, levelCode: string, mockExamId: string): Promise<AnnualCompetitionLevelPaper> {
+  const { data } = await api.post<AnnualCompetitionLevelPaper>(
+    `/admin/annual-competition/events/${eventId}/level-papers/${levelCode}/link`,
+    { mockExamId }
+  );
+  return data;
+}
+
+export async function updateAnnualCompetitionSectionTimer(
+  sectionTimerId: string,
+  payload: Partial<{ sectionTitle: string; mode: string; timeLimitSeconds: number }>
+): Promise<AnnualCompetitionSectionTimer> {
+  const { data } = await api.patch<AnnualCompetitionSectionTimer>(`/admin/annual-competition/section-timers/${sectionTimerId}`, payload);
+  return data;
+}
+
+export async function previewAnnualCompetitionAssignments(eventId: string, studentIds?: string[]): Promise<AnnualCompetitionAssignmentPreview> {
+  const { data } = await api.get<AnnualCompetitionAssignmentPreview>(
+    `/admin/annual-competition/events/${eventId}/assignments/preview`,
+    { params: studentIds ? { studentIds } : undefined }
+  );
+  return data;
+}
+
+export async function runAnnualCompetitionAssignments(eventId: string, studentIds?: string[]): Promise<AnnualCompetitionAssignmentRunResult> {
+  const { data } = await api.post<AnnualCompetitionAssignmentRunResult>(
+    `/admin/annual-competition/events/${eventId}/assignments/run`,
+    { studentIds: studentIds || null }
+  );
+  return data;
+}
+
+export async function overrideAnnualCompetitionAssignment(
+  eventId: string,
+  payload: { studentId: string; assignedLevelCode: string; slotId?: string | null }
+): Promise<{ assignmentId: string; eventId: string; studentId: string; assignedLevelCode: string; slotId: string | null; assignmentSource: string; overriddenByUserId: string | null }> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/assignments/override`, payload);
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Annual Competition -- Scoring + Results (Package 6). The computation/
+// rank/release endpoints themselves shipped with Package 6 as API-only
+// (see annual_competition_scoring_service.py); these client functions and
+// the admin "RESULTS" tab are Package 7's addition -- the deliberately
+// deferred "results-review screen."
+// ---------------------------------------------------------------------------
+
+export type AnnualCompetitionResultRow = {
+  resultId: string;
+  competitionLevelCode: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  timeTakenSeconds: number | null;
+  perSectionTime: Array<Record<string, unknown>>;
+  rank: number | null;
+  releasedAt: string | null;
+  attemptId: string;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  isReleased: boolean;
+};
+
+export type AnnualCompetitionResultsList = {
+  eventId: string;
+  competitionLevelCode: string | null;
+  totalResults: number;
+  rows: AnnualCompetitionResultRow[];
+};
+
+export async function listAnnualCompetitionResults(eventId: string, competitionLevelCode?: string | null): Promise<AnnualCompetitionResultsList> {
+  const { data } = await api.get<AnnualCompetitionResultsList>(`/admin/annual-competition/events/${eventId}/results`, {
+    params: competitionLevelCode ? { competitionLevelCode } : undefined,
+  });
+  return data;
+}
+
+export async function rankAnnualCompetitionResults(eventId: string, competitionLevelCode: string): Promise<{ eventId: string; competitionLevelCode: string; rankedCount: number }> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/results/rank`, { competitionLevelCode });
+  return data;
+}
+
+export async function releaseAnnualCompetitionResults(eventId: string, competitionLevelCode?: string | null): Promise<{ eventId: string; competitionLevelCode: string | null; releasedCount: number }> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/results/release`, { competitionLevelCode: competitionLevelCode || null });
+  return data;
+}
+
+// Package 8 (certificate half). Admin download bypasses the release gate
+// entirely (matches this table's own "admin always sees everything"
+// convention) -- useful to preview/print a certificate before releasing.
+export async function downloadAnnualCompetitionCertificate(attemptId: string): Promise<Blob> {
+  const { data } = await api.get(`/admin/annual-competition/attempts/${attemptId}/certificate`, {
+    responseType: "blob",
+  });
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Annual Competition -- Teacher/Admin Monitoring (Package 7). Types mirror
+// annual_competition_monitoring_service.py's payloads verbatim.
+// ---------------------------------------------------------------------------
+
+export type AnnualCompetitionLiveMonitoringRow = {
+  assignmentId: string;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  className: string | null;
+  section: string | null;
+  assignedLevelCode: string;
+  slot: { slotId: string; mode: string; slotLabel: string | null; scheduledStartAt: string | null; scheduledEndAt: string | null } | null;
+  attemptId: string | null;
+  attemptStatus: string;
+  liveStatus: "NOT_STARTED" | "IN_PROGRESS" | "STUCK" | "SUBMITTED" | "FINALIZED";
+  currentSectionNumber: number | null;
+  remainingSecondsAtLastHeartbeat: number | null;
+  lastHeartbeatAt: string | null;
+  heartbeatGapSeconds: number | null;
+};
+
+export type AnnualCompetitionLiveMonitoring = {
+  eventId: string;
+  eventName: string;
+  eventStatus: string;
+  generatedAt: string;
+  summary: {
+    totalCount: number;
+    notStartedCount: number;
+    inProgressCount: number;
+    stuckCount: number;
+    submittedCount: number;
+    finalizedCount: number;
+  };
+  rows: AnnualCompetitionLiveMonitoringRow[];
+};
+
+export async function getAnnualCompetitionLiveMonitoring(eventId: string, slotId?: string | null): Promise<AnnualCompetitionLiveMonitoring> {
+  const { data } = await api.get<AnnualCompetitionLiveMonitoring>(`/admin/annual-competition/events/${eventId}/monitoring/live`, {
+    params: slotId ? { slotId } : undefined,
+  });
+  return data;
+}
+
+export async function reconcileAnnualCompetitionAttempts(): Promise<{ reconciledCount: number; attemptIds: string[] }> {
+  const { data } = await api.post(`/admin/annual-competition/attempts/reconcile`, {});
+  return data;
+}
