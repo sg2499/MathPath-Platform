@@ -118,6 +118,7 @@ from app.models import (
     Student,
     User,
 )
+from app.services.annual_competition_studio_service import _ResolveSlotIdForLevelCode
 from app.services.lesson_progress_service import (
     ComputeLessonProgressForStudents,
     IsLessonFullyClearedForStudent,
@@ -565,12 +566,19 @@ def RunAnnualCompetitionAssignmentEngine(
                 Existing.assignment_source = "AUTO"
                 Existing.computed_at = datetime.now(timezone.utc)
                 Existing.is_active = True
+                # Re-resolve the slot too -- the level just changed, so
+                # whatever slot (if any) was linked before may no longer be
+                # the right one. See _ResolveSlotIdForLevelCode's docstring
+                # for why this auto-match exists at all (found 2026-09-08:
+                # slot_id was never written anywhere before this fix).
+                Existing.slot_id = _ResolveSlotIdForLevelCode(db, EventId, Computation.assigned_level_code)
                 UpdatedCount += 1
             continue
         NewRow = CompetitionEventAssignment(
             event_id=EventId,
             student_id=Computation.student_id,
             assigned_level_code=Computation.assigned_level_code,
+            slot_id=_ResolveSlotIdForLevelCode(db, EventId, Computation.assigned_level_code),
             assignment_source="AUTO",
             is_active=True,
         )

@@ -26,6 +26,7 @@ from app.models import (
     User,
 )
 from app.services import annual_competition_assignment_service as engine
+from app.services import annual_competition_studio_service as studio
 
 
 def _session():
@@ -406,6 +407,69 @@ def test_run_updates_an_existing_auto_row_when_level_changes():
     assert second["created"] == 0
     row = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").one()
     assert row.assigned_level_code == "PM-L2"  # "PL-3 -> PL-2"
+
+
+def test_run_links_matching_slot_on_newly_created_assignment():
+    """2026-09-08 regression -- RunAnnualCompetitionAssignmentEngine never
+    wrote slot_id at all before this fix, exactly like the manual-override
+    path (see test_annual_competition_studio_service.py for the full story).
+    A student computed onto a level a slot already claims must have that
+    slot linked the moment the row is created."""
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+
+    slot = studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="OFFLINE",
+        ScheduledStartAt=datetime(2026, 10, 11, 10, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 10, 20, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["PM-L1"],  # "PL-2 -> PL-1" is what the engine computes for this student
+    )
+
+    engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
+    row = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").one()
+    assert row.assigned_level_code == "PM-L1"
+    assert row.slot_id == slot["slotId"]
+
+
+def test_run_relinks_slot_when_computed_level_changes_between_runs():
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+
+    SlotForPmL1 = studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="OFFLINE",
+        ScheduledStartAt=datetime(2026, 10, 11, 10, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 10, 20, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["PM-L1"],
+    )
+    SlotForPmL2 = studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="OFFLINE",
+        ScheduledStartAt=datetime(2026, 10, 11, 11, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 11, 30, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["PM-L2"],
+    )
+
+    engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
+    row = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").one()
+    assert row.assigned_level_code == "PM-L1"
+    assert row.slot_id == SlotForPmL1["slotId"]
+
+    # Student progresses to PM-L3 before the engine is re-run -- "PL-3 -> PL-2".
+    student = db.get(Student, "s1")
+    student.current_level_id = levels["PM-L3"].id
+    db.commit()
+
+    engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
+    row = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").one()
+    assert row.assigned_level_code == "PM-L2"
+    assert row.slot_id == SlotForPmL2["slotId"]  # re-resolved, not left stuck on the old slot
 
 
 def test_run_writes_no_row_for_students_with_no_rule_matched():
