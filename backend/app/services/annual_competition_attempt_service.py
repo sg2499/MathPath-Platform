@@ -141,6 +141,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
+from app.services.answer_matching import answers_match
 from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
@@ -149,11 +150,11 @@ from app.models import (
     CompetitionEventAttemptRetryGrant,
     CompetitionEventAttemptSectionState,
     CompetitionEventLevelPaper,
+    CompetitionEventResult,
     CompetitionEventSectionTimer,
     CompetitionEventSlot,
     CompetitionMockExam,
     CompetitionMockQuestion,
-    CompetitionMockQuestionOption,
     Student,
     User,
 )
@@ -184,6 +185,40 @@ def _GetOwnedAttemptOr404(db: Session, StudentRecord: Student, AttemptId: str) -
     if not AttemptRecord or AttemptRecord.student_id != StudentRecord.id:
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
     return AttemptRecord
+
+
+def _LockAttemptForUpdate(db: Session, AttemptId: str) -> CompetitionEventAttempt | None:
+    """Row-level lock (SELECT ... FOR UPDATE) on this one CompetitionEventAttempt
+    for the rest of the current transaction. Mirrors attempt_service.py's own
+    `_lock_attempt_for_update` exactly, and closes the exact same class of
+    bug it was built to fix (2026-09-04, Shailesh, DPS: a correct typed
+    answer landed in the DB but was scored wrong because save and submit
+    raced on two independent DB sessions) -- applied here because Point 8
+    (2026-09-08) gave Annual Competition the identical typed-answer save
+    path, and because _EnsureActiveSectionOrAdvance's lazy auto-advance
+    means SaveCompetitionEventAnswer, SubmitCompetitionEventSection, and
+    RecordCompetitionEventHeartbeat can EACH independently be the request
+    that finalizes and scores an attempt (see _AdvanceOrFinalize). Called at
+    the top of the critical section in all three, right after ownership is
+    already confirmed via _GetOwnedAttemptOr404 -- whichever request gets
+    here first for a given attempt now fully completes (write the answer;
+    or read every answer and finalize/score) before the other can even
+    read, instead of racing a stale snapshot. Shailesh, 2026-09-08: "make
+    sure the correct answer is always flagged as correct" -- this is the
+    half of that guarantee that isn't about the comparison logic itself
+    (see answers_match()), it's about never letting a correct save lose a
+    race against a concurrent finalize.
+
+    Falls back to a plain (unlocked) read for a DB backend that doesn't
+    support row locking (SQLite, used in tests) -- same documented
+    fallback as the DPS precedent, and safe for the same reason (SQLite is
+    single-writer by nature)."""
+    return (
+        db.query(CompetitionEventAttempt)
+        .filter(CompetitionEventAttempt.id == AttemptId)
+        .with_for_update()
+        .first()
+    )
 
 
 def _VerifySessionToken(AttemptRecord: CompetitionEventAttempt, SessionToken: str | None) -> None:
@@ -355,9 +390,32 @@ def _EnsureActiveSectionOrAdvance(db: Session, AttemptRecord: CompetitionEventAt
 # Payloads
 # ---------------------------------------------------------------------------
 
-def _SectionStatePayload(SectionState: CompetitionEventAttemptSectionState) -> dict[str, Any]:
+def _SectionTimerLookup(db: Session, LevelPaperId: str | None) -> dict[int, CompetitionEventSectionTimer]:
+    """section_number -> CompetitionEventSectionTimer for one level paper.
+    Point 5 fix (Shailesh, 2026-09-08): the attempt screen previously had no
+    way to show a section's name or mode (ABACUS/VISUAL/...) at all --
+    _SectionStatePayload sent neither. CompetitionEventSectionTimer is the
+    same source of truth the instructions screen and admin Slots/Papers
+    tabs already read section names/modes from, so this reuses it rather
+    than inventing a second copy of that data (e.g. off
+    CompetitionMockQuestion.section_title, which also exists but is the
+    practice-mock generator's own registry, not necessarily this real
+    event's section shape)."""
+    if not LevelPaperId:
+        return {}
+    Timers = (
+        db.query(CompetitionEventSectionTimer)
+        .filter(CompetitionEventSectionTimer.level_paper_id == LevelPaperId)
+        .all()
+    )
+    return {Timer.section_number: Timer for Timer in Timers}
+
+
+def _SectionStatePayload(SectionState: CompetitionEventAttemptSectionState, TimerRecord: CompetitionEventSectionTimer | None = None) -> dict[str, Any]:
     return {
         "sectionNumber": SectionState.section_number,
+        "sectionTitle": TimerRecord.section_title if TimerRecord else None,
+        "mode": TimerRecord.mode if TimerRecord else None,
         "status": SectionState.status,
         "timeLimitSeconds": SectionState.time_limit_seconds,
         "remainingSeconds": SectionState.remaining_seconds_at_last_heartbeat,
@@ -366,25 +424,28 @@ def _SectionStatePayload(SectionState: CompetitionEventAttemptSectionState) -> d
     }
 
 
-def _QuestionOptionPayload(OptionRecord: CompetitionMockQuestionOption) -> dict[str, Any]:
-    # is_correct is deliberately never included -- this payload reaches the
-    # student's own browser mid-attempt. Keys are "label"/"value" (not
-    # "optionLabel"/"optionValue") to match the existing McqOption frontend
-    # type and OptionButton component (see competition_mock_attempt_service.py's
-    # own question-payload builder) -- this reuses that component directly
-    # rather than needing a field-name adapter in the new attempt screen.
-    return {
-        "optionId": OptionRecord.id,
-        "label": OptionRecord.option_label,
-        "value": OptionRecord.option_value,
-    }
-
-
 def _ActiveSectionQuestionsPayload(db: Session, AttemptRecord: CompetitionEventAttempt, ActiveSectionState: CompetitionEventAttemptSectionState) -> list[dict[str, Any]]:
     """Only ever the CURRENT active section's questions -- sections are
     locked sequentially (REQUIREMENTS.md "one sitting"), so there is no
     cross-section review/navigation the way Competition Mock allows across
-    its one flat question list."""
+    its one flat question list.
+
+    Point 5 fix (Shailesh, 2026-09-08): questionNumber is now the
+    question's 1-based position WITHIN this section (enumerate() below),
+    not CompetitionMockQuestion.question_number -- that column is a GLOBAL
+    number across the whole underlying mock exam (e.g. section 2 can start
+    at global number 7), which is exactly why the frontend used to show
+    "Question 7 of 6" from section 2 onward: the header text and the
+    question-navigator bar both compared this number against
+    questions.length (a per-section count), and they only ever agreed for
+    section 1. The query still ORDERs BY the global question_number (a
+    stable, already-correct ordering within one section), only the number
+    *shown* changes.
+
+    Point 8 (Shailesh, 2026-09-08): options/savedOptionId are gone -- the
+    attempt screen is now DPS-style typed-answer, not MCQ. savedAnswerText
+    mirrors DPS's own AttemptPayload field name exactly so the frontend can
+    reuse the same AnswerInputBox/QuestionCard components unmodified."""
     LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id)
     MockExamId = LevelPaperRecord.mock_exam_id if LevelPaperRecord else None
     QuestionRecords = (
@@ -403,24 +464,21 @@ def _ActiveSectionQuestionsPayload(db: Session, AttemptRecord: CompetitionEventA
         for Answer in db.query(CompetitionEventAttemptAnswer).filter(CompetitionEventAttemptAnswer.attempt_id == AttemptRecord.id).all()
     }
     Payload: list[dict[str, Any]] = []
-    for QuestionRecord in QuestionRecords:
-        Options = (
-            db.query(CompetitionMockQuestionOption)
-            .filter(CompetitionMockQuestionOption.mock_question_id == QuestionRecord.id)
-            .order_by(CompetitionMockQuestionOption.display_order.asc())
-            .all()
-        )
+    for LocalQuestionNumber, QuestionRecord in enumerate(QuestionRecords, start=1):
         ExistingAnswer = AnswersByQuestionId.get(QuestionRecord.id)
         Payload.append(
             {
                 "questionId": QuestionRecord.id,
-                "questionNumber": QuestionRecord.question_number,
+                "questionNumber": LocalQuestionNumber,
                 "displayType": QuestionRecord.display_type,
                 "questionText": QuestionRecord.question_text,
                 "operands": _json_loads_list(QuestionRecord.operands_json),
                 "operators": _json_loads_list(QuestionRecord.operators_json),
-                "options": [_QuestionOptionPayload(OptionRecord) for OptionRecord in Options],
-                "savedOptionId": ExistingAnswer.selected_option_id if ExistingAnswer else None,
+                # correct_answer is deliberately never included here -- this
+                # payload reaches the student's own browser mid-attempt,
+                # same guarantee _QuestionOptionPayload's is_correct
+                # omission already made for the old MCQ shape.
+                "savedAnswerText": ExistingAnswer.selected_value if ExistingAnswer else None,
             }
         )
     return Payload
@@ -440,6 +498,7 @@ def _AttemptPayload(
     db: Session, AttemptRecord: CompetitionEventAttempt, *, IncludeSessionToken: bool = False, IncludeQuestions: bool = False
 ) -> dict[str, Any]:
     Sections = _AllSectionsOrdered(db, AttemptRecord)
+    TimersBySectionNumber = _SectionTimerLookup(db, AttemptRecord.level_paper_id)
     Payload: dict[str, Any] = {
         "attemptId": AttemptRecord.id,
         "eventId": AttemptRecord.event_id,
@@ -449,7 +508,10 @@ def _AttemptPayload(
         "currentSectionNumber": AttemptRecord.current_section_number,
         "startedAt": AttemptRecord.started_at.isoformat() if AttemptRecord.started_at else None,
         "submittedAt": AttemptRecord.submitted_at.isoformat() if AttemptRecord.submitted_at else None,
-        "sections": [_SectionStatePayload(SectionState) for SectionState in Sections],
+        "sections": [
+            _SectionStatePayload(SectionState, TimersBySectionNumber.get(SectionState.section_number))
+            for SectionState in Sections
+        ],
     }
     if IncludeSessionToken:
         Payload["sessionToken"] = AttemptRecord.session_token
@@ -624,6 +686,12 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
 
 def GetCompetitionEventAttemptForStudent(db: Session, StudentRecord: Student, AttemptId: str) -> dict[str, Any]:
     AttemptRecord = _GetOwnedAttemptOr404(db, StudentRecord, AttemptId)
+    # A plain read otherwise, but _EnsureActiveSectionOrAdvance below can
+    # still lazily finalize+score this attempt (e.g. the bootstrap GET on
+    # page load/refresh lands after the last section's time already ran
+    # out) -- same race this file's other finalize-capable entry points
+    # guard against; see _LockAttemptForUpdate's own docstring.
+    AttemptRecord = _LockAttemptForUpdate(db, AttemptId) or AttemptRecord
     NowUtc = _NowUtc()
     _EnsureActiveSectionOrAdvance(db, AttemptRecord, NowUtc)
     db.commit()
@@ -635,6 +703,11 @@ def RecordCompetitionEventHeartbeat(
     db: Session, StudentRecord: Student, AttemptId: str, SessionToken: str | None, SectionNumber: int
 ) -> dict[str, Any]:
     AttemptRecord = _GetOwnedAttemptOr404(db, StudentRecord, AttemptId)
+    # See _LockAttemptForUpdate's own docstring: this can be the request
+    # that lazily finalizes+scores the attempt (via _EnsureActiveSectionOrAdvance
+    # below), so it takes the same row lock SaveCompetitionEventAnswer and
+    # SubmitCompetitionEventSection do before touching anything.
+    AttemptRecord = _LockAttemptForUpdate(db, AttemptId) or AttemptRecord
     NowUtc = _NowUtc()
     _EnsureActiveSectionOrAdvance(db, AttemptRecord, NowUtc)
     if AttemptRecord.status != IN_PROGRESS_STATUS:
@@ -678,6 +751,7 @@ def SubmitCompetitionEventSection(
     without waiting for the timer to run out. Shares the same session-
     token guard and section-identity check as the heartbeat path."""
     AttemptRecord = _GetOwnedAttemptOr404(db, StudentRecord, AttemptId)
+    AttemptRecord = _LockAttemptForUpdate(db, AttemptId) or AttemptRecord  # see _LockAttemptForUpdate docstring
     NowUtc = _NowUtc()
     _EnsureActiveSectionOrAdvance(db, AttemptRecord, NowUtc)
     if AttemptRecord.status != IN_PROGRESS_STATUS:
@@ -711,16 +785,30 @@ def SaveCompetitionEventAnswer(
     SessionToken: str | None,
     SectionNumber: int,
     QuestionId: str,
-    SelectedOptionId: str,
+    AnswerText: str,
 ) -> dict[str, Any]:
-    """Mirrors SaveCompetitionMockAnswer's exact pattern (ownership check ->
-    lazy self-correct -> question/option validation -> upsert), but layers
-    on the same session-token + active-section guards every other mutating
-    entry point in this file already enforces, since a section-locked exam
-    (no cross-section navigation, unlike Competition Mock's flat question
-    list) means an answer for a question outside the currently-active
-    section is never valid, not just stale."""
+    """Point 8 (Shailesh, 2026-09-08): typed free-text answer, matching
+    DPS's save_answer(), not an MCQ pick -- mirrors DPS's ownership check ->
+    lazy self-correct -> question validation -> grade-via-answers_match ->
+    upsert pattern, layered on the same session-token + active-section
+    guards every other mutating entry point in this file already enforces,
+    since a section-locked exam (no cross-section navigation, unlike
+    Competition Mock's flat question list) means an answer for a question
+    outside the currently-active section is never valid, not just stale.
+
+    Grading happens right here, synchronously, via the same answers_match()
+    DPS already uses against CompetitionMockQuestion.correct_answer (which
+    every competition question already carries regardless of the MCQ
+    options also generated alongside it -- see the model's own comment).
+    Shailesh, 2026-09-08: "make sure the correct answer is always flagged
+    as correct" -- reusing this one already-hardened comparison function
+    (rather than writing new comparison logic here) is how that holds for
+    every formatting variant (whitespace, leading zeros, unicode minus,
+    decimal padding) it already tolerates; _LockAttemptForUpdate below is
+    the other half of that guarantee (never losing a race against a
+    concurrent finalize)."""
     AttemptRecord = _GetOwnedAttemptOr404(db, StudentRecord, AttemptId)
+    AttemptRecord = _LockAttemptForUpdate(db, AttemptId) or AttemptRecord  # see _LockAttemptForUpdate docstring
     NowUtc = _NowUtc()
     _EnsureActiveSectionOrAdvance(db, AttemptRecord, NowUtc)
     if AttemptRecord.status != IN_PROGRESS_STATUS:
@@ -750,9 +838,7 @@ def SaveCompetitionEventAnswer(
     ):
         api_error(400, "INVALID_COMPETITION_QUESTION", "Question does not belong to the active section of this attempt.")
 
-    OptionRecord = db.get(CompetitionMockQuestionOption, SelectedOptionId)
-    if not OptionRecord or OptionRecord.mock_question_id != QuestionRecord.id:
-        api_error(400, "INVALID_COMPETITION_OPTION", "Option does not belong to this question.")
+    CleanAnswerText = (AnswerText or "").strip()
 
     AnswerRecord = (
         db.query(CompetitionEventAttemptAnswer)
@@ -765,13 +851,22 @@ def SaveCompetitionEventAnswer(
     if not AnswerRecord:
         AnswerRecord = CompetitionEventAttemptAnswer(attempt_id=AttemptRecord.id, mock_question_id=QuestionRecord.id)
         db.add(AnswerRecord)
-    AnswerRecord.selected_option_id = OptionRecord.id
-    AnswerRecord.is_correct = bool(OptionRecord.is_correct)
+    AnswerRecord.selected_option_id = None
+    AnswerRecord.selected_value = CleanAnswerText
+    # A cleared box (student erased their answer) must save as
+    # unanswered, not as "typed the empty string and got it wrong" --
+    # answers_match("", "") would actually return False (see its own
+    # student_stripped_all_ws guard), so this is an explicit check, not
+    # reliance on that function's behavior for blank input. Scoring
+    # (annual_competition_scoring_service._RawMetricsForAttempt) already
+    # treats a blank selected_value the same way it used to treat a null
+    # selected_option_id: unanswered, not wrong.
+    AnswerRecord.is_correct = answers_match(QuestionRecord.correct_answer, CleanAnswerText) if CleanAnswerText else None
 
     db.commit()
     db.refresh(AttemptRecord)
     # Returns the full attempt payload (including the refreshed
-    # activeSectionQuestions, each carrying its own savedOptionId) rather
+    # activeSectionQuestions, each carrying its own savedAnswerText) rather
     # than a lean ack -- unlike Competition Mock's flat single-timer
     # question list, this screen has nothing else driving a refetch after a
     # save, so the save response IS the frontend's source of truth for what
@@ -1037,3 +1132,125 @@ def ListAnnualCompetitionAttemptRetryGrants(db: Session, *, EventId: str) -> dic
         .all()
     )
     return {"grants": [_RetryGrantPayload(GrantRecord) for GrantRecord in Grants]}
+
+
+# --- Annual Competition (Point 7, Shailesh, 2026-09-08): admin per-question
+# attempt review --------------------------------------------------------
+# Every section, every question, the student's typed answer next to the
+# correct answer, for one specific attempt -- the audit view an admin needs
+# once results start coming in. Modeled on attempt_service.py's own
+# result_payload() (DPS) rather than competition_mock_attempt_service.py's
+# _question_review_payload(): both this feature (since Point 8) and DPS are
+# now the same typed-answer shape (studentAnswer/correctAnswer/isCorrect per
+# question), while Competition Mock's template is still MCQ-options-shaped
+# and would be the wrong thing to copy from here. Deliberately reads
+# CompetitionMockQuestion.correct_answer directly -- this is an admin-only
+# surface, so the "never expose correct_answer to the student's own browser"
+# rule _ActiveSectionQuestionsPayload documents does not apply here.
+def _AttemptReviewSectionPayload(
+    db: Session, AttemptRecord: CompetitionEventAttempt, SectionState: CompetitionEventAttemptSectionState,
+    TimerRecord: CompetitionEventSectionTimer | None, MockExamId: str | None,
+    AnswersByQuestionId: dict[str, CompetitionEventAttemptAnswer],
+) -> dict[str, Any]:
+    QuestionRecords = (
+        db.query(CompetitionMockQuestion)
+        .filter(
+            CompetitionMockQuestion.mock_exam_id == MockExamId,
+            CompetitionMockQuestion.section_number == SectionState.section_number,
+        )
+        .order_by(CompetitionMockQuestion.question_number.asc())
+        .all()
+        if MockExamId
+        else []
+    )
+    Questions: list[dict[str, Any]] = []
+    for LocalQuestionNumber, QuestionRecord in enumerate(QuestionRecords, start=1):
+        AnswerRecord = AnswersByQuestionId.get(QuestionRecord.id)
+        StudentAnswerText = (AnswerRecord.selected_value or "").strip() if AnswerRecord else ""
+        Questions.append(
+            {
+                "questionId": QuestionRecord.id,
+                "questionNumber": LocalQuestionNumber,
+                "displayType": QuestionRecord.display_type,
+                "questionText": QuestionRecord.question_text,
+                "operands": _json_loads_list(QuestionRecord.operands_json),
+                "operators": _json_loads_list(QuestionRecord.operators_json),
+                "studentAnswer": StudentAnswerText or None,
+                "correctAnswer": QuestionRecord.correct_answer,
+                "isUnanswered": not bool(StudentAnswerText),
+                # Re-derived via the same authoritative comparison used at
+                # save time (answers_match), rather than trusting the
+                # persisted is_correct verbatim -- belt-and-braces for
+                # exactly the correctness guarantee Shailesh called out as
+                # non-negotiable: this review screen must never itself
+                # disagree with what the student was actually scored on,
+                # and re-deriving it here catches drift if it ever occurs.
+                "isCorrect": answers_match(QuestionRecord.correct_answer, StudentAnswerText) if StudentAnswerText else False,
+            }
+        )
+    return {
+        "sectionNumber": SectionState.section_number,
+        "sectionTitle": TimerRecord.section_title if TimerRecord else None,
+        "mode": TimerRecord.mode if TimerRecord else None,
+        "status": SectionState.status,
+        "timeLimitSeconds": SectionState.time_limit_seconds,
+        "startedAt": SectionState.started_at.isoformat() if SectionState.started_at else None,
+        "submittedAt": SectionState.submitted_at.isoformat() if SectionState.submitted_at else None,
+        "questions": Questions,
+    }
+
+
+def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> dict[str, Any]:
+    AttemptRecord = db.get(CompetitionEventAttempt, AttemptId)
+    if not AttemptRecord:
+        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
+
+    EventRecord = db.get(CompetitionEvent, AttemptRecord.event_id)
+    AssignmentRecord = db.get(CompetitionEventAssignment, AttemptRecord.assignment_id)
+    StudentRecord = db.get(Student, AttemptRecord.student_id)
+    LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id)
+    MockExamId = LevelPaperRecord.mock_exam_id if LevelPaperRecord else None
+    ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
+
+    TimersBySectionNumber = _SectionTimerLookup(db, AttemptRecord.level_paper_id)
+    AnswersByQuestionId = {
+        Answer.mock_question_id: Answer
+        for Answer in db.query(CompetitionEventAttemptAnswer).filter(CompetitionEventAttemptAnswer.attempt_id == AttemptRecord.id).all()
+    }
+    Sections = [
+        _AttemptReviewSectionPayload(
+            db, AttemptRecord, SectionState, TimersBySectionNumber.get(SectionState.section_number), MockExamId, AnswersByQuestionId,
+        )
+        for SectionState in _AllSectionsOrdered(db, AttemptRecord)
+    ]
+
+    return {
+        "attemptId": AttemptRecord.id,
+        "eventId": AttemptRecord.event_id,
+        "eventName": EventRecord.name if EventRecord else None,
+        "studentId": AttemptRecord.student_id,
+        "studentCode": StudentRecord.student_code if StudentRecord else None,
+        "studentName": (StudentRecord.user.full_name if StudentRecord and StudentRecord.user else None),
+        "assignedLevelCode": AssignmentRecord.assigned_level_code if AssignmentRecord else None,
+        "status": AttemptRecord.status,
+        "startedAt": AttemptRecord.started_at.isoformat() if AttemptRecord.started_at else None,
+        "submittedAt": AttemptRecord.submitted_at.isoformat() if AttemptRecord.submitted_at else None,
+        "result": (
+            {
+                "score": ResultRecord.score,
+                "maxScore": ResultRecord.max_score,
+                "percentage": ResultRecord.percentage,
+                "accuracyPercentage": ResultRecord.accuracy_percentage,
+                "correctCount": ResultRecord.correct_count,
+                "wrongCount": ResultRecord.wrong_count,
+                "unansweredCount": ResultRecord.unanswered_count,
+                "timeTakenSeconds": ResultRecord.time_taken_seconds,
+                "rank": ResultRecord.rank,
+                "isReleased": ResultRecord.is_released,
+                "isVoided": ResultRecord.is_voided,
+            }
+            if ResultRecord
+            else None
+        ),
+        "sections": Sections,
+    }

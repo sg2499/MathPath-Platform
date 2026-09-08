@@ -121,6 +121,7 @@ from app.services.annual_competition_attempt_service import (
     ReconcileExpiredCompetitionEventAttempts,
     GrantAnnualCompetitionAttemptRetry,
     ListAnnualCompetitionAttemptRetryGrants,
+    GetCompetitionEventAttemptReviewForAdmin,
 )
 
 from app.services.annual_competition_scoring_service import (
@@ -6126,6 +6127,16 @@ def admin_unvoid_annual_competition_result(
 @router.get("/annual-competition/attempts/{attempt_id}/certificate")
 def admin_download_annual_competition_certificate(attempt_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return BuildAnnualCompetitionCertificateForAdmin(db, AttemptId=attempt_id)
+
+
+# Point 7 (Shailesh, 2026-09-08): the admin per-question attempt review
+# screen -- every section, every question, student answer vs. correct
+# answer, for one specific attempt. Admin-only, bypasses the release gate
+# entirely (same "admin always sees everything" convention as the
+# certificate download and /results endpoint just above).
+@router.get("/annual-competition/attempts/{attempt_id}/review")
+def admin_get_annual_competition_attempt_review(attempt_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id)
 
 
 # --- Annual Competition (Package 7): teacher/admin monitoring ---------------

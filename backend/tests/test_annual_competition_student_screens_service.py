@@ -232,38 +232,96 @@ def test_get_attempt_includes_active_section_questions_only():
     questions = result["activeSectionQuestions"]
     assert len(questions) == 2
     assert all(q["questionId"].startswith("q-1-") for q in questions)
-    assert questions[0]["savedOptionId"] is None
+    assert questions[0]["savedAnswerText"] is None
+    # Point 5 fix (2026-09-08): questionNumber is 1-based WITHIN this
+    # section, not CompetitionMockQuestion.question_number's global value
+    # (which for section 1's own questions happens to also be 1/2 here --
+    # see the dedicated global-vs-local test below for a section where
+    # this actually diverges and would have shown "Question 11 of 2"
+    # before the fix).
+    assert sorted(q["questionNumber"] for q in questions) == [1, 2]
     for q in questions:
-        assert "options" in q
-        assert all("optionId" in o and "label" in o and "value" in o for o in q["options"])
-        # is_correct must never leak to the student mid-attempt.
-        assert all("isCorrect" not in o and "is_correct" not in o for o in q["options"])
+        # Point 8 (2026-09-08): typed-answer shape, MCQ options gone
+        # entirely, and the correct answer is never sent to the student
+        # mid-attempt (mirrors the old is_correct-omission guarantee).
+        assert "options" not in q
+        assert "correctAnswer" not in q
+        assert "correct_answer" not in q
+
+
+def test_get_attempt_question_numbers_are_relative_to_the_active_section_not_global():
+    """The exact confirmed bug (Shailesh, 2026-09-08): section 2's
+    questions previously kept CompetitionMockQuestion.question_number's
+    GLOBAL numbering (11, 12 here, since section 1 already used 1, 2),
+    while the frontend's "Of {questions.length}" only ever counted the
+    current section -- producing "Question 11 of 2" instead of "Question 1
+    of 2". Advancing into section 2 below and asserting its questionNumbers
+    come back as [1, 2], not [11, 12], is the regression test for that."""
+    db = _session()
+    student, event, exam = _full_setup(db, section_seconds=(600, 300))
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id = started["attemptId"]
+
+    # Section 1's questions are globally numbered 1, 2 -- force its timer to
+    # zero (same established pattern as
+    # test_get_attempt_lazily_self_corrects_without_a_heartbeat in
+    # test_annual_competition_attempt_service.py) so section 2 (globally
+    # numbered 11, 12) becomes active.
+    section = db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=attempt_id, section_number=1).first()
+    section.remaining_seconds_at_last_heartbeat = 0
+    db.commit()
+
+    result = engine.GetCompetitionEventAttemptForStudent(db, student, attempt_id)
+    assert result["currentSectionNumber"] == 2
+    questions = result["activeSectionQuestions"]
+    assert all(q["questionId"].startswith("q-2-") for q in questions)
+    assert sorted(q["questionNumber"] for q in questions) == [1, 2]
+
+
+def test_get_attempt_section_state_includes_title_and_mode():
+    """Point 5 fix (2026-09-08): the attempt screen previously had no way
+    to show a section's name or ABACUS/VISUAL mode at all -- confirms
+    _SectionStatePayload now carries both, sourced from
+    CompetitionEventSectionTimer (the same source of truth the
+    instructions screen already reads from)."""
+    db = _session()
+    student, event, exam = _full_setup(db, section_seconds=(600, 300))
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+
+    result = engine.GetCompetitionEventAttemptForStudent(db, student, started["attemptId"])
+    section_one = next(s for s in result["sections"] if s["sectionNumber"] == 1)
+    assert section_one["sectionTitle"] == "Section 1"
+    assert section_one["mode"] == "MIXED"
 
 
 # ---------------------------------------------------------------------------
 # SaveCompetitionEventAnswer
 # ---------------------------------------------------------------------------
 
-def test_save_answer_upserts_and_reflects_in_saved_option_id():
+def test_save_answer_upserts_and_reflects_in_saved_answer_text():
+    """Point 8 (2026-09-08): typed free-text answer, matching DPS -- every
+    question in this file's fixtures has correct_answer="4" (see
+    _question_with_options)."""
     db = _session()
     student, event, exam = _full_setup(db)
     started = engine.StartCompetitionEventAttempt(db, student, event.id)
     attempt_id, token = started["attemptId"], started["sessionToken"]
 
-    result = engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "q-1-1", "q-1-1-opt-a")
+    result = engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "q-1-1", "4")
     saved_question = next(q for q in result["activeSectionQuestions"] if q["questionId"] == "q-1-1")
-    assert saved_question["savedOptionId"] == "q-1-1-opt-a"
+    assert saved_question["savedAnswerText"] == "4"
 
     answer_row = (
         db.query(CompetitionEventAttemptAnswer)
         .filter(CompetitionEventAttemptAnswer.attempt_id == attempt_id, CompetitionEventAttemptAnswer.mock_question_id == "q-1-1")
         .first()
     )
-    assert answer_row.selected_option_id == "q-1-1-opt-a"
+    assert answer_row.selected_value == "4"
+    assert answer_row.selected_option_id is None  # never written by the typed-answer save path
     assert answer_row.is_correct is True
 
     # Re-answering the same question upserts rather than duplicating.
-    engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "q-1-1", "q-1-1-opt-b")
+    engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "q-1-1", "5")
     count = (
         db.query(CompetitionEventAttemptAnswer)
         .filter(CompetitionEventAttemptAnswer.attempt_id == attempt_id, CompetitionEventAttemptAnswer.mock_question_id == "q-1-1")
@@ -271,8 +329,75 @@ def test_save_answer_upserts_and_reflects_in_saved_option_id():
     )
     assert count == 1
     db.refresh(answer_row)
-    assert answer_row.selected_option_id == "q-1-1-opt-b"
+    assert answer_row.selected_value == "5"
     assert answer_row.is_correct is False
+
+
+# Shailesh, 2026-09-08: "make sure the correct answer is always flagged as
+# correct and should never be incorrect ... we already fixed an issue where
+# the student had the correct answer but it was flagged as incorrect, in a
+# competition we cannot afford such mistakes at all." These four cases are
+# exactly the formatting-noise variants answers_match() (reused directly
+# here, not a new comparison) already tolerates -- pinned down explicitly
+# against a real SaveCompetitionEventAnswer() call, not just at the
+# answer_matching.py unit-test level, so a regression here is caught at the
+# same layer the bug would actually surface at.
+@pytest.mark.parametrize(
+    "typed_answer",
+    ["4", " 4 ", "04", "+4", "4.0", "4.00"],
+)
+def test_save_answer_a_correctly_typed_answer_is_never_flagged_wrong(typed_answer):
+    db = _session()
+    student, event, exam = _full_setup(db)
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+
+    engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "q-1-1", typed_answer)
+    answer_row = (
+        db.query(CompetitionEventAttemptAnswer)
+        .filter(CompetitionEventAttemptAnswer.attempt_id == attempt_id, CompetitionEventAttemptAnswer.mock_question_id == "q-1-1")
+        .first()
+    )
+    assert answer_row.is_correct is True, f"{typed_answer!r} should have matched correct_answer='4' but was flagged wrong"
+
+
+def test_save_answer_a_genuinely_different_value_is_flagged_wrong_not_tolerated():
+    """The other half of the same guarantee: answers_match() forgives
+    formatting noise but never an actual value difference -- confirms this
+    save path doesn't accidentally over-forgive."""
+    db = _session()
+    student, event, exam = _full_setup(db)
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+
+    engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "q-1-1", "5")
+    answer_row = (
+        db.query(CompetitionEventAttemptAnswer)
+        .filter(CompetitionEventAttemptAnswer.attempt_id == attempt_id, CompetitionEventAttemptAnswer.mock_question_id == "q-1-1")
+        .first()
+    )
+    assert answer_row.is_correct is False
+
+
+def test_save_answer_blank_text_is_unanswered_not_wrong():
+    """Clearing the box (student erases their answer) must save as
+    unanswered -- answers_match("4", "") is False, so this must be an
+    explicit early check in SaveCompetitionEventAnswer, not left to fall
+    through to answers_match and get marked wrong."""
+    db = _session()
+    student, event, exam = _full_setup(db)
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+
+    engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "q-1-1", "4")
+    engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "q-1-1", "   ")
+    answer_row = (
+        db.query(CompetitionEventAttemptAnswer)
+        .filter(CompetitionEventAttemptAnswer.attempt_id == attempt_id, CompetitionEventAttemptAnswer.mock_question_id == "q-1-1")
+        .first()
+    )
+    assert answer_row.selected_value == ""
+    assert answer_row.is_correct is None
 
 
 def test_save_answer_with_stale_session_token_is_rejected():
@@ -280,7 +405,7 @@ def test_save_answer_with_stale_session_token_is_rejected():
     student, event, exam = _full_setup(db)
     started = engine.StartCompetitionEventAttempt(db, student, event.id)
     with pytest.raises(HTTPException):
-        engine.SaveCompetitionEventAnswer(db, student, started["attemptId"], "not-the-real-token", 1, "q-1-1", "q-1-1-opt-a")
+        engine.SaveCompetitionEventAnswer(db, student, started["attemptId"], "not-the-real-token", 1, "q-1-1", "4")
 
 
 def test_save_answer_for_wrong_section_number_is_rejected():
@@ -288,7 +413,7 @@ def test_save_answer_for_wrong_section_number_is_rejected():
     student, event, exam = _full_setup(db, section_seconds=(600, 300))
     started = engine.StartCompetitionEventAttempt(db, student, event.id)
     with pytest.raises(HTTPException):
-        engine.SaveCompetitionEventAnswer(db, student, started["attemptId"], started["sessionToken"], 2, "q-1-1", "q-1-1-opt-a")
+        engine.SaveCompetitionEventAnswer(db, student, started["attemptId"], started["sessionToken"], 2, "q-1-1", "4")
 
 
 def test_save_answer_for_question_outside_active_section_is_rejected():
@@ -299,15 +424,7 @@ def test_save_answer_for_question_outside_active_section_is_rejected():
     student, event, exam = _full_setup(db, section_seconds=(600, 300))
     started = engine.StartCompetitionEventAttempt(db, student, event.id)
     with pytest.raises(HTTPException):
-        engine.SaveCompetitionEventAnswer(db, student, started["attemptId"], started["sessionToken"], 1, "q-2-1", "q-2-1-opt-a")
-
-
-def test_save_answer_with_option_from_a_different_question_is_rejected():
-    db = _session()
-    student, event, exam = _full_setup(db)
-    started = engine.StartCompetitionEventAttempt(db, student, event.id)
-    with pytest.raises(HTTPException):
-        engine.SaveCompetitionEventAnswer(db, student, started["attemptId"], started["sessionToken"], 1, "q-1-1", "q-1-2-opt-a")
+        engine.SaveCompetitionEventAnswer(db, student, started["attemptId"], started["sessionToken"], 1, "q-2-1", "4")
 
 
 def test_save_answer_after_attempt_submitted_returns_lean_payload_not_error():
@@ -317,7 +434,7 @@ def test_save_answer_after_attempt_submitted_returns_lean_payload_not_error():
     engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
 
     result = engine.SaveCompetitionEventAnswer(
-        db, student, started["attemptId"], started["sessionToken"], 1, "q-1-1", "q-1-1-opt-a"
+        db, student, started["attemptId"], started["sessionToken"], 1, "q-1-1", "4"
     )
     # FINALIZED, not just SUBMITTED: Package 6's scoring hook now runs
     # synchronously the moment the last section closes -- see

@@ -178,8 +178,12 @@ def _setup_student_with_questions(db, student_id, event_id, section_seconds, que
 
 
 def _answer(db, student, attempt_id, token, section_number, question_id, correct):
-    option_suffix = "-opt-a" if correct else "-opt-b"
-    attempt_engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, section_number, question_id, f"{question_id}{option_suffix}")
+    # Point 8 (2026-09-08): typed free-text answer, matching DPS -- every
+    # question in this file's fixtures has correct_answer="4" (see
+    # _question_with_options), so "4" is always correct and "5" is always
+    # wrong, mirroring what the two MCQ options used to represent.
+    answer_text = "4" if correct else "5"
+    attempt_engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, section_number, question_id, answer_text)
 
 
 # ---------------------------------------------------------------------------

@@ -571,6 +571,12 @@ export async function getAnnualCompetitionInstructions(eventId: string): Promise
 
 export type AnnualCompetitionSectionState = {
   sectionNumber: number;
+  // Point 5 fix (2026-09-08): now sent by the backend so the attempt
+  // screen can show the section's actual name/mode instead of just its
+  // number -- null only for a section timer row seeded before this field
+  // existed and never re-saved.
+  sectionTitle: string | null;
+  mode: string | null;
   // PENDING | ACTIVE | COMPLETED | AUTO_SUBMITTED
   status: string;
   timeLimitSeconds: number;
@@ -579,6 +585,10 @@ export type AnnualCompetitionSectionState = {
   submittedAt: string | null;
 };
 
+// Point 8 (2026-09-08): typed free-text answer (DPS-style), not MCQ --
+// options/savedOptionId are gone. questionNumber is now 1-based WITHIN
+// this section (fixes the "Question 7 of 6" bug -- see the backend
+// service's own docstring on _ActiveSectionQuestionsPayload).
 export type AnnualCompetitionQuestion = {
   questionId: string;
   questionNumber: number;
@@ -586,8 +596,7 @@ export type AnnualCompetitionQuestion = {
   questionText?: string | null;
   operands: number[];
   operators: string[];
-  options: McqOption[];
-  savedOptionId: string | null;
+  savedAnswerText: string | null;
 };
 
 export type AnnualCompetitionAttempt = {
@@ -637,7 +646,7 @@ export async function submitAnnualCompetitionSection(
 
 export async function saveAnnualCompetitionAnswer(
   attemptId: string,
-  payload: { sessionToken: string; sectionNumber: number; questionId: string; selectedOptionId: string }
+  payload: { sessionToken: string; sectionNumber: number; questionId: string; answerText: string }
 ): Promise<AnnualCompetitionAttempt> {
   const { data } = await api.post<AnnualCompetitionAttempt>(`/student/annual-competition/attempts/${attemptId}/answers`, payload);
   return data;

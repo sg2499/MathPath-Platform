@@ -9,7 +9,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Brain, ClipboardList, Clock3, Hourglass, Layers3, PlayCircle, ShieldCheck, Trophy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 function FormatDuration(seconds: number) {
   const total = Math.max(0, Number(seconds || 0));
@@ -52,6 +52,21 @@ function AnnualCompetitionInstructionsContent() {
     onSuccess: (Data) => Router.push(`/student/competition/annual/attempt/${Data.attemptId}`),
   });
 
+  // Point 3 (Shailesh, 2026-09-08): "the start competition button ... should
+  // be disabled and should be enabled only when the slot timing is
+  // reached." Previously this button was always clickable and only ever
+  // showed an error banner *after* a failed click (the reactive
+  // IsSlotGated check below, driven off the server's own _CheckSlotGate on
+  // Start). That reactive check stays as a safety net for clock skew /
+  // stale data, but the button itself now proactively disables using a
+  // live client-side clock so a student can never click it before their
+  // slot opens in the first place.
+  const [NowMs, SetNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const IntervalId = window.setInterval(() => SetNowMs(Date.now()), 1000);
+    return () => window.clearInterval(IntervalId);
+  }, []);
+
   if (!Ready) return null;
 
   // The slot-gate check (_CheckSlotGate) only runs server-side, on Start --
@@ -62,6 +77,9 @@ function AnnualCompetitionInstructionsContent() {
   // failure.
   const SlotGateDetail = apiErrorDetail(Mutation.error);
   const IsSlotGated = SlotGateDetail?.code === "COMPETITION_SLOT_NOT_OPEN_YET";
+
+  const SlotStartAt = Query.data?.slot?.scheduledStartAt ? new Date(Query.data.slot.scheduledStartAt) : null;
+  const SlotTimeNotYetReached = Boolean(SlotStartAt && !Number.isNaN(SlotStartAt.getTime()) && NowMs < SlotStartAt.getTime());
 
   return (
     <AppShell title="Annual Competition">
@@ -74,11 +92,11 @@ function AnnualCompetitionInstructionsContent() {
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10">
               <div className="math-block-header mb-2"><Trophy size={14} /> Annual Competition · {Query.data.assignedLevelCode}</div>
-              <h1 className="mt-2 max-w-5xl text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
+              <h1 className="mt-2 w-full text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
                 {Query.data.eventName}
               </h1>
               <p className="math-subtitle !mt-2 max-w-3xl">
-                Review each section before you begin. Once started, sections run one at a time and cannot be revisited.
+                Read every section carefully before you begin. Sections run one at a time, in order, and cannot be revisited once submitted -- so make sure you're ready before you start.
               </p>
             </div>
           </div>
@@ -102,9 +120,6 @@ function AnnualCompetitionInstructionsContent() {
                           <Layers3 size={14} className="text-sky-600 dark:text-sky-300" />
                           Section {Section.sectionNumber}: {Section.sectionTitle}
                         </span>
-                        <span className="block mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                          {Section.mode ? `${Section.mode} · ` : ""}Focus: {Section.conceptFamily}
-                        </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 px-2 py-1 rounded-lg w-fit">
@@ -124,8 +139,13 @@ function AnnualCompetitionInstructionsContent() {
                   <ShieldCheck size={17} />
                   <p className="font-black">Before You Begin</p>
                 </div>
-                <ul className="mt-3 grid gap-2 text-sm font-semibold leading-6 text-blue-900/90 dark:text-blue-100 sm:grid-cols-2">
-                  {Query.data.instructions.map((Item) => <li key={Item} className="flex gap-2"><span>•</span><span>{Item}</span></li>)}
+                <ul className="mt-3 grid gap-2.5 text-sm font-semibold leading-6 text-blue-900/90 dark:text-blue-100 sm:grid-cols-2">
+                  {Query.data.instructions.map((Item) => (
+                    <li key={Item} className="flex min-w-0 items-start gap-2">
+                      <span className="shrink-0">•</span>
+                      <span className="min-w-0 flex-1 break-words">{Item}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -166,11 +186,20 @@ function AnnualCompetitionInstructionsContent() {
                   <p className="text-xs font-semibold leading-relaxed text-slate-500 dark:text-slate-400 mb-4">
                     Ready to begin? Each section is timed separately and locks once you move on -- your answers save automatically.
                   </p>
-                  <button className="math-button-primary w-full shadow-lg shadow-orange-500/20" disabled={Mutation.isPending || !EventId} onClick={() => Mutation.mutate()}>
+                  <button
+                    className="math-button-primary w-full shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={Mutation.isPending || !EventId || SlotTimeNotYetReached}
+                    title={SlotTimeNotYetReached && SlotStartAt ? `Opens ${FormatDateTime(Query.data?.slot?.scheduledStartAt)}` : undefined}
+                    onClick={() => Mutation.mutate()}
+                  >
                     <PlayCircle size={18} />
-                    {Mutation.isPending ? "Starting..." : "Start Competition"}
+                    {SlotTimeNotYetReached ? "Not Open Yet" : Mutation.isPending ? "Starting..." : "Start Competition"}
                   </button>
-                  {IsSlotGated ? (
+                  {SlotTimeNotYetReached && SlotStartAt ? (
+                    <div className="mt-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50/80 p-3 text-xs font-bold text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/20 dark:text-amber-200">
+                      Your slot opens at {FormatDateTime(Query.data?.slot?.scheduledStartAt)}. This button unlocks automatically at that time.
+                    </div>
+                  ) : IsSlotGated ? (
                     <div className="mt-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50/80 p-3 text-xs font-bold text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/20 dark:text-amber-200">
                       Your slot hasn't opened yet. It opens at {FormatDateTime((SlotGateDetail?.details?.scheduledStartAt as string) || null)}.
                     </div>

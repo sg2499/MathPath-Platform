@@ -316,13 +316,13 @@ def test_full_rehearsal_across_five_slots_with_disconnects_and_abandonment():
     result = _simulate_disconnect_then_heartbeat(db, student_india, attempt_india, token_india, section_number=1, minutes_disconnected=20)
     assert result["sections"][0]["remainingSeconds"] == SECTION_SECONDS - engine.HEARTBEAT_GRACE_SECONDS  # capped, not 20 min
 
-    engine.SaveCompetitionEventAnswer(db, student_india, attempt_india, token_india, 1, f"{exam.id}-q-1-1", f"{exam.id}-q-1-1-opt-a")
+    engine.SaveCompetitionEventAnswer(db, student_india, attempt_india, token_india, 1, f"{exam.id}-q-1-1", "4")  # correct
     engine.SubmitCompetitionEventSection(db, student_india, attempt_india, token_india, 1)  # -> section 2 (VISUAL) active
 
     result = _simulate_disconnect_then_heartbeat(db, student_india, attempt_india, token_india, section_number=2, minutes_disconnected=15)
     assert result["sections"][1]["remainingSeconds"] == SECTION_SECONDS - engine.HEARTBEAT_GRACE_SECONDS
 
-    engine.SaveCompetitionEventAnswer(db, student_india, attempt_india, token_india, 2, f"{exam.id}-q-2-2", f"{exam.id}-q-2-2-opt-a")
+    engine.SaveCompetitionEventAnswer(db, student_india, attempt_india, token_india, 2, f"{exam.id}-q-2-2", "4")  # correct
     final_india = engine.SubmitCompetitionEventSection(db, student_india, attempt_india, token_india, 2)
     assert final_india["status"] == "FINALIZED"  # last section closed -> scored via the Package 6 hook
 
@@ -333,9 +333,9 @@ def test_full_rehearsal_across_five_slots_with_disconnects_and_abandonment():
     #    engine module's own docstring). This is the "nothing went wrong"
     #    control path every rehearsal also needs.
     # -----------------------------------------------------------------
-    engine.SaveCompetitionEventAnswer(db, student_off_2, attempt_off_2, token_off_2, 1, f"{exam.id}-q-1-1", f"{exam.id}-q-1-1-opt-a")
+    engine.SaveCompetitionEventAnswer(db, student_off_2, attempt_off_2, token_off_2, 1, f"{exam.id}-q-1-1", "4")  # correct
     engine.SubmitCompetitionEventSection(db, student_off_2, attempt_off_2, token_off_2, 1)
-    engine.SaveCompetitionEventAnswer(db, student_off_2, attempt_off_2, token_off_2, 2, f"{exam.id}-q-2-2", f"{exam.id}-q-2-2-opt-a")
+    engine.SaveCompetitionEventAnswer(db, student_off_2, attempt_off_2, token_off_2, 2, f"{exam.id}-q-2-2", "4")  # correct
     final_off_2 = engine.SubmitCompetitionEventSection(db, student_off_2, attempt_off_2, token_off_2, 2)
     assert final_off_2["status"] == "FINALIZED"
 
@@ -377,9 +377,9 @@ def test_full_rehearsal_across_five_slots_with_disconnects_and_abandonment():
 
     # Now let student_intl actually finish, with one wrong answer, so
     # ranking below has a genuinely mixed field to sort.
-    engine.SaveCompetitionEventAnswer(db, student_intl, attempt_intl, token_intl, 1, f"{exam.id}-q-1-1", f"{exam.id}-q-1-1-opt-a")
+    engine.SaveCompetitionEventAnswer(db, student_intl, attempt_intl, token_intl, 1, f"{exam.id}-q-1-1", "4")  # correct
     engine.SubmitCompetitionEventSection(db, student_intl, attempt_intl, token_intl, 1)
-    engine.SaveCompetitionEventAnswer(db, student_intl, attempt_intl, token_intl, 2, f"{exam.id}-q-2-2", f"{exam.id}-q-2-2-opt-b")  # wrong
+    engine.SaveCompetitionEventAnswer(db, student_intl, attempt_intl, token_intl, 2, f"{exam.id}-q-2-2", "5")  # wrong
     final_intl = engine.SubmitCompetitionEventSection(db, student_intl, attempt_intl, token_intl, 2)
     assert final_intl["status"] == "FINALIZED"
 

@@ -54,10 +54,50 @@ def test_ensure_annual_competition_tables_backfilled_answers_table_has_expected_
     schema_migration.ensure_annual_competition_tables()
 
     columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_attempt_answers")}
+    # selected_value (Point 8, 2026-09-08): typed free-text answer column,
+    # added alongside the pre-existing (now-unused-by-the-save-path, but
+    # still-present) selected_option_id -- see ensure_annual_competition_
+    # answer_text_column's own docstring for why a brand-new environment
+    # gets this straight from the CREATE TABLE rather than relying only on
+    # the self-heal ALTER path.
     assert columns == {
-        "id", "attempt_id", "mock_question_id", "selected_option_id",
+        "id", "attempt_id", "mock_question_id", "selected_option_id", "selected_value",
         "is_correct", "answered_at", "updated_at",
     }
+
+
+def test_ensure_annual_competition_answer_text_column_backfills_existing_table(monkeypatch):
+    """The self-heal path (schema_migration.ensure_annual_competition_answer_text_column):
+    an environment that already ran ensure_annual_competition_tables() before
+    selected_value existed must still get the column added via ALTER TABLE,
+    not just on a brand-new CREATE TABLE."""
+    test_engine = _isolated_engine()
+    monkeypatch.setattr(schema_migration, "engine", test_engine)
+
+    with test_engine.begin() as connection:
+        connection.execute(sa.text("""
+            CREATE TABLE competition_event_attempt_answers (
+                id VARCHAR PRIMARY KEY,
+                attempt_id VARCHAR NOT NULL,
+                mock_question_id VARCHAR NOT NULL,
+                selected_option_id VARCHAR,
+                is_correct BOOLEAN,
+                answered_at TIMESTAMP,
+                updated_at TIMESTAMP
+            )
+        """))
+
+    columns_before = {c["name"] for c in inspect(test_engine).get_columns("competition_event_attempt_answers")}
+    assert "selected_value" not in columns_before
+
+    schema_migration.ensure_annual_competition_answer_text_column()
+
+    columns_after = {c["name"] for c in inspect(test_engine).get_columns("competition_event_attempt_answers")}
+    assert "selected_value" in columns_after
+
+    # Idempotent -- running it again against an already-migrated table must
+    # not error (no duplicate-column ALTER).
+    schema_migration.ensure_annual_competition_answer_text_column()
 
 
 def test_ensure_annual_competition_tables_retry_grants_table_has_expected_columns(monkeypatch):
