@@ -702,6 +702,159 @@ def test_manual_override_unknown_student_identifier_is_a_clean_404():
 
 
 # ---------------------------------------------------------------------------
+# Manual override -- auto-linking a matching slot (2026-09-08 regression)
+#
+# Found live: an admin created an IM-L4 slot, then manually overrode two
+# students to IM-L4, and their assignments never picked up the slot -- the
+# student-facing card kept saying "No specific slot assigned yet" even
+# though a matching slot existed. Root cause: OverrideCompetitionEventAssignment
+# accepted an optional SlotId but nothing ever passed one (the admin form has
+# no slot picker), so slot_id was unconditionally written as None every time.
+# Fixed by auto-matching an active slot whose applicable_level_codes includes
+# the assigned level when no explicit SlotId is given.
+# ---------------------------------------------------------------------------
+
+def test_manual_override_auto_links_the_one_matching_slot():
+    db = _session()
+    module, level = _module_and_level(db, "IM", "IM-L4", "Intermediate Level 4")
+    admin = _admin(db)
+    user = User(id="user-s1", full_name="S1", email="s1@example.test", password_hash="x", role="STUDENT", is_active=True)
+    student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
+    db.add_all([user, student])
+    _event(db)
+    db.commit()
+
+    slot = studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="ONLINE_INDIA",
+        ScheduledStartAt=datetime(2026, 10, 11, 10, 30, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 11, 5, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["IM-L4"],
+    )
+
+    result = studio.OverrideCompetitionEventAssignment(
+        db, EventId="event-1", StudentId="s1", AssignedLevelCode="IM-L4", OverriddenBy=admin
+    )
+    assert result["slotId"] == slot["slotId"]
+    AssignmentRow = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").one()
+    assert AssignmentRow.slot_id == slot["slotId"]
+
+
+def test_manual_override_leaves_slot_unset_when_no_slot_matches_the_level():
+    db = _session()
+    module, level = _module_and_level(db, "IM", "IM-L4", "Intermediate Level 4")
+    admin = _admin(db)
+    user = User(id="user-s1", full_name="S1", email="s1@example.test", password_hash="x", role="STUDENT", is_active=True)
+    student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
+    db.add_all([user, student])
+    _event(db)
+    db.commit()
+
+    # A slot exists, but for a different level entirely -- must not be
+    # picked up for an IM-L4 override.
+    studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="ONLINE_INDIA",
+        ScheduledStartAt=datetime(2026, 10, 11, 10, 30, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 11, 5, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["MM-L1"],
+    )
+
+    result = studio.OverrideCompetitionEventAssignment(
+        db, EventId="event-1", StudentId="s1", AssignedLevelCode="IM-L4", OverriddenBy=admin
+    )
+    assert result["slotId"] is None
+
+
+def test_manual_override_leaves_slot_unset_when_two_slots_ambiguously_match():
+    """A genuine admin misconfiguration (the same level listed on two
+    overlapping slots) must not be silently resolved by guessing one --
+    left unset so the admin notices and fixes the overlap by hand."""
+    db = _session()
+    module, level = _module_and_level(db, "IM", "IM-L4", "Intermediate Level 4")
+    admin = _admin(db)
+    user = User(id="user-s1", full_name="S1", email="s1@example.test", password_hash="x", role="STUDENT", is_active=True)
+    student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
+    db.add_all([user, student])
+    _event(db)
+    db.commit()
+
+    studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="OFFLINE",
+        ScheduledStartAt=datetime(2026, 10, 11, 10, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 10, 35, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["IM-L4"],
+    )
+    studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="ONLINE_INDIA",
+        ScheduledStartAt=datetime(2026, 10, 11, 14, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 14, 35, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["IM-L4"],
+    )
+
+    result = studio.OverrideCompetitionEventAssignment(
+        db, EventId="event-1", StudentId="s1", AssignedLevelCode="IM-L4", OverriddenBy=admin
+    )
+    assert result["slotId"] is None
+
+
+def test_manual_override_ignores_an_inactive_slot_for_the_level():
+    db = _session()
+    module, level = _module_and_level(db, "IM", "IM-L4", "Intermediate Level 4")
+    admin = _admin(db)
+    user = User(id="user-s1", full_name="S1", email="s1@example.test", password_hash="x", role="STUDENT", is_active=True)
+    student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
+    db.add_all([user, student])
+    _event(db)
+    db.commit()
+
+    DeletedSlot = studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="OFFLINE",
+        ScheduledStartAt=datetime(2026, 10, 11, 10, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 10, 35, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["IM-L4"],
+    )
+    studio.UpdateCompetitionEventSlot(db, SlotId=DeletedSlot["slotId"], IsActive=False)
+
+    result = studio.OverrideCompetitionEventAssignment(
+        db, EventId="event-1", StudentId="s1", AssignedLevelCode="IM-L4", OverriddenBy=admin
+    )
+    assert result["slotId"] is None
+
+
+def test_manual_override_still_honors_an_explicit_slot_id_when_given():
+    """The optional SlotId param predates this fix and is left in place for
+    a future caller (e.g. an admin picking a slot explicitly when a level is
+    genuinely split across two slots) -- auto-match must only kick in when
+    the caller passes nothing."""
+    db = _session()
+    module, level = _module_and_level(db, "IM", "IM-L4", "Intermediate Level 4")
+    admin = _admin(db)
+    user = User(id="user-s1", full_name="S1", email="s1@example.test", password_hash="x", role="STUDENT", is_active=True)
+    student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
+    db.add_all([user, student])
+    _event(db)
+    db.commit()
+
+    SlotA = studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="OFFLINE",
+        ScheduledStartAt=datetime(2026, 10, 11, 10, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 10, 35, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["IM-L4"],
+    )
+    SlotB = studio.CreateCompetitionEventSlot(
+        db, EventId="event-1", Mode="ONLINE_INDIA",
+        ScheduledStartAt=datetime(2026, 10, 11, 14, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 14, 35, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["IM-L4"],
+    )
+
+    result = studio.OverrideCompetitionEventAssignment(
+        db, EventId="event-1", StudentId="s1", AssignedLevelCode="IM-L4", OverriddenBy=admin, SlotId=SlotB["slotId"]
+    )
+    assert result["slotId"] == SlotB["slotId"]
+    assert result["slotId"] != SlotA["slotId"]
+
+
+# ---------------------------------------------------------------------------
 # Default section timers -- self-consistency against REQUIREMENTS.md totals
 # ---------------------------------------------------------------------------
 

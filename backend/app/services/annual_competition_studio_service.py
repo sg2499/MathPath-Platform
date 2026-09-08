@@ -437,6 +437,49 @@ def ListCompetitionEventSlots(db: Session, EventId: str) -> list[dict[str, Any]]
     return [_SlotPayload(SlotRecord) for SlotRecord in Slots]
 
 
+def _ResolveSlotIdForLevelCode(db: Session, EventId: str, AssignedLevelCode: str) -> str | None:
+    """2026-09-08: found live, not hypothetically -- neither
+    OverrideCompetitionEventAssignment nor RunAnnualCompetitionAssignmentEngine
+    ever wrote CompetitionEventAssignment.slot_id, anywhere, for any student.
+    _CheckSlotGate (annual_competition_attempt_service.py) only fires when
+    slot_id is set, so the entire slot-gated-start feature was silently dead
+    for every real assignment -- a student's card always read "No specific
+    slot assigned yet -- you can start once the paper is ready" regardless
+    of a matching slot existing, exactly what Shailesh saw testing IM-L4 on
+    "Test-1" the same day a slot for it was created.
+
+    Fix: auto-match by level code at write time, the same way a human would
+    read this data -- an active slot whose applicable_level_codes_json
+    contains this level. If exactly one active slot claims this level,
+    link to it. If zero claim it, leave slot_id unset (the existing, correct
+    "no slot configured yet, start anytime" fallback -- not every event needs
+    slots). If more than one claims it, that is a genuine admin
+    misconfiguration (the same level assigned to two overlapping slots) --
+    refuse to guess which one and leave slot_id unset rather than silently
+    picking one, consistent with this project's "no silent guessing"
+    convention; ListCompetitionEventSlots already surfaces every slot for an
+    admin to fix the overlap by hand.
+    """
+    import json
+
+    Slots = (
+        db.query(CompetitionEventSlot)
+        .filter(CompetitionEventSlot.event_id == EventId, CompetitionEventSlot.is_active == True)
+        .all()
+    )
+    MatchingSlotIds = []
+    for SlotRecord in Slots:
+        try:
+            LevelCodes = json.loads(SlotRecord.applicable_level_codes_json or "[]")
+        except Exception:
+            LevelCodes = []
+        if AssignedLevelCode in LevelCodes:
+            MatchingSlotIds.append(SlotRecord.id)
+    if len(MatchingSlotIds) == 1:
+        return MatchingSlotIds[0]
+    return None
+
+
 def SlotsWithInsufficientDuration(db: Session, EventId: str) -> list[dict[str, Any]]:
     """Surfaces REQUIREMENTS.md item 7 (and any future equivalent) as a
     computed check, not a one-time note: any active slot whose window is
@@ -767,6 +810,11 @@ def OverrideCompetitionEventAssignment(
         SlotRecord = db.get(CompetitionEventSlot, SlotId)
         if not SlotRecord or SlotRecord.event_id != EventId:
             api_error(404, "COMPETITION_SLOT_NOT_FOUND", "The selected slot was not found for this event.")
+    else:
+        # No caller passes an explicit SlotId today (the admin override form
+        # has no slot picker) -- auto-match by level code so this path isn't
+        # silently dead. See _ResolveSlotIdForLevelCode's own docstring.
+        SlotId = _ResolveSlotIdForLevelCode(db, EventId, AssignedLevelCode)
 
     AssignmentRecord = (
         db.query(CompetitionEventAssignment)
